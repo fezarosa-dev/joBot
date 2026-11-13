@@ -24,6 +24,8 @@ Ele junta, filtra e organiza vagas de muitos sites num painel bonito que roda no
 [![dados: no seu computador](https://img.shields.io/badge/dados-no%20seu%20computador-success?style=flat-square)](#privacidade-e-seguranca)
 [![IA: opcional](https://img.shields.io/badge/IA-opcional-blueviolet?style=flat-square)](#inteligencia-artificial)
 
+**Português** · [English](README.en.md)
+
 [Como funciona](#como-funciona) · [Instalação](#requisitos-e-instalacao) · [Roteiro](#roteiro) · [Perguntas frequentes](#perguntas-frequentes)
 
 </div>
@@ -48,6 +50,7 @@ Ele junta, filtra e organiza vagas de muitos sites num painel bonito que roda no
 - [Perguntas frequentes](#perguntas-frequentes)
 - [Decisões do projeto](#decisoes-do-projeto)
 - [Como contribuir](#como-contribuir)
+- [Histórico de estrelas](#historico-de-estrelas)
 - [Licença e avisos](#licenca-e-avisos)
 
 <a id="o-que-e"></a>
@@ -289,9 +292,8 @@ Pronto. A conta, a assinatura, os limites e o custo continuam sendo seus.
 A Anthropic não permite que apps de terceiros ofereçam login do Claude, mandem pedidos usando a assinatura das pessoas em nome delas, nem coletem, guardem ou repassem credenciais e tokens. O login precisa acontecer no fluxo da própria Anthropic ([política oficial](https://code.claude.com/docs/en/legal-and-compliance)). Apps que rodam o Claude Code também ficam sob os Termos Comerciais da Anthropic: o Claude Code não pode ser modificado e cada pessoa entra com a própria conta.
 O joBot não oferece login, não empacota nem modifica o Claude Code e nunca toca na sua credencial: cada pessoa usa a própria, no próprio computador.
 
-Mas há um ponto em aberto: o joBot chama o Claude Code de forma automática e agendada, usando a sua assinatura, e não está claro se isso conta como "mandar pedidos em nome da pessoa". Por enquanto, a decisão é manter essa opção com os cuidados acima.
-**A política da Anthropic será relida antes da publicação.** Se esse uso não for permitido, o padrão passa a ser a chave da API ou o modelo local.
-Detalhes na [ADR 0010](docs/decisions/0010-claude-code-da-pessoa.md) e em [duvidas.md](duvidas.md) (D1).
+Ele também não compartilha assinatura entre pessoas: cada um roda o próprio Claude Code e gasta só o limite da própria assinatura.
+Detalhes na [ADR 0010](docs/decisions/0010-claude-code-da-pessoa.md).
 
 <sub>Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthropic.</sub>
 
@@ -310,6 +312,7 @@ Detalhes na [ADR 0010](docs/decisions/0010-claude-code-da-pessoa.md) e em [duvid
 - **Áudio apagado.** A gravação é transcrita no seu computador e apagada logo depois.
 - **Gmail só leitura.** O acesso é só de leitura, com um projeto Google criado por você.
 - **Seus dados só saem** para os serviços que você ligar: Anthropic, Google ou Telegram, e outros serviços opcionais (veja as ADRs [0009](docs/decisions/0009-ia-backends-e-modelos.md) e [0014](docs/decisions/0014-seguranca-e-privacidade.md)).
+- **Achou uma falha de segurança?** Não abra issue pública. Siga a [política de segurança](.github/SECURITY.md).
 
 <a id="requisitos-e-instalacao"></a>
 ## 📦 Requisitos e instalação (planejada)
@@ -362,7 +365,7 @@ Cada fase só começa depois que a anterior passa nos testes. Não há datas pro
 | **5. Áudio e Gmail** | Respostas por voz e leitura de e-mails | ⚪ Planejada |
 | **6. Treino** | Aprender com o que você salva e descarta | ⚪ Planejada |
 | **7. Versão GitHub Pages** | Versão GitHub Pages, sem instalação | ⚪ Planejada |
-| **8. Publicação** | Instaladores, README com selos, revisão de segurança e versão em inglês do README | ⚪ Planejada |
+| **8. Publicação** | Instaladores, README com selos e revisão de segurança | ⚪ Planejada |
 
 <a id="perguntas-frequentes"></a>
 ## ❓ Perguntas frequentes
@@ -436,7 +439,7 @@ A ideia é rodar em computadores comuns, com 8 a 16 GB de RAM e sem placa de ví
 Cada decisão importante está registrada num documento curto, chamado ADR (registro de decisão de arquitetura).
 
 - **Índice:** [docs/decisions/README.md](docs/decisions/README.md)
-- **Dúvidas em aberto:** [duvidas.md](duvidas.md)
+- **Dúvidas (abertas e resolvidas):** [duvidas.md](duvidas.md)
 
 | Nº | Decisão |
 |---|---|
@@ -461,16 +464,32 @@ Cada decisão importante está registrada num documento curto, chamado ADR (regi
 <a id="como-contribuir"></a>
 ## 🤝 Como contribuir
 
-O repositório já está no GitHub, mas ainda não tem código. Contribuições externas vão ser aceitas depois da publicação (fase 8).
+O repositório já está no GitHub, mas ainda não tem código.
 
-Quando abrir, as regras serão:
+- **Sugestões e fontes de vagas** já podem ser enviadas pelas issues, com formulários prontos.
+- **Código** só depois da publicação (fase 8).
+- As regras completas estão no guia de contribuição.
 
-- **TDD em todo código:** escrever o teste, ver falhar, implementar, ver passar.
-- **Commits em português**, no formato `tipo(escopo): descrição`.
-- **Ramos** `feat/`, `fix/`, `docs/` ou `ci/` saindo da `dev`. A `main` só recebe PR vindo da `dev`.
-- **Qualidade:** ruff para estilo, mypy no modo estrito para tipos, pytest para testes.
-- **Sala limpa:** ideias e fatos públicos podem ser usados; código e dados de teste de terceiros nunca são copiados.
-- **Dependência nova** só com justificativa e licença compatível com MIT.
+Links úteis:
+
+- [Guia de contribuição](.github/CONTRIBUTING.md)
+- [Código de Conduta](.github/CODE_OF_CONDUCT.md)
+- [Política de segurança](.github/SECURITY.md)
+- [Suporte](.github/SUPPORT.md)
+- [Histórico de mudanças](CHANGELOG.md)
+
+<a id="historico-de-estrelas"></a>
+## ⭐ Histórico de estrelas
+
+Se o joBot te ajudar, deixe uma estrela no repositório.
+
+<a href="https://www.star-history.com/?repos=fezarosa-dev%2FjoBot&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=fezarosa-dev/joBot&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=fezarosa-dev/joBot&type=date&legend=top-left" />
+   <img alt="Gráfico do número de estrelas do joBot no GitHub ao longo do tempo" src="https://api.star-history.com/chart?repos=fezarosa-dev/joBot&type=date&legend=top-left" />
+ </picture>
+</a>
 
 <a id="licenca-e-avisos"></a>
 ## ⚖️ Licença e avisos
@@ -483,5 +502,5 @@ Quando abrir, as regras serão:
 ---
 
 <div align="center">
-<sub>Versão em inglês deste README: na publicação (fase 8).</sub>
+<sub>[Read this in English](README.en.md)</sub>
 </div>

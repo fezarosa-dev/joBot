@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Segurança / Security
+    url: https://github.com/fezarosa-dev/joBot/security/advisories/new
+    about: Achou uma falha de segurança? Use o relato privado, nunca uma issue pública. / Found a security flaw? Use the private report, never a public issue.
+  - name: Ajuda / Help
+    url: https://github.com/fezarosa-dev/joBot/blob/main/.github/SUPPORT.md
+    about: Precisa de ajuda ou tem uma dúvida? Veja a página de suporte. / Need help or have a question? See the support page.
+  - name: Código de Conduta / Code of Conduct
+    url: https://github.com/fezarosa-dev/joBot/blob/main/.github/CODE_OF_CONDUCT.md
+    about: Leia as regras de convivência da comunidade. / Read the community's rules of conduct.

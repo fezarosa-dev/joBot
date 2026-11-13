@@ -15,7 +15,7 @@ Estas decisões vieram de 9 rodadas de perguntas e respostas feitas em 2026-11-1
 | 0007 | [Tratamento das vagas: duplicadas, ciclo de vida, salário e rótulos](0007-tratamento-dos-dados.md) | aceita |
 | 0008 | [Painel e visual](0008-painel-e-visual.md) | aceita |
 | 0009 | [Inteligência artificial: opções, modelos e pacote offline](0009-ia-backends-e-modelos.md) | aceita |
-| 0010 | [Usar o Claude Code que a pessoa já tem (sem login dentro do joBot)](0010-claude-code-da-pessoa.md) | aceita, com ponto para confirmar (ver [duvidas.md](../../duvidas.md), D1) |
+| 0010 | [Usar o Claude Code que a pessoa já tem (sem login dentro do joBot)](0010-claude-code-da-pessoa.md) | aceita |
 | 0011 | [Perfil, currículo, primeira execução e áudio](0011-perfil-e-primeira-execucao.md) | aceita |
 | 0012 | [Extensão do navegador](0012-extensao-do-navegador.md) | aceita |
 | 0013 | [Gmail e avisos](0013-gmail-e-avisos.md) | aceita |
@@ -31,4 +31,4 @@ Estas decisões vieram de 9 rodadas de perguntas e respostas feitas em 2026-11-1
 3. Comece com o status `proposta`. Quando a decisão for confirmada, mude para `aceita`. Se outra decisão a trocar, mude para `substituída por NNNN`, com o número da nova.
 4. Acrescente a linha na tabela acima.
 
-Decisões que ainda dependem do dono do projeto ficam em [duvidas.md](../../duvidas.md).
+Decisões que dependem do dono do projeto, abertas e resolvidas, ficam em [duvidas.md](../../duvidas.md).
