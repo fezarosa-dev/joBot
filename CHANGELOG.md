@@ -17,7 +17,9 @@ O formato segue o [Keep a Changelog 1.1.0](https://keepachangelog.com/pt-BR/1.1.
 - Versão em inglês do README e dos arquivos de comunidade.
 - Código de Conduta, política de segurança, guia de contribuição, suporte, modelos de issue e de PR e CODEOWNERS.
 - `CITATION.cff`, `.editorconfig` e `.gitattributes`.
+- Imagem de prévia para redes sociais (`docs/imagens/previa-social.png`).
 
 ### Alterado
 
 - A dúvida D1 (uso do Claude Code da própria pessoa) foi resolvida pelo dono.
+- A dúvida D3 foi resolvida: denúncias do Código de Conduta vão para o e-mail do projeto.

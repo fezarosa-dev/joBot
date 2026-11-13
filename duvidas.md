@@ -28,11 +28,11 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 ## D3. Contato para denúncias do Código de Conduta
 
-**Status:** para confirmar
+**Status:** resolvida em 2026-11-13
 
-**Contexto:** o Código de Conduta pede um contato privado para denúncias. O dono vai criar um e-mail só do projeto.
+**Contexto:** o Código de Conduta pede um contato privado para denúncias.
 
-**Decisão provisória:** até lá, denúncias pela ferramenta de denúncia do GitHub. Quando o e-mail existir, ele entra no Código de Conduta, em português e em inglês.
+**Decisão:** o contato é o e-mail fezarosa@gmail.com, escolhido pelo dono do projeto. Ele está no Código de Conduta, em português e em inglês.
 
 **Link:** [`.github/CODE_OF_CONDUCT.md`](.github/CODE_OF_CONDUCT.md)
 
