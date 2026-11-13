@@ -16,7 +16,7 @@ O projeto é grande. Ir por fases deixa cada entrega testada antes da próxima. 
 - Fase 5, Áudio e Gmail. Status: planejada.
 - Fase 6, Treino. Status: planejada.
 - Fase 7, Versão GitHub Pages. Status: planejada.
-- Fase 8, Publicação: instaladores, README com selos, licença MIT, revisão de segurança e versão em inglês do README. Status: planejada.
+- Fase 8, Publicação: instaladores, README com selos, revisão de segurança e versão em inglês do README. Status: planejada.
 
 ## Consequências
 

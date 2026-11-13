@@ -5,7 +5,7 @@
 **Seu assistente pessoal de busca de vagas.**<br>
 Ele junta, filtra e organiza vagas de muitos sites num painel bonito que roda no seu próprio computador.
 
-[![licença MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-blue?style=flat-square)](#licenca-e-avisos)
+[![licença MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-blue?style=flat-square)](LICENSE)
 [![status: em desenvolvimento](https://img.shields.io/badge/status-em%20desenvolvimento-orange?style=flat-square)](#roteiro)
 [![Python 3.14](https://img.shields.io/badge/Python-3.14-3776AB?style=flat-square&logo=python&logoColor=white)](#requisitos-e-instalacao)
 [![plataformas: Linux | Windows | macOS](https://img.shields.io/badge/plataformas-Linux%20%7C%20Windows%20%7C%20macOS-lightgrey?style=flat-square)](#requisitos-e-instalacao)
@@ -362,7 +362,7 @@ Cada fase só começa depois que a anterior passa nos testes. Não há datas pro
 | **5. Áudio e Gmail** | Respostas por voz e leitura de e-mails | ⚪ Planejada |
 | **6. Treino** | Aprender com o que você salva e descarta | ⚪ Planejada |
 | **7. Versão GitHub Pages** | Versão GitHub Pages, sem instalação | ⚪ Planejada |
-| **8. Publicação** | Instaladores, README com selos, licença MIT, revisão de segurança e versão em inglês do README | ⚪ Planejada |
+| **8. Publicação** | Instaladores, README com selos, revisão de segurança e versão em inglês do README | ⚪ Planejada |
 
 <a id="perguntas-frequentes"></a>
 ## ❓ Perguntas frequentes
@@ -475,7 +475,7 @@ Quando abrir, as regras serão:
 <a id="licenca-e-avisos"></a>
 ## ⚖️ Licença e avisos
 
-- **Licença:** MIT. O arquivo `LICENSE` entra no repositório na publicação.
+- **Licença:** MIT. Veja o arquivo [`LICENSE`](LICENSE).
 - **Marcas:** Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthropic. As demais marcas citadas pertencem aos seus donos.
 - **Termos de uso:** respeite os termos de uso de cada site que você ligar.
 - **Uso pessoal:** o joBot é feito para uma pessoa organizar a própria busca de vagas.

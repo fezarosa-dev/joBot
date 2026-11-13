@@ -18,10 +18,10 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 ## D2. Titular do copyright no arquivo LICENSE
 
-**Status:** decidir antes da fase 8
+**Status:** resolvida em 2026-11-13
 
 **Contexto:** a licença MIT pede uma linha `Copyright (c) <ano> <titular>`.
 
-**Recomendação:** usar o nome público ou o apelido que vai aparecer no GitHub.
+**Decisão:** o titular é o apelido público do dono do projeto no GitHub. O arquivo [`LICENSE`](LICENSE) já está no repositório.
 
 **Link:** [ADR 0016](docs/decisions/0016-licenca-clean-room-e-processo.md)

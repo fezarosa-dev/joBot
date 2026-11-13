@@ -30,7 +30,7 @@ O projeto vai ser público e quer poder reaproveitar ideias de outros projetos s
 
 ## Consequências
 
-- O arquivo LICENSE entra na publicação (fase 8). O titular do copyright está em `duvidas.md` (D2).
+- O arquivo [`LICENSE`](../../LICENSE) (MIT) está no repositório desde 2026-11-13. O titular é o apelido público do dono do projeto no GitHub (ver `duvidas.md`, D2).
 
 ## Ver também
 

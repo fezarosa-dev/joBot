@@ -16,7 +16,7 @@ Procurar vaga hoje exige abrir muitos sites, repetir filtros e perder prazos. O 
 - Toda funcionalidade pode ser ligada ou desligada.
 - Uma pessoa por instalação, com várias buscas salvas.
 - Público: pessoas comuns, em computadores médios (8 a 16 GB de RAM, sem placa de vídeo dedicada), com Linux, Windows ou macOS.
-- Código aberto sob licença MIT, publicado no GitHub mais adiante (fase 8).
+- Código aberto sob licença MIT, no GitHub. A publicação para uso (instaladores) é a fase 8.
 
 ## Consequências
 
