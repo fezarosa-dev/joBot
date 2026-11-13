@@ -1,0 +1,66 @@
+name: Bug
+description: Algo não funciona como deveria. / Something does not work as it should.
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Obrigado por avisar! Conte o que aconteceu, com o máximo de detalhes.
+        Thanks for letting us know! Tell us what happened, with as much detail as you can.
+  - type: textarea
+    id: o-que-aconteceu
+    attributes:
+      label: O que aconteceu? / What happened?
+      description: Descreva o problema. / Describe the problem.
+    validations:
+      required: true
+  - type: textarea
+    id: passos
+    attributes:
+      label: Passos para reproduzir / Steps to reproduce
+      description: Liste os passos, um por linha. / List the steps, one per line.
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: textarea
+    id: esperado
+    attributes:
+      label: O que você esperava? / What did you expect?
+      description: Diga o que deveria ter acontecido. / Say what should have happened.
+    validations:
+      required: true
+  - type: input
+    id: versao
+    attributes:
+      label: Versão do joBot (opcional) / joBot version (optional)
+      description: Se souber, diga a versão. / If you know it, give the version.
+  - type: dropdown
+    id: sistema
+    attributes:
+      label: Sistema operacional / Operating system
+      options:
+        - Linux
+        - Windows
+        - macOS
+        - Outro / Other
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Registro ou log (opcional) / Log output (optional)
+      description: Cole aqui mensagens de erro. Apague dados pessoais antes. / Paste error messages here. Remove personal data first.
+      render: text
+  - type: checkboxes
+    id: conferencia
+    attributes:
+      label: Conferência / Checks
+      options:
+        - label: Procurei uma issue igual e não achei. / I looked for the same issue and did not find one.
+          required: true
+        - label: Isto não é uma falha de segurança. Se for, vou usar o relato privado. / This is not a security flaw. If it is, I will use the private report.
+          required: true

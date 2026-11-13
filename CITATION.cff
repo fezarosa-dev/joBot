@@ -1,0 +1,16 @@
+cff-version: 1.2.0
+message: "Se você usar o joBot, cite assim. / If you use joBot, please cite it as below."
+title: joBot
+type: software
+authors:
+  - alias: fezarosa-dev
+license: MIT
+repository-code: "https://github.com/fezarosa-dev/joBot"
+url: "https://github.com/fezarosa-dev/joBot"
+abstract: "joBot is a local assistant that searches, filters, ranks and organizes job listings from many sites in a web dashboard that runs on your own computer."
+keywords:
+  - job search
+  - job board
+  - local-first
+  - python
+  - fastapi

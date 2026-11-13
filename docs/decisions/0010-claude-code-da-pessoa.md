@@ -1,6 +1,6 @@
 # 0010. Usar o Claude Code que a pessoa já tem (sem login dentro do joBot)
 
-- **Status:** aceita, com ponto para confirmar (ver duvidas.md, D1)
+- **Status:** aceita
 - **Data:** 2026-11-13
 
 ## Contexto
@@ -73,12 +73,12 @@ O projeto está em desenvolvimento e ainda não tem código. Tudo abaixo é o qu
 - Sem Docker isso funciona direto. Num container seria preciso logar de novo lá dentro ou dar ao container acesso à pasta de credenciais. E no macOS o login fica no Keychain, que o container não enxerga.
 - Quem não tem o Claude usa chave da API, modelo local, palavras-chave ou IA manual.
 - A versão GitHub Pages não usa o Claude Code.
-## Pontos em aberto
 
-- Zona cinzenta: o joBot não intermedeia credenciais, porque cada pessoa usa a própria, no próprio computador. Mas ele chama o Claude Code da pessoa de forma automática e agendada, usando a assinatura dela, e não está claro se isso conta como "usar a assinatura de alguém para mandar pedidos em nome dessa pessoa" (segundo item do Contexto).
-- Decisão provisória: manter como opção, com os cuidados acima e um aviso no README.
-- Antes da publicação (fase 8), reler a política vigente da Anthropic. Se esse uso ficar proibido, o padrão vira chave da API ou modelo local.
-- Registrado em duvidas.md (D1).
+## Regras da Anthropic
+
+- O dono do projeto leu as regras da Anthropic e decidiu que esse uso está dentro delas: cada pessoa roda o próprio Claude Code, no próprio computador, com a própria assinatura e dentro do próprio limite. Nada é compartilhado entre pessoas, e o joBot não oferece login nem toca em credenciais.
+- A opção fica mantida, com os cuidados técnicos acima.
+- Registrado em duvidas.md (D1, resolvida em 2026-11-13).
 
 ## Fontes
 

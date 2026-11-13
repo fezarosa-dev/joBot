@@ -1,0 +1,17 @@
+# Fim de linha LF em tudo; .bat e .cmd precisam de CRLF no Windows.
+* text=auto eol=lf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Arquivos binários: o Git não mexe no conteúdo.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.pdf binary
+*.zip binary
+*.gguf binary
+*.sqlite binary
+*.db binary

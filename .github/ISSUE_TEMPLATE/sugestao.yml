@@ -1,0 +1,36 @@
+name: Sugestão / Feature request
+description: Uma ideia para melhorar o joBot. / An idea to improve joBot.
+title: "[Sugestão]: "
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Tem uma ideia? Conte qual problema ela resolve.
+        Have an idea? Tell us what problem it solves.
+  - type: textarea
+    id: problema
+    attributes:
+      label: Qual problema isso resolve? / What problem does this solve?
+      description: Explique a dificuldade que você tem hoje. / Explain the difficulty you have today.
+    validations:
+      required: true
+  - type: textarea
+    id: ideia
+    attributes:
+      label: Qual é a sua ideia? / What is your idea?
+      description: Descreva como imagina a solução. / Describe how you imagine the solution.
+    validations:
+      required: true
+  - type: textarea
+    id: alternativas
+    attributes:
+      label: Alternativas / Alternatives
+      description: Que outras saídas você pensou? / What other options did you consider?
+    validations:
+      required: true
+  - type: textarea
+    id: contexto
+    attributes:
+      label: Contexto extra (opcional) / Extra context (optional)
+      description: Links, imagens ou qualquer outra informação útil. / Links, images or any other useful information.
