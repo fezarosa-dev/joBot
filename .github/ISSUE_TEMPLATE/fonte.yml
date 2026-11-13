@@ -1,0 +1,51 @@
+name: Fonte de vagas / Job source
+description: Sugira um site ou empresa para o joBot buscar vagas. / Suggest a site or company for joBot to fetch jobs from.
+title: "[Fonte]: "
+labels: [fonte]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Conhece um bom lugar com vagas? Conte aqui.
+        Know a good place with jobs? Tell us here.
+  - type: input
+    id: nome
+    attributes:
+      label: Nome do site ou da empresa / Site or company name
+    validations:
+      required: true
+  - type: input
+    id: link
+    attributes:
+      label: Link público / Public link
+      description: O endereço da página de vagas. / The address of the jobs page.
+      placeholder: https://
+    validations:
+      required: true
+  - type: dropdown
+    id: tipo
+    attributes:
+      label: Tipo / Type
+      options:
+        - Site de vagas / Job board
+        - Página de carreiras de empresa / Company careers page
+        - Outro / Other
+    validations:
+      required: true
+  - type: dropdown
+    id: login
+    attributes:
+      label: Precisa de login? / Does it need a login?
+      options:
+        - Sim / Yes
+        - Não / No
+        - Não sei / Not sure
+    validations:
+      required: true
+  - type: checkboxes
+    id: conferencia
+    attributes:
+      label: Conferência / Checks
+      options:
+        - label: A fonte é pública e não peço para contornar CAPTCHA nem termos de uso. / The source is public and I am not asking to bypass CAPTCHAs or terms of use.
+          required: true
