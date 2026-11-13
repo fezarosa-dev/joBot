@@ -25,8 +25,16 @@ O projeto vai ser público e quer poder reaproveitar ideias de outros projetos s
 - Git: ramos `main` e `dev`. O trabalho é feito em ramos `feat/`, `fix/`, `docs/` e `ci/` saindo da `dev`. A `main` só recebe PR (pedido de integração) vindo da `dev`.
 - Commits em português, no formato `tipo(escopo): descrição`.
 - TDD em todo código: escrever o teste, ver falhar, implementar, ver passar.
-- Testes no GitHub só em PR para a `main`, quando o repositório estiver no GitHub.
+- Testes no GitHub só em PR para a `main`.
 - O repositório fica no GitHub, público. A publicação de verdade (instaladores e versão para uso) é a fase 8.
+
+### Idiomas e arquivos da comunidade
+
+- Desde 2026-11-13, a documentação para quem usa e contribui (README e arquivos de comunidade) existe em português e em inglês. O arquivo principal é em português e a versão em inglês fica ao lado, com final `.en.md`. As ADRs e o `duvidas.md` ficam só em português.
+- O repositório tem os arquivos de comunidade do GitHub em `.github/`: Código de Conduta (Contributor Covenant), política de segurança, guia de contribuição, suporte, modelos de issue e de PR e CODEOWNERS. Na raiz ficam o `CHANGELOG.md` e o `CITATION.cff`.
+- Falhas de segurança chegam pelo relato privado de vulnerabilidade do GitHub.
+- A `main` só recebe mudanças por PR vindo da `dev`. Histórico que já subiu não é reescrito.
+- No GitHub, regras de proteção garantem isso: a `main` só aceita mudança por PR e não pode ser reescrita nem apagada; a `dev` não pode ser reescrita nem apagada.
 
 ## Consequências
 
