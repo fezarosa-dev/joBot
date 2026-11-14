@@ -1,6 +1,6 @@
 import json
 import math
-from collections.abc import AsyncIterator, Callable, Sequence
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -11,7 +11,7 @@ from apoio.relogio import RelogioFalso
 from jobot.nucleo.coletores import base, registro
 from jobot.nucleo.coletores.base import Coletor, ContextoColeta, ResultadoEscopo
 from jobot.nucleo.coletores.portais import ciee
-from jobot.nucleo.http import ClienteEducado, HttpEducado, Validadores
+from jobot.nucleo.http import ClienteEducado, HttpEducado, LeitorValidadores, Validadores
 from jobot.nucleo.modelo import Empresa, SalarioBruto, VagaColetada
 from jobot.nucleo.relogio import Relogio
 from jobot.nucleo.tratamento.locais import ler_locais
@@ -42,6 +42,13 @@ class LeitorFixo:
         return None
 
 
+class LeitorComEtag:
+    """Guardou um ETag para qualquer URL: um coletor que pedisse condicional o mandaria."""
+
+    def ler(self, url: str) -> Validadores | None:
+        return Validadores(etag='"v1"', last_modified="Sat, 01 Nov 2026 00:00:00 GMT")
+
+
 async def _sem_dns(host: str) -> list[str]:
     raise AssertionError(f"teste não consulta DNS: {host}")
 
@@ -51,6 +58,7 @@ async def _coletar(
     escopo: str = "ESTAGIO",
     condicional: bool = False,
     max_pedidos: int | None = None,
+    leitor: LeitorValidadores | None = None,
 ) -> tuple[ResultadoEscopo, list[httpx.Request]]:
     """Roda o coletor de verdade sobre o `ClienteEducado` com transporte falso."""
     pedidos: list[httpx.Request] = []
@@ -63,7 +71,7 @@ async def _coletar(
 
     relogio: Relogio = RelogioFalso()
     cli = ClienteEducado(
-        httpx.MockTransport(servidor), relogio, LeitorFixo(), "0.1.0", resolver=_sem_dns
+        httpx.MockTransport(servidor), relogio, leitor or LeitorFixo(), "0.1.0", resolver=_sem_dns
     )
     try:
         http: HttpEducado = cli.escopo(condicional=condicional, max_pedidos=max_pedidos)
@@ -400,7 +408,6 @@ async def test_formato_mudou_sem_vaga_legivel_falhou(corpo: str) -> None:
         {"codigoVaga": ""},
         {"codigoVaga": "abc"},
         {"nomeEmpresa": None},
-        {"nomeEmpresa": "   "},
         {"nomeEmpresa": 12},
     ],
 )
@@ -529,27 +536,45 @@ async def test_429_e_erro_de_rede() -> None:
     assert resultado.motivo == "saude.erro_de_rede"
 
 
-async def test_sem_validador_na_resposta_nunca_e_304(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_sem_validador_na_resposta_nunca_e_304() -> None:
     # a captura não mostrou ETag nem Last-Modified: o coletor não pede condicional e nunca
-    # devolve SEM_MUDANCA (um 304 chegaria como "ok" vazio e fecharia vaga)
-    paginas: list[Sequence[base.Item]] = []
-    juntar = base.juntar_paginas
+    # devolve SEM_MUDANCA (um 304 chegaria como "ok" vazio e fecharia vaga). O leitor guarda
+    # um ETag e o servidor responde 304 a quem o mandar: pedir condicional deixa o teste vermelho.
+    def servidor(pedido: httpx.Request) -> httpx.Response:
+        if pedido.headers.get("If-None-Match") or pedido.headers.get("If-Modified-Since"):
+            return httpx.Response(304)
+        return _json("normal")
 
-    async def espia(
-        http: HttpEducado, iterador: AsyncIterator[Sequence[base.Item]]
-    ) -> ResultadoEscopo:
-        async def copia() -> AsyncIterator[Sequence[base.Item]]:
-            async for pagina in iterador:
-                paginas.append(pagina)
-                yield pagina
-
-        return await juntar(http, copia())
-
-    monkeypatch.setattr(ciee, "juntar_paginas", espia)
-    resultado, pedidos = await _coletar(_json("normal"), condicional=True)
-    assert resultado.estado == "ok" and len(paginas) == 1 and paginas[0] is not base.SEM_MUDANCA
+    resultado, pedidos = await _coletar(servidor, condicional=True, leitor=LeitorComEtag())
+    assert resultado.estado == "ok" and resultado.vagas
+    assert resultado.vagas is not base.SEM_MUDANCA
     assert pedidos[0].headers.get("If-None-Match") is None
     assert pedidos[0].headers.get("If-Modified-Since") is None
+
+
+async def test_empresa_em_branco_vira_ciee() -> None:
+    # empresa confidencial: a fonte manda o nome vazio; a vaga fica, como no IEL ("IEL <estado>")
+    resposta = _pagina(
+        0,
+        0,
+        ultima=True,
+        itens=[_item(1, nomeEmpresa=""), _item(2, nomeEmpresa="   "), _item(3)],
+    )
+    resultado, _ = await _coletar(resposta)
+    assert (resultado.estado, resultado.motivo) == ("ok", None)
+    assert [(v.id_externo, v.empresa) for v in _vagas(resultado)] == [
+        ("1", "CIEE"),
+        ("2", "CIEE"),
+        ("3", "Empresa Exemplo"),
+    ]
+
+
+@pytest.mark.parametrize("codigo", [0, "0", "000"])
+async def test_codigo_zero_e_recusado(codigo: object) -> None:
+    resposta = _pagina(0, 0, ultima=True, itens=[_item(1), _item(2, codigoVaga=codigo)])
+    resultado, _ = await _coletar(resposta)
+    assert (resultado.estado, resultado.motivo) == ("parcial", "saude.formato_mudou")
+    assert [v.id_externo for v in _vagas(resultado)] == ["1"]
 
 
 async def test_bloqueio() -> None:
