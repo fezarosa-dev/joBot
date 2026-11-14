@@ -458,19 +458,47 @@ async def test_sitemap_detalhado_pelo_executor_nao_repete_no_passo_4(
     assert mapa.detalhados == [m1.url]
 
 
-async def test_cache_so_depois_do_detalhe_gravado(
-    con: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    def quebra(*args: Any, **kwargs: Any) -> None:
-        raise sqlite3.OperationalError("disco cheio")
-
-    monkeypatch.setattr(execucao, "gravar_detalhe", quebra)
+async def test_cache_so_depois_do_detalhe_gravado(con: sqlite3.Connection) -> None:
+    # o detalhe falha ao gravar: o cache, na mesma transação, também não fica
+    con.execute(
+        "CREATE TRIGGER quebra BEFORE UPDATE OF coletada ON ocorrencia"
+        " BEGIN SELECT RAISE(ABORT, 'disco cheio'); END"
+    )
+    con.commit()
     lista = Falso(lista={"": (_vaga(1, descricao=""),)}, detalhe=_detalhe_completo)
 
-    with pytest.raises(sqlite3.OperationalError):
+    with pytest.raises(sqlite3.IntegrityError, match="disco cheio"):
         await _executar(con, [lista])
 
+    assert lista.detalhados == [_vaga(1).url]
     assert _um(con, "SELECT count(*) FROM enriquecimento") == 0
+
+
+async def test_excecao_na_busca_marca_a_execucao_interrompida_na_hora(
+    con: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # O executor absorve a exceção do próprio coletor (vira saúde "falhou"); o erro que sobe
+    # vem de um passo seguinte, aqui o encaixe, que ainda deixa uma transação aberta.
+    def quebra(c: sqlite3.Connection, *args: Any, **kwargs: Any) -> int:
+        c.execute("UPDATE vaga SET titulo = 'meio do caminho'")
+        raise RuntimeError("encaixe quebrou")
+
+    monkeypatch.setattr(execucao, "recalcular_encaixe", quebra)
+    falso = Falso(lista={"": (_vaga(1),)})
+
+    with pytest.raises(RuntimeError, match="encaixe quebrou"):
+        await _executar(con, [falso])
+
+    linha = con.execute("SELECT estado, terminada_em FROM execucao").fetchone()
+    assert tuple(linha) == ("interrompida", _iso(AGORA))
+    assert _um(con, "SELECT count(*) FROM vaga WHERE titulo = 'meio do caminho'") == 0
+    assert not con.in_transaction
+
+    # a próxima abre no mesmo instante, sem esperar os 5 min do batimento velho
+    monkeypatch.undo()
+    segunda = await _executar(con, [falso])
+    assert segunda is not None
+    assert _um(con, "SELECT estado FROM execucao WHERE id = ?", segunda) == "concluida"
 
 
 async def _pendente_de_ontem(con: sqlite3.Connection, coletor: Falso) -> VagaColetada:

@@ -442,18 +442,46 @@ def fechar_escopos_extintos(
 def gravar_detalhe(con: sqlite3.Connection, ocorrencia_id: int, v: VagaColetada) -> None:
     """Grava o resultado do `detalhar` na ocorrência e trata a vaga de novo com ele."""
     with _transacao(con):
-        linha = con.execute(
-            "SELECT vaga_id, coletada FROM ocorrencia WHERE id = ?", (ocorrencia_id,)
-        ).fetchone()
-        if linha is None:
-            raise LookupError(f"ocorrência {ocorrencia_id} não existe")
-        vaga_id, antiga = linha
-        v = _com_descricao_antiga(v, antiga)
+        _gravar_detalhe(con, ocorrencia_id, v)
+
+
+def gravar_cache_detalhe(
+    con: sqlite3.Connection,
+    ocorrencia_id: int,
+    url: str,
+    detalhe: VagaColetada | None,
+    agora: datetime,
+) -> None:
+    """Grava o detalhe (quando há) e a tentativa no cache de 30 dias (`enriquecimento`) numa
+    transação só: saem juntos ou nada sai (D54)."""
+    with _transacao(con):
+        if detalhe is not None:
+            _gravar_detalhe(con, ocorrencia_id, detalhe)
         con.execute(
-            "UPDATE ocorrencia SET coletada = ?, id_externo = COALESCE(?, id_externo) WHERE id = ?",
-            (v.para_json(), v.id_externo, ocorrencia_id),
+            "INSERT INTO enriquecimento (url_hash, buscado_em, conteudo) VALUES (?, ?, ?)"
+            " ON CONFLICT(url_hash) DO UPDATE SET buscado_em = excluded.buscado_em,"
+            " conteudo = excluded.conteudo",
+            (
+                hash_url(canonica(url)),
+                _utc(agora),
+                "" if detalhe is None else detalhe.para_json(),
+            ),
         )
-        _retratar(con, vaga_id, v)
+
+
+def _gravar_detalhe(con: sqlite3.Connection, ocorrencia_id: int, v: VagaColetada) -> None:
+    linha = con.execute(
+        "SELECT vaga_id, coletada FROM ocorrencia WHERE id = ?", (ocorrencia_id,)
+    ).fetchone()
+    if linha is None:
+        raise LookupError(f"ocorrência {ocorrencia_id} não existe")
+    vaga_id, antiga = linha
+    v = _com_descricao_antiga(v, antiga)
+    con.execute(
+        "UPDATE ocorrencia SET coletada = ?, id_externo = COALESCE(?, id_externo) WHERE id = ?",
+        (v.para_json(), v.id_externo, ocorrencia_id),
+    )
+    _retratar(con, vaga_id, v)
 
 
 def reprocessar(con: sqlite3.Connection, versao: str) -> int:
