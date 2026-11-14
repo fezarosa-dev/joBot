@@ -211,6 +211,19 @@ def test_passo1_pular_nao_cria_busca(cenario: Cenario) -> None:
     assert "data-resumo" not in cenario.get(PASSO_2).text
 
 
+def test_passo1_pular_editando_a_busca_mantem_o_id_na_url(cenario: Cenario) -> None:
+    cenario.post(PASSO_1, COMPLETO)
+    (busca,) = cenario.buscas()
+    resposta = cenario.post(
+        PASSO_1, COMPLETO | {"cargos": "Rust", "busca": str(busca.id), "pular": "1"}
+    )
+    _redireciona(resposta, f"{PASSO_2}?busca={busca.id}")
+    assert cenario.buscas() == [busca]  # pular não edita nada
+    assert "data-resumo" in cenario.get(f"{PASSO_2}?busca={busca.id}").text
+    # controle: id que não existe não vai para a URL
+    _redireciona(cenario.post(PASSO_1, {"busca": "999", "pular": "1"}), PASSO_2)
+
+
 def test_passo1_sem_nenhum_criterio_nao_cria_busca(cenario: Cenario) -> None:
     resposta = cenario.post(PASSO_1, {"cargos": "  \n ", "cidade": ["", ""], "uf": ["", ""]})
     _redireciona(resposta, PASSO_2)
@@ -616,6 +629,16 @@ def _carregar_sem_repetir(caminho: Path) -> dict[str, str]:
         caminho.read_text(encoding="utf-8"), object_pairs_hook=sem_repetir
     )
     return dados
+
+
+def test_carregar_sem_repetir_recusa_chave_repetida(tmp_path: Path) -> None:
+    repetido = tmp_path / "repetido.json"
+    repetido.write_text('{"a": "1", "b": "2", "a": "3"}', encoding="utf-8")
+    with pytest.raises(AssertionError, match=r"chave repetida em repetido.json: \['a'\]"):
+        _carregar_sem_repetir(repetido)
+    limpo = tmp_path / "limpo.json"  # controle: sem repetição carrega
+    limpo.write_text('{"a": "1", "b": "2"}', encoding="utf-8")
+    assert _carregar_sem_repetir(limpo) == {"a": "1", "b": "2"}
 
 
 def test_catalogos_do_assistente_tem_as_mesmas_chaves_e_o_texto_do_sistema() -> None:
