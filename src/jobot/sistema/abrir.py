@@ -150,7 +150,7 @@ def sair_do_servidor(
     return 0
 
 
-def _subir_servidor() -> None:
+def subir_servidor() -> None:
     """Servidor em processo separado; o comando `serve` é da T48."""
     subprocess.Popen(
         [sys.executable, "-m", "jobot", "serve"],
@@ -167,7 +167,7 @@ def executar(args: argparse.Namespace) -> int:
     try:
         if getattr(args, "comando", "abrir") == "sair":
             return sair_do_servidor(dados)
-        return abrir_painel(env, dados, subir=_subir_servidor)
+        return abrir_painel(env, dados, subir=subir_servidor)
     except OSError as erro:  # ex.: o Python que sobe o servidor não existe mais
         print(f"Não consegui concluir o comando: {erro}", file=sys.stderr)
         return 1
