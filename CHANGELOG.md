@@ -24,7 +24,7 @@ A fase 1: a base do joBot. Já dá para instalar e usar.
 - Comandos `jobot abrir`, `jobot sair`, `jobot serve`, `jobot buscar`, `jobot segundo-plano`, `jobot atualizar` e `jobot avaliar-rotulos`.
 - Segundo plano no Linux, pelo systemd do usuário, inclusive a partir de um container distrobox.
 - Aviso de versão nova, desligado por padrão. Ligado, só pede ao `api.github.com` a versão mais nova, e o pedido leva o user agent fixo e o IP.
-- Eureca, Abler e Gupy, cada um com a sua chave liga/desliga. A Eureca vem desligada por padrão até a empresa autorizar o uso.
+- Eureca, Abler e Gupy, cada um com a sua chave liga/desliga. Todas vêm ligadas por padrão; os termos da Eureca pedem consentimento prévio, e quem preferir respeitar desliga a Eureca em Configurações.
 - Painel em português e em inglês, com tema claro e escuro.
 - Decisões do projeto (ADRs 0001 a 0021) e o `duvidas.md`.
 - README com selos, diagrama, tabelas e perguntas frequentes, e a versão em inglês.

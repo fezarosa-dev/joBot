@@ -51,13 +51,15 @@ SECAO_PRIVACIDADE = {"pt": "privacidade-e-seguranca", "en": "privacy-and-securit
 FRASES: Mapping[str, Mapping[str, str]] = {
     "pt": {
         "pessoal": r"uso pessoal",
-        "desligada": r"desligada por padrão",
+        "consentimento": r"consentimento prévio",
+        "ligada": r"vem ligada",
         "onde": r"Configurações",
         "padrao_desligado": r"desligado por padrão",
     },
     "en": {
         "pessoal": r"personal use",
-        "desligada": r"off by default",
+        "consentimento": r"prior consent",
+        "ligada": r"comes on",
         "onde": r"Settings",
         "padrao_desligado": r"off by default",
     },
@@ -207,9 +209,11 @@ def test_aviso_de_uso_pessoal_e_de_termos_cita_eureca_abler_e_gupy(lingua: str) 
         assert portal in avisos, f"{README[lingua]}: o aviso de termos não cita {portal}"
     eureca = [linha for linha in avisos.splitlines() if "Eureca" in linha]
     assert any(
-        re.search(frases["desligada"], linha) and re.search(frases["onde"], linha)
+        re.search(frases["consentimento"], linha)
+        and re.search(frases["onde"], linha)
+        and re.search(frases["ligada"], linha)
         for linha in eureca
-    ), f"{README[lingua]}: diga que a Eureca vem desligada e como ligar em Configurações"
+    ), f"{README[lingua]}: diga o consentimento prévio da Eureca e onde desligar"
 
 
 @pytest.mark.parametrize("lingua", LINGUAS)
@@ -327,10 +331,10 @@ def test_changelog_leva_jobot_em_todo_comando_da_lista(lingua: str) -> None:
             assert all(c.startswith("jobot ") for c in crases), linha
 
 
-def test_eureca_vem_desligada_por_padrao_como_os_documentos_dizem() -> None:
-    """README e CHANGELOG prometem a Eureca desligada (D80 opção b); o padrão real é do T130."""
+def test_todas_as_fontes_vem_ligadas_por_padrao_como_os_documentos_dizem() -> None:
+    """README e CHANGELOG dizem que todas as fontes, a Eureca incluída, vêm ligadas."""
     fontes = json.loads((RAIZ / "src/jobot/nucleo/dados/fontes.json").read_text(encoding="utf-8"))
-    assert fontes["eureca"].get("ligada_padrao", True) is False
+    assert [c for c, d in fontes.items() if d.get("ligada_padrao", True) is False] == []
 
 
 # Todo pedido de rede que o joBot faz (A53): cada item diz para quem e em que condição sai.
@@ -366,8 +370,8 @@ CHAVE_DO_PADRAO = {
     "common crawl": "descoberta_cc_ligada",
     "páginas": "paginas_ligadas",
 }
-# o que o texto diz das fontes: todas vêm ligadas, menos as que o `fontes.json` desliga
-FONTES_DESLIGADAS = {"pt": r"vêm ligadas, menos a {}", "en": r"come on, except {}"}
+# o que o texto diz das fontes: todas vêm ligadas (o `fontes.json` não desliga nenhuma)
+FONTES_LIGADAS = {"pt": r"vêm todas ligadas", "en": r"all come on"}
 # pedidos que só saem quando a pessoa age, sem padrão ligado ou desligado: a frase diz quando
 SO_QUANDO_PEDE = {"endereço", "atualização"}
 
@@ -395,7 +399,7 @@ def _condicoes(lingua: str) -> dict[str, tuple[str, ...]]:
     """Para cada pedido, o que a frase precisa trazer: o que cita e a condição do padrão real."""
     fontes = json.loads((RAIZ / "src/jobot/nucleo/dados/fontes.json").read_text(encoding="utf-8"))
     desligadas = sorted(c for c, d in fontes.items() if d.get("ligada_padrao", True) is False)
-    assert len(desligadas) == 1, f"o texto cita uma fonte desligada; o fontes.json tem {desligadas}"
+    assert not desligadas, f"o texto diz que todas vêm ligadas; o fontes.json desliga {desligadas}"
     exigido = {
         pedido: (*cita, CONDICAO[lingua][_ligado_por_padrao(pedido)])
         for pedido, cita in CITA[lingua].items()
@@ -403,7 +407,7 @@ def _condicoes(lingua: str) -> dict[str, tuple[str, ...]]:
     }
     exigido["fontes"] = (
         *CITA[lingua]["fontes"],
-        FONTES_DESLIGADAS[lingua].format(desligadas[0].capitalize()),
+        FONTES_LIGADAS[lingua],
     )
     exigido.update({p: CITA[lingua][p] for p in SO_QUANDO_PEDE})
     return exigido
