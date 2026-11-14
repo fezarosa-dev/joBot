@@ -163,22 +163,22 @@ O dono segue estes passos **dentro da distrobox `fedora-dev`**, que é onde ele 
 1. No terminal do sistema: `distrobox enter fedora-dev`. Dentro dela, na pasta do projeto: `uv sync` e depois `uv run jobot`. **Deve ver:** o navegador abre o painel em `http://127.0.0.1:<porta>`. Se o navegador não abrir, o terminal mostra o endereço para clicar.
 2. Primeira execução, passo 1: preencher cargos, cidades, modalidade, nível, salário mínimo e idiomas. **Deve ver:** um resumo do que foi salvo.
 3. Passo 2: ligar o segundo plano. **Deve ver:** "segundo plano ligado", com o aviso de que o joBot roda dentro da `fedora-dev`.
-4. Clicar em **Buscar agora**. **Deve ver:** o andamento na tela, e no fim a quantidade de vagas novas.
-5. Abrir **Saúde das fontes**. **Deve ver:** cada fonte com ok, sem mudança, parcial, falhou, no limite ou desligada, com a hora e a quantidade de vagas.
-6. Abrir **Destaques de hoje**. **Deve ver:** até 10 vagas, nunca duas da mesma empresa, cada uma com ●, ◐ ou ○ e os motivos.
+4. Clicar em **Buscar agora**. **Deve ver:** o andamento na tela, com os nomes das fontes que ainda estão rodando, e no fim a quantidade de vagas novas.
+5. Abrir **Fontes** (a saúde das fontes). **Deve ver:** cada fonte com ok, sem mudança, parcial, falhou, no limite ou desligada, com a hora e a quantidade de vagas.
+6. Abrir a aba **Destaques** (os Destaques de hoje). **Deve ver:** até 10 vagas, nunca duas da mesma empresa, cada uma com ●, ◐ ou ○ e os motivos.
 7. Em **Todas**, clicar em dois chips (por exemplo, "Remoto" e "Júnior"). **Deve ver:** a contagem dos chips muda e o endereço da página muda. Copiar o endereço, abrir numa aba nova: **deve ver** o mesmo filtro.
 8. Apertar `/`, digitar uma palavra. **Deve ver:** a lista filtrada.
 9. Trocar a ordenação (encaixe, mais recentes, prazo, salário). **Deve ver:** a ordem mudar.
-10. Abrir uma vaga. **Deve ver:** descrição, salário, rótulos, a faixa de 12 meses e os links "ver na fonte".
+10. Abrir uma vaga. **Deve ver:** descrição, salário, rótulos, a faixa de 12 meses, o botão **Candidatar-se** (abre a vaga no site da fonte, em outra aba) e, em "Onde a vaga foi publicada", os links "via <fonte>".
 11. Abrir uma vaga com salário em dólar ou euro (filtrar por "Remoto" ajuda a achar). **Deve ver:** o salário na moeda original e, ao lado, menor e mais apagado, a cotação do dia e o valor em reais.
 12. Abrir uma vaga vinda de Remotive, RemoteOK, Jobicy, Himalayas ou We Work Remotely. **Deve ver:** "via <fonte>" com link, no cartão e no detalhe. O link abre a vaga no site da fonte.
-13. Salvar a vaga e depois marcar "candidatei". **Deve ver:** a vaga nas abas **Salvas** e **Candidatei**.
+13. Salvar a vaga e depois clicar em "Me candidatei". **Deve ver:** a vaga na aba **Salvas** depois de salvar e, depois de "Me candidatei", na aba **Candidatei** e fora de **Salvas**.
 14. Abrir **Ocultas**. **Deve ver:** quantas vagas cada motivo escondeu, e conseguir trazer uma de volta.
 15. Numa vaga, clicar em **Algo errado nesta vaga?** e corrigir um rótulo. **Deve ver:** o rótulo corrigido, que continua certo depois de outra busca.
 16. Em **Configurações → Fontes**, desligar uma fonte e clicar em **Buscar agora** de novo, sem esperar. **Deve ver:** a busca começa na hora; a fonte desligada aparece como "desligada"; as fontes com intervalo mínimo ainda não cumprido (seção 8.3) aparecem como "no limite", com a hora em que podem rodar de novo.
 17. Em **Configurações**, desligar **Conversão de moeda** e abrir a vaga do passo 11. **Deve ver:** só o salário original. Ligar de novo.
 18. Em **Empresas**, adicionar uma empresa e clicar em "testar". **Deve ver:** quantas vagas ela tem agora, antes de salvar. Desligar uma empresa da lista inicial: **deve ver** que ela para de ser buscada.
-19. Em **Sites acompanhados**, adicionar a página de um programa de trainee. **Deve ver:** a página na aba **Programas**.
+19. Em **Sites**, adicionar a página de um programa de trainee. **Deve ver:** a página na aba **Programas**.
 20. Trocar o idioma para inglês e o tema para escuro. **Deve ver:** tudo traduzido e escuro, e continua assim depois de recarregar.
 21. Reiniciar o computador e entrar na sessão. Sem abrir terminal nem distrobox, clicar no atalho **joBot** no menu de aplicativos. **Deve ver:** o painel abre (a primeira vez pode levar alguns segundos, enquanto a `fedora-dev` sobe); se a última busca tem mais de 3 h, a saúde mostra uma busca de recuperação cerca de 1 minuto depois; senão, mostra a hora da próxima busca.
 22. *Retirado em 2026-11-13.* A tela "Conferir rótulos" saiu da fase 1 (DR-67). Os outros passos mantêm o número.
@@ -387,6 +387,14 @@ CREATE TABLE saude (
   duracao_ms    INTEGER NOT NULL DEFAULT 0,
   motivo        TEXT,                              -- chave de i18n + detalhe curto
   PRIMARY KEY (execucao_id, fonte, escopo)
+);
+
+CREATE TABLE execucao_fonte (                      -- migração 0003 (T140): quando cada fonte começou e terminou na execução
+  execucao_id  INTEGER NOT NULL REFERENCES execucao(id) ON DELETE CASCADE,
+  fonte        TEXT NOT NULL REFERENCES fonte(chave),
+  comecou_em   TEXT NOT NULL,
+  terminou_em  TEXT,                               -- NULL = a fonte ainda roda; a tela de andamento lista essas
+  PRIMARY KEY (execucao_id, fonte)
 );
 
 CREATE TABLE vaga (
@@ -757,6 +765,8 @@ Implementação única com `httpx.AsyncClient`. Todo coletor, a descoberta, as p
 
 - Cada escopo de cada execução grava uma linha em `saude`.
 - O estado da **fonte** na execução olha só os escopos que rodaram: "ok" se todos ficaram "ok" ou "sem_mudanca"; "falhou" se todos falharam; "parcial" nos outros casos. Se nenhum rodou por causa de limite, a fonte fica "no limite". Um escopo "no_limite" ao lado de outros que rodaram não muda o estado da fonte: a Microsoft esperando o intervalo dela não deixa o Eightfold "parcial". Ele aparece na lista de empresas da fonte, com a hora em que pode rodar de novo.
+- **Fonte no limite na tela de fontes (T141).** Quando a fonte está "no limite" na última execução, ela mostra a última rodada em que de fato rodou, por escopo, e não a linha "no limite". `ultimas_que_rodaram(con)` (`banco/execucoes.py`) traz essa rodada com uma consulta só, que usa `ROW_NUMBER` por (fonte, escopo) e deixa de fora as linhas `no_limite` e `desligada`; a página a chama uma vez, nunca uma por fonte (a tabela `saude` não tem índice nem retenção). Só entram os escopos da última execução; o recurso "todos os escopos antigos" vale só quando a última execução teve apenas o escopo `''`. O cartão da fonte soma exatamente o que a lista mostra, com a hora mais recente, e o selo vem do estado atual: "desligada", ou "ainda não rodou" se a fonte foi religada. Fonte que nunca rodou mostra "—", com o texto "Nunca rodou" para leitor de tela. A linha desligada da saúde tem sempre o escopo `''`, mesmo em fonte com escopos nomeados.
+
 - Fontes com intervalo mínimo na fase 1 (apêndice). São sete, em dois grupos:
 
 | Fonte | `intervalo_min` | Por quê |
@@ -1157,6 +1167,8 @@ O servidor do painel e a agenda rodam no **mesmo processo** (DR-35):
 | Páginas acompanhadas | 24 horas depois da última | DR-18 |
 | Cotação PTAX | dentro da busca, uma vez por dia por moeda (seção 10.3) | ADR 0007 |
 
+A agenda só começa depois do assistente de primeira execução (T139): o agendador não roda nada enquanto a chave `primeira_execucao_concluida` não for verdadeira (`cli/servir.py`). O painel (botão "Buscar agora") e `jobot buscar` não passam por essa trava. Quem nunca conclui o assistente fica com a agenda parada (D94).
+
 ### 12.3 Uma execução de cada tipo por vez
 
 Há três tipos de execução: **busca**, **descoberta** e **páginas**. Cada tipo tem a sua trava. Descoberta e páginas acompanhadas **nunca** seguram a busca (resolução do dono).
@@ -1168,7 +1180,7 @@ Travas (DR-36):
 3. **No processo, por tipo:** um `asyncio.Lock` para cada tipo.
 
 - Os três tipos usam o mesmo `HttpEducado`. Assim o intervalo por host vale mesmo com dois tipos rodando ao mesmo tempo.
-- "Buscar agora" com uma busca já rodando não começa outra: mostra o andamento da que está rodando.
+- "Buscar agora" com uma busca já rodando não começa outra: mostra o andamento da que está rodando. O andamento lista as fontes que ainda rodam (T140): até 5 nomes e " +N" para o resto, lidos de `execucao_fonte` (seção 7.3). A fonte que espera vaga no semáforo do executor ainda não aparece. O executor avisa o início e o fim de cada fonte por callbacks, o fim num `finally`; a gravação é de melhor esforço, e um `sqlite3.Error` vai para o log e não derruba a busca.
 - "Buscar agora" com a descoberta ou as páginas rodando começa na hora.
 - Execução com `batimento_em` parado há mais de 5 minutos (processo morto) vira "interrompida" ao iniciar o app.
 
@@ -1251,7 +1263,7 @@ O joBot funciona em dois casos (resposta do dono; ADR 0006):
 | POST | `/vagas/{id}/ocultar`, `/vagas/{id}/mostrar` | ocultar ou mostrar mesmo assim |
 | GET, POST | `/vagas/{id}/correcao` | "Algo errado nesta vaga?" |
 | POST | `/buscar-agora` | inicia a busca, ou devolve a que está rodando |
-| GET | `/execucao/atual` | andamento (o HTMX pergunta a cada 2 s enquanto roda) |
+| GET | `/execucao/atual` | andamento, com as fontes que ainda rodam (o HTMX pergunta a cada 2 s enquanto roda) |
 | GET | `/fontes` | saúde das fontes |
 | POST | `/fontes/{chave}/ligar`, `/fontes/{chave}/desligar` | |
 | GET, POST | `/empresas`, `/empresas/testar`, `/empresas/{id}/…` | listar, testar, adicionar, ativar, remover |
