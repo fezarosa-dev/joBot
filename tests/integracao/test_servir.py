@@ -237,9 +237,51 @@ def test_buscar_roda_uma_busca_e_imprime_o_resumo(
     assert motivos == ["agora"]
     saida = capsys.readouterr().out
     assert "remotive" in saida and "ok" in saida and "7" in saida
-    assert "lever acme" in saida and "falhou" in saida and "saude.bloqueio" in saida
+    assert "lever acme" in saida and "falhou" in saida and "A fonte bloqueou o acesso" in saida
     assert (isolado / "jobot.db").exists()
     assert (isolado / "jobot.db").stat().st_mode & 0o077 == 0  # D7: o banco nasce 0600
+
+
+def _buscar_com_motivo(
+    motivo: str, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> str:
+    async def busca_falsa(con: sqlite3.Connection, *args: object) -> int | None:
+        execucao_id = abrir_execucao(con, "busca", "agora", AGORA)
+        assert execucao_id is not None
+        gravar_saude(con, execucao_id, "lever", "acme", "falhou", vagas=0, motivo=motivo)
+        fechar_execucao(con, execucao_id, AGORA)
+        return execucao_id
+
+    monkeypatch.setattr(buscar, "executar_busca", busca_falsa)
+    assert buscar.executar(argparse.Namespace(comando="buscar")) == 0
+    return capsys.readouterr().out
+
+
+def test_buscar_imprime_o_motivo_em_portugues(
+    isolado: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    saida = _buscar_com_motivo("saude.bloqueio", monkeypatch, capsys)
+    assert "A fonte bloqueou o acesso" in saida
+    assert "saude.bloqueio" not in saida
+
+
+def test_buscar_traduz_motivo_com_parametro(
+    isolado: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert "3 vagas lidas" in _buscar_com_motivo("saude.parcial_n:3", monkeypatch, capsys)
+    assert "Erro inesperado: KeyError" in _buscar_com_motivo(
+        "saude.excecao:KeyError", monkeypatch, capsys
+    )
+
+
+def test_buscar_motivo_desconhecido_sai_cru(
+    isolado: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert "saude.nao_existe" in _buscar_com_motivo("saude.nao_existe", monkeypatch, capsys)
+    # chave com texto que pede outro parâmetro levanta KeyError no format: sai crua, sem quebrar
+    assert "fontes.reportar_aviso" in _buscar_com_motivo(
+        "fontes.reportar_aviso", monkeypatch, capsys
+    )
 
 
 def test_buscar_com_outra_busca_rodando_avisa(

@@ -16,6 +16,7 @@ from jobot.banco.migrar import BancoMaisNovo
 from jobot.cli.servir import preparar_banco, preparar_dados
 from jobot.nucleo.http import ClienteEducado
 from jobot.nucleo.relogio import RelogioReal
+from jobot.painel.i18n import t
 
 
 async def _buscar(con: sqlite3.Connection, relogio: RelogioReal) -> int | None:
@@ -26,14 +27,22 @@ async def _buscar(con: sqlite3.Connection, relogio: RelogioReal) -> int | None:
         await cliente.fechar()
 
 
+def _motivo_em_portugues(motivo: str) -> str:
+    """Motivo "chave" ou "chave:valor" em português fixo (D23); sem texto no catálogo sai cru."""
+    chave, _, valor = motivo.partition(":")
+    try:
+        return t("pt", chave, tipo=valor, n=valor)
+    except KeyError:  # chave com outro parâmetro: melhor a chave crua que quebrar o resumo
+        return motivo
+
+
 def _resumo(con: sqlite3.Connection, execucao_id: int) -> list[str]:
-    # shortcut: o motivo sai como a chave de i18n crua; traduzir quando houver catálogo de terminal
     linhas = [f"Busca {execucao_id} concluída."]
     for s in saude_recente(con, n=1):
         if s.execucao_id != execucao_id:
             continue
         nome = f"{s.fonte} {s.escopo}".strip()
-        motivo = f"  {s.motivo}" if s.motivo else ""
+        motivo = f"  {_motivo_em_portugues(s.motivo)}" if s.motivo else ""
         linhas.append(f"{nome}: {s.estado} ({s.vagas} vagas){motivo}")
     return linhas
 
