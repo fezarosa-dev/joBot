@@ -20,6 +20,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse, Response
 from starlette.concurrency import run_in_threadpool
 
+from jobot.agenda.versao import aviso_ligado
 from jobot.banco import buscas, cadastros, cotacoes
 from jobot.banco.cadastros import gravar_config, ler_config
 from jobot.painel.ambiente import ambiente_do_painel, no_linux, rodar_do_painel
@@ -93,7 +94,7 @@ async def _ctx_aparencia(request: Request, con: Con) -> dict[str, Any]:
 async def _ctx_privacidade(request: Request, con: Con) -> dict[str, Any]:
     return {
         "pasta": str(request.app.state.banco.parent),
-        "aviso_versao": ler_config(con, "aviso_versao_ligada", False) is True,
+        "aviso_versao": aviso_ligado(con),
     }
 
 

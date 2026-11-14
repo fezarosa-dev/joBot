@@ -61,13 +61,14 @@ def _versao_atual() -> tuple[int, ...] | None:
     return versao_da_etiqueta(achado.group(0)) if achado else None
 
 
-def _ligado(con: sqlite3.Connection) -> bool:
+def aviso_ligado(con: sqlite3.Connection) -> bool:
+    """O aviso de versão está ligado; nasce desligado."""
     return ler_config(con, "aviso_versao_ligada", False) is True
 
 
 def versao_para_avisar(con: sqlite3.Connection) -> str | None:
     """A etiqueta gravada, se o aviso está ligado e ela é maior que a versão instalada."""
-    if not _ligado(con):
+    if not aviso_ligado(con):
         return None
     etiqueta = ler_config(con, "versao_nova", None)
     nova = versao_da_etiqueta(etiqueta)
@@ -100,7 +101,7 @@ async def checar_versao_nova(
     um pedido por hora); só falha de transporte ou orçamento gasto, sem resposta, tenta de novo
     na próxima volta.
     """
-    if not _ligado(con):
+    if not aviso_ligado(con):
         return
     agora = relogio.agora()
     if not _venceu(con, agora):

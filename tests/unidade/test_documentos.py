@@ -4,8 +4,10 @@ Os dois idiomas têm de ter as mesmas seções na mesma ordem; os avisos de uso,
 distrobox e de versão têm de estar lá; e todo comando `jobot` citado tem de existir no `--help`.
 """
 
+import contextlib
 import json
 import re
+import sqlite3
 import tomllib
 from collections.abc import Mapping
 from pathlib import Path
@@ -14,7 +16,9 @@ from urllib.parse import urlsplit
 import pytest
 
 from jobot import __version__
-from jobot.agenda.versao import URL_VERSOES
+from jobot.agenda.versao import URL_VERSOES, aviso_ligado
+from jobot.banco import cadastros
+from jobot.banco.migrar import migrar
 from jobot.cli import COMANDOS, main
 from jobot.nucleo.cambio import BASE
 from jobot.nucleo.coletores.descoberta_cc import COLLINFO
@@ -318,37 +322,87 @@ def test_eureca_vem_desligada_por_padrao_como_os_documentos_dizem() -> None:
     assert fontes["eureca"].get("ligada_padrao", True) is False
 
 
-# Todo pedido de rede que o joBot faz sozinho (A53): cada item diz para quem e se vem ligado.
+# Todo pedido de rede que o joBot faz (A53): cada item diz para quem e em que condição sai.
 # (o que o item cita, o que diz da condição), por língua; cada par tem de estar na mesma frase.
-PEDIDOS: Mapping[str, Mapping[str, tuple[str, ...]]] = {
+# A condição "ligada" ou "desligada" não é escrita aqui: sai do padrão real (`_ligado_por_padrao`).
+CITA: Mapping[str, Mapping[str, tuple[str, ...]]] = {
     "pt": {
-        "fontes": (r"fontes públicas de vagas", r"vêm ligadas, menos a Eureca"),
-        "banco central": (r"Banco Central", r"vem ligada"),
-        "common crawl": (r"Common Crawl", r"uma vez por semana", r"vem ligada"),
-        "páginas": (r"páginas que você manda acompanhar", r"vem ligad"),
+        "fontes": (r"fontes públicas de vagas",),
+        "banco central": (r"Banco Central",),
+        "common crawl": (r"Common Crawl", r"uma vez por semana"),
+        "páginas": (r"páginas que você manda acompanhar",),
         "endereço": (r"cola o endereço", r"só quando você"),
-        "versão": (r"GitHub", r"vem desligado"),
+        "versão": (r"GitHub",),
+        "atualização": (r"pelo git e pelo uv", r"só quando você pede para atualizar"),
     },
     "en": {
-        "fontes": (r"public job sources", r"come on, except Eureca"),
-        "banco central": (r"Central Bank", r"comes on"),
-        "common crawl": (r"Common Crawl", r"once a week", r"comes on"),
-        "páginas": (r"pages you ask it to follow", r"comes on"),
+        "fontes": (r"public job sources",),
+        "banco central": (r"Central Bank",),
+        "common crawl": (r"Common Crawl", r"once a week"),
+        "páginas": (r"pages you ask it to follow",),
         "endereço": (r"paste an address", r"only when you"),
-        "versão": (r"GitHub", r"comes off"),
+        "versão": (r"GitHub",),
+        "atualização": (r"through git and uv", r"only when you ask to update"),
     },
 }
+CONDICAO: Mapping[str, Mapping[bool, str]] = {
+    "pt": {True: r"vem ligad[oa]\b", False: r"vem desligad[oa]\b"},
+    "en": {True: r"comes on", False: r"comes off"},
+}
+# pedido -> chave de `PADROES` (cadastros.py) que diz se ele vem ligado
+CHAVE_DO_PADRAO = {
+    "banco central": "conversao_moeda_ligada",
+    "common crawl": "descoberta_cc_ligada",
+    "páginas": "paginas_ligadas",
+}
+# o que o texto diz das fontes: todas vêm ligadas, menos as que o `fontes.json` desliga
+FONTES_DESLIGADAS = {"pt": r"vêm ligadas, menos a {}", "en": r"come on, except {}"}
+# pedidos que só saem quando a pessoa age, sem padrão ligado ou desligado: a frase diz quando
+SO_QUANDO_PEDE = {"endereço", "atualização"}
+
+
+def test_condicao_aceita_os_dois_generos() -> None:
+    """A condição em português não prende o gênero: `vem ligado` e `vem ligada` valem."""
+    ligar, desligar = CONDICAO["pt"][True], CONDICAO["pt"][False]
+    for genero in ("o", "a"):
+        assert re.search(desligar, f"vem desligad{genero}")
+        assert re.search(ligar, f"vem ligad{genero}")
+        assert not re.search(ligar, f"vem desligad{genero}")
+        assert not re.search(desligar, f"vem ligad{genero}")
+
+
+def _ligado_por_padrao(pedido: str) -> bool:
+    """O padrão de verdade do pedido: `PADROES` do banco, ou o padrão de código do aviso."""
+    if pedido == "versão":
+        with contextlib.closing(sqlite3.connect(":memory:")) as con:
+            migrar(con, Path(":memory:"))
+            return aviso_ligado(con)
+    return bool(cadastros.PADROES[CHAVE_DO_PADRAO[pedido]])
+
+
+def _condicoes(lingua: str) -> dict[str, tuple[str, ...]]:
+    """Para cada pedido, o que a frase precisa trazer: o que cita e a condição do padrão real."""
+    fontes = json.loads((RAIZ / "src/jobot/nucleo/dados/fontes.json").read_text(encoding="utf-8"))
+    desligadas = sorted(c for c, d in fontes.items() if d.get("ligada_padrao", True) is False)
+    assert len(desligadas) == 1, f"o texto cita uma fonte desligada; o fontes.json tem {desligadas}"
+    exigido = {
+        pedido: (*cita, CONDICAO[lingua][_ligado_por_padrao(pedido)])
+        for pedido, cita in CITA[lingua].items()
+        if pedido not in SO_QUANDO_PEDE and pedido != "fontes"
+    }
+    exigido["fontes"] = (
+        *CITA[lingua]["fontes"],
+        FONTES_DESLIGADAS[lingua].format(desligadas[0].capitalize()),
+    )
+    exigido.update({p: CITA[lingua][p] for p in SO_QUANDO_PEDE})
+    return exigido
 
 
 def _frases(conteudo: str) -> list[str]:
     return [f.strip() for f in re.split(r"[;.]", conteudo) if f.strip()]
 
 
-@pytest.mark.parametrize("lingua", LINGUAS)
-def test_privacidade_cita_todos_os_pedidos(lingua: str) -> None:
-    """README e texto do painel listam os mesmos pedidos de rede, cada um com a sua condição."""
-    assert urlsplit(COLLINFO).hostname == "index.commoncrawl.org"
-    assert urlsplit(BASE).hostname == "olinda.bcb.gov.br"
+def _conferir_pedidos(lingua: str) -> None:
     privacidade = secao(texto(README[lingua]), SECAO_PRIVACIDADE[lingua])
     bullets = [linha for linha in privacidade.splitlines() if "Common Crawl" in linha]
     assert len(bullets) == 1, f"{README[lingua]}: o Common Crawl não está num item só"
@@ -358,8 +412,29 @@ def test_privacidade_cita_todos_os_pedidos(lingua: str) -> None:
     }
     for nome, conteudo in fontes.items():
         frases = _frases(conteudo)
-        for pedido, regexes in PEDIDOS[lingua].items():
+        for pedido, regexes in _condicoes(lingua).items():
             assert any(all(re.search(r, f) for r in regexes) for f in frases), (nome, pedido)
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_privacidade_cita_todos_os_pedidos(lingua: str) -> None:
+    """README e painel listam os mesmos pedidos de rede, com a condição do padrão real."""
+    assert urlsplit(COLLINFO).hostname == "index.commoncrawl.org"
+    assert urlsplit(BASE).hostname == "olinda.bcb.gov.br"
+    _conferir_pedidos(lingua)
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+@pytest.mark.parametrize("pedido", sorted(CHAVE_DO_PADRAO))
+def test_texto_acompanha_o_padrao_real(
+    lingua: str, pedido: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Padrão que muda sem o texto mudar derruba o teste (mutação dirigida de `PADROES`)."""
+    chave = CHAVE_DO_PADRAO[pedido]
+    invertido = {**cadastros.PADROES, chave: not cadastros.PADROES[chave]}
+    monkeypatch.setattr(cadastros, "PADROES", invertido)
+    with pytest.raises(AssertionError, match=re.escape(f"'{pedido}'")):
+        _conferir_pedidos(lingua)
 
 
 @pytest.mark.parametrize("lingua", LINGUAS)
