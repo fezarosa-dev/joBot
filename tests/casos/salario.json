@@ -148,5 +148,10 @@
   {"texto": "R$ 5.000 a 8.000 m² de área", "idioma": "pt", "esperado": {"moeda": "BRL", "minimo": 500000, "maximo": 800000, "periodo": "mes", "mensal_minimo": 500000, "plausivel": true, "periodo_deduzido": true}},
   {"texto": "R$ 5.000 m³", "idioma": "pt", "esperado": {"moeda": "BRL", "minimo": 500000, "maximo": 500000, "periodo": "mes", "mensal_minimo": 500000, "plausivel": true, "periodo_deduzido": true}},
   {"texto": "R$ 5.000 m2", "idioma": "pt", "esperado": {"moeda": "BRL", "minimo": 500000, "maximo": 500000, "periodo": "mes", "mensal_minimo": 500000, "plausivel": true, "periodo_deduzido": true}},
-  {"texto": "R$ 5.000 m3", "idioma": "pt", "esperado": {"moeda": "BRL", "minimo": 500000, "maximo": 500000, "periodo": "mes", "mensal_minimo": 500000, "plausivel": true, "periodo_deduzido": true}}
+  {"texto": "R$ 5.000 m3", "idioma": "pt", "esperado": {"moeda": "BRL", "minimo": 500000, "maximo": 500000, "periodo": "mes", "mensal_minimo": 500000, "plausivel": true, "periodo_deduzido": true}},
+  {"texto": "Perks: 5 years 401k match", "idioma": "en", "esperado": null},
+  {"texto": "amateur 401k", "idioma": "en", "esperado": null},
+  {"texto": "Great cars 401k plan", "idioma": "en", "esperado": null},
+  {"texto": "Fraud 401k", "idioma": "en", "esperado": null},
+  {"texto": "$120k, 5 years 401k match", "idioma": "en", "esperado": {"moeda": "USD", "minimo": 12000000, "maximo": 12000000, "periodo": "ano", "mensal_minimo": 1000000, "plausivel": true, "periodo_deduzido": true, "beneficios": ["retirement"]}}
 ]
