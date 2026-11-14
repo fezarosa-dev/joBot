@@ -1,0 +1,12 @@
+{
+  "url": "https://api.github.com/repos/soujava/vagas-java/issues?state=open&per_page=5",
+  "data": "2026-11-14T06:26:14.518423+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/json; charset=utf-8",
+    "ETag": "W/\"189ef40f45b59dd4b3cc57b0500cacb825f857140cdf6b9b9a2bd1fb86593d2d\""
+  },
+  "sha256": "5419586ac6e76a99d569b4d806355f7080acdeb190d8cb90b195bdb2ee448992",
+  "versao": "0.1.0",
+  "metodo": "GET"
+}

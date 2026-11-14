@@ -1,0 +1,12 @@
+{
+  "url": "https://jobicy.com/api/jobs?count=10&tag=xyzzyjobot",
+  "data": "2026-11-14T06:26:49.835156+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/json; charset=utf-8",
+    "Last-Modified": "Sat, 14 Nov 2026 06:26:49 GMT"
+  },
+  "sha256": "75c9bf357b1d659099679a3dacf785e943362bde7ceaf352cd11a66d20d6cf96",
+  "versao": "0.1.0",
+  "metodo": "GET"
+}

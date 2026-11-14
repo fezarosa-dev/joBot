@@ -1,0 +1,12 @@
+{
+  "url": "https://portal.gupy.io/api/job-search/jobs?jobName=xyzzyjobot&limit=100&offset=0",
+  "data": "2026-11-14T06:27:31.043199+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/json; charset=utf-8",
+    "ETag": "\"jhb633atgp1n\""
+  },
+  "sha256": "42242d27468a3851e4f1981ab4392e02e2bdf589a38ecd9bd31b0e7608a6ae87",
+  "versao": "0.1.0",
+  "metodo": "GET"
+}

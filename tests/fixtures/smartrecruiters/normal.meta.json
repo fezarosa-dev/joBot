@@ -1,0 +1,12 @@
+{
+  "url": "https://api.smartrecruiters.com/v1/companies/NielsenIQ/postings?limit=100&offset=0&country=br",
+  "data": "2026-11-14T06:25:36.149435+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/json; charset=utf-8",
+    "ETag": "W/\"2667-dzFUK+0AptpjOXS5LUsD+nJ3wxY\""
+  },
+  "sha256": "3c9bd8be78af7b27a4f707090ae31a724a0fc46c3f36176d8ae37cbcf2945523",
+  "versao": "0.1.0",
+  "metodo": "GET"
+}

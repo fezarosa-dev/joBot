@@ -1,0 +1,11 @@
+{
+  "url": "https://remoteok.com/api",
+  "data": "2026-11-14T06:26:28.112123+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/json"
+  },
+  "sha256": "84bab9aaa42cad370b162a70d885034f16661673d02b02da5cbe020edc272d9f",
+  "versao": "0.1.0",
+  "metodo": "GET"
+}

@@ -1,0 +1,73 @@
+{
+  "data": [
+    {
+      "id": 12890684,
+      "name": "Desenvolvedor(a) Backend Sênior | Python, PostgreSQL e Kafka",
+      "applicationDeadline": "2027-01-12T00:00:00.000Z",
+      "description": "Na Agriness, nossos sistemas transformam os registros feitos todos os dias nas granjas em indicadores que apoiam as decisões de produtores de suínos e aves. Buscamos uma pessoa desenvolvedora sênior, com base forte em Python, PostgreSQL e Kafka, para evoluir e sustentar o serviço que recebe esses eventos, garante a consistência deles e calcula os dados que alimentam os indicadores. Aqui o desafio não é volume, é correção: regras de negócio densas, eventos que chegam duplicados ou fora de ordem e reprocessamentos que não podem perder nem duplicar dados. Você vai trabalhar com o Tech Lead de Dados e com o time, conduzindo entregas de ponta a ponta, da investigação à correção em produção, sempre com teste.Responsabilidades e atribuiçõesEsperamos que a pessoa possa:Desenvolver e manter um serviço em Python que consome eventos do Kafka e grava e transforma dados em PostgreSQL;Escrever, revisar e otimizar SQL de cálculo e agregação, avaliando desempenho e impacto em tabelas grandes;Garantir a consistência do fluxo de eventos: controle de offset, idempotência, duplicidade, ordem e reprocessamento;Investigar incidentes e inconsistências em produção com logs, métricas e alertas, encontrar a causa e corrigir com testes de regressão;Conduzir reprocessamentos, recálculos e migrações de dados históricos com as ferramentas do serviço, com cuidado com o ambiente de produção;Revisar o código do time, inclusive código escrito com apoio de IA, e ter o seu revisado;Documentar fluxos, decisões e procedimentos de diagnóstico.Requisitos e qualificaçõesO que é essencial que você apresente:Experiência sólida com Python em produção, em serviços, workers ou pipelines mantidos ao longo do tempo;SQL avançado em PostgreSQL: consultas longas com CTEs, funções de janela e agregações, upsert e leitura de plano de execução;Conhecimento de transações e concorrência no banco: níveis de isolamento, travas e o que acontece quando dois processos escrevem ao mesmo tempo;Experiência com Kafka ou outra plataforma de mensageria (RabbitMQ, SQS, Pub/Sub), entendendo offsets, duplicidade e reprocessamento;Testes automatizados com pytest, incluindo testes com banco e mensageria reais;Experiência investigando e corrigindo problemas em produção;Docker e Git no fluxo de trabalho;Inglês para leitura técnica;Comunicação clara de decisões, riscos e resultados.Você vai ganhar destaque se tiver conhecimento/experiência em:Kafka em produção;MongoDB;Testes baseados em propriedades (Hypothesis ou similar);Kubernetes, GitOps (ArgoCD) e gestão de segredos (Vault);Observabilidade com Grafana, Loki e Prometheus;Arquitetura orientada a eventos;Uso de assistentes de IA no desenvolvimento, com revisão crítica do que é gerado;Interesse ou vivência no agronegócio.",
+      "careerPageName": "Agriness",
+      "careerPageLogo": "https://attachments.gupy.io/production/companies/7926/career/17038/images/2021-07-12_18-10_logo.png",
+      "careerPageUrl": "",
+      "type": "vacancy_type_effective",
+      "publishedDate": "2026-11-13T18:15:25.334Z",
+      "workplaceType": "remote",
+      "city": "",
+      "state": "",
+      "jobUrl": "https://agriness.gupy.io/job/eyJqb2JJZCI6MTI4OTA2ODQsInNvdXJjZSI6Imd1cHlfcG9ydGFsIn0=?jobBoardSource=gupy_portal",
+      "disabilities": true
+    },
+    {
+      "id": 7781687,
+      "name": "Banco de Talentos - Desenvolvedor(a)",
+      "applicationDeadline": null,
+      "description": "Aqui na Agriness desenvolvemos tecnologias voltadas para a gestão da produção animal, há 20 anos trabalhamos com o propósito de agregar soluções de alta performance para impulsionar a vida no campo. 💙🐷Trabalhamos muito para tornar o agronegócio mais produtivo e rentável, não somente no Brasil, mas no mundo, atualmente realizamos a gestão de 95% da suinocultura do mercado brasileiro. Buscamos constantemente o crescimento e a expansão, hoje estamos presentes em 30 países. Nosso desafio é escalar a Agriness para o mundo! Para isso, precisamos ter com a gente as melhores pessoas! 🚀Estamos buscando profissionais que tenham a excelência como bússola, busquem sua melhor versão e tenham paixão por novos desafios. Acreditamos em pessoas autorresponsáveis, confiáveis e que façam acontecer. Se você se identificou com nossas guias essenciais, venha fazer parte do nosso time! 😊Esse espaço é dedicado a você que gostaria de fazer parte da Agriness mas não encontrou uma vaga compatível ao seu perfil.Estamos crescendo constantemente e com isso novas vagas surgem diariamente!Cadastre-se aqui ⇊ e continue acompanhando nossas oportunidades. 😉",
+      "careerPageName": "Agriness",
+      "careerPageLogo": "https://attachments.gupy.io/production/companies/7926/career/17038/images/2021-07-12_18-10_logo.png",
+      "careerPageUrl": "",
+      "type": "vacancy_type_talent_pool",
+      "publishedDate": "2024-09-10T12:24:04.929Z",
+      "workplaceType": "remote",
+      "city": "",
+      "state": "",
+      "jobUrl": "https://agriness.gupy.io/job/eyJqb2JJZCI6Nzc4MTY4Nywic291cmNlIjoiZ3VweV9wb3J0YWwifQ==?jobBoardSource=gupy_portal",
+      "disabilities": true
+    },
+    {
+      "id": 1549749,
+      "name": "Banco de Talentos - Exclusivo Para Pessoas Com Deficiência ",
+      "applicationDeadline": null,
+      "description": "Aqui na Agriness desenvolvemos tecnologias voltadas para a gestão da produção animal, há 20 anos trabalhamos com o propósito de agregar soluções de alta performance para impulsionar a vida no campo. Somos tech e também somos agro. 💙🐷Trabalhamos muito para tornar o agronegócio mais produtivo e rentável, não somente no Brasil, mas no mundo, atualmente realizamos a gestão de 95% da suinocultura do mercado brasileiro. Buscamos constantemente o crescimento e a expansão, hoje estamos presentes em 30 países. Nosso desafio é escalar a Agriness para o mundo! Para isso, precisamos ter com a gente as melhores pessoas! 🚀Estamos buscando profissionais que tenham a excelência como bússola, busquem sua melhor versão e tenham paixão por novos desafios. Acreditamos em pessoas autorresponsáveis, confiáveis e que façam acontecer. Se você se identificou com nossas guias essenciais, venha fazer parte do nosso time! 😊Esse espaço é dedicado a você que gostaria de fazer parte da Agriness mas não encontrou uma vaga compatível ao seu perfil.Estamos crescendo constantemente e com isso novas vagas surgem diariamente!Cadastre-se aqui ⇊ e continue acompanhando nossas oportunidades. 😉",
+      "careerPageName": "Agriness",
+      "careerPageLogo": "https://s3.amazonaws.com/gupy5/production/companies/7926/career/17038/images/2021-07-12_18-10_logo.png",
+      "careerPageUrl": "",
+      "type": "vacancy_type_talent_pool",
+      "publishedDate": "2022-02-22T18:14:21.618Z",
+      "workplaceType": "remote",
+      "city": "Florianópolis",
+      "state": "Santa Catarina",
+      "jobUrl": "https://agriness.gupy.io/job/eyJqb2JJZCI6MTU0OTc0OSwic291cmNlIjoiZ3VweV9wb3J0YWwifQ==?jobBoardSource=gupy_portal",
+      "disabilities": true
+    },
+    {
+      "id": 1125876,
+      "name": "Banco de Talentos",
+      "applicationDeadline": null,
+      "description": "Aqui na Agriness desenvolvemos tecnologias voltadas para a gestão da produção animal, há 20 anos trabalhamos com o propósito de agregar soluções de alta performance para impulsionar a vida no campo. Somos tech e também somos agro. 💙🐷Trabalhamos muito para tornar o agronegócio mais produtivo e rentável, não somente no Brasil, mas no mundo, atualmente realizamos a gestão de 95% da suinocultura do mercado brasileiro. Buscamos constantemente o crescimento e a expansão, hoje estamos presentes em 30 países. Nosso desafio é escalar a Agriness para o mundo! Para isso, precisamos ter com a gente as melhores pessoas! 🚀Estamos buscando profissionais que tenham a excelência como bússola, busquem sua melhor versão e tenham paixão por novos desafios. Acreditamos em pessoas autorresponsáveis, confiáveis e que façam acontecer. Se você se identificou com nossas guias essenciais, venha fazer parte do nosso time! 😊Esse espaço é dedicado a você que gostaria de fazer parte da Agriness mas não encontrou uma vaga compatível ao seu perfil.Estamos crescendo constantemente e com isso novas vagas surgem diariamente!Cadastre-se aqui ⇊ e continue acompanhando nossas oportunidades. 😉",
+      "careerPageName": "Agriness",
+      "careerPageLogo": "https://attachments.gupy.io/production/companies/7926/career/17038/images/2021-07-12_18-10_logo.png",
+      "careerPageUrl": "",
+      "type": "vacancy_type_talent_pool",
+      "publishedDate": "2021-08-17T23:29:34.160Z",
+      "workplaceType": "remote",
+      "city": "Florianópolis",
+      "state": "Santa Catarina",
+      "jobUrl": "https://agriness.gupy.io/job/eyJqb2JJZCI6MTEyNTg3Niwic291cmNlIjoiZ3VweV9wb3J0YWwifQ==?jobBoardSource=gupy_portal",
+      "disabilities": true
+    }
+  ],
+  "pagination": {
+    "total": 4,
+    "limit": 100,
+    "offset": 0
+  }
+}

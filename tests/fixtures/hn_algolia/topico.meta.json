@@ -1,0 +1,11 @@
+{
+  "url": "https://hn.algolia.com/api/v1/items/50338728",
+  "data": "2026-11-14T06:27:14.351060+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/json"
+  },
+  "sha256": "92f48d5cf7d79183b44da95eb6e46b99baf80f4b4c95ffd3d7d9183159c08386",
+  "versao": "0.1.0",
+  "metodo": "GET"
+}
