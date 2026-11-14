@@ -296,6 +296,27 @@ def test_desligar_nao_mexe_nos_outros_campos(painel: Painel) -> None:
     assert (antes[0], *antes[2:]) == (depois[0], *depois[2:])
 
 
+@pytest.mark.parametrize(("acao", "ativa_antes"), [("ligar", 0), ("desligar", 1)])
+def test_ligar_busca_com_valor_recusado_da_422(painel: Painel, acao: str, ativa_antes: int) -> None:
+    busca = painel.ids["busca"]
+    # gravada direto no banco com uma moeda que `editar_busca` recusa (moeda sem cotação)
+    painel.sql(
+        "UPDATE busca SET ativa = ?, salario_min = 500000, salario_moeda = 'XXX' WHERE id = ?",
+        ativa_antes,
+        busca,
+    )
+    # sem relançar a exceção do servidor: o vermelho é o 500, não um ValueError solto no teste
+    http = TestClient(
+        painel.app,
+        base_url=f"http://127.0.0.1:{PORTA}",
+        follow_redirects=False,
+        raise_server_exceptions=False,
+    )
+    r = http.post(f"/buscas/{busca}/{acao}", data={CAMPO_CSRF: painel.token})
+    assert r.status_code == 422
+    assert painel.sql("SELECT ativa FROM busca WHERE id = ?", busca) == [(ativa_antes,)]
+
+
 def test_apagar_leva_o_encaixe_e_deixa_a_vaga(painel: Painel) -> None:
     busca = painel.ids["busca"]
     vagas = painel.total("vaga")

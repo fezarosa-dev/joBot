@@ -319,6 +319,8 @@ async def _ligar(request: Request, con: sqlite3.Connection, busca_id: int, ativa
     atual = _achar(con, busca_id)
     try:
         _gravar(request, con, replace(atual, ativa=ativa), nova=False)
+    except ValueError as erro:  # o banco recusa o valor que já estava gravado (moeda sem cotação)
+        raise HTTPException(422, "o banco recusou o valor da busca") from erro
     except LookupError as erro:
         raise HTTPException(404, "busca não existe") from erro
     return RedirectResponse("/buscas", status_code=303)
