@@ -1,0 +1,160 @@
+{
+  "message": "Ação realizada com sucesso!",
+  "data": {
+    "total": 7,
+    "departments": 2,
+    "vacancies": [
+      {
+        "department": "Comercial",
+        "total": 1,
+        "items": [
+          {
+            "id": 160928,
+            "title": "VENDEDORA - PARA FRANQUIA DE BRECHO",
+            "pcd": false,
+            "remote": 0,
+            "show_remuneration": 1,
+            "show_regime": 1,
+            "show_client": 0,
+            "commission": null,
+            "regime": "CLT",
+            "is_inclusive": 0,
+            "department": "Comercial",
+            "company_name": "DAGUILAR CONSULTORIA RH",
+            "salary": "R$ 1.780,00 p/ Mês",
+            "location": [
+              "Belo Horizonte",
+              "MG",
+              "Brasil"
+            ],
+            "public_link": "https://jobs.recrutei.com.br/daguilar-consultoria-rh/vacancy/160928-vendedora-para-franquia-de-brecho",
+            "slug": "vendedora-para-franquia-de-brecho",
+            "client": null
+          }
+        ]
+      },
+      {
+        "department": "Operacional",
+        "total": 6,
+        "items": [
+          {
+            "id": 161405,
+            "title": "OFICIAL DE MANUTENÇÃO PREDIAL",
+            "pcd": false,
+            "remote": 0,
+            "show_remuneration": 0,
+            "show_regime": 1,
+            "show_client": 1,
+            "commission": null,
+            "regime": "CLT",
+            "is_inclusive": 0,
+            "department": "Operacional",
+            "company_name": "DAGUILAR CONSULTORIA RH",
+            "salary": "A combinar",
+            "location": "Não informado",
+            "public_link": "https://jobs.recrutei.com.br/daguilar-consultoria-rh/vacancy/161405-oficial-de-manutencao-predial",
+            "slug": "oficial-de-manutencao-predial",
+            "client": null
+          },
+          {
+            "id": 161410,
+            "title": "MEIO OFICIAL DE MANUTENÇÃO PREDIAL",
+            "pcd": false,
+            "remote": 0,
+            "show_remuneration": 1,
+            "show_regime": 1,
+            "show_client": 1,
+            "commission": null,
+            "regime": "CLT",
+            "is_inclusive": 0,
+            "department": "Operacional",
+            "company_name": "DAGUILAR CONSULTORIA RH",
+            "salary": "R$ 2.340,50 p/ Mês",
+            "location": [
+              "Divinópolis",
+              "MG",
+              "Brasil"
+            ],
+            "public_link": "https://jobs.recrutei.com.br/daguilar-consultoria-rh/vacancy/161410-meio-oficial-de-manutencao-predial",
+            "slug": "meio-oficial-de-manutencao-predial",
+            "client": {
+              "name": "Stagilório Engenharia",
+              "city": null,
+              "state": null,
+              "country": "Brasil"
+            }
+          },
+          {
+            "id": 165687,
+            "title": "MECANICO DIESEL",
+            "pcd": false,
+            "remote": 0,
+            "show_remuneration": 1,
+            "show_regime": 1,
+            "show_client": 1,
+            "commission": null,
+            "regime": "Pessoa Jurídica",
+            "is_inclusive": 0,
+            "department": "Operacional",
+            "company_name": "DAGUILAR CONSULTORIA RH",
+            "salary": "R$ 15.000,00 p/ Mês",
+            "location": [
+              "Contagem",
+              "MG",
+              "Brasil"
+            ],
+            "public_link": "https://jobs.recrutei.com.br/daguilar-consultoria-rh/vacancy/165687-mecanico-diesel",
+            "slug": "mecanico-diesel",
+            "client": null
+          },
+          {
+            "id": 165753,
+            "title": "MOTORISTA DE TRANSPORTE COLETIVO",
+            "pcd": false,
+            "remote": 0,
+            "show_remuneration": 1,
+            "show_regime": 1,
+            "show_client": 1,
+            "commission": null,
+            "regime": "CLT",
+            "is_inclusive": 0,
+            "department": "Operacional",
+            "company_name": "DAGUILAR CONSULTORIA RH",
+            "salary": "R$ 3.184,00 p/ Mês",
+            "location": [
+              "Contagem",
+              "MG",
+              "Brasil"
+            ],
+            "public_link": "https://jobs.recrutei.com.br/daguilar-consultoria-rh/vacancy/165753-motorista-de-transporte-coletivo",
+            "slug": "motorista-de-transporte-coletivo",
+            "client": null
+          },
+          {
+            "id": 165754,
+            "title": "MANOBRISTA",
+            "pcd": false,
+            "remote": 0,
+            "show_remuneration": 0,
+            "show_regime": 1,
+            "show_client": 0,
+            "commission": null,
+            "regime": "CLT",
+            "is_inclusive": 0,
+            "department": "Operacional",
+            "company_name": "DAGUILAR CONSULTORIA RH",
+            "salary": "A combinar",
+            "location": [
+              "Contagem",
+              "MG",
+              "Brasil"
+            ],
+            "public_link": "https://jobs.recrutei.com.br/daguilar-consultoria-rh/vacancy/165754-manobrista",
+            "slug": "manobrista",
+            "client": null
+          }
+        ]
+      }
+    ]
+  }
+}
