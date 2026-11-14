@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block titulo %}{{ t("configuracoes.titulo") }} · joBot{% endblock %}
+{% block estilos %}<link rel="stylesheet" href="/static/css/configuracoes.css">{% endblock %}
+{% block conteudo %}
+<section class="config">
+  <h1 class="config-titulo">{{ t("configuracoes.titulo") }}</h1>
+  <nav class="config-grupos" aria-label="{{ t('configuracoes.grupos') }}">
+    <ul>
+      {%- for slug, chave in abas %}
+      <li><a href="/configuracoes/{{ slug }}"{% if slug == grupo %} aria-current="page"{% endif %}>{{ t(chave) }}</a></li>
+      {%- endfor %}
+    </ul>
+  </nav>
+  {% if motivo %}
+  <div class="config-alerta" role="alert">
+    <strong>{{ t("configuracoes.segundo_plano.recusa") }}</strong>
+    <p>{{ t(motivo.chave, **motivo.params) }}</p>
+  </div>
+  {% elif erro %}
+  <div class="config-alerta" role="alert">
+    <p>{{ t(erro) if erro.startswith("configuracoes.") else t("configuracoes.erro.sistema", erro=erro) }}</p>
+  </div>
+  {% endif %}
+  {% include parcial %}
+</section>
+{% endblock %}

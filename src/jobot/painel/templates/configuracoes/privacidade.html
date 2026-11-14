@@ -1,0 +1,16 @@
+{% from "configuracoes/_interruptor.html" import interruptor %}
+<section class="config-bloco" aria-labelledby="priv-dados">
+  <h2 id="priv-dados">{{ t("configuracoes.privacidade.dados") }}</h2>
+  <p class="config-texto">{{ t("configuracoes.privacidade.onde") }} <code>{{ pasta }}</code></p>
+  <p class="config-texto">{{ t("configuracoes.privacidade.telemetria") }}</p>
+  <p class="config-texto">{{ t("configuracoes.privacidade.disco") }}</p>
+</section>
+<form method="post" action="/configuracoes/privacidade" class="config-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <div class="interruptores">
+    {{ interruptor("aviso_versao_ligada", aviso_versao, t("configuracoes.privacidade.aviso_versao"), t("configuracoes.privacidade.aviso_versao.ajuda")) }}
+  </div>
+  <div class="acoes">
+    <button type="submit" class="botao botao-primario">{{ t("configuracoes.salvar") }}</button>
+  </div>
+</form>
