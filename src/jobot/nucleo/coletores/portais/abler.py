@@ -41,7 +41,8 @@ _CONSTANTES: dict[str, object] = {"true": True, "false": False, "null": None, "u
 
 
 class _FormatoMudou(Exception):
-    """A resposta não é um `<urlset>` de sitemap."""
+    """O corpo não é XML, traz DTD ou não é um `<urlset>` de sitemap; ou alguma `<url>` foi
+    descartada (sem `<loc>` ou fora do endereço de vaga) e nenhuma deu vaga."""
 
 
 class _NaoLido(Exception):
@@ -121,7 +122,7 @@ def _ler_sitemap(texto: str) -> tuple[list[UrlListada], int, bool]:
             urls.append(UrlListada(url, _data(campos.get("lastmod"))))
         except ValueError:  # outro host, host local (decisão 19), outro caminho
             pulados += 1
-    if pulados and not urls:
+    if (pulados or sem_loc) and not urls:
         raise _FormatoMudou  # nenhuma <url> deu vaga: "ok" vazio fecharia todas as vagas
     return urls, pulados, sem_loc
 

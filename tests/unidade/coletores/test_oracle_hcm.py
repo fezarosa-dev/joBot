@@ -271,13 +271,80 @@ async def test_faceta_de_estado_ou_cidade_nao_vale_como_pais() -> None:
     assert busca["locationsFacet"]  # sobram "SP, Brazil" e a cidade
     resultado, pedidos = await _coletar(httpx.Response(200, json=dados))
     assert (resultado.vagas, resultado.estado, resultado.motivo) == ((), "ok", None)
-    assert len(pedidos) == 1
+    assert len(pedidos) == 2  # a descoberta sem filtro e a com keyword; nada de lista
 
 
 async def test_vazio() -> None:
     resultado, pedidos = await _coletar(_json("vazio"))
     assert (resultado.vagas, resultado.estado, resultado.motivo) == ((), "ok", None)
-    assert len(pedidos) == 1  # sem faceta do país, nem pede a lista
+    assert len(pedidos) == 2  # sem faceta do país nas duas descobertas, nem pede a lista
+    assert [_finder(p).get("keyword") for p in pedidos] == [None, '"Brazil"']
+
+
+async def test_oracle_descoberta_cortada_repete_com_keyword() -> None:
+    # resposta real (T55c): a descoberta sem filtro só traz as facetas dos países com mais vagas
+    # e o Brasil fica de fora; com keyword=Brazil a faceta aparece (decisão A47)
+    resultado, pedidos = await _coletar(
+        _json("descoberta_sem_filtro"), _json("descoberta_keyword"), _json("lista_br")
+    )
+    assert len(pedidos) == 3
+    assert "keyword" not in _finder(pedidos[0])
+    assert "keyword=%22Brazil%22" in str(pedidos[1].url)  # na mesma URL do finder
+    assert _finder(pedidos[1])["keyword"] == '"Brazil"'
+    assert "selectedLocationsFacet" not in _finder(pedidos[1])
+    assert str(pedidos[1].url) == URL_DESCOBERTA + ",keyword=%22Brazil%22"
+    # a lista vai filtrada só pela faceta, sem keyword
+    assert str(pedidos[2].url) == URL_LISTA
+    assert "keyword" not in _finder(pedidos[2])
+    # o exemplo é um recorte (5 de 8 vagas): a lista não veio inteira
+    assert (resultado.estado, resultado.motivo) == ("parcial", "saude.listagem_incompleta")
+    vagas = _vagas(resultado)
+    assert len(vagas) == 5
+    assert all(v.locais[0].endswith("Brazil") for v in vagas)
+
+
+async def test_oracle_sem_faceta_nas_duas_descobertas_termina_ok_vazio() -> None:
+    keyword = _dados("descoberta_keyword")
+    busca = keyword["items"][0]
+    busca["locationsFacet"] = [f for f in busca["locationsFacet"] if f["Name"] != "Brazil"]
+    assert busca["locationsFacet"]  # sobra a Índia
+    resultado, pedidos = await _coletar(
+        _json("descoberta_sem_filtro"), httpx.Response(200, json=keyword)
+    )
+    assert (resultado.vagas, resultado.estado, resultado.motivo) == ((), "ok", None)
+    assert len(pedidos) == 2
+    assert _finder(pedidos[1])["keyword"] == '"Brazil"'
+
+
+async def test_oracle_faceta_na_primeira_descoberta_nao_repete() -> None:
+    resultado, pedidos = await _coletar(_json("normal"), _json("normal"))
+    assert len(pedidos) == 2
+    assert [_finder(p).get("keyword") for p in pedidos] == [None, None]
+    assert len(resultado.vagas) == 5
+
+
+async def test_oracle_keyword_e_o_nome_em_ingles_do_pais_do_escopo() -> None:
+    _, pedidos = await _coletar(_json("vazio"), escopo=ESCOPO[:-2] + "MX")
+    assert [_finder(p).get("keyword") for p in pedidos] == [None, '"Mexico"']
+
+
+async def test_oracle_pais_sem_nome_em_ingles_nao_repete() -> None:
+    resultado, pedidos = await _coletar(_json("vazio"), escopo=ESCOPO[:-2] + "ZZ")
+    assert (resultado.vagas, resultado.estado, resultado.motivo) == ((), "ok", None)
+    assert len(pedidos) == 1
+
+
+@pytest.mark.parametrize(
+    "corpo",
+    ["não é json", '{"items": []}', '{"items": [{"TotalJobsCount": 3}]}'],
+)
+async def test_oracle_descoberta_com_keyword_fora_do_formato_falhou(corpo: str) -> None:
+    resultado, pedidos = await _coletar(
+        _json("descoberta_sem_filtro"), httpx.Response(200, text=corpo)
+    )
+    assert (resultado.vagas, resultado.estado) == ((), "falhou")
+    assert resultado.motivo == "saude.formato_mudou"
+    assert len(pedidos) == 2
 
 
 async def test_formato_mudou() -> None:

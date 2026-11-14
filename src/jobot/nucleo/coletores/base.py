@@ -1,5 +1,6 @@
 """Contrato do coletor (desenho 8.1, DR-70). Só biblioteca padrão e o núcleo."""
 
+import logging
 from collections.abc import AsyncIterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -16,6 +17,8 @@ from jobot.nucleo.http import (
     host_local,
 )
 from jobot.nucleo.modelo import Empresa, VagaColetada, confere_http
+
+log = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -94,6 +97,10 @@ class Coletor(Protocol):
     async def resolver(self, identificador: str, http: HttpEducado) -> Mapping[str, str]: ...
 
 
+def _registrar(erro: Exception) -> None:
+    log.warning("listagem parou: %s: %s", type(erro).__name__, erro)
+
+
 async def juntar_paginas(
     http: HttpEducado, paginas: AsyncIterator[Sequence[Item]]
 ) -> ResultadoEscopo:
@@ -103,7 +110,8 @@ async def juntar_paginas(
     é "parcial" com `saude.listagem_incompleta` (a lista não veio inteira, então só o que tem
     mais de 30 dias se fecha). Erro de rede ou limite sem nenhuma página lida é "falhou";
     depois de uma página é "parcial" (decisão 16). Exceção que não está na tabela
-    sobe: o executor a captura e marca "falhou" com o tipo do erro.
+    sobe: o executor a captura e marca "falhou" com o tipo do erro. O texto do erro (Retry-After,
+    URL) vai para o log: o resultado guarda só a chave `saude.*`.
     """
     vagas: list[Item] = []
     n_paginas = 0
@@ -115,15 +123,19 @@ async def juntar_paginas(
             n_paginas += 1
             n_304 += pagina is SEM_MUDANCA
             vagas.extend(pagina)
-    except LimiteAtingido:
+    except LimiteAtingido as erro:
+        _registrar(erro)
         estado, motivo = "parcial" if n_paginas else "falhou", "saude.limite_atingido"
     except OrcamentoGasto:
         estado, motivo = "no_limite", "saude.orcamento"
-    except Parou429:
+    except Parou429 as erro:
+        _registrar(erro)
         estado, motivo = "no_limite", "saude.parou_429"
-    except Bloqueio:
+    except Bloqueio as erro:
+        _registrar(erro)
         estado, motivo, vagas = "falhou", "saude.bloqueio", []  # nada aproveitável
-    except ErroDeRede:
+    except ErroDeRede as erro:
+        _registrar(erro)
         motivo = "saude.erro_de_rede"
         if n_paginas:
             estado = "parcial"

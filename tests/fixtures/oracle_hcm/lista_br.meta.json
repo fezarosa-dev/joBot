@@ -1,0 +1,10 @@
+{
+  "url": "https://eeho.fa.us2.oraclecloud.com/hcmRestApi/resources/latest/recruitingCEJobRequisitions?onlyData=true&expand=requisitionList.secondaryLocations&finder=findReqs;siteNumber=CX_45001,facetsList=LOCATIONS%3BWORKPLACE_TYPES%3BPOSTING_DATES,limit=25,offset=0,sortBy=POSTING_DATES_DESC,selectedLocationsFacet=300000000106728",
+  "data": "2026-11-14T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {},
+  "sha256": "a7134370e876bc02a171597ed8d6ddfb20172c4e5c9356f4fdba9c2b96fef9fd",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "resposta real da conferência T55c de 2026-11-14 (scratchpad t55c/oracle-br-CX_45001.json): lista filtrada pela faceta Brazil, sem keyword, TotalJobsCount 8; a URL foi refeita dos campos da resposta (SiteNumber, Facets, Limit, Offset, SortBy, SelectedLocationsFacet) no formato do apêndice 3.3; passou por reduzir (a maior lista ficou com 5 itens) e limpar_pessoais de scripts/capturar.py. Os cabeçalhos da resposta não foram guardados (cabecalhos vazio)."
+}

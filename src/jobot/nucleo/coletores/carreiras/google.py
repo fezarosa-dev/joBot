@@ -34,8 +34,9 @@ TETO_FEED_BYTES = 32 * 1024 * 1024  # o feed tem 19,8 MB; o padrão do cliente �
 
 
 class _FormatoMudou(Exception):
-    """O corpo não é o feed `<jobs>`, o `<job>` mudou de nome, nenhum `<job>` traz país ou nenhuma
-    vaga do Brasil serve."""
+    """O corpo não é XML ou a raiz não é `<jobs>`; há filho direto de `<jobs>` com outro nome
+    (fora `<updated>`) e nenhum `<job>`; há `<job>` e nenhum traz país; ou há vaga do Brasil e
+    nenhuma é legível."""
 
 
 def _texto(no: ET.Element, caminho: str) -> str:
