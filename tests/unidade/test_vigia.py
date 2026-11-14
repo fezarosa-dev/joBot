@@ -23,7 +23,13 @@ from jobot.nucleo.coletores.base import (
     UrlListada,
     juntar_paginas,
 )
-from jobot.nucleo.http import ClienteEducado, ErroDeRede, HttpEducado, OrcamentoGasto, Validadores
+from jobot.nucleo.http import (
+    ClienteEducado,
+    ErroDeRede,
+    HttpEducado,
+    OrcamentoGasto,
+    Validadores,
+)
 from jobot.nucleo.modelo import Empresa, VagaColetada
 
 pytestmark = pytest.mark.anyio

@@ -106,11 +106,11 @@ def _ancora(html: str, pedaco: str) -> str:
 
 
 def test_de_volta_vive_em_seguranca() -> None:
-    assert getattr(seguranca, "_de_volta", None) is not None
-    assert vars(vagas)["_de_volta"] is seguranca._de_volta  # noqa: SLF001
-    assert seguranca._de_volta("/vagas?aba=salvas").headers["location"] == "/vagas?aba=salvas"  # noqa: SLF001
+    assert getattr(seguranca, "de_volta", None) is not None
+    assert vars(vagas)["de_volta"] is seguranca.de_volta
+    assert seguranca.de_volta("/vagas?aba=salvas").headers["location"] == "/vagas?aba=salvas"
     for fora in ("//evil.test", "https://evil.test/x", "/a\\b", "evil"):
-        assert seguranca._de_volta(fora).headers["location"] == "/"  # noqa: SLF001
+        assert seguranca.de_volta(fora).headers["location"] == "/"
 
 
 # ---------------------------------------------------------------- detalhe

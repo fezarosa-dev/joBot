@@ -265,12 +265,12 @@ async def _enriquecer(
             livres_total -= 1
             try:
                 detalhe = await coletor.detalhar(v, http)
-            except Parou429:
-                log.warning("detalhes de %s/%s parados: Parou429", fonte, escopo)
+            except Parou429 as erro:
+                log.warning("detalhes de %s/%s parados: Parou429: %s", fonte, escopo, erro)
                 parados.add(escopo)
                 continue
             except _PARA_DETALHES as erro:
-                log.warning("detalhes de %s parados: %s", fonte, type(erro).__name__)
+                log.warning("detalhes de %s parados: %s: %s", fonte, type(erro).__name__, erro)
                 break
             except Exception:  # só esta URL; sem cache, volta na próxima execução
                 # shortcut: sem recuo; a URL que sempre quebra é pedida em toda execução por

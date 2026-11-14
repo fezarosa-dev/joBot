@@ -99,7 +99,7 @@ async def exigir_csrf(request: Request) -> None:
         raise HTTPException(403, detail=t(idioma_do_pedido(request), "seguranca.recarregue"))
 
 
-def _de_volta(voltar: str) -> RedirectResponse:
+def de_volta(voltar: str) -> RedirectResponse:
     """Volta para a página de onde veio, só se for caminho do próprio painel (sem open redirect).
 
     O `Referrer-Policy: no-referrer` tira o `Referer`, por isso a página manda `voltar`.
