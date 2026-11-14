@@ -661,6 +661,8 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 **Atualização de 2026-11-14 (A16):** a terceira fonte sem nome na resposta apareceu: o Workday (a empresa só vem em `hiringOrganization.name`, no detalhe). A sessão manteve a (a): o Workday guarda `identificador -> nome` na instância, como Lever e Ashby, sem mudar o contrato do `coletar`. Mudar o contrato mexe em todos os coletores e é decisão do dono: se quiser a (b) ou a (c), vira tarefa nova. Status: decidido pela sessão em 2026-11-14 com o dono fora, para confirmar. A Eightfold também guarda o cadastro na instância (`shortcut:` em `eightfold.py`). Os escopos novos da leva B seguem o texto opaco: um por empresa e país no Workday (T115, A17), o host no Eightfold, o identificador nas demais.
 
+**Atualização de 2026-11-14 (A33, T115, leva K):** o escopo do Workday tem o formato `<tenant>/<site>|<wd>|<PAÍS>`, com o código ISO do país em maiúsculas (`workday.py:71-83`). O SmartRecruiters usa `<id>|<pais>` em minúsculas, porque a API dele pede assim: o escopo é opaco e cada coletor tem o seu. Escopo gravado com o nome antigo (sem país) dá `ValueError` em `_separar`, sem migração, porque a fase 1 ainda não saiu. Status: decidido pela sessão em 2026-11-14 com o dono fora, para confirmar.
+
 **Escolhas do redator, para confirmar com o dono:**
 - A T50 mostra o escopo como texto, como vem do coletor, sem separar nem traduzir.
 - Hapvida: o nome genérico faz o escopo `hapvidandi` baixar vagas de várias empresas, e só o filtro de host do `jobUrl` as descarta depois de baixadas. O orçamento de 30 pedidos é da fonte inteira, então esse escopo pode gastar tudo e deixar os outros em `no_limite` (o rodízio por `ultima_coleta` ameniza, não elimina). Se acontecer na prática, vira tarefa nova: limite próprio por escopo ou filtro por outro parâmetro da API.
@@ -899,7 +901,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 ## D64. Aviso de versão e link de apoio: sobras (T85, T87, T104, T105)
 
-**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir); o item de CSS e o item do salto recusado foram decididos pela sessão em 2026-11-14 com o dono fora, para confirmar
+**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir); o item de CSS, o item do salto recusado e o do link da versão foram decididos pela sessão em 2026-11-14 com o dono fora, para confirmar
 
 **Contexto:**
 - Hora da checagem (`checar_versao_nova` em `src/jobot/agenda/versao.py:100-126`). A hora só é gravada quando o servidor respondeu, mesmo com erro. `OrcamentoGasto` e `ErroDeRede` com `status` `None` voltam sem gravar, e a próxima volta (de hora em hora) tenta de novo. Escolha do agente que implementou, para confirmar.
@@ -908,10 +910,11 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 - Fixture global. O `_laco_versao_parado` de `tests/conftest.py` é `autouse` e vale para todo teste, mas só quatro suítes sobem o lifespan. Mover só para `test_servir.py` quebraria as outras (T104).
 - Falta teste de tela do aviso de versão (T105).
 - CSS (A4). O estilo `.aviso-versao` entrou no `base.css` junto da T87, que já mexia nesse arquivo, e não numa tarefa à parte.
+- Link da versão no aviso (T105, A39). O plano da T105 supunha um link da versão com `target="_blank"` e `rel="noopener noreferrer"`, mas o fragmento real (`painel/templates/aviso_versao/aviso.html`) não tem link: o aviso já diz para rodar `jobot atualizar`. A T105 foi entregue sem link, e o teste trava isso (`tests/tela/test_aviso_versao.py:80-83`).
 
-**Opções:** salto recusado: (a) deixar; (b) exceção própria para o salto no `http.py`, o aviso grava a hora e o log diz o motivo. Hora da checagem: (a) como está; (b) gravar também sem resposta, com atraso de uma hora. Recomendação: (a) nos dois; o custo de tentar de hora em hora é um pedido por hora, só com o aviso ligado.
+**Opções:** salto recusado: (a) deixar; (b) exceção própria para o salto no `http.py`, o aviso grava a hora e o log diz o motivo. Hora da checagem: (a) como está; (b) gravar também sem resposta, com atraso de uma hora. Link da versão: (a) sem link, como o aviso real; (b) tarefa para pôr o link da release, com `target` e `rel` e teste que os exija. Recomendação: (a) nos três; o custo de tentar de hora em hora é um pedido por hora, só com o aviso ligado.
 
-**Decisão provisória:** (a) nos dois. T104 e T105 estão no plano, livres.
+**Decisão provisória:** (a) nos três. T104 e T105 entregues e juntadas na `dev` em 2026-11-14 (leva K). Link da versão: decidido pela sessão em 2026-11-14 com o dono fora (A39), para confirmar. Desfazer o link: opção (b).
 
 ## D65. Primeira execução em modo edição e idioma do `jobot buscar` (T89, T100)
 
@@ -995,6 +998,11 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 **Decisão provisória:** o código segue como está até o dono decidir; as T108, T109 e T110 estão no plano, livres.
 
+**Atualização de 2026-11-14 (A31, A38, A40, leva K):** a T108, a T109 e a T110 foram entregues e juntadas na `dev`. Status: decidido pela sessão em 2026-11-14 com o dono fora, para confirmar.
+- A D71(b) ficou entregue em parte. No escopo do Common Crawl (`max_pedidos=2`), o `OrcamentoGasto` conta como 503 e adia até o dia seguinte (`agenda/descoberta.py:35-39`), mas ele também aparece na nova tentativa de outro 5xx, de falha de rede ou de salto. Separar os dois exige o `http.py` dizer qual status esgotou o orçamento, que é contrato novo em `nucleo/http.py` (A40). Desfazer: tarefa de contrato no `http.py`.
+- Recuo de 1 h (A38, R2 da T108). Para erro que não é 503 nem limite, a descoberta marca a execução como interrompida e só tenta de novo depois de 1 h (`RECUO`, `descoberta.py:34`). Sem o recuo, o laço de 60 s tentaria uma vez por minuto e baixaria o `cluster.idx` (uns 105 MB) de novo a cada vez. O número é escolha do redator, para confirmar. Opções: 1 h (no máximo uns 15 tentativas por dia num erro persistente), 6 h ou recuo exponencial. Recomendação: 1 h.
+- A chave de adiamento passou a ser `descoberta_adiada_ate`, com um instante ISO em UTC (`descoberta.py:33`). Valor estragado trava a descoberta; a T125 faz valer como ausente.
+
 ## D72. Páginas acompanhadas: DNS, escolhas do redator e o que falta para a T75 (T72, T111, T112)
 
 **Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir); o DNS foi escolha do agente (regra R2), para confirmar
@@ -1025,7 +1033,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 **Contexto:** Depois de juntar a leva J, a sessão rodou as 10 fontes novas na `fedora-dev` em 2026-11-14, com as empresas de exemplo de cada uma: cerca de 8,2 mil vagas (T55b, no plano). Quatro coisas divergiram, e a sessão achou a causa de cada uma:
 - CIEE, estágio `parcial` em toda rodada. 134 de 3.962 vagas vêm com `nomeEmpresa` só com espaço (empresa confidencial) e eram descartadas. Cada página de `size=1000` tem cerca de 1,07 MB e cabe no teto de 5 MB: fecha a dúvida da T60.
 - Workday, Mastercard `falhou`. O data center `wd1` estava em manutenção: o `POST /jobs` respondeu 303 para a página HTML "Workday is currently unavailable". O coletor lia isso como formato mudado.
-- Eightfold, Microsoft parou no 429. Não veio do resolver. O mais provável é limite por IP na borda do Eightfold depois de 41 pedidos a 1 s em Bayer e Mercado Livre (confiança média-baixa): meia hora depois, dois pedidos com 30 s entre eles deram 200. O `Retry-After` não ficou registrado, porque o `Parou429` não guarda os cabeçalhos.
+- Eightfold, Microsoft parou no 429. Não veio do resolver (a A13 dizia que o resolver usou 1 s em vez de 5 s; a causa certa está na A28, e a A13 já foi corrigida). O mais provável é limite por IP na borda do Eightfold depois de 41 pedidos a 1 s em Bayer e Mercado Livre (confiança média-baixa): meia hora depois, dois pedidos com 30 s entre eles deram 200. O `Retry-After` não ficou registrado, porque o `Parou429` não guarda os cabeçalhos.
 - IEL, vagas de só 2 das 19 UFs. Os números são reais (GO sem vaga, SP com 3). O sitemap guarda entradas velhas, e as 8 UFs fora da lista (BA, CE, MA, PI, RJ, RS, AP e RR) não estão no portal: `/BA` responde 500.
 
 **Opções:**
@@ -1075,6 +1083,10 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 **Decisão provisória:** (a), na T114 e na T115. Desfazer: voltar a parar a fonte toda no passo 4.
 
+**Atualização de 2026-11-14 (A35 a A37, leva K):** a T114, a T115 e a T117 foram entregues e juntadas na `dev`. Status das duas decisões abaixo: decidido pela sessão em 2026-11-14 com o dono fora, para confirmar.
+- Retry-After no log (R4 da T117, A36). A T117 deixou o `Retry-After` fora do log: o executor não tem logger e o enriquecimento registra só o nome do tipo (`agenda/execucao.py:273`). Opções: (a) o executor registra `str(erro)` quando o escopo para por `Parou429`, `LimiteAtingido` ou `Bloqueio`, e o `Parou429` que escapa do `coletar` vira `saude.parou_429` em vez de `saude.excecao:Parou429` (`executor.py:140-146`); (b) só o log de `agenda/execucao.py`; (c) campo novo no contrato. Recomendação e decisão: (a), na T123, junto da T106. Desfazer: (b) ou (c).
+- Nome do país no Workday (T115, A37). O coletor importa o mapa privado `_PAISES` de `nucleo/tratamento/locais.py` (`workday.py:29,44`). Opções: (a) manter o import privado; (b) `nome_do_pais` público em `locais.py`, mais "Estados Unidos da América" reconhecido e sigla de estado americano que parece UF ("Columbus, MS") sem virar vaga no Brasil em escopo de fora. Recomendação e decisão: (b), na T124. Desfazer: (a).
+
 ## D78. Leva K e as sobras da leva J (A25, A30, A31, A34, T106, T119, T120, T121)
 
 **Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar
@@ -1088,3 +1100,43 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 **Opções:** (a) como decidido; (b) esperar o dono para cada sobra baixa. Recomendação: (a): são correções pequenas, cada uma com teste, e não mexem em contrato público.
 
 **Decisão provisória:** (a). Desfazer: não há o que desfazer; as tarefas são independentes e podem ser descartadas uma a uma.
+
+## D79. Sobras da leva K aceitas (A38, T108, T114 a T121)
+
+**Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar
+
+**Contexto:** as revisões da leva K deixaram estas sobras. A sessão as aceita sem mexer no código; cada uma vira tarefa pequena se o dono quiser:
+- Um 429 no detalhe deixa sem descrição, naquela execução, as vagas do escopo que já estavam dentro do limite de 50 por fonte; as vagas dos outros escopos não ocupam o lugar, e a próxima execução as pega (T114).
+- Vaga do CIEE com `nomeEmpresa` `null` (não em branco) segue pulada como `parcial`; a captura real mostra a empresa em sigilo como `" "`, e falta conferir na rede se algum dia vem `null` (T116).
+- Detalhe do Workday com resposta que não é JSON volta sem descrição (T115).
+- "Evergreen", vaga contínua do Santander, vira cidade (T115).
+- O aviso "Nenhuma vaga encontrada" do IEL é procurado no HTML inteiro, e a posição e o texto reais nunca foram vistos na rede (T118).
+- O seletor da paginação da USP (`ul.pager li a[href]`) ainda não foi visto ao vivo (T119).
+- A mudança em `scripts/capturar.py` para não estragar UUID (a limpeza deixa de achar telefone dentro de UUID); só o UUID padrão 8-4-4-4-12 foi tratado (T120).
+- A issue do vigia pode perder a marca "detalhe" quando o corpo é reescrito toda semana por outro motivo, e a semana seguinte fecha sem conferir o detalhe (T121).
+- O `Retry-After` entra cru no texto da exceção (`nucleo/http.py:397-401`); um valor muito longo deixaria o texto grande (T117).
+- O recuo de 1 h da descoberta para erro que não é 503 nem limite (T108 a T110; D71).
+
+**Opções:** (a) aceitar todas; (b) abrir tarefa para cada uma. Recomendação: (a), pelo custo baixo de cada uma. As sobras que valem tarefa já estão no plano: T122 a T125.
+
+**Decisão provisória:** (a). Desfazer: cada item vira tarefa pequena.
+
+## D80. Eureca pela API do aplicativo de candidatos (A42, T70)
+
+**Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar
+
+**Contexto:** o caminho público da Eureca estava em aberto desde o apêndice. A conferência de 2026-11-13 achou a API do aplicativo de candidatos (`candidate-api.eureca.me/opportunities`), que responde sem login. O escopo é um só. Os termos de uso da Eureca são restritivos (a cláusula 7 pede consentimento prévio e expresso), mas manter a Eureca na fase 1 já foi decisão do dono (Q6, de 2026-11-13), com chave liga/desliga, ritmo educado, link para a vaga original e aviso no README; Abler e Gupy seguem a mesma decisão. O link da vaga (`app.eureca.me/vagas/{id}`) foi deduzido do código do aplicativo e não foi aberto: fica para conferir na busca real.
+
+**Opções:** (a) a Eureca entra pela API do aplicativo; (b) tirar a Eureca da fase 1, com o motivo no apêndice. Recomendação: (a), porque o dono já decidiu mantê-la e não há login a contornar.
+
+**Decisão provisória:** (a), na T70. Desfazer: (b).
+
+## D81. Leva L: o que entrou e o que ficou para a leva M (A41, A43)
+
+**Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar
+
+**Contexto:** a leva L roda até 8 tarefas ao mesmo tempo: os seis coletores que faltam (Oracle HCM, Google, Amazon, Super Estágios, Eureca e Abler), o guia de conserto de fonte (T83), os nomes públicos junto com o log do 429 (T106 e T123, numa tarefa só), o DNS compartilhado (T111), a tela de empresas sugeridas (T74), os textos da tela (T122), o país no Workday (T124), as sobras pequenas (T125) e os registros (REG9). Ficam para a leva M, por mexerem nos mesmos arquivos de tarefas desta leva: a T75 (mexe em `rotas/vagas.py`, como a T106), a T112 (mexe em `tests/unidade/test_paginas.py`, como a T111) e a T76 (`empresas.json`, depende do Oracle HCM).
+
+**Opções:** (a) como decidido; (b) rodar a T75 e a T112 junto, aceitando conflito de arquivo. Recomendação: (a): a leva M sai logo depois, e conflito de arquivo custa mais que a espera.
+
+**Decisão provisória:** (a). Desfazer: tirar uma tarefa da leva (a branch fica, sem merge).
