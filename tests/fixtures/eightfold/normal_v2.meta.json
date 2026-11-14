@@ -1,0 +1,12 @@
+{
+  "url": "https://bayer.eightfold.ai/api/apply/v2/jobs?domain=bayer.com&start=0&num=10&location=Brazil&sort_by=timestamp",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/json"
+  },
+  "sha256": "f58ebb70c2cae98b99d28f466ec99a26cc081fc659e8701ab4a7b7314f9ac559",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "captura B1/eightfold_v2_bayer_lista_br.json (já cortada a 5 vagas) passada por capturar.reduzir e capturar.limpar_pessoais (nomes em texto livre conferidos à mão); chaves de anotação da captura removidas: _nota, _chaves_omitidas"
+}

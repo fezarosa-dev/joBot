@@ -1,0 +1,12 @@
+{
+  "url": "https://apply.careers.microsoft.com/api/pcsx/search?domain=microsoft.com&query=&location=Brazil&start=0&work_site=0+days+%2F+week+in-office+%E2%80%93+remote",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 429,
+  "cabecalhos": {
+    "Content-Type": "text/html"
+  },
+  "sha256": "89ebf32e8e0e52bf7ad24c0f53f2244948947be52efff961b5e5615182de2ca1",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "captura B4/raw/m4.json (429 sem Retry-After, cabeçalhos em B4/raw/m4.hdr), copiada sem mudança: 22 bytes, sem dado pessoal"
+}

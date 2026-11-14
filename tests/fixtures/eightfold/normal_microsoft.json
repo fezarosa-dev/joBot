@@ -1,0 +1,1041 @@
+{
+  "status": 200,
+  "error": {
+    "message": "",
+    "body": ""
+  },
+  "data": {
+    "positions": [
+      {
+        "id": 1970393557054020,
+        "displayJobId": "200065661",
+        "name": "Area Support Lead - Reactive Support Excellence",
+        "locations": [
+          "Brazil, Multiple Locations, Multiple Locations"
+        ],
+        "standardizedLocations": [
+          "BR"
+        ],
+        "postedTs": 1793991679,
+        "solrScore": null,
+        "stars": 0,
+        "department": "Support Escalation Management",
+        "creationTs": 1793829289,
+        "isHot": 0,
+        "workLocationOption": "onsite",
+        "locationFlexibility": null,
+        "atsJobId": "200065661",
+        "positionUrl": "/careers/job/1970393557054020"
+      },
+      {
+        "id": 1970393557071281,
+        "displayJobId": "200066946",
+        "name": "Cloud & AI Infrastructure Solution Engineer",
+        "locations": [
+          "Brazil, Multiple Locations, Multiple Locations",
+          "Brazil, São Paulo, São Paulo"
+        ],
+        "standardizedLocations": [
+          "BR",
+          "São Paulo, SP, BR"
+        ],
+        "postedTs": 1794441625,
+        "solrScore": null,
+        "stars": 0,
+        "department": "Solution Engineering",
+        "creationTs": 1794418163,
+        "isHot": 0,
+        "workLocationOption": "onsite",
+        "locationFlexibility": null,
+        "atsJobId": "200066946",
+        "positionUrl": "/careers/job/1970393557071281"
+      },
+      {
+        "id": 1970393557071279,
+        "displayJobId": "200066945",
+        "name": "Cloud & AI Infrastructure Solution Engineer",
+        "locations": [
+          "Brazil, Multiple Locations, Multiple Locations",
+          "Brazil, São Paulo, São Paulo"
+        ],
+        "standardizedLocations": [
+          "BR",
+          "São Paulo, SP, BR"
+        ],
+        "postedTs": 1794441283,
+        "solrScore": null,
+        "stars": 0,
+        "department": "Solution Engineering",
+        "creationTs": 1794417982,
+        "isHot": 0,
+        "workLocationOption": "onsite",
+        "locationFlexibility": null,
+        "atsJobId": "200066945",
+        "positionUrl": "/careers/job/1970393557071279"
+      },
+      {
+        "id": 1970393557071283,
+        "displayJobId": "200066948",
+        "name": "Cloud & AI Apps Solution Engineer",
+        "locations": [
+          "Brazil, Multiple Locations, Multiple Locations",
+          "Brazil, São Paulo, São Paulo"
+        ],
+        "standardizedLocations": [
+          "BR",
+          "São Paulo, SP, BR"
+        ],
+        "postedTs": 1794442476,
+        "solrScore": null,
+        "stars": 0,
+        "department": "Solution Engineering",
+        "creationTs": 1794418476,
+        "isHot": 0,
+        "workLocationOption": "onsite",
+        "locationFlexibility": null,
+        "atsJobId": "200066948",
+        "positionUrl": "/careers/job/1970393557071283"
+      },
+      {
+        "id": 1970393557071285,
+        "displayJobId": "200066949",
+        "name": "Cloud & AI Apps Solution Engineer",
+        "locations": [
+          "Brazil, Multiple Locations, Multiple Locations",
+          "Brazil, São Paulo, São Paulo"
+        ],
+        "standardizedLocations": [
+          "BR",
+          "São Paulo, SP, BR"
+        ],
+        "postedTs": 1794442157,
+        "solrScore": null,
+        "stars": 0,
+        "department": "Solution Engineering",
+        "creationTs": 1794418602,
+        "isHot": 0,
+        "workLocationOption": "onsite",
+        "locationFlexibility": null,
+        "atsJobId": "200066949",
+        "positionUrl": "/careers/job/1970393557071285"
+      },
+      {
+        "id": 1970393557071267,
+        "displayJobId": "200066943",
+        "name": "Security Technical Specialist",
+        "locations": [
+          "Brazil, São Paulo, São Paulo",
+          "Brazil, Distrito Federal, Brasilia",
+          "Brazil, Rio de Janeiro, Rio de Janeiro"
+        ],
+        "standardizedLocations": [
+          "São Paulo, SP, BR",
+          "Brasília, DF, BR",
+          "Rio de Janeiro, RJ, BR"
+        ],
+        "postedTs": 1794437539,
+        "solrScore": null,
+        "stars": 0,
+        "department": "Solution Engineering",
+        "creationTs": 1794417425,
+        "isHot": 0,
+        "workLocationOption": "onsite",
+        "locationFlexibility": null,
+        "atsJobId": "200066943",
+        "positionUrl": "/careers/job/1970393557071267"
+      },
+      {
+        "id": 1970393557071266,
+        "displayJobId": "200066944",
+        "name": "Security Technical Specialist",
+        "locations": [
+          "Brazil, São Paulo, São Paulo",
+          "Brazil, Distrito Federal, Brasilia",
+          "Brazil, Rio de Janeiro, Rio de Janeiro"
+        ],
+        "standardizedLocations": [
+          "São Paulo, SP, BR",
+          "Brasília, DF, BR",
+          "Rio de Janeiro, RJ, BR"
+        ],
+        "postedTs": 1794440773,
+        "solrScore": null,
+        "stars": 0,
+        "department": "Solution Engineering",
+        "creationTs": 1794417525,
+        "isHot": 0,
+        "workLocationOption": "onsite",
+        "locationFlexibility": null,
+        "atsJobId": "200066944",
+        "positionUrl": "/careers/job/1970393557071266"
+      },
+      {
+        "id": 1970393557026609,
+        "displayJobId": "200060518",
+        "name": "Critical Environment Operations - Night Shift",
+        "locations": [
+          "Brazil, São Paulo, Campinas"
+        ],
+        "standardizedLocations": [
+          "SP,BR"
+        ],
+        "postedTs": 1792782904,
+        "solrScore": null,
+        "stars": 0,
+        "department": "Critical Environment Ops",
+        "creationTs": 1791391951,
+        "isHot": 0,
+        "workLocationOption": "onsite",
+        "locationFlexibility": null,
+        "atsJobId": "200060518",
+        "positionUrl": "/careers/job/1970393557026609"
+      },
+      {
+        "id": 1970393557047410,
+        "displayJobId": "200063892",
+        "name": "Data Center Critical Environment Technician Manager",
+        "locations": [
+          "Brazil, São Paulo, Campinas"
+        ],
+        "standardizedLocations": [
+          "SP,BR"
+        ],
+        "postedTs": 1793108453,
+        "solrScore": null,
+        "stars": 0,
+        "department": "Critical Environment Ops",
+        "creationTs": 1793037324,
+        "isHot": 0,
+        "workLocationOption": "onsite",
+        "locationFlexibility": null,
+        "atsJobId": "200063892",
+        "positionUrl": "/careers/job/1970393557047410"
+      },
+      {
+        "id": 1970393557007881,
+        "displayJobId": "200057940",
+        "name": "Jovem Aprendiz - Técnico(a) de Data Center",
+        "locations": [
+          "Brazil, São Paulo, Campinas"
+        ],
+        "standardizedLocations": [
+          "SP,BR"
+        ],
+        "postedTs": 1794501210,
+        "solrScore": null,
+        "stars": 0,
+        "department": "Data Center Technicians",
+        "creationTs": 1790266328,
+        "isHot": 0,
+        "workLocationOption": "onsite",
+        "locationFlexibility": null,
+        "atsJobId": "200057940",
+        "positionUrl": "/careers/job/1970393557007881"
+      }
+    ],
+    "filterDef": {
+      "facets": {
+        "locations": [
+          [
+            "Remote",
+            999999
+          ],
+          [
+            "Redmond, WA, United States",
+            886
+          ],
+          [
+            "United States",
+            300
+          ],
+          [
+            "Mountain View, CA, United States",
+            289
+          ],
+          [
+            "Bengaluru, KA, India",
+            118
+          ],
+          [
+            "New York, NY, United States",
+            116
+          ],
+          [
+            "Atlanta, GA, United States",
+            112
+          ],
+          [
+            "Hyderabad, TS, India",
+            101
+          ],
+          [
+            "Austin, TX, United States",
+            92
+          ],
+          [
+            "Tokyo, Japan",
+            82
+          ],
+          [
+            "Hillsboro, OR, United States",
+            78
+          ]
+        ]
+      },
+      "smartFilters": [
+        {
+          "type": "toggle",
+          "filterName": "include_remote",
+          "title": "Include eligible remote jobs",
+          "options": null,
+          "tooltip": "When selected, the results will include remote job opportunities",
+          "extraData": {},
+          "displayCount": 10,
+          "translateOptions": false,
+          "allowFreeText": false
+        },
+        {
+          "type": "multi_select",
+          "filterName": "work_site",
+          "title": "Work site",
+          "options": [
+            {
+              "label": "3 DAYS / WEEK IN-OFFICE",
+              "value": "3 days / week in-office"
+            },
+            {
+              "label": "0 DAYS / WEEK IN-OFFICE – REMOTE",
+              "value": "0 days / week in-office – remote"
+            },
+            {
+              "label": "FULLY ON-SITE",
+              "value": "fully on-site"
+            },
+            {
+              "label": "4 DAYS / WEEK IN-OFFICE",
+              "value": "4 days / week in-office"
+            },
+            {
+              "label": "2 DAYS / WEEK IN-OFFICE",
+              "value": "2 days / week in-office"
+            },
+            {
+              "label": "1 DAY / WEEK IN-OFFICE",
+              "value": "1 day / week in-office"
+            }
+          ],
+          "tooltip": null,
+          "extraData": {},
+          "displayCount": 50,
+          "translateOptions": true,
+          "allowFreeText": false
+        },
+        {
+          "type": "multi_select",
+          "filterName": "seniority",
+          "title": "Experience level",
+          "options": [
+            {
+              "label": "SENIOR",
+              "value": "Senior"
+            },
+            {
+              "label": "MID-LEVEL",
+              "value": "Mid-Level"
+            },
+            {
+              "label": "MANAGER",
+              "value": "Manager"
+            },
+            {
+              "label": "DIRECTOR",
+              "value": "Director"
+            },
+            {
+              "label": "ENTRY",
+              "value": "Entry"
+            },
+            {
+              "label": "INTERN",
+              "value": "Intern"
+            },
+            {
+              "label": "VICE PRESIDENT",
+              "value": "Vice President"
+            },
+            {
+              "label": "CXO",
+              "value": "CXO"
+            }
+          ],
+          "tooltip": null,
+          "extraData": {},
+          "displayCount": 50,
+          "translateOptions": true,
+          "allowFreeText": false
+        },
+        {
+          "type": "multi_select",
+          "filterName": "profession",
+          "title": "Profession",
+          "options": [
+            {
+              "label": "SOFTWARE ENGINEERING",
+              "value": "software engineering"
+            },
+            {
+              "label": "DATA CENTER",
+              "value": "data center"
+            },
+            {
+              "label": "SALES",
+              "value": "sales"
+            },
+            {
+              "label": "CUSTOMER SUCCESS",
+              "value": "customer success"
+            },
+            {
+              "label": "HARDWARE ENGINEERING",
+              "value": "hardware engineering"
+            },
+            {
+              "label": "RESEARCH, APPLIED, & DATA SCIENCES",
+              "value": "research, applied, & data sciences"
+            },
+            {
+              "label": "PROGRAM MANAGEMENT",
+              "value": "program management"
+            },
+            {
+              "label": "PRODUCT MANAGEMENT",
+              "value": "product management"
+            },
+            {
+              "label": "TECHNOLOGY SALES",
+              "value": "technology sales"
+            },
+            {
+              "label": "CONSULTING SERVICES",
+              "value": "consulting services"
+            },
+            {
+              "label": "DIGITAL SALES AND SOLUTIONS",
+              "value": "digital sales and solutions"
+            },
+            {
+              "label": "MARKETING",
+              "value": "marketing"
+            },
+            {
+              "label": "SECURITY ENGINEERING",
+              "value": "security engineering"
+            },
+            {
+              "label": "BUSINESS OPERATIONS",
+              "value": "business operations"
+            },
+            {
+              "label": "REAL ESTATE, FACILITIES, & CONSTRUCTION",
+              "value": "real estate, facilities, & construction"
+            },
+            {
+              "label": "TECHNICAL SUPPORT",
+              "value": "technical support"
+            },
+            {
+              "label": "FINANCE",
+              "value": "finance"
+            },
+            {
+              "label": "QUANTUM COMPUTING",
+              "value": "quantum computing"
+            },
+            {
+              "label": "SALES ENABLEMENT",
+              "value": "sales enablement"
+            },
+            {
+              "label": "GOVERNANCE, RISK, & COMPLIANCE",
+              "value": "governance, risk, & compliance"
+            },
+            {
+              "label": "HUMAN RESOURCES",
+              "value": "human resources"
+            },
+            {
+              "label": "DESIGN & CREATIVE",
+              "value": "design & creative"
+            },
+            {
+              "label": "SUPPLY CHAIN",
+              "value": "supply chain"
+            },
+            {
+              "label": "BUSINESS DEVELOPMENT & VENTURES",
+              "value": "business development & ventures"
+            },
+            {
+              "label": "ADMINISTRATION",
+              "value": "administration"
+            },
+            {
+              "label": "LEARNING",
+              "value": "learning"
+            },
+            {
+              "label": "ANALYTICS",
+              "value": "analytics"
+            },
+            {
+              "label": "CORPORATE AFFAIRS",
+              "value": "corporate affairs"
+            },
+            {
+              "label": "LEGAL",
+              "value": "legal"
+            },
+            {
+              "label": "COMMUNICATIONS",
+              "value": "communications"
+            },
+            {
+              "label": "MANUFACTURING",
+              "value": "manufacturing"
+            }
+          ],
+          "tooltip": null,
+          "extraData": {},
+          "displayCount": 50,
+          "translateOptions": true,
+          "allowFreeText": false
+        },
+        {
+          "type": "multi_select",
+          "filterName": "career_discipline",
+          "title": "Discipline",
+          "options": [
+            {
+              "label": "SOFTWARE ENGINEERING",
+              "value": "Software Engineering"
+            },
+            {
+              "label": "CLOUD SOLUTION ARCHITECTURE",
+              "value": "Cloud Solution Architecture"
+            },
+            {
+              "label": "PRODUCT MANAGEMENT",
+              "value": "Product Management"
+            },
+            {
+              "label": "TECHNICAL PROGRAM MANAGEMENT",
+              "value": "Technical Program Management"
+            },
+            {
+              "label": "SILICON ENGINEERING",
+              "value": "Silicon Engineering"
+            }
+          ],
+          "tooltip": null,
+          "extraData": {},
+          "displayCount": 50,
+          "translateOptions": true,
+          "allowFreeText": false
+        }
+      ],
+      "allFilters": [
+        {
+          "type": "multi_select",
+          "filterName": "roletype",
+          "title": "Role type",
+          "options": [
+            {
+              "label": "INDIVIDUAL CONTRIBUTOR",
+              "value": "individual contributor"
+            },
+            {
+              "label": "PEOPLE MANAGER",
+              "value": "people manager"
+            }
+          ],
+          "tooltip": null,
+          "extraData": {},
+          "displayCount": 50,
+          "translateOptions": true,
+          "allowFreeText": false
+        },
+        {
+          "type": "multi_select",
+          "filterName": "employment_type",
+          "title": "Employment type",
+          "options": [
+            {
+              "label": "FULL-TIME",
+              "value": "full-time"
+            },
+            {
+              "label": "INTERNSHIP",
+              "value": "internship"
+            },
+            {
+              "label": "POST DOC RESEARCH",
+              "value": "post doc research"
+            },
+            {
+              "label": "PART-TIME",
+              "value": "part-time"
+            }
+          ],
+          "tooltip": null,
+          "extraData": {},
+          "displayCount": 50,
+          "translateOptions": true,
+          "allowFreeText": false
+        },
+        {
+          "type": "multi_select_suggest",
+          "filterName": "skills",
+          "title": "Skills",
+          "options": [
+            {
+              "label": "PROBLEM SOLVING",
+              "value": "Problem Solving"
+            },
+            {
+              "label": "DECISION MAKING",
+              "value": "Decision Making"
+            },
+            {
+              "label": "CONFLICT RESOLUTION",
+              "value": "Conflict Resolution"
+            },
+            {
+              "label": "NEGOTIATION",
+              "value": "Negotiation"
+            },
+            {
+              "label": "QUALITY ASSURANCE",
+              "value": "Quality Assurance"
+            },
+            {
+              "label": "WRITTEN COMMUNICATION",
+              "value": "Written Communication"
+            },
+            {
+              "label": "ORAL COMMUNICATION",
+              "value": "Oral Communication"
+            },
+            {
+              "label": "ENGLISH LANGUAGE PROFICIENCY",
+              "value": "English Language Proficiency"
+            },
+            {
+              "label": "PROJECT MANAGEMENT",
+              "value": "Project Management"
+            },
+            {
+              "label": "CREATIVITY",
+              "value": "Creativity"
+            },
+            {
+              "label": "DATA ANALYSIS",
+              "value": "Data Analysis"
+            },
+            {
+              "label": "ARTIFICIAL INTELLIGENCE (AI)",
+              "value": "Artificial Intelligence (AI)"
+            },
+            {
+              "label": "TECHNICAL COMMUNICATION",
+              "value": "Technical Communication"
+            },
+            {
+              "label": "ARCHITECTURE DESIGN",
+              "value": "Architecture Design"
+            },
+            {
+              "label": "BUSINESS RELATIONSHIP MANAGEMENT",
+              "value": "Business Relationship Management"
+            },
+            {
+              "label": "DETAIL ORIENTED",
+              "value": "Detail Oriented"
+            },
+            {
+              "label": "MICROSOFT PRODUCTS",
+              "value": "Microsoft Products"
+            },
+            {
+              "label": "AGILITY",
+              "value": "Agility"
+            },
+            {
+              "label": "AI FLUENCY",
+              "value": "AI Fluency"
+            },
+            {
+              "label": "BUSINESS ACUMEN",
+              "value": "Business Acumen"
+            },
+            {
+              "label": "INFLUENCE OTHERS",
+              "value": "Influence Others"
+            },
+            {
+              "label": "FINANCIAL ANALYSIS",
+              "value": "Financial Analysis"
+            },
+            {
+              "label": "STAKEHOLDER MANAGEMENT",
+              "value": "Stakeholder Management"
+            },
+            {
+              "label": "STORYTELLING",
+              "value": "Storytelling"
+            },
+            {
+              "label": "EXECUTIVE RELATIONSHIPS",
+              "value": "Executive Relationships"
+            },
+            {
+              "label": "PRODUCT LIFECYCLE",
+              "value": "Product Lifecycle"
+            },
+            {
+              "label": "ANALYTICAL SKILLS",
+              "value": "Analytical Skills"
+            },
+            {
+              "label": "TECHNOLOGY INDUSTRY KNOWLEDGE",
+              "value": "Technology Industry Knowledge"
+            },
+            {
+              "label": "ALGORITHM DESIGN AND IMPLEMENTATION",
+              "value": "Algorithm Design and Implementation"
+            },
+            {
+              "label": "SOFTWARE DEVELOPMENT",
+              "value": "Software Development"
+            },
+            {
+              "label": "TRUSTED ADVISOR",
+              "value": "Trusted Advisor"
+            },
+            {
+              "label": "PRESENTATIONS",
+              "value": "Presentations"
+            },
+            {
+              "label": "SYSTEMS THINKING",
+              "value": "Systems Thinking"
+            },
+            {
+              "label": "BUSINESS ANALYSIS",
+              "value": "Business Analysis"
+            },
+            {
+              "label": "CHANGE MANAGEMENT",
+              "value": "Change Management"
+            },
+            {
+              "label": "WRITES CODE",
+              "value": "Writes Code"
+            },
+            {
+              "label": "COLLABORATIVE INNOVATION",
+              "value": "Collaborative Innovation"
+            },
+            {
+              "label": "AUTOMATION",
+              "value": "Automation"
+            },
+            {
+              "label": "ENGINEERING LIFECYCLE",
+              "value": "Engineering Lifecycle"
+            },
+            {
+              "label": "SECURITY PRINCIPLES",
+              "value": "Security Principles"
+            },
+            {
+              "label": "REGULATORY COMPLIANCE",
+              "value": "Regulatory Compliance"
+            },
+            {
+              "label": "STRATEGIC THINKING",
+              "value": "Strategic Thinking"
+            },
+            {
+              "label": "COMPUTER SCIENCE",
+              "value": "Computer Science"
+            },
+            {
+              "label": "DISTRIBUTED SYSTEMS APPLICATION DEVELOPMENT",
+              "value": "Distributed Systems Application Development"
+            },
+            {
+              "label": "TESTING PROCESS",
+              "value": "Testing Process"
+            },
+            {
+              "label": "COMPETITIVE ANALYSIS",
+              "value": "Competitive Analysis"
+            },
+            {
+              "label": "OPERATIONAL EXCELLENCE",
+              "value": "Operational Excellence"
+            },
+            {
+              "label": "PROJECT VISIONING",
+              "value": "Project Visioning"
+            },
+            {
+              "label": "TROUBLESHOOTING",
+              "value": "Troubleshooting"
+            },
+            {
+              "label": "COMPLIANCE OVERSIGHT",
+              "value": "Compliance Oversight"
+            }
+          ],
+          "tooltip": null,
+          "extraData": {},
+          "displayCount": 50,
+          "translateOptions": true,
+          "allowFreeText": false
+        },
+        {
+          "type": "multi_select",
+          "filterName": "hiring_title",
+          "title": "Job title",
+          "options": [
+            {
+              "label": "PRINCIPAL SOFTWARE ENGINEER",
+              "value": "principal software engineer"
+            },
+            {
+              "label": "SENIOR SOFTWARE ENGINEER",
+              "value": "senior software engineer"
+            },
+            {
+              "label": "DATA CENTER TECHNICIAN",
+              "value": "data center technician"
+            },
+            {
+              "label": "SENIOR PRODUCT MANAGER",
+              "value": "senior product manager"
+            },
+            {
+              "label": "PRINCIPAL PRODUCT MANAGER",
+              "value": "principal product manager"
+            },
+            {
+              "label": "PRINCIPAL TECHNICAL PROGRAM MANAGER",
+              "value": "principal technical program manager"
+            },
+            {
+              "label": "CRITICAL ENVIRONMENT TECHNICIAN",
+              "value": "critical environment technician"
+            },
+            {
+              "label": "LOGISTICS TECHNICIAN",
+              "value": "logistics technician"
+            },
+            {
+              "label": "SOFTWARE ENGINEER II",
+              "value": "software engineer ii"
+            },
+            {
+              "label": "CUSTOMER SUCCESS ACCOUNT MANAGER",
+              "value": "customer success account manager"
+            },
+            {
+              "label": "PRINCIPAL APPLIED SCIENTIST",
+              "value": "principal applied scientist"
+            },
+            {
+              "label": "PRINCIPAL SOFTWARE ENGINEERING MANAGER",
+              "value": "principal software engineering manager"
+            },
+            {
+              "label": "SOFTWARE ENGINEER II - CTJ - POLY",
+              "value": "software engineer ii - ctj - poly"
+            },
+            {
+              "label": "ACCOUNT TECHNOLOGY STRATEGIST",
+              "value": "account technology strategist"
+            },
+            {
+              "label": "CLOUD SOLUTION ARCHITECT",
+              "value": "cloud solution architect"
+            },
+            {
+              "label": "SENIOR TECHNICAL PROGRAM MANAGER",
+              "value": "senior technical program manager"
+            },
+            {
+              "label": "SOFTWARE ENGINEER",
+              "value": "software engineer"
+            },
+            {
+              "label": "CRITICAL ENVIRONMENT OPERATIONS MANAGER",
+              "value": "critical environment operations manager"
+            },
+            {
+              "label": "CRITICAL ENVIRONMENT PROGRAM MANAGER",
+              "value": "critical environment program manager"
+            },
+            {
+              "label": "DATA CENTER TECHNICIAN MANAGER",
+              "value": "data center technician manager"
+            },
+            {
+              "label": "PRINCIPAL DATA SCIENTIST",
+              "value": "principal data scientist"
+            },
+            {
+              "label": "SENIOR FINANCE MANAGER",
+              "value": "senior finance manager"
+            },
+            {
+              "label": "SOFTWARE ENGINEER 2 - COREAI",
+              "value": "software engineer 2 - coreai"
+            },
+            {
+              "label": "BUSINESS PROGRAM MANAGER",
+              "value": "business program manager"
+            },
+            {
+              "label": "CAMPUS COMMISSIONING MANAGER",
+              "value": "campus commissioning manager"
+            },
+            {
+              "label": "CLOUD NETWORK ENGINEER II",
+              "value": "cloud network engineer ii"
+            },
+            {
+              "label": "CUSTOMER SUCCESS ACCOUNT MANAGEMENT",
+              "value": "customer success account management"
+            },
+            {
+              "label": "DATA CENTER CRITICAL ENVIRONMENT TECHNICIAN MANAGER",
+              "value": "data center critical environment technician manager"
+            },
+            {
+              "label": "DATA CENTER PROJECT MANAGER",
+              "value": "data center project manager"
+            },
+            {
+              "label": "EXECUTIVE BUSINESS ADMINISTRATOR",
+              "value": "executive business administrator"
+            },
+            {
+              "label": "SENIOR APPLIED SCIENTIST",
+              "value": "senior applied scientist"
+            },
+            {
+              "label": "SENIOR CRITICAL ENVIRONMENT TECHNICIAN",
+              "value": "senior critical environment technician"
+            },
+            {
+              "label": "SENIOR HARDWARE ENGINEER",
+              "value": "senior hardware engineer"
+            },
+            {
+              "label": "SENIOR QUANTUM MEASUREMENT ENGINEER",
+              "value": "senior quantum measurement engineer"
+            },
+            {
+              "label": "SENIOR SECURITY RESEARCHER",
+              "value": "senior security researcher"
+            },
+            {
+              "label": "SENIOR SOFTWARE ENGINEER - COREAI",
+              "value": "senior software engineer - coreai"
+            },
+            {
+              "label": "TECHNICAL SUPPORT ADVISORY",
+              "value": "technical support advisory"
+            },
+            {
+              "label": "COMMISSIONING MANAGER",
+              "value": "commissioning manager"
+            },
+            {
+              "label": "CONSTRUCTION PROJECT MANAGER",
+              "value": "construction project manager"
+            },
+            {
+              "label": "CRITICAL ENVIRONMENT TECHNICIAN MANAGER",
+              "value": "critical environment technician manager"
+            },
+            {
+              "label": "DIGITAL CLOUD SOLUTION ARCHITECT",
+              "value": "digital cloud solution architect"
+            },
+            {
+              "label": "PRINCIPAL PROJECT MANAGER",
+              "value": "principal project manager"
+            },
+            {
+              "label": "SECURITY RESEARCHER",
+              "value": "security researcher"
+            },
+            {
+              "label": "SENIOR ACCOUNT EXECUTIVE",
+              "value": "senior account executive"
+            },
+            {
+              "label": "SENIOR LOGISTICS TECHNICIAN",
+              "value": "senior logistics technician"
+            },
+            {
+              "label": "SENIOR PRODUCT MARKETING MANAGER",
+              "value": "senior product marketing manager"
+            },
+            {
+              "label": "SOFTWARE ENGINEERING",
+              "value": "software engineering"
+            },
+            {
+              "label": "SOFTWARE ENGINEERING II",
+              "value": "software engineering ii"
+            },
+            {
+              "label": "SOFTWARE ENGINEERING II - CTJ - POLY",
+              "value": "software engineering ii - ctj - poly"
+            },
+            {
+              "label": "AI BUSINESS SOLUTIONS WORKFORCE SPECIALIST (M365, COPILOT & AI AGENT SOLUTION, 大手エンタープライズ企業担当）",
+              "value": "ai business solutions workforce specialist (m365, copilot & ai agent solution, 大手エンタープライズ企業担当）"
+            }
+          ],
+          "tooltip": null,
+          "extraData": {},
+          "displayCount": 50,
+          "translateOptions": true,
+          "allowFreeText": false
+        }
+      ]
+    },
+    "count": 24,
+    "sortBy": "distance",
+    "appliedFilters": {
+      "includeRemote": [
+        "1"
+      ],
+      "includeRelocation": [
+        "0"
+      ]
+    },
+    "debug": {},
+    "savedSearchMetadata": {
+      "savedSearchParamsHash": null,
+      "isSavedSearchActive": false
+    },
+    "resultsMetaData": {
+      "usedFuzzSearch": false
+    }
+  },
+  "metadata": null
+}

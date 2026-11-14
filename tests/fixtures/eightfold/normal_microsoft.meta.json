@@ -1,0 +1,12 @@
+{
+  "url": "https://apply.careers.microsoft.com/api/pcsx/search?domain=microsoft.com&query=&location=Brazil&start=0",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/json"
+  },
+  "sha256": "2efbab69b8b2922227ef9798de37032660e2d216ac4309b75cd90be4f01590aa",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "captura B4/raw/m1.json (página 1 inteira, 10 vagas; o reduzir cortou as listas de filtros) passada por capturar.reduzir e capturar.limpar_pessoais (nomes em texto livre conferidos à mão)"
+}
