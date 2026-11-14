@@ -65,7 +65,7 @@ def _andamento(
     con: sqlite3.Connection,
     *,
     ja_rodava: bool,
-    visto: int | None = None,
+    visto: str | None = None,
     so_rodando: bool = False,
 ) -> Response:
     # a casca pergunta em toda página: app sem o lifespan (sem travas) não pode dar 500
@@ -75,7 +75,8 @@ def _andamento(
         atual = None  # descoberta e páginas não seguram a busca nem aparecem aqui (12.3)
     # trava presa sem execução no banco: a tarefa acabou de nascer e ainda não abriu a sua
     rodando = (trava is not None and trava.locked()) or atual is not None
-    marca = atual.escopos_prontos if atual is not None else -1
+    # o que está na tela: quantas consultas prontas e quais fontes ainda rodam; mudou um, troca
+    marca = f"{atual.escopos_prontos}:{','.join(atual.fontes_rodando)}" if atual else "-1"
     # 204: o HTMX não troca nada. A pergunta de 2 s que já mostra este andamento não reinsere
     # nós na região viva (o leitor de tela não repete o anúncio), e a carga da casca não
     # repete em toda página o fim de uma busca velha
@@ -138,7 +139,7 @@ async def buscar_agora(
 async def atual(
     request: Request,
     con: Con,
-    visto: int | None = None,
+    visto: str | None = None,
     so_rodando: bool = False,
     ja_roda: bool = False,
 ) -> Response:

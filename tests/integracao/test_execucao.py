@@ -22,6 +22,7 @@ import pytest
 from apoio.relogio import RelogioFalso
 from jobot.agenda import execucao
 from jobot.agenda.execucao import executar_busca, reprocessar_se_regras_mudaram
+from jobot.banco import execucoes
 from jobot.banco.buscas import criar_busca
 from jobot.banco.cadastros import gravar_config
 from jobot.banco.conexao import abrir
@@ -311,6 +312,14 @@ async def test_ponta_a_ponta_com_coletor_falso(con: sqlite3.Connection) -> None:
         ("desligada", "", "desligada", 0, None),
     }
     assert desligada.coletados == []
+    # só a fonte que rodou aparece, com começo e fim; a desligada nunca começa
+    assert [
+        tuple(r)
+        for r in con.execute(
+            "SELECT fonte, terminou_em IS NOT NULL FROM execucao_fonte WHERE execucao_id = ?",
+            (execucao_id,),
+        )
+    ] == [(FONTE, 1)]
     nota = _um(
         con, "SELECT nota FROM encaixe WHERE busca_id = ? AND vaga_id = ?", busca_id, vaga_id
     )
@@ -319,6 +328,44 @@ async def test_ponta_a_ponta_com_coletor_falso(con: sqlite3.Connection) -> None:
         "SELECT estado, terminada_em FROM execucao WHERE id = ?", (execucao_id,)
     ).fetchone()
     assert tuple(linha) == ("concluida", _iso(AGORA))
+
+
+@pytest.mark.parametrize("quebra", ["comecar_fonte", "terminar_fonte"])
+async def test_marca_de_fonte_que_falha_no_banco_nao_derruba_a_busca(
+    con: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch, quebra: str
+) -> None:
+    def trava(*args: object) -> None:
+        raise sqlite3.OperationalError("database is locked")
+
+    monkeypatch.setattr(execucoes, quebra, trava)
+
+    execucao_id = await _executar(con, [Falso(lista={"": (_vaga(1),)})])
+
+    assert execucao_id is not None
+    assert _um(con, "SELECT estado FROM execucao WHERE id = ?", execucao_id) == "concluida"
+    assert _saude(con, execucao_id) == {(FONTE, "", "ok", 1, None)}
+
+
+async def test_busca_cancelada_com_marca_de_fim_quebrada_recebe_cancelled_error(
+    con: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def trava(*args: object) -> None:
+        raise sqlite3.OperationalError("database is locked")
+
+    monkeypatch.setattr(execucoes, "terminar_fonte", trava)
+    comecou = asyncio.Event()
+
+    async def segurar() -> None:
+        comecou.set()
+        await asyncio.Event().wait()
+
+    falso = Falso(lista={"": (_vaga(1),)}, antes_de_coletar=segurar)
+    tarefa = asyncio.create_task(_executar(con, [falso]))
+    await _ate_coletar(comecou, tarefa)
+    tarefa.cancel()
+
+    with pytest.raises(asyncio.CancelledError):
+        await tarefa
 
 
 async def test_segunda_ao_mesmo_tempo_devolve_none(con: sqlite3.Connection) -> None:

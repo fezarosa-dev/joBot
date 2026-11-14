@@ -4,6 +4,7 @@
   "execucao.andamento": "Search progress",
   "execucao.rodando": "Searching for jobs…",
   "execucao.prontas": "queries done: {n}",
+  "execucao.ainda_rodando": "still running: {fontes}",
   "execucao.ja_roda": "A search is already running; this is its progress.",
   "execucao.terminou": "Search finished. New jobs: {n}.",
   "execucao.interrompida": "The search stopped before the end. New jobs: {n}.",

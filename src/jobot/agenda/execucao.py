@@ -156,6 +156,20 @@ async def _coletar(
         gravar_escopo(con, execucao_id, saida, tratadas, relogio.agora())
         saidas.append(saida)
 
+    # marcas só da tela de andamento: de melhor esforço, como o batimento; banco travado não
+    # derruba a busca (nem troca o CancelledError do `finally` do executor por um grupo de erros)
+    async def ao_comecar(fonte: str) -> None:
+        try:
+            execucoes.comecar_fonte(con, execucao_id, fonte, relogio.agora())
+        except sqlite3.Error:
+            log.exception("marca de começo da fonte %s falhou (execução %s)", fonte, execucao_id)
+
+    async def ao_terminar_fonte(fonte: str) -> None:
+        try:
+            execucoes.terminar_fonte(con, execucao_id, fonte, relogio.agora())
+        except sqlite3.Error:
+            log.exception("marca de fim da fonte %s falhou (execução %s)", fonte, execucao_id)
+
     enriquecer = bool(ler_config(con, "enriquecimento_ligado"))
     await rodar(
         coletores,
@@ -165,6 +179,8 @@ async def _coletar(
         relogio,
         ligadas=ligadas,
         ao_terminar_escopo=ao_terminar,
+        ao_comecar_fonte=ao_comecar,
+        ao_terminar_fonte=ao_terminar_fonte,
         max_detalhes_por_fonte=MAX_DETALHES_POR_FONTE if enriquecer else 0,
     )
     agora = relogio.agora()

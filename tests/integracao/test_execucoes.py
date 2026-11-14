@@ -17,6 +17,7 @@ from jobot.banco.execucoes import (
     Tipo,
     abrir_execucao,
     bater,
+    comecar_fonte,
     execucao_atual,
     fechar_execucao,
     gravar_saude,
@@ -24,6 +25,7 @@ from jobot.banco.execucoes import (
     interromper_execucao,
     marcar_interrompidas,
     saude_recente,
+    terminar_fonte,
 )
 from jobot.banco.migrar import migrar
 from jobot.nucleo.coletores.executor import Historico
@@ -167,6 +169,40 @@ def test_execucao_atual_traz_a_que_roda(con: sqlite3.Connection) -> None:
     assert atual is not None
     assert (atual.id, atual.escopos_prontos) == (busca, 2)
     assert atual.batimento_em == AGORA + timedelta(minutes=1)
+
+
+def test_execucao_atual_traz_as_fontes_que_comecaram_e_nao_terminaram(
+    con: sqlite3.Connection,
+) -> None:
+    velha = abrir_execucao(con, "busca", "agenda", AGORA - timedelta(hours=3))
+    assert velha is not None
+    comecar_fonte(con, velha, "lever", AGORA - timedelta(hours=3))
+    interromper_execucao(con, velha, AGORA - timedelta(hours=2))  # a pendência dela não conta
+    busca = abrir_execucao(con, "busca", "agora", AGORA)
+    assert busca is not None
+    atual = execucao_atual(con)
+    assert atual is not None
+    assert atual.fontes_rodando == ()
+    comecar_fonte(con, busca, "remotive", AGORA)
+    comecar_fonte(con, busca, "gupy", AGORA + timedelta(seconds=1))
+    comecar_fonte(con, busca, "gupy", AGORA + timedelta(seconds=1))  # de novo: a mesma linha
+    atual = execucao_atual(con)
+    assert atual is not None
+    assert atual.fontes_rodando == ("remotive", "gupy")
+    terminar_fonte(con, busca, "remotive", AGORA + timedelta(seconds=2))
+    atual = execucao_atual(con)
+    assert atual is not None
+    assert atual.fontes_rodando == ("gupy",)
+    terminar_fonte(con, busca, "gupy", AGORA + timedelta(seconds=3))
+    atual = execucao_atual(con)
+    assert atual is not None
+    assert atual.fontes_rodando == ()
+    linhas = con.execute(
+        "SELECT fonte, comecou_em, terminou_em FROM execucao_fonte WHERE execucao_id = ?"
+        " ORDER BY fonte",
+        (busca,),
+    ).fetchall()
+    assert [(f, c < t) for f, c, t in linhas] == [("gupy", True), ("remotive", True)]
 
 
 def test_agora_sem_fuso_recusado(con: sqlite3.Connection) -> None:
