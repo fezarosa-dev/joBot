@@ -8,7 +8,7 @@ Ele junta, filtra e organiza vagas de muitos sites num painel bonito que roda no
 [![licença MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-blue?style=flat-square)](LICENSE)
 [![status: em desenvolvimento](https://img.shields.io/badge/status-em%20desenvolvimento-orange?style=flat-square)](#roteiro)
 [![Python 3.14](https://img.shields.io/badge/Python-3.14-3776AB?style=flat-square&logo=python&logoColor=white)](#requisitos-e-instalacao)
-[![plataformas: Linux | Windows | macOS](https://img.shields.io/badge/plataformas-Linux%20%7C%20Windows%20%7C%20macOS-lightgrey?style=flat-square)](#requisitos-e-instalacao)
+[![plataforma: Linux](https://img.shields.io/badge/plataformas-Linux-lightgrey?style=flat-square)](#requisitos-e-instalacao)
 <br>
 [![FastAPI](https://img.shields.io/badge/FastAPI-painel-009688?style=flat-square&logo=fastapi&logoColor=white)](#como-funciona)
 [![HTMX](https://img.shields.io/badge/HTMX-interface-3366CC?style=flat-square&logo=htmx&logoColor=white)](#como-funciona)
@@ -31,8 +31,8 @@ Ele junta, filtra e organiza vagas de muitos sites num painel bonito que roda no
 </div>
 
 > [!IMPORTANT]
-> **O joBot está em desenvolvimento.** As decisões principais já foram tomadas e registradas. A fase 1 (a base) está em andamento.
-> Ainda **não há nada para instalar**. Tudo o que está descrito aqui é o plano, não um produto pronto.
+> **A fase 1 do joBot (a base) está pronta: versão 0.1.0.** Ele busca vagas em fontes públicas, guarda tudo no seu computador e mostra num painel. Já dá para [instalar e usar](#requisitos-e-instalacao).
+> O resto (sites com login, IA, extensão do navegador, Gmail e áudio) ainda é plano. Veja o [roteiro](#roteiro). Antes de ligar as fontes, leia os [avisos de uso e de termos](#licenca-e-avisos).
 
 ## 📑 Sumário
 
@@ -45,7 +45,7 @@ Ele junta, filtra e organiza vagas de muitos sites num painel bonito que roda no
 - [Inteligência artificial](#inteligencia-artificial)
 - [Usando o Claude Code que você já tem](#usando-o-claude-code)
 - [Privacidade e segurança](#privacidade-e-seguranca)
-- [Requisitos e instalação (planejada)](#requisitos-e-instalacao)
+- [Requisitos e instalação](#requisitos-e-instalacao)
 - [Roteiro](#roteiro)
 - [Perguntas frequentes](#perguntas-frequentes)
 - [Decisões do projeto](#decisoes-do-projeto)
@@ -60,18 +60,23 @@ Ele junta, filtra e organiza vagas de muitos sites num painel bonito que roda no
 O joBot nasceu para ajudar jovens universitários a encontrar o primeiro emprego. Depois a ideia cresceu: hoje ele quer ajudar todo mundo que procura vaga.
 
 Procurar vaga hoje cansa. É preciso abrir muitos sites, repetir os mesmos filtros e torcer para não perder um prazo.
-O joBot vai fazer esse trabalho repetitivo por você. Ele vai visitar os sites de vagas, juntar tudo num lugar só e mostrar o que combina com o seu perfil.
-Tudo vai rodar no seu computador. Uma instalação serve a uma pessoa, que pode ter várias buscas salvas.
+O joBot faz esse trabalho repetitivo por você. Ele visita os sites de vagas, junta tudo num lugar só e mostra o que combina com o que você procura.
+Tudo roda no seu computador. Uma instalação serve a uma pessoa, que pode ter várias buscas salvas.
 
-O que ele vai fazer:
+O que ele faz hoje (fase 1):
 
-- 🔎 **Buscar** vagas em dezenas de fontes: sites públicos, quadros de vagas de empresas e, se você quiser, sites que exigem login.
+- 🔎 **Buscar** vagas em dezenas de fontes públicas: sites, APIs e quadros de vagas de empresas.
 - 🧹 **Limpar**: remove vagas repetidas, lê o salário e marca área, nível, modalidade, região e tipo de contrato.
-- 🎯 **Ranquear**: mostra o quanto cada vaga combina com você (● bom, ◐ médio, ○ fraco) e explica o porquê.
+- 🎯 **Ranquear**: mostra o quanto cada vaga combina com a sua busca (● bom, ◐ médio, ○ fraco) e explica o porquê. Na fase 1 isso é feito por regras, sem IA.
 - 🗂️ **Organizar**: cada vaga tem um status, de "nova" até "oferta".
-- ✍️ **Preparar candidatura**: carta de apresentação, resumo do currículo ajustado à vaga e lista do que você tem e do que falta, sempre no idioma da vaga.
-- 🧩 **Ajudar nos formulários**: uma extensão do navegador sugere respostas, e você confirma.
-- 📬 **Ler o Gmail** (opcional): traz vagas dos e-mails de alerta e sugere mudanças de status quando um recrutador responde.
+- 📌 **Acompanhar páginas** de programas, como trainee e escola de verão, e avisar quando o texto muda.
+
+O que vem nas próximas fases:
+
+- 🔐 **Sites que exigem login**, com o seu login feito à mão (fase 2).
+- ✍️ **Preparar candidatura**: carta de apresentação, resumo do currículo ajustado à vaga e lista do que você tem e do que falta, sempre no idioma da vaga (fase 3, com IA opcional).
+- 🧩 **Ajudar nos formulários**: uma extensão do navegador sugere respostas, e você confirma (fase 4).
+- 📬 **Ler o Gmail** (opcional): traz vagas dos e-mails de alerta e sugere mudanças de status quando um recrutador responde (fase 5).
 
 Serve para todo tipo de vaga e toda área: CLT, PJ, estágio, trainee, temporário, aprendiz, pesquisa e bolsa, programas e escolas de verão, concursos e editais.
 Toda função pode ser ligada ou desligada.
@@ -79,7 +84,7 @@ Toda função pode ser ligada ou desligada.
 <a id="o-que-nao-faz"></a>
 ## 🚫 O que ele não faz
 
-O joBot foi planejado para não fazer:
+O joBot não faz, e foi planejado para nunca fazer:
 
 - **Não se candidata em massa.** Não existe "aplicar em 200 vagas com um clique".
 - **Não envia nada sozinho.** Quem envia a candidatura é sempre você.
@@ -124,12 +129,12 @@ flowchart LR
 
 Um ciclo de busca, passo a passo:
 
-1. **Na hora marcada**, o joBot acorda. Fontes públicas: a cada 3 horas. Sites com login: duas vezes por dia (9h e 18h, ajustável). Ou quando você aperta "buscar agora".
+1. **Na hora marcada**, o joBot acorda. Fontes públicas: a cada 3 horas. Ou quando você aperta "Buscar agora". (Os sites com login chegam na fase 2, com duas buscas por dia.)
 2. **Cada coletor** visita a sua fonte com calma e traz as vagas num formato único.
 3. **O núcleo** junta vagas repetidas, entende o salário, coloca rótulos e marca como fechadas as vagas que sumiram.
 4. **Tudo vai para o banco** SQLite, um arquivo que fica no seu computador.
 5. **O painel** mostra o resultado no seu navegador. Ele só funciona no seu computador (endereço 127.0.0.1).
-6. **Se você ligou a IA**, ela calcula o encaixe com o seu perfil e ajuda a preparar candidaturas.
+6. **Quando a IA chegar** (fase 3) e você ligá-la, ela vai calcular o encaixe com o seu perfil e ajudar a preparar candidaturas. Até lá, o encaixe vem das regras da sua busca.
 
 Se uma fonte falhar, as outras continuam. Se o computador estava desligado na hora marcada, a busca perdida roda quando ele liga.
 
@@ -140,7 +145,7 @@ O joBot vai ter um núcleo só e duas "caras". A **versão local** é o foco. A 
 
 | | 💻 Versão local | 🌐 Versão no navegador (GitHub Pages) |
 |---|---|---|
-| **Instalação** | Nativa, com um comando (planejada) | Nenhuma: é só abrir o site |
+| **Instalação** | Nativa, com o uv ([como instalar](#requisitos-e-instalacao)) | Nenhuma: é só abrir o site |
 | **Fontes** | Todas | Só fontes públicas |
 | **Sites com login** | Sim, com o seu login manual | Não |
 | **IA** | Automática (Claude, modelo local) ou manual | Manual (copiar e colar); rótulos só por regras |
@@ -156,7 +161,8 @@ Ela nunca usa logins nem segredos.
 <a id="fontes-de-vagas"></a>
 ## 🌎 Fontes de vagas
 
-Cada fonte tem uma chave liga/desliga.
+Cada fonte tem uma chave liga/desliga, em Configurações, Fontes. Na fase 1 funcionam as fontes públicas; os sites com login chegam na fase 2.
+Três portais brasileiros pedem cuidado, por causa dos termos de uso deles: Eureca, Abler e Gupy. Leia o aviso em [Licença e avisos](#licenca-e-avisos).
 
 | Grupo | Exemplos |
 |---|---|
@@ -166,14 +172,14 @@ Cada fonte tem uma chave liga/desliga.
 | Portais brasileiros | Gupy, CIEE, Sólides, IEL, Super Estágios, Cia de Talentos, Eureca, Abler |
 | Carreiras de grandes empresas | Google, Amazon, Microsoft, NVIDIA |
 | Murais de estágio | Murais públicos, como o da USP |
-| 🔐 Sites com login (primeiro) | LinkedIn, Indeed, Catho, Vagas.com |
-| 🔐 Sites com login (depois, um de cada vez) | InfoJobs, Glassdoor, Programathor, GeekHunter, Remotar, Trampos, Revelo, Coodesh |
+| 🔐 Sites com login (fase 2, primeiro) | LinkedIn, Indeed, Catho, Vagas.com |
+| 🔐 Sites com login (fase 2, depois, um de cada vez) | InfoJobs, Glassdoor, Programathor, GeekHunter, Remotar, Trampos, Revelo, Coodesh |
 
-Também está previsto:
+Também na fase 1:
 
-- **Lista de empresas própria**, feita só de fatos públicos (nome da empresa e identificador do quadro de vagas), cada um conferido no endereço real.
-- **Descoberta semanal** de novos quadros de vagas pelo Common Crawl (um arquivo público da web). Pode desligar.
-- **Acompanhar páginas de programas**, como trainee e escola de verão, pela função "adicionar site".
+- **Lista de empresas própria**, feita só de fatos públicos (nome da empresa e identificador do quadro de vagas), cada um conferido no endereço real. Você acrescenta as suas em Empresas.
+- **Descoberta semanal** de novos quadros de vagas pelo Common Crawl (um arquivo público da web). Os achados vão para Sugeridas, e nada entra na sua busca até você aprovar. Pode desligar em Configurações.
+- **Acompanhar páginas de programas**, como trainee e escola de verão, pela tela Sites. A mudança aparece na aba Programas.
 
 **Coleta educada.** O robô se identifica, espera entre um pedido e outro e espera mais quando o site pede calma.
 
@@ -187,12 +193,12 @@ Também está previsto:
 <a id="o-painel"></a>
 ## 📋 O painel
 
-O painel abre no seu navegador. O desenho das telas ainda vai ser feito, na fase 1. Por isso não há imagens aqui.
+O painel abre no seu navegador, em `http://127.0.0.1:47615`. O menu tem Vagas, Buscas, Fontes, Empresas, Sugeridas, Sites e Configurações.
 
 - **Abas:** Destaques de hoje (as melhores novas, uma por empresa), Todas, Novas, Fecham logo, Salvas, Candidatei, Programas e Ocultas.
 - **Filtros** em "chips" (botõezinhos) com contagem. O filtro atual fica no endereço da página, então dá para salvar o link. Busca rápida com a tecla `/`.
 - **Status de cada vaga:** nova → salva → candidatei → entrevista → recusada ou oferta.
-- **Encaixe com o seu perfil:** ● bom, ◐ médio, ○ fraco, sempre com os motivos. Mostra as habilidades que você tem (✓) e as que faltam.
+- **Encaixe com a sua busca:** ● bom, ◐ médio, ○ fraco, sempre com os motivos.
 - **Calendário de 12 meses** em cada vaga, para ver prazos de relance.
 - **Vagas ocultas** por regra podem voltar. O painel mostra quantas foram escondidas por cada motivo.
 - **"Algo errado nesta vaga?"**: um botão para corrigir um rótulo ou dado.
@@ -202,7 +208,7 @@ O painel abre no seu navegador. O desenho das telas ainda vai ser feito, na fase
 <a id="inteligencia-artificial"></a>
 ## 🧠 Inteligência artificial
 
-A IA é **opcional**. Sem ela, o joBot funciona com regras e palavras-chave.
+A IA é **opcional** e chega na fase 3. Sem ela, o joBot funciona com regras e palavras-chave, e é assim que a fase 1 funciona.
 
 > **Regra de ouro:** a IA só usa os dados do seu perfil. Ela nunca inventa experiência, curso ou habilidade, e mostra quais dados usou.
 > Se faltar informação, ela faz uma pergunta, e a sua resposta fica salva no perfil.
@@ -255,6 +261,8 @@ Um "checksum" é uma impressão digital do arquivo: o joBot confere se o arquivo
 <a id="usando-o-claude-code"></a>
 ## ✨ Usando o Claude Code que você já tem
 
+> Esta seção descreve a fase 3. A fase 1 não usa IA.
+
 Se você já usa o Claude Code no seu computador, o joBot pode usar o Claude **sem nenhum login extra**.
 Você não faz login do Claude dentro do joBot. Nunca.
 
@@ -303,10 +311,12 @@ Detalhes na [ADR 0010](docs/decisions/0010-claude-code-da-pessoa.md).
 <a id="privacidade-e-seguranca"></a>
 ## 🔒 Privacidade e segurança
 
-> Estas são as regras planejadas. O joBot ainda não tem nada para instalar.
+> Estas regras valem para a fase 1. As que falam de IA, Gmail, extensão, áudio e cofre de senhas descrevem as próximas fases.
 
 - **Não existe servidor do joBot.** Seus dados ficam no seu computador.
 - **Sem telemetria.** Nenhum dado de uso é enviado.
+- **Só pedidos de busca.** O joBot só faz pedidos às fontes de vagas que você deixa ligadas e, com a conversão de moeda ligada, ao Banco Central, para pegar a cotação do dólar. Quem recebe o pedido vê o IP do seu computador, como em qualquer pedido na internet.
+- **Aviso de versão desligado por padrão.** Se você ligar (Configurações, Privacidade), uma vez por dia o joBot pergunta ao `api.github.com` qual é a versão mais nova. O pedido leva só o user agent fixo do joBot (que traz o número da versão) e o IP do seu computador, como todo pedido na internet. Não leva busca nem dado seu. Desligado, não faz pedido nenhum.
 - **Segredos no cofre do sistema.** Token do Gmail, chave da API e token do Telegram ficam no cofre de senhas do sistema operacional. Sem cofre, vão para um arquivo que só o seu usuário lê, e o painel avisa.
 - **Dados pessoais protegidos.** CPF e data de nascimento ficam no banco, numa pasta que só o seu usuário acessa e que não é sincronizada com nuvem. O painel recomenda ligar a criptografia de disco (LUKS, BitLocker ou FileVault).
 - **Exportar o perfil não leva documentos** como o CPF, a menos que você marque essa opção.
@@ -318,41 +328,86 @@ Detalhes na [ADR 0010](docs/decisions/0010-claude-code-da-pessoa.md).
 - **Achou uma falha de segurança?** Não abra issue pública. Siga a [política de segurança](.github/SECURITY.md).
 
 <a id="requisitos-e-instalacao"></a>
-## 📦 Requisitos e instalação (planejada)
+## 📦 Requisitos e instalação
 
-> Ainda não há nada para instalar. O comando exato de instalação sai na fase 8.
+> Esta é a instalação da fase 1 (versão 0.1.0): você baixa o código e roda com o uv. O instalador de um comando só chega na fase 8.
 
 ### Requisitos
 
-- **Memória:** 8 GB de RAM (16 GB deixam tudo mais folgado).
-- **Placa de vídeo:** não precisa.
-- **Sistema:** Linux, Windows ou macOS.
-- **Docker:** não precisa. A instalação é nativa.
+- **Sistema:** Linux. O Windows e o macOS ainda não foram testados, e o segundo plano só existe no Linux.
+- **Programas:** [git](https://git-scm.com/) e [uv](https://docs.astral.sh/uv/). O uv baixa sozinho o Python 3.14 e as bibliotecas.
+- **Memória:** um computador comum serve. Os 8 GB de RAM só contam quando a IA local chegar (fase 3).
+- **Placa de vídeo e Docker:** não precisa. A instalação é nativa.
+- **Internet:** para baixar o joBot e para buscar as vagas.
 
-### O que o instalador vai baixar
+### Instalar e abrir
 
-| Item | Tamanho | Obrigatório? |
-|---|---|---|
-| joBot e o que ele precisa para rodar (Python 3.14 e bibliotecas, via uv) | A definir no desenho da fase 8 | Sim |
-| Navegador controlado pelo Playwright | A definir no desenho da fase 8 | Só para sites com login |
-| llama-server | ~17 a 25 MB, conforme o sistema | Opcional (pacote offline) |
-| Modelo Qwen3.5-2B **ou** Qwen3.5-4B | 1,28 GB ou 2,74 GB | Opcional (pacote offline) |
-| Transcrição de áudio "small" | 484 MB | Opcional (pacote offline) |
-| Transcrição de áudio "medium" | 1,53 GB | Opcional |
-| Modelo multilingual-e5-small | ~120 MB | Só se algum rótulo ficar abaixo de 90% de acerto |
+```bash
+git clone https://github.com/fezarosa-dev/joBot.git
+cd joBot
+uv sync --locked
+uv run jobot
+```
+
+O último comando sobe o joBot e abre o painel no seu navegador, em `http://127.0.0.1:47615`. Sem nada depois de `jobot`, vale o comando `abrir`.
+Se outro programa já usa a porta 47615, o joBot avisa e não abre nada. Defina `JOBOT_PORTA` com outra porta e rode de novo.
+
+### Comandos
+
+Rode todos de dentro da pasta `joBot`, com `uv run` na frente (por exemplo, `uv run jobot buscar`).
+
+| Comando | O que faz |
+|---|---|
+| `jobot abrir` | Abre o painel no navegador e sobe o servidor, se ele ainda não estiver no ar. É o padrão. |
+| `jobot sair` | Encerra o servidor. |
+| `jobot serve` | Sobe só o servidor, sem abrir o navegador. |
+| `jobot buscar` | Faz uma busca no terminal e mostra como foi cada fonte. |
+| `jobot segundo-plano ligar` | Liga o segundo plano, para o joBot iniciar sozinho junto com o seu usuário. Com `desligar` tira o serviço, e com `status` mostra como está. Só no Linux. |
+| `jobot atualizar` | Atualiza o joBot para a versão mais nova e religa o que estava ligado. |
+| `jobot avaliar-rotulos` | Para quem mantém o projeto: mede as regras de rótulo contra um arquivo de exemplos seu. |
+
+### Onde ficam os dados
+
+- Tudo fica na pasta `~/.local/share/jobot`, só com acesso do seu usuário. Para usar outra pasta, defina `JOBOT_DADOS`.
+- O banco é o arquivo `jobot.db`, e o registro do que aconteceu fica em `logs/jobot.log`.
+- Nada sai dessa pasta, a não ser os pedidos às fontes que você deixou ligadas (veja [Privacidade e segurança](#privacidade-e-seguranca)).
+
+### Se você usa distrobox
+
+O joBot também roda dentro de um container distrobox, como no Fedora Silverblue.
+
+- **O navegador:** dentro do container quase nunca há navegador. O joBot chama o do sistema de fora, com `distrobox-host-exec xdg-open`.
+- **O segundo plano:** o serviço mora no systemd do seu usuário, no sistema de fora, e o joBot chega lá pelo `distrobox-host-exec` e pelo `distrobox-enter`. Os dois precisam estar disponíveis dentro do container.
+- **A pasta pessoal:** a do container precisa ser a mesma do sistema. Se não for, o painel recusa ligar o segundo plano e diz o motivo.
+- Rode todos os comandos de dentro do container.
 
 ### Primeira execução
 
-Um assistente vai guiar você em passos:
+Na primeira vez, o painel faz duas perguntas. Tudo é opcional.
 
 | Passo | O que acontece |
 |---|---|
-| **0. Escolher a IA** | Claude, modelo local, palavras-chave ou IA manual. Se o Claude Code estiver pronto, ele aparece sozinho. |
-| **1. Currículo** | Você envia o PDF, a IA extrai os dados e você revisa antes de salvar. |
-| **2. Questionário** | Cerca de 25 perguntas, mais algumas para cobrir lacunas. Responda digitando, escolhendo ou falando. |
-| **3. Logins nos sites** | Se quiser, entre nos sites com login, com as próprias mãos. |
-| **4. Gmail** | Opcional. Um assistente guiado de cerca de 15 minutos. |
-| **5. Segundo plano** | Escolha se o joBot inicia com o computador e os horários dos sites com login. |
+| **1. O que você procura?** | Cargos ou palavras-chave, cidades, modalidades, níveis, salário mínimo e idiomas das vagas. Isso vira a sua primeira busca. Se você pular, as vagas aparecem por data, sem nota de encaixe. Dá para mudar depois, em Buscas. |
+| **2. Segundo plano** | Escolha se o joBot inicia sozinho com o seu usuário e busca vagas a cada 3 horas, mesmo com o painel fechado. Dá para mudar depois, em Configurações. |
+
+Depois, aperte **Buscar agora**, no topo do painel, ou espere a próxima busca da agenda.
+
+### Atualizar
+
+Rode `uv run jobot atualizar`. O aviso de versão é opcional e vem **desligado por padrão**: para ligar, vá em Configurações, Privacidade. Os detalhes estão em [Privacidade e segurança](#privacidade-e-seguranca).
+
+### O que as próximas fases vão baixar
+
+Na fase 1, o `uv sync` só baixa o Python 3.14 (se faltar) e as bibliotecas do joBot. Não há modelo de IA, navegador controlado nem arquivo grande. Estes itens chegam depois, e são opcionais:
+
+| Item | Tamanho | Quando |
+|---|---|---|
+| Navegador controlado pelo Playwright | A definir | Fase 2, só para sites com login |
+| llama-server | ~17 a 25 MB, conforme o sistema | Fase 3 (pacote offline) |
+| Modelo Qwen3.5-2B **ou** Qwen3.5-4B | 1,28 GB ou 2,74 GB | Fase 3 (pacote offline) |
+| Transcrição de áudio "small" | 484 MB | Fase 5 |
+| Transcrição de áudio "medium" | 1,53 GB | Fase 5, opcional |
+| Modelo multilingual-e5-small | ~120 MB | Só se algum rótulo ficar abaixo de 90% de acerto |
 
 <a id="roteiro"></a>
 ## 🗺️ Roteiro
@@ -361,7 +416,7 @@ Cada fase só começa depois que a anterior passa nos testes. Não há datas pro
 
 | Fase | O que entra | Status |
 |---|---|---|
-| **1. Base** | Núcleo comum, fontes públicas, banco, painel e agenda | 🟡 Em andamento |
+| **1. Base** | Núcleo comum, fontes públicas, banco, painel e agenda | 🟢 Pronta (versão 0.1.0) |
 | **2. Navegador com login** | Chrome visível, mapeamento dos sites, tratamento de CAPTCHA | ⚪ Planejada |
 | **3. IA local** | Pacote offline (llama-server + Qwen) | ⚪ Planejada |
 | **4. Extensão do navegador** | Extensão do navegador para formulários | ⚪ Planejada |
@@ -410,7 +465,7 @@ Cada decisão importante está registrada num documento curto, chamado ADR (regi
 <a id="como-contribuir"></a>
 ## 🤝 Como contribuir
 
-O repositório já está no GitHub, e a fase 1 está em andamento.
+O repositório está no GitHub. A fase 1 está pronta, e as próximas estão em planejamento.
 
 - **Sugestões e fontes de vagas** já podem ser enviadas pelas issues, com formulários prontos.
 - **Dúvidas** vão pelo [formulário de dúvida](https://github.com/fezarosa-dev/joBot/issues/new?template=duvida.yml). Leia antes as [perguntas frequentes](https://github.com/fezarosa-dev/joBot/wiki/Perguntas-frequentes).
@@ -461,8 +516,10 @@ Outras formas de ajudar e mais detalhes estão na [página Apoie da wiki](https:
 
 - **Licença:** MIT. Veja o arquivo [`LICENSE`](LICENSE).
 - **Marcas:** Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthropic. As demais marcas citadas pertencem aos seus donos.
-- **Termos de uso:** respeite os termos de uso de cada site que você ligar.
-- **Uso pessoal:** o joBot é feito para uma pessoa organizar a própria busca de vagas.
+- **Termos de uso:** respeite os termos de uso de cada site que você ligar. O joBot é gentil com as fontes (espera entre os pedidos, sem login, sem contornar bloqueio), mas quem decide o que ligar é você, por sua conta e risco.
+- **Uso pessoal:** o joBot é feito para uma pessoa organizar a própria busca de vagas, no próprio computador. Não use para montar site de vagas nem para repassar as vagas a outras pessoas: várias fontes proíbem isso.
+- **Eureca, Abler e Gupy:** estes três portais brasileiros não têm uma API aberta, com regras de uso publicadas, para um programa como o joBot. Ele lê só o que os próprios portais mostram sem login, devagar, e sempre com o link para a vaga original. Os termos de uso deles podem restringir esse uso, e cada um tem a sua chave liga/desliga.
+- **Eureca desligada por padrão:** os termos da Eureca pedem consentimento prévio, então a Eureca vem desligada por padrão até a empresa autorizar o uso. Para ligar por sua conta e risco, vá em Configurações, Fontes, marque a Eureca e salve.
 
 ---
 
