@@ -1,0 +1,12 @@
+{
+  "url": "https://jobicy.com/api/jobs?count=10&geo=brazil",
+  "data": "2026-11-14T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/json; charset=utf-8"
+  },
+  "sha256": "bcc0c69c416f8697653e96cb7f20011dbc8ab8e570dfbf6c87fcd99e3b4046dd",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "montado à mão a partir de normal.json, reduzido a 2 vagas e sem próxima página (hasMore false, nextCursor null): a segunda vaga troca jobTitle por title (formato mudou)"
+}
