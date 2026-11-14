@@ -22,6 +22,7 @@ Todo apoio ajuda o projeto a seguir em frente e a chegar em mais gente.
 | | Como | Onde |
 |:---:|---|---|
 | 🇧🇷 | **Pix** (só no Brasil) | Chave aleatória abaixo |
+| 💛 | **GitHub Sponsors** (de qualquer país) | [github.com/sponsors/fezarosa-dev](https://github.com/sponsors/fezarosa-dev) |
 | ☕ | **Buy Me a Coffee** (de qualquer país) | [buymeacoffee.com/zanoni.dev](https://buymeacoffee.com/zanoni.dev) |
 
 Chave Pix (aleatória):
