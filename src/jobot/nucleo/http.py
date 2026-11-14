@@ -82,7 +82,7 @@ class Bloqueio(_ComCabecalhos):
 
 
 class LimiteAtingido(_ComCabecalhos):
-    """429/503 que não passou depois das esperas, ou Retry-After acima de 10 min."""
+    """429/503 sem sucesso depois das esperas, Retry-After acima de 10 min ou 429 de cota zero."""
 
 
 class Parou429(Exception):
@@ -396,6 +396,15 @@ class HttpDoEscopo:
                 if self._para_no_429 and status == 429:
                     raise Parou429(f"{pedido.url}: HTTP {status}")
                 pedida = _segundos_retry_after(resposta.headers.get("Retry-After"), relogio.agora())
+                if (
+                    status == 429
+                    and pedida is None
+                    and resposta.headers.get("x-ratelimit-remaining") == "0"
+                ):
+                    # Cota zerada volta só horas depois (D51): esperar 30, 60 e 120 s não adianta.
+                    raise LimiteAtingido(
+                        f"{pedido.url}: HTTP 429 com a cota zerada", cabecalhos=resposta.headers
+                    )
                 padrao = next(esperas_limite, None)
                 if padrao is None:
                     raise LimiteAtingido(
