@@ -299,7 +299,7 @@ As cinco fontes desta seção exigem crédito com link de volta. O painel mostra
 - **Campos:** `vagaIdentificador`, `vagaTitulo`, `vagaEmpresaNome` (quase sempre vazio: empresa em sigilo), `vagaCidade`, `vagaEstadoSigla`, `vagaModeloTrabalho`, `vagaSalario` (texto), `vagaInclusao` (ISO sem fuso), `vagaUrl`, `vagaObservacao`, `vagaRequisitos`, `vagaBeneficios`, `vagaHorarios`, `vagaCursos`, `vagaEscolaridadeDe`, `vagaEscolaridadeAte`, `vagaTipo`.
 - **Plano B:** `https://carreiras.iel.org.br/sitemap.xml` mais a página de detalhe `/{UF}/vaga/{tipo}/{id}/{slug}`.
 - **Página de UF sem vaga:** mostra o título "Nenhuma vaga encontrada!" (conferido na rede em 2026-11-14). UF que o portal não tem (por exemplo `/BA`) responde HTTP 500 (conferido na rede em 2026-11-14).
-- **O sitemap guarda entradas velhas:** GO tinha 1 entrada de 2026-04 e a página dizia "Nenhuma vaga encontrada!"; SP tinha 5 no sitemap e 3 na página (conferido na rede em 2026-11-14). BA, CE, MA, PI, RJ, RS, AP e RR não aparecem no sitemap (conferido na rede em 2026-11-14): a lista fixa de 19 UFs vale (D76).
+- **O sitemap guarda entradas velhas:** GO tinha 1 entrada de 2026-04 e a página dizia "Nenhuma vaga encontrada!"; SP tinha 5 no sitemap e 3 na página (conferido na rede em 2026-11-14). BA, CE, MA, PI, RJ, RS, AP e RR não aparecem no sitemap (conferido na rede em 2026-11-14): a lista fixa de 19 UFs vale (D74).
 - **Cuidado:** não é contrato público. O formato embutido pode mudar a cada versão do site.
 
 #### Super Estágios
@@ -395,7 +395,7 @@ Cada empresa está numa de duas gerações da API.
 | Bayer | `bayer.eightfold.ai` | `bayer.com` | v2 | 15 |
 
 - **Microsoft:** devolveu 429, sem `Retry-After`, duas vezes, com o filtro `work_site`. Não usar esse filtro. Pelo menos 5 s entre pedidos. Uma vez por dia. Um 429 encerra só o escopo da Microsoft até o dia seguinte; as outras empresas do Eightfold continuam. Esses valores ficam no escopo da Microsoft, não na fonte (`por_escopo` no `fontes.json`: `intervalo_min` 1440, `espera_s` 5, `para_no_429`; desenho, seção 8.1).
-- **Microsoft, 2026-11-14:** deu 429 logo depois de 41 pedidos a 1 s em `bayer` e `mercadolibre`; meia hora depois, dois pedidos com 30 s entre eles deram 200. O 429 vem com `x-ef-ns` "unknown" (recusado antes da API) e o `Retry-After` não foi visto (conferido na rede em 2026-11-14). O mais provável é limite por IP na borda do Eightfold (D77, T117).
+- **Microsoft, 2026-11-14:** deu 429 logo depois de 41 pedidos a 1 s em `bayer` e `mercadolibre`; meia hora depois, dois pedidos com 30 s entre eles deram 200. O 429 vem com `x-ef-ns` "unknown" (recusado antes da API) e o `Retry-After` não foi visto (conferido na rede em 2026-11-14). O mais provável é limite por IP na borda do Eightfold (D74, T117).
 
 #### Oracle HCM
 
