@@ -25,6 +25,9 @@ def _sem_repeticao(pares: list[tuple[str, Any]]) -> dict[str, Any]:
 
 def carregar_fontes(texto: str) -> dict[str, LimitesDaFonte]:
     bruto: dict[str, dict[str, Any]] = json.loads(texto, object_pairs_hook=_sem_repeticao)
+    for chave, dados in bruto.items():
+        if not isinstance(dados.get("ligada_padrao", True), bool):
+            raise ValueError(f"ligada_padrao de {chave!r} precisa ser true ou false")
     return {
         chave: LimitesDaFonte(
             **(
