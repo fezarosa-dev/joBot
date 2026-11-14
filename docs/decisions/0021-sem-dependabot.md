@@ -13,7 +13,7 @@ O Dependabot abria pull requests sozinho para subir versões. Esses PRs atrapalh
 - Os alertas de vulnerabilidade (aba Security) continuam ligados. Eles só avisam; não abrem PR.
 - A atualização é manual, no fim de cada fase, e entra no PR de fim de fase:
   1. `uv lock --upgrade`;
-  2. versões das GitHub Actions nos workflows (`.github/workflows/*.yml`);
+  2. versões das GitHub Actions nos workflows (`.github/workflows/*.yml`). As Actions ficam fixadas pelo hash do commit, com a versão em comentário; a atualização troca o hash e o comentário juntos;
   3. HTMX e fonte Inter vendorizados conferidos (versão e sha256);
   4. bateria verde: pytest de unidade e de tela, ruff e mypy.
 - Na fase 1, isso inclui subir `actions/checkout` para a v7 e `astral-sh/setup-uv` para a v7, e o requisito `uv-build` para `<0.14` se o lock aceitar.
