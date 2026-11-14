@@ -2,7 +2,7 @@
 
 Decisões que dependem do dono do projeto. As resolvidas ficam registradas aqui, com a data.
 
-Status usados: **resolvida** (o dono decidiu); **decidido pela sessão, para confirmar** (a sessão de 2026-11-13 escolheu e o dono confere); **aberta, para confirmar** (o construtor só recomendou ou escolheu no código; o código segue a opção atual até o dono decidir).
+Status usados: **resolvida** (o dono decidiu); **decidido pela sessão, para confirmar** (a sessão de 2026-11-13, ou a de 2026-11-14 com o dono fora, escolheu e o dono confere); **aberta, para confirmar** (o construtor só recomendou ou escolheu no código; o código segue a opção atual até o dono decidir).
 
 ## D1. Manter a opção "sessão do Claude Code"
 
@@ -337,6 +337,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 - Interruptor `aviso_versao_ligada`: a T54 é a dona (cria a chave, os textos e a gravação, como exceção à lista da 13.7) e a T85 só lê.
 - Lista de serviços da ADR 0014, **para confirmar com o dono**: a 0014 diz que os dados só saem do computador para os serviços que a pessoa ligar e lista Anthropic, Google, Telegram, Jev e RunPod. O aviso de versão (T85), ligado pela pessoa, fala com o GitHub, que não está na lista. A frase do desenho "o único código que faz pedidos para fora é o `HttpEducado`" e a regra de `Authorization` das Global Constraints já ganharam a ressalva do vigia, que é script de CI, fora do joBot instalado. Opções: (a) acrescentar à 0014 o GitHub, para o aviso de versão, na lista de serviços que a pessoa liga; (b) deixar a 0014 como está e valer a exceção registrada na 0018. Recomendação: (a), para a 0014 continuar sendo a lista completa.
 - O guia (T83) sai depois da T17, da T27, da T50 e da T84, que ele cita (D34), e a aprovação do primeiro PR é do dono (D33). A T84 deixou de depender da T17: o vigia não usa o script de captura.
+- Vigia (T84) na leva J, decidido pela sessão em 2026-11-14 com o dono fora, para confirmar (D63): roda junto dos coletores T56–T65 e da REG7, com os valores já escritos aqui (segunda às 06:23 UTC, no máximo 5 pedidos por fonte, `FONTES_FORA = {"eureca", "abler", "gupy"}`) e com as opções em aberto acima (zero vagas, `saude.excecao`, detalhe quebrado, contexto fixo) seguindo a recomendação de cada uma. O link "reportar problema" e o aviso de versão (T50, T85, T87) já estão entregues.
 
 ## D32. `tratar` chama `ler_requisitos` em toda vaga (T18)
 
@@ -634,7 +635,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 **Opções:** (a) a falha do `desligar` volta ao passo 2 com o motivo, como está; (b) conclui mesmo assim, com o segundo plano desligado, e mostra o aviso com o motivo.
 
-**Decisão provisória:** o código segue a (a). A recomendação é a (b): a pessoa pediu para não ligar, e ficar presa no passo 2 é pior. O título errado da recusa ("Não foi possível ligar") é defeito e vai na T89 junto com a escolha do dono.
+**Decisão provisória:** o código segue a (a). A recomendação é a (b): a pessoa pediu para não ligar, e ficar presa no passo 2 é pior. O título errado da recusa ("Não foi possível ligar") foi corrigido pela T89 em 2026-11-14, que mostra o título de desligar; a escolha do dono segue aberta e o código segue a (a).
 
 ## D50. Escopo opaco e nome da empresa no coletor (T28, T29, T30, T35, T38, T40, T41, T50, T51, T84)
 
@@ -674,7 +675,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 - Empresa: (a) `owner/repo` agora; (b) heurística depois, com o texto das vagas dos cinco repositórios.
 - Página 2: (a) `falhou`, como está; (b) `parcial` com as vagas já lidas.
 
-**Decisão provisória:** cota: (b), entregue pela T94: `Bloqueio` e `LimiteAtingido` levam os cabeçalhos (`cabecalhos`), e 403 ou 429 com `x-ratelimit-remaining: 0` vira `no_limite` com `saude.cota`, com as vagas já lidas. Sobra um caso: o 429 de cota zero sem `Retry-After` ainda passa pelas esperas de 30, 60 e 120 s do `http.py` antes de virar `no_limite`; o conserto é a T99. Empresa: (a); a heurística é tarefa própria, depois de haver corpus real. Página 2: (a), e troca-se por (b) quando algum repositório passar de 100 abertas.
+**Decisão provisória:** cota: (b), entregue pela T94: `Bloqueio` e `LimiteAtingido` levam os cabeçalhos (`cabecalhos`), e 403 ou 429 com `x-ratelimit-remaining: 0` vira `no_limite` com `saude.cota`, com as vagas já lidas. O caso que sobrava, o 429 de cota zero sem `Retry-After`, foi entregue pela T99 em 2026-11-14 (opção (b)): o laço de `pedir` em `nucleo/http.py` levanta `LimiteAtingido` com os cabeçalhos na hora, sem as esperas de 30, 60 e 120 s. A regra vale para qualquer fonte que mande `x-ratelimit-remaining: 0` num 429 sem `Retry-After`, não só para o GitHub; um `Retry-After` que não é número conta como ausente (teste `test_429_com_cota_zero_e_retry_after_invalido_para_na_hora`). Fonte que não manda esse cabeçalho segue as esperas de hoje. Empresa: (a); a heurística é tarefa própria, depois de haver corpus real. Página 2: (a), e troca-se por (b) quando algum repositório passar de 100 abertas.
 
 **Provisório (o que o código faz hoje), para confirmar:**
 - As fixtures `paginacao_1`, `paginacao_2` e `formato_mudou` foram montadas à mão. O `Link` delas (id do repositório e cursor) é inventado a partir do formato visto; o `.meta.json` diz isso, com o `sha256` conferido. O coletor segue o `Link` como vier.
@@ -848,7 +849,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 ## D61. Configurações: interruptor do segundo plano e 422 seco (T54, T91, T98)
 
-**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+**Status:** segundo plano: decidido (b) pela sessão em 2026-11-14 com o dono fora, para confirmar (A1, entregue na T98). 422 seco: aberta, para confirmar (o código segue a opção atual até o dono decidir)
 
 **Contexto:** Dois pontos baixos das revisões da T54 e da T91.
 - Segundo plano. O interruptor da tela de configurações (`_ctx_segundo_plano` em `src/jobot/painel/rotas/configuracoes.py`) mostra a chave `segundo_plano` do banco, não o estado real do systemd (desenho 12.5). Se o serviço for ligado ou desligado por fora, a tela erra.
@@ -858,4 +859,153 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 - Segundo plano: (a) seguir a chave do banco, como está; (b) ler o estado real do systemd ao montar a tela. Recomendação: (b) numa tarefa própria (T98), porque exige decidir qual é a fonte de verdade.
 - 422: (a) seco, como está; (b) mensagem na lista de buscas. Recomendação: (a); vira item novo só se o dono quiser.
 
-**Decisão provisória:** (a) nos dois até o dono decidir; o segundo plano tem a T98 pronta.
+**Decisão provisória:** segundo plano: (b), entregue pela T98 em 2026-11-14. Com o dono fora, a sessão escolheu que o interruptor mostra `estado.habilitado` (o timer habilitado no systemd), e não `ativo` (rodando agora, que muda a cada execução). Fora do Linux sai desligado e desativado, sem consultar o systemd, e o GET não regrava a chave. Desfazer: voltar a ler a chave `segundo_plano` do banco. O desenho 12.5 não foi alterado; se ele diz que a tela segue a chave, acertar o texto quando o dono confirmar. 422: (a), seco, como está.
+
+## D62. Primeira execução: sobras da tela de execução (T49, T106, T107)
+
+**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+
+**Contexto:** Cinco pontos baixos da revisão da T49.
+- Nomes privados. Rotas importam nomes com `_` de outros módulos: `_rodar` (de `agenda/agendador.py`, em `rotas/execucao.py:20`), `_relogio` (de `rotas/vagas.py`, em `rotas/execucao.py:25`, `fontes.py:30` e `detalhe.py:28`) e `_de_volta` (de `painel/seguranca.py`, em `rotas/vagas.py:25`, `preferencias.py:15` e `execucao.py:26`).
+- Contagem de novas. O "Buscar agora" mostra a contagem de vagas novas lida do banco, não do resultado da busca. Aceito.
+- `primeira_execucao/pronto.html` é formulário comum, sem HTMX. O aviso "já roda" nesse caso sai pela T101.
+- A tela final da primeira execução mostra dois botões "Buscar agora" (o da casca e o dela).
+- A região vazia do andamento ocupa uma linha.
+
+**Opções:** nomes privados: (a) tornar públicos numa tarefa pequena (T106); (b) aceitar como está. Dois botões e região vazia: (a) um só botão e região sem altura (T107); (b) aceitar. Recomendação: (a) nos dois.
+
+**Decisão provisória:** o código segue como está. A T106 e a T107 estão no plano, livres.
+
+## D63. Levas H e I: ordem do trabalho e cópia de segurança (A3, A10, A11)
+
+**Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar
+
+**Contexto:** Três escolhas de ordem, tomadas sem o dono.
+- A3. A leva I juntou a T71 (descoberta) e a T72 (páginas acompanhadas) antes da T55, porque só dependiam de tarefas prontas e não dependem da rede real. O plano já diz isso na linha da onda 8.
+- A10. A leva J roda em paralelo, até 8 tarefas ao mesmo tempo, cada uma no seu worktree: coletores T56–T65, o vigia T84 e a REG7 (estes registros). Modelo pela dificuldade: Opus nos coletores mais chatos (iel, workday, eightfold) e no vigia; Sonnet nos outros.
+- A11. Depois de juntar a leva I e a T103, a `dev` vai ao GitHub como cópia de segurança: só a `dev`, sem PR e sem `main`; push na `dev` não roda CI. A regra registrada antes era push e PR só no fim de cada fase; esta é uma exceção só para a `dev`.
+
+**Opções:** A3: (a) como feito; (b) esperar a T55. A10: (a) paralelo; (b) uma tarefa por vez. A11: (a) copiar a `dev` ao fim de cada leva; (b) só no fim da fase. Recomendação: (a) nas três.
+
+**Decisão provisória:** (a) nas três. Desfazer: A3 e A10 não têm o que desfazer; A11 se desfaz parando de dar push.
+
+## D64. Aviso de versão e link de apoio: sobras (T85, T87, T104, T105)
+
+**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir); o item de CSS e o item do salto recusado foram decididos pela sessão em 2026-11-14 com o dono fora, para confirmar
+
+**Contexto:**
+- Hora da checagem (`checar_versao_nova` em `src/jobot/agenda/versao.py:100-126`). A hora só é gravada quando o servidor respondeu, mesmo com erro. `OrcamentoGasto` e `ErroDeRede` com `status` `None` voltam sem gravar, e a próxima volta (de hora em hora) tenta de novo. Escolha do agente que implementou, para confirmar.
+- Salto recusado (A6). `ErroDeRede` com `status` `None` também cobre um redirecionamento recusado, e aí a checagem tenta de novo toda hora e nunca grava. Consertar exige mudar o contrato de `nucleo/http.py` (uma exceção própria para o salto). Fica como está.
+- `atualizar()` tem o parâmetro `raiz`, que existe só para os testes (a nota está na T85 do plano).
+- Fixture global. O `_laco_versao_parado` de `tests/conftest.py` é `autouse` e vale para todo teste, mas só quatro suítes sobem o lifespan. Mover só para `test_servir.py` quebraria as outras (T104).
+- Falta teste de tela do aviso de versão (T105).
+- CSS (A4). O estilo `.aviso-versao` entrou no `base.css` junto da T87, que já mexia nesse arquivo, e não numa tarefa à parte.
+
+**Opções:** salto recusado: (a) deixar; (b) exceção própria para o salto no `http.py`, o aviso grava a hora e o log diz o motivo. Hora da checagem: (a) como está; (b) gravar também sem resposta, com atraso de uma hora. Recomendação: (a) nos dois; o custo de tentar de hora em hora é um pedido por hora, só com o aviso ligado.
+
+**Decisão provisória:** (a) nos dois. T104 e T105 estão no plano, livres.
+
+## D65. Primeira execução em modo edição e idioma do `jobot buscar` (T89, T100)
+
+**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir); a escolha do formulário esvaziado é do redator
+
+**Contexto:**
+- Formulário esvaziado. No passo 1 em modo edição, se a pessoa esvazia todos os campos, a busca não muda e a tela segue ao passo 2. Escolha do redator, para confirmar.
+- `editar_busca` (`src/jobot/banco/buscas.py:161`) não recebe `agora`, só `hoje`. O `agora` com fuso vai ao `criar_busca`, que deriva o `hoje`.
+- Cidades. O formulário do passo 1 mostra 3 linhas de cidade, e a leitura aceita até 10 (`_MAX_CIDADES` em `rotas/primeira_execucao.py:48`).
+- Idioma do `jobot buscar`. O resumo sai sempre em português (`cli/buscar.py`), sem olhar o idioma do sistema nem o da preferência. Limite conhecido, como as outras mensagens de terminal (D23).
+
+**Opções:** formulário esvaziado: (a) manter a busca e seguir ao passo 2; (b) recusar com mensagem. Cidades: (a) 3 linhas na tela, 10 na leitura; (b) igualar. Idioma: (a) fixo em pt; (b) detectar o idioma do sistema. Recomendação: (a) nos três.
+
+**Decisão provisória:** (a) nos três.
+
+## D66. Desligar limpo e ajustes baixos da leva H (A2, A5, T101, T102)
+
+**Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar
+
+**Contexto:**
+- A2. Ctrl+C e SIGTERM fechavam o cliente HTTP com a busca do "Buscar agora" ainda rodando. A T101 cancela e aguarda essa busca no lifespan, antes de fechar o cliente. `/sair` marca `app.state.saindo` e o "Buscar agora" recusa busca nova nessa janela. O relógio do app vem do `montar`. Sem HTMX, o aviso "já roda" volta pela página do redirect. É correção, não tem o que desfazer.
+- A5. Os três ajustes baixos da revisão da leva H foram numa tarefa só, a T102: o "pular" do passo 1 em modo edição mantém `?busca=<id>`, o teste do `Retry-After` inválido no 429 de cota zero e o teste que prova que o catálogo recusa chave repetida.
+- Notas baixas da T101: o nome do cookie `jobot_ja_roda` está repetido em `barra.html` e em `_AVISO` de `rotas/execucao.py:29` (um teste pega a divergência). Com o cookie e sem execução encerrada no banco, a carga do andamento devolve fragmento vazio (raro, só visual). POST sem HTMX durante o "saindo" só redireciona, sem aviso (aceito).
+
+**Opções:** A2 e A5: sem alternativa. Cookie repetido: (a) deixar, o teste cobre; (b) passar o nome pelo contexto do template. Recomendação: (a).
+
+**Decisão provisória:** como entregue; cookie repetido fica.
+
+## D67. Segundo plano: falso dos testes sem estado (T98, T113)
+
+**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir). A decisão da fonte de verdade (A1) está na D61.
+
+**Contexto:** O `FalsoSistema` dos testes de configuração não guarda estado: o teste de desligar força o `is-enabled` na mão, com um comentário.
+
+**Opções:** (a) aceitar como está; (b) dar estado ao falso (T113). Recomendação: (a); só vale (b) se mais testes passarem a depender do estado.
+
+**Decisão provisória:** (a). A T113 está no plano, livre.
+
+## D68. Busca real na rede: resultado da T55 e rodízio da Gupy e da Himalayas (A7, T55)
+
+**Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar
+
+**Contexto:** A sessão rodou a T55 na `fedora-dev` em 2026-11-14 (3 min 8 s, 95 escopos). Todas as fontes da leva A ficaram "ok" ao menos uma vez e nenhuma respondeu 403. Gupy (30 pedidos) e Himalayas (30 pedidos) deixaram escopos `no_limite`: é o rodízio do DR-52, que atende primeiro os escopos mais antigos e deixa o resto para a próxima execução. O user agent fica provado pelos testes de unidade e pela ausência de 403 na rede real. A divergência real, o teto do Ashby, virou a T103 (D69).
+
+**Opções:** (a) manter o orçamento de 30 pedidos e o rodízio; (b) subir `max_pedidos` da Gupy em `fontes.json`. Recomendação: (a): o desenho manda deixar o resto para a próxima execução, e mais pedidos à Gupy pesam em quem não pediu.
+
+**Decisão provisória:** (a). Desfazer: subir `max_pedidos` em `fontes.json`.
+
+## D69. Ashby: teto de 32 MB e motivos do executor (A8, T103)
+
+**Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar
+
+**Contexto:** Na T55, os dois maiores quadros Ashby (14,8 MB e 8,1 MB) passaram do teto de 5 MB e falharam. A API do Ashby não tem paginação nem opção sem descrição. A T103 fez o Ashby ler com teto de 32 MB (o mesmo do feed do Google, `TETO_QUADRO_BYTES` em `nucleo/coletores/ashby.py:32`). O executor também passou a dar motivo próprio ao escopo: `RespostaGrande` vira `saude.resposta_grande` e `ErroDeRede` vira `saude.erro_de_rede`, em vez de `saude.excecao:<Tipo>`. Isso muda o motivo de quem antes caía no genérico: cada coletor que levantava esses dois tipos no escopo agora sai com o motivo novo, e `saude.resposta_grande` está em `MOTIVOS_DE_QUEBRA`, então passa a gerar o link "reportar problema".
+
+**Opções:** (a) teto de 32 MB só no Ashby; (b) teto padrão maior para todos; (c) deixar as duas empresas de fora. Recomendação: (a): é o menor teto que resolve e não afrouxa os outros coletores.
+
+**Decisão provisória:** (a). Desfazer: voltar o teto padrão (as duas empresas ficam de fora).
+
+## D70. Exemplos dos coletores da leva B vêm das respostas reais guardadas (A9)
+
+**Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar
+
+**Contexto:** Os exemplos (fixtures) dos coletores da leva B saem das respostas reais guardadas na conferência ao vivo de 2026-11-13, reduzidas e limpas pelas funções do `scripts/capturar.py`, em vez de esperar uma captura nova por fonte. Depois de juntar a leva, a sessão roda uma busca real das fontes novas, como a T55, e abre tarefa para o que divergir.
+
+**Opções:** (a) usar as respostas já guardadas; (b) capturar de novo cada fonte. Recomendação: (a): as respostas são reais, e capturar de novo repete pedido às mesmas fontes.
+
+**Decisão provisória:** (a). Desfazer: capturar de novo com `scripts/capturar.py` e trocar os exemplos.
+
+## D71. Descoberta de empresas: sobras da T71 (T71, T108, T109, T110)
+
+**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+
+**Contexto:**
+- Empresa removida. Aprovar a sugestão de uma empresa já cadastrada e depois removida marca a sugestão como aprovada e devolve o id da removida, sem reativá-la.
+- Interrupção. `executar_descoberta` (`src/jobot/agenda/descoberta.py`) pega `BaseException`: fechar o app no meio também marca a execução como interrompida e adia até o dia seguinte, e a próxima recomeça do zero (uns 105 MB do `cluster.idx` de novo).
+- Fixtures sem `.meta.json`. `tests/fixtures/common_crawl/` e `tests/fixtures/ptax/` não têm meta.
+- Orçamento da Gupy. No ramo da Gupy, `testar` (`nucleo/coletores/descoberta_cc.py:225-237`) usa um só escopo com `max_pedidos=2` para resolver e coletar. Se a página pedir nova tentativa ou salto, o coletar começa sem orçamento e a empresa não é sugerida.
+- `descoberta.py` importa o `_bater` privado de `agenda/execucao.py`, e o batimento da descoberta não tem teste próprio.
+
+**Opções:** empresa removida: (a) manter sem reativar, porque a remoção foi ato posterior da pessoa (a T74 pode avisar comparando com `removida_em`); (b) reativar. Interrupção: (a) aceitar; (b) só o 503 e o `LimiteAtingido` adiam até o dia seguinte, o resto tenta de novo no mesmo dia (T108); (c) guardar o candidato recusado, com estado novo no `CHECK` de `empresa_sugerida` (muda o schema). Fixtures: (a) registrar em `registros/padroes.md` que pasta de fonte que não é coletor dispensa meta; (b) acrescentar as metas. Orçamento da Gupy: um escopo por etapa (T109). `_bater`: tornar público e testar (T110). Recomendação: (a), (b), (a), um escopo por etapa e `_bater` público.
+
+**Decisão provisória:** o código segue como está até o dono decidir; as T108, T109 e T110 estão no plano, livres.
+
+## D72. Páginas acompanhadas: DNS, escolhas do redator e o que falta para a T75 (T72, T111, T112)
+
+**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir); o DNS foi escolha do agente (regra R2), para confirmar
+
+**Contexto:**
+- DNS antes do primeiro pedido (R2). `verificar` resolve o host e recusa endereço local antes de pedir; o resolver é injetável. O hook do cliente só confere o esquema, então a URL digitada pela pessoa precisava disso. O mesmo código está repetido em `nucleo/coletores/paginas.py` (cópias de `_resolver_padrao` e `_conferir_dns` de `nucleo/http.py`), e a cópia é mais fraca: usa `host_local`, que não recusa texto que não é IP, e o original recusa.
+- Escolhas do redator, para confirmar: leitura que falha mantém `verificada_em` da última boa e só o `estado` vira `falhou`; a primeira leitura não grava `mudanca_pagina`; `adicionar_pagina` com endereço repetido troca o nome e reativa; lista de nomes locais recusados (sem ponto, `.local`, `.localdomain`, `.lan`, `.home`, `.internal`, `.intranet`, `.arpa`, URL com usuário e senha, IPv4 decimal sem pontos).
+- Faltas para a T75: desativar e remover página acompanhada (a coluna `ativa` existe); o `Content-Type` não é lido (tudo vira HTML, com `shortcut:` no código); não há batimento na execução de páginas.
+
+**Opções:** DNS: (a) manter, com o resolver injetável; (b) tornar público o helper de `http.py` e usar o mesmo nos dois lugares, com a regra de recusa do original (T111). Recomendação: (b) numa tarefa pequena, e (a) até lá. Desativar e remover: (a) junto da T75; (b) tarefa própria (T112). Recomendação: (a).
+
+**Decisão provisória:** (a) no DNS e junto da T75 no resto. A T111 e a T112 estão no plano, livres.
+
+## D73. Aviso de depreciação do Starlette nos testes (ADR 0021)
+
+**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+
+**Contexto:** O `TestClient` do Starlette avisa em toda a suíte que pede `httpx2` ("install httpx2"). Hoje só é ruído. A ADR 0021 tirou o Dependabot, então a atualização de dependências é manual.
+
+**Opções:** (a) anotar e tratar na atualização de dependências do fim da fase; (b) filtrar o aviso em `pyproject.toml`. Recomendação: (a): trocar de cliente é mudança de dependência e fica com o dono.
+
+**Decisão provisória:** (a).
