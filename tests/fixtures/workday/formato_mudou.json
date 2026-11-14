@@ -1,0 +1,175 @@
+{
+  "total": 333,
+  "jobPostings": [
+    {
+      "title": "Programa de Formação AAA | Carreira em Assessoria de Investimentos Exclusivo para Pessoas com Deficiência (PcD)",
+      "externalPath": "/job/Evergreen/Programa-de-Formao-AAA---Carreira-em-Assessoria-de-Investimentos-Exclusivo-para-Pessoas-com-Deficincia--PcD-_Req1553274",
+      "locationsText": "Evergreen",
+      "postedOn": "Publicado hoje",
+      "bulletFields": [
+        "Req1553274"
+      ]
+    },
+    {
+      "externalPath": "/job/Evergreen/Banco-de-Talentos---Assessor-de-Invest-One_Req1539104",
+      "locationsText": "Evergreen",
+      "postedOn": "Publicado hoje",
+      "bulletFields": [
+        "Req1539104"
+      ],
+      "name": "Banco de Talentos | Assessor de Invest One"
+    },
+    {
+      "title": "Banco de Talentos | Team Leader - AAA Investimentos",
+      "externalPath": "/job/Evergreen/Banco-de-Talentos---Team-Leader---AAA-Investimentos_Req1538616",
+      "locationsText": "Evergreen",
+      "postedOn": "Publicado hoje",
+      "bulletFields": [
+        "Req1538616"
+      ]
+    },
+    {
+      "title": "Banco de Talentos | Assessor de Invest High",
+      "externalPath": "/job/Evergreen/Banco-de-Talentos---Assessor-de-Invest-High_Req1539241",
+      "locationsText": "Evergreen",
+      "postedOn": "Publicado hoje",
+      "bulletFields": [
+        "Req1539241"
+      ]
+    },
+    {
+      "title": "Espec Santander II 8h - Vaga exclusiva para PcD",
+      "externalPath": "/job/SAO-PAULO/Espec-Santander-II-8h_Req1628949",
+      "locationsText": "SAO PAULO",
+      "postedOn": "Publicado hoje",
+      "bulletFields": [
+        "Req1628949"
+      ]
+    }
+  ],
+  "facets": [
+    {
+      "facetParameter": "jobFamilyGroup",
+      "descriptor": "Família de cargos",
+      "values": [
+        {
+          "descriptor": "Vendas e suporte ao cliente: Presencial",
+          "id": "51a9528e737401137101862f1a01a045",
+          "count": 235
+        },
+        {
+          "descriptor": "Investment & Asset Management",
+          "id": "135a3ebce38101e25b8ba1b819012150",
+          "count": 24
+        },
+        {
+          "descriptor": "Infra-estruturade Sistemas ePlataformas de Comunicação",
+          "id": "135a3ebce3810166e65b0db919012550",
+          "count": 10
+        }
+      ]
+    },
+    {
+      "facetParameter": "workerSubType",
+      "descriptor": "Tipo de cargo",
+      "values": [
+        {
+          "descriptor": "Regular",
+          "id": "c26ab0efcb8401c69f3401097836af1a",
+          "count": 318
+        },
+        {
+          "descriptor": "Regular 20",
+          "id": "c26ab0efcb8401ee256302097836b61a",
+          "count": 11
+        },
+        {
+          "descriptor": "Estagiário (prazo determinado)",
+          "id": "c26ab0efcb8401233f6601097836b01a",
+          "count": 4
+        }
+      ]
+    },
+    {
+      "facetParameter": "timeType",
+      "descriptor": "Tipo de período",
+      "values": [
+        {
+          "descriptor": "Tempo Integral",
+          "id": "50f8dc783bca01cf16df1e746a365200",
+          "count": 303
+        }
+      ]
+    },
+    {
+      "facetParameter": "hiringCompany",
+      "descriptor": "Empresa",
+      "values": [
+        {
+          "descriptor": "008 Banco Santander (Brasil) S.A.",
+          "id": "c26ab0efcb840111a842c93813375758",
+          "count": 223
+        },
+        {
+          "descriptor": "521 SANB PROMOTORA DE VENDAS E COBRANCA S.A.",
+          "id": "2d616b6e8e500101418bd83f014e0000",
+          "count": 41
+        },
+        {
+          "descriptor": "618 Santander Corretora de Seguros, Investimentos e Serviços S.A",
+          "id": "c26ab0efcb8401ed875c753a13371960",
+          "count": 23
+        }
+      ]
+    },
+    {
+      "facetParameter": "locationMainGroup",
+      "values": [
+        {
+          "facetParameter": "locationCountry",
+          "descriptor": "País",
+          "values": [
+            {
+              "descriptor": "Brasil",
+              "id": "1a29bb1357b240ab99a2fa755cc87c0e",
+              "count": 333
+            },
+            {
+              "descriptor": "Estados Unidos da América",
+              "id": "bc33aa3152ec42d4995f4791a106ed09",
+              "count": 244
+            },
+            {
+              "descriptor": "Alemanha",
+              "id": "dcc5b7608d8644b3a93716604e78e995",
+              "count": 109
+            }
+          ]
+        },
+        {
+          "facetParameter": "locationRegionStateProvince",
+          "descriptor": "Localidades",
+          "values": [
+            {
+              "descriptor": "São Paulo",
+              "id": "6177762425c54ca8aa31aac74fb08fad",
+              "count": 189
+            },
+            {
+              "descriptor": "Rio de Janeiro",
+              "id": "e88c3d7cdb2b4a8b8120ede0b16e2186",
+              "count": 21
+            },
+            {
+              "descriptor": "Paraná",
+              "id": "d8e53364fd034628acb6b05f4e776dbe",
+              "count": 19
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "userAuthenticated": false,
+  "_nota": "amostra cortada: 5 vagas, 3 valores por faceta"
+}

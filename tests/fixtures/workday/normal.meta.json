@@ -1,0 +1,20 @@
+{
+  "url": "https://santander.wd3.myworkdayjobs.com/wday/cxs/santander/SantanderCareers/jobs",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {},
+  "sha256": "64ad8884f65114ffce027a34acab452fc75b12bc351c5b7dcf3356a31b2c88e5",
+  "versao": "0.1.0",
+  "metodo": "POST",
+  "montado_a_mao": "veio de captura/B1/workday_santander_lista_br.json (conferência ao vivo de 2026-11-13, corte da conferência: 5 vagas, 3 valores por faceta; campo _nota da conferência mantido); passou por reduzir e limpar_pessoais. Os cabeçalhos da resposta não foram guardados na conferência (cabecalhos vazio).",
+  "corpo_json": {
+    "appliedFacets": {
+      "locationCountry": [
+        "1a29bb1357b240ab99a2fa755cc87c0e"
+      ]
+    },
+    "limit": 20,
+    "offset": 0,
+    "searchText": ""
+  }
+}
