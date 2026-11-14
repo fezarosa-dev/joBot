@@ -405,6 +405,7 @@ Each important decision is recorded in a short document called an ADR (architect
 | 0018 | [Community maintenance and CI open to every PR](docs/decisions/0018-manutencao-pela-comunidade.md) |
 | 0019 | [Project wiki and question form](docs/decisions/0019-wiki-do-projeto.md) |
 | 0020 | [Financial support: donations only](docs/decisions/0020-apoio-financeiro.md) |
+| 0021 | [No Dependabot: dependencies updated by hand](docs/decisions/0021-sem-dependabot.md) |
 
 <a id="how-to-contribute"></a>
 ## 🤝 How to contribute
