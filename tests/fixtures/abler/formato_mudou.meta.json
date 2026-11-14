@@ -1,0 +1,12 @@
+{
+  "url": "https://candidatos.abler.com.br/sitemap.xml",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/xml; charset=utf-8"
+  },
+  "sha256": "7d5d8a7d20058fdc1ad2b5d1e62c034f2d8c3d1f0b20e3e38d337814c27ba212",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "montado à mão: um índice de sitemaps (<sitemapindex>) no lugar do <urlset> de normal.xml, como ficaria se o site partisse o sitemap; a rede não deu esse caso"
+}

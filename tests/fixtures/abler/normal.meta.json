@@ -1,0 +1,12 @@
+{
+  "url": "https://candidatos.abler.com.br/sitemap.xml",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/xml; charset=utf-8"
+  },
+  "sha256": "dd9af798f476fe864c7c058a1dba3b88c4125552619026a3d42978546e710c21",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "capturado de raw/abler_sitemap.xml (conferência ao vivo de 2026-11-13, 3,5 MB e 14.293 <url>) com capturar.reduzir (5 primeiros <url>, o primeiro é a página /vagas/ da lista); a resposta não trouxe ETag nem Last-Modified"
+}
