@@ -21,6 +21,7 @@ from jobot.banco.execucoes import (
     fechar_execucao,
     gravar_saude,
     inicio_da_ultima_completa,
+    interromper_execucao,
     marcar_interrompidas,
     saude_recente,
 )
@@ -202,6 +203,25 @@ def test_fechar_nao_ressuscita_interrompida(con: sqlite3.Connection) -> None:
     marcar_interrompidas(con, AGORA + timedelta(hours=1))
     fechar_execucao(con, id_, AGORA + timedelta(hours=2))
     assert _estado(con, id_)[0] == "interrompida"
+
+
+def test_interromper_execucao_inexistente_levanta_lookuperror(con: sqlite3.Connection) -> None:
+    with pytest.raises(LookupError):
+        interromper_execucao(con, 999, AGORA)
+    assert not con.in_transaction
+
+
+def test_interromper_marca_na_hora_e_nao_mexe_na_concluida(con: sqlite3.Connection) -> None:
+    rodando = abrir_execucao(con, "busca", "agenda", AGORA)
+    assert rodando is not None
+    interromper_execucao(con, rodando, AGORA + timedelta(seconds=10))
+    assert _estado(con, rodando) == ("interrompida", (AGORA + timedelta(seconds=10)).isoformat())
+
+    concluida = abrir_execucao(con, "busca", "agenda", AGORA + timedelta(minutes=1))
+    assert concluida is not None
+    fechar_execucao(con, concluida, AGORA + timedelta(minutes=2))
+    interromper_execucao(con, concluida, AGORA + timedelta(minutes=3))
+    assert _estado(con, concluida) == ("concluida", (AGORA + timedelta(minutes=2)).isoformat())
 
 
 # --- saúde ---

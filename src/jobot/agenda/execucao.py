@@ -30,8 +30,14 @@ from jobot.banco.execucoes import (
     bater,
     fechar_execucao,
     gravar_saude,
+    interromper_execucao,
 )
-from jobot.banco.gravacao import fechar_escopos_extintos, gravar_detalhe, gravar_escopo, reprocessar
+from jobot.banco.gravacao import (
+    fechar_escopos_extintos,
+    gravar_cache_detalhe,
+    gravar_escopo,
+    reprocessar,
+)
 from jobot.nucleo.cambio import buscar_cotacao
 from jobot.nucleo.coletores.base import Coletor, ContextoColeta
 from jobot.nucleo.coletores.executor import SaidaEscopo, rodar
@@ -41,7 +47,7 @@ from jobot.nucleo.modelo import VagaColetada
 from jobot.nucleo.relogio import Relogio
 from jobot.nucleo.tratamento.rotulos import VERSAO_REGRAS
 from jobot.nucleo.tratamento.tratar import tratar
-from jobot.nucleo.url import canonica, hash_url
+from jobot.nucleo.url import canonica
 
 log = logging.getLogger(__name__)
 
@@ -75,7 +81,7 @@ async def executar_busca(
 ) -> int | None:
     """Roda uma busca inteira e devolve o id da execução; `None` se outra já está rodando.
 
-    Um erro no meio sobe e deixa a execução "rodando": `marcar_interrompidas` a encerra.
+    Um erro no meio marca a execução "interrompida" na hora e sobe (D54).
     """
     inicio = relogio.agora()
     execucao_id = abrir_execucao(con, "busca", motivo, inicio)
@@ -97,6 +103,11 @@ async def executar_busca(
         # shortcut: recalcula todas as vagas das buscas ativas; trocar pelas mexidas nesta
         # execução se a base crescer a ponto de pesar.
         recalcular_encaixe(con, None, bool(ler_config(con, "regras_ocultar_ligadas")), hoje=hoje)
+    except BaseException:
+        if con.in_transaction:  # o passo que quebrou pode ter deixado a sua aberta
+            con.rollback()
+        interromper_execucao(con, execucao_id, relogio.agora())
+        raise
     finally:
         batimento.cancel()
         with contextlib.suppress(asyncio.CancelledError):
@@ -245,32 +256,10 @@ async def _enriquecer(
                 break
             except Exception:  # só esta URL; sem cache, volta na próxima execução
                 # shortcut: sem recuo; a URL que sempre quebra é pedida em toda execução por
-                # até 30 dias (JANELA_DETALHE). Gravar a tentativa no cache depois de N falhas
-                # quando houver função de cache em `banco/` (R4 nas dúvidas da T41).
+                # até 30 dias (JANELA_DETALHE). Contar as falhas pede schema (D54, opção c).
                 log.exception("detalhe de %s falhou", v.url)
                 continue
-            # o detalhe antes do cache: uma queda entre os dois não marca a URL como tentada
-            if detalhe is not None:
-                gravar_detalhe(con, oid, detalhe)
-            _gravar_cache(con, v.url, detalhe, relogio.agora())
-
-
-def _gravar_cache(
-    con: sqlite3.Connection, url: str, detalhe: VagaColetada | None, agora: datetime
-) -> None:
-    # shortcut: SQL do cache aqui porque `banco/` não tem função para ele (R4 nas dúvidas da T41);
-    # mover para `banco/gravacao.py` quando ela existir.
-    with con:
-        con.execute(
-            "INSERT INTO enriquecimento (url_hash, buscado_em, conteudo) VALUES (?, ?, ?)"
-            " ON CONFLICT(url_hash) DO UPDATE SET buscado_em = excluded.buscado_em,"
-            " conteudo = excluded.conteudo",
-            (
-                hash_url(canonica(url)),
-                _iso(agora),
-                "" if detalhe is None else detalhe.para_json(),
-            ),
-        )
+            gravar_cache_detalhe(con, oid, v.url, detalhe, relogio.agora())
 
 
 async def _cotacoes(con: sqlite3.Connection, cliente: ClienteEducado, agora: datetime) -> None:
