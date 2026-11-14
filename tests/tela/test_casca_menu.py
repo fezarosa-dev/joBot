@@ -59,11 +59,11 @@ def test_tab_chega_no_menu_depois_do_pular(page: Page, painel: str) -> None:
     page.keyboard.press("Tab")
     expect(page.get_by_role("link", name="Pular para o conteúdo")).to_be_focused()
     itens = _itens(page)
-    expect(itens).to_have_count(6)
-    # a ordem do foco segue a do menu: a marca vem antes, depois os seis itens
+    expect(itens).to_have_count(7)
+    # a ordem do foco segue a do menu: a marca vem antes, depois os sete itens
     page.keyboard.press("Tab")
     expect(page.locator("a.marca")).to_be_focused()
-    for i in range(6):
+    for i in range(7):
         page.keyboard.press("Tab")
         expect(itens.nth(i)).to_be_focused()
 
@@ -89,8 +89,8 @@ def test_contraste_dos_itens_do_menu(page: Page, painel: str, esquema: str) -> N
     page.emulate_media(color_scheme="light" if esquema == "light" else "dark")
     page.goto(painel + "/vagas")
     itens = _itens(page)
-    assert itens.count() == 6
-    razoes = [itens.nth(i).evaluate(CONTRASTE) for i in range(6)]
+    assert itens.count() == 7
+    razoes = [itens.nth(i).evaluate(CONTRASTE) for i in range(7)]
     # o item da área aberta tem outro fundo: entra na conta junto com os demais
     menu = page.get_by_role("navigation", name="Principal")
     expect(menu.locator("[aria-current=page]")).to_have_count(1)
