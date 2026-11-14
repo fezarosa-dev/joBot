@@ -101,7 +101,8 @@ async def _ctx_segundo_plano(request: Request, con: Con) -> dict[str, Any]:
         "linux": linux,
         "estado": estado,
         "container": caso.nome_do_container(_ambiente(request)),
-        "ligado": ler_config(con, "segundo_plano", False) is True,
+        # D61 (A1): no Linux o interruptor segue o is-enabled do systemd; ativo não entra
+        "ligado": estado is not None and estado.habilitado,
     }
 
 
