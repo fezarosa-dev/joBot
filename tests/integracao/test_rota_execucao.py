@@ -40,6 +40,8 @@ from jobot.painel.app import criar_app
 from jobot.painel.i18n import t
 from jobot.painel.rotas import execucao as rota
 
+pytestmark = pytest.mark.usefixtures("laco_versao_parado")
+
 PORTA = 47621
 BASE = f"http://127.0.0.1:{PORTA}"
 AGORA = datetime(2026, 11, 13, 12, 0, tzinfo=UTC)

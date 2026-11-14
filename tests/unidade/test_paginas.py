@@ -31,7 +31,7 @@ from jobot.nucleo.coletores.paginas import Mudanca, Pagina, endereco_permitido, 
 from jobot.nucleo.http import ClienteEducado, ErroDeRede, Resolvedor, Validadores
 from jobot.nucleo.relogio import Relogio
 
-pytestmark = pytest.mark.anyio
+pytestmark = [pytest.mark.anyio, pytest.mark.usefixtures("laco_versao_parado")]
 
 PUBLICO = "93.184.215.14"
 URL = "https://empresa.example/programa-trainee"
