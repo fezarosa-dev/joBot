@@ -40,11 +40,13 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 ## D4. Botão de patrocínio (FUNDING.yml)
 
-**Status:** aberta, para confirmar
+**Status:** o arquivo já existe no repositório (ver a atualização de 2026-11-14); aberta só para o dono confirmar a conta
 
 **Contexto:** o arquivo `.github/FUNDING.yml` mostra o botão Sponsor, mas precisa de uma conta de patrocínio, como GitHub Sponsors ou Ko-fi, que o projeto ainda não tem.
 
 **Decisão provisória:** sem `FUNDING.yml` até o dono criar a conta e dizer qual usar.
+
+**Atualização de 2026-11-14 (REG12):** o `.github/FUNDING.yml` já existe no repositório. Ele aponta para o Buy Me a Coffee e para a página Apoie da wiki (`custom`), então a escolha não foi GitHub Sponsors nem Ko-fi. A decisão provisória acima está desatualizada. Falta só o dono confirmar que a conta é a que ele quer. Status: o arquivo existe; a conta fica para o dono confirmar.
 
 ## D5. Convenções da rotulagem do gabarito
 
@@ -1030,6 +1032,8 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 **Atualização de 2026-11-14 (T75, T112, leva M):** a T75 e a T112 foram entregues e juntadas na `dev`, numa tarefa só (A48). Entraram `desativar_pagina` e `remover_pagina` (`banco/paginas.py:147,158`), o batimento da execução de páginas (`agenda/paginas.py:37`) e a leitura do `Content-Type` (`nucleo/coletores/paginas.py:99-103`: tipo que não é texto levanta `ConteudoNaoLido` e a página fica `falhou`). Sobrou o R4 do motivo da falha de página: a tela só diz `falhou`, porque o banco não guarda o motivo. A opção (a) foi escolhida (A49): coluna `motivo` em `pagina_acompanhada` por migração nova, gravada por `marcar_falhou` e mostrada na tela, na T128 (D85). Página sem `Content-Type` seguir lida como HTML e adicionar de novo o mesmo endereço reativar a página desativada ficaram aceitos (D84). Status: decidido pela sessão em 2026-11-14 com o dono fora, para confirmar.
 
+**Atualização de 2026-11-14 (T128, leva N):** o R4 do motivo da falha foi entregue pela opção (a). A migração `0002_motivo_da_pagina.sql` acrescenta a coluna `motivo TEXT`, nula, em `pagina_acompanhada`. `marcar_falhou(con, pagina_id, motivo)` grava um código do conjunto `MOTIVOS` (`banco/paginas.py:17-19`: `fora_do_ar`, `bloqueada`, `nao_e_texto`, `endereco_recusado`, `grande_demais`, `erro`) e recusa outro com `ValueError` (`banco/paginas.py:152-154`). A leitura `ok` limpa o motivo. `agenda/paginas._motivo` (`agenda/paginas.py:31-43`) traduz a exceção no código. `/sites` e a aba Programas mostram o motivo por `sites.motivo.<código>` em pt e en; página com motivo nulo (falhou antes da migração) mostra o texto genérico, `sites.motivo.desconhecido`. As escolhas e o que sobrou estão na D86 e na D87. Status: decidido pela sessão em 2026-11-14 com o dono fora, para confirmar.
+
 ## D73. Aviso de depreciação do Starlette nos testes (ADR 0021)
 
 **Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
@@ -1039,6 +1043,8 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 **Opções:** (a) anotar e tratar na atualização de dependências do fim da fase; (b) filtrar o aviso em `pyproject.toml`. Recomendação: (a): trocar de cliente é mudança de dependência e fica com o dono.
 
 **Decisão provisória:** (a).
+
+**Atualização de 2026-11-14 (T80d, leva N):** a atualização de dependências conferiu o aviso. O Starlette do lock (1.10.0, a mais nova do PyPI) só deixa de avisar se o `httpx2` estiver instalado: o `testclient.py` do Starlette tenta `import httpx2` e, sem ele, cai em `httpx` e avisa. O `httpx2` (2.16.0, exige Python 3.11 ou mais) é dependência nova, e a sessão não o acrescentou (A53). O aviso fica. Opções: (a) `httpx2` só no grupo dev: o `TestClient` o usa, o aviso some e o `src` segue em `httpx` 0.28.1; (b) migrar `src` e testes de `httpx` para `httpx2`, mudança grande de contrato do `HttpEducado`; (c) `filterwarnings` no `pyproject.toml` escondendo o aviso; (d) deixar o aviso. Recomendação: (d), e (a) numa tarefa própria só se o dono aprovar a dependência dev. Decisão provisória: (d). Status: decidido pela sessão em 2026-11-14 com o dono fora, para confirmar.
 
 ## D74. Busca real da leva B: resultado e as quatro correções (A13, A26, A27, A28, A29, T55b)
 
@@ -1064,9 +1070,9 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 - Opções: (a) a descoberta repete uma vez com `keyword=<nome do país em inglês>` quando a faceta não vem, e só sem a faceta nas duas termina `ok` vazio; (b) manter e cadastrar só tenants cuja faceta venha; (c) marcar `parcial` quando o país não aparece. Recomendação e decisão: (a), na T126 (A47). Desfazer: tirar o segundo pedido de descoberta.
 - Status: decidido pela sessão em 2026-11-14 com o dono fora, para confirmar.
 
-**Atualização de 2026-11-14 (T126, leva M): conferência ao vivo do Oracle e das empresas.** Depois da T126 (a segunda descoberta por keyword está em `oracle_hcm.py:237-239`; a keyword vai entre aspas, `oracle_hcm.py:207-208`), o `scripts/conferir_empresas.py` rodou na `fedora-dev`: Oracle 8 vagas e JPMorgan 20, e a keyword com aspas foi aceita pela API. A rodada de 2026-11-14 (sábado, `dev` `fa22d1e`) conferiu as 83 empresas do `empresas.json`, o primeiro escopo de cada uma, com filtro `BR`, termo `developer` e teto de 5 pedidos por empresa (`MAX_PEDIDOS`, `conferir_empresas.py:27`). Resultado: 81 de 83 respondem (`no_limite` conta como resposta).
+**Atualização de 2026-11-14 (T126, leva M): conferência ao vivo do Oracle e das empresas.** Depois da T126 (a segunda descoberta por keyword está em `oracle_hcm.py:237-239`; a keyword vai entre aspas, `oracle_hcm.py:207-208`), o `scripts/conferir_empresas.py` rodou na `fedora-dev`: Oracle 8 vagas e JPMorgan 20, e a keyword com aspas foi aceita pela API. A rodada de 2026-11-14 (sábado, `dev` `fa22d1e`) conferiu as 83 empresas do `empresas.json`, o primeiro escopo de cada uma, com filtro `BR`, termo `developer` e teto de 5 pedidos por empresa (`MAX_PEDIDOS`, `conferir_empresas.py:27`). Resultado: 81 de 83 respondem. Contam como resposta o estado `ok`, `sem_mudanca` ou `parcial` e o motivo `saude.orcamento`, que é o teto de pedidos da própria conferência (`scripts/conferir_empresas.py:31,43-45`). Os 81 são 76 `ok` mais 5 `no_limite` por orçamento (Localiza&Co, Sicredi, Hapvida, Santander e Mercado Livre). Os 2 que não respondem são a Mastercard (manutenção do Workday) e a Microsoft (`no_limite` por `saude.parou_429`, que não conta).
 - `ok`, empresas por fonte: Ashby 5, Greenhouse 15, Lever 8, SmartRecruiters 11, Gupy 25, InHire 2, Quickin 2, Recrutei 2, Sólides 2, Eightfold 2, Oracle HCM 2.
-- `ok` com 0 vagas: Beep Saúde e CNA Idiomas (Gupy). O quadro estava vazio no dia; conferir de novo na próxima rodada antes de tirar.
+- `ok` com 0 vagas: Beep Saúde e CNA Idiomas (Gupy). O quadro estava vazio no dia; conferir de novo na próxima rodada antes de tirar (A51). Se der 0 outra vez, vira tarefa de tirar a empresa do `empresas.json`.
 - `no_limite` pelo teto de 5 pedidos do script, então o número de vagas é um mínimo: Localiza&Co, Sicredi e Hapvida (Gupy, mais de 500), Santander (Workday, mais de 80) e Mercado Livre (Eightfold, mais de 50).
 - Mastercard (Workday, `wd1`) `falhou`, `saude.erro_de_rede`, "resposta não é JSON". Conferido à mão: o pedido volta 303 para a página de manutenção do Workday. É manutenção do centro de dados, passageira. A Mastercard é a primeira empresa do Workday no `empresas.json`, então é a sonda semanal do vigia (segunda, 06:23 UTC; `contexto_da_fonte` usa a primeira empresa de cada fonte, `scripts/vigia.py:130-133`); erro de rede não abre issue (`quebrou`, `vigia.py:105-114`), só entra no resumo.
 - Microsoft (Eightfold) `no_limite`, `saude.parou_429`, 10 vagas de 24 no Brasil. Conferido à mão: o 429 vem e vai sem depender do ritmo (o mesmo pedido deu 429 e depois 200). O `fontes.json` já tem `por_escopo` para a Microsoft (espera de 5 s, uma vez por dia, para no 429) e o coletor já registra o 429. Aceito como está.
@@ -1168,6 +1174,8 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 **Atualização de 2026-11-14 (A50, leva M):** a sessão escolheu a opção (b), que era a recomendação: a Eureca nasce desligada até a empresa autorizar, com o código e o interruptor prontos. Motivo: as notas da conferência apontam as cláusulas 7.2 e 7.3 dos termos, e na dúvida o joBot respeita os termos. É a T130 (D85): um campo opcional no `fontes.json` diz se a fonte nasce ligada, e a semeadura da tabela `fonte` o usa só ao criar a linha, então quem já tem a linha mantém a escolha que fez. O README (T79) explica o motivo e ensina a ligar. A escolha continua sendo do dono. Desfazer: tirar o valor desligado da Eureca no `fontes.json` (uma linha). Status: decidido pela sessão em 2026-11-14 com o dono fora, para confirmar.
 
+**Atualização de 2026-11-14 (T130, leva N):** a T130 foi entregue e juntada na `dev`. O campo opcional `ligada_padrao` (booleano, padrão verdadeiro: `nucleo/coletores/base.py:80`) está no `fontes.json`, e só a Eureca o traz como `false` (`fontes.json:176`). O carregador recusa valor que não seja `bool`, com `ValueError` que cita a chave (`registro.py:29-30`). A semeadura grava `ligada` só ao criar a linha (`banco/cadastros.py:82-96`: o `ON CONFLICT DO UPDATE` não toca em `ligada`), então o banco que já tem a linha da Eureca mantém a escolha que fez. Quem já rodou o joBot antes continua com a Eureca ligada e a desliga em Configurações, na aba de fontes, se concordar com a A50. O nome `ligada_padrao` ficou como escolha do agente (D86). Status: decidido pela sessão em 2026-11-14 com o dono fora, para confirmar; a escolha entre (a), (b) e (c) continua sendo do dono.
+
 ## D81. Leva L: o que entrou e o que ficou para a leva M (A41, A43)
 
 **Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar
@@ -1181,6 +1189,8 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 **Atualização de 2026-11-14 (A44, A47, A48, leva L):** a leva L foi juntada na `dev` (commit `b7d542c`), com 13 tarefas aprovadas e a REG9 com duas ressalvas médias no `registros/padroes.md` (as cinco lições perdidas e o limite de 350 caracteres por linha). Bateria: 3.326 testes de unidade, 82 de tela, ruff e mypy verdes. A `dev` subiu ao GitHub como cópia (push simples, sem PR). A busca real das seis fontes novas (T55c) está na D74 e na D80. A leva M foi lançada com seis tarefas a partir de `b7d542c` (A48): T75 junto com a T112 (opção (a) da D72, e as outras faltas da D72), T76, T77, T126 (D82 e D83), T127 e esta REG10. O que a leva L deixou aceito está na D82; o que virou tarefa, na D83.
 
 **Atualização de 2026-11-14 (A49, leva M):** a leva M foi juntada na `dev` (commit `fa22d1e`): 6 de 6 tarefas aprovadas, só com problemas baixos (T75 com a T112, T76, T77, T126, T127 e REG10). Bateria: 3.528 testes de unidade e 91 de tela, ruff e mypy verdes. A `dev` subiu ao GitHub como cópia (push simples, sem PR). A conferência ao vivo do Oracle e das empresas está na D74. O que a leva M deixou aceito está na D84; o que virou tarefa, na D85. A leva N tem seis tarefas: T79 (README e CHANGELOG), T80d (dependências, o segundo passo da T80), T128 (sobras da leva M), T129 (cópias locais nas rotas), T130 (Eureca desligada por padrão) e esta REG11. Status: decidido pela sessão em 2026-11-14 com o dono fora, para confirmar.
+
+**Atualização de 2026-11-14 (A53, leva N):** a leva N foi juntada na `dev` (commit `10daf60`): 6 de 6 tarefas (T79, T80d, T128, T129, T130 e REG11), sem conflito. Bateria: 3.588 testes de unidade e 91 de tela, ruff e mypy limpos (o log da junção está guardado com a sessão). A `dev` subiu ao GitHub como cópia (push simples, sem PR). A T79 saiu "não aprovada" nas três rodadas de revisão por uma ressalva média que já existia antes dela: a frase de privacidade do README diz que o joBot só faz pedidos às fontes, ao Banco Central e ao GitHub, e a descoberta semanal pelo Common Crawl, ligada por padrão, também faz pedidos. Foi juntada assim mesmo, e a correção é a T131. O que a leva N deixou aceito está na D86; o que virou tarefa, na D87; as dependências, na D88. A leva O tem duas tarefas: T131 (sobras da leva N) e esta REG12. Depois dela, o que sobra da fase 1 precisa do dono: T81 (rotular o gabarito) e, depois dela, T37 e T78; o roteiro da T80; a T132; e o PR para a `main`. Status: decidido pela sessão em 2026-11-14 com o dono fora, para confirmar.
 
 ## D82. Sobras da leva L aceitas (A45, T66 a T74, T83, T106, T123)
 
@@ -1217,7 +1227,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 **Atualização de 2026-11-14 (T126, T127, leva M):** as duas tarefas foram entregues e juntadas na `dev` (`fa22d1e`), com problemas só baixos.
 - T126: os 7 itens estão feitos. Oracle HCM repete a descoberta uma vez com `keyword` quando a faceta do país não vem (`oracle_hcm.py:237-239`; `nome_em_ingles` público em `locais.py`), com três exemplos novos vindos das respostas reais da T55c; Amazon à meia-noite de Brasília; Super Estágios com `CONFIDENCIAL` virando `Super Estágios`; Eureca sem modalidade declarada com mais de um `workModels`; docstrings e sitemap do Abler sem `<loc>` como `falhou`; salto recusado com a URL de origem; `juntar_paginas` com o texto do erro no log (`base.py:100-101`). O que sobrou está na D84 e na D85.
 - T127: os 5 itens estão feitos, e o item 3 pediu o parâmetro `identificador_novo` em `banco/sugeridas.aprovar` (R3, D84). A chave `sugeridas.erro.pagina` (422) entrou em pt e en.
-- REG10: corrigiu a frase do Google na D82 e deixou a T66 no `depende_de` da T126 para esta REG11 (feito).
+- REG11: corrigiu a frase do Google na D82 e acrescentou a T66 ao `depende_de` da T126. A revisão da REG10 apontou os dois como baixos e não os corrigiu, e a A49 mandou os dois para a REG11.
 - Status: decidido pela sessão em 2026-11-14 com o dono fora, para confirmar.
 
 ## D84. Sobras da leva M aceitas (A49, T75, T76, T126, T127, REG10)
@@ -1248,3 +1258,48 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 **Opções:** (a) uma tarefa por assunto (T128, T129 e T130); (b) deixar tudo aceito, na D84. Recomendação: (a): cada item é pequeno e tem teste. A T128 mexe em migração, tela e `conferir_empresas.py`, e a revisão dela é Opus; a T129 e a T130 são Sonnet.
 
 **Decisão provisória:** (a). Desfazer: tirar a tarefa da leva N e mover o item para a D84.
+
+## D86. Sobras da leva N aceitas (A52, A53, T79, T80d, T128, T129, T130)
+
+**Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar
+
+**Contexto:** as revisões da leva N deixaram estas sobras. A sessão as aceita sem mudar o código; a tarefa de origem está entre parênteses:
+- T128: o `ErroDeRede` que vem de "resolve para host local" ou de redirecionamento para host local cai em `fora_do_ar` (`agenda/paginas.py:41-42`), e a tela diz "parece estar fora do ar". Distinguir pediria código novo ou ler a mensagem do erro.
+- T128: o conjunto fechado de códigos ficou em seis, `fora_do_ar`, `bloqueada`, `nao_e_texto`, `endereco_recusado`, `grande_demais` e `erro` (`banco/paginas.py:17-19`). Além dos três do exemplo do plano (`fora_do_ar`, `bloqueada`, `nao_e_texto`), entraram `endereco_recusado` (o `ValueError` de `verificar`), `grande_demais` (`RespostaGrande`) e `erro` (a exceção inesperada).
+- T128: página que falhou antes da migração (motivo nulo) mostra o texto genérico antigo (`sites.motivo.desconhecido`), não um motivo inventado.
+- T128: o texto novo de `/sites` e da aba Programas não tem teste de tela (Playwright); a cobertura é de rota, com `TestClient`. O 404 e o 410 da página seguem como `fora_do_ar`, e o 429 como `bloqueada`.
+- T129: o módulo novo `painel/sem_validadores.py` (classe `SemValidadores`, sem o sublinhado, porque duas rotas a importam) foi aceito. As cópias de `_SemValidadores` dentro de `tests/` ficam, porque cada teste tem o seu dublê.
+- T130: o nome do campo é `ligada_padrao`; o banco que já tem a linha da Eureca mantém a escolha dele (D80).
+- T79: a data da 0.1.0 (2026-11-14) é provisória e se acerta na publicação (T132). Endurecer o regex do teste de ADRs do CHANGELOG fica como está.
+- T80d: o `setup-uv` fica na v7, como a ADR 0021 e o plano mandam (D88).
+- A52: `.env` e `.env.*` entram no `.gitignore` por prevenção, com a exceção `!.env.example`. Não havia `.env` na pasta do repositório, então nada vazou. Desfazer: apagar as linhas do `.gitignore`.
+
+**Opções:** (a) aceitar todas; (b) abrir tarefa para cada uma. Recomendação: (a), pelo custo baixo de cada uma. As que valem tarefa estão na D87.
+
+**Decisão provisória:** (a). Desfazer: cada item vira tarefa pequena.
+
+## D87. Sobras da leva N que viram tarefa (A53, T131, T132)
+
+**Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar
+
+**Contexto:** duas tarefas novas, livres, na leva O (no plano, T131 e T132).
+- T131, sobras da leva N: (1) o texto de privacidade do README em pt e en (item "Só pedidos de busca", `README.md:318` e `README.en.md:318`) e o texto do painel (`configuracoes.privacidade.telemetria`) esquecem a descoberta semanal pelo Common Crawl, que vem ligada por padrão (`banco/cadastros.py`, `descoberta_cc_ligada`; hosts em `nucleo/coletores/descoberta_cc.py`); a tarefa levanta todo pedido de rede que o joBot faz sozinho e completa os quatro textos; (2) o teste da Eureca de `tests/unidade/test_documentos.py` perde o `skip`, porque a T130 já entrou; (3) o CHANGELOG em pt e en troca os itens que citam D1 e D3 por número por frases com o efeito, ou os tira; (4) teste novo de que todo código de `MOTIVOS` tem a chave `sites.motivo.<código>` em pt e en; (5) o `except` que o `ruff format` partiu em `agenda/paginas.py` volta a uma linha; (6) o teste da migração `0002` aplica só o arquivo dela; (7) o teste de cópias nas rotas olha também `AsyncFunctionDef` e prova por AST que nenhuma rota lê `app.state.relogio`; (8) o teste da Eureca em `test_cadastros.py` deriva o total de fontes ligadas do `fontes.json`, sem o 27 fixo; (9) `_ambiente`, `_rodar` e `_no_linux` (em `configuracoes.py` e `primeira_execucao.py`) e `_um` (em `buscas.py` e `detalhe.py`) ficam numa versão só, se os corpos forem iguais.
+- T132, status da fase 1 nos documentos: `CONTRIBUTING.md`, a ADR 0017 e a wiki ainda dizem "em andamento". Atualizar quando a fase fechar, junto com a data da 0.1.0 no CHANGELOG em pt e en. Roda antes do PR para a `main`, depois da T80 e da T81.
+
+**Opções:** (a) uma tarefa por assunto (T131 e T132); (b) deixar tudo aceito, na D86. Recomendação: (a): a primeira corrige uma frase de privacidade que hoje está incompleta, e a segunda só pode rodar quando a fase fechar. As duas são Sonnet.
+
+**Decisão provisória:** (a). Desfazer: tirar a tarefa da leva O e mover o item para a D86.
+
+## D88. Atualização de dependências do fim da fase 1 (A53, T80d)
+
+**Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar
+
+**Contexto:** a atualização manual da ADR 0021 (segundo passo da T80) foi feita na leva N, como T80d. O que mudou: `actions/checkout` foi da v4 para a v7 nos três workflows (`ci.yml:21`, `vigia.yml:28`, `wiki.yml:28`), `astral-sh/setup-uv` foi da v6 para a v7 (`ci.yml:22`, `vigia.yml:31`) e o requisito do `uv_build` ganhou o teto `<0.14` (`pyproject.toml:2`; o lock e o `uv build` aceitaram). O que não mudou: nenhum pacote do `uv.lock`, porque o `pyproject.toml` fixa tudo com `==` e `uv lock --upgrade` saiu idêntico; HTMX 2.0.11 e Inter 4.1 já estão na versão estável mais nova, com sha256 igual ao do `.meta.json`. Bateria verde antes e depois. O que ficou de fora, e por quê:
+- `setup-uv`: a versão publicada é a v10.3.3. As v8 a v10 trazem quebras de cache (poda desligada na v9; cache desligado em `pull_request_target`, `workflow_run` e `release`, e `version: latest-known` na v10). O `ci.yml` só usa `enable-cache: true`, então a v10 provavelmente não quebra nada, mas a ADR 0021 e o plano mandam a v7.
+- `playwright`: o pin é 1.65.1 e existe a 1.65.2 (só patch). Subir o pin pede reinstalar o Chromium da `fedora-dev` e do CI.
+- HTMX: a 4.0.1 existe só como dist-tag `next` (major com quebra); o `latest` do npm é o 2.0.11, o que está vendorizado.
+- `httpx2`: dependência nova, na D73.
+
+**Opções:** (a) ficar na v7 do `setup-uv`, no playwright 1.65.1 e no HTMX 2.0.11 até a atualização da fase 2; (b) subir `setup-uv` para a v10 e o playwright para 1.65.2 já, em tarefa própria. Recomendação: (a), e fazer o (b) na atualização da fase 2, depois de a linha 4 do HTMX virar `latest`.
+
+**Decisão provisória:** (a). Desfazer: tarefa pequena para subir as versões.
