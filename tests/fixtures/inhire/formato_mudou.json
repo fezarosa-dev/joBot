@@ -1,0 +1,39 @@
+{
+  "tenantName": "Riachuelo",
+  "about": "<p>Quando voc&ecirc; pensa na Riachuelo, provavelmente lembra das nossas lojas espalhadas pelo Brasil. Mas, por tr&aacute;s de cada cole&ccedil;&atilde;o que chega &agrave;s vitrines de Riachuelo, Casa Riachuelo e Carter&rsquo;s, existem mais de 30 mil criadores de possibilidades. <br>Com uma cultura forte e um modelo de neg&oacute;cio integrado, conectamos cria&ccedil;&atilde;o e moda, produ&ccedil;&atilde;o, distribui&ccedil;&atilde;o, varejo, servi&ccedil;os financeiros, tecnologia e todas as &aacute;reas corporativas gerando resultado, impacto positivo e criando possibilidades para o Brasil e os brasileiros. <br>Quer conhecer mais sobre o nosso neg&oacute;cio? <a href=\"https://www.riachuelo.com.br/carreiras/\" target=\"_blank\" rel=\"noopener\">Clique aqui</a></p>",
+  "background": [
+    "https://files.inhire.app/tenant-public-files/riachuelo/3_VAGAS_INHIRE_1366*c01ad796-93fa-4928-a6c3-c570b315da21.png"
+  ],
+  "bannerTitle": "",
+  "bannerTitleColor": "#ffffff",
+  "logo": "https://files.inhire.app/tenant-public-files/riachuelo/logo_ria_verde*206d60b6-9233-43af-95da-edc256168c11.png",
+  "visibility": "external",
+  "openGraph": {
+    "description": "Confira as possibilidades de carreira na Riachuelo",
+    "title": "Portal de Vagas | Riachuelo",
+    "image": "https://files.inhire.app/og-images/riachuelo.png"
+  },
+  "jobsPage": [
+    {
+      "careerPageId": "default",
+      "careerPageIds": [
+        "default"
+      ],
+      "displayName": " Analista de Planejamento Comercial Pleno",
+      "jobId": "ad3e4c83-e350-4a0d-87c7-52dfea7952f7",
+      "status": "published",
+      "workplaceType": "Hybrid",
+      "location": "São Paulo, SP, BR"
+    },
+    {
+      "careerPageId": "default",
+      "careerPageIds": [
+        "default"
+      ],
+      "jobId": "4db1371b-137d-4ff9-ae2c-bf77da99f2fd",
+      "status": "published",
+      "workplaceType": "On-site",
+      "location": "São Luís, MA, BR"
+    }
+  ]
+}
