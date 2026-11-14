@@ -6,7 +6,7 @@ Obrigado pelo interesse! Este guia explica como ajudar com o joBot, agora e depo
 
 ## Estado do projeto
 
-O joBot ainda não tem código e ainda não há nada para instalar. A fase 1 (base) está em desenho. As decisões já tomadas estão em [`docs/decisions/`](../docs/decisions/README.md) (só em português por enquanto). Para saber o que o projeto é e para onde ele vai, leia o [README](../README.md).
+O joBot ainda não tem nada para instalar. A fase 1 (base) está em andamento. As decisões já tomadas estão em [`docs/decisions/`](../docs/decisions/README.md) (só em português por enquanto). Para saber o que o projeto é e para onde ele vai, leia o [README](../README.md).
 
 ## Como ajudar agora
 
@@ -35,6 +35,14 @@ O joBot ainda não tem código e ainda não há nada para instalar. A fase 1 (ba
 6. Abra um PR para a `dev` usando o [modelo de PR](pull_request_template.md).
 
 Os comandos exatos para rodar tudo serão documentados quando o código existir.
+
+## Wiki
+
+- O texto da wiki mora na pasta [`wiki/`](../wiki/) do repositório.
+- Mudança na wiki é por PR nessa pasta, como qualquer outro arquivo.
+- Quando o PR entra na `main`, um robô copia a pasta para a wiki do GitHub.
+- A edição direta na wiki do GitHub fica só com quem mantém o projeto. Ela é sobrescrita na próxima cópia, então toda mudança vai pela pasta `wiki/`.
+- Página nova precisa da versão nas duas línguas (português e inglês). O teste confere.
 
 ## Sala limpa
 

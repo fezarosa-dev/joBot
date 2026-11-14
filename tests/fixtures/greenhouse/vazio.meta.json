@@ -1,0 +1,12 @@
+{
+  "url": "https://boards-api.greenhouse.io/v1/boards/nubank/jobs?content=true",
+  "data": "2026-11-14T05:22:22.081389+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/json",
+    "ETag": "W/\"09aefc0c2d96e9c065aab057f04eaa35\""
+  },
+  "sha256": "9fdf25af38a93d597125fdb48338ffd276e854c64953c0914ce921e72b408fed",
+  "versao": "0.1.0",
+  "metodo": "GET"
+}

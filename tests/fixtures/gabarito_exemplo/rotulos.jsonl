@@ -1,0 +1,10 @@
+{"id":"g01","rotulos":{"area":"tecnologia","nivel":"junior","modalidade":"hibrido","contrato":"clt","pais":"BR","uf":"SP","avisos":[]}}
+{"id":"g02","rotulos":{"area":"dados","nivel":"nao_informado","modalidade":"remoto","contrato":"nao_informado","pais":null,"uf":null,"avisos":[]}}
+{"id":"g03","rotulos":{"area":"marketing","nivel":"estagio","modalidade":"nao_informado","contrato":"estagio","pais":"BR","uf":"PR","avisos":[]},"divergencias":{"nivel":"o segundo passe achou trainee; vale estagio pelo texto"}}
+{"id":"g04","rotulos":{"area":"tecnologia","nivel":"senior","modalidade":"presencial","contrato":"nao_informado","pais":"DE","avisos":[]}}
+{"id":"g05","rotulos":{"area":"financas","nivel":"pleno","modalidade":"presencial","contrato":"clt","pais":"BR","uf":"RJ","avisos":[]}}
+{"id":"g06","rotulos":{"area":"design","nivel":"nao_informado","modalidade":"nao_informado","contrato":"nao_informado","pais":"PT","uf":null,"avisos":[]}}
+{"id":"g07","rotulos":{"area":"pesquisa","nivel":"nao_informado","modalidade":"nao_informado","contrato":"nao_informado","pais":"US","uf":null,"avisos":["exige_doutorado"]}}
+{"id":"g09","rotulos":{"area":"tecnologia","nivel":"nao_informado","modalidade":"nao_informado","contrato":"nao_informado","pais":"US","uf":null,"avisos":["restrito_a_pais"]}}
+{"id":"g10","rotulos":{"area":"vendas","nivel":"lideranca","modalidade":"remoto","contrato":"pj","pais":null,"uf":null,"avisos":[]}}
+{"id":"g11","rotulos":{"area":"administrativo","nivel":"nao_informado","modalidade":"presencial","contrato":"clt","pais":"BR","uf":"SP","avisos":[]}}

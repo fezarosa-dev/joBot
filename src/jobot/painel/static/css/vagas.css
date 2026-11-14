@@ -1,0 +1,327 @@
+/* Tela de vagas (plano T45): só as cores e medidas da base.css, nenhuma cor nova. */
+
+.titulo-pagina {
+  margin: 0 0 1rem;
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+/* texto só para leitor de tela */
+.so-leitor {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.aviso {
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--destaque);
+  border-radius: var(--raio);
+  background-color: var(--superficie);
+  color: var(--texto);
+}
+
+.aviso p {
+  margin: 0;
+}
+
+/* abas: uma linha que rola de lado no celular */
+.abas ul {
+  display: flex;
+  gap: 0.5rem;
+  margin: 0 0 1rem;
+  padding: 0 0 0.25rem;
+  overflow-x: auto;
+  list-style: none;
+}
+
+.abas a {
+  display: inline-block;
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  background-color: var(--trilho);
+  color: var(--texto);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background-color var(--duracao) var(--mola);
+}
+
+.abas a[aria-current="page"] {
+  background-color: var(--destaque);
+  color: var(--sobre-destaque);
+}
+
+.busca {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 1rem;
+}
+
+.busca input[type="search"] {
+  flex: 1 1 14rem;
+}
+
+input[type="search"],
+select {
+  min-height: 2.5rem;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--borda);
+  border-radius: 10px;
+  background-color: var(--superficie);
+  color: var(--texto);
+  font: inherit;
+  font-size: 0.9375rem;
+}
+
+.primario,
+.secundario,
+.chip {
+  appearance: none;
+  margin: 0;
+  border: 0;
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background-color var(--duracao) var(--mola),
+    transform var(--duracao) var(--mola);
+}
+
+.primario,
+.secundario {
+  min-height: 2.5rem;
+  padding: 0.4rem 1rem;
+  border-radius: 10px;
+}
+
+.primario {
+  background-color: var(--destaque);
+  color: var(--sobre-destaque);
+}
+
+.secundario {
+  background-color: var(--trilho);
+  color: var(--texto);
+}
+
+.primario:active,
+.secundario:active,
+.chip:active {
+  transform: scale(0.96);
+}
+
+/* chips: um grupo por linha, cada chip é um botão que liga e desliga */
+.filtros {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0 0 1.25rem;
+}
+
+.grupo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.grupo-titulo {
+  min-width: 6rem;
+  color: var(--texto-2);
+  font-size: 0.875rem;
+}
+
+.chip {
+  display: inline-block;
+  min-height: 2rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  background-color: var(--trilho);
+  color: var(--texto);
+}
+
+.chip[aria-pressed="true"] {
+  background-color: var(--destaque);
+  color: var(--sobre-destaque);
+}
+
+.chip-vazio {
+  background-color: transparent;
+  box-shadow: inset 0 0 0 1px var(--borda);
+  color: var(--texto-2);
+}
+
+.chip-vazio[aria-pressed="true"] {
+  box-shadow: none;
+  color: var(--sobre-destaque);
+}
+
+.chip-info {
+  cursor: default;
+}
+
+.contagem {
+  font-variant-numeric: tabular-nums;
+}
+
+.lista {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0 0 1rem;
+  padding: 0;
+  list-style: none;
+}
+
+.lista:focus:not(:focus-visible),
+.vazio:focus:not(:focus-visible) {
+  outline: none;
+}
+
+.vazio {
+  color: var(--texto-2);
+}
+
+.cartao {
+  display: grid;
+  gap: 0.5rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  background-color: var(--superficie);
+  color: var(--texto);
+}
+
+.cartao > * {
+  margin: 0;
+}
+
+.cartao-cabeca {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+}
+
+.cartao-titulo {
+  margin: 0;
+  font-size: 1.1875rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+.cartao-titulo a {
+  color: var(--texto);
+}
+
+.cartao-empresa {
+  margin: 0;
+  color: var(--texto-2);
+}
+
+.selos,
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.5rem;
+  padding: 0;
+  list-style: none;
+}
+
+.selos:empty,
+.meta:empty {
+  display: none;
+}
+
+.selo {
+  padding: 0.1rem 0.6rem;
+  border-radius: 999px;
+  background-color: var(--trilho);
+  color: var(--texto);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.meta {
+  color: var(--texto-2);
+  font-size: 0.9375rem;
+}
+
+.salario {
+  font-size: 0.9375rem;
+}
+
+.nao-informado,
+.em-reais,
+.cotacao {
+  color: var(--texto-2);
+}
+
+.encaixe {
+  font-size: 0.9375rem;
+}
+
+.motivo {
+  color: var(--texto-2);
+}
+
+.motivo::before {
+  content: "· ";
+}
+
+.fontes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+  font-size: 0.875rem;
+}
+
+.fontes span {
+  color: var(--texto-2);
+}
+
+.acoes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--borda);
+}
+
+.acoes form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0;
+}
+
+.situacao {
+  margin: 0;
+  color: var(--texto-2);
+  font-size: 0.9375rem;
+}
+
+.situacao:focus:not(:focus-visible) {
+  outline: none;
+}
+
+.mais {
+  display: flex;
+  justify-content: center;
+  margin: 0 0 1rem;
+}
+
+.cartao-oculta {
+  border-style: dashed;
+}

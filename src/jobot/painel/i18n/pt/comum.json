@@ -85,5 +85,6 @@
   "saude.tempo_esgotado": "Tempo esgotado ao falar com a fonte",
   "saude.erro_de_rede": "Erro de rede ao falar com a fonte",
   "saude.resposta_grande": "A resposta da fonte passou do tamanho permitido",
-  "saude.excecao": "Erro inesperado: {tipo}"
+  "saude.excecao": "Erro inesperado: {tipo}",
+  "saude.listagem_incompleta": "A listagem veio incompleta: parte das páginas não mudou desde a última busca"
 }

@@ -1,0 +1,48 @@
+name: Wiki
+
+# A fonte da wiki fica versionada no repositório (pasta wiki/) e é editada por
+# PR (ADR 0019). Este workflow copia a pasta para a wiki do GitHub, que é um
+# repositório à parte (joBot.wiki.git), a cada push na main. Só shell próprio e
+# o checkout oficial; o token é o do próprio GitHub, só com contents: write.
+# Nunca roda em PR (nem de fork): código de fora não chega aqui.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'wiki/**'
+      - '.github/workflows/wiki.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: wiki
+  cancel-in-progress: false
+
+jobs:
+  sincroniza:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Copia wiki/ para a wiki do GitHub
+        env:
+          TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          git clone --depth 1 "https://x-access-token:${TOKEN}@github.com/${REPO}.wiki.git" "$RUNNER_TEMP/wiki"
+          rsync -a --delete --exclude .git wiki/ "$RUNNER_TEMP/wiki/"
+          cd "$RUNNER_TEMP/wiki"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Nenhuma mudança na wiki."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "docs(wiki): sincroniza com ${GITHUB_SHA::7}"
+          git push
