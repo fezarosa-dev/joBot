@@ -42,6 +42,7 @@
   "primeira_execucao.p2.desligar": "Not now",
   "primeira_execucao.p2.concluir": "Finish",
   "primeira_execucao.p2.recusa": "Background mode could not be turned on",
+  "primeira_execucao.p2.recusa_desligar": "Background mode could not be turned off",
   "primeira_execucao.p2.erro_sistema": "I could not finish: {erro}",
   "primeira_execucao.p2.voltar": "Back to step 1",
   "primeira_execucao.pronto.titulo": "All set",

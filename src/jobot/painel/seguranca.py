@@ -54,7 +54,7 @@ def csrf_token(request: Request) -> str:
     return token
 
 
-def _idioma(request: Request) -> str:
+def idioma_do_pedido(request: Request) -> str:
     """O idioma salvo na configuração; sem ele, o do `Accept-Language` (desenho 13.10).
 
     Abre uma conexão curta, criada e fechada na thread de quem chama: vale também para a rota
@@ -96,7 +96,7 @@ async def exigir_csrf(request: Request) -> None:
         or (origem is not None and origem != f"http://{request.headers.get('host')}")
         or not hmac.compare_digest(enviado.encode(), csrf_token(request).encode())
     ):
-        raise HTTPException(403, detail=t(_idioma(request), "seguranca.recarregue"))
+        raise HTTPException(403, detail=t(idioma_do_pedido(request), "seguranca.recarregue"))
 
 
 def _de_volta(voltar: str) -> RedirectResponse:
@@ -113,7 +113,7 @@ def _de_volta(voltar: str) -> RedirectResponse:
 
 def renderizar(request: Request, modelo: str, **ctx: Any) -> HTMLResponse:
     """Página do template com `t(chave, **params)`, o idioma, o tema salvo e o token CSRF."""
-    idioma = _idioma(request)
+    idioma = idioma_do_pedido(request)
 
     def traduzir(chave: str, **params: object) -> str:
         return t(idioma, chave, **params)

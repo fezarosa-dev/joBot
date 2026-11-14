@@ -334,6 +334,61 @@ def test_passo1_passa_o_dia_local_ao_criar_a_busca(
     assert kw["regras_ligadas"] is True
 
 
+def test_voltar_ao_passo_1_edita_a_mesma_busca(
+    cenario: Cenario, fuso_fora_de_utc: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    agora = datetime(2026, 11, 13, 23, 0, tzinfo=UTC)  # em Auckland já é dia 14
+    cenario.app.state.relogio = RelogioFalso(agora)
+    resposta = cenario.post(PASSO_1, COMPLETO | {"modalidades": ["remoto"], "idiomas": ["pt"]})
+    (primeira,) = cenario.buscas()
+    html = cenario.get(resposta.headers["location"]).text
+    assert f'href="{PASSO_1}?busca={primeira.id}"' in html  # o link "voltar" leva o id
+
+    formulario = cenario.get(f"{PASSO_1}?busca={primeira.id}").text
+    assert "Python" in formulario  # o formulário volta preenchido
+    assert "5000,50" in formulario
+    assert f'name="busca" value="{primeira.id}"' in formulario
+
+    chamadas: list[dict[str, Any]] = []
+    real = buscas.editar_busca
+
+    def espiao(con: Any, busca: Busca, **kw: Any) -> None:
+        chamadas.append(kw)
+        real(con, busca, **kw)
+
+    monkeypatch.setattr(buscas, "editar_busca", espiao)
+    segunda = cenario.post(
+        PASSO_1, COMPLETO | {"cargos": "Rust", "busca": str(primeira.id), "idiomas": ["pt"]}
+    )
+    _redireciona(segunda, f"{PASSO_2}?busca={primeira.id}")
+    (editada,) = cenario.buscas()  # continua uma busca só
+    assert editada.id == primeira.id
+    assert editada.cargos == ("Rust",)
+    assert editada.nome == primeira.nome
+    assert editada.criada_em == primeira.criada_em
+    ((kw,),) = [(c,) for c in chamadas]
+    assert kw["hoje"] == date(2026, 11, 14)
+    assert kw["hoje"] != agora.date()  # o dia em UTC seria o 13
+
+
+def test_voltar_ao_passo_1_com_busca_que_nao_existe_da_404_e_nao_cria(cenario: Cenario) -> None:
+    resposta = cenario.post(PASSO_1, COMPLETO | {"busca": "999"})
+    assert resposta.status_code == 404
+    assert cenario.buscas() == []
+    assert 'name="busca"' not in cenario.get(f"{PASSO_1}?busca=999").text
+
+
+def test_voltar_ao_passo_1_com_salario_invalido_mantem_a_busca_no_formulario(
+    cenario: Cenario,
+) -> None:
+    cenario.post(PASSO_1, COMPLETO)
+    (busca,) = cenario.buscas()
+    resposta = cenario.post(PASSO_1, COMPLETO | {"busca": str(busca.id), "salario_min": "abc"})
+    assert resposta.status_code == 422
+    assert f'name="busca" value="{busca.id}"' in resposta.text  # a nova tentativa também edita
+    assert cenario.buscas() == [busca]
+
+
 # --- passo 2 ----------------------------------------------------------------------------------
 
 
@@ -412,6 +467,25 @@ def test_passo2_recusa_e_erro_mantem_o_resumo_da_busca(
     erro = cenario.post(PASSO_2, {"segundo_plano": "ligar", "busca": str(busca.id)})
     assert "data-resumo" in erro.text
     assert "Dados" in erro.text
+
+
+def test_nao_ligar_com_falha_mostra_titulo_de_desligar(cenario: Cenario) -> None:
+    cenario.post(PASSO_2, {"segundo_plano": "ligar"})
+    assert cenario.servico.exists()
+    cenario.sistema.falha_em["disable"] = Resultado(1, "", "boom")
+    resposta = cenario.post(PASSO_2, {"segundo_plano": "desligar"})
+    assert resposta.status_code == 200
+    assert ALERTA in resposta.text
+    assert "Não foi possível desligar o segundo plano" in resposta.text
+    assert "Não foi possível ligar" not in resposta.text
+    assert "boom" in resposta.text  # o motivo
+    assert 'name="segundo_plano"' in resposta.text  # D49 (a): volta ao passo 2
+    assert cenario.config("segundo_plano") is True  # nada foi gravado pelo desligar que falhou
+    en = cenario.post(
+        PASSO_2, {"segundo_plano": "desligar"}, headers={"Accept-Language": "en"}
+    ).text
+    assert "Background mode could not be turned off" in en
+    assert "could not be turned on" not in en
 
 
 def test_passo2_sem_escolha_valida_nao_conclui(cenario: Cenario) -> None:
@@ -529,10 +603,23 @@ def test_fim_sem_ter_concluido_mostra_o_passo_2(cenario: Cenario) -> None:
     assert 'name="segundo_plano"' in html
 
 
+def _carregar_sem_repetir(caminho: Path) -> dict[str, str]:
+    def sem_repetir(pares: list[tuple[str, str]]) -> dict[str, str]:
+        chaves = [chave for chave, _ in pares]
+        repetidas = sorted({c for c in chaves if chaves.count(c) > 1})
+        assert not repetidas, f"chave repetida em {caminho.name}: {repetidas}"
+        return dict(pares)
+
+    dados: dict[str, str] = json.loads(
+        caminho.read_text(encoding="utf-8"), object_pairs_hook=sem_repetir
+    )
+    return dados
+
+
 def test_catalogos_do_assistente_tem_as_mesmas_chaves_e_o_texto_do_sistema() -> None:
     base = Path(__file__).parents[2] / "src" / "jobot" / "painel" / "i18n"
-    pt = json.loads((base / "pt" / "primeira_execucao.json").read_text(encoding="utf-8"))
-    en = json.loads((base / "en" / "primeira_execucao.json").read_text(encoding="utf-8"))
+    pt = _carregar_sem_repetir(base / "pt" / "primeira_execucao.json")
+    en = _carregar_sem_repetir(base / "en" / "primeira_execucao.json")
     assert set(pt) == set(en)
     for chave, texto in segundo_plano_linux._TEXTOS.items():
         assert pt[chave] == texto  # o pt é igual ao texto da linha de comando
