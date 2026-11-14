@@ -1,0 +1,10 @@
+{
+  "@odata.context": "https://exemplo.test/olinda/servico/PTAX/versao/v1/odata$metadata#_CotacaoMoedaPeriodo",
+  "value": [
+    {
+      "dataHoraCotacao": "2026-11-13 13:05:20.75",
+      "tipoBoletim": "Fechamento",
+      "cotacaoVenda": "n/d"
+    }
+  ]
+}
