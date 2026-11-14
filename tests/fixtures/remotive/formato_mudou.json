@@ -1,0 +1,64 @@
+{
+  "00-warning": "Remotive main domain moved to remotive.com ! Please make your API calls on remotive.com/api/remote-jobs instead of remotive.io now ;) Legacy endpoint remotive.io/api/remote-jobs will be terminated in June 2022. Thank you!",
+  "0-legal-notice": "Legal warning - Hey, thanks for using Remotive's API, we appreciate it! Please note that API documentation and access is granted so that developers can share our jobs further. Please do not submit Remotive jobs to third Party websites, including but not limited to: Jooble, Neuvoo, Google Jobs, LinkedIn Jobs. Please link back to the URL found on Remotive AND mention Remotive as a source in order to Remotive to get traffic from your listing. If you don't do that, we'll terminate your API access, sorry! Jobs displayed are delayed by 24 hours, the goal being that jobs are attributed to Remotive on various platforms. Displaying our jobs in order to collect signups/email addresses to show a listing constitutes a breach of our terms of services. We offer a private, paid-for API, please email us at hello(at)remotive(dot)io for more information (starting budget is $5k/mo). Please find out terms of services on https://remotive.com/api-documentation. Please note that there is absolutely no need t…",
+  "job-count": 2,
+  "total-job-count": 2,
+  "jobs": [
+    {
+      "id": 1680495,
+      "url": "https://remotive.com/remote-jobs/marketing/remote-office-assistant-1680495",
+      "title": "Remote Office Assistant",
+      "company_name": "Coalition Technologies ",
+      "company_logo": "https://remotive.com/job/1680495/logo",
+      "category": "Marketing",
+      "tags": [
+        "CSS",
+        "excel",
+        "frontend",
+        "git",
+        "html",
+        "illustrator",
+        "magento",
+        "photoshop",
+        "php",
+        "shopify",
+        "wordpress",
+        "MySQL",
+        "startup",
+        "responsive",
+        "themes",
+        "bootstrap",
+        "insurance",
+        "jQuery",
+        "Ajax"
+      ],
+      "job_type": "full_time",
+      "publication_date": "2026-11-11T20:17:48",
+      "candidate_required_location": "Worldwide",
+      "salary": "$35,3k- $52k",
+      "description": "<p class=\"h3\">Coalition Technologies is seeking a reliable, detail-oriented, and highly organized Remote Office Assistant to support administrative, bookkeeping, billing, reporting, data entry, and internal operations tasks. This role is ideal for someone with strong communication skills, discretion",
+      "company_logo_url": "https://remotive.com/job/1680495/logo"
+    },
+    {
+      "id": 2091137,
+      "company_name": "Lemon.io",
+      "company_logo": "https://remotive.com/job/2091137/logo",
+      "category": "Data and Analytics",
+      "tags": [
+        ".Net",
+        "android",
+        "apache",
+        "AWS",
+        "azure"
+      ],
+      "job_type": "full_time",
+      "publication_date": "2026-11-11T18:39:59",
+      "candidate_required_location": "LATAM, Europe, USA, Canada, APAC",
+      "salary": "",
+      "description": "<p><a href=\"https://lemon.io/vacancy/senior-data-engineer/?utm_source=remotive&amp;utm_medium=job_ad&amp;utm_campaign=supply_en_de_nov_2026_job_ad\" rel=\"nofollow\" target=\"_self\">Lemon.io</a> helps companies in the US and Europe hire experienced engineers, from funded startups to teams like Klarna, R",
+      "company_logo_url": "https://remotive.com/job/2091137/logo",
+      "name": "Senior Data Engineer",
+      "link": "https://remotive.com/remote-jobs/data/senior-data-engineer-2091137"
+    }
+  ]
+}
