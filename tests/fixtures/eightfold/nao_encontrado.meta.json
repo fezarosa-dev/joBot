@@ -1,0 +1,12 @@
+{
+  "url": "https://nao-existe.eightfold.ai/api/pcsx/search?domain=nao-existe.com&query=&location=Brazil&start=0&sort_by=timestamp",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 404,
+  "cabecalhos": {
+    "Content-Type": "application/json"
+  },
+  "sha256": "8d9e13c23ca39b303733ea8f43e744da6bdbee85f69ed89c3de80edeef7d1be0",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "montado à mão: host inexistente devolvendo 404 (não capturado; o corpo é suposição, o coletor só lê o status)"
+}

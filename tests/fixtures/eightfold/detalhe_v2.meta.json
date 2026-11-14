@@ -1,0 +1,12 @@
+{
+  "url": "https://bayer.eightfold.ai/api/apply/v2/jobs/562949978840401?domain=bayer.com",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/json"
+  },
+  "sha256": "4d9af60c46523cd613cd731e2bec1d009c7950528b76cd0833e290178583493e",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "captura B1/eightfold_v2_bayer_detalhe.json (campo urls já cortado na captura) passada por capturar.reduzir e capturar.limpar_pessoais (nomes em texto livre conferidos à mão)"
+}
