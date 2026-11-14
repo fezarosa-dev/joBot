@@ -28,6 +28,7 @@ A fase 1: a base do joBot. Já dá para instalar e usar.
 - Painel em português e em inglês, com tema claro e escuro.
 - Na barra de andamento da busca, a lista das fontes que ainda estão rodando.
 - Aviso "Salvo." depois de salvar em Configurações.
+- `jobot abrir` escreve no terminal o endereço do painel e como sair; a barra de andamento da busca mostra a fase de detalhes depois da coleta.
 - Aviso de restrição a países nas vagas remotas da Himalayas, Jobicy e Remotive.
 - Decisões do projeto (ADRs 0001 a 0021) e o `duvidas.md`.
 - README com selos, diagrama, tabelas e perguntas frequentes, e a versão em inglês.
@@ -42,6 +43,7 @@ A fase 1: a base do joBot. Já dá para instalar e usar.
 - O README deixou de ser só plano: descreve a instalação da fase 1.
 - As regras de rótulo (área, nível, modalidade, contrato, país e estado) foram ajustadas e medidas num conjunto de vagas conferidas à mão.
 - Vagas de sites só brasileiros saem com o país Brasil.
+- O aviso de restrição a países diz quais são os países, como "Só para quem mora em: Estados Unidos e Canadá".
 
 ### Corrigido
 
@@ -50,3 +52,6 @@ A fase 1: a base do joBot. Já dá para instalar e usar.
 - A agenda só começa a buscar depois que o assistente de primeira execução termina.
 - Em Fontes, uma fonte que atingiu o limite mostra a última rodada que ela de fato fez.
 - Um país de fora no formulário de buscas não vira mais um estado brasileiro.
+- Uma cidade com nome de país, como "Franca, São Paulo", não vira mais o país.
+- Em Fontes, o cartão "Sem mudança" mostra as vagas da última rodada que leu e a próxima busca certa.
+- Uma página acompanhada nova é lida na próxima volta da agenda, sem esperar 24 horas.
