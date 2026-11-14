@@ -21,6 +21,7 @@ from jobot.nucleo.http import (
     Resolvedor,
     RespostaGrande,
     Validadores,
+    conferir_dns,
     host_local,
 )
 from jobot.nucleo.relogio import Relogio
@@ -752,3 +753,27 @@ async def test_resolvedor_padrao_usa_getaddrinfo(monkeypatch: pytest.MonkeyPatch
 )
 def test_host_local_publico(host: str, local: bool) -> None:
     assert host_local(host) is local
+
+
+@pytest.mark.parametrize(
+    "enderecos",
+    [[], ["isto-nao-e-ip"], [PUBLICO, ""], ["10.0.0.5"], [PUBLICO, "::ffff:127.0.0.1"]],
+)
+async def test_conferir_dns_recusa_o_que_nao_e_ip_global(enderecos: list[str]) -> None:
+    dns = ResolvedorFalso(*enderecos)
+    with pytest.raises(ErroDeRede, match="host local"):
+        await conferir_dns("b.example", dns)
+    assert dns.hosts == ["b.example"]
+
+
+async def test_conferir_dns_aceita_ip_global() -> None:
+    dns = ResolvedorFalso(PUBLICO, "2606:2800:21f:cb07:6820:80da:af6b:8b2c")
+    await conferir_dns("b.example", dns)
+    assert dns.hosts == ["b.example"]
+
+
+async def test_conferir_dns_falha_do_resolvedor_vira_erro_de_rede() -> None:
+    erro = socket.gaierror(-2, "Name or service not known")
+    with pytest.raises(ErroDeRede) as recebido:
+        await conferir_dns("b.example", ResolvedorFalso(erro=erro))
+    assert recebido.value.__cause__ is erro
