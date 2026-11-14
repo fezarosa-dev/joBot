@@ -12,6 +12,9 @@ só aquela URL.
 
 Motivo com parâmetro vai como `chave:valor` (`saude.excecao:TimeoutError`,
 `saude.sem_detalhe_n:3`); o parâmetro é o único da chave (`tipo` ou `n`).
+
+Exceção que escapa de `coletar` ou `escopos` vira `saude.excecao:<Tipo>`, menos RespostaGrande
+(`saude.resposta_grande`) e ErroDeRede (`saude.erro_de_rede`), que têm motivo próprio.
 """
 
 import asyncio
@@ -37,6 +40,7 @@ from jobot.nucleo.http import (
     OrcamentoGasto,
     Parou429,
     Resposta,
+    RespostaGrande,
     Validadores,
 )
 from jobot.nucleo.modelo import VagaColetada
@@ -126,6 +130,17 @@ def _motivo_do_detalhe(erro: Exception) -> str:
     for tipo, chave in _MOTIVO_DA_PARADA.items():
         if isinstance(erro, tipo):
             return chave
+    if isinstance(erro, ErroDeRede):
+        return "saude.erro_de_rede"
+    if isinstance(erro, RespostaGrande):
+        return "saude.resposta_grande"
+    return f"saude.excecao:{type(erro).__name__}"
+
+
+def _motivo_do_escopo(erro: Exception) -> str:
+    """Exceção que escapou de `coletar` ou `escopos`: só estas duas têm motivo próprio."""
+    if isinstance(erro, RespostaGrande):
+        return "saude.resposta_grande"
     if isinstance(erro, ErroDeRede):
         return "saude.erro_de_rede"
     return f"saude.excecao:{type(erro).__name__}"
@@ -226,7 +241,7 @@ class _Fonte:
         try:
             escopos = list(self.c.escopos(replace(ctx, empresas=empresas)))
         except Exception as erro:
-            falhou = ResultadoEscopo((), "falhou", f"saude.excecao:{type(erro).__name__}", 0)
+            falhou = ResultadoEscopo((), "falhou", _motivo_do_escopo(erro), 0)
             await self._parado("", falhou)
             return
         if self.c.max_pedidos is not None:  # DR-52: os coletados há mais tempo primeiro
@@ -332,8 +347,7 @@ class _Fonte:
             final = ResultadoEscopo((), "falhou", "saude.tempo_esgotado", gastos + http.pedidos)
             vistas, sem_detalhe = (), []
         except Exception as erro:
-            motivo = f"saude.excecao:{type(erro).__name__}"
-            final = ResultadoEscopo((), "falhou", motivo, gastos + http.pedidos)
+            final = ResultadoEscopo((), "falhou", _motivo_do_escopo(erro), gastos + http.pedidos)
             vistas, sem_detalhe = (), []
         self.detalhes_livres = 0 if parou else self.detalhes_livres - detalhes
         if self.pedidos_livres is not None:
