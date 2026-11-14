@@ -35,7 +35,9 @@ from jobot.nucleo.tratamento.tratar import tratar
 COLLINFO = "https://index.commoncrawl.org/collinfo.json"
 _ARQUIVO_URL = "https://data.commoncrawl.org/cc-index/collections/{indice}/indexes/{arquivo}"
 TETO_CLUSTER = 128 * 1024 * 1024  # o cluster.idx tem ~105 MB, acima do teto padrão de 5 MB
-_TETO_BLOCO = 4 * 1024 * 1024  # blocos de 250 a 330 KB; acima disso o índice mudou de formato
+# blocos dos nossos prefixos têm até ~310 KB; os de outros sites chegam a ~5,8 MB (nunca baixados),
+# então o teto vale só para o bloco escolhido: acima disso o índice mudou de formato
+_TETO_BLOCO = 4 * 1024 * 1024
 _TETO_CDX = 64 * 1024 * 1024  # bloco descomprimido: barra gzip que explode
 ESPERA_S = 10.0
 _PEDIDOS = 2  # um pedido e uma nova tentativa, no máximo (apêndice 5)
@@ -122,8 +124,8 @@ def _linha_do_cluster(linha: bytes) -> _Bloco | None:
         _ARQUIVO.fullmatch(arquivo) and _NUMERO.fullmatch(offset) and _NUMERO.fullmatch(tamanho)
     ):
         raise ValueError(f"linha do cluster.idx fora do formato: {texto[:200]!r}")
-    if not 0 < int(tamanho) <= _TETO_BLOCO:
-        raise ValueError(f"bloco de {tamanho} bytes no cluster.idx")
+    if int(tamanho) == 0:
+        raise ValueError("bloco de 0 bytes no cluster.idx")
     return _Bloco(chave, arquivo, int(offset), int(tamanho))
 
 
@@ -134,13 +136,18 @@ async def _blocos(cliente: ClienteEducado, indice: str) -> list[_Bloco]:
     anterior: _Bloco | None = None
     resto = b""
 
+    def escolher(bloco: _Bloco) -> None:
+        if bloco.tamanho > _TETO_BLOCO:
+            raise ValueError(f"bloco de {bloco.tamanho} bytes no cluster.idx")
+        escolhidos.append(bloco)
+
     def ver(linha: bytes) -> None:
         nonlocal anterior
         bloco = _linha_do_cluster(linha)
         if bloco is None:
             return
         if anterior is not None and _cobre(anterior, bloco.chave):
-            escolhidos.append(anterior)
+            escolher(anterior)
         anterior = bloco
 
     async with aclosing(_cc(cliente).ler_em_fluxo(url, teto_bytes=TETO_CLUSTER)) as fluxo:
@@ -150,7 +157,7 @@ async def _blocos(cliente: ClienteEducado, indice: str) -> list[_Bloco]:
                 ver(linha)
     ver(resto)
     if anterior is not None and _cobre(anterior, None):
-        escolhidos.append(anterior)
+        escolher(anterior)
     return escolhidos
 
 
