@@ -1407,7 +1407,7 @@ Permissions-Policy: camera=(), microphone=(), geolocation=()
 
 - **CSRF** (DR-48): um token aleatório (`secrets.token_urlsafe`) gerado quando o servidor sobe, guardado só na memória. Vai numa `<meta>` da página e num campo escondido dos formulários; o `app.js` manda no cabeçalho `X-CSRF-Token` dos pedidos do HTMX. Todo POST confere o token com `hmac.compare_digest` e recusa `Sec-Fetch-Site: cross-site` e `Origin` diferente do painel. Token velho (servidor reiniciado) gera a mensagem "recarregue a página".
 - **XML:** lido com `xml.etree` da biblioteca padrão, que usa o expat protegido contra "bomba de entidades" nas versões atuais, mais o limite de 5 MB da resposta (DR-49). O feed do Google tem perto de 20 MB: é lido em fluxo com `iterparse`, com teto próprio de 32 MB, e cada item é descartado depois de lido.
-- **Sem telemetria.** O único código que faz pedidos para fora é o `HttpEducado`, usado só por coletores, descoberta, páginas acompanhadas e câmbio (um pedido por moeda por dia ao Banco Central, sem nenhum dado da pessoa). Um teste confere que `jobot.painel` não importa `httpx`.
+- **Sem telemetria.** O único código do joBot instalado que faz pedidos para fora é o `HttpEducado`, usado só por coletores, descoberta, páginas acompanhadas e câmbio (um pedido por moeda por dia ao Banco Central, sem nenhum dado da pessoa) e a checagem de versão do `jobot atualizar` (um pedido por dia a `api.github.com`, desligada por padrão e ligada pela pessoa em Privacidade, ADRs 0014 e 0018; leva só o user agent fixo, com a versão do joBot, e o IP que todo pedido mostra). Fica de fora o vigia semanal das fontes (`scripts/vigia.py`, ADR 0018), script de CI que roda só no GitHub Actions, fora do pacote: além do `HttpEducado` para as fontes, ele tem um cliente próprio para `api.github.com`, o único que leva token (o `GITHUB_TOKEN`). Um teste confere que `jobot.painel` não importa `httpx`.
 - **Sem senhas e sem CAPTCHA** nesta fase: nenhuma fonte da fase 1 pede login. Fonte que passar a pedir login, CAPTCHA ou desafio anti-robô fica "falhou"; o joBot não contorna.
 - Endereços digitados pela pessoa ("adicionar site", "adicionar empresa") passam pela validação da seção 8.8.
 
@@ -1441,9 +1441,9 @@ uv run jobot                          # abre o painel
 
 ### 15.3 CI e Dependabot
 
-- `.github/workflows/ci.yml`: roda só em `pull_request` para a `main` (ADR 0016). Passos, com cache do uv: `uv sync --locked`, `uv run ruff check`, `uv run ruff format --check`, `uv run mypy`, `uv run playwright install --with-deps chromium` e `uv run pytest`. O CI **não** roda `uv run jobot`: esse comando sobe o servidor e abre o navegador, e o CI ficaria parado.
+- `.github/workflows/ci.yml`: roda em todo `pull_request`, inclusive de fork e para a `dev`, e no push da `main` (ADR 0018, que substitui o "só para a `main`" da primeira versão da ADR 0016), nunca em `pull_request_target`. Passos, com cache do uv: `uv sync --locked`, `uv run ruff check`, `uv run ruff format --check`, `uv run mypy`, `uv run playwright install --with-deps chromium` e `uv run pytest`. O CI **não** roda `uv run jobot`: esse comando sobe o servidor e abre o navegador, e o CI ficaria parado.
 - `.github/dependabot.yml`: ecossistemas `uv` e `github-actions`, semanal, com `target-branch: dev` [a confirmar se o Dependabot do uv aceita esse campo]. HTMX e Inter ficam fora do Dependabot; a versão e o sha256 de cada um ficam anotados num arquivo ao lado deles.
-- Como o CI só roda no fim da fase, cada junção na `dev` roda antes, na máquina, os mesmos comandos de verificação (ruff, mypy e pytest).
+- Mesmo com o CI em todo PR, cada junção na `dev` roda antes, na máquina, os mesmos comandos de verificação (ruff, mypy e pytest): o CI confirma, não é o primeiro lugar onde o erro aparece.
 
 ### 15.4 Processo (Q6 e Q7)
 
@@ -1723,6 +1723,6 @@ A conferência ao vivo de 2026-11-13 confirmou os endereços, os campos e os lim
 | Conjunto de ouro dá trabalho | atraso no fim da fase | as 329 vagas já estão coletadas; a rotulagem é feita por agentes e não espera coletor; abaixo de 90% não impede o fechamento |
 | Conjunto de ouro ou amostra real indo para o git por engano | dado pessoal publicado | o gabarito fica fora da pasta do repositório; `dados_locais/` no `.gitignore`; teste do critério 21 |
 | SQLite sem FTS5 | busca mais lenta | `LIKE` como reserva |
-| CI só no fim da fase | erro de CI aparece tarde | mesmos comandos na máquina a cada junção |
+| CI em todo PR (ADR 0018) | consome minutos se o PR for de fora em massa | aprovação do GitHub para o primeiro PR de quem nunca contribuiu (D33); mesmos comandos na máquina a cada junção |
 | Porta 47615 ocupada | painel não abre | mensagem clara; `JOBOT_PORTA` |
 | Lista de municípios do IBGE com licença incerta | menos precisão em cidade | usar só UFs e capitais até confirmar |
