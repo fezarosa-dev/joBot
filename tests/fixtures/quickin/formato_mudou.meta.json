@@ -1,0 +1,12 @@
+{
+  "url": "https://api.quickin.io/public/626fd30298767e001a4efe9c/jobs?sort=-created_at&page=1",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/json; charset=utf-8"
+  },
+  "sha256": "cb2d52c623786353a6db26058ae81a31ceb451c597ea56e5ae578398c1815876",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "montado à mão a partir de normal.json: a segunda vaga troca title por name e a terceira perde career_url (formato mudou)"
+}

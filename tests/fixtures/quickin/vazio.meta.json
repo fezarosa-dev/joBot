@@ -1,0 +1,12 @@
+{
+  "url": "https://api.quickin.io/public/626fd30298767e001a4efe9c/jobs?sort=-created_at&page=1",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/json; charset=utf-8"
+  },
+  "sha256": "a176427beea5441e5176b30401644784a709496fc24a99a011a6b0c1ea85710a",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "montado à mão no formato do apêndice 3.1 ({docs,total,limit,page,pages}): a captura não trouxe lista vazia; pages 0 é suposição"
+}
