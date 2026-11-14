@@ -110,6 +110,7 @@ def montar(
     # um asyncio.Lock por tipo, o mesmo objeto para o laço e para a rota "buscar agora" (D55)
     travas: dict[str, asyncio.Lock] = {tipo: asyncio.Lock() for tipo in TIPOS}
     app.state.travas = travas
+    app.state.relogio = relogio  # o "Buscar agora" usa o mesmo relógio da agenda
     motivos: list[Motivo] = ["recuperacao"] if _perdida(caminho, relogio.agora()) else []
 
     @contextlib.asynccontextmanager
@@ -133,11 +134,12 @@ def montar(
             try:
                 yield
             finally:
-                for tarefa in (agenda, versao):
+                # as do "Buscar agora" (painel/rotas/execucao.py) também usam o cliente: Ctrl+C
+                # e SIGTERM passam por aqui, então todas param antes de fechá-lo
+                todas = [agenda, versao, *getattr(app.state, "tarefas", ())]
+                for tarefa in todas:
                     tarefa.cancel()
-                for tarefa in (agenda, versao):
-                    with contextlib.suppress(asyncio.CancelledError):
-                        await tarefa
+                await asyncio.gather(*todas, return_exceptions=True)
                 await cliente.fechar()
 
     app.router.lifespan_context = vida
