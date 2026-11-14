@@ -1,0 +1,13 @@
+{
+  "url": "https://api.recrutei.com.br/api/v2/vacancies/per-departments/ucm-business-solutions",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 202,
+  "cabecalhos": {
+    "Content-Type": "application/json"
+  },
+  "sha256": "715502b15fd7252aa7d7cd6bf6ce260a41d437e2cf30ec71ab2a8fa414f82572",
+  "versao": "0.1.0",
+  "metodo": "POST",
+  "corpo": {},
+  "montado_a_mao": "captura/B2/raw/recrutei_api_ucm.json: resposta real de 2026-11-13, reduzida por scripts/capturar.reduzir (5 itens) e limpar_pessoais; sem edição"
+}

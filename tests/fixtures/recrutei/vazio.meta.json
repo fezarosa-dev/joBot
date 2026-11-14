@@ -1,0 +1,13 @@
+{
+  "url": "https://api.recrutei.com.br/api/v2/vacancies/per-departments/empresa-sem-vagas",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 202,
+  "cabecalhos": {
+    "Content-Type": "application/json"
+  },
+  "sha256": "afab22eb4feaee9b6c997a57230dcfd150fb21f0ba984423360739870190fba3",
+  "versao": "0.1.0",
+  "metodo": "POST",
+  "corpo": {},
+  "montado_a_mao": "tests/fixtures/recrutei/normal.json (resposta real reduzida): montado à mão: mesma moldura da resposta real, sem nenhuma vaga (a rede não devolveu empresa vazia; o formato do vazio é suposição)"
+}

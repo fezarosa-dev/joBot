@@ -1,0 +1,13 @@
+{
+  "url": "https://api.recrutei.com.br/api/v2/vacancies/per-departments/daguilar-consultoria-rh",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 202,
+  "cabecalhos": {
+    "Content-Type": "application/json"
+  },
+  "sha256": "af474a3e27dc4d120e732aa0123dc84df98f945beb8292c7a5e9c5bf1ff5cfba",
+  "versao": "0.1.0",
+  "metodo": "POST",
+  "corpo": {},
+  "montado_a_mao": "captura/B2/raw/recrutei_api_daguilar.json: resposta real de 2026-11-13, reduzida por scripts/capturar.reduzir (5 itens) e limpar_pessoais; sem edição"
+}
