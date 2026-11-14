@@ -193,6 +193,31 @@ async def test_local_sem_pais_ganha_o_pais_do_escopo() -> None:
     assert [local.pais for local in ler_locais(ultima.locais)] == ["BR"]
 
 
+async def test_sigla_de_uf_em_escopo_us_nao_vira_brasil() -> None:
+    escopo = "santander/SantanderCareers|wd3|US"
+    pagina = _pagina(2, 0, 2)
+    pagina["jobPostings"][0]["locationsText"] = "Columbus, MS"
+    pagina["jobPostings"][1]["locationsText"] = "Columbia, SC"
+    resultado, _ = await _rodar(
+        lambda http: workday.COLETOR.coletar(escopo, http),
+        _json("normal"),
+        httpx.Response(200, json=pagina),
+    )
+    vagas = _vagas(resultado)
+    assert [local.pais for v in vagas for local in ler_locais(v.locais)] == ["US", "US"]
+
+
+async def test_escopo_us_do_santander_traz_vagas() -> None:
+    escopo = "santander/SantanderCareers|wd3|US"
+    resultado, pedidos = await _rodar(
+        lambda http: workday.COLETOR.coletar(escopo, http), _json("normal"), _json("normal")
+    )
+    assert _corpo(pedidos[1])["appliedFacets"] == {
+        "locationCountry": ["bc33aa3152ec42d4995f4791a106ed09"]  # Estados Unidos da América
+    }
+    assert (resultado.estado, len(_vagas(resultado))) == ("ok", 5)
+
+
 async def test_local_que_ja_traz_o_pais_fica_como_veio() -> None:
     vaga = await _vaga_mastercard()
     assert vaga.locais == ("Sao Paulo, Brazil",)

@@ -26,7 +26,7 @@ from jobot.nucleo.coletores.base import (
 from jobot.nucleo.coletores.registro import limites
 from jobot.nucleo.http import ErroDeRede, HttpEducado
 from jobot.nucleo.modelo import VagaColetada
-from jobot.nucleo.tratamento.locais import _PAISES, ler_locais
+from jobot.nucleo.tratamento.locais import ler_locais, nome_do_pais
 
 _LIMITES = limites("workday")
 _DOMINIO = "myworkdayjobs.com"
@@ -39,9 +39,6 @@ _CAMINHO = re.compile(r"/job/[^\s?#\\]+")  # `externalPath` da vaga
 _CABECALHOS = {"Accept": "application/json", "Accept-Language": "pt-BR"}
 _PAIS = re.compile(r"[A-Z]{2}")
 _PADRAO = "BR"  # sem país nas buscas (o "testar" do painel), como no Eightfold (A21)
-# Nome que o `ler_locais` reconhece, para o local que vem só com a cidade ("SAO PAULO").
-# shortcut: lê o mapa privado de `locais.py`; trocar se ele ganhar uma função pública.
-_NOME_PAIS = {codigo: nome.title() for nome, codigo in _PAISES.items()}  # o último nome vale
 _SO_CONTAGEM = re.compile(r"\d+\s+\S+")  # "2 Locais", "3 Locations": não é cidade
 
 
@@ -132,8 +129,10 @@ def _vaga(escopo: str, empresa: str, item: object) -> VagaColetada | None:
         return None
     tenant, site, wd, pais = _separar(escopo)
     local = _texto(item.get("locationsText"))
-    # A lista vem filtrada pelo país; sem ele no texto, os rótulos não sabem que é "no Brasil".
-    if (nome := _NOME_PAIS.get(pais)) and not any(lido.pais for lido in ler_locais([local])):
+    # A lista vem filtrada pelo país; sem ele no texto, os rótulos não sabem que é "no Brasil". Num
+    # escopo de fora, o BR que sai de sigla que também é UF ("Columbus, MS") não conta como país.
+    lidos = [p for lido in ler_locais([local]) if (p := lido.pais) and (p != "BR" or pais == "BR")]
+    if (nome := nome_do_pais(pais)) and not lidos:
         local = f"{local}, {nome}" if local and not _SO_CONTAGEM.fullmatch(local) else nome
     try:
         return VagaColetada(
