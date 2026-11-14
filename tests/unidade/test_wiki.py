@@ -82,6 +82,12 @@ def test_readmes_apontam_para_a_wiki_e_nao_tem_faq_propria() -> None:
     assert f"{SITE}/wiki/Apoie" in texto(".github/FUNDING.yml")
 
 
+def test_apoio_cita_o_github_sponsors_em_todos_os_lugares() -> None:
+    assert "github: fezarosa-dev" in texto(".github/FUNDING.yml")
+    for arquivo in ("README.md", "README.en.md", "wiki/Apoie.md", "wiki/Support-the-project.md"):
+        assert "https://github.com/sponsors/fezarosa-dev" in texto(arquivo), arquivo
+
+
 def test_formulario_de_duvida_e_suporte() -> None:
     form = texto(".github/ISSUE_TEMPLATE/duvida.yml")
     assert "labels: [question]" in form

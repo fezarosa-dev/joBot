@@ -505,6 +505,8 @@ O joBot é grátis e é mantido por uma pessoa. Se ele te ajudar e você quiser 
   65c34f26-c646-431f-af90-e5b1d2808ad4
   ```
 
+- **GitHub Sponsors:** <https://github.com/sponsors/fezarosa-dev>
+
 - **Buy Me a Coffee:** <https://buymeacoffee.com/zanoni.dev>
 
 Doar é opcional. O joBot continua inteiro grátis, sem anúncio, sem afiliado e sem rastreio (veja a [decisão 0020](docs/decisions/0020-apoio-financeiro.md)).
