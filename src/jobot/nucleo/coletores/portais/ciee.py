@@ -59,7 +59,7 @@ def _codigo(valor: object) -> str | None:
     """O `codigoVaga` (inteiro, ou texto só de dígitos: ele entra na URL), ou `None`."""
     if isinstance(valor, int) and not isinstance(valor, bool):
         return str(valor) if valor > 0 else None
-    if isinstance(valor, str) and valor.isascii() and valor.isdigit():
+    if isinstance(valor, str) and valor.isascii() and valor.isdigit() and int(valor) > 0:
         return valor
     return None
 
@@ -139,9 +139,10 @@ def _vaga(escopo: str, item: object) -> VagaColetada | None:
     """Uma vaga da lista, ou `None` se faltar campo obrigatório (DR-08)."""
     if not isinstance(item, dict):
         return None
-    codigo, empresa = _codigo(item.get("codigoVaga")), _texto(item.get("nomeEmpresa"))
-    if codigo is None or not empresa:
+    codigo, nome = _codigo(item.get("codigoVaga")), item.get("nomeEmpresa")
+    if codigo is None or not isinstance(nome, str):
         return None
+    empresa = nome.strip() or "CIEE"  # empresa confidencial vem em branco: a vaga fica
     # a página sem filtro mistura as modalidades: o tipo do item vale mais que o do escopo
     tipo = _TIPOS.get(_texto(item.get("tipoVaga")), _TIPOS[escopo])
     return VagaColetada(
