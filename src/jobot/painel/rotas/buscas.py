@@ -21,8 +21,8 @@ from jobot.banco.buscas import apagar_busca, buscas, criar_busca, editar_busca
 from jobot.banco.cadastros import ler_config
 from jobot.nucleo.cambio import MOEDAS
 from jobot.nucleo.modelo import Busca, Idioma, Local, Modalidade, Nivel
-from jobot.nucleo.relogio import Relogio, RelogioReal
 from jobot.nucleo.tratamento.locais import ler_locais
+from jobot.painel.rotas.vagas import relogio_do_painel
 from jobot.painel.seguranca import Con, renderizar
 
 router = APIRouter(prefix="/buscas")
@@ -83,11 +83,6 @@ class _Invalido(Exception):
         super().__init__(chave)
         self.chave = chave
         self.params = params
-
-
-def _relogio(request: Request) -> Relogio:
-    relogio: Relogio = getattr(request.app.state, "relogio", None) or RelogioReal()
-    return relogio
 
 
 def _texto_local(local: Local) -> str:
@@ -268,7 +263,7 @@ def _achar(con: sqlite3.Connection, busca_id: int) -> Busca:
 
 def _gravar(request: Request, con: sqlite3.Connection, busca: Busca, *, nova: bool) -> None:
     """Cria ou edita; o encaixe da própria busca já sai recalculado com o dia local (DP8)."""
-    agora = _relogio(request).agora()
+    agora = relogio_do_painel(request).agora()
     hoje = agora.astimezone().date()
     ligadas = bool(ler_config(con, "regras_ocultar_ligadas"))
     if nova:
