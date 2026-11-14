@@ -21,7 +21,7 @@ from jobot.banco.buscas import apagar_busca, buscas, criar_busca, editar_busca
 from jobot.banco.cadastros import ler_config
 from jobot.nucleo.cambio import MOEDAS
 from jobot.nucleo.modelo import Busca, Idioma, Local, Modalidade, Nivel
-from jobot.nucleo.tratamento.locais import ler_locais
+from jobot.nucleo.tratamento.locais import ler_locais, nome_em_ingles
 from jobot.painel.formulario import campo_unico
 from jobot.painel.rotas.vagas import relogio_do_painel
 from jobot.painel.seguranca import Con, renderizar
@@ -34,26 +34,6 @@ MODALIDADES = tuple(m for m in Modalidade if m != Modalidade.NAO_INFORMADO)
 NIVEIS = tuple(n for n in Nivel if n != Nivel.NAO_INFORMADO)
 IDIOMAS: tuple[Idioma, ...] = ("pt", "en", "es")
 MOEDAS_DO_FORMULARIO = ("BRL", *MOEDAS)
-# país -> nome que `ler_locais` entende (o formulário mostra e relê o texto da pessoa)
-NOME_PAIS = {
-    "PT": "Portugal",
-    "US": "USA",
-    "GB": "United Kingdom",
-    "CA": "Canada",
-    "DE": "Germany",
-    "ES": "Spain",
-    "FR": "France",
-    "IT": "Italy",
-    "NL": "Netherlands",
-    "IE": "Ireland",
-    "AR": "Argentina",
-    "CL": "Chile",
-    "CO": "Colombia",
-    "MX": "Mexico",
-    "UY": "Uruguay",
-    "PE": "Peru",
-    "IN": "India",
-}
 _MAX_NOME = 100
 _MAX_CARGOS = 50
 _MAX_CIDADES = 20
@@ -88,8 +68,9 @@ class _Invalido(Exception):
 
 def _texto_local(local: Local) -> str:
     partes = [p for p in (local.cidade, local.uf) if p]
-    if local.pais and (local.pais != "BR" or not partes):
-        partes.append(NOME_PAIS.get(local.pais, "Brasil" if local.pais == "BR" else local.pais))
+    # o nome em inglês é o que `ler_locais` relê; BR com UF já se entende pela UF
+    if local.pais and (local.pais != "BR" or not local.uf):
+        partes.append(nome_em_ingles(local.pais) or local.pais)
     return ", ".join(partes)
 
 

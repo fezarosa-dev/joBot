@@ -209,5 +209,447 @@
     "texto": "Remote. We are not able to sponsor visas at this time.",
     "locais": [{"pais": "US"}],
     "esperado": {"avisos": ["exige_visto"]}
-  }
+  },
+  {
+    "nome": "nivel declarado na descricao",
+    "titulo": "Pessoa Desenvolvedora Backend",
+    "texto": "Nível: Júnior. Atuação no time de pagamentos.",
+    "esperado": {"nivel": "junior"}
+  },
+  {
+    "nome": "senioridade em ingles na descricao",
+    "titulo": "Backend Developer",
+    "texto": "Seniority level: Senior. Remote team.",
+    "esperado": {"nivel": "senior"}
+  },
+  {
+    "nome": "specialist no titulo vence o nivel da descricao",
+    "titulo": "Support Specialist",
+    "texto": "Experience level: Junior.",
+    "esperado": {"nivel": "especialista"}
+  },
+  {
+    "nome": "nivel superior nao e nivel",
+    "titulo": "Analista Financeiro",
+    "texto": "Nível superior completo em Administração.",
+    "esperado": {"nivel": "nao_informado", "area": "financas"}
+  },
+  {
+    "nome": "semi senior conta pleno",
+    "titulo": "Analista Semi Senior",
+    "texto": "",
+    "esperado": {"nivel": "pleno"}
+  },
+  {
+    "nome": "pl sozinho e pleno",
+    "titulo": "Desenvolvedor Java Pl",
+    "texto": "",
+    "esperado": {"nivel": "pleno", "area": "tecnologia"}
+  },
+  {
+    "nome": "pl sql nao e pleno",
+    "titulo": "Desenvolvedor PL/SQL",
+    "texto": "",
+    "esperado": {"nivel": "nao_informado"}
+  },
+  {
+    "nome": "senior living nao e nivel",
+    "titulo": "Caregiver - Senior Living Community",
+    "texto": "",
+    "esperado": {"nivel": "nao_informado", "area": "saude"}
+  },
+  {
+    "nome": "lead generation nao e lideranca",
+    "titulo": "Lead Generation Representative",
+    "texto": "",
+    "esperado": {"nivel": "nao_informado", "area": "vendas"}
+  },
+  {
+    "nome": "gestor e lideranca",
+    "titulo": "Gestor de Projetos",
+    "texto": "",
+    "esperado": {"nivel": "lideranca"}
+  },
+  {
+    "nome": "new grad e junior",
+    "titulo": "Software Engineer, New Grad",
+    "texto": "",
+    "esperado": {"nivel": "junior", "area": "tecnologia"}
+  },
+  {
+    "nome": "analista de sistemas e tecnologia",
+    "titulo": "Analista de Sistemas",
+    "texto": "",
+    "esperado": {"area": "tecnologia"}
+  },
+  {
+    "nome": "software com dados conta tecnologia",
+    "titulo": "Software Engineer, Data Platform",
+    "texto": "",
+    "esperado": {"area": "tecnologia"}
+  },
+  {
+    "nome": "banco de dados conta tecnologia",
+    "titulo": "Administrador de Banco de Dados",
+    "texto": "",
+    "esperado": {"area": "tecnologia"}
+  },
+  {
+    "nome": "tech lead",
+    "titulo": "Tech Lead",
+    "texto": "",
+    "esperado": {"area": "tecnologia", "nivel": "lideranca"}
+  },
+  {
+    "nome": "redes sociais e marketing",
+    "titulo": "Analista de Redes Sociais",
+    "texto": "",
+    "esperado": {"area": "marketing"}
+  },
+  {
+    "nome": "key account e vendas",
+    "titulo": "Key Account Manager",
+    "texto": "",
+    "esperado": {"area": "vendas"}
+  },
+  {
+    "nome": "engenheiro sem especialidade da lista",
+    "titulo": "Engenheiro Ambiental",
+    "texto": "",
+    "esperado": {"area": "engenharia"}
+  },
+  {
+    "nome": "engenheiro de software continua tecnologia",
+    "titulo": "Engenheiro de Software",
+    "texto": "",
+    "esperado": {"area": "tecnologia"}
+  },
+  {
+    "nome": "customer care e atendimento",
+    "titulo": "Customer Care Representative",
+    "texto": "",
+    "esperado": {"area": "atendimento"}
+  },
+  {
+    "nome": "relacionamento com o cliente e atendimento",
+    "titulo": "Analista de Relacionamento com o Cliente",
+    "texto": "",
+    "esperado": {"area": "atendimento"}
+  },
+  {
+    "nome": "expedicao e operacoes",
+    "titulo": "Auxiliar de Expedição",
+    "texto": "",
+    "esperado": {"area": "operacoes"}
+  },
+  {
+    "nome": "warehouse e operacoes",
+    "titulo": "Warehouse Associate",
+    "texto": "",
+    "esperado": {"area": "operacoes"}
+  },
+  {
+    "nome": "executive assistant e administrativo",
+    "titulo": "Executive Assistant",
+    "texto": "",
+    "esperado": {"area": "administrativo"}
+  },
+  {
+    "nome": "auxiliar de escritorio e administrativo",
+    "titulo": "Auxiliar de Escritório",
+    "texto": "",
+    "esperado": {"area": "administrativo"}
+  },
+  {
+    "nome": "credito e financas",
+    "titulo": "Analista de Crédito",
+    "texto": "",
+    "esperado": {"area": "financas"}
+  },
+  {
+    "nome": "contas a pagar e financas",
+    "titulo": "Accounts Payable Clerk",
+    "texto": "",
+    "esperado": {"area": "financas"}
+  },
+  {
+    "nome": "veterinario e saude",
+    "titulo": "Médico Veterinário",
+    "texto": "",
+    "esperado": {"area": "saude"}
+  },
+  {
+    "nome": "home office com hifen",
+    "titulo": "Analista",
+    "texto": "Trabalho em home-office.",
+    "esperado": {"modalidade": "remoto"}
+  },
+  {
+    "nome": "teletrabalho e remoto",
+    "titulo": "Analista",
+    "texto": "Regime de teletrabalho.",
+    "esperado": {"modalidade": "remoto"}
+  },
+  {
+    "nome": "local diz remoto",
+    "titulo": "Analista",
+    "local": ["Remote - Brazil"],
+    "texto": "",
+    "esperado": {"modalidade": "remoto"}
+  },
+  {
+    "nome": "local diz hibrido",
+    "titulo": "Analista",
+    "local": ["Hybrid - Curitiba, PR"],
+    "texto": "",
+    "esperado": {"modalidade": "hibrido"}
+  },
+  {
+    "nome": "hybrid cloud nao e modalidade",
+    "titulo": "Cloud Engineer",
+    "texto": "Experience with hybrid cloud environments.",
+    "esperado": {"modalidade": "nao_informado"}
+  },
+  {
+    "nome": "100 por cento remota vence hibrida citada",
+    "titulo": "Analista",
+    "texto": "Vaga 100% remota, sem modelo híbrido.",
+    "esperado": {"modalidade": "remoto"}
+  },
+  {
+    "nome": "remote control nao e remoto",
+    "titulo": "Technician",
+    "texto": "Repair of remote control devices.",
+    "esperado": {"modalidade": "nao_informado"}
+  },
+  {
+    "nome": "nao e remota vira presencial",
+    "titulo": "Analista",
+    "texto": "Esta vaga não é remota.",
+    "esperado": {"modalidade": "presencial"}
+  },
+  {
+    "nome": "dias no escritorio e hibrido",
+    "titulo": "Analyst",
+    "texto": "You will work 3 days a week in the office.",
+    "esperado": {"modalidade": "hibrido"}
+  },
+  {
+    "nome": "dias presenciais em portugues e hibrido",
+    "titulo": "Analista",
+    "texto": "São 2 dias por semana no escritório.",
+    "esperado": {"modalidade": "hibrido"}
+  },
+  {
+    "nome": "office based e presencial",
+    "titulo": "Analyst",
+    "texto": "This is an office-based role.",
+    "esperado": {"modalidade": "presencial"}
+  },
+  {
+    "nome": "clt sem local vale",
+    "titulo": "Desenvolvedor",
+    "texto": "Contratação CLT.",
+    "esperado": {"contrato": "clt"}
+  },
+  {
+    "nome": "pj fora do brasil continua bloqueado",
+    "titulo": "Desenvolvedor",
+    "texto": "Contratação PJ.",
+    "locais": [{"cidade": "Lisboa", "pais": "PT"}],
+    "esperado": {"contrato": "nao_informado"}
+  },
+  {
+    "nome": "possuir cnpj e pj",
+    "titulo": "Desenvolvedor",
+    "texto": "Necessário possuir CNPJ ativo.",
+    "locais": [{"cidade": "São Paulo", "uf": "SP", "pais": "BR"}],
+    "esperado": {"contrato": "pj"}
+  },
+  {
+    "nome": "cnpj da empresa nao e pj",
+    "titulo": "Desenvolvedor",
+    "texto": "Empresa de tecnologia, CNPJ 00.000.000/0001-00.",
+    "locais": [{"cidade": "São Paulo", "uf": "SP", "pais": "BR"}],
+    "esperado": {"contrato": "nao_informado"}
+  },
+  {
+    "nome": "registro em carteira e clt",
+    "titulo": "Auxiliar",
+    "texto": "Registro em carteira e vale-refeição.",
+    "locais": [{"cidade": "São Paulo", "uf": "SP", "pais": "BR"}],
+    "esperado": {"contrato": "clt"}
+  },
+  {
+    "nome": "efetivo no titulo e clt",
+    "titulo": "Auxiliar Administrativo - Efetivo",
+    "texto": "",
+    "locais": [{"cidade": "São Paulo", "uf": "SP", "pais": "BR"}],
+    "esperado": {"contrato": "clt", "area": "administrativo"}
+  },
+  {
+    "nome": "federal contractor nao e freelance",
+    "titulo": "Software Engineer",
+    "texto": "We are an equal opportunity employer and federal contractor.",
+    "locais": [{"pais": "US"}],
+    "esperado": {"contrato": "nao_informado"}
+  },
+  {
+    "nome": "contrato 1099 e freelance",
+    "titulo": "Designer",
+    "texto": "This is a 1099 contract role.",
+    "locais": [{"pais": "US"}],
+    "esperado": {"contrato": "freelance"}
+  },
+  {
+    "nome": "contract no titulo e freelance",
+    "titulo": "Frontend Developer (Contract)",
+    "texto": "",
+    "esperado": {"contrato": "freelance"}
+  },
+  {
+    "nome": "tempo determinado e temporario",
+    "titulo": "Auxiliar",
+    "texto": "Contrato por tempo determinado.",
+    "esperado": {"contrato": "temporario"}
+  },
+  {
+    "nome": "only brazil residents",
+    "titulo": "Backend Developer",
+    "texto": "Remote, only Brazil residents.",
+    "esperado": {"avisos": ["restrito_a_pais"]}
+  },
+  {
+    "nome": "local us only",
+    "titulo": "Backend Developer",
+    "local": ["USA Only"],
+    "texto": "",
+    "esperado": {"avisos": ["restrito_a_pais"]}
+  },
+  {
+    "nome": "anywhere in the us",
+    "titulo": "Backend Developer",
+    "texto": "Remote anywhere in the US.",
+    "esperado": {"avisos": ["restrito_a_pais"]}
+  },
+  {
+    "nome": "residir no brasil",
+    "titulo": "Desenvolvedor",
+    "texto": "Necessário residir no Brasil.",
+    "esperado": {"avisos": ["restrito_a_pais"]}
+  },
+  {
+    "nome": "residir numa cidade nao e restrito a pais",
+    "titulo": "Desenvolvedor",
+    "texto": "Necessário residir em Curitiba.",
+    "esperado": {"avisos": []}
+  },
+  {
+    "nome": "trabalhar sem patrocinio de visto",
+    "titulo": "Software Engineer",
+    "texto": "Candidates must be able to work without visa sponsorship.",
+    "esperado": {"avisos": ["exige_visto"]}
+  },
+  {
+    "nome": "empresa nao patrocina visto",
+    "titulo": "Software Engineer",
+    "texto": "The company does not sponsor visas.",
+    "esperado": {"avisos": ["exige_visto"]}
+  },
+  {
+    "nome": "phd preferido nao exige",
+    "titulo": "Data Scientist",
+    "texto": "PhD preferred.",
+    "esperado": {"avisos": []}
+  },
+  {
+    "nome": "mestrado ou doutorado nao exige",
+    "titulo": "Pesquisador",
+    "texto": "Mestrado ou doutorado na área.",
+    "esperado": {"avisos": []}
+  },
+  {
+    "nome": "master or phd nao exige",
+    "titulo": "Data Scientist",
+    "texto": "Master's or PhD in physics.",
+    "esperado": {"avisos": []}
+  },
+  {
+    "nome": "doutorado completo exige",
+    "titulo": "Pesquisador",
+    "texto": "Doutorado completo em Química.",
+    "esperado": {"avisos": ["exige_doutorado"]}
+  },
+  {
+    "nome": "trabalhar de forma autonoma nao e freelance",
+    "titulo": "Assistente",
+    "texto": "Saber trabalhar de forma autônoma.",
+    "esperado": {"contrato": "nao_informado"}
+  },
+  {
+    "nome": "valor 1099 nao e freelance",
+    "titulo": "Designer",
+    "texto": "Equipment budget of 1099 dollars.",
+    "locais": [{"pais": "US"}],
+    "esperado": {"contrato": "nao_informado"}
+  },
+  {
+    "nome": "nuvem hibrida nao e modelo de trabalho",
+    "titulo": "Analista de Infraestrutura",
+    "texto": "Experiência com nuvem híbrida e ambiente híbrido.",
+    "esperado": {"modalidade": "nao_informado", "area": "tecnologia"}
+  },
+  {
+    "nome": "modelo de trabalho hibrido",
+    "titulo": "Analista",
+    "texto": "Modelo de trabalho: híbrido.",
+    "esperado": {"modalidade": "hibrido"}
+  },
+  {
+    "nome": "hibrido entre parenteses no titulo",
+    "titulo": "Analista Fiscal (Híbrido)",
+    "texto": "",
+    "esperado": {"modalidade": "hibrido", "area": "financas"}
+  },
+  {
+    "nome": "business dev e vendas, nao tecnologia",
+    "titulo": "Business Dev Manager",
+    "texto": "",
+    "esperado": {"area": "vendas"}
+  },
+  {
+    "nome": "dev no titulo e tecnologia",
+    "titulo": "Dev Pleno",
+    "texto": "",
+    "esperado": {"area": "tecnologia", "nivel": "pleno"}
+  },
+  {"nome": "nivel explicito no titulo vence o da descricao", "titulo": "Senior Engineer", "texto": "Experience level: Junior.", "esperado": {"nivel": "senior"}},
+  {"nome": "mobile hibrido e tecnologia, nao modalidade", "titulo": "Desenvolvedor Mobile Híbrido (React Native)", "texto": "", "esperado": {"modalidade": "nao_informado", "area": "tecnologia"}},
+  {"nome": "data entry e administrativo", "titulo": "Data Entry Clerk", "texto": "", "esperado": {"area": "administrativo"}},
+  {"nome": "assistente do ceo nao e lideranca", "titulo": "Executive Assistant to the CEO", "texto": "", "esperado": {"nivel": "nao_informado", "area": "administrativo"}},
+  {"nome": "assistente da ceo nao e lideranca", "titulo": "Assistente da CEO", "texto": "", "esperado": {"nivel": "nao_informado"}},
+  {"nome": "cto sozinho e lideranca", "titulo": "CTO", "texto": "", "esperado": {"nivel": "lideranca"}},
+  {"nome": "gestora de trafego nao e lideranca", "titulo": "Gestora de Tráfego Pago", "texto": "", "esperado": {"nivel": "nao_informado", "area": "marketing"}},
+  {"nome": "gestora de projetos e lideranca", "titulo": "Gestora de Projetos", "texto": "", "esperado": {"nivel": "lideranca"}},
+  {"nome": "pl sql com espaco nao e pleno", "titulo": "Desenvolvedor PL SQL", "texto": "", "esperado": {"nivel": "nao_informado"}},
+  {"nome": "pl-sql com hifen nao e pleno", "titulo": "Desenvolvedor PL-SQL", "texto": "", "esperado": {"nivel": "nao_informado"}},
+  {"nome": "ssr de server-side rendering nao e nivel", "titulo": "Frontend Engineer (React, SSR)", "texto": "", "esperado": {"nivel": "nao_informado"}},
+  {"nome": "ssr de semi senior e pleno", "titulo": "Desarrollador Java SSR", "texto": "", "esperado": {"nivel": "pleno"}},
+  {"nome": "mid-market nao e nivel", "titulo": "Mid-Market Account Executive", "texto": "", "esperado": {"nivel": "nao_informado", "area": "vendas"}},
+  {"nome": "nao e necessario cnpj nao e pj", "titulo": "Designer", "texto": "Não é necessário ter CNPJ.", "esperado": {"contrato": "nao_informado"}},
+  {"nome": "sem cnpj nao e pj", "titulo": "Designer", "texto": "Vaga sem CNPJ, pagamento por projeto.", "esperado": {"contrato": "nao_informado"}},
+  {"nome": "e necessario possuir cnpj e pj", "titulo": "Designer", "texto": "É necessário possuir CNPJ.", "esperado": {"contrato": "pj"}},
+  {"nome": "precisa ter cnpj e pj", "titulo": "Designer", "texto": "Você precisa ter CNPJ para emitir nota.", "esperado": {"contrato": "pj"}},
+  {"nome": "hybrid application development nao e modalidade", "titulo": "Engineer", "texto": "Experience with hybrid application development, hybrid frameworks and hybrid platforms.", "esperado": {"modalidade": "nao_informado"}},
+  {"nome": "assistant virgula ceo nao e lideranca", "titulo": "Executive Assistant, CEO", "texto": "", "esperado": {"nivel": "nao_informado"}},
+  {"nome": "assistant to founder barra ceo nao e lideranca", "titulo": "Assistant to Founder/CEO", "texto": "", "esperado": {"nivel": "nao_informado"}},
+  {"nome": "asistente del ceo nao e lideranca", "titulo": "Asistente del CEO", "texto": "", "esperado": {"nivel": "nao_informado"}},
+  {"nome": "assistente de ceo nao e lideranca", "titulo": "Assistente de CEO", "texto": "", "esperado": {"nivel": "nao_informado"}},
+  {"nome": "founder e ceo e lideranca", "titulo": "Founder & CEO", "texto": "", "esperado": {"nivel": "lideranca"}},
+  {"nome": "head of engineering barra cto e lideranca", "titulo": "Head of Engineering / CTO", "texto": "", "esperado": {"nivel": "lideranca"}},
+  {"nome": "head de engenharia e lideranca", "titulo": "Head de Engenharia", "texto": "", "esperado": {"nivel": "lideranca"}},
+  {"nome": "mid-size nao e nivel", "titulo": "Account Executive, Mid-Size Business", "texto": "", "esperado": {"nivel": "nao_informado"}},
+  {"nome": "mid-sized nao e nivel", "titulo": "Mid-sized Accounts Representative", "texto": "", "esperado": {"nivel": "nao_informado"}},
+  {"nome": "mid-atlantic nao e nivel", "titulo": "Field Technician Mid-Atlantic", "texto": "", "esperado": {"nivel": "nao_informado"}},
+  {"nome": "mid-west nao e nivel", "titulo": "Sales Representative Mid-West", "texto": "", "esperado": {"nivel": "nao_informado"}}
 ]
