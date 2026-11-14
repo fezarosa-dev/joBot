@@ -13,7 +13,9 @@ _UFS = Path(__file__).parent.parent / "dados" / "ufs.json"
 _PAISES = {
     **dict.fromkeys(("brazil", "brasil"), "BR"),
     "portugal": "PT",
-    **dict.fromkeys(("united states", "usa", "us", "eua", "estados unidos"), "US"),
+    **dict.fromkeys(
+        ("united states", "usa", "us", "eua", "estados unidos da america", "estados unidos"), "US"
+    ),
     **dict.fromkeys(("united kingdom", "uk", "reino unido"), "GB"),
     "canada": "CA",
     **dict.fromkeys(("germany", "alemanha"), "DE"),
@@ -21,12 +23,12 @@ _PAISES = {
     **dict.fromkeys(("france", "franca"), "FR"),
     **dict.fromkeys(("italy", "italia"), "IT"),
     **dict.fromkeys(("netherlands", "holanda", "paises baixos"), "NL"),
-    "ireland": "IE",
+    **dict.fromkeys(("ireland", "irlanda"), "IE"),
     "argentina": "AR",
     "chile": "CL",
     "colombia": "CO",
     **dict.fromkeys(("mexico",), "MX"),
-    "uruguay": "UY",
+    **dict.fromkeys(("uruguay", "uruguai"), "UY"),
     "peru": "PE",
     "india": "IN",
 }
@@ -124,3 +126,16 @@ def ler_locais(brutos: Sequence[str]) -> tuple[Local, ...]:
     unicos = tuple(dict.fromkeys(locais))
     uteis = tuple(local for local in unicos if local != Local())
     return uteis or unicos
+
+
+_ACENTOS = {
+    "canada": "Canadá", "franca": "França", "italia": "Itália", "paises baixos": "Países Baixos",
+    "colombia": "Colômbia", "mexico": "México", "india": "Índia",
+}  # fmt: skip
+# Um nome por código: o último de cada grupo em `_PAISES`, que é o português.
+_NOMES = {codigo: _ACENTOS.get(chave, chave.title()) for chave, codigo in _PAISES.items()}
+
+
+def nome_do_pais(codigo: str) -> str | None:
+    """Nome em português do país (ISO alfa-2 em maiúsculas); `None` se o código não consta."""
+    return _NOMES.get(codigo)
