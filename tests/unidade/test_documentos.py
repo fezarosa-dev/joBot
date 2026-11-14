@@ -167,6 +167,17 @@ def test_readme_tem_as_mesmas_secoes_nas_duas_linguas() -> None:
     assert all(a != b for a, b in zip(titulos_h2(pt), titulos_h2(en), strict=True))
 
 
+@pytest.mark.parametrize(
+    ("lingua", "primeira", "estrelas"),
+    [("pt", "o-que-e", "historico-de-estrelas"), ("en", "what-is-jobot", "star-history")],
+)
+def test_historico_de_estrelas_vem_logo_depois_de_o_que_e(
+    lingua: str, primeira: str, estrelas: str
+) -> None:
+    ordem = ancoras(texto(README[lingua]))
+    assert ordem.index(estrelas) == ordem.index(primeira) + 1
+
+
 def test_changelog_tem_as_mesmas_secoes_nas_duas_linguas() -> None:
     pt, en = texto(CHANGELOG["pt"]), texto(CHANGELOG["en"])
     assinatura = assinatura_changelog(pt)
