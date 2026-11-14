@@ -315,7 +315,7 @@ Detalhes na [ADR 0010](docs/decisions/0010-claude-code-da-pessoa.md).
 
 - **Não existe servidor do joBot.** Seus dados ficam no seu computador.
 - **Sem telemetria.** Nenhum dado de uso é enviado.
-- **Só pedidos de busca.** O joBot só faz pedidos às fontes de vagas que você deixa ligadas e, com a conversão de moeda ligada, ao Banco Central, para pegar a cotação do dólar. Quem recebe o pedido vê o IP do seu computador, como em qualquer pedido na internet.
+- **Só pedidos de busca e conferência.** O joBot só faz pedidos de rede nestes casos: às fontes públicas de vagas que você deixa ligadas (vêm ligadas, menos a Eureca), incluindo a página de cada vaga; ao Banco Central, para pegar a cotação do dólar, com a conversão de moeda ligada (vem ligada); ao Common Crawl, uma vez por semana, para descobrir empresas novas, e depois aos quadros de vagas dessas empresas, para conferir (vem ligada); às páginas que você manda acompanhar (vem ligada, mas sem páginas na lista não há pedido); ao site de uma empresa, só quando você cola o endereço dela, testa ou aceita uma sugestão. Se você ligar o aviso de versão (próximo item), também pergunta ao GitHub (vem desligado). Quem recebe o pedido vê o IP do seu computador, como em qualquer pedido na internet.
 - **Aviso de versão desligado por padrão.** Se você ligar (Configurações, Privacidade), uma vez por dia o joBot pergunta ao `api.github.com` qual é a versão mais nova. O pedido leva só o user agent fixo do joBot (que traz o número da versão) e o IP do seu computador, como todo pedido na internet. Não leva busca nem dado seu. Desligado, não faz pedido nenhum.
 - **Segredos no cofre do sistema.** Token do Gmail, chave da API e token do Telegram ficam no cofre de senhas do sistema operacional. Sem cofre, vão para um arquivo que só o seu usuário lê, e o painel avisa.
 - **Dados pessoais protegidos.** CPF e data de nascimento ficam no banco, numa pasta que só o seu usuário acessa e que não é sincronizada com nuvem. O painel recomenda ligar a criptografia de disco (LUKS, BitLocker ou FileVault).
@@ -370,7 +370,7 @@ Rode todos de dentro da pasta `joBot`, com `uv run` na frente (por exemplo, `uv 
 
 - Tudo fica na pasta `~/.local/share/jobot`, só com acesso do seu usuário. Para usar outra pasta, defina `JOBOT_DADOS`.
 - O banco é o arquivo `jobot.db`, e o registro do que aconteceu fica em `logs/jobot.log`.
-- Nada sai dessa pasta, a não ser os pedidos às fontes que você deixou ligadas (veja [Privacidade e segurança](#privacidade-e-seguranca)).
+- Nada sai dessa pasta, a não ser os pedidos de rede listados em [Privacidade e segurança](#privacidade-e-seguranca).
 
 ### Se você usa distrobox
 

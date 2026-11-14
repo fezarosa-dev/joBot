@@ -35,6 +35,5 @@ A fase 1: a base do joBot. Já dá para instalar e usar.
 
 ### Alterado
 
-- A dúvida D1 (uso do Claude Code da própria pessoa) foi resolvida pelo dono.
-- A dúvida D3 foi resolvida: denúncias do Código de Conduta vão para o e-mail do projeto.
+- Denúncias do Código de Conduta vão para o e-mail do projeto.
 - O README deixou de ser só plano: descreve a instalação da fase 1.

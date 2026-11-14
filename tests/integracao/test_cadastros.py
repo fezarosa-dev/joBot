@@ -1,5 +1,6 @@
 """Cadastros no banco: fontes, empresas e configuração (plano T23; desenho 8.6 e 13.7)."""
 
+import json
 import sqlite3
 from collections.abc import Iterator
 from datetime import UTC, date, datetime
@@ -205,7 +206,11 @@ def test_semear_nao_sobrescreve_o_que_a_pessoa_mudou(con: sqlite3.Connection) ->
 def test_semear_fontes_eureca_nasce_desligada(con: sqlite3.Connection) -> None:
     semear(con)
     assert [f.chave for f in fontes(con) if not f.ligada] == ["eureca"]
-    assert len([f for f in fontes(con) if f.ligada]) == 27
+    arquivo = Path(__file__).resolve().parents[2] / "src/jobot/nucleo/dados/fontes.json"
+    esperadas = sum(
+        d.get("ligada_padrao", True) for d in json.loads(arquivo.read_text("utf-8")).values()
+    )
+    assert len([f for f in fontes(con) if f.ligada]) == esperadas
 
 
 def test_semear_fontes_mantem_escolha_de_quem_ja_tem_linha(con: sqlite3.Connection) -> None:

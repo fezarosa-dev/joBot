@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from jobot.banco.paginas import MOTIVOS as MOTIVOS_DA_PAGINA
 from jobot.nucleo import encaixe
 from jobot.nucleo.modelo import Area, Aviso, Contrato, Modalidade, Nivel
 from jobot.painel import i18n
@@ -105,3 +106,15 @@ def test_chaves_encaixe_existem_em_pt_e_en(idioma: str) -> None:
     arquivo = i18n.PASTA / idioma / "vagas.json"
     textos: dict[str, str] = json.loads(arquivo.read_text("utf-8")) if arquivo.exists() else {}
     assert sorted(c for c in usadas if not textos.get(c)) == []
+
+
+@pytest.mark.parametrize("lingua", ["pt", "en"])
+def test_todo_motivo_tem_texto_nas_duas_linguas(lingua: str) -> None:
+    """/sites e a aba Programas traduzem `sites.motivo.<código>`: código sem chave daria 500."""
+    catalogo = i18n.carregar()[lingua]
+    for codigo in (*sorted(MOTIVOS_DA_PAGINA), "desconhecido"):  # `desconhecido`: motivo nulo
+        assert catalogo.get(f"sites.motivo.{codigo}", "").strip(), (lingua, codigo)
+    # as frases que recebem o motivo: a de /sites e a da aba Programas (vagas/miolo.html)
+    for chave in ("sites.estado.falhou", "vagas.programas.falhou"):
+        assert "{motivo}" in catalogo[chave], (lingua, chave)
+        assert i18n.t(lingua, chave, motivo="MOTIVO-X").count("MOTIVO-X") == 1

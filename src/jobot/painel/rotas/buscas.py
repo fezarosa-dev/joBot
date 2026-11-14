@@ -22,6 +22,7 @@ from jobot.banco.cadastros import ler_config
 from jobot.nucleo.cambio import MOEDAS
 from jobot.nucleo.modelo import Busca, Idioma, Local, Modalidade, Nivel
 from jobot.nucleo.tratamento.locais import ler_locais
+from jobot.painel.formulario import campo_unico
 from jobot.painel.rotas.vagas import relogio_do_painel
 from jobot.painel.seguranca import Con, renderizar
 
@@ -113,11 +114,6 @@ def _formulario_de(b: Busca) -> Formulario:
     )
 
 
-def _um(form: FormData, campo: str) -> str:
-    valor = form.get(campo)
-    return valor if isinstance(valor, str) else ""
-
-
 def _varios(form: FormData, campo: str) -> tuple[str, ...]:
     return tuple(v for v in form.getlist(campo) if isinstance(v, str))
 
@@ -125,13 +121,13 @@ def _varios(form: FormData, campo: str) -> tuple[str, ...]:
 async def _ler(request: Request) -> Formulario:
     form = await request.form()
     return Formulario(
-        nome=_um(form, "nome"),
-        cargos=_um(form, "cargos"),
-        cidades=_um(form, "cidades"),
+        nome=campo_unico(form, "nome"),
+        cargos=campo_unico(form, "cargos"),
+        cidades=campo_unico(form, "cidades"),
         modalidade=_varios(form, "modalidade"),
         nivel=_varios(form, "nivel"),
-        salario=_um(form, "salario"),
-        moeda=_um(form, "moeda"),
+        salario=campo_unico(form, "salario"),
+        moeda=campo_unico(form, "moeda"),
         idioma=_varios(form, "idioma"),
         regra=_varios(form, "regra"),
     )
