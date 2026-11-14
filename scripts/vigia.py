@@ -35,10 +35,10 @@ from jobot.nucleo.coletores.base import (
     UrlListada,
 )
 from jobot.nucleo.coletores.executor import (
-    _PARA_DETALHES,  # privados do executor: a regra do detalhe é a mesma, sem cópia que divirja
+    PARA_DETALHES,  # do executor: a regra do detalhe é a mesma, sem cópia que divirja
     PRAZO_ESCOPO_S,
-    _motivo_do_detalhe,
-    _motivo_do_escopo,
+    motivo_do_detalhe,
+    motivo_do_escopo,
 )
 from jobot.nucleo.coletores.registro import descobrir
 from jobot.nucleo.http import ClienteEducado, Validadores
@@ -153,7 +153,7 @@ async def _uma_fonte(
         unico = escopo_unico(original)
         escopos = list(coletor.escopos(ctx))
     except Exception as erro:
-        return Resultado(chave, "falhou", _motivo_do_escopo(erro))
+        return Resultado(chave, "falhou", motivo_do_escopo(erro))
     if not escopos:
         return Resultado(chave, "nao_vigiada")
     escopo = escopos[0]
@@ -185,11 +185,11 @@ async def _uma_fonte(
                 tentados += 1
                 try:
                     vaga = await coletor.detalhar(item, http)
-                except _PARA_DETALHES as erro:
-                    erro_detalhe = _motivo_do_detalhe(erro)
+                except PARA_DETALHES as erro:
+                    erro_detalhe = motivo_do_detalhe(erro)
                     break
                 except Exception as erro:  # só esta URL
-                    motivo_erro = _motivo_do_detalhe(erro)
+                    motivo_erro = motivo_do_detalhe(erro)
                     comuns += _chave(motivo_erro) == "saude.excecao"
                     erro_detalhe = erro_detalhe or motivo_erro
                     continue
@@ -212,7 +212,7 @@ async def _uma_fonte(
         return Resultado(
             chave,
             "falhou",
-            _motivo_do_escopo(erro),
+            motivo_do_escopo(erro),
             escopo,
             pedidos=http.pedidos,
             escopo_unico=unico,
