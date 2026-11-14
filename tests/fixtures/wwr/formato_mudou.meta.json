@@ -1,0 +1,13 @@
+{
+  "url": "https://weworkremotely.com/remote-jobs.rss",
+  "data": "2026-11-14T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/rss+xml; charset=utf-8",
+    "ETag": "W/\"da3f4d96776f48cf6f36d67e66f9c987\""
+  },
+  "sha256": "f0e0b7c3845c79a2265dde879315af57c2ab98d26d38c839eabe2d4868d0e3f7",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "montado à mão a partir de normal.xml, reduzido a 3 itens: o 1º intacto, o 2º com o título sem ': ' e o 3º sem link nem guid"
+}
