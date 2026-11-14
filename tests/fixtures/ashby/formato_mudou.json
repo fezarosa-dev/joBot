@@ -1,0 +1,67 @@
+{
+  "jobs": [
+    {
+      "id": "5a34dbde-1947-4be7-b048-5acea47b0e86",
+      "title": "CV for Future Opportunities ",
+      "department": "CV",
+      "team": "CV",
+      "employmentType": "FullTime",
+      "location": "🇧🇷 Sao Paulo / 🇲🇽 Mexico City / 🇪🇸Barcelona / 🌎Remote",
+      "shouldDisplayCompensationOnJobPostings": false,
+      "secondaryLocations": [],
+      "publishedAt": "2021-06-07T10:41:02.331+00:00",
+      "isListed": true,
+      "isRemote": true,
+      "workplaceType": "Remote",
+      "address": {
+        "postalAddress": {
+          "addressRegion": "São Paulo",
+          "addressCountry": "Brazil",
+          "addressLocality": "São Paulo"
+        }
+      },
+      "jobUrl": "https://jobs.ashbyhq.com/belvo/5a34dbde-1947-4be7-b048-5acea47b0e86",
+      "applyUrl": "https://jobs.ashbyhq.com/belvo/5a34dbde-1947-4be7-b048-5acea47b0e86/application",
+      "descriptionHtml": "<p style=\"min-height:1.5em\"> <strong>A little bit about us:</strong></p><p style=\"min-height:1.5em\"></p><p style=\"min-height:1.5em\">We are Belvo, an open finance API platform with the bold vision of d",
+      "descriptionPlain": " A little bit about us:\n\n\n\nWe are Belvo, an open finance API platform with the bold vision of democratizing access to financial services in Latin America. We enable any financial innovator to access a",
+      "compensation": {
+        "compensationTierSummary": null,
+        "scrapeableCompensationSalarySummary": null,
+        "compensationTiers": [],
+        "summaryComponents": []
+      }
+    },
+    {
+      "id": "94f3c1a6-e826-4151-a815-ea0269143731",
+      "department": "Product",
+      "team": "Product",
+      "employmentType": "FullTime",
+      "location": "🇲🇽 Mexico City / 🌎 Remote",
+      "shouldDisplayCompensationOnJobPostings": false,
+      "secondaryLocations": [],
+      "publishedAt": "2026-09-02T08:54:20.093+00:00",
+      "isListed": true,
+      "isRemote": true,
+      "workplaceType": "Remote",
+      "address": {
+        "postalAddress": {
+          "addressRegion": "Mexico City",
+          "addressCountry": "Mexico",
+          "addressLocality": "Mexico City"
+        }
+      },
+      "applyUrl": "https://jobs.ashbyhq.com/belvo/94f3c1a6-e826-4151-a815-ea0269143731/application",
+      "descriptionHtml": "<p style=\"min-height:1.5em\"> <strong>A little bit about us:</strong></p><p style=\"min-height:1.5em\"></p><p style=\"min-height:1.5em\">We are Belvo, an open finance API platform with the bold vision of d",
+      "descriptionPlain": " A little bit about us:\n\n\n\nWe are Belvo, an open finance API platform with the bold vision of democratizing access to financial services in Latin America. We enable any financial innovator to access a",
+      "compensation": {
+        "compensationTierSummary": null,
+        "scrapeableCompensationSalarySummary": null,
+        "compensationTiers": [],
+        "summaryComponents": []
+      },
+      "name": "Senior Product Manager",
+      "url": "https://jobs.ashbyhq.com/belvo/94f3c1a6-e826-4151-a815-ea0269143731"
+    }
+  ],
+  "apiVersion": "1"
+}
