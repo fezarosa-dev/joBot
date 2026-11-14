@@ -1,0 +1,110 @@
+"""Agenda da fase 1 (desenho 12.1 a 12.3).
+
+`o_que_roda` decide, pela hora de parede e pelas últimas execuções completas gravadas,
+o que está vencido; `laco` acorda a cada 60 s e dispara cada tipo vencido numa tarefa
+asyncio própria, com um `asyncio.Lock` por tipo: descoberta e páginas nunca seguram a
+busca, e o mesmo tipo não roda duas vezes ao mesmo tempo no processo.
+"""
+
+import asyncio
+import logging
+from collections.abc import Awaitable, Callable, Mapping
+from datetime import datetime, timedelta
+from typing import Protocol
+
+from jobot.banco.execucoes import Tipo
+from jobot.nucleo.relogio import Relogio
+
+_LOG = logging.getLogger(__name__)
+
+INTERVALOS: Mapping[Tipo, timedelta] = {
+    "busca": timedelta(hours=3),  # do início da última completa (DR-61)
+    "descoberta": timedelta(days=7),
+    "paginas": timedelta(hours=24),
+}
+ESPERA_AO_INICIAR = timedelta(seconds=60)  # dá tempo da rede subir (DR-35)
+VOLTA_S = 60
+
+
+class Estado(Protocol):
+    """O que o laço lê a cada volta (do banco, na T48)."""
+
+    def ultimas(self) -> Mapping[Tipo, datetime | None]:
+        """Início da última execução completa de cada tipo; ausente ou `None` = nunca."""
+        ...
+
+    def interruptores(self) -> Mapping[str, bool]:
+        """Chave por tipo (`"descoberta"`, `"paginas"`); ausente = ligada."""
+        ...
+
+
+def _vencida(agora: datetime, ultima: datetime | None, intervalo: timedelta) -> bool:
+    # ultima no futuro (relógio voltou) conta como vencida, senão trava para sempre (RF4)
+    return ultima is None or ultima > agora or agora - ultima >= intervalo
+
+
+def o_que_roda(
+    agora: datetime,
+    ultima_busca: datetime | None,
+    ultima_descoberta: datetime | None,
+    ultima_paginas: datetime | None,
+    iniciou_em: datetime,
+    interruptores: Mapping[str, bool],
+) -> list[Tipo]:
+    """Tipos vencidos e ligados, na ordem busca, descoberta, páginas.
+
+    Nos primeiros 60 s depois de o app iniciar nada roda: a execução perdida sai 60 s
+    depois. Se o relógio voltou para antes de `iniciou_em`, essa espera não vale.
+    """
+    if timedelta(0) <= agora - iniciou_em < ESPERA_AO_INICIAR:
+        return []
+    ultimas: dict[Tipo, datetime | None] = {
+        "busca": ultima_busca,
+        "descoberta": ultima_descoberta,
+        "paginas": ultima_paginas,
+    }
+    return [
+        tipo
+        for tipo, ultima in ultimas.items()
+        if interruptores.get(tipo, True) and _vencida(agora, ultima, INTERVALOS[tipo])
+    ]
+
+
+async def _rodar(tipo: str, trava: asyncio.Lock, tarefa: Callable[[], Awaitable[None]]) -> None:
+    try:
+        await tarefa()
+    except Exception:
+        _LOG.exception("execução %s falhou", tipo)  # o laço segue; a próxima volta tenta de novo
+    finally:
+        trava.release()
+
+
+async def laco(
+    tarefas: Mapping[str, Callable[[], Awaitable[None]]], estado: Estado, relogio: Relogio
+) -> None:
+    """Acorda a cada 60 s e dispara o que venceu; cancelar o laço cancela o que roda."""
+    iniciou_em = relogio.agora()
+    travas = {tipo: asyncio.Lock() for tipo in tarefas}
+    async with asyncio.TaskGroup() as grupo:
+        while True:
+            try:
+                ultimas = estado.ultimas()
+                vencidos = o_que_roda(
+                    relogio.agora(),
+                    ultimas.get("busca"),
+                    ultimas.get("descoberta"),
+                    ultimas.get("paginas"),
+                    iniciou_em,
+                    estado.interruptores(),
+                )
+            except Exception:
+                # ex.: banco travado; cair aqui cancelaria as tarefas e pararia a agenda
+                _LOG.exception("leitura do estado da agenda falhou")
+                vencidos = []
+            for tipo in vencidos:
+                trava = travas.get(tipo)
+                if trava is None or trava.locked():
+                    continue
+                await trava.acquire()  # livre: não suspende, então a checagem acima vale
+                grupo.create_task(_rodar(tipo, trava, tarefas[tipo]))
+            await relogio.dormir(VOLTA_S)
