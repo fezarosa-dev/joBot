@@ -1,0 +1,12 @@
+{
+  "url": "https://weworkremotely.com/categories/remote-devops-sysadmin-jobs.rss",
+  "data": "2026-11-14T06:27:04.861701+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/rss+xml; charset=utf-8",
+    "ETag": "W/\"230da08a9a4e2c16faa2f08e11f1923b\""
+  },
+  "sha256": "6306173cdc35f0116bb992a4690953dca9016ecd199e44784a8f0ea381139088",
+  "versao": "0.1.0",
+  "metodo": "GET"
+}
