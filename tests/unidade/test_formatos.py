@@ -186,3 +186,19 @@ def test_sem_salario_ou_implausivel_nao_mostra_valor(campos: dict[str, Any]) -> 
 )
 def test_locais(locais: tuple[Local, ...], esperado: str) -> None:
     assert formatos.locais_texto(locais) == esperado
+
+
+@pytest.mark.parametrize(
+    ("paises", "idioma", "esperado"),
+    [
+        (("BR", "PT"), "pt", "Brasil e Portugal"),
+        (("BR", "PT"), "en", "Brazil and Portugal"),
+        (("BR", "PT", "ES", "US"), "en", "Brazil, Portugal, Spain +1"),
+        (("XX",), "pt", "XX"),
+        (("BR", "BR", "PT"), "pt", "Brasil e Portugal"),
+        (("PT", "BR", "ES"), "pt", "Portugal, Brasil e Espanha"),
+        ((), "pt", ""),
+    ],
+)
+def test_paises_texto(paises: tuple[str, ...], idioma: str, esperado: str) -> None:
+    assert formatos.paises_texto([Local(pais=p) for p in paises], idioma) == esperado

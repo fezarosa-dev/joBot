@@ -42,6 +42,7 @@
   "aviso.exige_visto": "Exige visto de trabalho",
   "aviso.exige_doutorado": "Exige doutorado",
   "aviso.restrito_a_pais": "Restrita a moradores de um país",
+  "aviso.restrito_a_pais_lista": "Só para quem mora em: {paises}",
   "fonte.github_issues": "GitHub Issues",
   "fonte.remotive": "Remotive",
   "fonte.remoteok": "RemoteOK",
