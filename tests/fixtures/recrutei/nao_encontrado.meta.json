@@ -1,0 +1,13 @@
+{
+  "url": "https://api.recrutei.com.br/api/v2/vacancies/per-departments/nao-existe",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 404,
+  "cabecalhos": {
+    "Content-Type": "application/json"
+  },
+  "sha256": "8c851b8d5834848da52d9a7ea426691bd1de7768f5d279beb3d1881f0359dcda",
+  "versao": "0.1.0",
+  "metodo": "POST",
+  "corpo": {},
+  "montado_a_mao": "tests/fixtures/recrutei/normal.json (resposta real reduzida): montado à mão: o 404 e o corpo são suposição (a conferência não testou um label inexistente)"
+}

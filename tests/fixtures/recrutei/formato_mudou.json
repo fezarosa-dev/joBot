@@ -1,0 +1,177 @@
+{
+  "message": "Ação realizada com sucesso!",
+  "data": {
+    "total": 7,
+    "departments": 2,
+    "vacancies": [
+      {
+        "department": "Tecnologia da Informação",
+        "total": 5,
+        "items": [
+          {
+            "id": 52155,
+            "title": "Banco de Talentos",
+            "pcd": false,
+            "remote": 3,
+            "show_remuneration": 0,
+            "show_regime": 0,
+            "show_client": 0,
+            "commission": null,
+            "regime": "Não informado",
+            "is_inclusive": 0,
+            "department": "Tecnologia da Informação",
+            "company_name": "UCM Business Solutions",
+            "salary": "A combinar",
+            "location": [
+              "São Bernardo do Campo",
+              "SP",
+              "Brasil"
+            ],
+            "public_link": "https://jobs.recrutei.com.br/ucm-business-solutions/vacancy/52155-banco-de-talentos",
+            "slug": "banco-de-talentos",
+            "client": null
+          },
+          {
+            "id": 143244,
+            "pcd": false,
+            "remote": 3,
+            "show_remuneration": 0,
+            "show_regime": 0,
+            "show_client": 0,
+            "commission": null,
+            "regime": "Não informado",
+            "is_inclusive": 0,
+            "department": "Tecnologia da Informação",
+            "company_name": "UCM Business Solutions",
+            "salary": "A combinar",
+            "location": [
+              "São Paulo",
+              "SP",
+              "Brasil"
+            ],
+            "public_link": "https://jobs.recrutei.com.br/ucm-business-solutions/vacancy/143244-lider-de-master-data-process-transformation",
+            "slug": "lider-de-master-data-process-transformation",
+            "client": null
+          },
+          {
+            "id": 160532,
+            "title": "Manufacturing IT Project Coordinator (MES)",
+            "pcd": false,
+            "remote": 0,
+            "show_remuneration": 0,
+            "show_regime": 1,
+            "show_client": 0,
+            "commission": null,
+            "regime": "PJ ou Cooperado/Associado",
+            "is_inclusive": 0,
+            "department": "Tecnologia da Informação",
+            "company_name": null,
+            "salary": "A combinar",
+            "location": [
+              "São Paulo",
+              "SP",
+              "Brasil"
+            ],
+            "public_link": "https://jobs.recrutei.com.br/ucm-business-solutions/vacancy/160532-manufacturing-it-project-coordinator-mes",
+            "slug": "manufacturing-it-project-coordinator-mes",
+            "client": null
+          },
+          {
+            "id": 163703,
+            "title": "Analista Sênior de Master Data (SAP)",
+            "pcd": false,
+            "remote": 3,
+            "show_remuneration": 0,
+            "show_regime": 0,
+            "show_client": 0,
+            "commission": null,
+            "regime": "Não informado",
+            "is_inclusive": 0,
+            "department": "Tecnologia da Informação",
+            "company_name": "UCM Business Solutions",
+            "salary": "A combinar",
+            "location": [
+              "São Paulo",
+              "SP",
+              "Brasil"
+            ],
+            "public_link": "https://jobs.recrutei.com.br/ucm-business-solutions/vacancy/163703-analista-senior-de-master-data-sap",
+            "slug": "analista-senior-de-master-data-sap",
+            "client": null
+          },
+          {
+            "id": 165514,
+            "title": "Change Management Consultant",
+            "pcd": false,
+            "remote": 3,
+            "show_remuneration": 0,
+            "show_regime": 0,
+            "show_client": 0,
+            "commission": null,
+            "regime": "Não informado",
+            "is_inclusive": 0,
+            "department": "Tecnologia da Informação",
+            "company_name": "UCM Business Solutions",
+            "salary": "A combinar",
+            "location": [
+              "São Paulo",
+              "SP",
+              "Brasil"
+            ],
+            "public_link": "https://jobs.recrutei.com.br/ucm-business-solutions/vacancy/165514-change-management-consultant",
+            "slug": "change-management-consultant",
+            "client": null
+          }
+        ]
+      },
+      {
+        "department": "Operacional",
+        "total": 2,
+        "items": [
+          {
+            "id": 161801,
+            "title": "Especialista em Qualidade de Produto (Inovação)",
+            "pcd": false,
+            "remote": 3,
+            "show_remuneration": 0,
+            "show_regime": 0,
+            "show_client": 0,
+            "commission": null,
+            "regime": "Não informado",
+            "is_inclusive": 0,
+            "department": "Operacional",
+            "company_name": "UCM Business Solutions",
+            "salary": "A combinar",
+            "location": "Não informado",
+            "public_link": "https://jobs.recrutei.com.br/ucm-business-solutions/vacancy/161801-especialista-em-qualidade-de-produto-inovacao",
+            "slug": "especialista-em-qualidade-de-produto-inovacao",
+            "client": null
+          },
+          {
+            "id": 164508,
+            "title": "Engenheiro de Performance Industrial",
+            "pcd": false,
+            "remote": 0,
+            "show_remuneration": 0,
+            "show_regime": 1,
+            "show_client": 0,
+            "commission": null,
+            "regime": "CLT ou PJ",
+            "is_inclusive": 0,
+            "department": "Operacional",
+            "company_name": "UCM Business Solutions",
+            "salary": "A combinar",
+            "location": [
+              "Sorocaba",
+              "SP",
+              "Brasil"
+            ],
+            "public_link": "https://jobs.recrutei.com.br/ucm-business-solutions/vacancy/164508-engenheiro-de-performance-industrial",
+            "slug": "engenheiro-de-performance-industrial",
+            "client": null
+          }
+        ]
+      }
+    ]
+  }
+}
