@@ -185,7 +185,7 @@ class Solides:
                 try:
                     resposta = await http.pedir("GET", _API.format(slug=escopo), params=params)
                 except ErroDeRede as erro:
-                    if erro.status == 404:
+                    if erro.status == 404 and pagina == 1:  # depois, as páginas lidas ficam
                         raise _NaoEncontrado from erro
                     raise
                 try:

@@ -291,7 +291,10 @@ async def test_tipo_de_contratacao_pelo_id(tipo: object, contrato: str | None) -
         (None, None),
         ("cinco", None),
         (True, None),
+        (2.0, date(2026, 11, 15)),  # a fonte às vezes manda o inteiro como float
         (2.5, None),
+        (float("inf"), None),
+        (1e300, None),  # inteiro como float, mas estoura a data
         (10**9, None),  # estoura a data
         (10**400, None),  # estoura o int do C
         ("9" * 400, None),

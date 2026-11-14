@@ -98,15 +98,15 @@ def _campo(celula: LexborNode, classe: str, rotulo: str) -> str:
     return _sem_rotulo(no.text(strip=True), rotulo) if no is not None else ""
 
 
-def _lista_if(texto: str) -> tuple[list[_Linha], int]:
-    """As vagas legíveis da lista do IF e quantas células foram puladas."""
+def _lista_if(texto: str) -> tuple[list[_Linha], int, bool]:
+    """As vagas legíveis da lista do IF, as células puladas e se há pager que não se segue."""
     arvore = _arvore(texto)
     # shortcut: `view-empty` e `view-content` vêm do Drupal 7, mas a lista vazia não foi vista
     # ao vivo; se a página vazia real for outra, vira "falhou" até o marcador ser corrigido.
     if arvore.css_first("div.view-content") is None:
         if arvore.css_first("div.view-empty") is None:
             raise _FormatoMudou
-        return [], 0
+        return [], 0, False
     linhas: dict[str, _Linha] = {}
     pulados = 0
     for celula in arvore.css("div.view-content td"):
@@ -139,7 +139,10 @@ def _lista_if(texto: str) -> tuple[list[_Linha], int]:
         )
     if not linhas:
         raise _FormatoMudou
-    return list(linhas.values()), pulados
+    # shortcut: o pager do Drupal (`ul.pager` com link) não é seguido; a lista sai parcial.
+    # A lista tem 7 itens hoje; seguir as páginas quando passar de uma.
+    pager = arvore.css_first("ul.pager li a[href]") is not None
+    return list(linhas.values()), pulados, pager
 
 
 def _detalhe_if(texto: str) -> tuple[str, datetime | None, date | None] | None:
@@ -166,7 +169,7 @@ def _detalhe_if(texto: str) -> tuple[str, datetime | None, date | None] | None:
     return (descricao.inner_html or "").strip(), postada, prazo
 
 
-def _lista_fea(texto: str) -> tuple[list[_Linha], int]:
+def _lista_fea(texto: str) -> tuple[list[_Linha], int, bool]:
     arvore = _arvore(texto)
     if not any("Mural de Vagas" in h.text() for h in arvore.css("h2")):
         raise _FormatoMudou
@@ -205,7 +208,7 @@ def _lista_fea(texto: str) -> tuple[list[_Linha], int]:
         )
     if arvore.css_first("tbody tr") is not None and not linhas:
         raise _FormatoMudou  # linhas que ninguém lê: o formato mudou, não é lista vazia
-    return list(linhas.values()), pulados
+    return list(linhas.values()), pulados, False
 
 
 def _campos_fea(texto: str) -> dict[str, str]:
@@ -220,6 +223,8 @@ def _campos_fea(texto: str) -> dict[str, str]:
                 campos[rotulo] = "".join(partes).strip()
             rotulo, partes = no.text(strip=True).rstrip(":").strip().casefold(), []
         elif no.tag == "-text":
+            partes.append(no.text())
+        elif not (no.tag or "-").startswith("-"):  # <a>, <i>: o texto de dentro também conta
             partes.append(no.text())
     if rotulo is not None:
         campos[rotulo] = "".join(partes).strip()
@@ -266,11 +271,12 @@ class USP:
         # shortcut: a FEA lê só a página inicial (`/vagas` dá 403) e a lista dela é curta; se
         # passar a paginar, a página inicial deixa de bastar (apêndice 3.2).
         lista, ler_detalhe = (URL_IF, _lista_if) if escopo == "if" else (URL_FEA, _lista_fea)
-        estado = {"formato": False, "rede": False}
+        estado = {"formato": False, "rede": False, "pager": False}
 
         async def paginas() -> AsyncIterator[Sequence[Item]]:
-            linhas, pulados = ler_detalhe((await http.pedir("GET", lista)).texto)
+            linhas, pulados, pager = ler_detalhe((await http.pedir("GET", lista)).texto)
             estado["formato"] = bool(pulados)
+            estado["pager"] = pager
             vagas: list[Item] = []
             parar: Exception | None = None
             for linha in linhas:
@@ -295,11 +301,17 @@ class USP:
         except _FormatoMudou:
             pedidos: int = getattr(http, "pedidos", 0)
             return ResultadoEscopo((), "falhou", "saude.formato_mudou", pedidos)
-        if resultado.estado != "ok" or not (estado["formato"] or estado["rede"]):
+        if resultado.estado != "ok" or not any(estado.values()):
             return resultado
         # shortcut: a contagem de itens pulados não vai no motivo (não há chave `saude.*` com
         # `n`; D45). Trocar quando a chave existir.
-        motivo = "saude.formato_mudou" if estado["formato"] else "saude.erro_de_rede"
+        motivo = (
+            "saude.formato_mudou"
+            if estado["formato"]
+            else "saude.listagem_incompleta"
+            if estado["pager"]
+            else "saude.erro_de_rede"
+        )
         return ResultadoEscopo(resultado.vagas, "parcial", motivo, resultado.pedidos)
 
     async def detalhar(self, item: Item, http: HttpEducado) -> VagaColetada | None:
