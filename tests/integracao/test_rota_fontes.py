@@ -369,6 +369,132 @@ def test_escopos_de_fonte_ligada_de_novo_nao_levam_o_selo_desligada(painel: Pain
     assert "selo-desligada" not in cartao
 
 
+def test_sem_mudanca_mostra_a_ultima_contagem_real_do_cartao_e_do_escopo(painel: Painel) -> None:
+    painel.execucao(
+        AGORA - timedelta(hours=9),
+        ("greenhouse", "acme", "ok", None, {"vagas": 789, "pedidos": 3, "duracao_ms": 2000}),
+    )
+    painel.execucao(
+        AGORA - timedelta(hours=1),
+        ("greenhouse", "acme", "sem_mudanca", None, {"vagas": 0, "pedidos": 1}),
+    )
+    cartao = painel.cartao("greenhouse")
+    texto = _texto(cartao)
+    assert "Sem mudança" in texto
+    assert "Última busca 13/11 11:00 Vagas 789" in texto
+    escopo = _texto(re.findall(r'<li class="escopo"[^>]*>(.*?)</li>', cartao, re.S)[0])
+    assert "Sem mudança" in escopo
+    assert "Vagas: 789" in escopo
+
+
+def test_sem_mudanca_depois_de_sem_mudanca_mantem_a_contagem_da_rodada_que_leu(
+    painel: Painel,
+) -> None:
+    painel.execucao(
+        AGORA - timedelta(hours=9),
+        ("ashby", "acme", "ok", None, {"vagas": 40, "pedidos": 2}),
+        ("ashby", "beta", "ok", None, {"vagas": 5, "pedidos": 1}),
+    )
+    for n in (5, 1):
+        painel.execucao(
+            AGORA - timedelta(hours=n),
+            ("ashby", "acme", "sem_mudanca", None, {"vagas": 0, "pedidos": 1}),
+            ("ashby", "beta", "sem_mudanca", None, {"vagas": 0, "pedidos": 1}),
+        )
+    texto = _texto(painel.cartao("ashby"))
+    assert "Sem mudança" in texto
+    assert "Vagas 45" in texto
+
+
+def test_regressao_pode_rodar_de_novo_vencido_some_do_cartao(painel: Painel) -> None:
+    # remotive: 360 min; último pedido às 09:00 libera às 15:00, e o relógio já passou disso
+    painel.execucao(AGORA - timedelta(hours=3), ("remotive", "", "ok", None, {"pedidos": 1}))
+    painel.execucao(
+        AGORA - timedelta(hours=1), ("remotive", "", "no_limite", "saude.intervalo", {})
+    )
+    painel.app.state.relogio = RelogioFalso(AGORA + timedelta(hours=4))
+    assert "pode rodar" not in _texto(painel.cartao("remotive"))
+
+
+def test_regressao_escopo_com_pode_rodar_vencido_nao_mostra_e_com_futuro_mostra(
+    painel: Painel,
+) -> None:
+    # Microsoft: 1440 min; o último pedido às 16:00 do dia 12 libera às 16:00 do dia 13
+    painel.execucao(
+        AGORA - timedelta(hours=20),
+        ("eightfold", MICROSOFT, "ok", None, {"vagas": 9, "pedidos": 3}),
+    )
+    painel.execucao(
+        AGORA - timedelta(hours=1), ("eightfold", MICROSOFT, "no_limite", "saude.intervalo", {})
+    )
+    assert "pode rodar de novo em 13/11 16:00" in _texto(painel.cartao("eightfold"))
+    painel.app.state.relogio = RelogioFalso(AGORA + timedelta(hours=5))
+    assert "pode rodar" not in _texto(painel.cartao("eightfold"))
+
+
+def test_regressao_proxima_da_fonte_com_intervalo_proprio_nao_vem_antes_do_pode_rodar(
+    painel: Painel,
+) -> None:
+    # busca de hoje às 11:30 (agenda 14:30); remotive tem 360 min e o pedido de 09:00 libera 15:00
+    painel.execucao(AGORA - timedelta(hours=3), ("remotive", "", "ok", None, {"pedidos": 1}))
+    painel.execucao(
+        AGORA - timedelta(minutes=30), ("remotive", "", "no_limite", "saude.intervalo", {})
+    )
+    texto = _texto(painel.cartao("remotive"))
+    assert "pode rodar de novo em 13/11 15:00" in texto
+    assert "Próxima execução 13/11 15:00" in texto
+
+
+def test_proxima_execucao_de_fonte_toda_no_limite_nao_vem_antes_do_pode_rodar(
+    painel: Painel,
+) -> None:
+    # Microsoft: 1440 min; o último pedido às 16:00 do dia 12 libera às 16:00 do dia 13; a
+    # agenda (busca de 11:00 + 3 h) cairia às 14:00, antes disso
+    painel.execucao(
+        AGORA - timedelta(hours=20),
+        ("eightfold", MICROSOFT, "ok", None, {"vagas": 9, "pedidos": 3}),
+    )
+    painel.execucao(
+        AGORA - timedelta(hours=1), ("eightfold", MICROSOFT, "no_limite", "saude.intervalo", {})
+    )
+    texto = _texto(painel.cartao("eightfold"))
+    assert "pode rodar de novo em 13/11 16:00" in texto
+    assert "Próxima execução 13/11 16:00" in texto
+
+
+def _eightfold_microsoft_no_limite(painel: Painel, outra: str | None) -> None:
+    # Microsoft: 1440 min; o último pedido às 16:00 do dia 12 libera às 16:00 do dia 13
+    painel.execucao(
+        AGORA - timedelta(hours=20),
+        ("eightfold", MICROSOFT, "ok", None, {"vagas": 9, "pedidos": 3}),
+    )
+    linhas: list[tuple[str, str, str, str | None, dict[str, Any]]] = [
+        ("eightfold", MICROSOFT, "no_limite", "saude.intervalo", {})
+    ]
+    if outra:
+        linhas.append(("eightfold", outra, "ok", None, {"vagas": 5, "pedidos": 1}))
+    painel.execucao(AGORA - timedelta(hours=1), *linhas)
+    # agenda (busca das 11:00 + 3 h) vencida às 15:00, e o escopo só libera às 16:00
+    painel.app.state.relogio = RelogioFalso(AGORA + timedelta(hours=3))
+
+
+def test_fonte_de_escopos_mistos_com_agenda_vencida_e_escopo_no_limite_abre(
+    painel: Painel,
+) -> None:
+    _eightfold_microsoft_no_limite(painel, "outra.example")
+    resposta = painel.get()
+    assert resposta.status_code == 200
+    assert "pode rodar de novo em 13/11 16:00" in _texto(painel.cartao("eightfold"))
+
+
+def test_fonte_desligada_com_escopo_no_limite_abre_sem_proxima(painel: Painel) -> None:
+    _eightfold_microsoft_no_limite(painel, None)
+    painel.sql("UPDATE fonte SET ligada = 0 WHERE chave = 'eightfold'")
+    resposta = painel.get()
+    assert resposta.status_code == 200
+    assert "Próxima execução" not in _texto(painel.cartao("eightfold"))
+
+
 def test_nunca_rodou_tem_texto_para_leitor_de_tela(painel: Painel) -> None:
     painel.execucao(
         AGORA - timedelta(minutes=30), ("remotive", "", "no_limite", "saude.intervalo", {})
