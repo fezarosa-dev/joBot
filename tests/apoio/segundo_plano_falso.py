@@ -1,7 +1,8 @@
 """Sistema falso do segundo plano: nenhum teste de tela chama systemctl nem distrobox de verdade.
 
 `FalsoSistema` é o executor de comandos (`Rodar`) injetado no painel. Ele só anota o que foi
-pedido e responde como um systemd e um distrobox-host-exec saudáveis, salvo o que o teste muda.
+pedido e responde como um systemd e um distrobox-host-exec saudáveis,
+salvo o que o teste muda. O estado de habilitado acompanha `enable` e `disable`.
 """
 
 from collections.abc import Sequence
@@ -13,6 +14,7 @@ class FalsoSistema:
     def __init__(self, home: str = "") -> None:
         self.home = home  # o $HOME que o host responde (só dentro da distrobox)
         self.tem_enter = True  # `command -v distrobox-enter` acha o programa
+        self.habilitado = True  # o serviço está habilitado: enable liga, disable desliga
         self.systemd_ok = True  # `systemctl --user show-environment` responde
         self.falha_em: dict[str, Resultado] = {}  # primeiro argumento do systemctl -> resposta
         self.chamadas: list[tuple[str, ...]] = []
@@ -32,7 +34,15 @@ class FalsoSistema:
         acao = resto[2]
         if acao == "show-environment":
             return Resultado(0 if self.systemd_ok else 1)
-        return self.falha_em.get(acao, Resultado(0))
+        if acao in self.falha_em:
+            return self.falha_em[acao]
+        if acao == "enable":
+            self.habilitado = True
+        elif acao == "disable":
+            self.habilitado = False
+        elif acao == "is-enabled":
+            return Resultado(0 if self.habilitado else 1)
+        return Resultado(0)
 
     def systemctl(self) -> list[tuple[str, ...]]:
         """Os argumentos de cada `systemctl --user` pedido, sem o prefixo do host."""
