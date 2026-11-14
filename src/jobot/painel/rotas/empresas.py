@@ -37,11 +37,11 @@ from jobot.nucleo.http import (
     OrcamentoGasto,
     Parou429,
     RespostaGrande,
-    Validadores,
 )
 from jobot.nucleo.modelo import Empresa
-from jobot.nucleo.relogio import Relogio, RelogioReal
+from jobot.painel.rotas.vagas import relogio_do_painel
 from jobot.painel.seguranca import Con, renderizar
+from jobot.painel.sem_validadores import SemValidadores
 
 router = APIRouter(prefix="/empresas")
 registro = logging.getLogger(__name__)
@@ -102,24 +102,12 @@ class _Erro(Exception):
         self.params = params
 
 
-class _SemValidadores:
-    """Teste e cadastro não usam pedido condicional: não há validador guardado."""
-
-    def ler(self, url: str) -> Validadores | None:
-        return None
-
-
-def _relogio(request: Request) -> Relogio:
-    relogio: Relogio = getattr(request.app.state, "relogio", None) or RelogioReal()
-    return relogio
-
-
 @asynccontextmanager
 async def _cliente(request: Request) -> AsyncIterator[ClienteEducado]:
     cliente = ClienteEducado(
         getattr(request.app.state, "transporte", None),
-        _relogio(request),
-        _SemValidadores(),
+        relogio_do_painel(request),
+        SemValidadores(),
         __version__,
     )
     try:
@@ -336,7 +324,7 @@ async def desligar(con: Con, empresa_id: EmpresaId) -> Response:
 async def remover(request: Request, con: Con, empresa_id: EmpresaId) -> Response:
     _achar(con, empresa_id)
     try:
-        remover_empresa(con, empresa_id, _relogio(request).agora())
+        remover_empresa(con, empresa_id, relogio_do_painel(request).agora())
     except LookupError as erro:
         raise HTTPException(404) from erro
     return RedirectResponse("/empresas", status_code=303)
