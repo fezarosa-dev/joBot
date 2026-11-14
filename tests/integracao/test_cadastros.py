@@ -194,12 +194,27 @@ def test_semear_nao_sobrescreve_o_que_a_pessoa_mudou(con: sqlite3.Connection) ->
     con.execute("UPDATE empresa SET nome = 'Meu C6', area = 'minha' WHERE id = ?", (c6,))
     con.commit()
     semear(con)
-    assert [f.chave for f in fontes(con) if not f.ligada] == ["remotive"]
+    assert sorted(f.chave for f in fontes(con) if not f.ligada) == ["eureca", "remotive"]
     assert _linha(con, "greenhouse", "c6bank") == (c6, 0, 0)
     assert con.execute("SELECT nome, area FROM empresa WHERE id = ?", (c6,)).fetchone() == (
         "Meu C6",
         "minha",
     )
+
+
+def test_semear_fontes_eureca_nasce_desligada(con: sqlite3.Connection) -> None:
+    semear(con)
+    assert [f.chave for f in fontes(con) if not f.ligada] == ["eureca"]
+    assert len([f for f in fontes(con) if f.ligada]) == 27
+
+
+def test_semear_fontes_mantem_escolha_de_quem_ja_tem_linha(con: sqlite3.Connection) -> None:
+    semear(con)
+    assert [f.chave for f in fontes(con) if not f.ligada] == ["eureca"]
+    ligar_fonte(con, "eureca", True)
+    ligar_fonte(con, "remotive", False)
+    semear(con)
+    assert [f.chave for f in fontes(con) if not f.ligada] == ["remotive"]
 
 
 def test_semear_acrescenta_so_o_que_falta(con: sqlite3.Connection) -> None:
@@ -231,10 +246,11 @@ def test_intervalo_min_copiado_para_fonte(con: sqlite3.Connection) -> None:
 
 def test_ligar_e_desligar_fonte(con: sqlite3.Connection) -> None:
     semear(con)
-    assert all(f.ligada for f in fontes(con))
+    assert [f.chave for f in fontes(con) if not f.ligada] == ["eureca"]
     ligar_fonte(con, "wwr", False)
-    assert [f.chave for f in fontes(con) if not f.ligada] == ["wwr"]
+    assert sorted(f.chave for f in fontes(con) if not f.ligada) == ["eureca", "wwr"]
     ligar_fonte(con, "wwr", True)
+    ligar_fonte(con, "eureca", True)
     assert all(f.ligada for f in fontes(con))
 
 

@@ -49,7 +49,7 @@ from jobot.nucleo.coletores.base import (
     UrlListada,
 )
 from jobot.nucleo.coletores.descoberta_cc import Sugestao
-from jobot.nucleo.coletores.registro import descobrir
+from jobot.nucleo.coletores.registro import descobrir, limites
 from jobot.nucleo.http import ClienteEducado, HttpEducado, Validadores
 from jobot.nucleo.modelo import Busca, VagaColetada
 from jobot.nucleo.url import canonica, hash_url
@@ -118,11 +118,13 @@ def test_toda_fonte_tem_coletor_interruptor_e_saude(dados: Path) -> None:
     for chave, fonte in cadastradas.items():
         if chave not in coletores or coletores[chave].chave != chave:
             problemas.append(f"{chave}: sem coletor")
-        if not fonte.ligada:
-            problemas.append(f"{chave}: nasce desligada")
-        if f'name="fonte" value="{chave}" checked' not in config:
+        if fonte.ligada != limites(chave).ligada_padrao:
+            problemas.append(f"{chave}: nasce diferente do `ligada_padrao`")
+        marca = f'name="fonte" value="{chave}"'
+        if marca not in config or ((marca + " checked") in config) != fonte.ligada:
             problemas.append(f"{chave}: sem interruptor em Configurações")
-        if f'action="/fontes/{chave}/desligar"' not in saude:
+        acao = "desligar" if fonte.ligada else "ligar"
+        if f'action="/fontes/{chave}/{acao}"' not in saude:
             problemas.append(f"{chave}: sem interruptor na saúde")
         if f'id="fonte-{chave}"' not in saude:
             problemas.append(f"{chave}: sem linha na saúde")
