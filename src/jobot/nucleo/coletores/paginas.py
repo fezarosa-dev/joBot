@@ -4,7 +4,6 @@ Não é coletor de vagas (não tem `COLETOR`, o registro passa por cima). O text
 de terceiro, nunca instrução: vira texto puro por `para_texto` (14.3) antes de qualquer uso.
 """
 
-import asyncio
 import difflib
 import hashlib
 from dataclasses import dataclass
@@ -12,7 +11,7 @@ from datetime import datetime
 
 import httpx
 
-from jobot.nucleo.http import ErroDeRede, HttpEducado, Resolvedor, host_local
+from jobot.nucleo.http import HttpEducado, Resolvedor, conferir_dns, host_local
 from jobot.nucleo.texto import para_texto
 
 # Sufixos de rede de casa ou de empresa que nunca são página pública (DR-19).
@@ -62,23 +61,6 @@ def endereco_permitido(url: str) -> bool:
     return not (host_local(host) or _nome_local(host))
 
 
-async def _resolver_padrao(host: str) -> list[str]:
-    infos = await asyncio.get_running_loop().getaddrinfo(host, None)
-    return [str(info[4][0]) for info in infos]
-
-
-async def _conferir_dns(host: str, resolver: Resolvedor) -> None:
-    """Nome que resolve para algum IP local é recusado antes do pedido (como o salto, decisão 15).
-
-    Fica aceito o rebinding entre esta conferência e a conexão, como no `ClienteEducado`."""
-    try:
-        enderecos = await resolver(host)
-    except (OSError, UnicodeError) as erro:
-        raise ErroDeRede(f"não resolveu {host}: {erro}") from erro
-    if not enderecos or any(host_local(e) for e in enderecos):
-        raise ErroDeRede(f"{host} resolve para host local")
-
-
 def _hash(texto: str) -> str:
     return hashlib.sha256(texto.encode()).hexdigest()
 
@@ -93,8 +75,9 @@ async def verificar(
     """
     if not endereco_permitido(pagina.url):
         raise ValueError(f"endereço não permitido: {pagina.url!r}")
-    # IP literal também passa: o resolvedor o devolve igual, e não há parser próprio de IP aqui
-    await _conferir_dns(httpx.URL(pagina.url).host, resolver or _resolver_padrao)
+    # nome que resolve para IP local é recusado antes do pedido; IP literal também passa por aqui:
+    # o resolvedor o devolve igual, e não há parser próprio de IP neste módulo
+    await conferir_dns(httpx.URL(pagina.url).host, resolver)
     resposta = await http.pedir("GET", pagina.url)
     # shortcut: lê tudo como HTML; página em PDF ou outro binário vira texto sem sentido (ainda
     # comparável). Ler o Content-Type se a tela de sites mostrar o texto.
