@@ -7,7 +7,11 @@ from jobot.nucleo.modelo import RequisitosEstagio
 # e sem diferenciar maiúscula. Só pt e en; numeral por extenso ("quinto semestre") não é lido.
 _F = re.IGNORECASE
 _ORD = r"[ºo°ª]"
-_FIM = r"(?=\s*(?:[,.;:()/\n]|$)|\s+(?:a partir|ou|e|com|from|with|and|or|at|who)\b)"
+# "e" seguido de maiúscula (no original) continua o curso: "Letras e Pedagogia"
+_FIM = (
+    r"(?=\s*(?:[,.;:()/\n]|$)"
+    r"|\s+(?:a partir|ou|com|from|with|and|or|at|who|e(?!\s+(?-i:[A-Z])))\b)"
+)
 _CURSO = (
     r"(?:cursando|estudante\s+de|graduando\s+em|matriculad[oa]s?\s+em|enrolled\s+in|majoring\s+in"
     r"|studying|pursuing\s+(?:an?\s+)?(?:(?:bachelor|undergraduate|degree)\S*\s+)*(?:in|of))\s+"
@@ -65,8 +69,11 @@ def _dobrar(s: str) -> str:
 def ler_requisitos(texto: str) -> RequisitosEstagio | None:
     """Curso, semestre ou ano mínimo, formatura, carga horária e bolsa; None se não achar nenhum.
 
-    Limites: o curso lido é só o primeiro ("Letras e Pedagogia" dá "Letras") e o ano mínimo
-    pode casar fora de contexto de curso ("1º ano de contrato").
+    Limites: o curso composto só vale com maiúscula depois do "e" ("Letras e Pedagogia"; "letras e
+    pedagogia" dá "letras") e em pt (em inglês, "and" encerra o curso). Todo "e" + maiúscula
+    continua o curso até o fim da frase (falso positivo: "cursando Direito e Estágio remunerado"
+    dá "Direito e Estágio remunerado"; a T78 decide com o gabarito se limita o tamanho). O ano
+    mínimo pode casar fora de contexto de curso ("1º ano de contrato").
     """
     texto = unicodedata.normalize("NFC", texto)  # "e" + acento solto vira "é" (1 caractere)
     dobrado = _dobrar(texto)

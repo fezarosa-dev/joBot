@@ -6,7 +6,7 @@ import sqlite3
 from collections.abc import AsyncIterator
 from contextlib import closing
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 import jinja2
 from fastapi import Depends, HTTPException, Request
@@ -14,8 +14,11 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
 from jobot.banco.conexao import abrir
+from jobot.painel import globais
 from jobot.painel.i18n import idioma_inicial, t
 
+Tema = Literal["sistema", "claro", "escuro"]
+TEMAS: tuple[Tema, ...] = ("sistema", "claro", "escuro")
 CAMPO_CSRF = "csrf_token"
 CABECALHO_CSRF = "X-CSRF-Token"
 METODOS_SEGUROS = frozenset({"GET", "HEAD", "OPTIONS"})
@@ -25,6 +28,7 @@ TEMPLATES = Jinja2Templates(
         loader=jinja2.FileSystemLoader(Path(__file__).parent / "templates"), autoescape=True
     )
 )
+globais.registrar(TEMPLATES.env)
 
 
 async def conexao(request: Request) -> AsyncIterator[sqlite3.Connection]:
@@ -66,6 +70,17 @@ def _idioma(request: Request) -> str:
     return idioma_inicial(request.headers.get("accept-language"))
 
 
+def _tema(request: Request) -> str:
+    """O tema salvo na configuração; sem ele, `sistema` (segue o `prefers-color-scheme`)."""
+    banco: Path = request.app.state.banco
+    if banco.exists():  # sem banco ainda, não cria um arquivo vazio só para ler
+        with closing(abrir(banco)) as con:
+            linha = con.execute("SELECT valor FROM config WHERE chave = 'tema'").fetchone()
+        if linha is not None and (salvo := json.loads(linha[0])) in TEMAS:
+            return str(salvo)
+    return "sistema"
+
+
 async def exigir_csrf(request: Request) -> None:
     """Todo método que muda dados: origem do próprio painel e token certo, senão 403."""
     if request.method in METODOS_SEGUROS:
@@ -84,11 +99,17 @@ async def exigir_csrf(request: Request) -> None:
 
 
 def renderizar(request: Request, modelo: str, **ctx: Any) -> HTMLResponse:
-    """Página do template com `t(chave, **params)` no idioma da pessoa e o token CSRF."""
+    """Página do template com `t(chave, **params)`, o idioma, o tema salvo e o token CSRF."""
     idioma = _idioma(request)
 
     def traduzir(chave: str, **params: object) -> str:
         return t(idioma, chave, **params)
 
-    contexto = {"t": traduzir, "idioma": idioma, "csrf_token": csrf_token(request), **ctx}
+    contexto = {
+        "t": traduzir,
+        "idioma": idioma,
+        "tema": _tema(request),
+        "csrf_token": csrf_token(request),
+        **ctx,
+    }
     return TEMPLATES.TemplateResponse(request, modelo, contexto)

@@ -44,6 +44,18 @@ _MODALIDADE = {
     "office", "semipresencial",
 }  # fmt: skip
 
+# Sigla que é de UF e também de estado dos EUA: sem país escrito, só estas cidades dos EUA saem do
+# Brasil ("Pittsburgh, PA" não é o Pará). shortcut: lista curta de cidades conhecidas; upgrade:
+# lista maior ou a fonte dizer o país.
+_CIDADES_DOS_EUA = {
+    "PA": {"pittsburgh", "philadelphia", "harrisburg", "allentown", "scranton", "king of prussia"},
+    "MA": {"boston", "cambridge", "worcester", "springfield", "lowell", "waltham", "somerville"},
+    "AL": {"birmingham", "huntsville", "montgomery", "mobile"},
+    "SC": {"charleston", "greenville", "spartanburg", "mount pleasant"},
+    "MS": {"jackson", "gulfport", "biloxi", "hattiesburg"},
+    "MT": {"billings", "bozeman", "missoula", "helena", "great falls"},
+}
+
 _CONHECIDOS = _PAISES.keys() | _SEM_PAIS | _MODALIDADE
 
 _PEDACOS = re.compile(r"[;|]")
@@ -92,8 +104,9 @@ def _ler_um(texto: str) -> Local:
             cidade = token.strip()
     # shortcut: cidade só vale com UF ou país ("Curitiba" sozinha é vazio); upgrade: lista
     # Sigla de 2 letras também é código de estado/país de fora ("Boston, MA, USA"): com país
-    # estrangeiro explícito ela não é UF. shortcut: sem país, "Pittsburgh, PA" vira PA/BR;
-    # upgrade: lista de cidades estrangeiras ou de estados dos EUA.
+    # estrangeiro explícito ela não é UF. Sem país, vale `_CIDADES_DOS_EUA`.
+    if uf and not pais and normalizar(cidade or "") in _CIDADES_DOS_EUA.get(uf, ()):
+        pais = "US"
     if pais and pais != "BR":
         uf = None
     if uf and not pais:
