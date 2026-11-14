@@ -1,4 +1,10 @@
-English: [Frequently asked questions](Frequently-asked-questions)
+🌐 **Português** · [English](Frequently-asked-questions)
+
+# ❓ Perguntas frequentes
+
+**As dúvidas mais comuns sobre o joBot. Clique numa pergunta para ver a resposta.**
+
+---
 
 <details>
 <summary><strong>Por que não usar Docker?</strong></summary>
