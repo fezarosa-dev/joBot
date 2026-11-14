@@ -100,8 +100,8 @@ def test_fontes_json_tem_28_fontes_e_os_limites() -> None:
 
 def test_fontes_json_campo_ligada_padrao_valida_tipo() -> None:
     bruto = json.loads((Path(registro.__file__).parents[1] / "dados" / "fontes.json").read_text())
-    assert [c for c, d in bruto.items() if d.get("ligada_padrao") is False] == ["eureca"]
-    assert [c for c in bruto if not registro.limites(c).ligada_padrao] == ["eureca"]
+    assert [c for c, d in bruto.items() if d.get("ligada_padrao") is False] == []
+    assert [c for c in bruto if not registro.limites(c).ligada_padrao] == []
     assert (
         registro.carregar_fontes('{"x": {"leva": "A", "por_escopo": {}}}')["x"].ligada_padrao
         is True
