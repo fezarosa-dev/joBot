@@ -12,7 +12,7 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Form
 from fastapi.responses import RedirectResponse
 
-from jobot.painel.seguranca import Con, Tema, _de_volta
+from jobot.painel.seguranca import Con, Tema, de_volta
 
 router = APIRouter(prefix="/preferencias")
 
@@ -31,7 +31,7 @@ async def mudar_tema(
     con: Con, tema: Annotated[Tema, Form()], voltar: Annotated[str, Form()] = "/"
 ) -> RedirectResponse:
     _gravar(con, "tema", tema)
-    return _de_volta(voltar)
+    return de_volta(voltar)
 
 
 @router.post("/idioma")
@@ -39,4 +39,4 @@ async def mudar_idioma(
     con: Con, idioma: Annotated[Literal["pt", "en"], Form()], voltar: Annotated[str, Form()] = "/"
 ) -> RedirectResponse:
     _gravar(con, "idioma", idioma)
-    return _de_volta(voltar)
+    return de_volta(voltar)

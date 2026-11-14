@@ -25,7 +25,14 @@ from jobot.banco.gravacao import reprocessar_vaga
 from jobot.banco.leitura import Detalhe
 from jobot.nucleo.modelo import Area, Contrato, Modalidade, Nivel
 from jobot.nucleo.tratamento.salario import ler_salario
-from jobot.painel.rotas.vagas import _MAX_ID, VagaId, _busca_efetiva, _inteiro, _relogio, _utc
+from jobot.painel.rotas.vagas import (
+    MAX_ID,
+    VagaId,
+    busca_efetiva,
+    inteiro_da_url,
+    relogio_do_painel,
+    utc_do_banco,
+)
 from jobot.painel.seguranca import Con, renderizar
 
 router = APIRouter()
@@ -65,8 +72,8 @@ def _limpo(texto: str) -> str:
 
 
 def _vaga_ou_404(request: Request, con: Con, vaga_id: int, pedida: int | None = None) -> Detalhe:
-    agora = _relogio(request).agora()
-    vaga = leitura.detalhe(con, vaga_id, _busca_efetiva(con, pedida), agora)
+    agora = relogio_do_painel(request).agora()
+    vaga = leitura.detalhe(con, vaga_id, busca_efetiva(con, pedida), agora)
     if vaga is None:
         raise HTTPException(404, "vaga não existe")
     return vaga
@@ -85,7 +92,7 @@ def _faixa(vaga: Detalhe, hoje: date) -> dict[str, Any]:
     A grade é só desenho (`aria-hidden`): o texto traz o mesmo. Data fora dos doze meses fica só
     no texto.
     """
-    publicada = _utc(vaga.publicada_em) if vaga.publicada_em else None
+    publicada = utc_do_banco(vaga.publicada_em) if vaga.publicada_em else None
     talvez = {
         "publicada": None if publicada is None else publicada.astimezone().date(),
         "prazo": _dia(vaga.prazo),
@@ -127,7 +134,7 @@ def _http(url: str | None) -> bool:
 
 
 def _contexto(request: Request, vaga: Detalhe, busca_url: int | None) -> dict[str, Any]:
-    hoje = _relogio(request).agora().astimezone().date()
+    hoje = relogio_do_painel(request).agora().astimezone().date()
     # uma fonte pode mostrar a vaga em mais de um escopo, com URLs diferentes: todos os links
     unicas: dict[tuple[str, str], Any] = {}
     for f in vaga.fontes:
@@ -148,7 +155,7 @@ def _contexto(request: Request, vaga: Detalhe, busca_url: int | None) -> dict[st
 
 @router.get("/vagas/{vaga_id}")
 async def detalhe(request: Request, con: Con, vaga_id: VagaId) -> HTMLResponse:
-    busca_url = _inteiro(request.query_params.get("busca"), _MAX_ID)
+    busca_url = inteiro_da_url(request.query_params.get("busca"), MAX_ID)
     vaga = _vaga_ou_404(request, con, vaga_id, busca_url)
     return renderizar(request, "detalhe/pagina.html", **_contexto(request, vaga, busca_url))
 
@@ -233,7 +240,7 @@ async def corrigir(request: Request, con: Con, vaga_id: VagaId) -> Response:
         pagina = _formulario(request, vaga, form, erro)
         pagina.status_code = 422
         return pagina
-    agora = _relogio(request).agora()
+    agora = relogio_do_painel(request).agora()
     hoje = agora.astimezone().date()
     try:
         try:

@@ -70,7 +70,7 @@ def o_que_roda(
     ]
 
 
-async def _rodar(tipo: str, trava: asyncio.Lock, tarefa: Callable[[], Awaitable[None]]) -> None:
+async def rodar(tipo: str, trava: asyncio.Lock, tarefa: Callable[[], Awaitable[None]]) -> None:
     try:
         await tarefa()
     except Exception:
@@ -115,5 +115,5 @@ async def laco(
                 if trava is None or tarefa is None or trava.locked():
                     continue  # as travas de fora podem trazer tipo ainda sem tarefa
                 await trava.acquire()  # livre: não suspende, então a checagem acima vale
-                grupo.create_task(_rodar(tipo, trava, tarefa))
+                grupo.create_task(rodar(tipo, trava, tarefa))
             await relogio.dormir(VOLTA_S)

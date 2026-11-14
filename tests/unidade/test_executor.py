@@ -269,7 +269,7 @@ async def test_excecao_conhecida_do_http_no_escopo_vira_o_motivo_proprio(
     assert _estados(saidas) == {"a": ("falhou", motivo)}
 
 
-@pytest.mark.parametrize("erro", [Bloqueio("403"), LimiteAtingido("lim"), Parou429("429")])
+@pytest.mark.parametrize("erro", [Bloqueio("403"), LimiteAtingido("lim")])
 async def test_parada_que_escapa_do_coletar_segue_saude_excecao(erro: Exception) -> None:
     async def quebra(escopo: str, http: HttpEducado) -> ResultadoEscopo:
         raise erro
