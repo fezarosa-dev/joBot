@@ -207,6 +207,31 @@ def test_limpar_nao_estraga_numeros_comuns() -> None:
 @pytest.mark.parametrize(
     "texto",
     [
+        '{"id": "ade4f298-e9df-4b27-9261-8931e38e0d29"}',  # "27-9261-8931" parece telefone
+        "ade4f298-e9df-4b27-9261-8931e38e0d29",
+        "id=ade4f298-e9df-4b27-9261-8931e38e0d29&x=1",
+    ],
+)
+def test_limpar_nao_confunde_uuid_com_telefone(texto: str) -> None:
+    assert capturar.limpar_pessoais(texto) == (
+        json.dumps(json.loads(texto), ensure_ascii=False, indent=2)
+        if texto.startswith("{")
+        else texto
+    )
+    assert capturar.achar_pessoais(texto) == []
+
+
+def test_limpar_troca_telefone_ao_lado_de_uuid() -> None:
+    texto = "ade4f298-e9df-4b27-9261-8931e38e0d29 fale em 11 98765-4321"
+    assert capturar.limpar_pessoais(texto) == (
+        f"ade4f298-e9df-4b27-9261-8931e38e0d29 fale em {capturar.TEL_EXEMPLO}"
+    )
+    assert capturar.achar_pessoais(texto) == ["telefone: 11 98765-4321"]
+
+
+@pytest.mark.parametrize(
+    "texto",
+    [
         "<pubDate>Fri, 13 Nov 2026 12:00:00 +0000</pubDate>",
         "Fri, 13 Nov 2026 12:00:00 +0000",
         "2026-11-13T12:00:00.000+0000",

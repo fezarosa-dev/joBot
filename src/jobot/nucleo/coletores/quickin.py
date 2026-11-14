@@ -159,7 +159,8 @@ class Quickin:
     chave: str = "quickin"
     nome: str = "Quickin"
     leva: Literal["A", "B"] = _LIMITES.leva
-    hosts: tuple[str, ...] = ("api.quickin.io",)
+    # a API de vagas e o site que o resolver lê (e onde mora o link da vaga)
+    hosts: tuple[str, ...] = ("api.quickin.io", _HOST_SITE)
     credito_obrigatorio: bool = _LIMITES.credito_obrigatorio
     intervalo_min: int | None = _LIMITES.intervalo_min
     max_pedidos: int | None = _LIMITES.max_pedidos

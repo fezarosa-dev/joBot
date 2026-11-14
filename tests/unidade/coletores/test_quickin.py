@@ -10,7 +10,7 @@ import pytest
 from apoio.relogio import RelogioFalso
 from jobot.nucleo.coletores import base, quickin, registro
 from jobot.nucleo.coletores.base import Coletor, ContextoColeta, ResultadoEscopo
-from jobot.nucleo.http import ClienteEducado, HttpEducado, Validadores
+from jobot.nucleo.http import ClienteEducado, ErroDeRede, HttpEducado, Validadores
 from jobot.nucleo.modelo import Empresa, SalarioBruto, VagaColetada
 from jobot.nucleo.relogio import Relogio
 
@@ -144,7 +144,18 @@ def test_coletor_registrado_com_a_chave_de_fontes_json() -> None:
     limites = registro.limites(prova.chave)
     assert limites.leva == prova.leva == "B"
     assert (prova.intervalo_min, prova.max_pedidos, prova.espera_s) == (None, None, 1.0)
-    assert prova.hosts == ("api.quickin.io",)
+    assert prova.hosts == ("api.quickin.io", "jobs.quickin.io")
+
+
+async def test_hosts_cobrem_todo_host_que_o_coletor_pede() -> None:
+    # a API (coletar) e o site do link da vaga (resolver) são hosts diferentes: ambos declarados
+    _, do_resolver = await _resolver(
+        "connectforpeople", _nuxt(_site(slug="connectforpeople", account_id=CONTA))
+    )
+    _, da_coleta = await _coletar(_json("normal"))
+    assert {p.url.host for p in do_resolver} == {"jobs.quickin.io"}
+    assert {p.url.host for p in da_coleta} == {"api.quickin.io"}
+    assert {p.url.host for p in [*do_resolver, *da_coleta]} <= set(quickin.COLETOR.hosts)
 
 
 def test_escopos_um_por_empresa_com_a_conta_e_o_nome() -> None:
@@ -710,17 +721,5 @@ async def test_resolver_nao_executa_nada_da_pagina() -> None:
 
 
 async def test_resolver_erro_de_rede_que_nao_e_404_sobe() -> None:
-    from jobot.nucleo.http import ErroDeRede
-
     with pytest.raises(ErroDeRede):
         await _resolver("connectforpeople", httpx.Response(500))
-
-
-def test_empresas_json_nao_tem_quickin_ainda_ou_traz_a_conta() -> None:
-    lista = json.loads(
-        (RAIZ / "src" / "jobot" / "nucleo" / "dados" / "empresas.json").read_text(encoding="utf-8")
-    )["empresas"]
-    for e in lista:
-        if e["fonte"] == "quickin":
-            assert set(e["parametros"]) == {"account_id"}
-            assert len(e["parametros"]["account_id"]) == 24

@@ -199,7 +199,7 @@ async def test_normal() -> None:
     assert len(pedidos) == 1
 
 
-async def test_salario_em_texto_e_cliente_na_captura_da_daguilar() -> None:
+async def test_captura_da_daguilar_vem_parcial_com_a_consultoria_como_empresa() -> None:
     # o recorte da captura tem 6 das 7 vagas (a redução cortou 1): a trava do total pega
     resultado, _ = await _coletar(_lista("daguilar"), escopo="daguilar-consultoria-rh")
     assert (resultado.estado, resultado.motivo) == ("parcial", "saude.listagem_incompleta")
