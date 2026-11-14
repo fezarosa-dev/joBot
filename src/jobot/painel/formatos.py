@@ -10,11 +10,13 @@ from decimal import Decimal, InvalidOperation
 
 from jobot.banco.leitura import Item
 from jobot.nucleo.modelo import Local
+from jobot.nucleo.tratamento.locais import nome_do_pais, nome_em_ingles
 from jobot.painel.i18n import t
 
 _SIMBOLO = {"USD": "US$", "BRL": "R$", "EUR": "€", "GBP": "£"}
 _SEPARADORES = {"pt": (".", ","), "en": (",", ".")}  # milhar, decimal
 _MAX_LOCAIS = 3
+_E = {"pt": "e", "en": "and"}
 
 
 @dataclass(frozen=True)
@@ -120,3 +122,17 @@ def locais_texto(locais: Sequence[Local]) -> str:
             textos.append(texto)
     visiveis = ", ".join(textos[:_MAX_LOCAIS])
     return f"{visiveis} +{len(textos) - _MAX_LOCAIS}" if len(textos) > _MAX_LOCAIS else visiveis
+
+
+def paises_texto(locais: Sequence[Local], idioma: str) -> str:
+    """Países dos locais pelo nome: `Brasil, Portugal e Espanha`; mais de três: `A, B, C +2`.
+
+    Vazio se nenhum local tem país.
+    """
+    nome = nome_em_ingles if idioma == "en" else nome_do_pais
+    nomes = list(dict.fromkeys(nome(p.pais) or p.pais for p in locais if p.pais))
+    if len(nomes) > _MAX_LOCAIS:
+        return f"{', '.join(nomes[:_MAX_LOCAIS])} +{len(nomes) - _MAX_LOCAIS}"
+    if len(nomes) > 1:
+        return f"{', '.join(nomes[:-1])} {_E.get(idioma, _E['pt'])} {nomes[-1]}"
+    return "".join(nomes)

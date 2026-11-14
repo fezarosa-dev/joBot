@@ -42,6 +42,7 @@
   "aviso.exige_visto": "Requires a work visa",
   "aviso.exige_doutorado": "Requires a doctorate",
   "aviso.restrito_a_pais": "Restricted to residents of one country",
+  "aviso.restrito_a_pais_lista": "Only for residents of: {paises}",
   "fonte.github_issues": "GitHub Issues",
   "fonte.remotive": "Remotive",
   "fonte.remoteok": "RemoteOK",
