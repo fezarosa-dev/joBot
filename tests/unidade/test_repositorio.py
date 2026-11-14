@@ -47,6 +47,10 @@ def test_dados_locais_no_gitignore() -> None:
     assert "dados_locais/" in [linha.strip() for linha in linhas]
 
 
+def test_sem_dependabot() -> None:
+    assert not (RAIZ / ".github" / "dependabot.yml").exists(), "sem Dependabot (ADR 0021)"
+
+
 def test_nenhum_teste_le_yaml() -> None:
     importados: list[str] = []
     for arquivo in (RAIZ / "tests").rglob("*.py"):
