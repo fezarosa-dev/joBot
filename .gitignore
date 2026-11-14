@@ -1,0 +1,17 @@
+# Dados e gabarito locais: nunca vão para o git.
+dados_locais/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# Ambientes e caches
+.venv/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/

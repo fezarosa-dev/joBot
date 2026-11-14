@@ -1,0 +1,19 @@
+{
+  "pesos": {"cargo": 40, "local": 20, "nivel": 15, "salario": 15, "idioma": 10},
+  "pontos": {
+    "cargo_titulo": 40,
+    "cargo_descricao": 20,
+    "local_cidade": 20,
+    "local_remoto": 20,
+    "local_uf": 10,
+    "modalidade_ok": 20,
+    "modalidade_nao_informada": 10,
+    "nivel_ok": 15,
+    "nivel_nao_informado": 7,
+    "salario_ok": 15,
+    "salario_neutro": 7,
+    "idioma_ok": 10,
+    "idioma_nao_detectado": 5
+  },
+  "faixas": {"bom_min": 70, "medio_min": 40}
+}

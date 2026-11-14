@@ -1,0 +1,232 @@
+{
+  "github_issues": {
+    "leva": "A",
+    "intervalo_min": null,
+    "max_pedidos": null,
+    "espera_s": 1.0,
+    "credito_obrigatorio": false,
+    "por_escopo": {}
+  },
+  "remotive": {
+    "leva": "A",
+    "intervalo_min": 360,
+    "max_pedidos": null,
+    "espera_s": 1.0,
+    "credito_obrigatorio": true,
+    "por_escopo": {}
+  },
+  "remoteok": {
+    "leva": "A",
+    "intervalo_min": 360,
+    "max_pedidos": null,
+    "espera_s": 1.0,
+    "credito_obrigatorio": true,
+    "por_escopo": {}
+  },
+  "jobicy": {
+    "leva": "A",
+    "intervalo_min": 60,
+    "max_pedidos": null,
+    "espera_s": 1.0,
+    "credito_obrigatorio": true,
+    "por_escopo": {}
+  },
+  "himalayas": {
+    "leva": "A",
+    "intervalo_min": 1440,
+    "max_pedidos": 30,
+    "espera_s": 2.0,
+    "credito_obrigatorio": true,
+    "por_escopo": {}
+  },
+  "wwr": {
+    "leva": "A",
+    "intervalo_min": 60,
+    "max_pedidos": null,
+    "espera_s": 1.0,
+    "credito_obrigatorio": true,
+    "por_escopo": {}
+  },
+  "hn_algolia": {
+    "leva": "A",
+    "intervalo_min": null,
+    "max_pedidos": null,
+    "espera_s": 1.0,
+    "credito_obrigatorio": false,
+    "por_escopo": {}
+  },
+  "greenhouse": {
+    "leva": "A",
+    "intervalo_min": null,
+    "max_pedidos": null,
+    "espera_s": 1.0,
+    "credito_obrigatorio": false,
+    "por_escopo": {}
+  },
+  "lever": {
+    "leva": "A",
+    "intervalo_min": null,
+    "max_pedidos": null,
+    "espera_s": 1.0,
+    "credito_obrigatorio": false,
+    "por_escopo": {}
+  },
+  "ashby": {
+    "leva": "A",
+    "intervalo_min": null,
+    "max_pedidos": null,
+    "espera_s": 1.0,
+    "credito_obrigatorio": false,
+    "por_escopo": {}
+  },
+  "smartrecruiters": {
+    "leva": "A",
+    "intervalo_min": null,
+    "max_pedidos": null,
+    "espera_s": 1.0,
+    "credito_obrigatorio": false,
+    "por_escopo": {}
+  },
+  "gupy": {
+    "leva": "A",
+    "intervalo_min": null,
+    "max_pedidos": 30,
+    "espera_s": 2.0,
+    "credito_obrigatorio": false,
+    "por_escopo": {}
+  },
+  "inhire": {
+    "leva": "B",
+    "intervalo_min": null,
+    "max_pedidos": null,
+    "espera_s": 1.0,
+    "credito_obrigatorio": false,
+    "por_escopo": {}
+  },
+  "quickin": {
+    "leva": "B",
+    "intervalo_min": null,
+    "max_pedidos": null,
+    "espera_s": 1.0,
+    "credito_obrigatorio": false,
+    "por_escopo": {}
+  },
+  "recrutei": {
+    "leva": "B",
+    "intervalo_min": null,
+    "max_pedidos": null,
+    "espera_s": 1.0,
+    "credito_obrigatorio": false,
+    "por_escopo": {}
+  },
+  "solides": {
+    "leva": "B",
+    "intervalo_min": null,
+    "max_pedidos": null,
+    "espera_s": 1.0,
+    "credito_obrigatorio": false,
+    "por_escopo": {}
+  },
+  "abler": {
+    "leva": "B",
+    "intervalo_min": null,
+    "max_pedidos": null,
+    "espera_s": 2.0,
+    "credito_obrigatorio": false,
+    "por_escopo": {}
+  },
+  "ciee": {
+    "leva": "B",
+    "intervalo_min": null,
+    "max_pedidos": null,
+    "espera_s": 1.0,
+    "credito_obrigatorio": false,
+    "por_escopo": {}
+  },
+  "iel": {
+    "leva": "B",
+    "intervalo_min": null,
+    "max_pedidos": null,
+    "espera_s": 1.0,
+    "credito_obrigatorio": false,
+    "por_escopo": {}
+  },
+  "super_estagios": {
+    "leva": "B",
+    "intervalo_min": null,
+    "max_pedidos": null,
+    "espera_s": 1.0,
+    "credito_obrigatorio": false,
+    "por_escopo": {}
+  },
+  "cia_de_talentos": {
+    "leva": "B",
+    "intervalo_min": null,
+    "max_pedidos": null,
+    "espera_s": 1.0,
+    "credito_obrigatorio": false,
+    "por_escopo": {}
+  },
+  "eureca": {
+    "leva": "B",
+    "intervalo_min": null,
+    "max_pedidos": null,
+    "espera_s": 2.0,
+    "credito_obrigatorio": false,
+    "por_escopo": {}
+  },
+  "usp": {
+    "leva": "B",
+    "intervalo_min": null,
+    "max_pedidos": null,
+    "espera_s": 1.0,
+    "credito_obrigatorio": false,
+    "por_escopo": {}
+  },
+  "workday": {
+    "leva": "B",
+    "intervalo_min": null,
+    "max_pedidos": null,
+    "espera_s": 1.0,
+    "credito_obrigatorio": false,
+    "por_escopo": {}
+  },
+  "eightfold": {
+    "leva": "B",
+    "intervalo_min": null,
+    "max_pedidos": null,
+    "espera_s": 1.0,
+    "credito_obrigatorio": false,
+    "por_escopo": {
+      "apply.careers.microsoft.com": {
+        "intervalo_min": 1440,
+        "espera_s": 5.0,
+        "para_no_429": true
+      }
+    }
+  },
+  "oracle_hcm": {
+    "leva": "B",
+    "intervalo_min": null,
+    "max_pedidos": null,
+    "espera_s": 1.0,
+    "credito_obrigatorio": false,
+    "por_escopo": {}
+  },
+  "google": {
+    "leva": "B",
+    "intervalo_min": 1440,
+    "max_pedidos": null,
+    "espera_s": 1.0,
+    "credito_obrigatorio": false,
+    "por_escopo": {}
+  },
+  "amazon": {
+    "leva": "B",
+    "intervalo_min": 360,
+    "max_pedidos": null,
+    "espera_s": 2.0,
+    "credito_obrigatorio": false,
+    "por_escopo": {}
+  }
+}

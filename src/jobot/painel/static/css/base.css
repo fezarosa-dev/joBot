@@ -1,0 +1,222 @@
+/* Casca do painel: fonte, cores dos dois temas, barra do topo e movimento (desenho 13.11). */
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("../fontes/InterVariable.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Inter";
+  font-style: italic;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("../fontes/InterVariable-Italic.woff2") format("woff2");
+}
+
+/*
+ * Cores num lugar só: cada uma é light-dark(<claro>, <escuro>) e o color-scheme escolhe.
+ * Sem data-tema manual, segue o prefers-color-scheme do sistema.
+ * O teste do contraste (critério 29) lê a lista abaixo: cada par é <texto>/<fundo>.
+ * Par novo de texto sobre fundo entra nesta lista, com as duas cores em hex de 6 dígitos.
+ */
+/* contraste: texto/fundo texto-2/fundo texto/superficie texto-2/superficie link/fundo link/superficie sobre-destaque/destaque texto/trilho texto/segmento */
+:root {
+  color-scheme: light dark;
+  --fundo: light-dark(#f5f5f7, #000000);
+  --superficie: light-dark(#ffffff, #1c1c1e);
+  --texto: light-dark(#1d1d1f, #f5f5f7);
+  --texto-2: light-dark(#6e6e73, #a1a1a6);
+  --link: light-dark(#0066cc, #2997ff);
+  --destaque: light-dark(#0071e3, #0071e3);
+  --sobre-destaque: light-dark(#ffffff, #ffffff);
+  --trilho: light-dark(#e8e8ed, #2c2c2e);
+  --segmento: light-dark(#ffffff, #48484a);
+  --foco: light-dark(#0071e3, #2997ff);
+  --borda: light-dark(rgb(0 0 0 / 0.08), rgb(255 255 255 / 0.12));
+  --barra: light-dark(rgb(245 245 247 / 0.72), rgb(22 22 23 / 0.72));
+  --sombra: light-dark(rgb(0 0 0 / 0.12), rgb(0 0 0 / 0.5));
+
+  /* mola feita em CSS: passa um pouco do ponto e assenta */
+  --mola: linear(0, 0.25 6%, 0.66 13%, 0.98 21%, 1.08 28%, 1.07 35%, 1.01 46%, 0.99 58%, 1);
+  --duracao: 420ms;
+  --raio: 14px;
+  --espaco: clamp(1rem, 3vw, 2rem);
+}
+
+:root[data-tema="claro"] {
+  color-scheme: light;
+}
+
+:root[data-tema="escuro"] {
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background-color: var(--fundo);
+  color: var(--texto);
+  font-family: -apple-system, BlinkMacSystemFont, "Inter", system-ui, sans-serif;
+  font-size: 1.0625rem;
+  line-height: 1.47;
+  letter-spacing: -0.01em;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* link no meio do texto fica sublinhado: no tema escuro a cor sozinha não separa (WCAG 1.4.1) */
+a {
+  color: var(--link);
+  text-underline-offset: 0.15em;
+}
+
+:focus-visible {
+  outline: 3px solid var(--foco);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+main:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* link de pular: fora da tela até receber o foco */
+.pular {
+  position: absolute;
+  top: 0.75rem;
+  left: var(--espaco);
+  z-index: 20;
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  background-color: var(--destaque);
+  color: var(--sobre-destaque);
+  font-weight: 600;
+  text-decoration: none;
+  transform: translateY(-300%);
+  transition: transform var(--duracao) var(--mola);
+}
+
+.pular:focus {
+  transform: none;
+}
+
+/* barra do topo translúcida */
+.topo {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem var(--espaco);
+  background-color: var(--barra);
+  border-bottom: 1px solid var(--borda);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+}
+
+.marca {
+  color: var(--texto);
+  font-size: 1.3rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  text-decoration: none;
+}
+
+.preferencias {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* controle segmentado: um formulário, um botão por opção */
+.segmentos {
+  display: inline-flex;
+  margin: 0;
+  padding: 2px;
+  border-radius: 10px;
+  background-color: var(--trilho);
+}
+
+.segmentos button {
+  appearance: none;
+  border: 0;
+  margin: 0;
+  padding: 0.3rem 0.8rem;
+  border-radius: 8px;
+  background-color: transparent;
+  color: var(--texto);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background-color var(--duracao) var(--mola),
+    box-shadow var(--duracao) var(--mola),
+    transform var(--duracao) var(--mola);
+}
+
+.segmentos button[aria-pressed="true"] {
+  background-color: var(--segmento);
+  box-shadow: 0 1px 3px var(--sombra);
+}
+
+.segmentos button:active {
+  transform: scale(0.96);
+}
+
+main {
+  display: block;
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: var(--espaco);
+  animation: surgir var(--duracao) var(--mola) both;
+}
+
+/* painel: superfície com cantos arredondados, para as telas usarem */
+.painel {
+  padding: var(--espaco);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  /* translúcido sobre o --fundo: a cor que aparece fica entre --fundo e --superficie,
+     e os dois pares do contraste já cobrem esse intervalo */
+  background-color: color-mix(in srgb, var(--superficie) 72%, transparent);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+}
+
+@keyframes surgir {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* com movimento reduzido, nada se mexe */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0s !important;
+    transition-delay: 0s !important;
+    scroll-behavior: auto !important;
+  }
+}

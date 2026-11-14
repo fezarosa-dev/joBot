@@ -1,0 +1,87 @@
+{%- set salario = salario_texto(item, idioma) -%}
+{%- set locais = locais_texto(item.locais) -%}
+{%- set achado = namespace(motivo="") -%}
+{%- for m in item.motivos -%}
+  {%- if not achado.motivo %}{% set achado.motivo = motivo(m) %}{% endif -%}
+{%- endfor -%}
+{%- set proximos = {"nova": ["salva"], "salva": ["candidatei"], "candidatei": ["entrevista"], "entrevista": ["oferta", "recusada"]}.get(item.status, []) -%}
+{%- set anterior = {"salva": "nova", "candidatei": "salva", "entrevista": "candidatei", "oferta": "entrevista", "recusada": "entrevista"}.get(item.status) -%}
+{%- set acao_vaga = "/vagas/" ~ item.id -%}
+<div class="cartao-cabeca">
+  <h3 class="cartao-titulo"><a href="{{ acao_vaga }}"{% if foco_titulo %} data-foco{% endif %}>{{ item.titulo }}</a></h3>
+  <p class="cartao-empresa">{{ item.empresa }}</p>
+</div>
+<ul class="selos">
+  {%- if item.nova %}
+  <li class="selo">{{ t("vagas.selo.nova") }}</li>
+  {%- endif %}
+  {%- if item.fechada %}
+  <li class="selo">{{ t("vagas.selo.fechada") }}</li>
+  {%- elif item.fecha_logo %}
+  <li class="selo">{{ t("vagas.selo.fecha_logo") }}</li>
+  {%- endif %}
+  {%- for aviso in item.avisos %}
+  <li class="selo">{{ rotulo("aviso." ~ aviso, aviso) }}</li>
+  {%- endfor %}
+  {%- if item.oculta_motivo == "manual" %}
+  <li class="selo">{{ t("vagas.oculta.manual") }}</li>
+  {%- elif item.oculta_motivo %}
+  <li class="selo">{{ t("vagas.oculta.regra", regra=rotulo("vagas.motivo." ~ item.oculta_motivo, item.oculta_motivo)) }}</li>
+  {%- endif %}
+</ul>
+<ul class="meta">
+  {%- if locais %}
+  <li>{{ locais }}</li>
+  {%- endif %}
+  {%- if item.modalidade %}
+  <li>{{ rotulo("modalidade." ~ item.modalidade, item.modalidade) }}</li>
+  {%- endif %}
+  {%- if item.prazo %}
+  <li>{{ t("vagas.prazo", data=data_curta(item.prazo, idioma)) }}</li>
+  {%- endif %}
+</ul>
+{%- if salario %}
+<p class="salario"><strong>{{ salario.original }}</strong>
+  {%- if salario.em_reais %} <span class="em-reais">{{ salario.em_reais }}</span>{% endif %}
+  {%- if salario.cotacao %} <span class="cotacao">{{ salario.cotacao }}</span>{% endif %}</p>
+{%- else %}
+<p class="salario nao-informado">{{ t("vagas.salario_nao_informado") }}</p>
+{%- endif %}
+{%- if item.encaixe %}
+<p class="encaixe"><span aria-hidden="true">{{ {"bom": "●", "medio": "◐", "fraco": "○"}.get(item.encaixe, "") }}</span> {{ t("vagas.encaixe_cartao", nivel=rotulo("vagas.encaixe." ~ item.encaixe, item.encaixe)) }}
+  {%- if achado.motivo %} <span class="motivo">{{ achado.motivo }}</span>{% endif %}</p>
+{%- endif %}
+{%- set vindas = fontes.get(item.id, []) %}
+{%- if vindas %}
+<p class="fontes">
+  {%- for f in vindas %}
+  {%- set nome = rotulo("fonte." ~ f.fonte, f.fonte) %}
+  {%- if f.url.lower().startswith(("http://", "https://")) %}
+  <a href="{{ f.url }}" target="_blank" rel="noopener noreferrer" aria-label="{{ t('vagas.via_nova_aba', fonte=nome) }}">{{ t("vagas.via", fonte=nome) }}</a>
+  {%- else %}
+  <span>{{ t("vagas.via", fonte=nome) }}</span>
+  {%- endif %}
+  {%- endfor %}
+</p>
+{%- endif %}
+<div class="acoes" role="group" aria-label="{{ t('vagas.acoes', titulo=item.titulo) }}">
+  <p class="situacao"{% if foco %} data-foco tabindex="-1"{% endif %}>{{ t("vagas.status_atual", status=rotulo("vagas.status." ~ item.status, item.status)) }}</p>
+  <form method="post" action="{{ acao_vaga }}/status" hx-post="{{ acao_vaga }}/status" hx-target="#vaga-{{ item.id }}" hx-swap="innerHTML">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="voltar" value="{{ retorno }}">
+    <input type="hidden" name="busca" value="{{ busca_id if busca_id is not none else '' }}">
+    {%- for destino in proximos %}
+    <button type="submit" name="status" value="{{ destino }}" class="primario">{{ t("vagas.acao.para." ~ destino) }}</button>
+    {%- endfor %}
+    {%- if anterior %}
+    <button type="submit" name="status" value="{{ anterior }}" class="secundario" aria-label="{{ t('vagas.acao.desfazer_para', status=t('vagas.status.' ~ anterior)) }}">{{ t("vagas.acao.desfazer") }}</button>
+    {%- endif %}
+  </form>
+  {%- set destino_visibilidade = "mostrar" if item.oculta_motivo else "ocultar" %}
+  <form method="post" action="{{ acao_vaga }}/{{ destino_visibilidade }}" hx-post="{{ acao_vaga }}/{{ destino_visibilidade }}" hx-target="#vaga-{{ item.id }}" hx-swap="innerHTML">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="voltar" value="{{ retorno }}">
+    <input type="hidden" name="busca" value="{{ busca_id if busca_id is not none else '' }}">
+    <button type="submit" class="secundario">{{ t("vagas.acao.ocultar" if not item.oculta_motivo else ("vagas.acao.trazer" if item.oculta_motivo == "manual" else "vagas.acao.mostrar")) }}</button>
+  </form>
+</div>
