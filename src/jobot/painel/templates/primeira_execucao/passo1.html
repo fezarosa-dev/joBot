@@ -1,0 +1,70 @@
+<h1 class="assistente-titulo">{{ t("primeira_execucao.p1.titulo") }}</h1>
+<p class="assistente-texto">{{ t("primeira_execucao.p1.intro") }}</p>
+{% if erro %}
+<div class="assistente-alerta" role="alert">
+  <strong>{{ t("primeira_execucao.erro.titulo") }}</strong>
+  <p>{{ t(erro) }}</p>
+</div>
+{% endif %}
+<form method="post" action="/primeira-execucao/1" class="assistente-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  {% if busca_id %}<input type="hidden" name="busca" value="{{ busca_id }}">{% endif %}
+  <div class="campo">
+    <label for="cargos">{{ t("primeira_execucao.p1.cargos") }}</label>
+    <textarea id="cargos" name="cargos" rows="3" aria-describedby="cargos-dica">{{ entrada.cargos }}</textarea>
+    <small id="cargos-dica">{{ t("primeira_execucao.p1.cargos_dica") }}</small>
+  </div>
+  <fieldset class="campo">
+    <legend>{{ t("primeira_execucao.p1.cidades") }}</legend>
+    {% for cidade, uf in entrada.cidades %}
+    <div class="linha-cidade">
+      <input type="text" name="cidade" value="{{ cidade }}" maxlength="100" aria-label="{{ t('primeira_execucao.p1.cidade', n=loop.index) }}">
+      <select name="uf" aria-label="{{ t('primeira_execucao.p1.uf') }}">
+        <option value=""></option>
+        {% for sigla in ufs %}<option value="{{ sigla }}"{% if sigla == uf %} selected{% endif %}>{{ sigla }}</option>{% endfor %}
+      </select>
+    </div>
+    {% endfor %}
+  </fieldset>
+  <fieldset class="campo">
+    <legend>{{ t("primeira_execucao.p1.modalidades") }}</legend>
+    <div class="opcoes">
+      {% for m in modalidades %}
+      <label class="opcao"><input type="checkbox" name="modalidades" value="{{ m }}"{% if m in entrada.modalidades %} checked{% endif %}> {{ t("modalidade." ~ m) }}</label>
+      {% endfor %}
+    </div>
+  </fieldset>
+  <fieldset class="campo">
+    <legend>{{ t("primeira_execucao.p1.niveis") }}</legend>
+    <div class="opcoes">
+      {% for n in niveis %}
+      <label class="opcao"><input type="checkbox" name="niveis" value="{{ n }}"{% if n in entrada.niveis %} checked{% endif %}> {{ t("nivel." ~ n) }}</label>
+      {% endfor %}
+    </div>
+  </fieldset>
+  <div class="campo campo-salario">
+    <div>
+      <label for="salario_min">{{ t("primeira_execucao.p1.salario") }}</label>
+      <input id="salario_min" type="text" name="salario_min" inputmode="decimal" autocomplete="off" value="{{ entrada.salario }}" aria-describedby="salario-dica">
+    </div>
+    <div>
+      <label for="moeda">{{ t("primeira_execucao.p1.moeda") }}</label>
+      <select id="moeda" name="moeda">
+        {% for m in moedas %}<option value="{{ m }}"{% if m == entrada.moeda %} selected{% endif %}>{{ m }}</option>{% endfor %}
+      </select>
+    </div>
+    <small id="salario-dica">{{ t("primeira_execucao.p1.salario_dica") }}</small>
+  </div>
+  <fieldset class="campo">
+    <legend>{{ t("primeira_execucao.p1.idiomas") }}</legend>
+    <div class="opcoes">
+      {% for i in idiomas %}
+      <label class="opcao"><input type="checkbox" name="idiomas" value="{{ i }}"{% if i in entrada.idiomas %} checked{% endif %}> {{ t("primeira_execucao.idioma." ~ i) }}</label>
+      {% endfor %}
+    </div>
+  </fieldset>
+  <div class="acoes">
+    <button type="submit" class="botao botao-primario">{{ t("primeira_execucao.p1.continuar") }}</button>
+    <button type="submit" name="pular" value="1" class="botao botao-secundario" formnovalidate>{{ t("primeira_execucao.p1.pular") }}</button>
+  </div>
+</form>

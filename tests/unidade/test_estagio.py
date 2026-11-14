@@ -28,6 +28,39 @@ def test_campos_curso(texto: str, curso: str) -> None:
 
 
 @pytest.mark.parametrize(
+    ("texto", "curso"),
+    [
+        ("cursando Letras e Pedagogia", "Letras e Pedagogia"),
+        ("Cursando Letras e Pedagogia, com disponibilidade", "Letras e Pedagogia"),
+        (
+            "Estudante de Engenharia Civil e Arquitetura e a partir do 5º semestre",
+            "Engenharia Civil e Arquitetura",
+        ),
+    ],
+)
+def test_curso_composto_traz_os_dois(texto: str, curso: str) -> None:
+    assert _ler(texto).curso == curso
+
+
+def test_falso_positivo_conhecido_do_curso_composto() -> None:
+    # caracterização: "e" + maiúscula continua o curso; a T78 decide com o gabarito se limita
+    assert _ler("cursando Direito e Estágio remunerado").curso == "Direito e Estágio remunerado"
+
+
+@pytest.mark.parametrize(
+    ("texto", "curso"),
+    [
+        ("cursando Letras e com disponibilidade", "Letras"),
+        ("cursando Letras e a partir do 5º semestre", "Letras"),
+        ("cursando letras e pedagogia", "letras"),
+        ("studying Law and Economics", "Law"),
+    ],
+)
+def test_e_antes_de_palavra_minuscula_ainda_encerra_o_curso(texto: str, curso: str) -> None:
+    assert _ler(texto).curso == curso
+
+
+@pytest.mark.parametrize(
     ("texto", "semestre"),
     [
         ("Cursando a partir do 5º semestre", 5),

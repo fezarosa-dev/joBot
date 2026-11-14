@@ -21,6 +21,7 @@ from jobot.nucleo.http import (
     Resolvedor,
     RespostaGrande,
     Validadores,
+    conferir_dns,
     host_local,
 )
 from jobot.nucleo.relogio import Relogio
@@ -206,6 +207,54 @@ async def test_429_sem_retry_after(status: int) -> None:
     assert http.pedidos == 4
 
 
+@pytest.mark.parametrize("nome", ["x-ratelimit-remaining", "X-RateLimit-Remaining"])
+async def test_429_com_cota_zero_sem_retry_after_nao_espera(nome: str) -> None:
+    cota = {nome: "0", "x-ratelimit-limit": "60"}
+    srv = Servidor(httpx.Response(429, headers=cota))
+    cli, rel = _cliente(srv)
+    http = cli.escopo()
+    with pytest.raises(LimiteAtingido) as limite:
+        await http.pedir("GET", "https://a.example/")
+    assert rel.dormidas == []
+    assert len(srv.pedidos) == 1 and http.pedidos == 1
+    assert limite.value.cabecalhos["x-ratelimit-remaining"] == "0"
+
+
+async def test_429_com_cota_sobrando_ou_com_retry_after_segue_as_esperas() -> None:
+    # Controles: só "429 + cota zero + sem Retry-After" pula as esperas.
+    srv = Servidor(httpx.Response(429, headers={"x-ratelimit-remaining": "12"}))
+    cli, rel = _cliente(srv)
+    with pytest.raises(LimiteAtingido):
+        await cli.escopo().pedir("GET", "https://a.example/")
+    assert rel.dormidas == [30, 60, 120]
+
+    srv = Servidor(
+        httpx.Response(429, headers={"x-ratelimit-remaining": "0", "Retry-After": "45"}),
+        httpx.Response(200),
+    )
+    cli, rel = _cliente(srv)
+    assert (await cli.escopo().pedir("GET", "https://a.example/")).status == 200
+    assert rel.dormidas == [45]
+
+    srv = Servidor(httpx.Response(503, headers={"x-ratelimit-remaining": "0"}))
+    cli, rel = _cliente(srv)
+    with pytest.raises(LimiteAtingido):
+        await cli.escopo().pedir("GET", "https://a.example/")
+    assert rel.dormidas == [30, 60, 120]
+
+
+@pytest.mark.parametrize("invalido", ["logo", "", "12abc", "-5"])
+async def test_429_com_cota_zero_e_retry_after_invalido_para_na_hora(invalido: str) -> None:
+    # Retry-After presente mas que não é número nem data HTTP vale como ausente (T99).
+    cabecalhos = {"x-ratelimit-remaining": "0", "Retry-After": invalido}
+    srv = Servidor(httpx.Response(429, headers=cabecalhos))
+    cli, rel = _cliente(srv)
+    with pytest.raises(LimiteAtingido):
+        await cli.escopo().pedir("GET", "https://a.example/")
+    assert rel.dormidas == []
+    assert len(srv.pedidos) == 1
+
+
 async def test_para_no_429_um_pedido_sem_espera() -> None:
     srv = Servidor(httpx.Response(429, headers={"Retry-After": "5"}))
     cli, rel = _cliente(srv)
@@ -250,6 +299,24 @@ async def test_401_403_sao_bloqueio_sem_repetir(status: int) -> None:
         await cli.escopo().pedir("GET", "https://a.example/")
     assert len(srv.pedidos) == 1
     assert rel.dormidas == []
+
+
+async def test_bloqueio_leva_os_cabecalhos_da_resposta() -> None:
+    cota = {"x-ratelimit-remaining": "0", "x-ratelimit-limit": "60"}
+    cli, _ = _cliente(Servidor(httpx.Response(403, headers=cota)))
+    with pytest.raises(Bloqueio) as bloqueio:
+        await cli.escopo().pedir("GET", "https://a.example/")
+    assert hasattr(bloqueio.value, "cabecalhos"), "o Bloqueio não traz os cabeçalhos"
+    assert bloqueio.value.cabecalhos.get("X-RateLimit-Remaining") == "0"
+
+    cli, _ = _cliente(Servidor(httpx.Response(429, headers=cota)))
+    with pytest.raises(LimiteAtingido) as limite:
+        await cli.escopo().pedir("GET", "https://a.example/")
+    assert limite.value.cabecalhos.get("x-ratelimit-remaining") == "0"
+
+    # Quem já cria as exceções só com a mensagem continua funcionando, com cabeçalhos vazios.
+    assert dict(Bloqueio("x").cabecalhos) == {} and str(LimiteAtingido("y")) == "y"
+    assert dict(LimiteAtingido().cabecalhos) == {}
 
 
 async def test_teto_de_5_mb() -> None:
@@ -500,6 +567,15 @@ async def test_erro_de_rede_leva_o_status() -> None:
     assert getattr(erro.value, "status", "sem status") is None
 
 
+async def test_parou429_guarda_os_cabecalhos() -> None:
+    srv = Servidor(httpx.Response(429, headers={"Retry-After": "120"}))
+    cli, _ = _cliente(srv)
+    with pytest.raises(Parou429) as info:
+        await cli.escopo(para_no_429=True).pedir("GET", "https://a.example/")
+    assert getattr(info.value, "cabecalhos", {}).get("retry-after") == "120"
+    assert "Retry-After 120" in str(info.value)
+
+
 async def test_para_no_429_nao_vale_para_503() -> None:
     srv = Servidor(httpx.Response(503, headers={"Retry-After": "5"}), httpx.Response(200))
     cli, rel = _cliente(srv)
@@ -614,6 +690,24 @@ async def test_resolvedor_sem_endereco_valido_recusa(enderecos: list[str]) -> No
     assert len(srv.pedidos) == 1
 
 
+@pytest.mark.parametrize(
+    ("destino", "dns"),
+    [
+        ("http://interno.example/x", ResolvedorFalso("10.0.0.5")),  # recusado pelo DNS
+        ("http://interno.example/x", ResolvedorFalso(erro=OSError("sem nome"))),
+        ("http://10.0.0.5/x", ResolvedorFalso()),  # IP local literal
+    ],
+)
+async def test_salto_recusado_traz_url_de_origem(destino: str, dns: ResolvedorFalso) -> None:
+    # o log grava str(erro): a URL de origem vai na mensagem, não só numa nota
+    srv = _salto_para(destino)
+    cli, _ = _cliente(srv, resolver=dns)
+    with pytest.raises(ErroDeRede) as recebido:
+        await cli.escopo().pedir("GET", "https://a.example/origem")
+    assert "https://a.example/origem" in str(recebido.value)
+    assert len(srv.pedidos) == 1
+
+
 async def test_redirecionamento_para_nome_publico_segue() -> None:
     srv = _salto_para("https://b.example/fim")
     dns = ResolvedorFalso(PUBLICO, "2606:2800:21f:cb07:6820:80da:af6b:8b2c")
@@ -677,3 +771,27 @@ async def test_resolvedor_padrao_usa_getaddrinfo(monkeypatch: pytest.MonkeyPatch
 )
 def test_host_local_publico(host: str, local: bool) -> None:
     assert host_local(host) is local
+
+
+@pytest.mark.parametrize(
+    "enderecos",
+    [[], ["isto-nao-e-ip"], [PUBLICO, ""], ["10.0.0.5"], [PUBLICO, "::ffff:127.0.0.1"]],
+)
+async def test_conferir_dns_recusa_o_que_nao_e_ip_global(enderecos: list[str]) -> None:
+    dns = ResolvedorFalso(*enderecos)
+    with pytest.raises(ErroDeRede, match="host local"):
+        await conferir_dns("b.example", dns)
+    assert dns.hosts == ["b.example"]
+
+
+async def test_conferir_dns_aceita_ip_global() -> None:
+    dns = ResolvedorFalso(PUBLICO, "2606:2800:21f:cb07:6820:80da:af6b:8b2c")
+    await conferir_dns("b.example", dns)
+    assert dns.hosts == ["b.example"]
+
+
+async def test_conferir_dns_falha_do_resolvedor_vira_erro_de_rede() -> None:
+    erro = socket.gaierror(-2, "Name or service not known")
+    with pytest.raises(ErroDeRede) as recebido:
+        await conferir_dns("b.example", ResolvedorFalso(erro=erro))
+    assert recebido.value.__cause__ is erro

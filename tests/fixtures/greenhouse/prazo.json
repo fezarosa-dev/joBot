@@ -1,0 +1,33 @@
+{
+  "jobs": [
+    {
+      "id": 8182389003,
+      "title": "Analista de Atendimento (Benefícios) | Pleno (Presencial/SP)",
+      "company_name": "Vitta",
+      "location": {
+        "name": "são paulo"
+      },
+      "first_published": "2026-11-10T08:51:30-05:00",
+      "updated_at": "2026-11-10T08:53:40-05:00",
+      "application_deadline": "2026-12-15T23:59:59.000Z",
+      "absolute_url": "https://job-boards.greenhouse.io/vitta/jobs/8182389003",
+      "content": "&lt;p&gt;&lt;strong&gt;O time Vitta:&lt;/strong&gt; vaga de exemplo &amp;amp; teste.&lt;/p&gt;",
+      "departments": [
+        {
+          "id": 4010139003,
+          "name": "Financeiro"
+        }
+      ],
+      "offices": [
+        {
+          "id": 4012231003,
+          "name": "VITTA"
+        }
+      ],
+      "language": "en"
+    }
+  ],
+  "meta": {
+    "total": 1
+  }
+}

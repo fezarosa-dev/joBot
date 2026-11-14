@@ -1,0 +1,125 @@
+{
+  "items": [
+    {
+      "id": "01a0b12a-6899-7722-bf35-2c32fbb2827e",
+      "source": "eureca",
+      "name": "Estágio em Manutenção Elétrica e Automação",
+      "description": "<p>Na Motiva, você vai apoiar a área de <strong>Manutenção Elétrica e Automação</strong>, acompanhando dados, indicadores e controles que contribuem para o funcionamento do sistema metroviário.<br><br>No dia a dia,<strong> você terá contato com as rotinas de manutenção e poderá desenvolver seus conhecimentos em ferramentas, processos e tecnologias</strong> utilizadas pela área. A oportunidade é para estudantes que residem em <strong>Salvador, na Bahia</strong>, e cursam:</p><ul><li><p>Engenharia Elétrica;</p></li><li><p>Engenharia de Automação</p></li><li><p>Engenharia Mecatrônica.</p></li></ul><p><br><strong>Como será o seu dia a dia:</strong></p><ul><li><p>apoiar o tratamento de dados e a atualização de controles e indicadores da área;</p></li><li><p>atualizar ordens de serviço e apoiar o acompanhamento das rotinas de manutenção;</p></li><li><p>apoiar o controle de materiais e atividades relacionadas a ferramentas e equipamentos;</p></li><li><p>contribuir com os controles administrativos e projetos de melhoria da área;</p></li><li><p>apoiar auditorias de ferramental e o acompanhamento de testes conforme as normas.</p></li></ul><p><strong><br>São considerados diferenciais:</strong></p><ul><li><p>conhecimento em Pacote Office, especialmente Excel;</p></li><li><p>conhecimento em Power BI;</p></li></ul><p><br>A Motiva busca pessoas analíticas, curiosas, organizadas e proativas, com senso crítico, interesse pela área elétrica e facilidade com tecnologia e ferramentas digitais.<br><br>Se você se identifica com a oportunidade e atende aos requisitos da vaga, <strong>inscreva-se e venha construir novos caminhos com a Motiva!</strong></p>",
+      "companyId": "01a04e0b-3d29-7be2-b1d2-44382af81416",
+      "companyName": "Motiva",
+      "companyLogoUrl": "https://prd-eureca-hub-public.s3.us-east-1.amazonaws.com/companies/motiva/logo/ca3624e9-9405-48dd-83ce-e3e33d3084d6.png",
+      "programId": "01a08297-169c-7c83-8e95-42290770263b",
+      "programName": "Estágio Motiva",
+      "workModel": "presencial",
+      "acceptsRelocation": null,
+      "locations": {
+        "states": [
+          "BA"
+        ],
+        "cities": [
+          "Salvador"
+        ]
+      },
+      "salary": {
+        "display": "undisclosed",
+        "minCents": null,
+        "maxCents": null
+      },
+      "diversity": [],
+      "weeklyHours": 30,
+      "workModels": [
+        "presencial"
+      ],
+      "weeklyHoursList": [
+        30
+      ],
+      "contractTypeKey": "internship",
+      "allowMultiplePositions": false,
+      "cityId": null,
+      "cityName": "Salvador",
+      "stateAcronym": "BA",
+      "publishedAt": null,
+      "createdAt": "2026-09-17 20:59:01.6539+00",
+      "endApplying": "2027-01-01T02:59:00.000Z"
+    },
+    {
+      "id": "01a091b8-3b35-7097-b331-6cfd80e3864e",
+      "source": "eureca",
+      "name": "Estágio em Gestão de Projetos de Engenharia",
+      "description": "<p>Na Motiva, você vai apoiar a área de <strong>Gestão de Projetos de Engenharia</strong>, acompanhando informações, documentos e controles que fazem parte do desenvolvimento dos projetos da área.<br><br>Ao longo do estágio, você poderá conhecer diferentes etapas dessa rotina, participar de reuniões técnicas e contribuir com o acompanhamento dos projetos e contratos.<br><br><strong>Como será o seu dia a dia:</strong></p><ul><li><p>apoiar a organização, o arquivamento e a tramitação de documentos e informações dos projetos;</p></li><li><p>participar de reuniões técnicas e apoiar os analistas nas rotinas da equipe de projetos;</p></li><li><p>apoiar a criação e atualização de controles e dashboards para acompanhamento das informações da área;</p></li><li><p>auxiliar no acompanhamento de contratos, apoiando controles relacionados a saldos, vencimentos e medições;</p></li><li><p>conforme o desenvolvimento na função, apoiar a conferência e análise de documentos técnicos relacionados aos projetos.</p></li></ul><p><br><strong>São considerados diferenciais:</strong></p><ul><li><p>conhecimento em Pacote Office, especialmente SharePoint;</p></li><li><p>conhecimento em Power BI;</p></li></ul><p><br>A Motiva busca pessoas organizadas, analíticas e curiosas, com boa comunicação, vontade de aprender e iniciativa para contribuir com as rotinas da equipe.<br><br>Se você se identifica com a oportunidade e atende aos requisitos da vaga, <strong>inscreva-se e venha construir novos caminhos com a Motiva!</strong></p>",
+      "companyId": "01a04e0b-3d29-7be2-b1d2-44382af81416",
+      "companyName": "Motiva",
+      "companyLogoUrl": "https://prd-eureca-hub-public.s3.us-east-1.amazonaws.com/companies/motiva/logo/ca3624e9-9405-48dd-83ce-e3e33d3084d6.png",
+      "programId": "01a08297-169c-7c83-8e95-42290770263b",
+      "programName": "Estágio Motiva",
+      "workModel": "hibrido",
+      "acceptsRelocation": null,
+      "locations": {
+        "states": [
+          "SP"
+        ],
+        "cities": [
+          "Jundiaí"
+        ]
+      },
+      "salary": null,
+      "diversity": [],
+      "weeklyHours": 30,
+      "workModels": [
+        "hibrido"
+      ],
+      "weeklyHoursList": [
+        30
+      ],
+      "contractTypeKey": "internship",
+      "allowMultiplePositions": false,
+      "cityId": null,
+      "cityName": "Jundiaí",
+      "stateAcronym": "SP",
+      "publishedAt": null,
+      "createdAt": "2026-09-11 18:26:05.235763+00",
+      "endApplying": "2027-01-01T02:59:00.000Z"
+    },
+    {
+      "id": "01a090e2-7159-704d-a347-5e78fc9e5ab2",
+      "source": "eureca",
+      "name": "Estágio em Orçamentos e Custos",
+      "description": "<p>Na Motiva, você vai apoiar a área de <strong>Orçamento e Custos</strong>, acompanhando de perto a construção de orçamentos e entendendo, na prática, como informações, quantitativos e custos contribuem para as decisões da área.<br><br><strong>Como será o seu dia a dia:</strong></p><ul><li><p>apoiar a elaboração e atualização de orçamentos em planilhas de Excel;</p></li><li><p>organizar informações e quantitativos, apoiando a precificação e composição dos custos;</p></li><li><p>apoiar a elaboração de requisições de compras e o lançamento de informações no SAP;</p></li><li><p>analisar informações e interagir com diferentes áreas para apoiar as rotinas de orçamento.</p></li></ul><p><br><strong>São considerados diferenciais:</strong></p><ul><li><p>conhecimento básico em AutoCAD e leitura de projetos;</p></li><li><p>conhecimento em Excel, especialmente em fórmulas básicas e intermediárias.</p></li></ul><p><br>A Motiva busca pessoas proativas, comunicativas e organizadas, com perfil analítico, atenção aos detalhes e interesse em aprender.<br><br>Se você se identifica com a oportunidade e atende aos requisitos da vaga, <strong>inscreva-se e venha construir novos caminhos com a Motiva!</strong></p>",
+      "companyId": "01a04e0b-3d29-7be2-b1d2-44382af81416",
+      "companyName": "Motiva",
+      "companyLogoUrl": "https://prd-eureca-hub-public.s3.us-east-1.amazonaws.com/companies/motiva/logo/ca3624e9-9405-48dd-83ce-e3e33d3084d6.png",
+      "programId": "01a08297-169c-7c83-8e95-42290770263b",
+      "programName": "Estágio Motiva",
+      "workModel": "presencial",
+      "acceptsRelocation": null,
+      "locations": {
+        "states": [
+          "SP"
+        ],
+        "cities": [
+          "Jundiaí"
+        ]
+      },
+      "salary": null,
+      "diversity": [],
+      "weeklyHours": 30,
+      "workModels": [
+        "presencial"
+      ],
+      "weeklyHoursList": [
+        30
+      ],
+      "contractTypeKey": "internship",
+      "allowMultiplePositions": false,
+      "cityId": null,
+      "cityName": "Jundiaí",
+      "stateAcronym": "SP",
+      "publishedAt": null,
+      "createdAt": "2026-09-11 14:32:34.3919+00",
+      "endApplying": "2027-01-01T02:59:00.000Z"
+    }
+  ],
+  "total": 8,
+  "page": 2,
+  "pageSize": 5
+}

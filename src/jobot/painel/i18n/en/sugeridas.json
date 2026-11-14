@@ -1,0 +1,12 @@
+{
+  "sugeridas.titulo": "Suggested companies",
+  "sugeridas.intro": "The weekly discovery found these job boards, all with a job in Brazil or remote. Nothing enters your search until you approve it.",
+  "sugeridas.vazio": "No suggested companies for now. When the weekly discovery finds new boards, they show up here.",
+  "sugeridas.achada_em": "Found on {data}",
+  "sugeridas.exemplo": "Address seen:",
+  "sugeridas.aprovar": "Approve",
+  "sugeridas.descartar": "Dismiss",
+  "sugeridas.removida": "You removed this company on {data}. Approving does not bring it back; to follow it again, add it in Companies.",
+  "sugeridas.erro.fonte_fora": "Could not reach the source right now. The suggestion stays here; try again later.",
+  "sugeridas.erro.pagina": "That page does not look like a Gupy company page. The suggestion stays here; discard it if it does not fit."
+}

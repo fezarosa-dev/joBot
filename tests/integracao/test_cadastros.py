@@ -1,5 +1,6 @@
 """Cadastros no banco: fontes, empresas e configuração (plano T23; desenho 8.6 e 13.7)."""
 
+import json
 import sqlite3
 from collections.abc import Iterator
 from datetime import UTC, date, datetime
@@ -8,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from apoio.semear import inserir_vaga
+from jobot.banco import cadastros
 from jobot.banco.cadastros import (
     PADROES,
     adicionar_empresa,
@@ -24,10 +26,13 @@ from jobot.banco.cadastros import (
 )
 from jobot.banco.conexao import abrir
 from jobot.banco.migrar import migrar
+from jobot.nucleo.coletores.registro import carregar_fontes
 from jobot.nucleo.modelo import Empresa
 
 AGORA = datetime(2026, 11, 13, 12, 0, tzinfo=UTC)
 DEPOIS = datetime(2026, 11, 14, 9, 30, tzinfo=UTC)
+
+TOTAL = 83  # as 67 da leva A (seção 7 do apêndice) e as 16 da leva B (T76)
 
 # Identificadores da seção 7 do apêndice de fontes (7.1 a 7.5).
 IDENTIFICADORES = {
@@ -143,8 +148,9 @@ def _total(con: sqlite3.Connection, tabela: str) -> int:
     return int(con.execute(f"SELECT COUNT(*) FROM {tabela}").fetchone()[0])
 
 
-def test_empresas_json_tem_67() -> None:
-    lista = empresas_iniciais()
+def test_empresas_json_tem_o_total_e_a_leva_a() -> None:
+    assert len(empresas_iniciais()) == TOTAL
+    lista = [e for e in empresas_iniciais() if e.fonte in IDENTIFICADORES]  # a leva A
     assert len(lista) == 67
     por_fonte: dict[str, set[str]] = {}
     for e in lista:
@@ -165,7 +171,7 @@ def test_empresas_json_tem_67() -> None:
 def test_semear_grava_fontes_e_empresas(con: sqlite3.Connection) -> None:
     semear(con)
     assert _total(con, "fonte") == 28
-    assert _total(con, "empresa") == 67
+    assert _total(con, "empresa") == TOTAL
     origem = con.execute("SELECT DISTINCT origem FROM empresa").fetchall()
     assert origem == [("lista_inicial",)]
     c6 = [e for e in empresas(con) if e.identificador == "c6bank"][0]
@@ -179,7 +185,7 @@ def test_semear_duas_vezes_nao_duplica(con: sqlite3.Connection) -> None:
     ids = con.execute("SELECT id, fonte, identificador FROM empresa ORDER BY id").fetchall()
     semear(con)
     assert _total(con, "fonte") == 28
-    assert _total(con, "empresa") == 67
+    assert _total(con, "empresa") == TOTAL
     assert con.execute("SELECT id, fonte, identificador FROM empresa ORDER BY id").fetchall() == ids
 
 
@@ -191,12 +197,47 @@ def test_semear_nao_sobrescreve_o_que_a_pessoa_mudou(con: sqlite3.Connection) ->
     con.execute("UPDATE empresa SET nome = 'Meu C6', area = 'minha' WHERE id = ?", (c6,))
     con.commit()
     semear(con)
-    assert [f.chave for f in fontes(con) if not f.ligada] == ["remotive"]
+    assert sorted(f.chave for f in fontes(con) if not f.ligada) == ["remotive"]
     assert _linha(con, "greenhouse", "c6bank") == (c6, 0, 0)
     assert con.execute("SELECT nome, area FROM empresa WHERE id = ?", (c6,)).fetchone() == (
         "Meu C6",
         "minha",
     )
+
+
+def test_semear_fontes_todas_nascem_ligadas(con: sqlite3.Connection) -> None:
+    semear(con)
+    assert [f.chave for f in fontes(con) if not f.ligada] == []
+    arquivo = Path(__file__).resolve().parents[2] / "src/jobot/nucleo/dados/fontes.json"
+    esperadas = sum(
+        d.get("ligada_padrao", True) for d in json.loads(arquivo.read_text("utf-8")).values()
+    )
+    assert len([f for f in fontes(con) if f.ligada]) == esperadas
+
+
+def test_semear_fonte_com_ligada_padrao_falso_nasce_desligada_e_a_escolha_sobrevive(
+    con: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    arquivo = Path(__file__).resolve().parents[2] / "src/jobot/nucleo/dados/fontes.json"
+    falso = carregar_fontes(arquivo.read_text("utf-8")) | carregar_fontes(
+        '{"x": {"leva": "A", "por_escopo": {}, "ligada_padrao": false}}'
+    )
+    monkeypatch.setattr(cadastros, "carregar_fontes", lambda _texto: falso)
+    semear(con)
+    assert [f.chave for f in fontes(con) if not f.ligada] == ["x"]
+    ligar_fonte(con, "x", True)
+    semear(con)
+    assert [f.chave for f in fontes(con) if not f.ligada] == []
+
+
+def test_semear_fontes_mantem_escolha_de_quem_ja_tem_linha(con: sqlite3.Connection) -> None:
+    semear(con)
+    assert [f.chave for f in fontes(con) if not f.ligada] == []
+    ligar_fonte(con, "eureca", False)
+    ligar_fonte(con, "remotive", False)
+    ligar_fonte(con, "eureca", True)
+    semear(con)
+    assert [f.chave for f in fontes(con) if not f.ligada] == ["remotive"]
 
 
 def test_semear_acrescenta_so_o_que_falta(con: sqlite3.Connection) -> None:
@@ -205,7 +246,7 @@ def test_semear_acrescenta_so_o_que_falta(con: sqlite3.Connection) -> None:
     con.execute("DELETE FROM empresa WHERE id = ?", (xp,))  # lista atualizada: entrada nova
     con.commit()
     semear(con)
-    assert _total(con, "empresa") == 67
+    assert _total(con, "empresa") == TOTAL
     assert _linha(con, "greenhouse", "xpinc")[1:] == (1, 0)
 
 
@@ -228,9 +269,9 @@ def test_intervalo_min_copiado_para_fonte(con: sqlite3.Connection) -> None:
 
 def test_ligar_e_desligar_fonte(con: sqlite3.Connection) -> None:
     semear(con)
-    assert all(f.ligada for f in fontes(con))
+    assert [f.chave for f in fontes(con) if not f.ligada] == []
     ligar_fonte(con, "wwr", False)
-    assert [f.chave for f in fontes(con) if not f.ligada] == ["wwr"]
+    assert sorted(f.chave for f in fontes(con) if not f.ligada) == ["wwr"]
     ligar_fonte(con, "wwr", True)
     assert all(f.ligada for f in fontes(con))
 
@@ -245,12 +286,12 @@ def test_remover_marca_removida_em_e_mantem_linha(con: sqlite3.Connection) -> No
     semear(con)
     c6 = _linha(con, "greenhouse", "c6bank")[0]
     remover_empresa(con, c6, AGORA)
-    assert _total(con, "empresa") == 67
+    assert _total(con, "empresa") == TOTAL
     assert con.execute("SELECT removida_em FROM empresa WHERE id = ?", (c6,)).fetchone() == (
         AGORA.isoformat(),
     )
     assert c6 not in {e.id for e in empresas(con)}
-    assert len(empresas(con)) == 66
+    assert len(empresas(con)) == TOTAL - 1
 
 
 def test_remover_duas_vezes_mantem_a_primeira_data(con: sqlite3.Connection) -> None:
@@ -278,7 +319,7 @@ def test_semear_pula_removida_sem_criar_linha(con: sqlite3.Connection) -> None:
     c6 = _linha(con, "greenhouse", "c6bank")[0]
     remover_empresa(con, c6, AGORA)
     semear(con)
-    assert _total(con, "empresa") == 67
+    assert _total(con, "empresa") == TOTAL
     assert _linha(con, "greenhouse", "c6bank") == (c6, 1, 1)
     assert c6 not in {e.id for e in empresas(con)}
 
@@ -293,7 +334,7 @@ def test_readicionar_limpa_removida_em(con: sqlite3.Connection) -> None:
         Empresa(nome="C6 Bank S.A.", fonte="greenhouse", identificador="c6bank", origem="pessoa"),
     )
     assert novo == c6
-    assert _total(con, "empresa") == 67
+    assert _total(con, "empresa") == TOTAL
     assert _linha(con, "greenhouse", "c6bank") == (c6, 1, 0)
     volta = [e for e in empresas(con) if e.id == c6][0]
     assert volta.nome == "C6 Bank S.A."
@@ -314,7 +355,7 @@ def test_adicionar_empresa_nova(con: sqlite3.Connection) -> None:
             origem="pessoa",
         ),
     )
-    assert _total(con, "empresa") == 68
+    assert _total(con, "empresa") == TOTAL + 1
     acme = [e for e in empresas(con) if e.id == novo][0]
     assert (acme.nome, acme.fonte, acme.identificador, acme.area, acme.pais) == (
         "Acme",
@@ -336,7 +377,7 @@ def test_adicionar_empresa_recusa_dado_invalido(con: sqlite3.Connection) -> None
         adicionar_empresa(con, Empresa(nome="X", fonte="greenhouse", identificador=" "))
     with pytest.raises(ValueError):
         adicionar_empresa(con, Empresa(nome="X", fonte="nao_existe", identificador="x"))
-    assert _total(con, "empresa") == 67
+    assert _total(con, "empresa") == TOTAL
 
 
 def test_ativar_empresa(con: sqlite3.Connection) -> None:
@@ -359,7 +400,7 @@ def test_contexto_coleta_ignora_removida(con: sqlite3.Connection) -> None:
     ativar_empresa(con, xp, False)
     da_coleta = empresas_da_coleta(con)
     assert isinstance(da_coleta, tuple)
-    assert len(da_coleta) == 65
+    assert len(da_coleta) == TOTAL - 2
     assert {e.id for e in da_coleta}.isdisjoint({c6, xp})
     assert all(e.ativa and e.removida_em is None and e.id is not None for e in da_coleta)
 

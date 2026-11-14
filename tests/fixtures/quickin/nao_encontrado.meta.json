@@ -1,0 +1,13 @@
+{
+  "url": "https://api.quickin.io/public/quickin/jobs?sort=-created_at&page=1",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 400,
+  "cabecalhos": {
+    "Content-Type": "application/json; charset=utf-8",
+    "ETag": "W/\"34-sY3NlRD2JUEfbQjHaesYWSUit2I\""
+  },
+  "sha256": "44af950a94ea5416796645e56da2d17a110baec1620763b2c5c2ba103a401468",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "resposta real de 2026-11-13 (captura B2, quickin_api_quickin.json): o slug no lugar do account_id dá 400 Invalid account_id; URL reconstruída da nota da conferência, corpo sem edição"
+}

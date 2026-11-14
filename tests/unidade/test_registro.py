@@ -98,6 +98,25 @@ def test_fontes_json_tem_28_fontes_e_os_limites() -> None:
     assert sum(registro.limites(c).credito_obrigatorio for c in bruto) == 5
 
 
+def test_fontes_json_campo_ligada_padrao_valida_tipo() -> None:
+    bruto = json.loads((Path(registro.__file__).parents[1] / "dados" / "fontes.json").read_text())
+    assert [c for c, d in bruto.items() if d.get("ligada_padrao") is False] == []
+    assert [c for c in bruto if not registro.limites(c).ligada_padrao] == []
+    assert (
+        registro.carregar_fontes('{"x": {"leva": "A", "por_escopo": {}}}')["x"].ligada_padrao
+        is True
+    )
+    desligada = registro.carregar_fontes(
+        '{"x": {"leva": "A", "por_escopo": {}, "ligada_padrao": false}}'
+    )
+    assert desligada["x"].ligada_padrao is False
+    for errado in ('"nao"', "0", "1", "null"):
+        with pytest.raises(ValueError, match="ligada_padrao"):
+            registro.carregar_fontes(
+                '{"x": {"leva": "A", "por_escopo": {}, "ligada_padrao": ' + errado + "}}"
+            )
+
+
 def test_limites_de_chave_desconhecida() -> None:
     with pytest.raises(KeyError):
         registro.limites("nao_existe")

@@ -2,6 +2,7 @@
   "vagas.titulo": "Jobs",
   "vagas.pular_lista": "Skip to the job list",
   "vagas.abas": "Job tabs",
+  "vagas.seletor": "Saved searches",
   "vagas.aba.destaques": "Highlights",
   "vagas.aba.todas": "All",
   "vagas.aba.novas": "New",
@@ -97,5 +98,12 @@
   "encaixe.salario_abaixo": "Salary below your minimum",
   "encaixe.idioma_ok": "Job language as you want",
   "encaixe.idioma_nao_detectado": "Job language not detected",
-  "encaixe.idioma_fora": "Language outside what you want"
+  "encaixe.idioma_fora": "Language outside what you want",
+  "vagas.programas.titulo": "Tracked program pages",
+  "vagas.programas.mudou_em": "changed on {data}",
+  "vagas.programas.ver": "See in Sites",
+  "vagas.programas.nova": "Not read yet.",
+  "vagas.programas.sem_mudanca": "Read, no change so far.",
+  "vagas.programas.falhou": "Could not be read on the last try. {motivo}",
+  "vagas.programas.diferenca": "See what changed"
 }

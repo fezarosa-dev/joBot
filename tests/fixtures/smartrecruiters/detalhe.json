@@ -1,0 +1,111 @@
+{
+  "id": "744000161500208",
+  "name": "Analista de Dados e Relacionamento",
+  "uuid": "c9270513-59c9-43c8-9ae0-8b116381fb0c",
+  "jobId": "40199192-a830-4386-ae8a-e05822022912",
+  "jobAdId": "127a40e7-19f2-4f9b-bff1-4aea775142c9",
+  "defaultJobAd": false,
+  "refNumber": "R26_0025443|BR",
+  "company": {
+    "name": "NielsenIQ",
+    "identifier": "NielsenIQ"
+  },
+  "location": {
+    "city": "Barueri",
+    "region": "SP",
+    "country": "br",
+    "address": "Alameda Xingu, 512, Alphaville",
+    "remote": false,
+    "hybrid": true,
+    "hybridDescription": "1 dia presencial e 4 remotos",
+    "fullLocation": "Barueri, SP, Brazil"
+  },
+  "customField": [
+    {
+      "fieldId": "5f4e1c0fb0ef7d27c76a592a",
+      "fieldLabel": "Brands",
+      "valueId": "default",
+      "valueLabel": "NielsenIQ"
+    },
+    {
+      "fieldId": "5f63c34d877060706d2a5a98",
+      "fieldLabel": "Referral Amount ($USD): Enter 0 for no amount.",
+      "valueLabel": "100"
+    },
+    {
+      "fieldId": "66ba11a2fbb6422bc1768d9c",
+      "fieldLabel": "Job Family",
+      "valueId": "JF_Project-slash-Program Management Generalist-slash-Multidiscipline",
+      "valueLabel": "Project/Program Management Generalist/Multidiscipline"
+    },
+    {
+      "fieldId": "COUNTRY",
+      "fieldLabel": "Country/Region",
+      "valueId": "br",
+      "valueLabel": "Brazil"
+    },
+    {
+      "fieldId": "66b9f751c3dea915005f52d3",
+      "fieldLabel": "Job Family Group",
+      "valueId": "JFG_Project Management",
+      "valueLabel": "Project Management"
+    }
+  ],
+  "releasedDate": "2026-11-13T14:26:02.232Z",
+  "creator": {
+    "name": "",
+    "avatarUrl": ""
+  },
+  "postingUrl": "https://jobs.smartrecruiters.com/NielsenIQ/744000161500208-analista-de-dados-e-relacionamento",
+  "applyUrl": "https://jobs.smartrecruiters.com/NielsenIQ/744000161500208-analista-de-dados-e-relacionamento?oga=true",
+  "referralUrl": "https://jobs.smartrecruiters.com/external-referrals/company/NielsenIQ/publication/c9270513-59c9-43c8-9ae0-8b116381fb0c?dcr_ci=NielsenIQ",
+  "jobAd": {
+    "sections": {
+      "companyDescription": {
+        "title": "Descrição da empresa",
+        "text": ""
+      },
+      "jobDescription": {
+        "title": "Descrição da vaga",
+        "text": "<p>Na NIQ você ingressará em uma empresa líder do setor de Consumer Intelligence, que está construindo plataformas de tecnologia de alcance global, possibilitando tornar acessíveis e estratégicos diversos dados de consumo para a melhor performance dos nossos clientes.  </p><p>Estamos buscando um eData Analyst para se unir a divisão de Data Acquisition da NIQ. A área de eData tem como foco a digitalização da coleta de dados em lojas independentes — como mercearias, pequenos varejos e estabelecimentos de bairro — substituindo o modelo tradicional baseado em auditorias manuais por um sistema automatizado, alimentado por dados provenientes de parceiros ERP (fornecedores de softwares de gestão). O objetivo central é ampliar a visibilidade e aumentar a precisão das informações e da performance nesses pontos de venda, historicamente mais desafiadores para mensuração. </p><p>O eData Analyst tem como principal responsabilidade assegurar que os dados de consumo provenientes de pequenos e médios varejistas — recebidos por meio de empresas parceiras de ERP — estejam em conformidade com os padrões de qualidade e indicadores operacionais estabelecidos, antes de serem submetidos à plataforma para processamento. </p><p>Além disso, esse profissional será responsável por integrar e monitorar os dados na plataforma, realizando a classificação e validação das informações recebidas. Também atuará diretamente no relacionamento com os parceiros, contribuindo para a resolução de problemas técnicos e o acompanhamento contínuo dos resultados. </p><p><strong>Responsabilidades </strong></p><ul><li>Garantir o recebimento e a qualidade dos dados de consumo enviados por parceiros ERP, realizando análises, verificações e alinhamentos necessários. </li><li>Executar validações e fornecer feedback sobre amostras de dados, assegurando conformidade com os padrões operacionais. </li><li>Realizar limpeza, classificação e submissão dos dados na plataforma. </li><li>Solucionar problemas relacionados ao formato e upload dos arquivos, atuando diretamente com os parceiros. </li><li>Monitorar o cumprimento dos prazos de entrega, escalando situações críticas e promovendo o engajamento dos parceiros. </li></ul>"
+      },
+      "qualifications": {
+        "title": "Qualificações",
+        "text": "<ul><li>Ensino superior em andamento (último ano) ou concluído. </li><li>Experiência com grandes volumes de dados e resolução de problemas de baixa complexidade. </li><li>Capacidade analítica para interpretar e validar informações. </li><li>Comunicação clara, com foco em relacionamento interpessoal. </li><li>Inglês em nível avançado. </li><li>Necessário vivência em relacionamento com parceiros ou clientes (internos/externos). </li><li>Necessário vivência com ferramentas como Power BI, SQL ou Python. </li><li>Desejável conhecimento em protocolos de onboarding da NiQ (RAP Process, Scorecard, eDive). </li></ul><p> </p>"
+      },
+      "additionalInformation": {
+        "title": "Informações adicionais",
+        "text": "<p>Job ID: R26_0025443</p><div sr-tagline=\"\"></div><p><strong>Our Benefits</strong></p><ul><li>Flexible working environment</li><li>Volunteer time off</li><li>LinkedIn Learning</li><li>Employee-Assistance-Program (EAP)</li></ul><p>NIQ may utilize artificial intelligence (AI) tools at various stages of the recruitment process, including résumé screening, candidate assessments, interview scheduling, job matching, communication support, and certain administrative tasks that help streamline workflows. These tools are intended to improve efficiency and support fair and consistent evaluation based on job-related criteria. All use of AI is governed by NIQ’s principles of fairness, transparency, human oversight, and inclusion. Final hiring decisions are made exclusively by humans. NIQ regularly reviews its AI tools to help mitigate bias and ensure compliance with applicable laws and regulations. If you have questions, require accommodations, or wish to request human review were permitted by law, please contact your local HR representative. For more information, please visit NIQ’s AI Safety Policies and Guiding Principles: https://nielseniq.com/global/en/info/niqs-ai-safety-policies/</p>\n<p><strong>About NIQ</strong></p><p>NIQ is the world’s leading consumer intelligence company, delivering the most complete understanding of consumer buying behavior and revealing new pathways to growth. In 2023, NIQ combined with GfK, bringing together the two industry leaders with unparalleled global reach. With a holistic retail read and the most comprehensive consumer insights—delivered with advanced analytics through state-of-the-art platforms—NIQ delivers the Full View™. NIQ is an Advent International portfolio company with operations in 100+ markets, covering more than 90% of the world’s population.</p><p>For more information, visit NIQ.com</p><p>Want to keep up with our latest updates?</p><p>Follow us on: <a href=\"https://www.linkedin.com/company/nielseniq/mycompany/\" rel=\"noopener noreferrer\">LinkedIn</a> | <a href=\"https://www.instagram.com/nielseniq/\" rel=\"noopener noreferrer\">Instagram</a> | <a href=\"https://twitter.com/nielseniq\" rel=\"noopener noreferrer\">Twitter</a> | <a href=\"https://www.facebook.com/NielsenIQ.global/\" rel=\"noopener noreferrer\">Facebook</a></p>\n<p><strong>Our commitment to Diversity, Equity, and Inclusion</strong></p><p>At NIQ, we are steadfast in our commitment to fostering an inclusive workplace that mirrors the rich diversity of the communities and markets we serve. We believe that embracing a wide range of perspectives drives innovation and excellence.  All employment decisions at NIQ are made without regard to race, color, religion, sex (including pregnancy, sexual orientation, or gender identity), national origin, age, disability, genetic information, marital status, veteran status, or any other characteristic protected by applicable laws. We invite individuals who share our dedication to inclusivity and equity to join us in making a meaningful impact. To learn more about our ongoing efforts in diversity and inclusion, please visit the <a href=\"https://nam02.safelinks.protection.outlook.com/?url=https%3A%2F%2Fnielseniq.com%2Fglobal%2Fen%2Fnews-center%2Fdiversity-inclusion&amp;data=05%7C02%exemplo@exemplo.invalid%7C6e534cbe3eb041842d5f08dc6dca121e%7C6ac7a1f45fb14153bb4f12d2020a1f7d%7C0%7C0%7C638505961881417602%7CUnknown%7CTWFpbGZsb3d8eyJWIjoiMC4wLjAwMDAiLCJQIjoiV2luMzIiLCJBTiI6Ik1haWwiLCJXVCI6Mn0%3D%7C0%7C%7C%7C&amp;sdata=B%2Fp40oNUpJOw1CNoc87EFXk%2BvxeO1jxYOSRCEKM%2Fz5Q%3D&amp;reserved=0\" rel=\"noopener noreferrer\">https://nielseniq.com/global/en/news-center/diversity-inclusion</a></p>"
+      },
+      "videos": {
+        "title": "Videos To Watch",
+        "urls": [
+          "https://www.youtube.com/watch?v=Lc2Xdv3aAKI"
+        ]
+      }
+    }
+  },
+  "active": true,
+  "visibility": "PUBLIC",
+  "industry": {
+    "id": "market_research",
+    "label": "Market Research"
+  },
+  "function": {
+    "id": "general_business",
+    "label": "General Business"
+  },
+  "experienceLevel": {
+    "id": "mid_senior_level",
+    "label": "Mid-Senior Level"
+  },
+  "typeOfEmployment": {
+    "id": "permanent",
+    "label": "Full-time"
+  },
+  "language": {
+    "code": "pt-BR",
+    "label": "Portuguese (Brazil)",
+    "labelNative": "português (Brasil)"
+  }
+}

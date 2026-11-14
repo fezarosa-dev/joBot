@@ -1,0 +1,31 @@
+name: Fonte quebrou / Source broke
+description: Uma fonte de vagas parou de funcionar no joBot. / A job source stopped working in joBot.
+title: "[Fonte quebrou]: "
+labels: [fonte-quebrada]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        O link "reportar problema" do joBot já preenche a fonte e o motivo. Confira e envie.
+        Não coloque dados pessoais, senhas nem o conteúdo das suas buscas.
+        The joBot "report a problem" link already fills in the source and the reason. Check and send.
+        Do not include personal data, passwords or the contents of your searches.
+  - type: input
+    id: fonte
+    attributes:
+      label: Fonte / Source
+      description: A chave da fonte, como aparece na tela Fontes. / The source key, as shown on the Sources screen.
+    validations:
+      required: true
+  - type: input
+    id: motivo
+    attributes:
+      label: Motivo / Reason
+      description: A chave do motivo mostrada pelo joBot. / The reason key shown by joBot.
+    validations:
+      required: true
+  - type: textarea
+    id: detalhes
+    attributes:
+      label: Detalhes / Details
+      description: Se quiser, conte o que você viu. / If you like, tell us what you saw.

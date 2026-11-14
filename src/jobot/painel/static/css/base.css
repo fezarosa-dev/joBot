@@ -22,7 +22,7 @@
  * O teste do contraste (critério 29) lê a lista abaixo: cada par é <texto>/<fundo>.
  * Par novo de texto sobre fundo entra nesta lista, com as duas cores em hex de 6 dígitos.
  */
-/* contraste: texto/fundo texto-2/fundo texto/superficie texto-2/superficie link/fundo link/superficie sobre-destaque/destaque texto/trilho texto/segmento */
+/* contraste: texto/fundo texto-2/fundo texto/superficie texto-2/superficie link/fundo link/superficie sobre-destaque/destaque texto/trilho texto/segmento alerta/superficie alerta/fundo */
 :root {
   color-scheme: light dark;
   --fundo: light-dark(#f5f5f7, #000000);
@@ -34,6 +34,7 @@
   --sobre-destaque: light-dark(#ffffff, #ffffff);
   --trilho: light-dark(#e8e8ed, #2c2c2e);
   --segmento: light-dark(#ffffff, #48484a);
+  --alerta: light-dark(#d70015, #ff453a);
   --foco: light-dark(#0071e3, #2997ff);
   --borda: light-dark(rgb(0 0 0 / 0.08), rgb(255 255 255 / 0.12));
   --barra: light-dark(rgb(245 245 247 / 0.72), rgb(22 22 23 / 0.72));
@@ -106,11 +107,20 @@ main:focus:not(:focus-visible) {
   font-weight: 600;
   text-decoration: none;
   transform: translateY(-300%);
-  transition: transform var(--duracao) var(--mola);
+  /* o do miolo cai atrás da barra do topo (translúcida): fora da tela não basta, some até o foco */
+  opacity: 0;
+  transition:
+    transform var(--duracao) var(--mola),
+    opacity var(--duracao) var(--mola);
+}
+
+.pular:not(:focus) {
+  pointer-events: none;
 }
 
 .pular:focus {
   transform: none;
+  opacity: 1;
 }
 
 /* barra do topo translúcida */
@@ -136,6 +146,44 @@ main:focus:not(:focus-visible) {
   font-weight: 700;
   letter-spacing: -0.025em;
   text-decoration: none;
+}
+
+/* menu principal: quebra de linha em tela estreita ou com zoom, sem rolagem nem JavaScript */
+.menu {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.menu a {
+  padding: 0.3rem 0.8rem;
+  border-radius: 8px;
+  color: var(--texto);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition:
+    background-color var(--duracao) var(--mola),
+    box-shadow var(--duracao) var(--mola);
+}
+
+.menu a:hover {
+  background-color: var(--trilho);
+}
+
+/* área aberta: mesmo tom do segmento escolhido (pares texto/segmento e texto/trilho da lista) */
+.menu a[aria-current="page"] {
+  background-color: var(--segmento);
+  box-shadow: 0 1px 3px var(--sombra);
+  font-weight: 600;
+}
+
+/* barra alta demais cobriria o conteúdo com zoom de 200%: em tela estreita ela rola junto */
+@media (max-width: 40rem) {
+  .topo {
+    position: static;
+  }
 }
 
 .preferencias {
@@ -186,6 +234,41 @@ main {
   margin: 0 auto;
   padding: var(--espaco);
   animation: surgir var(--duracao) var(--mola) both;
+}
+
+/* aviso de versão nova (T85): a div é fixa e some sem altura; só o parágrafo tem caixa */
+#aviso-versao {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 0 var(--espaco);
+}
+
+.aviso-versao {
+  margin: 0.75rem 0 0;
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  background-color: var(--superficie);
+  color: var(--texto);
+  font-size: 0.9375rem;
+}
+
+/* rodapé: link discreto "Apoie o projeto" (T87), texto-2 sobre o fundo (par da lista) */
+.rodape {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 0 var(--espaco) var(--espaco);
+  color: var(--texto-2);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.rodape a {
+  color: var(--texto-2);
+}
+
+.rodape a:hover {
+  color: var(--texto);
 }
 
 /* painel: superfície com cantos arredondados, para as telas usarem */

@@ -1,0 +1,168 @@
+/* Detalhe da vaga e correção (plano T46): só as cores e medidas da base.css, as cores vêm dos tokens da base.css.
+   Cartão, selos, botões e formulário vêm do vagas.css e do buscas.css, carregados junto. */
+
+.voltar {
+  margin: 0 0 1rem;
+  font-size: 0.9375rem;
+}
+
+.detalhe {
+  display: grid;
+  gap: 0.75rem;
+  max-width: 48rem;
+}
+
+.detalhe > * {
+  margin: 0;
+}
+
+.detalhe .titulo-pagina {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.detalhe .salario {
+  font-size: 1.0625rem;
+}
+
+/* a cotação fica ao lado do valor, menor */
+.detalhe small.cotacao {
+  font-size: 0.8125rem;
+}
+
+.detalhe .acoes {
+  align-items: center;
+}
+
+a.primario {
+  display: inline-flex;
+  align-items: center;
+  color: var(--sobre-destaque);
+  text-decoration: none;
+}
+
+.bloco h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.motivos,
+.beneficios,
+.datas {
+  margin: 0.5rem 0 0;
+  padding-left: 1.25rem;
+}
+
+.datas {
+  list-style: none;
+  padding-left: 0;
+}
+
+.datas .urgente {
+  color: var(--alerta);
+  font-weight: 700;
+}
+
+/* o ▲ do mês com prazo urgente; o desenho é aria-hidden e o texto ao lado diz o mesmo */
+.meses .urgente {
+  color: var(--alerta);
+}
+
+.estagio {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.25rem 1rem;
+  margin: 0;
+}
+
+.estagio dt {
+  color: var(--texto-2);
+}
+
+.estagio dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.descricao {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.55;
+}
+
+/* faixa de 12 meses: só desenho, o texto ao lado diz o mesmo */
+.meses {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 0.25rem;
+  margin: 0 0 0.75rem;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 40rem) {
+  .meses {
+    grid-template-columns: repeat(12, 1fr);
+  }
+}
+
+.meses li {
+  display: grid;
+  gap: 0.125rem;
+  min-height: 3rem;
+  padding: 0.25rem;
+  border-radius: 8px;
+  background-color: var(--trilho);
+  color: var(--texto);
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+.meses li.atual {
+  outline: 2px solid var(--destaque);
+}
+
+.meses .marcas {
+  min-height: 1em;
+  letter-spacing: 0.1em;
+}
+
+.corrigir {
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--borda);
+}
+
+.correcoes {
+  display: grid;
+  gap: 0.75rem;
+  max-width: 40rem;
+}
+
+.correcoes > .dica {
+  margin: 0;
+}
+
+.linha-correcao {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  background-color: var(--superficie);
+}
+
+.linha-correcao label {
+  color: var(--texto-2);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.linha-correcao input[type="text"][size] {
+  width: 6rem;
+}
+
+.linha-correcao button {
+  justify-self: start;
+}

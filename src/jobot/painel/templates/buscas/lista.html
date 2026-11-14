@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block titulo %}{{ t("buscas.titulo") }} · joBot{% endblock %}
+{% block estilos %}<link rel="stylesheet" href="/static/css/vagas.css"><link rel="stylesheet" href="/static/css/buscas.css">{% endblock %}
+{% block conteudo %}
+<h1 class="titulo-pagina">{{ t("buscas.titulo") }}</h1>
+{% if buscas %}
+<ul class="lista" id="lista-buscas">
+  {%- for r in buscas %}
+  {%- set b = r.busca %}
+  <li class="cartao{% if not b.ativa %} cartao-oculta{% endif %}" id="busca-{{ b.id }}">
+    <div class="cartao-cabeca">
+      <h2 class="cartao-titulo">{{ b.nome }}</h2>
+      {%- if not b.ativa %}
+      <span class="selo">{{ t("buscas.desligada") }}</span>
+      {%- endif %}
+    </div>
+    <ul class="meta">
+      {%- if b.cargos %}
+      <li><span class="rotulo">{{ t("buscas.campo.cargos") }}:</span> {{ b.cargos | join(", ") }}</li>
+      {%- endif %}
+      {%- if r.cidades %}
+      <li><span class="rotulo">{{ t("buscas.campo.cidades") }}:</span> {{ r.cidades | join(" · ") }}</li>
+      {%- endif %}
+      {%- if b.modalidades %}
+      <li><span class="rotulo">{{ t("buscas.campo.modalidades") }}:</span>
+        {%- for m in b.modalidades %} {{ t("modalidade." ~ m.value) }}{{ "," if not loop.last }}{% endfor %}</li>
+      {%- endif %}
+      {%- if b.niveis %}
+      <li><span class="rotulo">{{ t("buscas.campo.niveis") }}:</span>
+        {%- for n in b.niveis %} {{ t("nivel." ~ n.value) }}{{ "," if not loop.last }}{% endfor %}</li>
+      {%- endif %}
+      {%- if b.salario_min_centavos %}
+      <li><span class="rotulo">{{ t("buscas.campo.salario") }}:</span> {{ dinheiro(b.salario_min_centavos, b.salario_moeda or "BRL", idioma) }}</li>
+      {%- endif %}
+      {%- if b.idiomas %}
+      <li><span class="rotulo">{{ t("buscas.campo.idiomas") }}:</span>
+        {%- for i in b.idiomas %} {{ t("buscas.idioma." ~ i) }}{{ "," if not loop.last }}{% endfor %}</li>
+      {%- endif %}
+      {%- if r.desligadas %}
+      <li><span class="rotulo">{{ t("buscas.regras_desligadas") }}:</span>
+        {%- for d in r.desligadas %} {{ t("vagas.motivo." ~ d) }}{{ "," if not loop.last }}{% endfor %}</li>
+      {%- endif %}
+    </ul>
+    <div class="acoes">
+      <a href="/vagas?aba=todas&amp;busca={{ b.id }}">{{ t("buscas.ver_vagas") }}</a>
+      <a href="/buscas/{{ b.id }}">{{ t("buscas.editar") }}</a>
+      <form method="post" action="/buscas/{{ b.id }}/{{ 'desligar' if b.ativa else 'ligar' }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button type="submit" class="secundario">{{ t("buscas.desligar" if b.ativa else "buscas.ligar") }}</button>
+      </form>
+      <details class="apagar">
+        <summary>{{ t("buscas.apagar") }}</summary>
+        <form method="post" action="/buscas/{{ b.id }}/apagar">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <p>{{ t("buscas.apagar_aviso", nome=b.nome) }}</p>
+          <button type="submit" class="secundario">{{ t("buscas.apagar_confirmar") }}</button>
+        </form>
+      </details>
+    </div>
+  </li>
+  {%- endfor %}
+</ul>
+{% else %}
+<p class="vazio">{{ t("buscas.vazio") }}</p>
+{% endif %}
+<section class="painel nova" aria-labelledby="nova-titulo">
+  <h2 id="nova-titulo">{{ t("buscas.nova") }}</h2>
+  {%- set envio = "buscas.criar" %}
+  {%- set cancelar = false %}
+  {%- include "buscas/formulario.html" %}
+</section>
+{% endblock %}

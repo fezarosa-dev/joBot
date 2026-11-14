@@ -1,0 +1,16 @@
+<p class="config-texto">{{ t("configuracoes.fontes.explicacao") }}</p>
+<form method="post" action="/configuracoes/fontes" class="config-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  {% for leva, itens in levas %}{% if itens %}
+  <fieldset class="grupo-leva">
+    <legend>{{ t("configuracoes.fontes.leva_" ~ (leva | lower)) }}</legend>
+    {% for f in itens %}
+    <label class="opcao"><input type="checkbox" class="chave" name="fonte" value="{{ f.chave }}"{% if f.ligada %} checked{% endif %}> {{ t("fonte." ~ f.chave) }}</label>
+    {% endfor %}
+  </fieldset>
+  {% endif %}{% endfor %}
+  <div class="acoes">
+    <button type="submit" class="botao botao-primario">{{ t("configuracoes.salvar") }}</button>
+    <a class="botao botao-secundario" href="/fontes">{{ t("configuracoes.fontes.saude") }}</a>
+  </div>
+</form>

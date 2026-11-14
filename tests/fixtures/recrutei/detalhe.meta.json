@@ -1,0 +1,12 @@
+{
+  "url": "https://jobs.recrutei.com.br/ucm-business-solutions/vacancy/160532-manufacturing-it-project-coordinator-mes",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "text/html; charset=utf-8"
+  },
+  "sha256": "1cc3b9fceed7800b1e3377ccd3cf48330033faf2711d437d75ffdcf63747f3d9",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "captura/B2/raw/recrutei_vaga2.html: página real de 2026-11-13, reduzida por scripts/capturar.reduzir (só o script JSON __NEXT_DATA__ fica) e limpar_pessoais; sem edição"
+}

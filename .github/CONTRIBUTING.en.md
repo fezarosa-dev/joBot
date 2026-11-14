@@ -6,11 +6,12 @@ Thanks for your interest! This guide explains how to help with joBot, now and af
 
 ## Project status
 
-joBot has nothing to install yet. Phase 1 (foundation) is in progress. The decisions made so far are in [`docs/decisions/`](../docs/decisions/README.md) (Portuguese only for now). To learn what the project is and where it is going, read the [README](../README.en.md).
+Phase 1 (foundation) is complete: joBot 0.1.0 can already be installed and used ([how to install](../README.en.md#requirements-and-installation)). Phases 2 to 8 are planned. The decisions made so far are in [`docs/decisions/`](../docs/decisions/README.md) (Portuguese only for now). To learn what the project is and where it is going, read the [README](../README.en.md).
 
 ## How to help now
 
 - **Suggestions and job sources** are welcome right away. Open an issue using the forms: Bug, Feature request or Job source.
+- **Did a job source break?** The guide [How to fix a source that broke](../docs/consertar-fonte.en.md) shows how to find what changed and fix it. For now it helps you understand the path and report what you found in an issue; the PR with the fix follows the rule below.
 - **Code pull requests** will only be accepted after the release (phase 8). Until then, the code is still changing a lot.
 - Issues and PRs can be written in **Portuguese or English**.
 - Found a security flaw? **Do not open a public issue.** See the [Security Policy](SECURITY.en.md).
@@ -33,8 +34,6 @@ joBot has nothing to install yet. Phase 1 (foundation) is in progress. The decis
 4. Check that `ruff`, `mypy --strict` and `pytest` pass.
 5. Make small commits, in Portuguese, in the format `type(scope): description`.
 6. Open a PR to `dev` using the [PR template](pull_request_template.md).
-
-The exact commands to run everything will be documented once the code exists.
 
 ## Wiki
 

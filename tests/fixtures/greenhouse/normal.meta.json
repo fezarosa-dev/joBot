@@ -1,0 +1,12 @@
+{
+  "url": "https://boards-api.greenhouse.io/v1/boards/vitta/jobs?content=true",
+  "data": "2026-11-14T05:22:15.875119+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/json",
+    "ETag": "W/\"3f2a819ade76f8809366e46fa007c0f3\""
+  },
+  "sha256": "68d616759fd4fb5cbab351332f8a078c4a99fba2515103b0270333481c368dac",
+  "versao": "0.1.0",
+  "metodo": "GET"
+}

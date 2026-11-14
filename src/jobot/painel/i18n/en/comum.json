@@ -42,6 +42,7 @@
   "aviso.exige_visto": "Requires a work visa",
   "aviso.exige_doutorado": "Requires a doctorate",
   "aviso.restrito_a_pais": "Restricted to residents of one country",
+  "aviso.restrito_a_pais_lista": "Only for residents of: {paises}",
   "fonte.github_issues": "GitHub Issues",
   "fonte.remotive": "Remotive",
   "fonte.remoteok": "RemoteOK",
@@ -86,5 +87,5 @@
   "saude.erro_de_rede": "Network error talking to the source",
   "saude.resposta_grande": "The source response exceeded the allowed size",
   "saude.excecao": "Unexpected error: {tipo}",
-  "saude.listagem_incompleta": "The listing came incomplete: some pages did not change since the last fetch"
+  "saude.listagem_incompleta": "This source's job list came back incomplete: only some of the jobs were fetched this time"
 }

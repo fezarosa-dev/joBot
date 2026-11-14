@@ -11,7 +11,7 @@
 
 ```mermaid
 flowchart LR
-    F1["🟡 Phase 1 · Base"] --> F2["⚪ Phase 2 · Browser with login"] --> F3["⚪ Phase 3 · Local AI"] --> F4["⚪ Phase 4 · Extension"]
+    F1["✅ Phase 1 · Base"] --> F2["⚪ Phase 2 · Browser with login"] --> F3["⚪ Phase 3 · Local AI"] --> F4["⚪ Phase 4 · Extension"]
     F4 --> F5["⚪ Phase 5 · Audio and Gmail"] --> F6["⚪ Phase 6 · Training"] --> F7["⚪ Phase 7 · GitHub Pages"] --> F8["⚪ Phase 8 · Release"]
 ```
 
@@ -19,7 +19,7 @@ flowchart LR
 
 | | Phase | What is included | Status |
 |:---:|---|---|---|
-| 🟡 | **1. Base** | Common core, public sources, database, dashboard and scheduling | In progress |
+| ✅ | **1. Base** | Common core, public sources, database, dashboard and scheduling | Complete |
 | ⚪ | **2. Browser with login** | Visible Chrome, site mapping and CAPTCHA handling | Planned |
 | ⚪ | **3. Local AI** | Offline package (llama-server + Qwen) | Planned |
 | ⚪ | **4. Browser extension** | Browser extension for forms | Planned |
@@ -28,12 +28,12 @@ flowchart LR
 | ⚪ | **7. GitHub Pages version** | Browser version, no installation | Planned |
 | ⚪ | **8. Release** | Installers, README with badges and security review | Planned |
 
-<sub>🟡 in progress · ⚪ planned</sub>
+<sub>✅ complete · ⚪ planned</sub>
 
 ## 🔍 A bit more about each phase
 
 <details>
-<summary><strong>🟡 Phase 1, Base</strong></summary>
+<summary><strong>✅ Phase 1, Base</strong></summary>
 
 - The common core, the public source collectors, the SQLite database, the dashboard and the search schedule.
 - The first-run assistant has only two steps: search preferences and background.

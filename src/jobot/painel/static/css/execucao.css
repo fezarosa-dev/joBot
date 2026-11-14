@@ -1,0 +1,78 @@
+/* Buscar agora, Sair e o andamento da busca, na barra do topo (T49) */
+.execucao {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.execucao form {
+  margin: 0;
+}
+
+.botao-buscar,
+.botao-sair {
+  appearance: none;
+  border: 0;
+  margin: 0;
+  padding: 0.3rem 0.9rem;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background-color var(--duracao) var(--mola),
+    transform var(--duracao) var(--mola);
+}
+
+.botao-buscar {
+  background-color: var(--destaque);
+  color: var(--sobre-destaque);
+}
+
+.botao-sair {
+  background-color: var(--trilho);
+  color: var(--texto);
+}
+
+.botao-buscar:active,
+.botao-sair:active {
+  transform: scale(0.96);
+}
+
+/* a região fica sempre na página (o leitor de tela só anuncia mudança em região que já existe) */
+.andamento-regiao {
+  flex-basis: 100%;
+  font-size: 0.875rem;
+  color: var(--texto);
+}
+
+/* vazia, a região não abre uma linha de gap na barra (T107); com texto volta a ocupar a largura */
+.andamento-regiao:empty {
+  flex-basis: 0;
+}
+
+.andamento p {
+  margin: 0;
+}
+
+.andamento-aviso {
+  font-weight: 600;
+}
+
+.andamento-ponto {
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-right: 0.4rem;
+  border-radius: 50%;
+  background-color: var(--destaque);
+  animation: pulsar 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes pulsar {
+  from {
+    opacity: 0.3;
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "url": "https://mercadolibre.eightfold.ai/api/pcsx/search?domain=mercadolibre.com&query=&location=Brazil&start=0&sort_by=timestamp",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/json"
+  },
+  "sha256": "f500cd7da14ecdc255e3ca5d5ef14412024f5b553236c5dfcea29f4f3162eeca",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "captura B1/eightfold_pcsx_mercadolibre_lista_br.json (já cortada a 5 vagas) passada por capturar.reduzir e capturar.limpar_pessoais (nomes em texto livre conferidos à mão); chaves de anotação da captura removidas: _nota, _chaves_omitidas"
+}

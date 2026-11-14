@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 
 from apoio.relogio import RelogioFalso
 from apoio.semear import AGORA, inserir_vaga, semear
+from jobot.banco import acoes
 from jobot.banco.conexao import abrir
 from jobot.banco.migrar import migrar
 from jobot.painel.app import criar_app
@@ -85,13 +86,15 @@ def _tag(html: str, id_: str) -> str:
 
 
 def _atual(html: str) -> list[str]:
-    """As abas marcadas com aria-current."""
-    return re.findall(r'<a\b[^>]*aria-current="page"[^>]*>', html)
+    """As abas marcadas com aria-current (só o `<nav class="abas">`, não o menu da casca)."""
+    abas = re.search(r'<nav class="abas".*?</nav>', html, re.S)
+    assert abas is not None
+    return re.findall(r'<a\b[^>]*aria-current="page"[^>]*>', abas.group(0))
 
 
 def test_raiz_vai_para_vagas_ou_para_a_primeira_execucao(painel: Painel) -> None:
     primeira = painel.get("/")
-    assert (primeira.status_code, primeira.headers["location"]) == (303, "/primeira-execucao")
+    assert (primeira.status_code, primeira.headers["location"]) == (303, "/primeira-execucao/1")
     painel.config("primeira_execucao_concluida", True)
     pronta = painel.get("/")
     assert (pronta.status_code, pronta.headers["location"]) == (303, "/vagas?aba=destaques")
@@ -439,6 +442,23 @@ def test_acao_com_id_fora_da_faixa_do_banco_nao_da_500(
 @pytest.mark.parametrize("acao", ["status", "ocultar", "mostrar"])
 def test_vaga_com_id_que_nao_e_numero_422(painel: Painel, acao: str) -> None:
     assert painel.post(f"/vagas/abc/{acao}", status="salva").status_code == 422
+
+
+@pytest.mark.parametrize("acao", ["ocultar", "mostrar"])
+def test_mostrar_e_ocultar_valor_invalido_422(
+    painel: Painel, monkeypatch: pytest.MonkeyPatch, acao: str
+) -> None:
+    """D40: o `ValueError` de `acoes.ocultar` e de `acoes.mostrar` vira 422, uma rota por vez."""
+
+    def recusa(*_: object) -> None:
+        raise ValueError("estado inválido")
+
+    monkeypatch.setattr(acoes, acao, recusa)
+    vaga = painel.ids["nova"]  # visível: a rota /mostrar chama `acoes.mostrar`
+    resposta = painel.post(f"/vagas/{vaga}/{acao}")
+    assert resposta.status_code == 422
+    assert resposta.json()["detail"] == "estado inválido"
+    assert painel.sql("SELECT COUNT(*) FROM evento") == [(0,)]
 
 
 def test_status_invalido_ou_ausente_422_e_nada_grava(painel: Painel) -> None:

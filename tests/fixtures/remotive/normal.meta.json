@@ -1,0 +1,12 @@
+{
+  "url": "https://remotive.com/api/remote-jobs",
+  "data": "2026-11-14T06:26:19.069997+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/json; charset=utf-8",
+    "Last-Modified": "Fri, 13 Nov 2026 14:44:36 GMT"
+  },
+  "sha256": "3f757e632a8ebde6df4e8e3866e983df92985fb84ad920b3e5509fb810da5a08",
+  "versao": "0.1.0",
+  "metodo": "GET"
+}

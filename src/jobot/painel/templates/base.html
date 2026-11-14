@@ -1,5 +1,22 @@
-{%- set tema_atual = tema(request) -%}
-{%- set voltar = request.url.path ~ ("?" ~ request.url.query if request.url.query else "") -%}
+{%- set tema_atual = tema -%}
+{%- set voltar = url_de_volta(request) -%}
+{#- menu: (chave, href, começo do caminho da área); "/" conta como Vagas; a área é o começo do caminho,
+    inteiro ou seguido de "/", para "/vagasx" não marcar Vagas -#}
+{%- set caminho = "/vagas" if request.url.path == "/" else request.url.path -%}
+{#- a área marcada é a de caminho mais longo: "/empresas/sugeridas" marca Sugeridas e não Empresas -#}
+{%- set ns = namespace(atual="") -%}
+{%- set areas = (
+  ("vagas", "/vagas", "/vagas"),
+  ("buscas", "/buscas", "/buscas"),
+  ("fontes", "/fontes", "/fontes"),
+  ("empresas", "/empresas", "/empresas"),
+  ("sugeridas", "/empresas/sugeridas", "/empresas/sugeridas"),
+  ("sites", "/sites", "/sites"),
+  ("configuracoes", "/configuracoes/fontes", "/configuracoes"),
+) -%}
+{%- for _, _, area in areas -%}
+  {%- if (caminho == area or caminho.startswith(area ~ "/")) and area|length > ns.atual|length %}{% set ns.atual = area %}{% endif -%}
+{%- endfor -%}
 <!doctype html>
 <html lang="{{ idioma }}" data-tema="{{ tema_atual }}">
 <head>
@@ -21,6 +38,11 @@
   <a class="pular" href="#conteudo">{{ t("casca.pular") }}</a>
   <header class="topo">
     <a class="marca" href="/">joBot</a>
+    <nav class="menu" aria-label="{{ t('casca.menu') }}">
+      {%- for chave, href, area in areas %}
+      <a href="{{ href }}"{% if area == ns.atual %} aria-current="page"{% endif %}>{{ t("casca.menu." ~ chave) }}</a>
+      {%- endfor %}
+    </nav>
     <nav class="preferencias" aria-label="{{ t('casca.preferencias') }}">
       <form method="post" action="/preferencias/tema" class="segmentos" role="group" aria-label="{{ t('casca.tema') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
@@ -37,9 +59,14 @@
         {%- endfor %}
       </form>
     </nav>
+    {% include "execucao/barra.html" %}
   </header>
+  <div id="aviso-versao" role="status" hx-get="/aviso-versao" hx-trigger="load" hx-swap="innerHTML"></div>
   <main id="conteudo" tabindex="-1">
     {% block conteudo %}{% endblock %}
   </main>
+  <footer class="rodape">
+    <a href="{{ t('apoie.url') }}" target="_blank" rel="noopener noreferrer">{{ t("apoie.texto") }}</a>
+  </footer>
 </body>
 </html>

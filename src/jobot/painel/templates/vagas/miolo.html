@@ -4,6 +4,13 @@
   <p>{{ t("vagas.aviso.sem_criterio") }} <a href="/buscas">{{ t("vagas.aviso.configurar") }}</a></p>
 </aside>
 {% endif %}
+{% if seletor %}
+<nav class="seletor-busca" aria-label="{{ t('vagas.seletor') }}">
+  {%- for b in seletor %}
+  <a class="chip" href="{{ b.url }}" hx-get="{{ b.url }}" hx-target="#vagas-miolo" hx-swap="innerHTML" hx-push-url="true"{% if b.atual %} aria-current="true"{% endif %}>{{ b.nome }}</a>
+  {%- endfor %}
+</nav>
+{% endif %}
 <nav class="abas" aria-label="{{ t('vagas.abas') }}">
   <ul>
     {%- for aba in abas %}
@@ -54,5 +61,36 @@
 </ul>
 {% else %}
 <p id="lista-vagas" class="vazio" tabindex="-1">{{ t("vagas.vazio_destaques" if e_destaques else "vagas.vazio") }}</p>
+{% endif %}
+{% if paginas_programas %}
+<section class="painel" aria-labelledby="programas-paginas">
+  <h2 id="programas-paginas">{{ t("vagas.programas.titulo") }}</h2>
+  <ul class="lista" id="lista-programas-paginas">
+    {%- for r in paginas_programas %}
+    {%- set p = r.p %}
+    <li class="cartao">
+      <div class="cartao-cabeca">
+        <h3 class="cartao-titulo">{{ p.nome }}</h3>
+        {%- if p.mudou_em %}
+        <span class="selo">{{ t("vagas.programas.mudou_em", data=data_completa(p.mudou_em.isoformat(), idioma)) }}</span>
+        {%- endif %}
+      </div>
+      {%- if not p.mudou_em or p.estado == "falhou" %}
+      <p class="situacao">
+        {%- if p.estado == "falhou" %}{{ t("vagas.programas.falhou", motivo=t("sites.motivo." ~ (p.motivo or "desconhecido"))) }}
+        {%- elif p.estado == "ok" %}{{ t("vagas.programas.sem_mudanca") }}
+        {%- else %}{{ t("vagas.programas.nova") }}{% endif %}</p>
+      {%- endif %}
+      {%- if r.diferenca %}
+      <details class="apagar">
+        <summary>{{ t("vagas.programas.diferenca") }}</summary>
+        <pre class="diferenca">{{ r.diferenca }}</pre>
+      </details>
+      {%- endif %}
+      <p><a href="/sites#site-{{ p.id }}">{{ t("vagas.programas.ver") }}</a></p>
+    </li>
+    {%- endfor %}
+  </ul>
+</section>
 {% endif %}
 {% include "vagas/proximo.html" %}

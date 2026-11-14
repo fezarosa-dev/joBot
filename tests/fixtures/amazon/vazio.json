@@ -1,0 +1,6 @@
+{
+  "error": null,
+  "hits": 0,
+  "job_posting_search_request": "{\"jobPostingSearchRequest\":{\"query\":null,\"excludeFacets\":[{\"name\":\"businessCategory\",\"values\":[{\"name\":\"a-confidential-job\"}]},{\"name\":\"isPostedExternally\",\"values\":[{\"name\":\"0\"}]},{\"name\":\"isUnsearchable\",\"values\":[{\"name\":\"1\"}]}],\"filterFacets\":[{\"name\":\"normalizedCountryCode\",\"values\":[{\"name\":\"BRA\"}]}],\"start\":\"0\",\"size\":\"10\",\"sort\":{\"sortOrder\":\"DESCENDING\",\"sortType\":\"CREATED_DATE\"},\"location\":null,\"accessLevel\":\"EXTERNAL\",\"includeFacets\":[],\"locationFacets\":[],\"jobTypeFacets\":[],\"contentFilterFacets\":[],\"treatment\":\"OM\"}}",
+  "jobs": []
+}

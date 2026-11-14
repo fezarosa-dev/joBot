@@ -1,0 +1,12 @@
+{
+  "url": "https://api.smartrecruiters.com/v1/companies/NielsenIQ/postings?limit=100&offset=0&country=br&q=xyzzyjobot",
+  "data": "2026-11-14T06:25:37.806098+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/json; charset=utf-8",
+    "ETag": "W/\"34-9OOhSVEDROgIrhGdnm+aEVKWBd8\""
+  },
+  "sha256": "991839dc0ee3d39f379a0f1dd82079141998f0beb5df0bc86d68389eae5de66a",
+  "versao": "0.1.0",
+  "metodo": "GET"
+}

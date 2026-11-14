@@ -1,0 +1,12 @@
+{
+  "url": "https://apigw.solides.com.br/jobs/v3/companies/diefra/vacancies?page=1&take=12",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/json; charset=utf-8"
+  },
+  "sha256": "72dea24d810f8e596961509ede85f7caf42f806238949df55accddc1868b146e",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "montado à mão a partir de normal.json, reduzido a duas vagas (totalPages 1, count 2): na segunda, title vira titulo (formato mudou)"
+}

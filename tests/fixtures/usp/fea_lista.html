@@ -1,0 +1,269 @@
+<!DOCTYPE html><html lang="pt_br"><head>
+    <meta charset="utf-8">
+    <meta name="csrf-token" content="exemplo-csrf">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <title>Estágios</title>
+
+    <base href="https://estagios.fea.usp.br/">
+
+    <link rel="canonical" href="https://github.com/uspdev/laravel-usp-theme">
+
+    
+    
+    <!-- Estilos do tema e das bibliotecas internas -->
+    
+    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/exemplo@exemplo.invalid/dist/css/bootstrap.min.css" integrity="sha384-B0vP5xmATw1+K9KRQjQERJvTumQW0nPEzvF6L/Z6nronJ3oUOFUFpCjEUQouq2+l" crossorigin="anonymous">
+    
+
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" integrity="sha512-iBBXm8fW90+nuLcSKlbmrPcLa0OT92xO1BIsZ+ywDWZCvqsWgccV3gFoRBv0z+8dLJgyAHIhR35VZc2oM/gI1w==" crossorigin="anonymous">
+    
+
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.css" integrity="sha512-aOG0c6nPNzGk+5zjwyJaoRUgCdOrfSDhmMID2u4+OIslr0GjpLKo7Xm0Ao3xmpM4T8AmIouRkqwj1nrdVsLKEQ==" crossorigin="anonymous">
+    
+
+    
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.10.23/css/dataTables.bootstrap4.min.css">
+    
+    
+    
+    
+
+    
+    
+    
+    
+    
+
+    
+    
+    <!-- Estilos do skin -->
+          
+    
+
+    <!-- Estilos da aplicação -->
+    </head>
+
+<body>
+    <div id="skin_header" class="container container-fea"> 
+            <!-- TODO container vai ocultar em mobile para ganhar espaço (d-none d-sm-block) -->
+    <div class="fea-logodefault">
+
+        <div class="fea-firstsecondthird">
+
+            <div class="fea-first">
+                <div class="fea-item">
+                    <a class="fea-logo-link" href="https://estagios.fea.usp.br">
+                    <img class="fea-logo-img" src="https://estagios.fea.usp.br/vendor/laravel-usp-theme/skins/fea/images/logo-fea-usp.png">
+                    </a>
+                </div>
+            </div>
+
+            <div class="fea-second">       
+                <div class="fea-item">
+                  
+
+                    <div class="fea-site-name">
+                        <a class="fea-site-name-link" href="https://estagios.fea.usp.br">Estágios da FEA </a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="fea-third">
+                <div class="fea-item">
+                    <a class="fea-logo-usp-link" href="https://www.usp.br" target="_blank">
+                        <img class="fea-logo-usp-img" src="https://estagios.fea.usp.br/vendor/laravel-usp-theme/skins/fea/images/logo-usp.png" alt="Logo da Universidade de São Paulo">
+                    </a>  
+                </div>
+            </div>
+
+        </div>
+        
+    </div>
+
+    </div>
+
+    <div id="skin_login_bar" class="container container-fea"> 
+        
+<div class="container p-0">
+    <div class="text-right">
+        <span style="float:left">
+        <!-- Vamos colocal o menu nesta posição -->
+        </span>
+                    Não autenticado |
+            <a class="login_logout_link" href="https://estagios.fea.usp.br/login/usp">
+    <i class="fas fa-sign-in-alt"></i> Entrar
+</a>
+            </div>
+</div>
+    </div>
+
+    <div id="menu" class="container container-fea"> 
+        <nav class="navbar navbar-light navbar-expand-sm mb-3  p-0 border-gray">
+    
+    
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="navbarNav">
+
+        <div class="navbar-nav mr-auto"> 
+                    </div>
+        
+         
+        <div class="navbar-nav ml-md-auto">
+                    </div>
+                
+    </div>
+</nav>
+
+    </div>
+
+    <div class="container container-fea">
+        <div class="row">
+            <div id="content" class="col-md-12">
+                
+<div class="flash-message">
+                                                                                        </div>
+
+                 
+
+<div class="card">
+  <div class="card-header"><b>Estágios da FEA</b></div>
+  <div class="card-body">
+
+    <div class="row">
+
+    <div class="col-sm">
+        <a href="/login/usp" class="btn btn-success"> 
+          <i class="fa fa-university" aria-hidden="true"></i>
+          Login USP 
+        </a>
+    </div>
+
+    <div class="col-sm">
+      <form method="GET" action="/login/empresa">
+        <input type="hidden" name="_token" value="exemplo-csrf">
+        <button type="submit" class="btn btn-success" name="login_action" value="email">
+        <i class="fa fa-building" aria-hidden="true"></i>  Empresa - Primeiro Acesso
+        </button>
+
+        <button type="submit" class="btn btn-success" name="login_action" value="senha">
+        <i class="fa fa-building" aria-hidden="true"></i>  Login com Senha
+        </button>
+      </form>
+    </div>
+  </div>
+  
+    
+  <br>
+
+  <div class="row">
+    <div class="col-sm">
+      <table class="table table-striped">
+        <thead>
+          <tr> 
+            <th colspan="2"><h2>Mural de Vagas</h2></th>
+          </tr>
+        </thead>
+
+        <tbody>
+                    <tr>
+                          <td><h4>Estágio no Departamento de Convênios-Reitoria</h4>
+              Carga horária semanal: 30 horas <br>
+              Valor da bolsa: R$ 1.621</td>
+              <td><a href="/vagas/132">Acessar vaga para mais detalhes</a></td>
+                      </tr>
+                    <tr>
+                          <td><h4>Primary Source Research | Internship</h4>
+              Carga horária semanal: 30 horas <br>
+              Valor da bolsa: R$ 2700</td>
+              <td><a href="/vagas/134">Acessar vaga para mais detalhes</a></td>
+                      </tr>
+                    <tr>
+                          <td><h4>CREDIT RISK INTERN - GLOBAL INSTITUTIONAL BUSINESS (FINANCIAL INSTITUTIONS GROUP)</h4>
+              Carga horária semanal: 30 horas <br>
+              Valor da bolsa: R$ 3250</td>
+              <td><a href="/vagas/135">Acessar vaga para mais detalhes</a></td>
+                      </tr>
+                    <tr>
+                          <td><h4>Vaga de estágio em Middle Office | Brava Capital</h4>
+              Carga horária semanal: 30 horas <br>
+              Valor da bolsa: R$ 1000</td>
+              <td><a href="/vagas/136">Acessar vaga para mais detalhes</a></td>
+                      </tr>
+                  </tbody>
+      </table>
+    </div>
+
+      <div class="col-sm">
+            </div>
+    </div>
+  </div>
+</div>
+
+            </div>
+        </div>
+    </div>
+
+    <div id="skin_footer" class="container container-fea"> 
+        <!-- Footer uspdev -->
+<footer class="footer-fea">
+    <div class="text-center ">
+        
+        <a href="http://sti.fea.usp.br/" target="_blank">© 2026 FEA STI</a>
+    </div>
+    <hr>
+</footer>
+    </div>
+
+    <!-- Bibliotecas js do tema e das bibliotecas internas -->
+    
+    
+    
+    
+
+    
+    
+    
+
+    
+    
+    
+
+    
+    
+    
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+
+    
+    
+    
+    
+
+    
+    
+    
+
+    
+    
+    <!-- Bibliotecas js da aplicação -->
+    
+
+
+
+
+</body></html>

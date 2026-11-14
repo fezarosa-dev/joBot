@@ -1,0 +1,12 @@
+{
+  "url": "https://bayer.eightfold.ai/api/pcsx/search?domain=bayer.com&query=&location=Brazil&start=0&sort_by=timestamp",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 403,
+  "cabecalhos": {
+    "Content-Type": "application/json"
+  },
+  "sha256": "efe3bf40b88666ebf55b1ed6144350ec11569a71f76c67534adb2806d176f79a",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "montado à mão a partir da leitura da captura B1 (403 com esta mensagem visto ao vivo, corpo não guardado)"
+}

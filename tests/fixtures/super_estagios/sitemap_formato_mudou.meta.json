@@ -1,0 +1,12 @@
+{
+  "url": "https://www.superestagios.com.br/sitemap_vagas.php",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/xml; charset=utf-8"
+  },
+  "sha256": "e5e1fb98adf13124ad7083c54666d1214eddce18e3da99f43063931a757048e4",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "a conferência de 2026-11-13 guardou só o corte de 5 de 2668 <url> (amostra_sitemap_vagas.xml, sem o namespace do <urlset>, que o corte não guardou), não o XML bruto nem os cabeçalhos; montado à mão a partir de sitemap.xml com <loc> renomeado para <endereco> em todas as entradas (formato mudou), passou por reduzir(xml) e limpar_pessoais; Content-Type suposto"
+}

@@ -1,0 +1,12 @@
+{
+  "url": "https://agriness.gupy.io/",
+  "data": "2026-11-14T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "text/html; charset=utf-8"
+  },
+  "sha256": "e7fd7f1d07d9361cd8f7edfaa33c29661dad27e87e5a6d0a3cf603eaa0a5741f",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "página mínima montada à mão para o resolver: só o __NEXT_DATA__ com name diferente de publicationName e publicationName com espaço no fim (sonda de 2026-11-14, decisão 29)"
+}

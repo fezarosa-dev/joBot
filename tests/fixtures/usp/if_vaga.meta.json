@@ -1,0 +1,12 @@
+{
+  "url": "https://portal.if.usp.br/carreiras/pt-br/node/2511",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "text/html; charset=utf-8"
+  },
+  "sha256": "a06296e6cf1419fa35bf8ccb7f0a7c905da3022816f48e19ccbbc998621f2e0d",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "capturado de if_node.html (conferência ao vivo de 2026-11-13) com capturar.reduzir e limpar_pessoais; cabeçalhos não guardados na conferência: Content-Type assumido"
+}

@@ -1,0 +1,10 @@
+{#- Um interruptor: checkbox com cara de chave. Rótulo e ajuda já chegam traduzidos. -#}
+{% macro interruptor(nome, marcado, rotulo, ajuda="", desativado=False) %}
+<div class="interruptor">
+  <label class="interruptor-linha">
+    <span class="interruptor-texto">{{ rotulo }}</span>
+    <input type="checkbox" class="chave" name="{{ nome }}"{% if marcado %} checked{% endif %}{% if desativado %} disabled{% endif %}>
+  </label>
+  {% if ajuda %}<small>{{ ajuda }}</small>{% endif %}
+</div>
+{% endmacro %}

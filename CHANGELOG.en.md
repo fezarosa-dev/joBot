@@ -8,18 +8,50 @@ The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-14
+
+Phase 1: the foundation of joBot. You can already install and use it.
+
 ### Added
 
-- Project decisions (ADRs 0001 to 0017) and `duvidas.md`.
-- README with badges, diagram, tables and a FAQ.
-- MIT license.
+- Dashboard in the browser, at `http://127.0.0.1:47615`, with Jobs, Searches, Sources, Companies, Suggested, Sites and Settings.
+- Job search in dozens of public sources, every 3 hours or on demand, with the "Search now" button.
+- Job cleanup: removes duplicates and reads salary, field, level, work mode, region and contract type.
+- Match score with your search (good, medium, weak), by rules and with the reasons. No AI.
+- A status for each job, from "new" to "offer", and the tabs Highlights, All, New, Closing soon, Saved, Applied, Programs and Hidden.
+- Tracking of program pages, such as trainee and summer school, in the Sites screen.
+- Own company list and weekly discovery of new job boards, which go to Suggested until you approve them.
+- Commands `jobot abrir`, `jobot sair`, `jobot serve`, `jobot buscar`, `jobot segundo-plano`, `jobot atualizar` and `jobot avaliar-rotulos`.
+- Background service on Linux, through the user's systemd, including from a distrobox container.
+- New-version notice, off by default. When on, it only asks `api.github.com` for the newest version, and the request carries the fixed user agent and the IP.
+- Eureca, Abler and Gupy, each with its own on/off switch. All come on by default; Eureca's terms ask for prior consent, and anyone who prefers to respect that can turn Eureca off in Settings.
+- Dashboard in Portuguese and English, with light and dark themes.
+- In the search progress bar, the list of the sources that are still running.
+- A "Saved." notice after saving in Settings.
+- `jobot abrir` prints the dashboard address and how to quit in the terminal; the search progress bar shows the details phase after collection.
+- A country restriction notice on the remote jobs from Himalayas, Jobicy and Remotive.
+- Project decisions (ADRs 0001 to 0021) and `duvidas.md`.
+- README with badges, diagram, tables and a FAQ, and the English version.
 - Star history chart in the README.
-- English version of the README and of the community files.
-- Code of Conduct, security policy, contributing guide, support, issue and PR templates, and CODEOWNERS.
+- Preview image for social networks (`docs/imagens/previa-social.png`).
+- MIT license, Code of Conduct, security policy, contributing guide, support, issue and PR templates, and CODEOWNERS, also in English.
 - `CITATION.cff`, `.editorconfig` and `.gitattributes`.
-- Social preview image (`docs/imagens/previa-social.png`).
 
 ### Changed
 
-- Question D1 (using the person's own Claude Code) was resolved by the owner.
-- Question D3 was resolved: Code of Conduct reports go to the project email.
+- Code of Conduct reports go to the project email.
+- The README is no longer only a plan: it describes the phase 1 installation.
+- The label rules (field, level, work mode, contract, country and state) were tuned and measured on a set of jobs checked by hand.
+- Jobs from Brazil-only sites now come out with the country Brazil.
+- The country restriction notice names the countries, such as "Only for residents of: United States and Canada".
+
+### Fixed
+
+- The weekly Common Crawl discovery no longer fails because of huge blocks from other sites, which joBot never downloads.
+- Greenhouse accepts very large job boards, such as Stripe's.
+- The schedule only starts searching after the first-run wizard is finished.
+- In Sources, a source that hit its limit shows the last round it actually ran.
+- A foreign country in the searches form no longer turns into a Brazilian state.
+- A city with a country's name, such as "Franca, São Paulo", no longer turns into the country.
+- In Sources, the "No change" card shows the jobs from the last round that read them and the right next search.
+- A newly added tracked page is read on the next scheduler round, without waiting 24 hours.

@@ -8,7 +8,7 @@ It gathers, filters and organizes jobs from many sites into a nice dashboard tha
 [![MIT license](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
 [![status: in development](https://img.shields.io/badge/status-in%20development-orange?style=flat-square)](#roadmap)
 [![Python 3.14](https://img.shields.io/badge/Python-3.14-3776AB?style=flat-square&logo=python&logoColor=white)](#requirements-and-installation)
-[![platforms: Linux | Windows | macOS](https://img.shields.io/badge/platforms-Linux%20%7C%20Windows%20%7C%20macOS-lightgrey?style=flat-square)](#requirements-and-installation)
+[![platform: Linux](https://img.shields.io/badge/platforms-Linux-lightgrey?style=flat-square)](#requirements-and-installation)
 <br>
 [![FastAPI](https://img.shields.io/badge/FastAPI-dashboard-009688?style=flat-square&logo=fastapi&logoColor=white)](#how-it-works)
 [![HTMX](https://img.shields.io/badge/HTMX-interface-3366CC?style=flat-square&logo=htmx&logoColor=white)](#how-it-works)
@@ -31,12 +31,13 @@ It gathers, filters and organizes jobs from many sites into a nice dashboard tha
 </div>
 
 > [!IMPORTANT]
-> **joBot is under development.** The main decisions have already been made and recorded. Phase 1 (the foundation) is in progress.
-> There is **nothing to install yet**. Everything described here is the plan, not a finished product.
+> **joBot phase 1 (the foundation) is done: version 0.1.0.** It searches public sources for jobs, keeps everything on your computer and shows it in a dashboard. You can already [install and use it](#requirements-and-installation).
+> The rest (sites with login, AI, browser extension, Gmail and audio) is still a plan. See the [roadmap](#roadmap). Before you turn on the sources, read the [usage and terms notices](#license-and-notices).
 
 ## 📑 Contents
 
 - [What joBot is](#what-is-jobot)
+- [Star history](#star-history)
 - [What it does not do](#what-it-does-not-do)
 - [How it works](#how-it-works)
 - [The two versions](#two-versions)
@@ -45,12 +46,11 @@ It gathers, filters and organizes jobs from many sites into a nice dashboard tha
 - [Artificial intelligence](#artificial-intelligence)
 - [Using the Claude Code you already have](#using-claude-code)
 - [Privacy and security](#privacy-and-security)
-- [Requirements and installation (planned)](#requirements-and-installation)
+- [Requirements and installation](#requirements-and-installation)
 - [Roadmap](#roadmap)
 - [FAQ](#faq)
 - [Project decisions](#project-decisions)
 - [How to contribute](#how-to-contribute)
-- [Star history](#star-history)
 - [Support the project](#support-the-project)
 - [License and notices](#license-and-notices)
 
@@ -60,26 +60,44 @@ It gathers, filters and organizes jobs from many sites into a nice dashboard tha
 joBot was born to help young university students find their first job. Then the idea grew: now it aims to help everyone who is looking for work.
 
 Looking for a job today is tiring. You have to open many sites, repeat the same filters and hope you don't miss a deadline.
-joBot will do this repetitive work for you. It will visit job sites, gather everything in one place and show what matches your profile.
-Everything will run on your computer. One installation serves one person, who can have several saved searches.
+joBot does this repetitive work for you. It visits job sites, gathers everything in one place and shows what matches what you are looking for.
+Everything runs on your computer. One installation serves one person, who can have several saved searches.
 
-What it will do:
+What it does today (phase 1):
 
-- 🔎 **Search** for jobs in dozens of sources: public sites, company job boards and, if you want, sites that require login.
+- 🔎 **Search** for jobs in dozens of public sources: sites, APIs and company job boards.
 - 🧹 **Clean up**: removes duplicate jobs, reads the salary and tags the field, level, work mode, region and contract type.
-- 🎯 **Rank**: shows how well each job matches you (● good, ◐ medium, ○ weak) and explains why.
+- 🎯 **Rank**: shows how well each job matches your search (● good, ◐ medium, ○ weak) and explains why. In phase 1 this is done by rules, without AI.
 - 🗂️ **Organize**: each job has a status, from "new" to "offer".
-- ✍️ **Prepare the application**: cover letter, a résumé summary adjusted to the job and a list of what you have and what is missing, always in the job's language.
-- 🧩 **Help with forms**: a browser extension suggests answers, and you confirm.
-- 📬 **Read Gmail** (optional): brings in jobs from alert emails and suggests status changes when a recruiter replies.
+- 📌 **Track pages** of programs, such as trainee and summer school, and tell you when the text changes.
+
+What comes in the next phases:
+
+- 🔐 **Sites that require login**, with your login done by hand (phase 2).
+- ✍️ **Prepare the application**: cover letter, a résumé summary adjusted to the job and a list of what you have and what is missing, always in the job's language (phase 3, with optional AI).
+- 🧩 **Help with forms**: a browser extension suggests answers, and you confirm (phase 4).
+- 📬 **Read Gmail** (optional): brings in jobs from alert emails and suggests status changes when a recruiter replies (phase 5).
 
 It works for every kind of job and every field: full-time employment (CLT), contractor (PJ), internship, trainee, temporary, apprentice, research and scholarships, programs and summer schools, public exams and notices.
 Every feature can be turned on or off.
 
+<a id="star-history"></a>
+## ⭐ Star history
+
+If joBot helps you, leave a star on the repository.
+
+<a href="https://www.star-history.com/?repos=fezarosa-dev%2FjoBot&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=fezarosa-dev/joBot&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=fezarosa-dev/joBot&type=date&legend=top-left" />
+   <img alt="Chart of the number of GitHub stars of joBot over time" src="https://api.star-history.com/chart?repos=fezarosa-dev/joBot&type=date&legend=top-left" />
+ </picture>
+</a>
+
 <a id="what-it-does-not-do"></a>
 ## 🚫 What it does not do
 
-joBot was planned not to do the following:
+joBot does not do the following, and was planned never to:
 
 - **It does not mass-apply.** There is no "apply to 200 jobs with one click".
 - **It does not send anything on its own.** You are always the one who sends the application.
@@ -124,12 +142,12 @@ flowchart LR
 
 One search cycle, step by step:
 
-1. **At the scheduled time**, joBot wakes up. Public sources: every 3 hours. Sites with login: twice a day (9 am and 6 pm, adjustable). Or when you press "search now".
+1. **At the scheduled time**, joBot wakes up. Public sources: every 3 hours. Or when you press "Search now". (Sites with login arrive in phase 2, with two searches a day.)
 2. **Each collector** visits its source calmly and brings the jobs in a single format.
 3. **The core** merges duplicate jobs, understands the salary, adds labels and marks as closed the jobs that disappeared.
 4. **Everything goes to the SQLite database**, a file that stays on your computer.
 5. **The dashboard** shows the result in your browser. It only works on your computer (address 127.0.0.1).
-6. **If you turned on the AI**, it calculates the match with your profile and helps prepare applications.
+6. **When the AI arrives** (phase 3) and you turn it on, it will calculate the match with your profile and help prepare applications. Until then, the match comes from the rules of your search.
 
 If one source fails, the others keep going. If the computer was off at the scheduled time, the missed search runs when it turns on.
 
@@ -140,7 +158,7 @@ joBot will have a single core and two "faces". The **local version** is the focu
 
 | | 💻 Local version | 🌐 Browser version (GitHub Pages) |
 |---|---|---|
-| **Installation** | Native, with one command (planned) | None: just open the site |
+| **Installation** | Native, with uv ([how to install](#requirements-and-installation)) | None: just open the site |
 | **Sources** | All | Public sources only |
 | **Sites with login** | Yes, with your manual login | No |
 | **AI** | Automatic (Claude, local model) or manual | Manual (copy and paste); labels by rules only |
@@ -156,7 +174,8 @@ It never uses logins or secrets.
 <a id="job-sources"></a>
 ## 🌎 Job sources
 
-Each source has an on/off switch.
+Each source has an on/off switch, in Settings, Sources. In phase 1 the public sources work; sites with login arrive in phase 2.
+Three Brazilian portals call for care, because of their terms of use: Eureca, Abler and Gupy. Read the notice in [License and notices](#license-and-notices).
 
 | Group | Examples |
 |---|---|
@@ -166,14 +185,14 @@ Each source has an on/off switch.
 | Brazilian portals | Gupy, CIEE, Sólides, IEL, Super Estágios, Cia de Talentos, Eureca, Abler |
 | Careers at big companies | Google, Amazon, Microsoft, NVIDIA |
 | Internship boards | Public boards, such as the one at USP |
-| 🔐 Sites with login (first) | LinkedIn, Indeed, Catho, Vagas.com |
-| 🔐 Sites with login (later, one at a time) | InfoJobs, Glassdoor, Programathor, GeekHunter, Remotar, Trampos, Revelo, Coodesh |
+| 🔐 Sites with login (phase 2, first) | LinkedIn, Indeed, Catho, Vagas.com |
+| 🔐 Sites with login (phase 2, later, one at a time) | InfoJobs, Glassdoor, Programathor, GeekHunter, Remotar, Trampos, Revelo, Coodesh |
 
-Also planned:
+Also in phase 1:
 
-- **Own company list**, made only of public facts (company name and job board identifier), each one checked against the real address.
-- **Weekly discovery** of new job boards through Common Crawl (a public archive of the web). You can turn it off.
-- **Tracking program pages**, such as trainee and summer school, through the "add site" feature.
+- **Own company list**, made only of public facts (company name and job board identifier), each one checked against the real address. You add your own in Companies.
+- **Weekly discovery** of new job boards through Common Crawl (a public archive of the web). The finds go to Suggested, and nothing enters your search until you approve it. You can turn it off in Settings.
+- **Tracking program pages**, such as trainee and summer school, in the Sites screen. The change shows up in the Programs tab.
 
 **Polite collection.** The robot identifies itself, waits between one request and the next and waits longer when the site asks for calm.
 
@@ -187,12 +206,12 @@ Also planned:
 <a id="dashboard"></a>
 ## 📋 The dashboard
 
-The dashboard opens in your browser. The screen design is still to be done, in phase 1. That is why there are no images here.
+The dashboard opens in your browser, at `http://127.0.0.1:47615`. The menu has Jobs, Searches, Sources, Companies, Suggested, Sites and Settings.
 
 - **Tabs:** Today's highlights (the best new ones, one per company), All, New, Closing soon, Saved, Applied, Programs and Hidden.
 - **Filters** as "chips" (little buttons) with counts. The current filter stays in the page address, so you can save the link. Quick search with the `/` key.
 - **Status of each job:** new → saved → applied → interview → rejected or offer.
-- **Match with your profile:** ● good, ◐ medium, ○ weak, always with the reasons. It shows the skills you have (✓) and the ones you lack.
+- **Match with your search:** ● good, ◐ medium, ○ weak, always with the reasons.
 - **12-month calendar** on each job, to see deadlines at a glance.
 - **Jobs hidden** by a rule can come back. The dashboard shows how many were hidden for each reason.
 - **"Something wrong with this job?"**: a button to fix a label or a piece of data.
@@ -202,7 +221,7 @@ The dashboard opens in your browser. The screen design is still to be done, in p
 <a id="artificial-intelligence"></a>
 ## 🧠 Artificial intelligence
 
-The AI is **optional**. Without it, joBot works with rules and keywords.
+The AI is **optional** and arrives in phase 3. Without it, joBot works with rules and keywords, and that is how phase 1 works.
 
 > **Golden rule:** the AI only uses the data in your profile. It never invents experience, courses or skills, and it shows which data it used.
 > If information is missing, it asks a question, and your answer is saved in the profile.
@@ -255,6 +274,8 @@ A "checksum" is a fingerprint of the file: joBot checks that the downloaded file
 <a id="using-claude-code"></a>
 ## ✨ Using the Claude Code you already have
 
+> This section describes phase 3. Phase 1 does not use AI.
+
 If you already use Claude Code on your computer, joBot can use Claude **with no extra login**.
 You do not log in to Claude inside joBot. Ever.
 
@@ -303,10 +324,12 @@ Details in [ADR 0010](docs/decisions/0010-claude-code-da-pessoa.md) (in Portugue
 <a id="privacy-and-security"></a>
 ## 🔒 Privacy and security
 
-> These are the planned rules. joBot does not have anything to install yet.
+> These rules apply to phase 1. The ones that talk about AI, Gmail, extension, audio and the password vault describe the next phases.
 
 - **There is no joBot server.** Your data stays on your computer.
 - **No telemetry.** No usage data is sent.
+- **Search and check requests only.** joBot only makes network requests in these cases: to the public job sources you leave on (they all come on), including each job's page; to the Central Bank of Brazil, to get the dollar rate, with currency conversion on (it comes on); to Common Crawl, once a week, to discover new companies, and then to those companies' job boards, to check them (it comes on); to the pages you ask it to follow (it comes on, but with no pages on the list there is no request); to a company's website, only when you paste an address, test it or accept a suggestion; to the internet through git and uv, to download the new joBot version, only when you ask to update (the jobot atualizar command). If you turn on the version notice (next item), it also asks GitHub (it comes off). Whoever receives a request sees your computer's IP address, as with any internet request.
+- **Version notice off by default.** If you turn it on (Settings, Privacy), once a day joBot asks `api.github.com` which version is the newest. The request carries only joBot's fixed user agent (which includes the version number) and your computer's IP, like any request on the internet. It carries no search and no data of yours. Off, it makes no request at all.
 - **Secrets in the system vault.** The Gmail token, the API key and the Telegram token stay in the operating system's password vault. Without a vault, they go to a file that only your user can read, and the dashboard warns you.
 - **Protected personal data.** CPF (Brazilian tax ID) and date of birth stay in the database, in a folder that only your user can access and that is not synced to the cloud. The dashboard recommends turning on disk encryption (LUKS, BitLocker or FileVault).
 - **Exporting the profile does not include documents** such as the CPF, unless you check that option.
@@ -318,41 +341,86 @@ Details in [ADR 0010](docs/decisions/0010-claude-code-da-pessoa.md) (in Portugue
 - **Found a security flaw?** Do not open a public issue. Follow the [security policy](.github/SECURITY.en.md).
 
 <a id="requirements-and-installation"></a>
-## 📦 Requirements and installation (planned)
+## 📦 Requirements and installation
 
-> There is nothing to install yet. The exact install command comes out in phase 8.
+> This is the phase 1 installation (version 0.1.0): you download the code and run it with uv. The one-command installer only arrives in phase 8.
 
 ### Requirements
 
-- **Memory:** 8 GB of RAM (16 GB makes everything smoother).
-- **Graphics card:** not needed.
-- **System:** Linux, Windows or macOS.
-- **Docker:** not needed. The installation is native.
+- **System:** Linux. Windows and macOS have not been tested yet, and the background service only exists on Linux.
+- **Programs:** [git](https://git-scm.com/) and [uv](https://docs.astral.sh/uv/). uv downloads Python 3.14 and the libraries by itself.
+- **Memory:** an ordinary computer is enough. The 8 GB of RAM only matter when the local AI arrives (phase 3).
+- **Graphics card and Docker:** not needed. The installation is native.
+- **Internet:** to download joBot and to search for jobs.
 
-### What the installer will download
+### Install and open
 
-| Item | Size | Required? |
-|---|---|---|
-| joBot and what it needs to run (Python 3.14 and libraries, via uv) | To be defined in the phase 8 design | Yes |
-| Browser controlled by Playwright | To be defined in the phase 8 design | Only for sites with login |
-| llama-server | ~17 to 25 MB, depending on the system | Optional (offline package) |
-| Qwen3.5-2B **or** Qwen3.5-4B model | 1.28 GB or 2.74 GB | Optional (offline package) |
-| Audio transcription "small" | 484 MB | Optional (offline package) |
-| Audio transcription "medium" | 1.53 GB | Optional |
-| multilingual-e5-small model | ~120 MB | Only if some label falls below 90% accuracy |
+```bash
+git clone https://github.com/fezarosa-dev/joBot.git
+cd joBot
+uv sync --locked
+uv run jobot
+```
+
+The last command starts joBot and opens the dashboard in your browser, at `http://127.0.0.1:47615`. With nothing after `jobot`, the `abrir` command runs.
+If another program already uses port 47615, joBot warns you and opens nothing. Set `JOBOT_PORTA` to another port and run it again.
+
+### Commands
+
+Run all of them from inside the `joBot` folder, with `uv run` in front (for example, `uv run jobot buscar`).
+
+| Command | What it does |
+|---|---|
+| `jobot abrir` | Opens the dashboard in the browser and starts the server if it is not running yet. This is the default. |
+| `jobot sair` | Stops the server. |
+| `jobot serve` | Starts only the server, without opening the browser. |
+| `jobot buscar` | Runs one search in the terminal and shows how each source went. |
+| `jobot segundo-plano ligar` | Turns on the background service, so joBot starts by itself with your user. `desligar` removes the service, and `status` shows how it is. Linux only. |
+| `jobot atualizar` | Updates joBot to the newest version and turns back on what was on. |
+| `jobot avaliar-rotulos` | For project maintainers: measures the label rules against an examples file of your own. |
+
+### Where the data lives
+
+- Everything stays in the `~/.local/share/jobot` folder, accessible only to your user. To use another folder, set `JOBOT_DADOS`.
+- The database is the `jobot.db` file, and the record of what happened is in `logs/jobot.log`.
+- Nothing leaves that folder, except the network requests listed in [Privacy and security](#privacy-and-security).
+
+### If you use distrobox
+
+joBot also runs inside a distrobox container, as on Fedora Silverblue.
+
+- **The browser:** there is almost never a browser inside the container. joBot calls the one on the host system with `distrobox-host-exec xdg-open`.
+- **The background service:** the service lives in your user's systemd, on the host system, and joBot reaches it through `distrobox-host-exec` and `distrobox-enter`. Both must be available inside the container.
+- **The home folder:** the container's must be the same as the system's. If it is not, the dashboard refuses to turn on the background service and says why.
+- Run all the commands from inside the container.
 
 ### First run
 
-An assistant will guide you in steps:
+The first time, the dashboard asks two questions. Everything is optional.
 
 | Step | What happens |
 |---|---|
-| **0. Choose the AI** | Claude, local model, keywords or manual AI. If Claude Code is ready, it shows up on its own. |
-| **1. Résumé** | You upload the PDF, the AI extracts the data and you review it before saving. |
-| **2. Questionnaire** | About 25 questions, plus a few more to cover gaps. Answer by typing, choosing or speaking. |
-| **3. Site logins** | If you want, sign in to the sites with login, with your own hands. |
-| **4. Gmail** | Optional. A guided assistant of about 15 minutes. |
-| **5. Background** | Choose whether joBot starts with the computer and the schedules for sites with login. |
+| **1. What are you looking for?** | Job titles or keywords, cities, work modes, levels, minimum salary and job languages. This becomes your first search. If you skip it, jobs appear by date, with no match score. You can change it later, in Searches. |
+| **2. Background** | Choose whether joBot starts by itself with your user and searches for jobs every 3 hours, even with the dashboard closed. You can change it later, in Settings. |
+
+Then press **Search now**, at the top of the dashboard, or wait for the next scheduled search.
+
+### Updating
+
+Run `uv run jobot atualizar`. The version notice is optional and comes **off by default**: to turn it on, go to Settings, Privacy. The details are in [Privacy and security](#privacy-and-security).
+
+### What the next phases will download
+
+In phase 1, `uv sync` only downloads Python 3.14 (if missing) and joBot's libraries. There is no AI model, no controlled browser and no large file. These items come later, and they are optional:
+
+| Item | Size | When |
+|---|---|---|
+| Browser controlled by Playwright | To be defined | Phase 2, only for sites with login |
+| llama-server | ~17 to 25 MB, depending on the system | Phase 3 (offline package) |
+| Qwen3.5-2B **or** Qwen3.5-4B model | 1.28 GB or 2.74 GB | Phase 3 (offline package) |
+| Audio transcription "small" | 484 MB | Phase 5 |
+| Audio transcription "medium" | 1.53 GB | Phase 5, optional |
+| multilingual-e5-small model | ~120 MB | Only if some label falls below 90% accuracy |
 
 <a id="roadmap"></a>
 ## 🗺️ Roadmap
@@ -361,7 +429,7 @@ Each phase only starts after the previous one passes the tests. No dates are pro
 
 | Phase | What is included | Status |
 |---|---|---|
-| **1. Base** | Common core, public sources, database, dashboard and scheduling | 🟡 In progress |
+| **1. Base** | Common core, public sources, database, dashboard and scheduling | 🟢 Done (version 0.1.0) |
 | **2. Browser with login** | Visible Chrome, site mapping, CAPTCHA handling | ⚪ Planned |
 | **3. Local AI** | Offline package (llama-server + Qwen) | ⚪ Planned |
 | **4. Browser extension** | Browser extension for forms | ⚪ Planned |
@@ -410,7 +478,7 @@ Each important decision is recorded in a short document called an ADR (architect
 <a id="how-to-contribute"></a>
 ## 🤝 How to contribute
 
-The repository is already on GitHub, and phase 1 is in progress.
+The repository is on GitHub. Phase 1 is done, and the next ones are being planned.
 
 - **Suggestions and job sources** can already be sent through issues, with ready-made forms.
 - **Questions** go through the [question form](https://github.com/fezarosa-dev/joBot/issues/new?template=duvida.yml). Read the [FAQ](https://github.com/fezarosa-dev/joBot/wiki/Frequently-asked-questions) first.
@@ -426,19 +494,6 @@ Useful links:
 - [Support](.github/SUPPORT.en.md)
 - [Changelog](CHANGELOG.en.md)
 
-<a id="star-history"></a>
-## ⭐ Star history
-
-If joBot helps you, leave a star on the repository.
-
-<a href="https://www.star-history.com/?repos=fezarosa-dev%2FjoBot&type=date&legend=top-left">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=fezarosa-dev/joBot&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=fezarosa-dev/joBot&type=date&legend=top-left" />
-   <img alt="Chart of the number of GitHub stars of joBot over time" src="https://api.star-history.com/chart?repos=fezarosa-dev/joBot&type=date&legend=top-left" />
- </picture>
-</a>
-
 <a id="support-the-project"></a>
 ## 💛 Support the project
 
@@ -449,6 +504,8 @@ joBot is free and kept by one person. If it helps you and you want to chip in fo
   ```text
   65c34f26-c646-431f-af90-e5b1d2808ad4
   ```
+
+- **GitHub Sponsors:** <https://github.com/sponsors/fezarosa-dev>
 
 - **Buy Me a Coffee:** <https://buymeacoffee.com/zanoni.dev>
 
@@ -461,8 +518,10 @@ Other ways to help and more details are on the [Support the project wiki page](h
 
 - **License:** MIT. See the [`LICENSE`](LICENSE) file.
 - **Trademarks:** Claude and Claude Code are trademarks of Anthropic. joBot is not affiliated with Anthropic. The other trademarks mentioned belong to their owners.
-- **Terms of use:** respect the terms of use of each site you turn on.
-- **Personal use:** joBot is made for one person to organize their own job search.
+- **Terms of use:** respect the terms of use of each site you turn on. joBot is gentle with the sources (it waits between requests, uses no login and bypasses no block), but you decide what to turn on, at your own risk.
+- **Personal use:** joBot is made for one person to organize their own job search, on their own computer. Do not use it to build a job site or to pass the jobs on to other people: several sources forbid that.
+- **Eureca, Abler and Gupy:** these three Brazilian portals have no open API, with published usage rules, for a program like joBot. It reads only what the portals themselves show without login, slowly, and always with the link to the original job. Their terms of use may restrict this use, and each one has its own on/off switch.
+- **Eureca and prior consent:** Eureca's terms ask for prior consent, and Eureca comes on like the other sources. If you prefer to respect that request, turn Eureca off in Settings, Sources, by unchecking Eureca and saving.
 
 ---
 

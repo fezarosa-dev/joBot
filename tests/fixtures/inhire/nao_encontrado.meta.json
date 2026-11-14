@@ -1,0 +1,14 @@
+{
+  "url": "https://api.inhire.app/job-posts/public/pages",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 404,
+  "cabecalhos": {
+    "Content-Type": "application/json"
+  },
+  "sha256": "14bfca07dadb30ad51dd3e7475958b1adfbe65d3cf826c669877cf879924f421",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "cabecalho_do_pedido": {
+    "X-Tenant": "inhire"
+  }
+}

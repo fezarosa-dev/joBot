@@ -1,0 +1,18 @@
+{% from "configuracoes/_interruptor.html" import interruptor %}
+<p class="config-texto">{{ t("configuracoes.funcoes.explicacao") }}</p>
+<form method="post" action="/configuracoes/funcoes" class="config-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <div class="interruptores">
+    {%- for chave in funcoes %}
+    {{ interruptor(chave, valores[chave], t("configuracoes.funcao." ~ chave), t("configuracoes.funcao." ~ chave ~ ".ajuda")) }}
+    {%- endfor %}
+  </div>
+  <div class="campo">
+    <label for="destaques_n">{{ t("configuracoes.funcoes.destaques_n") }}</label>
+    <input type="number" id="destaques_n" name="destaques_n" value="{{ destaques_n }}" min="1" max="100" inputmode="numeric" required>
+    <small>{{ t("configuracoes.funcoes.destaques_n.ajuda") }}</small>
+  </div>
+  <div class="acoes">
+    <button type="submit" class="botao botao-primario">{{ t("configuracoes.salvar") }}</button>
+  </div>
+</form>

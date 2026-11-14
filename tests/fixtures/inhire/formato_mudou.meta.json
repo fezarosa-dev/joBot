@@ -1,0 +1,15 @@
+{
+  "url": "https://api.inhire.app/job-posts/public/pages",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/json"
+  },
+  "sha256": "77a6ae7e99e12625d7d3ad491f67e8e8c33f148939fc2331eeddfa13b992301d",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "cabecalho_do_pedido": {
+    "X-Tenant": "riachuelo"
+  },
+  "montado_a_mao": "montado à mão a partir de normal.json, reduzido a 2 vagas: a segunda perde displayName (formato mudou)"
+}

@@ -69,15 +69,23 @@ class HttpEducado(Protocol):
         ...
 
 
-class Bloqueio(Exception):
+class _ComCabecalhos(Exception):
+    """Leva os cabeçalhos da resposta (ex.: `x-ratelimit-remaining`); vazio se ninguém passar."""
+
+    def __init__(self, *args: object, cabecalhos: Mapping[str, str] | None = None) -> None:
+        super().__init__(*args)
+        self.cabecalhos: Mapping[str, str] = httpx.Headers(cabecalhos)
+
+
+class Bloqueio(_ComCabecalhos):
     """401 ou 403: a fonte falhou e o joBot não tenta contornar."""
 
 
-class LimiteAtingido(Exception):
-    """429/503 que não passou depois das esperas, ou Retry-After acima de 10 min."""
+class LimiteAtingido(_ComCabecalhos):
+    """429/503 sem sucesso depois das esperas, Retry-After acima de 10 min ou 429 de cota zero."""
 
 
-class Parou429(Exception):
+class Parou429(_ComCabecalhos):
     """Escopo com `para_no_429`: o primeiro 429 encerra sem esperar (o 503 segue a regra)."""
 
 
@@ -164,6 +172,21 @@ async def _resolver_padrao(host: str) -> list[str]:
     return [str(info[4][0]) for info in infos]
 
 
+async def conferir_dns(host: str, resolver: Resolvedor | None = None) -> None:
+    """Recusa com `ErroDeRede` o nome que não resolve ou que resolve para algum endereço que não é
+    IP global, inclusive texto que não é IP (decisão 15). Usada pelo salto e pelas páginas (T111).
+
+    Fica aceito o rebinding entre esta conferência e a conexão (fixar o IP pediria um transporte
+    próprio)."""
+    try:
+        enderecos = await (resolver or _resolver_padrao)(host)
+    except (OSError, UnicodeError) as erro:  # gaierror é OSError; IDNA ruim, UnicodeError
+        raise ErroDeRede(f"não resolveu {host}: {erro}") from erro
+    ips = [_ip(e) for e in enderecos]
+    if not ips or any(ip is None or _nao_global(ip) for ip in ips):
+        raise ErroDeRede(f"{host} resolve para host local")
+
+
 async def _ler(resposta: httpx.Response, teto_bytes: int) -> AsyncIterator[bytes]:
     total = 0
     try:
@@ -236,18 +259,12 @@ class ClienteEducado:
         if host_local(destino.host):
             raise ErroDeRede(f"{resposta.request.url}: redirecionamento para host local")
         if _ip(destino.host) is None:
-            await self._conferir_nome(resposta.request.url, destino.host)
-
-    async def _conferir_nome(self, url: httpx.URL, host: str) -> None:
-        # Decisão 15: o nome que resolve para IP não global é recusado. Fica aceito o rebinding
-        # entre esta conferência e a conexão (fixar o IP pediria um transporte próprio).
-        try:
-            enderecos = await self._resolver(host)
-        except (OSError, UnicodeError) as erro:  # gaierror é OSError; IDNA ruim, UnicodeError
-            raise ErroDeRede(f"{url}: não resolveu {host}: {erro}") from erro
-        ips = [_ip(e) for e in enderecos]
-        if not ips or any(ip is None or _nao_global(ip) for ip in ips):
-            raise ErroDeRede(f"{url}: redirecionamento para host local ({host})")
+            try:
+                await conferir_dns(destino.host, self._resolver)
+            except ErroDeRede as erro:
+                # na mensagem, não em nota: o log grava str(erro), que não mostra as notas
+                erro.args = (f"{resposta.request.url}: redirecionamento recusado: {erro}",)
+                raise
 
     async def _enviar(self, pedido: httpx.Request, espera_s: float) -> httpx.Response:
         host = pedido.url.host
@@ -383,17 +400,35 @@ class HttpDoEscopo:
                 return resposta
             await resposta.aclose()
             if status in (401, 403):
-                raise Bloqueio(f"{pedido.url}: HTTP {status}")
+                raise Bloqueio(f"{pedido.url}: HTTP {status}", cabecalhos=resposta.headers)
             if status in (429, 503):
                 if self._para_no_429 and status == 429:
-                    raise Parou429(f"{pedido.url}: HTTP {status}")
+                    pedida_txt = resposta.headers.get("Retry-After")
+                    sufixo = "" if pedida_txt is None else f" (Retry-After {pedida_txt})"
+                    raise Parou429(
+                        f"{pedido.url}: HTTP {status}{sufixo}", cabecalhos=resposta.headers
+                    )
                 pedida = _segundos_retry_after(resposta.headers.get("Retry-After"), relogio.agora())
+                if (
+                    status == 429
+                    and pedida is None
+                    and resposta.headers.get("x-ratelimit-remaining") == "0"
+                ):
+                    # Cota zerada volta só horas depois (D51): esperar 30, 60 e 120 s não adianta.
+                    raise LimiteAtingido(
+                        f"{pedido.url}: HTTP 429 com a cota zerada", cabecalhos=resposta.headers
+                    )
                 padrao = next(esperas_limite, None)
                 if padrao is None:
-                    raise LimiteAtingido(f"{pedido.url}: HTTP {status} depois das esperas")
+                    raise LimiteAtingido(
+                        f"{pedido.url}: HTTP {status} depois das esperas",
+                        cabecalhos=resposta.headers,
+                    )
                 espera = padrao if pedida is None else pedida
                 if espera > MAX_RETRY_AFTER_S:
-                    raise LimiteAtingido(f"{pedido.url}: Retry-After de {espera:.0f} s")
+                    raise LimiteAtingido(
+                        f"{pedido.url}: Retry-After de {espera:.0f} s", cabecalhos=resposta.headers
+                    )
                 await relogio.dormir(espera)
                 continue
             if status >= 500:

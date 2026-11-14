@@ -14,6 +14,7 @@ from typing import Any
 
 from jobot.nucleo.modelo import Area, Aviso, Contrato, Local, Modalidade, Nivel, VagaColetada
 from jobot.nucleo.texto import normalizar
+from jobot.nucleo.tratamento.locais import so_paises
 
 ARQUIVO = Path(__file__).parent.parent / "dados" / "rotulos.json"
 
@@ -79,6 +80,13 @@ VERSAO_REGRAS = versao_de(_BRUTO)
 _DADOS: dict[str, Any] = json.loads(_BRUTO)
 _PESOS_CAMPO: dict[str, int] = _DADOS["pesos_campo"]
 _REGRAS = {nome: _regras(nome, _DADOS[nome]) for nome in _ENUMS}
+_SO_BRASIL = frozenset(_DADOS["fontes"]["so_brasil"])
+_LOCAL_E_RESTRICAO = frozenset(_DADOS["fontes"]["local_e_restricao_de_pais"])
+
+
+def fonte_so_no_brasil(fonte: str) -> bool:
+    """Fonte que só publica vaga no Brasil (A77): sem país escrito no local, o país é BR."""
+    return fonte in _SO_BRASIL
 
 
 def _pontos(regra: _Regra, campos: Mapping[str, str]) -> int:
@@ -115,14 +123,17 @@ def rotular(v: VagaColetada, texto: str, locais: Sequence[Local]) -> Rotulos:
     campos = {
         "titulo": normalizar(v.titulo),
         "etiquetas": normalizar(" ; ".join(v.etiquetas)),
+        "local": normalizar(" ; ".join(v.locais)),  # texto cru da fonte ("Remote - US only")
         "descricao": normalizar(texto),
     }
     # uf só conta como Brasil quando o país veio vazio
     no_brasil = any(local.pais == "BR" or (local.pais is None and local.uf) for local in locais)
+    # clt e pj são do Brasil (D5): só local com país de fora os barra; sem país, vale o texto
+    fora = any(local.pais not in (None, "BR") for local in locais)
     so_no_brasil = set(_DADOS["contrato"]["so_no_brasil"])
 
     def contrato_vale(valor: str) -> bool:
-        return no_brasil or valor not in so_no_brasil
+        return no_brasil or not fora or valor not in so_no_brasil
 
     def todos(_: str) -> bool:
         return True
@@ -134,6 +145,9 @@ def rotular(v: VagaColetada, texto: str, locais: Sequence[Local]) -> Rotulos:
     if contrato is None or not contrato_vale(contrato):
         contrato = _escolher("contrato", campos, contrato_vale)
     avisos = dict.fromkeys(r.valor for r in _REGRAS["avisos"] if _pontos(r, campos))
+    # fonte cujo local é a restrição declarada: vaga remota só com países é restrita (A78)
+    if v.fonte in _LOCAL_E_RESTRICAO and modalidade == Modalidade.REMOTO and so_paises(v.locais):
+        avisos[Aviso.RESTRITO_A_PAIS] = None
     return Rotulos(
         area=Area(_escolher("area", campos, todos)),
         nivel=Nivel(_escolher("nivel", campos, todos)),

@@ -12,9 +12,17 @@ só aquela URL.
 
 Motivo com parâmetro vai como `chave:valor` (`saude.excecao:TimeoutError`,
 `saude.sem_detalhe_n:3`); o parâmetro é o único da chave (`tipo` ou `n`).
+
+Exceção que escapa de `coletar` ou `escopos` vira `saude.excecao:<Tipo>`, menos RespostaGrande
+(`saude.resposta_grande`), ErroDeRede (`saude.erro_de_rede`) e Parou429 (`saude.parou_429`),
+que têm motivo próprio.
+
+Escopo parado por Parou429, LimiteAtingido ou Bloqueio vai para o log com a fonte, o escopo e o
+texto da exceção (o Retry-After está nele); o motivo da saúde só guarda a chave.
 """
 
 import asyncio
+import logging
 from collections.abc import AsyncGenerator, Awaitable, Callable, Mapping, Sequence, Set
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
@@ -37,10 +45,13 @@ from jobot.nucleo.http import (
     OrcamentoGasto,
     Parou429,
     Resposta,
+    RespostaGrande,
     Validadores,
 )
 from jobot.nucleo.modelo import VagaColetada
 from jobot.nucleo.relogio import Relogio
+
+log = logging.getLogger(__name__)
 
 PRAZO_ESCOPO_S = 300.0  # 5 minutos por escopo
 MAX_FONTES_JUNTAS = 4  # até 4 hosts ao mesmo tempo; no mesmo host o ClienteEducado enfileira
@@ -54,7 +65,7 @@ _MOTIVO_DA_PARADA: dict[type[Exception], str] = {
     OrcamentoGasto: "saude.orcamento",
     Parou429: "saude.parou_429",
 }
-_PARA_DETALHES = tuple(_MOTIVO_DA_PARADA)
+PARA_DETALHES = tuple(_MOTIVO_DA_PARADA)
 
 
 class Historico(Protocol):
@@ -78,6 +89,10 @@ class SaidaEscopo:
     detalhes: int = 0
 
 
+async def _nada(fonte: str) -> None:
+    """Padrão dos avisos de começo e fim de fonte: quem chama sem eles não muda."""
+
+
 async def rodar(
     coletores: Mapping[str, Coletor],
     ctx: ContextoColeta,
@@ -87,15 +102,27 @@ async def rodar(
     *,
     ligadas: Set[str],
     ao_terminar_escopo: Callable[[SaidaEscopo], Awaitable[None]],
+    ao_comecar_fonte: Callable[[str], Awaitable[None]] = _nada,
+    ao_terminar_fonte: Callable[[str], Awaitable[None]] = _nada,
     max_detalhes_por_fonte: int = 50,
 ) -> None:
+    """Roda as fontes ligadas. `ao_comecar_fonte` e `ao_terminar_fonte` recebem a chave da fonte.
+
+    O fim vem sempre que o começo veio, também quando a fonte levanta ou é cancelada. Os avisos
+    não devem levantar: o que levantar sobe como erro do banco (o fim, no `finally`, troca até o
+    cancelamento por ele); quem chama trata o seu erro e segue.
+    """
     vagas = asyncio.Semaphore(MAX_FONTES_JUNTAS)
 
     async def uma(coletor: Coletor) -> None:
         async with vagas:
-            await _Fonte(
-                coletor, cliente, historico, relogio, ao_terminar_escopo, max_detalhes_por_fonte
-            ).rodar(ctx)
+            await ao_comecar_fonte(coletor.chave)
+            try:
+                await _Fonte(
+                    coletor, cliente, historico, relogio, ao_terminar_escopo, max_detalhes_por_fonte
+                ).rodar(ctx)
+            finally:
+                await ao_terminar_fonte(coletor.chave)
 
     # TaskGroup: cancelar `rodar` ou um erro do ao_terminar_escopo cancela e espera todas.
     async with asyncio.TaskGroup() as grupo:
@@ -122,13 +149,32 @@ def _vencido(ultimo: datetime | None, intervalo_min: int | None, agora: datetime
     return agora - ultimo >= timedelta(minutes=intervalo_min)
 
 
-def _motivo_do_detalhe(erro: Exception) -> str:
+def motivo_do_detalhe(erro: Exception) -> str:
     for tipo, chave in _MOTIVO_DA_PARADA.items():
         if isinstance(erro, tipo):
             return chave
     if isinstance(erro, ErroDeRede):
         return "saude.erro_de_rede"
+    if isinstance(erro, RespostaGrande):
+        return "saude.resposta_grande"
     return f"saude.excecao:{type(erro).__name__}"
+
+
+def motivo_do_escopo(erro: Exception) -> str:
+    """Exceção que escapou de `coletar` ou `escopos`: só estas três têm motivo próprio."""
+    if isinstance(erro, Parou429):
+        return "saude.parou_429"
+    if isinstance(erro, RespostaGrande):
+        return "saude.resposta_grande"
+    if isinstance(erro, ErroDeRede):
+        return "saude.erro_de_rede"
+    return f"saude.excecao:{type(erro).__name__}"
+
+
+def _registrar_parada(fonte: str, escopo: str, erro: Exception) -> None:
+    """Põe no log o texto da exceção que parou o escopo (a chave de saúde não o guarda)."""
+    if isinstance(erro, Parou429 | LimiteAtingido | Bloqueio):
+        log.warning("escopo %s/%s parado (%s): %s", fonte, escopo, type(erro).__name__, erro)
 
 
 def _n_sem_detalhe(motivo: str | None) -> int | None:
@@ -226,7 +272,8 @@ class _Fonte:
         try:
             escopos = list(self.c.escopos(replace(ctx, empresas=empresas)))
         except Exception as erro:
-            falhou = ResultadoEscopo((), "falhou", f"saude.excecao:{type(erro).__name__}", 0)
+            _registrar_parada(chave, "(escopos)", erro)
+            falhou = ResultadoEscopo((), "falhou", motivo_do_escopo(erro), 0)
             await self._parado("", falhou)
             return
         if self.c.max_pedidos is not None:  # DR-52: os coletados há mais tempo primeiro
@@ -290,11 +337,12 @@ class _Fonte:
                         detalhes += 1
                         try:
                             vaga = await self.c.detalhar(item, http)
-                        except _PARA_DETALHES as erro:
-                            erro_detalhe, parou = _motivo_do_detalhe(erro), True
+                        except PARA_DETALHES as erro:
+                            _registrar_parada(chave, escopo, erro)
+                            erro_detalhe, parou = motivo_do_detalhe(erro), True
                             break
                         except Exception as erro:  # só esta URL; volta na próxima execução
-                            erro_detalhe = erro_detalhe or _motivo_do_detalhe(erro)
+                            erro_detalhe = erro_detalhe or motivo_do_detalhe(erro)
                             continue
                         if vaga is None:
                             sem_detalhe.append(item.url)
@@ -332,8 +380,8 @@ class _Fonte:
             final = ResultadoEscopo((), "falhou", "saude.tempo_esgotado", gastos + http.pedidos)
             vistas, sem_detalhe = (), []
         except Exception as erro:
-            motivo = f"saude.excecao:{type(erro).__name__}"
-            final = ResultadoEscopo((), "falhou", motivo, gastos + http.pedidos)
+            _registrar_parada(chave, escopo, erro)
+            final = ResultadoEscopo((), "falhou", motivo_do_escopo(erro), gastos + http.pedidos)
             vistas, sem_detalhe = (), []
         self.detalhes_livres = 0 if parou else self.detalhes_livres - detalhes
         if self.pedidos_livres is not None:
