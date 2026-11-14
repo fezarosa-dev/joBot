@@ -267,16 +267,19 @@ def saude_recente(con: sqlite3.Connection, n: int = 8) -> tuple[LinhaSaude, ...]
     return tuple(LinhaSaude(r[0], _data(r[1]), *r[2:]) for r in linhas)
 
 
-def ultimas_que_rodaram(con: sqlite3.Connection) -> dict[str, dict[str, LinhaSaude]]:
-    """Por fonte e escopo, a linha da última vez em que rodou de fato (nem "no_limite" nem
-    "desligada"), em qualquer execução, sem o corte das `n` mais recentes de `saude_recente`."""
+def ultimas_que_rodaram(
+    con: sqlite3.Connection, fora: Sequence[str] = ("no_limite", "desligada")
+) -> dict[str, dict[str, LinhaSaude]]:
+    """Por fonte e escopo, a linha da última vez em que rodou de fato (fora os estados de
+    `fora`), em qualquer execução, sem o corte das `n` mais recentes de `saude_recente`."""
     linhas = con.execute(
         "SELECT execucao_id, iniciada_em, fonte, escopo, estado, vagas, pedidos, duracao_ms,"
         " motivo FROM (SELECT s.execucao_id, e.iniciada_em, s.fonte, s.escopo, s.estado,"
         " s.vagas, s.pedidos, s.duracao_ms, s.motivo, ROW_NUMBER() OVER (PARTITION BY"
         " s.fonte, s.escopo ORDER BY e.iniciada_em DESC, e.id DESC) AS rn"
         " FROM saude s JOIN execucao e ON e.id = s.execucao_id"
-        " WHERE s.estado NOT IN ('no_limite', 'desligada')) WHERE rn = 1"
+        f" WHERE s.estado NOT IN ({', '.join('?' * len(fora))})) WHERE rn = 1",
+        tuple(fora),
     ).fetchall()
     por_fonte: dict[str, dict[str, LinhaSaude]] = {}
     for r in linhas:
