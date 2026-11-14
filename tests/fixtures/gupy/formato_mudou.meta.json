@@ -1,0 +1,12 @@
+{
+  "url": "https://portal.gupy.io/api/job-search/jobs?careerPageName=Agriness&limit=100&offset=0",
+  "data": "2026-11-14T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/json; charset=utf-8"
+  },
+  "sha256": "c3f890591fdcbc3f941ff2fb85c8517c7c3e1023045d7ba14775169d47029f9a",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "montado à mão a partir de normal.json, reduzido a duas vagas: na segunda, name vira title e jobUrl vira url (formato mudou)"
+}
