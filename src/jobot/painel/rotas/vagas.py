@@ -22,8 +22,7 @@ from jobot.banco import acoes, leitura
 from jobot.banco.leitura import Filtros, Fonte, Item
 from jobot.nucleo.destaques import Candidata, destaques
 from jobot.nucleo.relogio import Relogio, RelogioReal
-from jobot.painel.rotas.preferencias import _de_volta
-from jobot.painel.seguranca import Con, renderizar
+from jobot.painel.seguranca import Con, _de_volta, renderizar
 
 router = APIRouter()
 

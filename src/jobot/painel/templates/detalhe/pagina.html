@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% block titulo %}{{ t("detalhe.titulo_pagina", titulo=vaga.titulo) }}{% endblock %}
+{% block estilos %}<link rel="stylesheet" href="/static/css/vagas.css"><link rel="stylesheet" href="/static/css/detalhe.css">{% endblock %}
+{% block conteudo %}
+{%- set salario = salario_texto(vaga, idioma) -%}
+{%- set locais = locais_texto(vaga.locais) -%}
+{%- set proximos = {"nova": ["salva"], "salva": ["candidatei"], "candidatei": ["entrevista"], "entrevista": ["oferta", "recusada"]}.get(vaga.status, []) -%}
+{%- set anterior = {"salva": "nova", "candidatei": "salva", "entrevista": "candidatei", "oferta": "entrevista", "recusada": "entrevista"}.get(vaga.status) -%}
+{%- set acao_vaga = "/vagas/" ~ vaga.id -%}
+<p class="voltar"><a href="/vagas">{{ t("detalhe.voltar") }}</a></p>
+<article class="detalhe">
+  <header>
+    <h1 class="titulo-pagina">{{ vaga.titulo }}</h1>
+    <p class="cartao-empresa">{{ vaga.empresa }}</p>
+  </header>
+  <ul class="selos">
+    {%- if vaga.nova %}
+    <li class="selo">{{ t("vagas.selo.nova") }}</li>
+    {%- endif %}
+    {%- if vaga.fechada %}
+    <li class="selo">{{ t("vagas.selo.fechada") }}</li>
+    {%- elif vaga.fecha_logo %}
+    <li class="selo">{{ t("vagas.selo.fecha_logo") }}</li>
+    {%- endif %}
+    {%- for aviso in vaga.avisos %}
+    <li class="selo">{{ rotulo("aviso." ~ aviso, aviso) }}</li>
+    {%- endfor %}
+    {%- if vaga.oculta_motivo == "manual" %}
+    <li class="selo">{{ t("vagas.oculta.manual") }}</li>
+    {%- elif vaga.oculta_motivo %}
+    <li class="selo">{{ t("vagas.oculta.regra", regra=rotulo("vagas.motivo." ~ vaga.oculta_motivo, vaga.oculta_motivo)) }}</li>
+    {%- endif %}
+  </ul>
+  <ul class="meta">
+    {%- if locais %}
+    <li>{{ locais }}</li>
+    {%- endif %}
+    {%- for prefixo, valor in (("area", vaga.area), ("nivel", vaga.nivel), ("modalidade", vaga.modalidade), ("contrato", vaga.contrato)) %}
+    {%- if valor and valor != "nao_informado" %}
+    <li>{{ rotulo(prefixo ~ "." ~ valor, valor) }}</li>
+    {%- endif %}
+    {%- endfor %}
+  </ul>
+  {%- if salario %}
+  <p class="salario"><strong>{{ salario.original }}</strong>
+    {%- set ao_lado = [salario.cotacao, salario.em_reais] | select | list %}
+    {%- if ao_lado %} <small class="cotacao">{{ ao_lado | join(" · ") }}</small>{% endif %}</p>
+  {%- else %}
+  <p class="salario nao-informado">{{ t("vagas.salario_nao_informado") }}</p>
+  {%- endif %}
+  <div class="acoes" role="group" aria-label="{{ t('vagas.acoes', titulo=vaga.titulo) }}">
+    {%- if candidatura %}
+    <a class="primario" href="{{ candidatura }}" target="_blank" rel="noopener noreferrer" aria-label="{{ t('detalhe.candidatar_nova_aba') }}">{{ t("detalhe.candidatar") }}</a>
+    {%- endif %}
+    <p class="situacao">{{ t("vagas.status_atual", status=rotulo("vagas.status." ~ vaga.status, vaga.status)) }}</p>
+    <form method="post" action="{{ acao_vaga }}/status">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="voltar" value="{{ retorno }}">
+      {%- for destino in proximos %}
+      <button type="submit" name="status" value="{{ destino }}" class="secundario">{{ t("vagas.acao.para." ~ destino) }}</button>
+      {%- endfor %}
+      {%- if anterior %}
+      <button type="submit" name="status" value="{{ anterior }}" class="secundario" aria-label="{{ t('vagas.acao.desfazer_para', status=t('vagas.status.' ~ anterior)) }}">{{ t("vagas.acao.desfazer") }}</button>
+      {%- endif %}
+    </form>
+    {%- set destino_visibilidade = "mostrar" if vaga.oculta_motivo else "ocultar" %}
+    <form method="post" action="{{ acao_vaga }}/{{ destino_visibilidade }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="voltar" value="{{ retorno }}">
+      <button type="submit" class="secundario">{{ t("vagas.acao.ocultar" if not vaga.oculta_motivo else ("vagas.acao.trazer" if vaga.oculta_motivo == "manual" else "vagas.acao.mostrar")) }}</button>
+    </form>
+  </div>
+  {%- if fontes %}
+  <section class="bloco" aria-labelledby="det-fontes">
+    <h2 id="det-fontes">{{ t("detalhe.secao.fontes") }}</h2>
+    <p class="fontes">
+      {%- for f in fontes %}
+      {%- set nome = rotulo("fonte." ~ f.fonte, f.fonte) %}
+      {%- if http(f.url) %}
+      <a href="{{ f.url }}" target="_blank" rel="noopener noreferrer" aria-label="{{ t('vagas.via_nova_aba', fonte=nome) }}">{{ t("vagas.via", fonte=nome) }}</a>
+      {%- else %}
+      <span>{{ t("vagas.via", fonte=nome) }}</span>
+      {%- endif %}
+      {%- endfor %}
+    </p>
+  </section>
+  {%- endif %}
+  <section class="bloco" aria-labelledby="det-encaixe">
+    <h2 id="det-encaixe">{{ t("detalhe.secao.encaixe") }}</h2>
+    {%- if vaga.encaixe %}
+    <p class="encaixe"><span aria-hidden="true">{{ {"bom": "●", "medio": "◐", "fraco": "○"}.get(vaga.encaixe, "") }}</span> {{ t("vagas.encaixe_cartao", nivel=rotulo("vagas.encaixe." ~ vaga.encaixe, vaga.encaixe)) }} <span class="motivo">{{ t("detalhe.encaixe.nota", nota=vaga.nota) }}</span></p>
+    <ul class="motivos">
+      {%- for m in vaga.motivos %}
+      {%- set texto = motivo(m) %}
+      {%- if texto %}
+      <li>{{ texto }}</li>
+      {%- endif %}
+      {%- endfor %}
+    </ul>
+    {%- else %}
+    <p class="vazio">{{ t("detalhe.encaixe.sem_nota") }}</p>
+    {%- endif %}
+  </section>
+  <section class="bloco faixa" aria-labelledby="det-faixa">
+    <h2 id="det-faixa">{{ t("detalhe.faixa.titulo") }}</h2>
+    {%- if faixa.datas %}
+    <ol class="meses" aria-hidden="true">
+      {%- for m in faixa.meses %}
+      <li{% if m.atual %} class="atual" title="{{ t('detalhe.faixa.hoje_marca') }}"{% endif %}>
+        <span class="mes">{{ t("detalhe.mes." ~ m.mes) }}</span>
+        <span class="marcas">{% for tipo in m.marcas %}{{ {"publicada": "●", "prazo": "▲", "inicio": "■"}[tipo] }}{% endfor %}</span>
+      </li>
+      {%- endfor %}
+    </ol>
+    <ul class="datas">
+      {%- for d in faixa.datas %}
+      {%- set data = data_completa(d.dia, idioma) %}
+      {%- if d.tipo == "prazo" %}
+      {%- set quanto = t("detalhe.faixa.vencido") if d.faltam < 0 else t("detalhe.faixa.hoje") if d.faltam == 0 else t("detalhe.faixa.falta_1") if d.faltam == 1 else t("detalhe.faixa.faltam_n", n=d.faltam) %}
+      <li{% if d.urgente %} class="urgente"{% endif %}>▲ {{ t("detalhe.faixa.prazo", data=data, quanto=quanto) }}</li>
+      {%- elif d.tipo == "publicada" %}
+      <li>● {{ t("detalhe.faixa.publicada", data=data) }}</li>
+      {%- else %}
+      <li>■ {{ t("detalhe.faixa.inicio", data=data) }}</li>
+      {%- endif %}
+      {%- endfor %}
+    </ul>
+    {%- else %}
+    <p class="vazio">{{ t("detalhe.faixa.sem_datas") }}</p>
+    {%- endif %}
+  </section>
+  {%- if estagio %}
+  <section class="bloco" aria-labelledby="det-estagio">
+    <h2 id="det-estagio">{{ t("detalhe.secao.estagio") }}</h2>
+    <dl class="estagio">
+      {%- for chave, valor in estagio.items() %}
+      <dt>{{ rotulo("detalhe.estagio." ~ chave, chave) }}</dt>
+      <dd>{{ valor }}</dd>
+      {%- endfor %}
+    </dl>
+  </section>
+  {%- endif %}
+  {%- if vaga.beneficios %}
+  <section class="bloco" aria-labelledby="det-beneficios">
+    <h2 id="det-beneficios">{{ t("detalhe.secao.beneficios") }}</h2>
+    <ul class="beneficios">
+      {%- for b in vaga.beneficios %}
+      <li>{{ b }}</li>
+      {%- endfor %}
+    </ul>
+  </section>
+  {%- endif %}
+  <section class="bloco" aria-labelledby="det-descricao">
+    <h2 id="det-descricao">{{ t("detalhe.secao.descricao") }}</h2>
+    {%- if vaga.descricao_texto %}
+    <div class="descricao">{{ vaga.descricao_texto }}</div>
+    {%- else %}
+    <p class="vazio">{{ t("detalhe.sem_descricao") }}</p>
+    {%- endif %}
+  </section>
+  <p class="corrigir"><a href="{{ acao_vaga }}/correcao">{{ t("detalhe.correcao.titulo") }}</a></p>
+</article>
+{% endblock %}

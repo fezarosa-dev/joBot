@@ -8,12 +8,11 @@ sem piscar.
 import json
 import sqlite3
 from typing import Annotated, Literal
-from urllib.parse import urlsplit, urlunsplit
 
 from fastapi import APIRouter, Form
 from fastapi.responses import RedirectResponse
 
-from jobot.painel.seguranca import Con, Tema
+from jobot.painel.seguranca import Con, Tema, _de_volta
 
 router = APIRouter(prefix="/preferencias")
 
@@ -25,18 +24,6 @@ def _gravar(con: sqlite3.Connection, chave: str, valor: str) -> None:
         (chave, json.dumps(valor)),
     )
     con.commit()
-
-
-def _de_volta(voltar: str) -> RedirectResponse:
-    """Volta para a página de onde veio, só se for caminho do próprio painel (sem open redirect).
-
-    O `Referrer-Policy: no-referrer` tira o `Referer`, por isso a página manda `voltar`.
-    """
-    partes = urlsplit(voltar)  # o urlsplit já tira tab e quebra de linha, como o navegador
-    local = not partes.scheme and not partes.netloc and partes.path.startswith("/")
-    if not local or partes.path.startswith("//") or "\\" in partes.path:
-        return RedirectResponse("/", status_code=303)
-    return RedirectResponse(urlunsplit(("", "", partes.path, partes.query, "")), status_code=303)
 
 
 @router.post("/tema")

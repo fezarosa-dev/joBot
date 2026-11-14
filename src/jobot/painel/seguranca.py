@@ -7,10 +7,11 @@ from collections.abc import AsyncIterator
 from contextlib import closing
 from pathlib import Path
 from typing import Annotated, Any, Literal
+from urllib.parse import urlsplit, urlunsplit
 
 import jinja2
 from fastapi import Depends, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from jobot.banco.conexao import abrir
@@ -96,6 +97,18 @@ async def exigir_csrf(request: Request) -> None:
         or not hmac.compare_digest(enviado.encode(), csrf_token(request).encode())
     ):
         raise HTTPException(403, detail=t(_idioma(request), "seguranca.recarregue"))
+
+
+def _de_volta(voltar: str) -> RedirectResponse:
+    """Volta para a página de onde veio, só se for caminho do próprio painel (sem open redirect).
+
+    O `Referrer-Policy: no-referrer` tira o `Referer`, por isso a página manda `voltar`.
+    """
+    partes = urlsplit(voltar)  # o urlsplit já tira tab e quebra de linha, como o navegador
+    local = not partes.scheme and not partes.netloc and partes.path.startswith("/")
+    if not local or partes.path.startswith("//") or "\\" in partes.path:
+        return RedirectResponse("/", status_code=303)
+    return RedirectResponse(urlunsplit(("", "", partes.path, partes.query, "")), status_code=303)
 
 
 def renderizar(request: Request, modelo: str, **ctx: Any) -> HTMLResponse:
