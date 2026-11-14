@@ -1,5 +1,6 @@
 import argparse
 import ast
+import re
 import socket
 import sys
 import types
@@ -49,6 +50,18 @@ def test_dados_locais_no_gitignore() -> None:
 
 def test_sem_dependabot() -> None:
     assert not (RAIZ / ".github" / "dependabot.yml").exists(), "sem Dependabot (ADR 0021)"
+
+
+def test_actions_fixadas_por_hash() -> None:
+    usos = [
+        linha.strip()
+        for arquivo in sorted((RAIZ / ".github" / "workflows").glob("*.yml"))
+        for linha in arquivo.read_text(encoding="utf-8").splitlines()
+        if "uses:" in linha
+    ]
+    assert usos
+    for linha in usos:
+        assert re.search(r"@[0-9a-f]{40} +# v\d+\.\d+\.\d+$", linha), linha
 
 
 def test_nenhum_teste_le_yaml() -> None:
