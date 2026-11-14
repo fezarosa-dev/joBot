@@ -1,0 +1,118 @@
+{
+  "content": [
+    {
+      "codigoVaga": 6299866,
+      "tipoVaga": "ESTAGIO",
+      "nomeEmpresa": "Pessoa Exemplo LTDA",
+      "areaAtuacao": null,
+      "areaProfissional": "Ensino Médio",
+      "salario": null,
+      "bolsaAuxilio": 1300,
+      "quantidadeBeneficios": 1,
+      "tipoAuxilioBolsa": "Mensal",
+      "tipoValorBolsa": "FIXO",
+      "tipoSalarioValor": null,
+      "tipoSalario": null,
+      "bolsaAuxilioDe": null,
+      "bolsaAuxilioAte": null,
+      "salarioDe": null,
+      "salarioAte": null,
+      "beneficios": [],
+      "descricao": "Comércio varejista de artigos do vestuário e acessórios",
+      "local": {
+        "tipoLogradouro": null,
+        "endereco": null,
+        "numero": null,
+        "bairro": "Centro",
+        "complemento": null,
+        "cep": null,
+        "cidade": "São Vicente",
+        "uf": "SP"
+      },
+      "tipoHorario": "DEFINIDO",
+      "horarioEntrada": "13:30:00",
+      "horarioSaida": "19:00:00",
+      "atividades": [
+        "Auxiliar a separação de produtos e pedidos",
+        "Auxiliar na conferência de produtos",
+        "Auxiliar nas embalagens de produtos diversos",
+        "Auxiliar no atendimento ao público",
+        "Auxiliar no controle de estoques"
+      ],
+      "requisitos": {
+        "semestreInicio": 1,
+        "semestreFinal": 4,
+        "escolas": null
+      },
+      "nivelEscolar": "EM",
+      "logo": null
+    },
+    {
+      "codigoVaga": 6299856,
+      "tipoVaga": "ESTAGIO",
+      "areaAtuacao": null,
+      "areaProfissional": "Saúde",
+      "salario": null,
+      "bolsaAuxilio": 1000,
+      "quantidadeBeneficios": 1,
+      "tipoAuxilioBolsa": "Mensal",
+      "tipoValorBolsa": "FIXO",
+      "tipoSalarioValor": null,
+      "tipoSalario": null,
+      "bolsaAuxilioDe": null,
+      "bolsaAuxilioAte": null,
+      "salarioDe": null,
+      "salarioAte": null,
+      "beneficios": [],
+      "descricao": "Administração pública em geral",
+      "local": {
+        "tipoLogradouro": null,
+        "endereco": null,
+        "numero": null,
+        "bairro": "Centro",
+        "complemento": null,
+        "cep": null,
+        "cidade": "Teresina",
+        "uf": "PI"
+      },
+      "tipoHorario": "A_COMBINAR",
+      "horarioEntrada": null,
+      "horarioSaida": null,
+      "atividades": [
+        "as crianças com necessidades especiais nas suas necessidades diárias",
+        "estudantes com deficiência ou outras necessidades educacionais específicas em sala de aula, sob  supervisão do profissional responsável",
+        "apoio às crianças com necessidades específicas em suas demandas de higiene pessoal, atividades da vida diária, participação e permanência no ambiente escolar"
+      ],
+      "requisitos": {
+        "semestreInicio": 4,
+        "semestreFinal": 7,
+        "escolas": null
+      },
+      "nivelEscolar": "SU",
+      "logo": null,
+      "empresa": "SECRETARIA MUNICIPAL DE EDUCAÇÃO – SEMEC"
+    }
+  ],
+  "pageable": {
+    "sort": {
+      "sorted": true,
+      "unsorted": false
+    },
+    "pageNumber": 0,
+    "pageSize": 300,
+    "offset": 0,
+    "unpaged": false,
+    "paged": true
+  },
+  "last": true,
+  "totalPages": 1,
+  "totalElements": 2,
+  "first": true,
+  "sort": {
+    "sorted": true,
+    "unsorted": false
+  },
+  "numberOfElements": 2,
+  "size": 300,
+  "number": 0
+}

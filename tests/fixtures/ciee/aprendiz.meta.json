@@ -1,0 +1,12 @@
+{
+  "url": "https://api.ciee.org.br/vagas/vitrine-vaga/publicadas?page=0&size=1000&sort=codigoVaga,desc&tipoVaga=APRENDIZ",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/json;charset=UTF-8"
+  },
+  "sha256": "33089238e1b33100ec1e8cf2893bc753788426ccf5891939ca0c537c463e58d0",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "resposta real da conferência de 2026-11-13 (captura/B3/ciee/amostra_aprendiz.json): tirado o campo _nota, passou por reduzir e limpar_pessoais"
+}
