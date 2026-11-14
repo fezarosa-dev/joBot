@@ -28,6 +28,7 @@ Phase 1: the foundation of joBot. You can already install and use it.
 - Dashboard in Portuguese and English, with light and dark themes.
 - In the search progress bar, the list of the sources that are still running.
 - A "Saved." notice after saving in Settings.
+- A country restriction notice on the remote jobs from Himalayas, Jobicy and Remotive.
 - Project decisions (ADRs 0001 to 0021) and `duvidas.md`.
 - README with badges, diagram, tables and a FAQ, and the English version.
 - Star history chart in the README.
@@ -39,6 +40,8 @@ Phase 1: the foundation of joBot. You can already install and use it.
 
 - Code of Conduct reports go to the project email.
 - The README is no longer only a plan: it describes the phase 1 installation.
+- The label rules (field, level, work mode, contract, country and state) were tuned and measured on a set of jobs checked by hand.
+- Jobs from Brazil-only sites now come out with the country Brazil.
 
 ### Fixed
 
@@ -46,3 +49,4 @@ Phase 1: the foundation of joBot. You can already install and use it.
 - Greenhouse accepts very large job boards, such as Stripe's.
 - The schedule only starts searching after the first-run wizard is finished.
 - In Sources, a source that hit its limit shows the last round it actually ran.
+- A foreign country in the searches form no longer turns into a Brazilian state.
