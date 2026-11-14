@@ -285,3 +285,51 @@ def test_cotacao_velha_zera_o_valor_ja_gravado(con: sqlite3.Connection) -> None:
     assert _brl(con, usd)[0] == 28250
     aplicar_cotacoes(con, hoje=date(2026, 11, 14))  # um dia depois a cotação venceu
     assert _brl(con, usd) == (None, None, None)
+
+
+INT_MAX = 2**63 - 1  # maior INTEGER do SQLite
+
+
+def test_brl_gigante_fica_nulo(con: sqlite3.Connection) -> None:
+    # por hora: o máximo cabe, mas o mensal (x 160) em reais passa do INTEGER
+    por_hora = _brl_vaga(
+        con, sal_min=10_000, sal_max=INT_MAX, sal_periodo="hora", sal_mensal_min=1_600_000
+    )
+    # cotação alta: o mínimo mensal cabe em centavos, mas em reais passa do INTEGER
+    _cotar(con, "USD", "1000")
+    cotacao_alta = _usd(con, sal_mensal_min=INT_MAX)
+    try:
+        mudou: int | None = aplicar_cotacoes(con)
+    except OverflowError:
+        mudou = None  # o sqlite3 recusa o inteiro e a gravação inteira se perde
+    assert mudou == 2
+    assert _brl(con, por_hora) == (16_000, None, None)
+    assert _brl(con, cotacao_alta) == (None, 6_000_000, "2026-11-13")
+    assert not con.in_transaction
+
+
+def test_aplicar_cotacoes_so_da_vaga(con: sqlite3.Connection) -> None:
+    _cotar(con, "USD", "5")
+    alvo, outra = _usd(con), _usd(con)
+    assert aplicar_cotacoes(con, vaga_id=alvo) == 1
+    assert _brl(con, alvo) == (25_000, 30_000, "2026-11-13")
+    assert _brl(con, outra) == (None, None, None)
+    assert aplicar_cotacoes(con, vaga_id=outra) == 1
+    assert _brl(con, outra) == (25_000, 30_000, "2026-11-13")
+
+
+def test_select_falhando_desfaz_transacao(con: sqlite3.Connection) -> None:
+    _usd(con)
+    con.commit()
+
+    def nega_select(acao: int, *_: object) -> int:
+        return sqlite3.SQLITE_DENY if acao == sqlite3.SQLITE_SELECT else sqlite3.SQLITE_OK
+
+    con.set_authorizer(nega_select)
+    try:
+        with pytest.raises(sqlite3.DatabaseError):
+            aplicar_cotacoes(con)
+        aberta = con.in_transaction
+    finally:
+        con.set_authorizer(None)
+    assert not aberta  # o BEGIN IMMEDIATE foi desfeito: a escrita não fica travada

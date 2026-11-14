@@ -19,7 +19,7 @@ FONTES = (
 MOTIVOS = (
     "formato_mudou zero_inesperado parcial_n sem_detalhe_n empresa_nao_encontrada bloqueio cota "
     "intervalo orcamento parou_429 limite_atingido tempo_esgotado erro_de_rede resposta_grande "
-    "excecao"
+    "excecao listagem_incompleta"
 ).split()
 
 
