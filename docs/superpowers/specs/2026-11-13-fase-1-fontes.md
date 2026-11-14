@@ -273,6 +273,9 @@ As cinco fontes desta seção exigem crédito com link de volta. O painel mostra
 - **Não usar:** a API JSON `hulk-smash.abler.com.br` recusa origem de fora (403 `ORIGIN_NOT_ALLOWED`). É bloqueio: o joBot não contorna e nunca forja o cabeçalho `Origin`.
 - **Custo:** um pedido por vaga. É a fonte mais cara e mais frágil da leva B. Fica por último.
 - **Contrato (desenho, DR-70):** fonte de sitemap. O coletor devolve `UrlListada` de todas as URLs do sitemap, com o endereço e o `lastmod`. O filtro de 30 dias vale só para URL nova e é do executor: URL que já tem ocorrência dessa fonte conta como vista, com qualquer data. A vaga só é gravada depois do detalhe, com título e empresa, dentro do orçamento de enriquecimento (desenho, seções 8.1 e 10.6).
+- **Status da vaga:** `status` vem "Em andamento" em todas as amostras, e o coletor trata a vaga como aberta sem filtrar por status (`abler.py`, `detalhar`). Só se conhece esse valor. Uma vaga encerrada com `lastmod` recente entraria como aberta; quando aparecer um segundo valor, o coletor passa a recusar status não vazio fora dos abertos conhecidos (D82).
+- **Sitemap sem `<loc>`:** entrada sem `<loc>` deixa o escopo `parcial` com `saude.formato_mudou`; sitemap em que nenhuma `<url>` vira vaga é `falhou` só depois da T126: hoje o Abler dá `parcial` nesse caso (`abler.py:124` só testa as entradas puladas). O sitemap não traz `ETag` nem `Last-Modified`: sem pedido condicional (`abler.py:467`).
+- **Busca real (2026-11-14, conferido na rede em 2026-11-14):** `ok`, 50 vagas em 51 pedidos, em 2 min. Para em 50 pelo orçamento de detalhes do executor (`MAX_DETALHES_POR_FONTE`, `agenda/execucao.py:54`); o resto entra nas rodadas seguintes (D74).
 - **Termos (cláusula 6):** proíbem reproduzir o conteúdo sem autorização.
 - **Decisão do dono (Q6, 2026-11-13):** a Abler entra. Tem chave liga/desliga, ritmo educado, sempre o link para a vaga original e aviso no README.
 
@@ -308,6 +311,10 @@ As cinco fontes desta seção exigem crédito com link de volta. O painel mostra
 - **Detalhe:** `GET https://www.superestagios.com.br/vaga/{id}` — HTML com JSON-LD do tipo `JobPosting`.
 - **Campos do JSON-LD:** `identifier.value`, `title`, `hiringOrganization.name`, `jobLocation.address`, `baseSalary`, `datePosted`, `validThrough`, `url`, `description`.
 - **Rótulos no HTML:** "Atividades a serem desenvolvidas:", "Requisito:", "Nível:", "Cursos:".
+- **Sitemap real:** `<urlset>` sem namespace (o coletor aceita com e sem o namespace do protocolo). `lastmod` e `datePosted` vêm só com data (AAAA-MM-DD); sem fuso, valem meia-noite de Brasília (-03:00, como o `validThrough`), marcado com `shortcut:` no coletor para conferir (`super_estagios.py:40-43`). Não há `ETag` nem `Last-Modified` no sitemap, só `cache-control`: sem pedido condicional.
+- **Padrão do endereço:** só entra URL `https://www.superestagios.com.br/vaga/<número>`; outro host, host local ou listagem é descartada e contada em `saude.sem_detalhe_n:<n>`, com estado `ok` (`super_estagios.py:92,271`). Entrada sem `<loc>` deixa o escopo `parcial` com `saude.formato_mudou`; sitemap com entradas e nenhuma legível é `falhou`. O `detalhar` devolve `None` para 404 e 410 (o executor guarda por 30 dias) e deixa 403, 429 e 5xx subirem (`super_estagios.py:284`).
+- **Empresa em sigilo:** a página mostra `Empresa: CONFIDENCIAL`, na tabela e no JSON-LD, e esse é o valor que vira `empresa`. A T126 troca por `Super Estágios`, como o CIEE faz com `CIEE`, para vagas de empresas diferentes não se misturarem (D83).
+- **Busca real (2026-11-14, conferido na rede em 2026-11-14):** `ok`, 50 vagas em 51 pedidos, em 1 min; para em 50 pelo orçamento de detalhes do executor (D74).
 - **Custo:** um pedido por vaga. A primeira carga é fatiada: só as vagas com `lastmod` recente, dentro do orçamento de enriquecimento.
 - **Contrato (desenho, DR-70):** fonte de sitemap. O coletor devolve `UrlListada` de todas as URLs do sitemap, com o endereço e o `lastmod`. O filtro de 30 dias vale só para URL nova e é do executor: URL que já tem ocorrência dessa fonte conta como vista, com qualquer data. A vaga só é gravada depois do detalhe, com título e empresa, dentro do orçamento de enriquecimento (desenho, seções 8.1 e 10.6).
 - **[a confirmar]:** só uma página de detalhe foi vista. Conferir o formato em mais vagas.
@@ -344,10 +351,18 @@ Não existe um mural único. Duas unidades têm lista pública:
 #### Eureca
 
 - **Decisão do dono (Q6, 2026-11-13):** a Eureca entra. Tem chave liga/desliga, ritmo educado, sempre o link para a vaga original e aviso no README.
-- **Termos (7.1 a 7.3):** pedem consentimento prévio e expresso.
-- **[a confirmar]: endereço, método, paginação e campos.** Este apêndice não registra o caminho da Eureca: ela estava fora quando a conferência foi feita. O construtor acha o caminho público na captura, pela ordem de preferência do desenho (seção 8.5), e completa esta seção no mesmo commit do coletor.
-- **Limites:** nenhum conhecido. A espera entre pedidos e o orçamento por execução são definidos na captura, nunca abaixo do padrão (regra 4 da seção 1).
-- **Sem caminho público sem login:** a fonte fica fora, com o motivo no `duvidas.md`. O joBot não contorna login nem bloqueio.
+- **Termos (7.1 a 7.3):** pedem consentimento prévio e expresso. As notas da conferência de 2026-11-13 recomendam pedir autorização à Eureca antes de ligar o coletor, porque o endereço foi achado lendo o código do aplicativo de candidatos. A pergunta ao dono segue aberta na D80: (a) manter ligada, (b) deixar desligada por padrão até a autorização (recomendada), (c) tirar da fase 1.
+- **Endereço:** `GET https://candidate-api.eureca.me/opportunities?page=N&pageSize=200`, JSON, sem login (decisão A42). O endereço sai do código do aplicativo `app.eureca.me`; nenhum login nem bloqueio é contornado (conferido na rede em 2026-11-14).
+- **Resposta e paginação:** `{items, total, page, pageSize}`. `page` começa em 1; sem parâmetros a API devolve a página 1 com `pageSize` 200, e o pedido com `pageSize=200` explícito foi aceito na busca real. O coletor para quando a página vem menor que `pageSize` ou quando `page * pageSize >= total`. Teto local: `MAX_PAGINAS = 10` (2.000 vagas, hoje há 9); ao chegar nele o escopo fica `parcial` com `saude.limite_atingido` (`eureca.py:34,168`).
+- **Cabeçalhos:** a API não manda `ETag` nem `Last-Modified`: sem pedido condicional. Ritmo da fonte: `espera_s` 2 s (`fontes.json`).
+- **Campos da lista:** `id` (UUID), `name`, `companyName`, `description` (HTML), `cityName` e `stateAcronym`, `workModel` (`presencial`, `remoto` ou `hibrido`), `contractTypeKey` (`internship`), `salary`, `publishedAt`, `createdAt` e `endApplying`. A lista já traz a descrição: não há `detalhar`.
+- **Salário:** `null` em parte das vagas e, nas outras, `{display, minCents, maxCents}`, com `display` igual a `range` ou `undisclosed` e valores em centavos (190000 a 220000, por exemplo). O coletor converte para BRL, sem período; com `undisclosed` o salário fica sem valor. A nota de 2026-11-13 dizia que `salary` "veio null": isso valia só para o detalhe de uma vaga.
+- **Local:** na lista, `cityName` e `stateAcronym` vêm preenchidos em 5 das 8 vagas da captura (Salvador/BA, por exemplo); as notas diziam "nulos", e isso vale para o detalhe. `workplaceCities` só existe no detalhe e não é lido; `locations.cities` com mais de uma cidade segue lido só por `cityName` (D82).
+- **Modalidade:** a lista traz `workModel` e também `workModels[]`; na vaga `019fdbd4` da captura, `workModel` é `presencial` e `workModels` é `['presencial','hibrido']`. A T126 deixa `modalidade_declarada` vazia quando `workModels` tem mais de um valor, e o rotulador lê o texto (D83).
+- **Datas:** `publishedAt` veio `null` nas 8 vagas da lista; o coletor usa `createdAt` quando falta, no formato `2026-11-10 13:02:42.445557+00`, que o `fromisoformat` lê (`eureca.py:105`). `startApplying` só existe no detalhe. `endApplying` é um instante em UTC (`2027-01-01T02:59:00.000Z` é 23:59 de 31/12 em São Paulo): o prazo é o dia local (`eureca.py:59-61`), conforme a DP8.
+- **Link da vaga:** `https://app.eureca.me/vagas/{id}`, da rota `/vagas/$jobId` do aplicativo; o id só entra se for UUID (`eureca.py:30,35,89`). Na busca real o link saiu no formato esperado (conferido na rede em 2026-11-14); falta abrir um no navegador.
+- **Fora:** `/programs` lista programas (grupos de vagas), e cada vaga já traz `programName`.
+- **Busca real (2026-11-14, conferido na rede em 2026-11-14):** `ok`, 9 vagas em 1 pedido (D74, D80).
 
 ### 3.3 ATS de empresa grande
 
@@ -403,10 +418,14 @@ Cada empresa está numa de duas gerações da API.
 - **Detalhe:** `GET https://{host}/hcmRestApi/resources/latest/recruitingCEJobRequisitionDetails?expand=all&onlyData=true&finder=ById;Id=%22{Id}%22,siteNumber={siteNumber}`
 - **Paginação:** `limit` e `offset` ficam **dentro** do `finder`. `limit=200` foi aceito. Total em `items[0].TotalJobsCount`.
 - **`siteNumber`:** sai do HTML da página de carreira, no atributo `data-sitenumber`.
-- **Filtro de Brasil:** o `GeographyId` do Brasil muda por empresa (300000000106728 numa, 300000000289141 na outra). Ler das facetas da primeira resposta.
+- **Filtro de Brasil:** o `GeographyId` do Brasil muda por empresa (300000000106728 numa, 300000000289141 na outra). O coletor o lê de `items[0].locationsFacet`, e a lista é filtrada só pela faceta, sem `keyword`. Correção pela busca real de 2026-11-14 (conferido na rede em 2026-11-14): a descoberta sem filtro traz só as maiores localidades (18 facetas na Oracle, 40 no JPMorgan) e o Brasil não aparece, então o coletor deu `ok` com 0 vagas. Com `keyword=Brazil` a faceta do Brasil vem (o id achado na conferência de 2026-11-13 já foi com `keyword="Brazil"` e `facetsList=LOCATIONS`), e a lista filtrada só pela faceta traz 8 vagas na Oracle e 20 no JPMorgan. A T126 repete a descoberta uma vez com `keyword=<nome do país em inglês>` quando a faceta não vem; só sem ela nas duas o escopo termina `ok` vazio (D74). A faceta com hierarquia ("SAO PAULO, SP, Brazil") só vale como país quando o nome não tem vírgula e `ler_locais` dá o país do escopo.
+- **Vaga com o Brasil só como local secundário:** o filtro pelo Brasil traz também vaga cujo `PrimaryLocation` é de outro país (a Oracle trouxe uma do México). O coletor guarda `PrimaryLocation` e `secondaryLocations` em `locais` e deixa o tratamento decidir (`oracle_hcm.py:128`).
+- **Nome da empresa:** nem a lista nem o detalhe o trazem. O coletor usa o nome do cadastro, guardado por `escopos`, e cai no primeiro rótulo do host (`eeho`) sem cadastro (`oracle_hcm.py:173,196`), o mesmo atalho do Workday (D50).
+- **Prazo:** `PostingEndDate` e `ExternalPostedEndDate` vieram `null` em todas as amostras. O coletor lê o prazo quando vem (`oracle_hcm.py:151,309`), mas nunca o viu preenchido.
+- **Endereço aceito:** `siteNumber` casa `[A-Za-z0-9_]{1,50}` e o host só vale em `*.oraclecloud.com` (`oracle_hcm.py:37,38`); domínio próprio da empresa fica de fora até a T76 cadastrar empresas reais. O resolver aceita `https://<host>/hcmUI/CandidateExperience/<idioma>/sites/<site>[/...]`.
 - **Campos:** `Id`, `Title`, `PrimaryLocation`, `PrimaryLocationCountry`, `secondaryLocations`, `PostedDate`, `PostingEndDate`, `ShortDescriptionStr`; no detalhe, `ExternalDescriptionStr`, `ExternalResponsibilitiesStr`, `ExternalQualificationsStr` (HTML).
 - **Link da vaga:** `https://{host}/hcmUI/CandidateExperience/en/sites/{site}/job/{Id}`
-- **Vistos:** `eeho.fa.us2.oraclecloud.com` (`CX_45001`, site `jobsearch`; 2.835 vagas, 8 no Brasil); `jpmc.fa.oraclecloud.com` (`CX_1001`; 14 no Brasil).
+- **Vistos:** `eeho.fa.us2.oraclecloud.com` (`CX_45001`, site `jobsearch`; 2.835 vagas, 8 no Brasil); `jpmc.fa.oraclecloud.com` (`CX_1001`; 14 no Brasil; 20 na busca real de 2026-11-14).
 - **Observação:** API documentada oficialmente. Nenhuma empresa brasileira foi achada neste ATS.
 
 ### 3.4 Sites de carreira
@@ -418,6 +437,9 @@ Cada empresa está numa de duas gerações da API.
 - **Filtro local:** `locations/location/country == 'Brazil'` (49 vagas).
 - **Campos:** `job/jobid`, `title`, `employer`, `locations/location/{city, state, country}`, `remote`, `isRemote`, `isHybrid`, `published` (ISO em UTC), `url`, `description` (HTML escapado), `jobtype`, `categories`, `languageCode`.
 - **Limites:** nenhum limite publicado. A resposta traz `Cache-Control: max-age=1500` e `Last-Modified`. Usar `If-Modified-Since`, para só baixar o feed de novo quando ele muda. **[a confirmar]:** se o feed responde 304.
+- **Valores vistos (captura de 2026-11-13):** `remote` vale `onsite` (ou `remote`), e `isRemote` e `isHybrid` valem `Yes` ou `No` (`google.py:54-58`). O `url` vem em `careers.google.com` e redireciona com 301. `state` às vezes vem vazio ou como `State of Minas Gerais`.
+- **Busca real (2026-11-14, conferido na rede em 2026-11-14):** `ok`, 49 vagas em 1 pedido, em 2 s. O 304 ainda não foi visto: uma só rodada.
+- **Risco aceito:** se o feed trocar `Brazil` por `BR` ou `Brasil`, a coleta dá `ok` vazio, e o vigia pega a fonte que zerou (D82).
 - **`intervalo_min` da fonte:** 1440, porque o feed é grande e muda uma vez por dia. É intervalo prático, decisão da sessão em 2026-11-13; os termos não pedem.
 
 #### Amazon
@@ -429,6 +451,9 @@ Cada empresa está numa de duas gerações da API.
   - cada item de `locations[]` é um texto JSON: passar por `json.loads`. O `type` diz `ONSITE` ou `VIRTUAL`;
   - `posted_date` vem em inglês por extenso ("November 13, 2026");
   - link da vaga: `https://www.amazon.jobs` + `job_path`.
+- **Correções pela entrega e pela busca real:** o `id_icims` é o número que está no `job_path`, e o coletor o usa como `id_externo` (o `id` em UUID fica sem uso). O `job_path` tem de casar `/(?!/)[\w.~%/-]+`: uma barra só, sem `?`, `#` nem host; vaga fora disso é pulada e o escopo fica `parcial` com `saude.formato_mudou` (`amazon.py:40,107`). `locations[].type` só foi visto como `ONSITE` (5 vagas); `VIRTUAL` só existe nos testes, montado à mão. A API não traz salário estruturado, e `url_next_step` (`account.amazon.jobs`) não é usado: `url_candidatura` fica vazia. `posted_date` não traz hora: o coletor a lê hoje como meia-noite UTC, e a T126 muda para meia-noite de Brasília (D83).
+- **Escopo e teto:** o escopo é o código ISO de 2 letras (`BR`), convertido para `BRA` por uma tabela de 18 países (`amazon.py:35`); sem países nas buscas, `BR`. Teto de 30 páginas (`MAX_PAGINAS = 30`, `amazon.py:32`, 3.000 vagas por país), acima disso `parcial` com `saude.limite_atingido`.
+- **Busca real (2026-11-14, conferido na rede em 2026-11-14):** `ok`, 407 vagas em 5 pedidos, todas com descrição (a conferência de 2026-11-13 viu 406).
 - **Limites:** nenhum publicado; endereço não oficial. Regra do coletor: 2 s entre pedidos (5 pedidos cobrem o Brasil).
 - **`intervalo_min` da fonte:** 360. É intervalo prático, decisão da sessão em 2026-11-13; os termos não pedem.
 
@@ -457,7 +482,7 @@ Fora por decisão do dono (Q6, 2026-11-13). Ver a seção 4.
 
 As fontes com caminho público que não aparecem nesta tabela entram na fase 1.
 
-Eureca, Abler e Gupy têm termos restritivos e entram mesmo assim, por decisão do dono (Q6, 2026-11-13): cada uma com chave liga/desliga, ritmo educado, link para a vaga original e aviso no README. A Eureca ainda depende de achar o caminho público na captura (seção 3.2).
+Eureca, Abler e Gupy têm termos restritivos e entram mesmo assim, por decisão do dono (Q6, 2026-11-13): cada uma com chave liga/desliga, ritmo educado, link para a vaga original e aviso no README. A Eureca tem endereço público confirmado na busca real de 2026-11-14 (seção 3.2); a pergunta da autorização segue na D80.
 
 ---
 
@@ -660,16 +685,19 @@ Identificador "chutado" quer dizer: testado pelo nome da empresa, sem prova de q
 |---|---|
 | Primeiro pedido de cada fonte com o user agent do joBot | Workday, Eightfold, Oracle HCM, CIEE, IEL, Super Estágios, Cia de Talentos, USP, PTAX |
 | `city` e `badge` na API do portal da Gupy | 2.5 |
-| Caminho público da Eureca: endereço, método, paginação, campos e limites | 3.2 |
+| Abrir no navegador um link `app.eureca.me/vagas/<id>` (o formato saiu certo na busca real); resposta da Eureca ao pedido de autorização (D80) | 3.2 |
 | Consulta de estado por id na Jobicy | 2.2 |
 | Host europeu da Lever e do Greenhouse | 2.4 |
 | Link montado da vaga na InHire | 3.1 |
 | Valores 1, 2 e 3 do campo `remote` da Recrutei | 3.1 |
 | Tamanho da resposta do CIEE com `size=1000` | 3.2 |
-| Formato do Super Estágios em mais de uma vaga | 3.2 |
+| `lastmod` e `datePosted` do Super Estágios sem fuso (valem Brasília) e o 404 de uma vaga que saiu do ar mas ainda está no sitemap (a busca real não registrou nenhum) | 3.2 |
 | Se o 304 do GitHub poupa a cota | 2.1 |
 | Resposta 404 de cada fonte: a captura não a alcança, porque o `ClienteEducado` levanta antes de devolver o corpo | 2.1 a 2.5 |
 | Pedido condicional (304) nas fontes que devolvem `ETag` ou `Last-Modified`: não foi testado na rede | 2.1 a 2.5 |
 | Páginas além da primeira (GitHub, Himalayas, Jobicy, Gupy): só a primeira foi vista na captura | 2.1, 2.2, 2.5 |
-| Se o feed do Google responde 304 ao `If-Modified-Since` | 3.4 |
+| Se o feed do Google responde 304 ao `If-Modified-Since` (a busca real de 2026-11-14 foi uma rodada só) | 3.4 |
+| Oracle HCM: valor de `PostingEndDate` preenchido, e o segundo pedido de descoberta com `keyword` (T126) na rede | 3.3 |
+| Amazon: `locations[].type` igual a `VIRTUAL` numa vaga real | 3.4 |
+| Abler: um segundo valor de `status` além de "Em andamento" | 3.1 |
 | Termos de uso gerais do Greenhouse e da Lever (só a documentação das APIs foi lida) | 2.4 |
