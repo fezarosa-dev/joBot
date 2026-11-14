@@ -700,13 +700,13 @@ async def test_orcamento_da_fonte_e_um_so_entre_escopos(con: sqlite3.Connection)
 
     # 1 pedido na fonte; a listagem falsa não pede nada (o executor conta os pedidos reais)
     coletor = Pedinte(max_pedidos=1)
-    vagas = await _pendentes_por_escopo(con, coletor, {"a": 1, "b": 1, "c": 1})
-    coletor.saidas = {"c": ("no_limite", "saude.parou_429", 0)}
+    vagas = await _pendentes_por_escopo(con, coletor, {"a": 1, "b": 1})
     servidor = Servidor()
 
     await _executar(con, [coletor], servidor=servidor)
 
-    # o b esbarra no orçamento antes de pedir; o c parou e não entra
+    # o b esbarra no orçamento antes de pedir. Mutante que deixa o teste vermelho (o servidor
+    # recebe 2 pedidos): em _enriquecer, `gastos += http.pedidos` trocado por `pass`
     assert coletor.detalhados == [vagas["a"][0].url, vagas["b"][0].url]
     assert [str(p.url) for p in servidor.pedidos] == [vagas["a"][0].url]
 

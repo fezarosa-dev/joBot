@@ -22,7 +22,7 @@ import pytest
 
 from apoio.relogio import RelogioFalso
 from jobot.agenda import descoberta
-from jobot.agenda.descoberta import CHAVE_INDICE, executar_descoberta
+from jobot.agenda.descoberta import CHAVE_ADIADA, CHAVE_INDICE, executar_descoberta
 from jobot.banco.cadastros import (
     adicionar_empresa,
     empresas,
@@ -372,6 +372,19 @@ async def test_erro_de_formato_tenta_de_novo_no_mesmo_dia_depois_do_recuo(
     mesmo_dia = await _descobrir(con, datetime(2026, 11, 14, 16, 0, tzinfo=UTC))  # 13:00 do 14
     assert mesmo_dia.urls("index.commoncrawl.org")
     assert _estados(con) == ["interrompida", "concluida"]
+
+
+@pytest.mark.parametrize("valor", ["lixo", 123, "2026-11-14T10:00:00", ["x"]])
+async def test_adiamento_corrompido_vale_como_ausente(
+    con: sqlite3.Connection, valor: object
+) -> None:
+    # não é instante ISO com fuso: sem isso a descoberta travaria para sempre
+    gravar_config(con, CHAVE_ADIADA, valor)
+
+    rodou = await _descobrir(con, datetime(2026, 11, 14, 15, 0, tzinfo=UTC))
+
+    assert rodou.urls("index.commoncrawl.org")
+    assert _estados(con) == ["concluida"]
 
 
 async def test_gupy_com_nova_tentativa_no_resolver_ainda_coleta(con: sqlite3.Connection) -> None:

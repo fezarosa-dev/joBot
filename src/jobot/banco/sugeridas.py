@@ -10,7 +10,7 @@ import json
 import sqlite3
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from datetime import UTC, datetime
 
 from jobot.nucleo.coletores.descoberta_cc import Sugestao
 
@@ -127,18 +127,3 @@ def descartar(con: sqlite3.Connection, id: int) -> None:
         )
         if cur.rowcount == 0:
             raise LookupError(f"sugestão pendente inexistente: {id}")
-
-
-def parou_hoje(con: sqlite3.Connection, hoje: date) -> bool:
-    """A última descoberta foi interrompida no dia local `hoje` (503 ou outro erro).
-
-    O laço chama a descoberta a cada minuto enquanto não há uma concluída nos últimos 7 dias;
-    assim ela só volta a pedir no dia seguinte (apêndice 5).
-    """
-    linha = con.execute(
-        "SELECT estado, terminada_em FROM execucao WHERE tipo = 'descoberta'"
-        " ORDER BY id DESC LIMIT 1"
-    ).fetchone()
-    if linha is None or linha[0] != "interrompida" or linha[1] is None:
-        return False
-    return bool(datetime.fromisoformat(linha[1]).astimezone().date() == hoje)
