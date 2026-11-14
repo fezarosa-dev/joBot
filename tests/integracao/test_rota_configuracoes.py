@@ -369,8 +369,19 @@ def test_segundo_plano_desligar_desabilita_o_servico_e_grava_a_chave(painel: Pai
     painel.post(SEGUNDO_PLANO)
     assert ("disable", "--now", "jobot.service") in painel.sistema.systemctl()
     assert painel.config("segundo_plano") is False
-    painel.sistema.falha_em["is-enabled"] = Resultado(1)  # o falso não guarda estado
     assert _interruptor(painel.get(SEGUNDO_PLANO).text, "segundo_plano") == (True, False)
+
+
+def test_ligar_e_desligar_mudam_o_que_o_interruptor_mostra(painel: Painel) -> None:
+    def ler() -> tuple[bool, bool]:
+        return _interruptor(painel.get(SEGUNDO_PLANO).text, "segundo_plano")
+
+    painel.post(SEGUNDO_PLANO, {"segundo_plano": "on"})
+    assert ler() == (True, True)
+    painel.post(SEGUNDO_PLANO)
+    assert ler() == (True, False)
+    painel.post(SEGUNDO_PLANO, {"segundo_plano": "on"})
+    assert ler() == (True, True)
 
 
 def test_segundo_plano_recusado_mostra_o_motivo_e_nao_grava(painel: Painel) -> None:
@@ -396,7 +407,7 @@ def test_interruptor_segue_o_systemd_e_nao_a_chave(painel: Painel) -> None:
     assert painel.config("segundo_plano") is False
     assert _interruptor(painel.get(SEGUNDO_PLANO).text, "segundo_plano") == (True, True)
     painel.sql(GRAVAR_CHAVE, "true")
-    painel.sistema.falha_em["is-enabled"] = Resultado(1)
+    painel.sistema.habilitado = False
     assert _interruptor(painel.get(SEGUNDO_PLANO).text, "segundo_plano") == (True, False)
     assert painel.config("segundo_plano") is True  # o GET só lê
 
