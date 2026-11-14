@@ -1,0 +1,12 @@
+{
+  "url": "https://remoteok.com/api",
+  "data": "2026-11-14T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/json"
+  },
+  "sha256": "079ac5267f378224040587e84d3ed4e3a87913fbb5ade6365ac10b0610c77d9e",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "montado à mão a partir de normal.json, reduzido: elemento legal e duas vagas; a segunda troca position por title (formato mudou)"
+}
