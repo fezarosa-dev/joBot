@@ -75,8 +75,10 @@ def _andamento(
         atual = None  # descoberta e páginas não seguram a busca nem aparecem aqui (12.3)
     # trava presa sem execução no banco: a tarefa acabou de nascer e ainda não abriu a sua
     rodando = (trava is not None and trava.locked()) or atual is not None
-    # o que está na tela: quantas consultas prontas e quais fontes ainda rodam; mudou um, troca
+    # o que está na tela: consultas prontas, fontes que rodam e fase de detalhes; mudou um, troca
     marca = f"{atual.escopos_prontos}:{','.join(atual.fontes_rodando)}" if atual else "-1"
+    if atual and atual.coleta_acabou:
+        marca += ":detalhes"
     # 204: o HTMX não troca nada. A pergunta de 2 s que já mostra este andamento não reinsere
     # nós na região viva (o leitor de tela não repete o anúncio), e a carga da casca não
     # repete em toda página o fim de uma busca velha

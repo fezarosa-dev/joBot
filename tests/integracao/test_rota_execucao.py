@@ -318,6 +318,76 @@ def test_execucao_atual_marca_muda_quando_a_fonte_pendente_termina(tmp_path: Pat
     assert "Workday" not in unescape(mudou.text)
 
 
+def _fontes_ligadas(painel: Painel) -> list[str]:
+    with closing(abrir(painel.banco)) as con:
+        return [
+            c for (c,) in con.execute("SELECT chave FROM fonte WHERE ligada = 1 ORDER BY rowid")
+        ]
+
+
+def test_execucao_atual_diz_que_completa_detalhes_quando_toda_fonte_terminou(
+    tmp_path: Path,
+) -> None:
+    painel = Painel(tmp_path)
+    ligadas = _fontes_ligadas(painel)
+    assert len(ligadas) > 1
+    with closing(abrir(painel.banco)) as con:
+        id_ = abrir_execucao(con, "busca", "agenda", AGORA)
+        assert id_ is not None
+        for fonte in ligadas:
+            comecar_fonte(con, id_, fonte, AGORA)
+            terminar_fonte(con, id_, fonte, AGORA)
+    with painel.cliente() as http:
+        pt = http.get("/execucao/atual", headers=HTMX)
+        en = http.get("/execucao/atual", headers=HTMX | {"Accept-Language": "en"})
+        marca = pt.text.split('hx-get="/execucao/atual?visto=')[1].split('"')[0]
+        igual = http.get(f"/execucao/atual?visto={marca}", headers=HTMX)
+    assert _texto("execucao.detalhes") in unescape(pt.text)
+    assert t("en", "execucao.detalhes") in unescape(en.text)
+    assert igual.status_code == 204
+
+
+def test_execucao_atual_marca_muda_quando_a_coleta_acaba(tmp_path: Path) -> None:
+    painel = Painel(tmp_path)
+    ligadas = _fontes_ligadas(painel)
+    with closing(abrir(painel.banco)) as con:
+        id_ = abrir_execucao(con, "busca", "agenda", AGORA)
+        assert id_ is not None
+        for fonte in ligadas:
+            comecar_fonte(con, id_, fonte, AGORA)
+            terminar_fonte(con, id_, fonte, AGORA)
+        con.execute("UPDATE execucao_fonte SET terminou_em = NULL WHERE fonte = ?", (ligadas[0],))
+        con.commit()
+    with painel.cliente() as http:
+        primeira = http.get("/execucao/atual", headers=HTMX)
+        marca = primeira.text.split('hx-get="/execucao/atual?visto=')[1].split('"')[0]
+        with closing(abrir(painel.banco)) as con:
+            terminar_fonte(con, id_, ligadas[0], AGORA)
+        mudou = http.get(f"/execucao/atual?visto={marca}", headers=HTMX)
+    assert _texto("execucao.detalhes") not in unescape(primeira.text)
+    assert mudou.status_code == 200
+    assert _texto("execucao.detalhes") in unescape(mudou.text)
+
+
+def test_execucao_atual_nao_diz_detalhes_sem_fonte_ou_com_fonte_por_comecar(
+    tmp_path: Path,
+) -> None:
+    painel = Painel(tmp_path)
+    ligadas = _fontes_ligadas(painel)
+    with closing(abrir(painel.banco)) as con:
+        id_ = abrir_execucao(con, "busca", "agenda", AGORA)
+        assert id_ is not None
+    with painel.cliente() as http:  # recém-aberta: lista de fontes vazia, a coleta nem começou
+        vazia = http.get("/execucao/atual", headers=HTMX)
+    with closing(abrir(painel.banco)) as con:  # a fila do semáforo: uma terminou, as outras não
+        comecar_fonte(con, id_, ligadas[0], AGORA)
+        terminar_fonte(con, id_, ligadas[0], AGORA)
+    with painel.cliente() as http:
+        fila = http.get("/execucao/atual", headers=HTMX)
+    assert _texto("execucao.detalhes") not in unescape(vazia.text)
+    assert _texto("execucao.detalhes") not in unescape(fila.text)
+
+
 @pytest.mark.parametrize(
     ("n", "fontes"),
     [
