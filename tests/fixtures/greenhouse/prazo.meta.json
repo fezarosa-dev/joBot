@@ -1,0 +1,12 @@
+{
+  "url": "https://boards-api.greenhouse.io/v1/boards/vitta/jobs?content=true",
+  "data": "2026-11-14T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/json"
+  },
+  "sha256": "90b308de89992ceb1c0dfae100d88f06bce1319c11dc7213101aa3df2cc08f80",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "montado à mão a partir de normal.json, reduzido: application_deadline preenchido (nenhuma vaga capturada tinha prazo; formato do campo suposto ISO 8601)"
+}

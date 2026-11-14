@@ -1,0 +1,59 @@
+{
+  "jobs": [
+    {
+      "id": 8182389003,
+      "title": "Analista de Atendimento (Benefícios) | Pleno (Presencial/SP)",
+      "company_name": "Vitta",
+      "location": {
+        "name": "são paulo"
+      },
+      "first_published": "2026-11-10T08:51:30-05:00",
+      "updated_at": "2026-11-10T08:53:40-05:00",
+      "application_deadline": null,
+      "absolute_url": "https://job-boards.greenhouse.io/vitta/jobs/8182389003",
+      "content": "&lt;p&gt;&lt;strong&gt;O time Vitta:&lt;/strong&gt; vaga de exemplo &amp;amp; teste.&lt;/p&gt;",
+      "departments": [
+        {
+          "id": 4010139003,
+          "name": "Financeiro"
+        }
+      ],
+      "offices": [
+        {
+          "id": 4012231003,
+          "name": "VITTA"
+        }
+      ],
+      "language": "en"
+    },
+    {
+      "id": 8182390003,
+      "name": "Analista Júnior de Atendimento (Benefícios) | Híbrido/SP",
+      "company_name": "Vitta",
+      "location": {
+        "name": "SÃO PAULO"
+      },
+      "first_published": "2026-11-04T15:34:12-05:00",
+      "updated_at": "2026-11-06T14:27:14-05:00",
+      "application_deadline": null,
+      "url": "https://job-boards.greenhouse.io/vitta/jobs/8182390003",
+      "content": "&lt;p&gt;&lt;strong&gt;O time Vitta:&lt;/strong&gt; vaga de exemplo &amp;amp; teste.&lt;/p&gt;",
+      "departments": [
+        {
+          "id": 4010139003,
+          "name": "Financeiro"
+        }
+      ],
+      "offices": [
+        {
+          "id": 4056990003,
+          "name": "STONE - BACKOFFICE"
+        }
+      ],
+      "language": "pt"
+    }
+  ],
+  "meta": {
+    "total": 2
+  }
+}
