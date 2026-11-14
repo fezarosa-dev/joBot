@@ -1,0 +1,13 @@
+{
+  "url": "https://himalayas.app/jobs/api/search?q=python&country=BR&sort=recent",
+  "data": "2026-11-14T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/json",
+    "Last-Modified": "Fri, 13 Nov 2026 23:06:49 GMT"
+  },
+  "sha256": "454b9a8aa8ae14ce34f93aa207f7f3c3d530ba97c2cb7e1f8a2c9aec086ef3c5",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "montado à mão a partir de normal.json, reduzido a 2 vagas e totalCount 2: a segunda troca title por name (formato mudou)"
+}
