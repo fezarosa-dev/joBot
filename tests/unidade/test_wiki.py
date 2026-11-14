@@ -10,6 +10,12 @@ ESPECIAIS = {"_Sidebar", "_Footer"}
 # página em português -> página em inglês; página nova sem par faz o teste falhar
 PARES = {
     "Home": "Home-en",
+    "A-ideia-e-a-historia": "The-idea-and-the-story",
+    "Como-funciona": "How-it-works",
+    "Tecnologias": "Technologies",
+    "Decisoes": "Decisions",
+    "Roteiro": "Roadmap",
+    "Apoie": "Support-the-project",
     "Perguntas-frequentes": "Frequently-asked-questions",
     "Tirar-duvida": "Ask-a-question",
 }
@@ -51,7 +57,7 @@ def test_cada_pagina_linka_a_par() -> None:
 
 
 def test_links_relativos_apontam_para_pagina_da_wiki() -> None:
-    fontes = {**paginas(), "_Sidebar": texto("wiki/_Sidebar.md")}
+    fontes = {**paginas(), **{nome: texto(f"wiki/{nome}.md") for nome in sorted(ESPECIAIS)}}
     for nome, conteudo in fontes.items():
         for alvo in relativos(conteudo):
             destino = alvo.split("#")[0]
@@ -71,6 +77,9 @@ def test_readmes_apontam_para_a_wiki_e_nao_tem_faq_propria() -> None:
         assert f'<a id="{ancora}"></a>' in conteudo, arquivo
         assert f"{SITE}/wiki/{pagina}" in conteudo, arquivo
         assert "<details" not in conteudo, f"{arquivo}: FAQ tem fonte única na wiki"
+    assert f"{SITE}/wiki/Apoie" in texto("README.md")
+    assert f"{SITE}/wiki/Support-the-project" in texto("README.en.md")
+    assert f"{SITE}/wiki/Apoie" in texto(".github/FUNDING.yml")
 
 
 def test_formulario_de_duvida_e_suporte() -> None:
