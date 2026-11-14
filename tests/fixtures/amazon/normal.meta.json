@@ -1,0 +1,14 @@
+{
+  "url": "https://www.amazon.jobs/en/search.json?normalized_country_code[]=BRA&result_limit=10&offset=0&sort=recent",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/json; charset=utf-8",
+    "ETag": "W/\"fa2bf45ce41d9979fe74d0af8cf958a1\"",
+    "Cache-Control": "max-age=0, private, must-revalidate"
+  },
+  "sha256": "5a6d8c0e1efd1bb4bc64f653c3d92115cca6e3839f9e3c4c49305e4dc3e3a6ea",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "resposta real de 2026-11-13 (captura/B4/amazon_search_amostra_5_brasil.json, as 5 primeiras vagas de result_limit=10); removida a chave _nota (anotação da conferência, não da resposta); reduzida e limpa por capturar.reduzir e capturar.limpar_pessoais"
+}
