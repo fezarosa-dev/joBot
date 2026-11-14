@@ -1,0 +1,12 @@
+{
+  "url": "https://portal.if.usp.br/carreiras/pt-br/oportunidades",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "text/html; charset=utf-8"
+  },
+  "sha256": "c56577e0b775c35403d57b6e456ec8ba097a3191922efafb2fb24c94e5ba750d",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "montado à mão: a lista do IF sem itens, com o bloco view-empty do Drupal 7 (marcador do vazio não visto ao vivo); cabeçalhos não guardados na conferência: Content-Type assumido"
+}
