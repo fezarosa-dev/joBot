@@ -114,6 +114,8 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 **Decisão:** `valor_antigo` fica NULL para uf, salário e outro até a lógica existir (T46/T24). `trazer_de_volta` zera `oculta_manual` sem restaurar um -1. `acoes.py` levanta `LookupError` e `ValueError`, que a T45 traduz em 404 e 422 e testa. `_transacao` recusa conexão que já está numa transação. O critério de 404 e 422 entrou no plano, na célula de testes da T45.
 
+**Ver também:** D40 (`POST /mostrar` em vaga que já está visível).
+
 ## D13. Cliente HTTP educado (T05)
 
 **Status:** decidido pela sessão em 2026-11-13, para confirmar
@@ -258,7 +260,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 **Opções:** (a) gravar a vaga sem salário (colunas nulas) quando qualquer valor não cabe; (b) recusar a vaga.
 
-**Decisão:** Opção (a) (decisão 11 da sessão): perder a vaga por causa de um número de salário é pior do que ficar sem o salário. A regra vale para toda coluna inteira que a T19 grava, não só para o valor lido: se `sal_min`, `sal_max` ou `sal_mensal_min` passa de 2**63-1, `sal_moeda`, `sal_min`, `sal_max`, `sal_periodo`, `sal_mensal_min` e `sal_plausivel` ficam nulos e `sal_texto` fica (escolha do redator, para confirmar); a T25 grava nula só a coluna `_brl` cujo valor em centavos passa de 2**63-1 (decisão 17, `test_brl_gigante_fica_nulo`; D28). Entrou no plano, na T19, com `test_salario_gigante_nao_quebra_gravacao`, que leva também um caso por hora em que o original cabe e o mensal estoura.
+**Decisão:** Opção (a) (decisão 11 da sessão): perder a vaga por causa de um número de salário é pior do que ficar sem o salário. A regra vale para toda coluna inteira que a T19 grava, não só para o valor lido: se `sal_min`, `sal_max` ou `sal_mensal_min` passa de 2**63-1, `sal_moeda`, `sal_min`, `sal_max`, `sal_periodo`, `sal_mensal_min` e `sal_plausivel` ficam nulos e `sal_texto` fica (escolha do redator, para confirmar); a T25 grava nula só a coluna `_brl` cujo valor em reais inteiros passa de 2**63-1 (corrigido por D41: a decisão dizia "em centavos", mas as `_brl` guardam reais; decisão 17, `test_brl_gigante_fica_nulo`; D28). Entrou no plano, na T19, com `test_salario_gigante_nao_quebra_gravacao`, que leva também um caso por hora em que o original cabe e o mensal estoura.
 
 ## D27. Estados de `juntar_paginas` e a sentinela do 304 (T06, T07, T16)
 
@@ -269,6 +271,8 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 **Opções:** `ErroDeRede` com páginas lidas: (a) "parcial", com as vagas e o motivo; (b) sempre "falhou". 304 misturado com 200: (a) "parcial" com motivo novo; (b) "ok", ignorando o 304.
 
 **Decisão:** Decisão 16 da sessão. `SEM_MUDANCA` é a sentinela pública do 304, e o coletor devolve exatamente `base.SEM_MUDANCA`, nunca uma cópia nem `()`. `ErroDeRede` e `LimiteAtingido` dão "falhou" sem página lida e "parcial" com uma ou mais (opção (a)). 304 misturado com 200 dá "parcial" com o motivo novo `saude.listagem_incompleta` (pt e en), nunca `None` (opção (a)). A T16 não trata motivo `None` de forma especial. Entrou no plano em T06, T07, T16 e no molde do coletor (`test_304` confere a sentinela por identidade).
+
+**Ver também:** D41 (o docstring de `juntar_paginas` passou a dizer que só o que tem mais de 30 dias se fecha) e D35 (como o executor traduz o erro em motivo).
 
 ## D28. `hoje` em quem chama a conversão e `_brl` gigante (T25, T41, T24, T54)
 
@@ -281,6 +285,8 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 **Decisão:** Decisão 17 da sessão. T41, T24 e T54 passam a data do `Relogio` para `aplicar_cotacoes` e `cotacao_mais_recente`, cada uma com o teste da validade de 7 dias. No F3: o `BEGIN IMMEDIATE` e o primeiro `SELECT` entram no try/rollback; `_PARA_MENSAL` e `_mensal` de `salario.py` e `_confere_http` de `modelo.py` ficam públicos; `_brl` que não cabe (acima de 2**63-1) é gravada nula, só a coluna que não cabe (a), com `test_brl_gigante_fica_nulo`; `aplicar_cotacoes` ganha o filtro `vaga_id`. Corrige a frase falsa da D26.
 
 **Escolha do redator, para confirmar:** a decisão diz "`hoje` é obrigatório em quem chama". O código tem `hoje: date | None = None` (sem `hoje`, vale a cotação mais recente guardada, que serve a teste e ao `jobot buscar` antigo). O plano mantém a assinatura (a) e prende o "obrigatório" nos testes de quem chama. Tornar `hoje` keyword-only sem padrão muda uma assinatura pública e é R4: fica para o dono decidir.
+
+**Ver também:** D41 (`_brl` gigante: as colunas guardam reais inteiros, e a dúvida sobre `sal_cotacao_data`; a D26 foi corrigida por ela) e D38 (dia local e transação).
 
 ## D29. "Aplica na hora" vale para todas as colunas derivadas (T19, T24, T46)
 
@@ -305,6 +311,8 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 **Decisão:** Decisões 15 e 19 da sessão. Resolvedor injetável `host -> list[str]`, só em salto vindo de origem pública e para destino que é nome; falha do resolvedor vira `ErroDeRede`; `host_local(host: str) -> bool` público em `http.py`; `UrlListada` recusa host local com `ValueError`; item que levanta `ValueError` no molde é pulado e contado em `sem_detalhe_n`. Testes: `test_redirecionamento_para_nome_que_resolve_local_recusado`, `test_host_local`, `test_url_listada_recusa_host_local` e, em T69 e T73, `test_url_de_host_local_e_pulada_e_contada`.
 
 **Escolhas do redator, para confirmar:** (1) a decisão escreve `HttpEducado(..., resolver=None)`, mas `HttpEducado` é o Protocol e quem tem construtor é `ClienteEducado`: o parâmetro entra em `ClienteEducado` e o Protocol não muda. (2) Como a contagem do item pulado chega ao executor fica com o construtor: campo novo em `ResultadoEscopo` seria R4. (3) Fica aceito o rebinding entre a checagem e a conexão e o redirecionamento entre dois hosts locais.
+
+**Ver também:** D41 (resolvedor que falha, resposta vazia e a guarda de rede dos testes).
 
 ## D31. ADR 0018: manutenção pela comunidade, vigia, `jobot atualizar` e link "reportar problema" (T50, T83, T84, T85, T01)
 
@@ -359,3 +367,123 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 **Opções:** (a) escrever o guia depois da T17, da T27, da T50 e da T84, com comandos e exemplo reais e só com recursos que já existem (o plano); (b) escrever antes, com exemplo inventado, e corrigir depois.
 
 **Recomendação:** (a). Até lá, o guia de contribuição segue como está: PR de código só entra depois da fase 8.
+
+
+## D35. Executor: motivo do escopo, erro do detalhar e parada da fonte (T16, F3, molde do coletor)
+
+**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+
+**Contexto:** A T16 escolheu, sem o desenho dizer, como o executor traduz erro em motivo de saúde. As chaves de i18n já existem: `Bloqueio` vira `saude.bloqueio`, `LimiteAtingido` vira `saude.limite_atingido`, `OrcamentoGasto` vira `saude.orcamento`, `Parou429` vira `saude.parou_429`, `ErroDeRede` vira `saude.erro_de_rede`, `RespostaGrande` vira `saude.resposta_grande` e o resto vira `saude.excecao:<Tipo>`. A ordem de prioridade é: o motivo do coletor, depois `zero_inesperado`, depois o erro do detalhe e por último `sem_detalhe_n`. Quem consome isso é o vigia (T84, que copia a regra) e a tela de fontes (T50).
+
+**Opções:**
+- Erro no `detalhar` mostrado no motivo do escopo (o estado fica "ok", porque a lista veio inteira, como no `sem_detalhe_n`): (a) mostrar todo erro, como está; (b) mostrar só os de parada e `saude.excecao`, deixando o `ErroDeRede` calado. Risco da (a): um único 404 numa URL velha do sitemap mostra `saude.erro_de_rede` em toda execução, porque a URL volta como nova.
+- Erro de parada no `detalhar` (`Bloqueio`, `LimiteAtingido`, `OrcamentoGasto`, `Parou429`): (a) para os detalhes da fonte inteira nesta execução, porque é o mesmo host (o próximo escopo não detalha nada e o motivo dele fica `None`; o motivo aparece só no escopo onde aconteceu); (b) para só o escopo.
+
+**Decisão provisória:** (a) nas duas, porque ficar calado quando nenhuma vaga entra é pior (ADR 0004 e a lição da revisão) e porque o comentário original já dizia "a fonte inteira".
+
+**Escolhas do redator, para confirmar com o dono:**
+- Todo erro do `Historico` sobe num `ExceptionGroup` com o erro original, como o do `ao_terminar_escopo`. Antes, os erros de `urls_conhecidas`, `detalhe_recente` e `tres_ultimas_ok_trouxeram_vagas` viravam "falhou"; os que já ficavam fora do try (`ultima_coleta`, `ultimo_inicio_com_pedido` e `tem_ocorrencia_aberta`) continuam subindo. Está no docstring e nos 4 parâmetros de teste.
+- Se o coletor puser `saude.sem_detalhe_n:<k>`, o executor soma `k` aos `None` do `detalhar`; um erro de detalhe vence esse motivo; `n` que não é inteiro dá `ValueError` e o escopo vira "falhou" com `saude.excecao:ValueError`. A contagem de item pulado no molde (`UrlListada` que levanta `ValueError`, D30) chega por esse mesmo motivo.
+- O prazo (`tempo_esgotado`) usa o relógio de parede do `Relogio`: um pulo para frente (NTP ou suspensão) marca `tempo_esgotado` num escopo que terminou. Ficou o comentário `shortcut:` com a melhoria (relógio monotônico no `Relogio`, o que muda o contrato do `Relogio` e é R4). Recomendação: aceitar até aparecer o problema.
+- Escopo que não detalhou nada porque o orçamento de detalhes da fonte acabou, ou porque outro escopo parou os detalhes, continua sem motivo (já era assim). Se a tela de fontes precisar mostrar isso, vira tarefa nova. Recomendação: deixar assim até a T50 pedir.
+
+## D36. Captura de exemplos: limpeza de dado pessoal e alcance do script (T17)
+
+**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+
+**Contexto:** O `scripts/capturar.py` guarda exemplos de resposta de fonte no repositório e limpa dado pessoal antes de gravar. Três escolhas ficaram abertas.
+
+**Opções:**
+- Portão de tipos: (a) pôr `scripts/` em `files` do mypy no `pyproject.toml`, para o portão pegar erro de tipo nos scripts; (b) deixar de fora. Mexer no `pyproject.toml` é R4.
+- Campo sensível (`CAMPOS_SENSIVEIS`: cpf, telefone, phone, celular, whatsapp, email, e-mail): (a) só por nome exato da chave, como está (`phoneNumber` ou `user_email` não são pegos; registrado como `shortcut:` no docstring); (b) casamento por trecho do nome, com mais cobertura e mais risco de zerar campo inofensivo.
+- Número codificado na URL (`phone=%2B5511987654321`) e marcadores `sms:`, `callto:` e `whatsapp://` sem `phone=`: (a) o detector acha o número codificado e a captura é recusada (falha fechado), e os outros três não são marcadores (documentado no docstring); (b) aceitar `(?:\+|%2B)?` na alternativa de marcador para limpar em vez de recusar.
+
+**Decisão provisória:** a igual ao código atual, em todas: portão (a); campo sensível (a); URL codificada (a), isto é, a captura é recusada quando sobra o `%2B` (o detector o acha e o script não limpa). As outras entidades como separador de telefone (além de `&nbsp;`, `&#160;` e `&#xa0;`) seguem sem ser desfeitas antes da troca: o detector (que olha `html.unescape` e `unquote`) recusa a captura em vez de limpar.
+
+**Recomendação:** para a URL codificada, a (b): aceitar `(?:\+|%2B)?` na alternativa de marcador, para o `%2B` ser limpo em vez de recusado. Para confirmar com o dono; hoje o código segue a (a).
+
+**Para confirmar com o dono:**
+- O meta de fonte lida em fluxo (sitemap) traz `ETag` e `Last-Modified`, mas não `Content-Type`, porque `ler_em_fluxo` (`src/jobot/nucleo/http.py`, F3) não expõe cabeçalhos. Recomendação: deixar assim até uma fonte precisar.
+- Ficam como nota, sem decisão: o limite de 5 itens para lista auxiliar maior que a de vagas (`shortcut:`) e o telefone colado sem `+` e sem separadores, que continua fora (documentado).
+
+## D37. Cadastros: país, área, etiqueta de banco de talentos e configuração (T23, T51, T54)
+
+**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+
+**Contexto:** A T23 criou `cadastros.py` e `empresas.json`. O apêndice (seção 7) não traz país da empresa, e a área vem como texto livre.
+
+**Opções:**
+- País (`empresas.json`): (a) manter `null` onde o apêndice não diz; (b) a sessão preenche à mão. Foi posto `BR` nas brasileiras óbvias (as 28 da Gupy, Greenhouse exceto Wellhub, Lever exceto Jeeves e Handoff, Netbr1 do SmartRecruiters), `US` em OpenAI e Zapier, e `null` em Wellhub, Jeeves, Handoff, Airwallex, Belvo, Supabase e nas outras 10 do SmartRecruiters. Não foi conferido na rede.
+- Área: (a) texto livre do apêndice (ex.: `banco/finanças (investimentos)`), como está; (b) lista fechada, o que a T51 precisaria para filtrar por área.
+- Etiqueta de banco de talentos do "Agibank (quadro de vagas futuras)": o nome ficou como no apêndice e a etiqueta que o apêndice cita fica para a tela da T51, sem campo novo no esquema (a T51 reconhece pelo nome, ou ganha um campo).
+- Lista de fontes no registro: `semear` usa `carregar_fontes` com o caminho de `fontes.json` repetido em `cadastros.py`; (a) deixar assim; (b) `registro.py` ganha um `todas()` público (arquivo fechado).
+
+**Decisão provisória:** país (a) até a T49 ou a T51 mostrarem se algum uso precisa dele; área (a) (se a T51 quiser filtro, a lista fechada é tarefa própria); etiqueta do Agibank: a T51 mostra pelo nome, sem campo novo; lista de fontes (a).
+
+**Escolhas do redator, para confirmar com o dono:**
+- `semear` atualiza `leva` e `intervalo_min` da tabela `fonte` a partir do arquivo a cada execução (o desenho diz que o intervalo é copiado) e nunca toca `ligada`. Se a T54 deixar a pessoa editar `intervalo_min`, a escolha seria sobrescrita; não há tal edição no plano. Recomendação: manter.
+- `adicionar_empresa` de (fonte, identificador) já existente, removida ou não, vira a mesma linha, ativa de novo, com nome e `parametros` novos (área e país só se vierem; `origem` e `conferida_em` antigas ficam). Remover duas vezes mantém a primeira data; `ativar_empresa` em linha removida é permitido; `empresas()` traz as desligadas e não as removidas. As rotas T51 e T54 traduzem `LookupError` em 404 e `ValueError` em 422.
+- `ler_config(con, chave)` sem `padrao` usa `PADROES` (seis interruptores `True` e `destaques_n` 10); chave fora de `PADROES` sem padrão dado levanta `KeyError`; JSON estragado na tabela cai no padrão. `segundo_plano`, `idioma` e `tema` ficam fora de `PADROES` de propósito. Chaves conferidas na 13.7 e no 7.7: `descoberta_cc_ligada`, `paginas_ligadas`, `enriquecimento_ligado`, `destaques_ligados`, `conversao_moeda_ligada`, `regras_ocultar_ligadas` e `destaques_n`.
+- Os testes "desligada faz a função parar e sumir da tela" (critério 26, primeira metade) ficam nas tarefas que leem a chave (T41, T49, T54 etc.); a T23 só guarda e devolve os padrões.
+
+## D38. Buscas salvas e conversão: dia local e transação (T24, T41, T46, T49, T52, T53, T54)
+
+**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+
+**Contexto:** A D28 tornou `hoje` obrigatório em quem chama a conversão e o encaixe. A T24 acrescentou duas coisas que o desenho não dizia.
+
+**Opções:** dia de referência: (a) `hoje = agora.astimezone().date()` (dia local do `Relogio`); (b) o dia em UTC. Transação: (a) cada módulo segue a sua convenção e a rota faz commit ou rollback antes de chamar; (b) uniformizar todos em `RuntimeError` como `acoes._transacao` (muda assinatura pública, R4).
+
+**Decisão provisória:** (a) nas duas. `hoje` é obrigatório (R2) e `criar_busca` recebe `agora` e calcula o encaixe. A T41, a T46, a T49, a T52, a T53 (o passo 1 chama `criar_busca`) e a T54 passam `hoje = agora.astimezone().date()` e `agora` com fuso, com teste (entrou no plano como DP8 e nas tarefas citadas). `cotacoes.aplicar_cotacoes` e `buscas._escrita` juntam e confirmam a transação aberta do chamador, e `acoes._transacao` levanta `RuntimeError`; a rota faz commit ou rollback antes de chamar `buscas` ou `cotacoes`, e em erro o rollback desfaz também as escritas pendentes dela (lição em `registros/padroes.md`).
+
+**Para confirmar com o dono:** o teste de corrida de `recalcular_encaixe` (`set_trace_callback` e `threading.Event`, vermelho ao trocar `BEGIN IMMEDIATE` por `pass`) não foi feito, por ser opcional na revisão. Recomendação: fazer, na T88.
+
+## D39. Medição dos rótulos no gabarito (T37, T78)
+
+**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+
+**Contexto:** A T37 criou `avaliar-rotulos`, que mede o acerto das regras da T13 contra o gabarito (fora do repositório). O plano diz só "acerto por rótulo" e nomeia `avisos`.
+
+**Opções:**
+- Rótulos medidos: (a) os 7 que o código mede (`area`, `nivel`, `modalidade`, `contrato`, `avisos`, `pais`, `uf`); (b) só os que o plano nomeia. País e UF saem do primeiro `Local` da vaga tratada, e UF sem país vale `BR`, como em `rotular()` (há `shortcut:` no código sobre o primeiro local).
+- Amostra: (a) só o que tem vaga e rótulo ao mesmo tempo, com a `proporcao_br` usando essa amostra no denominador (o plano diz "BR sobre o total rotulado"; com o exemplo dá o mesmo número); (b) todo rótulo, inclusive o sem vaga.
+- Saída: caminho que existe mas sem `bruto/` ou sem `rotulos.jsonl`, linha JSON quebrada, rótulo obrigatório faltando ou amostra vazia saem com código 1 e uma linha em stderr; só caminho inexistente sai com 0 (DR-63).
+
+**Decisão provisória:** (a) em todas, porque a T78 quer 90% por rótulo e a regra de UF é a mais frágil; o desenho não diz o que fazer nos outros casos de erro.
+
+**Para confirmar com o dono:**
+- R3: o subcomando ganhou `--relatorio <arquivo.md>` em `src/jobot/cli/__init__.py`, arquivo que não estava na lista da T37 (o parser só tinha `caminho`). É uma linha; se outra tarefa da leva mexer nesse arquivo, o conflito é trivial.
+- Para a T78, sem ação agora: no gabarito de exemplo, "Contratação PJ" numa vaga sem local sai `nao_informado`, pois `pj` só vale para vaga no Brasil (D5). O exemplo guarda essa divergência de propósito (`g10`, contrato), e os testes não dependem dela.
+- A calibração das regras de `rotulos.json` com o gabarito real e a geração de `docs/rotulos-medidos.md` seguem sendo da T78. Gabarito real com url fora de http/https aborta a medição com código 1 (arquivo e linha na mensagem); a T78 corrige a linha e roda de novo.
+
+## D40. Tela de vagas: foco, "mostrar" e pendências baixas (T45, T46, T82)
+
+**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+
+**Contexto:** A T45 deixou três pontos para o dono e quatro pendências baixas da revisão.
+
+**Opções:**
+- Foco: (a) `.situacao`, `.lista` e `.vazio` com `:focus:not(:focus-visible)` no lugar de `outline: none`, igual ao padrão de `base.css` para `main` (o foco programático depois de ação por teclado fica visível; depois de clique de mouse continua sem contorno); (b) manter `outline: none`.
+- `POST /mostrar` em vaga visível (`oculta_manual` 0 e sem motivo): (a) como está, grava `oculta_manual = -1` e o evento `mostrou` (decisão de desenho, D12 e DP2); (b) a rota responde sem efeito quando a vaga não está oculta.
+
+**Decisão provisória:** foco (a) (já no código); `/mostrar`: o código segue a (a), e a recomendação é a (b).
+
+**Para confirmar com o dono:** as pendências baixas viraram itens do plano: T46 (mover `_de_volta` para `seguranca.py`) e T82 (registrar os globais do Jinja em módulo explícito, junto do item do tema; teste de 422 por `ValueError` em `mostrar` e `ocultar`; teste de Tab real no lugar de `focus()` mais `Enter`). A rota `/mostrar` só muda se o dono escolher a (b).
+
+## D41. Guarda de rede dos testes e renomeações do F3 (F3, T05, T25)
+
+**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+
+**Contexto:** O F3 trouxe o resolvedor de DNS (D30) e a conversão de `_brl` gigante (D28). Sobraram quatro pontos.
+
+**Opções:**
+- Guarda do `tests/conftest.py`: (a) só `socket.connect` (como está); (b) bloquear também `socket.getaddrinfo` fora de `127.0.0.1` e `::1`, o que torna permanente a garantia "sem DNS nos testes". É arquivo compartilhado, então não foi mexido (T88).
+- `_brl` gigante: a decisão 17 fala em "valor em centavos acima de 2**63-1", mas as colunas `_brl` guardam reais inteiros. Foi seguido o que de fato estoura: o inteiro em reais gravado em cada coluna, quando passa do INTEGER do SQLite, fica `NULL` só naquela coluna. (a) `sal_cotacao_data` da vaga fica como está (`cotacoes.py`, o trecho que grava a data); (b) `sal_cotacao_data` também fica `NULL` quando as duas `_brl` saem nulas.
+- Texto da decisão 19: o brief e o registro dizem `HttpEducado(..., resolver=None)`, mas a classe concreta é `ClienteEducado` (já em D30, escolha 1). Aqui só se acrescenta: o `resolver` entrou em `ClienteEducado.__init__`, só por nome e opcional.
+
+**Decisão provisória:** guarda (b), na T88 (a prova de que funciona já existe como plugin de teste do F3); `_brl`: (a). A frase "em centavos" já foi corrigida na D26 e no plano (F3, decisão 17). O plano já diz `ClienteEducado`, e a D30 já explica a troca de nome. Para confirmar: corrigir o texto da decisão 19 no registro da sessão (fora deste repositório), que ainda diz `HttpEducado(..., resolver=None)`.
+
+**Escolhas do redator, para confirmar com o dono:**
+- Resolvedor que falha: `OSError` (`gaierror` incluso) e `UnicodeError` viram `ErroDeRede`; outra exceção que o resolvedor injetado levante sobe como está. Por segurança, e sem regra explícita no brief, o cliente também recusa a resposta do resolvedor vazia ou com texto que não é IP (`test_resolvedor_sem_endereco_valido_recusa`).
+- Renomeações públicas (`confere_http`, `PARA_MENSAL`, `mensal`, `host_local`): na integração, procurar `_confere_http`, `_PARA_MENSAL` e `_mensal(` nos outros worktrees da leva. `registros/padroes.md` já cita o nome novo.
+- Docstring de `juntar_paginas` (`base.py`): "nada se fecha" virou "só o que tem mais de 30 dias se fecha", para bater com o ciclo de vida (10.2). É só texto.
