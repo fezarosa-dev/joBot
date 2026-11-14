@@ -1,0 +1,13 @@
+{
+  "url": "https://www.google.com/about/careers/applications/jobs/feed.xml",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "text/xml",
+    "Last-Modified": "Fri, 13 Nov 2026 22:53:10 GMT"
+  },
+  "sha256": "d88274d79cab94115264d717fededd0b29fb6e10545e822129c440053c132810",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "veio de captura/B4/google_feed_amostra_5_brasil.xml (conferência ao vivo de 2026-11-13: o feed inteiro filtrado às 5 primeiras vagas com country == 'Brazil'), passado por capturar.reduzir e capturar.limpar_pessoais; cabeçalhos de captura/B4/raw/g_feed.hdr"
+}
