@@ -3,6 +3,7 @@
 {% block estilos %}<link rel="stylesheet" href="/static/css/vagas.css"><link rel="stylesheet" href="/static/css/fontes.css">{% endblock %}
 {%- macro hora(d) -%}{{ data_curta(d.isoformat(), idioma) }} {{ d.strftime("%H:%M") }}{%- endmacro -%}
 {#- motivo "chave" ou "chave:valor" (a regra do executor): o valor serve ao {tipo} ou ao {n} da chave -#}
+{%- macro nunca() -%}<span aria-hidden="true">—</span><span class="so-leitor">{{ t("fontes.nunca_rodou") }}</span>{%- endmacro -%}
 {%- macro motivo_texto(m) -%}
   {%- set partes = m.partition(":") -%}
   {{ t(partes[0], tipo=partes[2], n=partes[2]) }}
@@ -25,10 +26,10 @@
       <span class="selo selo-{{ c.estado }}">{{ t("fontes.estado." ~ c.estado) }}</span>
     </div>
     <dl class="dados">
-      {%- if c.quando %}
-      <div><dt>{{ t("fontes.quando") }}</dt><dd>{{ hora(c.quando) }}</dd></div>
-      <div><dt>{{ t("fontes.vagas") }}</dt><dd>{{ c.vagas }}</dd></div>
-      <div><dt>{{ t("fontes.duracao") }}</dt><dd>{{ t("fontes.segundos", s=(("%.1f"|format(c.duracao_ms / 1000)) | replace(".", ",") if idioma == "pt" else "%.1f"|format(c.duracao_ms / 1000))) }}</dd></div>
+      {%- if c.tem_execucao %}
+      <div><dt>{{ t("fontes.quando") }}</dt><dd>{% if c.quando %}{{ hora(c.quando) }}{% else %}{{ nunca() }}{% endif %}</dd></div>
+      <div><dt>{{ t("fontes.vagas") }}</dt><dd>{% if c.vagas is none %}{{ nunca() }}{% else %}{{ c.vagas }}{% endif %}</dd></div>
+      <div><dt>{{ t("fontes.duracao") }}</dt><dd>{% if c.duracao_ms is none %}{{ nunca() }}{% else %}{{ t("fontes.segundos", s=(("%.1f"|format(c.duracao_ms / 1000)) | replace(".", ",") if idioma == "pt" else "%.1f"|format(c.duracao_ms / 1000))) }}{% endif %}</dd></div>
       {%- endif %}
       {%- if c.ligada %}
       <div><dt>{{ t("fontes.proxima") }}</dt><dd>{% if c.proxima %}{{ hora(c.proxima) }}{% else %}{{ t("fontes.proxima_logo") }}{% endif %}</dd></div>
@@ -56,7 +57,7 @@
         <li class="escopo">
           <span class="nome-escopo">{{ e.nome }}</span>
           <span class="selo selo-{{ e.estado }}">{{ t("fontes.estado." ~ e.estado) }}</span>
-          <span class="dica">{{ t("fontes.vagas") }}: {{ e.vagas }}</span>
+          <span class="dica">{{ t("fontes.vagas") }}: {% if e.vagas is none %}{{ nunca() }}{% else %}{{ e.vagas }}{% endif %}</span>
           {%- if e.pode_rodar_em %}
           <span class="dica">{{ t("fontes.pode_rodar", quando=hora(e.pode_rodar_em)) }}</span>
           {%- endif %}

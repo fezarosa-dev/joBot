@@ -26,6 +26,7 @@ from jobot.banco.execucoes import (
     marcar_interrompidas,
     saude_recente,
     terminar_fonte,
+    ultimas_que_rodaram,
 )
 from jobot.banco.migrar import migrar
 from jobot.nucleo.coletores.executor import Historico
@@ -385,6 +386,64 @@ def test_saude_recente_traz_8(con: sqlite3.Connection) -> None:
         None,
     )
     assert len({linha.execucao_id for linha in saude_recente(con, 3)}) == 3
+
+
+def test_ultimas_que_rodaram_traz_a_ultima_real_de_cada_fonte_e_escopo(
+    con: sqlite3.Connection,
+) -> None:
+    assert ultimas_que_rodaram(con) == {}
+    _rodada(
+        con,
+        AGORA - timedelta(hours=9),
+        [
+            ("remotive", "", "ok", 1, 1),
+            ("gupy", "weg", "ok", 4, 1),
+            ("gupy", "ambev", "parcial", 2, 1),
+            ("lever", "", "falhou", 0, 1),
+        ],
+    )
+    _rodada(
+        con,
+        AGORA - timedelta(hours=6),
+        [
+            ("remotive", "", "sem_mudanca", 7, 1),
+            ("gupy", "weg", "no_limite", 0, 0),
+            ("gupy", "ambev", "ok", 5, 1),
+            ("lever", "", "desligada", 0, 0),
+        ],
+    )
+    # mais nova que as outras, mas sem rodar: não conta
+    _rodada(
+        con,
+        AGORA - timedelta(hours=1),
+        [("remotive", "", "no_limite", 0, 0), ("gupy", "weg", "desligada", 0, 0)],
+    )
+    # execução de outro tipo não atrapalha: o que vale é a linha de saúde
+    _rodada(con, AGORA - timedelta(hours=2), [("lever", "novo", "ok", 3, 1)], tipo="descoberta")
+    por_fonte = ultimas_que_rodaram(con)
+    assert set(por_fonte) == {"remotive", "gupy", "lever"}
+    remotive = por_fonte["remotive"][""]
+    assert (remotive.estado, remotive.vagas) == ("sem_mudanca", 7)
+    assert remotive.iniciada_em == AGORA - timedelta(hours=6)
+    assert {e: (ln.estado, ln.vagas) for e, ln in por_fonte["gupy"].items()} == {
+        "weg": ("ok", 4),
+        "ambev": ("ok", 5),
+    }
+    assert {e: (ln.estado, ln.vagas) for e, ln in por_fonte["lever"].items()} == {
+        "": ("falhou", 0),
+        "novo": ("ok", 3),
+    }
+
+
+def test_ultimas_que_rodaram_desempata_por_inicio_e_depois_por_id(con: sqlite3.Connection) -> None:
+    mesma = AGORA - timedelta(hours=3)
+    _rodada(con, mesma, [("remotive", "", "ok", 1, 1)])
+    segunda = _rodada(con, mesma, [("remotive", "", "ok", 2, 1)])
+    linha = ultimas_que_rodaram(con)["remotive"][""]
+    assert (linha.execucao_id, linha.vagas) == (segunda, 2)
+    # início mais novo vence, mesmo com id menor ficando para trás
+    _rodada(con, AGORA - timedelta(hours=5), [("remotive", "", "ok", 9, 1)])
+    assert ultimas_que_rodaram(con)["remotive"][""].vagas == 2
 
 
 # --- HistoricoDoBanco ---
