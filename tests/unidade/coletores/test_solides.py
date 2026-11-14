@@ -493,6 +493,13 @@ async def test_erro_na_segunda_pagina_mantem_a_primeira() -> None:
     assert len(resultado.vagas) == 5
 
 
+async def test_404_na_segunda_pagina_mantem_a_primeira_e_fica_parcial() -> None:
+    resultado, pedidos = await _coletar(_json("normal"), _json("nao_encontrado", 404))
+    assert (resultado.estado, resultado.motivo) == ("parcial", "saude.erro_de_rede")
+    assert len(resultado.vagas) == 5
+    assert len(pedidos) == 2
+
+
 async def test_pagina_2_ilegivel_mantem_a_primeira() -> None:
     resultado, _ = await _coletar(_json("normal"), httpx.Response(200, text="isto não é json"))
     assert (resultado.estado, resultado.motivo) == ("parcial", "saude.formato_mudou")
