@@ -191,8 +191,15 @@ def test_escopos_um_por_empresa_e_o_da_microsoft_e_o_host() -> None:
     repetida = Empresa(nome="ML de novo", fonte="eightfold", identificador=ML)
     ctx = ContextoColeta(empresas=[*TODAS, repetida], termos=["dev"], paises=["BR"])
     escopos = list(eightfold.Eightfold().escopos(ctx))
-    assert escopos == [ML, MICROSOFT, BAYER]
+    assert escopos == [MICROSOFT, ML, BAYER]  # quem tem por_escopo primeiro (A28)
     assert MICROSOFT in eightfold.COLETOR.por_escopo  # o executor acha o limite pelo escopo
+
+
+def test_escopos_com_por_escopo_vem_primeiro() -> None:
+    # A28: a Microsoft (para_no_429) não pode vir depois da rajada das outras empresas.
+    ctx = ContextoColeta(empresas=[MERCADO_LIVRE, BAYER_V2, MS], termos=["dev"], paises=["BR"])
+    assert list(eightfold.Eightfold().escopos(ctx)) == [MICROSOFT, ML, BAYER]
+    assert eightfold.COLETOR.max_pedidos is None  # o executor não reordena (executor.py:246)
 
 
 def test_cadastro_acompanha_o_ultimo_escopos() -> None:
