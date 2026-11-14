@@ -237,7 +237,7 @@ def test_executar_abrir_com_porta_alheia_nao_sobe_nem_abre(
         navegadores.append(url)
         return True
 
-    monkeypatch.setattr(modulo_abrir, "_subir_servidor", subir)
+    monkeypatch.setattr(modulo_abrir, "subir_servidor", subir)
     monkeypatch.setattr(webbrowser, "open", abre)
     with _servidor(b"outro") as porta:
         monkeypatch.setenv("JOBOT_DADOS", str(tmp_path))

@@ -3,6 +3,7 @@
 Desenho 12.1 (um processo), 12.3 (travas), 12.6 (`jobot serve`) e 14.1 (rede). Ao subir: migra,
 semeia, marca as execuções interrompidas e reaplica as regras que mudaram; o laço da agenda
 nasce e morre com o app (lifespan) e divide com a rota "buscar agora" as travas por tipo (D55).
+A checagem de versão (T85) roda numa tarefa própria no mesmo lifespan, com conexão própria.
 """
 
 import argparse
@@ -23,6 +24,7 @@ from fastapi import FastAPI
 from jobot import __version__
 from jobot.agenda.agendador import INTERVALOS, laco
 from jobot.agenda.execucao import executar_busca, reprocessar_se_regras_mudaram
+from jobot.agenda.versao import laco_versao
 from jobot.banco.buscas import recalcular_encaixe
 from jobot.banco.cadastros import ler_config, semear
 from jobot.banco.conexao import abrir
@@ -126,12 +128,16 @@ def montar(
             agenda = asyncio.create_task(
                 laco(tarefas, _EstadoDoBanco(caminho), relogio, travas=travas)
             )
+            # checagem de versão (T85): tarefa própria, abre a sua conexão com o caminho
+            versao = asyncio.create_task(laco_versao(caminho, cliente, relogio))
             try:
                 yield
             finally:
-                agenda.cancel()
-                with contextlib.suppress(asyncio.CancelledError):
-                    await agenda
+                for tarefa in (agenda, versao):
+                    tarefa.cancel()
+                for tarefa in (agenda, versao):
+                    with contextlib.suppress(asyncio.CancelledError):
+                        await tarefa
                 await cliente.fechar()
 
     app.router.lifespan_context = vida
