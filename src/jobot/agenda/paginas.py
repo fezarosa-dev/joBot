@@ -1,19 +1,22 @@
 """Execução das páginas acompanhadas (desenho 8.8, 12.2, 12.3; plano T72).
 
-Uma execução do tipo `paginas`, com trava própria: nunca segura a busca. Cada página ativa é
-lida uma vez; a que falha fica "falhou" sem apagar o texto e sem parar as outras.
+Uma execução do tipo `paginas`, com trava própria: nunca segura a busca. Cada página ativa devida
+(nunca lida ou lida há 24 h ou mais, T149) é lida uma vez; a que falha fica "falhou" sem apagar o
+texto e sem parar as outras.
 """
 
 import asyncio
 import contextlib
 import logging
 import sqlite3
+from datetime import datetime, timedelta
 
+from jobot.agenda.agendador import INTERVALOS
 from jobot.agenda.execucao import bater
 from jobot.banco.cadastros import ler_config
 from jobot.banco.execucoes import abrir_execucao, fechar_execucao, interromper_execucao
 from jobot.banco.paginas import gravar_leitura, marcar_falhou, paginas
-from jobot.nucleo.coletores.paginas import ConteudoNaoLido, verificar
+from jobot.nucleo.coletores.paginas import ConteudoNaoLido, Pagina, verificar
 from jobot.nucleo.http import (
     Bloqueio,
     ClienteEducado,
@@ -26,6 +29,19 @@ from jobot.nucleo.http import (
 from jobot.nucleo.relogio import Relogio
 
 log = logging.getLogger(__name__)
+
+
+# A execução vem a cada 24 h contadas do início dela, mas cada página é gravada um pouco depois:
+# sem a folga, a lida no fim da execução de ontem ficaria de fora da de hoje.
+_FOLGA = timedelta(hours=1)
+
+
+def _devida(pagina: Pagina, agora: datetime) -> bool:
+    """Ativa e (nunca lida, ou lida há 24 h ou mais, ou com leitura no futuro: relógio voltou)."""
+    lida = pagina.verificada_em
+    return pagina.ativa and (
+        lida is None or lida > agora or agora - lida >= INTERVALOS["paginas"] - _FOLGA
+    )
 
 
 def _motivo(erro: Exception) -> str:
@@ -64,7 +80,7 @@ async def executar_paginas(
     batimento = asyncio.create_task(bater(con, execucao_id, relogio))
     try:
         for pagina in paginas(con):
-            if not pagina.ativa:
+            if not _devida(pagina, relogio.agora()):
                 continue
             try:
                 mudanca = await verificar(

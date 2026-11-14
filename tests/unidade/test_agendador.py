@@ -23,8 +23,11 @@ def _roda(
     paginas: datetime | None = RECENTE,
     iniciou_em: datetime = INICIOU,
     interruptores: Mapping[str, bool] = LIGADOS,
+    pagina_nova: bool = False,
 ) -> list[Tipo]:
-    return o_que_roda(AGORA, busca, descoberta, paginas, iniciou_em, interruptores)
+    return o_que_roda(
+        AGORA, busca, descoberta, paginas, iniciou_em, interruptores, pagina_nova=pagina_nova
+    )
 
 
 def test_busca_3_h_depois_do_inicio_da_ultima_completa() -> None:
@@ -46,6 +49,26 @@ def test_descoberta_7_dias_e_paginas_24_h() -> None:
     assert _roda(paginas=AGORA - timedelta(hours=23, minutes=59)) == []
     assert _roda(paginas=AGORA - timedelta(hours=24)) == ["paginas"]
     assert _roda(None, None, None) == ["busca", "descoberta", "paginas"]
+
+
+def test_pagina_nova_torna_as_paginas_devidas_sem_esperar_24_h() -> None:
+    # T149: a execução de páginas foi há 1 h e há uma página nunca lida
+    assert _roda(paginas=AGORA - timedelta(hours=1), pagina_nova=True) == ["paginas"]
+    # todas lidas há 1 h: nada
+    assert _roda(paginas=AGORA - timedelta(hours=1), pagina_nova=False) == []
+    # a execução passou de 24 h: vence como sempre
+    assert _roda(paginas=AGORA - timedelta(hours=25), pagina_nova=False) == ["paginas"]
+    # só as páginas pedem: a busca e a descoberta seguem o seu ritmo
+    assert _roda(pagina_nova=True) == ["paginas"]
+
+
+def test_pagina_nova_com_paginas_desligadas_nao_roda() -> None:
+    desligadas = {"busca": True, "descoberta": True, "paginas": False}
+    assert _roda(pagina_nova=True, interruptores=desligadas) == []
+
+
+def test_pagina_nova_nos_primeiros_60_s_nao_roda() -> None:
+    assert _roda(pagina_nova=True, iniciou_em=AGORA - timedelta(seconds=59)) == []
 
 
 def test_interruptor_desligado_nao_roda() -> None:
@@ -74,12 +97,16 @@ class _Estado:
             "paginas": paginas,
         }
         self.chaves: dict[str, bool] = dict(LIGADOS)
+        self.nova = False
 
     def ultimas(self) -> Mapping[Tipo, datetime | None]:
         return self.datas
 
     def interruptores(self) -> Mapping[str, bool]:
         return self.chaves
+
+    def pagina_nova(self) -> bool:
+        return self.nova
 
 
 class _Relogio(RelogioFalso):
@@ -144,6 +171,19 @@ async def test_busca_nao_espera_descoberta() -> None:
     await _girar({"busca": busca, "descoberta": descoberta}, estado, relogio)
     assert iniciadas == ["descoberta", "busca"]
     assert not solta.is_set()
+
+
+async def test_laco_roda_paginas_quando_ha_pagina_nova() -> None:
+    relogio = _Relogio(voltas=2)
+    inicios: list[datetime] = []
+
+    async def paginas() -> None:
+        inicios.append(relogio.agora())
+
+    estado = _Estado()  # a última execução de páginas foi há 1 min
+    estado.nova = True
+    await _girar({"paginas": paginas}, estado, relogio)
+    assert inicios == [AGORA + timedelta(seconds=60)]
 
 
 async def test_mesma_tarefa_nao_roda_duas_vezes() -> None:

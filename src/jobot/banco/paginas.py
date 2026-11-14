@@ -78,6 +78,15 @@ def paginas(con: sqlite3.Connection) -> list[Pagina]:
     ]
 
 
+def existe_pagina_nova(con: sqlite3.Connection) -> bool:
+    """Há página ativa que nunca teve leitura (nem falha): o agendador a lê na próxima volta."""
+    return bool(
+        con.execute(
+            "SELECT EXISTS(SELECT 1 FROM pagina_acompanhada WHERE ativa=1 AND estado IS NULL)"
+        ).fetchone()[0]
+    )
+
+
 def mudancas(con: sqlite3.Connection) -> list[MudancaPagina]:
     """Todas as mudanças, a mais nova primeiro."""
     linhas = con.execute(
