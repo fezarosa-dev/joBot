@@ -17,7 +17,7 @@ Depois a ideia se expandiu para todo mundo. Hoje o joBot é pensado para todo ti
 |---|---|
 | 2026-11-13 | As decisões principais foram tomadas em 9 rodadas de perguntas e respostas e registradas em documentos curtos, as ADRs (ADR 0001 a 0017). |
 | 2026-11-14 | O projeto passou a ser desenhado para ser mantido pela comunidade (ADR 0018), ganhou esta wiki (ADR 0019) e passou a aceitar só doação como apoio (ADR 0020). |
-| Agora | A fase 1 de 8 (a base) está em andamento. Veja o [roteiro](Roteiro). |
+| Agora | A fase 1 de 8 (a base) está concluída: o joBot 0.1.0 já funciona. Veja o [roteiro](Roteiro). |
 
 ## 😩 O problema
 

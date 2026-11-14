@@ -47,8 +47,7 @@ joBot was born to help young university students find their first job.
 Then the idea grew and became an assistant for everyone looking for a job, in any field. [Read the full story](The-idea-and-the-story).
 
 > [!NOTE]
-> **joBot is under development.** Phase 1 of 8 (the base) is in progress.
-> There is **nothing to install yet**: what this wiki describes is the plan, not a finished product. See the [roadmap](Roadmap).
+> **joBot is under development.** Phase 1 of 8 (the base) is complete: you can already [install and use](https://github.com/fezarosa-dev/joBot/blob/main/README.en.md#requirements-and-installation) version 0.1.0. Phases 2 to 8 are planned. See the [roadmap](Roadmap).
 
 ## ✨ Highlights
 
