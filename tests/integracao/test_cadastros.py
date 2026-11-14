@@ -145,7 +145,7 @@ def _total(con: sqlite3.Connection, tabela: str) -> int:
     return int(con.execute(f"SELECT COUNT(*) FROM {tabela}").fetchone()[0])
 
 
-def test_empresas_json_tem_67() -> None:
+def test_empresas_json_tem_o_total_e_a_leva_a() -> None:
     assert len(empresas_iniciais()) == TOTAL
     lista = [e for e in empresas_iniciais() if e.fonte in IDENTIFICADORES]  # a leva A
     assert len(lista) == 67

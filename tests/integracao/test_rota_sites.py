@@ -173,10 +173,65 @@ def test_pagina_que_falhou_diz_isso_em_palavras_simples(painel: Painel) -> None:
     id_ = painel.semear()
     painel.leitura(id_, "texto bom", None)
     with closing(abrir(painel.banco)) as con:
-        marcar_falhou(con, id_)
+        marcar_falhou(con, id_, "fora_do_ar")
     html = painel.http.get("/sites").text
     assert "Não deu para ler a página" in html
     assert "O último texto lido foi mantido" in html
+
+
+@pytest.mark.parametrize(
+    ("motivo", "frase"),
+    [
+        ("fora_do_ar", "fora do ar"),
+        ("bloqueada", "bloqueou"),
+        ("nao_e_texto", "não é texto"),
+        ("endereco_recusado", "endereço não é permitido"),
+        ("grande_demais", "grande demais"),
+        ("erro", "erro inesperado"),
+    ],
+)
+def test_sites_mostra_o_motivo_da_falha(painel: Painel, motivo: str, frase: str) -> None:
+    id_ = painel.semear()
+    painel.leitura(id_, "texto bom", None)
+    with closing(abrir(painel.banco)) as con:
+        marcar_falhou(con, id_, motivo)
+    html = painel.http.get("/sites").text
+    assert frase in html
+    assert "fora do ar, bloqueada" not in html  # não é o texto genérico
+    assert "O último texto lido foi mantido" in html
+
+
+def test_sites_pagina_que_falhou_antes_do_motivo_mantem_o_texto_generico(painel: Painel) -> None:
+    id_ = painel.semear()
+    painel.leitura(id_, "texto bom", None)
+    painel.sql("UPDATE pagina_acompanhada SET estado='falhou' WHERE id=?", id_)
+    html = painel.http.get("/sites").text
+    assert "Não deu para ler a página" in html
+    assert "fora do ar, bloqueada ou ser um arquivo" in html
+
+
+def test_programas_mostra_falhou_em_pagina_que_ja_mudou(painel: Painel) -> None:
+    id_ = painel.semear(nome="Trainee Alfa")
+    painel.leitura(id_, "a", None)
+    painel.leitura(id_, "b", "-a\n+b")
+    html = painel.http.get("/vagas?aba=programas").text
+    assert "mudou em 13/11/2026" in html
+    assert "Não deu para ler" not in html  # controle: lida, sem falha
+    with closing(abrir(painel.banco)) as con:
+        marcar_falhou(con, id_, "bloqueada")
+    html = painel.http.get("/vagas?aba=programas").text
+    assert "mudou em 13/11/2026" in html
+    assert "Não deu para ler na última tentativa" in html
+    assert "bloqueou" in html
+
+
+def test_programas_mostra_o_motivo_da_pagina_que_nunca_mudou(painel: Painel) -> None:
+    id_ = painel.semear(nome="Trainee Alfa")
+    with closing(abrir(painel.banco)) as con:
+        marcar_falhou(con, id_, "nao_e_texto")
+    html = painel.http.get("/vagas?aba=programas").text
+    assert "Não deu para ler na última tentativa" in html
+    assert "não é texto" in html
 
 
 def test_desativar_para_de_acompanhar_e_marca_na_lista(painel: Painel) -> None:
