@@ -1,0 +1,12 @@
+{
+  "url": "https://www.superestagios.com.br/vaga/329131",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "text/html; charset=UTF-8"
+  },
+  "sha256": "190d174ab12444f0bb52bdfa69346c2511c7fbb470a06bbe64865d86079da95e",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "a conferência de 2026-11-13 guardou o HTML bruto da vaga 329131 (vaga_329131.html, 36 KB); passou por reduzir(html) (scripts que não são JSON, estilos e svg saem; o JSON-LD JobPosting e a tabela de rótulos ficam) e limpar_pessoais; Content-Type suposto (a conferência não guardou cabeçalhos)"
+}
