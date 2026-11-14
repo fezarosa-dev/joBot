@@ -301,3 +301,105 @@ def test_executar_recusa_sai_com_1_e_diz_o_motivo(
     assert executar(argparse.Namespace(acao="ligar")) == 1
     assert "systemd" in capsys.readouterr().err
     assert not _servico(tmp_path).exists()
+
+
+def test_rodar_comando_real_devolve_o_stderr() -> None:
+    codigo = "import sys; sys.stderr.write('Failed to enable\\n'); sys.exit(1)"
+    resultado = rodar_comando([sys.executable, "-c", codigo])
+    assert resultado.codigo == 1
+    assert resultado.erro == "Failed to enable\n"
+
+
+def test_recusa_do_systemctl_mostra_o_stderr_do_executor_real(tmp_path: Path) -> None:
+    codigo = "import sys; sys.stderr.write('Failed to enable: sem permissao\\n'); sys.exit(1)"
+
+    class ComStderr(Sistema):
+        def __call__(self, comando: Sequence[str]) -> Resultado:
+            resposta = super().__call__(comando)
+            if "enable" in comando:  # erro só no stderr, como faz o systemctl
+                return rodar_comando([sys.executable, "-c", codigo])
+            return resposta
+
+    with pytest.raises(Recusa) as erro:
+        ligar(ComStderr(tmp_path), env=_env(tmp_path))
+    assert erro.value.motivo.params["saida"] == "Failed to enable: sem permissao"
+
+
+class _DisableFalha(Sistema):
+    def __call__(self, comando: Sequence[str]) -> Resultado:
+        resposta = super().__call__(comando)
+        if "disable" in comando:
+            return Resultado(1, "Failed to disable unit\n")
+        return resposta
+
+
+def test_desligar_com_disable_falhando_mantem_o_arquivo_e_recusa(tmp_path: Path) -> None:
+    env = _env(tmp_path)
+    ligar(Sistema(tmp_path), env=env)
+    rodar = _DisableFalha(tmp_path)
+    recusa: Recusa | None = None
+    try:
+        desligar(rodar, env=env)
+    except Recusa as exc:
+        recusa = exc
+    assert recusa is not None, "desligar não recusou com o disable falhando"
+    assert recusa.motivo.chave == "segundo_plano.systemctl_falhou"
+    assert recusa.motivo.params["saida"] == "Failed to disable unit"
+    assert _servico(tmp_path).is_file()
+
+
+def test_desligar_sem_servico_instalado_tolera_o_disable_falhando(tmp_path: Path) -> None:
+    desligar(_DisableFalha(tmp_path), env=_env(tmp_path))  # sem arquivo: nada a desabilitar
+    assert not _servico(tmp_path).exists()
+
+
+def test_executar_desligar_com_falha_sai_com_1_sem_dizer_desligado(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.delenv("CONTAINER_ID", raising=False)
+    ligar(Sistema(tmp_path), env=_env(tmp_path))
+    _rodar_com(monkeypatch, _DisableFalha(tmp_path))
+    capsys.readouterr()
+    assert executar(argparse.Namespace(acao="desligar")) == 1
+    saida = capsys.readouterr()
+    assert "desligado" not in saida.out
+    assert "disable" in saida.err
+    assert _servico(tmp_path).is_file()
+
+
+def _executar_sem_vazar(acao: str) -> tuple[int | None, BaseException | None]:
+    try:
+        return executar(argparse.Namespace(acao=acao)), None
+    except (ValueError, OSError) as exc:
+        return None, exc
+
+
+def test_executar_ligar_com_caractere_de_controle_no_python_sai_com_1(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.delenv("CONTAINER_ID", raising=False)
+    monkeypatch.setattr(sys, "executable", "/x\ny/python")
+    _rodar_com(monkeypatch, Sistema(tmp_path))
+    codigo, vazou = _executar_sem_vazar("ligar")
+    assert vazou is None, f"exceção vazou: {vazou!r}"
+    assert codigo == 1
+    linhas = capsys.readouterr().err.strip().splitlines()
+    assert len(linhas) == 1
+    assert "Traceback" not in linhas[0]
+
+
+def test_executar_ligar_sem_poder_gravar_o_arquivo_sai_com_1(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    (tmp_path / ".config").write_text("arquivo no lugar da pasta")
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.delenv("CONTAINER_ID", raising=False)
+    _rodar_com(monkeypatch, Sistema(tmp_path))
+    codigo, vazou = _executar_sem_vazar("ligar")
+    assert vazou is None, f"exceção vazou: {vazou!r}"
+    assert codigo == 1
+    linhas = capsys.readouterr().err.strip().splitlines()
+    assert len(linhas) == 1
+    assert "Traceback" not in linhas[0]

@@ -14,7 +14,7 @@ from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 
 from jobot.sistema.caso import prefixo_host
-from jobot.sistema.instancia import pid_do_servidor, porta, porta_do_servidor
+from jobot.sistema.instancia import pid_do_servidor, pid_e_porta_do_servidor, porta
 from jobot.sistema.pastas import pasta_de_dados
 
 _ESPERA_PASSO_S = 0.2
@@ -99,13 +99,15 @@ def abrir_painel(
 ) -> int:
     """Sobe o servidor se ninguém o prende; só abre o navegador se a porta é mesmo do joBot."""
     # com o servidor no ar vale a porta que ele gravou na trava: o serviço não herda o env do shell
-    p = porta_do_servidor(dados) or porta(env)
+    # PID e porta saem da mesma leitura da trava, senão dois donos diferentes poderiam se misturar
+    pid, porta_gravada = pid_e_porta_do_servidor(dados)
+    p = porta_gravada or porta(env)
     endereco = f"http://127.0.0.1:{p}"
     ocupada = (
         f"A porta {p} está ocupada por outro programa. "
         "Feche-o ou defina JOBOT_PORTA com outra porta."
     )
-    if pid_do_servidor(dados) is None:
+    if pid is None:
         if _porta_ocupada(p):  # sem servidor nosso, quem escuta ali é alheio (RF3)
             saida(ocupada)
             return 1
@@ -162,6 +164,10 @@ def _subir_servidor() -> None:
 def executar(args: argparse.Namespace) -> int:
     env = os.environ
     dados = pasta_de_dados(env)
-    if getattr(args, "comando", "abrir") == "sair":
-        return sair_do_servidor(dados)
-    return abrir_painel(env, dados, subir=_subir_servidor)
+    try:
+        if getattr(args, "comando", "abrir") == "sair":
+            return sair_do_servidor(dados)
+        return abrir_painel(env, dados, subir=_subir_servidor)
+    except OSError as erro:  # ex.: o Python que sobe o servidor não existe mais
+        print(f"Não consegui concluir o comando: {erro}", file=sys.stderr)
+        return 1

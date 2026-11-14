@@ -4,6 +4,7 @@ import socket
 import subprocess
 import sys
 import threading
+import webbrowser
 from argparse import Namespace
 from collections.abc import Iterator, Mapping, Sequence
 from contextlib import contextmanager
@@ -13,6 +14,8 @@ from typing import Any
 
 import pytest
 
+from jobot.sistema import abrir as modulo_abrir
+from jobot.sistema import instancia
 from jobot.sistema.abrir import (
     abrir_navegador,
     abrir_painel,
@@ -200,14 +203,69 @@ def test_porta_de_outro_programa_nao_abre_navegador(tmp_path: Path, com_trava: b
     assert "JOBOT_PORTA" in saida.texto
 
 
+def test_abrir_le_a_trava_uma_so_vez(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # PID e porta saem da mesma leitura: duas aberturas poderiam ver donos diferentes
+    aberturas: list[int] = []
+    original = instancia._abrir
+
+    def contando(dados: Path, flags: int) -> int:
+        aberturas.append(flags)
+        return original(dados, flags)
+
+    navegador, saida = _Navegador(), _Saida()
+    with _servidor() as porta:
+        trava = Trava(tmp_path, porta)
+        assert trava.pegar() is True
+        monkeypatch.setattr(instancia, "_abrir", contando)
+        codigo = abrir_painel({}, tmp_path, subir=_nao_sobe, navegador=navegador, saida=saida)
+        trava.soltar()
+    assert codigo == 0
+    assert len(aberturas) == 1
+
+
 def test_executar_abrir_com_porta_alheia_nao_sobe_nem_abre(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    subidas: list[int] = []
+    navegadores: list[str] = []
+
+    # o default de abrir_painel guarda abrir_navegador: o ponto de corte é o webbrowser
+    def subir() -> None:
+        subidas.append(1)
+
+    def abre(url: str, *args: object, **kwargs: object) -> bool:
+        navegadores.append(url)
+        return True
+
+    monkeypatch.setattr(modulo_abrir, "_subir_servidor", subir)
+    monkeypatch.setattr(webbrowser, "open", abre)
     with _servidor(b"outro") as porta:
         monkeypatch.setenv("JOBOT_DADOS", str(tmp_path))
         monkeypatch.setenv("JOBOT_PORTA", str(porta))
         monkeypatch.delenv("CONTAINER_ID", raising=False)
         assert executar(Namespace(comando="abrir")) != 0
+    assert subidas == []
+    assert navegadores == []
+
+
+def test_executar_abrir_que_nao_consegue_subir_diz_numa_linha_e_sai_com_1(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("JOBOT_DADOS", str(tmp_path))
+    monkeypatch.setenv("JOBOT_PORTA", str(_porta_livre()))
+    monkeypatch.delenv("CONTAINER_ID", raising=False)
+    monkeypatch.setattr(sys, "executable", "/nao/existe/python-do-jobot")
+    erro: OSError | None = None
+    codigo = None
+    try:
+        codigo = executar(Namespace(comando="abrir"))
+    except OSError as exc:
+        erro = exc
+    assert erro is None, f"OSError vazou: {erro!r}"
+    assert codigo == 1
+    linhas = capsys.readouterr().err.strip().splitlines()
+    assert len(linhas) == 1
+    assert "Traceback" not in linhas[0]
 
 
 # --- abrir_navegador ---

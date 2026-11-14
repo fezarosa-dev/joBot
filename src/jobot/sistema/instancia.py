@@ -30,9 +30,13 @@ class Trava:
         except BlockingIOError:
             os.close(fd)
             return False
-        os.fchmod(fd, _MODO)
-        os.ftruncate(fd, 0)
-        os.pwrite(fd, f"{os.getpid()}\n{self._porta}\n".encode(), 0)
+        try:
+            os.fchmod(fd, _MODO)
+            os.ftruncate(fd, 0)
+            os.pwrite(fd, f"{os.getpid()}\n{self._porta}\n".encode(), 0)
+        except BaseException:
+            os.close(fd)  # sem isso o flock ficaria preso por um descritor sem dono
+            raise
         self._fd = fd
         return True
 
@@ -64,18 +68,22 @@ def _inteiro_positivo(texto: str) -> int:
     return int(texto) if texto.isascii() and texto.isdigit() else 0
 
 
-def pid_do_servidor(dados: Path) -> int | None:
-    """PID do servidor, só se alguém prende a trava agora. PID de trava solta é velho: None."""
+def pid_e_porta_do_servidor(dados: Path) -> tuple[int | None, int | None]:
+    """PID e porta do servidor numa só leitura da trava; trava solta ou estragada: None."""
     linhas = _linhas_da_trava(dados)
     pid = _inteiro_positivo(linhas[0]) if linhas else 0
-    return pid if pid > 0 else None
+    p = _inteiro_positivo(linhas[1]) if linhas and len(linhas) > 1 else 0
+    return (pid if pid > 0 else None), (p if 1 <= p <= 65535 else None)
+
+
+def pid_do_servidor(dados: Path) -> int | None:
+    """PID do servidor, só se alguém prende a trava agora. PID de trava solta é velho: None."""
+    return pid_e_porta_do_servidor(dados)[0]
 
 
 def porta_do_servidor(dados: Path) -> int | None:
     """Porta gravada pelo servidor na trava presa (de 1 a 65535); estragada ou solta: None."""
-    linhas = _linhas_da_trava(dados)
-    p = _inteiro_positivo(linhas[1]) if linhas and len(linhas) > 1 else 0
-    return p if 1 <= p <= 65535 else None
+    return pid_e_porta_do_servidor(dados)[1]
 
 
 def porta(env: Mapping[str, str]) -> int:
