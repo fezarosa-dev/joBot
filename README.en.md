@@ -505,6 +505,8 @@ joBot is free and kept by one person. If it helps you and you want to chip in fo
   65c34f26-c646-431f-af90-e5b1d2808ad4
   ```
 
+- **GitHub Sponsors:** <https://github.com/sponsors/fezarosa-dev>
+
 - **Buy Me a Coffee:** <https://buymeacoffee.com/zanoni.dev>
 
 Donating is optional. joBot stays fully free, with no ads, no affiliate links and no tracking (see [decision 0020](docs/decisions/0020-apoio-financeiro.md)).
