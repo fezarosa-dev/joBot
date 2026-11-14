@@ -43,3 +43,51 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 **Contexto:** o arquivo `.github/FUNDING.yml` mostra o botão Sponsor, mas precisa de uma conta de patrocínio, como GitHub Sponsors ou Ko-fi, que o projeto ainda não tem.
 
 **Decisão provisória:** sem `FUNDING.yml` até o dono criar a conta e dizer qual usar.
+
+## D5. Convenções da rotulagem do gabarito
+
+**Status:** decidido pela sessão em 2026-11-13, para confirmar
+
+**Contexto:** O gabarito de 329 vagas (fora do repositório) foi rotulado por dois modelos, com um juiz nas 100 divergências. Algumas vagas não cabem num valor só.
+
+**Decisão provisória:** Vaga remota para o mundo todo ou para uma região (LATAM, Américas, Europa) fica sem país. Faixa de nível (ex.: pleno/sênior) conta o menor nível. Contrato `clt` ou `pj` só vale para vaga no Brasil. As regras da T13 seguem as mesmas convenções, para a medição da T37 ser justa.
+
+## D6. Ferramentas do esqueleto
+
+**Status:** decidido pela sessão em 2026-11-13, para confirmar
+
+**Contexto:** A T01 montou o pyproject, o CI e o Dependabot.
+
+**Decisão provisória:** Backend de build `uv_build`. O Dependabot do `uv` aponta para a `dev` (`target-branch`), o que só se confirma depois do primeiro push. O CI de tela sai com código 5 enquanto não houver teste de tela (a T36 cria o primeiro).
+
+## D7. Pasta de dados
+
+**Status:** decidido pela sessão em 2026-11-13, para confirmar
+
+**Contexto:** A T02 lê a pasta de `JOBOT_DADOS`, depois `XDG_DATA_HOME`, depois `~/.local/share/jobot`.
+
+**Decisão provisória:** Caminho relativo nessas variáveis é aceito como está (relativo à pasta atual). O umask 0o077 e a permissão do `jobot.db` ficam no ponto de entrada (T48), com `configurar_log` antes de `preparar_pasta`.
+
+## D8. Cópia antes de migrar o banco
+
+**Status:** decidido pela sessão em 2026-11-13, para confirmar
+
+**Contexto:** Antes de migrar, o joBot copia o banco.
+
+**Decisão provisória:** A cópia se chama `jobot.db.antes-v<N>`, com N = versão guardada dentro dela; ficam as 3 mais recentes. Banco vazio (versão 0) não gera cópia. Chave estrangeira quebrada na migração levanta `sqlite3.IntegrityError`, sem exceção própria.
+
+## D9. Tipos do núcleo
+
+**Status:** decidido pela sessão em 2026-11-13, para confirmar
+
+**Contexto:** A T04 fechou os tipos que as outras tarefas usam.
+
+**Decisão provisória:** `SalarioBruto` guarda os valores lidos como número decimal (float) antes da conversão para centavos. `RequisitosEstagio` guarda os campos como texto. `Salario.periodo_deduzido` marca quando o período foi deduzido. `VagaColetada` e `VagaTratada` só se constroem com argumentos nomeados.
+
+## D10. Catálogo de textos (i18n)
+
+**Status:** decidido pela sessão em 2026-11-13, para confirmar
+
+**Contexto:** A T07 criou o catálogo base em português e inglês.
+
+**Decisão provisória:** Chaves no formato `area.<valor>`, `nivel.<valor>`, `modalidade.<valor>`, `contrato.<valor>`, `aviso.<valor>`, `fonte.<chave>`, `saude.<motivo>` e `seguranca.recarregue` (87 por idioma). Chave ausente devolve a própria chave; idioma desconhecido cai para português.
