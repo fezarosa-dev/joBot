@@ -4,9 +4,12 @@ Uma execução do tipo `paginas`, com trava própria: nunca segura a busca. Cada
 lida uma vez; a que falha fica "falhou" sem apagar o texto e sem parar as outras.
 """
 
+import asyncio
+import contextlib
 import logging
 import sqlite3
 
+from jobot.agenda.execucao import bater
 from jobot.banco.execucoes import abrir_execucao, fechar_execucao, interromper_execucao
 from jobot.banco.paginas import gravar_leitura, marcar_falhou, paginas
 from jobot.nucleo.coletores.paginas import verificar
@@ -31,6 +34,7 @@ async def executar_paginas(
     execucao_id = abrir_execucao(con, "paginas", "agenda", relogio.agora())
     if execucao_id is None:
         return None
+    batimento = asyncio.create_task(bater(con, execucao_id, relogio))
     try:
         for pagina in paginas(con):
             if not pagina.ativa:
@@ -49,5 +53,9 @@ async def executar_paginas(
             con.rollback()
         interromper_execucao(con, execucao_id, relogio.agora())
         raise
+    finally:
+        batimento.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await batimento
     fechar_execucao(con, execucao_id, relogio.agora())
     return execucao_id

@@ -98,5 +98,12 @@
   "encaixe.salario_abaixo": "Salário abaixo do seu mínimo",
   "encaixe.idioma_ok": "Idioma da vaga como você busca",
   "encaixe.idioma_nao_detectado": "Idioma da vaga não detectado",
-  "encaixe.idioma_fora": "Idioma fora do que você busca"
+  "encaixe.idioma_fora": "Idioma fora do que você busca",
+  "vagas.programas.titulo": "Páginas de programas acompanhadas",
+  "vagas.programas.mudou_em": "mudou em {data}",
+  "vagas.programas.ver": "Ver em Sites",
+  "vagas.programas.nova": "Ainda não lida.",
+  "vagas.programas.sem_mudanca": "Lida, sem mudança até agora.",
+  "vagas.programas.falhou": "Não deu para ler na última tentativa.",
+  "vagas.programas.diferenca": "Ver o que mudou"
 }
