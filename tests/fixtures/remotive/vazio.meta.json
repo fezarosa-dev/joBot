@@ -1,0 +1,13 @@
+{
+  "url": "https://remotive.com/api/remote-jobs",
+  "data": "2026-11-14T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/json; charset=utf-8",
+    "Last-Modified": "Fri, 13 Nov 2026 14:44:36 GMT"
+  },
+  "sha256": "6cecb9ac4e38b8e85e33e6eda18aa1708efb1fc52c26e94a492be0da0edd5cf4",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "montado \u00e0 m\u00e3o a partir de normal.json: os dois avisos do topo e jobs vazio (a captura com filtro devolveu a mesma lista cheia)"
+}
