@@ -9,7 +9,7 @@ import json
 import re
 import sqlite3
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from typing import Annotated, Any
 from urllib.parse import urlencode
@@ -311,6 +311,23 @@ def _grupos(con: sqlite3.Connection, estado: Estado, agora: datetime) -> list[di
     return grupos
 
 
+def _seletor(con: sqlite3.Connection, estado: Estado) -> list[dict[str, Any]]:
+    """As buscas ativas (e a da URL, mesmo desligada), cada uma com a vista atual trocada nela."""
+    linhas = con.execute(
+        "SELECT id, nome FROM busca WHERE ativa = 1 OR id = ? ORDER BY id", (estado.busca_id,)
+    ).fetchall()
+    if len(linhas) < 2:
+        return []
+    return [
+        {
+            "nome": nome,
+            "atual": id_ == estado.busca_id,
+            "url": replace(estado, busca_id=id_, busca_url=True).url(),
+        }
+        for id_, nome in linhas
+    ]
+
+
 def _contexto_pagina(con: sqlite3.Connection, estado: Estado, agora: datetime) -> dict[str, Any]:
     ids_destaques = _ids_destaques(con, estado.busca_id, agora) if estado.destaques_ligados else []
     contagens = leitura.contar_abas(con, estado.busca_id, agora)
@@ -341,6 +358,7 @@ def _contexto_pagina(con: sqlite3.Connection, estado: Estado, agora: datetime) -
             mais_url = estado.url(extras=[("pagina", "2")])
     return {
         "abas": abas,
+        "seletor": _seletor(con, estado),
         "grupos": grupos,
         "itens": itens,
         "fontes": fontes,
