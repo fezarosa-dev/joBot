@@ -1,0 +1,584 @@
+{
+  "items": [
+    {
+      "SearchId": 1,
+      "Keyword": null,
+      "CorrectedKeyword": null,
+      "UseExactKeywordFlag": false,
+      "SuggestedKeyword": null,
+      "ExecuteSpellCheckFlag": true,
+      "Location": null,
+      "LocationId": null,
+      "Radius": 0,
+      "RadiusUnit": "MI",
+      "SelectedTitlesFacet": null,
+      "SelectedCategoriesFacet": null,
+      "SelectedPostingDatesFacet": null,
+      "SelectedLocationsFacet": null,
+      "LastSelectedFacet": null,
+      "Facets": "LOCATIONS;WORKPLACE_TYPES;POSTING_DATES",
+      "Offset": 0,
+      "Limit": 25,
+      "SortBy": "POSTING_DATES_DESC",
+      "TotalJobsCount": 2854,
+      "Latitude": null,
+      "Longitude": null,
+      "SiteNumber": "CX_45001",
+      "JobFamilyId": null,
+      "PostingStartDate": null,
+      "PostingEndDate": null,
+      "SelectedWorkLocationsFacet": null,
+      "RequisitionId": null,
+      "CandidateNumber": null,
+      "WorkLocationZipCode": null,
+      "WorkLocationCountryCode": null,
+      "SelectedFlexFieldsFacets": null,
+      "OrganizationId": null,
+      "SelectedOrganizationsFacet": null,
+      "UserTargetFacetName": null,
+      "UserTargetFacetInputTerm": null,
+      "HotJobFlag": null,
+      "WorkplaceType": null,
+      "SelectedWorkplaceTypesFacet": null,
+      "BotQRShortCode": null,
+      "requisitionList": [
+        {
+          "Id": "350416",
+          "Title": "Principal Optical Engineer",
+          "PostedDate": "2026-11-14",
+          "PostingEndDate": null,
+          "Language": "US",
+          "PrimaryLocationCountry": "US",
+          "GeographyId": 100000000731910,
+          "HotJobFlag": true,
+          "WorkplaceTypeCode": null,
+          "JobFamily": null,
+          "JobFunction": null,
+          "WorkerType": null,
+          "ContractType": null,
+          "ManagerLevel": null,
+          "JobSchedule": null,
+          "JobShift": null,
+          "JobType": null,
+          "StudyLevel": null,
+          "DomesticTravelRequired": null,
+          "InternationalTravelRequired": null,
+          "WorkDurationYears": null,
+          "WorkDurationMonths": null,
+          "WorkHours": null,
+          "WorkDays": null,
+          "LegalEmployer": null,
+          "BusinessUnit": null,
+          "Department": null,
+          "Organization": null,
+          "BusinessUnitId": 300001096431127,
+          "LegalEmployerId": 300000000482027,
+          "OrganizationId": 300001902541887,
+          "MediaThumbURL": "https://img.youtube.com/vi/BV0GMCITXg4/hqdefault.jpg",
+          "ShortDescriptionStr": "We are seeking a Principal Network Engineer - Optical Engineering who will support the design, deployment, and operations of a large-scale global Oracle cloud computing environment (Oracle Cloud Infrastructure - OCI).",
+          "PrimaryLocation": "Seattle, WA, United States",
+          "Distance": 1794614400000.0,
+          "TrendingFlag": false,
+          "BeFirstToApplyFlag": true,
+          "Relevancy": 15,
+          "WorkplaceType": "",
+          "ExternalQualificationsStr": null,
+          "ExternalResponsibilitiesStr": null,
+          "secondaryLocations": [
+            {
+              "RequisitionLocationId": 302971433094540,
+              "GeographyNodeId": 100879842726355,
+              "GeographyId": 300000000149325,
+              "Name": "United States",
+              "CountryCode": "US",
+              "Latitude": 39.82844,
+              "Longitude": -98.57939
+            },
+            {
+              "RequisitionLocationId": 302971433094541,
+              "GeographyNodeId": 100879842726799,
+              "GeographyId": 100000579041779,
+              "Name": "Santa Clara, CA, United States",
+              "CountryCode": "US",
+              "Latitude": 37.35579,
+              "Longitude": -121.95509
+            },
+            {
+              "RequisitionLocationId": 302971433094542,
+              "GeographyNodeId": 100879842726513,
+              "GeographyId": 100000579041727,
+              "Name": "Redwood City, CA, United States",
+              "CountryCode": "US",
+              "Latitude": 37.4845,
+              "Longitude": -122.22772
+            },
+            {
+              "RequisitionLocationId": 302971433094543,
+              "GeographyNodeId": 100879842726481,
+              "GeographyId": 100000000729618,
+              "Name": "Austin, TX, United States",
+              "CountryCode": "US",
+              "Latitude": 30.45414,
+              "Longitude": -97.78254
+            },
+            {
+              "RequisitionLocationId": 302971433094544,
+              "GeographyNodeId": 100879842726789,
+              "GeographyId": 100000000726870,
+              "Name": "Nashville, TN, United States",
+              "CountryCode": "US",
+              "Latitude": 36.16784,
+              "Longitude": -86.77816
+            },
+            {
+              "RequisitionLocationId": 302971433094545,
+              "GeographyNodeId": 100879842726508,
+              "GeographyId": 100000000730814,
+              "Name": "Reston, VA, United States",
+              "CountryCode": "US",
+              "Latitude": 38.95979,
+              "Longitude": -77.35453
+            }
+          ]
+        },
+        {
+          "Id": "350444",
+          "Title": "Senior Network Engineer - DR25 Network Engineering team",
+          "PostedDate": "2026-11-14",
+          "PostingEndDate": null,
+          "Language": "US",
+          "PrimaryLocationCountry": "US",
+          "GeographyId": 100000000731910,
+          "HotJobFlag": true,
+          "WorkplaceTypeCode": null,
+          "JobFamily": null,
+          "JobFunction": null,
+          "WorkerType": null,
+          "ContractType": null,
+          "ManagerLevel": null,
+          "JobSchedule": null,
+          "JobShift": null,
+          "JobType": null,
+          "StudyLevel": null,
+          "DomesticTravelRequired": null,
+          "InternationalTravelRequired": null,
+          "WorkDurationYears": null,
+          "WorkDurationMonths": null,
+          "WorkHours": null,
+          "WorkDays": null,
+          "LegalEmployer": null,
+          "BusinessUnit": null,
+          "Department": null,
+          "Organization": null,
+          "BusinessUnitId": 300001096431127,
+          "LegalEmployerId": 300000000482027,
+          "OrganizationId": 300001902541887,
+          "MediaThumbURL": "https://img.youtube.com/vi/BV0GMCITXg4/hqdefault.jpg",
+          "ShortDescriptionStr": "Oracle Cloud Infrastructure is seeking a Senior Network Engineer to design, automate, deploy, and operate the physical networking that powers OCI Dedicated Region25 (DR25), Oracle’s modular dedicated cloud deployed in customer data centers. You will own defined projects across data-center fabrics, routing, secure connectivity, infrastructure automation, monitoring, and production readiness while collaborating with cloud platform teams and mentoring peers.",
+          "PrimaryLocation": "Seattle, WA, United States",
+          "Distance": 1794614400000.0,
+          "TrendingFlag": false,
+          "BeFirstToApplyFlag": false,
+          "Relevancy": 15,
+          "WorkplaceType": "",
+          "ExternalQualificationsStr": null,
+          "ExternalResponsibilitiesStr": null,
+          "secondaryLocations": [
+            {
+              "RequisitionLocationId": 302971434116850,
+              "GeographyNodeId": 100879842726799,
+              "GeographyId": 100000579041779,
+              "Name": "Santa Clara, CA, United States",
+              "CountryCode": "US",
+              "Latitude": 37.35579,
+              "Longitude": -121.95509
+            },
+            {
+              "RequisitionLocationId": 302971434116851,
+              "GeographyNodeId": 100879842726513,
+              "GeographyId": 100000579041727,
+              "Name": "Redwood City, CA, United States",
+              "CountryCode": "US",
+              "Latitude": 37.4845,
+              "Longitude": -122.22772
+            },
+            {
+              "RequisitionLocationId": 302971434116852,
+              "GeographyNodeId": 100879842726508,
+              "GeographyId": 100000000730814,
+              "Name": "Reston, VA, United States",
+              "CountryCode": "US",
+              "Latitude": 38.95979,
+              "Longitude": -77.35453
+            },
+            {
+              "RequisitionLocationId": 302971434116853,
+              "GeographyNodeId": 100879842726789,
+              "GeographyId": 100000000726870,
+              "Name": "Nashville, TN, United States",
+              "CountryCode": "US",
+              "Latitude": 36.16784,
+              "Longitude": -86.77816
+            },
+            {
+              "RequisitionLocationId": 302971434116854,
+              "GeographyNodeId": 100879842726481,
+              "GeographyId": 100000000729618,
+              "Name": "Austin, TX, United States",
+              "CountryCode": "US",
+              "Latitude": 30.45414,
+              "Longitude": -97.78254
+            },
+            {
+              "RequisitionLocationId": 302971434116855,
+              "GeographyNodeId": 100879842726355,
+              "GeographyId": 300000000149325,
+              "Name": "United States",
+              "CountryCode": "US",
+              "Latitude": 39.82844,
+              "Longitude": -98.57939
+            }
+          ]
+        },
+        {
+          "Id": "343019",
+          "Title": "Senior Software Engineer, Core Infrastructure",
+          "PostedDate": "2026-11-14",
+          "PostingEndDate": null,
+          "Language": "US",
+          "PrimaryLocationCountry": "US",
+          "GeographyId": 100000000726870,
+          "HotJobFlag": false,
+          "WorkplaceTypeCode": null,
+          "JobFamily": null,
+          "JobFunction": null,
+          "WorkerType": null,
+          "ContractType": null,
+          "ManagerLevel": null,
+          "JobSchedule": null,
+          "JobShift": null,
+          "JobType": null,
+          "StudyLevel": null,
+          "DomesticTravelRequired": null,
+          "InternationalTravelRequired": null,
+          "WorkDurationYears": null,
+          "WorkDurationMonths": null,
+          "WorkHours": null,
+          "WorkDays": null,
+          "LegalEmployer": null,
+          "BusinessUnit": null,
+          "Department": null,
+          "Organization": null,
+          "BusinessUnitId": 300001096431127,
+          "LegalEmployerId": 300000000482027,
+          "OrganizationId": 300001902541887,
+          "MediaThumbURL": "https://img.youtube.com/vi/BV0GMCITXg4/hqdefault.jpg",
+          "ShortDescriptionStr": "Oracle Cloud Infrastructure is building toward a bold north star: a platform that can run OCI services across thousands of regions and stacks with autonomy as a first design principle. We are forming a new Nashville, TN team to make every change deployment—ranging from small configuration updates to major multi-service architectural changes—automated, safe, verifiable, and traceable. We will rethink the full experience, from the change-management programming model through CI/CD, using proven foundations where they work and inventing new approaches where they do not.",
+          "PrimaryLocation": "Nashville, TN, United States",
+          "Distance": 1794614400000.0,
+          "TrendingFlag": true,
+          "BeFirstToApplyFlag": false,
+          "Relevancy": 9,
+          "WorkplaceType": "",
+          "ExternalQualificationsStr": null,
+          "ExternalResponsibilitiesStr": null,
+          "secondaryLocations": []
+        },
+        {
+          "Id": "348506",
+          "Title": "Consulting Solution Director",
+          "PostedDate": "2026-11-14",
+          "PostingEndDate": null,
+          "Language": "US",
+          "PrimaryLocationCountry": "US",
+          "GeographyId": 300000000149325,
+          "HotJobFlag": false,
+          "WorkplaceTypeCode": null,
+          "JobFamily": null,
+          "JobFunction": null,
+          "WorkerType": null,
+          "ContractType": null,
+          "ManagerLevel": null,
+          "JobSchedule": null,
+          "JobShift": null,
+          "JobType": null,
+          "StudyLevel": null,
+          "DomesticTravelRequired": null,
+          "InternationalTravelRequired": null,
+          "WorkDurationYears": null,
+          "WorkDurationMonths": null,
+          "WorkHours": null,
+          "WorkDays": null,
+          "LegalEmployer": null,
+          "BusinessUnit": null,
+          "Department": null,
+          "Organization": null,
+          "BusinessUnitId": 300001096431127,
+          "LegalEmployerId": 300000000482027,
+          "OrganizationId": 300001902541887,
+          "MediaThumbURL": "https://img.youtube.com/vi/BV0GMCITXg4/hqdefault.jpg",
+          "ShortDescriptionStr": "As an acknowledged authority within Oracle, this senior-level consulting professional has a breadth of knowledge and understanding of solutions, industry best practices, multiple business processes or technology designs across multiple product families.",
+          "PrimaryLocation": "United States",
+          "Distance": 1794614400000.0,
+          "TrendingFlag": true,
+          "BeFirstToApplyFlag": false,
+          "Relevancy": 9,
+          "WorkplaceType": "",
+          "ExternalQualificationsStr": null,
+          "ExternalResponsibilitiesStr": null,
+          "secondaryLocations": []
+        },
+        {
+          "Id": "349590",
+          "Title": "Senior Platform Software Engineer",
+          "PostedDate": "2026-11-14",
+          "PostingEndDate": null,
+          "Language": "US",
+          "PrimaryLocationCountry": "US",
+          "GeographyId": 100000000731910,
+          "HotJobFlag": false,
+          "WorkplaceTypeCode": null,
+          "JobFamily": null,
+          "JobFunction": null,
+          "WorkerType": null,
+          "ContractType": null,
+          "ManagerLevel": null,
+          "JobSchedule": null,
+          "JobShift": null,
+          "JobType": null,
+          "StudyLevel": null,
+          "DomesticTravelRequired": null,
+          "InternationalTravelRequired": null,
+          "WorkDurationYears": null,
+          "WorkDurationMonths": null,
+          "WorkHours": null,
+          "WorkDays": null,
+          "LegalEmployer": null,
+          "BusinessUnit": null,
+          "Department": null,
+          "Organization": null,
+          "BusinessUnitId": 300001096431127,
+          "LegalEmployerId": 300000000482027,
+          "OrganizationId": 300001902541887,
+          "MediaThumbURL": "https://img.youtube.com/vi/BV0GMCITXg4/hqdefault.jpg",
+          "ShortDescriptionStr": "Owns moderately complex components within platform services or SDKs; leads team-level improvements to integration frameworks and developer tooling.",
+          "PrimaryLocation": "Seattle, WA, United States",
+          "Distance": 1794614400000.0,
+          "TrendingFlag": false,
+          "BeFirstToApplyFlag": false,
+          "Relevancy": 9,
+          "WorkplaceType": "",
+          "ExternalQualificationsStr": null,
+          "ExternalResponsibilitiesStr": null,
+          "secondaryLocations": [
+            {
+              "RequisitionLocationId": 302971196774909,
+              "GeographyNodeId": 100879842726799,
+              "GeographyId": 100000579041779,
+              "Name": "Santa Clara, CA, United States",
+              "CountryCode": "US",
+              "Latitude": 37.35579,
+              "Longitude": -121.95509
+            },
+            {
+              "RequisitionLocationId": 302971196774911,
+              "GeographyNodeId": 100879842726388,
+              "GeographyId": 100000579041650,
+              "Name": "San Francisco, CA, United States",
+              "CountryCode": "US",
+              "Latitude": 37.77712,
+              "Longitude": -122.41964
+            },
+            {
+              "RequisitionLocationId": 302971196774912,
+              "GeographyNodeId": 100879842726509,
+              "GeographyId": 100000579041777,
+              "Name": "San Jose, CA, United States",
+              "CountryCode": "US",
+              "Latitude": 37.33865,
+              "Longitude": -121.88542
+            }
+          ]
+        }
+      ],
+      "categoriesFacet": [],
+      "locationsFacet": [
+        {
+          "Id": 300000000149325,
+          "Name": "United States",
+          "TotalCount": 2122
+        },
+        {
+          "Id": 100000000686062,
+          "Name": "TN, United States",
+          "TotalCount": 914
+        },
+        {
+          "Id": 100000000726870,
+          "Name": "Nashville, TN, United States",
+          "TotalCount": 913
+        },
+        {
+          "Id": 300000000106947,
+          "Name": "India",
+          "TotalCount": 342
+        },
+        {
+          "Id": 100000000686063,
+          "Name": "TX, United States",
+          "TotalCount": 316
+        },
+        {
+          "Id": 300001842984480,
+          "Name": "KARNATAKA, India",
+          "TotalCount": 231
+        },
+        {
+          "Id": 300001842985425,
+          "Name": "BENGALURU, KARNATAKA, India",
+          "TotalCount": 229
+        },
+        {
+          "Id": 100000579040474,
+          "Name": "CA, United States",
+          "TotalCount": 217
+        },
+        {
+          "Id": 100000000686067,
+          "Name": "WA, United States",
+          "TotalCount": 201
+        },
+        {
+          "Id": 100000000731910,
+          "Name": "Seattle, WA, United States",
+          "TotalCount": 198
+        },
+        {
+          "Id": 100000000729618,
+          "Name": "Austin, TX, United States",
+          "TotalCount": 182
+        },
+        {
+          "Id": 100000579041779,
+          "Name": "Santa Clara, CA, United States",
+          "TotalCount": 143
+        },
+        {
+          "Id": 100000000686066,
+          "Name": "VA, United States",
+          "TotalCount": 122
+        },
+        {
+          "Id": 100000000729409,
+          "Name": "Abilene, TX, United States",
+          "TotalCount": 86
+        },
+        {
+          "Id": 100000000730814,
+          "Name": "Reston, VA, United States",
+          "TotalCount": 58
+        },
+        {
+          "Id": 100000000686042,
+          "Name": "MI, United States",
+          "TotalCount": 57
+        },
+        {
+          "Id": 100000000686041,
+          "Name": "MA, United States",
+          "TotalCount": 48
+        },
+        {
+          "Id": 300000000149199,
+          "Name": "Romania",
+          "TotalCount": 47
+        }
+      ],
+      "postingDatesFacet": [
+        {
+          "Id": 7,
+          "Name": "Less than 7 days",
+          "TotalCount": 301
+        },
+        {
+          "Id": 30,
+          "Name": "Less than 30 days",
+          "TotalCount": 1415
+        },
+        {
+          "Id": 31,
+          "Name": "Greater than 30 days",
+          "TotalCount": 1439
+        }
+      ],
+      "titlesFacet": [],
+      "workLocationsFacet": [],
+      "flexFieldsFacet": [
+        {
+          "Name": "AttributeChar29",
+          "Label": "Role"
+        },
+        {
+          "Name": "AttributeChar4",
+          "Label": "Job Type"
+        },
+        {
+          "Name": "AttributeChar13",
+          "Label": "Experience Level"
+        },
+        {
+          "Name": "AttributeChar15",
+          "Label": "Line of Business"
+        },
+        {
+          "Name": "AttributeChar6",
+          "Label": "Years"
+        },
+        {
+          "Name": "AttributeChar12",
+          "Label": "Applicants"
+        },
+        {
+          "Name": "AttributeChar16",
+          "Label": "Tag"
+        },
+        {
+          "Name": "AttributeChar14",
+          "Label": "Tag2"
+        }
+      ],
+      "organizationsFacet": [],
+      "workplaceTypesFacet": [
+        {
+          "Id": "ORA_ON_SITE",
+          "Name": "On-site",
+          "TotalCount": 2854
+        }
+      ]
+    }
+  ],
+  "count": 1,
+  "hasMore": false,
+  "limit": 200,
+  "offset": 0,
+  "links": [
+    {
+      "rel": "self",
+      "href": "https://eeho.fa.us2.oraclecloud.com:443/hcmRestApi/resources/11.13.18.05/recruitingCEJobRequisitions",
+      "name": "recruitingCEJobRequisitions",
+      "kind": "collection"
+    },
+    {
+      "rel": "action",
+      "href": "https://eeho.fa.us2.oraclecloud.com:443/hcmRestApi/resources/11.13.18.05/recruitingCEJobRequisitions/action/getRequisitionsLocationCoordinates",
+      "name": "getRequisitionsLocationCoordinates",
+      "kind": "other"
+    },
+    {
+      "rel": "action",
+      "href": "https://eeho.fa.us2.oraclecloud.com:443/hcmRestApi/resources/11.13.18.05/recruitingCEJobRequisitions/action/getRequisitionDetailsForMap",
+      "name": "getRequisitionDetailsForMap",
+      "kind": "other"
+    }
+  ]
+}

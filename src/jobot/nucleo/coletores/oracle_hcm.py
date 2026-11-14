@@ -5,7 +5,10 @@ identificador e `site_number` (`CX_45001`) e `site` (`jobsearch`) em `parametros
 maiúsculas) vem das buscas ativas (DR-53), e sem nenhum é o Brasil. A coleta faz um pedido de
 descoberta sem filtro de local, lê das facetas (`locationsFacet`) o `Id` da geografia do país (o id
 muda por empresa e não é guardado) e pagina a lista filtrada de 25 em 25, com `limit` e `offset`
-dentro do `finder`. A lista não traz descrição: o `detalhar` busca o detalhe da vaga.
+dentro do `finder`. A API corta as facetas nos países com mais vagas: sem a do país na descoberta,
+ela se repete uma vez com `keyword=<nome do país em inglês>` no mesmo `finder` (decisão A47), e só
+sem a faceta nas duas a coleta termina `ok` vazia. A lista vai filtrada só pela faceta, sem keyword.
+A lista não traz descrição: o `detalhar` busca o detalhe da vaga.
 """
 
 import json
@@ -14,7 +17,7 @@ from collections.abc import AsyncIterator, Mapping, Sequence
 from dataclasses import replace
 from datetime import UTC, date, datetime
 from typing import Literal
-from urllib.parse import urlsplit
+from urllib.parse import quote, urlsplit
 
 from jobot.nucleo.coletores.base import (
     ContextoColeta,
@@ -26,7 +29,7 @@ from jobot.nucleo.coletores.base import (
 from jobot.nucleo.coletores.registro import limites
 from jobot.nucleo.http import ErroDeRede, HttpEducado
 from jobot.nucleo.modelo import VagaColetada
-from jobot.nucleo.tratamento.locais import ler_locais
+from jobot.nucleo.tratamento.locais import ler_locais, nome_em_ingles
 
 _LIMITES = limites("oracle_hcm")
 _DOMINIO = "oraclecloud.com"
@@ -197,8 +200,12 @@ class OracleHcm:
         pulados = lidas = total = 0
         truncou = quebrou = False
 
-        async def pagina(offset: int, geografia: str | None) -> dict[str, object]:
+        async def pagina(
+            offset: int, geografia: str | None, palavra: str | None = None
+        ) -> dict[str, object]:
             filtro = f",selectedLocationsFacet={geografia}" if geografia else ""
+            if palavra:  # entre aspas, como o site manda; o nome não leva vírgula nem `;`
+                filtro += f",keyword=%22{quote(palavra, safe='')}%22"
             url = (
                 f"https://{host}/hcmRestApi/resources/latest/recruitingCEJobRequisitions"
                 "?onlyData=true&expand=requisitionList.secondaryLocations"
@@ -209,7 +216,8 @@ class OracleHcm:
             try:
                 resposta = await http.pedir("GET", url, cabecalhos=_CABECALHOS)
             except ErroDeRede as erro:
-                if erro.status == 404 and geografia is None:  # só a descoberta diz "não existe"
+                if erro.status == 404 and geografia is None and palavra is None:
+                    # só a primeira descoberta diz "não existe"
                     raise _NaoEncontrado from erro
                 raise
             try:
@@ -217,12 +225,18 @@ class OracleHcm:
             except ValueError as erro:
                 raise _FormatoMudou from erro
 
-        async def paginas() -> AsyncIterator[Sequence[Item]]:
-            nonlocal pulados, lidas, total, truncou, quebrou
-            facetas = (descoberta := await pagina(0, None)).get("locationsFacet")
+        async def descobrir(palavra: str | None = None) -> str | None:
+            """`Id` da faceta do país numa descoberta (sem filtro de local), ou `None`."""
+            facetas = (descoberta := await pagina(0, None, palavra)).get("locationsFacet")
             if not _inteiro(descoberta.get("TotalJobsCount")) or not isinstance(facetas, list):
                 raise _FormatoMudou
-            geografia = _geografia(facetas, pais)
+            return _geografia(facetas, pais)
+
+        async def paginas() -> AsyncIterator[Sequence[Item]]:
+            nonlocal pulados, lidas, total, truncou, quebrou
+            geografia = await descobrir()
+            if geografia is None and (nome := nome_em_ingles(pais)):
+                geografia = await descobrir(nome)  # as facetas vêm cortadas nos países maiores
             if geografia is None:  # a empresa não tem vaga no país
                 yield []
                 return

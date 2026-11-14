@@ -279,6 +279,34 @@ async def test_link_da_vaga_pelo_id_em_minusculas() -> None:
     assert vaga.id_externo == "01a1c58d-bb0f-7b43-be36-3d4ed6cb728d"
 
 
+async def test_eureca_varios_work_models_sem_modalidade() -> None:
+    # na captura, a vaga 019fdbd4 diz workModel "presencial" e workModels ["presencial", "hibrido"]:
+    # com mais de um modelo, a modalidade fica para o rotulador ler do texto (como na Amazon)
+    resultado, _ = await _coletar(_json("normal"))
+    vaga = _vagas(resultado)[1]
+    assert vaga.id_externo == "019fdbd4-afee-720d-a537-cf5b8c58aa24"
+    assert vaga.modalidade_declarada is None
+
+
+@pytest.mark.parametrize(
+    ("modelos", "esperada"),
+    [
+        (["presencial", "hibrido"], None),
+        (["remoto", "presencial", "remoto"], None),
+        (["presencial"], "presencial"),  # um só: vale o workModel
+        (["presencial", "presencial"], "presencial"),
+        ([], "presencial"),
+        (None, "presencial"),
+        ("hibrido", "presencial"),  # fora do formato: ignorado
+    ],
+)
+async def test_eureca_work_models_decide_se_ha_modalidade(
+    modelos: object, esperada: str | None
+) -> None:
+    resultado, _ = await _coletar(_resposta(_com(workModel="presencial", workModels=modelos)))
+    assert _uma(resultado).modalidade_declarada == esperada
+
+
 async def test_campo_opcional_estranho_nao_derruba_a_vaga() -> None:
     dados = _com(
         description=5,

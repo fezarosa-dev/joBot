@@ -225,6 +225,23 @@ async def test_url_sem_loc_e_pulada_e_deixa_parcial() -> None:
     assert (resultado.estado, resultado.motivo) == ("parcial", "saude.formato_mudou")
 
 
+@pytest.mark.parametrize(
+    "entradas",
+    [
+        "<url><lastmod>2026-11-13T20:22:08+00:00</lastmod></url>",
+        "<url><loc> </loc></url><url></url>",
+        # a página da lista não é vaga: sobra só a <url> sem <loc>
+        "<url><loc>https://candidatos.abler.com.br/vagas</loc></url><url><loc></loc></url>",
+    ],
+)
+async def test_abler_sitemap_sem_loc_falhou(entradas: str) -> None:
+    # nenhuma <url> deu vaga: "parcial" vazio deixaria o escopo como se a lista tivesse saído
+    corpo = _sitemap().replace("</urlset>", entradas + "</urlset>")
+    resultado, _ = await _coletar(_xml(corpo))
+    assert (resultado.vagas, resultado.estado) == ((), "falhou")
+    assert resultado.motivo == "saude.formato_mudou"
+
+
 async def test_url_de_host_local_e_pulada_e_contada() -> None:
     # decisão 19: a UrlListada recusa host local; o item é pulado e conta como sem detalhe
     boa = "https://candidatos.abler.com.br/vagas/dev-1"
