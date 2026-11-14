@@ -62,11 +62,10 @@ _MULTIPLICADORES = {
 _MOEDA_TXT = rf"(?<![a-z])(?:{_alternativas(list(_MOEDAS))})(?![a-z])"
 # "401k" logo depois de símbolo ou código de moeda é valor, não benefício ("$401k", "US$ 401k",
 # "USD 401k"); "$401(k)" e "$ bonus" seguem benefício. O lookbehind tem largura fixa: o texto
-# chega com espaços repetidos reduzidos a um só (`ler_salario`).
+# chega com espaços repetidos reduzidos a um só (`ler_salario`). O `\b` barra palavra que termina
+# no código ("years 401k", "Fraud 401k"); código colado no número já cai no `(?<![a-z])`.
 _SIMBOLO = "[" + re.escape("".join(sorted({m[-1] for m in _MOEDAS if not m[-1].isalnum()}))) + "]"
-_APOS_CODIGO = "|".join(
-    rf"(?<={re.escape(c)})\d+k|(?<={re.escape(c)}\s)\d+k" for c in _MOEDAS if c[-1].isalnum()
-)
+_APOS_CODIGO = "|".join(rf"(?<=\b{re.escape(c)}\s)\d+k" for c in _MOEDAS if c[-1].isalnum())
 _BENEFICIO_TXT = (
     rf"(?<![a-z])(?!(?<={_SIMBOLO})\d+k|(?<={_SIMBOLO}\s)\d+k|{_APOS_CODIGO})"
     rf"(?:{_alternativas(list(_BENEFICIOS))})(?![a-z])"
