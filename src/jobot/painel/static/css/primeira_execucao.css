@@ -1,0 +1,175 @@
+/* Assistente de primeira execução (plano T53): só as cores e medidas da base.css, nenhuma cor nova. */
+
+.assistente {
+  max-width: 40rem;
+  margin: 0 auto;
+}
+
+.assistente-passo {
+  margin: 0 0 0.25rem;
+  color: var(--texto-2);
+  font-size: 0.875rem;
+}
+
+.assistente-titulo {
+  margin: 0 0 0.75rem;
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+.assistente-texto {
+  margin: 0 0 1rem;
+  color: var(--texto-2);
+}
+
+.assistente-form {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.campo {
+  display: grid;
+  gap: 0.4rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.campo legend,
+.campo label {
+  font-weight: 500;
+}
+
+.campo small {
+  color: var(--texto-2);
+}
+
+.campo input[type="text"],
+.campo select,
+.campo textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 2.5rem;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--borda);
+  border-radius: 10px;
+  background-color: var(--superficie);
+  color: var(--texto);
+  font: inherit;
+}
+
+.linha-cidade {
+  display: grid;
+  grid-template-columns: 1fr 5.5rem;
+  gap: 0.5rem;
+  margin: 0 0 0.4rem;
+}
+
+.campo-salario {
+  grid-template-columns: 1fr 7rem;
+  align-items: end;
+}
+
+.campo-salario small {
+  grid-column: 1 / -1;
+}
+
+.opcoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1rem;
+}
+
+.opcoes-coluna {
+  flex-direction: column;
+}
+
+.opcao {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2rem;
+  font-weight: 400;
+}
+
+.acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.botao {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+  min-height: 2.5rem;
+  margin: 0;
+  padding: 0.4rem 1rem;
+  border: 0;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform var(--duracao) var(--mola);
+}
+
+.botao:active {
+  transform: scale(0.96);
+}
+
+.botao-primario {
+  background-color: var(--destaque);
+  color: var(--sobre-destaque);
+}
+
+.botao-secundario {
+  background-color: var(--trilho);
+  color: var(--texto);
+}
+
+.assistente-alerta {
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--destaque);
+  border-radius: var(--raio);
+  background-color: var(--superficie);
+  color: var(--texto);
+}
+
+.assistente-alerta p {
+  margin: 0.25rem 0 0;
+}
+
+.assistente-resumo {
+  margin: 0 0 1.25rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  background-color: var(--superficie);
+}
+
+.assistente-resumo h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.0625rem;
+}
+
+.assistente-resumo dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.25rem 1rem;
+  margin: 0;
+}
+
+.assistente-resumo dt {
+  color: var(--texto-2);
+}
+
+.assistente-resumo dd {
+  margin: 0;
+}

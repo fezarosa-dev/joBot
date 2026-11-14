@@ -1,0 +1,9 @@
+<h1 class="assistente-titulo">{{ t("primeira_execucao.pronto.titulo") }}</h1>
+<p class="assistente-texto">{{ t("primeira_execucao.pronto.texto") }}</p>
+<div class="acoes">
+  <form method="post" action="/buscar-agora">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <button type="submit" class="botao botao-primario">{{ t("primeira_execucao.pronto.buscar_agora") }}</button>
+  </form>
+  <a class="botao botao-secundario" href="/vagas?aba=destaques">{{ t("primeira_execucao.pronto.ver_vagas") }}</a>
+</div>

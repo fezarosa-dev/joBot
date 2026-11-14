@@ -94,7 +94,7 @@ def _atual(html: str) -> list[str]:
 
 def test_raiz_vai_para_vagas_ou_para_a_primeira_execucao(painel: Painel) -> None:
     primeira = painel.get("/")
-    assert (primeira.status_code, primeira.headers["location"]) == (303, "/primeira-execucao")
+    assert (primeira.status_code, primeira.headers["location"]) == (303, "/primeira-execucao/1")
     painel.config("primeira_execucao_concluida", True)
     pronta = painel.get("/")
     assert (pronta.status_code, pronta.headers["location"]) == (303, "/vagas?aba=destaques")
