@@ -19,6 +19,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 
+from jobot.banco import execucoes
 from jobot.banco.buscas import paises_das_buscas, recalcular_encaixe, termos_das_buscas
 from jobot.banco.cadastros import empresas_da_coleta, fontes, ler_config
 from jobot.banco.conexao import abrir
@@ -31,7 +32,6 @@ from jobot.banco.execucoes import (
     gravar_saude,
     interromper_execucao,
 )
-from jobot.banco.execucoes import bater as gravar_batimento
 from jobot.banco.gravacao import (
     fechar_escopos_extintos,
     gravar_cache_detalhe,
@@ -125,7 +125,7 @@ async def bater(con: sqlite3.Connection, execucao_id: int, relogio: Relogio) -> 
         while True:
             await relogio.dormir(BATIMENTO_S)
             try:
-                gravar_batimento(con2, execucao_id, relogio.agora())
+                execucoes.bater(con2, execucao_id, relogio.agora())
             except sqlite3.Error:
                 log.exception("batimento da execução %s falhou", execucao_id)
     finally:
