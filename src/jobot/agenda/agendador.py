@@ -80,11 +80,20 @@ async def _rodar(tipo: str, trava: asyncio.Lock, tarefa: Callable[[], Awaitable[
 
 
 async def laco(
-    tarefas: Mapping[str, Callable[[], Awaitable[None]]], estado: Estado, relogio: Relogio
+    tarefas: Mapping[str, Callable[[], Awaitable[None]]],
+    estado: Estado,
+    relogio: Relogio,
+    *,
+    travas: Mapping[str, asyncio.Lock] | None = None,
 ) -> None:
-    """Acorda a cada 60 s e dispara o que venceu; cancelar o laço cancela o que roda."""
+    """Acorda a cada 60 s e dispara o que venceu; cancelar o laço cancela o que roda.
+
+    `travas` vem de fora quando outra rota ("buscar agora") precisa da mesma trava por tipo
+    (D55); sem ela, o laço cria as suas.
+    """
     iniciou_em = relogio.agora()
-    travas = {tipo: asyncio.Lock() for tipo in tarefas}
+    if travas is None:
+        travas = {tipo: asyncio.Lock() for tipo in tarefas}
     async with asyncio.TaskGroup() as grupo:
         while True:
             try:
@@ -102,9 +111,9 @@ async def laco(
                 _LOG.exception("leitura do estado da agenda falhou")
                 vencidos = []
             for tipo in vencidos:
-                trava = travas.get(tipo)
-                if trava is None or trava.locked():
-                    continue
+                trava, tarefa = travas.get(tipo), tarefas.get(tipo)
+                if trava is None or tarefa is None or trava.locked():
+                    continue  # as travas de fora podem trazer tipo ainda sem tarefa
                 await trava.acquire()  # livre: não suspende, então a checagem acima vale
-                grupo.create_task(_rodar(tipo, trava, tarefas[tipo]))
+                grupo.create_task(_rodar(tipo, trava, tarefa))
             await relogio.dormir(VOLTA_S)
