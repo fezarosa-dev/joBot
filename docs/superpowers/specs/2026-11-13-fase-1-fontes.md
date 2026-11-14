@@ -351,7 +351,7 @@ Não existe um mural único. Duas unidades têm lista pública:
 #### Eureca
 
 - **Decisão do dono (Q6, 2026-11-13):** a Eureca entra. Tem chave liga/desliga, ritmo educado, sempre o link para a vaga original e aviso no README.
-- **Termos (7.1 a 7.3):** pedem consentimento prévio e expresso. As notas da conferência de 2026-11-13 recomendam pedir autorização à Eureca antes de ligar o coletor, porque o endereço foi achado lendo o código do aplicativo de candidatos. A pergunta ao dono segue aberta na D80: (a) manter ligada, (b) deixar desligada por padrão até a autorização (recomendada), (c) tirar da fase 1.
+- **Termos (7.1 a 7.3):** pedem consentimento prévio e expresso. As notas da conferência de 2026-11-13 recomendam pedir autorização à Eureca antes de ligar o coletor, porque o endereço foi achado lendo o código do aplicativo de candidatos. O dono decidiu em 2026-11-14 (D80, A66): a Eureca nasce ligada, como as outras fontes, e quem preferir respeitar o pedido de consentimento a desliga em Configurações.
 - **Endereço:** `GET https://candidate-api.eureca.me/opportunities?page=N&pageSize=200`, JSON, sem login (decisão A42). O endereço sai do código do aplicativo `app.eureca.me`; nenhum login nem bloqueio é contornado (conferido na rede em 2026-11-14).
 - **Resposta e paginação:** `{items, total, page, pageSize}`. `page` começa em 1; sem parâmetros a API devolve a página 1 com `pageSize` 200, e o pedido com `pageSize=200` explícito foi aceito na busca real. O coletor para quando a página vem menor que `pageSize` ou quando `page * pageSize >= total`. Teto local: `MAX_PAGINAS = 10` (2.000 vagas, hoje há 9); ao chegar nele o escopo fica `parcial` com `saude.limite_atingido` (`eureca.py:34,168`).
 - **Cabeçalhos:** a API não manda `ETag` nem `Last-Modified`: sem pedido condicional. Ritmo da fonte: `espera_s` 2 s (`fontes.json`).
@@ -482,7 +482,7 @@ Fora por decisão do dono (Q6, 2026-11-13). Ver a seção 4.
 
 As fontes com caminho público que não aparecem nesta tabela entram na fase 1.
 
-Eureca, Abler e Gupy têm termos restritivos e entram mesmo assim, por decisão do dono (Q6, 2026-11-13): cada uma com chave liga/desliga, ritmo educado, link para a vaga original e aviso no README. A Eureca tem endereço público confirmado na busca real de 2026-11-14 (seção 3.2); a pergunta da autorização segue na D80.
+Eureca, Abler e Gupy têm termos restritivos e entram mesmo assim, por decisão do dono (Q6, 2026-11-13): cada uma com chave liga/desliga, ritmo educado, link para a vaga original e aviso no README. A Eureca tem endereço público confirmado na busca real de 2026-11-14 (seção 3.2); a Eureca nasce ligada, por decisão do dono em 2026-11-14 (D80).
 
 ---
 
@@ -688,7 +688,7 @@ Identificador "chutado" quer dizer: testado pelo nome da empresa, sem prova de q
 |---|---|
 | Primeiro pedido de cada fonte com o user agent do joBot | Workday, Eightfold, Oracle HCM, CIEE, IEL, Super Estágios, Cia de Talentos, USP, PTAX |
 | `city` e `badge` na API do portal da Gupy | 2.5 |
-| Abrir no navegador um link `app.eureca.me/vagas/<id>` (o formato saiu certo na busca real); resposta da Eureca ao pedido de autorização (D80) | 3.2 |
+| Abrir no navegador um link `app.eureca.me/vagas/<id>` (o formato saiu certo na busca real) | 3.2 |
 | Consulta de estado por id na Jobicy | 2.2 |
 | Host europeu da Lever e do Greenhouse | 2.4 |
 | Link montado da vaga na InHire | 3.1 |

@@ -26,6 +26,8 @@ A fase 1: a base do joBot. Já dá para instalar e usar.
 - Aviso de versão nova, desligado por padrão. Ligado, só pede ao `api.github.com` a versão mais nova, e o pedido leva o user agent fixo e o IP.
 - Eureca, Abler e Gupy, cada um com a sua chave liga/desliga. Todas vêm ligadas por padrão; os termos da Eureca pedem consentimento prévio, e quem preferir respeitar desliga a Eureca em Configurações.
 - Painel em português e em inglês, com tema claro e escuro.
+- Na barra de andamento da busca, a lista das fontes que ainda estão rodando.
+- Aviso "Salvo." depois de salvar em Configurações.
 - Decisões do projeto (ADRs 0001 a 0021) e o `duvidas.md`.
 - README com selos, diagrama, tabelas e perguntas frequentes, e a versão em inglês.
 - Gráfico de estrelas no README.
@@ -37,3 +39,10 @@ A fase 1: a base do joBot. Já dá para instalar e usar.
 
 - Denúncias do Código de Conduta vão para o e-mail do projeto.
 - O README deixou de ser só plano: descreve a instalação da fase 1.
+
+### Corrigido
+
+- A descoberta semanal pelo Common Crawl não falha mais por causa de blocos enormes de outros sites, que o joBot nunca baixa.
+- A Greenhouse aceita quadros de vagas muito grandes, como o da Stripe.
+- A agenda só começa a buscar depois que o assistente de primeira execução termina.
+- Em Fontes, uma fonte que atingiu o limite mostra a última rodada que ela de fato fez.
