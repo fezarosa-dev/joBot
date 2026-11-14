@@ -139,3 +139,13 @@ _NOMES = {codigo: _ACENTOS.get(chave, chave.title()) for chave, codigo in _PAISE
 def nome_do_pais(codigo: str) -> str | None:
     """Nome em português do país (ISO alfa-2 em maiúsculas); `None` se o código não consta."""
     return _NOMES.get(codigo)
+
+
+# A primeira chave de cada código em `_PAISES` é o nome em inglês.
+_INGLES = {codigo: chave.title() for chave, codigo in reversed(_PAISES.items())}
+
+
+def nome_em_ingles(codigo: str) -> str | None:
+    """Nome em inglês do país (ISO alfa-2 em maiúsculas), como o leitor de locais o entende;
+    `None` se o código não consta."""
+    return _INGLES.get(codigo)

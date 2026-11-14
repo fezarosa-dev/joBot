@@ -262,7 +262,8 @@ class ClienteEducado:
             try:
                 await conferir_dns(destino.host, self._resolver)
             except ErroDeRede as erro:
-                erro.add_note(f"redirecionamento de {resposta.request.url}")
+                # na mensagem, não em nota: o log grava str(erro), que não mostra as notas
+                erro.args = (f"{resposta.request.url}: redirecionamento recusado: {erro}",)
                 raise
 
     async def _enviar(self, pedido: httpx.Request, espera_s: float) -> httpx.Response:

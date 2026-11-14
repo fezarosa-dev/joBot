@@ -89,6 +89,9 @@ def _vaga(job: object) -> VagaColetada | None:
     if not _UUID.fullmatch(ident) or not titulo or not empresa:
         return None  # o id entra no caminho do link: só UUID
     local = ", ".join(filter(None, (_texto(job.get("cityName")), _texto(job.get("stateAcronym")))))
+    modelos = job.get("workModels")
+    # vários modelos (presencial e híbrido): a modalidade fica para o rotulador, pelo texto
+    varios = isinstance(modelos, list) and len({_texto(m) for m in modelos} - {""}) > 1
     return VagaColetada(
         fonte="eureca",
         escopo="",
@@ -99,7 +102,7 @@ def _vaga(job: object) -> VagaColetada | None:
         descricao=_texto(job.get("description")),
         id_externo=ident,
         locais=(local,) if local else (),
-        modalidade_declarada=_texto(job.get("workModel")) or None,
+        modalidade_declarada=None if varios else _texto(job.get("workModel")) or None,
         contrato_declarado=_texto(job.get("contractTypeKey")) or None,
         salario_estruturado=_salario(job.get("salary")),
         publicada_em=_instante(job.get("publishedAt")) or _instante(job.get("createdAt")),

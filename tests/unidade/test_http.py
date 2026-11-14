@@ -690,6 +690,24 @@ async def test_resolvedor_sem_endereco_valido_recusa(enderecos: list[str]) -> No
     assert len(srv.pedidos) == 1
 
 
+@pytest.mark.parametrize(
+    ("destino", "dns"),
+    [
+        ("http://interno.example/x", ResolvedorFalso("10.0.0.5")),  # recusado pelo DNS
+        ("http://interno.example/x", ResolvedorFalso(erro=OSError("sem nome"))),
+        ("http://10.0.0.5/x", ResolvedorFalso()),  # IP local literal
+    ],
+)
+async def test_salto_recusado_traz_url_de_origem(destino: str, dns: ResolvedorFalso) -> None:
+    # o log grava str(erro): a URL de origem vai na mensagem, não só numa nota
+    srv = _salto_para(destino)
+    cli, _ = _cliente(srv, resolver=dns)
+    with pytest.raises(ErroDeRede) as recebido:
+        await cli.escopo().pedir("GET", "https://a.example/origem")
+    assert "https://a.example/origem" in str(recebido.value)
+    assert len(srv.pedidos) == 1
+
+
 async def test_redirecionamento_para_nome_publico_segue() -> None:
     srv = _salto_para("https://b.example/fim")
     dns = ResolvedorFalso(PUBLICO, "2606:2800:21f:cb07:6820:80da:af6b:8b2c")

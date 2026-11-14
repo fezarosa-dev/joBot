@@ -8,7 +8,7 @@ sem limite publicado: 2 s entre pedidos (`fontes.json`) e teto de páginas, não
 import json
 import re
 from collections.abc import AsyncIterator, Mapping, Sequence
-from datetime import UTC, datetime
+from datetime import datetime, timedelta, timezone
 from typing import Literal
 
 from jobot.nucleo.coletores.base import (
@@ -38,6 +38,9 @@ _ISO3 = {
     "MX": "MEX", "UY": "URY", "PE": "PER", "IN": "IND",
 }  # fmt: skip
 _CAMINHO = re.compile(r"/(?!/)[\w.~%/-]+")
+# shortcut: o escopo é o país, mas a data sai em Brasília para todos (o Brasil é o país padrão,
+# A21); trocar pelo fuso do país quando outro escopo pesar.
+_BRASILIA = timezone(timedelta(hours=-3))  # sem horário de verão desde 2019
 _DATA = re.compile(r"([A-Za-z]+)\s+(\d{1,2}),\s*(\d{4})")
 _MESES = {
     m: i
@@ -63,13 +66,14 @@ def _inteiro(valor: object) -> int | None:
 
 
 def _data(valor: object) -> datetime | None:
-    """`posted_date` vem em inglês por extenso ("November 13, 2026"); sem hora, vale 00:00 UTC."""
+    """`posted_date` vem em inglês por extenso ("November 13, 2026"); sem hora, vale a meia-noite
+    de Brasília (00:00 UTC cairia na noite do dia anterior)."""
     achado = _DATA.fullmatch(_texto(valor))
     mes = _MESES.get(achado.group(1).lower()) if achado else None
     if achado is None or mes is None:
         return None
     try:
-        return datetime(int(achado.group(3)), mes, int(achado.group(2)), tzinfo=UTC)
+        return datetime(int(achado.group(3)), mes, int(achado.group(2)), tzinfo=_BRASILIA)
     except ValueError:  # "February 30"
         return None
 
