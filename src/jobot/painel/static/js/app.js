@@ -12,7 +12,7 @@
   // depois de uma troca, o foco vai para o [data-foco] do trecho novo, se ele tiver um;
   // trecho sem [data-foco] (ex.: andamento que atualiza sozinho) não rouba o foco
   document.addEventListener("htmx:afterSwap", (evento) => {
-    const foco = evento.detail.target.querySelector("[data-foco]");
+    const foco = evento.detail.target?.querySelector("[data-foco]");
     if (!foco) return;
     if (!foco.matches("a[href], button, input, select, textarea, [tabindex]")) {
       foco.setAttribute("tabindex", "-1");
