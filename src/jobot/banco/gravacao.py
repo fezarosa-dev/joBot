@@ -183,6 +183,12 @@ def _corrigir(
                     s = ler_salario(f"{cols['sal_moeda']} {texto}", None, "outro")
                 if s is None:
                     s = ler_salario(texto, None, cols["idioma"])
+                    if s is not None and cols["sal_moeda"] is not None:
+                        # moeda que o leitor não reconhece no texto (NZD do salário estruturado):
+                        # não cai na do idioma. shortcut: sem faixa para a moeda, não é plausível
+                        # e o período deduzido segue a faixa da moeda do idioma; upgrade quando
+                        # o leitor aceitar moeda por parâmetro
+                        s = replace(s, moeda=cols["sal_moeda"], plausivel=False)
                 if s is None:
                     continue
                 cols |= _salario(replace(s, texto=texto), texto)
