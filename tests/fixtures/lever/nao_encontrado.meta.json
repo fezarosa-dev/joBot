@@ -1,0 +1,12 @@
+{
+  "url": "https://api.lever.co/v0/postings/nao-existe?mode=json",
+  "data": "2026-11-14T12:00:00+00:00",
+  "codigo": 404,
+  "cabecalhos": {
+    "Content-Type": "application/json"
+  },
+  "sha256": "68502bb9808cdfba5577f80ac98ab83dce34701c9c45df08d0cf5fd9c5388539",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "montado à mão a partir do apêndice 2.4 (identificador inexistente devolve 404 com este corpo; não foi capturado)"
+}
