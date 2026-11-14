@@ -242,6 +242,18 @@ async def test_429_com_cota_sobrando_ou_com_retry_after_segue_as_esperas() -> No
     assert rel.dormidas == [30, 60, 120]
 
 
+@pytest.mark.parametrize("invalido", ["logo", "", "12abc", "-5"])
+async def test_429_com_cota_zero_e_retry_after_invalido_para_na_hora(invalido: str) -> None:
+    # Retry-After presente mas que não é número nem data HTTP vale como ausente (T99).
+    cabecalhos = {"x-ratelimit-remaining": "0", "Retry-After": invalido}
+    srv = Servidor(httpx.Response(429, headers=cabecalhos))
+    cli, rel = _cliente(srv)
+    with pytest.raises(LimiteAtingido):
+        await cli.escopo().pedir("GET", "https://a.example/")
+    assert rel.dormidas == []
+    assert len(srv.pedidos) == 1
+
+
 async def test_para_no_429_um_pedido_sem_espera() -> None:
     srv = Servidor(httpx.Response(429, headers={"Retry-After": "5"}))
     cli, rel = _cliente(srv)
