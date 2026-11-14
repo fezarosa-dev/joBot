@@ -418,11 +418,11 @@ Cada empresa está numa de duas gerações da API.
 - **Detalhe:** `GET https://{host}/hcmRestApi/resources/latest/recruitingCEJobRequisitionDetails?expand=all&onlyData=true&finder=ById;Id=%22{Id}%22,siteNumber={siteNumber}`
 - **Paginação:** `limit` e `offset` ficam **dentro** do `finder`. `limit=200` foi aceito. Total em `items[0].TotalJobsCount`.
 - **`siteNumber`:** sai do HTML da página de carreira, no atributo `data-sitenumber`.
-- **Filtro de Brasil:** o `GeographyId` do Brasil muda por empresa (300000000106728 numa, 300000000289141 na outra). O coletor o lê de `items[0].locationsFacet`, e a lista é filtrada só pela faceta, sem `keyword`. Correção pela busca real de 2026-11-14 (conferido na rede em 2026-11-14): a descoberta sem filtro traz só as maiores localidades (18 facetas na Oracle, 40 no JPMorgan) e o Brasil não aparece, então o coletor deu `ok` com 0 vagas. Com `keyword=Brazil` a faceta do Brasil vem (o id achado na conferência de 2026-11-13 já foi com `keyword="Brazil"` e `facetsList=LOCATIONS`), e a lista filtrada só pela faceta traz 8 vagas na Oracle e 20 no JPMorgan. A T126 repete a descoberta uma vez com `keyword=<nome do país em inglês>` quando a faceta não vem; só sem ela nas duas o escopo termina `ok` vazio (D74). A faceta com hierarquia ("SAO PAULO, SP, Brazil") só vale como país quando o nome não tem vírgula e `ler_locais` dá o país do escopo.
+- **Filtro de Brasil:** o `GeographyId` do Brasil muda por empresa (300000000106728 numa, 300000000289141 na outra). O coletor o lê de `items[0].locationsFacet`, e a lista é filtrada só pela faceta, sem `keyword`. Correção pela busca real de 2026-11-14 (conferido na rede em 2026-11-14): a descoberta sem filtro traz só as maiores localidades (18 facetas na Oracle, 40 no JPMorgan) e o Brasil não aparece, então o coletor deu `ok` com 0 vagas. Com `keyword=Brazil` a faceta do Brasil vem (o id achado na conferência de 2026-11-13 já foi com `keyword="Brazil"` e `facetsList=LOCATIONS`), e a lista filtrada só pela faceta traz 8 vagas na Oracle e 20 no JPMorgan. A T126 (entregue em 2026-11-14) repete a descoberta uma vez com `keyword=<nome do país em inglês>` quando a faceta não vem (`oracle_hcm.py:237-239`); a palavra vai entre aspas, como o site manda (`oracle_hcm.py:207-208`). Só sem a faceta nas duas descobertas o escopo termina `ok` vazio (D74). Conferido ao vivo em 2026-11-14 depois da entrega: 8 vagas na Oracle e 20 no JPMorgan, e a API aceitou a keyword com aspas. A faceta com hierarquia ("SAO PAULO, SP, Brazil") só vale como país quando o nome não tem vírgula e `ler_locais` dá o país do escopo.
 - **Vaga com o Brasil só como local secundário:** o filtro pelo Brasil traz também vaga cujo `PrimaryLocation` é de outro país (a Oracle trouxe uma do México). O coletor guarda `PrimaryLocation` e `secondaryLocations` em `locais` e deixa o tratamento decidir (`oracle_hcm.py:128`).
 - **Nome da empresa:** nem a lista nem o detalhe o trazem. O coletor usa o nome do cadastro, guardado por `escopos`, e cai no primeiro rótulo do host (`eeho`) sem cadastro (`oracle_hcm.py:173,196`), o mesmo atalho do Workday (D50).
 - **Prazo:** `PostingEndDate` e `ExternalPostedEndDate` vieram `null` em todas as amostras. O coletor lê o prazo quando vem (`oracle_hcm.py:151,309`), mas nunca o viu preenchido.
-- **Endereço aceito:** `siteNumber` casa `[A-Za-z0-9_]{1,50}` e o host só vale em `*.oraclecloud.com` (`oracle_hcm.py:37,38`); domínio próprio da empresa fica de fora até a T76 cadastrar empresas reais. O resolver aceita `https://<host>/hcmUI/CandidateExperience/<idioma>/sites/<site>[/...]`.
+- **Endereço aceito:** `siteNumber` casa `[A-Za-z0-9_]{1,50}` e o host só vale em `*.oraclecloud.com` (`oracle_hcm.py:37,38`); domínio próprio da empresa fica de fora. O resolver aceita `https://<host>/hcmUI/CandidateExperience/<idioma>/sites/<site>[/...]`.
 - **Campos:** `Id`, `Title`, `PrimaryLocation`, `PrimaryLocationCountry`, `secondaryLocations`, `PostedDate`, `PostingEndDate`, `ShortDescriptionStr`; no detalhe, `ExternalDescriptionStr`, `ExternalResponsibilitiesStr`, `ExternalQualificationsStr` (HTML).
 - **Link da vaga:** `https://{host}/hcmUI/CandidateExperience/en/sites/{site}/job/{Id}`
 - **Vistos:** `eeho.fa.us2.oraclecloud.com` (`CX_45001`, site `jobsearch`; 2.835 vagas, 8 no Brasil); `jpmc.fa.oraclecloud.com` (`CX_1001`; 14 no Brasil; 20 na busca real de 2026-11-14).
@@ -539,6 +539,8 @@ Como ler a coluna "Vagas vistas":
 - SmartRecruiters: só as vagas no Brasil (filtro `country=br`).
 
 A coluna "Brasil ou remoto" é a contagem feita na conferência. Ela usa o campo de local e pode estar um pouco inflada onde "remoto" não cita o país.
+
+Conferência ao vivo de 2026-11-14 (`scripts/conferir_empresas.py`, `dev` `fa22d1e`): as 83 empresas do `empresas.json`, o primeiro escopo de cada uma, filtro `BR`, termo `developer`, até 5 pedidos por empresa. 81 de 83 respondem, contando `no_limite` como resposta. Beep Saúde e CNA Idiomas (Gupy) responderam `ok` com 0 vagas. Localiza&Co, Sicredi, Hapvida (Gupy), Santander (Workday) e Mercado Livre (Eightfold) pararam no teto de pedidos do script (`no_limite`), então a contagem de vagas deles é um mínimo. A Mastercard (Workday) falhou com `saude.erro_de_rede` (manutenção, HTTP 303) e a Microsoft (Eightfold) parou em 429. A divisão por fonte e as decisões estão na D74.
 
 ### 7.1 Greenhouse (15)
 
@@ -697,7 +699,7 @@ Identificador "chutado" quer dizer: testado pelo nome da empresa, sem prova de q
 | Pedido condicional (304) nas fontes que devolvem `ETag` ou `Last-Modified`: não foi testado na rede | 2.1 a 2.5 |
 | Páginas além da primeira (GitHub, Himalayas, Jobicy, Gupy): só a primeira foi vista na captura | 2.1, 2.2, 2.5 |
 | Se o feed do Google responde 304 ao `If-Modified-Since` (a busca real de 2026-11-14 foi uma rodada só) | 3.4 |
-| Oracle HCM: valor de `PostingEndDate` preenchido, e o segundo pedido de descoberta com `keyword` (T126) na rede | 3.3 |
+| Oracle HCM: valor de `PostingEndDate` preenchido (o segundo pedido de descoberta com `keyword` da T126 já foi conferido na rede em 2026-11-14: 8 vagas na Oracle, 20 no JPMorgan) | 3.3 |
 | Amazon: `locations[].type` igual a `VIRTUAL` numa vaga real | 3.4 |
 | Abler: um segundo valor de `status` além de "Em andamento" | 3.1 |
 | Termos de uso gerais do Greenhouse e da Lever (só a documentação das APIs foi lida) | 2.4 |
