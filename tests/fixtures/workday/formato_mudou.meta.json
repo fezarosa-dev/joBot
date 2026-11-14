@@ -1,0 +1,20 @@
+{
+  "url": "https://santander.wd3.myworkdayjobs.com/wday/cxs/santander/SantanderCareers/jobs",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {},
+  "sha256": "cebe266655709bad204f8b8ac17b8038bb17a15f2db3a0d21653f46f25fc956f",
+  "versao": "0.1.0",
+  "metodo": "POST",
+  "montado_a_mao": "montado à mão a partir de normal.json: a segunda vaga troca title por name (formato mudou).",
+  "corpo_json": {
+    "appliedFacets": {
+      "locationCountry": [
+        "1a29bb1357b240ab99a2fa755cc87c0e"
+      ]
+    },
+    "limit": 20,
+    "offset": 0,
+    "searchText": ""
+  }
+}
