@@ -6,7 +6,7 @@ Thanks for your interest! This guide explains how to help with joBot, now and af
 
 ## Project status
 
-joBot has no code yet and there is nothing to install. Phase 1 (foundation) is being designed. The decisions made so far are in [`docs/decisions/`](../docs/decisions/README.md) (Portuguese only for now). To learn what the project is and where it is going, read the [README](../README.en.md).
+joBot has nothing to install yet. Phase 1 (foundation) is in progress. The decisions made so far are in [`docs/decisions/`](../docs/decisions/README.md) (Portuguese only for now). To learn what the project is and where it is going, read the [README](../README.en.md).
 
 ## How to help now
 
