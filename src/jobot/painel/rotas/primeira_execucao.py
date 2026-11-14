@@ -34,9 +34,9 @@ from jobot.banco import buscas
 from jobot.banco.cadastros import gravar_config, ler_config
 from jobot.nucleo.cambio import MOEDAS
 from jobot.nucleo.modelo import Busca, Idioma, Local, Modalidade, Motivo, Nivel
-from jobot.nucleo.relogio import Relogio, RelogioReal
 from jobot.painel import formatos
 from jobot.painel.i18n import t
+from jobot.painel.rotas.vagas import relogio_do_painel
 from jobot.painel.seguranca import Con, idioma_do_pedido, renderizar
 from jobot.sistema import caso, segundo_plano_linux
 from jobot.sistema.segundo_plano_linux import Recusa, Rodar
@@ -81,11 +81,6 @@ class Entrada:
     salario: str = ""
     moeda: str = "BRL"
     idiomas: set[str] = field(default_factory=set)
-
-
-def _relogio(request: Request) -> Relogio:
-    relogio: Relogio = getattr(request.app.state, "relogio", None) or RelogioReal()
-    return relogio
 
 
 def _ambiente(request: Request) -> Mapping[str, str]:
@@ -327,7 +322,7 @@ async def _gravar_passo_1(request: Request, con: Con) -> Response:
         if busca is None:
             destino = "/primeira-execucao/2" + (f"?busca={pedido}" if existente else "")
             return RedirectResponse(destino, status_code=303)
-        agora = _relogio(request).agora()
+        agora = relogio_do_painel(request).agora()
         regras = bool(ler_config(con, "regras_ocultar_ligadas"))
         if existente is None:
             busca_id = buscas.criar_busca(
