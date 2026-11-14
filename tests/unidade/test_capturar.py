@@ -38,9 +38,9 @@ def _carregar() -> ModuleType:
 capturar = _carregar()
 
 
-def _reduzir(conteudo: str | bytes, formato: str) -> bytes:
+def _reduzir(conteudo: str | bytes, formato: str, fonte: str | None = None) -> bytes:
     bruto = conteudo.encode() if isinstance(conteudo, str) else conteudo
-    saida: bytes = capturar.reduzir(bruto, formato)
+    saida: bytes = capturar.reduzir(bruto, formato, fonte)
     return saida
 
 
@@ -64,6 +64,33 @@ def test_reduzir_dicionario_corta_so_a_lista_principal() -> None:
     assert aninhada["data"]["items"] == [0, 1, 2, 3, 4]
     curta = json.loads(_reduzir(json.dumps([1, 2, 3]), "json"))
     assert curta == [1, 2, 3]
+
+
+def _vagas_com_lista_maior_dentro() -> dict[str, Any]:
+    # a primeira vaga tem mais tags do que o feed tem vagas: a "maior lista" não é a das vagas
+    vagas = [{"id": i, "tags": [f"t{n}" for n in range(30 if i == 0 else 2)]} for i in range(12)]
+    return {"total": 12, "jobs": vagas}
+
+
+@pytest.mark.parametrize("fonte", ["remotive", "himalayas"])
+def test_reduzir_corta_a_lista_de_vagas_e_nao_a_maior_lista(fonte: str) -> None:
+    saida = json.loads(_reduzir(json.dumps(_vagas_com_lista_maior_dentro()), "json", fonte))
+    assert [v["id"] for v in saida["jobs"]] == [0, 1, 2, 3, 4]
+    assert len(saida["jobs"][0]["tags"]) == 30  # as tags ficam inteiras
+
+
+def test_fonte_sem_indicacao_corta_a_maior_lista() -> None:
+    # caracterização: o comportamento de antes vale para fonte sem indicação (ou fonte nenhuma)
+    for fonte in (None, "outra_fonte"):
+        saida = json.loads(_reduzir(json.dumps(_vagas_com_lista_maior_dentro()), "json", fonte))
+        assert len(saida["jobs"]) == 12 and len(saida["jobs"][0]["tags"]) == 5
+
+
+def test_indicacao_que_nao_acha_a_lista_cai_na_maior_lista() -> None:
+    sem_chave = {"outras": [{"id": i} for i in range(9)]}
+    assert len(json.loads(_reduzir(json.dumps(sem_chave), "json", "remotive"))["outras"]) == 5
+    nao_lista = {"jobs": "vazio", "outras": [{"id": i} for i in range(9)]}
+    assert len(json.loads(_reduzir(json.dumps(nao_lista), "json", "remotive"))["outras"]) == 5
 
 
 def test_reduzir_rss_corta_para_5_e_guarda_o_namespace() -> None:
@@ -631,3 +658,26 @@ async def test_capturar_nao_deixa_nada_na_pasta_se_a_conferencia_falha(tmp_path:
     finally:
         await cliente.fechar()
     assert [p.name for p in pasta.iterdir()] == ["outro.json"]  # nem o caso novo, nem o meta
+
+
+class ColetorRemotiveFalso(ColetorFalso):
+    chave = "remotive"
+
+
+@pytest.mark.anyio
+async def test_capturar_corta_a_lista_indicada_pela_chave_da_fonte(tmp_path: Path) -> None:
+    relogio = RelogioFalso()
+    cliente = ClienteEducado(
+        httpx.MockTransport(lambda _: httpx.Response(200, json=_vagas_com_lista_maior_dentro())),
+        relogio,
+        _SemValidadores(),
+        "9.9.9",
+    )
+    try:
+        caminho: Path = await capturar.capturar(
+            ColetorRemotiveFalso(), None, "normal", tmp_path, cliente, relogio, "9.9.9"
+        )
+    finally:
+        await cliente.fechar()
+    saida = json.loads(caminho.read_text(encoding="utf-8"))
+    assert len(saida["jobs"]) == 5 and len(saida["jobs"][0]["tags"]) == 30
