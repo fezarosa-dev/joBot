@@ -1,0 +1,13 @@
+{
+  "url": "https://api.github.com/repos/developersRJ/vagas/issues?state=open&per_page=100",
+  "data": "2026-11-14T06:25:38.245301+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/json; charset=utf-8",
+    "Link": "<https://api.github.com/repositories/70816214/issues?state=open&per_page=100&page=1>; rel=\"first\""
+  },
+  "sha256": "86168a14374906465195461d4a8f007fb9f2f8abd461f54b7f7abe2f8be8d6f5",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "montado à mão a partir de normal.json: as 2 últimas issues; sem Link rel=next (última página)"
+}
