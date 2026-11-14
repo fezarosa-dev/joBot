@@ -1,0 +1,12 @@
+{
+  "url": "https://boards-api.greenhouse.io/v1/boards/nao-existe/jobs?content=true",
+  "data": "2026-11-14T12:00:00+00:00",
+  "codigo": 404,
+  "cabecalhos": {
+    "Content-Type": "application/json"
+  },
+  "sha256": "4cbfef08f9f6abcad34da29e9f9cdc15139efb08a3df3d33d767f83c02a63f7c",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "montado à mão a partir do apêndice 2.4 (identificador inexistente devolve 404 com este corpo)"
+}

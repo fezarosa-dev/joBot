@@ -138,6 +138,44 @@ main:focus:not(:focus-visible) {
   text-decoration: none;
 }
 
+/* menu principal: quebra de linha em tela estreita ou com zoom, sem rolagem nem JavaScript */
+.menu {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.menu a {
+  padding: 0.3rem 0.8rem;
+  border-radius: 8px;
+  color: var(--texto);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition:
+    background-color var(--duracao) var(--mola),
+    box-shadow var(--duracao) var(--mola);
+}
+
+.menu a:hover {
+  background-color: var(--trilho);
+}
+
+/* área aberta: mesmo tom do segmento escolhido (pares texto/segmento e texto/trilho da lista) */
+.menu a[aria-current="page"] {
+  background-color: var(--segmento);
+  box-shadow: 0 1px 3px var(--sombra);
+  font-weight: 600;
+}
+
+/* barra alta demais cobriria o conteúdo com zoom de 200%: em tela estreita ela rola junto */
+@media (max-width: 40rem) {
+  .topo {
+    position: static;
+  }
+}
+
 .preferencias {
   display: flex;
   flex-wrap: wrap;
