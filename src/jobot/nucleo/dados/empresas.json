@@ -65,5 +65,21 @@
   {"nome": "CNA Idiomas", "area": "educação", "fonte": "gupy", "identificador": "cnaidiomas", "pais": "BR", "parametros": {"careerPageName": "CNA Idiomas"}, "conferida_em": "2026-11-13"},
   {"nome": "Cocamar Cooperativa Agroindustrial", "area": "agro", "fonte": "gupy", "identificador": "cocamar", "pais": "BR", "parametros": {}, "conferida_em": "2026-11-13"},
   {"nome": "IHARA", "area": "agro (defensivos)", "fonte": "gupy", "identificador": "ihara", "pais": "BR", "parametros": {"careerPageName": "IHARA - Agricultura é a nossa vida"}, "conferida_em": "2026-11-13"},
-  {"nome": "Ourofino Agrociência", "area": "agro", "fonte": "gupy", "identificador": "ourofinoagro", "pais": "BR", "parametros": {"careerPageName": "Vem ser Ourofino Agrociência!"}, "conferida_em": "2026-11-13"}
+  {"nome": "Ourofino Agrociência", "area": "agro", "fonte": "gupy", "identificador": "ourofinoagro", "pais": "BR", "parametros": {"careerPageName": "Vem ser Ourofino Agrociência!"}, "conferida_em": "2026-11-13"},
+  {"nome": "Riachuelo", "area": "varejo (moda)", "fonte": "inhire", "identificador": "riachuelo", "pais": "BR", "parametros": {}, "conferida_em": "2026-11-13"},
+  {"nome": "InHire (carreiras da própria InHire)", "area": "tecnologia (recrutamento e seleção)", "fonte": "inhire", "identificador": "carreiras", "pais": "BR", "parametros": {}, "conferida_em": "2026-11-13"},
+  {"nome": "Connect For People", "area": "RH (recrutamento e seleção)", "fonte": "quickin", "identificador": "connectforpeople", "pais": "BR", "parametros": {"account_id": "626fd30298767e001a4efe9c"}, "conferida_em": "2026-11-13"},
+  {"nome": "Quickin", "area": "tecnologia (recrutamento e seleção)", "fonte": "quickin", "identificador": "quickin", "pais": "BR", "parametros": {"account_id": "686d6f9812b3d7001359e95c"}, "conferida_em": "2026-11-13"},
+  {"nome": "UCM Business Solutions", "area": "tecnologia (consultoria)", "fonte": "recrutei", "identificador": "ucm-business-solutions", "pais": "BR", "parametros": {}, "conferida_em": "2026-11-13"},
+  {"nome": "Daguilar Consultoria RH", "area": "RH (recrutamento e seleção)", "fonte": "recrutei", "identificador": "daguilar-consultoria-rh", "pais": "BR", "parametros": {}, "conferida_em": "2026-11-13"},
+  {"nome": "DIEFRA", "area": "serviços (conservação, manutenção e facilities)", "fonte": "solides", "identificador": "diefra", "pais": "BR", "parametros": {}, "conferida_em": "2026-11-13"},
+  {"nome": "Bamex Benefícios", "area": "finanças/benefícios (instituição de pagamento)", "fonte": "solides", "identificador": "bamex", "pais": "BR", "parametros": {}, "conferida_em": "2026-11-13"},
+  {"nome": "Mastercard", "area": "banco/finanças (pagamentos)", "fonte": "workday", "identificador": "mastercard/CorporateCareers", "pais": null, "parametros": {"wd": "wd1"}, "conferida_em": "2026-11-13"},
+  {"nome": "Santander", "area": "banco/finanças", "fonte": "workday", "identificador": "santander/SantanderCareers", "pais": null, "parametros": {"wd": "wd3"}, "conferida_em": "2026-11-13"},
+  {"nome": "Mercado Livre", "area": "varejo (comércio eletrônico) / tecnologia", "fonte": "eightfold", "identificador": "mercadolibre.eightfold.ai", "pais": null, "parametros": {"dominio": "mercadolibre.com", "geracao": "pcsx"}, "conferida_em": "2026-11-13"},
+  {"nome": "NVIDIA", "area": "tecnologia (semicondutores e IA)", "fonte": "eightfold", "identificador": "jobs.nvidia.com", "pais": null, "parametros": {"dominio": "nvidia.com", "geracao": "pcsx"}, "conferida_em": "2026-11-13"},
+  {"nome": "Microsoft", "area": "tecnologia (software e nuvem)", "fonte": "eightfold", "identificador": "apply.careers.microsoft.com", "pais": null, "parametros": {"dominio": "microsoft.com", "geracao": "pcsx"}, "conferida_em": "2026-11-13"},
+  {"nome": "Bayer", "area": "indústria farmacêutica/agro", "fonte": "eightfold", "identificador": "bayer.eightfold.ai", "pais": null, "parametros": {"dominio": "bayer.com", "geracao": "v2"}, "conferida_em": "2026-11-13"},
+  {"nome": "Oracle", "area": "tecnologia (software corporativo e nuvem)", "fonte": "oracle_hcm", "identificador": "eeho.fa.us2.oraclecloud.com", "pais": null, "parametros": {"site_number": "CX_45001", "site": "jobsearch"}, "conferida_em": "2026-11-14"},
+  {"nome": "JPMorgan Chase", "area": "banco/finanças", "fonte": "oracle_hcm", "identificador": "jpmc.fa.oraclecloud.com", "pais": null, "parametros": {"site_number": "CX_1001", "site": "CX_1001"}, "conferida_em": "2026-11-14"}
 ]}
