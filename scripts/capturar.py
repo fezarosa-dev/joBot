@@ -116,6 +116,8 @@ _SCRIPT_JSON = re.compile(
     r"(<script\b[^>]*\btype\s*=\s*[\"']?[^\"'>]*json[^>]*>)(.*?)(</script\s*>)",
     re.DOTALL | re.IGNORECASE,
 )
+# o id (UUID) tem trechos de dígitos que casam com telefone ("27-9261-8931"): fica fora da busca
+_UUID = re.compile(r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b", re.I)
 _CASO = re.compile(r"[a-z0-9_]+(?:-[a-z0-9_]+)*")
 
 
@@ -190,7 +192,8 @@ def _limpar_texto(texto: str) -> str:
     texto = _EMAIL.sub(EMAIL_EXEMPLO, texto)
     texto = _CPF_PONTOS.sub(CPF_EXEMPLO, texto)
     texto = _CPF_SOLTO.sub(lambda m: "0" * 11 if _cpf_valido(m[0]) else m[0], texto)
-    return _TEL.sub(TEL_EXEMPLO, texto)
+    partes = re.split(f"({_UUID.pattern})", texto, flags=re.I)  # índices ímpares são os UUID
+    return "".join(p if i % 2 else _TEL.sub(TEL_EXEMPLO, p) for i, p in enumerate(partes))
 
 
 def _limpar_json(no: Any) -> Any:
@@ -254,7 +257,8 @@ def achar_pessoais(texto: str) -> list[str]:
         achados += [f"email: {m[0]}" for m in _EMAIL.finditer(t) if m[0] != EMAIL_EXEMPLO]
         achados += [f"cpf: {m[0]}" for m in _CPF_PONTOS.finditer(t) if m[0] != CPF_EXEMPLO]
         achados += [f"cpf: {m[0]}" for m in _CPF_SOLTO.finditer(t) if _cpf_valido(m[0])]
-        achados += [f"telefone: {m[0]}" for m in _TEL.finditer(t) if m[0] != TEL_EXEMPLO]
+        sem_id = _UUID.sub(" ", t)
+        achados += [f"telefone: {m[0]}" for m in _TEL.finditer(sem_id) if m[0] != TEL_EXEMPLO]
         achados += [
             f"{m[2].split(':')[-1].lower()}: {m[3]}"
             for m in _TAG_NOME.finditer(t)
