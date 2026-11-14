@@ -39,6 +39,7 @@ class Painel:
             con.commit()
         self.pedidos: list[httpx.Request] = []
         self.gupy_fora = False
+        self.gupy_html: str | None = None  # troca a página de carreira que o falso devolve
         self.app = criar_app(tmp_path, PORTA)
         self.relogio = RelogioFalso()
         self.app.state.relogio = self.relogio
@@ -53,7 +54,9 @@ class Painel:
         if pedido.url.host.endswith(".gupy.io"):
             if self.gupy_fora:
                 return httpx.Response(500)
-            html = (FIXTURES / "gupy" / "pagina_carreira.html").read_text(encoding="utf-8")
+            html = self.gupy_html or (FIXTURES / "gupy" / "pagina_carreira.html").read_text(
+                encoding="utf-8"
+            )
             return httpx.Response(200, text=html)
         raise AssertionError(f"teste não fala com {pedido.url}")
 
@@ -173,6 +176,31 @@ def test_aprovar_gupy_com_a_fonte_fora_mantem_a_sugestao_pendente(painel: Painel
     assert painel.empresas() == []
 
 
+def test_aprovar_gupy_pagina_invalida_da_422(painel: Painel) -> None:
+    id_ = painel.sugerir("gupy", "agriness")
+    painel.gupy_html = (
+        "<html><body>sem __NEXT_DATA__</body></html>"  # o resolver recusa: ValueError
+    )
+
+    r = painel.post(f"{ESTA_PAGINA}/{id_}/aprovar")
+
+    assert r.status_code == 422
+    assert "não parece ser de uma empresa da Gupy" in r.text
+    assert "Não deu para falar com a fonte" not in r.text  # a fonte está no ar
+    assert "agriness" in r.text  # a sugestão segue na lista
+    assert painel.estado(id_) == "pendente"
+    assert painel.empresas() == []
+
+
+def test_aprovar_gupy_grava_identificador_do_resolver(painel: Painel) -> None:
+    id_ = painel.sugerir("gupy", "Agriness")
+
+    r = painel.post(f"{ESTA_PAGINA}/{id_}/aprovar")
+
+    assert r.status_code == 303
+    assert [e[1] for e in painel.empresas()] == ["agriness"]  # minúsculas, como o resolver (D45)
+
+
 def test_descartar_some_da_lista_e_nao_cria_empresa(painel: Painel) -> None:
     id_ = painel.sugerir("greenhouse", "vitta")
 
@@ -253,6 +281,24 @@ def test_aprovar_a_removida_nao_a_reativa(painel: Painel) -> None:
     assert painel.empresas()[0][5] is not None
     assert painel.estado(id_) == "aprovada"
     assert "Vitta" not in painel.http.get("/empresas").text  # segue removida
+
+
+def test_aprovar_removida_nao_pede_a_gupy(painel: Painel) -> None:
+    id_ = painel.sugerir("gupy", "agriness")
+    with closing(abrir(painel.banco)) as con:
+        empresa = adicionar_empresa(
+            con, Empresa(nome="Agriness", fonte="gupy", identificador="agriness", origem="pessoa")
+        )
+        remover_empresa(con, empresa, painel.relogio.agora())
+    painel.gupy_fora = True  # com a Gupy fora do ar, o pedido desnecessário travaria a aprovação
+    antes = painel.empresas()
+
+    r = painel.post(f"{ESTA_PAGINA}/{id_}/aprovar")
+
+    assert r.status_code == 303
+    assert painel.pedidos == []
+    assert painel.empresas() == antes
+    assert painel.estado(id_) == "aprovada"
 
 
 def test_url_de_exemplo_so_vira_link_se_for_http(painel: Painel) -> None:

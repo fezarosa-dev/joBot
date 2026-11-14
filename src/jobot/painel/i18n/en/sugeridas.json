@@ -7,5 +7,6 @@
   "sugeridas.aprovar": "Approve",
   "sugeridas.descartar": "Dismiss",
   "sugeridas.removida": "You removed this company on {data}. Approving does not bring it back; to follow it again, add it in Companies.",
-  "sugeridas.erro.fonte_fora": "Could not reach the source right now. The suggestion stays here; try again later."
+  "sugeridas.erro.fonte_fora": "Could not reach the source right now. The suggestion stays here; try again later.",
+  "sugeridas.erro.pagina": "That page does not look like a Gupy company page. The suggestion stays here; discard it if it does not fit."
 }

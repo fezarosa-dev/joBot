@@ -73,6 +73,7 @@ def aprovar(
     *,
     nome: str | None = None,
     parametros: Mapping[str, str] | None = None,
+    identificador_novo: str | None = None,
 ) -> int:
     """Cria a empresa com origem `descoberta` e marca a sugestão aprovada; devolve o id da empresa.
 
@@ -80,6 +81,8 @@ def aprovar(
     (o `careerPageName` da Gupy vai em `parametros`, decisão 29). Empresa cadastrada depois da
     sugestão (qualquer caixa, removida inclusive) fica como está: só marca a sugestão aprovada
     e devolve o id dela, sem trocar nome nem `parametros` e sem reativar.
+    `identificador_novo`, se vier, é o que a empresa nova grava no lugar do da
+    sugestão (o do resolver, na caixa dele, D45).
     """
     if con.in_transaction:
         raise RuntimeError("conexão já está numa transação: commit ou rollback antes de aprovar")
@@ -106,7 +109,7 @@ def aprovar(
                 (
                     (nome or "").strip() or identificador,
                     fonte,
-                    identificador,
+                    identificador_novo or identificador,
                     json.dumps(dict(parametros or {}), ensure_ascii=False, sort_keys=True),
                 ),
             ).fetchone()

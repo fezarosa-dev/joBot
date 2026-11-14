@@ -35,8 +35,6 @@ O joBot ainda não tem nada para instalar. A fase 1 (base) está em andamento. A
 5. Faça commits pequenos, em português, no formato `tipo(escopo): descrição`.
 6. Abra um PR para a `dev` usando o [modelo de PR](pull_request_template.md).
 
-Os comandos exatos para rodar tudo serão documentados quando o código existir.
-
 ## Wiki
 
 - O texto da wiki mora na pasta [`wiki/`](../wiki/) do repositório.
