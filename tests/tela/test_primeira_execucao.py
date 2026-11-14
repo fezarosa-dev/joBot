@@ -59,7 +59,7 @@ def test_fluxo_completo_vai_do_passo_1_ao_fim_e_para_nos_destaques(
     page.get_by_label("Não ligar agora").check()
     page.get_by_role("button", name="Concluir").click()
     expect(page.get_by_role("heading", name="Tudo pronto")).to_be_visible()
-    expect(page.locator("#conteudo").get_by_role("button", name="Buscar agora")).to_be_visible()
+    expect(page.get_by_role("button", name="Buscar agora")).to_have_count(1)
     assert all(c[0] != "enable" for c in sistema.systemctl())
 
     page.get_by_role("link", name="Ir para as vagas").click()
@@ -102,3 +102,18 @@ def test_recusa_do_segundo_plano_aparece_traduzida_na_tela(
     page.get_by_label("Não ligar agora").check()
     page.get_by_role("button", name="Concluir").click()
     expect(page.get_by_role("heading", name="Tudo pronto")).to_be_visible()
+
+
+def test_regiao_do_andamento_vazia_nao_ocupa_linha(page: Page, painel: str) -> None:
+    page.goto(f"{painel}/primeira-execucao/2")
+    page.get_by_label("Não ligar agora").check()
+    page.get_by_role("button", name="Concluir").click()
+    expect(page.get_by_role("heading", name="Tudo pronto")).to_be_visible()
+    regiao = page.get_by_role("status", name="Andamento da busca")
+    expect(regiao).to_be_empty()
+    caixa = regiao.bounding_box()
+    barra = page.locator(".execucao").bounding_box()
+    botao = page.get_by_role("button", name="Buscar agora").bounding_box()
+    assert caixa is not None and barra is not None and botao is not None
+    assert caixa["height"] == 0
+    assert barra["height"] <= botao["height"] + 1  # a barra tem só a linha dos botões

@@ -603,12 +603,19 @@ def test_no_linux_o_passo2_nao_vem_desativado(cenario: Cenario) -> None:
 
 def test_fim_oferece_buscar_agora_e_vai_para_destaques(cenario: Cenario) -> None:
     cenario.post(PASSO_2, {"segundo_plano": "desligar"})
-    # a casca de toda página também tem o Buscar agora (T49): confere o do conteúdo
+    # o Buscar agora do fim é o da casca (T49, T107); o conteúdo só leva o link para as vagas
     html = cenario.get(f"{PASSO_2}?feito=1").text.split('id="conteudo"')[1]
-    assert 'method="post" action="/buscar-agora"' in html
-    assert 'name="csrf_token"' in html
+    assert "/buscar-agora" not in html
     assert 'href="/vagas?aba=destaques"' in html
     assert cenario.get("/").headers["location"] == "/vagas?aba=destaques"
+
+
+def test_tela_final_tem_um_so_botao_buscar_agora(cenario: Cenario) -> None:
+    cenario.post(PASSO_2, {"segundo_plano": "desligar"})
+    html = cenario.get(f"{PASSO_2}?feito=1").text
+    assert html.count('action="/buscar-agora"') == 1
+    assert html.count(">Buscar agora<") == 1
+    assert "Tudo pronto" in html
 
 
 def test_fim_sem_ter_concluido_mostra_o_passo_2(cenario: Cenario) -> None:
