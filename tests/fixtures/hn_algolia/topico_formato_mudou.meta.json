@@ -1,0 +1,12 @@
+{
+  "url": "https://hn.algolia.com/api/v1/items/50338728",
+  "data": "2026-11-14T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/json"
+  },
+  "sha256": "b31f9671581565d31b9e2120f2be596f73f3a02a2fcf5b47c45abd28c34d7d1c",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "montado à mão a partir de topico.json, reduzido a 2 comentários: o segundo troca text por body (formato mudou)"
+}
