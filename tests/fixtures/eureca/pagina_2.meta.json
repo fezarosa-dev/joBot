@@ -1,0 +1,12 @@
+{
+  "url": "https://candidate-api.eureca.me/opportunities?page=2&pageSize=5",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/json; charset=utf-8"
+  },
+  "sha256": "629e2b930180e02439d7f28ffd09fde2741eb40a91863f2eba797110aab44f46",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "Resposta real de 2026-11-13 (scratchpad captura/B2/raw/eureca_api_opp_p.json). A conferência não guardou a URL do pedido: page=2 e pageSize=5 saem do corpo da resposta (page 2, pageSize 5, total 8, 3 itens). Passou por scripts/capturar.py (reduzir e limpar_pessoais)."
+}

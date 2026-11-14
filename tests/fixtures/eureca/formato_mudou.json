@@ -1,0 +1,202 @@
+{
+  "items": [
+    {
+      "id": "01a1c58d-bb0f-7b43-be36-3d4ed6cb728d",
+      "source": "eureca",
+      "name": "Estágio em Manutenção Metrô Bahia",
+      "description": "<p>Na Motiva, você vai apoiar a área de <strong>Manutenção do Metrô Bahia</strong>, acompanhando informações, indicadores e controles relacionados à manutenção de máquinas e equipamentos fixos, como escadas rolantes e elevadores. Também terá a oportunidade de conhecer de perto a rotina da equipe, acompanhando atividades de campo e entendendo os processos de manutenção.</p><p>Ao longo do estágio, você poderá participar de visitas técnicas, reuniões e atividades de acompanhamento da operação, contribuindo para a organização de dados, elaboração de relatórios e monitoramento dos planos de ação da área.<br><br></p><p><strong>Como será o seu dia a dia:</strong></p><ul><li><p>apoiar o acompanhamento da rotina de manutenção de máquinas e equipamentos fixos, contribuindo para o monitoramento de indicadores e da performance dos sistemas;</p></li><li><p>participar de visitas técnicas e atividades de campo, acompanhando a execução das manutenções e aprendendo com a equipe;</p></li><li><p>apoiar a organização e consolidação de informações técnicas, relatórios, indicadores e planos de ação;</p></li><li><p>auxiliar no acompanhamento da execução dos planos de ação junto às equipes responsáveis;</p></li><li><p>apoiar o controle de ferramentas e instrumentos utilizados nas atividades de manutenção;</p></li><li><p>contribuir com a alimentação de bases de dados e elaboração de relatórios e dashboards em Power BI;</p></li><li><p>apoiar auditorias de contratos e ordens de manutenção, com orientação da equipe;</p></li><li><p>participar de reuniões técnicas e apoiar os controles e processos administrativos da área.<br></p></li></ul><p><strong>Pré-requisitos</strong></p><p><strong>Cursos:</strong> Engenharia Mecânica, Engenharia Eletromecânica e Engenharia Elétrica.</p><p><strong>Período de formação:</strong> estudantes a partir do 5º ou 6º semestre, com conclusão do curso estimada entre maio de 2028 e dezembro de 2029.</p><p><strong>São considerados diferenciais:</strong></p><ul><li><p>conhecimento em Pacote Office, especialmente Excel;</p></li><li><p>conhecimento em Power BI e tratamento de dados;</p></li><li><p>familiaridade com ferramentas de Inteligência Artificial;</p></li><li><p>conhecimento em AutoCAD;</p></li><li><p>curso técnico em áreas relacionadas à engenharia, como os oferecidos pelo Senai ou instituições similares.<br></p></li></ul><p>A Motiva busca pessoas proativas, curiosas e comunicativas, com facilidade para interagir com diferentes públicos, iniciativa para fazer perguntas e disposição para aprender. Valorizamos também perfis com energia, dinamismo e vontade de contribuir com o desenvolvimento da equipe.<br></p><p>Se você se identifica com a oportunidade e atende aos requisitos da vaga, <strong>inscreva-se e venha construir novos caminhos com a Motiva!</strong></p>",
+      "companyId": "01a04e0b-3d29-7be2-b1d2-44382af81416",
+      "companyName": "Motiva",
+      "companyLogoUrl": "https://prd-eureca-hub-public.s3.us-east-1.amazonaws.com/companies/motiva/logo/ca3624e9-9405-48dd-83ce-e3e33d3084d6.png",
+      "programId": "01a08297-169c-7c83-8e95-42290770263b",
+      "programName": "Estágio Motiva",
+      "workModel": "presencial",
+      "acceptsRelocation": false,
+      "locations": {
+        "states": [
+          "BA"
+        ],
+        "cities": [
+          "Salvador"
+        ]
+      },
+      "salary": null,
+      "diversity": [],
+      "weeklyHours": 30,
+      "workModels": [
+        "presencial"
+      ],
+      "weeklyHoursList": [
+        30
+      ],
+      "contractTypeKey": "internship",
+      "allowMultiplePositions": false,
+      "cityId": null,
+      "cityName": "Salvador",
+      "stateAcronym": "BA",
+      "publishedAt": null,
+      "createdAt": "2026-11-10 13:02:42.445557+00",
+      "endApplying": "2027-01-01T02:59:00.000Z"
+    },
+    {
+      "id": "019fdbd4-afee-720d-a537-cf5b8c58aa24",
+      "source": "eureca",
+      "name": null,
+      "description": "<p>Stellantis nasceu da união de pessoas e marcas icônicas que, juntas, formam um ecossistema inovador, com um propósito claro: mover as pessoas com marcas e produtos que elas amam e confiam.<br><br>Estamos presentes em todos os continentes, com fábricas em 30 países e operações em mais de 130 mercados. Aqui, a tecnologia está no nosso DNA e a inovação impulsiona a maneira como criamos soluções cada vez mais acessíveis, emocionantes e centradas nas pessoas.<br><br>No Programa de Estágio 2026, você terá a oportunidade de vivenciar desafios reais, aprender com profissionais experientes e contribuir para projetos que impactam o futuro do setor automotivo. Venha construir sua trajetória com a gente e fazer parte dessa transformação.</p>",
+      "companyId": "019f2264-cd66-71e6-a6b8-b1feee16b85f",
+      "companyName": "Stellantis",
+      "companyLogoUrl": "https://prd-eureca-hub-public.s3.us-east-1.amazonaws.com/companies/stellantis/logo/75869065-75f6-4c84-bdd7-517ff4eeec22.jpg",
+      "programId": "019fccd8-daf4-7776-9138-0d77132e813a",
+      "programName": "Banco de Talentos | Programa de Estágio Stellantis 2026 | 2026.2",
+      "workModel": "presencial",
+      "acceptsRelocation": null,
+      "locations": {
+        "states": [],
+        "cities": []
+      },
+      "salary": {
+        "display": "undisclosed",
+        "minCents": null,
+        "maxCents": null
+      },
+      "diversity": [],
+      "weeklyHours": 30,
+      "workModels": [
+        "presencial",
+        "hibrido"
+      ],
+      "weeklyHoursList": [
+        30
+      ],
+      "contractTypeKey": "internship",
+      "allowMultiplePositions": false,
+      "cityId": null,
+      "cityName": null,
+      "stateAcronym": null,
+      "publishedAt": null,
+      "createdAt": "2026-08-07 10:46:16.812763+00",
+      "endApplying": "2027-01-01T02:59:00.000Z"
+    },
+    {
+      "id": "../../x",
+      "source": "eureca",
+      "name": "Banco de Talentos | Estágio Imersivo na Fazenda",
+      "description": "<p>Mais do que um estágio: <strong>viva uma experiência imersiva no agro.</strong></p><p><br>Na <strong>SLC Agrícola</strong>, você vive o agro na prática. Durante 6 meses, as pessoas estagiárias têm a oportunidade de morar na fazenda, acompanhar os desafios reais da operação e acelerar o desenvolvimento em uma das maiores produtoras agrícolas do Brasil.</p><p><br><strong>Áreas do Programa</strong></p><p>Os currículos cadastrados no Banco de Talentos poderão ser considerados para oportunidades nas diferentes áreas da SLC Agrícola, conforme o perfil de cada pessoa e a disponibilidade de vagas.<br></p><p>As áreas do programa incluem:</p><ul><li><p>Produção Agrícola</p></li><li><p>Pesquisa e Desenvolvimento</p></li><li><p>Produção de Sementes</p></li><li><p>Laboratório de Sementes</p></li><li><p>Unidade de Beneficiamento de Algodão (UBA)</p></li><li><p>Unidade de Beneficiamento de Grãos (UBG)</p></li><li><p>Indústria de Beneficiamento de Sementes (IBS)</p></li><li><p>Mecanização Agrícola</p></li><li><p>Pecuária</p></li></ul><p><br></p><p><strong>⚠️ Importante:</strong><br>Este é um <strong>Banco de Talentos</strong>. Ao realizar seu cadastro, seu perfil ficará disponível para futuras oportunidades do Programa de Estágio da SLC Agrícola. Caso surja, em uma nova edição do programa, uma oportunidade compatível com seu perfil, poderemos entrar em contato para convidar você a participar das próximas etapas do processo seletivo.</p>",
+      "companyId": "019f8244-7957-70f7-ad7f-50d5859eaf19",
+      "companyName": "SLC Agrícola",
+      "companyLogoUrl": "https://prd-eureca-hub-public.s3.us-east-1.amazonaws.com/companies/slc-agricola/logo/915c10af-a5aa-48ba-a181-d166285eff6c.jpg",
+      "programId": "019fb370-5346-7de8-806a-965cdbac6540",
+      "programName": "Banco de Talentos SLC Agrícola",
+      "workModel": "presencial",
+      "acceptsRelocation": true,
+      "locations": {
+        "states": [],
+        "cities": []
+      },
+      "salary": {
+        "display": "range",
+        "minCents": 190000,
+        "maxCents": 220000
+      },
+      "diversity": [],
+      "weeklyHours": 40,
+      "workModels": [
+        "presencial"
+      ],
+      "weeklyHoursList": [
+        40
+      ],
+      "contractTypeKey": "internship",
+      "allowMultiplePositions": false,
+      "cityId": null,
+      "cityName": null,
+      "stateAcronym": null,
+      "publishedAt": null,
+      "createdAt": "2026-07-30 19:34:28.087006+00",
+      "endApplying": "2028-01-01T02:59:00.000Z"
+    },
+    {
+      "id": "019faf1c-93a5-734e-80da-2eec12520618",
+      "source": "eureca",
+      "name": "Comunidade de Talentos de Engenharia da Eureca",
+      "description": "<p><strong>Comunidade de Talentos para Engenharia da Eureca</strong><br><br><strong>Seu perfil conectado às melhores empresas do mercado.</strong><br><br><strong>O que é a Comunidade?</strong><br>A Comunidade de Talentos em Engenharia da Eureca é um espaço criado para você que está começando na área e quer fazer networking com as maiores referências do mercado, entender a realidade da profissão e, claro, acessar as melhores oportunidades.<br><br>Aqui, você vai cruzar com parceiros como Equinor, AFRY, Rumo, Mondelēz dentre outras empresas gigantes que movem o país e que estão sempre em busca de novos talentos.<br><br>Nosso objetivo é te ajudar a construir sua carreira de um jeito simples, direto e prático. Ao se inscrever por aqui, você terá a oportunidade de participar de webinares com as nossas empresas parceiras, a fim de receber dicas de seus RHs e entender o que eles esperam em seus programas de porta de entrada.<br><br>📆 Confira nosso calendário dos próximos meses:<br>➡️ Webinar Mondelez: 25 de agosto, às 18h<br><br>Focada 100% em estudantes e recém-formados de todas as engenharias, a comunidade é o primeiro passo para você dar direção à sua trajetória com muito mais clareza. 🚀<br><br><strong>Quem é a Eureca?</strong><br>A Eureca é uma consultoria especialista em talentos em início de carreira.<br><br>Trabalhamos lado a lado com grandes marcas do país, atraindo, selecionando e desenvolvendo talentos. Nosso papel prático é ser a ponte entre o mundo corporativo e aqueles que estão começando.<br><br>Seja protagonista do seu futuro. Conte conosco para crescer. Inscreva-se na comunidade.</p>",
+      "companyId": "019faf1a-1704-76ee-9224-b20f8fc703f1",
+      "companyName": "Eureca",
+      "companyLogoUrl": "https://prd-eureca-hub-public.s3.us-east-1.amazonaws.com/companies/eureca-base-engenharia/logo/e96a2478-c1b5-4e98-bfce-c10e5b92276f.jpg",
+      "programId": "019faf1b-b26c-7575-b395-3ad07e5b583c",
+      "programName": "Comunidade de Talentos de Engenharia da Eureca",
+      "workModel": "remoto",
+      "acceptsRelocation": false,
+      "locations": {
+        "states": [],
+        "cities": []
+      },
+      "salary": {
+        "display": "undisclosed",
+        "minCents": null,
+        "maxCents": null
+      },
+      "diversity": [],
+      "weeklyHours": 40,
+      "workModels": [
+        "remoto"
+      ],
+      "weeklyHoursList": [
+        40
+      ],
+      "contractTypeKey": "internship",
+      "allowMultiplePositions": false,
+      "cityId": null,
+      "cityName": null,
+      "stateAcronym": null,
+      "publishedAt": null,
+      "createdAt": "2026-07-29 18:21:53.444231+00",
+      "endApplying": "2030-08-01T02:59:00.000Z"
+    },
+    {
+      "id": "01a1651d-aeac-76d3-bb14-fb23c977f554",
+      "source": "eureca",
+      "name": "Estágio em Engenharia Elétrica",
+      "description": "<p>Na Motiva, você vai apoiar as atividades da área de <strong>Engenharia</strong>, contribuindo para o acompanhamento de processos, controles técnicos e projetos de melhoria, além de desenvolver conhecimentos e habilidades essenciais para sua formação profissional.</p><p>No dia a dia, <strong>você terá contato com rotinas de Engenharia, ferramentas e metodologias técnicas, atuando em conjunto com profissionais da área e participando de atividades que contribuem para a qualidade e eficiência dos processos.</strong></p><p>A oportunidade é para estudantes que residem em <strong>Jundiaí, em São Paulo</strong>, e cursam:</p><ul><li><p>Engenharia Elétrica.</p></li></ul><p><strong>Como será o seu dia a dia:</strong></p><ul><li><p>apoiar o acompanhamento de atividades, processos e projetos técnicos da área de Engenharia;</p></li><li><p>contribuir com a organização, atualização e controle de documentos, planilhas e informações técnicas;</p></li><li><p>apoiar a elaboração e o acompanhamento de cronogramas, indicadores e relatórios;</p></li><li><p>auxiliar na identificação de oportunidades de melhoria e na proposição de soluções para os processos;</p></li><li><p>colaborar com equipes multidisciplinares, garantindo a comunicação e o registro adequado das informações;</p></li><li><p>apoiar atividades técnicas, seguindo normas, procedimentos e padrões de qualidade da área.</p></li></ul><p><strong>São considerados diferenciais:</strong></p><ul><li><p>conhecimento em Excel;</p></li><li><p>conhecimento em MS Project;</p></li><li><p>conhecimento em AutoCAD;</p></li><li><p>conhecimento em DiaLUX.</p></li></ul><p>A Motiva busca pessoas <strong>comprometidas, responsáveis, organizadas e proativas</strong>, que tenham senso de dono, iniciativa, curiosidade técnica e vontade de aprender. Também valorizamos profissionais que demonstrem comunicação clara, espírito colaborativo e interesse em contribuir para o desenvolvimento das atividades de Engenharia.</p><p>Se você se identifica com a oportunidade e atende aos requisitos da vaga, <strong>inscreva-se e venha construir novos caminhos com a Motiva!</strong></p>",
+      "companyId": "01a04e0b-3d29-7be2-b1d2-44382af81416",
+      "companyName": "Motiva",
+      "companyLogoUrl": "https://prd-eureca-hub-public.s3.us-east-1.amazonaws.com/companies/motiva/logo/ca3624e9-9405-48dd-83ce-e3e33d3084d6.png",
+      "programId": "01a08297-169c-7c83-8e95-42290770263b",
+      "programName": "Estágio Motiva",
+      "workModel": "presencial",
+      "acceptsRelocation": null,
+      "locations": {
+        "states": [
+          "SP"
+        ],
+        "cities": [
+          "Jundiaí"
+        ]
+      },
+      "salary": {
+        "display": "undisclosed",
+        "minCents": null,
+        "maxCents": null
+      },
+      "diversity": [],
+      "weeklyHours": 30,
+      "workModels": [
+        "presencial"
+      ],
+      "weeklyHoursList": [
+        30
+      ],
+      "contractTypeKey": "internship",
+      "allowMultiplePositions": false,
+      "cityId": null,
+      "cityName": "Jundiaí",
+      "stateAcronym": "SP",
+      "publishedAt": null,
+      "createdAt": "2026-10-22 19:36:46.506056+00",
+      "endApplying": "2027-01-01T02:59:00.000Z"
+    }
+  ],
+  "total": 8,
+  "page": 1,
+  "pageSize": 200
+}
