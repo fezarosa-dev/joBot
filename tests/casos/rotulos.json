@@ -1,0 +1,213 @@
+[
+  {
+    "nome": "backend pleno remoto clt",
+    "titulo": "Desenvolvedor Backend Pleno",
+    "texto": "Vaga CLT, trabalho 100% remoto.",
+    "locais": [{"cidade": "São Paulo", "uf": "SP", "pais": "BR"}],
+    "esperado": {"area": "tecnologia", "nivel": "pleno", "modalidade": "remoto", "contrato": "clt", "avisos": []}
+  },
+  {
+    "nome": "engenheiro de dados senior hibrido com doutorado",
+    "titulo": "Senior Data Engineer",
+    "texto": "Hybrid role in Lisbon. A PhD in a quantitative field is required.",
+    "locais": [{"cidade": "Lisboa", "pais": "PT"}],
+    "esperado": {"area": "dados", "nivel": "senior", "modalidade": "hibrido", "contrato": "nao_informado", "avisos": ["exige_doutorado"]}
+  },
+  {
+    "nome": "estagio em design presencial",
+    "titulo": "Estágio em Design UX",
+    "texto": "Bolsa-auxílio e vale-transporte. Atuação presencial em Curitiba.",
+    "locais": [{"cidade": "Curitiba", "uf": "PR", "pais": "BR"}],
+    "esperado": {"area": "design", "nivel": "estagio", "modalidade": "presencial", "contrato": "estagio"}
+  },
+  {
+    "nome": "product manager remoto so nos eua sem visto",
+    "titulo": "Product Manager",
+    "texto": "Remote (US only). Visa sponsorship is not available for this role.",
+    "locais": [{"pais": "US"}],
+    "esperado": {"area": "produto", "nivel": "nao_informado", "modalidade": "remoto", "avisos": ["exige_visto", "restrito_a_pais"]}
+  },
+  {
+    "nome": "marketing junior pj",
+    "titulo": "Analista de Marketing Júnior",
+    "texto": "Contratação PJ. Horário flexível.",
+    "locais": [{"cidade": "São Paulo", "uf": "SP", "pais": "BR"}],
+    "esperado": {"area": "marketing", "nivel": "junior", "modalidade": "nao_informado", "contrato": "pj"}
+  },
+  {
+    "nome": "vendas freelance",
+    "titulo": "Account Executive",
+    "texto": "This is a freelance position paid per closed deal.",
+    "esperado": {"area": "vendas", "contrato": "freelance"}
+  },
+  {
+    "nome": "programa de trainee financeiro",
+    "titulo": "Programa de Trainee Financeiro 2027",
+    "texto": "Programa de dois anos com rodízio entre áreas.",
+    "locais": [{"cidade": "Rio de Janeiro", "uf": "RJ", "pais": "BR"}],
+    "esperado": {"area": "financas", "nivel": "trainee", "contrato": "trainee"}
+  },
+  {
+    "nome": "recrutamento temporario",
+    "titulo": "Analista de Recrutamento e Seleção",
+    "texto": "Contrato temporário de seis meses.",
+    "locais": [{"cidade": "Belo Horizonte", "uf": "MG", "pais": "BR"}],
+    "esperado": {"area": "rh", "nivel": "nao_informado", "contrato": "temporario"}
+  },
+  {
+    "nome": "advogado especialista",
+    "titulo": "Advogado Especialista Tributário",
+    "texto": "Atuação no contencioso tributário.",
+    "esperado": {"area": "juridico", "nivel": "especialista"}
+  },
+  {
+    "nome": "gerente de operacoes",
+    "titulo": "Gerente de Operações",
+    "texto": "Liderar a equipe do centro de distribuição.",
+    "esperado": {"area": "operacoes", "nivel": "lideranca"}
+  },
+  {
+    "nome": "engenheiro civil",
+    "titulo": "Engenheiro Civil",
+    "texto": "Acompanhamento de obras residenciais.",
+    "esperado": {"area": "engenharia"}
+  },
+  {
+    "nome": "enfermagem",
+    "titulo": "Enfermeiro(a) Plantonista",
+    "texto": "Plantões de 12x36 no hospital.",
+    "esperado": {"area": "saude"}
+  },
+  {
+    "nome": "professor",
+    "titulo": "Professor de Inglês",
+    "texto": "Aulas para turmas do ensino médio.",
+    "esperado": {"area": "educacao"}
+  },
+  {
+    "nome": "jovem aprendiz administrativo",
+    "titulo": "Jovem Aprendiz - Auxiliar Administrativo",
+    "texto": "Programa para jovens de 14 a 24 anos.",
+    "locais": [{"cidade": "Recife", "uf": "PE", "pais": "BR"}],
+    "esperado": {"area": "administrativo", "contrato": "aprendiz"}
+  },
+  {
+    "nome": "atendimento",
+    "titulo": "Atendente de SAC",
+    "texto": "Atendimento por telefone e chat.",
+    "esperado": {"area": "atendimento"}
+  },
+  {
+    "nome": "pesquisa com bolsa",
+    "titulo": "Pesquisador em Biologia Molecular",
+    "texto": "Bolsa de pesquisa por 24 meses no laboratório.",
+    "esperado": {"area": "pesquisa", "contrato": "bolsa_pesquisa"}
+  },
+  {
+    "nome": "concurso publico",
+    "titulo": "Analista Judiciário",
+    "texto": "Concurso público com provas objetivas. Veja o edital.",
+    "esperado": {"contrato": "concurso"}
+  },
+  {
+    "nome": "programa de formacao",
+    "titulo": "Programa de Formação em Tecnologia",
+    "texto": "Turma com aulas e projetos práticos.",
+    "esperado": {"area": "tecnologia", "contrato": "programa"}
+  },
+  {
+    "nome": "nada reconhecido",
+    "titulo": "Motorista",
+    "texto": "Entregas na região central.",
+    "esperado": {"area": "outra", "nivel": "nao_informado", "modalidade": "nao_informado", "contrato": "nao_informado", "avisos": []}
+  },
+  {
+    "nome": "faixa pleno senior conta o menor",
+    "titulo": "Desenvolvedor Pleno/Sênior",
+    "texto": "",
+    "esperado": {"nivel": "pleno"}
+  },
+  {
+    "nome": "declarado vence descricao",
+    "titulo": "Desenvolvedor Python",
+    "texto": "Trabalho presencial no escritório.",
+    "modalidade_declarada": "Remote",
+    "esperado": {"modalidade": "remoto"}
+  },
+  {
+    "nome": "clt fora do brasil nao vale",
+    "titulo": "Software Engineer",
+    "texto": "CLT benefits included.",
+    "locais": [{"pais": "US"}],
+    "esperado": {"contrato": "nao_informado"}
+  },
+  {
+    "nome": "etiquetas definem area",
+    "titulo": "Analista",
+    "etiquetas": ["Customer Success"],
+    "texto": "",
+    "esperado": {"area": "atendimento"}
+  },
+  {
+    "nome": "restrito a residentes",
+    "titulo": "Customer Support Specialist",
+    "texto": "Applicants must be based in Canada. Fully remote.",
+    "esperado": {"area": "atendimento", "nivel": "especialista", "modalidade": "remoto", "avisos": ["restrito_a_pais"]}
+  },
+  {
+    "nome": "clt explicito vence beneficio de programa",
+    "titulo": "Analista de Sistemas",
+    "texto": "Contratação CLT. Benefícios: programa de desenvolvimento de carreira.",
+    "locais": [{"cidade": "São Paulo", "uf": "SP", "pais": "BR"}],
+    "esperado": {"contrato": "clt"}
+  },
+  {
+    "nome": "comunicacao efetiva nao e contrato",
+    "titulo": "Analista de Sistemas",
+    "texto": "Buscamos comunicação efetiva e proatividade.",
+    "locais": [{"cidade": "São Paulo", "uf": "SP", "pais": "BR"}],
+    "esperado": {"contrato": "nao_informado"}
+  },
+  {
+    "nome": "booleano declarado nao vira modalidade",
+    "titulo": "Desenvolvedor Python",
+    "texto": "Modelo híbrido.",
+    "modalidade_declarada": "false",
+    "esperado": {"modalidade": "hibrido"}
+  },
+  {
+    "nome": "visto com apostrofo curvo",
+    "titulo": "Software Engineer",
+    "texto": "We can’t sponsor visas.",
+    "locais": [{"pais": "US"}],
+    "esperado": {"avisos": ["exige_visto"]}
+  },
+  {
+    "nome": "estagio como fase da empresa nao e contrato",
+    "titulo": "Analista de Sistemas",
+    "texto": "Contratação CLT. Somos uma startup em estágio de crescimento.",
+    "locais": [{"cidade": "São Paulo", "uf": "SP", "pais": "BR"}],
+    "esperado": {"contrato": "clt"}
+  },
+  {
+    "nome": "programa de trainee na descricao nao e contrato",
+    "titulo": "Coordenador de RH",
+    "texto": "Contratação CLT. Você vai coordenar o programa de trainee.",
+    "locais": [{"cidade": "São Paulo", "uf": "SP", "pais": "BR"}],
+    "esperado": {"contrato": "clt"}
+  },
+  {
+    "nome": "estagiario so na descricao",
+    "titulo": "Analista de Marketing",
+    "texto": "Vaga para estagiário com bolsa-auxílio.",
+    "locais": [{"cidade": "São Paulo", "uf": "SP", "pais": "BR"}],
+    "esperado": {"contrato": "estagio"}
+  },
+  {
+    "nome": "visto com not able to",
+    "titulo": "Software Engineer",
+    "texto": "Remote. We are not able to sponsor visas at this time.",
+    "locais": [{"pais": "US"}],
+    "esperado": {"avisos": ["exige_visto"]}
+  }
+]

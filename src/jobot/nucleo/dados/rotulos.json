@@ -1,0 +1,143 @@
+{
+  "sobre": "Regras de rótulo (desenho 10.4). Texto comparado já normalizado: minúsculas, sem acento, espaços simples. 'termos' casam como palavra inteira; 'expressoes' são regex só no pedaço comum entre Python e JavaScript (sem grupo com nome, flag embutida nem lookbehind). Pontos de uma regra = peso x peso do campo onde casou (o maior). Vence o valor com mais pontos; no empate, a regra que vem antes na lista. Por isso 'nivel' vai do menor para o maior: faixa como pleno/senior conta o menor. Regra que procura na descricao usa só termo que não é palavra comum ('estagio' também é fase, 'programa', 'efetivo') e fica depois dos valores explícitos (clt, pj).",
+  "versao_algoritmo": 1,
+  "pesos_campo": {"titulo": 3, "etiquetas": 2, "descricao": 1},
+  "area": {
+    "padrao": "outra",
+    "regras": [
+      {"valor": "design", "onde": ["titulo", "etiquetas"], "peso": 1,
+       "termos": ["designer", "design", "ux", "ui", "ux/ui", "ui/ux", "diretor de arte", "art director", "ilustrador", "ilustradora", "illustrator"]},
+      {"valor": "produto", "onde": ["titulo", "etiquetas"], "peso": 1,
+       "termos": ["product manager", "product owner", "product management", "gerente de produto", "analista de produto", "dono do produto"]},
+      {"valor": "dados", "onde": ["titulo", "etiquetas"], "peso": 1,
+       "termos": ["dados", "data", "analytics", "bi", "business intelligence", "machine learning", "aprendizado de maquina", "ml", "inteligencia artificial", "ia", "ai", "estatistico", "estatistica", "statistician"]},
+      {"valor": "tecnologia", "onde": ["titulo", "etiquetas"], "peso": 1,
+       "termos": ["desenvolvedor", "desenvolvedora", "developer", "programador", "programadora", "software", "backend", "back-end", "back end", "frontend", "front-end", "front end", "fullstack", "full-stack", "full stack", "devops", "sre", "qa", "sysadmin", "infraestrutura", "cloud", "mobile", "android", "ios", "tecnologia", "ti", "seguranca da informacao", "cybersecurity", "security engineer", "suporte tecnico", "help desk", "helpdesk", "python", "java", "javascript"]},
+      {"valor": "marketing", "onde": ["titulo", "etiquetas"], "peso": 1,
+       "termos": ["marketing", "seo", "growth", "social media", "midias sociais", "copywriter", "redator", "redatora", "conteudo", "content", "branding", "comunicacao", "trafego pago"]},
+      {"valor": "vendas", "onde": ["titulo", "etiquetas"], "peso": 1,
+       "termos": ["vendas", "vendedor", "vendedora", "sales", "account executive", "sdr", "bdr", "comercial", "executivo de contas", "executiva de contas", "inside sales", "pre-vendas", "business development"]},
+      {"valor": "financas", "onde": ["titulo", "etiquetas"], "peso": 1,
+       "termos": ["financeiro", "financeira", "financas", "finance", "financial", "contador", "contadora", "contabil", "contabilidade", "accountant", "accounting", "controller", "controladoria", "fiscal", "tesouraria", "treasury", "fp&a", "auditor", "auditora", "auditoria"]},
+      {"valor": "rh", "onde": ["titulo", "etiquetas"], "peso": 1,
+       "termos": ["rh", "hr", "recursos humanos", "human resources", "recrutamento", "recrutador", "recrutadora", "recruiter", "recruiting", "talent acquisition", "people partner", "departamento pessoal"]},
+      {"valor": "juridico", "onde": ["titulo", "etiquetas"], "peso": 1,
+       "termos": ["juridico", "juridica", "advogado", "advogada", "lawyer", "attorney", "legal", "paralegal", "counsel"]},
+      {"valor": "operacoes", "onde": ["titulo", "etiquetas"], "peso": 1,
+       "termos": ["operacoes", "operations", "logistica", "logistics", "supply chain", "cadeia de suprimentos", "almoxarifado", "estoque", "compras", "procurement"]},
+      {"valor": "engenharia", "onde": ["titulo", "etiquetas"], "peso": 1,
+       "termos": ["engenheiro civil", "engenheira civil", "engenharia civil", "engenheiro mecanico", "engenheira mecanica", "engenharia mecanica", "engenheiro eletricista", "engenheira eletricista", "engenharia eletrica", "engenheiro de producao", "engenheira de producao", "engenharia de producao", "engenheiro quimico", "engenheira quimica", "engenharia quimica", "engenheiro de processos", "civil engineer", "mechanical engineer", "electrical engineer", "chemical engineer", "process engineer"]},
+      {"valor": "saude", "onde": ["titulo", "etiquetas"], "peso": 1,
+       "termos": ["enfermeiro", "enfermeira", "enfermagem", "nurse", "medico", "medica", "physician", "farmaceutico", "farmaceutica", "pharmacist", "fisioterapeuta", "psicologo", "psicologa", "nutricionista", "dentista"]},
+      {"valor": "educacao", "onde": ["titulo", "etiquetas"], "peso": 1,
+       "termos": ["professor", "professora", "teacher", "tutor", "tutora", "pedagogo", "pedagoga", "educador", "educadora", "instrutor", "instrutora", "instructor"]},
+      {"valor": "administrativo", "onde": ["titulo", "etiquetas"], "peso": 1,
+       "termos": ["administrativo", "administrativa", "secretaria", "secretario", "recepcionista", "receptionist", "office manager", "administrative", "office assistant"]},
+      {"valor": "atendimento", "onde": ["titulo", "etiquetas"], "peso": 1,
+       "termos": ["atendimento", "atendente", "sac", "customer support", "customer service", "customer success", "suporte ao cliente", "call center", "telemarketing", "customer experience"]},
+      {"valor": "pesquisa", "onde": ["titulo", "etiquetas"], "peso": 1,
+       "termos": ["pesquisador", "pesquisadora", "researcher", "research scientist", "pesquisa", "research"]}
+    ]
+  },
+  "nivel": {
+    "padrao": "nao_informado",
+    "regras": [
+      {"valor": "estagio", "onde": ["titulo", "etiquetas"], "peso": 1,
+       "termos": ["estagio", "estagiario", "estagiaria", "intern", "internship"]},
+      {"valor": "trainee", "onde": ["titulo", "etiquetas"], "peso": 1,
+       "termos": ["trainee"]},
+      {"valor": "junior", "onde": ["titulo", "etiquetas"], "peso": 1,
+       "termos": ["junior", "jr", "entry level", "entry-level"]},
+      {"valor": "pleno", "onde": ["titulo", "etiquetas"], "peso": 1,
+       "termos": ["pleno", "mid", "mid-level", "mid level", "intermediate"]},
+      {"valor": "senior", "onde": ["titulo", "etiquetas"], "peso": 1,
+       "termos": ["senior", "sr"]},
+      {"valor": "especialista", "onde": ["titulo", "etiquetas"], "peso": 1,
+       "termos": ["especialista", "specialist", "staff", "principal", "expert"]},
+      {"valor": "lideranca", "onde": ["titulo", "etiquetas"], "peso": 1,
+       "termos": ["lideranca", "lider", "lead", "tech lead", "team lead", "head", "gerente", "coordenador", "coordenadora", "diretor", "diretora", "director", "engineering manager", "supervisor", "supervisora", "chefe", "vp"]}
+    ]
+  },
+  "modalidade": {
+    "padrao": "nao_informado",
+    "declarados": {
+      "remote": "remoto", "remoto": "remoto", "remota": "remoto", "remote_local": "remoto", "virtual": "remoto",
+      "fully remote": "remoto", "home office": "remoto", "homeoffice": "remoto",
+      "hybrid": "hibrido", "hibrido": "hibrido", "hibrida": "hibrido",
+      "onsite": "presencial", "on-site": "presencial", "on site": "presencial", "presencial": "presencial",
+      "in office": "presencial", "in-office": "presencial", "in person": "presencial", "in-person": "presencial"
+    },
+    "regras": [
+      {"valor": "hibrido", "onde": ["titulo", "etiquetas", "descricao"], "peso": 1,
+       "termos": ["hibrido", "hibrida", "hybrid"]},
+      {"valor": "remoto", "onde": ["titulo", "etiquetas", "descricao"], "peso": 1,
+       "termos": ["remoto", "remota", "remote", "home office", "work from home", "wfh", "anywhere"]},
+      {"valor": "presencial", "onde": ["titulo", "etiquetas", "descricao"], "peso": 1,
+       "termos": ["presencial", "on-site", "onsite", "on site", "in-office", "in office", "in person", "in-person"]}
+    ]
+  },
+  "contrato": {
+    "padrao": "nao_informado",
+    "so_no_brasil": ["clt", "pj"],
+    "declarados": {
+      "clt": "clt", "efetivo": "clt", "vacancy_type_effective": "clt",
+      "pj": "pj", "pessoa juridica": "pj", "vacancy_legal_entity": "pj", "vacancy_type_legal_entity": "pj",
+      "estagio": "estagio", "internship": "estagio", "intern": "estagio", "vacancy_type_internship": "estagio",
+      "trainee": "trainee", "vacancy_type_trainee": "trainee",
+      "temporario": "temporario", "temporary": "temporario", "vacancy_type_temporary": "temporario",
+      "aprendiz": "aprendiz", "jovem aprendiz": "aprendiz", "apprentice": "aprendiz", "vacancy_type_apprentice": "aprendiz",
+      "freelance": "freelance", "freelancer": "freelance", "contract": "freelance", "contractor": "freelance",
+      "autonomo": "freelance", "vacancy_type_autonomous": "freelance"
+    },
+    "regras": [
+      {"valor": "estagio", "onde": ["titulo", "etiquetas"], "peso": 1,
+       "termos": ["estagio", "estagiario", "estagiaria", "internship", "intern"]},
+      {"valor": "trainee", "onde": ["titulo", "etiquetas"], "peso": 1,
+       "termos": ["trainee"]},
+      {"valor": "aprendiz", "onde": ["titulo", "etiquetas", "descricao"], "peso": 1,
+       "termos": ["aprendiz", "jovem aprendiz", "apprentice", "apprenticeship"]},
+      {"valor": "bolsa_pesquisa", "onde": ["titulo", "etiquetas", "descricao"], "peso": 1,
+       "termos": ["bolsa de pesquisa", "iniciacao cientifica", "bolsista", "pos-doc", "postdoc", "pos-doutorado", "research fellowship"]},
+      {"valor": "concurso", "onde": ["titulo", "etiquetas", "descricao"], "peso": 1,
+       "termos": ["concurso publico", "concurso", "edital"]},
+      {"valor": "programa", "onde": ["titulo", "etiquetas"], "peso": 1,
+       "termos": ["programa de formacao", "programa jovens", "residency program", "fellowship program", "bootcamp"]},
+      {"valor": "temporario", "onde": ["titulo", "etiquetas", "descricao"], "peso": 1,
+       "termos": ["temporario", "temporaria", "temporary", "prazo determinado", "fixed-term", "fixed term", "seasonal"]},
+      {"valor": "clt", "onde": ["titulo", "etiquetas", "descricao"], "peso": 1,
+       "termos": ["clt", "carteira assinada"]},
+      {"valor": "pj", "onde": ["titulo", "etiquetas", "descricao"], "peso": 1,
+       "termos": ["pj", "pessoa juridica"]},
+      {"valor": "freelance", "onde": ["titulo", "etiquetas", "descricao"], "peso": 1,
+       "termos": ["freelance", "freelancer", "freela", "autonomo", "contractor"]},
+      {"valor": "estagio", "onde": ["descricao"], "peso": 1,
+       "termos": ["estagiario", "estagiaria", "vaga de estagio", "internship"]}
+    ]
+  },
+  "avisos": {
+    "regras": [
+      {"valor": "exige_visto", "onde": ["titulo", "descricao"], "peso": 1,
+       "termos": ["green card", "visto de trabalho"],
+       "expressoes": [
+         "visa sponsorship (is )?(not|n['’]t) (available|provided|offered)",
+         "\\b(no|not|not able to|unable to|cannot|can['’]t|do not|don['’]t|will not|won['’]t) (provide |offer )?(visa )?sponsor",
+         "must (be|have) (legally )?(authorized|eligible) to work",
+         "\\bwork authorization\\b",
+         "\\bright to work in\\b",
+         "valid work (visa|permit)",
+         "autorizacao (legal )?para trabalhar"
+       ]},
+      {"valor": "exige_doutorado", "onde": ["titulo", "descricao"], "peso": 1,
+       "termos": ["phd", "ph.d", "ph. d", "doutorado", "doctorate", "doctoral degree"]},
+      {"valor": "restrito_a_pais", "onde": ["titulo", "descricao"], "peso": 1,
+       "termos": ["residents only", "exclusivo para residentes"],
+       "expressoes": [
+         "\\b(only|exclusively) (open to )?(candidates|applicants|residents|people) (based|located|residing|living) in\\b",
+         "\\bmust (be )?(based|located|reside|residing|live|living) in\\b",
+         "\\b(us|usa|u\\.s\\.|uk|eu|canada|brazil|brasil|latam)[- ]only\\b",
+         "\\bonly (in|within) the (us|united states|uk|eu)\\b",
+         "\\b(apenas|somente) (candidatos |candidatas |pessoas )?(residentes|localizad[oa]s|morador[ea]s) (no|na|em)\\b"
+       ]}
+    ]
+  }
+}
