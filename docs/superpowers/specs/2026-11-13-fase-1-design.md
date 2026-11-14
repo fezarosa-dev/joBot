@@ -277,7 +277,6 @@ scripts/
   capturar.py            # só ele acessa a rede, e só quando alguém roda à mão
   conferir_empresas.py
 .github/workflows/ci.yml
-.github/dependabot.yml
 .gitignore               # inclui dados_locais/
 ```
 
@@ -1439,10 +1438,10 @@ uv run playwright install chromium   # uma vez, dentro da fedora-dev, para os te
 uv run jobot                          # abre o painel
 ```
 
-### 15.3 CI e Dependabot
+### 15.3 CI
 
 - `.github/workflows/ci.yml`: roda só em `pull_request` para a `main` (ADR 0016). Passos, com cache do uv: `uv sync --locked`, `uv run ruff check`, `uv run ruff format --check`, `uv run mypy`, `uv run playwright install --with-deps chromium` e `uv run pytest`. O CI **não** roda `uv run jobot`: esse comando sobe o servidor e abre o navegador, e o CI ficaria parado.
-- `.github/dependabot.yml`: ecossistemas `uv` e `github-actions`, semanal, com `target-branch: dev` [a confirmar se o Dependabot do uv aceita esse campo]. HTMX e Inter ficam fora do Dependabot; a versão e o sha256 de cada um ficam anotados num arquivo ao lado deles.
+- Sem Dependabot (ADR 0021): a atualização de dependência é manual, no fim da fase. HTMX e Inter têm a versão e o sha256 de cada um anotados num arquivo ao lado deles.
 - Como o CI só roda no fim da fase, cada junção na `dev` roda antes, na máquina, os mesmos comandos de verificação (ruff, mypy e pytest).
 
 ### 15.4 Processo (Q6 e Q7)
@@ -1500,7 +1499,7 @@ Blocos grandes; o plano detalhado sai depois.
 
 | Bloco | O que entra | Depende de |
 |---|---|---|
-| B0. Esqueleto | `pyproject`, uv, ruff, mypy, pytest, guarda de rede, teste das camadas, CLI vazia, pasta de dados, migrações e esquema, CI e Dependabot, `.gitignore` com `dados_locais/`, instalação e importação de todas as dependências no Python 3.14 | — |
+| B0. Esqueleto | `pyproject`, uv, ruff, mypy, pytest, guarda de rede, teste das camadas, CLI vazia, pasta de dados, migrações e esquema, CI, `.gitignore` com `dados_locais/`, instalação e importação de todas as dependências no Python 3.14 | — |
 | B1. Núcleo de tratamento | modelo, texto, URL e hash, salário com casos em JSON, câmbio (conta e leitura do PTAX), rótulos, locais, estágio, duplicadas, ciclo de vida, encaixe, destaques (tudo puro e offline) | B0 |
 | B2. Infra de coleta | `HttpEducado`, contrato, executor com saúde e falha isolada, `capturar.py`, teste "todo coletor tem fixture" | B0 |
 | B3. Leva A | captura e coletor de cada fonte da seção 8.4 (um agente por fonte, em paralelo), começando pelo Greenhouse. A Gupy entra neste bloco (decisão do dono, revisão, Q6; seção 20.2). Lista inicial de 67 empresas carregada (apêndice, 7); crédito "via <fonte>" | B1, B2 |
@@ -1697,7 +1696,6 @@ A conferência ao vivo de 2026-11-13 confirmou os endereços, os campos e os lim
 | sha256 do HTMX e da Inter | construtor, ao baixar | 13.13 |
 | Pacotes instalam e rodam no Python 3.14; avisos de segurança (CVE) | construtor, bloco B0 | 16 |
 | Bibliotecas de sistema que o Chromium do Playwright pede na `fedora-dev` | construtor, bloco B0 | 15.1 |
-| Campo `target-branch` do Dependabot para o uv | construtor, bloco B0 | 15.3 |
 | Licença da lista de municípios do IBGE | construtor, bloco B1 | 10.4 |
 | Termos de uso gerais do Greenhouse e da Lever (só a documentação das APIs foi lida) | construtor, antes do bloco B3 | apêndice, 2.4 e 8 |
 | Demais itens de fonte (formato do Super Estágios em mais vagas, valores do campo `remote` da Recrutei, e outros) | construtor, na captura | apêndice, 8 |
