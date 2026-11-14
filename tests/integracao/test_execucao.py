@@ -36,7 +36,7 @@ from jobot.nucleo.coletores.base import (
     ResultadoEscopo,
     UrlListada,
 )
-from jobot.nucleo.http import ClienteEducado, HttpEducado, Validadores
+from jobot.nucleo.http import ClienteEducado, HttpDoEscopo, HttpEducado, Parou429, Validadores
 from jobot.nucleo.modelo import Busca, Local, VagaColetada
 from jobot.nucleo.tratamento.rotulos import VERSAO_REGRAS
 from jobot.nucleo.url import canonica, hash_url
@@ -569,6 +569,146 @@ async def test_passo_4_nao_pede_a_fonte_que_parou_na_listagem(
 
     assert parada.coletados == [""]
     assert parada.detalhados == []
+
+
+Estado = Literal["ok", "parcial", "no_limite", "falhou"]
+
+
+@dataclass
+class PorEscopo(Falso):
+    """Cada escopo devolve o (estado, motivo, pedidos) de `saidas`; sem entrada, ok e 0 pedidos."""
+
+    saidas: dict[str, tuple[Estado, str | None, int]] = field(default_factory=dict)
+    https: dict[str, HttpEducado] = field(default_factory=dict)
+
+    async def coletar(self, escopo: str, http: HttpEducado) -> ResultadoEscopo:
+        self.coletados.append(escopo)
+        estado, motivo, pedidos = self.saidas.get(escopo, ("ok", None, 0))
+        return ResultadoEscopo(
+            self.lista[escopo] if estado == "ok" else (), estado, motivo, pedidos
+        )
+
+    async def detalhar(self, item: Item, http: HttpEducado) -> VagaColetada | None:
+        self.https[item.url] = http
+        return await super().detalhar(item, http)
+
+
+async def _pendentes_por_escopo(
+    con: sqlite3.Connection, coletor: PorEscopo, quantas: Mapping[str, int]
+) -> dict[str, list[VagaColetada]]:
+    """Grava ontem, com o enriquecimento desligado, `quantas[e]` vagas sem descrição em `e`."""
+    vagas = {
+        e: [_vaga(f"{e}-{i}", fonte=coletor.chave, escopo=e, descricao="") for i in range(n)]
+        for e, n in quantas.items()
+    }
+    coletor.lista = {e: tuple(vs) for e, vs in vagas.items()}
+    gravar_config(con, "enriquecimento_ligado", False)
+    await _executar(con, [coletor], relogio=RelogioParado(AGORA - timedelta(days=1)))
+    gravar_config(con, "enriquecimento_ligado", True)
+    coletor.coletados.clear()
+    assert coletor.detalhados == []
+    return vagas
+
+
+async def test_escopo_parado_so_tira_as_candidatas_dele(con: sqlite3.Connection) -> None:
+    coletor = PorEscopo(detalhe=_detalhe_completo)
+    vagas = await _pendentes_por_escopo(con, coletor, {"a": 1, "b": 1})
+    coletor.saidas = {"a": ("no_limite", "saude.parou_429", 1)}
+
+    await _executar(con, [coletor])
+
+    assert coletor.coletados == ["a", "b"]
+    assert coletor.detalhados == [vagas["b"][0].url]
+    assert _coletada(con, vagas["b"][0].url).descricao == DETALHE
+    assert _coletada(con, vagas["a"][0].url).descricao == ""
+
+
+@pytest.mark.parametrize(
+    ("estado", "motivo"),
+    [
+        ("no_limite", "saude.orcamento"),
+        ("falhou", "saude.bloqueio"),
+        ("parcial", "saude.limite_atingido"),
+    ],
+)
+async def test_parada_da_fonte_tira_todos_os_escopos(
+    con: sqlite3.Connection, estado: Estado, motivo: str
+) -> None:
+    coletor = PorEscopo(detalhe=_detalhe_completo)
+    await _pendentes_por_escopo(con, coletor, {"a": 1, "b": 1})
+    coletor.saidas = {"a": (estado, motivo, 1)}
+
+    await _executar(con, [coletor])
+
+    assert coletor.coletados == ["a", "b"]
+    assert coletor.detalhados == []
+
+
+async def test_detalhe_usa_a_espera_do_por_escopo(
+    con: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    aberturas: dict[int, dict[str, Any]] = {}
+    original = ClienteEducado.escopo
+
+    def espia(self: ClienteEducado, **kw: Any) -> HttpDoEscopo:
+        http = original(self, **kw)
+        aberturas[id(http)] = kw
+        return http
+
+    coletor = PorEscopo(
+        espera_s=2.0,
+        por_escopo={"lento": LimiteEscopo(espera_s=5, para_no_429=True)},
+        detalhe=_detalhe_completo,
+    )
+    vagas = await _pendentes_por_escopo(con, coletor, {"lento": 1, "normal": 1})
+    monkeypatch.setattr(ClienteEducado, "escopo", espia)
+
+    await _executar(con, [coletor])
+
+    lento, normal = vagas["lento"][0].url, vagas["normal"][0].url
+    assert coletor.detalhados == [lento, normal]
+    ritmo = {
+        url: (kw["espera_s"], kw.get("para_no_429", False))
+        for url, kw in ((u, aberturas[id(h)]) for u, h in coletor.https.items())
+    }
+    assert ritmo == {lento: (5, True), normal: (2.0, False)}
+
+
+async def test_parou429_no_detalhe_para_so_o_escopo(con: sqlite3.Connection) -> None:
+    def detalhe(item: Item) -> VagaColetada | None:
+        if "/vagas/a-" in item.url:
+            raise Parou429(f"{item.url}: HTTP 429")
+        return _detalhe_completo(item)
+
+    coletor = PorEscopo(detalhe=detalhe)
+    vagas = await _pendentes_por_escopo(con, coletor, {"a": 2, "b": 1})
+
+    await _executar(con, [coletor])
+
+    # o 429 no a-0 poupa o a-1, mas o escopo b segue
+    assert coletor.detalhados == [vagas["a"][0].url, vagas["b"][0].url]
+    assert _coletada(con, vagas["b"][0].url).descricao == DETALHE
+
+
+async def test_orcamento_da_fonte_e_um_so_entre_escopos(con: sqlite3.Connection) -> None:
+    @dataclass
+    class Pedinte(PorEscopo):
+        async def detalhar(self, item: Item, http: HttpEducado) -> VagaColetada | None:
+            self.detalhados.append(item.url)
+            await http.pedir("GET", item.url)  # o servidor falso responde 404: erro desta URL
+            return None
+
+    # 1 pedido na fonte; a listagem falsa não pede nada (o executor conta os pedidos reais)
+    coletor = Pedinte(max_pedidos=1)
+    vagas = await _pendentes_por_escopo(con, coletor, {"a": 1, "b": 1, "c": 1})
+    coletor.saidas = {"c": ("no_limite", "saude.parou_429", 0)}
+    servidor = Servidor()
+
+    await _executar(con, [coletor], servidor=servidor)
+
+    # o b esbarra no orçamento antes de pedir; o c parou e não entra
+    assert coletor.detalhados == [vagas["a"][0].url, vagas["b"][0].url]
+    assert [str(p.url) for p in servidor.pedidos] == [vagas["a"][0].url]
 
 
 async def test_enriquecimento_interruptor_desligado(

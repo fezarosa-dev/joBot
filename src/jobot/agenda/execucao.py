@@ -39,7 +39,7 @@ from jobot.banco.gravacao import (
     reprocessar,
 )
 from jobot.nucleo.cambio import buscar_cotacao
-from jobot.nucleo.coletores.base import Coletor, ContextoColeta
+from jobot.nucleo.coletores.base import Coletor, ContextoColeta, LimiteEscopo
 from jobot.nucleo.coletores.executor import SaidaEscopo, rodar
 from jobot.nucleo.coletores.registro import descobrir
 from jobot.nucleo.http import Bloqueio, ClienteEducado, LimiteAtingido, OrcamentoGasto, Parou429
@@ -55,16 +55,10 @@ MAX_DETALHES_POR_FONTE = 50
 MAX_DETALHES_POR_EXECUCAO = 200
 BATIMENTO_S = 30.0
 _PARA_DETALHES = (Bloqueio, LimiteAtingido, OrcamentoGasto, Parou429)
-# Escopo parado por estes (na listagem ou nos detalhes do executor): a fonte fica fora do passo 4.
-_PARADAS = frozenset(
-    {
-        "saude.intervalo",
-        "saude.orcamento",
-        "saude.parou_429",
-        "saude.bloqueio",
-        "saude.limite_atingido",
-    }
-)
+# Escopo parado por estes (na listagem ou nos detalhes do executor) fica fora do passo 4; os de
+# `_PARADAS_DA_FONTE` valem para a fonte toda e tiram todos os escopos dela (A14).
+_PARADAS_DA_FONTE = frozenset({"saude.orcamento", "saude.bloqueio", "saude.limite_atingido"})
+_PARADAS = _PARADAS_DA_FONTE | {"saude.intervalo", "saude.parou_429"}
 
 
 def _iso(quando: datetime) -> str:
@@ -197,15 +191,24 @@ async def _enriquecer(
     sem tentativa no cache de 30 dias; as mais recentes primeiro. O que não coube no limite,
     ou falhou sem gravar o cache, volta na próxima execução.
 
-    Só as fontes que rodaram nesta execução sem parar: a desligada (não está em `saidas`), a
-    que ficou no intervalo ou sem orçamento e a que levou 429, bloqueio ou limite não recebem
-    pedido de detalhe (ADR 0004). Fonte com todos os escopos em "falhou" também fica de fora.
+    Só as ocorrências dos escopos que rodaram nesta execução sem parar (A14): o escopo no
+    intervalo, em "falhou" ou que levou 429 fica de fora; orçamento, bloqueio e limite param a
+    fonte toda, e a fonte desligada não está em `saidas` (ADR 0004). Cada escopo detalha no ritmo
+    dele (`por_escopo`, como o executor); o `max_pedidos` da fonte é um orçamento só, somado
+    entre os escopos. 429 no detalhe para só aquele escopo; bloqueio, limite e orçamento param a
+    fonte.
     """
-    rodaram = {s.fonte for s in saidas if s.resultado.estado not in ("no_limite", "falhou")} - {
-        s.fonte for s in saidas if s.resultado.motivo in _PARADAS
+    fontes_paradas = {s.fonte for s in saidas if s.resultado.motivo in _PARADAS_DA_FONTE}
+    rodaram = {
+        (s.fonte, s.escopo)
+        for s in saidas
+        if s.resultado.estado not in ("no_limite", "falhou")
+        and s.resultado.motivo not in _PARADAS
+        and s.fonte not in fontes_paradas
     }
     if not rodaram:
         return
+    nomes = sorted({f for f, _ in rodaram})
     usados: defaultdict[str, int] = defaultdict(int)
     pedidos: defaultdict[str, int] = defaultdict(int)
     for s in saidas:
@@ -223,34 +226,49 @@ async def _enriquecer(
     # (fontes juntas); só o que sobra para este passo. Passar um orçamento comum ao `rodar`
     # se houver mais de quatro fontes de sitemap.
     livres_total = MAX_DETALHES_POR_EXECUCAO - sum(usados.values())
-    candidatas: defaultdict[str, list[tuple[int, VagaColetada]]] = defaultdict(list)
-    marcas = ",".join("?" * len(rodaram))
+    candidatas: defaultdict[str, list[tuple[int, str, VagaColetada]]] = defaultdict(list)
+    marcas = ",".join("?" * len(nomes))
     # o SQL já descarta a maioria (as que têm descrição); o `strip()` abaixo fecha o resto
-    for oid, fonte, coletada in con.execute(
-        "SELECT o.id, o.fonte, o.coletada FROM ocorrencia o JOIN vaga v ON v.id = o.vaga_id"
+    for oid, fonte, escopo, coletada in con.execute(
+        "SELECT o.id, o.fonte, o.escopo, o.coletada"
+        " FROM ocorrencia o JOIN vaga v ON v.id = o.vaga_id"
         f" WHERE v.primeira_vista_em >= ? AND o.sumiu_em IS NULL AND o.fonte IN ({marcas})"
         " AND trim(coalesce(json_extract(o.coletada, '$.descricao'), ''), char(32, 9, 10, 13))"
         " = ''"
         " ORDER BY v.primeira_vista_em DESC, o.id",
-        (_iso(inicio - JANELA_DETALHE), *sorted(rodaram)),
+        (_iso(inicio - JANELA_DETALHE), *nomes),
     ).fetchall():
+        if (fonte, escopo) not in rodaram:
+            continue
         v = VagaColetada.de_json(coletada)
         if not v.descricao.strip() and canonica(v.url) not in ja_detalhadas:
-            candidatas[fonte].append((oid, v))
+            candidatas[fonte].append((oid, escopo, v))
     historico = HistoricoDoBanco(con, relogio)
     for fonte, da_fonte in candidatas.items():
-        recentes = historico.detalhe_recente(fonte, [v.url for _, v in da_fonte])
+        recentes = historico.detalhe_recente(fonte, [v.url for _, _, v in da_fonte])
         livres = min(MAX_DETALHES_POR_FONTE - usados[fonte], livres_total)
-        fila = [(oid, v) for oid, v in da_fonte if v.url not in recentes][: max(livres, 0)]
-        if not fila:
-            continue
+        fila = [c for c in da_fonte if c[2].url not in recentes][: max(livres, 0)]
         coletor = coletores[fonte]
-        max_pedidos = None if coletor.max_pedidos is None else coletor.max_pedidos - pedidos[fonte]
-        http = cliente.escopo(espera_s=coletor.espera_s, condicional=False, max_pedidos=max_pedidos)
-        for oid, v in fila:
+        gastos = pedidos[fonte]
+        parados: set[str] = set()
+        for oid, escopo, v in fila:
+            if escopo in parados:
+                continue
+            limite = coletor.por_escopo.get(escopo, LimiteEscopo())
+            # um `HttpDoEscopo` por detalhe: o orçamento da fonte fica um só entre os escopos
+            http = cliente.escopo(
+                espera_s=coletor.espera_s if limite.espera_s is None else limite.espera_s,
+                condicional=False,
+                max_pedidos=None if coletor.max_pedidos is None else coletor.max_pedidos - gastos,
+                para_no_429=limite.para_no_429,
+            )
             livres_total -= 1
             try:
                 detalhe = await coletor.detalhar(v, http)
+            except Parou429:
+                log.warning("detalhes de %s/%s parados: Parou429", fonte, escopo)
+                parados.add(escopo)
+                continue
             except _PARA_DETALHES as erro:
                 log.warning("detalhes de %s parados: %s", fonte, type(erro).__name__)
                 break
@@ -259,6 +277,8 @@ async def _enriquecer(
                 # até 30 dias (JANELA_DETALHE). Contar as falhas pede schema (D54, opção c).
                 log.exception("detalhe de %s falhou", v.url)
                 continue
+            finally:
+                gastos += http.pedidos
             gravar_cache_detalhe(con, oid, v.url, detalhe, relogio.agora())
 
 
