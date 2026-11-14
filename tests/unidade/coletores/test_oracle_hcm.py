@@ -316,6 +316,14 @@ async def test_oracle_sem_faceta_nas_duas_descobertas_termina_ok_vazio() -> None
     assert _finder(pedidos[1])["keyword"] == '"Brazil"'
 
 
+async def test_oracle_404_na_descoberta_com_keyword_e_erro_de_rede() -> None:
+    # o site respondeu na primeira descoberta: o 404 da segunda não é "empresa não encontrada"
+    resultado, pedidos = await _coletar(_json("descoberta_sem_filtro"), httpx.Response(404))
+    assert (resultado.estado, resultado.motivo) == ("falhou", "saude.erro_de_rede")
+    assert len(pedidos) == 2
+    assert _finder(pedidos[1])["keyword"] == '"Brazil"'
+
+
 async def test_oracle_faceta_na_primeira_descoberta_nao_repete() -> None:
     resultado, pedidos = await _coletar(_json("normal"), _json("normal"))
     assert len(pedidos) == 2

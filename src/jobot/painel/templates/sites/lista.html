@@ -18,7 +18,7 @@
     <ul class="meta">
       <li>{{ p.url }}</li>
       <li>
-        {%- if p.estado == "falhou" %}{{ t("sites.estado.falhou") }}
+        {%- if p.estado == "falhou" %}{{ t("sites.estado.falhou", motivo=t("sites.motivo." ~ (p.motivo or "desconhecido"))) }}
         {%- elif p.estado == "ok" %}{{ t("sites.estado.ok", data=data_completa(p.verificada_em.isoformat(), idioma)) }}
         {%- else %}{{ t("sites.estado.nova") }}{% endif %}</li>
       {%- if p.mudou_em %}
