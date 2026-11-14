@@ -35,8 +35,6 @@ joBot has nothing to install yet. Phase 1 (foundation) is in progress. The decis
 5. Make small commits, in Portuguese, in the format `type(scope): description`.
 6. Open a PR to `dev` using the [PR template](pull_request_template.md).
 
-The exact commands to run everything will be documented once the code exists.
-
 ## Wiki
 
 - The wiki text lives in the [`wiki/`](../wiki/) folder of the repository.
