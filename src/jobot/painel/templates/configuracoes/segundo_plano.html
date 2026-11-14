@@ -1,0 +1,19 @@
+{% from "configuracoes/_interruptor.html" import interruptor %}
+<p class="config-texto">{{ t("configuracoes.segundo_plano.explicacao") }}</p>
+{% if container %}<p class="config-texto" data-container="{{ container }}">{{ t("configuracoes.segundo_plano.container", container=container) }}</p>{% endif %}
+{% if not linux %}<p class="config-texto" data-desativado>{{ t("configuracoes.segundo_plano.nao_linux") }}</p>{% endif %}
+{% if estado %}
+<dl class="config-estado">
+  <dt>{{ t("configuracoes.segundo_plano.instalado") }}</dt><dd>{{ t("configuracoes.sim") if estado.habilitado else t("configuracoes.nao") }}</dd>
+  <dt>{{ t("configuracoes.segundo_plano.rodando") }}</dt><dd>{{ t("configuracoes.sim") if estado.ativo else t("configuracoes.nao") }}</dd>
+</dl>
+{% endif %}
+<form method="post" action="/configuracoes/segundo-plano" class="config-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <div class="interruptores">
+    {{ interruptor("segundo_plano", ligado and linux, t("configuracoes.segundo_plano.ligar"), t("configuracoes.segundo_plano.ligar.ajuda"), not linux) }}
+  </div>
+  <div class="acoes">
+    <button type="submit" class="botao botao-primario">{{ t("configuracoes.salvar") }}</button>
+  </div>
+</form>
