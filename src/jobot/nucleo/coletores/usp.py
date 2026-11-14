@@ -222,9 +222,7 @@ def _campos_fea(texto: str) -> dict[str, str]:
             if rotulo is not None:
                 campos[rotulo] = "".join(partes).strip()
             rotulo, partes = no.text(strip=True).rstrip(":").strip().casefold(), []
-        elif no.tag == "-text":
-            partes.append(no.text())
-        elif not (no.tag or "-").startswith("-"):  # <a>, <i>: o texto de dentro também conta
+        elif no.tag == "-text" or not (no.tag or "-").startswith("-"):  # <a>, <i> também contam
             partes.append(no.text())
     if rotulo is not None:
         campos[rotulo] = "".join(partes).strip()
