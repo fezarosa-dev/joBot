@@ -15,3 +15,8 @@ dist/
 .ruff_cache/
 .coverage
 htmlcov/
+
+# Segredos locais: nunca vão para o git (o exemplo vazio pode ir)
+.env
+.env.*
+!.env.example
