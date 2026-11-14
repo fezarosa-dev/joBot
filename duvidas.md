@@ -1072,11 +1072,13 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 **Atualização de 2026-11-14 (T126, leva M): conferência ao vivo do Oracle e das empresas.** Depois da T126 (a segunda descoberta por keyword está em `oracle_hcm.py:237-239`; a keyword vai entre aspas, `oracle_hcm.py:207-208`), o `scripts/conferir_empresas.py` rodou na `fedora-dev`: Oracle 8 vagas e JPMorgan 20, e a keyword com aspas foi aceita pela API. A rodada de 2026-11-14 (sábado, `dev` `fa22d1e`) conferiu as 83 empresas do `empresas.json`, o primeiro escopo de cada uma, com filtro `BR`, termo `developer` e teto de 5 pedidos por empresa (`MAX_PEDIDOS`, `conferir_empresas.py:27`). Resultado: 81 de 83 respondem. Contam como resposta o estado `ok`, `sem_mudanca` ou `parcial` e o motivo `saude.orcamento`, que é o teto de pedidos da própria conferência (`scripts/conferir_empresas.py:31,43-45`). Os 81 são 76 `ok` mais 5 `no_limite` por orçamento (Localiza&Co, Sicredi, Hapvida, Santander e Mercado Livre). Os 2 que não respondem são a Mastercard (manutenção do Workday) e a Microsoft (`no_limite` por `saude.parou_429`, que não conta).
 - `ok`, empresas por fonte: Ashby 5, Greenhouse 15, Lever 8, SmartRecruiters 11, Gupy 25, InHire 2, Quickin 2, Recrutei 2, Sólides 2, Eightfold 2, Oracle HCM 2.
-- `ok` com 0 vagas: Beep Saúde e CNA Idiomas (Gupy). O quadro estava vazio no dia; conferir de novo na próxima rodada antes de tirar (A51). Se der 0 outra vez, vira tarefa de tirar a empresa do `empresas.json`.
+- `ok` com 0 vagas: Beep Saúde e CNA Idiomas (Gupy). O quadro estava vazio no dia; conferir de novo na próxima rodada antes de tirar (A51). Se der 0 outra vez, vira tarefa de tirar a empresa do `empresas.json`. Conferido de novo em 2026-11-14 (A56): não era quadro vazio, e a escolha está na D91.
 - `no_limite` pelo teto de 5 pedidos do script, então o número de vagas é um mínimo: Localiza&Co, Sicredi e Hapvida (Gupy, mais de 500), Santander (Workday, mais de 80) e Mercado Livre (Eightfold, mais de 50).
 - Mastercard (Workday, `wd1`) `falhou`, `saude.erro_de_rede`, "resposta não é JSON". Conferido à mão: o pedido volta 303 para a página de manutenção do Workday. É manutenção do centro de dados, passageira. A Mastercard é a primeira empresa do Workday no `empresas.json`, então é a sonda semanal do vigia (segunda, 06:23 UTC; `contexto_da_fonte` usa a primeira empresa de cada fonte, `scripts/vigia.py:130-133`); erro de rede não abre issue (`quebrou`, `vigia.py:105-114`), só entra no resumo.
 - Microsoft (Eightfold) `no_limite`, `saude.parou_429`, 10 vagas de 24 no Brasil. Conferido à mão: o 429 vem e vai sem depender do ritmo (o mesmo pedido deu 429 e depois 200). O `fontes.json` já tem `por_escopo` para a Microsoft (espera de 5 s, uma vez por dia, para no 429) e o coletor já registra o 429. Aceito como está.
 - `conferida_em` não mudou: o script só relata. Nada foi tirado do `empresas.json`.
+
+**Atualização de 2026-11-14 (A56, leva O):** Beep Saúde e CNA Idiomas deram 0 vagas outra vez, e a conferência mostrou que o quadro não está vazio: o filtro `careerPageName` do portal da Gupy não casa essas duas empresas. O achado, as opções e a recomendação estão na D91.
 
 ## D75. ATS por empresa da leva B: InHire, Quickin, Recrutei e Sólides (T56, T57, T58, T59, T120)
 
@@ -1192,6 +1194,8 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 **Atualização de 2026-11-14 (A53, leva N):** a leva N foi juntada na `dev` (commit `10daf60`): 6 de 6 tarefas (T79, T80d, T128, T129, T130 e REG11), sem conflito. Bateria: 3.588 testes de unidade e 91 de tela, ruff e mypy limpos (o log da junção está guardado com a sessão). A `dev` subiu ao GitHub como cópia (push simples, sem PR). A T79 saiu "não aprovada" nas três rodadas de revisão por uma ressalva média que já existia antes dela: a frase de privacidade do README diz que o joBot só faz pedidos às fontes, ao Banco Central e ao GitHub, e a descoberta semanal pelo Common Crawl, ligada por padrão, também faz pedidos. Foi juntada assim mesmo, e a correção é a T131. O que a leva N deixou aceito está na D86; o que virou tarefa, na D87; as dependências, na D88. A leva O tem duas tarefas: T131 (sobras da leva N) e esta REG12. Depois dela, o que sobra da fase 1 precisa do dono: T81 (rotular o gabarito) e, depois dela, T37 e T78; o roteiro da T80; a T132; e o PR para a `main`. Status: decidido pela sessão em 2026-11-14 com o dono fora, para confirmar.
 
+**Atualização de 2026-11-14 (A54 a A56, leva O):** a leva O foi juntada na `dev` (commit `0c5ddf1`): T131 e REG12 aprovadas com ressalvas baixas. Bateria: 3.596 testes de unidade, ruff e mypy verdes; na tela, 1 de 91 falhou numa rodada e as duas seguintes deram 91 de 91 (teste instável; a bateria só guardava a última linha, e o script agora mostra o nome do teste que falhar). A `dev` subiu ao GitHub como cópia (push simples, sem PR). Depois veio a T133 (`a51cb69`), com as ressalvas da T131. O que a leva O deixou aceito está na D89; a T133, na D90; a conferência ao vivo da Gupy, na D91. A REG13 registra tudo isso. Status: decidido pela sessão em 2026-11-14 com o dono fora, para confirmar.
+
 ## D82. Sobras da leva L aceitas (A45, T66 a T74, T83, T106, T123)
 
 **Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar
@@ -1290,6 +1294,8 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 **Decisão provisória:** (a). Desfazer: tirar a tarefa da leva O e mover o item para a D86.
 
+**Atualização de 2026-11-14 (A54, leva O):** a T131 foi entregue e juntada na `dev` (`0c5ddf1`), com os nove itens, e saiu aprovada com ressalvas baixas. O que ela deixou aceito está na D89, e o que virou a T133, na D90. A T132 segue aberta: roda no fim da fase, depois da T80 e da T81, que dependem do dono.
+
 ## D88. Atualização de dependências do fim da fase 1 (A53, T80d)
 
 **Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar
@@ -1303,3 +1309,54 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 **Opções:** (a) ficar na v7 do `setup-uv`, no playwright 1.65.1 e no HTMX 2.0.11 até a atualização da fase 2; (b) subir `setup-uv` para a v10 e o playwright para 1.65.2 já, em tarefa própria. Recomendação: (a), e fazer o (b) na atualização da fase 2, depois de a linha 4 do HTMX virar `latest`.
 
 **Decisão provisória:** (a). Desfazer: tarefa pequena para subir as versões.
+
+## D89. Sobras da leva O aceitas (A54, A55, T131, T133, REG12)
+
+**Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar
+
+**Contexto:** as revisões da T131, da T133 e da REG12 deixaram estas sobras. A sessão as aceita sem mudar o código; a tarefa de origem está no começo de cada item:
+- T131: dois módulos novos do painel, `painel/ambiente.py` (`ambiente_do_painel`, `rodar_do_painel`, `no_linux`) e `painel/formulario.py` (`campo_unico`). Os nomes são novos porque o nome antigo sem sublinhado seria sombreado por variável local nas rotas (`rodar, env = rodar(request)` dá `UnboundLocalError`). Se o dono preferir um módulo só, é juntar os dois.
+- T131: o CHANGELOG ficou sem o item da D1 (não é mudança de produto) e com a D3 em frase simples.
+- T131: "aceitar uma sugestão" faz pedido só na Gupy (`painel/rotas/sugeridas.py:80`, `_resolvido`), e o texto de privacidade diz de forma geral que o pedido sai quando a pessoa aceita uma sugestão.
+- T131: a ADR 0014 e a wiki não repetem a frase antiga de privacidade (conferido em 2026-11-14), então nada muda lá.
+- T131: as outras funções privadas de mesmo nome nas rotas (`_ler`, `_centavos`, `_montar`, `_resumo`, `_pagina`, `_achar`, `_gravar`, `_ligar`, `_motivo`, `_texto`, `_fontes`, `_conferir`, `_local`, `_linhas`) têm corpo diferente e ficam. As cópias de `_SemValidadores` dentro de `tests/` também ficam, porque cada teste tem o seu dublê.
+- T133: a frase "pelo git e pelo uv" no README e no painel fica, porque o destino varia com o clone; o teste exige o texto.
+- T133: `aviso_versao_ligada` continua fora de `PADROES` (`banco/cadastros.py:32`) de propósito: a T54 é a dona da chave (exceção da lista 13.7). O padrão desligado mora só em `aviso_ligado` (`agenda/versao.py:64`).
+- REG12: `tests/integracao/test_cadastros.py` segue com o total de 28 fontes escrito no teste (linhas 171, 185 e 238). É uma guarda de propósito: fonte nova pede mudar o teste junto.
+- Correção da A54: a atualização é o comando `jobot atualizar`, não um botão do painel.
+
+**Opções:** (a) aceitar todas; (b) abrir tarefa para cada uma. Recomendação: (a), pelo custo baixo de cada uma.
+
+**Decisão provisória:** (a). Desfazer: cada item vira tarefa pequena.
+
+## D90. T133 entregue: a privacidade cita a atualização e o teste lê o padrão real (A55, T133)
+
+**Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar
+
+**Contexto:** a T133 fechou as ressalvas da revisão da T131 (A54) e foi juntada na `dev` (`a51cb69`). O que mudou:
+- O texto de privacidade (`README.md`, `README.en.md` e `configuracoes.privacidade.telemetria` em pt e en) cita o pedido de rede de `jobot atualizar` (o git e o uv, só quando a pessoa pede).
+- `test_privacidade_cita_todos_os_pedidos` e `test_texto_acompanha_o_padrao_real` (`tests/unidade/test_documentos.py`) tiram a condição do padrão real: `PADROES` de `banco/cadastros.py`, `ligada_padrao` do `fontes.json` e `aviso_ligado`. `test_condicao_aceita_os_dois_generos` prova que a expressão aceita "vem ligado" e "vem ligada", "vem desligado" e "vem desligada".
+- `_ligado` virou `aviso_ligado`, público, em `agenda/versao.py:64`, e a rota de configurações usa ele (`painel/rotas/configuracoes.py:97`).
+- A revisão achou um problema médio: o teste exigia a condição com o gênero fixo, então, se um padrão feminino mudasse, o texto certo nunca passaria. Foi corrigido antes da junção. Os dois problemas baixos também (o teste fecha a conexão; o padrão do aviso fica num lugar só).
+- A bateria da junção passou a rodar `uv sync --locked` e `ruff format --check` em linha própria. Resultado: `uv sync --locked` ok, 3.603 testes de unidade, 91 de tela, `ruff check`, `ruff format --check` e `mypy` limpos. Isso prova o passo inteiro da T80 (sobra da REG12).
+- Ressalvas baixas e opcionais da re-revisão, aceitas: o nome de exibição da fonte sai de `capitalize` no teste, e não há mutante dirigido para o padrão do aviso.
+
+**Opções:** (a) aceitar como está; (b) tarefa nova para a mutação do aviso e o nome de exibição. Recomendação: (a), pelo custo baixo.
+
+**Decisão provisória:** (a). Desfazer: cada item vira tarefa pequena.
+
+## D91. Beep Saúde e CNA Idiomas dão 0 vagas pela Gupy (A56, T55b, T40)
+
+**Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar
+
+**Contexto:** conferido ao vivo na `fedora-dev` em 2026-11-14, três vezes. Vem da D74, que pedia conferir de novo antes de tirar a empresa.
+- Fato: `scripts/conferir_empresas.py gupy` deu 28 de 28 respondem, mas Beep Saúde e CNA Idiomas com 0 vagas, com ou sem o termo `developer` e com ou sem o `careerPageName`.
+- O `resolver` do coletor (`nucleo/coletores/gupy.py:192-218`, o mesmo que o painel usa) devolve o mesmo `careerPageName` que está no `empresas.json` ("Beep Saúde", "CNA Idiomas").
+- As páginas de carreira (`beepsaude.gupy.io`, `cnaidiomas.gupy.io`) listam 74 e 58 vagas.
+- A API do portal (`portal.gupy.io/api/job-search/jobs`) com o `careerPageName` exato devolve total 0. Buscando por `jobName` com o título de uma vaga dessas páginas, o portal devolve a vaga com o `careerPageName` igual.
+- Conclusão: o filtro `careerPageName` do portal não casa essas duas empresas. Não é quadro vazio nem nome errado. As outras 26 empresas da Gupy funcionam.
+- Também está no apêndice de fontes (`docs/superpowers/specs/2026-11-13-fase-1-fontes.md`, seção 7.5).
+
+**Opções:** (a) tirar as duas do `empresas.json`; (b) tarefa nova: no coletor da Gupy, quando o portal devolve 0 para uma empresa, ler a página de carreira `<identificador>.gupy.io` (host novo, muda a decisão 29 e o contrato do coletor; precisa do detalhe de cada vaga, porque a página traz só título, departamento e local); (c) manter as duas e conferir de novo na próxima rodada; (d) (c) agora e (b) na fase 2. Recomendação: (d). Custo de manter: um pedido por dia por empresa, sem erro. Risco: quem adicionar pelo painel uma empresa com o mesmo problema vê 0 vagas sem aviso.
+
+**Decisão provisória:** (d). Desfazer: tirar as duas do `empresas.json` (opção (a)) ou abrir a tarefa da opção (b).
