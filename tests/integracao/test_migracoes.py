@@ -10,6 +10,8 @@ from jobot.banco import migrar as modulo_migrar
 from jobot.banco.conexao import abrir, tem_fts5
 from jobot.banco.migrar import MIGRACOES, BancoMaisNovo, migrar
 
+ULTIMA = len(list(MIGRACOES.glob("*.sql")))  # a versão a que `migrar` chega numa pasta de verdade
+
 TABELAS = {
     "fonte",
     "empresa",
@@ -114,8 +116,8 @@ def test_pragmas(tmp_path: Path) -> None:
 def test_vazio_recebe_esquema(tmp_path: Path) -> None:
     caminho = tmp_path / "jobot.db"
     con = abrir(caminho)
-    assert migrar(con, caminho) == 1
-    assert _versao(con) == 1
+    assert migrar(con, caminho) == ULTIMA
+    assert _versao(con) == ULTIMA
     tabelas = _nomes(con, "table")
     assert TABELAS <= tabelas
     assert INDICES <= _nomes(con, "index")
@@ -142,7 +144,7 @@ def test_vazio_recebe_esquema(tmp_path: Path) -> None:
 def test_migra_sem_fts5(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(modulo_migrar, "tem_fts5", lambda con: False)
     con, _ = _novo(tmp_path)
-    assert _versao(con) == 1
+    assert _versao(con) == ULTIMA
     assert "vaga_fts" not in _nomes(con, "table")
     assert _gatilhos_fts(con) == []
     _vaga(con)
