@@ -18,6 +18,7 @@ TABELAS = {
     "empresa_sugerida",
     "execucao",
     "saude",
+    "execucao_fonte",
     "vaga",
     "local_vaga",
     "ocorrencia",

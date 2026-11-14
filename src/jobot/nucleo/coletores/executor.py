@@ -89,6 +89,10 @@ class SaidaEscopo:
     detalhes: int = 0
 
 
+async def _nada(fonte: str) -> None:
+    """Padrão dos avisos de começo e fim de fonte: quem chama sem eles não muda."""
+
+
 async def rodar(
     coletores: Mapping[str, Coletor],
     ctx: ContextoColeta,
@@ -98,15 +102,27 @@ async def rodar(
     *,
     ligadas: Set[str],
     ao_terminar_escopo: Callable[[SaidaEscopo], Awaitable[None]],
+    ao_comecar_fonte: Callable[[str], Awaitable[None]] = _nada,
+    ao_terminar_fonte: Callable[[str], Awaitable[None]] = _nada,
     max_detalhes_por_fonte: int = 50,
 ) -> None:
+    """Roda as fontes ligadas. `ao_comecar_fonte` e `ao_terminar_fonte` recebem a chave da fonte.
+
+    O fim vem sempre que o começo veio, também quando a fonte levanta ou é cancelada. Os avisos
+    não devem levantar: o que levantar sobe como erro do banco (o fim, no `finally`, troca até o
+    cancelamento por ele); quem chama trata o seu erro e segue.
+    """
     vagas = asyncio.Semaphore(MAX_FONTES_JUNTAS)
 
     async def uma(coletor: Coletor) -> None:
         async with vagas:
-            await _Fonte(
-                coletor, cliente, historico, relogio, ao_terminar_escopo, max_detalhes_por_fonte
-            ).rodar(ctx)
+            await ao_comecar_fonte(coletor.chave)
+            try:
+                await _Fonte(
+                    coletor, cliente, historico, relogio, ao_terminar_escopo, max_detalhes_por_fonte
+                ).rodar(ctx)
+            finally:
+                await ao_terminar_fonte(coletor.chave)
 
     # TaskGroup: cancelar `rodar` ou um erro do ao_terminar_escopo cancela e espera todas.
     async with asyncio.TaskGroup() as grupo:

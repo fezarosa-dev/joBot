@@ -1,6 +1,6 @@
 """Execuções, batimento e saúde no banco; `HistoricoDoBanco` para o executor (plano T22).
 
-Desenho 7.3 (`execucao`, `saude`), 8.1 e 8.3 (histórico do executor), 12.3 e 12.4.
+Desenho 7.3 (`execucao`, `saude`, `execucao_fonte`), 8.1 e 8.3 (histórico do executor), 12.3 e 12.4.
 Datas entram e saem em UTC com fuso (`agora` vem de quem chama, nunca do relógio do
 sistema aqui); `agora` sem fuso levanta `ValueError`.
 
@@ -41,6 +41,7 @@ class Andamento:
     iniciada_em: datetime
     batimento_em: datetime
     escopos_prontos: int  # linhas de `saude` já gravadas nesta execução
+    fontes_rodando: tuple[str, ...] = ()  # começaram e não terminaram, na ordem de começo
 
 
 @dataclass(frozen=True)
@@ -184,6 +185,40 @@ def gravar_saude(
         con.commit()
 
 
+def _marcar_fonte(con: sqlite3.Connection, sql: str, parametros: tuple[object, ...]) -> None:
+    ja_aberta = con.in_transaction  # como `gravar_saude`: quem abriu a transação confirma
+    try:
+        con.execute(sql, parametros)
+    except BaseException:
+        if not ja_aberta:
+            con.rollback()
+        raise
+    if not ja_aberta:
+        con.commit()
+
+
+def comecar_fonte(con: sqlite3.Connection, execucao_id: int, fonte: str, agora: datetime) -> None:
+    """A fonte começou a rodar nesta execução; começar de novo zera o fim."""
+    _marcar_fonte(
+        con,
+        "INSERT INTO execucao_fonte (execucao_id, fonte, comecou_em) VALUES (?, ?, ?)"
+        " ON CONFLICT(execucao_id, fonte) DO UPDATE SET comecou_em=excluded.comecou_em,"
+        " terminou_em=NULL",
+        (execucao_id, fonte, _iso(agora)),
+    )
+
+
+def terminar_fonte(con: sqlite3.Connection, execucao_id: int, fonte: str, agora: datetime) -> None:
+    """A fonte acabou (terminou, falhou ou foi cancelada); sem começo gravado, grava os dois."""
+    _marcar_fonte(
+        con,
+        "INSERT INTO execucao_fonte (execucao_id, fonte, comecou_em, terminou_em)"
+        " VALUES (?, ?, ?, ?)"
+        " ON CONFLICT(execucao_id, fonte) DO UPDATE SET terminou_em=excluded.terminou_em",
+        (execucao_id, fonte, _iso(agora), _iso(agora)),
+    )
+
+
 def inicio_da_ultima_completa(con: sqlite3.Connection, tipo: Tipo) -> datetime | None:
     """Início da última execução "concluida" do tipo; interrompida e rodando não contam."""
     linha = con.execute(
@@ -202,7 +237,20 @@ def execucao_atual(con: sqlite3.Connection) -> Andamento | None:
     ).fetchone()
     if linha is None:
         return None
-    return Andamento(linha[0], linha[1], linha[2], _data(linha[3]), _data(linha[4]), linha[5])
+    rodando = con.execute(
+        "SELECT fonte FROM execucao_fonte WHERE execucao_id = ? AND terminou_em IS NULL"
+        " ORDER BY comecou_em, fonte",
+        (linha[0],),
+    ).fetchall()
+    return Andamento(
+        linha[0],
+        linha[1],
+        linha[2],
+        _data(linha[3]),
+        _data(linha[4]),
+        linha[5],
+        tuple(f for (f,) in rodando),
+    )
 
 
 def saude_recente(con: sqlite3.Connection, n: int = 8) -> tuple[LinhaSaude, ...]:
