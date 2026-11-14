@@ -490,7 +490,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 - Renomeações públicas (`confere_http`, `PARA_MENSAL`, `mensal`, `host_local`): na integração, procurar `_confere_http`, `_PARA_MENSAL` e `_mensal(` nos outros worktrees da leva. `registros/padroes.md` já cita o nome novo.
 - Docstring de `juntar_paginas` (`base.py`): "nada se fecha" virou "só o que tem mais de 30 dias se fecha", para bater com o ciclo de vida (10.2). É só texto.
 
-## D42. Correções da pessoa na vaga: formato do valor e efeito (T19, T46)
+## D42. Correções da pessoa na vaga: formato do valor e efeito (T19, T46, T90)
 
 **Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
 
@@ -512,7 +512,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 - A correção vale também em `gravar_escopo` e `gravar_detalhe`, não só no reprocesso. Sem isso, a próxima busca desfaria o valor corrigido (`test_correcao_vence_regra_no_reprocesso`).
 - Os benefícios lidos da fonte (VR, VA) continuam quando a correção do salário não traz benefício, e também quando a correção vem vazia. Se a correção trouxer benefícios, eles substituem os da fonte.
 - Quando o salário some, as colunas `sal_mensal_min_brl`, `sal_mensal_max_brl` e `sal_cotacao_data` também ficam nulas. Senão o valor em reais velho ficaria parado na vaga, porque `aplicar_cotacoes` só olha vaga com `sal_moeda`.
-- Limite conhecido: para herdar a moeda, o código põe o código ISO na frente do texto. Moeda que o leitor de salário não reconhece no texto (por exemplo NZD, vinda do salário estruturado da fonte) cai na moeda do idioma; numa vaga em pt vira BRL. Vai na T90.
+- Limite conhecido: para herdar a moeda, o código põe o código ISO na frente do texto. Moeda que o leitor de salário não reconhece no texto (por exemplo NZD, vinda do salário estruturado da fonte) cai na moeda do idioma; numa vaga em pt vira BRL. Resolvido pela T90 (entregue): a moeda herdada fica. Limite que sobra, marcado com `shortcut:` em `_corrigir`: quando a moeda herdada não está na lista do leitor, o salário corrigido sai com `plausivel=False`, e o período sem unidade escrita é deduzido pela faixa da moeda do idioma ("30" numa vaga NZD em pt vira hora pela faixa do BRL). O ajuste vem quando o leitor de salário aceitar moeda por parâmetro.
 
 ## D43. Gravação do escopo: validadores no 304 e outras escolhas (T19)
 
@@ -605,7 +605,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 **Provisório (o que o código faz hoje), para confirmar:** o item Configurações aponta para `/configuracoes/fontes` e fica marcado em qualquer `/configuracoes/...`. A área de cada item casa o caminho inteiro ou seguido de `/` (`/vagasx` não marca Vagas), e `/` conta como Vagas.
 
-## D48. Tratamento: cidades dos EUA, curso composto e salário (T82, T78)
+## D48. Tratamento: cidades dos EUA, curso composto e salário (T82, T92, T78)
 
 **Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
 
@@ -621,7 +621,10 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 **Provisório (o que o código faz hoje), para confirmar:**
 - HTML escapado várias vezes: o texto é desfeito até 16 passadas (`_PASSADAS` em `src/jobot/nucleo/texto.py`). Acima de 15 escapes ainda sobra entidade (limite no comentário `shortcut:`).
 - "Salary 120k USD 401k match" lê o salário e perde o benefício; "Fraud USD 401k" ainda vira valor. Ressalva conhecida, para a T78.
-- "30 min" (minutos) é lido como 30 por hora ("Almoço de 30 min, R$ 5.000" dá BRL 30 por hora). Isso é defeito, não escolha: vai na T92.
+- "30 min" (minutos) é lido como 30 por hora ("Almoço de 30 min, R$ 5.000" dá BRL 30 por hora). Resolvido pela T92 (entregue): número seguido de `min`, `mins`, `minutos` ou `minutes` não é valor.
+- Rótulo `min` sem moeda colada antes do número ("3.000 min a 5.000 max"): o primeiro valor é lido como duração e some, e só o segundo vira salário (marcado com `shortcut:` em `_valores`). O mesmo vale para o `min` depois do limite superior sem moeda ("R$ 3.000 a 5.000 min" lê só 3.000). Os controles do plano ("Min $50k - Max $70k" e "R$ 3.000 min a R$ 5.000 max por mês") seguem como faixa.
+- As variantes `minuto` (singular) e `m.` não são tratadas, e `hora` no singular também não: "30 min a 1 hora, R$ 5.000" ainda lê 1 por hora.
+- A conferência desses casos contra o gabarito fica para a T78, porque a rotulagem (T81) ainda não foi feita.
 
 ## D49. Primeira execução: "Não ligar" quando o sistema falha (T53)
 
@@ -657,12 +660,12 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 - Hapvida: o nome genérico faz o escopo `hapvidandi` baixar vagas de várias empresas, e só o filtro de host do `jobUrl` as descarta depois de baixadas. O orçamento de 30 pedidos é da fonte inteira, então esse escopo pode gastar tudo e deixar os outros em `no_limite` (o rodízio por `ultima_coleta` ameniza, não elimina). Se acontecer na prática, vira tarefa nova: limite próprio por escopo ou filtro por outro parâmetro da API.
 - SmartRecruiters: `escopos` não confere o identificador do cadastro. Um identificador vazio ou com `|` geraria escopo malformado. O resolver e o `empresas.json` já cuidam disso, então fica sem teste; filtrar por regex em `escopos` é opcional.
 
-## D51. GitHub Issues: cota, empresa e página 2 (T31, T84)
+## D51. GitHub Issues: cota, empresa e página 2 (T31, T84, T94, T99)
 
 **Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
 
 **Contexto:** O coletor (`src/jobot/nucleo/coletores/github_issues.py`) deixou três pontos.
-- Cota. A linha da tabela do plano promete "cota de 60/h acabou → no_limite", mas a cota esgotada chega como 403 ou 429. O `http.py` converte isso em `Bloqueio` sem os cabeçalhos, e o escopo sai `falhou` com `saude.bloqueio`, em vez de `no_limite` com `saude.cota`. O `no_limite` do coletor só sai com 200, `x-ratelimit-remaining: 0` e `Link rel=next`, quase inalcançável com `per_page=100`. No vigia (T84), `saude.bloqueio` só entra no resumo, sem issue; o efeito visível é o link "reportar problema" da tela de fontes (T50), inclusive para o 403 de cota.
+- Cota (antes da T94). A linha da tabela do plano promete "cota de 60/h acabou → no_limite", mas a cota esgotada chega como 403 ou 429. O `http.py` converte isso em `Bloqueio` sem os cabeçalhos, e o escopo sai `falhou` com `saude.bloqueio`, em vez de `no_limite` com `saude.cota`. O `no_limite` do coletor só sai com 200, `x-ratelimit-remaining: 0` e `Link rel=next`, quase inalcançável com `per_page=100`. No vigia (T84), `saude.bloqueio` só entra no resumo, sem issue; o efeito visível é o link "reportar problema" da tela de fontes (T50), inclusive para o 403 de cota.
 - Empresa. Toda vaga da fonte leva o nome do repositório (`owner/repo`) como empresa. Filtros, encaixe, exibição e agrupamento vão tratar o repositório como empresa.
 - Página 2. Formato quebrado na página 2 ou seguinte descarta as vagas da página 1 e devolve `falhou` (marcado com `shortcut:`). Nenhum dos cinco repositórios passa de uma página hoje.
 
@@ -671,7 +674,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 - Empresa: (a) `owner/repo` agora; (b) heurística depois, com o texto das vagas dos cinco repositórios.
 - Página 2: (a) `falhou`, como está; (b) `parcial` com as vagas já lidas.
 
-**Decisão provisória:** cota: (a) por ora, e a correção (b) vira a T94; até lá a cota esgotada aparece como `saude.bloqueio`. Empresa: (a); a heurística é tarefa própria, depois de haver corpus real. Página 2: (a), e troca-se por (b) quando algum repositório passar de 100 abertas.
+**Decisão provisória:** cota: (b), entregue pela T94: `Bloqueio` e `LimiteAtingido` levam os cabeçalhos (`cabecalhos`), e 403 ou 429 com `x-ratelimit-remaining: 0` vira `no_limite` com `saude.cota`, com as vagas já lidas. Sobra um caso: o 429 de cota zero sem `Retry-After` ainda passa pelas esperas de 30, 60 e 120 s do `http.py` antes de virar `no_limite`; o conserto é a T99. Empresa: (a); a heurística é tarefa própria, depois de haver corpus real. Página 2: (a), e troca-se por (b) quando algum repositório passar de 100 abertas.
 
 **Provisório (o que o código faz hoje), para confirmar:**
 - As fixtures `paginacao_1`, `paginacao_2` e `formato_mudou` foram montadas à mão. O `Link` delas (id do repositório e cursor) é inventado a partir do formato visto; o `.meta.json` diz isso, com o `sha256` conferido. O coletor segue o `Link` como vier.
@@ -725,14 +728,14 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 - Recuo para a URL de detalhe que sempre quebra: ela é pedida em toda execução por até 30 dias (`JANELA_DETALHE`). (a) manter, com `shortcut:`; (b) gravar a tentativa no cache já na primeira falha comum, o que tira o "tenta de novo" da falha passageira; (c) contar as falhas, o que pede schema.
 - Critério de fonte que "rodou" (a que recebe detalhes): entra a fonte que tem ao menos um escopo fora de `no_limite` e de `falhou`; sai a fonte em que algum escopo parou por intervalo, orçamento, 429, bloqueio ou limite. Com intervalo por escopo (DR-64), a fonte só recebe detalhes quando todos os escopos estão vencidos. Isso pega a Eightfold (o escopo `apply.careers.microsoft.com` tem 1440 min e os outros não têm intervalo), que só é enriquecida uma vez por dia. (a) manter, que é conservador e não fura o ritmo; (b) excluir só quando todos os escopos pararam ou quando o motivo é 429, bloqueio ou orçamento, deixando o intervalo de um escopo isolado fora da regra.
 
-**Decisão provisória:** execução: (b), que vira a T95. Detalhe e cache: (b), na mesma T95. Recuo: (a) até a função de cache existir, e então a (c). Critério de fonte: (a).
+**Decisão provisória:** execução: (b), entregue pela T95 (`interromper_execucao` em `banco/execucoes.py`; `executar_busca` a chama num `except BaseException` e deixa a exceção subir). Detalhe e cache: (b), entregue na mesma T95 (`gravar_cache_detalhe` em `banco/gravacao.py`). O teste injeta o erro num passo seguinte (`recalcular_encaixe`), porque o executor absorve a exceção do coletor e a vira saúde `falhou`. Recuo: segue a (a), com `shortcut:` que diz que a (c) pede schema. Critério de fonte: (a).
 
 **Provisório (o que o código faz hoje), para confirmar, sem decisão nova (recomendação: manter):**
 - Vaga gravada com o interruptor de enriquecimento desligado é detalhada quando ele é religado.
 - `executar_busca` aceita o argumento `coletores` (um mapa de chave para coletor; sem ele usa os coletores do registro). Ele não está nas Interfaces da T41 e serve aos testes.
 - O teto de 200 detalhes por execução não limita os detalhes de sitemap que o executor da T16 já fez dentro da coleta; o limite de 200 conta só os feitos no passo 4.
 - A fonte desligada ganha saúde "desligada", com motivo vazio, a cada execução.
-- O pré-filtro em SQL das descrições vazias é mais restrito que o `strip()` do Python (o `trim()` do SQLite não tira `\v`, `\f` nem NBSP), então uma descrição só com esses caracteres nunca vira candidata a detalhe. O comentário em `execucao.py` diz o contrário e se corrige (o SQL decide, o `strip()` só confirma), ou o `trim` ganha `char(11,12,160)`.
+- O pré-filtro em SQL das descrições vazias é mais restrito que o `strip()` do Python (o `trim()` do SQLite não tira `\v`, `\f` nem NBSP), então uma descrição só com esses caracteres nunca vira candidata a detalhe. O comentário em `execucao.py` diz o contrário e se corrige (o SQL decide, o `strip()` só confirma), ou o `trim` ganha `char(11,12,160)`. A T95 não mexeu nisso: o comentário e o `trim` seguem como estavam.
 
 ## D55. Agendador: travas compartilhadas com "buscar agora" (T42, T48, T49)
 
@@ -759,14 +762,14 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 **Opções:** (a) criar `--alerta` numa tarefa pequena (com par de contraste para a superfície e para o fundo, nos dois temas) e pintar o prazo e a marca ▲; (b) manter o negrito.
 
-**Decisão provisória:** (a), que vira a T96. Até lá, o prazo urgente fica em negrito.
+**Decisão provisória:** (a), entregue pela T96 com os valores de partida: `--alerta` é `light-dark(#d70015, #ff453a)`, e o prazo e a marca ▲ usam o token, com o negrito e o ▲ mantidos. Contraste medido: 4,94 sobre o fundo claro, 6,16 sobre o fundo escuro, 5,38 sobre a superfície clara e 4,99 sobre a superfície escura. O ▲ da grade de 12 meses fica sobre `--trilho` com 4,41 (claro) e 4,09 (escuro): é objeto gráfico (`aria-hidden`, o texto ao lado diz o mesmo), e o mínimo da WCAG 1.4.11 para ele é 3:1, então passa; o texto do prazo é que precisa de 4,5. O par `alerta/trilho` não entra na lista do `base.css`. Se o dono quiser 4,5 também na grade, pede outro tom para a marca ou para o fundo.
 
 **Provisório (o que o código faz hoje), para confirmar:**
 - O comentário da correção aparece em todas as linhas do formulário (um `textarea` por formulário, `id` `correcao-comentario-{campo}`). A dúvida anterior, se o comentário ficava em uma só linha, está resolvida a favor do desenho 13.5.
 - Quando área, nível, modalidade ou contrato estão `NULL` (a coluna aceita), nenhum `<option>` sai marcado, e o navegador mostra a primeira opção como se fosse o valor da vaga. A sugestão da revisão é uma opção vazia marcada e desabilitada no topo, com teste de vaga de área `NULL`; fica para o dono pedir, porque o 422 seco para valor vazio já vale.
 - `rotas/detalhe.py` importa nomes privados de `rotas/vagas.py` (`_MAX_ID`, `_busca_efetiva`, `_inteiro`, `_relogio`, `_utc`). Funciona, mas qualquer renomeação lá quebra aqui; tornar públicos os helpers compartilhados é ajuste à parte.
 
-## D57. Coletores da leva A: escolhas dos redatores, para confirmar (T28, T29, T32, T33, T34, T35, T38, T39)
+## D57. Coletores da leva A: escolhas dos redatores, para confirmar (T28, T29, T32, T33, T34, T35, T38, T39, T93)
 
 **Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
 
@@ -784,4 +787,75 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 - Hacker News (T39): a primeira linha do comentário (`Empresa | Cargo | Local`) é só costume, então vale `shortcut:`. A empresa é o primeiro segmento antes de `|`; o cargo é o segundo, a menos que seja rótulo de modalidade (`remote`, `onsite`, `hybrid`), e então, sem `|`, é a linha toda cortada em 120 caracteres. Local e modalidade ficam para o tratamento; a T78 calibra. Quando a busca devolve hits e nenhum tem o título "Ask HN: Who is hiring?", o coletor devolve `falhou` com `saude.formato_mudou`, para o `ok` não fechar todas as vagas; busca com `hits` vazio dá `ok` com zero vagas. Comentário com `text` nulo ou vazio (apagado) é ignorado e não conta como pulado; sem a chave `text`, conta como formato mudou, e se todos vierem sem texto o estado é `falhou`. O `intervalo_min` é `null` em `fontes.json` e o coletor faz 2 pedidos por execução, enquanto o apêndice diz que uma leitura basta; o intervalo é decisão do dono. No dia 1 ou 2 do mês, o tópico novo ainda vazio dá `ok` com zero vagas e fecha as vagas do mês anterior: quem trata isso é o `zero_inesperado` do executor (T16), e no vigia (T84) a fonte, sendo de escopo único, abriria issue nesse caso.
 - Id booleano ou vazio: `isinstance(x, int | str)` aceita `bool`, então um `id` `true` vira `id_externo` `"True"` (Lever, Remotive, RemoteOK, Jobicy, Gupy); no Lever, `id` vazio vira `""`; `_numero` do Lever aceita NaN e Infinity. Nenhuma fonte real manda isso, e nada quebra. Recomendação: excluir bool e texto vazio quando algum coletor for mexido.
 
-**Decisão provisória:** o código segue o que está acima; a modalidade do RemoteOK passa a `remote` pela T93.
+**Decisão provisória:** o código segue o que está acima; a modalidade do RemoteOK passou a `remote` pela T93 (entregue).
+
+## D58. Comandos `serve` e `buscar`: recuperação, cliente único e saída do terminal (T48, T49, T100)
+
+**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+
+**Contexto:** A T48 (`src/jobot/cli/servir.py`, `src/jobot/cli/buscar.py`) sobe o servidor com a agenda e roda a busca pela linha de comando. Quatro escolhas ficaram sem decisão no plano.
+
+**Opções:**
+- Motivo da primeira busca do processo: (a) `recuperacao` só quando, ao subir, a última busca completa passou de 3 h ou está no futuro (`_perdida` em `servir.py`); as seguintes levam `agenda`, e banco sem nenhuma busca completa também leva `agenda`; (b) `recuperacao` também quando nunca houve busca. Recomendação: (a), que bate com o passo 21 do roteiro do dono.
+- Cliente e travas: (a) o lifespan (`vida`, posto em `app.router.lifespan_context`) cria um só `ClienteEducado` para todos os tipos e o guarda em `app.state.cliente`; as travas por tipo ficam em `app.state.travas` (D55). Os validadores do cliente são lidos por uma conexão própria, aberta no lifespan. A rota "buscar agora" da T49 usa os dois e abre a sua conexão para `executar_busca`; (b) cada rota cria o seu cliente. Recomendação: (a), porque o desenho 12.3 pede o mesmo cliente para o ritmo por host valer entre os tipos.
+- Preparação do banco: (a) `preparar_banco` (migrar, semear, `marcar_interrompidas`, `reprocessar_se_regras_mudaram` e, se algo mudou, `aplicar_cotacoes` e `recalcular_encaixe` com o dia local) roda no `montar`, antes do uvicorn; o `buscar` chama a mesma função; (b) no lifespan. Recomendação: (a): o `BancoMaisNovo` sai do `executar` com uma linha em stderr e código 1, sem subir o servidor.
+- Saída do `jobot buscar`: (a) o motivo sai como a chave de i18n crua (`saude.bloqueio`), marcado com `shortcut:` em `_resumo`; (b) o motivo em português pelo catálogo de i18n. Recomendação: (b), que vira a T100.
+
+**Decisão provisória:** (a) nas quatro; a saída do terminal muda pela T100. A semente das tabelas `fonte` e `empresa` agora roda em `preparar_banco` (`semear`), o que resolve a pendência da T51 (D60).
+
+**Provisório (o que o código faz hoje), para confirmar:**
+- O `montar` cria as travas dos três tipos (`busca`, `descoberta`, `paginas`), mas passa ao `laco` só a tarefa `busca`. A T71 e a T72 acrescentam a sua tarefa ao dicionário `tarefas` do `vida`.
+- Quando o lifespan falha ao subir (por exemplo, erro ao montar o `ClienteEducado`), o terminal e o log dizem "porta ocupada?", e a causa real só aparece no log do uvicorn. O `except` dos dois `executar` também não pega `sqlite3.Error` (banco corrompido, `database is locked`), que sai como traceback. A trava é solta no `finally` e nada se perde. Ajuste opcional, se o dono quiser.
+
+## D59. Tela de fontes: link "reportar problema" e forma da lista (T50)
+
+**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+
+**Contexto:** A T50 (`src/jobot/painel/rotas/fontes.py`) mostra a saúde das fontes e o link "reportar problema" (ADR 0018, D31). O escopo é texto opaco de cada coletor (D50), e nem todo escopo é identificador de empresa.
+
+**Opções:**
+- Escopo no link: (a) só a chave da fonte para todo escopo; (b) `<fonte>/<identificador>` quando o escopo é igual ao identificador de uma empresa cadastrada, não removida, daquela fonte; os outros escopos dividem um único link no cartão, só com a chave. Recomendação: (b). O escopo de busca (Himalayas `<PAÍS>|<cargo>`, Gupy `cargo:<termo>`) carrega termo da pessoa e não vai na URL. Os escopos de empresa da SmartRecruiters (`<id>|<pais>`) e da Gupy (`empresa:<id>:<nome>`) nunca casam com o identificador e hoje mandam só a chave; mudar isso mexe no contrato da D50 (R4).
+- Forma da lista: (a) cartões, um por fonte; (b) tabela, como no desenho. Recomendação: (a), melhor no celular.
+- Link por escopo: (a) o link de empresa cadastrada fica no escopo, dentro do `<details>`, e o da chave pura fica no cartão; (b) um link só por cartão.
+- Validação do `fonte-quebrou.yml`: (a) o teste lê o arquivo como texto (regra da T01); (b) parser YAML, que pede `pyyaml` como dependência nova.
+
+**Decisão provisória:** (a) para a forma e para o link por escopo; (b) para o escopo no link; (a) para a validação.
+
+**Provisório (o que o código faz hoje), para confirmar:**
+- A docstring do módulo `fontes.py` ainda diz que todo escopo leva `<fonte>/<escopo>`; vale a regra acima, e a docstring se corrige na próxima tarefa que mexer no arquivo.
+- O item de menu para `/fontes`, que a T50 deixou fora, já existe: o menu da casca (`areas` em `base.html`) tem fontes, empresas e configurações.
+
+## D60. Tela de empresas: cópia do coletor no "testar" e nome padrão (T51)
+
+**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+
+**Contexto:** A T51 (`src/jobot/painel/rotas/empresas.py`) adiciona, testa, desliga e remove empresas. Ela chama `escopos` e `coletar` fora do executor, o que toca na nuance da D50.
+
+**Opções:**
+- Estado do coletor no "testar": Lever (`_nomes`) e Ashby (`_empresas`) guardam estado entre `escopos` e `coletar`, e o `COLETOR` compartilhado é o mesmo da busca real, no mesmo laço de eventos. (a) o "testar" trabalha numa `copy.copy` do coletor; (b) uma instância nova por teste; (c) `copy.deepcopy`. Recomendação: (a), que vale enquanto `escopos` reatribui o estado; se um coletor passar a mudar no lugar um dict ou lista criado no `__init__`, trocar por (b) ou (c). Quem chamar `escopos` ou `coletar` fora do executor (T54, vigia T84) faz o mesmo.
+- Lista das fontes por empresa: (a) a constante `ATS_POR_EMPRESA` na rota; (b) campo novo em `fontes.json` (contrato público, R4). Recomendação: (a) por ora; fonte nova por empresa entra na constante.
+- Etiqueta de banco de talentos (D37): (a) reconhecida só pelo nome exato (`ETIQUETA_BANCO_DE_TALENTOS`); (b) campo novo no esquema. Recomendação: (a).
+- Nome padrão: o nome digitado vale; sem ele, o nome já gravado (removida ou não), senão o `careerPageName` do resolver, senão o identificador. Recomendação: manter.
+
+**Decisão provisória:** (a) nas três primeiras e o nome padrão como está.
+
+**Provisório (o que o código faz hoje), para confirmar:**
+- O "testar" da Gupy pode gastar o orçamento inteiro da fonte (perto de 18 s).
+- O botão Testar fica só no formulário de adicionar; a empresa já gravada, inclusive a desligada, aparece na lista sem Testar próprio.
+- Escopo que termina em `no_limite` ou `parcial` com zero vagas não conta como falha, então a tela pode mostrar o aviso de identificador errado (D52) junto com o motivo de limite. Raro, porque cada escopo do teste ganha orçamento cheio.
+- A semente em runtime das tabelas `fonte` e `empresa`, que a T51 apontou como pendente, já roda em `preparar_banco` (D58).
+- Edição de empresa na tela e o host europeu da Greenhouse seguem fora da fase 1.
+
+## D61. Configurações: interruptor do segundo plano e 422 seco (T54, T91, T98)
+
+**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+
+**Contexto:** Dois pontos baixos das revisões da T54 e da T91.
+- Segundo plano. O interruptor da tela de configurações (`_ctx_segundo_plano` em `src/jobot/painel/rotas/configuracoes.py`) mostra a chave `segundo_plano` do banco, não o estado real do systemd (desenho 12.5). Se o serviço for ligado ou desligado por fora, a tela erra.
+- 422 seco. `POST /buscas/{id}/ligar` e `/desligar` (`_ligar` em `src/jobot/painel/rotas/buscas.py`) respondem com `HTTPException` 422 sem página nem mensagem, porque essas rotas não têm formulário.
+
+**Opções:**
+- Segundo plano: (a) seguir a chave do banco, como está; (b) ler o estado real do systemd ao montar a tela. Recomendação: (b) numa tarefa própria (T98), porque exige decidir qual é a fonte de verdade.
+- 422: (a) seco, como está; (b) mensagem na lista de buscas. Recomendação: (a); vira item novo só se o dono quiser.
+
+**Decisão provisória:** (a) nos dois até o dono decidir; o segundo plano tem a T98 pronta.
