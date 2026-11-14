@@ -253,7 +253,11 @@ class Eightfold:
             empresas.setdefault(e.identificador, _Cadastro(e.nome, dominio or "", geracao))
         self._empresas = empresas  # a cada chamada, o cadastro atual substitui o anterior
         self._paises = _locais(ctx.paises)
-        return list(empresas) if self._paises else []  # nenhum país da API: nada a pedir
+        if not self._paises:  # nenhum país da API: nada a pedir
+            return []
+        # A28: quem tem limite próprio (Microsoft) vai antes da rajada das outras; o executor só
+        # reordena com max_pedidos, e aqui ele é None. sorted é estável: o resto segue o cadastro.
+        return sorted(empresas, key=lambda host: host not in self.por_escopo)
 
     async def coletar(self, escopo: str, http: HttpEducado) -> ResultadoEscopo:
         cadastro = self._cadastro(escopo)
