@@ -1,9 +1,10 @@
 name: CI
 
-# Só no pull request para a main (ADR 0016): minuto de Actions custa.
+# Roda em todo pull request, de qualquer ramo (ADR 0018): o repositório é
+# público, o runner padrão não custa minutos e PR de fork precisa de teste.
+# Gatilho pull_request, nunca pull_request_target; sem segredos.
 on:
   pull_request:
-    branches: [main]
 
 permissions:
   contents: read
