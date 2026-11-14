@@ -11,10 +11,8 @@ Todo comando do sistema passa pelo executor de `app.state.rodar_comando`, o ambi
 `app.state.ambiente` e a plataforma de `app.state.plataforma`: o teste põe os falsos.
 """
 
-import os
 import re
-import sys
-from collections.abc import Awaitable, Callable, Mapping
+from collections.abc import Awaitable, Callable
 from datetime import date
 from typing import Any
 
@@ -24,10 +22,11 @@ from starlette.concurrency import run_in_threadpool
 
 from jobot.banco import buscas, cadastros, cotacoes
 from jobot.banco.cadastros import gravar_config, ler_config
+from jobot.painel.ambiente import ambiente_do_painel, no_linux, rodar_do_painel
 from jobot.painel.rotas.vagas import relogio_do_painel
 from jobot.painel.seguranca import Con, renderizar
 from jobot.sistema import caso, segundo_plano_linux
-from jobot.sistema.segundo_plano_linux import Recusa, Rodar
+from jobot.sistema.segundo_plano_linux import Recusa
 
 router = APIRouter(prefix="/configuracoes")
 
@@ -51,20 +50,6 @@ _PARCIAIS = {
 }
 
 
-def _ambiente(request: Request) -> Mapping[str, str]:
-    ambiente: Mapping[str, str] | None = getattr(request.app.state, "ambiente", None)
-    return os.environ if ambiente is None else ambiente
-
-
-def _rodar(request: Request) -> Rodar:
-    rodar: Rodar | None = getattr(request.app.state, "rodar_comando", None)
-    return segundo_plano_linux.rodar_comando if rodar is None else rodar
-
-
-def _no_linux(request: Request) -> bool:
-    return str(getattr(request.app.state, "plataforma", sys.platform)).startswith("linux")
-
-
 def _hoje(request: Request) -> date:
     # o dia de calendário é o do fuso local, como no resto do painel (decisão 17, DP8)
     return relogio_do_painel(request).agora().astimezone().date()
@@ -86,16 +71,16 @@ async def _ctx_funcoes(request: Request, con: Con) -> dict[str, Any]:
 
 
 async def _ctx_segundo_plano(request: Request, con: Con) -> dict[str, Any]:
-    linux = _no_linux(request)
+    linux = no_linux(request)
     estado = None
     if linux:
         estado = await run_in_threadpool(
-            segundo_plano_linux.status, _rodar(request), env=_ambiente(request)
+            segundo_plano_linux.status, rodar_do_painel(request), env=ambiente_do_painel(request)
         )
     return {
         "linux": linux,
         "estado": estado,
-        "container": caso.nome_do_container(_ambiente(request)),
+        "container": caso.nome_do_container(ambiente_do_painel(request)),
         # D61 (A1): no Linux o interruptor segue o is-enabled do systemd; ativo não entra
         "ligado": estado is not None and estado.habilitado,
     }
@@ -197,9 +182,9 @@ async def _gravar_funcoes(request: Request, con: Con) -> Response:
 
 async def _gravar_segundo_plano(request: Request, con: Con) -> Response:
     form = await request.form()
-    linux = _no_linux(request)
+    linux = no_linux(request)
     ligar = "segundo_plano" in form and linux  # fora do Linux o segundo plano é desativado
-    rodar, env = _rodar(request), _ambiente(request)
+    rodar, env = rodar_do_painel(request), ambiente_do_painel(request)
     try:
         if ligar:
             await run_in_threadpool(segundo_plano_linux.ligar, rodar, env=env)

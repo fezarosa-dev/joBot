@@ -315,7 +315,7 @@ Details in [ADR 0010](docs/decisions/0010-claude-code-da-pessoa.md) (in Portugue
 
 - **There is no joBot server.** Your data stays on your computer.
 - **No telemetry.** No usage data is sent.
-- **Search requests only.** joBot only makes requests to the job sources you leave on and, with currency conversion on, to the Central Bank of Brazil, to get the dollar rate. Whoever receives the request sees your computer's IP, as with any request on the internet.
+- **Search and check requests only.** joBot only makes network requests in these cases: to the public job sources you leave on (they come on, except Eureca), including each job's page; to the Central Bank of Brazil, to get the dollar rate, with currency conversion on (it comes on); to Common Crawl, once a week, to discover new companies, and then to those companies' job boards, to check them (it comes on); to the pages you ask it to follow (it comes on, but with no pages on the list there is no request); to a company's website, only when you paste an address, test it or accept a suggestion. If you turn on the version notice (next item), it also asks GitHub (it comes off). Whoever receives a request sees your computer's IP address, as with any internet request.
 - **Version notice off by default.** If you turn it on (Settings, Privacy), once a day joBot asks `api.github.com` which version is the newest. The request carries only joBot's fixed user agent (which includes the version number) and your computer's IP, like any request on the internet. It carries no search and no data of yours. Off, it makes no request at all.
 - **Secrets in the system vault.** The Gmail token, the API key and the Telegram token stay in the operating system's password vault. Without a vault, they go to a file that only your user can read, and the dashboard warns you.
 - **Protected personal data.** CPF (Brazilian tax ID) and date of birth stay in the database, in a folder that only your user can access and that is not synced to the cloud. The dashboard recommends turning on disk encryption (LUKS, BitLocker or FileVault).
@@ -370,7 +370,7 @@ Run all of them from inside the `joBot` folder, with `uv run` in front (for exam
 
 - Everything stays in the `~/.local/share/jobot` folder, accessible only to your user. To use another folder, set `JOBOT_DADOS`.
 - The database is the `jobot.db` file, and the record of what happened is in `logs/jobot.log`.
-- Nothing leaves that folder, except the requests to the sources you left on (see [Privacy and security](#privacy-and-security)).
+- Nothing leaves that folder, except the network requests listed in [Privacy and security](#privacy-and-security).
 
 ### If you use distrobox
 

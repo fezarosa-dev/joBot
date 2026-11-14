@@ -14,10 +14,8 @@ critérios com busca já gravada não mexe nela e segue ao passo 2.
 """
 
 import json
-import os
 import re
-import sys
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime
 from decimal import Decimal
@@ -35,11 +33,12 @@ from jobot.banco.cadastros import gravar_config, ler_config
 from jobot.nucleo.cambio import MOEDAS
 from jobot.nucleo.modelo import Busca, Idioma, Local, Modalidade, Motivo, Nivel
 from jobot.painel import formatos
+from jobot.painel.ambiente import ambiente_do_painel, no_linux, rodar_do_painel
 from jobot.painel.i18n import t
 from jobot.painel.rotas.vagas import relogio_do_painel
 from jobot.painel.seguranca import Con, idioma_do_pedido, renderizar
 from jobot.sistema import caso, segundo_plano_linux
-from jobot.sistema.segundo_plano_linux import Recusa, Rodar
+from jobot.sistema.segundo_plano_linux import Recusa
 
 router = APIRouter(prefix="/primeira-execucao")
 
@@ -81,20 +80,6 @@ class Entrada:
     salario: str = ""
     moeda: str = "BRL"
     idiomas: set[str] = field(default_factory=set)
-
-
-def _ambiente(request: Request) -> Mapping[str, str]:
-    ambiente: Mapping[str, str] | None = getattr(request.app.state, "ambiente", None)
-    return os.environ if ambiente is None else ambiente
-
-
-def _rodar(request: Request) -> Rodar:
-    rodar: Rodar | None = getattr(request.app.state, "rodar_comando", None)
-    return segundo_plano_linux.rodar_comando if rodar is None else rodar
-
-
-def _no_linux(request: Request) -> bool:
-    return str(getattr(request.app.state, "plataforma", sys.platform)).startswith("linux")
 
 
 def _texto(valor: str) -> str:
@@ -271,7 +256,7 @@ def _formulario_2(
     erro: str | None = None,
     desligando: bool = False,
 ) -> Response:
-    env = _ambiente(request)
+    env = ambiente_do_painel(request)
     achada = _gravada(con, busca_id)
     return _pagina(
         request,
@@ -282,7 +267,7 @@ def _formulario_2(
         erro=erro,
         resumo=_resumo(achada, idioma_do_pedido(request)),
         busca_id=busca_id,
-        linux=_no_linux(request),
+        linux=no_linux(request),
         container=caso.nome_do_container(env),
     )
 
@@ -358,12 +343,12 @@ async def _gravar_passo_2(request: Request, con: Con) -> Response:
     busca_id = _id_valido(str(form.get("busca", "")))
     if escolha not in ("ligar", "desligar"):
         raise HTTPException(422)
-    rodar, env = _rodar(request), _ambiente(request)
-    ligar = escolha == "ligar" and _no_linux(request)  # fora do Linux o segundo plano é desativado
+    rodar, env = rodar_do_painel(request), ambiente_do_painel(request)
+    ligar = escolha == "ligar" and no_linux(request)  # fora do Linux o segundo plano é desativado
     try:
         if ligar:
             await run_in_threadpool(segundo_plano_linux.ligar, rodar, env=env)
-        elif _no_linux(request):
+        elif no_linux(request):
             # sempre: um ligar recusado no meio já deixou o arquivo do serviço, mesmo sem a config
             await run_in_threadpool(segundo_plano_linux.desligar, rodar, env=env)
             # DR-37: sem ligar o segundo plano, o atalho do menu é criado mesmo assim

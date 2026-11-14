@@ -70,9 +70,8 @@ async def executar_paginas(
                 mudanca = await verificar(
                     cliente.escopo(condicional=False), pagina, resolver=resolver
                 )
-            except (
-                Exception
-            ) as erro:  # rede, bloqueio, endereço recusado: a página falha, o resto segue
+            # rede, bloqueio, endereço recusado: a página falha, o resto segue
+            except Exception as erro:
                 log.warning("página acompanhada %s falhou", pagina.id, exc_info=True)
                 marcar_falhou(con, pagina.id, _motivo(erro))
                 continue

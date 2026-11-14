@@ -25,6 +25,7 @@ from jobot.banco.gravacao import reprocessar_vaga
 from jobot.banco.leitura import Detalhe
 from jobot.nucleo.modelo import Area, Contrato, Modalidade, Nivel
 from jobot.nucleo.tratamento.salario import ler_salario
+from jobot.painel.formulario import campo_unico
 from jobot.painel.rotas.vagas import (
     MAX_ID,
     VagaId,
@@ -59,11 +60,6 @@ class _Invalido(Exception):
         super().__init__(chave)
         self.chave = chave
         self.params = params
-
-
-def _um(form: FormData, campo: str) -> str:
-    valor = form.get(campo)
-    return valor if isinstance(valor, str) else ""
 
 
 def _limpo(texto: str) -> str:
@@ -173,9 +169,9 @@ def _formulario(
     f: dict[str, Any] = {"campo": "", "comentario": "", "valores": {}}
     if form is not None:
         f = {
-            "campo": _um(form, "campo"),
-            "comentario": _um(form, "comentario"),
-            "valores": {c: _um(form, f"valor_{c}") for c in CAMPOS},
+            "campo": campo_unico(form, "campo"),
+            "comentario": campo_unico(form, "comentario"),
+            "valores": {c: campo_unico(form, f"valor_{c}") for c in CAMPOS},
         }
     return renderizar(
         request,
@@ -228,12 +224,12 @@ def _validar(con: sqlite3.Connection, vaga_id: int, campo: str, valor: str) -> s
 async def corrigir(request: Request, con: Con, vaga_id: VagaId) -> Response:
     vaga = _vaga_ou_404(request, con, vaga_id)
     form = await request.form()
-    campo = _um(form, "campo")
+    campo = campo_unico(form, "campo")
     if campo not in CAMPOS:
         raise HTTPException(422, "campo que não se corrige")
-    comentario = _limpo(_um(form, "comentario"))
+    comentario = _limpo(campo_unico(form, "comentario"))
     try:
-        valor = _validar(con, vaga_id, campo, _limpo(_um(form, f"valor_{campo}")))
+        valor = _validar(con, vaga_id, campo, _limpo(campo_unico(form, f"valor_{campo}")))
         if len(comentario) > _MAX_TEXTO:
             raise _Invalido("detalhe.correcao.erro.comentario", max=_MAX_TEXTO)
     except _Invalido as erro:
