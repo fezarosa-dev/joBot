@@ -1,0 +1,12 @@
+{
+  "url": "https://www.amazon.jobs/en/search.json?normalized_country_code[]=BRA&result_limit=200&offset=0&sort=recent",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/json; charset=utf-8"
+  },
+  "sha256": "41e47c4c8fe2e309d6c4c70523a048ff9e03c47c9bfda7c55ec2dcac4f88a9fd",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "resposta real de 2026-11-13 (captura/B4/raw/a3.json) a result_limit=200, acima do máximo de 100; os cabeçalhos são só o Content-Type da mesma API (a3 não guardou cabeçalhos)"
+}
