@@ -1,9 +1,10 @@
 """Páginas acompanhadas no banco (desenho 8.8; plano T72).
 
-Nada é apagado: leitura que falha muda só o `estado` e deixa o texto da última leitura boa.
+Leitura que falha muda só o `estado` e deixa o texto da última leitura boa; só `remover_pagina`
+apaga.
 Datas gravadas como texto ISO em UTC, como em `execucoes.py`.
-Contrato de exceções (a rota de sites traduz em 404 e 422): `LookupError` = mudança que não
-existe; `ValueError` = endereço não permitido (DR-19), nome vazio, `agora` sem fuso.
+Contrato de exceções (a rota de sites traduz em 404 e 422): `LookupError` = página ou mudança
+que não existe; `ValueError` = endereço não permitido (DR-19), nome vazio, `agora` sem fuso.
 """
 
 import sqlite3
@@ -92,6 +93,15 @@ def mudancas(con: sqlite3.Connection) -> list[MudancaPagina]:
     ]
 
 
+def ultimas_diferencas(con: sqlite3.Connection) -> dict[int, str]:
+    """A diferença da mudança mais nova de cada página que já mudou."""
+    linhas = con.execute(
+        "SELECT pagina_id, diferenca FROM mudanca_pagina"
+        " WHERE id IN (SELECT MAX(id) FROM mudanca_pagina GROUP BY pagina_id)"
+    ).fetchall()
+    return dict(linhas)
+
+
 def marcar_vista(con: sqlite3.Connection, id: int) -> None:
     with con:
         cur = con.execute("UPDATE mudanca_pagina SET vista=1 WHERE id=?", (id,))
@@ -132,3 +142,26 @@ def marcar_falhou(con: sqlite3.Connection, pagina_id: int) -> None:
     """Leitura que falhou: só o estado muda; texto, hash e `verificada_em` ficam (8.8)."""
     with con:
         con.execute("UPDATE pagina_acompanhada SET estado='falhou' WHERE id=?", (pagina_id,))
+
+
+def desativar_pagina(con: sqlite3.Connection, id: int) -> None:
+    """Para de acompanhar a página, sem apagar o texto nem as mudanças; `LookupError` se não existe.
+
+    `adicionar_pagina` com o mesmo endereço a reativa.
+    """
+    with con:
+        cur = con.execute("UPDATE pagina_acompanhada SET ativa=0 WHERE id=?", (id,))
+    if cur.rowcount == 0:
+        raise LookupError(f"página {id} não existe")
+
+
+def remover_pagina(con: sqlite3.Connection, id: int) -> None:
+    """Apaga a página e, em cascata (`ON DELETE CASCADE`), as mudanças dela.
+
+    É a única remoção de verdade do banco: a pessoa pediu para esquecer a página. `LookupError`
+    se não existe.
+    """
+    with con:
+        cur = con.execute("DELETE FROM pagina_acompanhada WHERE id=?", (id,))
+    if cur.rowcount == 0:
+        raise LookupError(f"página {id} não existe")

@@ -1,0 +1,19 @@
+/* Tela de sites (plano T75): só as cores e medidas da base.css; cartões e formulário vêm do
+   vagas.css, buscas.css e empresas.css, carregados junto. */
+
+.diferenca {
+  margin: 0.5rem 0 0;
+  padding: 0.6rem 0.9rem;
+  overflow-x: auto;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  background-color: var(--superficie);
+  font-size: 0.8125rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.mudancas {
+  display: grid;
+  gap: 0.5rem;
+}

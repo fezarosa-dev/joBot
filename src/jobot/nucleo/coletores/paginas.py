@@ -65,22 +65,42 @@ def _hash(texto: str) -> str:
     return hashlib.sha256(texto.encode()).hexdigest()
 
 
+async def conferir_endereco(url: str, resolver: Resolvedor | None = None) -> None:
+    """A barreira do endereço (DR-19), a mesma da leitura e da tela de sites.
+
+    `ValueError` se o endereço não é permitido; `ErroDeRede` se o nome não resolve ou resolve para
+    host local. Nome que resolve para IP local é recusado antes do pedido; IP literal também passa
+    por aqui: o resolvedor o devolve igual, e não há parser próprio de IP neste módulo.
+    """
+    if not endereco_permitido(url):
+        raise ValueError(f"endereço não permitido: {url!r}")
+    await conferir_dns(httpx.URL(url).host, resolver)
+
+
+class ConteudoNaoLido(Exception):
+    """A página respondeu com um tipo que não é texto (PDF, imagem...): não há o que comparar."""
+
+
+# sem cabeçalho de tipo, lê como HTML (servidor simples); qualquer outro tipo recusa
+_TIPOS_DE_TEXTO = frozenset({"text/html", "text/plain", "application/xhtml+xml"})
+
+
 async def verificar(
     http: HttpEducado, pagina: Pagina, *, resolver: Resolvedor | None = None
 ) -> Mudanca | None:
     """Baixa a página e devolve o texto novo, ou `None` se o texto é o mesmo da última leitura.
 
-    Endereço não permitido levanta `ValueError` sem pedido; falha de rede sobe como a exceção do
-    `HttpEducado` (quem chama marca o estado). O salto para host local o cliente recusa.
+    Endereço não permitido levanta `ValueError` sem pedido; tipo que não é texto levanta
+    `ConteudoNaoLido`; falha de rede sobe como a exceção do `HttpEducado` (quem chama marca o
+    estado). O salto para host local o cliente recusa.
     """
-    if not endereco_permitido(pagina.url):
-        raise ValueError(f"endereço não permitido: {pagina.url!r}")
-    # nome que resolve para IP local é recusado antes do pedido; IP literal também passa por aqui:
-    # o resolvedor o devolve igual, e não há parser próprio de IP neste módulo
-    await conferir_dns(httpx.URL(pagina.url).host, resolver)
+    await conferir_endereco(pagina.url, resolver)
     resposta = await http.pedir("GET", pagina.url)
-    # shortcut: lê tudo como HTML; página em PDF ou outro binário vira texto sem sentido (ainda
-    # comparável). Ler o Content-Type se a tela de sites mostrar o texto.
+    tipo = resposta.cabecalhos.get("content-type")
+    if tipo is not None:
+        tipo = tipo.split(";")[0].strip().lower()
+        if tipo not in _TIPOS_DE_TEXTO:
+            raise ConteudoNaoLido(f"conteúdo que não é texto: {tipo}")
     texto = para_texto(resposta.texto, "html")
     novo = _hash(texto)
     if novo == pagina.hash_texto:
