@@ -11,6 +11,7 @@ O joBot ainda não tem nada para instalar. A fase 1 (base) está em andamento. A
 ## Como ajudar agora
 
 - **Sugestões e fontes de vagas** são bem-vindas desde já. Abra uma issue pelos formulários: Bug, Sugestão ou Fonte de vagas.
+- **Uma fonte de vagas quebrou?** O guia [Como consertar uma fonte que quebrou](../docs/consertar-fonte.md) mostra como achar o que mudou e consertar. Hoje ele serve para você entender o caminho e relatar o que achou numa issue; o PR com o conserto segue a regra abaixo.
 - **Pull requests de código** só serão aceitos depois da publicação (fase 8). Até lá, o código ainda está mudando muito.
 - Issues e PRs podem ser escritos em **português ou inglês**.
 - Achou uma falha de segurança? **Não abra issue pública.** Veja a [Política de Segurança](SECURITY.md).

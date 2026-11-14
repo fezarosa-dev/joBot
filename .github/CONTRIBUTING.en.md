@@ -11,6 +11,7 @@ joBot has nothing to install yet. Phase 1 (foundation) is in progress. The decis
 ## How to help now
 
 - **Suggestions and job sources** are welcome right away. Open an issue using the forms: Bug, Feature request or Job source.
+- **Did a job source break?** The guide [How to fix a source that broke](../docs/consertar-fonte.en.md) shows how to find what changed and fix it. For now it helps you understand the path and report what you found in an issue; the PR with the fix follows the rule below.
 - **Code pull requests** will only be accepted after the release (phase 8). Until then, the code is still changing a lot.
 - Issues and PRs can be written in **Portuguese or English**.
 - Found a security flaw? **Do not open a public issue.** See the [Security Policy](SECURITY.en.md).
