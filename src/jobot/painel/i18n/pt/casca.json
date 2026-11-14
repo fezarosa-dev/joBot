@@ -7,5 +7,12 @@
   "casca.tema.escuro": "Escuro",
   "casca.idioma": "Idioma",
   "casca.idioma.pt": "Português",
-  "casca.idioma.en": "English"
+  "casca.idioma.en": "English",
+  "casca.menu": "Principal",
+  "casca.menu.vagas": "Vagas",
+  "casca.menu.buscas": "Buscas",
+  "casca.menu.fontes": "Fontes",
+  "casca.menu.empresas": "Empresas",
+  "casca.menu.sites": "Sites",
+  "casca.menu.configuracoes": "Configurações"
 }
