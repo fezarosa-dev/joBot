@@ -474,16 +474,16 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 ## D41. Guarda de rede dos testes e renomeações do F3 (F3, T05, T25)
 
-**Status:** aberta, para confirmar (a decisão provisória (b) da guarda de rede vira a T88; até lá, o código segue a (a))
+**Status:** aberta, para confirmar (a guarda (b) foi entregue pela T88 em 2026-11-14; faltam a confirmação do `_brl`, do texto da decisão 19 e das escolhas do redator)
 
 **Contexto:** O F3 trouxe o resolvedor de DNS (D30) e a conversão de `_brl` gigante (D28). Sobraram quatro pontos.
 
 **Opções:**
-- Guarda do `tests/conftest.py`: (a) só `socket.connect` (como está); (b) bloquear também `socket.getaddrinfo` fora de `127.0.0.1` e `::1`, o que torna permanente a garantia "sem DNS nos testes". É arquivo compartilhado, então não foi mexido (T88).
+- Guarda do `tests/conftest.py`: (a) só `socket.connect` (como está); (b) bloquear também `socket.getaddrinfo` fora de `127.0.0.1` e `::1`, o que torna permanente a garantia "sem DNS nos testes". É arquivo compartilhado, então ficou para a T88, entregue em 2026-11-14.
 - `_brl` gigante: a decisão 17 fala em "valor em centavos acima de 2**63-1", mas as colunas `_brl` guardam reais inteiros. Foi seguido o que de fato estoura: o inteiro em reais gravado em cada coluna, quando passa do INTEGER do SQLite, fica `NULL` só naquela coluna. (a) `sal_cotacao_data` da vaga fica como está (`cotacoes.py`, o trecho que grava a data); (b) `sal_cotacao_data` também fica `NULL` quando as duas `_brl` saem nulas.
 - Texto da decisão 19: o brief e o registro dizem `HttpEducado(..., resolver=None)`, mas a classe concreta é `ClienteEducado` (já em D30, escolha 1). Aqui só se acrescenta: o `resolver` entrou em `ClienteEducado.__init__`, só por nome e opcional.
 
-**Decisão provisória:** guarda (b), que vira a T88 (a prova de que funciona já existe como plugin de teste do F3); até a T88 entrar, o `tests/conftest.py` segue a (a), só `socket.connect`; `_brl`: (a). A frase "em centavos" já foi corrigida na D26 e no plano (F3, decisão 17). O plano já diz `ClienteEducado`, e a D30 já explica a troca de nome. Para confirmar: corrigir o texto da decisão 19 no registro da sessão (fora deste repositório), que ainda diz `HttpEducado(..., resolver=None)`.
+**Decisão provisória:** guarda (b), entregue pela T88 em 2026-11-14: o `tests/conftest.py` bloqueia `socket.getaddrinfo` fora de `127.0.0.1` e `::1`, além de `socket.connect`, e o cliente que resolve nome nos testes recebe `resolver=` falso ou usa o IP literal; `_brl`: (a). A frase "em centavos" já foi corrigida na D26 e no plano (F3, decisão 17). O plano já diz `ClienteEducado`, e a D30 já explica a troca de nome. Para confirmar: corrigir o texto da decisão 19 no registro da sessão (fora deste repositório), que ainda diz `HttpEducado(..., resolver=None)`.
 
 **Escolhas do redator, para confirmar com o dono:**
 - Resolvedor que falha: `OSError` (`gaierror` incluso) e `UnicodeError` viram `ErroDeRede`; outra exceção que o resolvedor injetado levante sobe como está. Por segurança, e sem regra explícita no brief, o cliente também recusa a resposta do resolvedor vazia ou com texto que não é IP (`test_resolvedor_sem_endereco_valido_recusa`).
@@ -561,10 +561,10 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 **Opções:**
 - Motivo quando itens fora do formato são pulados (DR-08). O desenho (linha 688) e a DR-08 pedem o número de pulados no motivo, mas nenhuma chave `saude.*` com `n` fala disso (`saude.parcial_n` diz "lidas antes de parar"). (a) chave nova `saude.pulados_n` ("{n} vagas fora do formato foram puladas") em `comum.json`, e o vigia (T84) passa a tratá-la como quebra; (b) `saude.formato_mudou` sem contagem, como está; (c) parâmetro `n` na `saude.formato_mudou`.
-- Caixa do identificador: o resolver devolve o token como veio (`Vitta` fica `Vitta`), e `escopos()` tira repetidos pelo texto exato. Então `Vitta` e `vitta` viram dois escopos e dois pedidos. (a) o resolver normaliza para minúsculas; (b) a rota de empresas (T51) normaliza.
-- Prazo com hora e fuso (`application_deadline`): nenhuma captura real trouxe o campo. O código supõe ISO 8601 e usa o dia como está escrito, sem converter fuso. Então `2026-12-16T02:59:59Z` vira 16/12, mas em Brasília é 15/12. (a) converter para o dia local antes de pegar a data, com teste de entrada fora de UTC; (b) manter o dia escrito.
+- Caixa do identificador: o resolver devolve o token como veio (`Vitta` fica `Vitta`), e `escopos()` tira repetidos pelo texto exato. Então `Vitta` e `vitta` viram dois escopos e dois pedidos. (a) o resolver normaliza para minúsculas; (b) a rota de empresas (T51) normaliza para minúsculas; (c) a normalização é por fonte, no resolver de cada coletor, e a T51 nunca muda a caixa por conta própria. A (b) caiu: quebra a SmartRecruiters (a API diferencia maiúsculas e minúsculas, e o identificador `NielsenIQ` tem de ficar como está) e a Gupy (o `careerPageName` casa com a caixa exata).
+- Prazo com hora e fuso (`application_deadline`): nenhuma captura real trouxe o campo. O código supõe ISO 8601 e usa o dia como está escrito, sem converter fuso. Então `2026-12-16T02:59:59Z` vira 16/12, mas em Brasília é 15/12. (a) converter para o dia local antes de pegar a data, com teste de entrada fora de UTC; (b) manter o dia escrito. A Himalayas (`expiryDate`, epoch em segundos) cai na mesma questão: o código usa o dia em UTC, e o epoch é um instante sem ambiguidade, então ali a (b) não existe, só o dia UTC (como está) ou o dia local (a). A Gupy traz data pura (`applicationDeadline` com meia-noite UTC), sem o problema.
 
-**Decisão provisória:** pulados: o código segue a (b), marcado com `shortcut:` em `coletar`; a recomendação é a (a), feita junto com o vigia (T84), porque `formato_mudou` é o que abre issue. Caixa: recomendação (b), na T51, que já pede que maiúsculas resolvam o identificador. Prazo: o código segue a (b), marcado com `shortcut:`; recomendação (a) quando uma captura mostrar o formato.
+**Decisão provisória:** pulados: todos os coletores da leva A seguiram a (b), marcada com `shortcut:` em `coletar`; a recomendação continua a (a), `saude.pulados_n` feita junto com o vigia (T84), porque `formato_mudou` é o que abre issue. Caixa: (c), por fonte, no resolver de cada coletor (a recomendação antiga, "a T51 normaliza para minúsculas", caiu); a T51 não muda a caixa. Prazo: Greenhouse e Himalayas seguem a (b) e o dia UTC, marcados com `shortcut:`; recomendação (a), o dia local, decidida junto para as duas, com teste de `TZ` fora de UTC. O comentário do `shortcut:` em `himalayas.py` diz "um dia antes", mas em UTC a vaga que vence à noite em Brasília aparece um dia depois (22h de 10/12 em Brasília é 01h de 11/12 em UTC); o comentário se corrige junto com a decisão.
 
 **Provisório (o que o código faz hoje), para confirmar:**
 - O resolver devolve `{"identificador": token}`, sem fazer pedido, e levanta `ValueError` para o que não é quadro do Greenhouse. O desenho (8.1) diz que o resolver devolve `parametros`, mas o Greenhouse não tem parâmetros (8.6). Recomendação: a chave `identificador` vira convenção para todo resolver que normaliza o endereço colado, e a T51 e a T54 leem dela.
@@ -632,3 +632,156 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 **Opções:** (a) a falha do `desligar` volta ao passo 2 com o motivo, como está; (b) conclui mesmo assim, com o segundo plano desligado, e mostra o aviso com o motivo.
 
 **Decisão provisória:** o código segue a (a). A recomendação é a (b): a pessoa pediu para não ligar, e ficar presa no passo 2 é pior. O título errado da recusa ("Não foi possível ligar") é defeito e vai na T89 junto com a escolha do dono.
+
+## D50. Escopo opaco e nome da empresa no coletor (T28, T29, T30, T35, T38, T40, T41, T50, T51, T84)
+
+**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+
+**Contexto:** O contrato `coletar(escopo, http)` só recebe uma string, então cada coletor da leva A escolheu o que põe nela:
+- SmartRecruiters (T30): `<identificador>|<pais>`, um escopo por par.
+- Himalayas (T35): `<PAÍS>|<cargo>`. O país ISO fica vazio quando a busca não tem país (`|python`), e sem termos não há escopo. O corte é no primeiro `|`, então o cargo pode ter `|`.
+- We Work Remotely (T38): `geral` (o feed geral) e o slug de cada categoria, 12 escopos ao todo.
+- Gupy (T40): `empresa:<subdominio>:<careerPageName>` e `cargo:<termo>`. Trocar o `careerPageName` de uma empresa muda o escopo, e as ocorrências do escopo antigo somem pelo ciclo de vida normal.
+
+Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem o lê como identificador de empresa erra. Lever (T28) e Ashby (T29) têm outro problema: nem o `coletar` nem a resposta trazem o nome da empresa. Cada um guarda `identificador -> nome` na instância, preenchido a cada `escopos(ctx)` (o dicionário é reatribuído, não acumulado, para renomear a empresa no painel valer na hora) e lido em `coletar`. Sem `escopos` antes, o nome cai para o identificador. O executor chama `escopos` antes de `coletar`, então hoje não há perda; quem chama `coletar` por fora do executor (o "testar" da T51, o vigia da T84, a captura avulsa) pode perdê-lo. A captura da Gupy com `--escopo` em `scripts/capturar.py` já exige o formato novo.
+
+**Opções:**
+- Formato do escopo: (a) texto opaco, montado e lido só pelo coletor, como está; (b) escopo igual ao identificador em todo coletor, com país, termo e nome guardados em estado ou em campo novo do contrato (muda o `Protocol`, R4).
+- Nome da empresa em Lever e Ashby: (a) estado na instância (como está); (b) `coletar` recebe o contexto ou o nome (muda o contrato); (c) o executor troca `empresa` depois da coleta.
+- Hapvida na Gupy: a página dela se chama "Página de Carreira", e é esse o nome que sai na vaga. (a) deixar na fase 1 e abrir tarefa se incomodar; (b) preferir o nome do cadastro (`empresa.nome`), o que pede o contrato levar o nome (R4).
+
+**Decisão provisória:** (a) nas três. O escopo é texto opaco: só o próprio coletor o monta, em `escopos(ctx)`, e o lê. Quem chama `coletar` (o executor da T41, o "testar" da T51, o vigia da T84) pega os escopos de `COLETOR.escopos(ctx)`, na mesma instância e antes de coletar, e nunca monta a string à mão. A recomendação para o nome é a (a) até uma terceira fonte sem nome na resposta pedir o mesmo; aí se decide (b) ou (c) para todas.
+
+**Escolhas do redator, para confirmar com o dono:**
+- A T50 mostra o escopo como texto, como vem do coletor, sem separar nem traduzir.
+- Hapvida: o nome genérico faz o escopo `hapvidandi` baixar vagas de várias empresas, e só o filtro de host do `jobUrl` as descarta depois de baixadas. O orçamento de 30 pedidos é da fonte inteira, então esse escopo pode gastar tudo e deixar os outros em `no_limite` (o rodízio por `ultima_coleta` ameniza, não elimina). Se acontecer na prática, vira tarefa nova: limite próprio por escopo ou filtro por outro parâmetro da API.
+- SmartRecruiters: `escopos` não confere o identificador do cadastro. Um identificador vazio ou com `|` geraria escopo malformado. O resolver e o `empresas.json` já cuidam disso, então fica sem teste; filtrar por regex em `escopos` é opcional.
+
+## D51. GitHub Issues: cota, empresa e página 2 (T31, T84)
+
+**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+
+**Contexto:** O coletor (`src/jobot/nucleo/coletores/github_issues.py`) deixou três pontos.
+- Cota. A linha da tabela do plano promete "cota de 60/h acabou → no_limite", mas a cota esgotada chega como 403 ou 429. O `http.py` converte isso em `Bloqueio` sem os cabeçalhos, e o escopo sai `falhou` com `saude.bloqueio`, em vez de `no_limite` com `saude.cota`. O `no_limite` do coletor só sai com 200, `x-ratelimit-remaining: 0` e `Link rel=next`, quase inalcançável com `per_page=100`. No vigia (T84), `saude.bloqueio` só entra no resumo, sem issue; o efeito visível é o link "reportar problema" da tela de fontes (T50), inclusive para o 403 de cota.
+- Empresa. Toda vaga da fonte leva o nome do repositório (`owner/repo`) como empresa. Filtros, encaixe, exibição e agrupamento vão tratar o repositório como empresa.
+- Página 2. Formato quebrado na página 2 ou seguinte descarta as vagas da página 1 e devolve `falhou` (marcado com `shortcut:`). Nenhum dos cinco repositórios passa de uma página hoje.
+
+**Opções:**
+- Cota: (a) deixar assim; (b) `Bloqueio` e `LimiteAtingido` levam os cabeçalhos da resposta (mexe em `http.py`, teste novo em `test_http`) e o coletor devolve `no_limite` com `saude.cota` quando `x-ratelimit-remaining` for 0 num 403 ou 429; (c) o coletor guarda o `remaining` 0 na instância e pula os escopos seguintes. Vale para toda fonte com cota.
+- Empresa: (a) `owner/repo` agora; (b) heurística depois, com o texto das vagas dos cinco repositórios.
+- Página 2: (a) `falhou`, como está; (b) `parcial` com as vagas já lidas.
+
+**Decisão provisória:** cota: (a) por ora, e a correção (b) vira a T94; até lá a cota esgotada aparece como `saude.bloqueio`. Empresa: (a); a heurística é tarefa própria, depois de haver corpus real. Página 2: (a), e troca-se por (b) quando algum repositório passar de 100 abertas.
+
+**Provisório (o que o código faz hoje), para confirmar:**
+- As fixtures `paginacao_1`, `paginacao_2` e `formato_mudou` foram montadas à mão. O `Link` delas (id do repositório e cursor) é inventado a partir do formato visto; o `.meta.json` diz isso, com o `sha256` conferido. O coletor segue o `Link` como vier.
+- O coletor guarda as URLs já vistas começando pela URL sem a query. Um `Link rel=next` hostil que aponte para a página 1 (com a query) a lê de novo e duplica as vagas uma vez, antes de a repetição ser pega. O teto de 30 páginas limita o laço, e só uma API quebrada ou hostil faz isso. Semear a lista com a URL já com os parâmetros seria o conserto.
+- O pedido condicional (`ETag`) vale só para a página 1.
+
+## D52. SmartRecruiters: chave da vaga e empresa inexistente (T30, T51)
+
+**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+
+**Contexto:** Dois pontos do coletor (`src/jobot/nucleo/coletores/smartrecruiters.py`).
+- Chave da vaga. A URL da vaga é montada da lista como `https://jobs.smartrecruiters.com/<identificador>/<id>`, sem slug, e é a chave da vaga. A `postingUrl` real do detalhe tem slug (`/744000161500208-analista-de-dados-e-relacionamento`). A URL sem slug nunca foi aberta na rede (os testes usam `MockTransport`). Se ela não abrir ou não redirecionar, o link do painel quebra, e a deduplicação entre fontes não casa com a URL que tem slug.
+- Empresa inexistente. A API devolve 200 com `totalFound=0`, então não há `test_404_empresa_nao_encontrada` (a ausência é deliberada), e zero vagas não prova que o identificador existe.
+
+**Opções:**
+- Chave: (a) conferir antes de gravar vagas reais abrindo na rede um exemplo da captura e, se abrir, manter a URL sem slug; (b) montar o slug a partir de `name`; (c) usar a `postingUrl` do detalhe, o que pede um pedido por vaga.
+- Empresa inexistente: (a) a T51 mostra aviso quando o "testar" dá zero vagas; (b) nada.
+
+**Decisão provisória:** chave: (a); mudar a chave depois de gravar vagas custa migração, então a conferência vem antes da primeira coleta real (a T55 é o primeiro momento). Empresa inexistente: (a), registrado no critério da T51.
+
+**Provisório (o que o código faz hoje), para confirmar:**
+- O escopo `<identificador>|<pais>` é o contrato da D50.
+- O `detalhar` não lê o `applyUrl` do detalhe, então `url_candidatura` fica `None`. O plano não pede isso para a SmartRecruiters. Ligar o `detalhar` a vaga já listada (o executor só detalha `UrlListada`) é tarefa do enriquecimento (seção 10.6) ou do executor.
+- A caixa do identificador é preservada (D45).
+
+## D53. Gupy: escolhas do redator (T40, T51, T54)
+
+**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+
+**Contexto:** O coletor (`src/jobot/nucleo/coletores/gupy.py`) fez quatro escolhas sem decisão no plano, além das da D50 e da D45.
+
+**Opções:**
+- Pedido condicional: (a) só na página 0 (como está; um 304 não diz quantas páginas existem, então o 304 da página 0 vale pela lista toda, e uma empresa com mais de 100 vagas que só mude da página 2 em diante demora a ser vista; a Localiza tem 894 vagas e muda toda hora); (b) pedido condicional em todas as páginas mais um pedido extra de terminador por escopo (dobra o custo dos 28 escopos contra o orçamento de 30 pedidos).
+- Filtro de host: (a) só o escopo de empresa descarta a vaga cujo host do `jobUrl` não é `<identificador>.gupy.io`; o escopo `cargo:` não filtra, porque a vaga é de qualquer empresa do portal, inclusive com domínio próprio; (b) filtrar também o `cargo:`.
+- Prazo: (a) `applicationDeadline` vale o dia escrito, sem fuso (a captura mostra `2027-01-12T00:00:00.000Z`, meia-noite UTC, ou seja, data pura); (b) converter para o dia local.
+- Nome da empresa: o `resolver` devolve o `careerPageName` além do `identificador`. (a) a T51 grava esse par em `parametros` ao adicionar a empresa; (b) guardar só o identificador e deixar o coletor descobrir o nome a cada coleta.
+
+**Decisão provisória:** (a) nas quatro. Para o prazo, a (a) é segura porque a Gupy manda data pura. A T51 passa a gravar o `careerPageName` do resolver (critério novo na T51). A rota da T54 que monta os `parametros` do "testar" não pode apagar o `careerPageName` (regra da D37).
+
+**Escolhas do redator, para confirmar com o dono:** os itens pulados saem como `saude.formato_mudou` sem contagem, como nos outros coletores (D45). A decisão 29 (o `careerPageName` aceito pela API e as 9 empresas que levam o nome em `parametros`) está no apêndice de fontes, seções 2.5 e 7.5.
+
+## D54. Execução completa: o que ficou para confirmar (T41, T95)
+
+**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+
+**Contexto:** A T41 (`src/jobot/agenda/execucao.py`) entregou a execução de sete passos e deixou pontos que mexem em `banco/` ou em escolha do dono.
+
+**Opções:**
+- Execução que fica "rodando" depois de uma exceção: o erro sobe e a execução continua "rodando" até `marcar_interrompidas` achar o batimento velho (mais de 5 min), e nesse tempo o índice `execucao_uma_por_tipo` impede outra execução do mesmo tipo. (a) deixar; (b) função nova `interromper_execucao` em `banco/execucoes.py`, que `executar_busca` chama ao pegar a exceção, marcando "interrompida" na hora e deixando a exceção subir.
+- Detalhe e cache: o detalhe (`gravar_detalhe`) e o cache de 30 dias (`enriquecimento`) são gravados em duas transações, e o SQL do cache mora em `execucao.py` por falta de função em `banco/` (marcado com `shortcut:`). (a) deixar; (b) função nova `gravar_cache_detalhe` em `banco/gravacao.py` que grava os dois numa transação só.
+- Recuo para a URL de detalhe que sempre quebra: ela é pedida em toda execução por até 30 dias (`JANELA_DETALHE`). (a) manter, com `shortcut:`; (b) gravar a tentativa no cache já na primeira falha comum, o que tira o "tenta de novo" da falha passageira; (c) contar as falhas, o que pede schema.
+- Critério de fonte que "rodou" (a que recebe detalhes): entra a fonte que tem ao menos um escopo fora de `no_limite` e de `falhou`; sai a fonte em que algum escopo parou por intervalo, orçamento, 429, bloqueio ou limite. Com intervalo por escopo (DR-64), a fonte só recebe detalhes quando todos os escopos estão vencidos. Isso pega a Eightfold (o escopo `apply.careers.microsoft.com` tem 1440 min e os outros não têm intervalo), que só é enriquecida uma vez por dia. (a) manter, que é conservador e não fura o ritmo; (b) excluir só quando todos os escopos pararam ou quando o motivo é 429, bloqueio ou orçamento, deixando o intervalo de um escopo isolado fora da regra.
+
+**Decisão provisória:** execução: (b), que vira a T95. Detalhe e cache: (b), na mesma T95. Recuo: (a) até a função de cache existir, e então a (c). Critério de fonte: (a).
+
+**Provisório (o que o código faz hoje), para confirmar, sem decisão nova (recomendação: manter):**
+- Vaga gravada com o interruptor de enriquecimento desligado é detalhada quando ele é religado.
+- `executar_busca` aceita o argumento `coletores` (um mapa de chave para coletor; sem ele usa os coletores do registro). Ele não está nas Interfaces da T41 e serve aos testes.
+- O teto de 200 detalhes por execução não limita os detalhes de sitemap que o executor da T16 já fez dentro da coleta; o limite de 200 conta só os feitos no passo 4.
+- A fonte desligada ganha saúde "desligada", com motivo vazio, a cada execução.
+- O pré-filtro em SQL das descrições vazias é mais restrito que o `strip()` do Python (o `trim()` do SQLite não tira `\v`, `\f` nem NBSP), então uma descrição só com esses caracteres nunca vira candidata a detalhe. O comentário em `execucao.py` diz o contrário e se corrige (o SQL decide, o `strip()` só confirma), ou o `trim` ganha `char(11,12,160)`.
+
+## D55. Agendador: travas compartilhadas com "buscar agora" (T42, T48, T49)
+
+**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+
+**Contexto:** O `laco` do `src/jobot/agenda/agendador.py` cria os `asyncio.Lock`, um por tipo, dentro dele mesmo. A rota de "buscar agora" da T49 não alcança essas travas, mas o plano diz que ela "usa o laço da agenda e a trava", e o desenho (12.3, item 3, e a DR-36) pede um `asyncio.Lock` por tipo no processo, sem separar a agenda do botão. A primeira recomendação da T42 (deixar assim e contar só com o índice único `execucao_uma_por_tipo`) estava errada e foi corrigida.
+
+**Opções:**
+- (a) deixar assim e contar só com o índice único `execucao_uma_por_tipo` (T22), o que contraria o plano;
+- (b) o `laco` ganha o parâmetro opcional `travas: Mapping[str, asyncio.Lock] | None = None`; com `None` ele cria as travas como hoje, e quem chama sem o parâmetro continua funcionando; a T48 cria o dicionário e passa o mesmo ao `laco` e à rota da T49.
+
+**Decisão provisória:** (b), que o plano dá à T48 (ela mexe em `agendador.py`) e à T49 (critério com teste de que a rota usa as mesmas travas).
+
+**Escolhas do redator, para confirmar com o dono:**
+- A espera de 60 s depois de iniciar vale para os três tipos (`busca`, `descoberta`, `paginas`).
+- O formato do `Protocol` `Estado`, que a T48 vai montar, fica como está em `agendador.py`.
+- Uma busca que levanta exceção é disparada de novo a cada 60 s. Esperar mais depois de uma falha seria tarefa nova, se o dono quiser.
+
+## D56. Detalhe da vaga: cor do prazo urgente (T46, T96)
+
+**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+
+**Contexto:** O desenho 13.5 pede o prazo com "▲, em vermelho se faltam menos de 7 dias". A T46 entregou o corte de 7 dias, mas marca a faixa e o texto só em negrito, porque o vermelho pede um token novo (`--alerta`) e o par de contraste em `base.css` e na lista de contrastes, e o `base.css` é da T36. A marca ▲ da grade de meses também ficou sem destaque, pelo mesmo motivo.
+
+**Opções:** (a) criar `--alerta` numa tarefa pequena (com par de contraste para a superfície e para o fundo, nos dois temas) e pintar o prazo e a marca ▲; (b) manter o negrito.
+
+**Decisão provisória:** (a), que vira a T96. Até lá, o prazo urgente fica em negrito.
+
+**Provisório (o que o código faz hoje), para confirmar:**
+- O comentário da correção aparece em todas as linhas do formulário (um `textarea` por formulário, `id` `correcao-comentario-{campo}`). A dúvida anterior, se o comentário ficava em uma só linha, está resolvida a favor do desenho 13.5.
+- Quando área, nível, modalidade ou contrato estão `NULL` (a coluna aceita), nenhum `<option>` sai marcado, e o navegador mostra a primeira opção como se fosse o valor da vaga. A sugestão da revisão é uma opção vazia marcada e desabilitada no topo, com teste de vaga de área `NULL`; fica para o dono pedir, porque o 422 seco para valor vazio já vale.
+- `rotas/detalhe.py` importa nomes privados de `rotas/vagas.py` (`_MAX_ID`, `_busca_efetiva`, `_inteiro`, `_relogio`, `_utc`). Funciona, mas qualquer renomeação lá quebra aqui; tornar públicos os helpers compartilhados é ajuste à parte.
+
+## D57. Coletores da leva A: escolhas dos redatores, para confirmar (T28, T29, T32, T33, T34, T35, T38, T39)
+
+**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+
+**Contexto:** Cada coletor fez escolhas sem decisão no plano ou no apêndice. Um item por fonte. A recomendação de todos é manter, salvo onde está dito.
+
+**Opções, e o que o código faz hoje:**
+- Modalidade declarada: `modalidade_declarada="remote"` fixa em Remotive, Himalayas e We Work Remotely (as três só listam vaga remota; `remote` está em `rotulos.json`), mas `None` no RemoteOK (o apêndice não diz que a fonte declare modalidade). (a) igualar o RemoteOK às outras; (b) deixar a regra por fonte para a T13. Recomendação: (a), que vira a T93.
+- Remotive (T32): `contrato_declarado` é o `job_type` cru (`full_time` não está em `declarados` e cai nas regras de texto; `contract` e `freelance` viram freelance); `etiquetas` é a categoria seguida das tags (a categoria ajuda a regra de área). Sem teste dedicado de 404: é fonte de escopo único, e o 404 cai em `saude.erro_de_rede`.
+- RemoteOK (T33): `epoch` chega como inteiro na captura real (o `id` vem como texto), e o coletor aceita inteiro, número com ponto e texto numérico, nunca bool. A `url` vem com `remoteOK.com` em caixa mista; conferir na T09 se o host é normalizado para minúsculas. Sem teste de 304: a captura não mostrou `ETag` nem `Last-Modified`. O link de volta sem `nofollow` e o crédito "Remote OK" são do painel, não do coletor.
+- Jobicy (T34): com cursor repetido e página idêntica, as vagas podem duplicar no resultado (`juntar_paginas` não deduplica); o estado sai `parcial` e o laço termina, e quem grava deduplica por `(fonte, id_externo)`. O salário aceita inteiro até `sys.float_info.max`, e o `SalarioBruto` guarda `float` (decisão do contrato); a conversão para centavos e a plausibilidade ficam com quem consome (T19).
+- Himalayas (T35): `etiquetas` é só `seniority` (`categories` são slugs ruidosos); `locais` são os `locationRestrictions` como vêm (vaga mundial traz de 45 a 73 países); `contrato_declarado` é o `employmentType` cru. Salário só entra se `minSalary` e `maxSalary` forem número maior que zero; a moeda vem do `currency` como veio (pode ser `None`); o período mapeia `hourly`, `daily`, `weekly`, `monthly` e `annual`, e outro valor vira `None` (as capturas só têm `annual` e `hourly`). Página ilegível depois da primeira sai `parcial` com as vagas já lidas; na primeira, `falhou`. O prazo está na D45.
+- We Work Remotely (T38): `etiquetas` leva só `category` (`skills` é lista gerada e ruidosa, e as etiquetas entram no cálculo de área); os ids de escopo são os da D50, e a T88 e a T46 não devem depender deles. As fixtures `normal.xml` e `categoria.xml` têm só 5 itens (o apêndice fala em 100 no feed geral), o que não afeta o código.
+- Ashby (T29): o `salario_estruturado` não é lido; só o resumo em texto vai em `salario_texto` (`scrapeableCompensationSalarySummary`, com `compensationTierSummary` de reserva), porque o formato de `compensationTiers[].components[].interval` não apareceu em nenhuma captura. Recomendação: ler `components` quando uma captura trouxer o `interval`. `isListed` ausente ou que não é booleano conta como item pulado por formato (e vira `falhou` se nenhum item for legível), para um campo renomeado não dar `ok` vazio e fechar todas as vagas; `isListed=false` fica de fora sem contar como pulado. O resolver aceita `jobs.ashbyhq.com/<nome>` e `api.ashbyhq.com/posting-api/job-board/<nome>`, preserva a caixa, recusa o host europeu (não testado) e aceita nome de `[A-Za-z0-9_-]{1,100}`. `applyUrl` que não é http ou https faz a vaga inteira ser pulada (DR-08), mesmo com o `jobUrl` bom.
+- Lever (T28): resposta que não é lista, ou lista não vazia sem nenhuma vaga legível, é `falhou`; lista com algum item pulado é `parcial`; lista vazia é `ok`. O nome da empresa fica na instância (D50).
+- Hacker News (T39): a primeira linha do comentário (`Empresa | Cargo | Local`) é só costume, então vale `shortcut:`. A empresa é o primeiro segmento antes de `|`; o cargo é o segundo, a menos que seja rótulo de modalidade (`remote`, `onsite`, `hybrid`), e então, sem `|`, é a linha toda cortada em 120 caracteres. Local e modalidade ficam para o tratamento; a T78 calibra. Quando a busca devolve hits e nenhum tem o título "Ask HN: Who is hiring?", o coletor devolve `falhou` com `saude.formato_mudou`, para o `ok` não fechar todas as vagas; busca com `hits` vazio dá `ok` com zero vagas. Comentário com `text` nulo ou vazio (apagado) é ignorado e não conta como pulado; sem a chave `text`, conta como formato mudou, e se todos vierem sem texto o estado é `falhou`. O `intervalo_min` é `null` em `fontes.json` e o coletor faz 2 pedidos por execução, enquanto o apêndice diz que uma leitura basta; o intervalo é decisão do dono. No dia 1 ou 2 do mês, o tópico novo ainda vazio dá `ok` com zero vagas e fecha as vagas do mês anterior: quem trata isso é o `zero_inesperado` do executor (T16), e no vigia (T84) a fonte, sendo de escopo único, abriria issue nesse caso.
+- Id booleano ou vazio: `isinstance(x, int | str)` aceita `bool`, então um `id` `true` vira `id_externo` `"True"` (Lever, Remotive, RemoteOK, Jobicy, Gupy); no Lever, `id` vazio vira `""`; `_numero` do Lever aceita NaN e Infinity. Nenhuma fonte real manda isso, e nada quebra. Recomendação: excluir bool e texto vazio quando algum coletor for mexido.
+
+**Decisão provisória:** o código segue o que está acima; a modalidade do RemoteOK passa a `remote` pela T93.

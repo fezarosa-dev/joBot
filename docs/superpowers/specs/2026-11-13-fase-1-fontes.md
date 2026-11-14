@@ -48,9 +48,10 @@ Falta conferir em todas: os testes do grupo B1 e B3 e o da PTAX usaram um user a
 | `developersRJ/vagas` | 8 | parado; última vaga de agosto de 2026 |
 
 - **Parâmetros:** `state=open`, `per_page=100` (máximo), `sort`, `direction`, `since`, `labels` (várias = E), `page`.
-- **Paginação:** seguir o cabeçalho `Link` com `rel="next"`. Não montar a URL da página seguinte à mão.
+- **Paginação:** seguir o cabeçalho `Link` com `rel="next"`. Não montar a URL da página seguinte à mão. Na captura, o `Link` aponta para `/repositories/<id>/issues?...&page=2&after=<cursor>`, não para o caminho `/repos/{org}/{repo}/issues` do pedido, e o coletor o segue como vier. Nenhum dos cinco repositórios passou de uma página.
 - **Autenticação:** nenhuma. Sem token, o limite é de 60 pedidos por hora por IP. O IP pode ser compartilhado com outros programas da casa.
 - **Cache:** devolve `ETag` e `cache-control: max-age=60`. `If-None-Match` devolveu 304. Não foi confirmado se o 304 poupa a cota.
+- **Cota esgotada:** esperada como 403 ou 429, com `x-ratelimit-remaining: 0`. Não foi capturada (não se gasta a cota de propósito); o tratamento está na D51.
 - **Campos:**
   - id externo: `owner/repo#number`;
   - título: `title`;
@@ -78,9 +79,9 @@ As cinco fontes desta seção exigem crédito com link de volta. O painel mostra
 #### Remotive
 
 - **Endereço:** `GET https://remotive.com/api/remote-jobs`. Categorias em `GET https://remotive.com/api/remote-jobs/categories`.
-- **Resposta:** `{job-count, total-job-count, jobs[]}`. Sem paginação. 16 vagas no dia da conferência.
+- **Resposta:** `{job-count, total-job-count, jobs[]}`, mais as chaves `00-warning` e `0-legal-notice` na raiz (avisos de uso, não são vagas). Sem paginação. 16 vagas no dia da conferência. Devolve `Last-Modified`, não devolve `ETag`.
 - **Filtros:** `category`, `company_name`, `search` e `limit` existem na documentação, mas não mudaram a resposta no teste. Filtrar localmente.
-- **Campos:** `id`, `title`, `company_name`, `candidate_required_location`, `salary` (texto livre), `publication_date` (ISO sem fuso), `url`, `description` (HTML), `job_type`, `category`, `tags`.
+- **Campos:** `id`, `title`, `company_name`, `candidate_required_location`, `salary` (texto livre), `publication_date` (ISO sem fuso), `url`, `description` (HTML), `job_type`, `category`, `tags` (lista), `company_logo` e `company_logo_url`.
 - **Limites:** no máximo cerca de 4 consultas por dia. Mais de 2 por minuto é bloqueado. As vagas entram na API com 24 horas de atraso.
 - **Termos e atribuição:** link de volta para a URL da vaga na Remotive e crédito à Remotive. Proíbe repassar as vagas para site de terceiros.
 - **`intervalo_min` da fonte:** 360.
@@ -90,8 +91,8 @@ As cinco fontes desta seção exigem crédito com link de volta. O painel mostra
 - **Endereço:** `GET https://remoteok.com/api`
 - **Resposta:** lista JSON. O primeiro elemento não é vaga: traz `last_updated` e `legal`. Pular.
 - **Filtro:** só `?tag=` funciona. Sem paginação. Devolve as cerca de 100 vagas mais novas (98 vistas). Cada resposta pesa perto de 600 KB.
-- **Campos:** `id` (texto), `position`, `company`, `location` (muitas vezes vazio), `salary_min` e `salary_max` (dólar por ano; 0 quer dizer ausente), `date` (ISO com fuso) e `epoch`, `url`, `apply_url`, `description` (HTML), `tags`.
-- **Cuidado:** forçar UTF-8 na leitura.
+- **Campos:** `id` (texto), `position`, `company`, `location` (muitas vezes vazio), `salary_min` e `salary_max` (dólar por ano; 0 quer dizer ausente), `date` (ISO com fuso) e `epoch` (inteiro), `url`, `apply_url`, `description` (HTML), `tags` (lista), `slug`, `logo` e `company_logo`. A `url` e a `apply_url` trazem `remoteOK.com` em caixa mista.
+- **Cuidado:** forçar UTF-8 na leitura: o `Content-Type` vem sem `charset`. Não há `ETag` nem `Last-Modified`.
 - **Termos e atribuição:** link de volta para a URL da vaga, sem `rel="nofollow"`, citando "Remote OK". Não usar o logotipo.
 - **Limites:** nenhum limite numérico publicado. Cada resposta pesa perto de 600 KB; o coletor faz um pedido por execução.
 - **`intervalo_min` da fonte:** 360. É intervalo prático, decisão da sessão em 2026-11-13; os termos não pedem.
@@ -102,7 +103,8 @@ As cinco fontes desta seção exigem crédito com link de volta. O painel mostra
 - **Parâmetros:** `count` (1 a 100), `cursor`, `geo` (por exemplo `geo=brazil`), `industry`, `tag`. Listas de valores em `?get=locations` (55) e `?get=industries` (22).
 - **Paginação:** por cursor (`nextCursor`, `hasMore`). O cursor vale 24 horas. Cursor vencido ou filtro trocado no meio devolve 400.
 - **Janela:** só vagas dos últimos 7 dias. Vaga nova aparece 3 horas depois de publicada.
-- **Campos:** `id`, `jobTitle`, `companyName`, `jobGeo`, `salaryMin`, `salaryMax`, `salaryCurrency`, `salaryPeriod` (pouco confiáveis), `pubDate` (ISO com fuso), `url`, `jobDescription` (HTML), `jobExcerpt`, `jobLevel`, `jobIndustry[]`, `jobType[]`.
+- **Campos:** `id`, `jobTitle`, `companyName`, `jobGeo`, `salaryMin`, `salaryMax`, `salaryCurrency`, `salaryPeriod` (pouco confiáveis), `pubDate` (ISO com fuso), `url`, `jobDescription` (HTML), `jobExcerpt`, `jobLevel`, `jobIndustry[]`, `jobType[]` (as duas são listas). `jobGeo` é texto livre.
+- **Raiz da resposta:** `apiVersion`, `documentationUrl`, `friendlyNotice`, `jobCount`, `lastUpdate`, `nextCursor`, `hasMore`, `appliedFilters`, `statusCode`, `success` e `jobs[]`. Devolve `Last-Modified`, não devolve `ETag`. Resultado vazio é 200 com uma `message` e `nextCursor` nulo.
 - **Termos e atribuição:** crédito claro à Jobicy com link direto. O botão de candidatura aponta para a página da vaga na Jobicy.
 - **Limites:** começar uma nova passada automática no máximo uma vez por hora. `intervalo_min` da fonte: 60.
 - **[a confirmar]:** `GET https://jobicy.com/api/jobs/status?ids=` (consulta de estado por id) não foi testado.
@@ -114,7 +116,8 @@ As cinco fontes desta seção exigem crédito com link de volta. O painel mostra
   - lista geral: `GET https://himalayas.app/jobs/api` (119.361 vagas; não usar para varrer tudo).
 - **Parâmetros da busca:** `q`, `country` (ISO de duas letras), `worldwide`, `exclude_worldwide`, `seniority`, `employment_type`, `company`, `timezone`, `sort=recent`, `page` (começa em 1). 20 por página.
 - **Teste:** `q=python&country=BR&sort=recent` devolveu `totalCount` 949.
-- **Campos:** `guid` (URL canônica da vaga; é o id), `title`, `companyName`, `companySlug`, `locationRestrictions[]`, `timezoneRestrictions[]`, `minSalary`, `maxSalary`, `currency`, `salaryPeriod`, `pubDate` (epoch em segundos; é a data da última atualização), `expiryDate` (epoch), `applicationLink`, `description` (HTML), `excerpt`, `seniority[]`, `employmentType`, `categories`.
+- **Campos:** `guid` (URL canônica da vaga; é o id), `title`, `companyName`, `companySlug`, `locationRestrictions[]`, `timezoneRestrictions[]`, `minSalary`, `maxSalary`, `currency`, `salaryPeriod`, `pubDate` (epoch em segundos; é a data da última atualização), `expiryDate` (epoch), `applicationLink`, `description` (HTML), `excerpt`, `seniority[]`, `employmentType`, `categories`, `parentCategories` e `companyLogo`.
+- **Raiz da resposta:** `comments`, `updatedAt`, `offset`, `limit`, `totalCount` e `jobs[]`. `pubDate` e `expiryDate` vêm em segundos desde 1970. Devolve `Last-Modified`.
 - **Termos e atribuição (termos da API, cláusula 113):** o botão de candidatura usa o `applicationLink` sem mudar nada. O painel identifica a Himalayas como fonte, com link visível. Proíbe repassar para outros sites de vaga. Pede cache, respeito aos limites e remoção de vaga vencida. No joBot, a vaga vencida sai das listas do painel; o registro dela fica no banco, só no computador da pessoa (desenho, seção 7.6).
 - **Cuidado:** a limpeza de parâmetros de rastreamento (desenho, seção 10.1) não toca no `applicationLink`. A chave de duplicata usa o `guid`.
 - **Limites:** sem chave, o limite é menor e não é publicado. Os dados mudam uma vez por dia. Regra do coletor: até 30 pedidos por execução, 2 s entre eles.
@@ -125,7 +128,7 @@ As cinco fontes desta seção exigem crédito com link de volta. O painel mostra
 - **Endereços:** `https://weworkremotely.com/remote-jobs.rss` (geral, 100 itens) e `https://weworkremotely.com/categories/<slug>.rss`.
 - **Categorias:** `all-other-remote-jobs`, `remote-back-end-programming-jobs`, `remote-customer-support-jobs`, `remote-design-jobs`, `remote-devops-sysadmin-jobs`, `remote-front-end-programming-jobs`, `remote-full-stack-programming-jobs`, `remote-management-and-finance-jobs`, `remote-product-jobs`, `remote-programming-jobs`, `remote-sales-and-marketing-jobs`.
 - **Formato:** RSS 2.0.
-- **Campos:** `<title>` no formato "Empresa: Cargo" (cortar no primeiro ": "), `<link>` igual ao `<guid>`, `<pubDate>` (RFC 822), `<region>`, `<category>`, `<description>` (HTML escapado). Só o feed geral traz `<expires_at>`, `<type>`, `<skills>`, `<country>` e `<state>`.
+- **Campos:** `<title>` no formato "Empresa: Cargo" (cortar no primeiro ": "), `<link>` igual ao `<guid>`, `<pubDate>` (RFC 822), `<region>`, `<category>`, `<description>` (HTML escapado). Os feeds de categoria também trazem `<expires_at>`, `<type>`, `<skills>`, `<country>` e `<state>`, como o geral (conferido em `remote-devops-sysadmin-jobs`). Ordem dos elementos de cada item: `title`, `region`, `country`, `state`, `skills`, `category`, `type`, `description`, `pubDate`, `expires_at`, `guid`, `link`. Alguns itens trazem também `<media:content>`. O `<country>` começa com a bandeira em emoji, que o coletor tira. O feed geral e os de categoria devolvem `ETag` fraco.
 - **Limites:** `<ttl>60` e `cache-control: max-age=3600`. No máximo uma leitura por hora por feed. `intervalo_min` da fonte: 60.
 - **Termos e atribuição:** os links têm de apontar de volta para o We Work Remotely.
 - **Cuidado:** alguns feeds de categoria ficam atrasados em relação ao geral.
@@ -138,7 +141,7 @@ As cinco fontes desta seção exigem crédito com link de volta. O painel mostra
   - o tópico novo aparece no dia 1 ou 2 de cada mês.
 - **Ler os comentários:** `GET https://hn.algolia.com/api/v1/items/<id do tópico>` — um pedido só, cerca de 440 KB, 242 comentários de primeiro nível em `children[]`. Só o primeiro nível é vaga.
 - **Alternativa paginada:** `search_by_date?tags=comment,story_<id>&hitsPerPage=100&page=N`.
-- **Campos:** `id`, `created_at`, `text` (HTML com entidades e `<p>` sem fechar). Link da vaga: `https://news.ycombinator.com/item?id=<id>`.
+- **Campos:** `id`, `created_at`, `text` (HTML com entidades e `<p>` sem fechar); a resposta traz ainda `author`, `children`, `created_at_i`, `options`, `parent_id`, `points`, `story_id`, `title`, `type` e `url`, que o coletor não usa. Não há `ETag` nem `Last-Modified`. Link da vaga: `https://news.ycombinator.com/item?id=<id>`.
 - **Primeira linha:** costuma ser `Empresa | Cargo | Local | REMOTE ou ONSITE | …`. É só costume. O leitor tenta e, se não der, guarda o texto inteiro como descrição.
 - **Não guardar:** o autor do comentário.
 - **Limites:** nenhum limite oficial publicado na API. Uma leitura por execução basta.
@@ -163,8 +166,9 @@ As cinco fontes desta seção exigem crédito com link de volta. O painel mostra
 
 - **Endereço:** `GET https://api.lever.co/v0/postings/{site}?mode=json`
 - **Paginação:** `skip` e `limit`. Sem eles, vem tudo.
-- **Campos:** `id` (UUID), `text` (título), `categories.location`, `categories.allLocations`, `categories.commitment`, `categories.department`, `categories.team`, `country`, `workplaceType` (`remote`, `hybrid`, `onsite`), `salaryRange{currency,interval,min,max}` (opcional; não apareceu ao vivo), `createdAt` (epoch em **milissegundos**), `hostedUrl`, `applyUrl`, `descriptionPlain`, `description`, `lists[]`, `additional`.
+- **Campos:** `id` (UUID), `text` (título), `categories.location`, `categories.allLocations`, `categories.commitment`, `categories.department`, `categories.team`, `country`, `workplaceType` (`remote`, `hybrid`, `onsite`), `salaryRange{currency,interval,min,max}` (opcional; não apareceu ao vivo), `createdAt` (epoch em **milissegundos**), `hostedUrl`, `applyUrl`, `descriptionPlain`, `description`, `lists[]`, `additional`, além de `opening`, `descriptionBody` e as versões `Plain` de `opening`, `descriptionBody` e `additional`. O `salaryRange` não apareceu na captura da `starkbank`.
 - **Não tem:** nome da empresa. Usar o nome da lista de empresas.
+- **Cache e paginação:** devolve `ETag` fraco. `skip` além do total devolve 200 com lista vazia.
 - **Erros:** identificador inexistente devolve 404 com `{"ok":false,"error":"Document not found"}`.
 - **Limites:** nenhum documentado. Manter 1 s entre pedidos.
 - **[a confirmar]:** o host da União Europeia (`api.eu.lever.co`) não foi testado.
@@ -174,6 +178,7 @@ As cinco fontes desta seção exigem crédito com link de volta. O painel mostra
 - **Endereço:** `GET https://api.ashbyhq.com/posting-api/job-board/{nome}?includeCompensation=true`
 - **Paginação:** nenhuma.
 - **Campos:** `id` (UUID), `title`, `location`, `secondaryLocations`, `address.postalAddress`, `isRemote`, `workplaceType` (`Remote`, `Hybrid`, `OnSite`; só `Remote` foi visto), `compensation.scrapeableCompensationSalarySummary` (texto curto com a faixa), `compensation.compensationTierSummary`, `compensation.compensationTiers[].components[]` (`compensationType`, `interval`, `currencyCode`, `minValue`, `maxValue`), `publishedAt` (ISO com fuso), `jobUrl`, `applyUrl`, `descriptionHtml`, `descriptionPlain`, `department`, `team`, `employmentType`, `isListed`.
+- **Raiz da resposta:** `{jobs[], apiVersion}`. Na `compensation` há também `shouldDisplayCompensationOnJobPostings`, e a `belvo` traz campos nulos. Devolve `ETag` fraco.
 - **Filtrar:** só `isListed=true`.
 - **Não tem:** nome da empresa. Usar o nome da lista de empresas.
 - **Erros:** identificador inexistente devolve 404 em texto puro ("Not Found").
@@ -184,8 +189,8 @@ As cinco fontes desta seção exigem crédito com link de volta. O painel mostra
 - **Lista:** `GET https://api.smartrecruiters.com/v1/companies/{id}/postings?limit=100&offset=0&country=br`
 - **Paginação:** `limit` (máximo 100) e `offset`. Resposta `{offset, limit, totalFound, content[]}`.
 - **Filtros:** `q`, `country` (ISO em minúsculas).
-- **Campos da lista:** `id`, `name`, `company.name`, `location{city, region, country, remote, hybrid, fullLocation}`, `releasedDate` (ISO em UTC), `experienceLevel`, `department`, `function`, `typeOfEmployment`.
-- **A lista não traz descrição.** Detalhe: `GET https://api.smartrecruiters.com/v1/companies/{id}/postings/{postingId}`, com `jobAd.sections.{companyDescription, jobDescription, qualifications, additionalInformation}.text` (HTML), `postingUrl` e `applyUrl`.
+- **Campos da lista:** `id`, `name`, `company.name`, `location{city, region, country, remote, hybrid, fullLocation}`, `releasedDate` (ISO em UTC), `experienceLevel`, `department`, `function`, `typeOfEmployment`. A captura traz ainda `uuid`, `jobAdId`, `refNumber`, `industry`, `customField`, `defaultJobAd`, `location.address` e `location.hybridDescription`.
+- **A lista não traz descrição.** Detalhe: `GET https://api.smartrecruiters.com/v1/companies/{id}/postings/{postingId}`, com `jobAd.sections.{companyDescription, jobDescription, qualifications, additionalInformation}.text` (HTML), `postingUrl` e `applyUrl`. O detalhe traz também `creator` (vazio). Devolve `ETag`.
 - **Cuidados:** o identificador diferencia maiúsculas de minúsculas. Empresa inexistente devolve 200 com `totalFound=0`: zero vagas não prova que o identificador está certo.
 - **Custo:** um pedido de detalhe por vaga. O detalhe entra no orçamento de enriquecimento (desenho, seção 10.6).
 - **Limites e termos:** a API de vagas é documentada como pública e sem chave. Nenhum limite oficial publicado.
@@ -194,7 +199,8 @@ As cinco fontes desta seção exigem crédito com link de volta. O painel mostra
 
 - **Endereço:** `GET https://portal.gupy.io/api/job-search/jobs`
 - **Parâmetros testados:** `jobName` (termo; sem ele lista tudo), `limit` (até 100; 200 devolve 400), `offset`, `sortBy=publishedDate`, `sortOrder=desc`, `workplaceType` (`remote`, `hybrid`, `on-site`), `state` (nome por extenso), `type`, `isPWD`.
-- **Parâmetros [a confirmar]:** `city`, `badge` e `careerPageName` existem no código do portal, mas não foram testados ao vivo. O `careerPageName` é o caminho para buscar por empresa da lista. Se não funcionar, o coletor busca por `jobName` com o nome da empresa e filtra pelo campo `careerPageName` da resposta.
+- **Parâmetros [a confirmar]:** `city` e `badge` existem no código do portal, mas não foram testados ao vivo.
+- **Busca por empresa (`careerPageName`, decisão 29, conferida na captura de 2026-11-14):** o parâmetro funciona. A API aceita o `careerPage.publicationName`, sem espaços nas pontas, que está no `<script id="__NEXT_DATA__">` da página `https://<identificador>.gupy.io/`, em `props.pageProps.careerPage`. O `name` e o `<title>` da página não servem. A comparação é por caixa exata: `Agriness` devolve 4 vagas e `agriness` devolve 0. O `jobUrl` das vagas tem o host `<identificador>.gupy.io`, e, só no escopo de empresa, vaga de outro host é descartada pelo coletor (o escopo `cargo:` não filtra host, D53). O `careerPageUrl` vem vazio. Nove empresas do `empresas.json` levam o nome em `parametros.careerPageName`: `porto`, `vempracbc`, `beepsaude`, `hapvidandi`, `spdmpaisfor`, `afyamedicina`, `cnaidiomas`, `ihara` e `ourofinoagro`. O resolver da Gupy devolve o `careerPageName` junto com o identificador, e a T51 grava esse par em `parametros` (D53).
 - **Resposta:** `{data[], pagination{total, limit, offset}}`.
 - **Paginação:** `pagination.total` é cortado em 100. Nunca confiar nele. Avançar o `offset` de `limit` em `limit` até `data` vir vazio ou menor que `limit`.
 - **Campos:** `id` (inteiro), `name`, `careerPageName` (nome da empresa), `city`, `state` (vazios quando a vaga é remota), `workplaceType`, `publishedDate` (ISO em UTC), `applicationDeadline`, `jobUrl`, `description`, `type`, `disabilities`, `badges`.
@@ -587,6 +593,7 @@ A coluna "Brasil ou remoto" é a contagem feita na conferência. Ela usa o campo
 
 Observações:
 
+- O `careerPageName` da API é o `publicationName` da página da empresa, com caixa exata (decisão 29, seção 2.5). Em nove empresas ele difere do identificador e está em `parametros.careerPageName`. Na Hapvida o nome é genérico ("Página de Carreira"), e o escopo baixa vagas de mais de uma empresa até o filtro de host do `jobUrl` as descartar (D50).
 - O quadro `agibankvagasfuturas` é banco de talentos ("vagas futuras"), não vaga imediata. O painel mostra a etiqueta de banco de talentos.
 - Agriness, Certsys e Grupo TecnoSpeed têm de 3 a 5 vagas. Podem zerar em poucos dias; zero nelas não é falha.
 - Nas vagas remotas globais (Supabase, Zapier), a conferência não leu a descrição para saber se aceitam contratação a partir do Brasil.
@@ -636,7 +643,7 @@ Identificador "chutado" quer dizer: testado pelo nome da empresa, sem prova de q
 | Item | Onde |
 |---|---|
 | Primeiro pedido de cada fonte com o user agent do joBot | Workday, Eightfold, Oracle HCM, CIEE, IEL, Super Estágios, Cia de Talentos, USP, PTAX |
-| `careerPageName`, `city` e `badge` na API do portal da Gupy | 2.5 |
+| `city` e `badge` na API do portal da Gupy | 2.5 |
 | Caminho público da Eureca: endereço, método, paginação, campos e limites | 3.2 |
 | Consulta de estado por id na Jobicy | 2.2 |
 | Host europeu da Lever e do Greenhouse | 2.4 |
@@ -645,5 +652,8 @@ Identificador "chutado" quer dizer: testado pelo nome da empresa, sem prova de q
 | Tamanho da resposta do CIEE com `size=1000` | 3.2 |
 | Formato do Super Estágios em mais de uma vaga | 3.2 |
 | Se o 304 do GitHub poupa a cota | 2.1 |
+| Resposta 404 de cada fonte: a captura não a alcança, porque o `ClienteEducado` levanta antes de devolver o corpo | 2.1 a 2.5 |
+| Pedido condicional (304) nas fontes que devolvem `ETag` ou `Last-Modified`: não foi testado na rede | 2.1 a 2.5 |
+| Páginas além da primeira (GitHub, Himalayas, Jobicy, Gupy): só a primeira foi vista na captura | 2.1, 2.2, 2.5 |
 | Se o feed do Google responde 304 ao `If-Modified-Since` | 3.4 |
 | Termos de uso gerais do Greenhouse e da Lever (só a documentação das APIs foi lida) | 2.4 |
