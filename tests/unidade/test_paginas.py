@@ -16,13 +16,16 @@ import pytest
 from fastapi.testclient import TestClient
 
 from apoio.relogio import RelogioFalso
-from jobot.agenda.paginas import executar_paginas
+from jobot.agenda.agendador import o_que_roda
+from jobot.agenda.paginas import _devida, executar_paginas
 from jobot.banco.cadastros import gravar_config
 from jobot.banco.conexao import abrir
+from jobot.banco.execucoes import Tipo
 from jobot.banco.migrar import migrar
 from jobot.banco.paginas import (
     adicionar_pagina,
     desativar_pagina,
+    existe_pagina_nova,
     gravar_leitura,
     marcar_falhou,
     marcar_vista,
@@ -220,8 +223,9 @@ async def test_mesmo_texto_nao_gera_mudanca(con: sqlite3.Connection) -> None:
     pagina_id = adicionar_pagina(con, URL, "Trainee")
     srv = _Servidor(_html("Inscrições em março"))
     cliente = _cliente(srv)
-    for _ in range(2):
-        assert await executar_paginas(con, cliente, _RelogioParado(AGORA), resolver=_Dns(PUBLICO))
+    for dia in range(2):  # só a leitura de 24 h depois conta como devida (T149)
+        relogio = _RelogioParado(AGORA + timedelta(days=dia))
+        assert await executar_paginas(con, cliente, relogio, resolver=_Dns(PUBLICO))
     assert len(srv.pedidos) == 2
     texto, hash_texto, estado, verificada_em, mudou_em = _linha(con, pagina_id)
     assert texto == "Inscrições em março"  # texto puro: sem tag nem script (14.3)
@@ -722,3 +726,133 @@ async def test_executar_paginas_desligada_nao_le_nada(con: sqlite3.Connection) -
     gravar_config(con, "paginas_ligadas", True)  # controle: ligada, lê
     assert await executar_paginas(con, cliente, _RelogioParado(AGORA), resolver=_Dns(PUBLICO))
     assert len(servidor.pedidos) == 1
+
+
+# --- T149: página nova é lida na próxima volta da agenda ------------------------------------
+
+
+def _dias(con: sqlite3.Connection, pagina_id: int, horas: float) -> None:
+    gravar_leitura(con, pagina_id, Mudanca("x", "h-x", None), AGORA - timedelta(hours=horas))
+
+
+async def test_executar_paginas_le_so_as_devidas(con: sqlite3.Connection) -> None:
+    nova = adicionar_pagina(con, "https://nova.example/x", "Nova")
+    recente = adicionar_pagina(con, "https://recente.example/x", "Recente")
+    antiga = adicionar_pagina(con, "https://antiga.example/x", "Antiga")
+    na_conta = adicionar_pagina(con, "https://conta.example/x", "Na conta")
+    _dias(con, recente, 1)
+    _dias(con, antiga, 25)
+    _dias(con, na_conta, 23.5)  # lida no fim da execução de ontem: a folga cobre o atraso dela
+    srv = _Servidor(_html("texto"))
+    assert await executar_paginas(con, _cliente(srv), _RelogioParado(AGORA), resolver=_Dns(PUBLICO))
+    assert sorted(p.url.host or "" for p in srv.pedidos) == [
+        "antiga.example",
+        "conta.example",
+        "nova.example",
+    ]
+    assert _linha(con, recente)[2] == "ok" and _linha(con, recente)[3] != AGORA.isoformat()
+    assert _linha(con, nova)[3] == AGORA.isoformat()
+
+
+async def test_pagina_nova_e_lida_na_volta_e_depois_nao_e_mais_nova(
+    tmp_path: Path,
+) -> None:
+    caminho = tmp_path / "jobot.db"
+    estado = servir._EstadoDoBanco(caminho)
+    with closing(abrir(caminho)) as con:
+        migrar(con, caminho)
+        assert estado.pagina_nova() is False  # nada cadastrado
+        nova = adicionar_pagina(con, URL, "Trainee")
+        desligada = adicionar_pagina(con, "https://outra.example/x", "Outra")
+        desativar_pagina(con, desligada)
+        assert estado.pagina_nova() is True
+        marcar_falhou(con, nova, "fora_do_ar")  # já tentada: espera as 24 h, não a cada volta
+        assert estado.pagina_nova() is False
+        con.execute("UPDATE pagina_acompanhada SET estado=NULL WHERE id=?", (nova,))
+        con.commit()
+        assert estado.pagina_nova() is True
+        assert await executar_paginas(
+            con, _cliente(_Servidor(_html("a"))), _RelogioParado(AGORA), resolver=_Dns(PUBLICO)
+        )
+        assert estado.pagina_nova() is False
+
+
+def test_paginas_desligadas_nao_rodam_nem_com_pagina_nova(tmp_path: Path) -> None:
+    caminho = tmp_path / "jobot.db"
+    with closing(abrir(caminho)) as con:
+        migrar(con, caminho)
+        gravar_config(con, "primeira_execucao_concluida", True)
+        gravar_config(con, "paginas_ligadas", False)
+        adicionar_pagina(con, URL, "Trainee")
+    estado = servir._EstadoDoBanco(caminho)
+    assert estado.pagina_nova() is True
+
+    def vencidos() -> list[Tipo]:
+        return o_que_roda(
+            AGORA,
+            AGORA,
+            AGORA,
+            AGORA,
+            AGORA - timedelta(hours=1),
+            estado.interruptores(),
+            pagina_nova=estado.pagina_nova(),
+        )
+
+    assert vencidos() == []
+    with closing(abrir(caminho)) as con:
+        gravar_config(con, "paginas_ligadas", True)  # controle: a mesma montagem, ligada, roda
+    assert vencidos() == ["paginas"]
+
+
+def test_existe_pagina_nova_so_com_pagina_ativa_sem_estado(tmp_path: Path) -> None:
+    caminho = tmp_path / "jobot.db"
+    with closing(abrir(caminho)) as con:
+        migrar(con, caminho)
+        assert existe_pagina_nova(con) is False  # nada cadastrado
+        nova = adicionar_pagina(con, URL, "Trainee")
+        assert existe_pagina_nova(con) is True
+        marcar_falhou(con, nova, "fora_do_ar")
+        assert existe_pagina_nova(con) is False  # já tentada
+        desligada = adicionar_pagina(con, "https://outra.example/x", "Outra")
+        desativar_pagina(con, desligada)
+        assert existe_pagina_nova(con) is False  # nova, mas desativada
+
+
+def test_agenda_parada_antes_do_assistente_nao_roda_com_pagina_nova(tmp_path: Path) -> None:
+    caminho = tmp_path / "jobot.db"
+    with closing(abrir(caminho)) as con:
+        migrar(con, caminho)
+        adicionar_pagina(con, URL, "Trainee")  # sem `primeira_execucao_concluida` (T139)
+    estado = servir._EstadoDoBanco(caminho)
+    assert estado.pagina_nova() is True
+    assert (
+        o_que_roda(
+            AGORA,
+            AGORA,
+            AGORA,
+            AGORA,
+            AGORA - timedelta(hours=1),
+            estado.interruptores(),
+            pagina_nova=estado.pagina_nova(),
+        )
+        == []
+    )
+
+
+def test_devida_nas_bordas() -> None:
+    def pagina(lida: datetime) -> Pagina:
+        return Pagina(
+            id=1,
+            url=URL,
+            nome="x",
+            ativa=True,
+            texto="t",
+            hash_texto="h",
+            verificada_em=lida,
+            mudou_em=None,
+            estado="ok",
+        )
+
+    assert _devida(pagina(AGORA + timedelta(hours=2)), AGORA)  # relógio voltou
+    assert _devida(pagina(AGORA - timedelta(hours=23)), AGORA)  # 24 h menos a folga
+    assert not _devida(pagina(AGORA - timedelta(hours=22, minutes=59)), AGORA)

@@ -34,6 +34,7 @@ from jobot.banco.cotacoes import aplicar_cotacoes
 from jobot.banco.execucoes import Motivo, Tipo, inicio_da_ultima_completa, marcar_interrompidas
 from jobot.banco.gravacao import ValidadoresDoBanco
 from jobot.banco.migrar import BancoMaisNovo, migrar
+from jobot.banco.paginas import existe_pagina_nova
 from jobot.nucleo.http import ClienteEducado
 from jobot.nucleo.relogio import Relogio, RelogioReal
 from jobot.painel.app import criar_app
@@ -96,6 +97,10 @@ class _EstadoDoBanco:
                 # agora" do fim dele; o painel e `jobot buscar` não passam por aqui (T139)
                 return {tipo: False for tipo in TIPOS}
             return {tipo: bool(ler_config(con, chave)) for tipo, chave in _INTERRUPTORES.items()}
+
+    def pagina_nova(self) -> bool:
+        with closing(abrir(self._caminho)) as con:
+            return existe_pagina_nova(con)
 
 
 def _perdida(caminho: Path, agora: datetime) -> bool:
