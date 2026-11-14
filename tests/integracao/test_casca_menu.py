@@ -1,4 +1,4 @@
-"""Menu principal da casca: seis áreas e `aria-current` na área aberta (decisão 22; T86)."""
+"""Menu principal da casca: sete áreas e `aria-current` na área aberta (decisão 22; T86)."""
 
 import re
 from contextlib import closing
@@ -22,6 +22,7 @@ LINKS = {
         "Buscas": "/buscas",
         "Fontes": "/fontes",
         "Empresas": "/empresas",
+        "Sugeridas": "/empresas/sugeridas",
         "Sites": "/sites",
         "Configurações": "/configuracoes/fontes",
     },
@@ -30,6 +31,7 @@ LINKS = {
         "Searches": "/buscas",
         "Sources": "/fontes",
         "Companies": "/empresas",
+        "Suggested": "/empresas/sugeridas",
         "Sites": "/sites",
         "Settings": "/configuracoes/fontes",
     },
@@ -68,12 +70,12 @@ def _menu(html: str, idioma: str) -> list[tuple[str, str, bool]]:
 
 
 @pytest.mark.parametrize("idioma", ["pt", "en"])
-def test_menu_tem_seis_links_pt_e_en(cliente: TestClient, idioma: str) -> None:
+def test_menu_tem_sete_links_pt_e_en(cliente: TestClient, idioma: str) -> None:
     resposta = cliente.get("/vagas", headers={"Accept-Language": idioma})
     assert resposta.status_code == 200
     itens = _menu(resposta.text, idioma)
     assert {texto: href for texto, href, _ in itens} == LINKS[idioma]
-    assert len(itens) == 6
+    assert len(itens) == 7
 
 
 @pytest.mark.parametrize("idioma", ["pt", "en"])
@@ -84,6 +86,8 @@ def test_menu_tem_seis_links_pt_e_en(cliente: TestClient, idioma: str) -> None:
         ("/vagas", "/vagas"),
         ("/vagas/1/x", "/vagas"),
         ("/buscas", "/buscas"),
+        ("/empresas", "/empresas"),
+        ("/empresas/sugeridas", "/empresas/sugeridas"),
         ("/configuracoes/ia", "/configuracoes/fontes"),
         ("/vagasx", None),
     ],

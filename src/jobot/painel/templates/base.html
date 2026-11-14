@@ -3,14 +3,20 @@
 {#- menu: (chave, href, começo do caminho da área); "/" conta como Vagas; a área é o começo do caminho,
     inteiro ou seguido de "/", para "/vagasx" não marcar Vagas -#}
 {%- set caminho = "/vagas" if request.url.path == "/" else request.url.path -%}
+{#- a área marcada é a de caminho mais longo: "/empresas/sugeridas" marca Sugeridas e não Empresas -#}
+{%- set ns = namespace(atual="") -%}
 {%- set areas = (
   ("vagas", "/vagas", "/vagas"),
   ("buscas", "/buscas", "/buscas"),
   ("fontes", "/fontes", "/fontes"),
   ("empresas", "/empresas", "/empresas"),
+  ("sugeridas", "/empresas/sugeridas", "/empresas/sugeridas"),
   ("sites", "/sites", "/sites"),
   ("configuracoes", "/configuracoes/fontes", "/configuracoes"),
 ) -%}
+{%- for _, _, area in areas -%}
+  {%- if (caminho == area or caminho.startswith(area ~ "/")) and area|length > ns.atual|length %}{% set ns.atual = area %}{% endif -%}
+{%- endfor -%}
 <!doctype html>
 <html lang="{{ idioma }}" data-tema="{{ tema_atual }}">
 <head>
@@ -34,7 +40,7 @@
     <a class="marca" href="/">joBot</a>
     <nav class="menu" aria-label="{{ t('casca.menu') }}">
       {%- for chave, href, area in areas %}
-      <a href="{{ href }}"{% if caminho == area or caminho.startswith(area ~ "/") %} aria-current="page"{% endif %}>{{ t("casca.menu." ~ chave) }}</a>
+      <a href="{{ href }}"{% if area == ns.atual %} aria-current="page"{% endif %}>{{ t("casca.menu." ~ chave) }}</a>
       {%- endfor %}
     </nav>
     <nav class="preferencias" aria-label="{{ t('casca.preferencias') }}">
