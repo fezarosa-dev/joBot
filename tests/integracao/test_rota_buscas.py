@@ -18,7 +18,8 @@ from apoio.relogio import RelogioFalso
 from apoio.semear import semear
 from jobot.banco.conexao import abrir
 from jobot.banco.migrar import migrar
-from jobot.nucleo.tratamento.locais import ler_locais
+from jobot.nucleo.modelo import Local
+from jobot.nucleo.tratamento.locais import _PAISES, ler_locais
 from jobot.painel.app import criar_app
 from jobot.painel.rotas import buscas as rota_buscas
 from jobot.painel.seguranca import CAMPO_CSRF
@@ -192,7 +193,7 @@ def test_salario_em_dolar_guarda_a_moeda(painel: Painel) -> None:
         {"nivel": ["chefe"]},
         {"idioma": ["klingon"]},
         {"regra": ["inventada"]},
-        {"cidades": "Curitiba"},
+        {"cidades": "Lugar Nenhum"},
         {"cidades": "Curitiba, PR\nnada que se entenda"},
         {"cargos": ",".join(f"c{n}" for n in range(60))},
         {"cargos": "x" * 101},
@@ -345,10 +346,15 @@ def test_id_fora_do_alcance_e_422(painel: Painel, busca: str) -> None:
         assert painel.post(f"/buscas/{busca}{acao}", _form()).status_code == 422
 
 
-def test_nomes_de_pais_do_formulario_batem_com_o_leitor() -> None:
-    assert rota_buscas.NOME_PAIS
-    for codigo, nome in rota_buscas.NOME_PAIS.items():
-        assert ler_locais([f"Cidade, {nome}"])[0].pais == codigo
+@pytest.mark.parametrize("codigo", sorted(set(_PAISES.values())))
+def test_todo_pais_do_leitor_volta_igual_pelo_formulario(codigo: str) -> None:
+    for local in (Local(pais=codigo), Local(cidade="Cidade Exemplo", pais=codigo)):
+        assert ler_locais([rota_buscas._texto_local(local)]) == (local,)
+
+
+def test_cidade_com_uf_volta_igual_pelo_formulario() -> None:
+    for local in (Local(cidade="Curitiba", uf="PR", pais="BR"), Local(uf="SP", pais="BR")):
+        assert ler_locais([rota_buscas._texto_local(local)]) == (local,)
 
 
 @pytest.fixture

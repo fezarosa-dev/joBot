@@ -26,7 +26,7 @@ from jobot.nucleo.coletores.base import (
 from jobot.nucleo.coletores.registro import limites
 from jobot.nucleo.http import ErroDeRede, HttpEducado
 from jobot.nucleo.modelo import VagaColetada
-from jobot.nucleo.tratamento.locais import ler_locais, nome_do_pais
+from jobot.nucleo.tratamento.locais import ler_locais, nome_do_pais, pais_escrito
 
 _LIMITES = limites("workday")
 _DOMINIO = "myworkdayjobs.com"
@@ -101,16 +101,23 @@ def _facetas(facetas: list[object]) -> dict[str, list[tuple[str, str]]]:
     return achadas
 
 
+def _do_pais(descritor: str, pais: str) -> bool:
+    if pais_escrito(descritor) == pais:
+        return True
+    lidos = ler_locais([descritor]) if pais == "BR" else ()
+    return any(lido.uf and re.search(rf"\b{lido.uf}\b", descritor) for lido in lidos)
+
+
 def _filtro(facetas: list[object], pais: str) -> dict[str, list[str]]:
     """`appliedFacets` que restringe ao país: a faceta de país, senão os locais dele; ou `{}`."""
     achadas = _facetas(facetas)
 
+    # Só descritor com o país escrito (no Brasil, também a sigla da UF: "Sao Paulo, SP"); cidade
+    # solta ("Austin") restringiria o escopo a ela.
+    # shortcut: tenant só com Cidade, Estado fica sem filtro;
+    # upgrade: filtrar pelo locationsText das vagas
     def do_pais(parametro: str) -> list[str]:
-        return [
-            i
-            for d, i in achadas.get(parametro, [])
-            if any(local.pais == pais for local in ler_locais([d]))
-        ]
+        return [i for d, i in achadas.get(parametro, []) if _do_pais(d, pais)]
 
     for parametro in achadas:
         if "country" in parametro.lower() and (ids := do_pais(parametro)):

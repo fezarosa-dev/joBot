@@ -188,8 +188,11 @@ async def test_local_sem_pais_ganha_o_pais_do_escopo() -> None:
     resultado, _ = await _rodar(
         lambda http: coletor.coletar(escopo, http), _json("normal"), _json("normal")
     )
-    ultima = _vagas(resultado)[4]
-    assert ultima.locais == ("SAO PAULO, Brasil",)
+    primeira, ultima = _vagas(resultado)[0], _vagas(resultado)[4]
+    assert primeira.locais == ("Evergreen, Brasil",)
+    assert [local.pais for local in ler_locais(primeira.locais)] == ["BR"]
+    # a capital sozinha já diz o país: nada a acrescentar
+    assert ultima.locais == ("SAO PAULO",)
     assert [local.pais for local in ler_locais(ultima.locais)] == ["BR"]
 
 
@@ -274,7 +277,7 @@ async def test_normal() -> None:
     assert ultima.titulo == "Espec Santander II 8h - Vaga exclusiva para PcD"
     assert ultima.empresa == "Banco Santander"
     assert ultima.id_externo == "/job/SAO-PAULO/Espec-Santander-II-8h_Req1628949"
-    assert ultima.locais == ("SAO PAULO, Brasil",)  # a lista vem filtrada pelo país do escopo
+    assert ultima.locais == ("SAO PAULO",)  # a capital já diz o país; sem ela, entra o do escopo
     assert ultima.publicada_em is None  # `postedOn` é texto relativo: não serve de data
     assert ultima.descricao == "" and ultima.descricao_formato == "html"
     assert all(v.url.startswith("https://") for v in vagas)
@@ -637,3 +640,19 @@ async def test_resolver_recusa_o_que_nao_e_quadro_do_workday(
 ) -> None:
     with pytest.raises(ValueError):
         await workday.COLETOR.resolver(entrada, http_proibido)
+
+
+def test_faceta_so_de_cidades_sem_pais_nao_restringe_o_escopo() -> None:
+    cidades = [{"descriptor": d, "id": d.lower()} for d in ("Austin", "Plano", "Irving")]
+    facetas: list[object] = [{"facetParameter": "locations", "values": cidades}]
+    assert workday._filtro(facetas, "US") == {}
+
+
+def test_escopo_br_aceita_descritor_com_sigla_de_uf() -> None:
+    valores = [
+        {"descriptor": "Sao Paulo, SP", "id": "sp"},
+        {"descriptor": "Boston, MA", "id": "boston"},
+        {"descriptor": "Itu", "id": "itu"},
+    ]
+    facetas: list[object] = [{"facetParameter": "locations", "values": valores}]
+    assert workday._filtro(facetas, "BR") == {"locations": ["sp"]}
