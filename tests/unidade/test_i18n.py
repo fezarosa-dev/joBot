@@ -1,8 +1,10 @@
 import json
+import re
 from pathlib import Path
 
 import pytest
 
+from jobot.nucleo import encaixe
 from jobot.nucleo.modelo import Area, Aviso, Contrato, Modalidade, Nivel
 from jobot.painel import i18n
 
@@ -15,6 +17,12 @@ FONTES = (
     "github_issues remotive remoteok jobicy himalayas wwr hn_algolia greenhouse lever ashby "
     "smartrecruiters gupy inhire quickin recrutei solides abler ciee iel super_estagios "
     "cia_de_talentos eureca usp workday eightfold oracle_hcm google amazon"
+).split()
+ENCAIXE = (
+    "cargo_titulo cargo_descricao cargo_ausente local_remoto modalidade_fora modalidade_ok "
+    "modalidade_nao_informada local_cidade local_uf local_fora nivel_nao_informado nivel_ok "
+    "nivel_fora salario_nao_informado salario_ok salario_abaixo idioma_ok idioma_nao_detectado "
+    "idioma_fora"
 ).split()
 MOTIVOS = (
     "formato_mudou zero_inesperado parcial_n sem_detalhe_n empresa_nao_encontrada bloqueio cota "
@@ -31,6 +39,7 @@ def _chaves_fixas() -> list[str]:
         *[f"contrato.{v}" for v in CONTRATOS],
         *[f"aviso.{v}" for v in AVISOS],
         *[f"fonte.{v}" for v in FONTES],
+        *[f"encaixe.{v}" for v in ENCAIXE],
         *[f"saude.{v}" for v in MOTIVOS],
         "seguranca.recarregue",
     ]
@@ -85,3 +94,14 @@ def test_motivos_fixos_existem(idioma: str) -> None:
 
 def test_textos_pt_e_en_diferem_nos_motivos() -> None:
     assert i18n.t("pt", "seguranca.recarregue") != i18n.t("en", "seguranca.recarregue")
+
+
+@pytest.mark.parametrize("idioma", ["pt", "en"])
+def test_chaves_encaixe_existem_em_pt_e_en(idioma: str) -> None:
+    """Toda chave `encaixe.*` que o núcleo grava num motivo tem texto no catálogo."""
+    usadas = set(re.findall(r'chave="(encaixe\.\w+)"', Path(encaixe.__file__).read_text("utf-8")))
+    esperadas = {f"encaixe.{v}" for v in ENCAIXE}
+    assert usadas == esperadas, "a lista ENCAIXE saiu de dia com o núcleo"
+    arquivo = i18n.PASTA / idioma / "vagas.json"
+    textos: dict[str, str] = json.loads(arquivo.read_text("utf-8")) if arquivo.exists() else {}
+    assert sorted(c for c in usadas if not textos.get(c)) == []
