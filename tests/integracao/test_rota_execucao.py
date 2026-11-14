@@ -29,9 +29,11 @@ from jobot.banco.cadastros import semear
 from jobot.banco.conexao import abrir
 from jobot.banco.execucoes import (
     abrir_execucao,
+    comecar_fonte,
     fechar_execucao,
     gravar_saude,
     interromper_execucao,
+    terminar_fonte,
 )
 from jobot.banco.migrar import migrar
 from jobot.cli import servir
@@ -273,8 +275,83 @@ def test_execucao_atual_mostra_o_andamento_e_pergunta_a_cada_2s(tmp_path: Path) 
     assert resposta.status_code == 200
     assert POLL in resposta.text
     # a próxima pergunta diz o que já mostra: sem mudança, nada é trocado na região viva
-    assert 'hx-get="/execucao/atual?visto=2"' in resposta.text
+    assert 'hx-get="/execucao/atual?visto=2%3A"' in resposta.text
     assert _texto("execucao.prontas", n=2) in unescape(resposta.text)
+
+
+def _rodando_a_e_b(painel: Painel) -> int:
+    """Busca rodando: `gupy` começou e terminou, `workday` começou e não terminou."""
+    with closing(abrir(painel.banco)) as con:
+        id_ = abrir_execucao(con, "busca", "agenda", AGORA)
+        assert id_ is not None
+        comecar_fonte(con, id_, "gupy", AGORA)
+        comecar_fonte(con, id_, "workday", AGORA)
+        terminar_fonte(con, id_, "gupy", AGORA)
+    return id_
+
+
+def test_execucao_atual_lista_as_fontes_que_ainda_rodam(tmp_path: Path) -> None:
+    painel = Painel(tmp_path)
+    _rodando_a_e_b(painel)
+    with painel.cliente() as http:
+        resposta = http.get("/execucao/atual", headers=HTMX)
+    texto = unescape(resposta.text)
+    assert _texto("execucao.ainda_rodando", fontes="Workday") in texto
+    assert "Gupy" not in texto
+    with painel.cliente() as http:
+        en = http.get("/execucao/atual", headers=HTMX | {"Accept-Language": "en"})
+    assert t("en", "execucao.ainda_rodando", fontes="Workday") in unescape(en.text)
+
+
+def test_execucao_atual_marca_muda_quando_a_fonte_pendente_termina(tmp_path: Path) -> None:
+    painel = Painel(tmp_path)
+    id_ = _rodando_a_e_b(painel)
+    with painel.cliente() as http:
+        primeira = http.get("/execucao/atual", headers=HTMX)
+        marca = primeira.text.split('hx-get="/execucao/atual?visto=')[1].split('"')[0]
+        igual = http.get(f"/execucao/atual?visto={marca}", headers=HTMX)
+        with closing(abrir(painel.banco)) as con:
+            terminar_fonte(con, id_, "workday", AGORA)
+        mudou = http.get(f"/execucao/atual?visto={marca}", headers=HTMX)
+    assert igual.status_code == 204
+    assert mudou.status_code == 200
+    assert "Workday" not in unescape(mudou.text)
+
+
+@pytest.mark.parametrize(
+    ("n", "fontes"),
+    [
+        (5, "Gupy, Workday, Lever, Greenhouse, Ashby"),
+        (6, "Gupy, Workday, Lever, Greenhouse, Ashby +1"),
+        (7, "Gupy, Workday, Lever, Greenhouse, Ashby +2"),
+    ],
+)
+def test_execucao_atual_mostra_ate_5_nomes_e_conta_o_resto(
+    tmp_path: Path, n: int, fontes: str
+) -> None:
+    painel = Painel(tmp_path)
+    chaves = ["gupy", "workday", "lever", "greenhouse", "ashby", "remotive", "jobicy"]
+    with closing(abrir(painel.banco)) as con:
+        id_ = abrir_execucao(con, "busca", "agenda", AGORA)
+        assert id_ is not None
+        for k, chave in enumerate(chaves[:n]):
+            comecar_fonte(con, id_, chave, AGORA + timedelta(seconds=k))
+    with painel.cliente() as http:
+        texto = unescape(http.get("/execucao/atual", headers=HTMX).text)
+    assert f"<p>{_texto('execucao.ainda_rodando', fontes=fontes)}</p>" in texto
+    assert ("Remotive" in texto) is False and ("Jobicy" in texto) is False
+
+
+def test_execucao_atual_sem_fonte_pendente_nao_mostra_a_lista(tmp_path: Path) -> None:
+    painel = Painel(tmp_path)
+    with closing(abrir(painel.banco)) as con:
+        id_ = abrir_execucao(con, "busca", "agenda", AGORA)
+        assert id_ is not None
+        comecar_fonte(con, id_, "gupy", AGORA)
+        terminar_fonte(con, id_, "gupy", AGORA)
+    with painel.cliente() as http:
+        texto = unescape(http.get("/execucao/atual", headers=HTMX).text)
+    assert "ainda rodando" not in texto
 
 
 def test_execucao_atual_sem_mudanca_nao_troca_a_regiao(tmp_path: Path) -> None:
@@ -285,8 +362,8 @@ def test_execucao_atual_sem_mudanca_nao_troca_a_regiao(tmp_path: Path) -> None:
         gravar_saude(con, id_, "remotive", "", "ok")
         gravar_saude(con, id_, "jobicy", "", "ok")
     with painel.cliente() as http:
-        igual = http.get("/execucao/atual?visto=2", headers=HTMX)
-        mudou = http.get("/execucao/atual?visto=1", headers=HTMX)
+        igual = http.get("/execucao/atual?visto=2%3A", headers=HTMX)
+        mudou = http.get("/execucao/atual?visto=1%3A", headers=HTMX)
     # 204: o HTMX não troca nada e segue perguntando (o leitor de tela não repete o anúncio)
     assert igual.status_code == 204
     assert igual.text == ""

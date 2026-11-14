@@ -192,12 +192,19 @@ async def _rodar(
     max_detalhes: int = 50,
     ctx: ContextoColeta = CTX,
     ao_terminar: Callable[[SaidaEscopo], Awaitable[None]] | None = None,
+    ao_comecar_fonte: Callable[[str], Awaitable[None]] | None = None,
+    ao_terminar_fonte: Callable[[str], Awaitable[None]] | None = None,
 ) -> list[SaidaEscopo]:
     rel = relogio or RelogioFalso()
     cli = cliente or _cliente(servidor, rel, leitor)
     prova: Historico = historico or HistoricoFalso()
     por_chave = {c.chave: c for c in coletores}
     saidas: list[SaidaEscopo] = []
+    avisos: dict[str, Callable[[str], Awaitable[None]]] = {}
+    if ao_comecar_fonte is not None:
+        avisos["ao_comecar_fonte"] = ao_comecar_fonte
+    if ao_terminar_fonte is not None:
+        avisos["ao_terminar_fonte"] = ao_terminar_fonte
 
     async def guardar(saida: SaidaEscopo) -> None:
         saidas.append(saida)
@@ -211,6 +218,7 @@ async def _rodar(
             rel,
             ligadas=set(por_chave) if ligadas is None else ligadas,
             ao_terminar_escopo=ao_terminar or guardar,
+            **avisos,
             max_detalhes_por_fonte=max_detalhes,
         )
     finally:
@@ -396,6 +404,71 @@ async def test_erro_no_ao_terminar_escopo_sobe_e_cancela_as_outras() -> None:
     assert erro.group_contains(RuntimeError, match="banco caiu")
     assert b_cancelada
     assert asyncio.all_tasks() == antes
+
+
+async def test_avisa_o_comeco_e_o_fim_de_cada_fonte_inclusive_a_que_quebra() -> None:
+    avisos: list[tuple[str, str]] = []
+
+    async def comecou(fonte: str) -> None:
+        avisos.append(("comecou", fonte))
+
+    async def terminou(fonte: str) -> None:
+        avisos.append(("terminou", fonte))
+
+    async def quebra(escopo: str, http: HttpEducado) -> ResultadoEscopo:
+        raise RuntimeError("fonte quebrou")
+
+    await _rodar(
+        [ColetorFalso("a", acao=quebra), ColetorFalso("b"), ColetorFalso("c")],
+        ligadas={"a", "b"},  # "c" está desligada: nem começa
+        ao_comecar_fonte=comecou,
+        ao_terminar_fonte=terminou,
+    )
+    assert sorted(avisos) == [
+        ("comecou", "a"),
+        ("comecou", "b"),
+        ("terminou", "a"),
+        ("terminou", "b"),
+    ]
+    for fonte in "ab":  # o começo vem antes do fim
+        assert avisos.index(("comecou", fonte)) < avisos.index(("terminou", fonte))
+
+
+async def test_avisa_o_fim_da_fonte_quando_o_ao_terminar_escopo_levanta() -> None:
+    terminadas: list[str] = []
+
+    async def grava_e_quebra(saida: SaidaEscopo) -> None:
+        raise RuntimeError("banco caiu")
+
+    async def terminou(fonte: str) -> None:
+        terminadas.append(fonte)
+
+    with anyio.fail_after(5), pytest.raises(ExceptionGroup):
+        await _rodar([ColetorFalso("a")], ao_terminar=grava_e_quebra, ao_terminar_fonte=terminou)
+    assert terminadas == ["a"]
+
+
+async def test_avisa_o_fim_da_fonte_cancelada() -> None:
+    comecou = asyncio.Event()
+    terminadas: list[str] = []
+
+    async def presa(escopo: str, http: HttpEducado) -> ResultadoEscopo:
+        comecou.set()
+        await asyncio.Event().wait()
+        raise AssertionError("não chega aqui")
+
+    async def terminou(fonte: str) -> None:
+        terminadas.append(fonte)
+
+    tarefa = asyncio.create_task(
+        _rodar([ColetorFalso("a", acao=presa)], ao_terminar_fonte=terminou)
+    )
+    with anyio.fail_after(5):
+        await comecou.wait()
+    tarefa.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await tarefa
+    assert terminadas == ["a"]
 
 
 # --- liga/desliga, intervalo, orçamento ----------------------------------------------------------
