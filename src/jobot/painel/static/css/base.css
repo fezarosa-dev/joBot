@@ -227,6 +227,41 @@ main {
   animation: surgir var(--duracao) var(--mola) both;
 }
 
+/* aviso de versão nova (T85): a div é fixa e some sem altura; só o parágrafo tem caixa */
+#aviso-versao {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 0 var(--espaco);
+}
+
+.aviso-versao {
+  margin: 0.75rem 0 0;
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  background-color: var(--superficie);
+  color: var(--texto);
+  font-size: 0.9375rem;
+}
+
+/* rodapé: link discreto "Apoie o projeto" (T87), texto-2 sobre o fundo (par da lista) */
+.rodape {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 0 var(--espaco) var(--espaco);
+  color: var(--texto-2);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.rodape a {
+  color: var(--texto-2);
+}
+
+.rodape a:hover {
+  color: var(--texto);
+}
+
 /* painel: superfície com cantos arredondados, para as telas usarem */
 .painel {
   padding: var(--espaco);

@@ -344,6 +344,10 @@ def test_pagina_nao_aponta_para_fora_nem_faz_pedido_sozinha(painel: Painel) -> N
     )
     assert " ping=" not in pagina
     externos = re.findall(r'(?:src|href|action)="(https?://[^"]*)"', pagina)
+    # o rodapé da casca leva o link "Apoie o projeto" (T87), da wiki: sem query, só clique
+    externos = [
+        u for u in externos if not u.startswith("https://github.com/fezarosa-dev/joBot/wiki/")
+    ]
     assert externos
     assert all(u.startswith("https://github.com/fezarosa-dev/joBot/issues/new?") for u in externos)
 
