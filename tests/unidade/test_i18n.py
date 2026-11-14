@@ -3,19 +3,14 @@ from pathlib import Path
 
 import pytest
 
+from jobot.nucleo.modelo import Area, Aviso, Contrato, Modalidade, Nivel
 from jobot.painel import i18n
 
-AREAS = (
-    "tecnologia dados design produto marketing vendas financas rh juridico operacoes "
-    "engenharia saude educacao administrativo atendimento pesquisa outra"
-).split()
-NIVEIS = "estagio trainee junior pleno senior especialista lideranca nao_informado".split()
-MODALIDADES = "presencial hibrido remoto nao_informado".split()
-CONTRATOS = (
-    "clt pj estagio trainee temporario aprendiz bolsa_pesquisa programa concurso freelance "
-    "nao_informado"
-).split()
-AVISOS = "exige_visto exige_doutorado restrito_a_pais".split()
+AREAS = [e.value for e in Area]
+NIVEIS = [e.value for e in Nivel]
+MODALIDADES = [e.value for e in Modalidade]
+CONTRATOS = [e.value for e in Contrato]
+AVISOS = [e.value for e in Aviso]
 FONTES = (
     "github_issues remotive remoteok jobicy himalayas wwr hn_algolia greenhouse lever ashby "
     "smartrecruiters gupy inhire quickin recrutei solides abler ciee iel super_estagios "
