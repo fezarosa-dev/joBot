@@ -6,6 +6,7 @@ pedaço do `Range`, como o `data.commoncrawl.org`. Os ATS respondem pelo Greenho
 (só `beta`, com o nome da página diferente do subdomínio); Lever e Ashby devolvem 404.
 """
 
+import asyncio
 import json
 import sqlite3
 import threading
@@ -20,6 +21,7 @@ import httpx
 import pytest
 
 from apoio.relogio import RelogioFalso
+from jobot.agenda import descoberta
 from jobot.agenda.descoberta import CHAVE_INDICE, executar_descoberta
 from jobot.banco.cadastros import (
     adicionar_empresa,
@@ -77,6 +79,8 @@ class Servidor:
     relogio: RelogioFalso
     collinfo: bytes = (PASTA / "collinfo.json").read_bytes()
     status_cc: int = 200  # 503 faz o Common Crawl recusar tudo
+    retry_after_cc: str | None = None  # Retry-After da recusa do Common Crawl
+    falhas_gupy: int = 0  # a página da Gupy responde 503 este número de vezes antes de abrir
     pedaco: int = 64  # o cluster.idx chega em pedaços deste tamanho
     pedidos: list[tuple[httpx.Request, datetime]] = field(default_factory=list)
     pedacos_lidos: int = 0
@@ -94,7 +98,8 @@ class Servidor:
         self.pedidos.append((pedido, self.relogio.agora()))
         host, caminho = pedido.url.host, pedido.url.path
         if host.endswith("commoncrawl.org") and self.status_cc != 200:
-            return httpx.Response(self.status_cc)
+            extras = {"Retry-After": self.retry_after_cc} if self.retry_after_cc else {}
+            return httpx.Response(self.status_cc, headers=extras)
         if host == "index.commoncrawl.org" and caminho == "/collinfo.json":
             return httpx.Response(200, content=self.collinfo)
         if host == "data.commoncrawl.org" and caminho.endswith("/cluster.idx"):
@@ -118,6 +123,9 @@ class Servidor:
             }
             return httpx.Response(200, json={"jobs": [vaga], "meta": {"total": 1}})
         if host == "beta.gupy.io" and caminho == "/":
+            if self.falhas_gupy > 0:
+                self.falhas_gupy -= 1
+                return httpx.Response(503)
             return httpx.Response(200, text=GUPY_PAGINA)
         if host == "portal.gupy.io":
             vagas = []
@@ -182,6 +190,14 @@ async def _sugerir(servidor: Servidor) -> list[Sugestao]:
         return await sugerir(cliente, await indice_mais_novo(cliente))
     finally:
         await cliente.fechar()
+
+
+class RelogioQueCede(RelogioFalso):
+    """Cede a vez a cada `dormir`: deixa o batimento e o cancelamento entrarem no meio."""
+
+    async def dormir(self, s: float) -> None:
+        await super().dormir(s)
+        await asyncio.sleep(0)
 
 
 def _estados(con: sqlite3.Connection) -> list[str]:
@@ -287,6 +303,118 @@ async def test_503_para_ate_o_dia_seguinte(con: sqlite3.Connection, fuso_local: 
     dia_seguinte = await _descobrir(con, datetime(2026, 11, 14, 4, 0, tzinfo=UTC))
     assert dia_seguinte.urls("index.commoncrawl.org")  # 01:00 do dia 14: volta a pedir
     assert _estados(con) == ["interrompida", "concluida"]
+
+
+async def test_503_continua_adiando_ate_o_dia_seguinte(
+    con: sqlite3.Connection, fuso_local: None
+) -> None:
+    # Retry-After acima de 10 min: `LimiteAtingido` no primeiro pedido, sem nova tentativa
+    relogio = RelogioFalso(datetime(2026, 11, 14, 15, 0, tzinfo=UTC))  # 12:00 do dia 14 em -03
+    parada = Servidor(relogio, status_cc=503, retry_after_cc="3600")
+    cliente = _cliente(parada)
+    try:
+        with pytest.raises(LimiteAtingido):
+            await executar_descoberta(con, cliente, relogio)
+    finally:
+        await cliente.fechar()
+    assert len(parada.pedidos) == 1
+    assert _estados(con) == ["interrompida"]
+
+    mesmo_dia = await _descobrir(con, datetime(2026, 11, 15, 2, 30, tzinfo=UTC))  # 23:30 do 14
+    assert mesmo_dia.pedidos == []
+
+    dia_seguinte = await _descobrir(con, datetime(2026, 11, 15, 3, 30, tzinfo=UTC))  # 00:30 do 15
+    assert dia_seguinte.urls("index.commoncrawl.org")
+    assert _estados(con) == ["interrompida", "concluida"]
+
+
+async def test_cancelar_no_meio_nao_adia_ate_o_dia_seguinte(
+    con: sqlite3.Connection, fuso_local: None
+) -> None:
+    relogio = RelogioQueCede(datetime(2026, 11, 14, 15, 0, tzinfo=UTC))
+    servidor = Servidor(relogio)
+    no_meio = asyncio.Event()
+
+    def responder(pedido: httpx.Request) -> httpx.Response:
+        if pedido.url.path.endswith("/cluster.idx"):
+            no_meio.set()  # já passou do collinfo: a descoberta está no meio
+        return servidor(pedido)
+
+    cliente = ClienteEducado(
+        httpx.MockTransport(responder), relogio, LeitorFixo(), "0.1.0", resolver=_sem_dns
+    )
+    try:
+        tarefa = asyncio.create_task(executar_descoberta(con, cliente, relogio))
+        await no_meio.wait()
+        tarefa.cancel()  # o app fechou
+        with pytest.raises(asyncio.CancelledError):
+            await tarefa
+    finally:
+        await cliente.fechar()
+    assert _estados(con) == ["interrompida"]
+
+    mesmo_dia = await _descobrir(con, datetime(2026, 11, 14, 15, 10, tzinfo=UTC))
+    assert mesmo_dia.urls("index.commoncrawl.org")  # tenta de novo no mesmo dia
+    assert _estados(con) == ["interrompida", "concluida"]
+
+
+async def test_erro_de_formato_tenta_de_novo_no_mesmo_dia_depois_do_recuo(
+    con: sqlite3.Connection, fuso_local: None
+) -> None:
+    # A31: só 503 e limite adiam até o dia seguinte; o recuo evita uma tentativa por minuto
+    with pytest.raises(ValueError, match="collinfo"):
+        await _descobrir(con, datetime(2026, 11, 14, 15, 0, tzinfo=UTC), collinfo=b"[]")
+    assert _estados(con) == ["interrompida"]
+
+    dentro_do_recuo = await _descobrir(con, datetime(2026, 11, 14, 15, 59, tzinfo=UTC))
+    assert dentro_do_recuo.pedidos == []  # o laço acorda a cada 60 s, mas o recuo segura
+
+    mesmo_dia = await _descobrir(con, datetime(2026, 11, 14, 16, 0, tzinfo=UTC))  # 13:00 do 14
+    assert mesmo_dia.urls("index.commoncrawl.org")
+    assert _estados(con) == ["interrompida", "concluida"]
+
+
+async def test_gupy_com_nova_tentativa_no_resolver_ainda_coleta(con: sqlite3.Connection) -> None:
+    servidor = await _descobrir(con, falhas_gupy=1)
+    pagina = [p for p, _ in servidor.pedidos if p.url.host == "beta.gupy.io"]
+    assert len(pagina) == 2  # o resolver gastou os seus 2 pedidos com a nova tentativa
+    assert ("gupy", "beta") in {(s.fonte, s.identificador) for s in sugeridas(con)}
+
+
+async def test_descoberta_bate_o_coracao_a_cada_etapa(
+    con: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    relogio = RelogioQueCede()
+    servidor = Servidor(relogio)
+    chamadas: list[int] = []
+    batidas: list[int] = []  # quantos pedidos já tinham saído a cada batida
+    paradas: list[int] = []
+
+    async def bater_falso(c: sqlite3.Connection, execucao_id: int, r: object) -> None:
+        assert (c, r) == (con, relogio)
+        chamadas.append(execucao_id)
+        try:
+            while True:
+                batidas.append(len(servidor.pedidos))
+                await asyncio.sleep(0)
+        finally:
+            paradas.append(execucao_id)
+
+    # raising=False: sem o nome público o falso fica de fora e o teste falha na asserção
+    monkeypatch.setattr(descoberta, "bater", bater_falso, raising=False)
+    cliente = _cliente(servidor)
+    try:
+        await executar_descoberta(con, cliente, relogio)
+    finally:
+        await cliente.fechar()
+    (execucao_id,) = (i for (i,) in con.execute("SELECT id FROM execucao"))
+    assert chamadas == [execucao_id]
+    assert paradas == [execucao_id]  # parou junto com a descoberta
+    cc = len([p for p, _ in servidor.pedidos if p.url.host.endswith("commoncrawl.org")])
+    assert min(batidas) < cc < max(batidas)  # bateu no Common Crawl e no teste dos quadros
+    antes = len(batidas)
+    await asyncio.sleep(0)
+    assert len(batidas) == antes
 
 
 async def test_so_sugere_com_vaga_no_brasil_ou_remota(con: sqlite3.Connection) -> None:

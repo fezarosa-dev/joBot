@@ -13,6 +13,7 @@ import zlib
 from collections.abc import Mapping
 from contextlib import aclosing
 from dataclasses import dataclass
+from functools import partial
 from urllib.parse import urlsplit
 
 from jobot.nucleo.coletores import ashby, greenhouse, gupy, lever
@@ -228,15 +229,19 @@ async def testar(sugestao: Sugestao, http: ClienteEducado) -> bool:
     Falha de rede, bloqueio ou quadro que não existe dá `False` (a empresa não vira sugestão).
     """
     coletor = _COLETORES[sugestao.fonte]
-    escopo_http = http.escopo(
-        espera_s=limites(sugestao.fonte).espera_s, condicional=False, max_pedidos=_PEDIDOS
+    # um orçamento por etapa: a nova tentativa do resolver não deixa o coletar sem pedidos (D71)
+    escopo_http = partial(
+        http.escopo,
+        espera_s=limites(sugestao.fonte).espera_s,
+        condicional=False,
+        max_pedidos=_PEDIDOS,
     )
     escopo = sugestao.identificador
     try:
         if sugestao.fonte == "gupy":  # a API casa o nome da página, com caixa exata (decisão 29)
-            nome = (await coletor.resolver(sugestao.identificador, escopo_http))["careerPageName"]
-            escopo = f"empresa:{sugestao.identificador}:{nome}"
-        resultado = await coletor.coletar(escopo, escopo_http)
+            pagina = await coletor.resolver(sugestao.identificador, escopo_http())
+            escopo = f"empresa:{sugestao.identificador}:{pagina['careerPageName']}"
+        resultado = await coletor.coletar(escopo, escopo_http())
     except _ERROS_DO_TESTE:
         return False
     return any(_no_brasil_ou_remota(v) for v in resultado.vagas if isinstance(v, VagaColetada))
