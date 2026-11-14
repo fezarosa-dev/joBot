@@ -20,6 +20,7 @@ from starlette.datastructures import QueryParams
 
 from jobot.banco import acoes, leitura
 from jobot.banco.leitura import Filtros, Fonte, Item
+from jobot.banco.paginas import paginas, ultimas_diferencas
 from jobot.nucleo.destaques import Candidata, destaques
 from jobot.nucleo.relogio import Relogio, RelogioReal
 from jobot.painel.seguranca import Con, de_volta, renderizar
@@ -296,6 +297,14 @@ def _seletor(con: sqlite3.Connection, estado: Estado) -> list[dict[str, Any]]:
     ]
 
 
+def _paginas_programas(con: sqlite3.Connection) -> list[dict[str, Any]]:
+    """As páginas ativas (a que mudou há menos tempo primeiro), com a última diferença."""
+    ultima = ultimas_diferencas(con)
+    achadas = [p for p in paginas(con) if p.ativa]
+    achadas.sort(key=lambda p: p.mudou_em or datetime.min.replace(tzinfo=UTC), reverse=True)
+    return [{"p": p, "diferenca": ultima.get(p.id) if p.mudou_em else None} for p in achadas]
+
+
 def _contexto_pagina(con: sqlite3.Connection, estado: Estado, agora: datetime) -> dict[str, Any]:
     ids_destaques = _ids_destaques(con, estado.busca_id, agora) if estado.destaques_ligados else []
     contagens = leitura.contar_abas(con, estado.busca_id, agora)
@@ -325,6 +334,7 @@ def _contexto_pagina(con: sqlite3.Connection, estado: Estado, agora: datetime) -
         if pagina.tem_mais:
             mais_url = estado.url(extras=[("pagina", "2")])
     return {
+        "paginas_programas": _paginas_programas(con) if estado.aba == "programas" else [],
         "abas": abas,
         "seletor": _seletor(con, estado),
         "grupos": grupos,

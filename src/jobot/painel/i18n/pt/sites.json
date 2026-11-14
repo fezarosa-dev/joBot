@@ -1,0 +1,22 @@
+{
+  "sites.titulo": "Sites",
+  "sites.intro": "Páginas de programas e processos seletivos que o joBot confere de tempos em tempos. Quando o texto da página muda, a mudança aparece aqui e na aba Programas das vagas.",
+  "sites.vazio": "Você ainda não acompanha nenhuma página. Adicione a primeira abaixo.",
+  "sites.nova": "Adicionar página",
+  "sites.campo.nome": "Nome",
+  "sites.campo.url": "Endereço da página",
+  "sites.dica.url": "Cole o endereço completo, começando por http:// ou https://. Só páginas públicas da internet.",
+  "sites.adicionar": "Adicionar",
+  "sites.desativar": "Desativar",
+  "sites.desativada": "Desativada",
+  "sites.remover": "Remover",
+  "sites.remover_aviso": "Remover a página \"{nome}\"? O texto guardado e as mudanças dela serão apagados.",
+  "sites.remover_confirmar": "Remover mesmo",
+  "sites.estado.nova": "Ainda não lida.",
+  "sites.estado.ok": "Lida em {data}.",
+  "sites.estado.falhou": "Não deu para ler a página na última tentativa: ela pode estar fora do ar, bloqueada ou ser um arquivo que não é texto (PDF, imagem). O último texto lido foi mantido.",
+  "sites.mudou_em": "Mudou em {data}",
+  "sites.ver_mudancas": "Ver o que mudou ({n})",
+  "sites.erro.nome": "Dê um nome de até 100 caracteres para a página.",
+  "sites.erro.endereco": "Esse endereço não pode ser acompanhado. Use o endereço completo de uma página pública (http:// ou https://), que não seja da sua rede local."
+}
