@@ -6,6 +6,8 @@ dois blocos) e cada objeto que começa com `{"vagaOrigem"` é lido com `raw_deco
 aparece duas vezes na página: vale a primeira cópia legível de cada `vagaIdentificador`.
 String longa (1024 caracteres ou mais) não vem no objeto: o React Flight a grava numa linha
 `<id>:T<bytes em hex>,<texto>` e o campo guarda só `"$<id>"`; essas linhas são resolvidas antes.
+UF sem vaga: a página traz o aviso "Nenhuma vaga encontrada" e vale `ok` com zero vagas; sem
+objeto e sem o aviso, o formato mudou.
 A página traz a descrição: não há `detalhar`. A conferência não viu `ETag` nem
 `Last-Modified`, então não há pedido condicional.
 """
@@ -29,9 +31,8 @@ from jobot.nucleo.modelo import VagaColetada
 
 _LIMITES = limites("iel")
 _BASE = "https://carreiras.iel.org.br"
-# shortcut: o `ContextoColeta` não traz as UFs das buscas (desenho: "um por UF das buscas"), só os
-# países; com o Brasil nas buscas, vão as 19 UFs que tinham vaga na conferência de 2026-11-13.
-# Trocar pelas UFs das buscas quando o contexto as trouxer (R4 em `duvidas`).
+# Lista fixa (decisão A29, opção (b)): o `sitemap.xml` de 2026-11-14 só tem estas 19 UFs, e as
+# outras não têm página de vaga (/BA responde 500). Atualizar quando o sitemap mudar.
 UFS_COM_VAGA = (
     "AC", "AL", "AM", "DF", "ES", "GO", "MG", "MS", "MT", "PA",
     "PB", "PE", "PR", "RN", "RO", "SC", "SE", "SP", "TO",
@@ -41,6 +42,7 @@ _PUSH = re.compile(r"self\.__next_f\.push\(")
 _INICIO = '{"vagaOrigem"'
 _LINHA_T = re.compile(rb"([0-9a-f]+):T([0-9a-f]+),")
 _REFERENCIA_T = re.compile(r"\$([0-9a-f]+)")
+_AVISO_SEM_VAGA = "Nenhuma vaga encontrada"
 # shortcut: `vagaInclusao` vem sem fuso; vale a hora de Brasília (o site é brasileiro e o Brasil não
 # tem horário de verão desde 2019). O `lastmod` do sitemap traz a mesma hora com `Z`, então pode
 # ser UTC: conferir na rede real e trocar se for.
@@ -62,22 +64,28 @@ class _SemTexto(ValueError):
     """Referência do RSC sem texto resolvido: a vaga é pulada, nunca sai com o campo vazio."""
 
 
-def _textos_longos(rsc: str) -> dict[str, str]:
-    """As linhas `<id>:T<bytes em hex>,<texto>` do RSC (sem `\\n` no fim), lidas em ordem."""
+def _linhas(rsc: str) -> Iterator[tuple[str | None, str]]:
+    """O RSC em linhas: `(id, texto)` para `<id>:T<bytes em hex>,<texto>` (sem `\\n` no fim) e
+    `(None, linha)` para as demais, em ordem."""
     dados = rsc.encode("utf-8", "surrogatepass")
-    textos: dict[str, str] = {}
     pos = 0
     while pos < len(dados):
         # Só no começo de uma linha: o fim colado de um texto (ex.: "2025") não vira parte do id.
         linha = _LINHA_T.match(dados, pos)
         if linha is None:
             fim = dados.find(b"\n", pos)
-            pos = len(dados) if fim == -1 else fim + 1
+            fim = len(dados) if fim == -1 else fim
+            yield None, dados[pos:fim].decode("utf-8", "surrogatepass")
+            pos = fim + 1
             continue
         pos = linha.end() + int(linha[2], 16)
         if pos <= len(dados):  # texto cortado fica sem resolver
-            textos[linha[1].decode()] = dados[linha.end() : pos].decode("utf-8", "replace")
-    return textos
+            yield linha[1].decode(), dados[linha.end() : pos].decode("utf-8", "replace")
+
+
+def _textos_longos(rsc: str) -> dict[str, str]:
+    """As linhas T do RSC, por id."""
+    return {id_: texto for id_, texto in _linhas(rsc) if id_ is not None}
 
 
 def _texto(valor: object, textos: Mapping[str, str]) -> str:
@@ -171,16 +179,22 @@ def _blocos(html: str) -> Iterator[str]:
 
 
 def _objetos(rsc: str) -> Iterator[object]:
-    """Cada objeto `{"vagaOrigem"...}` do texto RSC; `None` no lugar do que não se lê."""
+    """Cada objeto `{"vagaOrigem"...}` do RSC; `None` no lugar do que não se lê.
+
+    Só as linhas que não são T: o texto longo de um campo não é lido como objeto.
+    """
     decodificador = json.JSONDecoder()
-    inicio = rsc.find(_INICIO)
-    while inicio != -1:
-        try:
-            objeto, fim = decodificador.raw_decode(rsc, inicio)
-        except ValueError:
-            objeto, fim = None, inicio + len(_INICIO)
-        yield objeto
-        inicio = rsc.find(_INICIO, fim)
+    for id_, linha in _linhas(rsc):
+        if id_ is not None:
+            continue
+        inicio = linha.find(_INICIO)
+        while inicio != -1:
+            try:
+                objeto, fim = decodificador.raw_decode(linha, inicio)
+            except ValueError:
+                objeto, fim = None, inicio + len(_INICIO)
+            yield objeto
+            inicio = linha.find(_INICIO, fim)
 
 
 def _ler(escopo: str, html: str) -> tuple[list[VagaColetada], int]:
@@ -203,6 +217,8 @@ def _ler(escopo: str, html: str) -> tuple[list[VagaColetada], int]:
             continue
         if vistas.get(id_externo) is None:
             vistas[id_externo] = _vaga(escopo, obj, id_externo, textos)
+    if not vistas and not sem_id and _AVISO_SEM_VAGA not in html:
+        raise _FormatoMudou  # UF sem objeto e sem o aviso da página: o formato mudou
     vagas = [vaga for vaga in vistas.values() if vaga is not None]
     # Uma vaga só é pulada se nenhuma das suas cópias se leu; sem id, cada objeto conta.
     pulados = len(vistas) - len(vagas) + sem_id

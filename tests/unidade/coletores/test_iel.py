@@ -223,7 +223,9 @@ async def test_texto_longo_vem_da_linha_t_do_rsc() -> None:
         + _linha_t("2b", cursos)
         + f'1c:["$","$L1d",null,{{"vagas":{lista},"vagasFiltradas":{lista}}}]\n'
     )
-    meio = rsc.index("emissão", 500)  # a linha T partida em dois blocos, no meio de um acento
+    # Linha T partida em dois blocos: o texto é juntado, e o tamanho da linha T é em bytes (o
+    # texto tem ç, ã, ó e ê, que ocupam 2 bytes), não em caracteres.
+    meio = rsc.index("emissão", 500)
     resultado, _ = await _coletar(
         _html(f"<html>{_push(rsc[: meio + 3])}{_push(rsc[meio + 3 :])}</html>")
     )
@@ -231,6 +233,33 @@ async def test_texto_longo_vem_da_linha_t_do_rsc() -> None:
     descricao = _vagas(resultado)[0].descricao
     assert f"Atividades: {longo.strip()}" in descricao
     assert f"Cursos: {cursos}" in descricao
+
+
+_SEM_VAGA = '1c:["$","$L1d",null,{"uf":"PE","vagas":[],"vagasFiltradas":[],"total":0}]\n'
+
+
+async def test_uf_sem_vaga_com_aviso_e_ok() -> None:
+    corpo = f"<html><body><p>Nenhuma vaga encontrada</p>{_push(_SEM_VAGA)}</body></html>"
+    resultado, _ = await _coletar(_html(corpo))
+    assert (resultado.vagas, resultado.estado, resultado.motivo) == ((), "ok", None)
+
+
+async def test_uf_sem_vaga_sem_aviso_e_formato_mudou() -> None:
+    resultado, _ = await _coletar(_html(f"<html><body>{_push(_SEM_VAGA)}</body></html>"))
+    assert (resultado.vagas, resultado.estado) == ((), "falhou")
+    assert resultado.motivo == "saude.formato_mudou"
+
+
+async def test_vaga_origem_dentro_de_linha_t_nao_vira_objeto() -> None:
+    """Texto longo de campo que traz `{"vagaOrigem"` literal não é lido como vaga."""
+    longo = 'Veja {"vagaOrigem":"falso","vagaIdentificador":"999"} no site. ' * 20
+    objeto = _objetos()[0] | {"vagaObservacao": "$2a"}
+    lista = json.dumps([objeto], ensure_ascii=False)
+    rsc = _linha_t("2a", longo) + f'1c:["$","$L1d",null,{{"vagas":{lista}}}]\n'
+    resultado, _ = await _coletar(_html(f"<html>{_push(rsc)}</html>"))
+    assert (resultado.estado, resultado.motivo) == ("ok", None)
+    assert [v.id_externo for v in _vagas(resultado)] == [objeto["vagaIdentificador"]]
+    assert f"Atividades: {longo.strip()}" in _vagas(resultado)[0].descricao
 
 
 @pytest.mark.parametrize("referencia", ["$3f", "$L1d", "$@4"])
