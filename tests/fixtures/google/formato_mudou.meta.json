@@ -1,0 +1,13 @@
+{
+  "url": "https://www.google.com/about/careers/applications/jobs/feed.xml",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "text/xml",
+    "Last-Modified": "Fri, 13 Nov 2026 22:53:10 GMT"
+  },
+  "sha256": "1ca5a76d0f48ced4c457fbd4c861e24b0a92317bf6aee6c1af68a044f37d2d17",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "montado à mão a partir de normal.xml: o 1º <job> sem <title>; os outros 4 intactos"
+}
