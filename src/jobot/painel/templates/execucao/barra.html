@@ -1,0 +1,19 @@
+{#- buscar agora, sair e a região aria-live do andamento, na casca de toda página (T49) -#}
+{#- a página de despedida do Sair passa sem_barra: com o servidor parando, os botões não valem -#}
+{%- if not sem_barra %}
+{%- set de_volta = request.url.path ~ ("?" ~ request.url.query if request.url.query else "") -%}
+<link rel="stylesheet" href="/static/css/execucao.css">
+<div class="execucao">
+  <form method="post" action="/buscar-agora" hx-post="/buscar-agora" hx-target="#andamento" hx-swap="innerHTML">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="voltar" value="{{ de_volta }}">
+    <button type="submit" class="botao-buscar">{{ t("execucao.buscar_agora") }}</button>
+  </form>
+  <form method="post" action="/sair">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <button type="submit" class="botao-sair">{{ t("execucao.sair") }}</button>
+  </form>
+  {#- carrega uma vez: a página que chega por redirect (form sem HTMX) já mostra a busca que roda -#}
+  <div id="andamento" class="andamento-regiao" role="status" aria-live="polite" aria-label="{{ t('execucao.andamento') }}" hx-get="/execucao/atual?so_rodando=1" hx-trigger="load"></div>
+</div>
+{%- endif %}

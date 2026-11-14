@@ -63,7 +63,7 @@ def test_testar_mostra_a_contagem_antes_de_salvar_e_depois_adiciona(
 
     formulario = _preencher(page, "  https://boards.greenhouse.io/Vitta/  ")
     formulario.get_by_role("button", name="Testar").click()
-    expect(page.get_by_role("status")).to_contain_text("Vagas encontradas: 3")
+    expect(page.locator("#conteudo").get_by_role("status")).to_contain_text("Vagas encontradas: 3")
     expect(page.get_by_text("O identificador pode estar errado")).to_have_count(0)
     expect(page.locator("#lista-empresas")).to_have_count(0)  # testar não salva
     expect(page.get_by_label("Endereço do quadro de vagas")).to_have_value(
@@ -96,4 +96,6 @@ def test_endereco_vazio_nao_envia(page: Page, painel: str) -> None:
     formulario = page.locator(".nova form")
     formulario.get_by_role("button", name="Testar").click()
     expect(page).to_have_url(re.compile(r"/empresas$"))
-    expect(page.get_by_role("status")).to_have_count(0)  # o `required` do navegador segurou
+    expect(page.locator("#conteudo").get_by_role("status")).to_have_count(
+        0
+    )  # o `required` do navegador segurou

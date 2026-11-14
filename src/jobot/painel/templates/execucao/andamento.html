@@ -1,0 +1,14 @@
+{#- trecho do andamento: o HTMX pergunta a cada 2 s só enquanto a busca roda (desenho 13.2);
+    `visto` diz o que já está na tela, e sem mudança a rota devolve 204 e nada é trocado -#}
+{%- if rodando %}
+<div class="andamento" hx-get="/execucao/atual?visto={{ marca }}" hx-trigger="every 2s" hx-swap="outerHTML">
+  {%- if ja_rodava %}
+  <p class="andamento-aviso">{{ t("execucao.ja_roda") }}</p>
+  {%- endif %}
+  <p><span class="andamento-ponto" aria-hidden="true"></span>{{ t("execucao.rodando") }}{% if atual %} · {{ t("execucao.prontas", n=atual.escopos_prontos) }}{% endif %}</p>
+</div>
+{%- elif ultima %}
+<div class="andamento">
+  <p>{{ t("execucao.terminou" if ultima.estado == "concluida" else "execucao.interrompida", n=ultima.novas) }}</p>
+</div>
+{%- endif %}
