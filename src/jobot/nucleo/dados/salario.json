@@ -1,0 +1,39 @@
+{
+  "moedas": {
+    "r$": "BRL", "brl": "BRL", "reais": "BRL",
+    "us$": "USD", "u$": "USD", "$": "USD", "usd": "USD", "dolares": "USD", "dolar": "USD", "dollars": "USD",
+    "€": "EUR", "eur": "EUR", "euros": "EUR",
+    "£": "GBP", "gbp": "GBP",
+    "ca$": "CAD", "c$": "CAD", "cad": "CAD",
+    "au$": "AUD", "a$": "AUD", "aud": "AUD",
+    "chf": "CHF",
+    "¥": "JPY", "jpy": "JPY",
+    "dkk": "DKK", "nok": "NOK", "sek": "SEK",
+    "inr": "INR", "mxn": "MXN", "ars": "ARS", "cop": "COP", "clp": "CLP", "pln": "PLN"
+  },
+  "beneficios": {
+    "vr": ["vr", "vale refeicao", "vale-refeicao", "meal voucher"],
+    "va": ["va", "vale alimentacao", "vale-alimentacao", "food voucher"],
+    "vt": ["vt", "vale transporte", "vale-transporte"],
+    "plano_de_saude": ["plano de saude", "assistencia medica", "health insurance"],
+    "plano_odontologico": ["plano odontologico", "odontologico", "dental"],
+    "bonus": ["bonus", "bonificacao"],
+    "plr": ["plr", "ppr", "participacao nos lucros"],
+    "equity": ["equity", "stock options", "rsu"],
+    "gympass": ["gympass", "wellhub"],
+    "retirement": ["401k", "401(k)"]
+  },
+  "faixas": {
+    "BRL": {"mensal": [500, 150000], "hora_ate": 200, "ano_desde": 100000},
+    "USD": {"mensal": [300, 100000], "hora_ate": 300, "ano_desde": 20000},
+    "EUR": {"mensal": [300, 100000], "hora_ate": 300, "ano_desde": 20000},
+    "GBP": {"mensal": [300, 100000], "hora_ate": 300, "ano_desde": 20000},
+    "CHF": {"mensal": [300, 100000], "hora_ate": 300, "ano_desde": 20000},
+    "CAD": {"mensal": [300, 120000], "hora_ate": 300, "ano_desde": 20000},
+    "AUD": {"mensal": [300, 120000], "hora_ate": 300, "ano_desde": 20000},
+    "JPY": {"mensal": [30000, 15000000], "hora_ate": 20000, "ano_desde": 2000000},
+    "DKK": {"mensal": [2000, 700000], "hora_ate": 2000, "ano_desde": 150000},
+    "NOK": {"mensal": [2000, 700000], "hora_ate": 2000, "ano_desde": 150000},
+    "SEK": {"mensal": [2000, 700000], "hora_ate": 2000, "ano_desde": 150000}
+  }
+}
