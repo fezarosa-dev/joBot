@@ -53,6 +53,7 @@
         {%- endfor %}
       </form>
     </nav>
+    {% include "execucao/barra.html" %}
   </header>
   <div id="aviso-versao" role="status" hx-get="/aviso-versao" hx-trigger="load" hx-swap="innerHTML"></div>
   <main id="conteudo" tabindex="-1">

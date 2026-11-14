@@ -168,8 +168,9 @@ def executar(args: argparse.Namespace) -> int:
             print("O joBot já está aberto.", file=sys.stderr)
             return 1
         try:
-            _, config = montar(dados, p)
+            app, config = montar(dados, p)
             servidor = uvicorn.Server(config)
+            app.state.servidor = servidor  # o POST /sair pede o encerramento por aqui (T49)
             with contextlib.suppress(SystemExit):  # o uvicorn sai assim se não consegue escutar
                 servidor.run()
         finally:
