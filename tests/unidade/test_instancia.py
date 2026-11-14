@@ -1,3 +1,4 @@
+import errno
 import os
 import stat
 import subprocess
@@ -6,7 +7,13 @@ from pathlib import Path
 
 import pytest
 
-from jobot.sistema.instancia import Trava, pid_do_servidor, porta, porta_do_servidor
+from jobot.sistema.instancia import (
+    Trava,
+    pid_do_servidor,
+    pid_e_porta_do_servidor,
+    porta,
+    porta_do_servidor,
+)
 
 
 def test_segunda_instancia_nao_pega_a_trava(tmp_path: Path) -> None:
@@ -114,3 +121,35 @@ def test_porta_padrao_e_jobot_porta() -> None:
 @pytest.mark.parametrize("valor", ["", "abc", "0", "-1", "65536", "47615.5", "٤٧٦١٥"])
 def test_jobot_porta_invalida_cai_no_padrao(valor: str) -> None:
     assert porta({"JOBOT_PORTA": valor}) == 47615
+
+
+@pytest.mark.parametrize("chamada", ["fchmod", "ftruncate", "pwrite"])
+def test_falha_ao_gravar_solta_a_trava_e_nao_vaza_fd(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, chamada: str
+) -> None:
+    def quebra(*args: object) -> int:
+        raise OSError(errno.EIO, "falha simulada")
+
+    antes = len(os.listdir("/proc/self/fd"))
+    trava = Trava(tmp_path, 47615)
+    with monkeypatch.context() as m:
+        m.setattr(os, chamada, quebra)
+        with pytest.raises(OSError):
+            trava.pegar()
+    assert len(os.listdir("/proc/self/fd")) == antes  # nenhum descritor ficou aberto
+    outra = Trava(tmp_path, 47615)
+    assert outra.pegar() is True  # a trava ficou livre
+    outra.soltar()
+    assert trava.pegar() is True  # e a que falhou não ficou com estado pela metade
+    trava.soltar()
+
+
+def test_pid_e_porta_vem_juntos_da_mesma_leitura(tmp_path: Path) -> None:
+    assert pid_e_porta_do_servidor(tmp_path) == (None, None)  # sem arquivo
+    trava = Trava(tmp_path, 50000)
+    assert trava.pegar() is True
+    assert pid_e_porta_do_servidor(tmp_path) == (os.getpid(), 50000)
+    (tmp_path / "jobot.lock").write_text("abc\n70000\n")
+    assert pid_e_porta_do_servidor(tmp_path) == (None, None)
+    trava.soltar()
+    assert pid_e_porta_do_servidor(tmp_path) == (None, None)  # solta: dado velho

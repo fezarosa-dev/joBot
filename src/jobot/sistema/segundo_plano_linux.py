@@ -22,6 +22,7 @@ SERVICO = "jobot.service"
 class Resultado:
     codigo: int
     saida: str = ""
+    erro: str = ""  # stderr: systemctl e distrobox escrevem a falha aqui
 
 
 Rodar = Callable[[Sequence[str]], Resultado]
@@ -72,7 +73,7 @@ def rodar_comando(comando: Sequence[str]) -> Resultado:
         return Resultado(124)
     except OSError:  # programa que não existe ou não abre
         return Resultado(127)
-    return Resultado(feito.returncode, feito.stdout)
+    return Resultado(feito.returncode, feito.stdout, feito.stderr)
 
 
 # --- texto dos arquivos (funções puras) -------------------------------------------------
@@ -178,6 +179,12 @@ def _no_host(env: Mapping[str, str], rodar: Rodar, script: str) -> Resultado:
     return rodar((*prefixo_host(env), "sh", "-c", script))
 
 
+def _falha_do_systemctl(args: Sequence[str], feito: Resultado) -> Recusa:
+    texto = (feito.erro or feito.saida).strip()
+    params = {"comando": " ".join(args), "saida": texto}
+    return Recusa(Motivo(chave="segundo_plano.systemctl_falhou", params=params))
+
+
 def _distrobox_enter(env: Mapping[str, str], rodar: Rodar) -> str | None:
     achado = _no_host(env, rodar, "command -v distrobox-enter")
     return (achado.saida.strip() or None) if achado.codigo == 0 else None
@@ -234,14 +241,18 @@ def ligar(rodar: Rodar, *, env: Mapping[str, str] | None = None) -> None:
     for args in (("daemon-reload",), ("enable", "--now", SERVICO)):
         feito = _systemctl(env, rodar, *args)
         if feito.codigo != 0:
-            params = {"comando": " ".join(args), "saida": feito.saida.strip()}
-            raise Recusa(Motivo(chave="segundo_plano.systemctl_falhou", params=params))
+            raise _falha_do_systemctl(args, feito)
 
 
 def desligar(rodar: Rodar, *, env: Mapping[str, str] | None = None) -> None:
     env = _ambiente(env)
-    _systemctl(env, rodar, "disable", "--now", SERVICO)  # sem serviço instalado também vale
-    _arquivo_do_servico(env).unlink(missing_ok=True)
+    args = ("disable", "--now", SERVICO)
+    feito = _systemctl(env, rodar, *args)
+    arquivo = _arquivo_do_servico(env)
+    # sem serviço instalado o disable falha à toa e desligar também vale; com ele, a falha é real
+    if feito.codigo != 0 and arquivo.exists():
+        raise _falha_do_systemctl(args, feito)
+    arquivo.unlink(missing_ok=True)
     _systemctl(env, rodar, "daemon-reload")
 
 
@@ -269,5 +280,8 @@ def executar(args: argparse.Namespace) -> int:
         motivo = recusa.motivo
         texto = _TEXTOS.get(motivo.chave, motivo.chave).format(**motivo.params)
         print(texto, file=sys.stderr)
+        return 1
+    except (ValueError, OSError) as erro:  # caractere de controle no caminho, disco, permissão
+        print(f"segundo plano: {erro}", file=sys.stderr)
         return 1
     return 0
