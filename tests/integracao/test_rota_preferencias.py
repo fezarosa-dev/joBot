@@ -2,6 +2,8 @@
 
 import json
 import re
+import subprocess
+import sys
 from contextlib import closing
 from pathlib import Path
 from typing import cast
@@ -18,6 +20,15 @@ from jobot.painel.app import criar_app
 from jobot.painel.seguranca import CAMPO_CSRF, TEMPLATES, renderizar
 
 PORTA = 47615
+GLOBAIS = (
+    "salario_texto",
+    "locais_texto",
+    "data_curta",
+    "data_completa",
+    "rotulo",
+    "motivo",
+    "dinheiro",
+)
 
 
 @pytest.fixture
@@ -109,3 +120,32 @@ def test_tema_chega_ao_base_sem_global_do_jinja(
         return renderizar(request, "t82.html")
 
     assert cliente.get("/t82-tema").text == "escuro"
+
+
+def test_globais_do_jinja_vem_do_modulo_explicito(cliente: TestClient) -> None:
+    # `criar_app` já importou as rotas; os globais são de `painel/globais.py`, não delas
+    globais = TEMPLATES.env.globals
+    assert set(GLOBAIS) <= globais.keys()
+    assert "tema" not in globais
+    assert {globais["rotulo"].__module__, globais["motivo"].__module__} == {"jobot.painel.globais"}
+
+
+_SO_TEMPLATES = """
+import json, sys
+from jobot.painel.seguranca import TEMPLATES
+print(json.dumps({
+    "globais": sorted(TEMPLATES.env.globals),
+    "rotas": sorted(m for m in sys.modules if m.startswith("jobot.painel.rotas")),
+}))
+"""
+
+
+def test_globais_do_jinja_sem_importar_as_rotas() -> None:
+    # processo novo: só o módulo dos templates, nenhuma rota importada
+    saida = subprocess.run(
+        [sys.executable, "-c", _SO_TEMPLATES], capture_output=True, text=True, check=True
+    ).stdout
+    lido = json.loads(saida)
+    assert lido["rotas"] == []
+    assert set(GLOBAIS) <= set(lido["globais"])
+    assert "tema" not in lido["globais"]
