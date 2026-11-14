@@ -1,0 +1,12 @@
+{
+  "url": "https://api.github.com/repos/developersRJ/vagas/issues?state=open&per_page=100",
+  "data": "2026-11-14T06:25:38.245301+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/json; charset=utf-8"
+  },
+  "sha256": "5ca472d69557a84c196edbd601cf43701eaa3b99fe952841511e78c1e7c05d74",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "montado à mão a partir de normal.json, reduzido a 2 issues: a segunda perde title (formato mudou)"
+}
