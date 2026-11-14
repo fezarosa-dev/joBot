@@ -152,6 +152,7 @@ def test_descoberta_e_paginas_ligadas_na_agenda(
     dados: Path, monkeypatch: pytest.MonkeyPatch, desligada: str | None
 ) -> None:
     with closing(_banco(dados)) as con:
+        gravar_config(con, "primeira_execucao_concluida", True)  # a agenda só anda depois dela
         if desligada is not None:
             gravar_config(con, desligada, False)
     chamadas: dict[str, list[tuple[sqlite3.Connection, ClienteEducado]]] = {
@@ -364,6 +365,7 @@ async def _descoberta(dados: Path) -> None:
 
 async def _paginas(dados: Path) -> None:
     with closing(_banco(dados)) as con:
+        gravar_config(con, "primeira_execucao_concluida", True)
         gravar_config(con, "paginas_ligadas", False)
     estado = servir._EstadoDoBanco(dados / "jobot.db")
     antigo = AGORA - timedelta(hours=1)  # passou a espera de 60 s do início

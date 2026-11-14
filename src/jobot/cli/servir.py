@@ -91,6 +91,10 @@ class _EstadoDoBanco:
 
     def interruptores(self) -> Mapping[str, bool]:
         with closing(abrir(self._caminho)) as con:
+            if ler_config(con, "primeira_execucao_concluida", False) is not True:
+                # sem as preferências do assistente a busca sairia vazia e ocuparia o "Buscar
+                # agora" do fim dele; o painel e `jobot buscar` não passam por aqui (T139)
+                return {tipo: False for tipo in TIPOS}
             return {tipo: bool(ler_config(con, chave)) for tipo, chave in _INTERRUPTORES.items()}
 
 
