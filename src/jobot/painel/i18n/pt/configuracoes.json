@@ -7,6 +7,7 @@
   "configuracoes.grupo.aparencia": "Aparência",
   "configuracoes.grupo.privacidade": "Privacidade",
   "configuracoes.salvar": "Salvar",
+  "configuracoes.salvo": "Salvo.",
   "configuracoes.sim": "sim",
   "configuracoes.nao": "não",
   "configuracoes.erro.destaques_n": "O número de destaques precisa ser um inteiro de 1 a 100. Nada foi salvo.",
