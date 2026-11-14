@@ -71,7 +71,8 @@ def test_desligar_destaques_tira_a_aba_e_o_painel_abre_em_todas(
         expect(page.get_by_label(rotulo, exact=True)).to_be_checked()
     page.get_by_label("Destaques de hoje", exact=True).uncheck()
     page.get_by_role("button", name="Salvar").click()
-    expect(page).to_have_url(f"{painel}/configuracoes/funcoes")
+    expect(page).to_have_url(f"{painel}/configuracoes/funcoes?salvo=1")
+    expect(page.get_by_role("status").filter(has_text="Salvo.")).to_be_visible()
     expect(page.get_by_label("Destaques de hoje", exact=True)).not_to_be_checked()
 
     page.goto(f"{painel}/vagas")
@@ -102,7 +103,7 @@ def test_privacidade_mostra_a_pasta_e_o_aviso_de_versao_nasce_desligado_e_grava(
     expect(aviso).not_to_be_checked()
     aviso.check()
     page.get_by_role("button", name="Salvar").click()
-    expect(page).to_have_url(f"{painel}/configuracoes/privacidade")
+    expect(page).to_have_url(f"{painel}/configuracoes/privacidade?salvo=1")
     expect(page.get_by_label("Avisar quando houver versão nova")).to_be_checked()
 
 

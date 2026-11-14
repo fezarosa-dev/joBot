@@ -39,6 +39,7 @@ FUNCOES_URL = "/configuracoes/funcoes"
 PRIVACIDADE = "/configuracoes/privacidade"
 SEGUNDO_PLANO = "/configuracoes/segundo-plano"
 FONTES = "/configuracoes/fontes"
+SALVO = "?salvo=1"
 GRAVAR_CHAVE = (
     "INSERT INTO config (chave, valor) VALUES ('segundo_plano', ?) "
     "ON CONFLICT (chave) DO UPDATE SET valor = excluded.valor"
@@ -146,6 +147,11 @@ def _alerta(html: str) -> str:
     return _texto(achou.group(1))
 
 
+def _salvo(html: str) -> str | None:
+    achou = re.search(r'<[^>]*role="status"[^>]*class="config-salvo"[^>]*>(.*?)</', html, re.S)
+    return _texto(achou.group(1)).strip() if achou else None
+
+
 # ------------------------------------------------------------------ grupos
 
 
@@ -188,7 +194,7 @@ def test_todos_os_interruptores_da_13_7_aparecem_ligados_de_partida(painel: Pain
 @pytest.mark.parametrize("chave", FUNCOES)
 def test_cada_interruptor_grava_desligado_e_ligado(painel: Painel, chave: str) -> None:
     resposta = painel.funcoes(**{chave: False})
-    assert (resposta.status_code, resposta.headers.get("location")) == (303, FUNCOES_URL)
+    assert (resposta.status_code, resposta.headers.get("location")) == (303, FUNCOES_URL + SALVO)
     assert painel.config(chave) is False
     # só ele mudou
     assert [painel.config(c) for c in FUNCOES if c != chave] == [True] * 5
@@ -339,7 +345,7 @@ def _fontes(painel: Painel) -> list[Any]:
 def test_desligar_fonte_pela_configuracao_grava_ligada_zero(painel: Painel) -> None:
     todas = [f.chave for f in _fontes(painel)]
     resposta = painel.post(FONTES, {"fonte": [c for c in todas if c != "remotive"]})
-    assert (resposta.status_code, resposta.headers.get("location")) == (303, FONTES)
+    assert (resposta.status_code, resposta.headers.get("location")) == (303, FONTES + SALVO)
     assert painel.sql("SELECT chave FROM fonte WHERE ligada = 0") == [("remotive",)]
     marcadas = re.findall(r'<input\b[^>]*name="fonte"[^>]*>', painel.get(FONTES).text)
     desmarcada = [m for m in marcadas if 'value="remotive"' in m]
@@ -359,7 +365,7 @@ def test_fonte_desconhecida_da_422_e_nao_grava(painel: Painel) -> None:
 
 def test_segundo_plano_ligar_habilita_o_servico_e_grava_a_chave(painel: Painel) -> None:
     resposta = painel.post(SEGUNDO_PLANO, {"segundo_plano": "on"})
-    assert (resposta.status_code, resposta.headers.get("location")) == (303, SEGUNDO_PLANO)
+    assert (resposta.status_code, resposta.headers.get("location")) == (303, SEGUNDO_PLANO + SALVO)
     assert ("enable", "--now", "jobot.service") in painel.sistema.systemctl()
     assert painel.config("segundo_plano") is True
     assert _interruptor(painel.get(SEGUNDO_PLANO).text, "segundo_plano") == (True, True)
@@ -495,7 +501,7 @@ def test_interruptor_aviso_versao_aparece_em_privacidade_e_grava(painel: Painel)
     assert _interruptor(painel.get(PRIVACIDADE).text, "aviso_versao_ligada") == (True, False)
     assert painel.config("aviso_versao_ligada") is None
     resposta = painel.post(PRIVACIDADE, {"aviso_versao_ligada": "on"})
-    assert (resposta.status_code, resposta.headers.get("location")) == (303, PRIVACIDADE)
+    assert (resposta.status_code, resposta.headers.get("location")) == (303, PRIVACIDADE + SALVO)
     assert painel.config("aviso_versao_ligada") is True
     assert _interruptor(painel.get(PRIVACIDADE).text, "aviso_versao_ligada") == (True, True)
     painel.post(PRIVACIDADE)
@@ -505,3 +511,79 @@ def test_interruptor_aviso_versao_aparece_em_privacidade_e_grava(painel: Painel)
 
 def test_aviso_de_versao_nao_aparece_nas_funcoes(painel: Painel) -> None:
     assert _interruptor(painel.get(FUNCOES_URL).text, "aviso_versao_ligada") == (False, False)
+
+
+# ------------------------------------------------------------------ confirmação de salvo (T142)
+
+
+@pytest.mark.parametrize(
+    ("url", "dados"),
+    [
+        (FONTES, {"fonte": ["remotive"]}),
+        (FUNCOES_URL, {"destaques_n": "10"}),
+        (SEGUNDO_PLANO, {}),
+        (PRIVACIDADE, {"aviso_versao_ligada": "on"}),
+    ],
+)
+def test_salvar_mostra_salvo_na_pagina_seguinte_e_so_nela(
+    painel: Painel, url: str, dados: dict[str, Any]
+) -> None:
+    assert _salvo(painel.get(url).text) is None
+    resposta = painel.post(url, dados)
+    assert resposta.status_code == 303
+    assert _salvo(painel.get(resposta.headers["location"]).text) == "Salvo."
+    assert _salvo(painel.get(url).text) is None  # a página sem o parâmetro não repete
+
+
+def test_salvo_em_ingles(painel: Painel) -> None:
+    assert painel.post("/preferencias/idioma", {"idioma": "en"}).status_code == 303
+    assert _salvo(painel.get(PRIVACIDADE + SALVO).text) == "Saved."
+
+
+@pytest.mark.parametrize("lixo", ["0", "2", "abc", "<b>x</b>", ""])
+def test_parametro_salvo_so_vale_1(painel: Painel, lixo: str) -> None:
+    assert _salvo(painel.get(f"{FUNCOES_URL}?salvo={lixo}").text) is None
+
+
+def test_erro_de_validacao_nao_mostra_salvo(painel: Painel) -> None:
+    resposta = painel.funcoes(destaques_n="0")
+    assert resposta.status_code == 422
+    assert _salvo(resposta.text) is None
+
+
+def _voltares(html: str) -> list[str]:
+    return [html_lib.unescape(v) for v in re.findall(r'name="voltar" value="([^"]*)"', html)]
+
+
+def test_voltar_da_casca_tira_salvo_e_mantem_os_outros_parametros(painel: Painel) -> None:
+    voltares = _voltares(painel.get(FUNCOES_URL + "?salvo=1&x=2&y=a%20b").text)
+    assert voltares  # formulários de tema e idioma (e o da barra de execução)
+    assert all("salvo" not in v for v in voltares)
+    assert all(v == FUNCOES_URL + "?x=2&y=a%20b" for v in voltares)
+    assert set(_voltares(painel.get(FUNCOES_URL + "?salvo=1").text)) == {FUNCOES_URL}
+    assert set(_voltares(painel.get(FUNCOES_URL + "?x=2").text)) == {FUNCOES_URL + "?x=2"}
+
+
+def test_recusa_do_segundo_plano_nao_mostra_salvo(painel: Painel) -> None:
+    painel.sistema.systemd_ok = False
+    resposta = painel.post(SEGUNDO_PLANO, {"segundo_plano": "on"})
+    assert resposta.status_code == 200
+    assert _salvo(resposta.text) is None
+
+
+def test_falha_de_sistema_no_segundo_plano_nao_mostra_salvo(
+    painel: Painel, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def quebra(*_a: object, **_k: object) -> None:
+        raise OSError("disco cheio")
+
+    monkeypatch.setattr("jobot.painel.rotas.configuracoes.segundo_plano_linux.ligar", quebra)
+    resposta = painel.post(SEGUNDO_PLANO, {"segundo_plano": "on"})
+    assert "disco cheio" in _alerta(resposta.text)
+    assert _salvo(resposta.text) is None
+
+
+def test_fonte_desconhecida_nao_mostra_salvo(painel: Painel) -> None:
+    resposta = painel.post(FONTES, {"fonte": ["remotive", "nao_existe"]})
+    assert resposta.status_code == 422
+    assert _salvo(resposta.text) is None
