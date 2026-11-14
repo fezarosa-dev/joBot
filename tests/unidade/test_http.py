@@ -252,6 +252,24 @@ async def test_401_403_sao_bloqueio_sem_repetir(status: int) -> None:
     assert rel.dormidas == []
 
 
+async def test_bloqueio_leva_os_cabecalhos_da_resposta() -> None:
+    cota = {"x-ratelimit-remaining": "0", "x-ratelimit-limit": "60"}
+    cli, _ = _cliente(Servidor(httpx.Response(403, headers=cota)))
+    with pytest.raises(Bloqueio) as bloqueio:
+        await cli.escopo().pedir("GET", "https://a.example/")
+    assert hasattr(bloqueio.value, "cabecalhos"), "o Bloqueio não traz os cabeçalhos"
+    assert bloqueio.value.cabecalhos.get("X-RateLimit-Remaining") == "0"
+
+    cli, _ = _cliente(Servidor(httpx.Response(429, headers=cota)))
+    with pytest.raises(LimiteAtingido) as limite:
+        await cli.escopo().pedir("GET", "https://a.example/")
+    assert limite.value.cabecalhos.get("x-ratelimit-remaining") == "0"
+
+    # Quem já cria as exceções só com a mensagem continua funcionando, com cabeçalhos vazios.
+    assert dict(Bloqueio("x").cabecalhos) == {} and str(LimiteAtingido("y")) == "y"
+    assert dict(LimiteAtingido().cabecalhos) == {}
+
+
 async def test_teto_de_5_mb() -> None:
     cli, _ = _cliente(Servidor(httpx.Response(200, content=b"x" * 5 * MB)))
     assert len((await cli.escopo().pedir("GET", "https://a.example/")).texto) == 5 * MB

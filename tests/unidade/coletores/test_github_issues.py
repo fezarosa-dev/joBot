@@ -324,6 +324,30 @@ async def test_bloqueio() -> None:
     assert len(pedidos) == 1
 
 
+async def test_cota_esgotada_em_403_vira_no_limite_com_saude_cota() -> None:
+    cota = {"x-ratelimit-remaining": "0", "x-ratelimit-limit": "60"}
+    resultado, pedidos = await _coletar(httpx.Response(403, headers=cota))
+    assert (resultado.vagas, resultado.estado) == ((), "no_limite")
+    assert resultado.motivo == "saude.cota" and len(pedidos) == 1
+
+    # No meio da lista: as vagas já lidas ficam.
+    resultado, pedidos = await _coletar(_json("paginacao_1"), httpx.Response(403, headers=cota))
+    assert (resultado.estado, resultado.motivo) == ("no_limite", "saude.cota")
+    assert len(resultado.vagas) == 3 and len(pedidos) == 2
+
+    # 429 com a cota a zero (o LimiteAtingido depois das esperas) também é cota.
+    resultado, _ = await _coletar(_json("paginacao_1"), httpx.Response(429, headers=cota))
+    assert (resultado.estado, resultado.motivo) == ("no_limite", "saude.cota")
+    assert len(resultado.vagas) == 3
+
+
+async def test_403_sem_cota_a_zero_segue_bloqueio() -> None:
+    sobra = {"x-ratelimit-remaining": "12"}
+    resultado, _ = await _coletar(_json("paginacao_1"), httpx.Response(403, headers=sobra))
+    assert (resultado.vagas, resultado.estado) == ((), "falhou")
+    assert resultado.motivo == "saude.bloqueio"
+
+
 async def test_endereco_e_parametros() -> None:
     _, pedidos = await _coletar(_json("vazio"))
     assert len(pedidos) == 1
