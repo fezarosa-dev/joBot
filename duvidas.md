@@ -1477,3 +1477,73 @@ A meta de 90% só foi batida em UF. Ela não trava a fase 1.
 **Opções:** (a) manter BR nas fontes brasileiras, como está; (b) voltar a deixar sem país e perder o ganho da T144 no acerto de país (87,2% contra 79,3%). Recomendação: (a): o acerto de país sobe e a lista é dado fácil de editar; o risco são as poucas vagas de fora que passam por BR.
 
 **Decisão provisória:** (a). Desfazer: esvaziar `fontes.so_brasil` em `rotulos.json` e subir a `versao_algoritmo`.
+
+## D98. Triagem do ensaio da T80 (A82)
+
+**Status:** decidido pela sessão em 2026-11-14, para confirmar com o dono
+
+**Contexto:** a sessão rodou o roteiro da T80 dentro da `fedora-dev`. Dezoito passos passaram; seis defeitos viraram as tarefas T145 a T149 (cidade com nome de país, sinais de vida na busca e no terminal, países no aviso de restrição, cartão "Sem mudança" em Fontes e página nova). Ficam como estão: o rodízio de escopos da Gupy (A73), a ordem por salário com a conversão desligada (salário em dólar sai da ordem), um clique perdido em filtro com cliques muito rápidos (aconteceu uma vez, depende de tempo), a vaga Worldwide sem local no cartão e o "Ligar o segundo plano" marcado por padrão (D95).
+
+**Opções:** (a) corrigir os seis defeitos e manter os outros como estão; (b) abrir tarefa também para os que ficam. Recomendação: (a): os que ficam são desenho já decidido ou esperado.
+
+**Decisão provisória:** (a). Desfazer: abrir tarefa para o item escolhido.
+
+## D99. Cidade com nome de país e UF brasileira vira cidade (T145)
+
+**Status:** decidido pela sessão em 2026-11-14, para confirmar com o dono
+
+**Contexto:** "Franca, São Paulo" (Gupy e Sólides) virava o país FR. Agora, quando um token tem nome de país diferente de BR e outro token tem UF brasileira, o token vira cidade no Brasil. Os casos ambíguos "Peru, Amazonas", "Denmark, SC" e "SP, Spain" ficam Brasil. "Franca, sp" (sigla minúscula) continua país FR, como antes. A `versao_algoritmo` subiu para 4, para reprocessar.
+
+**Opções:** (a) manter assim; (b) exigir que a fonte diga o país para decidir os ambíguos. Recomendação: (a), e melhorar quando a fonte disser o país.
+
+**Decisão provisória:** (a). Desfazer: voltar o ramo novo de `_ler_um` e subir a `versao_algoritmo`.
+
+## D100. Sinais de vida na busca e no terminal (T146)
+
+**Status:** decidido pela sessão em 2026-11-14, para confirmar com o dono
+
+**Contexto:** a linha do terminal do `jobot abrir` sai só em português, como o resto da CLI. A fase "depois da coleta" aparece na tela de andamento quando toda fonte ligada já gravou em `execucao_fonte`. O link de pular para o conteúdo fica sem mouse até receber foco.
+
+**Opções:** (a) como está; (b) traduzir a linha do terminal pelo idioma do painel. Recomendação: (a): a CLI inteira é em português.
+
+**Decisão provisória:** (a). Desfazer: abrir tarefa para (b).
+
+## D101. Aviso de restrição diz os países (T147)
+
+**Status:** decidido pela sessão em 2026-11-14, para confirmar com o dono
+
+**Contexto:** o aviso lista os países na ordem dos locais da fonte; código sem nome conhecido aparece como código ISO.
+
+**Opções:** (a) ordem da fonte; (b) ordem alfabética. Recomendação: (a): a fonte costuma pôr o país principal primeiro.
+
+**Decisão provisória:** (a). Desfazer: ordenar em `paises_texto`.
+
+## D102. Cartão "Sem mudança" mostra as vagas da última rodada que leu (T148)
+
+**Status:** decidido pela sessão em 2026-11-14, para confirmar com o dono
+
+**Contexto:** o cartão mostra a hora e a duração da checagem, mas as vagas da última rodada que leu; escopo que nunca leu fica em 0. O sintoma "pode rodar de novo" com a hora vencida não reproduziu nos testes; ficou teste de regressão.
+
+**Opções:** (a) como está; (b) mostrar "Vagas 0" quando a checagem não leu nada. Recomendação: (a): o 0 enganava, porque as vagas continuam no banco.
+
+**Decisão provisória:** (a). Desfazer: voltar a contagem da rodada atual em `painel/rotas/fontes.py`.
+
+## D103. Página nova é lida na próxima volta da agenda (T149)
+
+**Status:** decidido pela sessão em 2026-11-14, para confirmar com o dono
+
+**Contexto:** a página nova é lida na próxima volta da agenda (até 60 s); a regra de "devida" tem folga de 1 h (23 h). A página que falha é tentada de novo a cada execução de páginas. A execução extra por página nova reinicia o ritmo das outras: no pior caso, até cerca de 48 h entre duas leituras de uma página.
+
+**Opções:** (a) como está; (b) guardar a data da última tentativa por página, para não reiniciar o ritmo das outras. Recomendação: (a) na fase 1; (b) se a espera de 48 h incomodar.
+
+**Decisão provisória:** (a). Desfazer: tarefa para (b).
+
+## D104. Fase 1 marcada como concluída antes dos passos 3, 21 e 24 da T80 (A83, T132)
+
+**Status:** decidido pela sessão em 2026-11-14, para confirmar com o dono
+
+**Contexto:** a T132 marcou a fase 1 como concluída nos documentos antes dos passos 3, 21 e 24 do roteiro, que ligam e desligam o systemd do computador e pedem reiniciá-lo. Eles ficam com o dono, junto da semana de teste na rede real (critério 15).
+
+**Opções:** (a) marcar já como concluída e tratar uma falha desses passos como correção numa versão 0.1.x; (b) esperar o dono rodar os três passos. Recomendação: (a): o ensaio da sessão cobriu o resto, e o dono autorizou em 2026-11-14 a sessão a abrir o PR para a `main` quando julgar pronto.
+
+**Decisão provisória:** (a). Desfazer: voltar o status nos documentos para "em andamento" (o teste `test_status_da_fase_1_igual_nos_documentos` acompanha).

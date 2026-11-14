@@ -11,7 +11,7 @@
 
 ```mermaid
 flowchart LR
-    F1["🟡 Fase 1 · Base"] --> F2["⚪ Fase 2 · Navegador com login"] --> F3["⚪ Fase 3 · IA local"] --> F4["⚪ Fase 4 · Extensão"]
+    F1["✅ Fase 1 · Base"] --> F2["⚪ Fase 2 · Navegador com login"] --> F3["⚪ Fase 3 · IA local"] --> F4["⚪ Fase 4 · Extensão"]
     F4 --> F5["⚪ Fase 5 · Áudio e Gmail"] --> F6["⚪ Fase 6 · Treino"] --> F7["⚪ Fase 7 · GitHub Pages"] --> F8["⚪ Fase 8 · Publicação"]
 ```
 
@@ -19,7 +19,7 @@ flowchart LR
 
 | | Fase | O que entra | Estado |
 |:---:|---|---|---|
-| 🟡 | **1. Base** | Núcleo comum, fontes públicas, banco, painel e agenda | Em andamento |
+| ✅ | **1. Base** | Núcleo comum, fontes públicas, banco, painel e agenda | Concluída |
 | ⚪ | **2. Navegador com login** | Chrome visível, mapeamento dos sites e tratamento de CAPTCHA | Planejada |
 | ⚪ | **3. IA local** | Pacote offline (llama-server + Qwen) | Planejada |
 | ⚪ | **4. Extensão do navegador** | Extensão do navegador para formulários | Planejada |
@@ -28,12 +28,12 @@ flowchart LR
 | ⚪ | **7. Versão GitHub Pages** | Versão no navegador, sem instalação | Planejada |
 | ⚪ | **8. Publicação** | Instaladores, README com selos e revisão de segurança | Planejada |
 
-<sub>🟡 em andamento · ⚪ planejada</sub>
+<sub>✅ concluída · ⚪ planejada</sub>
 
 ## 🔍 Um pouco mais sobre cada fase
 
 <details>
-<summary><strong>🟡 Fase 1, Base</strong></summary>
+<summary><strong>✅ Fase 1, Base</strong></summary>
 
 - O núcleo comum, os coletores das fontes públicas, o banco SQLite, o painel e a agenda das buscas.
 - O assistente da primeira execução tem só dois passos: preferências de busca e segundo plano.

@@ -47,8 +47,7 @@ O joBot nasceu para ajudar jovens universitários a encontrar o primeiro emprego
 Depois a ideia cresceu e virou um assistente para todo mundo que procura vaga, de qualquer área. [Leia a história completa](A-ideia-e-a-historia).
 
 > [!NOTE]
-> **O joBot está em desenvolvimento.** A fase 1 de 8 (a base) está em andamento.
-> Ainda **não há nada para instalar**: o que esta wiki descreve é o plano, não um produto pronto. Veja o [roteiro](Roteiro).
+> **O joBot está em desenvolvimento.** A fase 1 de 8 (a base) está concluída: já dá para [instalar e usar](https://github.com/fezarosa-dev/joBot/blob/main/README.md#requisitos-e-instalacao) a versão 0.1.0. As fases 2 a 8 estão planejadas. Veja o [roteiro](Roteiro).
 
 ## ✨ Destaques
 
