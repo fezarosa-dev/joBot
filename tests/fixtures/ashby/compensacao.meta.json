@@ -1,0 +1,12 @@
+{
+  "url": "https://api.ashbyhq.com/posting-api/job-board/belvo?includeCompensation=true",
+  "data": "2026-11-14T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/json; charset=utf-8"
+  },
+  "sha256": "51ae46730400e5fadafe5a167c61ae83818b96ffb2b7b7fe7f02d9c291895864",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "montado à mão a partir de normal.json, reduzido: a primeira vaga ganha compensation, secondaryLocations, workplaceType Hybrid; a segunda tem isListed=false"
+}
