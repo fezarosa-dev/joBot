@@ -227,11 +227,12 @@ As cinco fontes desta seção exigem crédito com link de volta. O painel mostra
 
 - **Lista:** `GET https://api.inhire.app/job-posts/public/pages` com o cabeçalho `X-Tenant: {tenant}`. O tenant é o subdomínio de `{tenant}.inhire.app`.
 - **Paginação:** nenhuma. Vem tudo de uma vez.
-- **Detalhe:** `GET https://api.inhire.app/job-posts/public/pages/{jobId}`, com o mesmo cabeçalho. Só o detalhe traz a descrição (HTML) e o `publishedAt`.
-- **Campos da lista:** `jobId`, `displayName`, `tenantName`, `location`, `workplaceType` (`On-site`, `Hybrid`, `Remote`), `contractType`.
-- **Link da vaga:** `https://{tenant}.inhire.app/vagas/{jobId}`. O link é montado; não foi aberto no teste **[a confirmar]**.
+- **Detalhe:** `GET https://api.inhire.app/job-posts/public/pages/{jobId}`, com o mesmo cabeçalho. Só o detalhe traz a descrição (HTML), o `publishedAt` e o `contractType` (corrigido pela captura de 2026-11-13).
+- **Forma da lista:** as vagas vêm em `jobsPage`, com `tenantName` na raiz da resposta (corrigido pela captura de 2026-11-13).
+- **Campos da lista:** `jobId`, `displayName` (pode vir com espaços nas pontas), `location`, `workplaceType` (`On-site`, `Hybrid`, `Remote`), `status` e `careerPageId`. A lista não traz `contractType` (corrigido pela captura de 2026-11-13).
+- **Link da vaga:** `https://{tenant}.inhire.app/vagas/{jobId}`. O link vem do código do site e responde 200 (conferido na rede em 2026-11-14), mas a vaga é montada no navegador e não foi vista aberta **[a confirmar]**.
 - **Erros:** tenant inexistente devolve 404 com `{"message":"Tenant not found"}`.
-- **Limites:** a documentação oficial fala em 20 pedidos por segundo, para a API autenticada. O coletor fica no intervalo padrão.
+- **Limites:** a documentação oficial fala em 20 pedidos por segundo, para a API autenticada. O coletor fica no intervalo padrão. As respostas não trazem cabeçalho de limite nem `ETag` (corrigido pela captura de 2026-11-13).
 - **Vistos:** `riachuelo` (591 vagas), `carreiras` (3).
 
 #### Quickin
@@ -281,13 +282,14 @@ As cinco fontes desta seção exigem crédito com link de volta. O painel mostra
 
 - **Endereço:** `GET https://api.ciee.org.br/vagas/vitrine-vaga/publicadas?page=0&size=1000&sort=codigoVaga,desc&tipoVaga=ESTAGIO` (e `tipoVaga=APRENDIZ`)
 - **Resposta:** página no formato `content[]`, `totalElements`, `totalPages`, `last`. `page` começa em 0.
-- **Volume:** 5.186 vagas (4.176 de estágio e 1.002 de aprendiz). Com `size=1000`, são 6 pedidos.
+- **Volume:** 5.186 vagas (4.176 de estágio e 1.002 de aprendiz). Com `size=1000`, são 6 pedidos. Em 2026-11-14 vieram 3.962 vagas de estágio, em 4 pedidos (conferido na rede em 2026-11-14).
 - **Campos:** `codigoVaga`, `nomeEmpresa`, `local.cidade`, `local.uf`, `local.bairro`, `bolsaAuxilio` com `tipoAuxilioBolsa` (`Mensal` ou `Hora`), `bolsaAuxilioDe`, `bolsaAuxilioAte`, `salario`, `salarioDe`, `salarioAte` (aprendiz), `atividades[]`, `descricao`, `beneficios[]`, `horarioEntrada`, `horarioSaida`, `requisitos.semestreInicio`, `requisitos.semestreFinal`, `nivelEscolar` (`SU`, `EM`, `TE`, `T`, `EF`), `tipoVaga`.
+- **Empresa em sigilo:** `nomeEmpresa` pode vir só com espaço (" "): 134 de 3.962 vagas de estágio em 2026-11-14 (conferido na rede em 2026-11-14). A vaga não se descarta (D74, T116).
 - **Não tem título:** montar com `areaProfissional` e `nivelEscolar`.
 - **Não tem data:** registrar a data em que o joBot viu a vaga pela primeira vez.
 - **Link da vaga:** `https://portal.ciee.org.br/quero-uma-vaga/?codigoVaga={codigoVaga}`
 - **Descrição:** texto puro.
-- **[a confirmar]:** se a resposta com `size=1000` cabe no teto de 5 MB. Se não couber, baixar o `size`.
+- **Tamanho da resposta:** cada página com `size=1000` tem cerca de 1,07 MB e cabe no teto de 5 MB (conferido na rede em 2026-11-14).
 
 #### IEL
 
@@ -296,6 +298,8 @@ As cinco fontes desta seção exigem crédito com link de volta. O painel mostra
 - **Estados com vaga:** ES, MT, PE, SC, PR, DF, AL, MG, PA, MS, RN, PB, AM, RO, TO, SE, SP, AC, GO. São cerca de 19 pedidos. A maior página (PE) tem 1,3 MB e 289 vagas. Total: 2.028.
 - **Campos:** `vagaIdentificador`, `vagaTitulo`, `vagaEmpresaNome` (quase sempre vazio: empresa em sigilo), `vagaCidade`, `vagaEstadoSigla`, `vagaModeloTrabalho`, `vagaSalario` (texto), `vagaInclusao` (ISO sem fuso), `vagaUrl`, `vagaObservacao`, `vagaRequisitos`, `vagaBeneficios`, `vagaHorarios`, `vagaCursos`, `vagaEscolaridadeDe`, `vagaEscolaridadeAte`, `vagaTipo`.
 - **Plano B:** `https://carreiras.iel.org.br/sitemap.xml` mais a página de detalhe `/{UF}/vaga/{tipo}/{id}/{slug}`.
+- **Página de UF sem vaga:** mostra o título "Nenhuma vaga encontrada!" (conferido na rede em 2026-11-14). UF que o portal não tem (por exemplo `/BA`) responde HTTP 500 (conferido na rede em 2026-11-14).
+- **O sitemap guarda entradas velhas:** GO tinha 1 entrada de 2026-04 e a página dizia "Nenhuma vaga encontrada!"; SP tinha 5 no sitemap e 3 na página (conferido na rede em 2026-11-14). BA, CE, MA, PI, RJ, RS, AP e RR não aparecem no sitemap (conferido na rede em 2026-11-14): a lista fixa de 19 UFs vale (D76).
 - **Cuidado:** não é contrato público. O formato embutido pode mudar a cada versão do site.
 
 #### Super Estágios
@@ -315,6 +319,12 @@ As cinco fontes desta seção exigem crédito com link de volta. O painel mostra
 - **Campos:** `opportunityId`, `opportunityName`, `companyName`, `opportunityLocations`, `countFinishDays`, `opportunityHotsiteUrl`, `opportunityInscriptionUrl`, `opportunityDescription` (HTML), `opportunityAreas`, `hiringType`, `hiringTypeId`.
 - **Prazo:** data de hoje mais `countFinishDays`. Ignorar `daysRemainingForInscription`.
 - **Tipo:** `hiringTypeId` 1 é trainee; 2 e 3 são estágio.
+- **Forma da resposta:** é uma lista pura, sem envelope (corrigido pela captura de 2026-11-13).
+- **Campos que podem vir nulos:** `opportunityDescription` e `hiringType` (corrigido pela captura de 2026-11-13).
+- **Link:** `opportunityHotsiteUrl` aponta para hosts diferentes (`marketing.ciadetalentos.com`, `vagas.ciadetalentos.com.br/hotsite/...`, `www.ciadetalentos.com.br`) e pode ser igual ao link de inscrição (corrigido pela captura de 2026-11-13).
+- **Tipo:** existe `hiringTypeId` 13 ("Ensino Médio", Banco de Talentos), fora do mapa 1/2/3 (corrigido pela captura de 2026-11-13).
+- **Prazo:** `daysRemainingForInscription` veio "Encerra hoje" em todos, mesmo com `countFinishDays` até 107 (corrigido pela captura de 2026-11-13): confirma que só vale `countFinishDays`.
+- **robots.txt:** o de `vagas.ciadetalentos.com.br` responde 404 e o de `www.ciadetalentos.com.br` diz `Allow: /` (corrigido pela captura de 2026-11-13).
 - **Cuidado:** são programas, não vagas individuais. Endereço não documentado.
 
 #### Mural da USP
@@ -328,6 +338,7 @@ Não existe um mural único. Duas unidades têm lista pública:
 
 - A lista completa da FEA (`/vagas`) pede login da USP e devolve 403. O coletor usa só a página inicial.
 - Volume baixo (11 no total). Leitura de HTML com seletores.
+- No detalhe do IF o rótulo do campo da empresa é "Oportunidade:"; na lista é "Instituição:". O coletor usa o da lista (corrigido pela captura de 2026-11-13).
 - Fora: IME (pede login) e Poli (postagens com PDF).
 
 #### Eureca
@@ -348,13 +359,14 @@ Os testes deste grupo usaram user agent genérico. Repetir o primeiro pedido com
   - corpo: `{"appliedFacets":{},"limit":20,"offset":0,"searchText":""}`;
   - cabeçalhos: `Content-Type: application/json`, `Accept: application/json`, `Accept-Language`.
 - **Detalhe:** `GET https://{tenant}.{wdN}.myworkdayjobs.com/wday/cxs/{tenant}/{site}{externalPath}`
-- **Paginação:** `limit` máximo 20 (50 devolve 400). O `total` só vem na primeira página (`offset` 0): guardar.
-- **Filtro de Brasil:** os ids de faceta vêm na primeira resposta e mudam por empresa. O id de país do Brasil visto em duas empresas foi `1a29bb1357b240ab99a2fa755cc87c0e` (numa em `locationCountry`, na outra só em `locations`). Não fixar: ler da resposta.
-- **Campos da lista:** `externalPath` (chave estável), `title`, `locationsText`, `bulletFields`, `postedOn` (texto relativo, como "Posted 3 Days Ago").
+- **Paginação:** `limit` máximo 20 (50 devolve 400). O `total` só vem na primeira página (`offset` 0): nas páginas com `offset` maior que 0 ele vem 0. Guardar o `total` do `offset` 0 e parar numa página curta (corrigido pela captura de 2026-11-13).
+- **Filtro de Brasil:** os ids de faceta vêm na primeira resposta e mudam por empresa. O id de país do Brasil visto em duas empresas foi `1a29bb1357b240ab99a2fa755cc87c0e` (numa em `locationCountry`, na outra só em `locations`). Não fixar: ler da resposta. Há tenant cuja faceta só tem `locations`, sem país (corrigido pela captura de 2026-11-13).
+- **Campos da lista:** `externalPath` (chave estável), `title`, `locationsText`, `bulletFields`, `postedOn` (texto relativo, como "Posted 3 Days Ago"; a captura confirma (corrigido pela captura de 2026-11-13)).
 - **Campos do detalhe (`jobPostingInfo`):** `id`, `jobReqId`, `location`, `jobRequisitionLocation.country.alpha2Code`, `startDate`, `endDate`, `externalUrl`, `jobDescription` (HTML), `timeType`. Empresa em `hiringOrganization.name`.
 - **Data:** usar `startDate` do detalhe. O `postedOn` da lista não serve como data.
 - **Vistos:** `mastercard.wd1`, site `CorporateCareers` (855 vagas; 13 em São Paulo); `santander.wd3`, site `SantanderCareers` (1.051; 333 no Brasil).
 - **Falhas vistas:** um tenant devolveu HTTP 521 e outro 422. Tenant e site entram na lista de empresas só depois de conferidos.
+- **Em manutenção:** o `POST /jobs` responde 303 para `community.workday.com/maintenance-page`, que leva a `static.community.workday.com/maintenance-page.html` (200 `text/html`, "Workday is currently unavailable.") (conferido na rede em 2026-11-14). A queda é por data center (`wd1` em 2026-11-14; `wd5` deu 521 em 2026-11-13). Tratar como fora do ar, não como formato mudado.
 - **Limites:** nenhum documentado.
 
 #### Eightfold
@@ -364,12 +376,15 @@ Cada empresa está numa de duas gerações da API.
 - **Geração PCSX:**
   - lista: `GET https://{host}/api/pcsx/search?domain={domínio}&query=&location=Brazil&start=0&sort_by=timestamp` — 10 por página, fixo; total em `data.count`;
   - detalhe: `GET https://{host}/api/pcsx/position_details?position_id={id}&domain={domínio}&hl=pt-BR`;
-  - campos: `positions[].id`, `name`, `locations[]`, `standardizedLocations[]` (Brasil começa com "BR"), `workLocationOption` (`onsite`, `hybrid`, `remote_local`), `postedTs` (epoch em segundos), `department`, `displayJobId`; no detalhe, `publicUrl` e `jobDescription` (HTML).
+  - campos: `positions[].id`, `name`, `locations[]`, `standardizedLocations[]` (Brasil começa com "BR"), `workLocationOption` (`onsite`, `hybrid`, `remote_local`), `postedTs` (epoch em segundos), `department`, `displayJobId`; no detalhe, `publicUrl` e `jobDescription` (HTML);
+  - a lista e o detalhe PCSX vêm dentro de `data` (`data.positions`, `data.count`, `data.jobDescription`) (corrigido pela captura de 2026-11-13). A lista não traz descrição: o `detalhar` busca o HTML. O coletor não usa o `publicUrl`: monta `https://{host}/careers/job/{id}` (corrigido pela captura de 2026-11-13).
 - **Geração v2:**
   - lista: `GET https://{host}/api/apply/v2/jobs?domain={domínio}&start=0&num=10&location=Brazil&sort_by=timestamp`;
   - detalhe: `GET https://{host}/api/apply/v2/jobs/{id}?domain={domínio}`;
-  - campos: `id`, `name`, `business_unit`, `location`, `locations`, `work_location_option`, `t_create`, `canonicalPositionUrl`, `job_description`.
-- **Como saber a geração:** PCSX devolve 403 com "PCSX is not enabled for this user." → usar v2. A v2 devolve 403 com "Not authorized for PCSX" → usar PCSX. Guardar a geração em `parametros` da empresa (desenho, seção 8.6).
+  - campos: `id`, `name`, `business_unit`, `location`, `locations`, `work_location_option`, `t_create`, `canonicalPositionUrl`, `job_description`;
+  - a lista v2 vem sem `data`, com `positions` e `count` na raiz, e já traz `job_description` como texto achatado: a vaga entra com descrição em texto e o detalhe v2 só roda se alguém o chamar por fora (corrigido pela captura de 2026-11-13).
+- **Como saber a geração:** PCSX devolve 403 com "PCSX is not enabled for this user." → usar v2. A v2 devolve 403 com "Not authorized for PCSX" → usar PCSX. Guardar a geração em `parametros` da empresa (desenho, seção 8.6). Ao cadastrar, o `resolver` tenta a PCSX e depois a v2, e acha o `domain` no endereço, na lista de domínios conhecidos ou no `Sitemap` do `robots.txt` (corrigido pela captura de 2026-11-13).
+- **Países e paginação:** a API filtra pelo nome do país em inglês (`location=Brazil`); o coletor traduz o código do país da busca e ignora o código que não conhece. Sem país nenhum na busca, usa o Brasil. A página seguinte começa depois do que veio (`start` soma os itens recebidos); para numa página com menos de 10 ou quando `start` chega ao total; trava em 100 páginas por país (corrigido pela captura de 2026-11-13).
 - **Vistos:**
 
 | Empresa | Host | Domínio | Geração | Vagas no Brasil |
@@ -380,6 +395,7 @@ Cada empresa está numa de duas gerações da API.
 | Bayer | `bayer.eightfold.ai` | `bayer.com` | v2 | 15 |
 
 - **Microsoft:** devolveu 429, sem `Retry-After`, duas vezes, com o filtro `work_site`. Não usar esse filtro. Pelo menos 5 s entre pedidos. Uma vez por dia. Um 429 encerra só o escopo da Microsoft até o dia seguinte; as outras empresas do Eightfold continuam. Esses valores ficam no escopo da Microsoft, não na fonte (`por_escopo` no `fontes.json`: `intervalo_min` 1440, `espera_s` 5, `para_no_429`; desenho, seção 8.1).
+- **Microsoft, 2026-11-14:** deu 429 logo depois de 41 pedidos a 1 s em `bayer` e `mercadolibre`; meia hora depois, dois pedidos com 30 s entre eles deram 200. O 429 vem com `x-ef-ns` "unknown" (recusado antes da API) e o `Retry-After` não foi visto (conferido na rede em 2026-11-14). O mais provável é limite por IP na borda do Eightfold (D77, T117).
 
 #### Oracle HCM
 

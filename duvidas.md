@@ -338,6 +338,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 - Lista de serviços da ADR 0014, **para confirmar com o dono**: a 0014 diz que os dados só saem do computador para os serviços que a pessoa ligar e lista Anthropic, Google, Telegram, Jev e RunPod. O aviso de versão (T85), ligado pela pessoa, fala com o GitHub, que não está na lista. A frase do desenho "o único código que faz pedidos para fora é o `HttpEducado`" e a regra de `Authorization` das Global Constraints já ganharam a ressalva do vigia, que é script de CI, fora do joBot instalado. Opções: (a) acrescentar à 0014 o GitHub, para o aviso de versão, na lista de serviços que a pessoa liga; (b) deixar a 0014 como está e valer a exceção registrada na 0018. Recomendação: (a), para a 0014 continuar sendo a lista completa.
 - O guia (T83) sai depois da T17, da T27, da T50 e da T84, que ele cita (D34), e a aprovação do primeiro PR é do dono (D33). A T84 deixou de depender da T17: o vigia não usa o script de captura.
 - Vigia (T84) na leva J, decidido pela sessão em 2026-11-14 com o dono fora, para confirmar (D63): roda junto dos coletores T56–T65 e da REG7, com os valores já escritos aqui (segunda às 06:23 UTC, no máximo 5 pedidos por fonte, `FONTES_FORA = {"eureca", "abler", "gupy"}`) e com as opções em aberto acima (zero vagas, `saude.excecao`, detalhe quebrado, contexto fixo) seguindo a recomendação de cada uma. O link "reportar problema" e o aviso de versão (T50, T85, T87) já estão entregues.
+- Vigia entregue pela T84 (leva J, juntada na `dev` em 2026-11-14), com os valores do plano: segunda às 06:23 UTC (`vigia.yml`), `VIGIA_MAX_PEDIDOS = 5`, `VIGIA_MAX_DETALHES = 2`, `FONTES_FORA = {"eureca", "abler", "gupy"}`. Seguem abertas, para o dono confirmar: o critério de "voltou" (`_voltou` em `scripts/vigia.py`: só pede estado ok, sem mudança ou parcial, e fonte sem quebra; a issue aberta por detalhe quebrado pode fechar como "voltou" quando o detalhe parou por orçamento ou bloqueio, o que a T121 corrige); o teto de 10 páginas da listagem de issues do GitHub (`MAX_PAGINAS_API`); o `timeout-minutes: 180` do fluxo; e o rótulo `fonte-quebrada`, que a pessoa cria no repositório do GitHub. O vigia só roda depois do merge na `main`. Os nomes privados do executor que `scripts/vigia.py` importa ficam para a T106 (D78).
 
 ## D32. `tratar` chama `ler_requisitos` em toda vaga (T18)
 
@@ -567,6 +568,8 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 **Decisão provisória:** pulados: todos os coletores da leva A seguiram a (b), marcada com `shortcut:` em `coletar`; a recomendação continua a (a), `saude.pulados_n` feita junto com o vigia (T84), porque `formato_mudou` é o que abre issue. Caixa: (c), por fonte, no resolver de cada coletor (a recomendação antiga, "a T51 normaliza para minúsculas", caiu); a T51 não muda a caixa. Prazo: Greenhouse e Himalayas seguem a (b) e o dia UTC, marcados com `shortcut:`; recomendação (a), o dia local, decidida junto para as duas, com teste de `TZ` fora de UTC. O comentário do `shortcut:` em `himalayas.py` diz "um dia antes", mas em UTC a vaga que vence à noite em Brasília aparece um dia depois (22h de 10/12 em Brasília é 01h de 11/12 em UTC); o comentário se corrige junto com a decisão.
 
+**Coletores da leva B (leva J, 2026-11-14):** InHire, Quickin, Recrutei, Sólides, CIEE, IEL, Cia de Talentos, USP, Workday e Eightfold seguiram o `shortcut:` da (b): item pulado vira `saude.formato_mudou` sem contagem. A decisão não muda; as fontes entram na lista da D45 e saem junto quando a (a) for feita.
+
 **Provisório (o que o código faz hoje), para confirmar:**
 - O resolver devolve `{"identificador": token}`, sem fazer pedido, e levanta `ValueError` para o que não é quadro do Greenhouse. O desenho (8.1) diz que o resolver devolve `parametros`, mas o Greenhouse não tem parâmetros (8.6). Recomendação: a chave `identificador` vira convenção para todo resolver que normaliza o endereço colado, e a T51 e a T54 leem dela.
 - O host europeu (`job-boards.eu.greenhouse.io`) é recusado pelo resolver. Segue em aberto no apêndice de fontes, seção 2.4.
@@ -656,6 +659,8 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 **Decisão provisória:** (a) nas três. O escopo é texto opaco: só o próprio coletor o monta, em `escopos(ctx)`, e o lê. Quem chama `coletar` (o executor da T41, o "testar" da T51, o vigia da T84) pega os escopos de `COLETOR.escopos(ctx)`, na mesma instância e antes de coletar, e nunca monta a string à mão. A recomendação para o nome é a (a) até uma terceira fonte sem nome na resposta pedir o mesmo; aí se decide (b) ou (c) para todas.
 
+**Atualização de 2026-11-14 (A16):** a terceira fonte sem nome na resposta apareceu: o Workday (a empresa só vem em `hiringOrganization.name`, no detalhe). A sessão manteve a (a): o Workday guarda `identificador -> nome` na instância, como Lever e Ashby, sem mudar o contrato do `coletar`. Mudar o contrato mexe em todos os coletores e é decisão do dono: se quiser a (b) ou a (c), vira tarefa nova. Status: decidido pela sessão em 2026-11-14 com o dono fora, para confirmar. A Eightfold também guarda o cadastro na instância (`shortcut:` em `eightfold.py`). Os escopos novos da leva B seguem o texto opaco: um por empresa e país no Workday (T115, A17), o host no Eightfold, o identificador nas demais.
+
 **Escolhas do redator, para confirmar com o dono:**
 - A T50 mostra o escopo como texto, como vem do coletor, sem separar nem traduzir.
 - Hapvida: o nome genérico faz o escopo `hapvidandi` baixar vagas de várias empresas, e só o filtro de host do `jobUrl` as descarta depois de baixadas. O orçamento de 30 pedidos é da fonte inteira, então esse escopo pode gastar tudo e deixar os outros em `no_limite` (o rodízio por `ultima_coleta` ameniza, não elimina). Se acontecer na prática, vira tarefa nova: limite próprio por escopo ou filtro por outro parâmetro da API.
@@ -695,6 +700,8 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 - Empresa inexistente: (a) a T51 mostra aviso quando o "testar" dá zero vagas; (b) nada.
 
 **Decisão provisória:** chave: (a); mudar a chave depois de gravar vagas custa migração, então a conferência vem antes da primeira coleta real (a T55 é o primeiro momento). Empresa inexistente: (a), registrado no critério da T51.
+
+**Atualização de 2026-11-14 (A15):** o passo 4 do enriquecimento (`_enriquecer` em `agenda/execucao.py`, DR-70) já detalha a `VagaColetada` listada sem descrição. Onde este registro dizia que ligar o `detalhar` à vaga já listada era tarefa do enriquecimento, vale agora "feito pelo passo 4 (DR-70)". Workday e SmartRecruiters detalham por ele; o que falta é só a T114 (detalhar por escopo e no ritmo do `por_escopo`, D77). A dúvida da chave da vaga sem slug (T55) segue como está. Status: decidido pela sessão em 2026-11-14 com o dono fora, para confirmar.
 
 **Provisório (o que o código faz hoje), para confirmar:**
 - O escopo `<identificador>|<pais>` é o contrato da D50.
@@ -876,7 +883,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 **Decisão provisória:** o código segue como está. A T106 e a T107 estão no plano, livres.
 
-## D63. Levas H e I: ordem do trabalho e cópia de segurança (A3, A10, A11)
+## D63. Levas H, I e J: ordem do trabalho e cópia de segurança (A3, A10, A11, A12)
 
 **Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar
 
@@ -884,10 +891,11 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 - A3. A leva I juntou a T71 (descoberta) e a T72 (páginas acompanhadas) antes da T55, porque só dependiam de tarefas prontas e não dependem da rede real. O plano já diz isso na linha da onda 8.
 - A10. A leva J roda em paralelo, até 8 tarefas ao mesmo tempo, cada uma no seu worktree: coletores T56–T65, o vigia T84 e a REG7 (estes registros). Modelo pela dificuldade: Opus nos coletores mais chatos (iel, workday, eightfold) e no vigia; Sonnet nos outros.
 - A11. Depois de juntar a leva I e a T103, a `dev` vai ao GitHub como cópia de segurança: só a `dev`, sem PR e sem `main`; push na `dev` não roda CI. A regra registrada antes era push e PR só no fim de cada fase; esta é uma exceção só para a `dev`.
+- A12. Depois da leva J (coletores T56–T65, vigia T84, REG7), a `dev` foi mandada de novo ao GitHub como cópia, pela mesma regra da A11. Esta é a regra anterior que a A12 (e a A11) substitui no dia a dia: "push e PR só no fim de cada fase". Continua valendo que PR e `main` só no fim da fase, e que o push da `dev` não roda CI.
 
-**Opções:** A3: (a) como feito; (b) esperar a T55. A10: (a) paralelo; (b) uma tarefa por vez. A11: (a) copiar a `dev` ao fim de cada leva; (b) só no fim da fase. Recomendação: (a) nas três.
+**Opções:** A3: (a) como feito; (b) esperar a T55. A10: (a) paralelo; (b) uma tarefa por vez. A11 e A12: (a) copiar a `dev` ao fim de cada leva; (b) só no fim da fase. Recomendação: (a) nas quatro.
 
-**Decisão provisória:** (a) nas três. Desfazer: A3 e A10 não têm o que desfazer; A11 se desfaz parando de dar push.
+**Decisão provisória:** (a) nas quatro. Desfazer: A3 e A10 não têm o que desfazer; A11 e A12 se desfazem parando de dar push.
 
 ## D64. Aviso de versão e link de apoio: sobras (T85, T87, T104, T105)
 
@@ -1009,3 +1017,74 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 **Opções:** (a) anotar e tratar na atualização de dependências do fim da fase; (b) filtrar o aviso em `pyproject.toml`. Recomendação: (a): trocar de cliente é mudança de dependência e fica com o dono.
 
 **Decisão provisória:** (a).
+
+## D74. Busca real da leva B: resultado e as quatro correções (A13, A26, A27, A28, A29, T55b)
+
+**Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar
+
+**Contexto:** Depois de juntar a leva J, a sessão rodou as 10 fontes novas na `fedora-dev` em 2026-11-14, com as empresas de exemplo de cada uma: cerca de 8,2 mil vagas (T55b, no plano). Quatro coisas divergiram, e a sessão achou a causa de cada uma:
+- CIEE, estágio `parcial` em toda rodada. 134 de 3.962 vagas vêm com `nomeEmpresa` só com espaço (empresa confidencial) e eram descartadas. Cada página de `size=1000` tem cerca de 1,07 MB e cabe no teto de 5 MB: fecha a dúvida da T60.
+- Workday, Mastercard `falhou`. O data center `wd1` estava em manutenção: o `POST /jobs` respondeu 303 para a página HTML "Workday is currently unavailable". O coletor lia isso como formato mudado.
+- Eightfold, Microsoft parou no 429. Não veio do resolver. O mais provável é limite por IP na borda do Eightfold depois de 41 pedidos a 1 s em Bayer e Mercado Livre (confiança média-baixa): meia hora depois, dois pedidos com 30 s entre eles deram 200. O `Retry-After` não ficou registrado, porque o `Parou429` não guarda os cabeçalhos.
+- IEL, vagas de só 2 das 19 UFs. Os números são reais (GO sem vaga, SP com 3). O sitemap guarda entradas velhas, e as 8 UFs fora da lista (BA, CE, MA, PI, RJ, RS, AP e RR) não estão no portal: `/BA` responde 500.
+
+**Opções:**
+- CIEE: (a) a vaga com empresa em branco entra como "CIEE" (o IEL usa "IEL <estado>" quando a empresa está em sigilo); (b) continuar descartando e tratar como `parcial` esperado.
+- Workday em manutenção: (a) resposta que não é JSON vira `saude.erro_de_rede` (fora do ar); (b) chave nova `saude.manutencao`.
+- Microsoft: (a) a Microsoft vai primeiro na ordem dos escopos do Eightfold e o `Parou429` guarda os cabeçalhos; (b) subir o `espera_s` da fonte inteira (deixaria o Mercado Livre bem mais lento).
+- IEL: a (b) da R4 da T61, lista fixa de 19 UFs; as outras eram (a) UFs vindas das buscas (`ContextoColeta.ufs`), (c) UFs lidas do `sitemap.xml` e (d) as 27 UFs. Zero vagas só é `ok` quando a página traz "Nenhuma vaga encontrada"; sem o aviso, `formato mudou`.
+
+**Recomendação:** (a) em CIEE, Workday e Microsoft; (b) no IEL, pelos motivos acima.
+
+**Decisão provisória:** as recomendações, nas tarefas T116 (CIEE), T115 (Workday), T117 (Eightfold) e T118 (IEL). Desfazer: CIEE voltando a descartar; Microsoft subindo `espera_s` do `eightfold` em `fontes.json`; IEL pela (a) ou (c).
+
+## D75. ATS por empresa da leva B: InHire, Quickin, Recrutei e Sólides (T56, T57, T58, T59, T120)
+
+**Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar; as escolhas do redator trazem o status dentro de cada item
+
+**Contexto e opções:**
+- InHire. O link `/vagas/<jobId>` vem do código do site e responde 200, mas a página monta a vaga no navegador e a extensão do Chrome estava desligada: não foi vista aberta (A24, para conferir). A página de carreira que não é a `default` usa outro caminho, e o coletor a ignora. O identificador do tenant é sempre minúsculo: o resolver normaliza, o coletor não, então quem montar `empresas.json` grava em minúsculas. Sem `tenantName`, a empresa vira o identificador. O `.meta.json` leva o campo extra `cabecalho_do_pedido` (X-Tenant), fora de `CAMPOS_META`. Opções: (a) aceitar o campo como convenção dos coletores com cabeçalho de pedido e acrescentá-lo como opcional na lista de `scripts/capturar.py`, numa tarefa pequena; (b) tirar o campo do meta. Recomendação: (a). Status: escolha do redator, para confirmar.
+- Quickin. O nome do escopo e os campos de salário seguem como o código os pôs. O teto de 100 páginas e 3.000 vagas por conta é palpite (a captura tinha 85 vagas) e fica por constante (A18); a opção (b) seria `max_pedidos` no `fontes.json`, que mudaria o orçamento das fontes já testadas. Recomendação: manter a constante. As sobras (host `jobs.quickin.io` e teste que não prova) estão na T120.
+- Recrutei. O `remote` 1, 2 e 3 segue o apêndice; só o 0 (presencial) foi confirmado (A23). A empresa é `company_name` (a consultoria de RH), não o `client.name`. Os exemplos de 404 e de "vazio" foram montados à mão. Lista menor que `data.total` vira `parcial` com `saude.listagem_incompleta` (escolha do redator). O `detalhar` só pede no host `jobs.recrutei.com.br` (barreira de SSRF): vaga com link em domínio próprio fica sem descrição. O formato de `expired_at` e de `benefits` é suposto. Recomendação: conferir o `remote` ao vivo depois do merge.
+- Sólides. O teto `MAX_PAGINAS = 200` fica por constante (A18). `createdAt` só com data vira meia-noite em Brasília. A moeda é BRL fixa e o período é deduzido. O 404 foi montado à mão: a captura só mostrou 400. Recomendação: manter.
+
+**Decisão provisória:** o código segue como está. As sobras baixas de InHire, Quickin e Recrutei estão na T120 (A25); o exemplo da InHire com UUID corrompido também.
+
+## D76. Portais da leva B: CIEE, IEL, Cia de Talentos e USP (T59, T60, T61, T62, T63, T116, T118, T119)
+
+**Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar; as escolhas do redator trazem o status dentro de cada item
+
+**Contexto e opções:**
+- CIEE. `size=1000` cabe no teto de 5 MB (cerca de 1,07 MB por página): fecha a dúvida da T60. Empresa em branco vira "CIEE" (D74).
+- IEL. Fuso de `vagaInclusao` (-03:00 suposto) e linhas `T` do Flight com campos longos: para conferir na rede. Lista fixa de 19 UFs (D74); as outras opções e por que a (b) ficou estão na D74.
+- Cia de Talentos. O prazo (hoje mais `countFinishDays`) usa o relógio do sistema (`_agora`), porque o contrato do coletor não recebe relógio (A19). Escolhas do redator, para confirmar: a `url` é o `opportunityHotsiteUrl`, senão o de inscrição, e `url_candidatura` é o `opportunityInscriptionUrl`; só `hiringTypeId` 1, 2 e 3 viram contrato, e o texto de `hiringType` (o 13, "Ensino Médio", por exemplo) vai para as etiquetas; `opportunityAreas` entra na descrição. Não achamos termos de uso; o `robots.txt` do site de marketing diz `Allow: /`.
+- USP. O detalhe é lido dentro do `coletar`, porque o executor só detalha `UrlListada` (A20); a USP entra ativa na leva B; a empresa das vagas da FEA é "FEA-USP"; o contato da empresa publicado no mural fica na descrição. Os marcadores de lista vazia e a lista do IF (montada à mão a partir do JSON) estão para conferir ao vivo.
+
+**Recomendação:** manter tudo; conferir ao vivo o que está marcado.
+
+**Decisão provisória:** o código segue como está. As bordas pequenas (float inteiro, 404 na página 2, tag aninhada, pager do IF) estão na T119 (A25).
+
+## D77. Fontes mundiais da leva B e o enriquecimento por escopo (T64, T65, T114, T115, T117)
+
+**Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar
+
+**Contexto e opções:**
+- Workday. Nome da empresa guardado na instância (D50, A16). Países das buscas, com Brasil quando a lista vier vazia, e local com país, para o rótulo "no Brasil" e o contrato CLT funcionarem nas vagas do Santander (A17, T115). Um escopo por empresa e país: a fase 1 ainda não saiu, então as ocorrências com o nome de escopo antigo não se migram (A33). Resposta 521 ou 422 fica `saude.erro_de_rede`, sem chave nova (A22). Achados da T64: `total` vem 0 nas páginas com `offset` maior que 0, há tenant cuja faceta só tem `locations`, e `postedOn` é relativo (apêndice 3.3).
+- Eightfold. Sem país nas buscas, busca o Brasil, também na execução agendada sem busca ativa (A21). O que se perdeu da primeira entrega foi comparado com a seção 3.3 e corrigido (apêndice, "corrigido pela captura de 2026-11-13"). Microsoft primeiro e `Parou429` com cabeçalhos: D74, T117.
+- Passo 4 do enriquecimento (A14, A32, T114). Hoje a parada de um escopo tira a fonte inteira do passo 4, e o detalhe sai no ritmo da fonte: Mercado Livre, NVIDIA e Microsoft quase nunca ganham descrição, e os detalhes da Microsoft saem a 1 s em vez de 5 s. Opções: (a) parada que vale para a fonte toda (orçamento, bloqueio, limite) tira a fonte inteira; intervalo e 429 tiram só o escopo onde apareceram; o detalhe usa o `espera_s` e o `para_no_429` do `por_escopo`, e o orçamento de pedidos da fonte é um só, somado entre os escopos; (b) deixar como está. Recomendação: (a). A sessão já disse (A15) que o passo 4 detalha a `VagaColetada` sem descrição (D52).
+
+**Decisão provisória:** (a), na T114 e na T115. Desfazer: voltar a parar a fonte toda no passo 4.
+
+## D78. Leva K e as sobras da leva J (A25, A30, A31, A34, T106, T119, T120, T121)
+
+**Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar
+
+**Contexto:**
+- A25. As sobras baixas da leva J viram tarefas pequenas por assunto: T119 (Cia de Talentos, Sólides e USP), T120 (testes que não provam e exemplos da Quickin, Recrutei e InHire) e T121 (vigia: "voltou" só com o detalhe conferido). Os nomes privados do executor que `scripts/vigia.py` importa (`_PARA_DETALHES`, `_motivo_do_detalhe`, `_motivo_do_escopo`) entram na T106, e o teste de varredura dela também olha `scripts/`, porque o ruff e o mypy de `src` não avisam se alguém os renomear.
+- A30. A leva K junta: esta REG8, as correções da busca real (T115 a T118), o enriquecimento por escopo (T114), as sobras baixas da leva J (T119 a T121) e as tarefas livres que não brigam por arquivo (T104, T105, T107, T113 e a trinca da descoberta T108 a T110 numa tarefa só). T106, T111 e T112 ficam para a leva seguinte, porque mexem nos mesmos arquivos que outras desta leva.
+- A31. Descoberta: seguem as recomendações da D71 (só o 503 e o limite adiam até o dia seguinte; um escopo por etapa no ramo da Gupy; `_bater` público com teste). Primeira execução: segue a da D62 (um só "Buscar agora"). Sem duplicar aqui o que já está nelas.
+- A34. A leva K sai com 14 tarefas, até 8 ao mesmo tempo: Opus em T114, T115, T117 e na trinca da descoberta; Sonnet no resto; revisor do mesmo modelo; effort `high` em todas.
+
+**Opções:** (a) como decidido; (b) esperar o dono para cada sobra baixa. Recomendação: (a): são correções pequenas, cada uma com teste, e não mexem em contrato público.
+
+**Decisão provisória:** (a). Desfazer: não há o que desfazer; as tarefas são independentes e podem ser descartadas uma a uma.
