@@ -104,6 +104,6 @@
   "vagas.programas.ver": "Ver em Sites",
   "vagas.programas.nova": "Ainda não lida.",
   "vagas.programas.sem_mudanca": "Lida, sem mudança até agora.",
-  "vagas.programas.falhou": "Não deu para ler na última tentativa.",
+  "vagas.programas.falhou": "Não deu para ler na última tentativa. {motivo}",
   "vagas.programas.diferenca": "Ver o que mudou"
 }

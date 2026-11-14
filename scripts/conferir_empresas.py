@@ -11,6 +11,7 @@ confere todas as fontes; com argumentos, só as fontes citadas (ex.: `workday or
 """
 
 import asyncio
+import copy
 import sys
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -51,10 +52,11 @@ class _SemValidadores:
         return None
 
 
-async def _uma(cliente: ClienteEducado, coletor: Coletor, empresa: Empresa) -> Linha:
+async def _uma(cliente: ClienteEducado, original: Coletor, empresa: Empresa) -> Linha:
     def linha(estado: str, vagas: int = 0, motivo: str | None = None) -> Linha:
         return Linha(empresa.nome, empresa.fonte, estado, vagas, motivo)
 
+    coletor = copy.copy(original)  # D50/D60: `escopos` guarda estado em `self`
     try:
         escopos = list(coletor.escopos(ContextoColeta((empresa,), TERMOS, PAISES)))
         if not escopos:

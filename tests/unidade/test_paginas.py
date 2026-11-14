@@ -17,16 +17,19 @@ from fastapi.testclient import TestClient
 
 from apoio.relogio import RelogioFalso
 from jobot.agenda.paginas import executar_paginas
+from jobot.banco.cadastros import gravar_config
 from jobot.banco.conexao import abrir
 from jobot.banco.migrar import migrar
 from jobot.banco.paginas import (
     adicionar_pagina,
     desativar_pagina,
     gravar_leitura,
+    marcar_falhou,
     marcar_vista,
     mudancas,
     paginas,
     remover_pagina,
+    ultimas_diferencas,
 )
 from jobot.cli import servir
 from jobot.nucleo.coletores.paginas import (
@@ -613,3 +616,109 @@ def test_tarefa_paginas_usa_conexao_propria(
         for con in (primeira, segunda):  # fechada pela própria tarefa, com a agenda ainda viva
             with pytest.raises(sqlite3.ProgrammingError):
                 con.execute("SELECT 1")
+
+
+# --- motivo da falha (T128, A49) ------------------------------------------------------------
+
+
+def _motivo(con: sqlite3.Connection, pagina_id: int) -> str | None:
+    linha = con.execute("SELECT motivo FROM pagina_acompanhada WHERE id=?", (pagina_id,)).fetchone()
+    assert linha is not None
+    motivo: str | None = linha[0]
+    return motivo
+
+
+def test_marcar_falhou_grava_motivo_e_leitura_ok_limpa(con: sqlite3.Connection) -> None:
+    pagina_id = adicionar_pagina(con, URL, "Trainee")
+    assert _motivo(con, pagina_id) is None
+    marcar_falhou(con, pagina_id, "bloqueada")
+    assert _motivo(con, pagina_id) == "bloqueada"
+    assert paginas(con)[0].motivo == "bloqueada"
+    marcar_falhou(con, pagina_id, "fora_do_ar")  # a falha seguinte troca o motivo
+    assert _motivo(con, pagina_id) == "fora_do_ar"
+    gravar_leitura(con, pagina_id, None, AGORA)  # leitura ok sem mudança limpa
+    assert (_motivo(con, pagina_id), _linha(con, pagina_id)[2]) == (None, "ok")
+    marcar_falhou(con, pagina_id, "nao_e_texto")
+    gravar_leitura(con, pagina_id, Mudanca("novo", "h", None), AGORA)  # com texto novo também
+    assert _motivo(con, pagina_id) is None
+
+
+def test_marcar_falhou_recusa_motivo_fora_do_conjunto(con: sqlite3.Connection) -> None:
+    pagina_id = adicionar_pagina(con, URL, "Trainee")
+    with pytest.raises(ValueError, match="motivo"):
+        marcar_falhou(con, pagina_id, "texto livre")
+    assert _linha(con, pagina_id)[2] is None  # nada foi gravado
+
+
+@pytest.mark.parametrize(
+    ("resposta", "motivo"),
+    [
+        (httpx.Response(403), "bloqueada"),
+        (httpx.Response(429, headers={"Retry-After": "86400"}), "bloqueada"),
+        (httpx.Response(404), "fora_do_ar"),
+        (httpx.Response(500), "fora_do_ar"),
+        (_com_tipo("application/pdf", b"%PDF-1.7"), "nao_e_texto"),
+    ],
+)
+async def test_a_falha_da_execucao_grava_o_motivo(
+    con: sqlite3.Connection, resposta: httpx.Response, motivo: str
+) -> None:
+    pagina_id = adicionar_pagina(con, URL, "Trainee")
+    cliente = _cliente(_Servidor(resposta))
+    await executar_paginas(con, cliente, _RelogioParado(AGORA), resolver=_Dns(PUBLICO))
+    assert (_linha(con, pagina_id)[2], _motivo(con, pagina_id)) == ("falhou", motivo)
+
+
+async def test_falha_de_conexao_e_endereco_recusado_gravam_o_motivo(
+    con: sqlite3.Connection,
+) -> None:
+    caida = adicionar_pagina(con, URL, "Trainee")
+    local = adicionar_pagina(con, "https://outra.example/x", "Outra")
+    con.execute("UPDATE pagina_acompanhada SET url='http://10.0.0.1/x' WHERE id=?", (local,))
+    con.commit()  # o endereço local só entra por fora da barreira de `adicionar_pagina`
+
+    def responder(pedido: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("rede caiu", request=pedido)
+
+    cliente = _cliente(_Servidor(responder))
+    await executar_paginas(con, cliente, _RelogioParado(AGORA), resolver=_Dns(PUBLICO))
+    assert _motivo(con, caida) == "fora_do_ar"
+    assert _motivo(con, local) == "endereco_recusado"
+
+
+async def test_pagina_que_volta_a_ler_ok_perde_o_motivo(con: sqlite3.Connection) -> None:
+    pagina_id = adicionar_pagina(con, URL, "Trainee")
+    cliente = _cliente(_Servidor(httpx.Response(403), _html("de volta")))
+    await executar_paginas(con, cliente, _RelogioParado(AGORA), resolver=_Dns(PUBLICO))
+    assert _motivo(con, pagina_id) == "bloqueada"
+    await executar_paginas(con, cliente, _RelogioParado(AGORA), resolver=_Dns(PUBLICO))
+    assert (_linha(con, pagina_id)[2], _motivo(con, pagina_id)) == ("ok", None)
+
+
+# --- ultimas_diferencas e interruptor (T128) ------------------------------------------------
+
+
+def test_ultimas_diferencas_traz_a_mais_nova(con: sqlite3.Connection) -> None:
+    pagina_id = adicionar_pagina(con, URL, "Trainee")
+    outra = adicionar_pagina(con, "https://outra.example/x", "Outra")
+    gravar_leitura(con, pagina_id, Mudanca("a", "h-a", None), AGORA)
+    gravar_leitura(con, pagina_id, Mudanca("b", "h-b", "-a\n+b"), AGORA + timedelta(days=1))
+    gravar_leitura(con, pagina_id, Mudanca("c", "h-c", "-b\n+c"), AGORA + timedelta(days=2))
+    gravar_leitura(con, outra, Mudanca("x", "h-x", None), AGORA)  # sem mudança: fora do mapa
+    assert ultimas_diferencas(con) == {pagina_id: "-b\n+c"}
+
+
+async def test_executar_paginas_desligada_nao_le_nada(con: sqlite3.Connection) -> None:
+    pagina_id = adicionar_pagina(con, URL, "Trainee")
+    servidor = _Servidor(_html("texto"))
+    cliente = _cliente(servidor)
+    gravar_config(con, "paginas_ligadas", False)
+    assert (
+        await executar_paginas(con, cliente, _RelogioParado(AGORA), resolver=_Dns(PUBLICO)) is None
+    )
+    assert servidor.pedidos == []
+    assert con.execute("SELECT count(*) FROM execucao").fetchone()[0] == 0
+    assert _linha(con, pagina_id)[2] is None
+    gravar_config(con, "paginas_ligadas", True)  # controle: ligada, lê
+    assert await executar_paginas(con, cliente, _RelogioParado(AGORA), resolver=_Dns(PUBLICO))
+    assert len(servidor.pedidos) == 1

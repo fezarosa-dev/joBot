@@ -1,7 +1,7 @@
 """Páginas acompanhadas no banco (desenho 8.8; plano T72).
 
-Leitura que falha muda só o `estado` e deixa o texto da última leitura boa; só `remover_pagina`
-apaga.
+Leitura que falha muda só o `estado` e o `motivo` e deixa o texto da última leitura boa; só
+`remover_pagina` apaga.
 Datas gravadas como texto ISO em UTC, como em `execucoes.py`.
 Contrato de exceções (a rota de sites traduz em 404 e 422): `LookupError` = página ou mudança
 que não existe; `ValueError` = endereço não permitido (DR-19), nome vazio, `agora` sem fuso.
@@ -12,6 +12,11 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from jobot.nucleo.coletores.paginas import Mudanca, Pagina, endereco_permitido
+
+# Por que a leitura falhou: conjunto fechado; a tela traduz cada um em `sites.motivo.<código>`.
+MOTIVOS = frozenset(
+    {"fora_do_ar", "bloqueada", "nao_e_texto", "endereco_recusado", "grande_demais", "erro"}
+)
 
 
 @dataclass(frozen=True)
@@ -53,7 +58,7 @@ def adicionar_pagina(con: sqlite3.Connection, url: str, nome: str) -> int:
 
 def paginas(con: sqlite3.Connection) -> list[Pagina]:
     linhas = con.execute(
-        "SELECT id, url, nome, ativa, texto, hash_texto, verificada_em, mudou_em, estado"
+        "SELECT id, url, nome, ativa, texto, hash_texto, verificada_em, mudou_em, estado, motivo"
         " FROM pagina_acompanhada ORDER BY nome, id"
     ).fetchall()
     return [
@@ -67,6 +72,7 @@ def paginas(con: sqlite3.Connection) -> list[Pagina]:
             verificada_em=_data(r[6]),
             mudou_em=_data(r[7]),
             estado=r[8],
+            motivo=r[9],
         )
         for r in linhas
     ]
@@ -121,13 +127,15 @@ def gravar_leitura(
     with con:
         if mudanca is None:
             con.execute(
-                "UPDATE pagina_acompanhada SET estado='ok', verificada_em=? WHERE id=?",
+                "UPDATE pagina_acompanhada SET estado='ok', motivo=NULL, verificada_em=?"
+                " WHERE id=?",
                 (instante, pagina_id),
             )
             return
         mudou = mudanca.diferenca is not None
         cur = con.execute(
-            "UPDATE pagina_acompanhada SET estado='ok', verificada_em=?, texto=?, hash_texto=?,"
+            "UPDATE pagina_acompanhada SET estado='ok', motivo=NULL, verificada_em=?, texto=?,"
+            " hash_texto=?,"
             " mudou_em=CASE WHEN ? THEN ? ELSE mudou_em END WHERE id=?",
             (instante, mudanca.texto, mudanca.hash_texto, mudou, instante, pagina_id),
         )
@@ -138,10 +146,18 @@ def gravar_leitura(
             )
 
 
-def marcar_falhou(con: sqlite3.Connection, pagina_id: int) -> None:
-    """Leitura que falhou: só o estado muda; texto, hash e `verificada_em` ficam (8.8)."""
+def marcar_falhou(con: sqlite3.Connection, pagina_id: int, motivo: str) -> None:
+    """Leitura que falhou: muda o estado e o motivo; texto, hash e `verificada_em` ficam (8.8).
+
+    `motivo` é um dos `MOTIVOS` (`ValueError` se não for); a leitura que dá certo o limpa.
+    """
+    if motivo not in MOTIVOS:
+        raise ValueError(f"motivo desconhecido: {motivo!r}")
     with con:
-        con.execute("UPDATE pagina_acompanhada SET estado='falhou' WHERE id=?", (pagina_id,))
+        con.execute(
+            "UPDATE pagina_acompanhada SET estado='falhou', motivo=? WHERE id=?",
+            (motivo, pagina_id),
+        )
 
 
 def desativar_pagina(con: sqlite3.Connection, id: int) -> None:

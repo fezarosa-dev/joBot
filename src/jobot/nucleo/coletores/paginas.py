@@ -29,6 +29,7 @@ class Pagina:
     verificada_em: datetime | None  # última leitura que deu certo
     mudou_em: datetime | None
     estado: str | None  # "ok", "falhou"; None antes da primeira leitura
+    motivo: str | None = None  # por que a última leitura falhou (`MOTIVOS`); None se deu certo
 
 
 @dataclass(frozen=True)

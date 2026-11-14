@@ -1,7 +1,7 @@
 """`scripts/conferir_empresas.py`: confere ao vivo cada empresa; aqui por `MockTransport`."""
 
+import hashlib
 import importlib.util
-import json
 import sys
 from collections.abc import Sequence
 from pathlib import Path
@@ -136,7 +136,37 @@ async def test_relatorio_traz_empresa_fonte_estado_e_vagas() -> None:
     assert "1 de 2 respondem" in texto
 
 
-def test_o_script_nao_escreve_no_empresas_json() -> None:
-    codigo = (RAIZ / "scripts/conferir_empresas.py").read_text(encoding="utf-8")
-    assert "write_text" not in codigo and "open(" not in codigo
-    assert json.loads((RAIZ / "src/jobot/nucleo/dados/empresas.json").read_text("utf-8"))
+async def test_conferir_nao_altera_empresas_json(monkeypatch: pytest.MonkeyPatch) -> None:
+    arquivo = RAIZ / "src/jobot/nucleo/dados/empresas.json"
+    antes = hashlib.sha256(arquivo.read_bytes()).hexdigest()
+    cliente = ClienteEducado(httpx.MockTransport(_servidor), RelogioFalso(), SemValidadores(), "9")
+    monkeypatch.setattr(conferir_empresas, "ClienteEducado", lambda *a, **k: cliente)
+    monkeypatch.setattr(
+        conferir_empresas, "empresas_iniciais", lambda: [_gh("Viva", "viva"), _gh("Morta", "morta")]
+    )
+    assert await conferir_empresas._principal([]) == 0
+    assert hashlib.sha256(arquivo.read_bytes()).hexdigest() == antes
+
+
+async def test_cada_empresa_usa_uma_copia_do_coletor() -> None:
+    # `escopos` guarda estado em `self` (D50/D60): a instância compartilhada não pode ser a usada
+    coletor = descobrir()["greenhouse"]
+    cliente = ClienteEducado(httpx.MockTransport(_servidor), RelogioFalso(), SemValidadores(), "9")
+    usados: list[object] = []
+    escopos = type(coletor).escopos
+
+    def espiar(self: Any, ctx: Any) -> Any:
+        usados.append(self)
+        return escopos(self, ctx)
+
+    try:
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(type(coletor), "escopos", espiar)
+            await conferir_empresas.conferir(
+                cliente, [_gh("Viva", "viva"), _gh("Outra", "viva")], {"greenhouse": coletor}
+            )
+    finally:
+        await cliente.fechar()
+    assert len(usados) == 2
+    assert all(u is not coletor for u in usados)
+    assert usados[0] is not usados[1]

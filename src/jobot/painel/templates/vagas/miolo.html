@@ -75,9 +75,9 @@
         <span class="selo">{{ t("vagas.programas.mudou_em", data=data_completa(p.mudou_em.isoformat(), idioma)) }}</span>
         {%- endif %}
       </div>
-      {%- if not p.mudou_em %}
+      {%- if not p.mudou_em or p.estado == "falhou" %}
       <p class="situacao">
-        {%- if p.estado == "falhou" %}{{ t("vagas.programas.falhou") }}
+        {%- if p.estado == "falhou" %}{{ t("vagas.programas.falhou", motivo=t("sites.motivo." ~ (p.motivo or "desconhecido"))) }}
         {%- elif p.estado == "ok" %}{{ t("vagas.programas.sem_mudanca") }}
         {%- else %}{{ t("vagas.programas.nova") }}{% endif %}</p>
       {%- endif %}
