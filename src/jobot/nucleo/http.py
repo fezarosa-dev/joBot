@@ -61,7 +61,7 @@ class HttpEducado(Protocol):
 
     def ler_em_fluxo(
         self, url: str, *, teto_bytes: int, cabecalhos: Mapping[str, str] | None = None
-    ) -> AsyncIterator[bytes]:
+    ) -> AsyncGenerator[bytes]:
         """Gerador assíncrono. Quem sai do laço antes do fim usa `contextlib.aclosing`
         (`async with aclosing(http.ler_em_fluxo(...)) as fluxo:`), para a conexão fechar já;
         o validador da URL só é guardado quando o corpo é lido até o fim."""
@@ -123,6 +123,10 @@ def _texto(corpo: bytes, charset: str | None) -> str:
     return corpo.decode(charset or "utf-8", errors="replace")
 
 
+_COMPATIVEL = ipaddress.IPv6Network("::/96")
+_NAT64 = ipaddress.IPv6Network("64:ff9b::/96")
+
+
 def _local(host: str) -> bool:
     """localhost ou IP não global (loopback, link-local, privado, CGNAT) (DR-19)."""
     host = host.lower().rstrip(".")
@@ -136,8 +140,11 @@ def _local(host: str) -> bool:
             ip = ipaddress.IPv4Address(socket.inet_aton(host))
         except OSError:
             return False  # nome de host: não resolvemos DNS aqui
-    if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped is not None:
-        ip = ip.ipv4_mapped
+    if isinstance(ip, ipaddress.IPv6Address):
+        if ip.ipv4_mapped is not None:
+            ip = ip.ipv4_mapped
+        elif ip in _NAT64 or (ip in _COMPATIVEL and int(ip) > 1):  # "::" e "::1" ficam como estão
+            ip = ipaddress.IPv4Address(int(ip) & 0xFFFFFFFF)  # IPv4 embutido nos 32 bits de baixo
     return not ip.is_global  # loopback, link-local, privado, não especificado, CGNAT, reservado
 
 

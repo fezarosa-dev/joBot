@@ -77,7 +77,10 @@ def _local(v: VagaTratada, b: Busca) -> _Parte | None:
     if not b.cidades and not b.modalidades:
         return None
     pontos, peso = _dados()["pontos"], _dados()["pesos"]["local"]
-    if v.modalidade == Modalidade.REMOTO and Modalidade.REMOTO in b.modalidades:
+    # modalidades vazias: critério neutro (D20), remoto não perde por "local fora"
+    if v.modalidade == Modalidade.REMOTO and (
+        not b.modalidades or Modalidade.REMOTO in b.modalidades
+    ):
         return pontos["local_remoto"], peso, Motivo(chave="encaixe.local_remoto")
     conhecida = v.modalidade != Modalidade.NAO_INFORMADO
     if b.modalidades and conhecida and v.modalidade not in b.modalidades:

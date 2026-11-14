@@ -151,7 +151,8 @@ def corrigir(
     """Guarda a correção em `correcao` (histórico próprio, sem `evento`).
 
     Só grava: não altera a vaga. Quem aplica a correção por cima das regras é o
-    reprocessamento (a confirmar em duvidas.md; o desenho 1299 diz "aplica na hora").
+    reprocessamento (decisão 1 da sessão); a rota de correção chama `corrigir()` e em
+    seguida reprocessa a vaga, para a tela já mostrar o valor corrigido.
     """
     if campo not in _CAMPOS_CORRECAO:
         raise ValueError(f"campo de correção inválido: {campo!r}")

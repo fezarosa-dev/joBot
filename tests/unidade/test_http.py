@@ -517,3 +517,30 @@ async def test_redirecionamento_dentro_do_host_local_segue() -> None:
     cli, _ = _cliente(srv)
     assert (await cli.escopo().pedir("GET", "http://127.0.0.1/a")).texto == "ok"
     assert len(srv.pedidos) == 2
+
+
+@pytest.mark.parametrize("destino", ["http://[::7f00:1]/", "http://[64:ff9b::7f00:1]/"])
+async def test_redirecionamento_para_ipv6_que_embute_ipv4_local_recusado(destino: str) -> None:
+    srv = Servidor(httpx.Response(302, headers={"Location": destino}), httpx.Response(200))
+    cli, _ = _cliente(srv)
+    with pytest.raises(ErroDeRede):
+        await cli.escopo().pedir("GET", "https://a.example/")
+    assert len(srv.pedidos) == 1
+
+
+async def test_redirecionamento_para_ipv6_que_embute_ipv4_publico_segue() -> None:
+    srv = Servidor(
+        httpx.Response(302, headers={"Location": "http://[64:ff9b::808:808]/"}),
+        httpx.Response(200, text="ok"),
+    )
+    cli, _ = _cliente(srv)
+    assert (await cli.escopo().pedir("GET", "https://a.example/")).texto == "ok"
+    assert len(srv.pedidos) == 2
+
+
+async def test_protocolo_ler_em_fluxo_aceita_aclosing() -> None:
+    # o Protocol anuncia AsyncGenerator: o mypy strict recusa `aclosing` num AsyncIterator
+    cli, _ = _cliente(Servidor(httpx.Response(200, content=b"ok")))
+    http: HttpEducado = cli.escopo()
+    async with aclosing(http.ler_em_fluxo("https://a.example/x", teto_bytes=MB)) as fluxo:
+        assert [p async for p in fluxo] == [b"ok"]
