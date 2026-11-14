@@ -25,6 +25,7 @@ from jobot import __version__
 from jobot.agenda.agendador import INTERVALOS, laco
 from jobot.agenda.descoberta import executar_descoberta
 from jobot.agenda.execucao import executar_busca, reprocessar_se_regras_mudaram
+from jobot.agenda.paginas import executar_paginas
 from jobot.agenda.versao import laco_versao
 from jobot.banco.buscas import recalcular_encaixe
 from jobot.banco.cadastros import ler_config, semear
@@ -130,9 +131,14 @@ def montar(
                 with closing(abrir(caminho)) as con:  # conexão própria: nunca dividida (padrões)
                     await executar_descoberta(con, cliente, relogio)
 
+            async def paginas() -> None:
+                with closing(abrir(caminho)) as con:  # conexão própria, como a busca
+                    await executar_paginas(con, cliente, relogio)
+
             tarefas: Mapping[str, Callable[[], Awaitable[None]]] = {
                 "busca": busca,
                 "descoberta": descoberta,
+                "paginas": paginas,
             }
             agenda = asyncio.create_task(
                 laco(tarefas, _EstadoDoBanco(caminho), relogio, travas=travas)
