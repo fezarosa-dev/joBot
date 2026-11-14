@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block titulo %}{{ t("empresas.titulo") }} · joBot{% endblock %}
+{% block estilos %}<link rel="stylesheet" href="/static/css/vagas.css"><link rel="stylesheet" href="/static/css/buscas.css"><link rel="stylesheet" href="/static/css/empresas.css">{% endblock %}
+{% block conteudo %}
+<h1 class="titulo-pagina">{{ t("empresas.titulo") }}</h1>
+{% if linhas %}
+<ul class="lista" id="lista-empresas">
+  {%- for r in linhas %}
+  {%- set e = r.e %}
+  <li class="cartao{% if not e.ativa %} cartao-oculta{% endif %}" id="empresa-{{ e.id }}">
+    <div class="cartao-cabeca">
+      <h2 class="cartao-titulo">{{ e.nome }}</h2>
+      {%- if not e.ativa %}
+      <span class="selo">{{ t("empresas.desligada") }}</span>
+      {%- endif %}
+      {%- if r.talentos %}
+      <span class="selo">{{ t("empresas.banco_de_talentos") }}</span>
+      {%- endif %}
+    </div>
+    <ul class="meta">
+      <li>{{ r.fonte_nome }} · {{ e.identificador }}</li>
+    </ul>
+    <div class="acoes">
+      <form method="post" action="/empresas/{{ e.id }}/{{ 'desligar' if e.ativa else 'ligar' }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button type="submit" class="secundario">{{ t("empresas.desligar" if e.ativa else "empresas.ligar") }}</button>
+      </form>
+      <details class="apagar">
+        <summary>{{ t("empresas.remover") }}</summary>
+        <form method="post" action="/empresas/{{ e.id }}/remover">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <p>{{ t("empresas.remover_aviso", nome=e.nome) }}</p>
+          <button type="submit" class="secundario">{{ t("empresas.remover_confirmar") }}</button>
+        </form>
+      </details>
+    </div>
+  </li>
+  {%- endfor %}
+</ul>
+{% else %}
+<p class="vazio">{{ t("empresas.vazio") }}</p>
+{% endif %}
+<section class="painel nova" aria-labelledby="nova-titulo">
+  <h2 id="nova-titulo">{{ t("empresas.nova") }}</h2>
+  <form class="formulario" method="post" action="/empresas">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    {%- if erro %}
+    <p class="erro" role="alert">{{ t(erro.chave, **erro.params) }}
+      {%- if erro.motivo %} {{ t(erro.motivo[0], tipo=erro.motivo[1], n=erro.motivo[1]) }}{% endif %}</p>
+    {%- endif %}
+    {%- if teste %}
+    <div class="resultado-teste" role="status">
+      <p class="teste-vagas">{{ t("empresas.teste.vagas_n", n=teste.n) }}</p>
+      {%- if teste.zero %}
+      <p class="aviso">{{ t("empresas.teste.zero") }}</p>
+      {%- endif %}
+      {%- if teste.motivo %}
+      <p class="dica">{{ t(teste.motivo[0], tipo=teste.motivo[1], n=teste.motivo[1]) }}</p>
+      {%- endif %}
+    </div>
+    {%- endif %}
+    <div class="campo">
+      <label for="empresa-fonte">{{ t("empresas.campo.fonte") }}</label>
+      <select id="empresa-fonte" name="fonte" required>
+        {%- for chave, nome in fontes %}
+        <option value="{{ chave }}"{% if f.fonte == chave %} selected{% endif %}>{{ nome }}</option>
+        {%- endfor %}
+      </select>
+    </div>
+    <div class="campo">
+      <label for="empresa-endereco">{{ t("empresas.campo.endereco") }}</label>
+      <input id="empresa-endereco" type="text" name="endereco" value="{{ f.endereco }}" maxlength="500" required aria-describedby="empresa-endereco-dica">
+      <p class="dica" id="empresa-endereco-dica">{{ t("empresas.dica.endereco") }}</p>
+    </div>
+    <div class="campo">
+      <label for="empresa-nome">{{ t("empresas.campo.nome") }}</label>
+      <input id="empresa-nome" type="text" name="nome" value="{{ f.nome }}" maxlength="100">
+    </div>
+    <div class="acoes-formulario">
+      <button type="submit" class="secundario" formaction="/empresas/testar">{{ t("empresas.testar") }}</button>
+      <button type="submit">{{ t("empresas.adicionar") }}</button>
+    </div>
+  </form>
+</section>
+{% endblock %}
