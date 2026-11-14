@@ -23,9 +23,10 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from jobot import __version__
 from jobot.banco.sugeridas import Sugerida, aprovar, descartar, sugeridas
 from jobot.nucleo.coletores import gupy
-from jobot.nucleo.http import ClienteEducado, Validadores
+from jobot.nucleo.http import ClienteEducado
 from jobot.painel.rotas.vagas import relogio_do_painel
 from jobot.painel.seguranca import Con, renderizar
+from jobot.painel.sem_validadores import SemValidadores
 
 router = APIRouter(prefix="/empresas/sugeridas")
 registro = logging.getLogger(__name__)
@@ -39,13 +40,6 @@ class Linha:
     s: Sugerida
     removida_em: str | None  # quando a pessoa removeu a empresa (D71); None se não removeu
     link: bool  # a URL de exemplo só vira link se for http ou https
-
-
-class _SemValidadores:
-    """Resolver não usa pedido condicional: não há validador guardado."""
-
-    def ler(self, url: str) -> Validadores | None:
-        return None
 
 
 def _linhas(con: sqlite3.Connection) -> list[Linha]:
@@ -88,7 +82,7 @@ async def _resolvido(request: Request, identificador: str) -> Mapping[str, str]:
     cliente = ClienteEducado(
         getattr(request.app.state, "transporte", None),
         relogio_do_painel(request),
-        _SemValidadores(),
+        SemValidadores(),
         __version__,
     )
     try:

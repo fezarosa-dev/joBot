@@ -24,7 +24,7 @@ from starlette.concurrency import run_in_threadpool
 
 from jobot.banco import buscas, cadastros, cotacoes
 from jobot.banco.cadastros import gravar_config, ler_config
-from jobot.nucleo.relogio import Relogio, RelogioReal
+from jobot.painel.rotas.vagas import relogio_do_painel
 from jobot.painel.seguranca import Con, renderizar
 from jobot.sistema import caso, segundo_plano_linux
 from jobot.sistema.segundo_plano_linux import Recusa, Rodar
@@ -51,11 +51,6 @@ _PARCIAIS = {
 }
 
 
-def _relogio(request: Request) -> Relogio:
-    relogio: Relogio = getattr(request.app.state, "relogio", None) or RelogioReal()
-    return relogio
-
-
 def _ambiente(request: Request) -> Mapping[str, str]:
     ambiente: Mapping[str, str] | None = getattr(request.app.state, "ambiente", None)
     return os.environ if ambiente is None else ambiente
@@ -72,7 +67,7 @@ def _no_linux(request: Request) -> bool:
 
 def _hoje(request: Request) -> date:
     # o dia de calendário é o do fuso local, como no resto do painel (decisão 17, DP8)
-    return _relogio(request).agora().astimezone().date()
+    return relogio_do_painel(request).agora().astimezone().date()
 
 
 # --- o que cada grupo mostra ---------------------------------------------------------------
