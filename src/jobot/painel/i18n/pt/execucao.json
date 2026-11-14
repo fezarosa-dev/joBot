@@ -5,6 +5,7 @@
   "execucao.rodando": "Buscando vagas…",
   "execucao.prontas": "consultas prontas: {n}",
   "execucao.ainda_rodando": "ainda rodando: {fontes}",
+  "execucao.detalhes": "Completando detalhes e organizando as vagas…",
   "execucao.ja_roda": "Uma busca já está rodando; este é o andamento dela.",
   "execucao.terminou": "Busca concluída. Vagas novas: {n}.",
   "execucao.interrompida": "A busca parou antes do fim. Vagas novas: {n}.",

@@ -107,11 +107,20 @@ main:focus:not(:focus-visible) {
   font-weight: 600;
   text-decoration: none;
   transform: translateY(-300%);
-  transition: transform var(--duracao) var(--mola);
+  /* o do miolo cai atrás da barra do topo (translúcida): fora da tela não basta, some até o foco */
+  opacity: 0;
+  transition:
+    transform var(--duracao) var(--mola),
+    opacity var(--duracao) var(--mola);
+}
+
+.pular:not(:focus) {
+  pointer-events: none;
 }
 
 .pular:focus {
   transform: none;
+  opacity: 1;
 }
 
 /* barra do topo translúcida */
