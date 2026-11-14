@@ -1,0 +1,16 @@
+{
+  "url": "https://santander.wd3.myworkdayjobs.com/wday/cxs/santander/SantanderCareers/jobs",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {},
+  "sha256": "210dafa12f13e1db8a45606a4f05e2fd73b1bb8446c6c2a19fa02961af183c37",
+  "versao": "0.1.0",
+  "metodo": "POST",
+  "montado_a_mao": "montado à mão: a conferência não viu tenant sem vagas; mesmas chaves de normal.json, total 0 e listas vazias.",
+  "corpo_json": {
+    "appliedFacets": {},
+    "limit": 20,
+    "offset": 0,
+    "searchText": ""
+  }
+}
