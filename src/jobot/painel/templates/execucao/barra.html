@@ -14,6 +14,10 @@
     <button type="submit" class="botao-sair">{{ t("execucao.sair") }}</button>
   </form>
   {#- carrega uma vez: a página que chega por redirect (form sem HTMX) já mostra a busca que roda -#}
-  <div id="andamento" class="andamento-regiao" role="status" aria-live="polite" aria-label="{{ t('execucao.andamento') }}" hx-get="/execucao/atual?so_rodando=1" hx-trigger="load"></div>
+  {#- clique sem HTMX com uma busca já rodando: o aviso vem no cookie e já sai na página -#}
+  {%- set ja_roda = request.cookies.get("jobot_ja_roda") == "1" %}
+  <div id="andamento" class="andamento-regiao" role="status" aria-live="polite" aria-label="{{ t('execucao.andamento') }}" hx-get="/execucao/atual?so_rodando=1{{ '&ja_roda=1' if ja_roda }}" hx-trigger="load">
+    {%- if ja_roda %}<p class="andamento-aviso">{{ t("execucao.ja_roda") }}</p>{% endif -%}
+  </div>
 </div>
 {%- endif %}

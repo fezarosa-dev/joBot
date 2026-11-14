@@ -26,6 +26,7 @@ from jobot.painel.rotas.vagas import _relogio
 from jobot.painel.seguranca import Con, _de_volta, renderizar
 
 router = APIRouter()
+_AVISO = "jobot_ja_roda"  # cookie do aviso "já roda" no clique sem HTMX (lido em barra.html)
 
 
 @dataclass(frozen=True)
@@ -51,7 +52,7 @@ def _ultima(con: sqlite3.Connection) -> Resultado | None:
 
 def _tarefas(request: Request) -> set[asyncio.Task[None]]:
     # o laço de eventos só guarda referência fraca às tarefas: sem isto a busca pode sumir no
-    # meio. Fica em app.state (uma por app), para o `sair` (e um dia o lifespan) achar e cancelar
+    # meio. Fica em app.state (uma por app), para o `sair` e o lifespan acharem e cancelarem
     estado = request.app.state
     if not hasattr(estado, "tarefas"):
         estado.tarefas = set()
@@ -78,7 +79,8 @@ def _andamento(
     # 204: o HTMX não troca nada. A pergunta de 2 s que já mostra este andamento não reinsere
     # nós na região viva (o leitor de tela não repete o anúncio), e a carga da casca não
     # repete em toda página o fim de uma busca velha
-    if (rodando and visto == marca) or (so_rodando and not rodando):
+    # quem veio do redirect com o aviso vê o fim da busca, mesmo que ela já tenha acabado
+    if (rodando and visto == marca) or (so_rodando and not rodando and not ja_rodava):
         return Response(status_code=204)
     return renderizar(
         request,
@@ -94,10 +96,7 @@ def _andamento(
 def _disparar(request: Request, trava: asyncio.Lock) -> None:
     banco: Path = request.app.state.banco
     cliente: ClienteEducado = request.app.state.cliente
-    # shortcut: o `montar` do serve não põe app.state.relogio, então aqui vale RelogioReal e a
-    # agenda usa o relógio passado ao `montar` (iguais em produção); a T85 ou uma Tn põe o
-    # mesmo relógio em app.state para os dois não divergirem num teste com relógio falso
-    relogio = _relogio(request)
+    relogio = _relogio(request)  # o `montar` do serve põe em app.state o relógio da agenda
 
     async def busca() -> None:
         with closing(abrir(banco)) as con:  # conexão própria: nunca dividida entre tarefas
@@ -114,21 +113,39 @@ def _disparar(request: Request, trava: asyncio.Lock) -> None:
 async def buscar_agora(
     request: Request, con: Con, voltar: Annotated[str, Form()] = "/"
 ) -> Response:
+    htmx = request.headers.get("hx-request") == "true"
+    if getattr(request.app.state, "saindo", False):
+        # o Sair já cancelou as buscas: uma nova usaria o cliente que o lifespan vai fechar
+        if not htmx:
+            return _de_volta(voltar)
+        return renderizar(request, "execucao/andamento.html", saindo=True)
     trava: asyncio.Lock = request.app.state.travas["busca"]
     ja_rodava = trava.locked()
     if not ja_rodava:
         await trava.acquire()  # livre: não suspende, então a checagem acima vale (como no laço)
         _disparar(request, trava)
-    if request.headers.get("hx-request") != "true":
-        return _de_volta(voltar)  # sem HTMX: volta para a página de onde veio
+    if not htmx:
+        resposta = _de_volta(voltar)  # sem HTMX: volta para a página de onde veio
+        if ja_rodava:
+            # o aviso atravessa o redirect (e o de "/") num cookie que a casca lê e a carga
+            # do andamento apaga
+            resposta.set_cookie(_AVISO, "1", max_age=60, httponly=True, samesite="strict")
+        return resposta
     return _andamento(request, con, ja_rodava=ja_rodava)
 
 
 @router.get("/execucao/atual")
 async def atual(
-    request: Request, con: Con, visto: int | None = None, so_rodando: bool = False
+    request: Request,
+    con: Con,
+    visto: int | None = None,
+    so_rodando: bool = False,
+    ja_roda: bool = False,
 ) -> Response:
-    return _andamento(request, con, ja_rodava=False, visto=visto, so_rodando=so_rodando)
+    resposta = _andamento(request, con, ja_rodava=ja_roda, visto=visto, so_rodando=so_rodando)
+    if ja_roda:
+        resposta.delete_cookie(_AVISO, httponly=True, samesite="strict")
+    return resposta
 
 
 @router.post("/sair")
@@ -137,10 +154,9 @@ async def sair(request: Request) -> HTMLResponse:
     servidor = getattr(request.app.state, "servidor", None)
     if servidor is None:
         raise HTTPException(503, "o servidor não foi aberto pelo jobot serve")
-    # a busca do "Buscar agora" nasce fora do lifespan, que só cancela a agenda antes de fechar
-    # o cliente: cancelada e esperada aqui, ela não usa o cliente fechado.
-    # shortcut: cobre só o botão Sair; Ctrl+C e SIGTERM passam pelo lifespan sem cancelá-la.
-    # Trocar pelo `finally` do lifespan cancelando app.state.tarefas (T85, dona do servir.py)
+    # daqui em diante o "Buscar agora" não cria tarefa; as que rodam param antes do fim do
+    # lifespan fechar o cliente (ele também as cancela, para Ctrl+C e SIGTERM)
+    request.app.state.saindo = True
     tarefas = list(_tarefas(request))
     for tarefa in tarefas:
         tarefa.cancel()
