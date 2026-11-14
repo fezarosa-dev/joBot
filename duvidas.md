@@ -56,11 +56,11 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 ## D6. Ferramentas do esqueleto
 
-**Status:** aberta, para confirmar (o registro vem de uma passada anterior e não consta nas decisões da sessão; o código segue a opção atual até o dono decidir)
+**Status:** aberta, para confirmar (o registro vem de uma passada anterior e não consta nas decisões da sessão; o código segue a opção atual até o dono decidir). A parte do Dependabot (`target-branch`) está obsoleta pela ADR 0021.
 
-**Contexto:** A T01 montou o pyproject, o CI e o Dependabot.
+**Contexto:** A T01 montou o pyproject, o CI e o Dependabot (o Dependabot saiu: obsoleta pela ADR 0021).
 
-**Decisão provisória:** Backend de build `uv_build`. O Dependabot do `uv` aponta para a `dev` (`target-branch`), o que só se confirma depois do primeiro push. O CI de tela sai com código 5 enquanto não houver teste de tela (a T36 cria o primeiro).
+**Decisão provisória:** Backend de build `uv_build`. ~~O Dependabot do `uv` aponta para a `dev` (`target-branch`), o que só se confirma depois do primeiro push.~~ Obsoleta pela ADR 0021 (sem Dependabot). O CI de tela sai com código 5 enquanto não houver teste de tela (a T36 cria o primeiro).
 
 ## D7. Pasta de dados
 

@@ -38,6 +38,7 @@ An ADR (architecture decision record) is a short text that keeps one decision: t
 | 0018 | **Community maintenance and CI open to every PR** | Each source has its own collector, examples and tests, so anyone can fix it; automatic tests on every PR, including from forks. | [read](https://github.com/fezarosa-dev/joBot/blob/main/docs/decisions/0018-manutencao-pela-comunidade.md) |
 | 0019 | **Project wiki and question form** | Wiki in Portuguese and English, edited by PR in the wiki/ folder; FAQ only here; question form. | [read](https://github.com/fezarosa-dev/joBot/blob/main/docs/decisions/0019-wiki-do-projeto.md) |
 | 0020 | **Financial support: donations only** | The project only accepts donations; everything stays free, with no ads, no affiliate links and no tracking. | [read](https://github.com/fezarosa-dev/joBot/blob/main/docs/decisions/0020-apoio-financeiro.md) |
+| 0021 | **No Dependabot: dependencies updated by hand** | No Dependabot for versions or security; alerts stay on and updates are manual at the end of each phase. | [read](https://github.com/fezarosa-dev/joBot/blob/main/docs/decisions/0021-sem-dependabot.md) |
 
 ## ❔ Open questions
 
