@@ -185,6 +185,36 @@ async def test_detalhe_da_fea_vira_texto_com_os_campos_do_apendice() -> None:
     assert all(f"Vaga {v.id_externo}\n" in v.descricao for v in _vagas(resultado))
 
 
+async def test_fea_campo_com_tag_aninhada_mantem_o_texto_de_dentro() -> None:
+    puro = "<b>Contato para vaga:</b> exemplo@exemplo.invalid; https://bravacapital.com/"
+    aninhado = (
+        "<b>Contato para vaga:</b> <i>exemplo@exemplo.invalid</i>; "
+        '<a href="https://bravacapital.com/"><span>https://bravacapital.com/</span></a>'
+    )
+    detalhe = _detalhe_fea("136")
+    assert puro in detalhe
+    rotas = _rotas_fea() | {VAGA_FEA.format("136"): detalhe.replace(puro, aninhado)}
+    resultado, _ = await _coletar("fea", _servir(rotas))
+    vaga = _vagas(resultado)[-1]
+    assert "Contato para vaga: exemplo@exemplo.invalid; https://bravacapital.com/" in vaga.descricao
+    assert "<" not in vaga.descricao
+
+
+async def test_if_com_pager_que_nao_se_segue_fica_parcial_com_as_vagas_lidas() -> None:
+    lista = _html("if_lista")
+    pager = (
+        '<div class="item-list"><ul class="pager"><li class="pager-current first">1</li>'
+        '<li class="pager-next last"><a href="/carreiras/pt-br/oportunidades?page=1">›</a></li>'
+        "</ul></div>"
+    )
+    assert "</table></div>" in lista
+    com_pager = lista.replace("</table></div>", "</table></div>" + pager, 1)
+    resultado, pedidos = await _coletar("if", _servir(_rotas_if() | {URL_IF: com_pager}))
+    assert (resultado.estado, resultado.motivo) == ("parcial", "saude.listagem_incompleta")
+    assert [v.id_externo for v in _vagas(resultado)] == list(IDS_IF)
+    assert not any("page=" in str(p.url) for p in pedidos)  # a página 2 nunca é pedida
+
+
 async def test_fea_le_so_a_pagina_inicial_e_os_detalhes() -> None:
     _, pedidos = await _coletar("fea", _servir(_rotas_fea()))
     assert "https://estagios.fea.usp.br/vagas" not in {str(p.url) for p in pedidos}

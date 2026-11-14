@@ -49,6 +49,8 @@ def _inteiro(valor: object) -> int | None:
         return None
     if isinstance(valor, int):
         return valor
+    if isinstance(valor, float) and valor.is_integer():  # 2.0 sim; 2.5, nan e inf não
+        return int(valor)
     if isinstance(valor, str) and _DIAS.fullmatch(valor.strip()):
         return int(valor)
     return None
