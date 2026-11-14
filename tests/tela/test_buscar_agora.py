@@ -98,7 +98,7 @@ def test_form_sem_htmx_chega_numa_pagina_que_ja_mostra_o_andamento(
     page: Page, painel: str, liberar: threading.Event, chamadas: list[str]
 ) -> None:
     page.goto(f"{painel}/vagas?aba=todas")
-    # o form comum do fim da primeira execução (pronto.html): sem hx-post, volta por redirect
+    # form comum, sem hx-post (montado por JS): volta por redirect
     with page.expect_navigation():
         page.evaluate(
             """() => {
