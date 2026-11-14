@@ -8,6 +8,7 @@
 {% endif %}
 <form method="post" action="/primeira-execucao/1" class="assistente-form">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  {% if busca_id %}<input type="hidden" name="busca" value="{{ busca_id }}">{% endif %}
   <div class="campo">
     <label for="cargos">{{ t("primeira_execucao.p1.cargos") }}</label>
     <textarea id="cargos" name="cargos" rows="3" aria-describedby="cargos-dica">{{ entrada.cargos }}</textarea>
