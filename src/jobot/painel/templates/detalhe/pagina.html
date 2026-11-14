@@ -108,7 +108,9 @@
       {%- for m in faixa.meses %}
       <li{% if m.atual %} class="atual" title="{{ t('detalhe.faixa.hoje_marca') }}"{% endif %}>
         <span class="mes">{{ t("detalhe.mes." ~ m.mes) }}</span>
-        <span class="marcas">{% for tipo in m.marcas %}{{ {"publicada": "●", "prazo": "▲", "inicio": "■"}[tipo] }}{% endfor %}</span>
+        {%- set urgente_no_mes = namespace(sim=false) %}
+        {%- for d in faixa.datas if d.urgente and d.dia[5:7] | int == m.mes %}{% set urgente_no_mes.sim = true %}{% endfor %}
+        <span class="marcas">{% for tipo in m.marcas %}{% if tipo == "prazo" and urgente_no_mes.sim %}<span class="urgente">▲</span>{% else %}{{ {"publicada": "●", "prazo": "▲", "inicio": "■"}[tipo] }}{% endif %}{% endfor %}</span>
       </li>
       {%- endfor %}
     </ol>
