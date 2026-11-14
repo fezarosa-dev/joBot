@@ -651,5 +651,18 @@
   {"nome": "mid-size nao e nivel", "titulo": "Account Executive, Mid-Size Business", "texto": "", "esperado": {"nivel": "nao_informado"}},
   {"nome": "mid-sized nao e nivel", "titulo": "Mid-sized Accounts Representative", "texto": "", "esperado": {"nivel": "nao_informado"}},
   {"nome": "mid-atlantic nao e nivel", "titulo": "Field Technician Mid-Atlantic", "texto": "", "esperado": {"nivel": "nao_informado"}},
-  {"nome": "mid-west nao e nivel", "titulo": "Sales Representative Mid-West", "texto": "", "esperado": {"nivel": "nao_informado"}}
+  {"nome": "mid-west nao e nivel", "titulo": "Sales Representative Mid-West", "texto": "", "esperado": {"nivel": "nao_informado"}},
+  {"nome": "himalayas remoto com um pais restringe", "fonte": "himalayas", "titulo": "Backend Engineer", "texto": "", "modalidade_declarada": "remote", "local": ["United States"], "esperado": {"avisos": ["restrito_a_pais"]}},
+  {"nome": "himalayas remoto com varios paises restringe", "fonte": "himalayas", "titulo": "Backend Engineer", "texto": "", "modalidade_declarada": "remote", "local": ["United States", "Canada", "Germany"], "esperado": {"avisos": ["restrito_a_pais"]}},
+  {"nome": "himalayas worldwide nao restringe", "fonte": "himalayas", "titulo": "Backend Engineer", "texto": "", "modalidade_declarada": "remote", "local": ["Worldwide"], "esperado": {"avisos": []}},
+  {"nome": "himalayas latam nao restringe", "fonte": "himalayas", "titulo": "Backend Engineer", "texto": "", "modalidade_declarada": "remote", "local": ["LATAM"], "esperado": {"avisos": []}},
+  {"nome": "himalayas regiao junto de pais nao restringe", "fonte": "himalayas", "titulo": "Backend Engineer", "texto": "", "modalidade_declarada": "remote", "local": ["United States", "Europe"], "esperado": {"avisos": []}},
+  {"nome": "himalayas sem local nao restringe", "fonte": "himalayas", "titulo": "Backend Engineer", "texto": "", "modalidade_declarada": "remote", "local": [], "esperado": {"avisos": []}},
+  {"nome": "jobicy remoto com paises restringe", "fonte": "jobicy", "titulo": "Backend Engineer", "texto": "", "modalidade_declarada": "remote", "local": ["USA", "Canada"], "esperado": {"avisos": ["restrito_a_pais"]}},
+  {"nome": "jobicy anywhere nao restringe", "fonte": "jobicy", "titulo": "Backend Engineer", "texto": "", "modalidade_declarada": "remote", "local": ["Anywhere"], "esperado": {"avisos": []}},
+  {"nome": "remotive remoto com um pais restringe", "fonte": "remotive", "titulo": "Backend Engineer", "texto": "", "modalidade_declarada": "remote", "local": ["Germany"], "esperado": {"avisos": ["restrito_a_pais"]}},
+  {"nome": "remotive texto livre sem pais nao restringe", "fonte": "remotive", "titulo": "Backend Engineer", "texto": "", "modalidade_declarada": "remote", "local": ["Anywhere in the World"], "esperado": {"avisos": []}},
+  {"nome": "remotive europa nao restringe", "fonte": "remotive", "titulo": "Backend Engineer", "texto": "", "modalidade_declarada": "remote", "local": ["Europe"], "esperado": {"avisos": []}},
+  {"nome": "fonte fora da lista nao muda", "fonte": "greenhouse", "titulo": "Backend Engineer", "texto": "", "modalidade_declarada": "remote", "local": ["United States"], "esperado": {"avisos": []}},
+  {"nome": "himalayas presencial com um pais nao restringe", "fonte": "himalayas", "titulo": "Backend Engineer", "texto": "", "modalidade_declarada": "on-site", "local": ["United States"], "esperado": {"avisos": []}}
 ]

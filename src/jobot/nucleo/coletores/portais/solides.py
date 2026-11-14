@@ -22,6 +22,7 @@ from jobot.nucleo.coletores.base import (
 from jobot.nucleo.coletores.registro import limites
 from jobot.nucleo.http import ErroDeRede, HttpEducado
 from jobot.nucleo.modelo import SalarioBruto, VagaColetada
+from jobot.nucleo.texto import normalizar
 
 _LIMITES = limites("solides")
 _HOST_API = "apigw.solides.com.br"
@@ -97,11 +98,39 @@ def _nomes(valor: object) -> tuple[str, ...]:
     return tuple(dict.fromkeys(filter(None, nomes)))
 
 
+def _nome(valor: object, chave: str = "name") -> str:
+    """O campo `chave` de um objeto (`city` e `state`); outra forma é vazio."""
+    return _texto(valor.get(chave)) if isinstance(valor, dict) else ""
+
+
+def _nome_de_fora(valor: object) -> str:
+    """`foreignCity` e `foreignState` vêm como texto ou como objeto com `name`."""
+    return _texto(valor) or _nome(valor)
+
+
+def _pais_de_fora(job: dict[str, object]) -> str:
+    """Nome do país da vaga se não for o Brasil (`address.country` = `{id, name, code}`)."""
+    # shortcut: só país que está em `_PAISES` sai do Brasil; país fora da tabela (Angola,
+    # Moçambique) e estado de fora com sigla de UF (MA, PA) ainda viram BR; melhorar com tabela de
+    # países maior.
+    endereco = job.get("address")
+    pais = endereco.get("country") if isinstance(endereco, dict) else None
+    if not isinstance(pais, dict):
+        return ""
+    nome, codigo = _texto(pais.get("name")), _texto(pais.get("code")).upper()
+    brasil = codigo == "BR" if codigo else normalizar(nome) in ("brasil", "brazil")
+    return "" if brasil else nome
+
+
 def _local(job: dict[str, object]) -> tuple[str, ...]:
-    cidade, estado = job.get("city"), job.get("state")
-    nome = _texto(cidade.get("name")) if isinstance(cidade, dict) else ""
-    uf = _texto(estado.get("code")) if isinstance(estado, dict) else ""
-    return (f"{nome}, {uf}" if uf else nome,) if nome else ()
+    nome, uf = _nome(job.get("city")), _nome(job.get("state"), "code")
+    endereco = job.get("address")
+    if not nome and isinstance(endereco, dict):  # vaga no exterior: cidade e estado vêm de fora
+        nome = _nome_de_fora(endereco.get("foreignCity"))
+        uf = _nome_de_fora(endereco.get("foreignState"))
+    # só o país de fora entra no texto: o leitor de locais acha o país, e a vaga não vira BR
+    partes = [p for p in (nome, uf if nome else "", _pais_de_fora(job)) if p]
+    return (", ".join(partes),) if partes else ()
 
 
 def _id(valor: object) -> str | None:
