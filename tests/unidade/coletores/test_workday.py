@@ -14,13 +14,14 @@ from jobot.nucleo.coletores.base import Coletor, ContextoColeta, ResultadoEscopo
 from jobot.nucleo.http import ClienteEducado, ErroDeRede, HttpEducado, Validadores
 from jobot.nucleo.modelo import Empresa, VagaColetada
 from jobot.nucleo.relogio import Relogio
+from jobot.nucleo.tratamento.locais import ler_locais
 
 pytestmark = pytest.mark.anyio
 
 PASTA = Path(__file__).resolve().parents[2] / "fixtures" / "workday"
-ESCOPO = "santander/SantanderCareers|wd3"
+ESCOPO = "santander/SantanderCareers|wd3|BR"
 URL_LISTA = "https://santander.wd3.myworkdayjobs.com/wday/cxs/santander/SantanderCareers/jobs"
-ESCOPO_MC = "mastercard/CorporateCareers|wd1"
+ESCOPO_MC = "mastercard/CorporateCareers|wd1|BR"
 CAMINHO_MC = "/job/Sao-Paulo-Brazil/SME-Mid-Market-Business-Development-Director_R-295134-1"
 URL_DETALHE_MC = (
     "https://mastercard.wd1.myworkdayjobs.com/wday/cxs/mastercard/CorporateCareers" + CAMINHO_MC
@@ -56,8 +57,14 @@ async def _sem_dns(host: str) -> list[str]:
     raise AssertionError(f"teste não consulta DNS: {host}")
 
 
+async def _dns_publico(host: str) -> list[str]:
+    return ["93.184.215.14"]  # salto de redirecionamento resolve o host; nunca o DNS de verdade
+
+
 async def _rodar[T](
-    chamada: Callable[[HttpEducado], Awaitable[T]], *respostas: httpx.Response | Responder
+    chamada: Callable[[HttpEducado], Awaitable[T]],
+    *respostas: httpx.Response | Responder,
+    resolver: Callable[[str], Awaitable[list[str]]] = _sem_dns,
 ) -> tuple[T, list[httpx.Request]]:
     """Roda a chamada sobre o `ClienteEducado` de verdade, com transporte falso."""
     pedidos: list[httpx.Request] = []
@@ -70,7 +77,7 @@ async def _rodar[T](
 
     relogio: Relogio = RelogioFalso()
     cli = ClienteEducado(
-        httpx.MockTransport(servidor), relogio, LeitorFixo(), "0.1.0", resolver=_sem_dns
+        httpx.MockTransport(servidor), relogio, LeitorFixo(), "0.1.0", resolver=resolver
     )
     try:
         resultado = await chamada(cli.escopo())
@@ -102,8 +109,8 @@ def _empresa(identificador: str, wd: str | None = "wd3", nome: str = "") -> Empr
     )
 
 
-def _ctx(*empresas: Empresa) -> ContextoColeta:
-    return ContextoColeta(empresas=empresas, termos=["dev"], paises=["BR"])
+def _ctx(*empresas: Empresa, paises: tuple[str, ...] = ("BR",)) -> ContextoColeta:
+    return ContextoColeta(empresas=empresas, termos=["dev"], paises=paises)
 
 
 def _pagina(n: int, inicio: int = 0, total: int = 0) -> dict[str, Any]:
@@ -149,6 +156,81 @@ def test_escopos_pula_empresa_sem_parametro_valido(identificador: str, wd: str |
     assert list(coletor.escopos(_ctx(_empresa(identificador, wd)))) == []
 
 
+def test_paises_das_buscas_viram_escopos() -> None:
+    coletor = copy.copy(workday.COLETOR)
+    ctx = _ctx(_empresa("santander/SantanderCareers"), paises=("BR", " us", "BR", "x1"))
+    assert list(coletor.escopos(ctx)) == [
+        "santander/SantanderCareers|wd3|BR",
+        "santander/SantanderCareers|wd3|US",
+    ]
+
+
+def test_sem_pais_busca_o_brasil() -> None:
+    coletor = copy.copy(workday.COLETOR)
+    ctx = _ctx(_empresa("santander/SantanderCareers"), paises=())
+    assert list(coletor.escopos(ctx)) == ["santander/SantanderCareers|wd3|BR"]
+
+
+async def test_escopo_de_outro_pais_filtra_pela_faceta_dele() -> None:
+    coletor = copy.copy(workday.COLETOR)
+    [escopo] = coletor.escopos(_ctx(_empresa("santander/SantanderCareers"), paises=("DE",)))
+    _, pedidos = await _rodar(
+        lambda http: coletor.coletar(escopo, http), _json("normal"), _json("normal")
+    )
+    assert _corpo(pedidos[1])["appliedFacets"] == {
+        "locationCountry": ["dcc5b7608d8644b3a93716604e78e995"]  # Alemanha
+    }
+
+
+async def test_local_sem_pais_ganha_o_pais_do_escopo() -> None:
+    coletor = copy.copy(workday.COLETOR)
+    [escopo] = coletor.escopos(_ctx(_empresa("santander/SantanderCareers")))
+    resultado, _ = await _rodar(
+        lambda http: coletor.coletar(escopo, http), _json("normal"), _json("normal")
+    )
+    ultima = _vagas(resultado)[4]
+    assert ultima.locais == ("SAO PAULO, Brasil",)
+    assert [local.pais for local in ler_locais(ultima.locais)] == ["BR"]
+
+
+async def test_local_que_ja_traz_o_pais_fica_como_veio() -> None:
+    vaga = await _vaga_mastercard()
+    assert vaga.locais == ("Sao Paulo, Brazil",)
+
+
+@pytest.mark.parametrize(("texto", "local"), [("2 Locais", "Brasil"), ("", "Brasil")])
+async def test_local_sem_cidade_fica_so_com_o_pais(texto: str, local: str) -> None:
+    coletor = copy.copy(workday.COLETOR)
+    [escopo] = coletor.escopos(_ctx(_empresa("santander/SantanderCareers")))
+    pagina = _pagina(1, 0, 1)
+    pagina["jobPostings"][0]["locationsText"] = texto
+    resultado, _ = await _rodar(
+        lambda http: coletor.coletar(escopo, http),
+        _json("normal"),
+        httpx.Response(200, json=pagina),
+    )
+    assert _vagas(resultado)[0].locais == (local,)
+
+
+async def test_pagina_de_manutencao_e_erro_de_rede() -> None:
+    coletor = copy.copy(workday.COLETOR)
+    [escopo] = coletor.escopos(_ctx(_empresa("mastercard/CorporateCareers", "wd1")))
+    manutencao = "https://mastercard.wd1.myworkdayjobs.com/maintenance-page"
+
+    def responde(pedido: httpx.Request) -> httpx.Response:
+        if str(pedido.url) == manutencao:
+            html = "<html><body>Workday is currently unavailable</body></html>"
+            return httpx.Response(200, text=html, headers={"Content-Type": "text/html"})
+        return httpx.Response(303, headers={"Location": manutencao})
+
+    resultado, pedidos = await _rodar(
+        lambda http: coletor.coletar(escopo, http), responde, resolver=_dns_publico
+    )
+    assert (resultado.vagas, resultado.estado) == ((), "falhou")
+    assert resultado.motivo == "saude.erro_de_rede"
+    assert [str(p.url) for p in pedidos][-1] == manutencao
+
+
 async def test_normal() -> None:
     coletor = copy.copy(workday.COLETOR)
     coletor.escopos(_ctx(_empresa("santander/SantanderCareers", nome="Banco Santander")))
@@ -167,7 +249,7 @@ async def test_normal() -> None:
     assert ultima.titulo == "Espec Santander II 8h - Vaga exclusiva para PcD"
     assert ultima.empresa == "Banco Santander"
     assert ultima.id_externo == "/job/SAO-PAULO/Espec-Santander-II-8h_Req1628949"
-    assert ultima.locais == ("SAO PAULO",)
+    assert ultima.locais == ("SAO PAULO, Brasil",)  # a lista vem filtrada pelo país do escopo
     assert ultima.publicada_em is None  # `postedOn` é texto relativo: não serve de data
     assert ultima.descricao == "" and ultima.descricao_formato == "html"
     assert all(v.url.startswith("https://") for v in vagas)
@@ -236,7 +318,6 @@ async def test_formato_mudou() -> None:
 @pytest.mark.parametrize(
     "corpo",
     [
-        "isto não é json",
         "[]",
         '{"total": 3, "jobPostings": []}',  # sem facets
         '{"total": 3, "jobPostings": [], "facets": {}}',
@@ -372,7 +453,16 @@ async def test_endereco_e_parametros() -> None:
 
 
 @pytest.mark.parametrize(
-    "escopo", ["evil.com#/x|wd1", "santander/SantanderCareers", "a/b|wd1.evil.com", "a|wd1"]
+    "escopo",
+    [
+        "evil.com#/x|wd1|BR",
+        "santander/SantanderCareers",
+        "santander/SantanderCareers|wd3",  # nome antigo, sem país
+        "santander/SantanderCareers|wd3|br",
+        "santander/SantanderCareers|wd3|BR|x",
+        "a/b|wd1.evil.com|BR",
+        "a|wd1|BR",
+    ],
 )
 async def test_escopo_malformado_nao_faz_pedido(escopo: str) -> None:
     with pytest.raises(ValueError):
@@ -439,6 +529,18 @@ async def test_detalhar_sem_descricao_devolve_none(corpo: str) -> None:
     vaga = await _vaga_mastercard()
     detalhada, _ = await _detalhar(vaga, httpx.Response(200, text=corpo))
     assert detalhada is None
+
+
+async def test_detalhar_sem_descricao_mantem_datas_e_tipo() -> None:
+    vaga = await _vaga_mastercard()
+    dados = _dados("detalhe")
+    dados["jobPostingInfo"]["jobDescription"] = ""
+    detalhada, _ = await _detalhar(vaga, httpx.Response(200, json=dados))
+    assert detalhada is not None
+    assert detalhada.descricao == vaga.descricao
+    assert detalhada.publicada_em == datetime(2026, 11, 11, tzinfo=UTC)
+    assert detalhada.prazo == date(2026, 12, 11)
+    assert detalhada.contrato_declarado == "Full time"
 
 
 async def test_detalhar_404_devolve_none_e_outro_erro_sobe() -> None:

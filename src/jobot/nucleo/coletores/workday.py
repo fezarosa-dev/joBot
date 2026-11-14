@@ -1,10 +1,11 @@
-"""Coletor Workday (apêndice 3.3, desenho 8.6): API CXS pública, um escopo por empresa.
+"""Coletor Workday (apêndice 3.3, desenho 8.6): API CXS pública, um escopo por empresa e país.
 
-O escopo é `<tenant>/<site>|<wd>`: o cadastro guarda `tenant/site` no identificador e o `wd` (o
-número do servidor, que muda o host) em `parametros["wd"]`. A coleta faz um pedido de descoberta
-sem filtro, lê da resposta o id da faceta do Brasil (o id muda por tenant) e pagina a lista filtrada
-de 20 em 20 (mais que 20 a API recusa com 400). O `total` só vem na primeira página. A lista não
-traz descrição: o `detalhar` busca `jobPostingInfo`.
+O escopo é `<tenant>/<site>|<wd>|<PAÍS>`: o cadastro guarda `tenant/site` no identificador e o `wd`
+(o número do servidor, que muda o host) em `parametros["wd"]`; o país (ISO, maiúsculas) vem das
+buscas ativas (DR-53), e sem nenhum é o Brasil. A coleta faz um pedido de descoberta sem filtro, lê
+da resposta o id da faceta do país (o id muda por tenant) e pagina a lista filtrada de 20 em 20
+(mais que 20 a API recusa com 400). O `total` só vem na primeira página. A lista não traz
+descrição: o `detalhar` busca `jobPostingInfo`.
 """
 
 import json
@@ -25,7 +26,7 @@ from jobot.nucleo.coletores.base import (
 from jobot.nucleo.coletores.registro import limites
 from jobot.nucleo.http import ErroDeRede, HttpEducado
 from jobot.nucleo.modelo import VagaColetada
-from jobot.nucleo.tratamento.locais import ler_locais
+from jobot.nucleo.tratamento.locais import _PAISES, ler_locais
 
 _LIMITES = limites("workday")
 _DOMINIO = "myworkdayjobs.com"
@@ -36,9 +37,12 @@ _WD = re.compile(r"wd\d{1,3}")
 _LOCALE = re.compile(r"[a-z]{2}-[A-Z]{2}")  # prefixo de idioma dos endereços (`pt-BR/<site>`)
 _CAMINHO = re.compile(r"/job/[^\s?#\\]+")  # `externalPath` da vaga
 _CABECALHOS = {"Accept": "application/json", "Accept-Language": "pt-BR"}
-# shortcut: só o Brasil, como pede a linha T64 do plano; trocar pelos países das buscas ativas
-# (DR-53) junto com a decisão registrada nas dúvidas da T64.
-_PAIS = "BR"
+_PAIS = re.compile(r"[A-Z]{2}")
+_PADRAO = "BR"  # sem país nas buscas (o "testar" do painel), como no Eightfold (A21)
+# Nome que o `ler_locais` reconhece, para o local que vem só com a cidade ("SAO PAULO").
+# shortcut: lê o mapa privado de `locais.py`; trocar se ele ganhar uma função pública.
+_NOME_PAIS = {codigo: nome.title() for nome, codigo in _PAISES.items()}  # o último nome vale
+_SO_CONTAGEM = re.compile(r"\d+\s+\S+")  # "2 Locais", "3 Locations": não é cidade
 
 
 class _FormatoMudou(Exception):
@@ -64,13 +68,19 @@ def _dia(valor: object) -> date | None:
         return None
 
 
-def _separar(escopo: str) -> tuple[str, str, str]:
-    """`<tenant>/<site>|<wd>` em três partes; `ValueError` se alguma não servir para o endereço."""
-    identificador, barra, wd = escopo.rpartition("|")
+def _separar(escopo: str) -> tuple[str, str, str, str]:
+    """`<tenant>/<site>|<wd>|<PAÍS>` em quatro partes; `ValueError` se alguma não servir."""
+    partes = escopo.split("|")
+    identificador, wd, pais = partes if len(partes) == 3 else ("", "", "")
     tenant, _, site = identificador.partition("/")
-    if not (barra and _WD.fullmatch(wd) and _NOME.fullmatch(tenant) and _NOME.fullmatch(site)):
+    if not (
+        _WD.fullmatch(wd)
+        and _NOME.fullmatch(tenant)
+        and _NOME.fullmatch(site)
+        and _PAIS.fullmatch(pais)
+    ):
         raise ValueError(f"escopo do Workday inválido: {escopo!r}")
-    return tenant, site, wd
+    return tenant, site, wd, pais
 
 
 def _facetas(facetas: list[object]) -> dict[str, list[tuple[str, str]]]:
@@ -94,7 +104,7 @@ def _facetas(facetas: list[object]) -> dict[str, list[tuple[str, str]]]:
     return achadas
 
 
-def _filtro(facetas: list[object]) -> dict[str, list[str]]:
+def _filtro(facetas: list[object], pais: str) -> dict[str, list[str]]:
     """`appliedFacets` que restringe ao país: a faceta de país, senão os locais dele; ou `{}`."""
     achadas = _facetas(facetas)
 
@@ -102,7 +112,7 @@ def _filtro(facetas: list[object]) -> dict[str, list[str]]:
         return [
             i
             for d, i in achadas.get(parametro, [])
-            if any(local.pais == _PAIS for local in ler_locais([d]))
+            if any(local.pais == pais for local in ler_locais([d]))
         ]
 
     for parametro in achadas:
@@ -120,8 +130,11 @@ def _vaga(escopo: str, empresa: str, item: object) -> VagaColetada | None:
     caminho = _texto(item.get("externalPath"))
     if not titulo or not _CAMINHO.fullmatch(caminho):
         return None
-    tenant, site, wd = _separar(escopo)
+    tenant, site, wd, pais = _separar(escopo)
     local = _texto(item.get("locationsText"))
+    # A lista vem filtrada pelo país; sem ele no texto, os rótulos não sabem que é "no Brasil".
+    if (nome := _NOME_PAIS.get(pais)) and not any(lido.pais for lido in ler_locais([local])):
+        local = f"{local}, {nome}" if local and not _SO_CONTAGEM.fullmatch(local) else nome
     try:
         return VagaColetada(
             fonte="workday",
@@ -157,20 +170,23 @@ class Workday:
         self._nomes: dict[str, str] = {}
 
     def escopos(self, ctx: ContextoColeta) -> Sequence[str]:
-        """Uma por empresa com `tenant/site` e `wd` válidos; as outras ficam de fora."""
+        """Um por empresa válida e país das buscas (DR-53); sem país nas buscas, o Brasil."""
+        paises = (p.strip().upper() for p in ctx.paises) if ctx.paises else (_PADRAO,)
+        validos = dict.fromkeys(p for p in paises if _PAIS.fullmatch(p))
         nomes: dict[str, str] = {}
         for e in ctx.empresas:
-            escopo = f"{e.identificador.strip()}|{e.parametros.get('wd', '').strip()}"
-            try:
-                _separar(escopo)
-            except ValueError:
-                continue
-            nomes.setdefault(escopo, e.nome)  # duplicata na chamada: o primeiro vale
+            for pais in validos:
+                escopo = f"{e.identificador.strip()}|{e.parametros.get('wd', '').strip()}|{pais}"
+                try:
+                    _separar(escopo)
+                except ValueError:
+                    continue
+                nomes.setdefault(escopo, e.nome)  # duplicata na chamada: o primeiro vale
         self._nomes = nomes  # a cada chamada, o cadastro atual substitui o anterior
         return list(nomes)
 
     async def coletar(self, escopo: str, http: HttpEducado) -> ResultadoEscopo:
-        tenant, site, wd = _separar(escopo)
+        tenant, site, wd, pais = _separar(escopo)
         url = f"https://{tenant}.{wd}.{_DOMINIO}/wday/cxs/{tenant}/{site}/jobs"
         empresa = self._nomes.get(escopo) or tenant
         pulados = 0
@@ -192,7 +208,8 @@ class Workday:
             try:
                 dados = json.loads(resposta.texto)
             except ValueError as erro:
-                raise _FormatoMudou from erro
+                # A27: em manutenção o Workday redireciona (303) para uma página HTML: fora do ar
+                raise ErroDeRede(f"{url}: resposta não é JSON") from erro
             if not isinstance(dados, dict):
                 raise _FormatoMudou
             return dados
@@ -203,7 +220,7 @@ class Workday:
             facetas = descoberta.get("facets")
             if not _inteiro(descoberta.get("total")) or not isinstance(facetas, list):
                 raise _FormatoMudou
-            filtro = _filtro(facetas)
+            filtro = _filtro(facetas, pais)
             if not filtro:  # a empresa não tem vaga no país
                 yield []
                 return
@@ -256,7 +273,7 @@ class Workday:
         if not isinstance(item, VagaColetada) or not _CAMINHO.fullmatch(item.id_externo or ""):
             return None
         try:
-            tenant, site, wd = _separar(item.escopo)
+            tenant, site, wd, _ = _separar(item.escopo)
         except ValueError:
             return None
         url = f"https://{tenant}.{wd}.{_DOMINIO}/wday/cxs/{tenant}/{site}{item.id_externo}"
@@ -271,21 +288,25 @@ class Workday:
         except ValueError:
             return None
         info = dados.get("jobPostingInfo") if isinstance(dados, dict) else None
-        descricao = _texto(info.get("jobDescription")) if isinstance(info, dict) else ""
-        if not isinstance(info, dict) or not descricao:
+        if not isinstance(info, dict):
             return None
+        descricao = _texto(info.get("jobDescription"))
         inicio = _dia(info.get("startDate"))
+        prazo = _dia(info.get("endDate"))
+        tipo = _texto(info.get("timeType"))
+        if not (descricao or inicio or prazo or tipo):
+            return None
         return replace(
             item,
-            descricao=descricao,
+            descricao=descricao or item.descricao,
             descricao_formato="html",
             publicada_em=(
                 datetime(inicio.year, inicio.month, inicio.day, tzinfo=UTC)
                 if inicio
                 else item.publicada_em
             ),
-            prazo=_dia(info.get("endDate")) or item.prazo,
-            contrato_declarado=_texto(info.get("timeType")) or item.contrato_declarado,
+            prazo=prazo or item.prazo,
+            contrato_declarado=tipo or item.contrato_declarado,
         )
 
     async def resolver(self, identificador: str, http: HttpEducado) -> Mapping[str, str]:
