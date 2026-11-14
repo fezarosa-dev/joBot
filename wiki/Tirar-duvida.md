@@ -1,6 +1,10 @@
-English: [Ask a question](Ask-a-question)
+🌐 **Português** · [English](Ask-a-question)
 
-# Tirar dúvida
+# 🙋 Tirar dúvida
+
+**Não achou a resposta? Veja como perguntar.**
+
+---
 
 Siga estes passos, nesta ordem.
 
@@ -8,7 +12,7 @@ Siga estes passos, nesta ordem.
 2. Procure nas [issues de dúvida já abertas](https://github.com/fezarosa-dev/joBot/issues?q=label%3Aquestion). Alguém pode ter perguntado a mesma coisa.
 3. Não achou? Abra uma issue pelo [formulário de dúvida](https://github.com/fezarosa-dev/joBot/issues/new?template=duvida.yml).
 
-## Cuidados
+## ⚠️ Cuidados
 
 - **Falha de segurança** não vai em issue pública. Use o [relato privado](https://github.com/fezarosa-dev/joBot/security/advisories/new).
 - Não coloque dados pessoais (nome, e-mail, senha, currículo) na issue.

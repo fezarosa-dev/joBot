@@ -1,4 +1,10 @@
-Português: [Perguntas frequentes](Perguntas-frequentes)
+🌐 [Português](Perguntas-frequentes) · **English**
+
+# ❓ Frequently asked questions
+
+**The most common questions about joBot. Click a question to see the answer.**
+
+---
 
 <details>
 <summary><strong>Why not use Docker?</strong></summary>
