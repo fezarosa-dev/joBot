@@ -40,7 +40,7 @@ _PADRAO_POR_IDIOMA = {"pt": "BRL", "en": "USD"}  # DP4: sem moeda no texto
 _LIMITE_TEXTO = 2000  # caracteres
 # contas de Decimal exatas: o contexto padrão (28 dígitos) arredonda número grande em silêncio
 _EXATO = Context(prec=MAX_PREC)
-_PARA_MENSAL: dict[Periodo, Fraction] = {
+PARA_MENSAL: dict[Periodo, Fraction] = {
     "hora": Fraction(160),
     "dia": Fraction(21),
     "semana": Fraction(433, 100),
@@ -242,8 +242,8 @@ def _centavos(unidades: Decimal | None) -> int | None:
     return None if unidades is None else round(_EXATO.multiply(unidades, 100))
 
 
-def _mensal(centavos: int | None, periodo: Periodo) -> int | None:
-    return None if centavos is None else round(centavos * _PARA_MENSAL[periodo])
+def mensal(centavos: int | None, periodo: Periodo) -> int | None:
+    return None if centavos is None else round(centavos * PARA_MENSAL[periodo])
 
 
 def ler_salario(texto: str | None, estruturado: SalarioBruto | None, idioma: str) -> Salario | None:
@@ -260,8 +260,8 @@ def ler_salario(texto: str | None, estruturado: SalarioBruto | None, idioma: str
     if periodo is None:
         periodo = _deduz_periodo(moeda, minimo if minimo is not None else maximo or Decimal(0))
     minimo_c, maximo_c = _centavos(minimo), _centavos(maximo)
-    mensal_minimo = _mensal(minimo_c, periodo)
-    referencia = mensal_minimo if mensal_minimo is not None else _mensal(maximo_c, periodo)
+    mensal_minimo = mensal(minimo_c, periodo)
+    referencia = mensal_minimo if mensal_minimo is not None else mensal(maximo_c, periodo)
     faixa = _FAIXAS.get(moeda)
     plausivel = (
         faixa is not None

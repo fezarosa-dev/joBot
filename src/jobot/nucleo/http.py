@@ -6,7 +6,7 @@ import ipaddress
 import json
 import socket
 from collections import defaultdict
-from collections.abc import AsyncGenerator, AsyncIterator, Mapping
+from collections.abc import AsyncGenerator, AsyncIterator, Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
@@ -24,6 +24,7 @@ MAX_SALTOS = 5  # redirecionamentos por pedido
 CABECALHOS_ACEITOS = frozenset({"accept", "accept-language", "content-type", "range", "x-tenant"})
 _NUNCA = ("Cookie", "Origin", "Authorization", "Referer")
 _SO_NA_ORIGEM = ("X-Tenant", "If-None-Match", "If-Modified-Since")
+Resolvedor = Callable[[str], Awaitable[list[str]]]  # host -> endereços IP em texto
 
 
 @dataclass(frozen=True)
@@ -127,25 +128,40 @@ _COMPATIVEL = ipaddress.IPv6Network("::/96")
 _NAT64 = ipaddress.IPv6Network("64:ff9b::/96")
 
 
-def _local(host: str) -> bool:
-    """localhost ou IP não global (loopback, link-local, privado, CGNAT) (DR-19)."""
-    host = host.lower().rstrip(".")
-    if host == "localhost" or host.endswith(".localhost"):
-        return True
-    ip: ipaddress.IPv4Address | ipaddress.IPv6Address
+def _ip(host: str) -> ipaddress.IPv4Address | ipaddress.IPv6Address | None:
+    """IP literal (inclusive com zona, `fe80::1%eth0`) ou `None` se for nome de host."""
     try:
-        ip = ipaddress.ip_address(host)
+        return ipaddress.ip_address(host)
     except ValueError:
         try:  # IPv4 curto, decimal ou hexa (127.1, 2130706433, 0x7f000001): o httpx não normaliza
-            ip = ipaddress.IPv4Address(socket.inet_aton(host))
+            return ipaddress.IPv4Address(socket.inet_aton(host))
         except OSError:
-            return False  # nome de host: não resolvemos DNS aqui
+            return None
+
+
+def _nao_global(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
     if isinstance(ip, ipaddress.IPv6Address):
         if ip.ipv4_mapped is not None:
             ip = ip.ipv4_mapped
         elif ip in _NAT64 or (ip in _COMPATIVEL and int(ip) > 1):  # "::" e "::1" ficam como estão
             ip = ipaddress.IPv4Address(int(ip) & 0xFFFFFFFF)  # IPv4 embutido nos 32 bits de baixo
     return not ip.is_global  # loopback, link-local, privado, não especificado, CGNAT, reservado
+
+
+def host_local(host: str) -> bool:
+    """localhost ou IP não global (loopback, link-local, privado, CGNAT) (DR-19).
+
+    Nome de host dá `False`: aqui não se resolve DNS (o salto resolve, decisão 15)."""
+    host = host.lower().rstrip(".")
+    if host == "localhost" or host.endswith(".localhost"):
+        return True
+    ip = _ip(host)
+    return ip is not None and _nao_global(ip)
+
+
+async def _resolver_padrao(host: str) -> list[str]:
+    infos = await asyncio.get_running_loop().getaddrinfo(host, None)
+    return [str(info[4][0]) for info in infos]
 
 
 async def _ler(resposta: httpx.Response, teto_bytes: int) -> AsyncIterator[bytes]:
@@ -167,7 +183,9 @@ class ClienteEducado:
         relogio: Relogio,
         leitor: LeitorValidadores,
         versao: str,
+        resolver: Resolvedor | None = None,
     ) -> None:
+        self._resolver = resolver or _resolver_padrao
         self._relogio = relogio
         self._leitor = leitor
         self._ua = f"joBot/{versao} (+https://github.com/fezarosa-dev/joBot)"
@@ -213,8 +231,23 @@ class ClienteEducado:
         if not destino.is_relative_url and destino.scheme not in ("http", "https"):
             raise ErroDeRede(f"{resposta.request.url}: redirecionamento para {destino.scheme}")
         origem = resposta.request.url.host
-        if destino.host and not _local(origem) and _local(destino.host):
+        if not destino.host or host_local(origem):
+            return
+        if host_local(destino.host):
             raise ErroDeRede(f"{resposta.request.url}: redirecionamento para host local")
+        if _ip(destino.host) is None:
+            await self._conferir_nome(resposta.request.url, destino.host)
+
+    async def _conferir_nome(self, url: httpx.URL, host: str) -> None:
+        # Decisão 15: o nome que resolve para IP não global é recusado. Fica aceito o rebinding
+        # entre esta conferência e a conexão (fixar o IP pediria um transporte próprio).
+        try:
+            enderecos = await self._resolver(host)
+        except (OSError, UnicodeError) as erro:  # gaierror é OSError; IDNA ruim, UnicodeError
+            raise ErroDeRede(f"{url}: não resolveu {host}: {erro}") from erro
+        ips = [_ip(e) for e in enderecos]
+        if not ips or any(ip is None or _nao_global(ip) for ip in ips):
+            raise ErroDeRede(f"{url}: redirecionamento para host local ({host})")
 
     async def _enviar(self, pedido: httpx.Request, espera_s: float) -> httpx.Response:
         host = pedido.url.host

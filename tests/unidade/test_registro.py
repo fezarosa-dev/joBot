@@ -226,3 +226,32 @@ async def test_juntar_paginas_aceita_url_listada() -> None:
     resultado = await juntar_paginas(_http(), _paginas(p1, p2))
     assert resultado.estado == "ok"
     assert resultado.vagas == p1 + p2
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://127.0.0.1/v",
+        "http://localhost:8080/v",
+        "https://[::1]/v",
+        "http://169.254.169.254/latest",
+        "http://10.0.0.1/v",
+        "http://0x7f000001/v",
+        "http://[::ffff:192.168.0.1]/v",
+    ],
+)
+def test_url_listada_recusa_host_local(url: str) -> None:
+    with pytest.raises(ValueError, match="host local"):
+        UrlListada(url=url)
+
+
+async def test_limite_sem_pagina_falhou() -> None:
+    resultado = await juntar_paginas(_http(), _paginas(LimiteAtingido("x")))
+    assert resultado == ResultadoEscopo((), "falhou", "saude.limite_atingido", 3)
+
+
+async def test_misto_304_tem_motivo() -> None:
+    uma = (_vaga(),)
+    for ordem in ((SEM_MUDANCA, uma), (uma, SEM_MUDANCA)):
+        misto = await juntar_paginas(_http(), _paginas(*ordem))
+        assert misto == ResultadoEscopo(uma, "parcial", "saude.listagem_incompleta", 3)
