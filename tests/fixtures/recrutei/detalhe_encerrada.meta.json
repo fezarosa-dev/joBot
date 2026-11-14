@@ -1,0 +1,12 @@
+{
+  "url": "https://jobs.recrutei.com.br/ucm-business-solutions/vacancy/144195-junior-it-project-support-bilingual-englishportuguese",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "text/html; charset=utf-8"
+  },
+  "sha256": "6ae88bd696167a73d586e4e44350cee28cb7b0676b5e659c38056e368776f510",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "captura/B2/raw/recrutei_vaga.html: página real de 2026-11-13 de vaga encerrada (error true), reduzida por scripts/capturar.reduzir e limpar_pessoais; sem edição"
+}
