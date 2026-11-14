@@ -1,0 +1,64 @@
+<form class="formulario" method="post" action="{{ acao }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  {%- if erro %}
+  <p class="erro" role="alert">{{ t(erro.chave, **erro.params) }}</p>
+  {%- endif %}
+  <div class="campo">
+    <label for="busca-nome">{{ t("buscas.campo.nome") }}</label>
+    <input id="busca-nome" type="text" name="nome" value="{{ f.nome }}" maxlength="100" required>
+  </div>
+  <div class="campo">
+    <label for="busca-cargos">{{ t("buscas.campo.cargos") }}</label>
+    <textarea id="busca-cargos" name="cargos" rows="3" aria-describedby="busca-cargos-dica">{{ f.cargos }}</textarea>
+    <p class="dica" id="busca-cargos-dica">{{ t("buscas.dica.cargos") }}</p>
+  </div>
+  <div class="campo">
+    <label for="busca-cidades">{{ t("buscas.campo.cidades") }}</label>
+    <textarea id="busca-cidades" name="cidades" rows="3" aria-describedby="busca-cidades-dica">{{ f.cidades }}</textarea>
+    <p class="dica" id="busca-cidades-dica">{{ t("buscas.dica.cidades") }}</p>
+  </div>
+  <fieldset class="campo">
+    <legend>{{ t("buscas.campo.modalidades") }}</legend>
+    {%- for m in modalidades %}
+    <label class="opcao"><input type="checkbox" name="modalidade" value="{{ m }}"{% if m in f.modalidade %} checked{% endif %}> {{ t("modalidade." ~ m) }}</label>
+    {%- endfor %}
+  </fieldset>
+  <fieldset class="campo">
+    <legend>{{ t("buscas.campo.niveis") }}</legend>
+    {%- for n in niveis %}
+    <label class="opcao"><input type="checkbox" name="nivel" value="{{ n }}"{% if n in f.nivel %} checked{% endif %}> {{ t("nivel." ~ n) }}</label>
+    {%- endfor %}
+  </fieldset>
+  <div class="campo campo-salario">
+    <label for="busca-salario">{{ t("buscas.campo.salario") }}</label>
+    <div class="linha">
+      <input id="busca-salario" type="text" inputmode="decimal" name="salario" value="{{ f.salario }}" maxlength="25" aria-describedby="busca-salario-dica">
+      <label class="so-leitor" for="busca-moeda">{{ t("buscas.campo.moeda") }}</label>
+      <select id="busca-moeda" name="moeda">
+        {%- for o in moedas %}
+        <option value="{{ o }}"{% if o == f.moeda %} selected{% endif %}>{{ o }}</option>
+        {%- endfor %}
+      </select>
+    </div>
+    <p class="dica" id="busca-salario-dica">{{ t("buscas.dica.salario") }}</p>
+  </div>
+  <fieldset class="campo">
+    <legend>{{ t("buscas.campo.idiomas") }}</legend>
+    {%- for i in idiomas %}
+    <label class="opcao"><input type="checkbox" name="idioma" value="{{ i }}"{% if i in f.idioma %} checked{% endif %}> {{ t("buscas.idioma." ~ i) }}</label>
+    {%- endfor %}
+  </fieldset>
+  <fieldset class="campo">
+    <legend>{{ t("buscas.campo.regras") }}</legend>
+    <p class="dica">{{ t("buscas.dica.regras") }}</p>
+    {%- for r in regras %}
+    <label class="opcao"><input type="checkbox" name="regra" value="{{ r }}"{% if r in f.regra %} checked{% endif %}> {{ t("buscas.regra." ~ r) }}</label>
+    {%- endfor %}
+  </fieldset>
+  <div class="acoes-formulario">
+    <button type="submit" class="primario">{{ t(envio) }}</button>
+    {%- if cancelar %}
+    <a href="/buscas">{{ t("buscas.cancelar") }}</a>
+    {%- endif %}
+  </div>
+</form>

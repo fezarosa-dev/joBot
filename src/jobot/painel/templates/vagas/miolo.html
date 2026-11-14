@@ -4,6 +4,13 @@
   <p>{{ t("vagas.aviso.sem_criterio") }} <a href="/buscas">{{ t("vagas.aviso.configurar") }}</a></p>
 </aside>
 {% endif %}
+{% if seletor %}
+<nav class="seletor-busca" aria-label="{{ t('vagas.seletor') }}">
+  {%- for b in seletor %}
+  <a class="chip" href="{{ b.url }}" hx-get="{{ b.url }}" hx-target="#vagas-miolo" hx-swap="innerHTML" hx-push-url="true"{% if b.atual %} aria-current="true"{% endif %}>{{ b.nome }}</a>
+  {%- endfor %}
+</nav>
+{% endif %}
 <nav class="abas" aria-label="{{ t('vagas.abas') }}">
   <ul>
     {%- for aba in abas %}
