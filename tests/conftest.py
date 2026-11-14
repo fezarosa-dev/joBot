@@ -19,6 +19,7 @@ def _confere(endereco: Any) -> None:
 def _guarda_de_rede(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     connect = socket.socket.connect
     connect_ex = socket.socket.connect_ex
+    getaddrinfo = socket.getaddrinfo
 
     def connect_guardado(self: socket.socket, endereco: Any) -> None:
         _confere(endereco)
@@ -28,6 +29,11 @@ def _guarda_de_rede(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
         _confere(endereco)
         return connect_ex(self, endereco)
 
+    def getaddrinfo_guardado(host: Any, *args: Any, **kwargs: Any) -> Any:
+        _confere(host)  # sem DNS nos testes (D41): só os endereços locais resolvem
+        return getaddrinfo(host, *args, **kwargs)
+
     monkeypatch.setattr(socket.socket, "connect", connect_guardado)
     monkeypatch.setattr(socket.socket, "connect_ex", connect_ex_guardado)
+    monkeypatch.setattr(socket, "getaddrinfo", getaddrinfo_guardado)
     yield
