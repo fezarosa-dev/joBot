@@ -58,6 +58,7 @@ async def _coletar(
     escopo: str = ESCOPO,
     leitor: LeitorFixo | None = None,
     condicional: bool = False,
+    relogio: RelogioFalso | None = None,
 ) -> tuple[ResultadoEscopo, list[httpx.Request]]:
     """Roda o coletor de verdade sobre o `ClienteEducado` com transporte falso."""
     pedidos: list[httpx.Request] = []
@@ -68,9 +69,9 @@ async def _coletar(
         r = fila.pop(0) if len(fila) > 1 else fila[0]
         return r if isinstance(r, httpx.Response) else r(pedido)
 
-    relogio: Relogio = RelogioFalso()
+    prova: Relogio = relogio or RelogioFalso()
     cli = ClienteEducado(
-        httpx.MockTransport(servidor), relogio, leitor or LeitorFixo(), "0.1.0", resolver=_sem_dns
+        httpx.MockTransport(servidor), prova, leitor or LeitorFixo(), "0.1.0", resolver=_sem_dns
     )
     try:
         http: HttpEducado = cli.escopo(condicional=condicional)
@@ -335,10 +336,21 @@ async def test_cota_esgotada_em_403_vira_no_limite_com_saude_cota() -> None:
     assert (resultado.estado, resultado.motivo) == ("no_limite", "saude.cota")
     assert len(resultado.vagas) == 3 and len(pedidos) == 2
 
-    # 429 com a cota a zero (o LimiteAtingido depois das esperas) também é cota.
+    # 429 com a cota a zero (LimiteAtingido sem esperas, T99) também é cota.
     resultado, _ = await _coletar(_json("paginacao_1"), httpx.Response(429, headers=cota))
     assert (resultado.estado, resultado.motivo) == ("no_limite", "saude.cota")
     assert len(resultado.vagas) == 3
+
+
+async def test_429_de_cota_zero_vira_no_limite_sem_esperar() -> None:
+    cota = {"x-ratelimit-remaining": "0", "x-ratelimit-limit": "60"}
+    rel = RelogioFalso()
+    resultado, pedidos = await _coletar(
+        _json("paginacao_1"), httpx.Response(429, headers=cota), relogio=rel
+    )
+    assert (resultado.estado, resultado.motivo) == ("no_limite", "saude.cota")
+    assert len(resultado.vagas) == 3 and len(pedidos) == 2
+    assert max(rel.dormidas, default=0) < 30  # só o ritmo de 1 s entre pedidos, sem ESPERAS_LIMITE
 
 
 async def test_403_sem_cota_a_zero_segue_bloqueio() -> None:

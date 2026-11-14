@@ -206,6 +206,42 @@ async def test_429_sem_retry_after(status: int) -> None:
     assert http.pedidos == 4
 
 
+@pytest.mark.parametrize("nome", ["x-ratelimit-remaining", "X-RateLimit-Remaining"])
+async def test_429_com_cota_zero_sem_retry_after_nao_espera(nome: str) -> None:
+    cota = {nome: "0", "x-ratelimit-limit": "60"}
+    srv = Servidor(httpx.Response(429, headers=cota))
+    cli, rel = _cliente(srv)
+    http = cli.escopo()
+    with pytest.raises(LimiteAtingido) as limite:
+        await http.pedir("GET", "https://a.example/")
+    assert rel.dormidas == []
+    assert len(srv.pedidos) == 1 and http.pedidos == 1
+    assert limite.value.cabecalhos["x-ratelimit-remaining"] == "0"
+
+
+async def test_429_com_cota_sobrando_ou_com_retry_after_segue_as_esperas() -> None:
+    # Controles: só "429 + cota zero + sem Retry-After" pula as esperas.
+    srv = Servidor(httpx.Response(429, headers={"x-ratelimit-remaining": "12"}))
+    cli, rel = _cliente(srv)
+    with pytest.raises(LimiteAtingido):
+        await cli.escopo().pedir("GET", "https://a.example/")
+    assert rel.dormidas == [30, 60, 120]
+
+    srv = Servidor(
+        httpx.Response(429, headers={"x-ratelimit-remaining": "0", "Retry-After": "45"}),
+        httpx.Response(200),
+    )
+    cli, rel = _cliente(srv)
+    assert (await cli.escopo().pedir("GET", "https://a.example/")).status == 200
+    assert rel.dormidas == [45]
+
+    srv = Servidor(httpx.Response(503, headers={"x-ratelimit-remaining": "0"}))
+    cli, rel = _cliente(srv)
+    with pytest.raises(LimiteAtingido):
+        await cli.escopo().pedir("GET", "https://a.example/")
+    assert rel.dormidas == [30, 60, 120]
+
+
 async def test_para_no_429_um_pedido_sem_espera() -> None:
     srv = Servidor(httpx.Response(429, headers={"Retry-After": "5"}))
     cli, rel = _cliente(srv)
