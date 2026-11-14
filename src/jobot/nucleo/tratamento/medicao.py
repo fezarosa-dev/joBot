@@ -54,13 +54,36 @@ def _texto(linha: Mapping[str, Any], chave: str) -> str:
     return valor
 
 
+# A captura antiga usava estes nomes de fonte; o produto usa os de `fontes.json`.
+_NOMES_DA_CAPTURA: dict[str, str] = {
+    "hackernews-whoishiring": "hn_algolia",
+    "weworkremotely": "wwr",
+    "iel_carreiras": "iel",
+    "usp_fea": "usp",
+    "usp_if": "usp",
+    "google_careers": "google",
+    "amazon_jobs": "amazon",
+    "eightfold_bayer": "eightfold",
+    "eightfold_mercadolibre": "eightfold",
+    "workday_mastercard": "workday",
+    "workday_santander": "workday",
+}
+
+
+def _fonte_do_produto(nome: str) -> str:
+    # um repositório por nome na captura: "github-<repositório>" é o github_issues
+    if nome.startswith("github-"):
+        return "github_issues"
+    return _NOMES_DA_CAPTURA.get(nome, nome)
+
+
 def vaga_do_bruto(linha: Mapping[str, Any]) -> VagaColetada:
     """Uma linha de `bruto/*.jsonl` vira `VagaColetada`. `metadados` não é lido."""
     html = _texto(linha, "descricao_html")
     formato: FormatoDescricao = "html" if html else "texto"
     local = _texto(linha, "local")
     return VagaColetada(
-        fonte=_texto(linha, "fonte"),
+        fonte=_fonte_do_produto(_texto(linha, "fonte")),
         escopo="",
         url=_texto(linha, "url"),
         titulo=_texto(linha, "titulo"),

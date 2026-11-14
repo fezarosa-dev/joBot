@@ -1,4 +1,6 @@
+import json
 from dataclasses import replace
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -13,6 +15,7 @@ from jobot.nucleo.modelo import (
     VagaTratada,
 )
 from jobot.nucleo.tratamento.medicao import (
+    _NOMES_DA_CAPTURA,
     Acerto,
     Esperado,
     Medicao,
@@ -21,6 +24,8 @@ from jobot.nucleo.tratamento.medicao import (
     vaga_do_bruto,
 )
 from jobot.nucleo.tratamento.tratar import tratar
+
+ARQUIVO_FONTES = Path(__file__).parents[2] / "src/jobot/nucleo/dados/fontes.json"
 
 ROTULOS: dict[str, Any] = {
     "area": "tecnologia",
@@ -216,3 +221,38 @@ def test_sem_vagas_na_amostra_nao_divide_por_zero() -> None:
     m = medir({}, {})
     assert m.proporcao_br == 0.0
     assert all(a.total == 0 for a in m.por_rotulo.values())
+
+
+@pytest.mark.parametrize(
+    ("capturado", "produto"),
+    [
+        ("github-backend-br", "github_issues"),
+        ("github-soujava", "github_issues"),
+        ("hackernews-whoishiring", "hn_algolia"),
+        ("weworkremotely", "wwr"),
+        ("iel_carreiras", "iel"),
+        ("usp_fea", "usp"),
+        ("usp_if", "usp"),
+        ("google_careers", "google"),
+        ("amazon_jobs", "amazon"),
+        ("eightfold_bayer", "eightfold"),
+        ("workday_santander", "workday"),
+        ("oracle_hcm", "oracle_hcm"),
+        ("gupy", "gupy"),
+        ("fonte_desconhecida", "fonte_desconhecida"),
+    ],
+)
+def test_nome_de_fonte_da_captura_vira_o_do_produto(capturado: str, produto: str) -> None:
+    assert vaga_do_bruto(_bruto(fonte=capturado)).fonte == produto
+
+
+def test_nomes_de_fonte_da_captura_existem_em_fontes_json() -> None:
+    fontes = json.loads((ARQUIVO_FONTES).read_text(encoding="utf-8"))
+    assert set(_NOMES_DA_CAPTURA.values()) <= set(fontes)
+
+
+@pytest.mark.parametrize("fonte", ["github-backend-br", "gupy"])
+def test_fonte_so_brasileira_do_bruto_sem_local_mede_pais_br(fonte: str) -> None:
+    v = tratar(vaga_do_bruto(_bruto(fonte=fonte, local="")))
+    m = medir({"a": v}, {"a": _esperado(uf=None)})
+    assert m.por_rotulo["pais"].certos == 1
