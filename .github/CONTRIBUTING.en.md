@@ -36,6 +36,14 @@ joBot has no code yet and there is nothing to install. Phase 1 (foundation) is b
 
 The exact commands to run everything will be documented once the code exists.
 
+## Wiki
+
+- The wiki text lives in the [`wiki/`](../wiki/) folder of the repository.
+- A change to the wiki is made by a PR on that folder, like any other file.
+- When the PR reaches `main`, a bot copies the folder to the GitHub wiki.
+- Editing directly on the GitHub wiki is left to the project maintainers only. Direct edits are overwritten on the next copy, so every change goes through the `wiki/` folder.
+- A new page needs a version in both languages (Portuguese and English). The test checks this.
+
 ## Clean room
 
 You may use public ideas and facts from other projects. Never copy third-party code or test data.

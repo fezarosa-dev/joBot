@@ -24,6 +24,7 @@ Estas decisões vieram de 9 rodadas de perguntas e respostas feitas em 2026-11-1
 | 0016 | [Licença, sala limpa e processo de trabalho](0016-licenca-clean-room-e-processo.md) | aceita |
 | 0017 | [Fases do projeto](0017-fases.md) | aceita |
 | 0018 | [Manutenção pela comunidade e CI aberto a todo PR](0018-manutencao-pela-comunidade.md) | aceita |
+| 0019 | [Wiki do projeto e formulário de dúvida](0019-wiki-do-projeto.md) | aceita |
 
 ## Como registrar uma nova decisão
 
