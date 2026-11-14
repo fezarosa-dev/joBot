@@ -225,6 +225,24 @@ def test_salvar_mudar_a_situacao_ocultar_e_trazer_de_volta(page: Page, painel: s
     assert NOVA in _titulos(page)
 
 
+def test_tab_real_chega_ao_cartao_e_aciona_com_enter(page: Page, painel: str) -> None:
+    """Tab pressionado de verdade (sem `focus()`) percorre a página até o botão do cartão."""
+    page.goto(f"{painel}/vagas?aba=todas")
+    cartao = _cartao(page, NOVA)
+    salvar = cartao.get_by_role("button", name="Salvar", exact=True)
+    expect(salvar).to_be_visible()
+    for _ in range(150):  # teto: a ordem do Tab não pode ficar presa nem passar do botão
+        page.keyboard.press("Tab")
+        if salvar.evaluate("el => el === document.activeElement"):
+            break
+    else:
+        pytest.fail("o Tab não chegou ao botão Salvar do cartão")
+    expect(salvar).to_be_focused()
+    page.keyboard.press("Enter")
+    expect(cartao.locator(".situacao")).to_have_text("Situação: Salva")
+    expect(cartao.locator(".situacao")).to_be_focused()
+
+
 def test_via_fonte_e_link_para_a_vaga_original(page: Page, painel: str) -> None:
     page.goto(f"{painel}/vagas?aba=todas")
     link = _cartao(page, HIMALAYAS).get_by_role("link", name=re.compile(r"^via Himalayas"))

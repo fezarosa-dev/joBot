@@ -23,8 +23,7 @@ from jobot.nucleo.cambio import MOEDAS
 from jobot.nucleo.modelo import Busca, Idioma, Local, Modalidade, Nivel
 from jobot.nucleo.relogio import Relogio, RelogioReal
 from jobot.nucleo.tratamento.locais import ler_locais
-from jobot.painel import formatos
-from jobot.painel.seguranca import TEMPLATES, Con, renderizar
+from jobot.painel.seguranca import Con, renderizar
 
 router = APIRouter(prefix="/buscas")
 
@@ -60,8 +59,6 @@ _MAX_CIDADES = 20
 _MAX_SALARIO = 25  # letras do texto: corta antes de qualquer `int()` de número enorme
 # milhar com ponto e centavos com vírgula; `[0-9]` e não `\d`, que aceita dígito de outro alfabeto
 _SALARIO = re.compile(r"([0-9]{1,3}(?:\.[0-9]{3})+|[0-9]+)(?:,([0-9]{1,2}))?")
-
-TEMPLATES.env.globals["dinheiro"] = formatos.dinheiro
 
 
 @dataclass(frozen=True)

@@ -1,18 +1,34 @@
 """Troca rápida de tema e idioma na casca (desenho 13.2; plano T36)."""
 
 import json
+import re
+import subprocess
+import sys
 from contextlib import closing
 from pathlib import Path
+from typing import cast
 
 import pytest
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse
 from fastapi.testclient import TestClient
+from jinja2 import DictLoader
 
 from jobot.banco.conexao import abrir
 from jobot.banco.migrar import migrar
 from jobot.painel.app import criar_app
-from jobot.painel.seguranca import CAMPO_CSRF
+from jobot.painel.seguranca import CAMPO_CSRF, TEMPLATES, renderizar
 
 PORTA = 47615
+GLOBAIS = (
+    "salario_texto",
+    "locais_texto",
+    "data_curta",
+    "data_completa",
+    "rotulo",
+    "motivo",
+    "dinheiro",
+)
 
 
 @pytest.fixture
@@ -79,3 +95,57 @@ def test_voltar_so_para_o_proprio_painel(cliente: TestClient, voltar: str) -> No
     resposta = cliente.post("/preferencias/tema", data=dados)
     assert resposta.status_code == 303
     assert resposta.headers["location"] == "/"
+
+
+def _data_tema(cliente: TestClient) -> str | None:
+    achou = re.search(r"<html[^>]*\bdata-tema=\"([^\"]*)\"", cliente.get("/vagas").text)
+    return achou.group(1) if achou else None
+
+
+def test_tema_chega_ao_base_sem_global_do_jinja(
+    cliente: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # `criar_app` já importou `rotas/preferencias.py`: importar a rota não registra mais global
+    assert "tema" not in TEMPLATES.env.globals
+    assert _data_tema(cliente) == "sistema"  # sem tema salvo, segue o `prefers-color-scheme`
+    dados = {CAMPO_CSRF: _token(cliente), "tema": "escuro", "voltar": "/"}
+    assert cliente.post("/preferencias/tema", data=dados).status_code == 303
+    assert _data_tema(cliente) == "escuro"  # o tema salvo continua em `<html data-tema>`
+
+    # `renderizar` passa o tema no contexto do template
+    monkeypatch.setattr(TEMPLATES.env, "loader", DictLoader({"t82.html": "{{ tema }}"}))
+
+    @cast(FastAPI, cliente.app).get("/t82-tema")
+    async def pagina(request: Request) -> HTMLResponse:
+        return renderizar(request, "t82.html")
+
+    assert cliente.get("/t82-tema").text == "escuro"
+
+
+def test_globais_do_jinja_vem_do_modulo_explicito(cliente: TestClient) -> None:
+    # `criar_app` já importou as rotas; os globais são de `painel/globais.py`, não delas
+    globais = TEMPLATES.env.globals
+    assert set(GLOBAIS) <= globais.keys()
+    assert "tema" not in globais
+    assert {globais["rotulo"].__module__, globais["motivo"].__module__} == {"jobot.painel.globais"}
+
+
+_SO_TEMPLATES = """
+import json, sys
+from jobot.painel.seguranca import TEMPLATES
+print(json.dumps({
+    "globais": sorted(TEMPLATES.env.globals),
+    "rotas": sorted(m for m in sys.modules if m.startswith("jobot.painel.rotas")),
+}))
+"""
+
+
+def test_globais_do_jinja_sem_importar_as_rotas() -> None:
+    # processo novo: só o módulo dos templates, nenhuma rota importada
+    saida = subprocess.run(
+        [sys.executable, "-c", _SO_TEMPLATES], capture_output=True, text=True, check=True
+    ).stdout
+    lido = json.loads(saida)
+    assert lido["rotas"] == []
+    assert set(GLOBAIS) <= set(lido["globais"])
+    assert "tema" not in lido["globais"]

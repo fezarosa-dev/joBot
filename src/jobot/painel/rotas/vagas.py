@@ -16,18 +16,14 @@ from urllib.parse import urlencode
 
 from fastapi import APIRouter, Form, HTTPException, Path, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
-from jinja2 import pass_context
-from jinja2.runtime import Context
 from starlette.datastructures import QueryParams
 
 from jobot.banco import acoes, leitura
 from jobot.banco.leitura import Filtros, Fonte, Item
 from jobot.nucleo.destaques import Candidata, destaques
-from jobot.nucleo.modelo import Motivo
 from jobot.nucleo.relogio import Relogio, RelogioReal
-from jobot.painel import formatos
 from jobot.painel.rotas.preferencias import _de_volta
-from jobot.painel.seguranca import TEMPLATES, Con, renderizar
+from jobot.painel.seguranca import Con, renderizar
 
 router = APIRouter()
 
@@ -54,33 +50,6 @@ _MAX_PAGINA = 10_000
 _DESTAQUES_N = 10
 # janela larga para o SQL; a de 24 h é da função pura `destaques`
 _ANTES_DESTAQUES = "julianday(v.primeira_vista_em) >= julianday(:agora) - 2"
-
-
-@pass_context
-def _rotulo(contexto: Context, chave: str, padrao: str) -> str:
-    """O texto da chave; sem texto no catálogo, o `padrao` (valor que o sistema não conhece)."""
-    texto: str = contexto["t"](chave)
-    return padrao if texto == chave else texto
-
-
-@pass_context
-def _motivo(contexto: Context, motivo: Motivo) -> str:
-    """O motivo do encaixe em texto; chave desconhecida ou parâmetro faltando fica sem texto."""
-    try:
-        texto: str = contexto["t"](motivo.chave, **motivo.params)
-    except KeyError, IndexError, ValueError:
-        return ""
-    return "" if texto == motivo.chave else texto
-
-
-TEMPLATES.env.globals |= {
-    "salario_texto": formatos.salario_texto,
-    "locais_texto": formatos.locais_texto,
-    "data_curta": formatos.data_curta,
-    "data_completa": formatos.data_completa,
-    "rotulo": _rotulo,
-    "motivo": _motivo,
-}
 
 
 def _relogio(request: Request) -> Relogio:
