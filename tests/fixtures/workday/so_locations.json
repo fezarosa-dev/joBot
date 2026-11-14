@@ -1,0 +1,123 @@
+{
+  "total": 13,
+  "jobPostings": [
+    {
+      "title": "SME Mid-Market Business Development Director",
+      "externalPath": "/job/Sao-Paulo-Brazil/SME-Mid-Market-Business-Development-Director_R-295134-1",
+      "locationsText": "Sao Paulo, Brazil",
+      "postedOn": "Posted 2 Days Ago",
+      "bulletFields": [
+        "R-295134"
+      ]
+    },
+    {
+      "title": "Managing Consultant, Program Management, Advisors & Consulting Service",
+      "externalPath": "/job/Sao-Paulo-Brazil/Managing-Consultant--Program-Management--Advisors---Consulting-Service_R-276151",
+      "locationsText": "Sao Paulo, Brazil",
+      "postedOn": "Posted 3 Days Ago",
+      "bulletFields": [
+        "R-276151"
+      ]
+    },
+    {
+      "title": "Senior Managing Consultant, Services Business Development",
+      "externalPath": "/job/Sao-Paulo-Brazil/Senior-Managing-Consultant--Services-Business-Development_R-294128",
+      "locationsText": "Sao Paulo, Brazil",
+      "postedOn": "Posted 24 Days Ago",
+      "bulletFields": [
+        "R-294128"
+      ]
+    },
+    {
+      "title": "Director, Settlement Operations, Brazil",
+      "externalPath": "/job/Sao-Paulo-Brazil/Director--Settlement-Operations--Brazil_R-293524-1",
+      "locationsText": "Sao Paulo, Brazil",
+      "postedOn": "Posted 28 Days Ago",
+      "bulletFields": [
+        "R-293524"
+      ]
+    },
+    {
+      "title": "Senior Analyst, Technology Account Management",
+      "externalPath": "/job/Sao-Paulo-Brazil/Senior-Analyst--Technology-Account-Management_R-292726",
+      "locationsText": "Sao Paulo, Brazil",
+      "postedOn": "Posted 30 Days Ago",
+      "bulletFields": [
+        "R-292726"
+      ]
+    }
+  ],
+  "facets": [
+    {
+      "facetParameter": "jobFamilyGroup",
+      "descriptor": "Job Category",
+      "values": [
+        {
+          "descriptor": "Advisors & Consulting Services",
+          "id": "04fcfb2e3b294a62813e23ef34d8e6f9",
+          "count": 4
+        },
+        {
+          "descriptor": "Customer & Product Delivery",
+          "id": "9290e3c013ea406499c856229ef7803a",
+          "count": 3
+        },
+        {
+          "descriptor": "Sales Function",
+          "id": "04fe0e372b1b4b48a752fd254d55050f",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "facetParameter": "workerSubType",
+      "descriptor": "Job Type",
+      "values": [
+        {
+          "descriptor": "Regular",
+          "id": "4989ab17f4c24a42a64a54369451fb0b",
+          "count": 13
+        }
+      ]
+    },
+    {
+      "facetParameter": "timeType",
+      "descriptor": "Time Type",
+      "values": [
+        {
+          "descriptor": "Full time",
+          "id": "6580990a12634e01b59be43712d78b21",
+          "count": 13
+        }
+      ]
+    },
+    {
+      "facetParameter": "locationMainGroup",
+      "values": [
+        {
+          "facetParameter": "locations",
+          "descriptor": "Locations",
+          "values": [
+            {
+              "descriptor": "Pune, India",
+              "id": "8eab563831bf10acbc722e4859721571",
+              "count": 146
+            },
+            {
+              "descriptor": "O'Fallon, Missouri",
+              "id": "8eab563831bf10acbbdb817a833d0fa6",
+              "count": 116
+            },
+            {
+              "descriptor": "Purchase, New York",
+              "id": "8eab563831bf10acbcb35b24fcd616d7",
+              "count": 75
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "userAuthenticated": false,
+  "_nota": "amostra cortada: 5 vagas, 3 valores por faceta"
+}

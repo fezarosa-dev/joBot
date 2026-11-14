@@ -1,0 +1,20 @@
+{
+  "url": "https://mastercard.wd1.myworkdayjobs.com/wday/cxs/mastercard/CorporateCareers/jobs",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {},
+  "sha256": "bb4f54283b7f37817fcb37c25d3f2291f786ce72da64ad8415de881861421da4",
+  "versao": "0.1.0",
+  "metodo": "POST",
+  "montado_a_mao": "veio de captura/B1/workday_mastercard_lista_br.json (conferência ao vivo de 2026-11-13; tenant sem faceta de país, só locations; o corte da conferência deixou 3 valores por faceta e o de São Paulo ficou de fora); passou por reduzir e limpar_pessoais. Os cabeçalhos da resposta não foram guardados na conferência (cabecalhos vazio).",
+  "corpo_json": {
+    "appliedFacets": {
+      "locations": [
+        "8eab563831bf10acbd4e5caed8cd1b2a"
+      ]
+    },
+    "limit": 20,
+    "offset": 0,
+    "searchText": ""
+  }
+}
