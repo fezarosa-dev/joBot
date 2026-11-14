@@ -43,8 +43,8 @@ async def executar_descoberta(
 ) -> None:
     if not ler_config(con, "descoberta_cc_ligada"):
         return
-    adiada_ate = ler_config(con, CHAVE_ADIADA, None)
-    if adiada_ate is not None and relogio.agora() < datetime.fromisoformat(adiada_ate):
+    adiada_ate = _adiada_ate(con)
+    if adiada_ate is not None and relogio.agora() < adiada_ate:
         return
     execucao_id = abrir_execucao(con, "descoberta", "agenda", relogio.agora())
     if execucao_id is None:
@@ -72,6 +72,15 @@ async def executar_descoberta(
         with contextlib.suppress(asyncio.CancelledError):
             await batimento
     fechar_execucao(con, execucao_id, relogio.agora())
+
+
+def _adiada_ate(con: sqlite3.Connection) -> datetime | None:
+    """O instante guardado; o que não é instante ISO com fuso vale como ausente (não trava)."""
+    try:
+        instante = datetime.fromisoformat(ler_config(con, CHAVE_ADIADA, None))
+    except TypeError, ValueError:
+        return None
+    return instante if instante.tzinfo else None  # sem fuso não compara com o relógio
 
 
 def _adiar(erro: Exception, agora: datetime) -> datetime:
