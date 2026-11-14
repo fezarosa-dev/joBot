@@ -14,6 +14,7 @@ from jobot.nucleo.coletores.portais import solides
 from jobot.nucleo.http import ClienteEducado, HttpEducado, Validadores
 from jobot.nucleo.modelo import Empresa, SalarioBruto, VagaColetada
 from jobot.nucleo.relogio import Relogio
+from jobot.nucleo.tratamento.locais import ler_locais
 
 pytestmark = pytest.mark.anyio
 
@@ -379,6 +380,91 @@ async def test_etiquetas_sao_as_senioridades_sem_repeticao() -> None:
 async def test_locais_cidade_e_uf(cidade: object, estado: object, locais: tuple[str, ...]) -> None:
     resultado, _ = await _coletar(_com(city=cidade, state=estado))
     assert _vagas(resultado)[0].locais == locais
+
+
+_PORTUGAL = {"name": "Portugal", "code": "PT"}
+_BRASIL = {"name": "Brasil", "code": "BR"}
+
+
+def _endereco(**campos: object) -> dict[str, Any]:
+    """O `address` da primeira vaga da captura (país Brasil) com os campos trocados."""
+    endereco: dict[str, Any] = _normal()["data"][0]["address"]
+    return endereco | campos
+
+
+@pytest.mark.parametrize(
+    ("campos", "locais"),
+    [
+        ({"address": _endereco(country=_PORTUGAL)}, ("Barro Alto, GO, Portugal",)),
+        ({"address": _endereco(country={"name": "Portugal"})}, ("Barro Alto, GO, Portugal",)),
+        ({"address": _endereco(country=_BRASIL)}, ("Barro Alto, GO",)),
+        ({"address": _endereco(country={"name": "Brazil"})}, ("Barro Alto, GO",)),
+        ({"address": _endereco(country=None)}, ("Barro Alto, GO",)),
+        ({"address": _endereco(country="Portugal")}, ("Barro Alto, GO",)),
+        ({"address": None}, ("Barro Alto, GO",)),
+        (
+            {
+                "city": None,
+                "state": None,
+                "address": _endereco(country=_PORTUGAL, foreignCity="Lisboa"),
+            },
+            ("Lisboa, Portugal",),
+        ),
+        (
+            {
+                "city": None,
+                "state": None,
+                "address": _endereco(country=_PORTUGAL, foreignCity="Porto", foreignState="Norte"),
+            },
+            ("Porto, Norte, Portugal",),
+        ),
+        (
+            {
+                "city": None,
+                "state": None,
+                "address": _endereco(
+                    country={"name": "Estados Unidos", "code": "US"},
+                    foreignCity={"name": "Boston"},
+                    foreignState={"name": "MA"},
+                ),
+            },
+            ("Boston, MA, Estados Unidos",),
+        ),
+        ({"city": None, "state": None, "address": _endereco(foreignCity="Lisboa")}, ("Lisboa",)),
+        ({"city": None, "state": None, "address": _endereco(country=_PORTUGAL)}, ("Portugal",)),
+        ({"city": None, "state": None, "address": _endereco()}, ()),
+    ],
+)
+async def test_pais_e_cidade_de_fora_do_address(
+    campos: dict[str, Any], locais: tuple[str, ...]
+) -> None:
+    resultado, _ = await _coletar(_com(**campos))
+    assert _vagas(resultado)[0].locais == locais
+
+
+@pytest.mark.parametrize(
+    ("cidade", "uf", "pais", "esperado"),
+    [
+        ("Lisboa", None, "Portugal", "PT"),
+        ("Boston", "MA", "Estados Unidos", "US"),
+        ("Austin", None, "United States", "US"),
+        # shortcut: só país que está em _PAISES sai do Brasil; país fora da tabela (Angola) fica sem
+        # país e estado de fora com sigla de UF (MA) vira BR; melhorar com tabela de países maior.
+        ("Luanda", None, "Angola", None),
+        ("Maputo", "MA", "Moçambique", "BR"),
+    ],
+)
+def test_texto_do_local_de_fora_e_lido_com_o_pais(
+    cidade: str, uf: str | None, pais: str, esperado: str | None
+) -> None:
+    code = {"Portugal": "PT", "Estados Unidos": "US", "United States": "US"}.get(pais, "XX")
+    job: dict[str, object] = {
+        "city": {"name": cidade},
+        "state": {"code": uf} if uf else None,
+        "address": {"country": {"name": pais, "code": code}},
+    }
+    (texto,) = solides._local(job)
+    assert ler_locais([texto])[0].pais == esperado
 
 
 async def test_id_texto_e_aceito_e_escapado_no_link() -> None:
