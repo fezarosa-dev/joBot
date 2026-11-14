@@ -36,6 +36,14 @@ O joBot ainda não tem código e ainda não há nada para instalar. A fase 1 (ba
 
 Os comandos exatos para rodar tudo serão documentados quando o código existir.
 
+## Wiki
+
+- O texto da wiki mora na pasta [`wiki/`](../wiki/) do repositório.
+- Mudança na wiki é por PR nessa pasta, como qualquer outro arquivo.
+- Quando o PR entra na `main`, um robô copia a pasta para a wiki do GitHub.
+- A edição direta na wiki do GitHub fica só com quem mantém o projeto. Ela é sobrescrita na próxima cópia, então toda mudança vai pela pasta `wiki/`.
+- Página nova precisa da versão nas duas línguas (português e inglês). O teste confere.
+
 ## Sala limpa
 
 Você pode usar ideias e fatos públicos de outros projetos. Nunca copie código nem dados de teste de terceiros.
