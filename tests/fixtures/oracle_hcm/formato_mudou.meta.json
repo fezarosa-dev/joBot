@@ -1,0 +1,10 @@
+{
+  "url": "https://eeho.fa.us2.oraclecloud.com/hcmRestApi/resources/latest/recruitingCEJobRequisitions?onlyData=true&expand=requisitionList.secondaryLocations&finder=findReqs;siteNumber=CX_45001,facetsList=LOCATIONS%3BWORKPLACE_TYPES%3BPOSTING_DATES,limit=25,offset=0,sortBy=POSTING_DATES_DESC,selectedLocationsFacet=300000000106728",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {},
+  "sha256": "699bd0d3bd74a8fcacc8bee9c218067442709cf1c580b4d5c486ea37365e4752",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "montado à mão a partir de normal.json: em cada vaga de requisitionList, Id virou RequisitionNumber e Title virou JobTitle (nenhuma vaga legível)."
+}

@@ -1,0 +1,10 @@
+{
+  "url": "https://eeho.fa.us2.oraclecloud.com/hcmRestApi/resources/latest/recruitingCEJobRequisitionDetails?expand=all&onlyData=true&finder=ById;Id=%22348989%22,siteNumber=CX_45001",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {},
+  "sha256": "5626db06c086d1ae5373894042a3b1e682474920c87ab92f54cb41c5d0df5d01",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "veio de captura/B1/oracle_hcm_oracle_detalhe.json (conferência ao vivo de 2026-11-13, detalhe da vaga 348989 da Oracle); passou por reduzir e limpar_pessoais; campo _nota da conferência mantido. Os cabeçalhos da resposta não foram guardados na conferência (cabecalhos vazio). Depois, o telefone de atendimento em CorporateDescriptionStr (que o detector não acha) foi trocado pelo TEL_EXEMPLO."
+}

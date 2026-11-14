@@ -1,0 +1,12 @@
+{
+  "url": "https://eeho.fa.us2.oraclecloud.com/hcmUI/CandidateExperience/en/sites/jobsearch/jobs",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "text/html"
+  },
+  "sha256": "e43e38d1ef18643ab4b9bf53df6798c516312cc00a5d2edf350f957b2357c9d0",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "montado à mão: a conferência de 2026-11-13 anotou que o HTML da página de carreira traz o atributo data-sitenumber=\"CX_45001\" (captura/fatos.json, B1), mas não guardou a página. Só o atributo é real; o resto do HTML é mínimo. Conferir na rede depois do merge."
+}
