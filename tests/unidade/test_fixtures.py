@@ -12,7 +12,7 @@ from jobot.nucleo.coletores.registro import descobrir
 RAIZ = Path(__file__).resolve().parents[2]
 FIXTURES = RAIZ / "tests" / "fixtures"
 LIMITE = 50 * 1024
-EMAIL = re.compile(r"[^\s\"'<>@/]+@[^\s\"'<>@]+\.[A-Za-z]{2,}")
+EMAIL = re.compile(r"[^\s\"'<>@/\[\]()]+@[^\s\"'<>@/\[\]()]+\.[A-Za-z]{2,}")
 
 
 def _carregar() -> ModuleType:
@@ -123,3 +123,21 @@ def test_copia_editada_tem_nome_editado(tmp_path: Path) -> None:
     # a mesma cópia sem o marcador no nome é recusada
     (pasta / "formato_mudou.json").write_text('{"b": 1}', encoding="utf-8")
     assert any("formato_mudou.json" in p and "editado" in p for p in capturar.problemas(pasta))
+
+
+@pytest.mark.parametrize(
+    "texto",
+    [
+        "[@angular/common](https://github.com/angular/angular)",
+        "updates [@angular-devkit/build-angular](https://github.com/angular/angular-cli)",
+    ],
+)
+def test_regex_email_ignora_mencao_de_pacote_em_markdown(texto: str) -> None:
+    assert EMAIL.findall(texto) == []
+
+
+@pytest.mark.parametrize(
+    "email", ["ana@empresa.com.br", "fulano.silva+x@gmail.com", "contato@sub.empresa.io"]
+)
+def test_regex_email_casa_email_inteiro(email: str) -> None:
+    assert EMAIL.findall(f"fale com {email}.") == [email]
