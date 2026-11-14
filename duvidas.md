@@ -1361,3 +1361,24 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 **Opções:** (a) tirar as duas do `empresas.json`; (b) tarefa nova: no coletor da Gupy, quando o portal devolve 0 para uma empresa, ler a página de carreira `<identificador>.gupy.io` (host novo, muda a decisão 29 e o contrato do coletor; precisa do detalhe de cada vaga, porque a página traz só título, departamento e local); (c) manter as duas e conferir de novo na próxima rodada; (d) (c) agora e (b) na fase 2. Recomendação: (d). Custo de manter: um pedido por dia por empresa, sem erro. Risco: quem adicionar pelo painel uma empresa com o mesmo problema vê 0 vagas sem aviso.
 
 **Decisão provisória:** (d). Desfazer: tirar as duas do `empresas.json` (opção (a)) ou abrir a tarefa da opção (b).
+
+## D92. Rodada de segurança antes do PR da fase 1 (A60, A61, A64, T134)
+
+**Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar
+
+**Contexto:**
+- (A60) O semgrep (regras `p/python`, `p/security-audit`, `p/owasp-top-ten`, `p/trailofbits`, métricas desligadas) rodou em `src`, `scripts` e `.github`: 215 arquivos, 20 alertas.
+- (A60) 10 alertas de variável em `href` nos templates são falso positivo. Todo link de vaga passa por `canonica` (só http/https com host, `nucleo/url.py`) e por `confere_http` (`nucleo/modelo.py`). O link de candidatura passa ainda por `_http` na rota (`painel/rotas/detalhe.py`). A vaga sugerida passa por `confere_http` (`descoberta_cc.py`) e pelo teste de prefixo da rota (`painel/rotas/sugeridas.py`). Os demais são rotas internas ou textos do i18n.
+- (A60) 5 alertas de XML sem `defusedxml` (RSS e sitemaps) ficam sem mudança. O Python do projeto (3.14.9) traz o expat 2.9.0, que barra expansão de entidades ('billion laughs'), explosão quadrática e tokens grandes, e o ElementTree não busca entidade externa. `defusedxml` seria dependência nova sem ganho.
+- (A61) Actions fixadas pelo hash do commit, com a versão em comentário (T134). 5 alertas de tag mutável nas Actions viraram a T134.
+- (A64) Auditoria de configurações inseguras por padrão (segredo de reserva, credencial padrão, falha aberta, criptografia fraca, acesso largo, depuração exposta): 0 achados. Os 7 candidatos caíram na verificação:
+  - token do `wiki.yml`: é o token do próprio job, com `persist-credentials: false` e sem gatilho de PR;
+  - `contents: write` do `wiki.yml`: o mínimo para enviar a wiki;
+  - retorno antecipado na checagem de salto do `http.py`: toda URL de fora recusa host local já no primeiro salto;
+  - ausência do cabeçalho Origin no CSRF: o token de 256 bits continua conferido e falha fechado;
+  - modo 0644 do arquivo do serviço do systemd: sem segredo dentro;
+  - duas mensagens de validação.
+
+**Opções:** (a) aceitar como está; (b) acrescentar `defusedxml` mesmo assim; (c) rodar o semgrep no CI (workflow novo, fase 2). Recomendação: (a).
+
+**Decisão provisória:** (a). Desfazer: abrir tarefa para (b) ou (c).
