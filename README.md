@@ -31,8 +31,8 @@ Ele junta, filtra e organiza vagas de muitos sites num painel bonito que roda no
 </div>
 
 > [!IMPORTANT]
-> **O joBot está em desenvolvimento.** As decisões principais já foram tomadas e registradas. A fase 1 está em desenho.
-> Ainda **não há código** e ainda **não há nada para instalar**. Tudo o que está descrito aqui é o plano, não um produto pronto.
+> **O joBot está em desenvolvimento.** As decisões principais já foram tomadas e registradas. A fase 1 (a base) está em andamento.
+> Ainda **não há nada para instalar**. Tudo o que está descrito aqui é o plano, não um produto pronto.
 
 ## 📑 Sumário
 
@@ -51,10 +51,13 @@ Ele junta, filtra e organiza vagas de muitos sites num painel bonito que roda no
 - [Decisões do projeto](#decisoes-do-projeto)
 - [Como contribuir](#como-contribuir)
 - [Histórico de estrelas](#historico-de-estrelas)
+- [Apoie o projeto](#apoie-o-projeto)
 - [Licença e avisos](#licenca-e-avisos)
 
 <a id="o-que-e"></a>
 ## 🤖 O que é o joBot
+
+O joBot nasceu para ajudar jovens universitários a encontrar o primeiro emprego. Depois a ideia cresceu: hoje ele quer ajudar todo mundo que procura vaga.
 
 Procurar vaga hoje cansa. É preciso abrir muitos sites, repetir os mesmos filtros e torcer para não perder um prazo.
 O joBot vai fazer esse trabalho repetitivo por você. Ele vai visitar os sites de vagas, juntar tudo num lugar só e mostrar o que combina com o seu perfil.
@@ -161,7 +164,7 @@ Cada fonte tem uma chave liga/desliga.
 | Sites e APIs internacionais | Jobicy, Hacker News "Who is hiring", Remotive, RemoteOK, Himalayas, We Work Remotely |
 | Quadros de vagas de empresas (sistemas de recrutamento, os "ATS") | Greenhouse, Lever, Ashby, SmartRecruiters, Workday, Eightfold, Oracle HCM, InHire, Quickin, Recrutei |
 | Portais brasileiros | Gupy, CIEE, Sólides, IEL, Super Estágios, Cia de Talentos, Eureca, Abler |
-| Carreiras de grandes empresas | Google, Amazon, Microsoft, NVIDIA, Meta |
+| Carreiras de grandes empresas | Google, Amazon, Microsoft, NVIDIA |
 | Murais de estágio | Murais públicos, como o da USP |
 | 🔐 Sites com login (primeiro) | LinkedIn, Indeed, Catho, Vagas.com |
 | 🔐 Sites com login (depois, um de cada vez) | InfoJobs, Glassdoor, Programathor, GeekHunter, Remotar, Trampos, Revelo, Coodesh |
@@ -300,7 +303,7 @@ Detalhes na [ADR 0010](docs/decisions/0010-claude-code-da-pessoa.md).
 <a id="privacidade-e-seguranca"></a>
 ## 🔒 Privacidade e segurança
 
-> Estas são as regras planejadas. O joBot ainda não tem código.
+> Estas são as regras planejadas. O joBot ainda não tem nada para instalar.
 
 - **Não existe servidor do joBot.** Seus dados ficam no seu computador.
 - **Sem telemetria.** Nenhum dado de uso é enviado.
@@ -358,7 +361,7 @@ Cada fase só começa depois que a anterior passa nos testes. Não há datas pro
 
 | Fase | O que entra | Status |
 |---|---|---|
-| **1. Base** | Núcleo comum, fontes públicas, banco, painel e agenda | 🟡 Em desenho |
+| **1. Base** | Núcleo comum, fontes públicas, banco, painel e agenda | 🟡 Em andamento |
 | **2. Navegador com login** | Chrome visível, mapeamento dos sites, tratamento de CAPTCHA | ⚪ Planejada |
 | **3. IA local** | Pacote offline (llama-server + Qwen) | ⚪ Planejada |
 | **4. Extensão do navegador** | Extensão do navegador para formulários | ⚪ Planejada |
@@ -401,11 +404,12 @@ Cada decisão importante está registrada num documento curto, chamado ADR (regi
 | 0017 | [Fases do projeto](docs/decisions/0017-fases.md) |
 | 0018 | [Manutenção pela comunidade e CI aberto a todo PR](docs/decisions/0018-manutencao-pela-comunidade.md) |
 | 0019 | [Wiki do projeto e formulário de dúvida](docs/decisions/0019-wiki-do-projeto.md) |
+| 0020 | [Apoio financeiro: só doação](docs/decisions/0020-apoio-financeiro.md) |
 
 <a id="como-contribuir"></a>
 ## 🤝 Como contribuir
 
-O repositório já está no GitHub, mas ainda não tem código.
+O repositório já está no GitHub, e a fase 1 está em andamento.
 
 - **Sugestões e fontes de vagas** já podem ser enviadas pelas issues, com formulários prontos.
 - **Dúvidas** vão pelo [formulário de dúvida](https://github.com/fezarosa-dev/joBot/issues/new?template=duvida.yml). Leia antes as [perguntas frequentes](https://github.com/fezarosa-dev/joBot/wiki/Perguntas-frequentes).
@@ -433,6 +437,23 @@ Se o joBot te ajudar, deixe uma estrela no repositório.
    <img alt="Gráfico do número de estrelas do joBot no GitHub ao longo do tempo" src="https://api.star-history.com/chart?repos=fezarosa-dev/joBot&type=date&legend=top-left" />
  </picture>
 </a>
+
+<a id="apoie-o-projeto"></a>
+## 💛 Apoie o projeto
+
+O joBot é grátis e é mantido por uma pessoa. Se ele te ajudar e você quiser contribuir com a manutenção, pode doar:
+
+- **Pix** (só Brasil), chave aleatória:
+
+  ```text
+  65c34f26-c646-431f-af90-e5b1d2808ad4
+  ```
+
+- **Buy Me a Coffee:** <https://buymeacoffee.com/zanoni.dev>
+
+Doar é opcional. O joBot continua inteiro grátis, sem anúncio, sem afiliado e sem rastreio (veja a [decisão 0020](docs/decisions/0020-apoio-financeiro.md)).
+
+Outras formas de ajudar e mais detalhes estão na [página Apoie da wiki](https://github.com/fezarosa-dev/joBot/wiki/Apoie).
 
 <a id="licenca-e-avisos"></a>
 ## ⚖️ Licença e avisos
