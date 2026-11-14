@@ -115,14 +115,17 @@ def rotular(v: VagaColetada, texto: str, locais: Sequence[Local]) -> Rotulos:
     campos = {
         "titulo": normalizar(v.titulo),
         "etiquetas": normalizar(" ; ".join(v.etiquetas)),
+        "local": normalizar(" ; ".join(v.locais)),  # texto cru da fonte ("Remote - US only")
         "descricao": normalizar(texto),
     }
     # uf só conta como Brasil quando o país veio vazio
     no_brasil = any(local.pais == "BR" or (local.pais is None and local.uf) for local in locais)
+    # clt e pj são do Brasil (D5): só local com país de fora os barra; sem país, vale o texto
+    fora = any(local.pais not in (None, "BR") for local in locais)
     so_no_brasil = set(_DADOS["contrato"]["so_no_brasil"])
 
     def contrato_vale(valor: str) -> bool:
-        return no_brasil or valor not in so_no_brasil
+        return no_brasil or not fora or valor not in so_no_brasil
 
     def todos(_: str) -> bool:
         return True

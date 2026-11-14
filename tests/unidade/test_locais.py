@@ -4,7 +4,13 @@ from pathlib import Path
 import pytest
 
 from jobot.nucleo.modelo import Local
-from jobot.nucleo.tratamento.locais import _PAISES, ler_locais, nome_do_pais, nome_em_ingles
+from jobot.nucleo.tratamento.locais import (
+    _PAISES,
+    ler_locais,
+    nome_do_pais,
+    nome_em_ingles,
+    pais_escrito,
+)
 
 UFS = Path(__file__).resolve().parents[2] / "src" / "jobot" / "nucleo" / "dados" / "ufs.json"
 SIGLAS = "AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO".split()
@@ -14,7 +20,7 @@ SIGLAS = "AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR S
     ("bruto", "esperado"),
     [
         ("São Paulo - SP", Local(cidade="São Paulo", uf="SP", pais="BR")),
-        ("Sao Paulo, Brazil", Local(cidade="Sao Paulo", pais="BR")),
+        ("Sao Paulo, Brazil", Local(cidade="Sao Paulo", uf="SP", pais="BR")),
         ("Remote - Brazil", Local(pais="BR")),
         ("Lisboa, Portugal", Local(cidade="Lisboa", pais="PT")),
         ("Curitiba, Paraná, BRASIL", Local(cidade="Curitiba", uf="PR", pais="BR")),
@@ -82,7 +88,9 @@ def test_27_ufs_no_json() -> None:
     assert {u["sigla"] for u in ufs} == set(SIGLAS)
 
 
-@pytest.mark.parametrize("bruto", ["asdf qwerty", "???", "Curitiba", "12345"])
+@pytest.mark.parametrize(
+    "bruto", ["asdf qwerty", "???", "Victoria", "12345", "Remote US Timezones"]
+)
 def test_texto_desconhecido_vira_local_vazio_sem_erro(bruto: str) -> None:
     assert ler_locais([bruto]) == (Local(),)
 
@@ -136,3 +144,77 @@ def test_nome_do_pais_de_todo_codigo_volta_ao_mesmo_codigo() -> None:
 
 def test_estados_unidos_da_america_e_us() -> None:
     assert ler_locais(["Estados Unidos da América"]) == (Local(pais="US"),)
+
+
+@pytest.mark.parametrize(
+    ("bruto", "esperado"),
+    [
+        ("São Paulo", Local(cidade="São Paulo", uf="SP", pais="BR")),
+        ("SÃO PAULO", Local(cidade="SÃO PAULO", uf="SP", pais="BR")),
+        ("Curitiba", Local(cidade="Curitiba", uf="PR", pais="BR")),
+        ("Brasilia", Local(cidade="Brasilia", uf="DF", pais="BR")),
+        ("Campinas", Local(cidade="Campinas", uf="SP", pais="BR")),
+        ("São Paulo Office", Local(cidade="São Paulo", uf="SP", pais="BR")),
+        ("Rio de Janeiro, Brasil", Local(cidade="Rio de Janeiro", uf="RJ", pais="BR")),
+        ("Brazil, São Paulo, Campinas", Local(cidade="São Paulo", uf="SP", pais="BR")),
+    ],
+)
+def test_capital_ou_cidade_grande_sem_uf_ganha_a_uf(bruto: str, esperado: Local) -> None:
+    assert ler_locais([bruto]) == (esperado,)
+
+
+def test_cidade_brasileira_com_pais_de_fora_nao_ganha_uf() -> None:
+    # nome igual ao de capital, mas o país escrito é outro: o país vence
+    assert ler_locais(["Natal, Portugal"]) == (Local(cidade="Natal", pais="PT"),)
+
+
+@pytest.mark.parametrize(
+    ("bruto", "esperado"),
+    [
+        ("Austin, TX", Local(cidade="Austin", pais="US")),
+        ("Paris, TX", Local(cidade="Paris", pais="US")),
+        ("Toronto, ON, CA", Local(cidade="Toronto", pais="CA")),
+        ("Vancouver, BC, CA", Local(cidade="Vancouver", pais="CA")),
+        ("Tel Aviv, IL", Local(cidade="Tel Aviv", pais="IL")),
+        ("London, ON", Local(cidade="London", pais="CA")),
+        ("Amsterdam, NL", Local(cidade="Amsterdam", pais="NL")),
+        ("Berlin Office", Local(cidade="Berlin", pais="DE")),
+        ("New York, NY", Local(cidade="New York", pais="US")),
+        ("San Francisco, CA", Local(cidade="San Francisco", pais="US")),
+        ("USA Only", Local(pais="US")),
+        ("US only", Local(pais="US")),
+        ("Remote US", Local(pais="US")),
+        ("United States of America", Local(pais="US")),
+        ("U.S.", Local(pais="US")),
+        ("Philippines", Local(pais="PH")),
+        ("Deutschland", Local(pais="DE")),
+        ("Poland", Local(pais="PL")),
+        ("Berlin", Local(cidade="Berlin", pais="DE")),
+        ("Berlin, DE", Local(cidade="Berlin", pais="DE")),
+        ("London", Local(cidade="London", pais="GB")),
+        ("Toronto, ON", Local(cidade="Toronto", pais="CA")),
+    ],
+)
+def test_pais_de_fora_por_estado_nome_ou_cidade_conhecida(bruto: str, esperado: Local) -> None:
+    assert ler_locais([bruto]) == (esperado,)
+
+
+def test_sigla_de_uf_vence_estado_dos_eua() -> None:
+    # "ES" é Espírito Santo; "PA" é Pará fora da lista de cidades dos EUA
+    assert ler_locais(["Vitória, ES"]) == (Local(cidade="Vitória", uf="ES", pais="BR"),)
+    assert ler_locais(["Belém - PA"]) == (Local(cidade="Belém", uf="PA", pais="BR"),)
+
+
+@pytest.mark.parametrize(
+    ("bruto", "esperado"),
+    [
+        ("Austin, TX", None),
+        ("Austin", None),
+        ("Curitiba, PR", None),
+        ("Austin, USA", "US"),
+        ("Remote - Brazil", "BR"),
+        ("Sao Paulo, Brasil", "BR"),
+    ],
+)
+def test_pais_escrito_so_com_o_nome_do_pais(bruto: str, esperado: str | None) -> None:
+    assert pais_escrito(bruto) == esperado
