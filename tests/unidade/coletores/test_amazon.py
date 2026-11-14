@@ -1,7 +1,7 @@
 import json
 from collections.abc import AsyncIterator, Callable, Sequence
 from copy import deepcopy
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -23,6 +23,7 @@ PASTA = Path(__file__).resolve().parents[2] / "fixtures" / "amazon"
 API = "https://www.amazon.jobs/en/search.json"
 URL_BR = f"{API}?normalized_country_code%5B%5D=BRA&result_limit=100&offset=0&sort=recent"
 Responder = Callable[[httpx.Request], httpx.Response]
+BRASILIA = timezone(timedelta(hours=-3))
 ETAG = 'W/"fa2bf45ce41d9979fe74d0af8cf958a1"'
 
 
@@ -158,7 +159,7 @@ async def test_normal() -> None:
     assert bruto["description"] in primeira.descricao
     assert bruto["basic_qualifications"] in primeira.descricao
     assert bruto["preferred_qualifications"] in primeira.descricao
-    assert primeira.publicada_em == datetime(2026, 11, 13, tzinfo=UTC)
+    assert primeira.publicada_em == datetime(2026, 11, 13, tzinfo=BRASILIA)
     assert primeira.contrato_declarado == "full-time"
     assert primeira.etiquetas == ("Sales, Advertising, & Account Management", "Tech Sales")
     assert primeira.url_candidatura is None and primeira.salario_estruturado is None
@@ -171,6 +172,15 @@ async def test_normal() -> None:
     ]
     assert all(v.url.startswith("https://www.amazon.jobs/en/jobs/") for v in vagas)
     assert len(pedidos) == 1
+
+
+async def test_amazon_publicada_em_meia_noite_de_brasilia() -> None:
+    # `posted_date` não tem hora: meia-noite UTC cairia na noite do dia anterior em Brasília
+    resultado, _ = await _coletar(_uma_pagina())
+    primeira = _vagas(resultado)[0]
+    assert primeira.publicada_em is not None
+    assert primeira.publicada_em.utcoffset() == timedelta(hours=-3)
+    assert primeira.publicada_em == datetime(2026, 11, 13, 3, tzinfo=UTC)
 
 
 async def test_locais_vem_do_texto_json_de_locations() -> None:
@@ -226,8 +236,8 @@ async def test_link_so_com_o_host_fixo_e_caminho_valido() -> None:
 @pytest.mark.parametrize(
     ("bruto", "esperado"),
     [
-        ("November 13, 2026", datetime(2026, 11, 13, tzinfo=UTC)),
-        ("January 5, 2027", datetime(2027, 1, 5, tzinfo=UTC)),
+        ("November 13, 2026", datetime(2026, 11, 13, tzinfo=BRASILIA)),
+        ("January 5, 2027", datetime(2027, 1, 5, tzinfo=BRASILIA)),
         ("February 30, 2026", None),
         ("13 de novembro de 2026", None),
         ("2026-11-13", None),

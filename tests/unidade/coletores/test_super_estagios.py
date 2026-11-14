@@ -357,7 +357,7 @@ async def test_detalhar_normal() -> None:
     assert (vaga.fonte, vaga.escopo, vaga.id_externo) == ("super_estagios", "", "329131")
     assert vaga.url == URL_VAGA  # o da URL listada: é por ele que o executor acha a vaga de novo
     assert vaga.titulo == "Estágio em FISIOTERAPIA"
-    assert vaga.empresa == "CONFIDENCIAL"
+    assert vaga.empresa == "Super Estágios"  # a página diz CONFIDENCIAL
     assert vaga.locais == ("Belém, PA",)
     assert vaga.contrato_declarado == "INTERN"
     assert vaga.salario_estruturado == SalarioBruto(
@@ -390,6 +390,19 @@ async def test_detalhar_sem_tabela_usa_a_descricao_do_json_ld() -> None:
     vaga = await _vaga(_pagina(_json_ld(), tabela=False))
     assert vaga.titulo == "Estágio em FISIOTERAPIA"
     assert vaga.descricao == _json_ld()["description"]
+
+
+@pytest.mark.parametrize("nome", ["CONFIDENCIAL", " Confidencial ", "confidencial"])
+async def test_super_estagios_confidencial_vira_nome_da_fonte(nome: str) -> None:
+    # empresa em sigilo fica com o nome da fonte, como o CIEE faz com "CIEE"
+    vaga = await _vaga(_pagina(_ld(hiringOrganization={"@type": "Organization", "name": nome})))
+    assert vaga.empresa == "Super Estágios" == super_estagios.COLETOR.nome
+
+
+async def test_super_estagios_empresa_com_nome_fica_como_veio() -> None:
+    org = {"@type": "Organization", "name": " Hospital Confidencial Ltda "}
+    vaga = await _vaga(_pagina(_ld(hiringOrganization=org)))
+    assert vaga.empresa == "Hospital Confidencial Ltda"
 
 
 @pytest.mark.parametrize(
@@ -431,7 +444,7 @@ async def test_detalhar_json_ld_em_lista_ou_graph() -> None:
     em_lista = await _vaga(_pagina([{"@type": "WebSite"}, _json_ld()]))
     assert em_lista.titulo == "Estágio em FISIOTERAPIA"
     em_graph = await _vaga(_pagina({"@graph": [{"@type": "WebSite"}, _json_ld()]}))
-    assert em_graph.empresa == "CONFIDENCIAL"
+    assert em_graph.empresa == "Super Estágios"
     tipos = await _vaga(_pagina(_ld(**{"@type": ["Thing", "JobPosting"]})))
     assert tipos.titulo == "Estágio em FISIOTERAPIA"
 

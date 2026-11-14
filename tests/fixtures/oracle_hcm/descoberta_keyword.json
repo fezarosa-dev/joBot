@@ -1,0 +1,210 @@
+{
+  "items": [
+    {
+      "SearchId": 1,
+      "Keyword": "Brazil",
+      "CorrectedKeyword": null,
+      "UseExactKeywordFlag": false,
+      "SuggestedKeyword": null,
+      "ExecuteSpellCheckFlag": true,
+      "Location": null,
+      "LocationId": null,
+      "Radius": 0,
+      "RadiusUnit": "MI",
+      "SelectedTitlesFacet": null,
+      "SelectedCategoriesFacet": null,
+      "SelectedPostingDatesFacet": null,
+      "SelectedLocationsFacet": null,
+      "LastSelectedFacet": null,
+      "Facets": "LOCATIONS",
+      "Offset": 0,
+      "Limit": 25,
+      "SortBy": "POSTING_DATES_DESC",
+      "TotalJobsCount": 2,
+      "Latitude": null,
+      "Longitude": null,
+      "SiteNumber": "CX_45001",
+      "JobFamilyId": null,
+      "PostingStartDate": null,
+      "PostingEndDate": null,
+      "SelectedWorkLocationsFacet": null,
+      "RequisitionId": null,
+      "CandidateNumber": null,
+      "WorkLocationZipCode": null,
+      "WorkLocationCountryCode": null,
+      "SelectedFlexFieldsFacets": null,
+      "OrganizationId": null,
+      "SelectedOrganizationsFacet": null,
+      "UserTargetFacetName": null,
+      "UserTargetFacetInputTerm": null,
+      "HotJobFlag": null,
+      "WorkplaceType": null,
+      "SelectedWorkplaceTypesFacet": null,
+      "BotQRShortCode": null,
+      "requisitionList": [
+        {
+          "Id": "346253",
+          "Title": "Revenue Analyst 2-Fin",
+          "PostedDate": "2026-11-02",
+          "PostingEndDate": null,
+          "Language": "US",
+          "PrimaryLocationCountry": "IN",
+          "GeographyId": 300001842985425,
+          "HotJobFlag": false,
+          "WorkplaceTypeCode": null,
+          "JobFamily": null,
+          "JobFunction": null,
+          "WorkerType": null,
+          "ContractType": null,
+          "ManagerLevel": null,
+          "JobSchedule": null,
+          "JobShift": null,
+          "JobType": null,
+          "StudyLevel": null,
+          "DomesticTravelRequired": null,
+          "InternationalTravelRequired": null,
+          "WorkDurationYears": null,
+          "WorkDurationMonths": null,
+          "WorkHours": null,
+          "WorkDays": null,
+          "LegalEmployer": null,
+          "BusinessUnit": null,
+          "Department": null,
+          "Organization": null,
+          "BusinessUnitId": 300001096514498,
+          "LegalEmployerId": 300000000814110,
+          "OrganizationId": 300001902541887,
+          "MediaThumbURL": "https://img.youtube.com/vi/BV0GMCITXg4/hqdefault.jpg",
+          "ShortDescriptionStr": "About the Team\nThe Global Finance Information Center (GFIC) in Bangalore is a shared-services finance center supporting Oracle Finance.\nWithin GFIC, the Accounts Receivable Center of Excellence manages global post-invoice delivery operations and drives process excellence across traditional and next-generation electronic invoicing channels.\nThe team supports invoice delivery through multiple channels, including:\n•\tEmail\n•\tPaper\n•\tE-invoicing\n•\tCustomer web portals\nThe team helps ensure invoices are delivered accurately and on time while meeting applicable country-specific tax and statutory requirements, including government-mandated e-invoicing and validation requirements.\nThe team operates in a global, compliance-focused finance environment where accuracy, timely invoice delivery, effective issue resolution, and adaptability to evolving e-invoicing requirements are important to successful operations.\n",
+          "PrimaryLocation": "BENGALURU, KARNATAKA, India",
+          "Distance": 1793577600000.0,
+          "TrendingFlag": true,
+          "BeFirstToApplyFlag": false,
+          "Relevancy": 45.651180267333984,
+          "WorkplaceType": "",
+          "ExternalQualificationsStr": null,
+          "ExternalResponsibilitiesStr": null,
+          "secondaryLocations": []
+        },
+        {
+          "Id": "345954",
+          "Title": "NetSuite Consultant - Hospitality",
+          "PostedDate": "2026-09-23",
+          "PostingEndDate": null,
+          "Language": "US",
+          "PrimaryLocationCountry": "BR",
+          "GeographyId": 300000000106728,
+          "HotJobFlag": false,
+          "WorkplaceTypeCode": null,
+          "JobFamily": null,
+          "JobFunction": null,
+          "WorkerType": null,
+          "ContractType": null,
+          "ManagerLevel": null,
+          "JobSchedule": null,
+          "JobShift": null,
+          "JobType": null,
+          "StudyLevel": null,
+          "DomesticTravelRequired": null,
+          "InternationalTravelRequired": null,
+          "WorkDurationYears": null,
+          "WorkDurationMonths": null,
+          "WorkHours": null,
+          "WorkDays": null,
+          "LegalEmployer": null,
+          "BusinessUnit": null,
+          "Department": null,
+          "Organization": null,
+          "BusinessUnitId": 300001096514796,
+          "LegalEmployerId": 300000000482027,
+          "OrganizationId": 300001902541887,
+          "MediaThumbURL": "https://img.youtube.com/vi/BV0GMCITXg4/hqdefault.jpg",
+          "ShortDescriptionStr": "If you’re a senior-level NetSuite consultant with experience helping Hospitality organizations transform operations, elevate guest experiences, and drive business performance, and you’re excited about helping customers leverage AI to accelerate innovation, the NetSuite Advanced Customer Support team is the place for you.",
+          "PrimaryLocation": "Brazil",
+          "Distance": 1790121600000.0,
+          "TrendingFlag": false,
+          "BeFirstToApplyFlag": false,
+          "Relevancy": 7.450033187866211,
+          "WorkplaceType": "",
+          "ExternalQualificationsStr": null,
+          "ExternalResponsibilitiesStr": null,
+          "secondaryLocations": []
+        }
+      ],
+      "categoriesFacet": [],
+      "locationsFacet": [
+        {
+          "Id": 300000000106728,
+          "Name": "Brazil",
+          "TotalCount": 1
+        },
+        {
+          "Id": 300000000106947,
+          "Name": "India",
+          "TotalCount": 1
+        },
+        {
+          "Id": 300001842984480,
+          "Name": "KARNATAKA, India",
+          "TotalCount": 1
+        },
+        {
+          "Id": 300001842985425,
+          "Name": "BENGALURU, KARNATAKA, India",
+          "TotalCount": 1
+        }
+      ],
+      "postingDatesFacet": [],
+      "titlesFacet": [],
+      "workLocationsFacet": [],
+      "flexFieldsFacet": [
+        {
+          "Name": "AttributeChar29",
+          "Label": "Role"
+        },
+        {
+          "Name": "AttributeChar4",
+          "Label": "Job Type"
+        },
+        {
+          "Name": "AttributeChar13",
+          "Label": "Experience Level"
+        },
+        {
+          "Name": "AttributeChar15",
+          "Label": "Line of Business"
+        },
+        {
+          "Name": "AttributeChar6",
+          "Label": "Years"
+        }
+      ],
+      "organizationsFacet": [],
+      "workplaceTypesFacet": []
+    }
+  ],
+  "count": 1,
+  "hasMore": false,
+  "limit": 200,
+  "offset": 0,
+  "links": [
+    {
+      "rel": "self",
+      "href": "https://eeho.fa.us2.oraclecloud.com:443/hcmRestApi/resources/11.13.18.05/recruitingCEJobRequisitions",
+      "name": "recruitingCEJobRequisitions",
+      "kind": "collection"
+    },
+    {
+      "rel": "action",
+      "href": "https://eeho.fa.us2.oraclecloud.com:443/hcmRestApi/resources/11.13.18.05/recruitingCEJobRequisitions/action/getRequisitionsLocationCoordinates",
+      "name": "getRequisitionsLocationCoordinates",
+      "kind": "other"
+    },
+    {
+      "rel": "action",
+      "href": "https://eeho.fa.us2.oraclecloud.com:443/hcmRestApi/resources/11.13.18.05/recruitingCEJobRequisitions/action/getRequisitionDetailsForMap",
+      "name": "getRequisitionDetailsForMap",
+      "kind": "other"
+    }
+  ]
+}

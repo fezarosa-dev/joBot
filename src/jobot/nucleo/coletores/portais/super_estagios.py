@@ -41,6 +41,7 @@ _URL_VAGA = re.compile(r"https://www\.superestagios\.com\.br/vaga/(\d+)")
 # não tem horário de verão desde 2019; o `validThrough` do site vem com -03:00). Conferir na rede
 # real e trocar se o site passar a mandar UTC.
 _BRASILIA = timezone(timedelta(hours=-3))
+_NOME = "Super Estágios"
 _PERIODOS: Mapping[str, Periodo] = {
     "HOUR": "hora",
     "DAY": "dia",
@@ -206,6 +207,8 @@ def _vaga(url: str, numero: str, arvore: LexborHTMLParser) -> VagaColetada | Non
     empresa = _texto(organizacao.get("name")) if isinstance(organizacao, dict) else None
     if titulo is None or empresa is None:
         return None
+    if empresa.casefold() == "confidencial":  # empresa em sigilo: a fonte, como no CIEE
+        empresa = _NOME
     identificador = ld.get("identifier")
     valor_id = identificador.get("value") if isinstance(identificador, dict) else None
     if isinstance(valor_id, int) and not isinstance(valor_id, bool):
@@ -234,7 +237,7 @@ def _vaga(url: str, numero: str, arvore: LexborHTMLParser) -> VagaColetada | Non
 
 class SuperEstagios:
     chave: str = "super_estagios"
-    nome: str = "Super Estágios"
+    nome: str = _NOME
     leva: Literal["A", "B"] = _LIMITES.leva
     hosts: tuple[str, ...] = ("www.superestagios.com.br",)
     credito_obrigatorio: bool = _LIMITES.credito_obrigatorio

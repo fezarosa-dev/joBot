@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from jobot.nucleo.modelo import Local
-from jobot.nucleo.tratamento.locais import _PAISES, ler_locais, nome_do_pais
+from jobot.nucleo.tratamento.locais import _PAISES, ler_locais, nome_do_pais, nome_em_ingles
 
 UFS = Path(__file__).resolve().parents[2] / "src" / "jobot" / "nucleo" / "dados" / "ufs.json"
 SIGLAS = "AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO".split()
@@ -111,6 +111,20 @@ def test_nome_do_pais_br_e_us() -> None:
     assert nome_do_pais("US") == "Estados Unidos"
     assert nome_do_pais("FR") == "França"
     assert nome_do_pais("ZZ") is None
+
+
+def test_nome_em_ingles_br_us_gb() -> None:
+    assert nome_em_ingles("BR") == "Brazil"
+    assert nome_em_ingles("US") == "United States"
+    assert nome_em_ingles("GB") == "United Kingdom"
+    assert nome_em_ingles("MX") == "Mexico"
+    assert nome_em_ingles("ZZ") is None
+    assert nome_em_ingles("br") is None  # o código é ISO em maiúsculas, como em `nome_do_pais`
+    # todo nome em inglês volta ao próprio código pelo leitor de locais
+    for codigo in set(_PAISES.values()):
+        nome = nome_em_ingles(codigo)
+        assert nome is not None
+        assert [lido.pais for lido in ler_locais([nome])] == [codigo]
 
 
 def test_nome_do_pais_de_todo_codigo_volta_ao_mesmo_codigo() -> None:
