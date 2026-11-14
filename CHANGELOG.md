@@ -28,6 +28,7 @@ A fase 1: a base do joBot. Já dá para instalar e usar.
 - Painel em português e em inglês, com tema claro e escuro.
 - Na barra de andamento da busca, a lista das fontes que ainda estão rodando.
 - Aviso "Salvo." depois de salvar em Configurações.
+- Aviso de restrição a países nas vagas remotas da Himalayas, Jobicy e Remotive.
 - Decisões do projeto (ADRs 0001 a 0021) e o `duvidas.md`.
 - README com selos, diagrama, tabelas e perguntas frequentes, e a versão em inglês.
 - Gráfico de estrelas no README.
@@ -39,6 +40,8 @@ A fase 1: a base do joBot. Já dá para instalar e usar.
 
 - Denúncias do Código de Conduta vão para o e-mail do projeto.
 - O README deixou de ser só plano: descreve a instalação da fase 1.
+- As regras de rótulo (área, nível, modalidade, contrato, país e estado) foram ajustadas e medidas num conjunto de vagas conferidas à mão.
+- Vagas de sites só brasileiros saem com o país Brasil.
 
 ### Corrigido
 
@@ -46,3 +49,4 @@ A fase 1: a base do joBot. Já dá para instalar e usar.
 - A Greenhouse aceita quadros de vagas muito grandes, como o da Stripe.
 - A agenda só começa a buscar depois que o assistente de primeira execução termina.
 - Em Fontes, uma fonte que atingiu o limite mostra a última rodada que ela de fato fez.
+- Um país de fora no formulário de buscas não vira mais um estado brasileiro.

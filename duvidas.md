@@ -184,6 +184,8 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 **Decisão provisória (o código segue esta opção até o dono decidir):** Opção (a), como o construtor recomendou. A conferência com o gabarito (T37/T78) mostra se resolve.
 
+**Atualização de 2026-11-14 (A80, T144):** a opção (b) foi implementada em `tratar()` para as fontes só brasileiras (lista `fontes.so_brasil` em `rotulos.json`): sem país em nenhum local, a vaga ganha BR. Conferido com o gabarito: o acerto de país foi de 67,2% para 87,2% (D97). O status continua para confirmar.
+
 ## D19. Contrato do ciclo de vida (T14)
 
 **Status:** aberta, para confirmar
@@ -1436,3 +1438,42 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 **Opções:** (a) os três canais, como está; (b) tirar algum. Recomendação: (a).
 
 **Decisão provisória:** (a), do dono. Desfazer: tirar a linha de cada arquivo.
+
+## D97. Rótulos medidos e ajustados (T37, T78, T144; A77-A80)
+
+**Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar
+
+**Contexto:** a T37 mediu os rótulos das regras contra o gabarito de 329 vagas (comando `jobot avaliar-rotulos`; o relatório `docs/rotulos-medidos.md` traz só números, sem texto de vaga). A T78 ajustou as regras e a T144 passou a trazer o país e a restrição da própria fonte. As três foram entregues e juntadas na `dev` em 2026-11-14. Acerto por rótulo:
+
+| Rótulo | Antes (T37) | Depois da T78 | Depois da T144 |
+|---|---|---|---|
+| área | 56,2% | 63,5% | 63,5% |
+| nível | 69,0% | 71,7% | 71,7% |
+| modalidade | 57,1% | 61,1% | 61,1% |
+| contrato | 56,5% | 64,4% | 64,4% |
+| avisos | 76,0% | 80,2% | 84,2% |
+| país | 67,2% | 79,3% | 87,2% |
+| UF | 86,3% | 94,5% | 94,5% |
+
+A meta de 90% só foi batida em UF. Ela não trava a fase 1.
+
+**O que a T78 mudou** (`nucleo/dados/rotulos.json` e `tests/casos/rotulos.json`): exclusões de híbrido (mobile, desenvolvimento, plataforma, framework, aplicação, app); "data entry" fora de dados; gestora com exclusão "de tráfego"; ceo e cto com exclusões ("assistant to", "assistente de" etc.); pl, ssr e mid com exclusões ("pl sql", "mid-market"...); negação de CNPJ; nível achado na descrição com peso 2; províncias do Canadá e cidades estrangeiras conhecidas; `pais_escrito` público. O formulário de buscas mostra o país em inglês ("Itu, Brazil") e todo país do leitor volta igual pelo formulário. O Workday só filtra pelo `location` quando ele traz o país escrito ou, no escopo BR, a sigla de UF ("Sao Paulo, SP"); o tenant que só lista "Austin, TX" fica sem filtro (`shortcut:` no código).
+
+**O que a T144 mudou:** a lista `fontes.so_brasil` em `rotulos.json` (github_issues, gupy, inhire, solides, abler, ciee, iel, super_estagios, cia_de_talentos, eureca, usp) e a lista `fontes.local_e_restricao_de_pais` (himalayas, jobicy, remotive). `tratar()` completa os locais com país BR quando a fonte é só brasileira e nenhum local tem país; o cartão mostra "BR". A vaga remota de himalayas, jobicy ou remotive em que todo local vira país ganha o aviso `restrito_a_pais` (região ou mundo não). Quickin e Recrutei ficam fora, porque têm campo de país próprio. A medição traduz os nomes de fonte da captura antiga (`github-backend-br`, `usp_fea`, `iel_carreiras`...) para o nome do produto. A Sólides passa a pôr o país no texto do local quando a API diz país diferente de Brasil (ajuste da revisão). A `versao_algoritmo` sobe para reprocessar as vagas já guardadas.
+
+**Decisões da sessão:**
+- (A77) A fonte que só publica vaga no Brasil recebe país BR quando nenhum local diz país. A lista fica em dados (`rotulos.json`), não no código.
+- (A78) Himalayas, Jobicy e Remotive acrescentam `restrito_a_pais` quando a vaga é remota e todo local declarado é país.
+- (A79) Correções da T78: o formulário mostra o país em inglês; o Workday só usa o `location` com país escrito (mais a UF no escopo BR); `pais_escrito` é público; números finais da T78 (tabela acima).
+- (A80) A A77 vale no produto (`tratar()`), não só na medição: o cartão mostra "BR". O cartão passa a mostrar BR; antes, a decisão (A77, acima) era usar BR só na medição. Quickin e Recrutei ficam fora.
+
+**Riscos e limites:**
+- Gupy, InHire, Abler e Cia de Talentos não trazem país: vaga de fora com cidade fora das listas ganha BR (`shortcut:` no código).
+- As 10 vagas remotas para o mundo de `github_issues` passam a sair BR. A convenção do D5 dizia sem país; fica assim porque as comunidades são brasileiras.
+- Na Gupy, modalidade e contrato aparecem com erro na medição porque o gabarito foi rotulado sem o campo declarado da Gupy. Não é defeito do produto.
+- Workday: o tenant que só lista "Cidade, Estado" de fora fica sem filtro de país.
+- Sólides com país fora da tabela de países (Angola, Moçambique) ou estado de fora com sigla de UF ainda vira BR (`shortcut:` no código). Região fora da lista (por exemplo "Middle East") junto de país conta como país no aviso `restrito_a_pais`.
+
+**Opções:** (a) manter BR nas fontes brasileiras, como está; (b) voltar a deixar sem país e perder o ganho da T144 no acerto de país (87,2% contra 79,3%). Recomendação: (a): o acerto de país sobe e a lista é dado fácil de editar; o risco são as poucas vagas de fora que passam por BR.
+
+**Decisão provisória:** (a). Desfazer: esvaziar `fontes.so_brasil` em `rotulos.json` e subir a `versao_algoritmo`.
