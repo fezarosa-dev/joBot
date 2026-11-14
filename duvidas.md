@@ -1304,7 +1304,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 ## D88. Atualização de dependências do fim da fase 1 (A53, T80d)
 
-**Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar
+**Status:** resolvida em 2026-11-14: o dono confirmou a recomendação (a)
 
 **Contexto:** a atualização manual da ADR 0021 (segundo passo da T80) foi feita na leva N, como T80d. O que mudou: `actions/checkout` foi da v4 para a v7 nos três workflows (`ci.yml:21`, `vigia.yml:28`, `wiki.yml:28`), `astral-sh/setup-uv` foi da v6 para a v7 (`ci.yml:22`, `vigia.yml:31`) e o requisito do `uv_build` ganhou o teto `<0.14` (`pyproject.toml:2`; o lock e o `uv build` aceitaram). O que não mudou: nenhum pacote do `uv.lock`, porque o `pyproject.toml` fixa tudo com `==` e `uv lock --upgrade` saiu idêntico; HTMX 2.0.11 e Inter 4.1 já estão na versão estável mais nova, com sha256 igual ao do `.meta.json`. Bateria verde antes e depois. O que ficou de fora, e por quê:
 - `setup-uv`: a versão publicada é a v10.3.3. As v8 a v10 trazem quebras de cache (poda desligada na v9; cache desligado em `pull_request_target`, `workflow_run` e `release`, e `version: latest-known` na v10). O `ci.yml` só usa `enable-cache: true`, então a v10 provavelmente não quebra nada, mas a ADR 0021 e o plano mandam a v7.
@@ -1353,7 +1353,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 ## D91. Beep Saúde e CNA Idiomas dão 0 vagas pela Gupy (A56, T55b, T40)
 
-**Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar
+**Status:** resolvida em 2026-11-14: o dono confirmou a recomendação (d)
 
 **Contexto:** conferido ao vivo na `fedora-dev` em 2026-11-14, três vezes. Vem da D74, que pedia conferir de novo antes de tirar a empresa.
 - Fato: `scripts/conferir_empresas.py gupy` deu 28 de 28 respondem, mas Beep Saúde e CNA Idiomas com 0 vagas, com ou sem o termo `developer` e com ou sem o `careerPageName`.
@@ -1419,7 +1419,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 ## D95. Defeitos 5 e 7 do ensaio da T80 mantidos como desenhado (A73)
 
-**Status:** aberta, para confirmar (o código segue a opção (a) até o dono decidir)
+**Status:** defeito 7 resolvido em 2026-11-14 (o dono confirmou (a): "ligar" o segundo plano continua marcado); defeito 5 (rodízio) aberto, para confirmar
 
 **Contexto:** dos oito defeitos do ensaio (D93), dois não viraram tarefa. A decisão A73 é mantê-los como estão:
 - Defeito 5: o rodízio de escopos da Gupy, como no desenho 8.3. Com `max_pedidos`, o executor reordena os escopos por `ultima_coleta`, então cada rodada lê uma parte e a seguinte lê as que ficaram para trás.
@@ -1540,7 +1540,7 @@ A meta de 90% só foi batida em UF. Ela não trava a fase 1.
 
 ## D104. Fase 1 marcada como concluída antes dos passos 3, 21 e 24 da T80 (A83, T132)
 
-**Status:** decidido pela sessão em 2026-11-14, para confirmar com o dono
+**Status:** resolvida em 2026-11-14: o dono confirmou a recomendação (a)
 
 **Contexto:** a T132 marcou a fase 1 como concluída nos documentos antes dos passos 3, 21 e 24 do roteiro, que ligam e desligam o systemd do computador e pedem reiniciá-lo. Eles ficam com o dono, junto da semana de teste na rede real (critério 15).
 
