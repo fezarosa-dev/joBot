@@ -1,0 +1,19 @@
+{
+  "pacote": "htmx.org",
+  "versao": "2.0.11",
+  "licenca": "0BSD",
+  "origem": "https://registry.npmjs.org/htmx.org/-/htmx.org-2.0.11.tgz",
+  "origem_sha256": "165a2655073e9e6e55e307a7c74e8ebcdb76afb7701f9c16cfd106a13add408e",
+  "origem_integrity_npm": "sha512-Thx/WtpeOQqSrqBCw/A1cwGJGg4UrVa3+sW0GmrM3p4gJgO89ecH4qtbnyzDDWFvBTqjnIMCgELTNt636dtamA==",
+  "baixado_em": "2026-11-13",
+  "arquivos": {
+    "htmx.min.js": {
+      "de": "package/dist/htmx.min.js",
+      "sha256": "d6fdc75f204e6bdefa99b69bf1e6d4ac69b8a364f77929f45c13476b4000f717"
+    },
+    "htmx.LICENSE": {
+      "de": "package/LICENSE",
+      "sha256": "d3d2456f76414f2456104660ebd65aff1c04cd7966b942bdabd63f3cdb316a38"
+    }
+  }
+}

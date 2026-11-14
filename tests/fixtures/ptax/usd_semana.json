@@ -1,0 +1,45 @@
+{
+  "@odata.context": "https://exemplo.test/olinda/servico/PTAX/versao/v1/odata$metadata#_CotacaoMoedaPeriodo",
+  "value": [
+    {
+      "paridadeCompra": 1.0,
+      "paridadeVenda": 1.0,
+      "cotacaoCompra": 5.6001,
+      "cotacaoVenda": 5.6007,
+      "dataHoraCotacao": "2026-11-09 13:05:11.120000",
+      "tipoBoletim": "Fechamento"
+    },
+    {
+      "paridadeCompra": 1.0,
+      "paridadeVenda": 1.0,
+      "cotacaoCompra": 5.6212,
+      "cotacaoVenda": 5.6218,
+      "dataHoraCotacao": "2026-11-10 13:04:40.500000",
+      "tipoBoletim": "Fechamento"
+    },
+    {
+      "paridadeCompra": 1.0,
+      "paridadeVenda": 1.0,
+      "cotacaoCompra": 5.632,
+      "cotacaoVenda": 5.6326,
+      "dataHoraCotacao": "2026-11-11 13:06:02.250000",
+      "tipoBoletim": "Fechamento"
+    },
+    {
+      "paridadeCompra": 1.0,
+      "paridadeVenda": 1.0,
+      "cotacaoCompra": 5.648,
+      "cotacaoVenda": 5.6486,
+      "dataHoraCotacao": "2026-11-12 13:03:58.990000",
+      "tipoBoletim": "Fechamento"
+    },
+    {
+      "paridadeCompra": 1.0,
+      "paridadeVenda": 1.0,
+      "cotacaoCompra": 5.6543,
+      "cotacaoVenda": 5.6549,
+      "dataHoraCotacao": "2026-11-13 13:05:20.75",
+      "tipoBoletim": "Fechamento"
+    }
+  ]
+}

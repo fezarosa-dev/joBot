@@ -2,6 +2,7 @@
 
 - **Status:** aceita
 - **Data:** 2026-11-13
+- **Atualizada:** 2026-11-14
 
 ## Contexto
 
@@ -25,7 +26,7 @@ O projeto vai ser público e quer poder reaproveitar ideias de outros projetos s
 - Git: ramos `main` e `dev`. O trabalho é feito em ramos `feat/`, `fix/`, `docs/` e `ci/` saindo da `dev`. A `main` só recebe PR (pedido de integração) vindo da `dev`.
 - Commits em português, no formato `tipo(escopo): descrição`.
 - TDD em todo código: escrever o teste, ver falhar, implementar, ver passar.
-- Testes no GitHub só em PR para a `main`.
+- Testes no GitHub rodam em todo PR, inclusive de fork e para a `dev` (ver [0018](0018-manutencao-pela-comunidade.md)).
 - O repositório fica no GitHub, público. A publicação de verdade (instaladores e versão para uso) é a fase 8.
 
 ### Idiomas e arquivos da comunidade

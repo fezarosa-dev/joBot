@@ -1,0 +1,45 @@
+{%- set tema_atual = tema(request) -%}
+{%- set voltar = request.url.path ~ ("?" ~ request.url.query if request.url.query else "") -%}
+<!doctype html>
+<html lang="{{ idioma }}" data-tema="{{ tema_atual }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  {#- com o no-referrer do cabeçalho, o Chromium manda "Origin: null" no POST de formulário e o
+      exigir_csrf recusa; same-origin manda a origem certa ao próprio painel e nada para fora #}
+  <meta name="referrer" content="same-origin">
+  <meta name="csrf-token" content="{{ csrf_token }}">
+  <meta name="htmx-config" content='{"allowEval": false, "selfRequestsOnly": true, "includeIndicatorStyles": false}'>
+  <title>{% block titulo %}joBot{% endblock %}</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/static/css/base.css">
+  {% block estilos %}{% endblock %}
+  <script src="/static/vendor/htmx.min.js" defer></script>
+  <script src="/static/js/app.js" defer></script>
+</head>
+<body>
+  <a class="pular" href="#conteudo">{{ t("casca.pular") }}</a>
+  <header class="topo">
+    <a class="marca" href="/">joBot</a>
+    <nav class="preferencias" aria-label="{{ t('casca.preferencias') }}">
+      <form method="post" action="/preferencias/tema" class="segmentos" role="group" aria-label="{{ t('casca.tema') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="voltar" value="{{ voltar }}">
+        {%- for opcao in ("sistema", "claro", "escuro") %}
+        <button type="submit" name="tema" value="{{ opcao }}" aria-pressed="{{ 'true' if opcao == tema_atual else 'false' }}">{{ t("casca.tema." ~ opcao) }}</button>
+        {%- endfor %}
+      </form>
+      <form method="post" action="/preferencias/idioma" class="segmentos" role="group" aria-label="{{ t('casca.idioma') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="voltar" value="{{ voltar }}">
+        {%- for opcao in ("pt", "en") %}
+        <button type="submit" name="idioma" value="{{ opcao }}" lang="{{ opcao }}" aria-pressed="{{ 'true' if opcao == idioma else 'false' }}">{{ t("casca.idioma." ~ opcao) }}</button>
+        {%- endfor %}
+      </form>
+    </nav>
+  </header>
+  <main id="conteudo" tabindex="-1">
+    {% block conteudo %}{% endblock %}
+  </main>
+</body>
+</html>

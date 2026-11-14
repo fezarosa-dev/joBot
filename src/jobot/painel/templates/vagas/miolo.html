@@ -1,0 +1,58 @@
+<a class="pular" href="#lista-vagas">{{ t("vagas.pular_lista") }}</a>
+{% if sem_criterio %}
+<aside class="aviso" data-aviso="sem-criterio">
+  <p>{{ t("vagas.aviso.sem_criterio") }} <a href="/buscas">{{ t("vagas.aviso.configurar") }}</a></p>
+</aside>
+{% endif %}
+<nav class="abas" aria-label="{{ t('vagas.abas') }}">
+  <ul>
+    {%- for aba in abas %}
+    <li><a id="aba-{{ aba.chave }}" href="{{ aba.url }}" hx-get="{{ aba.url }}" hx-target="#vagas-miolo" hx-swap="innerHTML" hx-push-url="true"{% if aba.atual %} aria-current="page"{% endif %}>{{ t("vagas.aba." ~ aba.chave) }} <span class="contagem">{{ aba.n }}</span></a></li>
+    {%- endfor %}
+  </ul>
+</nav>
+<form class="busca" role="search" method="get" action="/vagas" hx-get="/vagas" hx-target="#vagas-miolo" hx-swap="innerHTML" hx-push-url="true" hx-trigger="submit, change from:#ordem">
+  <input type="hidden" name="aba" value="{{ aba_da_busca }}">
+  {%- if busca_na_url %}
+  <input type="hidden" name="busca" value="{{ busca_id }}">
+  {%- endif %}
+  {%- for grupo, valor in campos_ocultos %}
+  <input type="hidden" name="{{ grupo }}" value="{{ valor }}">
+  {%- endfor %}
+  <label class="so-leitor" for="busca-q">{{ t("vagas.busca.rotulo") }}</label>
+  <input id="busca-q" type="search" name="q" value="{{ q }}" maxlength="100" autocomplete="off" placeholder="{{ t('vagas.busca.dica') }}" data-busca>
+  <button type="submit" class="primario">{{ t("vagas.busca.botao") }}</button>
+  {%- if not e_destaques %}
+  <label for="ordem">{{ t("vagas.ordem.rotulo") }}</label>
+  <select id="ordem" name="ordem">
+    {%- for o in ordens %}
+    <option value="{{ o }}"{% if o == ordem %} selected{% endif %}>{{ t("vagas.ordem." ~ o) }}</option>
+    {%- endfor %}
+  </select>
+  {%- endif %}
+</form>
+{% if grupos %}
+<div class="filtros" role="group" aria-label="{{ t('vagas.filtros') }}">
+  {%- for grupo in grupos %}
+  <div class="grupo" role="group" aria-labelledby="grupo-{{ grupo.nome }}">
+    <span class="grupo-titulo" id="grupo-{{ grupo.nome }}">{{ t("vagas.chip." ~ grupo.nome) }}</span>
+    {%- for chip in grupo.chips %}
+    {%- set texto = rotulo(chip.chave, chip.valor) if chip.chave else chip.valor %}
+    {%- if grupo.interativo %}
+    <button type="button" id="chip-{{ grupo.nome }}-{{ chip.id }}" class="chip{% if chip.n == 0 %} chip-vazio{% endif %}" aria-pressed="{{ 'true' if chip.pressionado else 'false' }}" data-contagem="{{ chip.n }}" hx-get="{{ chip.url }}" hx-target="#vagas-miolo" hx-swap="innerHTML" hx-push-url="true">{{ texto }} <span class="contagem">{{ chip.n }}</span></button>
+    {%- else %}
+    <span class="chip chip-info" data-contagem="{{ chip.n }}">{{ texto }} <span class="contagem">{{ chip.n }}</span></span>
+    {%- endif %}
+    {%- endfor %}
+  </div>
+  {%- endfor %}
+</div>
+{% endif %}
+{% if itens %}
+<ul id="lista-vagas" class="lista" tabindex="-1">
+  {%- include "vagas/lista.html" %}
+</ul>
+{% else %}
+<p id="lista-vagas" class="vazio" tabindex="-1">{{ t("vagas.vazio_destaques" if e_destaques else "vagas.vazio") }}</p>
+{% endif %}
+{% include "vagas/proximo.html" %}
