@@ -6,7 +6,7 @@ Thanks for your interest! This guide explains how to help with joBot, now and af
 
 ## Project status
 
-joBot has no code yet and there is nothing to install. Phase 1 (foundation) is being designed. The decisions made so far are in [`docs/decisions/`](../docs/decisions/README.md) (Portuguese only for now). To learn what the project is and where it is going, read the [README](../README.en.md).
+joBot has nothing to install yet. Phase 1 (foundation) is in progress. The decisions made so far are in [`docs/decisions/`](../docs/decisions/README.md) (Portuguese only for now). To learn what the project is and where it is going, read the [README](../README.en.md).
 
 ## How to help now
 
@@ -35,6 +35,14 @@ joBot has no code yet and there is nothing to install. Phase 1 (foundation) is b
 6. Open a PR to `dev` using the [PR template](pull_request_template.md).
 
 The exact commands to run everything will be documented once the code exists.
+
+## Wiki
+
+- The wiki text lives in the [`wiki/`](../wiki/) folder of the repository.
+- A change to the wiki is made by a PR on that folder, like any other file.
+- When the PR reaches `main`, a bot copies the folder to the GitHub wiki.
+- Editing directly on the GitHub wiki is left to the project maintainers only. Direct edits are overwritten on the next copy, so every change goes through the `wiki/` folder.
+- A new page needs a version in both languages (Portuguese and English). The test checks this.
 
 ## Clean room
 

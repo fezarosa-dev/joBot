@@ -1,0 +1,5 @@
+{% if mais_url -%}
+<div class="mais" id="mais-caixa-{{ proxima }}">
+  <button type="button" id="mais-{{ proxima }}" class="secundario" hx-get="{{ mais_url }}" hx-target="#mais-caixa-{{ proxima }}" hx-swap="innerHTML" hx-push-url="false">{{ t("vagas.mais") }}</button>
+</div>
+{%- endif %}

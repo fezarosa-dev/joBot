@@ -1,0 +1,40 @@
+name: Dúvida / Question
+description: Uma dúvida sobre o joBot. / A question about joBot.
+title: "[Dúvida]: "
+labels: [question]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Antes de abrir, veja as [perguntas frequentes](https://github.com/fezarosa-dev/joBot/wiki/Perguntas-frequentes). A resposta pode já estar lá.
+        Não coloque dados pessoais (nome, e-mail, senha, currículo) nesta issue.
+        Before opening this, see the [FAQ](https://github.com/fezarosa-dev/joBot/wiki/Frequently-asked-questions). The answer may already be there.
+        Do not put personal data (name, email, password, résumé) in this issue.
+  - type: textarea
+    id: duvida
+    attributes:
+      label: Qual é a sua dúvida? / What is your question?
+      description: Explique com calma o que você quer saber. / Explain calmly what you want to know.
+    validations:
+      required: true
+  - type: textarea
+    id: onde-procurou
+    attributes:
+      label: Onde você já procurou? / Where have you already looked?
+      description: Diga o que você leu e não ajudou. / Say what you read that did not help.
+  - type: dropdown
+    id: sistema
+    attributes:
+      label: Sistema operacional (opcional) / Operating system (optional)
+      options:
+        - Linux
+        - Windows
+        - macOS
+        - Outro / Other
+  - type: checkboxes
+    id: confirmacao
+    attributes:
+      label: Confirmação / Confirmation
+      options:
+        - label: Li as perguntas frequentes e não achei a resposta. / I read the FAQ and did not find the answer.
+          required: true

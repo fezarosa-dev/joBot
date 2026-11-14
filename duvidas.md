@@ -56,11 +56,11 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 ## D6. Ferramentas do esqueleto
 
-**Status:** aberta, para confirmar (o registro vem de uma passada anterior e não consta nas decisões da sessão; o código segue a opção atual até o dono decidir)
+**Status:** aberta, para confirmar (o registro vem de uma passada anterior e não consta nas decisões da sessão; o código segue a opção atual até o dono decidir). A parte do Dependabot (`target-branch`) está obsoleta pela ADR 0021.
 
-**Contexto:** A T01 montou o pyproject, o CI e o Dependabot.
+**Contexto:** A T01 montou o pyproject, o CI e o Dependabot (o Dependabot saiu: obsoleta pela ADR 0021).
 
-**Decisão provisória:** Backend de build `uv_build`. O Dependabot do `uv` aponta para a `dev` (`target-branch`), o que só se confirma depois do primeiro push. O CI de tela sai com código 5 enquanto não houver teste de tela (a T36 cria o primeiro).
+**Decisão provisória:** Backend de build `uv_build`. ~~O Dependabot do `uv` aponta para a `dev` (`target-branch`), o que só se confirma depois do primeiro push.~~ Obsoleta pela ADR 0021 (sem Dependabot). O CI de tela sai com código 5 enquanto não houver teste de tela (a T36 cria o primeiro).
 
 ## D7. Pasta de dados
 
@@ -472,7 +472,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 ## D41. Guarda de rede dos testes e renomeações do F3 (F3, T05, T25)
 
-**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+**Status:** aberta, para confirmar (a decisão provisória (b) da guarda de rede vira a T88; até lá, o código segue a (a))
 
 **Contexto:** O F3 trouxe o resolvedor de DNS (D30) e a conversão de `_brl` gigante (D28). Sobraram quatro pontos.
 
@@ -481,7 +481,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 - `_brl` gigante: a decisão 17 fala em "valor em centavos acima de 2**63-1", mas as colunas `_brl` guardam reais inteiros. Foi seguido o que de fato estoura: o inteiro em reais gravado em cada coluna, quando passa do INTEGER do SQLite, fica `NULL` só naquela coluna. (a) `sal_cotacao_data` da vaga fica como está (`cotacoes.py`, o trecho que grava a data); (b) `sal_cotacao_data` também fica `NULL` quando as duas `_brl` saem nulas.
 - Texto da decisão 19: o brief e o registro dizem `HttpEducado(..., resolver=None)`, mas a classe concreta é `ClienteEducado` (já em D30, escolha 1). Aqui só se acrescenta: o `resolver` entrou em `ClienteEducado.__init__`, só por nome e opcional.
 
-**Decisão provisória:** guarda (b), na T88 (a prova de que funciona já existe como plugin de teste do F3); `_brl`: (a). A frase "em centavos" já foi corrigida na D26 e no plano (F3, decisão 17). O plano já diz `ClienteEducado`, e a D30 já explica a troca de nome. Para confirmar: corrigir o texto da decisão 19 no registro da sessão (fora deste repositório), que ainda diz `HttpEducado(..., resolver=None)`.
+**Decisão provisória:** guarda (b), que vira a T88 (a prova de que funciona já existe como plugin de teste do F3); até a T88 entrar, o `tests/conftest.py` segue a (a), só `socket.connect`; `_brl`: (a). A frase "em centavos" já foi corrigida na D26 e no plano (F3, decisão 17). O plano já diz `ClienteEducado`, e a D30 já explica a troca de nome. Para confirmar: corrigir o texto da decisão 19 no registro da sessão (fora deste repositório), que ainda diz `HttpEducado(..., resolver=None)`.
 
 **Escolhas do redator, para confirmar com o dono:**
 - Resolvedor que falha: `OSError` (`gaierror` incluso) e `UnicodeError` viram `ErroDeRede`; outra exceção que o resolvedor injetado levante sobe como está. Por segurança, e sem regra explícita no brief, o cliente também recusa a resposta do resolvedor vazia ou com texto que não é IP (`test_resolvedor_sem_endereco_valido_recusa`).

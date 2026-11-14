@@ -115,16 +115,16 @@ class RequisitosEstagio:
     bolsa: str | None = None  # como veio no texto
 
 
-def _confere_http(url: str, campo: str) -> None:
+def confere_http(url: str, campo: str) -> None:
     partes = urlsplit(url)
     if partes.scheme.lower() not in ("http", "https") or not partes.netloc:
         raise ValueError(f"{campo} precisa ser http ou https: {url!r}")
 
 
 def _confere_vaga(url: str, url_candidatura: str | None, publicada_em: datetime | None) -> None:
-    _confere_http(url, "url")
+    confere_http(url, "url")
     if url_candidatura is not None:  # vira href no painel: recusa, mas nunca reescreve
-        _confere_http(url_candidatura, "url_candidatura")
+        confere_http(url_candidatura, "url_candidatura")
     if publicada_em is not None and publicada_em.utcoffset() is None:
         raise ValueError("publicada_em precisa ter fuso")
 

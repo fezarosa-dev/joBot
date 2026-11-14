@@ -1,3 +1,4 @@
+import socket
 from collections.abc import Callable
 from contextlib import aclosing
 from datetime import timedelta
@@ -17,8 +18,10 @@ from jobot.nucleo.http import (
     LimiteAtingido,
     OrcamentoGasto,
     Parou429,
+    Resolvedor,
     RespostaGrande,
     Validadores,
+    host_local,
 )
 from jobot.nucleo.relogio import Relogio
 
@@ -50,12 +53,39 @@ class Servidor:
         return r if isinstance(r, httpx.Response) else r(pedido)
 
 
+class ResolvedorFalso:
+    """DNS falso: devolve sempre os mesmos endereços e guarda os hosts pedidos."""
+
+    def __init__(self, *enderecos: str, erro: Exception | None = None) -> None:
+        self.enderecos = list(enderecos)
+        self.erro = erro
+        self.hosts: list[str] = []
+
+    async def __call__(self, host: str) -> list[str]:
+        self.hosts.append(host)
+        if self.erro is not None:
+            raise self.erro
+        return self.enderecos
+
+
+PUBLICO = "93.184.215.14"
+
+
 def _cliente(
-    servidor: Servidor, relogio: RelogioFalso | None = None, leitor: LeitorFixo | None = None
+    servidor: Servidor,
+    relogio: RelogioFalso | None = None,
+    leitor: LeitorFixo | None = None,
+    resolver: Resolvedor | None = None,
 ) -> tuple[ClienteEducado, RelogioFalso]:
     rel = relogio or RelogioFalso()
     prova: Relogio = rel
-    cli = ClienteEducado(httpx.MockTransport(servidor), prova, leitor or LeitorFixo(), "9.9.9")
+    cli = ClienteEducado(
+        httpx.MockTransport(servidor),
+        prova,
+        leitor or LeitorFixo(),
+        "9.9.9",
+        resolver=resolver or ResolvedorFalso(PUBLICO),  # salto para nome: nunca o DNS de verdade
+    )
     return cli, rel
 
 
@@ -544,3 +574,106 @@ async def test_protocolo_ler_em_fluxo_aceita_aclosing() -> None:
     http: HttpEducado = cli.escopo()
     async with aclosing(http.ler_em_fluxo("https://a.example/x", teto_bytes=MB)) as fluxo:
         assert [p async for p in fluxo] == [b"ok"]
+
+
+def _salto_para(destino: str) -> Servidor:
+    return Servidor(
+        httpx.Response(302, headers={"Location": destino}), httpx.Response(200, text="ok")
+    )
+
+
+@pytest.mark.parametrize(
+    "enderecos",
+    [
+        ["10.0.0.5"],
+        [PUBLICO, "127.0.0.1"],  # basta um endereço local
+        ["::1"],
+        ["::ffff:127.0.0.1"],
+        ["64:ff9b::a00:1"],  # NAT64 com 10.0.0.1 dentro
+        ["::7f00:1"],  # IPv4 compatível com 127.0.0.1 dentro
+        ["fe80::1%eth0"],  # link-local com zona, como o getaddrinfo devolve
+        ["100.64.0.1"],
+    ],
+)
+async def test_redirecionamento_para_nome_que_resolve_local_recusado(enderecos: list[str]) -> None:
+    srv = _salto_para("http://interno.example/admin")
+    dns = ResolvedorFalso(*enderecos)
+    cli, _ = _cliente(srv, resolver=dns)
+    with pytest.raises(ErroDeRede, match="host local"):
+        await cli.escopo().pedir("GET", "https://a.example/")
+    assert dns.hosts == ["interno.example"]
+    assert len(srv.pedidos) == 1
+
+
+@pytest.mark.parametrize("enderecos", [[], ["isto-nao-e-ip"]])
+async def test_resolvedor_sem_endereco_valido_recusa(enderecos: list[str]) -> None:
+    srv = _salto_para("http://b.example/")
+    cli, _ = _cliente(srv, resolver=ResolvedorFalso(*enderecos))
+    with pytest.raises(ErroDeRede):
+        await cli.escopo().pedir("GET", "https://a.example/")
+    assert len(srv.pedidos) == 1
+
+
+async def test_redirecionamento_para_nome_publico_segue() -> None:
+    srv = _salto_para("https://b.example/fim")
+    dns = ResolvedorFalso(PUBLICO, "2606:2800:21f:cb07:6820:80da:af6b:8b2c")
+    cli, _ = _cliente(srv, resolver=dns)
+    assert (await cli.escopo().pedir("GET", "https://a.example/")).texto == "ok"
+    assert dns.hosts == ["b.example"]
+    assert len(srv.pedidos) == 2
+
+
+@pytest.mark.parametrize("erro", [socket.gaierror(-2, "Name or service not known"), OSError("x")])
+async def test_resolvedor_falhando_vira_erro_de_rede(erro: Exception) -> None:
+    srv = _salto_para("https://b.example/fim")
+    dns = ResolvedorFalso(erro=erro)
+    cli, _ = _cliente(srv, resolver=dns)
+    with pytest.raises(ErroDeRede) as recebido:
+        await cli.escopo().pedir("GET", "https://a.example/")
+    assert dns.hosts == ["b.example"]
+    assert recebido.value.__cause__ is erro
+    assert len(srv.pedidos) == 1
+
+
+@pytest.mark.parametrize(
+    "destino", [f"http://{PUBLICO}/x", "http://[2606:2800:21f:cb07:6820:80da:af6b:8b2c]/x", "/x"]
+)
+async def test_salto_para_ip_literal_nao_chama_resolvedor(destino: str) -> None:
+    srv = _salto_para(destino)
+    dns = ResolvedorFalso("127.0.0.1")  # se fosse chamado, recusaria
+    cli, _ = _cliente(srv, resolver=dns)
+    assert (await cli.escopo().pedir("GET", "https://a.example/")).texto == "ok"
+    assert dns.hosts == []
+    assert len(srv.pedidos) == 2
+
+
+async def test_salto_de_origem_local_nao_chama_resolvedor() -> None:
+    srv = _salto_para("http://servico.lan/b")
+    dns = ResolvedorFalso("10.0.0.5")
+    cli, _ = _cliente(srv, resolver=dns)
+    assert (await cli.escopo().pedir("GET", "http://127.0.0.1/a")).texto == "ok"
+    assert dns.hosts == []
+
+
+async def test_resolvedor_padrao_usa_getaddrinfo(monkeypatch: pytest.MonkeyPatch) -> None:
+    pedidos: list[object] = []
+
+    def getaddrinfo(host: object, *args: object, **kwargs: object) -> list[tuple[object, ...]]:
+        pedidos.append(host)
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("10.0.0.5", 0))]
+
+    monkeypatch.setattr(socket, "getaddrinfo", getaddrinfo)
+    srv = _salto_para("http://interno.example/")
+    cli = ClienteEducado(httpx.MockTransport(srv), RelogioFalso(), LeitorFixo(), "9.9.9")
+    with pytest.raises(ErroDeRede, match="host local"):
+        await cli.escopo().pedir("GET", "https://a.example/")
+    assert pedidos == ["interno.example"]
+
+
+@pytest.mark.parametrize(
+    ("host", "local"),
+    [("127.0.0.1", True), ("LOCALHOST.", True), ("0x7f000001", True), ("::1", True)]
+    + [("::ffff:10.0.0.1", True), (PUBLICO, False), ("a.example", False)],
+)
+def test_host_local_publico(host: str, local: bool) -> None:
+    assert host_local(host) is local

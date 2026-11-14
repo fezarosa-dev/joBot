@@ -9,7 +9,7 @@ from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 
 from jobot.nucleo.cambio import MOEDAS, Cotacao, em_reais
-from jobot.nucleo.tratamento.salario import _PARA_MENSAL, _mensal
+from jobot.nucleo.tratamento.salario import PARA_MENSAL, mensal
 
 _BRL = "BRL"
 _VALIDADE = timedelta(days=7)  # desenho 10.3: cotação guardada vale por 7 dias
@@ -73,8 +73,15 @@ def cotacao_mais_recente(
         return None
 
 
+_INTEGER_MAX = 2**63 - 1  # maior INTEGER do SQLite
+
+
 def _reais(centavos: int | None, cotacao: Decimal) -> int | None:
-    return None if centavos is None else em_reais(centavos, cotacao)
+    if centavos is None:
+        return None
+    reais = em_reais(centavos, cotacao)
+    # Mensal por hora (x 160) ou cotação alta estouram mesmo com o original cabendo (decisão 17)
+    return reais if -_INTEGER_MAX - 1 <= reais <= _INTEGER_MAX else None
 
 
 def _calcula(
@@ -91,13 +98,17 @@ def _calcula(
     else:
         return (None, None, None)
     mensal_max = None
-    if sal_max is not None and periodo in _PARA_MENSAL:
-        mensal_max = _mensal(sal_max, periodo)
+    if sal_max is not None and periodo in PARA_MENSAL:
+        mensal_max = mensal(sal_max, periodo)
     return (_reais(mensal_min, venda), _reais(mensal_max, venda), data)
 
 
 def aplicar_cotacoes(
-    con: sqlite3.Connection, *, conversao_ligada: bool = True, hoje: date | None = None
+    con: sqlite3.Connection,
+    *,
+    conversao_ligada: bool = True,
+    hoje: date | None = None,
+    vaga_id: int | None = None,
 ) -> int:
     """Grava as colunas `_brl` e `sal_cotacao_data`; devolve quantas vagas mudaram.
 
@@ -106,18 +117,21 @@ def aplicar_cotacoes(
     (a vaga continua na lista). Conversão desligada: `NULL` em toda vaga em moeda estrangeira.
     Com `hoje`, cotação de mais de 7 dias não vale (vaga fica sem valor em reais); sem `hoje`,
     vale a mais recente guardada. Quem chama passa o dia pelo `Relogio`.
+    Com `vaga_id`, só aquela vaga. Valor em reais que não cabe no INTEGER do SQLite fica `NULL`.
     """
-    if not con.in_transaction:
-        con.execute("BEGIN IMMEDIATE")  # leitura e escrita sob o mesmo bloqueio
+    filtro, params = ("", ()) if vaga_id is None else (" AND id = ?", (vaga_id,))
     cotacoes: dict[str, Cotacao | None] = {}
     mudou = 0
-    linhas = con.execute(
-        "SELECT id, sal_moeda, sal_mensal_min, sal_max, sal_periodo, fechada_em,"
-        " sal_mensal_min_brl, sal_mensal_max_brl, sal_cotacao_data"
-        " FROM vaga WHERE sal_moeda IS NOT NULL"
-    ).fetchall()
     try:
-        for vaga_id, moeda, mensal_min, sal_max, periodo, fechada, *atual in linhas:
+        if not con.in_transaction:
+            con.execute("BEGIN IMMEDIATE")  # leitura e escrita sob o mesmo bloqueio
+        linhas = con.execute(
+            "SELECT id, sal_moeda, sal_mensal_min, sal_max, sal_periodo, fechada_em,"
+            " sal_mensal_min_brl, sal_mensal_max_brl, sal_cotacao_data"
+            " FROM vaga WHERE sal_moeda IS NOT NULL" + filtro,
+            params,
+        ).fetchall()
+        for id_, moeda, mensal_min, sal_max, periodo, fechada, *atual in linhas:
             moeda = moeda.upper()
             if moeda != _BRL and not conversao_ligada:
                 novo: _Valores = (None, None, None)
@@ -131,7 +145,7 @@ def aplicar_cotacoes(
                 con.execute(
                     "UPDATE vaga SET sal_mensal_min_brl = ?, sal_mensal_max_brl = ?,"
                     " sal_cotacao_data = ? WHERE id = ?",
-                    (*novo, vaga_id),
+                    (*novo, id_),
                 )
                 mudou += 1
         con.commit()
