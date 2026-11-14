@@ -1,8 +1,8 @@
 """Coletor Ashby (apêndice 2.4): API pública do quadro, um escopo por empresa.
 
-A lista inteira vem numa resposta, com a descrição (até 4,5 MB, perto do teto de 5 MB): não há
-paginação nem `detalhar`. A resposta não traz o nome da empresa: ele vem do cadastro, guardado
-em `escopos()`.
+A lista inteira vem numa resposta, com a descrição: a OpenAI manda 14,8 MB, acima do teto padrão
+de 5 MB do cliente, então o pedido leva `TETO_QUADRO_BYTES`. Não há paginação nem `detalhar`. A
+resposta não traz o nome da empresa: ele vem do cadastro, guardado em `escopos()`.
 """
 
 import json
@@ -29,6 +29,7 @@ _API = "https://api.ashbyhq.com/posting-api/job-board/{nome}"
 _TOKEN = re.compile(r"[A-Za-z0-9_-]{1,100}")
 _HOST_QUADRO = "jobs.ashbyhq.com"  # o europeu fica de fora: não testado
 _HOST_API = "api.ashbyhq.com"
+TETO_QUADRO_BYTES = 32 * 1024 * 1024  # a OpenAI devolve 14,8 MB; o padrão do cliente é 5 MB
 
 
 class _NaoEncontrado(Exception):
@@ -165,7 +166,11 @@ class Ashby:
             url = _API.format(nome=quote(escopo, safe=""))
             try:
                 resposta = await http.pedir(
-                    "GET", url, params={"includeCompensation": "true"}, condicional=True
+                    "GET",
+                    url,
+                    params={"includeCompensation": "true"},
+                    condicional=True,
+                    teto_bytes=TETO_QUADRO_BYTES,
                 )
             except ErroDeRede as erro:
                 if erro.status == 404:

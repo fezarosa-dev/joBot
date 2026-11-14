@@ -9,7 +9,13 @@ import pytest
 from apoio.relogio import RelogioFalso
 from jobot.nucleo.coletores import ashby, base, registro
 from jobot.nucleo.coletores.base import Coletor, ContextoColeta, ResultadoEscopo
-from jobot.nucleo.http import TETO_PADRAO, ClienteEducado, HttpEducado, Validadores
+from jobot.nucleo.http import (
+    TETO_PADRAO,
+    ClienteEducado,
+    HttpEducado,
+    RespostaGrande,
+    Validadores,
+)
 from jobot.nucleo.modelo import Empresa, VagaColetada
 from jobot.nucleo.relogio import Relogio
 
@@ -284,6 +290,32 @@ async def test_resposta_de_4_5_mb_passa_no_teto() -> None:
     resultado, pedidos = await _coletar(httpx.Response(200, text=corpo))
     assert (resultado.estado, resultado.motivo, len(resultado.vagas)) == ("ok", None, 900)
     assert len(pedidos) == 1
+
+
+def _quadro_de(n_vagas: int, tamanho_descricao: int) -> str:
+    dados = _dados("normal")
+    modelo = dict(dados["jobs"][0])
+    modelo["descriptionHtml"] = "x" * tamanho_descricao
+    modelo["descriptionPlain"] = "x"
+    dados["jobs"] = [
+        modelo | {"id": f"id-{n}", "jobUrl": f"https://jobs.ashbyhq.com/belvo/id-{n}"}
+        for n in range(n_vagas)
+    ]
+    return json.dumps(dados)
+
+
+async def test_quadro_de_15_mb_passa_no_teto_do_ashby() -> None:
+    corpo = _quadro_de(2_000, 7_400)  # como o da OpenAI na busca real: acima dos 5 MB padrão
+    assert TETO_PADRAO < len(corpo.encode()) < ashby.TETO_QUADRO_BYTES
+    resultado, _ = await _coletar(httpx.Response(200, text=corpo))
+    assert (resultado.estado, resultado.motivo, len(resultado.vagas)) == ("ok", None, 2_000)
+
+
+async def test_o_teto_do_ashby_chega_ao_pedido(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(ashby, "TETO_QUADRO_BYTES", 1024 * 1024)
+    corpo = _quadro_de(1, 1024 * 1024 + 1)
+    with pytest.raises(RespostaGrande):
+        await _coletar(httpx.Response(200, text=corpo))
 
 
 async def test_404_empresa_nao_encontrada() -> None:
