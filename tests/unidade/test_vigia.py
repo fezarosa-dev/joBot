@@ -635,6 +635,50 @@ async def test_issue_existente_e_atualizada_e_fechada_quando_volta() -> None:
     assert len(api.comentados) == 1 and len(api.edicoes) == 2
 
 
+async def _issue_de_detalhe_quebrado() -> ApiFalsa:
+    """Abre a issue de verdade: uma vigia com o detalhe quebrado em fonte de escopo único."""
+    quebrado = ColetorFalso(
+        acao=_listar(_urls(5)), detalhe=_detalhe_em_sequencia(_levanta_segredo, _nenhuma)
+    )
+    r = _um(await _rodar(quebrado))
+    assert r.detalhe_quebrado is True
+    api = ApiFalsa()
+    await vigia.atualizar_issues([r], api)
+    assert len(api.criadas) == 1 and api.lista[0]["state"] == "open"
+    return api
+
+
+@pytest.mark.parametrize(
+    "coletor",
+    [
+        pytest.param(
+            ColetorFalso(acao=_listar(_urls(5)), detalhe=_orcamento), id="parou-por-orcamento"
+        ),
+        pytest.param(
+            ColetorFalso(acao=_listar((_vaga("https://falsa.exemplo/pronta"),))),
+            id="sem-vaga-para-detalhar",
+        ),
+    ],
+)
+async def test_detalhe_nao_conferido_nao_fecha_issue(coletor: ColetorFalso) -> None:
+    api = await _issue_de_detalhe_quebrado()
+    r = _um(await _rodar(coletor))
+    assert r.estado == "ok" and vigia.quebrou(r) is False
+    await vigia.atualizar_issues([r], api)
+    assert api.lista[0]["state"] == "open"
+    assert api.comentados == [] and [c for _, c in api.edicoes if "state" in c] == []
+
+
+async def test_detalhe_conferido_e_bom_fecha_issue() -> None:
+    api = await _issue_de_detalhe_quebrado()
+    bom = ColetorFalso(acao=_listar(_urls(5)), detalhe=_uma)
+    r = _um(await _rodar(bom))
+    assert len(bom.detalhados) == 2 and vigia.quebrou(r) is False
+    await vigia.atualizar_issues([r], api)
+    assert "<!-- vigia:falsa:voltou -->" in api.comentados[0][1]
+    assert api.edicoes[-1] == (1, {"state": "closed"})
+
+
 async def test_bloqueio_nao_fecha_a_issue_aberta() -> None:
     api = ApiFalsa(lista=[_issue(3)])
     await vigia.atualizar_issues([_r(estado="falhou", motivo="saude.bloqueio")], api)
