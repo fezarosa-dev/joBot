@@ -2,6 +2,7 @@
 
 import json
 import sqlite3
+import threading
 from collections.abc import Iterator
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
@@ -387,6 +388,50 @@ def test_recalcular_nao_toca_vaga_nem_correcao_e_nunca_apaga(con: sqlite3.Connec
     recalcular_encaixe(con, None, True, hoje=HOJE)
     assert con.execute("SELECT * FROM vaga WHERE id=?", (vaga,)).fetchone() == antes
     assert con.execute("SELECT COUNT(*) FROM encaixe").fetchone() == (1,)
+
+
+def test_recalcular_encaixe_trava_antes_de_ler(con: sqlite3.Connection) -> None:
+    """A leitura das vagas vem de dentro da trava da escrita (`BEGIN IMMEDIATE`)."""
+    vaga = inserir_vaga(con, titulo="Dev Python")
+    bid = _busca(con, cargos=("python",))
+    _limpar_encaixe(con)
+    caminho = Path(con.execute("PRAGMA database_list").fetchone()[2])
+    leu, gravou = threading.Event(), threading.Event()
+    erros: list[BaseException] = []
+
+    def outra_conexao() -> None:
+        assert leu.wait(timeout=10)
+        c = abrir(caminho)
+        c.execute("PRAGMA busy_timeout=0")  # travada, recusa na hora em vez de esperar
+        try:
+            c.execute("UPDATE vaga SET titulo = 'Dev Java' WHERE id = ?", (vaga,))
+            c.commit()
+        except sqlite3.OperationalError as erro:
+            erros.append(erro)
+        finally:
+            c.close()
+            gravou.set()
+
+    def espia(sql: str) -> None:
+        # já leu as vagas e vai gravar o encaixe: sem a trava, a outra conexão muda a vaga aqui
+        # no meio e o encaixe gravado fica com o título que foi lido antes
+        if sql.lstrip().startswith("INSERT INTO encaixe") and not leu.is_set():
+            leu.set()
+            gravou.wait(timeout=10)
+
+    fio = threading.Thread(target=outra_conexao)
+    fio.start()
+    con.set_trace_callback(espia)
+    try:
+        recalcular_encaixe(con, None, True, hoje=HOJE)
+    finally:
+        con.set_trace_callback(None)
+        fio.join(timeout=10)
+
+    gravado = _encaixe(con, bid, vaga)
+    recalcular_encaixe(con, None, True, hoje=HOJE)
+    assert gravado == _encaixe(con, bid, vaga)  # o encaixe gravado bate com a vaga do banco
+    assert len(erros) == 1 and "locked" in str(erros[0])  # a escrita estava travada
 
 
 def test_recalcular_confirma_a_transacao_aberta_do_chamador(con: sqlite3.Connection) -> None:
