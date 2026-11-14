@@ -326,7 +326,8 @@ def test_fontes_mostra_uma_chave_por_fonte_agrupadas_por_leva(painel: Painel) ->
     assert len(cadastradas) >= 28
     marcas = re.findall(r'<input\b[^>]*name="fonte"[^>]*>', html)
     assert [_valor(m) for m in marcas] == cadastradas
-    assert all(re.search(r"\schecked\b", m) for m in marcas)
+    # a Eureca nasce desligada (D80, decisão A50); as outras, ligadas
+    assert {_valor(m) for m in marcas if not re.search(r"\schecked\b", m)} == {"eureca"}
     assert html.count('class="grupo-leva"') == 2
 
 
@@ -350,7 +351,7 @@ def test_desligar_fonte_pela_configuracao_grava_ligada_zero(painel: Painel) -> N
 def test_fonte_desconhecida_da_422_e_nao_grava(painel: Painel) -> None:
     resposta = painel.post(FONTES, {"fonte": ["remotive", "nao_existe"]})
     assert resposta.status_code == 422
-    assert painel.sql("SELECT COUNT(*) FROM fonte WHERE ligada = 0") == [(0,)]
+    assert painel.sql("SELECT chave FROM fonte WHERE ligada = 0") == [("eureca",)]
 
 
 # ------------------------------------------------------------------ segundo plano
