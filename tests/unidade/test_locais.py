@@ -200,6 +200,34 @@ def test_pais_de_fora_por_estado_nome_ou_cidade_conhecida(bruto: str, esperado: 
     assert ler_locais([bruto]) == (esperado,)
 
 
+@pytest.mark.parametrize(
+    ("bruto", "esperado"),
+    [
+        ("Franca, São Paulo", Local(cidade="Franca", uf="SP", pais="BR")),
+        ("Franca, SP", Local(cidade="Franca", uf="SP", pais="BR")),
+        ("Franca, SP, Brasil", Local(cidade="Franca", uf="SP", pais="BR")),
+        ("SP, Franca", Local(cidade="Franca", uf="SP", pais="BR")),
+        ("Franca Office, SP", Local(cidade="Franca", uf="SP", pais="BR")),
+        ("Brasil, SP", Local(uf="SP", pais="BR")),
+        ("Franca, sp", Local(cidade="sp", pais="FR")),
+        ("Costa Rica, Mato Grosso do Sul", Local(cidade="Costa Rica", uf="MS", pais="BR")),
+        ("Spain, ES", Local(pais="ES")),
+        ("Peru, PE", Local(pais="PE")),
+        ("Sweden, SE", Local(pais="SE")),
+        ("Panamá, PA", Local(pais="PA")),
+        ("Paris, France", Local(cidade="Paris", pais="FR")),
+        ("França", Local(pais="FR")),
+        ("Boston, MA, USA", Local(cidade="Boston", pais="US")),
+        ("Remote, Germany", Local(pais="DE")),
+        ("Toronto, ON, CA", Local(cidade="Toronto", pais="CA")),
+    ],
+)
+def test_nome_de_pais_na_posicao_de_cidade_com_uf_brasileira_e_a_cidade(
+    bruto: str, esperado: Local
+) -> None:
+    assert ler_locais([bruto]) == (esperado,)
+
+
 def test_sigla_de_uf_vence_estado_dos_eua() -> None:
     # "ES" é Espírito Santo; "PA" é Pará fora da lista de cidades dos EUA
     assert ler_locais(["Vitória, ES"]) == (Local(cidade="Vitória", uf="ES", pais="BR"),)

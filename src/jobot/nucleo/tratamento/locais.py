@@ -171,13 +171,33 @@ def _ler_um(texto: str) -> Local:
     siglas, nomes, cidades = _ufs()
     cidade = uf = pais = None
     siglas_de_fora: set[str] = set()
-    for token in _tokens(texto):
+    tokens = list(_tokens(texto))
+
+    # UF brasileira em outro token ("Franca, SP", "SP, Franca", "Franca, São Paulo"): nome de
+    # país vira a cidade. A sigla igual ao código desse país ("Spain, ES") é o país.
+    # shortcut: "Peru, Amazonas" (estado igual a divisão de outro país), "Denmark, SC" e
+    # "SP, Spain" (sigla de UF igual a estado dos EUA) ficam ambíguos e valem Brasil; melhorar
+    # quando a fonte disser o país.
+    def com_uf(codigo: str, i: int) -> bool:
+        return any(
+            (t in siglas and t != codigo) or normalizar(t) in nomes
+            for j, t in enumerate(tokens)
+            if j != i
+        )
+
+    for i, token in enumerate(tokens):
         chave = normalizar(token)
         nucleo = " ".join(p for p in chave.split() if p not in _ENFEITES)
         if token in siglas:  # sigla só em maiúsculas: "sp" ou "pa" soltos não valem
             uf = uf or token
         elif token in _ESTADOS_DOS_EUA or token in _PROVINCIAS_DO_CANADA:
             siglas_de_fora.add(token)
+        elif (
+            cidade is None
+            and (codigo := _PAISES.get(chave) or _PAISES.get(nucleo)) not in (None, "BR")
+            and com_uf(str(codigo), i)
+        ):
+            cidade = " ".join(p for p in token.split() if normalizar(p) not in _ENFEITES)
         elif chave in _PAISES or nucleo in _PAISES:
             pais = pais or _PAISES.get(chave) or _PAISES[nucleo]
         elif chave in _SEM_PAIS or chave in _MODALIDADE or not nucleo:
