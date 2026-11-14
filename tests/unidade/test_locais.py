@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from jobot.nucleo.modelo import Local
-from jobot.nucleo.tratamento.locais import ler_locais
+from jobot.nucleo.tratamento.locais import _PAISES, ler_locais, nome_do_pais
 
 UFS = Path(__file__).resolve().parents[2] / "src" / "jobot" / "nucleo" / "dados" / "ufs.json"
 SIGLAS = "AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO".split()
@@ -104,3 +104,21 @@ def test_texto_desconhecido_ao_lado_de_local_real_e_descartado() -> None:
     assert ler_locais(["asdf", "São Paulo - SP"]) == (
         Local(cidade="São Paulo", uf="SP", pais="BR"),
     )
+
+
+def test_nome_do_pais_br_e_us() -> None:
+    assert nome_do_pais("BR") == "Brasil"
+    assert nome_do_pais("US") == "Estados Unidos"
+    assert nome_do_pais("FR") == "França"
+    assert nome_do_pais("ZZ") is None
+
+
+def test_nome_do_pais_de_todo_codigo_volta_ao_mesmo_codigo() -> None:
+    for codigo in set(_PAISES.values()):
+        nome = nome_do_pais(codigo)
+        assert nome is not None
+        assert [local.pais for local in ler_locais([nome])] == [codigo]
+
+
+def test_estados_unidos_da_america_e_us() -> None:
+    assert ler_locais(["Estados Unidos da América"]) == (Local(pais="US"),)
