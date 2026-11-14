@@ -5,11 +5,11 @@
 
 ## Contexto
 
-O projeto é grande. Ir por fases deixa cada entrega testada antes da próxima. Hoje a fase 1 está em andamento e nenhuma fase está pronta.
+O projeto é grande. Ir por fases deixa cada entrega testada antes da próxima. Hoje a fase 1 está concluída (versão 0.1.0) e as outras estão planejadas.
 
 ## Decisão
 
-- Fase 1, Base: núcleo comum, fontes públicas, banco, painel e agenda, mais o vigia semanal das fontes e o `jobot atualizar` (ver [0018](0018-manutencao-pela-comunidade.md)). Os detalhes ficam para o desenho da fase 1. Status: em andamento.
+- Fase 1, Base: núcleo comum, fontes públicas, banco, painel e agenda, mais o vigia semanal das fontes e o `jobot atualizar` (ver [0018](0018-manutencao-pela-comunidade.md)). Os detalhes ficam para o desenho da fase 1. Status: concluída.
 - Fase 2, Navegador com login: Chrome visível, mapeamento dos sites e tratamento de CAPTCHA. Status: planejada.
 - Fase 3, IA local: pacote offline (llama-server + Qwen). Status: planejada.
 - Fase 4, Extensão do navegador. Status: planejada.

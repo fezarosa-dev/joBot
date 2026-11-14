@@ -457,3 +457,44 @@ def test_changelog_nao_cita_duvida_por_numero(lingua: str) -> None:
     """Quem usa o joBot não conhece o `duvidas.md`: o item diz o efeito, não o número (D1, D3)."""
     achados = re.findall(r"\bD\d+\b", sem_blocos(texto(CHANGELOG[lingua])))
     assert achados == []
+
+
+# o que cada documento diz da fase 1 (T132): concluída, e não mais "em andamento"
+FASE_1_CONCLUIDA = {
+    ".github/CONTRIBUTING.md": r"fase 1 \(base\) está concluída",
+    ".github/CONTRIBUTING.en.md": r"Phase 1 \(foundation\) is complete",
+    ".github/SECURITY.md": r"(?i)só a versão mais recente \(hoje a 0\.1\.0\)",
+    ".github/SECURITY.en.md": r"(?i)only the latest version \(currently 0\.1\.0\)",
+    ".github/SUPPORT.md": r"formulário de bug",
+    ".github/SUPPORT.en.md": r"bug form",
+    "docs/decisions/0017-fases.md": r"fase 1 está concluída",
+    "docs/decisions/README.md": r"fase 1 está concluída",
+    "wiki/Home.md": r"fase 1 de 8 \(a base\) está concluída",
+    "wiki/Home-en.md": r"Phase 1 of 8 \(the base\) is complete",
+    "wiki/A-ideia-e-a-historia.md": r"fase 1 de 8 \(a base\) está concluída",
+    "wiki/The-idea-and-the-story.md": r"Phase 1 of 8 \(the base\) is complete",
+    "wiki/Roteiro.md": r"\*\*1\. Base\*\*.*Concluída",
+    "wiki/Roadmap.md": r"\*\*1\. Base\*\*.*Complete",
+}
+FASE_1_EM_ANDAMENTO = re.compile(
+    r"em andamento|in progress|nada para instalar|nothing to install"
+    r"|ainda não tem versão lançada|no released version yet",
+    re.IGNORECASE,
+)
+
+
+@pytest.mark.parametrize("caminho", sorted(FASE_1_CONCLUIDA))
+def test_status_da_fase_1_igual_nos_documentos(caminho: str) -> None:
+    """A fase 1 consta como concluída em todo documento que fala dela, nas duas línguas (T132)."""
+    conteudo = texto(caminho)
+    assert re.search(FASE_1_CONCLUIDA[caminho], conteudo), f"{caminho} não diz que a fase 1 acabou"
+    assert FASE_1_EM_ANDAMENTO.search(conteudo) is None, f"{caminho} ainda diz 'em andamento'"
+
+
+def test_changelogs_com_a_mesma_data_da_0_1_0() -> None:
+    datas = {
+        lingua: re.search(r"^## \[0\.1\.0\] - (\S+)$", texto(CHANGELOG[lingua]), re.M)
+        for lingua in LINGUAS
+    }
+    assert all(datas.values()), datas
+    assert len({m.group(1) for m in datas.values() if m}) == 1
