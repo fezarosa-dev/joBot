@@ -405,6 +405,7 @@ Cada decisão importante está registrada num documento curto, chamado ADR (regi
 | 0018 | [Manutenção pela comunidade e CI aberto a todo PR](docs/decisions/0018-manutencao-pela-comunidade.md) |
 | 0019 | [Wiki do projeto e formulário de dúvida](docs/decisions/0019-wiki-do-projeto.md) |
 | 0020 | [Apoio financeiro: só doação](docs/decisions/0020-apoio-financeiro.md) |
+| 0021 | [Sem Dependabot: atualização de dependência à mão](docs/decisions/0021-sem-dependabot.md) |
 
 <a id="como-contribuir"></a>
 ## 🤝 Como contribuir
