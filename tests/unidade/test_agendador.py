@@ -206,3 +206,64 @@ async def test_erro_ao_ler_o_estado_nao_derruba_o_laco() -> None:
     await _girar({"busca": busca}, _EstadoQueFalhaUmaVez(), relogio)
     assert relogio.dormidas == [60, 60, 60]
     assert inicios == [AGORA + timedelta(seconds=60)]
+
+
+async def test_laco_sem_travas_cria_as_suas() -> None:
+    # caracterização (D55): quem chama sem `travas` segue com uma trava por tipo criada no laço
+    relogio = _Relogio(voltas=4)
+    chamadas = 0
+
+    async def busca() -> None:
+        nonlocal chamadas
+        chamadas += 1
+        await asyncio.Event().wait()
+
+    await _girar({"busca": busca}, _Estado(busca=None), relogio)
+    assert chamadas == 1
+
+
+async def test_laco_usa_as_travas_de_fora() -> None:
+    # D55: com a trava `busca` presa por fora (o "buscar agora"), o laço não dispara outra busca
+    relogio = _Relogio(voltas=3)
+    travas = {"busca": asyncio.Lock()}
+    await travas["busca"].acquire()
+    chamadas = 0
+
+    async def busca() -> None:
+        nonlocal chamadas
+        chamadas += 1
+
+    tarefa = asyncio.create_task(
+        laco({"busca": busca}, _Estado(busca=None), relogio, travas=travas)
+    )
+    espera = asyncio.create_task(relogio.acabou.wait())
+    await asyncio.wait({tarefa, espera}, timeout=5, return_when=asyncio.FIRST_COMPLETED)
+    espera.cancel()
+    assert not tarefa.done(), f"o laço caiu: {tarefa.exception()!r}"
+    assert chamadas == 0
+    travas["busca"].release()
+    tarefa.cancel()
+    with suppress(asyncio.CancelledError):
+        await tarefa
+
+
+async def test_travas_de_fora_com_tipo_sem_tarefa_nao_derrubam_o_laco() -> None:
+    # a T48 passa travas dos três tipos e, por ora, só a tarefa de busca
+    relogio = _Relogio(voltas=2)
+    iniciadas: list[str] = []
+    travas = {tipo: asyncio.Lock() for tipo in ("busca", "descoberta", "paginas")}
+
+    async def busca() -> None:
+        iniciadas.append("busca")
+
+    estado = _Estado(busca=None, descoberta=None, paginas=None)
+    tarefa = asyncio.create_task(laco({"busca": busca}, estado, relogio, travas=travas))
+    espera = asyncio.create_task(relogio.acabou.wait())
+    await asyncio.wait({tarefa, espera}, timeout=5, return_when=asyncio.FIRST_COMPLETED)
+    espera.cancel()
+    assert not tarefa.done(), f"o laço caiu: {tarefa.exception()!r}"
+    assert iniciadas == ["busca"]
+    assert not any(trava.locked() for trava in travas.values())  # tipo sem tarefa não prende
+    tarefa.cancel()
+    with suppress(asyncio.CancelledError):
+        await tarefa
