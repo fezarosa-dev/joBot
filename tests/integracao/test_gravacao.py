@@ -30,7 +30,7 @@ from jobot.nucleo.cambio import Cotacao
 from jobot.nucleo.coletores.base import ResultadoEscopo
 from jobot.nucleo.coletores.executor import SaidaEscopo
 from jobot.nucleo.http import LeitorValidadores, Validadores
-from jobot.nucleo.modelo import VagaColetada
+from jobot.nucleo.modelo import SalarioBruto, VagaColetada
 from jobot.nucleo.texto import para_texto
 from jobot.nucleo.tratamento.rotulos import VERSAO_REGRAS
 from jobot.nucleo.tratamento.tratar import tratar
@@ -495,6 +495,51 @@ def test_correcao_de_salario_mantem_beneficios_das_regras(con: sqlite3.Connectio
     reprocessar_vaga(con, vaga_id, hoje=HOJE)
     assert _vaga(con, vaga_id)["sal_moeda"] is None
     assert _vaga(con, vaga_id)["beneficios"] == beneficios
+
+
+def test_reprocessar_vaga_erro_nas_cotacoes_desfaz_o_reprocesso(con: sqlite3.Connection) -> None:
+    # Caracterização: o código já é atômico, o teste nasce verde. Prova por mutação: um
+    # `con.commit()` e um novo `BEGIN IMMEDIATE` antes do `aplicar_cotacoes` deixam o reprocesso
+    # gravado quando as cotações falham.
+    _gravar(con, [_coletada(salario_texto="US$ 5,000/month")])
+    vaga_id = _id(con)
+    antes = (_vaga(con, vaga_id)["sal_mensal_min"], _vaga(con, vaga_id)["sal_texto"])
+    _cotar(con, "5.65")  # guardada, ainda não aplicada: o `_brl` da vaga é NULL
+    corrigir(con, vaga_id, "salario", "US$ 7,000/month", None, T0)
+    con.execute(
+        "CREATE TRIGGER falha_brl BEFORE UPDATE OF sal_mensal_min_brl ON vaga"
+        " WHEN NEW.sal_mensal_min_brl IS NOT NULL"
+        " BEGIN SELECT RAISE(ABORT, 'cotação recusada'); END"
+    )
+    con.commit()
+
+    with pytest.raises(sqlite3.DatabaseError, match="cotação recusada"):
+        reprocessar_vaga(con, vaga_id, hoje=HOJE)
+
+    assert (_vaga(con, vaga_id)["sal_mensal_min"], _vaga(con, vaga_id)["sal_texto"]) == antes
+    assert not con.in_transaction
+
+
+def test_correcao_de_salario_herda_moeda_fora_da_lista(con: sqlite3.Connection) -> None:
+    _gravar(
+        con,
+        [
+            _coletada(
+                descricao=DESCRICAO_PT,
+                salario_estruturado=SalarioBruto(moeda="NZD", minimo_unidades=5000, periodo="mes"),
+            )
+        ],
+    )
+    vaga_id = _id(con)
+    assert _vaga(con, vaga_id)["idioma"] == "pt"
+    assert _vaga(con, vaga_id)["sal_moeda"] == "NZD"
+    corrigir(con, vaga_id, "salario", "6.000 por mês", None, T0)
+
+    reprocessar_vaga(con, vaga_id, hoje=HOJE)
+
+    assert _vaga(con, vaga_id)["sal_moeda"] == "NZD"  # não cai em BRL, a moeda do idioma
+    assert _vaga(con, vaga_id)["sal_mensal_min"] == 600_000
+    assert _vaga(con, vaga_id)["sal_texto"] == "6.000 por mês"
 
 
 def test_listagem_sem_id_externo_mantem_o_do_detalhe(con: sqlite3.Connection) -> None:
