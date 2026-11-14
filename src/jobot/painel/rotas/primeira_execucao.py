@@ -311,12 +311,14 @@ async def mostrar(request: Request, con: Con, passo: str) -> Response:
 
 async def _gravar_passo_1(request: Request, con: Con) -> Response:
     form = await request.form()
-    if "pular" in form:
-        return RedirectResponse("/primeira-execucao/2", status_code=303)
-    entrada = await _ler_entrada(request)
-    idioma = idioma_do_pedido(request)
     pedido = _id_valido(str(form.get("busca", "")))  # o "voltar" do passo 2 edita a mesma busca
     existente = _gravada(con, pedido)
+    if "pular" in form:
+        return RedirectResponse(
+            "/primeira-execucao/2" + (f"?busca={pedido}" if existente else ""), status_code=303
+        )
+    entrada = await _ler_entrada(request)
+    idioma = idioma_do_pedido(request)
     if pedido is not None and existente is None:
         raise HTTPException(404)
     nome = existente.nome if existente else t(idioma, _PRIMEIRO + "nome_busca")
