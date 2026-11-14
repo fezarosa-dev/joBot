@@ -446,6 +446,15 @@ def test_ultimas_que_rodaram_desempata_por_inicio_e_depois_por_id(con: sqlite3.C
     assert ultimas_que_rodaram(con)["remotive"][""].vagas == 2
 
 
+def test_ultimas_que_rodaram_com_fora_pula_os_estados_pedidos(con: sqlite3.Connection) -> None:
+    _rodada(con, AGORA - timedelta(hours=9), [("gupy", "acme", "ok", 789, 1)])
+    _rodada(con, AGORA - timedelta(hours=6), [("gupy", "acme", "falhou", 0, 1)])
+    _rodada(con, AGORA - timedelta(hours=1), [("gupy", "acme", "sem_mudanca", 0, 1)])
+    linha = ultimas_que_rodaram(con, ("no_limite", "desligada", "sem_mudanca", "falhou"))
+    assert (linha["gupy"]["acme"].estado, linha["gupy"]["acme"].vagas) == ("ok", 789)
+    assert ultimas_que_rodaram(con)["gupy"]["acme"].estado == "sem_mudanca"
+
+
 # --- HistoricoDoBanco ---
 
 
