@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from apoio.semear import inserir_vaga
+from jobot.banco import cadastros
 from jobot.banco.cadastros import (
     PADROES,
     adicionar_empresa,
@@ -25,6 +26,7 @@ from jobot.banco.cadastros import (
 )
 from jobot.banco.conexao import abrir
 from jobot.banco.migrar import migrar
+from jobot.nucleo.coletores.registro import carregar_fontes
 from jobot.nucleo.modelo import Empresa
 
 AGORA = datetime(2026, 11, 13, 12, 0, tzinfo=UTC)
@@ -195,7 +197,7 @@ def test_semear_nao_sobrescreve_o_que_a_pessoa_mudou(con: sqlite3.Connection) ->
     con.execute("UPDATE empresa SET nome = 'Meu C6', area = 'minha' WHERE id = ?", (c6,))
     con.commit()
     semear(con)
-    assert sorted(f.chave for f in fontes(con) if not f.ligada) == ["eureca", "remotive"]
+    assert sorted(f.chave for f in fontes(con) if not f.ligada) == ["remotive"]
     assert _linha(con, "greenhouse", "c6bank") == (c6, 0, 0)
     assert con.execute("SELECT nome, area FROM empresa WHERE id = ?", (c6,)).fetchone() == (
         "Meu C6",
@@ -203,9 +205,9 @@ def test_semear_nao_sobrescreve_o_que_a_pessoa_mudou(con: sqlite3.Connection) ->
     )
 
 
-def test_semear_fontes_eureca_nasce_desligada(con: sqlite3.Connection) -> None:
+def test_semear_fontes_todas_nascem_ligadas(con: sqlite3.Connection) -> None:
     semear(con)
-    assert [f.chave for f in fontes(con) if not f.ligada] == ["eureca"]
+    assert [f.chave for f in fontes(con) if not f.ligada] == []
     arquivo = Path(__file__).resolve().parents[2] / "src/jobot/nucleo/dados/fontes.json"
     esperadas = sum(
         d.get("ligada_padrao", True) for d in json.loads(arquivo.read_text("utf-8")).values()
@@ -213,11 +215,27 @@ def test_semear_fontes_eureca_nasce_desligada(con: sqlite3.Connection) -> None:
     assert len([f for f in fontes(con) if f.ligada]) == esperadas
 
 
+def test_semear_fonte_com_ligada_padrao_falso_nasce_desligada_e_a_escolha_sobrevive(
+    con: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    arquivo = Path(__file__).resolve().parents[2] / "src/jobot/nucleo/dados/fontes.json"
+    falso = carregar_fontes(arquivo.read_text("utf-8")) | carregar_fontes(
+        '{"x": {"leva": "A", "por_escopo": {}, "ligada_padrao": false}}'
+    )
+    monkeypatch.setattr(cadastros, "carregar_fontes", lambda _texto: falso)
+    semear(con)
+    assert [f.chave for f in fontes(con) if not f.ligada] == ["x"]
+    ligar_fonte(con, "x", True)
+    semear(con)
+    assert [f.chave for f in fontes(con) if not f.ligada] == []
+
+
 def test_semear_fontes_mantem_escolha_de_quem_ja_tem_linha(con: sqlite3.Connection) -> None:
     semear(con)
-    assert [f.chave for f in fontes(con) if not f.ligada] == ["eureca"]
-    ligar_fonte(con, "eureca", True)
+    assert [f.chave for f in fontes(con) if not f.ligada] == []
+    ligar_fonte(con, "eureca", False)
     ligar_fonte(con, "remotive", False)
+    ligar_fonte(con, "eureca", True)
     semear(con)
     assert [f.chave for f in fontes(con) if not f.ligada] == ["remotive"]
 
@@ -251,11 +269,10 @@ def test_intervalo_min_copiado_para_fonte(con: sqlite3.Connection) -> None:
 
 def test_ligar_e_desligar_fonte(con: sqlite3.Connection) -> None:
     semear(con)
-    assert [f.chave for f in fontes(con) if not f.ligada] == ["eureca"]
+    assert [f.chave for f in fontes(con) if not f.ligada] == []
     ligar_fonte(con, "wwr", False)
-    assert sorted(f.chave for f in fontes(con) if not f.ligada) == ["eureca", "wwr"]
+    assert sorted(f.chave for f in fontes(con) if not f.ligada) == ["wwr"]
     ligar_fonte(con, "wwr", True)
-    ligar_fonte(con, "eureca", True)
     assert all(f.ligada for f in fontes(con))
 
 
