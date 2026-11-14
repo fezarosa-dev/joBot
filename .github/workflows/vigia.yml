@@ -25,10 +25,10 @@ jobs:
     # as fontes rodam uma de cada vez, cada escopo com prazo de 5 minutos
     timeout-minutes: 180
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false  # o job não usa git; o token não fica no .git/config
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
       - run: uv sync --locked
