@@ -1,0 +1,122 @@
+/* Tela de fontes (plano T50): só as cores e medidas da base.css, nenhuma cor nova.
+   Cartão, selo, botões e .so-leitor vêm do vagas.css, carregado junto. O estado nunca vai só
+   pela cor: o selo e o texto do ponto dizem o estado, e o ponto muda também de forma. */
+
+.chave {
+  color: var(--texto-2);
+  font-size: 0.8125rem;
+}
+
+.dados {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.5rem;
+  margin: 0;
+}
+
+.dados > div {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.dados dt {
+  color: var(--texto-2);
+}
+
+.dados dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.motivo {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.reportar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+}
+
+.dica {
+  color: var(--texto-2);
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+}
+
+.pontos {
+  display: flex;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ponto {
+  position: relative;
+  box-sizing: border-box;
+  width: 0.75rem;
+  height: 0.75rem;
+  border: 2px solid var(--texto-2);
+  border-radius: 50%;
+}
+
+.ponto-ok {
+  border-color: var(--destaque);
+  background-color: var(--destaque);
+}
+
+.ponto-sem_mudanca {
+  background-color: var(--texto-2);
+}
+
+.ponto-parcial {
+  border-color: var(--destaque);
+}
+
+.ponto-falhou {
+  border-color: var(--texto);
+  border-radius: 2px;
+  background-color: var(--texto);
+}
+
+.ponto-no_limite {
+  border-style: dashed;
+}
+
+.ponto-desligada {
+  border-style: dotted;
+}
+
+.ponto-vazio {
+  border-color: var(--trilho);
+}
+
+.escopos summary {
+  cursor: pointer;
+  color: var(--link);
+}
+
+.escopos ul {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.escopo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--borda);
+}
+
+.nome-escopo {
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
