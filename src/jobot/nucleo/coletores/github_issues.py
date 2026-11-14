@@ -22,7 +22,7 @@ from jobot.nucleo.coletores.base import (
     juntar_paginas,
 )
 from jobot.nucleo.coletores.registro import limites
-from jobot.nucleo.http import HttpEducado
+from jobot.nucleo.http import Bloqueio, HttpEducado, LimiteAtingido
 from jobot.nucleo.modelo import VagaColetada
 
 _LIMITES = limites("github_issues")
@@ -146,7 +146,14 @@ class GithubIssues:
             for n in range(_MAX_PAGINAS):
                 # O 304 só vale para a primeira página (a 304 não traz `Link`): as seguintes
                 # vão sem validador, e a mistura 200 com 304 nunca acontece.
-                resposta = await http.pedir("GET", url, params=params, condicional=n == 0)
+                try:
+                    resposta = await http.pedir("GET", url, params=params, condicional=n == 0)
+                except (Bloqueio, LimiteAtingido) as erro:
+                    # A cota de 60/h esgotada chega como 403 ou 429 (D51): não é bloqueio.
+                    if erro.cabecalhos.get("x-ratelimit-remaining") != "0":
+                        raise
+                    parada = ("no_limite", "saude.cota")
+                    return
                 if resposta.status == 304:
                     yield SEM_MUDANCA  # o próprio objeto: `juntar_paginas` compara por identidade
                     return
