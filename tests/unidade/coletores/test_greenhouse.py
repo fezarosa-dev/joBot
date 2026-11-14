@@ -10,7 +10,7 @@ import pytest
 from apoio.relogio import RelogioFalso
 from jobot.nucleo.coletores import base, greenhouse, registro
 from jobot.nucleo.coletores.base import Coletor, ContextoColeta, ResultadoEscopo
-from jobot.nucleo.http import ClienteEducado, HttpEducado, Validadores
+from jobot.nucleo.http import TETO_PADRAO, ClienteEducado, HttpEducado, RespostaGrande, Validadores
 from jobot.nucleo.modelo import Empresa, VagaColetada
 from jobot.nucleo.relogio import Relogio
 
@@ -89,6 +89,28 @@ def _vagas(resultado: ResultadoEscopo) -> list[VagaColetada]:
     vagas = [v for v in resultado.vagas if isinstance(v, VagaColetada)]
     assert len(vagas) == len(resultado.vagas)
     return vagas
+
+
+def _quadro_de(n_vagas: int, tamanho_descricao: int) -> str:
+    dados = json.loads(_texto("normal"))
+    modelo = dict(dados["jobs"][0])
+    modelo["content"] = "x" * tamanho_descricao
+    dados["jobs"] = [modelo | {"id": 9_000_000 + n} for n in range(n_vagas)]
+    return json.dumps(dados)
+
+
+async def test_quadro_de_6_mb_passa_no_teto_do_greenhouse() -> None:
+    corpo = _quadro_de(800, 7_400)  # como o da Stripe (6,2 MB): acima dos 5 MB padrão
+    assert TETO_PADRAO < len(corpo.encode()) < greenhouse.TETO_QUADRO_BYTES
+    resultado, _ = await _coletar(httpx.Response(200, text=corpo))
+    assert (resultado.estado, resultado.motivo, len(resultado.vagas)) == ("ok", None, 800)
+
+
+async def test_o_teto_do_greenhouse_chega_ao_pedido(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(greenhouse, "TETO_QUADRO_BYTES", 1024 * 1024)
+    corpo = _quadro_de(1, 1024 * 1024 + 1)
+    with pytest.raises(RespostaGrande):
+        await _coletar(httpx.Response(200, text=corpo))
 
 
 def test_coletor_registrado_com_a_chave_de_fontes_json() -> None:

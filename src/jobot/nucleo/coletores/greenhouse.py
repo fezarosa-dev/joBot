@@ -1,6 +1,7 @@
 """Coletor Greenhouse (apêndice 2.4): API pública do quadro, um escopo por empresa.
 
-A lista inteira vem numa resposta, com a descrição: não há paginação nem `detalhar`.
+A lista inteira vem numa resposta, com a descrição: a Stripe manda 6,2 MB, acima do teto padrão
+de 5 MB do cliente, então o pedido leva `TETO_QUADRO_BYTES`. Não há paginação nem `detalhar`.
 """
 
 import html
@@ -29,6 +30,7 @@ _TOKEN = re.compile(r"[A-Za-z0-9_-]{1,100}")
 # Hosts dos endereços que a pessoa cola; o europeu fica de fora (não testado, apêndice 2.4).
 _HOSTS_BOARD = frozenset({"boards.greenhouse.io", "job-boards.greenhouse.io"})
 _HOST_API = "boards-api.greenhouse.io"
+TETO_QUADRO_BYTES = 32 * 1024 * 1024  # a Stripe devolve 6,2 MB; o padrão do cliente é 5 MB
 
 
 class _NaoEncontrado(Exception):
@@ -131,7 +133,11 @@ class Greenhouse:
             url = _API.format(token=quote(escopo, safe=""))
             try:
                 resposta = await http.pedir(
-                    "GET", url, params={"content": "true"}, condicional=True
+                    "GET",
+                    url,
+                    params={"content": "true"},
+                    condicional=True,
+                    teto_bytes=TETO_QUADRO_BYTES,
                 )
             except ErroDeRede as erro:
                 if erro.status == 404:
