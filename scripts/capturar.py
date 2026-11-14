@@ -278,9 +278,17 @@ def _listas(no: Any) -> Iterator[list[Any]]:
             yield from _listas(v)
 
 
-def _cortar_lista(dado: Any) -> None:
-    """Corta a maior lista do documento (a das vagas) para MAX_ITENS."""
-    principal = max(_listas(dado), key=len, default=None)
+# Fonte cuja maior lista nem sempre é a das vagas (as `tags` de uma vaga podem ser mais longas
+# que o feed): a chave, na raiz do JSON, da lista de vagas. Fonte fora daqui corta a maior lista.
+LISTA_DE_VAGAS = {"remotive": "jobs", "himalayas": "jobs"}
+
+
+def _cortar_lista(dado: Any, fonte: str | None = None) -> None:
+    """Corta a lista de vagas (a indicada para a fonte, senão a maior) para MAX_ITENS."""
+    indicada = dado.get(LISTA_DE_VAGAS.get(fonte or "")) if isinstance(dado, dict) else None
+    principal = (
+        indicada if isinstance(indicada, list) else max(_listas(dado), key=len, default=None)
+    )
     if principal is not None:
         del principal[MAX_ITENS:]
 
@@ -374,11 +382,11 @@ def _reduzir_html(texto: str) -> bytes:
     return _caber(lambda _: saida)
 
 
-def reduzir(conteudo: bytes, formato: Formato) -> bytes:
-    """Deixa no máximo 5 itens (a maior lista ou o elemento mais repetido) e 50 KB."""
+def reduzir(conteudo: bytes, formato: Formato, fonte: str | None = None) -> bytes:
+    """Deixa no máximo 5 itens (lista de vagas, maior lista ou elemento repetido) e 50 KB."""
     if formato == "json":
         dado = json.loads(conteudo)
-        _cortar_lista(dado)
+        _cortar_lista(dado, fonte)
         return _caber(lambda limite: _json_em_bytes(_encurtar(dado, limite)))
     if formato == "xml":
         return _reduzir_xml(conteudo)
@@ -547,7 +555,9 @@ async def capturar(
         motivo = f"{resultado.estado}: {resultado.motivo}" if resultado else "sem pedido"
         raise RuntimeError(f"nada capturado ({motivo})")
     formato = _formato(achado["texto"])
-    conteudo = reduzir(limpar_pessoais(achado["texto"]).encode("utf-8", "replace"), formato)
+    conteudo = reduzir(
+        limpar_pessoais(achado["texto"]).encode("utf-8", "replace"), formato, coletor.chave
+    )
     if formato != "json":  # o parser decodifica entidade ao serializar ("&#64;" vira "@")
         conteudo = limpar_pessoais(conteudo.decode("utf-8", "replace")).encode("utf-8", "replace")
     if sobras := achar_pessoais(conteudo.decode("utf-8", "replace")):
