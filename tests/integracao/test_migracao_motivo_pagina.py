@@ -25,7 +25,7 @@ def _na_versao_um(tmp_path: Path) -> tuple[sqlite3.Connection, Path]:
 def test_migracao_motivo_da_pagina(tmp_path: Path) -> None:
     """Sem a migração a coluna não existe; com ela existe; tudo numa transação desfeita."""
     con, _ = _na_versao_um(tmp_path)
-    depois = "".join(p.read_text("utf-8") for p in sorted(MIGRACOES.glob("*.sql"))[1:])
+    depois = (MIGRACOES / "0002_motivo_da_pagina.sql").read_text("utf-8")
     assert "motivo" not in _colunas(con)
     con.executescript(f"BEGIN;\n{depois}\n")
     try:
