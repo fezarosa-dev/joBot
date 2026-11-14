@@ -1,0 +1,12 @@
+{
+  "url": "https://himalayas.app/jobs/api/search?q=xyzzyjobot&sort=recent",
+  "data": "2026-11-14T06:26:51.595502+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/json",
+    "Last-Modified": "Sat, 14 Nov 2026 06:26:51 GMT"
+  },
+  "sha256": "26c52b22f6af95e059881f3d2dc6329b4fcd55b91c5cf72b8028fa7236cde4ae",
+  "versao": "0.1.0",
+  "metodo": "GET"
+}

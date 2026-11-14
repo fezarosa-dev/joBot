@@ -1,0 +1,12 @@
+{
+  "url": "https://api.lever.co/v0/postings/starkbank?mode=json&skip=1000&limit=5",
+  "data": "2026-11-14T06:25:25.917384+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/json; charset=utf-8",
+    "ETag": "W/\"2-l9Fw4VUO7kr8CvBlt4zaMCqXZ0w\""
+  },
+  "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+  "versao": "0.1.0",
+  "metodo": "GET"
+}
