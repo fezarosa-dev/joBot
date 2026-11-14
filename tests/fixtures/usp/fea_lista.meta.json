@@ -1,0 +1,12 @@
+{
+  "url": "https://estagios.fea.usp.br/",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "text/html; charset=utf-8"
+  },
+  "sha256": "6786c006569b0306f2b0316fbe75d46d4c949cee34c4450c37de602e6828b996",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "capturado de fea_home.html (conferência ao vivo de 2026-11-13) com capturar.reduzir e limpar_pessoais; token CSRF trocado por 'exemplo-csrf'; cabeçalhos não guardados na conferência: Content-Type assumido"
+}
