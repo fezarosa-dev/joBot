@@ -153,5 +153,10 @@
   {"texto": "amateur 401k", "idioma": "en", "esperado": null},
   {"texto": "Great cars 401k plan", "idioma": "en", "esperado": null},
   {"texto": "Fraud 401k", "idioma": "en", "esperado": null},
-  {"texto": "$120k, 5 years 401k match", "idioma": "en", "esperado": {"moeda": "USD", "minimo": 12000000, "maximo": 12000000, "periodo": "ano", "mensal_minimo": 1000000, "plausivel": true, "periodo_deduzido": true, "beneficios": ["retirement"]}}
+  {"texto": "$120k, 5 years 401k match", "idioma": "en", "esperado": {"moeda": "USD", "minimo": 12000000, "maximo": 12000000, "periodo": "ano", "mensal_minimo": 1000000, "plausivel": true, "periodo_deduzido": true, "beneficios": ["retirement"]}},
+  {"texto": "Almoço de 30 min, R$ 5.000", "idioma": "pt", "esperado": {"moeda": "BRL", "minimo": 500000, "maximo": 500000, "periodo": "mes", "mensal_minimo": 500000, "plausivel": true, "periodo_deduzido": true}},
+  {"texto": "intervalo de 15 minutos", "idioma": "pt", "esperado": null},
+  {"texto": "30 mins de almoço, $5,000", "idioma": "en", "esperado": {"moeda": "USD", "minimo": 500000, "maximo": 500000, "periodo": "mes", "mensal_minimo": 500000, "plausivel": true, "periodo_deduzido": true}},
+  {"texto": "15 minutes break", "idioma": "en", "esperado": null},
+  {"texto": "R$ 3.000 min a R$ 5.000 max por mês", "idioma": "pt", "esperado": {"moeda": "BRL", "minimo": 300000, "maximo": 500000, "periodo": "mes", "mensal_minimo": 300000, "plausivel": true, "periodo_deduzido": false}}
 ]
