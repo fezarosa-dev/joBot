@@ -1,5 +1,5 @@
 {%- set tema_atual = tema -%}
-{%- set voltar = request.url.path ~ ("?" ~ request.url.query if request.url.query else "") -%}
+{%- set voltar = url_de_volta(request) -%}
 {#- menu: (chave, href, começo do caminho da área); "/" conta como Vagas; a área é o começo do caminho,
     inteiro ou seguido de "/", para "/vagasx" não marcar Vagas -#}
 {%- set caminho = "/vagas" if request.url.path == "/" else request.url.path -%}

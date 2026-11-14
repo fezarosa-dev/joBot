@@ -7,6 +7,7 @@
   "configuracoes.grupo.aparencia": "Appearance",
   "configuracoes.grupo.privacidade": "Privacy",
   "configuracoes.salvar": "Save",
+  "configuracoes.salvo": "Saved.",
   "configuracoes.sim": "yes",
   "configuracoes.nao": "no",
   "configuracoes.erro.destaques_n": "The number of highlights must be a whole number from 1 to 100. Nothing was saved.",
