@@ -85,5 +85,6 @@
   "saude.tempo_esgotado": "Timed out talking to the source",
   "saude.erro_de_rede": "Network error talking to the source",
   "saude.resposta_grande": "The source response exceeded the allowed size",
-  "saude.excecao": "Unexpected error: {tipo}"
+  "saude.excecao": "Unexpected error: {tipo}",
+  "saude.listagem_incompleta": "The listing came incomplete: some pages did not change since the last fetch"
 }

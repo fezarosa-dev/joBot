@@ -4,6 +4,7 @@ from collections.abc import AsyncIterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Literal, Protocol
+from urllib.parse import urlsplit
 
 from jobot.nucleo.http import (
     Bloqueio,
@@ -12,8 +13,9 @@ from jobot.nucleo.http import (
     LimiteAtingido,
     OrcamentoGasto,
     Parou429,
+    host_local,
 )
-from jobot.nucleo.modelo import Empresa, VagaColetada, _confere_http
+from jobot.nucleo.modelo import Empresa, VagaColetada, confere_http
 
 
 @dataclass(frozen=True)
@@ -38,7 +40,9 @@ class UrlListada:
     atualizada_em: datetime | None = None  # <lastmod>, com fuso
 
     def __post_init__(self) -> None:
-        _confere_http(self.url, "url")
+        confere_http(self.url, "url")
+        if host_local(urlsplit(self.url).hostname or ""):  # D13: a URL vem da fonte
+            raise ValueError(f"url aponta para host local: {self.url!r}")
         if self.atualizada_em is not None and self.atualizada_em.utcoffset() is None:
             raise ValueError("atualizada_em precisa ter fuso")
 
@@ -96,8 +100,9 @@ async def juntar_paginas(
     """Soma as páginas de um escopo e traduz as exceções do `HttpEducado` em estado.
 
     Página `SEM_MUDANCA` = 304. Só "sem_mudanca" se todas forem 304; 304 misturado com 200
-    é "parcial" (a lista não veio inteira, então nada se fecha). Erro de rede sem nenhuma
-    página lida é "falhou"; depois de uma página é "parcial". Exceção que não está na tabela
+    é "parcial" com `saude.listagem_incompleta` (a lista não veio inteira, então só o que tem
+    mais de 30 dias se fecha). Erro de rede ou limite sem nenhuma página lida é "falhou";
+    depois de uma página é "parcial" (decisão 16). Exceção que não está na tabela
     sobe: o executor a captura e marca "falhou" com o tipo do erro.
     """
     vagas: list[Item] = []
@@ -111,7 +116,7 @@ async def juntar_paginas(
             n_304 += pagina is SEM_MUDANCA
             vagas.extend(pagina)
     except LimiteAtingido:
-        estado, motivo = "parcial", "saude.limite_atingido"
+        estado, motivo = "parcial" if n_paginas else "falhou", "saude.limite_atingido"
     except OrcamentoGasto:
         estado, motivo = "no_limite", "saude.orcamento"
     except Parou429:
@@ -128,6 +133,6 @@ async def juntar_paginas(
         if n_paginas and n_304 == n_paginas:
             estado = "sem_mudanca"
         elif n_304:
-            estado = "parcial"
+            estado, motivo = "parcial", "saude.listagem_incompleta"
     pedidos: int = getattr(http, "pedidos", 0)  # HttpDoEscopo conta; outro HttpEducado, não
     return ResultadoEscopo(tuple(vagas), estado, motivo, pedidos)
