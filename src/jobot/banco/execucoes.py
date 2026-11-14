@@ -4,7 +4,8 @@ Desenho 7.3 (`execucao`, `saude`), 8.1 e 8.3 (histórico do executor), 12.3 e 12
 Datas entram e saem em UTC com fuso (`agora` vem de quem chama, nunca do relógio do
 sistema aqui); `agora` sem fuso levanta `ValueError`.
 
-Transações: `abrir_execucao`, `bater`, `fechar_execucao` e `marcar_interrompidas` abrem e
+Transações: `abrir_execucao`, `bater`, `fechar_execucao`, `interromper_execucao` e
+`marcar_interrompidas` abrem e
 confirmam a própria, e recusam conexão já numa transação (`RuntimeError`, como `acoes.py`),
 para não consolidar nem desfazer o trabalho de quem chama. `gravar_saude` é o contrário: o
 escopo grava a saúde junto com as vagas (desenho 12.4, passo 3), então ela só confirma
@@ -110,6 +111,24 @@ def fechar_execucao(con: sqlite3.Connection, id: int, agora: datetime) -> None:
     _sem_transacao(con)
     cur = con.execute(
         "UPDATE execucao SET estado='concluida', terminada_em=? WHERE id=? AND estado='rodando'",
+        (_iso(agora), id),
+    )
+    if (
+        cur.rowcount == 0
+        and con.execute("SELECT 1 FROM execucao WHERE id=?", (id,)).fetchone() is None
+    ):
+        con.rollback()
+        raise LookupError(f"execução {id} não existe")
+    con.commit()
+
+
+def interromper_execucao(con: sqlite3.Connection, id: int, agora: datetime) -> None:
+    """Marca como "interrompida" na hora a execução que roda (exceção no meio, D54).
+
+    Já encerrada fica como está; `id` inexistente levanta `LookupError`."""
+    _sem_transacao(con)
+    cur = con.execute(
+        "UPDATE execucao SET estado='interrompida', terminada_em=? WHERE id=? AND estado='rodando'",
         (_iso(agora), id),
     )
     if (

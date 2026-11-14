@@ -20,6 +20,7 @@ from jobot.banco.gravacao import (
     ResumoEscopo,
     ValidadoresDoBanco,
     fechar_escopos_extintos,
+    gravar_cache_detalhe,
     gravar_detalhe,
     gravar_escopo,
     reprocessar,
@@ -295,6 +296,54 @@ def test_listagem_sem_descricao_nao_apaga_a_do_detalhar(con: sqlite3.Connection)
     assert _ocorrencias(con, vaga_id)[0][2] == _dias(1).isoformat()
     with pytest.raises(LookupError):
         gravar_detalhe(con, 999, _coletada())
+
+
+def _cache(con: sqlite3.Connection) -> tuple[Any, ...] | None:
+    linha = con.execute(
+        "SELECT buscado_em, conteudo FROM enriquecimento WHERE url_hash = ?",
+        (hash_url(canonica(URL)),),
+    ).fetchone()
+    return None if linha is None else tuple(linha)
+
+
+def test_cache_e_detalhe_na_mesma_transacao(con: sqlite3.Connection) -> None:
+    _gravar(con, [_coletada(descricao="")], agora=T0)
+    vaga_id = _id(con)
+    ocorrencia_id = _ocorrencias(con, vaga_id)[0][0]
+    detalhe = _coletada(descricao="Descrição completa da página de detalhe.")
+    con.execute(
+        "CREATE TRIGGER quebra BEFORE INSERT ON enriquecimento"
+        " BEGIN SELECT RAISE(ABORT, 'cache quebrou'); END"
+    )
+    con.commit()
+
+    with pytest.raises(sqlite3.IntegrityError, match="cache quebrou"):
+        gravar_cache_detalhe(con, ocorrencia_id, URL, detalhe, _dias(1))
+
+    assert _coletada_gravada(con, vaga_id).descricao == ""  # o detalhe saiu junto
+    assert _vaga(con, vaga_id)["descricao_texto"] == ""
+    assert _cache(con) is None
+    assert not con.in_transaction
+
+    # controle: sem o gatilho, os dois ficam
+    con.execute("DROP TRIGGER quebra")
+    con.commit()
+    gravar_cache_detalhe(con, ocorrencia_id, URL, detalhe, _dias(1))
+    assert _coletada_gravada(con, vaga_id).descricao == detalhe.descricao
+    assert _cache(con) == (_dias(1).isoformat(), detalhe.para_json())
+
+
+def test_detalhe_none_grava_so_o_cache(con: sqlite3.Connection) -> None:
+    _gravar(con, [_coletada(descricao="")], agora=T0)
+    vaga_id = _id(con)
+    ocorrencia_id = _ocorrencias(con, vaga_id)[0][0]
+    antes = _coletada_gravada(con, vaga_id)
+
+    gravar_cache_detalhe(con, ocorrencia_id, URL, None, _dias(1))
+
+    assert _cache(con) == (_dias(1).isoformat(), "")
+    assert _coletada_gravada(con, vaga_id) == antes
+    assert not con.in_transaction
 
 
 def test_descricao_nova_nao_vazia_substitui_a_anterior(con: sqlite3.Connection) -> None:
