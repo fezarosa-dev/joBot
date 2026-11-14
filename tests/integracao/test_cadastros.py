@@ -29,6 +29,8 @@ from jobot.nucleo.modelo import Empresa
 AGORA = datetime(2026, 11, 13, 12, 0, tzinfo=UTC)
 DEPOIS = datetime(2026, 11, 14, 9, 30, tzinfo=UTC)
 
+TOTAL = 83  # as 67 da leva A (seção 7 do apêndice) e as 16 da leva B (T76)
+
 # Identificadores da seção 7 do apêndice de fontes (7.1 a 7.5).
 IDENTIFICADORES = {
     "greenhouse": {
@@ -144,7 +146,8 @@ def _total(con: sqlite3.Connection, tabela: str) -> int:
 
 
 def test_empresas_json_tem_67() -> None:
-    lista = empresas_iniciais()
+    assert len(empresas_iniciais()) == TOTAL
+    lista = [e for e in empresas_iniciais() if e.fonte in IDENTIFICADORES]  # a leva A
     assert len(lista) == 67
     por_fonte: dict[str, set[str]] = {}
     for e in lista:
@@ -165,7 +168,7 @@ def test_empresas_json_tem_67() -> None:
 def test_semear_grava_fontes_e_empresas(con: sqlite3.Connection) -> None:
     semear(con)
     assert _total(con, "fonte") == 28
-    assert _total(con, "empresa") == 67
+    assert _total(con, "empresa") == TOTAL
     origem = con.execute("SELECT DISTINCT origem FROM empresa").fetchall()
     assert origem == [("lista_inicial",)]
     c6 = [e for e in empresas(con) if e.identificador == "c6bank"][0]
@@ -179,7 +182,7 @@ def test_semear_duas_vezes_nao_duplica(con: sqlite3.Connection) -> None:
     ids = con.execute("SELECT id, fonte, identificador FROM empresa ORDER BY id").fetchall()
     semear(con)
     assert _total(con, "fonte") == 28
-    assert _total(con, "empresa") == 67
+    assert _total(con, "empresa") == TOTAL
     assert con.execute("SELECT id, fonte, identificador FROM empresa ORDER BY id").fetchall() == ids
 
 
@@ -205,7 +208,7 @@ def test_semear_acrescenta_so_o_que_falta(con: sqlite3.Connection) -> None:
     con.execute("DELETE FROM empresa WHERE id = ?", (xp,))  # lista atualizada: entrada nova
     con.commit()
     semear(con)
-    assert _total(con, "empresa") == 67
+    assert _total(con, "empresa") == TOTAL
     assert _linha(con, "greenhouse", "xpinc")[1:] == (1, 0)
 
 
@@ -245,12 +248,12 @@ def test_remover_marca_removida_em_e_mantem_linha(con: sqlite3.Connection) -> No
     semear(con)
     c6 = _linha(con, "greenhouse", "c6bank")[0]
     remover_empresa(con, c6, AGORA)
-    assert _total(con, "empresa") == 67
+    assert _total(con, "empresa") == TOTAL
     assert con.execute("SELECT removida_em FROM empresa WHERE id = ?", (c6,)).fetchone() == (
         AGORA.isoformat(),
     )
     assert c6 not in {e.id for e in empresas(con)}
-    assert len(empresas(con)) == 66
+    assert len(empresas(con)) == TOTAL - 1
 
 
 def test_remover_duas_vezes_mantem_a_primeira_data(con: sqlite3.Connection) -> None:
@@ -278,7 +281,7 @@ def test_semear_pula_removida_sem_criar_linha(con: sqlite3.Connection) -> None:
     c6 = _linha(con, "greenhouse", "c6bank")[0]
     remover_empresa(con, c6, AGORA)
     semear(con)
-    assert _total(con, "empresa") == 67
+    assert _total(con, "empresa") == TOTAL
     assert _linha(con, "greenhouse", "c6bank") == (c6, 1, 1)
     assert c6 not in {e.id for e in empresas(con)}
 
@@ -293,7 +296,7 @@ def test_readicionar_limpa_removida_em(con: sqlite3.Connection) -> None:
         Empresa(nome="C6 Bank S.A.", fonte="greenhouse", identificador="c6bank", origem="pessoa"),
     )
     assert novo == c6
-    assert _total(con, "empresa") == 67
+    assert _total(con, "empresa") == TOTAL
     assert _linha(con, "greenhouse", "c6bank") == (c6, 1, 0)
     volta = [e for e in empresas(con) if e.id == c6][0]
     assert volta.nome == "C6 Bank S.A."
@@ -314,7 +317,7 @@ def test_adicionar_empresa_nova(con: sqlite3.Connection) -> None:
             origem="pessoa",
         ),
     )
-    assert _total(con, "empresa") == 68
+    assert _total(con, "empresa") == TOTAL + 1
     acme = [e for e in empresas(con) if e.id == novo][0]
     assert (acme.nome, acme.fonte, acme.identificador, acme.area, acme.pais) == (
         "Acme",
@@ -336,7 +339,7 @@ def test_adicionar_empresa_recusa_dado_invalido(con: sqlite3.Connection) -> None
         adicionar_empresa(con, Empresa(nome="X", fonte="greenhouse", identificador=" "))
     with pytest.raises(ValueError):
         adicionar_empresa(con, Empresa(nome="X", fonte="nao_existe", identificador="x"))
-    assert _total(con, "empresa") == 67
+    assert _total(con, "empresa") == TOTAL
 
 
 def test_ativar_empresa(con: sqlite3.Connection) -> None:
@@ -359,7 +362,7 @@ def test_contexto_coleta_ignora_removida(con: sqlite3.Connection) -> None:
     ativar_empresa(con, xp, False)
     da_coleta = empresas_da_coleta(con)
     assert isinstance(da_coleta, tuple)
-    assert len(da_coleta) == 65
+    assert len(da_coleta) == TOTAL - 2
     assert {e.id for e in da_coleta}.isdisjoint({c6, xp})
     assert all(e.ativa and e.removida_em is None and e.id is not None for e in da_coleta)
 
