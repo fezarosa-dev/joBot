@@ -175,9 +175,12 @@ def _do_texto(simples: str) -> _Lido | None:
     entre = _RE_ROTULO.sub("", _RE_MOEDA.sub("", entre))
     # "R$ 4.000 por mês a R$ 6.000" é faixa; "R$ 25/hora e R$ 4.000/mês" não. Vale só o período
     # colado no segundo valor, até o próximo número ou parêntese ("(13 salários por ano)")
+    p_entre = _periodo(entre)
+    p_colado = None
     if len(valores) > 1:
         colado = re.split(r"[\d(]", trecho[valores[1].fim :], maxsplit=1)[0]
-        if _periodo(colado) in (None, _periodo(entre)):
+        p_colado = _periodo(colado)
+        if p_colado in (None, p_entre):
             for _, termo in _PERIODOS:
                 entre = termo.sub("", entre)
     if len(valores) > 1 and _RE_LIGA.fullmatch(entre):
@@ -187,6 +190,10 @@ def _do_texto(simples: str) -> _Lido | None:
         if primeiro.multiplicador == 1 < segundo.multiplicador and primeiro.numero < segundo.numero:
             um = _EXATO.multiply(primeiro.numero, segundo.multiplicador)
         minimo, maximo = sorted((um, segundo.unidades))
+        # só um lado diz o período e o máximo passa de 10 vezes o mínimo: não é faixa, vale o
+        # valor que tem período (d2 da T10)
+        if (p_entre is None) != (p_colado is None) and maximo > _EXATO.multiply(minimo, 10):
+            minimo = maximo = (primeiro if p_entre else segundo).unidades
     else:
         antes = _RE_MOEDA.sub("", trecho[: primeiro.ini])
         if _RE_SO_MAXIMO.search(antes):
@@ -196,9 +203,14 @@ def _do_texto(simples: str) -> _Lido | None:
     return _moeda(trecho, simples), minimo, maximo, _periodo(trecho)
 
 
+def _decimal(valor: float) -> Decimal:
+    # int direto: Decimal(str(int)) estoura acima de 4.300 dígitos
+    return Decimal(valor if isinstance(valor, int) else str(valor))
+
+
 def _positivo(valor: float | None) -> Decimal | None:
     # json.loads lê 1e400 como inf e inteiro grande como int (math.isfinite estoura): sem float
-    numero = None if valor is None else Decimal(str(valor))
+    numero = None if valor is None else _decimal(valor)
     return numero if numero is not None and numero.is_finite() and numero > 0 else None
 
 
@@ -258,7 +270,7 @@ def ler_salario(texto: str | None, estruturado: SalarioBruto | None, idioma: str
     )
     if texto is None and estruturado is not None:
         numeros = (estruturado.minimo_unidades, estruturado.maximo_unidades)
-        valores = "-".join(f"{_EXATO.normalize(Decimal(str(v))):f}" for v in numeros if v)
+        valores = "-".join(f"{_EXATO.normalize(_decimal(v)):f}" for v in numeros if v)
         partes = (estruturado.moeda, valores, estruturado.periodo)
         texto = " ".join(p for p in partes if p)
     return Salario(

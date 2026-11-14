@@ -348,3 +348,24 @@ def test_regras_desligadas_nao_ocultam() -> None:
     ligada = calcular(v, b, sal_mensal_brl=100, minimo_busca_brl=5000, regras_ligadas=True)
     assert ligada.oculta_motivo == "modalidade"
     assert ligada.nota == desligada.nota
+
+
+def _motivo_local(v: VagaTratada, b: Busca) -> str:
+    r = calcular(v, b, sal_mensal_brl=None, minimo_busca_brl=None, regras_ligadas=False)
+    return next(
+        m.chave for m in r.motivos if m.chave.startswith(("encaixe.local_", "encaixe.modalidade_"))
+    )
+
+
+def test_remoto_sem_modalidade_escolhida_pontua_remoto() -> None:
+    # D20: critério vazio é neutro; com cidades e sem modalidades, remoto não perde por "local fora"
+    b = _busca(cidades=(SP,), modalidades=(), niveis=(), idiomas=(), salario_min_centavos=None)
+    remota = _tratada(modalidade=Modalidade.REMOTO, locais=(RECIFE,))
+    assert _motivo_local(remota, b) == "encaixe.local_remoto"
+    assert _nota(remota, b, minimo_busca_brl=None) == 100
+    # controles: o resto da regra não muda
+    assert _motivo_local(_tratada(modalidade=Modalidade.PRESENCIAL, locais=(RECIFE,)), b) == (
+        "encaixe.local_fora"
+    )
+    so_presencial = _busca(cidades=(SP,), modalidades=(Modalidade.PRESENCIAL,))
+    assert _motivo_local(remota, so_presencial) == "encaixe.modalidade_fora"
