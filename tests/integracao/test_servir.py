@@ -23,6 +23,8 @@ from fastapi.testclient import TestClient
 
 import jobot
 from apoio.relogio import RelogioFalso
+from jobot.agenda.agendador import o_que_roda
+from jobot.banco.cadastros import gravar_config
 from jobot.banco.conexao import abrir
 from jobot.banco.execucoes import abrir_execucao, fechar_execucao, gravar_saude
 from jobot.banco.migrar import migrar
@@ -155,6 +157,7 @@ def test_reprocessa_quando_as_regras_mudam(dados: Path, monkeypatch: pytest.Monk
 
 def test_laco_da_agenda_sobe_com_o_app(dados: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     with closing(_banco(dados)) as con:  # a última busca completa foi há 5 h: a perdida recupera
+        gravar_config(con, "primeira_execucao_concluida", True)
         antiga = abrir_execucao(con, "busca", "agenda", AGORA - timedelta(hours=5))
         assert antiga is not None
         fechar_execucao(con, antiga, AGORA - timedelta(hours=5))
@@ -174,6 +177,36 @@ def test_laco_da_agenda_sobe_com_o_app(dados: Path, monkeypatch: pytest.MonkeyPa
     parou_em = len(motivos)
     time.sleep(0.1)
     assert len(motivos) == parou_em  # o laço para junto com o app
+
+
+def test_agenda_nao_dispara_nada_antes_da_primeira_execucao(
+    dados: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    with closing(_banco(dados)):  # pasta nova: `primeira_execucao_concluida` ausente
+        pass
+    chamadas: list[str] = []
+
+    async def falsa(*_: object) -> None:
+        chamadas.append("x")
+
+    for nome in ("executar_busca", "executar_descoberta", "executar_paginas"):
+        monkeypatch.setattr(servir, nome, falsa)
+    app, _ = servir.montar(dados, PORTA, relogio=_RelogioRapido(AGORA))
+    with TestClient(app, base_url=BASE):
+        time.sleep(0.3)  # várias voltas do laço (passou a espera de 60 s, o tempo é falso)
+    assert chamadas == []
+
+
+@pytest.mark.parametrize("valor", [None, False, True])
+def test_estado_so_liga_a_agenda_com_a_primeira_execucao_concluida(
+    dados: Path, valor: bool | None
+) -> None:
+    with closing(_banco(dados)) as con:
+        if valor is not None:
+            gravar_config(con, "primeira_execucao_concluida", valor)
+    interruptores = servir._EstadoDoBanco(dados / "jobot.db").interruptores()
+    vencidos = o_que_roda(AGORA, None, None, None, AGORA - timedelta(hours=1), interruptores)
+    assert vencidos == (["busca", "descoberta", "paginas"] if valor is True else [])
 
 
 def test_laco_e_rota_buscar_agora_dividem_as_mesmas_travas(
