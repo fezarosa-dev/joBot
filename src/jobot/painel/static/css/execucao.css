@@ -48,6 +48,11 @@
   color: var(--texto);
 }
 
+/* vazia, a região não abre uma linha de gap na barra (T107); com texto volta a ocupar a largura */
+.andamento-regiao:empty {
+  flex-basis: 0;
+}
+
 .andamento p {
   margin: 0;
 }
