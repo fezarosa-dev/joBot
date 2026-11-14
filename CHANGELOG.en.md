@@ -26,6 +26,8 @@ Phase 1: the foundation of joBot. You can already install and use it.
 - New-version notice, off by default. When on, it only asks `api.github.com` for the newest version, and the request carries the fixed user agent and the IP.
 - Eureca, Abler and Gupy, each with its own on/off switch. All come on by default; Eureca's terms ask for prior consent, and anyone who prefers to respect that can turn Eureca off in Settings.
 - Dashboard in Portuguese and English, with light and dark themes.
+- In the search progress bar, the list of the sources that are still running.
+- A "Saved." notice after saving in Settings.
 - Project decisions (ADRs 0001 to 0021) and `duvidas.md`.
 - README with badges, diagram, tables and a FAQ, and the English version.
 - Star history chart in the README.
@@ -37,3 +39,10 @@ Phase 1: the foundation of joBot. You can already install and use it.
 
 - Code of Conduct reports go to the project email.
 - The README is no longer only a plan: it describes the phase 1 installation.
+
+### Fixed
+
+- The weekly Common Crawl discovery no longer fails because of huge blocks from other sites, which joBot never downloads.
+- Greenhouse accepts very large job boards, such as Stripe's.
+- The schedule only starts searching after the first-run wizard is finished.
+- In Sources, a source that hit its limit shows the last round it actually ran.

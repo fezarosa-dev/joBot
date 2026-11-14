@@ -48,6 +48,8 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 **Atualização de 2026-11-14 (REG12):** o `.github/FUNDING.yml` já existe no repositório. Ele aponta para o Buy Me a Coffee e para a página Apoie da wiki (`custom`), então a escolha não foi GitHub Sponsors nem Ko-fi. A decisão provisória acima está desatualizada. Falta só o dono confirmar que a conta é a que ele quer. Status: o arquivo existe; a conta fica para o dono confirmar.
 
+**Atualização de 2026-11-14: GitHub Sponsors ativo, decidido pelo dono (D96).**
+
 ## D5. Convenções da rotulagem do gabarito
 
 **Status:** aberta, para confirmar (o registro vem de uma passada anterior e não consta nas decisões da sessão; o código segue a opção atual até o dono decidir)
@@ -1159,7 +1161,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 ## D80. Eureca pela API do aplicativo de candidatos (A42, T70)
 
-**Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar
+**Status:** decidido pelo dono em 2026-11-14: a Eureca nasce ligada (A66, T136; a A50 está rejeitada)
 
 **Contexto:** o caminho público da Eureca estava em aberto desde o apêndice. A conferência de 2026-11-13 achou a API do aplicativo de candidatos (`candidate-api.eureca.me/opportunities`), que responde sem login. O escopo é um só. Os termos de uso da Eureca são restritivos (a cláusula 7 pede consentimento prévio e expresso), mas manter a Eureca na fase 1 já foi decisão do dono (Q6, de 2026-11-13), com chave liga/desliga, ritmo educado, link para a vaga original e aviso no README; Abler e Gupy seguem a mesma decisão. O link da vaga (`app.eureca.me/vagas/{id}`) foi deduzido do código do aplicativo e não foi aberto: fica para conferir na busca real.
 
@@ -1177,6 +1179,8 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 **Atualização de 2026-11-14 (A50, leva M):** a sessão escolheu a opção (b), que era a recomendação: a Eureca nasce desligada até a empresa autorizar, com o código e o interruptor prontos. Motivo: as notas da conferência apontam as cláusulas 7.2 e 7.3 dos termos, e na dúvida o joBot respeita os termos. É a T130 (D85): um campo opcional no `fontes.json` diz se a fonte nasce ligada, e a semeadura da tabela `fonte` o usa só ao criar a linha, então quem já tem a linha mantém a escolha que fez. O README (T79) explica o motivo e ensina a ligar. A escolha continua sendo do dono. Desfazer: tirar o valor desligado da Eureca no `fontes.json` (uma linha). Status: decidido pela sessão em 2026-11-14 com o dono fora, para confirmar.
 
 **Atualização de 2026-11-14 (T130, leva N):** a T130 foi entregue e juntada na `dev`. O campo opcional `ligada_padrao` (booleano, padrão verdadeiro: `nucleo/coletores/base.py:80`) está no `fontes.json`, e só a Eureca o traz como `false` (`fontes.json:176`). O carregador recusa valor que não seja `bool`, com `ValueError` que cita a chave (`registro.py:29-30`). A semeadura grava `ligada` só ao criar a linha (`banco/cadastros.py:82-96`: o `ON CONFLICT DO UPDATE` não toca em `ligada`), então o banco que já tem a linha da Eureca mantém a escolha que fez. Quem já rodou o joBot antes continua com a Eureca ligada e a desliga em Configurações, na aba de fontes, se concordar com a A50. O nome `ligada_padrao` ficou como escolha do agente (D86). Status: decidido pela sessão em 2026-11-14 com o dono fora, para confirmar; a escolha entre (a), (b) e (c) continua sendo do dono.
+
+**Atualização de 2026-11-14 (A66, T136):** o dono voltou e rejeitou a A50. A Eureca nasce ligada, como as outras fontes (A66 é essa decisão do dono). A T136 tirou o `ligada_padrao: false` da Eureca em `nucleo/dados/fontes.json`; o campo `ligada_padrao` continua no carregador e na semeadura (D85), mas nenhuma fonte o usa hoje. O README, o CHANGELOG em pt e en, os textos de Configurações e os testes foram ajustados: o README diz que os termos da Eureca pedem consentimento prévio e ensina a desligar a fonte em Configurações. Quem já tinha a linha da Eureca desligada mantém a escolha, porque a semeadura não toca em `ligada` depois de criar a linha. Status: decidido pelo dono em 2026-11-14.
 
 ## D81. Leva L: o que entrou e o que ficou para a leva M (A41, A43)
 
@@ -1257,7 +1261,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 **Contexto:** três tarefas novas, livres, na leva N (no plano, T128 a T130).
 - T128, sobras da leva M: (1) motivo da falha de página (R4 da T75, D72), com coluna `motivo` por migração nova em `pagina_acompanhada`, gravada por `marcar_falhou`, limpa pela leitura `ok` e mostrada em `/sites` e na aba Programas; (2) a aba Programas mostra `falhou` também na página que já mudou antes (`templates/vagas/miolo.html`); (3) teste próprio de `ultimas_diferencas` (`banco/paginas.py:96`); (4) `executar_paginas` relê `paginas_ligadas`, como `executar_descoberta` (hoje só o laço da agenda respeita a chave, e nenhuma rota chama a função direto); (5) `conferir_empresas.py` usa `copy.copy(coletor)` (D50, D60), e o teste de que não escreve no `empresas.json` vira teste de efeito, com sha256 antes e depois; (6) `test_empresas_json_tem_67` ganha nome que diz o que confere; (7) teste do 404 na descoberta com keyword do Oracle HCM (`oracle_hcm.py:219`, hoje sem teste).
 - T129, cópias locais nas rotas: `_relogio` em `buscas.py`, `configuracoes.py`, `empresas.py` e `primeira_execucao.py` vira `relogio_do_painel`, e `_SemValidadores`, hoje em `sugeridas.py` e `empresas.py`, fica numa versão só.
-- T130, Eureca desligada por padrão (A50, D80 opção (b)): campo opcional no `fontes.json`, validado pelo carregador, usado pela semeadura da tabela `fonte` só ao criar a linha.
+- T130, Eureca desligada por padrão (A50, D80 opção (b)): campo opcional no `fontes.json`, validado pelo carregador, usado pela semeadura da tabela `fonte` só ao criar a linha. Atualização de 2026-11-14: a T130 continua entregue (o campo `ligada_padrao` segue no carregador e na semeadura), mas a Eureca não o usa mais: o dono rejeitou a A50 e a T136 tirou o valor dela (D80, A66).
 
 **Opções:** (a) uma tarefa por assunto (T128, T129 e T130); (b) deixar tudo aceito, na D84. Recomendação: (a): cada item é pequeno e tem teste. A T128 mexe em migração, tela e `conferir_empresas.py`, e a revisão dela é Opus; a T129 e a T130 são Sonnet.
 
@@ -1364,7 +1368,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 ## D92. Rodada de segurança antes do PR da fase 1 (A60, A61, A64, T134)
 
-**Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar
+**Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar; a varredura extra de segurança foi adiada pelo dono em 2026-11-14 (A75)
 
 **Contexto:**
 - (A60) O semgrep (regras `p/python`, `p/security-audit`, `p/owasp-top-ten`, `p/trailofbits`, métricas desligadas) rodou em `src`, `scripts` e `.github`: 215 arquivos, 20 alertas.
@@ -1382,3 +1386,53 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 **Opções:** (a) aceitar como está; (b) acrescentar `defusedxml` mesmo assim; (c) rodar o semgrep no CI (workflow novo, fase 2). Recomendação: (a).
 
 **Decisão provisória:** (a). Desfazer: abrir tarefa para (b) ou (c).
+
+**Atualização de 2026-11-14 (A75):** o dono adiou a varredura extra de segurança, porque o joBot não guarda dado de ninguém na internet: roda no computador da pessoa, escuta só em `127.0.0.1` e não tem conta nem servidor. A A62 era a decisão da sessão de rodar uma varredura extra de segurança antes do PR da fase 1. A rodada deste item (semgrep, Actions por hash e auditoria de configurações) já está feita e segue valendo; a varredura extra fica para depois, e a decisão de aceitar ou não os achados já feitos continua a (a) acima. Status: decidido pelo dono em 2026-11-14.
+
+## D93. Defeitos do ensaio da T80 corrigidos (A67 a A72, T137 a T142)
+
+**Status:** decidido pela sessão em 2026-11-14, para confirmar
+
+**Contexto:** o ensaio da T80 (o roteiro do dono, rodado na `fedora-dev`) achou oito defeitos. Seis viraram tarefa e foram entregues e juntadas na `dev` em 2026-11-14, com a bateria verde (unidade, tela, `ruff check`, `ruff format --check` e `mypy`). Os outros dois estão na D95, e o item da agenda parada tem a D94. As decisões A67 a A72 são as escolhas da sessão em cada tarefa:
+- (A67, T137, defeito 1) O teto de 4 MiB do `cluster.idx` da descoberta pelo Common Crawl vale só para os blocos escolhidos para baixar (`_TETO_BLOCO` e `escolher()` em `nucleo/coletores/descoberta_cc.py`). Os blocos de outros sites chegam a cerca de 5,8 MB e nunca são baixados. Toda linha que recusa tamanho 0 continua recusando. Antes, um bloco grande de outro site derrubava a descoberta inteira.
+- (A68, T138, defeito 2) A Greenhouse pede o quadro com teto de 32 MiB (`TETO_QUADRO_BYTES` em `nucleo/coletores/greenhouse.py`). A Stripe manda 6,2 MB e o padrão do cliente HTTP é 5 MB.
+- (A69, T139, defeito 3) O agendador não roda nada enquanto `primeira_execucao_concluida` não for verdadeira (`cli/servir.py`). O painel e `jobot buscar` não passam por essa trava. A consequência está na D94.
+- (A70, T140, defeito 4) A barra de andamento lista as fontes que ainda rodam. A tabela nova `execucao_fonte` (migração `0003_execucao_fonte.sql`) guarda o início e o fim de cada fonte, gravados por callbacks do executor (o fim num `finally` dentro do semáforo). A gravação é de melhor esforço: `sqlite3.Error` vai para o log e não derruba a busca. A marca "visto" é o texto `<prontas>:<chaves>`, ou `-1`. Fonte que espera vaga no semáforo não aparece. A tela mostra até 5 nomes e " +N" para o resto.
+- (A71, T141, defeito 6) Em Fontes, a fonte no limite mostra a última rodada real por escopo, por `ultimas_que_rodaram(con)` em `banco/execucoes.py`: uma consulta com `ROW_NUMBER` por (fonte, escopo), sem `no_limite` e sem a linha desligada, chamada uma vez por página. Os escopos são filtrados pelos da última execução, e o recurso "todos os escopos antigos" só vale quando a última execução teve só o escopo `''`. O cartão soma exatamente o que a lista mostra, com a hora mais recente. O selo vem do estado atual (desligada, ou `sem_execucao` se religada). Fonte que nunca rodou mostra "—", com o texto "Nunca rodou" para leitor de tela.
+- (A72, T142, defeito 8) Um POST válido em Configurações volta com 303 para `?salvo=1` e a página mostra "Salvo." (em inglês, "Saved."). A aba Aparência fica de fora, porque salva por `/preferencias`. F5 depois de salvar mostra o aviso de novo (aceito). `url_de_volta` (`painel/seguranca.py`) tira o `salvo` do campo `voltar`.
+
+**Opções:** (a) aceitar as seis correções como estão; (b) mudar alguma escolha (por exemplo, o aviso "Salvo." sumir sozinho, ou a barra mostrar também a fonte que espera o semáforo). Recomendação: (a), porque cada correção tem teste e o custo de mudar depois é baixo.
+
+**Decisão provisória:** (a). Desfazer: cada item vira tarefa pequena.
+
+## D94. Agenda parada se o assistente nunca for concluído (A69, T139)
+
+**Status:** aberta, para confirmar (o código segue a opção (a) até o dono decidir)
+
+**Contexto:** desde a T139 (A69, a escolha da sessão de segurar a agenda até o assistente acabar), o agendador não roda nada enquanto `primeira_execucao_concluida` não for verdadeira (`cli/servir.py`). A razão (o comentário do código): sem as preferências do assistente a busca sairia vazia e ocuparia o "Buscar agora" do fim dele. Efeito colateral: quem sobe o `jobot serve` e nunca conclui o assistente fica com a agenda parada, sem aviso. O painel e `jobot buscar` não passam pela trava, então buscar à mão sempre funciona.
+
+**Opções:** (a) aceitar: o painel abre direto no assistente, então quase ninguém chega à agenda sem passar por ele; (b) liberar a agenda depois de N horas sem o assistente concluído; (c) mostrar um aviso no painel dizendo que a agenda está parada até o assistente acabar. Recomendação: (a). (b) rodaria busca sem a pessoa ter escolhido nada; (c) é código novo para um caso raro.
+
+**Decisão provisória:** (a). Desfazer: tarefa para (b) ou (c).
+
+## D95. Defeitos 5 e 7 do ensaio da T80 mantidos como desenhado (A73)
+
+**Status:** aberta, para confirmar (o código segue a opção (a) até o dono decidir)
+
+**Contexto:** dos oito defeitos do ensaio (D93), dois não viraram tarefa. A decisão A73 é mantê-los como estão:
+- Defeito 5: o rodízio de escopos da Gupy, como no desenho 8.3. Com `max_pedidos`, o executor reordena os escopos por `ultima_coleta`, então cada rodada lê uma parte e a seguinte lê as que ficaram para trás.
+- Defeito 7: "ligar" o segundo plano vem marcado no Linux (`painel/templates/primeira_execucao/passo2.html:36`), seguindo a intenção do desenho: quem usa no Linux quer a busca a cada 3 horas sem manter o painel aberto, e a pessoa vê a caixa e desmarca se não quiser.
+
+**Opções:** (a) manter os dois como desenhado; (b) abrir tarefa para o rodízio (por exemplo, mostrar na tela quais escopos ficaram para a próxima rodada); (c) deixar o "ligar" desmarcado e a pessoa liga. Recomendação: (a): o rodízio é o desenho e o segundo plano ligado é o que quem instala espera.
+
+**Decisão provisória:** (a). Desfazer: tarefa para (b) ou (c).
+
+## D96. GitHub Sponsors ativo (A74, T143)
+
+**Status:** decidido pelo dono em 2026-11-14
+
+**Contexto:** o dono ativou o GitHub Sponsors em 2026-11-14 (`github.com/sponsors/fezarosa-dev`), o que a ADR 0020 deixava para quando o perfil fosse ativado. A decisão A74 é incluí-lo nos canais de apoio ao lado do Pix e do Buy Me a Coffee. A T143 entregou: `.github/FUNDING.yml`, as seções de apoio do README em pt e en e as páginas da wiki (`wiki/Apoie.md` e `wiki/Support-the-project.md`), com o teste `test_apoio_cita_o_github_sponsors_em_todos_os_lugares`. A ADR 0020 foi atualizada. O QR do Pix continua proibido.
+
+**Opções:** (a) os três canais, como está; (b) tirar algum. Recomendação: (a).
+
+**Decisão provisória:** (a), do dono. Desfazer: tirar a linha de cada arquivo.
