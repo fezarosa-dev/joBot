@@ -23,6 +23,7 @@ from fastapi import FastAPI
 
 from jobot import __version__
 from jobot.agenda.agendador import INTERVALOS, laco
+from jobot.agenda.descoberta import executar_descoberta
 from jobot.agenda.execucao import executar_busca, reprocessar_se_regras_mudaram
 from jobot.agenda.versao import laco_versao
 from jobot.banco.buscas import recalcular_encaixe
@@ -124,7 +125,14 @@ def montar(
                 with closing(abrir(caminho)) as con:  # conexão própria: nunca dividida (padrões)
                     await executar_busca(con, cliente, relogio, motivo)
 
-            tarefas: Mapping[str, Callable[[], Awaitable[None]]] = {"busca": busca}
+            async def descoberta() -> None:
+                with closing(abrir(caminho)) as con:  # conexão própria: nunca dividida (padrões)
+                    await executar_descoberta(con, cliente, relogio)
+
+            tarefas: Mapping[str, Callable[[], Awaitable[None]]] = {
+                "busca": busca,
+                "descoberta": descoberta,
+            }
             agenda = asyncio.create_task(
                 laco(tarefas, _EstadoDoBanco(caminho), relogio, travas=travas)
             )
