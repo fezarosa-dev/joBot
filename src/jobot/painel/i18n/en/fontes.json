@@ -9,6 +9,7 @@
   "fontes.estado.desligada": "Off",
   "fontes.estado.sem_execucao": "Has not run yet",
   "fontes.estado.vazio": "No record",
+  "fontes.nunca_rodou": "Never ran",
   "fontes.quando": "Last search",
   "fontes.vagas": "Jobs",
   "fontes.duracao": "Duration",

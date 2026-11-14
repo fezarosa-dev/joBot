@@ -9,7 +9,7 @@ com `<fonte>/<escopo>`. A tela nunca faz pedido para fora: o link só abre no cl
 
 import sqlite3
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from typing import Annotated
 
@@ -23,6 +23,7 @@ from jobot.banco.execucoes import (
     LinhaSaude,
     inicio_da_ultima_completa,
     saude_recente,
+    ultimas_que_rodaram,
 )
 from jobot.nucleo.coletores.executor import estado_da_fonte
 from jobot.nucleo.coletores.registro import limites
@@ -50,7 +51,7 @@ class Escopo:
     nome: str  # texto como veio do coletor
     estado: str
     motivo: str | None
-    vagas: int
+    vagas: int | None  # da última vez que rodou de fato; `None`: nunca rodou
     pode_rodar_em: datetime | None
     reporte: Reporte | None
 
@@ -61,9 +62,10 @@ class Cartao:
     ligada: bool
     estado: str
     motivo: str | None
-    quando: datetime | None
-    vagas: int
-    duracao_ms: int
+    tem_execucao: bool
+    quando: datetime | None  # da última vez que rodou de fato; `None`: nunca rodou
+    vagas: int | None
+    duracao_ms: int | None
     pontos: tuple[str, ...]  # do mais antigo para o mais novo
     proxima: datetime | None  # `None` ou já passada: roda na próxima busca
     pode_rodar_em: datetime | None
@@ -114,12 +116,17 @@ def _liberacao(
     return livre if livre > agora else None
 
 
+def _vagas(linha: LinhaSaude | None) -> int | None:
+    return None if linha is None else linha.vagas
+
+
 def _local(data: datetime | None) -> datetime | None:
     return None if data is None else data.astimezone()
 
 
 def _cartoes(con: sqlite3.Connection, agora: datetime, historico: HistoricoDoBanco) -> list[Cartao]:
     linhas = saude_recente(con, EXECUCOES)
+    rodou = ultimas_que_rodaram(con)
     # só o identificador cadastrado de uma empresa pode ir no link; o resto do escopo é texto
     # opaco (D50) e pode trazer termo ou país da busca (Himalayas, Gupy, SmartRecruiters)
     cadastradas = {(e.fonte, e.identificador) for e in empresas(con)}
@@ -149,24 +156,34 @@ def _cartoes(con: sqlite3.Connection, agora: datetime, historico: HistoricoDoBan
         elif estado == "desligada":  # sobra de antes de a pessoa ligar de novo
             estado = "sem_execucao"
 
+        # o que o cartão e a lista mostram é a última vez que cada escopo rodou de fato, dos
+        # escopos da última execução; se ela só traz o escopo "" (linha "desligada" ou fonte de
+        # escopo único), valem todos os de antes
+        reais = rodou.get(chave, {})
+        escopos_da_ultima = {ln.escopo for ln in ultima}
+        if escopos_da_ultima != {""}:
+            reais = {e: ln for e, ln in reais.items() if e in escopos_da_ultima}
+        mostradas = ultima
+        if escopos_da_ultima == {""} and any(reais):
+            mostradas = [replace(ln, estado=estado, motivo=None) for ln in reais.values()]
         livres = {
             ln.escopo: _liberacao(historico, chave, ln.escopo, fonte.intervalo_min, agora)
             for ln in ultima
             if ln.estado == "no_limite" and ln.motivo == "saude.intervalo"
         }
-        com_escopos = len(ultima) > 1 or any(ln.escopo != "" for ln in ultima)
+        com_escopos = len(mostradas) > 1 or any(ln.escopo != "" for ln in mostradas)
         escopos = tuple(
             Escopo(
                 ln.escopo,
                 ln.estado,
                 ln.motivo,
-                ln.vagas,
+                ln.vagas if ln.estado not in _NAO_RODOU else _vagas(reais.get(ln.escopo)),
                 _local(livres.get(ln.escopo)),
                 _reporte(f"{chave}/{ln.escopo}", ln.estado, ln.motivo)
                 if fonte.ligada and (chave, ln.escopo) in cadastradas
                 else None,
             )
-            for ln in ultima
+            for ln in mostradas
             if com_escopos
         )
 
@@ -188,15 +205,17 @@ def _cartoes(con: sqlite3.Connection, agora: datetime, historico: HistoricoDoBan
         sem_link = [ln for ln in ultima if (chave, ln.escopo) not in cadastradas]
         motivo_reporte = _motivo(sem_link) if com_escopos else motivo
         livre = min((d for d in livres.values() if d is not None), default=None)
+        fonte_rodou = list(reais.values())
         cartoes.append(
             Cartao(
                 chave=chave,
                 ligada=fonte.ligada,
                 estado=estado,
                 motivo=motivo,
-                quando=_local(ultima[0].iniciada_em) if ultima else None,
-                vagas=sum(ln.vagas for ln in ultima),
-                duracao_ms=sum(ln.duracao_ms for ln in ultima),
+                tem_execucao=bool(ultima),
+                quando=_local(max(ln.iniciada_em for ln in fonte_rodou)) if fonte_rodou else None,
+                vagas=sum(ln.vagas for ln in fonte_rodou) if fonte_rodou else None,
+                duracao_ms=sum(ln.duracao_ms for ln in fonte_rodou) if fonte_rodou else None,
                 pontos=pontos,
                 proxima=_local(proxima),
                 pode_rodar_em=_local(livre) if estado == "no_limite" else None,

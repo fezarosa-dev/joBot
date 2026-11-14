@@ -227,6 +227,159 @@ def test_no_limite_mostra_o_horario_em_que_a_fonte_pode_rodar(painel: Painel) ->
     assert "O intervalo mínimo entre buscas ainda não passou" in texto
 
 
+def test_no_limite_mostra_hora_vagas_e_duracao_da_ultima_vez_que_rodou(painel: Painel) -> None:
+    painel.execucao(
+        AGORA - timedelta(hours=3),
+        ("remotive", "", "ok", None, {"vagas": 12, "pedidos": 1, "duracao_ms": 2500}),
+    )
+    painel.execucao(
+        AGORA - timedelta(minutes=30), ("remotive", "", "no_limite", "saude.intervalo", {})
+    )
+    texto = _texto(painel.cartao("remotive"))
+    assert "Última busca 13/11 09:00 Vagas 12 Duração 2,5 s" in texto
+
+
+def test_no_limite_que_nunca_rodou_mostra_travessao(painel: Painel) -> None:
+    painel.execucao(
+        AGORA - timedelta(minutes=30), ("remotive", "", "no_limite", "saude.intervalo", {})
+    )
+    texto = _texto(painel.cartao("remotive"))
+    assert "Última busca — Nunca rodou Vagas — Nunca rodou Duração — Nunca rodou" in texto
+
+
+def test_ultima_vez_que_rodou_vale_mesmo_fora_das_8_execucoes_dos_pontos(painel: Painel) -> None:
+    painel.execucao(
+        AGORA - timedelta(hours=20),
+        ("remotive", "", "ok", None, {"vagas": 7, "pedidos": 1, "duracao_ms": 1000}),
+    )
+    for n in range(10):
+        painel.execucao(
+            AGORA - timedelta(hours=10 - n), ("remotive", "", "no_limite", "saude.intervalo", {})
+        )
+    assert "Última busca 12/11 16:00 Vagas 7 Duração 1,0 s" in _texto(painel.cartao("remotive"))
+
+
+def test_escopo_no_limite_mostra_as_vagas_da_ultima_vez_que_rodou(painel: Painel) -> None:
+    painel.execucao(
+        AGORA - timedelta(hours=20),
+        ("eightfold", MICROSOFT, "ok", None, {"vagas": 9, "pedidos": 3}),
+        ("eightfold", "outra.example", "ok", None, {"vagas": 4, "pedidos": 2}),
+    )
+    painel.execucao(
+        AGORA - timedelta(hours=1),
+        ("eightfold", MICROSOFT, "no_limite", "saude.intervalo", {}),
+        ("eightfold", "outra.example", "ok", None, {"vagas": 5, "pedidos": 2}),
+        ("eightfold", "nova.example", "no_limite", "saude.intervalo", {}),
+    )
+    cartao = painel.cartao("eightfold")
+    escopos = re.findall(r'<li class="escopo"[^>]*>(.*?)</li>', cartao, re.S)
+    por_nome = {_texto(e).split(" ")[0]: _texto(e) for e in escopos}
+    assert "Vagas: 9" in por_nome[MICROSOFT]
+    assert "Vagas: 5" in por_nome["outra.example"]
+    assert "Vagas: — Nunca rodou" in por_nome["nova.example"]
+
+
+def test_fonte_desligada_de_escopos_mostra_a_ultima_rodada_real(painel: Painel) -> None:
+    painel.execucao(
+        AGORA - timedelta(hours=20),
+        ("eightfold", MICROSOFT, "ok", None, {"vagas": 9, "pedidos": 3, "duracao_ms": 2000}),
+        ("eightfold", "outra.example", "ok", None, {"vagas": 4, "pedidos": 2, "duracao_ms": 500}),
+    )
+    painel.sql("UPDATE fonte SET ligada = 0 WHERE chave = 'eightfold'")
+    # a linha "desligada" que a execução grava tem escopo vazio
+    painel.execucao(AGORA - timedelta(hours=1), ("eightfold", "", "desligada", None, {}))
+    cartao = painel.cartao("eightfold")
+    assert "Desligada" in _texto(cartao)
+    assert "Última busca 12/11 16:00 Vagas 13 Duração 2,5 s" in _texto(cartao)
+    escopos = re.findall(r'<li class="escopo"[^>]*>(.*?)</li>', cartao, re.S)
+    por_nome = {_texto(e).split(" ")[0]: _texto(e) for e in escopos}
+    assert set(por_nome) == {MICROSOFT, "outra.example"}
+    assert "Vagas: 9" in por_nome[MICROSOFT]
+    assert "Vagas: 4" in por_nome["outra.example"]
+
+
+def test_fonte_de_escopo_unico_desligada_mostra_a_ultima_rodada_real(painel: Painel) -> None:
+    painel.execucao(
+        AGORA - timedelta(hours=3),
+        ("remotive", "", "ok", None, {"vagas": 12, "pedidos": 1, "duracao_ms": 2500}),
+    )
+    painel.sql("UPDATE fonte SET ligada = 0 WHERE chave = 'remotive'")
+    painel.execucao(AGORA - timedelta(hours=1), ("remotive", "", "desligada", None, {}))
+    texto = _texto(painel.cartao("remotive"))
+    assert "Desligada" in texto
+    assert "Última busca 13/11 09:00 Vagas 12 Duração 2,5 s" in texto
+
+
+def test_cartao_de_escopos_mistos_soma_o_que_a_lista_mostra(painel: Painel) -> None:
+    painel.execucao(
+        AGORA - timedelta(hours=20),
+        ("eightfold", MICROSOFT, "ok", None, {"vagas": 9, "pedidos": 3, "duracao_ms": 2000}),
+        ("eightfold", "outra.example", "ok", None, {"vagas": 4, "pedidos": 2, "duracao_ms": 800}),
+    )
+    painel.execucao(
+        AGORA - timedelta(hours=1),
+        ("eightfold", MICROSOFT, "no_limite", "saude.intervalo", {}),
+        ("eightfold", "outra.example", "ok", None, {"vagas": 5, "pedidos": 2, "duracao_ms": 1000}),
+        ("eightfold", "nova.example", "no_limite", "saude.intervalo", {}),
+    )
+    cartao = painel.cartao("eightfold")
+    # 9 (Microsoft, de antes) + 5 (agora); o escopo que nunca rodou não entra na soma
+    assert "Última busca 13/11 11:00 Vagas 14 Duração 3,0 s" in _texto(cartao)
+    escopos = re.findall(r'<li class="escopo"[^>]*>(.*?)</li>', cartao, re.S)
+    por_nome = {_texto(e).split(" ")[0]: _texto(e) for e in escopos}
+    assert "Vagas: 9" in por_nome[MICROSOFT]
+    assert "Vagas: 5" in por_nome["outra.example"]
+
+
+def test_escopo_que_saiu_da_lista_nao_entra_na_soma_do_cartao(painel: Painel) -> None:
+    painel.execucao(
+        AGORA - timedelta(hours=20),
+        ("eightfold", "a.example", "ok", None, {"vagas": 5, "pedidos": 1, "duracao_ms": 400}),
+        ("eightfold", "b.example", "ok", None, {"vagas": 4, "pedidos": 1, "duracao_ms": 300}),
+        ("eightfold", "c.example", "ok", None, {"vagas": 100, "pedidos": 1, "duracao_ms": 5000}),
+    )
+    painel.execucao(
+        AGORA - timedelta(hours=10),
+        ("eightfold", "a.example", "ok", None, {"vagas": 6, "pedidos": 1, "duracao_ms": 700}),
+    )
+    painel.execucao(
+        AGORA - timedelta(hours=1),
+        ("eightfold", "a.example", "no_limite", "saude.intervalo", {}),
+        ("eightfold", "b.example", "no_limite", "saude.intervalo", {}),
+    )
+    cartao = painel.cartao("eightfold")
+    # A (6, de 02:00) + B (4, de antes); C saiu da lista e não conta
+    assert "Última busca 13/11 02:00 Vagas 10 Duração 1,0 s" in _texto(cartao)
+    assert "c.example" not in cartao
+
+
+def test_escopos_de_fonte_ligada_de_novo_nao_levam_o_selo_desligada(painel: Painel) -> None:
+    painel.execucao(
+        AGORA - timedelta(hours=20),
+        ("eightfold", MICROSOFT, "ok", None, {"vagas": 9, "pedidos": 3}),
+        ("eightfold", "outra.example", "ok", None, {"vagas": 4, "pedidos": 2}),
+    )
+    painel.sql("UPDATE fonte SET ligada = 0 WHERE chave = 'eightfold'")
+    painel.execucao(AGORA - timedelta(hours=1), ("eightfold", "", "desligada", None, {}))
+    painel.sql("UPDATE fonte SET ligada = 1 WHERE chave = 'eightfold'")
+    cartao = painel.cartao("eightfold")
+    escopos = re.findall(r'<li class="escopo"[^>]*>(.*?)</li>', cartao, re.S)
+    assert len(escopos) == 2
+    assert all("Ainda não rodou" in _texto(e) and "Desligada" not in _texto(e) for e in escopos)
+    assert "selo-desligada" not in cartao
+
+
+def test_nunca_rodou_tem_texto_para_leitor_de_tela(painel: Painel) -> None:
+    painel.execucao(
+        AGORA - timedelta(minutes=30), ("remotive", "", "no_limite", "saude.intervalo", {})
+    )
+    cartao = painel.cartao("remotive")
+    assert cartao.count('<span class="so-leitor">Nunca rodou</span>') == 3
+    assert cartao.count('<span aria-hidden="true">—</span>') == 3
+    pagina_en = painel.get(**{"Accept-Language": "en"}).text
+    assert '<span class="so-leitor">Never ran</span>' in pagina_en
+
+
 def test_mostra_proxima_execucao(painel: Painel) -> None:
     # busca completa iniciada às 10:30: a agenda roda de novo às 13:30 (3 h depois)
     painel.execucao(
