@@ -35,6 +35,5 @@ Phase 1: the foundation of joBot. You can already install and use it.
 
 ### Changed
 
-- Question D1 (using the person's own Claude Code) was resolved by the owner.
-- Question D3 was resolved: Code of Conduct reports go to the project email.
+- Code of Conduct reports go to the project email.
 - The README is no longer only a plan: it describes the phase 1 installation.

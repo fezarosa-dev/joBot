@@ -16,6 +16,9 @@ import pytest
 from jobot import __version__
 from jobot.agenda.versao import URL_VERSOES
 from jobot.cli import COMANDOS, main
+from jobot.nucleo.cambio import BASE
+from jobot.nucleo.coletores.descoberta_cc import COLLINFO
+from jobot.painel import i18n
 from jobot.sistema.caso import prefixo_host
 
 RAIZ = Path(__file__).resolve().parents[2]
@@ -312,6 +315,55 @@ def test_changelog_leva_jobot_em_todo_comando_da_lista(lingua: str) -> None:
 def test_eureca_vem_desligada_por_padrao_como_os_documentos_dizem() -> None:
     """README e CHANGELOG prometem a Eureca desligada (D80 opção b); o padrão real é do T130."""
     fontes = json.loads((RAIZ / "src/jobot/nucleo/dados/fontes.json").read_text(encoding="utf-8"))
-    if not any("ligada_padrao" in dados for dados in fontes.values()):
-        pytest.skip("campo ligada_padrao ainda não existe (T130 não integrada)")
     assert fontes["eureca"].get("ligada_padrao", True) is False
+
+
+# Todo pedido de rede que o joBot faz sozinho (A53): cada item diz para quem e se vem ligado.
+# (o que o item cita, o que diz da condição), por língua; cada par tem de estar na mesma frase.
+PEDIDOS: Mapping[str, Mapping[str, tuple[str, ...]]] = {
+    "pt": {
+        "fontes": (r"fontes públicas de vagas", r"vêm ligadas, menos a Eureca"),
+        "banco central": (r"Banco Central", r"vem ligada"),
+        "common crawl": (r"Common Crawl", r"uma vez por semana", r"vem ligada"),
+        "páginas": (r"páginas que você manda acompanhar", r"vem ligad"),
+        "endereço": (r"cola o endereço", r"só quando você"),
+        "versão": (r"GitHub", r"vem desligado"),
+    },
+    "en": {
+        "fontes": (r"public job sources", r"come on, except Eureca"),
+        "banco central": (r"Central Bank", r"comes on"),
+        "common crawl": (r"Common Crawl", r"once a week", r"comes on"),
+        "páginas": (r"pages you ask it to follow", r"comes on"),
+        "endereço": (r"paste an address", r"only when you"),
+        "versão": (r"GitHub", r"comes off"),
+    },
+}
+
+
+def _frases(conteudo: str) -> list[str]:
+    return [f.strip() for f in re.split(r"[;.]", conteudo) if f.strip()]
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_privacidade_cita_todos_os_pedidos(lingua: str) -> None:
+    """README e texto do painel listam os mesmos pedidos de rede, cada um com a sua condição."""
+    assert urlsplit(COLLINFO).hostname == "index.commoncrawl.org"
+    assert urlsplit(BASE).hostname == "olinda.bcb.gov.br"
+    privacidade = secao(texto(README[lingua]), SECAO_PRIVACIDADE[lingua])
+    bullets = [linha for linha in privacidade.splitlines() if "Common Crawl" in linha]
+    assert len(bullets) == 1, f"{README[lingua]}: o Common Crawl não está num item só"
+    fontes = {
+        README[lingua]: bullets[0],
+        f"i18n/{lingua}": i18n.carregar()[lingua]["configuracoes.privacidade.telemetria"],
+    }
+    for nome, conteudo in fontes.items():
+        frases = _frases(conteudo)
+        for pedido, regexes in PEDIDOS[lingua].items():
+            assert any(all(re.search(r, f) for r in regexes) for f in frases), (nome, pedido)
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_changelog_nao_cita_duvida_por_numero(lingua: str) -> None:
+    """Quem usa o joBot não conhece o `duvidas.md`: o item diz o efeito, não o número (D1, D3)."""
+    achados = re.findall(r"\bD\d+\b", sem_blocos(texto(CHANGELOG[lingua])))
+    assert achados == []
