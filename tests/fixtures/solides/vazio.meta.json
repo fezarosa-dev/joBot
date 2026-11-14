@@ -1,0 +1,12 @@
+{
+  "url": "https://apigw.solides.com.br/jobs/v3/companies/empresa-sem-vagas/vacancies?page=1&take=25",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/json; charset=utf-8"
+  },
+  "sha256": "f746a35b78f5b5aacb270b67fb0c11d64b4b8c6e097208de72d57f6ad2a3a76e",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "montado à mão no formato do apêndice 3.1 (a conferência não achou empresa sem vagas): mesmas chaves de normal.json, data vazia"
+}

@@ -1,0 +1,366 @@
+{
+  "totalPages": 1,
+  "currentPage": 1,
+  "count": 2,
+  "data": [
+    {
+      "killerQuestions": [],
+      "id": 951514,
+      "title": "AUX. CONSERVAÇÃO / GO",
+      "description": "<div>\n<p><span>A Diefra é uma empresa multidisciplinar com maturidade técnica e consolidada formação profissional, resultado de uma postura empreendedora e proativa. Com um extenso portifólio de realizações, a Diefra oferece suporte operacional e tecnológico para empresas públicas e privadas em todo o Brasil.</span></p>\n</div>\n<p><span> Cargo: AUX. CONSERVAÇÃO - BARRO ALTO/GO</span></p>\n<p> </p>\n<ul>\n<li>\n<div>\n<p><span>Responsável pela execução dos serviços de conservação e manutenção de áreas verdes em usinas fotovoltaicas, utilizando roçadeiras manuais STIHL e demais ferramentas de apoio</span></p>\n</div>\n</li>\n<li>Segunda a quinta das 7 as 17 horas e na Sexta-feira até as 16:00 horas</li>\n<li>Alimentação no restaurante</li>\n<li>Beneficios PAD</li>\n</ul>",
+      "currentState": "em_andamento",
+      "referenceId": 89284,
+      "companyName": "DIEFRA",
+      "companyLogo": "https://c5gwmsmjx1.execute-api.us-east-1.amazonaws.com/prod/empresa/logo/89284/logo.png",
+      "state": {
+        "id": 26,
+        "name": "Goiás",
+        "code": "GO"
+      },
+      "city": {
+        "id": 5354,
+        "name": "Barro Alto",
+        "stateId": 26
+      },
+      "address": {
+        "id": 112352649,
+        "neighborhood": null,
+        "number": null,
+        "latitude": null,
+        "longitude": null,
+        "city": {
+          "id": 5354,
+          "name": "Barro Alto",
+          "stateId": 26
+        },
+        "state": {
+          "id": 26,
+          "name": "Goiás",
+          "code": "GO"
+        },
+        "country": {
+          "id": 30,
+          "name": "Brasil",
+          "code": "BR"
+        },
+        "zipCode": "76390-000",
+        "streetAddress": "Usina Fotovoltaica ",
+        "foreignCity": null,
+        "foreignState": null,
+        "additionalInformation": null
+      },
+      "slug": "diefra",
+      "redirectLink": "https://diefra./vacancies/951514?origem=portal",
+      "type": "externa",
+      "isHiddenJob": false,
+      "homeOffice": false,
+      "jobType": "presencial",
+      "openPositions": 1,
+      "salary": {
+        "type": "simple",
+        "showRangeToApplicant": true,
+        "initialRange": 0,
+        "finalRange": 2000,
+        "negotiable": false
+      },
+      "phases": [
+        {
+          "id": 4436558,
+          "name": "ANÁLISE DE CURRÍCULO",
+          "type": "fase_1",
+          "index": 0,
+          "show": true,
+          "description": null
+        },
+        {
+          "id": 4436559,
+          "name": "ANÁLISE COMPORTAMENTAL",
+          "type": "fase_2",
+          "index": 1,
+          "show": true,
+          "description": null
+        },
+        {
+          "id": 4436560,
+          "name": "PRÉ-ADMISSÃO",
+          "type": "pre_admissao",
+          "index": 2,
+          "show": true,
+          "description": null
+        },
+        {
+          "id": 4436561,
+          "name": "PRÉ-CANDIDATURA",
+          "type": "pre_candidatura",
+          "index": 3,
+          "show": true,
+          "description": null
+        }
+      ],
+      "hasSpecialNeeds": false,
+      "peopleWithDisabilities": false,
+      "disabilityType": null,
+      "pcdOnly": false,
+      "videoUrl": null,
+      "seniority": [
+        {
+          "id": 4,
+          "name": "Junior",
+          "level": null
+        }
+      ],
+      "recruitmentContractType": [
+        {
+          "id": 10,
+          "name": "CLT",
+          "level": null
+        }
+      ],
+      "benefits": [
+        {
+          "id": 117181,
+          "name": "Plano de saúde e odontológico",
+          "level": null
+        },
+        {
+          "id": 301332,
+          "name": "Refeitório",
+          "level": null
+        },
+        {
+          "id": 301308,
+          "name": "Assistência médica",
+          "level": null
+        }
+      ],
+      "language": [],
+      "hardSkills": [
+        {
+          "id": 453628,
+          "name": "Ser organizada",
+          "level": 1
+        },
+        {
+          "id": 453621,
+          "name": "Ter experiência",
+          "level": 1
+        }
+      ],
+      "education": [],
+      "createdAt": "2026-11-10",
+      "availablePositions": 1,
+      "affirmative": [],
+      "occupationAreas": [
+        {
+          "id": 349583,
+          "name": "Produção",
+          "level": null
+        }
+      ],
+      "isGoogleForJobsEnabled": false,
+      "requiredFields": [],
+      "receivingResume": true,
+      "showSkillsLevel": true,
+      "showModality": true,
+      "shift": [
+        {
+          "id": 42,
+          "name": "Integral",
+          "level": null
+        }
+      ],
+      "date": {
+        "due": "2026-11-16",
+        "show": false
+      },
+      "preApplyEnabled": true,
+      "startSolidesEnabled": false,
+      "publishers": null,
+      "isDisabled": false
+    },
+    {
+      "killerQuestions": [],
+      "id": 948029,
+      "description": "<p>A Diefra é uma empresa multidisciplinar com maturidade técnica e consolidada formação profissional, resultado de uma postura empreendedora e proativa. Com um extenso portifólio de realizações, a Diefra oferece suporte operacional e tecnológico para empresas públicas e privadas em todo o Brasil.</p>\n<p><strong>Requisitos e atribuições</strong></p>\n<ul>\n<li>\n<div>\n<div><span>Estudante de psicologia a partir do 5º período noturno, preferencia já ter atuado com recrutamento e seleção.</span></div>\n</div>\n</li>\n</ul>\n<p><strong>O que oferecemos aos nossos colaboradores:</strong></p>\n<ul>\n<li>Saúde &amp; Bem-Estar: Wellhub (Gympass) e Espaço Reenergize-se.</li>\n<li>Cuidado &amp; Suporte:  Seguro de Vida;</li>\n<li>Alimentação: Refeitório na empresa </li>\n<li>Mobilidade: Vale-Transporte </li>\n</ul>\n<p><strong>Local: </strong></p>\n<ul>\n<li>Rua Gabriela de Melo, 75 – Olhos D'Água – Belo Horizonte/MG</li>\n</ul>",
+      "currentState": "em_andamento",
+      "referenceId": 89284,
+      "companyName": "DIEFRA",
+      "companyLogo": "https://c5gwmsmjx1.execute-api.us-east-1.amazonaws.com/prod/empresa/logo/89284/logo.png",
+      "state": {
+        "id": 17,
+        "name": "Minas Gerais",
+        "code": "MG"
+      },
+      "city": {
+        "id": 2310,
+        "name": "Belo Horizonte",
+        "stateId": 17
+      },
+      "address": {
+        "id": 112052304,
+        "neighborhood": "Olhos D'Água",
+        "number": "75",
+        "latitude": null,
+        "longitude": null,
+        "city": {
+          "id": 2310,
+          "name": "Belo Horizonte",
+          "stateId": 17
+        },
+        "state": {
+          "id": 17,
+          "name": "Minas Gerais",
+          "code": "MG"
+        },
+        "country": {
+          "id": 30,
+          "name": "Brasil",
+          "code": "BR"
+        },
+        "zipCode": "30390-080",
+        "streetAddress": "Rua Gabriela de Melo",
+        "foreignCity": null,
+        "foreignState": null,
+        "additionalInformation": null
+      },
+      "slug": "diefra",
+      "redirectLink": "https://diefra./vacancies/948029?origem=portal",
+      "type": "mista",
+      "isHiddenJob": false,
+      "homeOffice": false,
+      "jobType": "presencial",
+      "openPositions": 1,
+      "salary": {
+        "type": "simple",
+        "showRangeToApplicant": false,
+        "initialRange": null,
+        "finalRange": null,
+        "negotiable": false
+      },
+      "phases": [
+        {
+          "id": 4420988,
+          "name": "ANÁLISE DE CURRÍCULO",
+          "type": "fase_1",
+          "index": 0,
+          "show": true,
+          "description": null
+        },
+        {
+          "id": 4420989,
+          "name": "ANÁLISE COMPORTAMENTAL",
+          "type": "fase_2",
+          "index": 1,
+          "show": true,
+          "description": null
+        },
+        {
+          "id": 4420990,
+          "name": "PRÉ-ADMISSÃO",
+          "type": "pre_admissao",
+          "index": 2,
+          "show": true,
+          "description": null
+        },
+        {
+          "id": 4420991,
+          "name": "PRÉ-CANDIDATURA",
+          "type": "pre_candidatura",
+          "index": 3,
+          "show": true,
+          "description": null
+        }
+      ],
+      "hasSpecialNeeds": false,
+      "peopleWithDisabilities": false,
+      "disabilityType": null,
+      "pcdOnly": false,
+      "videoUrl": null,
+      "seniority": [
+        {
+          "id": 371223,
+          "name": "Estagiário",
+          "level": null
+        }
+      ],
+      "recruitmentContractType": [
+        {
+          "id": 167694,
+          "name": "Estágio",
+          "level": null
+        }
+      ],
+      "benefits": [
+        {
+          "id": 117635,
+          "name": "Vale Transporte",
+          "level": null
+        },
+        {
+          "id": 301332,
+          "name": "Refeitório",
+          "level": null
+        },
+        {
+          "id": 301338,
+          "name": "Vale transporte",
+          "level": null
+        },
+        {
+          "id": 424038,
+          "name": "bolsa estágio",
+          "level": null
+        }
+      ],
+      "language": [],
+      "hardSkills": [],
+      "education": [
+        {
+          "id": 45,
+          "name": "Graduação",
+          "level": null
+        }
+      ],
+      "createdAt": "2026-11-03",
+      "availablePositions": 1,
+      "affirmative": [],
+      "occupationAreas": [
+        {
+          "id": 349594,
+          "name": "Recursos Humanos",
+          "level": null
+        },
+        {
+          "id": 349597,
+          "name": "Primeiro emprego",
+          "level": null
+        }
+      ],
+      "isGoogleForJobsEnabled": true,
+      "requiredFields": [
+        "academicEducations",
+        "linkedin",
+        "professionalExperiences"
+      ],
+      "receivingResume": true,
+      "showSkillsLevel": true,
+      "showModality": true,
+      "shift": [
+        {
+          "id": 39,
+          "name": "Manhã",
+          "level": null
+        }
+      ],
+      "date": {
+        "due": "2026-12-31",
+        "show": false
+      },
+      "preApplyEnabled": true,
+      "startSolidesEnabled": true,
+      "publishers": null,
+      "isDisabled": false,
+      "titulo": "Estagiário(a) de Psicologia | BH | MG "
+    }
+  ]
+}
