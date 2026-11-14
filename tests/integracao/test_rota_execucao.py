@@ -35,6 +35,7 @@ from jobot.banco.execucoes import (
 )
 from jobot.banco.migrar import migrar
 from jobot.cli import servir
+from jobot.nucleo.http import ClienteEducado
 from jobot.painel.app import criar_app
 from jobot.painel.i18n import t
 from jobot.painel.rotas import execucao as rota
@@ -509,3 +510,105 @@ def test_serve_guarda_o_servidor_para_o_sair(
     monkeypatch.setattr(uvicorn, "Server", _Servidor)
     assert servir.executar(argparse.Namespace()) == 0
     assert vistos == [True]
+
+
+def _montar_parado(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, relogio: Any) -> FastAPI:
+    """App do `montar` com a agenda e a versão paradas num evento até o lifespan cancelar."""
+    dados = tmp_path / "dados"
+    dados.mkdir()
+
+    async def parado(*args: Any, **kw: Any) -> None:
+        await asyncio.Event().wait()
+
+    monkeypatch.setattr(servir, "laco", parado)
+    monkeypatch.setattr(servir, "laco_versao", parado)
+    app, _ = servir.montar(dados, PORTA, relogio=relogio)
+    return app
+
+
+def test_montar_poe_o_relogio_da_agenda_em_app_state(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    relogio = RelogioFalso(AGORA)
+    app = _montar_parado(tmp_path, monkeypatch, relogio)
+    # o "Buscar agora" (`_relogio` de vagas.py) usa o mesmo relógio que a agenda recebeu
+    assert getattr(app.state, "relogio", None) is relogio
+
+
+def test_lifespan_cancela_a_busca_do_buscar_agora_antes_de_fechar_o_cliente(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    comecou: list[bool] = []
+    cancelada: list[bool] = []
+    ao_fechar: list[list[bool]] = []
+
+    async def presa(*args: Any, **kw: Any) -> int:
+        comecou.append(True)
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            cancelada.append(True)
+            raise
+        return 1
+
+    fechar_original = ClienteEducado.fechar
+
+    async def fechar_espiado(self: Any) -> None:
+        ao_fechar.append(list(cancelada))  # o que já tinha sido cancelado nesse instante
+        await fechar_original(self)
+
+    monkeypatch.setattr(rota, "executar_busca", presa)
+    monkeypatch.setattr(ClienteEducado, "fechar", fechar_espiado)
+    app = _montar_parado(tmp_path, monkeypatch, RelogioFalso(AGORA))
+    token = app.state.csrf
+    # Ctrl+C e SIGTERM chegam como o fim do lifespan: a saída do TestClient roda o `finally`
+    with TestClient(app, base_url=BASE) as http:
+        resposta = http.post("/buscar-agora", headers=HTMX | {"X-CSRF-Token": token})
+        assert resposta.status_code == 200
+        assert _esperar(lambda: bool(comecou))
+    assert ao_fechar == [[True]]
+    assert not app.state.travas["busca"].locked()
+
+
+def test_sair_marca_saindo_e_buscar_agora_nao_cria_tarefa(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    painel = Painel(tmp_path)
+    chamadas: list[dict[str, Any]] = []
+    _espiar_busca(monkeypatch, chamadas)
+    painel.app.state.servidor = SimpleNamespace(should_exit=False)
+    with painel.cliente() as http:
+        assert http.post("/sair", data={"csrf_token": painel.token}).status_code == 200
+        resposta = http.post("/buscar-agora", headers=painel.htmx())
+        time.sleep(0.05)
+    assert resposta.status_code == 200
+    assert _texto("execucao.saindo") in unescape(resposta.text)
+    assert POLL not in resposta.text
+    assert chamadas == []
+    assert not painel.trava.locked()
+    assert not getattr(painel.app.state, "tarefas", set())
+
+
+def test_buscar_agora_sem_htmx_com_busca_rodando_avisa_na_pagina_do_redirect(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    painel = Painel(tmp_path)
+    chamadas: list[dict[str, Any]] = []
+    _espiar_busca(monkeypatch, chamadas)
+    asyncio.run(painel.trava.acquire())  # livre: não prende o Lock a outro laço de eventos
+    aviso = _texto("execucao.ja_roda")
+    with TestClient(painel.app, base_url=BASE) as http:
+        # o form do pronto.html (primeira execução) não manda `voltar` nem HX-Request
+        resposta = http.post("/buscar-agora", data={"csrf_token": painel.token})
+        assert resposta.status_code == 200
+        assert resposta.history and resposta.history[0].status_code == 303
+        assert aviso in unescape(resposta.text)
+        # a carga da casca segue mostrando o andamento com o aviso, e o aviso não se repete
+        assert 'hx-get="/execucao/atual?so_rodando=1&amp;ja_roda=1"' in resposta.text
+        carga = http.get("/execucao/atual?so_rodando=1&ja_roda=1", headers=HTMX)
+        assert aviso in unescape(carga.text)
+        assert POLL in carga.text
+        depois = http.get("/fontes")
+        assert aviso not in unescape(depois.text)
+    painel.trava.release()
+    assert chamadas == []
