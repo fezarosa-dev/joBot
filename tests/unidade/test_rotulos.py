@@ -12,6 +12,7 @@ from jobot.nucleo.tratamento.rotulos import (
     ARQUIVO,
     VERSAO_REGRAS,
     Rotulos,
+    fonte_so_no_brasil,
     rotular,
     versao_de,
 )
@@ -44,6 +45,7 @@ def _vaga(**campos: Any) -> VagaColetada:
 
 def _rotular_caso(caso: dict[str, Any]) -> Rotulos:
     vaga = _vaga(
+        fonte=caso.get("fonte", "teste"),
         titulo=caso["titulo"],
         etiquetas=tuple(caso.get("etiquetas", ())),
         modalidade_declarada=caso.get("modalidade_declarada"),
@@ -165,3 +167,16 @@ def test_clt_pj_so_no_brasil() -> None:
         Contrato.NAO_INFORMADO
     )
     assert contrato("", BRASIL, contrato_declarado="vacancy_type_effective") == Contrato.CLT
+
+
+def test_fontes_das_regras_existem_em_fontes_json() -> None:
+    fontes = json.loads((ARQUIVO.parent / "fontes.json").read_text(encoding="utf-8"))
+    dados = json.loads(ARQUIVO.read_text(encoding="utf-8"))["fontes"]
+    for lista in dados.values():
+        assert lista and set(lista) <= set(fontes)
+    assert not set(dados["so_brasil"]) & set(dados["local_e_restricao_de_pais"])
+
+
+def test_fonte_so_no_brasil() -> None:
+    assert fonte_so_no_brasil("github_issues") and fonte_so_no_brasil("gupy")
+    assert not fonte_so_no_brasil("greenhouse") and not fonte_so_no_brasil("himalayas")

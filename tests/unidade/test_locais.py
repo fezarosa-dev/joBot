@@ -10,6 +10,7 @@ from jobot.nucleo.tratamento.locais import (
     nome_do_pais,
     nome_em_ingles,
     pais_escrito,
+    so_paises,
 )
 
 UFS = Path(__file__).resolve().parents[2] / "src" / "jobot" / "nucleo" / "dados" / "ufs.json"
@@ -218,3 +219,54 @@ def test_sigla_de_uf_vence_estado_dos_eua() -> None:
 )
 def test_pais_escrito_so_com_o_nome_do_pais(bruto: str, esperado: str | None) -> None:
     assert pais_escrito(bruto) == esperado
+
+
+@pytest.mark.parametrize(
+    ("brutos", "esperado"),
+    [
+        (["United States"], True),
+        (["USA", "Canada"], True),
+        (["Remote, Germany"], True),
+        (["Germany Only"], True),
+        (["São Paulo, SP"], True),
+        ([], False),
+        (["", "  "], False),
+        (["Worldwide"], False),
+        (["LATAM"], False),
+        (["Europe"], False),
+        (["Anywhere in the World"], False),
+        (["Remote"], False),
+        (["United States", "Worldwide"], False),
+        (["United States", "Europe"], False),
+        (["Europe, Germany"], False),
+        (["Berlin"], True),
+        (["Remote - US"], True),
+        (["US only"], True),
+        (["Brazil (remote)"], True),
+        (["Remote", "United States"], True),
+        (["EMEA"], False),
+        (["Europe only, Germany"], False),
+        (["Western Europe, Germany"], False),
+        (["Global Remote, Germany"], False),
+        (["South Africa"], True),
+        (["Hybrid"], False),
+        (["Middle East, Germany"], False),
+        (["EU, Germany"], False),
+        (["Central America, Mexico"], False),
+        (["MENA, Egypt"], False),
+        (["Nordics, Sweden"], False),
+        (["Oceania, Australia"], False),
+        (["Caribbean, Panama"], False),
+        (["Germany"], True),
+    ],
+)
+def test_so_paises_so_com_todo_local_virando_pais(brutos: list[str], esperado: bool) -> None:
+    assert so_paises(brutos) is esperado
+
+
+@pytest.mark.parametrize(
+    "bruto",
+    ["Middle East", "EU", "MENA", "Nordics", "Oceania", "Caribbean", "Central America"],
+)
+def test_regiao_nova_fica_sem_pais(bruto: str) -> None:
+    assert ler_locais([bruto]) == (Local(),)

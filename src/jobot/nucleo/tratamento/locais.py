@@ -80,7 +80,8 @@ _PAISES = {
 _SEM_PAIS = {
     "remote", "remoto", "remote work", "home office", "worldwide", "anywhere", "global",
     "latam", "latin america", "america latina", "americas", "emea", "apac", "europe", "europa",
-    "north america", "south america", "asia", "africa",
+    "north america", "south america", "asia", "africa", "middle east", "eu", "mena", "nordics",
+    "oceania", "caribbean", "central america",
 }  # fmt: skip
 
 # Modalidade não é lugar: nunca vira cidade ("Hybrid - Curitiba, PR").
@@ -263,3 +264,43 @@ def pais_escrito(texto: str) -> str | None:
         if codigo := _PAISES.get(chave) or _PAISES.get(nucleo):
             return codigo
     return None
+
+
+# Região ou mundo: "Remote" e afins só dizem a modalidade, então não entram.
+_REGIOES = _SEM_PAIS - {"remote", "remoto", "remote work", "home office"}
+_PALAVRAS_DE_REGIAO = {r for r in _REGIOES if " " not in r}
+
+
+def _e_regiao(token: str) -> bool:
+    chave = normalizar(token)
+    nucleo = " ".join(p for p in chave.split() if p not in _ENFEITES)
+    if chave in _PAISES or nucleo in _PAISES:  # "South Africa" é país
+        return False
+    return nucleo in _REGIOES or any(p in _PALAVRAS_DE_REGIAO for p in nucleo.split())
+
+
+def _so_modalidade(token: str) -> bool:
+    chave = normalizar(token)
+    nucleo = " ".join(p for p in chave.split() if p not in _ENFEITES)
+    return not nucleo or chave in _MODALIDADE or (chave in _SEM_PAIS and chave not in _REGIOES)
+
+
+def so_paises(brutos: Sequence[str]) -> bool:
+    """Todo local declarado é um país (nenhum é mundo ou região) e há pelo menos um.
+
+    Vale para o campo de local que é a restrição da vaga ("United States", "USA, Canada").
+    Item só de modalidade ("Remote") é neutro: não cancela, mas também não conta como país.
+    """
+    # shortcut: a lista de regiões é fechada; região desconhecida junto de país conta como país;
+    # ampliar a lista (`_SEM_PAIS`) quando aparecer.
+    paises = 0
+    for pedaco in (p for bruto in brutos for p in _PEDACOS.split(bruto) if p.strip()):
+        tokens = list(_tokens(pedaco))
+        if any(_e_regiao(t) for t in tokens):
+            return False
+        if all(_so_modalidade(t) for t in tokens):
+            continue
+        if not _ler_um(pedaco).pais:
+            return False
+        paises += 1
+    return paises > 0
