@@ -31,6 +31,7 @@ from jobot.nucleo.http import (
     LimiteAtingido,
     OrcamentoGasto,
     Parou429,
+    RespostaGrande,
     Validadores,
 )
 from jobot.nucleo.modelo import Empresa, VagaColetada
@@ -249,6 +250,37 @@ async def test_excecao_vira_falhou_e_as_outras_terminam() -> None:
         "b": ("ok", None),
     }
     assert len(next(s for s in saidas if s.fonte == "b").resultado.vagas) == 1
+
+
+@pytest.mark.parametrize(
+    ("erro", "motivo"),
+    [
+        (RespostaGrande("corpo grande"), "saude.resposta_grande"),
+        (ErroDeRede("fora do ar"), "saude.erro_de_rede"),
+    ],
+)
+async def test_excecao_conhecida_do_http_no_escopo_vira_o_motivo_proprio(
+    erro: Exception, motivo: str
+) -> None:
+    async def quebra(escopo: str, http: HttpEducado) -> ResultadoEscopo:
+        raise erro
+
+    saidas = await _rodar([ColetorFalso("a", acao=quebra)])
+    assert _estados(saidas) == {"a": ("falhou", motivo)}
+
+
+@pytest.mark.parametrize("erro", [Bloqueio("403"), LimiteAtingido("lim"), Parou429("429")])
+async def test_parada_que_escapa_do_coletar_segue_saude_excecao(erro: Exception) -> None:
+    async def quebra(escopo: str, http: HttpEducado) -> ResultadoEscopo:
+        raise erro
+
+    saidas = await _rodar([ColetorFalso("a", acao=quebra)])
+    assert _estados(saidas) == {"a": ("falhou", f"saude.excecao:{type(erro).__name__}")}
+
+
+async def test_resposta_grande_em_escopos_vira_resposta_grande() -> None:
+    saidas = await _rodar([ColetorFalso("a", erro_escopos=RespostaGrande("grande"))])
+    assert _estados(saidas) == {"a": ("falhou", "saude.resposta_grande")}
 
 
 async def test_escopos_com_erro_vira_falhou() -> None:
@@ -719,6 +751,15 @@ async def test_detalhar_com_erro_pula_so_aquela_url() -> None:
     assert _estados(saidas) == {"s": ("ok", "saude.erro_de_rede")}
     assert [v.url for v in saidas[0].resultado.vagas] == [boa]
     assert saidas[0].urls_sem_detalhe == ()  # tenta de novo na próxima execução
+
+
+async def test_detalhar_com_resposta_grande_aparece_no_motivo() -> None:
+    def detalhe(item: Item) -> VagaColetada:
+        raise RespostaGrande("página grande")
+
+    s = ColetorFalso("s", acao=_sitemap(UrlListada("https://s.exemplo/v/1")), detalhe=detalhe)
+    saidas = await _rodar([s])
+    assert _estados(saidas) == {"s": ("ok", "saude.resposta_grande")}
 
 
 async def test_detalhar_com_erro_inesperado_aparece_no_motivo() -> None:
