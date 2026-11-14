@@ -1,0 +1,12 @@
+{
+  "url": "https://candidate-api.eureca.me/opportunities?page=1&pageSize=200",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/json; charset=utf-8"
+  },
+  "sha256": "c8d7f18edae8103c64adfaaadbc4be3bec3c5e2fb5659dd2ab9f6cd9e7600d6d",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "Montado à mão a partir do normal.json deste diretório: items[1].name virou null e items[2].id virou '../../x' (dois itens ilegíveis, três legíveis). Passou por scripts/capturar.py (reduzir e limpar_pessoais)."
+}

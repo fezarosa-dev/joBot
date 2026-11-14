@@ -1,0 +1,12 @@
+{
+  "url": "https://candidate-api.eureca.me/opportunities",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/json; charset=utf-8"
+  },
+  "sha256": "603f412bd87a0f7de51f15300090380502885c75f2c1cecec02dd881d9fcb1b8",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "Resposta real de 2026-11-13 (scratchpad captura/B2/raw/eureca_api_opportunities.json, pedido sem parâmetros: página 1, pageSize 200, total 8). Reduzida por scripts/capturar.py (reduzir e limpar_pessoais) a 5 de 8 itens; o total 8 ficou como veio."
+}
