@@ -533,7 +533,7 @@ def test_montar_poe_o_relogio_da_agenda_em_app_state(
 ) -> None:
     relogio = RelogioFalso(AGORA)
     app = _montar_parado(tmp_path, monkeypatch, relogio)
-    # o "Buscar agora" (`_relogio` de vagas.py) usa o mesmo relógio que a agenda recebeu
+    # o "Buscar agora" (`relogio_do_painel` de vagas.py) usa o mesmo relógio que a agenda recebeu
     assert getattr(app.state, "relogio", None) is relogio
 
 

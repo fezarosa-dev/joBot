@@ -17,13 +17,13 @@ from typing import Annotated
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response
 
-from jobot.agenda.agendador import _rodar
+from jobot.agenda.agendador import rodar
 from jobot.agenda.execucao import executar_busca
 from jobot.banco.conexao import abrir
 from jobot.banco.execucoes import execucao_atual
 from jobot.nucleo.http import ClienteEducado
-from jobot.painel.rotas.vagas import _relogio
-from jobot.painel.seguranca import Con, _de_volta, renderizar
+from jobot.painel.rotas.vagas import relogio_do_painel
+from jobot.painel.seguranca import Con, de_volta, renderizar
 
 router = APIRouter()
 _AVISO = "jobot_ja_roda"  # cookie do aviso "já roda" no clique sem HTMX (lido em barra.html)
@@ -96,14 +96,14 @@ def _andamento(
 def _disparar(request: Request, trava: asyncio.Lock) -> None:
     banco: Path = request.app.state.banco
     cliente: ClienteEducado = request.app.state.cliente
-    relogio = _relogio(request)  # o `montar` do serve põe em app.state o relógio da agenda
+    relogio = relogio_do_painel(request)  # o `montar` do serve põe em app.state o relógio da agenda
 
     async def busca() -> None:
         with closing(abrir(banco)) as con:  # conexão própria: nunca dividida entre tarefas
             await executar_busca(con, cliente, relogio, "agora")
 
-    # o `_rodar` da agenda: registra o erro e solta a trava no fim, como na busca da agenda
-    tarefa = asyncio.create_task(_rodar("busca", trava, busca))
+    # o `rodar` da agenda: registra o erro e solta a trava no fim, como na busca da agenda
+    tarefa = asyncio.create_task(rodar("busca", trava, busca))
     tarefas = _tarefas(request)
     tarefas.add(tarefa)
     tarefa.add_done_callback(tarefas.discard)
@@ -117,7 +117,7 @@ async def buscar_agora(
     if getattr(request.app.state, "saindo", False):
         # o Sair já cancelou as buscas: uma nova usaria o cliente que o lifespan vai fechar
         if not htmx:
-            return _de_volta(voltar)
+            return de_volta(voltar)
         return renderizar(request, "execucao/andamento.html", saindo=True)
     trava: asyncio.Lock = request.app.state.travas["busca"]
     ja_rodava = trava.locked()
@@ -125,7 +125,7 @@ async def buscar_agora(
         await trava.acquire()  # livre: não suspende, então a checagem acima vale (como no laço)
         _disparar(request, trava)
     if not htmx:
-        resposta = _de_volta(voltar)  # sem HTMX: volta para a página de onde veio
+        resposta = de_volta(voltar)  # sem HTMX: volta para a página de onde veio
         if ja_rodava:
             # o aviso atravessa o redirect (e o de "/") num cookie que a casca lê e a carga
             # do andamento apaga

@@ -27,7 +27,7 @@ from jobot.banco.execucoes import (
 from jobot.nucleo.coletores.executor import estado_da_fonte
 from jobot.nucleo.coletores.registro import limites
 from jobot.nucleo.quebra import link_reportar
-from jobot.painel.rotas.vagas import _relogio
+from jobot.painel.rotas.vagas import relogio_do_painel
 from jobot.painel.seguranca import Con, renderizar
 
 router = APIRouter(prefix="/fontes")
@@ -209,7 +209,7 @@ def _cartoes(con: sqlite3.Connection, agora: datetime, historico: HistoricoDoBan
 
 @router.get("")
 async def listar(request: Request, con: Con) -> HTMLResponse:
-    relogio = _relogio(request)
+    relogio = relogio_do_painel(request)
     agora = relogio.agora()
     historico = HistoricoDoBanco(con, relogio)
     return renderizar(request, "fontes/pagina.html", cartoes=_cartoes(con, agora, historico))
