@@ -1,0 +1,10 @@
+{
+  "url": "https://jpmc.fa.oraclecloud.com/hcmRestApi/resources/latest/recruitingCEJobRequisitions?onlyData=true&expand=requisitionList.secondaryLocations&finder=findReqs;siteNumber=CX_1001,facetsList=LOCATIONS%3BWORKPLACE_TYPES%3BPOSTING_DATES,limit=5,offset=0,sortBy=POSTING_DATES_DESC,keyword=%22Brazil%22",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {},
+  "sha256": "cc21043fe6a50d0121b7f154faf68f89fae3aafcc60c9d65a52597f4868699be",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "veio de captura/B1/oracle_hcm_jpmc_lista_keyword_brazil.json (conferência ao vivo de 2026-11-13, JPMorgan, busca pela palavra Brazil sem filtro de local; corte: 5 vagas, facetas reduzidas); passou por reduzir e limpar_pessoais; campo _nota da conferência mantido. Os cabeçalhos da resposta não foram guardados na conferência (cabecalhos vazio). A URL foi refeita dos campos da resposta (Keyword, Limit) no formato do apêndice 3.3."
+}
