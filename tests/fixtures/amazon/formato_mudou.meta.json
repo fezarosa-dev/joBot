@@ -1,0 +1,14 @@
+{
+  "url": "https://www.amazon.jobs/en/search.json?normalized_country_code[]=BRA&result_limit=100&offset=0&sort=recent",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/json; charset=utf-8",
+    "ETag": "W/\"fa2bf45ce41d9979fe74d0af8cf958a1\"",
+    "Cache-Control": "max-age=0, private, must-revalidate"
+  },
+  "sha256": "b7657ab51cbc85dc3a9cacf0fb3a43d632993d1210ba5816550c406912ef16b1",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "montado a partir de normal.json: 2 vagas, hits 2, a segunda troca title por name (formato mudou)"
+}
