@@ -100,6 +100,7 @@ def _vaga(job: object) -> VagaColetada | None:
             titulo=titulo,
             empresa=empresa,
             descricao_formato="html",
+            modalidade_declarada="remote",  # o RemoteOK só lista vaga remota
             descricao=_texto(job.get("description")),
             # shortcut: a caixa do id fica como vem (D45); a fonte manda o id como texto
             id_externo=str(id_externo) if isinstance(id_externo, int | str) else None,
