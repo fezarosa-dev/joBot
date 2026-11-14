@@ -1,6 +1,6 @@
 """Guarda de rede: nenhum teste fala com fora (desenho 9.4, DR-21).
 
-Também para o laço da versão (T85) nos testes que sobem o lifespan do `serve`.
+O fixture `laco_versao_parado` (T85, T104) é pedido só pelas suítes que sobem o lifespan.
 """
 
 import asyncio
@@ -9,8 +9,6 @@ from collections.abc import Iterator
 from typing import Any
 
 import pytest
-
-from jobot.cli import servir
 
 _LOCAIS = {"127.0.0.1", "::1"}
 
@@ -45,11 +43,13 @@ def _guarda_de_rede(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     yield
 
 
-@pytest.fixture(autouse=True)
-def _laco_versao_parado(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.fixture
+def laco_versao_parado(monkeypatch: pytest.MonkeyPatch) -> None:
     """O `RelogioFalso` volta do `dormir` sem soltar o laço de eventos: o laço da versão, que só
-    dorme e checa, giraria sem parar no mesmo relógio da agenda. Fica parado; quem testa o laço
-    no lifespan (`test_servir_versao.py`) o troca de novo pelo seu falso."""
+    dorme e checa, giraria sem parar no mesmo relógio da agenda. Fica parado. Pedir com
+    `pytestmark = pytest.mark.usefixtures("laco_versao_parado")` na suíte que sobe o lifespan;
+    quem testa o laço (`test_servir_versao.py`) o troca pelo seu falso."""
+    from jobot.cli import servir  # só aqui: a raiz não importa o `servir` para todo teste
 
     async def parado(*_: object) -> None:
         await asyncio.Event().wait()

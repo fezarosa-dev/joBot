@@ -32,6 +32,8 @@ from jobot.nucleo.relogio import Relogio
 from jobot.painel.app import criar_app
 from jobot.sistema.instancia import Trava, pid_do_servidor
 
+pytestmark = pytest.mark.usefixtures("laco_versao_parado")
+
 PORTA = 47999
 BASE = f"http://127.0.0.1:{PORTA}"
 # 01:00 em UTC é 22:00 do dia 13 em -03: o dia local (DP8) é 13, o dia UTC é 14.
