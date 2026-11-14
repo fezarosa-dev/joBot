@@ -360,6 +360,8 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 **Recomendação:** (a). O dono confere em Settings > Actions > General > Fork pull request workflows, na tela do GitHub, antes de divulgar o projeto.
 
+**Atualização de 2026-11-14 (T83, leva L):** a seção 7 do guia `docs/consertar-fonte.md` (e de `docs/consertar-fonte.en.md`, linha 117 dos dois) diz que o primeiro PR de quem nunca contribuiu pode esperar o mantenedor liberar a execução dos testes. Se o dono escolher a opção (b), essa frase sai dos dois guias, numa edição só de texto.
+
 ## D34. O guia de conserto só depois da T17, da T27, da T50 e da T84 (ADR 0018)
 
 **Status:** aberta, para confirmar com o dono
@@ -574,6 +576,8 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 - O resolver devolve `{"identificador": token}`, sem fazer pedido, e levanta `ValueError` para o que não é quadro do Greenhouse. O desenho (8.1) diz que o resolver devolve `parametros`, mas o Greenhouse não tem parâmetros (8.6). Recomendação: a chave `identificador` vira convenção para todo resolver que normaliza o endereço colado, e a T51 e a T54 leem dela.
 - O host europeu (`job-boards.eu.greenhouse.io`) é recusado pelo resolver. Segue em aberto no apêndice de fontes, seção 2.4.
 
+**Coletores da leva L (2026-11-14):** Oracle HCM (`oracle_hcm.py:271`), Google (`google.py:165`), Amazon (`amazon.py:208`), Eureca (`eureca.py:182`) e Abler (`abler.py:481`) seguiram o `shortcut:` da (b): item pulado vira `saude.formato_mudou` sem contagem. A Super Estágios e a Abler contam à parte o que o sitemap trouxe fora do padrão, em `saude.sem_detalhe_n:<n>` (`super_estagios.py:271`, `abler.py:486`). A decisão não muda; as fontes entram na lista da D45 e saem junto quando a (a) for feita.
+
 ## D46. Tela de buscas: formato do formulário (T52)
 
 **Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
@@ -667,6 +671,8 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 - A T50 mostra o escopo como texto, como vem do coletor, sem separar nem traduzir.
 - Hapvida: o nome genérico faz o escopo `hapvidandi` baixar vagas de várias empresas, e só o filtro de host do `jobUrl` as descarta depois de baixadas. O orçamento de 30 pedidos é da fonte inteira, então esse escopo pode gastar tudo e deixar os outros em `no_limite` (o rodízio por `ultima_coleta` ameniza, não elimina). Se acontecer na prática, vira tarefa nova: limite próprio por escopo ou filtro por outro parâmetro da API.
 - SmartRecruiters: `escopos` não confere o identificador do cadastro. Um identificador vazio ou com `|` geraria escopo malformado. O resolver e o `empresas.json` já cuidam disso, então fica sem teste; filtrar por regex em `escopos` é opcional.
+
+**Oracle HCM (T66, leva L):** o coletor segue o mesmo atalho do Workday. O nome da empresa vem do cadastro, guardado por `escopos` (`oracle_hcm.py:170-191`), e, sem passar por `escopos`, cai no primeiro rótulo do host (`oracle_hcm.py:196`, por exemplo `eeho`). A decisão não muda; sai junto com a D50.
 
 ## D51. GitHub Issues: cota, empresa e página 2 (T31, T84, T94, T99)
 
@@ -1003,6 +1009,10 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 - Recuo de 1 h (A38, R2 da T108). Para erro que não é 503 nem limite, a descoberta marca a execução como interrompida e só tenta de novo depois de 1 h (`RECUO`, `descoberta.py:34`). Sem o recuo, o laço de 60 s tentaria uma vez por minuto e baixaria o `cluster.idx` (uns 105 MB) de novo a cada vez. O número é escolha do redator, para confirmar. Opções: 1 h (no máximo uns 15 tentativas por dia num erro persistente), 6 h ou recuo exponencial. Recomendação: 1 h.
 - A chave de adiamento passou a ser `descoberta_adiada_ate`, com um instante ISO em UTC (`descoberta.py:33`). Valor estragado trava a descoberta; a T125 faz valer como ausente.
 
+**Atualização de 2026-11-14 (A45, T74, leva L):** a T74 entregou a tela de sugeridas e seguiu a opção (a) da empresa removida. A tela só avisa, com a data de `removida_em` ("Você removeu esta empresa em 13/11/2026. Aprovar não a traz de volta; para acompanhá-la de novo, adicione-a em Empresas."). Aprovar marca a sugestão como aprovada e não reativa a empresa; o botão Aprovar continua no cartão. A opção alternativa é esconder o Aprovar nesses cartões e deixar só Descartar. Recomendação: manter. Status: decidido pela sessão em 2026-11-14 com o dono fora, para confirmar.
+- Desvio do desenho 13.9 (A45, para o dono confirmar). O desenho pede "Sugeridas" como sub-aba de Empresas. A T74 pôs o link como item de topo do menu, logo depois de Empresas (`painel/templates/base.html:13`; texto `casca.menu.sugeridas` em `painel/i18n/{pt,en}/casca.json:16`); o menu passou de 6 para 7 links, e o `base.html` marca com `aria-current` só a área de caminho mais longo (`/empresas/sugeridas` não marca Empresas). A largura da barra com 7 itens não foi vista em tela estreita; só os testes de contraste e de teclado rodaram. Opções: (a) manter no menu de cima; (b) fazer a sub-aba dentro de Empresas, como o desenho. Recomendação: (a) até alguém ver a tela estreita; (b) vira tarefa pequena de painel. A aprovação das fontes que não são Gupy não testa a fonte ao vivo (desenho 8.7): vira tarefa nova se o dono quiser a contagem de vagas antes de aprovar.
+- Sobras da T74 que vão para a T127 (A46): o `ValueError` do resolver da Gupy dá 422 (hoje vira 502 "Não deu para falar com a fonte"), a Gupy grava o identificador que o resolver devolve, e a empresa removida não faz pedido à Gupy antes de aprovar.
+
 ## D72. Páginas acompanhadas: DNS, escolhas do redator e o que falta para a T75 (T72, T111, T112)
 
 **Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir); o DNS foi escolha do agente (regra R2), para confirmar
@@ -1015,6 +1025,8 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 **Opções:** DNS: (a) manter, com o resolver injetável; (b) tornar público o helper de `http.py` e usar o mesmo nos dois lugares, com a regra de recusa do original (T111). Recomendação: (b) numa tarefa pequena, e (a) até lá. Desativar e remover: (a) junto da T75; (b) tarefa própria (T112). Recomendação: (a).
 
 **Decisão provisória:** (a) no DNS e junto da T75 no resto. A T111 e a T112 estão no plano, livres.
+
+**Atualização de 2026-11-14 (T111, leva L):** a opção (b) do DNS foi entregue. `conferir_dns(host, resolver=None)` é público em `nucleo/http.py:175`; a cópia de `nucleo/coletores/paginas.py` e o método `ClienteEducado._conferir_nome` saíram, e `paginas.py` importa o helper (`paginas.py:14,80`). A recusa vale para texto que não é IP, como no original. A mensagem do salto recusado mudou para `<host> resolve para host local`, com a URL de origem só em `add_note` (`http.py:187,265`), e a nota não aparece no log: a T126 devolve a URL à mensagem. O que resta da D72 (desativar e remover página, `Content-Type`, batimento na execução de páginas) é da T75, junto com a T112, na leva M (A48), opção (a). Status: decidido pela sessão em 2026-11-14 com o dono fora, para confirmar.
 
 ## D73. Aviso de depreciação do Starlette nos testes (ADR 0021)
 
@@ -1045,6 +1057,10 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 **Recomendação:** (a) em CIEE, Workday e Microsoft; (b) no IEL, pelos motivos acima.
 
 **Decisão provisória:** as recomendações, nas tarefas T116 (CIEE), T115 (Workday), T117 (Eightfold) e T118 (IEL). Desfazer: CIEE voltando a descartar; Microsoft subindo `espera_s` do `eightfold` em `fontes.json`; IEL pela (a) ou (c).
+
+**Atualização de 2026-11-14 (T55c, leva L):** a sessão rodou as seis fontes novas da leva L na `fedora-dev`, com banco descartável (A47; no plano, T55c). Resultado fonte por fonte: Amazon BR `ok`, 407 vagas em 5 pedidos, todas com descrição; Google `ok`, 49 vagas em 1 pedido; Eureca `ok`, 9 vagas em 1 pedido, e o link `app.eureca.me/vagas/<id>` saiu no formato esperado; Abler `ok`, 50 vagas em 51 pedidos (2 min); Super Estágios `ok`, 50 vagas em 51 pedidos (1 min). As duas últimas param em 50 pelo orçamento de detalhes do executor (`MAX_DETALHES_POR_FONTE`, `agenda/execucao.py:54`), e o resto entra nas rodadas seguintes: aceito. Uma divergência: Oracle HCM deu `ok` com 0 vagas na Oracle e no JPMorgan, porque a descoberta sem filtro traz só as maiores localidades (18 e 40 facetas) e o Brasil não aparece. Com `keyword=Brazil` a faceta vem (Oracle `300000000106728`, JPMorgan `300000000289141`), e a lista filtrada só pela faceta traz 8 e 20 vagas. É o risco que a T66 tinha previsto, e a opção (b) dela passa a valer.
+- Opções: (a) a descoberta repete uma vez com `keyword=<nome do país em inglês>` quando a faceta não vem, e só sem a faceta nas duas termina `ok` vazio; (b) manter e cadastrar só tenants cuja faceta venha; (c) marcar `parcial` quando o país não aparece. Recomendação e decisão: (a), na T126 (A47). Desfazer: tirar o segundo pedido de descoberta.
+- Status: decidido pela sessão em 2026-11-14 com o dono fora, para confirmar.
 
 ## D75. ATS por empresa da leva B: InHire, Quickin, Recrutei e Sólides (T56, T57, T58, T59, T120)
 
@@ -1086,6 +1102,8 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 **Atualização de 2026-11-14 (A35 a A37, leva K):** a T114, a T115 e a T117 foram entregues e juntadas na `dev`. Status das duas decisões abaixo: decidido pela sessão em 2026-11-14 com o dono fora, para confirmar.
 - Retry-After no log (R4 da T117, A36). A T117 deixou o `Retry-After` fora do log: o executor não tem logger e o enriquecimento registra só o nome do tipo (`agenda/execucao.py:273`). Opções: (a) o executor registra `str(erro)` quando o escopo para por `Parou429`, `LimiteAtingido` ou `Bloqueio`, e o `Parou429` que escapa do `coletar` vira `saude.parou_429` em vez de `saude.excecao:Parou429` (`executor.py:140-146`); (b) só o log de `agenda/execucao.py`; (c) campo novo no contrato. Recomendação e decisão: (a), na T123, junto da T106. Desfazer: (b) ou (c).
 - Nome do país no Workday (T115, A37). O coletor importa o mapa privado `_PAISES` de `nucleo/tratamento/locais.py` (`workday.py:29,44`). Opções: (a) manter o import privado; (b) `nome_do_pais` público em `locais.py`, mais "Estados Unidos da América" reconhecido e sigla de estado americano que parece UF ("Columbus, MS") sem virar vaga no Brasil em escopo de fora. Recomendação e decisão: (b), na T124. Desfazer: (a).
+
+**Atualização de 2026-11-14 (A36, T106-123, leva L):** a T123 entregou a opção (a) do `Retry-After` no log: `_registrar_parada` (`nucleo/coletores/executor.py:158`) põe no log o texto do `Parou429`, do `LimiteAtingido` e do `Bloqueio` que param um escopo, e o `Parou429` que escapa do `coletar` vira `saude.parou_429` (`executor.py:149-150`), que só vai para o resumo do vigia e não abre issue (travado por `test_parou429_que_escapa_do_coletar_nao_abre_issue`). Falta a listagem: `juntar_paginas` (`nucleo/coletores/base.py:118-125`) captura os três erros e devolve só a chave `saude.*`, então o 429 de uma listagem segue sem `Retry-After` no log. Opções: (a) `log.warning` com o texto do erro nos três `except`; (b) campo novo em `ResultadoEscopo`. Recomendação: (a), na T126 (A46). A T124 entregou `nome_do_pais` público e "Estados Unidos da América" como US (`nucleo/tratamento/locais.py:139`; a T124 acrescentou `irlanda` e `uruguai` para o nome em português de todo código voltar ao mesmo código). Status: decidido pela sessão em 2026-11-14 com o dono fora, para confirmar.
 
 ## D78. Leva K e as sobras da leva J (A25, A30, A31, A34, T106, T119, T120, T121)
 
@@ -1131,6 +1149,13 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 **Decisão provisória:** (a), na T70. Desfazer: (b).
 
+**Atualização de 2026-11-14 (T70, T55c, leva L):** a T70 entregou o coletor e a busca real o confirmou.
+- O que a T70 achou (`portais/eureca.py:29-34`): `GET https://candidate-api.eureca.me/opportunities?page=N&pageSize=200`, JSON sem login, `{items, total, page, pageSize}`; teto local de 10 páginas (`MAX_PAGINAS`, 2.000 vagas; hoje há 9) com `saude.limite_atingido` ao chegar nele. A lista já traz a descrição, sem `ETag` nem `Last-Modified`, então não há pedido condicional. `/programs` ficou de fora: lista programas (grupos de vagas), e cada vaga já traz `programName`. Escolha: manter assim.
+- A busca real (T55c): `ok`, 9 vagas em 1 pedido, e o link `https://app.eureca.me/vagas/<id>` saiu no formato esperado. Falta só abrir um link no navegador. O `pageSize=200` explícito foi aceito (a busca real o mandou).
+- Pergunta ao dono, que ficou: as notas da conferência de 2026-11-13 recomendam pedir autorização à Eureca antes de ligar o coletor (cláusulas 7.2 e 7.3 dos termos; o endereço foi achado lendo o código do aplicativo). O dono decidiu manter a fonte (Q6/A42), mas a pergunta da autorização não foi respondida. Opções: (a) manter a Eureca ligada por padrão, como a Q6 decidiu; (b) deixar a fonte desligada por padrão até a Eureca autorizar, com o código e o interruptor prontos e o aviso no README dizendo por quê; (c) tirar a Eureca da fase 1. Recomendação: (b), porque a busca real deu certo, o código fica pronto sem perda e os termos são respeitados até a resposta.
+- Status: decidido pela sessão em 2026-11-14 com o dono fora, para confirmar; a escolha entre (a), (b) e (c) é do dono. Desfazer (b): ligar o interruptor.
+- Sobras da T70 aceitas (D82): `workModels[]` com mais de um valor vira tarefa da T126; `locations.cities` com mais de uma cidade segue lida só por `cityName`.
+
 ## D81. Leva L: o que entrou e o que ficou para a leva M (A41, A43)
 
 **Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar
@@ -1140,3 +1165,37 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 **Opções:** (a) como decidido; (b) rodar a T75 e a T112 junto, aceitando conflito de arquivo. Recomendação: (a): a leva M sai logo depois, e conflito de arquivo custa mais que a espera.
 
 **Decisão provisória:** (a). Desfazer: tirar uma tarefa da leva (a branch fica, sem merge).
+
+**Atualização de 2026-11-14 (A44, A47, A48, leva L):** a leva L foi juntada na `dev` (commit `b7d542c`), com 13 tarefas aprovadas e a REG9 com duas ressalvas médias no `registros/padroes.md` (as cinco lições perdidas e o limite de 350 caracteres por linha). Bateria: 3.326 testes de unidade, 82 de tela, ruff e mypy verdes. A `dev` subiu ao GitHub como cópia (push simples, sem PR). A busca real das seis fontes novas (T55c) está na D74 e na D80. A leva M foi lançada com seis tarefas a partir de `b7d542c` (A48): T75 junto com a T112 (opção (a) da D72, e as outras faltas da D72), T76, T77, T126 (D82 e D83), T127 e esta REG10. O que a leva L deixou aceito está na D82; o que virou tarefa, na D83.
+
+## D82. Sobras da leva L aceitas (A45, T66 a T74, T83, T106, T123)
+
+**Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar
+
+**Contexto:** as revisões da leva L deixaram estas sobras. A sessão as aceita sem mudar o código; cada uma vira tarefa pequena se o dono quiser (a origem de cada item está entre parênteses):
+- Oracle HCM (T66): só tenants em `*.oraclecloud.com` (`oracle_hcm.py:37`); o `site_number` aceito é `[A-Za-z0-9_]{1,50}` e o caminho do resolver é `/hcmUI/CandidateExperience/<idioma>/sites/<site>`, escolhas do coletor a partir de `CX_45001` e `CX_1001`; vaga com o Brasil só como local secundário entra (o filtro BR trouxe uma vaga do México) e o tratamento decide; `PostingEndDate` e `ExternalPostedEndDate` vieram nulos em todas as amostras, então o prazo nunca foi visto preenchido (`oracle_hcm.py:151,309`); o nome da empresa vem do cadastro (D50). O segundo pedido de descoberta é da T126 (D83).
+- Google (T67): o filtro é só `country == 'Brazil'` (`google.py:31`), e as vagas remotas do mundo ficam fora; o corpo de uns 20 MB vem inteiro uma vez por dia, sem pedido condicional na leitura em fluxo (`ler_em_fluxo` de `nucleo/http.py` não aceita condicional); se o feed trocar `Brazil` por `BR` ou `Brasil`, a coleta dá `ok` vazio e o vigia pega a fonte que zerou. A seção 3.4 do apêndice não traz os valores de `remote` e `isRemote`, e o `If-Modified-Since` segue como "a confirmar" (a captura não viu o 304).
+- Amazon (T68): o escopo é o código ISO de 2 letras (`BR`), convertido para ISO-3 (`BRA`) por uma tabela de 18 países (`amazon.py:35`); a API não traz salário, e `url_candidatura` fica vazia (a vaga usa o link do `job_path`); o teto é de 30 páginas (`MAX_PAGINAS`, `amazon.py:32`, `saude.limite_atingido` ao passar); o pedido é condicional em todas as páginas, e um 304 só numa página posterior deixa o escopo `parcial` com `saude.listagem_incompleta` (`amazon.py:182`, coberto por `test_304_depois_de_pagina_nova_fica_parcial`); `job_schedule_type` (`full-time`, `part-time`) não vira contrato do rotulador (`amazon.py:127`); só se viu `ONSITE` em `locations[].type`, e `VIRTUAL` ficou só nos testes.
+- Super Estágios (T69): 404 e 410 no `detalhar` devolvem `None` (cache de 30 dias, DR-70) e 403, 429 e 5xx sobem; sem pedido condicional (o sitemap só mostrou `cache-control`); `lastmod` e `datePosted` sem fuso valem meia-noite de Brasília (`shortcut:` no código, para conferir na rede); URL do sitemap fora do padrão `/vaga/<número>` é descartada e contada em `saude.sem_detalhe_n`. O `CONFIDENCIAL` vira tarefa (D83).
+- Eureca (T70): `/programs` fora; teto de 10 páginas; `workModels[]` e `locations.cities` com mais de um valor (a parte do `workModels` vira tarefa); `_reais` devolve `float` quando a divisão não é exata (`eureca.py:64`), aceito porque `SalarioBruto` é `float` e a conversão por `Decimal(str(v))` é exata com 2 casas; o teto de páginas reusa `saude.limite_atingido`, cujo texto (`comum.json:84`) fala da espera pedida pela fonte, como Workday, Sólides e CIEE fazem; o total maior que o lido usa `saude.listagem_incompleta`, que a T122 reescreveu e agora serve. Os termos seguem na D80.
+- Abler (T73): vaga com `status` "Em andamento" (o único valor visto) não é filtrada; se aparecer um segundo valor, passa a devolver `None` para status não vazio fora dos abertos. A fixture `vaga.html` leva o script `window.__NUXT__` de volta à mão depois do `capturar.reduzir` (R3, descrito no `.meta.json`); refazer pelo `capturar.py` se ele passar a guardar scripts pedidos.
+- Guia de conserto (T83): `docs/consertar-fonte.md` e `.en.md` usam âncora `<a id>` com o mesmo id nas duas línguas em vez de títulos iguais (o título traduzido nunca bate); o teste compara a sequência de ids e exige título diferente. O guia diz que PR de código só entra depois da fase 8, como o CONTRIBUTING e a ADR 0018; a parte da D33 está na D33. A frase "costuma ser uma empresa que trocou de identificador" (`saude.empresa_nao_encontrada`) é do redator. O apêndice e a seção 2.4 estão só em português, e o guia em inglês avisa. O vigia não foi rodado ao vivo. O guia ainda diz que, se todas as vagas ficam ilegíveis, a fonte fica "Parcial", mas o Greenhouse dá `falhou` nesse caso (`greenhouse.py:105-106`), e diz que a issue do vigia vale para todo motivo, mas o `quebrou` de `scripts/vigia.py:105-114` só abre issue para quatro: tarefa pequena de texto, se o dono quiser.
+- T106-123: o 429 da listagem segue sem `Retry-After` no log (a T126 faz, D77); a varredura de nomes privados de `tests/unidade/test_nomes_publicos.py` só pega `from X import _nome`, não `modulo._nome` nem `import x as y`; `agenda/execucao.py:57` ainda tem a cópia `_PARA_DETALHES` ao lado de `executor.PARA_DETALHES`; `Parou429` que escapa do `coletar` vira `saude.parou_429` e não abre issue no vigia.
+- T111: o salto recusado pelo DNS leva a URL de origem só em `add_note` (a T126 a devolve à mensagem, D72).
+- T122, T124, T125: o teste de texto da T122 só barra a redação antiga (palavras proibidas); "Evergreen" do Santander ainda vira cidade; em escopo US a UF da vaga ("Columbus, MS") se perde porque o país escrito vence a sigla; o nome em português de cada código em `nucleo/tratamento/locais.py:139` depende do último alias de cada grupo e de `_ACENTOS`, e só BR, US, FR e ZZ têm teste do nome; o vermelho do item 2 da T125 é uma exceção do `fromisoformat`, não uma asserção.
+
+**Opções:** (a) aceitar todas; (b) abrir tarefa para cada uma. Recomendação: (a), pelo custo baixo de cada uma. As que valem tarefa estão na D83.
+
+**Decisão provisória:** (a). Desfazer: cada item vira tarefa pequena.
+
+## D83. Sobras da leva L que viram tarefa na leva M (A46, A47, T126, T127)
+
+**Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar
+
+**Contexto:** duas tarefas novas, livres, na leva M (no plano, T126 e T127).
+- T126, coletores: (1) Oracle HCM, segundo pedido de descoberta com `keyword=<nome do país em inglês>` quando a faceta do país não vem (D74), com `nome_em_ingles` público em `locais.py`; (2) Amazon, `publicada_em` à meia-noite de Brasília, não de UTC (hoje cai no dia anterior); (3) Super Estágios, a empresa `CONFIDENCIAL` (`super_estagios.py:206`) vira `Super Estágios`, como o CIEE faz com `CIEE`, para vagas de empresas diferentes não se misturarem; (4) Eureca, `workModels` com mais de um valor deixa `modalidade_declarada` vazia, como a Amazon faz com tipos mistos; (5) as docstrings de `_FormatoMudou` do Google e da Abler dizem o que de fato levanta, e o sitemap da Abler só com `<url>` sem `<loc>` termina `falhou`, não `parcial` (`abler.py:124`); (6) a mensagem do `ErroDeRede` do salto recusado volta a trazer a URL de origem (D72); (7) `juntar_paginas` registra no log o texto do erro (D77).
+- T127, tela e documentos: (1) `painel/rotas/sugeridas.py` usa `relogio_do_painel` e os nomes públicos da T106 no lugar das cópias locais (hoje `_relogio` em `sugeridas.py:48`); (2) na aprovação da Gupy, `ValueError` do resolver dá 422 com mensagem própria, e só falha de rede dá 502 (hoje qualquer exceção vira 502, no `except Exception` de `aprovar_sugestao`); (3) a Gupy grava o identificador que o resolver devolve, em minúsculas (D45 de `empresas.py`); (4) sugestão de empresa removida (D71) não faz pedido à Gupy antes de aprovar; (5) `.github/CONTRIBUTING.md` e `.en.md` perdem a frase de que os comandos exatos serão documentados quando o código existir (linha 38 dos dois), porque o guia já os traz.
+
+**Opções:** (a) uma tarefa por assunto (T126 e T127); (b) deixar tudo aceito, na D82. Recomendação: (a): cada item é pequeno, tem teste e não muda contrato público. A T126 é Opus (a mudança do Oracle mexe na descoberta); a T127, Sonnet.
+
+**Decisão provisória:** (a). Desfazer: tirar a tarefa da leva M e mover o item para a D82.
