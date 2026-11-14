@@ -25,6 +25,7 @@ def _parser() -> argparse.ArgumentParser:
     plano.add_argument("acao", choices=["ligar", "desligar", "status"])
     rotulos = sub.add_parser("avaliar-rotulos", help="mede as regras contra um gabarito")
     rotulos.add_argument("caminho")
+    rotulos.add_argument("--relatorio", metavar="arquivo.md")
     return parser
 
 
