@@ -77,6 +77,7 @@ class LimitesDaFonte:
     max_pedidos: int | None = None
     espera_s: float = 1.0
     credito_obrigatorio: bool = False
+    ligada_padrao: bool = True  # só vale ao criar a linha da tabela `fonte`
     por_escopo: Mapping[str, LimiteEscopo] = field(default_factory=dict)
 
 

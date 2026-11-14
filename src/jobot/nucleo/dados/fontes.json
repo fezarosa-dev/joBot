@@ -173,6 +173,7 @@
     "max_pedidos": null,
     "espera_s": 2.0,
     "credito_obrigatorio": false,
+    "ligada_padrao": false,
     "por_escopo": {}
   },
   "usp": {
