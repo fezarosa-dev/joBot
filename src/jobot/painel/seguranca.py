@@ -14,6 +14,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
 from jobot.banco.conexao import abrir
+from jobot.painel import globais
 from jobot.painel.i18n import idioma_inicial, t
 
 Tema = Literal["sistema", "claro", "escuro"]
@@ -27,6 +28,7 @@ TEMPLATES = Jinja2Templates(
         loader=jinja2.FileSystemLoader(Path(__file__).parent / "templates"), autoescape=True
     )
 )
+globais.registrar(TEMPLATES.env)
 
 
 async def conexao(request: Request) -> AsyncIterator[sqlite3.Connection]:
