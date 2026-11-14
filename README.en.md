@@ -37,6 +37,7 @@ It gathers, filters and organizes jobs from many sites into a nice dashboard tha
 ## 📑 Contents
 
 - [What joBot is](#what-is-jobot)
+- [Star history](#star-history)
 - [What it does not do](#what-it-does-not-do)
 - [How it works](#how-it-works)
 - [The two versions](#two-versions)
@@ -50,7 +51,6 @@ It gathers, filters and organizes jobs from many sites into a nice dashboard tha
 - [FAQ](#faq)
 - [Project decisions](#project-decisions)
 - [How to contribute](#how-to-contribute)
-- [Star history](#star-history)
 - [Support the project](#support-the-project)
 - [License and notices](#license-and-notices)
 
@@ -80,6 +80,19 @@ What comes in the next phases:
 
 It works for every kind of job and every field: full-time employment (CLT), contractor (PJ), internship, trainee, temporary, apprentice, research and scholarships, programs and summer schools, public exams and notices.
 Every feature can be turned on or off.
+
+<a id="star-history"></a>
+## ⭐ Star history
+
+If joBot helps you, leave a star on the repository.
+
+<a href="https://www.star-history.com/?repos=fezarosa-dev%2FjoBot&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=fezarosa-dev/joBot&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=fezarosa-dev/joBot&type=date&legend=top-left" />
+   <img alt="Chart of the number of GitHub stars of joBot over time" src="https://api.star-history.com/chart?repos=fezarosa-dev/joBot&type=date&legend=top-left" />
+ </picture>
+</a>
 
 <a id="what-it-does-not-do"></a>
 ## 🚫 What it does not do
@@ -480,19 +493,6 @@ Useful links:
 - [Security policy](.github/SECURITY.en.md)
 - [Support](.github/SUPPORT.en.md)
 - [Changelog](CHANGELOG.en.md)
-
-<a id="star-history"></a>
-## ⭐ Star history
-
-If joBot helps you, leave a star on the repository.
-
-<a href="https://www.star-history.com/?repos=fezarosa-dev%2FjoBot&type=date&legend=top-left">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=fezarosa-dev/joBot&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=fezarosa-dev/joBot&type=date&legend=top-left" />
-   <img alt="Chart of the number of GitHub stars of joBot over time" src="https://api.star-history.com/chart?repos=fezarosa-dev/joBot&type=date&legend=top-left" />
- </picture>
-</a>
 
 <a id="support-the-project"></a>
 ## 💛 Support the project
