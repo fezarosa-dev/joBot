@@ -470,6 +470,8 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 **Para confirmar com o dono:** as pendências baixas viraram itens do plano: T46 (mover `_de_volta` para `seguranca.py`) e T82 (registrar os globais do Jinja em módulo explícito, junto do item do tema; teste de 422 por `ValueError` em `mostrar` e `ocultar`; teste de Tab real no lugar de `focus()` mais `Enter`). A rota `/mostrar` só muda se o dono escolher a (b).
 
+**Resolvido (globais do Jinja):** os globais (`salario_texto`, `locais_texto`, `data_curta`, `data_completa`, `dinheiro`, `rotulo` e `motivo`) agora são registrados num só lugar, `registrar` em `src/jobot/painel/globais.py`, chamado em `src/jobot/painel/seguranca.py` logo depois de montar o `TEMPLATES`. Nenhuma rota registra global no import. O `tema` deixou de ser global e vai no contexto de `renderizar`. O teste é `test_globais_do_jinja_vem_do_modulo_explicito` em `tests/integracao/test_rota_preferencias.py`.
+
 ## D41. Guarda de rede dos testes e renomeações do F3 (F3, T05, T25)
 
 **Status:** aberta, para confirmar (a decisão provisória (b) da guarda de rede vira a T88; até lá, o código segue a (a))
@@ -487,3 +489,146 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 - Resolvedor que falha: `OSError` (`gaierror` incluso) e `UnicodeError` viram `ErroDeRede`; outra exceção que o resolvedor injetado levante sobe como está. Por segurança, e sem regra explícita no brief, o cliente também recusa a resposta do resolvedor vazia ou com texto que não é IP (`test_resolvedor_sem_endereco_valido_recusa`).
 - Renomeações públicas (`confere_http`, `PARA_MENSAL`, `mensal`, `host_local`): na integração, procurar `_confere_http`, `_PARA_MENSAL` e `_mensal(` nos outros worktrees da leva. `registros/padroes.md` já cita o nome novo.
 - Docstring de `juntar_paginas` (`base.py`): "nada se fecha" virou "só o que tem mais de 30 dias se fecha", para bater com o ciclo de vida (10.2). É só texto.
+
+## D42. Correções da pessoa na vaga: formato do valor e efeito (T19, T46)
+
+**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+
+**Contexto:** A T19 aplica as linhas de `correcao` por cima das regras, da mais velha para a mais nova (`_corrigir` em `src/jobot/banco/gravacao.py`). O desenho não diz em que formato a tela manda cada valor. Quem manda é a rota de correção da T46.
+
+**Opções:**
+- Formato do valor: (a) texto simples, como está; (b) um formato estruturado (JSON) para `salario` e `fechada`, decidido junto com a rota da T46.
+- Correção `fechada` com valor negativo (`0`, `nao`, `não`, `false`, `no`): (a) só tira o fechamento forçado; se a fonte já tirou a vaga, ela continua fechada pelo ciclo de vida; (b) o negativo reabre a vaga mesmo sem ocorrência aberta.
+
+**Decisão provisória:** (a) nas duas. A tela da T46 manda texto, e reabrir vaga que a fonte já tirou mostraria uma vaga que não existe mais.
+
+**Provisório (o que o código faz hoje), para confirmar:**
+- `salario`: texto livre, lido com `ler_salario`. Se o texto não traz moeda ("6.000 por mês"), vale a moeda que as regras leram. Valor vazio tira o salário. Valor que não dá para ler é ignorado.
+- `uf`: duas letras, que viram a UF de todos os locais com país BR. Vaga sem local ganha um `Local(uf, BR)`.
+- `area`, `nivel`, `modalidade` e `contrato`: só valor válido da lista fechada; o resto é ignorado.
+- `fechada`: qualquer valor fecha a vaga, com `fechada_em` igual à data da correção, menos os negativos acima, que desfazem. Desfazer reabre a vaga na hora pelo `reprocessar_vaga`, mas só se ela ainda tem ocorrência aberta.
+- `outro`: é só comentário, não muda nada.
+- A rota de correção da T46 chama `recalcular_encaixe(con, None, regras, hoje=hoje, vaga_id=vaga_id)` logo depois de `reprocessar_vaga`, para atualizar `encaixe` e `oculta_motivo` (item fora do escopo da T19).
+- A correção vale também em `gravar_escopo` e `gravar_detalhe`, não só no reprocesso. Sem isso, a próxima busca desfaria o valor corrigido (`test_correcao_vence_regra_no_reprocesso`).
+- Os benefícios lidos da fonte (VR, VA) continuam quando a correção do salário não traz benefício, e também quando a correção vem vazia. Se a correção trouxer benefícios, eles substituem os da fonte.
+- Quando o salário some, as colunas `sal_mensal_min_brl`, `sal_mensal_max_brl` e `sal_cotacao_data` também ficam nulas. Senão o valor em reais velho ficaria parado na vaga, porque `aplicar_cotacoes` só olha vaga com `sal_moeda`.
+- Limite conhecido: para herdar a moeda, o código põe o código ISO na frente do texto. Moeda que o leitor de salário não reconhece no texto (por exemplo NZD, vinda do salário estruturado da fonte) cai na moeda do idioma; numa vaga em pt vira BRL. Vai na T90.
+
+## D43. Gravação do escopo: validadores no 304 e outras escolhas (T19)
+
+**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+
+**Contexto:** O desenho (`docs/superpowers/specs/2026-11-13-fase-1-design.md`, perto da linha 753) diz que os validadores (`ETag`, `Last-Modified`) são gravados "só quando o escopo termina ok". O teste do plano `test_304_toca_e_guarda_validadores` pede que eles fiquem guardados também no 304 (estado `sem_mudanca`).
+
+**Opções:**
+- (a) guardar em `ok` e em `sem_mudanca`, como está (`_GUARDA_VALIDADORES` em `gravacao.py`), e corrigir o texto do desenho; (b) guardar só em `ok`, como diz o desenho, e mudar o teste do plano.
+
+**Decisão provisória:** (a). O `http.py` só devolve validador de resposta 200, então no `sem_mudanca` só entram os das páginas que vieram inteiras. `parcial`, `falhou`, `no_limite` e `desligada` não gravam nada. Falta alinhar a frase do desenho.
+
+**Provisório (o que o código faz hoje), para confirmar:**
+- `reprocessar(con, versao)` só mexe em vaga aberta e não chama `aplicar_cotacoes`. As colunas `_brl` ficam para o passo 5 da execução (T41), que já chama `aplicar_cotacoes`. A assinatura do plano não tem `hoje`, que a cotação precisa.
+- `fechar_escopos_extintos` devolve quantas ocorrências marcou, não quantas vagas fecharam, e recusa `agora` sem fuso com `ValueError`.
+- A `url` da vaga é gravada só na criação, com a URL canônica, e nunca mais trocada. `ocorrencia.url` guarda a URL como a fonte mandou.
+- `gravar_detalhe` trata a vaga de novo, com correções e locais, herda a descrição antiga quando o detalhe chega vazio e só troca `id_externo` quando o novo não é nulo.
+- Em escopo `falhou`, as vagas que vierem no resultado são gravadas, mas o ciclo de vida não muda nada. Na prática o executor manda a lista vazia quando falha.
+- Continua aberta (D29): `aplicar_cotacoes` pula vaga fechada, então `reprocessar_vaga` numa vaga fechada não atualiza as `_brl`.
+
+## D44. Execuções e saúde: forma das funções (T22, T41, T50, T51)
+
+**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+
+**Contexto:** O plano deixou sem forma algumas funções de `src/jobot/banco/execucoes.py`. A T41 (execução), a T50 (tela de fontes) e a T51 dependem delas.
+
+**Opções:**
+- `HistoricoDoBanco`: (a) recebe `HistoricoDoBanco(con, relogio)`, como está, porque o `Historico` não passa `agora` e a janela de 30 dias do `detalhe_recente` precisa da hora atual; (b) recebe um `agora` fixo.
+- `saude_recente(con, n=8)`: (a) devolve `tuple[LinhaSaude, ...]` com as linhas das `n` execuções mais recentes que gravaram saúde, da mais nova para a mais velha e depois por fonte e escopo, como está; (b) devolve agrupado por fonte, já pronto para os pontos da tela.
+
+**Decisão provisória:** (a) nas duas. A T41 constrói com `HistoricoDoBanco(con, relogio)`. Se a forma não servir à tela de fontes, a T50 ajusta na própria tarefa.
+
+**Provisório (o que o código faz hoje), para confirmar:**
+- `gravar_saude` recebe campos soltos (execução, fonte, escopo, estado, vagas, pedidos, duração, motivo), sem `SaidaEscopo`, porque `desligada` e `no_limite` por intervalo não têm `SaidaEscopo`. Ela só confirma quando não há transação aberta, para a T19 chamá-la dentro da transação do escopo. As outras (`abrir_execucao`, `bater`, `fechar_execucao`, `marcar_interrompidas`) confirmam sozinhas e levantam `RuntimeError` com transação aberta, como `acoes.py`.
+- `Andamento` (de `execucao_atual`) traz id, tipo, motivo, início, batimento e quantos escopos já gravaram saúde. Com mais de uma execução rodando, a busca vem primeiro.
+- `ultima_coleta` usa o início da última execução em que o escopo teve saúde fora de `no_limite` e `desligada`. Assim o escopo que ficou no limite roda primeiro na próxima vez (DR-52). `falhou` conta como coletado.
+- `tres_ultimas_ok_trouxeram_vagas` olha só as linhas com estado `ok` e exige três, todas com vagas.
+- `fechar_execucao` não ressuscita execução já interrompida e levanta `LookupError` só para id que não existe. `bater` em execução encerrada não faz nada. `marcar_interrompidas` grava o fim igual ao último batimento.
+- Pendência da T22: `detalhe_recente` em `src/jobot/banco/execucoes.py` chama `_data(buscado_em)` sem proteção; uma data malformada em `enriquecimento` derruba o escopo de sitemap inteiro. Opções: (a) tratar `ValueError` como "não recente" e ter um teste que fixa o formato gravado; (b) deixar falhar como hoje. Recomendação: (a).
+
+## D45. Coletor Greenhouse: itens pulados, endereço colado e prazo (T27, T51, T54, T84)
+
+**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+
+**Contexto:** O primeiro coletor (`src/jobot/nucleo/coletores/greenhouse.py`) deixou quatro pontos. O primeiro mexe no i18n compartilhado e no vigia, então é R4.
+
+**Opções:**
+- Motivo quando itens fora do formato são pulados (DR-08). O desenho (linha 688) e a DR-08 pedem o número de pulados no motivo, mas nenhuma chave `saude.*` com `n` fala disso (`saude.parcial_n` diz "lidas antes de parar"). (a) chave nova `saude.pulados_n` ("{n} vagas fora do formato foram puladas") em `comum.json`, e o vigia (T84) passa a tratá-la como quebra; (b) `saude.formato_mudou` sem contagem, como está; (c) parâmetro `n` na `saude.formato_mudou`.
+- Caixa do identificador: o resolver devolve o token como veio (`Vitta` fica `Vitta`), e `escopos()` tira repetidos pelo texto exato. Então `Vitta` e `vitta` viram dois escopos e dois pedidos. (a) o resolver normaliza para minúsculas; (b) a rota de empresas (T51) normaliza.
+- Prazo com hora e fuso (`application_deadline`): nenhuma captura real trouxe o campo. O código supõe ISO 8601 e usa o dia como está escrito, sem converter fuso. Então `2026-12-16T02:59:59Z` vira 16/12, mas em Brasília é 15/12. (a) converter para o dia local antes de pegar a data, com teste de entrada fora de UTC; (b) manter o dia escrito.
+
+**Decisão provisória:** pulados: o código segue a (b), marcado com `shortcut:` em `coletar`; a recomendação é a (a), feita junto com o vigia (T84), porque `formato_mudou` é o que abre issue. Caixa: recomendação (b), na T51, que já pede que maiúsculas resolvam o identificador. Prazo: o código segue a (b), marcado com `shortcut:`; recomendação (a) quando uma captura mostrar o formato.
+
+**Provisório (o que o código faz hoje), para confirmar:**
+- O resolver devolve `{"identificador": token}`, sem fazer pedido, e levanta `ValueError` para o que não é quadro do Greenhouse. O desenho (8.1) diz que o resolver devolve `parametros`, mas o Greenhouse não tem parâmetros (8.6). Recomendação: a chave `identificador` vira convenção para todo resolver que normaliza o endereço colado, e a T51 e a T54 leem dela.
+- O host europeu (`job-boards.eu.greenhouse.io`) é recusado pelo resolver. Segue em aberto no apêndice de fontes, seção 2.4.
+
+## D46. Tela de buscas: formato do formulário (T52)
+
+**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+
+**Contexto:** A T52 criou a tela de buscas salvas (`src/jobot/painel/rotas/buscas.py`). O desenho não diz como a pessoa digita cidades e salário.
+
+**Opções:**
+- Cidades: (a) texto livre, uma por linha, lido por `ler_locais` (`Curitiba, PR`, `Lisboa, Portugal`), como está; cidade sem UF nem país é recusada com mensagem (422); (b) campos separados de cidade, UF e país.
+- Idioma `outro`: o tipo `Idioma` aceita `outro`, mas a tela só oferece pt, en e es. Uma busca com `outro` abriria na edição sem esse valor marcado e o perderia ao salvar. Hoje nenhuma tela grava `outro`. (a) deixar assim; (b) a edição preserva os valores que a tela não oferece.
+
+**Decisão provisória:** (a) nas duas.
+
+**Provisório (o que o código faz hoje), para confirmar:**
+- Salário aceita `5000`, `5.000`, `5.000,50` e `5000,5` (ponto só no milhar, vírgula nos centavos, até 25 caracteres). `0`, `5000.5`, `5,000`, dígitos fora do ASCII e valor acima do INTEGER do SQLite dão 422 com mensagem. Em branco quer dizer sem mínimo e sem moeda.
+- Moeda: BRL mais as 10 moedas de `MOEDAS` (`src/jobot/nucleo/cambio.py`).
+- O seletor de busca na lista de vagas é uma fileira de links com cara de chip, não um `select`. Aparece só com duas buscas ou mais e mantém aba, texto, chips e ordem.
+- Apagar pede confirmação em dois passos, sem JavaScript (um `<details>` com o botão "Apagar mesmo").
+- As mensagens de erro saem numa só, no topo do formulário, não campo por campo.
+- Edição em massa e reordenação de buscas ficam fora da fase 1, porque o desenho não pede e nenhuma tela da fase depende disso; volta se o dono pedir.
+
+## D47. Menu da casca (T86, T53)
+
+**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+
+**Contexto:** A T86 pôs o menu principal na casca (`templates/base.html`), com seis itens: Vagas, Buscas, Fontes, Empresas, Sites e Configurações.
+
+**Opções:**
+- Links para telas que ainda não existem: (a) o menu mostra os seis itens desde já, e Fontes, Empresas, Sites e Configurações dão 404 até a T50, a T51, a T75 e a T54 entrarem; a fase não publica nada antes disso; (b) esconder cada item até a tela dele existir.
+- Menu na primeira execução: em `/primeira-execucao` nenhum item fica marcado, e o menu aparece. (a) deixar assim; (b) esconder o menu durante a primeira execução, com um bloco Jinja no `base.html`.
+- Barra do topo em tela estreita (até 40rem): (a) deixa de ser fixa ao rolar (`position: static` em `base.css`), para o menu quebrado em várias linhas não cobrir o conteúdo com zoom de 200%, como está; (b) continua fixa, só com a quebra de linha.
+
+**Decisão provisória:** (a) nas três. A (a) da barra não foi pedida e nenhum teste de tela cobre a tela estreita; é fácil de tirar.
+
+**Provisório (o que o código faz hoje), para confirmar:** o item Configurações aponta para `/configuracoes/fontes` e fica marcado em qualquer `/configuracoes/...`. A área de cada item casa o caminho inteiro ou seguido de `/` (`/vagasx` não marca Vagas), e `/` conta como Vagas.
+
+## D48. Tratamento: cidades dos EUA, curso composto e salário (T82, T78)
+
+**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+
+**Contexto:** A T82 fechou ajustes pequenos do tratamento. Algumas escolhas mudam o que a vaga mostra e dependem do gabarito (T78) para calibrar.
+
+**Opções:**
+- Cidade estrangeira sem país escrito: não dá para separar "Pittsburgh, PA" de "Belém, PA" sem lista. (a) lista curta de cidades dos EUA para as seis siglas que colidem (PA, MA, AL, SC, MS, MT), `_CIDADES_DOS_EUA` em `src/jobot/nucleo/tratamento/locais.py`: cidade da lista vira `Local(cidade, pais="US")`, as outras seguem UF do Brasil; (b) lista de cidades brasileiras, o que perderia vaga brasileira de cidade fora da lista.
+- Curso composto: só vale com maiúscula depois do "e" e só em pt; "and" em inglês encerra o curso. Não há limite de tamanho, então "e" seguido de maiúscula que não é curso também entra (falso positivo fixado em teste de caracterização). (a) deixar assim até a T78; (b) valer também em inglês.
+- Salário com `m` e `mi` como milhão: "5 m" solto passa a ser milhão, e "R$ 2.000 a 3.000 m/mês" lê o `m` como milhão. Barrar a barra quebraria "$1M/year". (a) deixar assim até a T78; (b) um caso específico para "/mês".
+
+**Decisão provisória:** (a) em todas. A T78 amplia a lista de cidades e decide os limites com o gabarito.
+
+**Provisório (o que o código faz hoje), para confirmar:**
+- HTML escapado várias vezes: o texto é desfeito até 16 passadas (`_PASSADAS` em `src/jobot/nucleo/texto.py`). Acima de 15 escapes ainda sobra entidade (limite no comentário `shortcut:`).
+- "Salary 120k USD 401k match" lê o salário e perde o benefício; "Fraud USD 401k" ainda vira valor. Ressalva conhecida, para a T78.
+- "30 min" (minutos) é lido como 30 por hora ("Almoço de 30 min, R$ 5.000" dá BRL 30 por hora). Isso é defeito, não escolha: vai na T92.
+
+## D49. Primeira execução: "Não ligar" quando o sistema falha (T53)
+
+**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+
+**Contexto:** No passo 2 da primeira execução, "Não ligar" chama `desligar` sempre no Linux (`_gravar_passo_2` em `src/jobot/painel/rotas/primeira_execucao.py`), porque um "ligar" recusado no meio já deixou o arquivo do serviço. `desligar` pode falhar (`systemctl_falhou`) quando o arquivo ficou e o `systemd` não responde. Nesse caso a pessoa não consegue concluir a primeira execução: nenhuma das duas opções termina.
+
+**Opções:** (a) a falha do `desligar` volta ao passo 2 com o motivo, como está; (b) conclui mesmo assim, com o segundo plano desligado, e mostra o aviso com o motivo.
+
+**Decisão provisória:** o código segue a (a). A recomendação é a (b): a pessoa pediu para não ligar, e ficar presa no passo 2 é pior. O título errado da recusa ("Não foi possível ligar") é defeito e vai na T89 junto com a escolha do dono.
