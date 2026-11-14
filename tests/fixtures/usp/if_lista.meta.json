@@ -1,0 +1,12 @@
+{
+  "url": "https://portal.if.usp.br/carreiras/pt-br/oportunidades",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "text/html; charset=utf-8"
+  },
+  "sha256": "a2422e3b44ff709814feab08261b1247e9711bc0f7c75a0733253029c7e02646",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "montado à mão a partir de amostra_if_mural.json (5 de 7 itens): a conferência guardou só a amostra parseada, não o HTML da lista; o marcado (views-view-grid do Drupal 7, classes views-field-*) segue os seletores do apêndice 3.2 e não foi visto ao vivo; cabeçalhos não guardados na conferência: Content-Type assumido"
+}
