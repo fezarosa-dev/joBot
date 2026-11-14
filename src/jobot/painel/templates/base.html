@@ -1,4 +1,4 @@
-{%- set tema_atual = tema(request) -%}
+{%- set tema_atual = tema -%}
 {%- set voltar = request.url.path ~ ("?" ~ request.url.query if request.url.query else "") -%}
 <!doctype html>
 <html lang="{{ idioma }}" data-tema="{{ tema_atual }}">

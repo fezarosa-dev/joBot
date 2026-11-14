@@ -1,16 +1,21 @@
 """Troca rápida de tema e idioma na casca (desenho 13.2; plano T36)."""
 
 import json
+import re
 from contextlib import closing
 from pathlib import Path
+from typing import cast
 
 import pytest
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse
 from fastapi.testclient import TestClient
+from jinja2 import DictLoader
 
 from jobot.banco.conexao import abrir
 from jobot.banco.migrar import migrar
 from jobot.painel.app import criar_app
-from jobot.painel.seguranca import CAMPO_CSRF
+from jobot.painel.seguranca import CAMPO_CSRF, TEMPLATES, renderizar
 
 PORTA = 47615
 
@@ -79,3 +84,28 @@ def test_voltar_so_para_o_proprio_painel(cliente: TestClient, voltar: str) -> No
     resposta = cliente.post("/preferencias/tema", data=dados)
     assert resposta.status_code == 303
     assert resposta.headers["location"] == "/"
+
+
+def _data_tema(cliente: TestClient) -> str | None:
+    achou = re.search(r"<html[^>]*\bdata-tema=\"([^\"]*)\"", cliente.get("/vagas").text)
+    return achou.group(1) if achou else None
+
+
+def test_tema_chega_ao_base_sem_global_do_jinja(
+    cliente: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # `criar_app` já importou `rotas/preferencias.py`: importar a rota não registra mais global
+    assert "tema" not in TEMPLATES.env.globals
+    assert _data_tema(cliente) == "sistema"  # sem tema salvo, segue o `prefers-color-scheme`
+    dados = {CAMPO_CSRF: _token(cliente), "tema": "escuro", "voltar": "/"}
+    assert cliente.post("/preferencias/tema", data=dados).status_code == 303
+    assert _data_tema(cliente) == "escuro"  # o tema salvo continua em `<html data-tema>`
+
+    # `renderizar` passa o tema no contexto do template
+    monkeypatch.setattr(TEMPLATES.env, "loader", DictLoader({"t82.html": "{{ tema }}"}))
+
+    @cast(FastAPI, cliente.app).get("/t82-tema")
+    async def pagina(request: Request) -> HTMLResponse:
+        return renderizar(request, "t82.html")
+
+    assert cliente.get("/t82-tema").text == "escuro"

@@ -1,41 +1,21 @@
 """Troca rápida de tema e idioma na casca (desenho 13.2 e 13.11).
 
 Grava as mesmas chaves `tema` e `idioma` da configuração. O tema salvo chega ao `base.html`
-pela função global `tema(request)` do Jinja, registrada aqui: o servidor já manda
-`<html data-tema>` certo, sem piscar.
+pelo contexto do `renderizar` (`seguranca.py`): o servidor já manda `<html data-tema>` certo,
+sem piscar.
 """
 
 import json
 import sqlite3
-from contextlib import closing
-from pathlib import Path
 from typing import Annotated, Literal
 from urllib.parse import urlsplit, urlunsplit
 
-from fastapi import APIRouter, Form, Request
+from fastapi import APIRouter, Form
 from fastapi.responses import RedirectResponse
 
-from jobot.banco.conexao import abrir
-from jobot.painel.seguranca import TEMPLATES, Con
-
-Tema = Literal["sistema", "claro", "escuro"]
-TEMAS: tuple[Tema, ...] = ("sistema", "claro", "escuro")
+from jobot.painel.seguranca import Con, Tema
 
 router = APIRouter(prefix="/preferencias")
-
-
-def tema(request: Request) -> str:
-    """O tema salvo na configuração; sem ele, `sistema` (segue o `prefers-color-scheme`)."""
-    banco: Path = request.app.state.banco
-    if banco.exists():  # sem banco ainda, não cria um arquivo vazio só para ler
-        with closing(abrir(banco)) as con:
-            linha = con.execute("SELECT valor FROM config WHERE chave = 'tema'").fetchone()
-        if linha is not None and (salvo := json.loads(linha[0])) in TEMAS:
-            return str(salvo)
-    return "sistema"
-
-
-TEMPLATES.env.globals["tema"] = tema
 
 
 def _gravar(con: sqlite3.Connection, chave: str, valor: str) -> None:
