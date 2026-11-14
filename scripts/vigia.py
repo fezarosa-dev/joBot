@@ -77,6 +77,9 @@ SO_RESUMO = frozenset(
     }
 )
 _SEM_DETALHE = "saude.sem_detalhe_n:"
+# linha do corpo da issue aberta por detalhe quebrado
+_DETALHE_SIM = "- detalhe quebrado / broken detail: sim / yes"
+_DETALHE_NAO = "- detalhe quebrado / broken detail: -"
 _VAZIO = ContextoColeta((), (), ())
 _SEM_DATA = datetime.min.replace(tzinfo=UTC)
 
@@ -92,6 +95,7 @@ class Resultado:
     pedidos: int = 0
     escopo_unico: bool = False
     detalhe_quebrado: bool = False
+    detalhe_ok: bool = False  # o `detalhar` rodou nesta vigia e devolveu ao menos uma vaga
 
 
 def _chave(motivo: str | None) -> str:
@@ -236,6 +240,7 @@ async def _uma_fonte(
         pedidos=http.pedidos,
         escopo_unico=unico,
         detalhe_quebrado=unico and quebrado,
+        detalhe_ok=detalhadas > 0,
     )
 
 
@@ -318,7 +323,7 @@ def _corpo(r: Resultado) -> str:
             f"- estado / state: `{r.estado}`",
             f"- motivo / reason: `{r.motivo or '-'}`",
             f"- itens listados / listed items: {r.listadas}",
-            f"- detalhe quebrado / broken detail: {'sim / yes' if r.detalhe_quebrado else '-'}",
+            _DETALHE_SIM if r.detalhe_quebrado else _DETALHE_NAO,
             "",
             "Esta issue é atualizada toda semana e fechada quando a fonte volta.",
             "This issue is updated every week and closed when the source comes back.",
@@ -381,6 +386,9 @@ async def atualizar_issues(resultados: Sequence[Resultado], api: Api) -> None:
         if quebrou(r):
             await _quebrada(r, dela, api)
         elif dela is not None and dela.get("state") == "open" and _voltou(r):
+            # issue por detalhe quebrado só fecha se o detalhe rodou agora e funcionou
+            if _DETALHE_SIM in str(dela.get("body") or "") and not r.detalhe_ok:
+                continue
             n = int(dela["number"])
             await api.comentar(
                 n,
