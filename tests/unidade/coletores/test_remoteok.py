@@ -140,6 +140,13 @@ async def test_normal() -> None:
     assert len(pedidos) == 1
 
 
+async def test_modalidade_declarada_e_remote() -> None:
+    resultado, _ = await _coletar(_json("normal"))
+    vagas = _vagas(resultado)
+    assert len(vagas) == 4
+    assert [v.modalidade_declarada for v in vagas] == ["remote"] * 4
+
+
 async def test_vazio() -> None:
     # só o elemento legal: nenhuma vaga, mas a lista veio
     resultado, _ = await _coletar(_json("vazio"))
