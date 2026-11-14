@@ -22,7 +22,7 @@
  * O teste do contraste (critério 29) lê a lista abaixo: cada par é <texto>/<fundo>.
  * Par novo de texto sobre fundo entra nesta lista, com as duas cores em hex de 6 dígitos.
  */
-/* contraste: texto/fundo texto-2/fundo texto/superficie texto-2/superficie link/fundo link/superficie sobre-destaque/destaque texto/trilho texto/segmento */
+/* contraste: texto/fundo texto-2/fundo texto/superficie texto-2/superficie link/fundo link/superficie sobre-destaque/destaque texto/trilho texto/segmento alerta/superficie alerta/fundo */
 :root {
   color-scheme: light dark;
   --fundo: light-dark(#f5f5f7, #000000);
@@ -34,6 +34,7 @@
   --sobre-destaque: light-dark(#ffffff, #ffffff);
   --trilho: light-dark(#e8e8ed, #2c2c2e);
   --segmento: light-dark(#ffffff, #48484a);
+  --alerta: light-dark(#d70015, #ff453a);
   --foco: light-dark(#0071e3, #2997ff);
   --borda: light-dark(rgb(0 0 0 / 0.08), rgb(255 255 255 / 0.12));
   --barra: light-dark(rgb(245 245 247 / 0.72), rgb(22 22 23 / 0.72));

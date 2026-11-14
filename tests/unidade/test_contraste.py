@@ -43,3 +43,10 @@ def test_contraste_minimo() -> None:
             if razao < MINIMO:
                 falhas.append(f"{frente}/{fundo} no tema {tema}: {razao:.2f}")
     assert falhas == []
+
+
+def test_alerta_tem_par_com_superficie_e_com_fundo() -> None:
+    """O vermelho do prazo urgente (D56) sai nos dois fundos: os pares entram na lista."""
+    css = BASE_CSS.read_text(encoding="utf-8")
+    pares = {par for bloco in PARES.findall(css) for par in bloco.split()}
+    assert {"alerta/superficie", "alerta/fundo"} <= pares

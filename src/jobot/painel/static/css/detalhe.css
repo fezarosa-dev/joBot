@@ -1,4 +1,4 @@
-/* Detalhe da vaga e correção (plano T46): só as cores e medidas da base.css, nenhuma cor nova.
+/* Detalhe da vaga e correção (plano T46): só as cores e medidas da base.css, as cores vêm dos tokens da base.css.
    Cartão, selos, botões e formulário vêm do vagas.css e do buscas.css, carregados junto. */
 
 .voltar {
@@ -61,7 +61,13 @@ a.primario {
 }
 
 .datas .urgente {
+  color: var(--alerta);
   font-weight: 700;
+}
+
+/* o ▲ do mês com prazo urgente; o desenho é aria-hidden e o texto ao lado diz o mesmo */
+.meses .urgente {
+  color: var(--alerta);
 }
 
 .estagio {
