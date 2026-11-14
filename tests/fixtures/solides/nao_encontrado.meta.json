@@ -1,0 +1,12 @@
+{
+  "url": "https://apigw.solides.com.br/jobs/v3/companies/nao-existe/vacancies?page=1&take=25",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 404,
+  "cabecalhos": {
+    "Content-Type": "application/json; charset=utf-8"
+  },
+  "sha256": "06718468d0b6f5c14e988368ae043fc2f89ac56b418ed5790c44be89ed3ebdb7",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "montado à mão com o formato do erro 400 real (raw/solides_api_diefra_t100.json) e status 404: a conferência não provou o que a API responde para empresa inexistente"
+}
