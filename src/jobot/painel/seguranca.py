@@ -32,6 +32,17 @@ TEMPLATES = Jinja2Templates(
 globais.registrar(TEMPLATES.env)
 
 
+def _url_de_volta(request: Request) -> str:
+    """Caminho e consulta da página atual para o campo `voltar`, sem o `salvo` de uma gravação."""
+    consulta = "&".join(
+        p for p in request.url.query.split("&") if p and p.split("=", 1)[0] != "salvo"
+    )
+    return request.url.path + ("?" + consulta if consulta else "")
+
+
+TEMPLATES.env.globals["url_de_volta"] = _url_de_volta
+
+
 async def conexao(request: Request) -> AsyncIterator[sqlite3.Connection]:
     """Uma conexão por pedido, fechada no fim.
 

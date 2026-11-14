@@ -21,6 +21,9 @@
     <p>{{ t(erro) if erro.startswith("configuracoes.") else t("configuracoes.erro.sistema", erro=erro) }}</p>
   </div>
   {% endif %}
+  {% if salvo %}
+  <p role="status" class="config-salvo" aria-live="polite">{{ t("configuracoes.salvo") }}</p>
+  {% endif %}
   {% include parcial %}
 </section>
 {% endblock %}

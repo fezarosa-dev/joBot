@@ -116,6 +116,7 @@ async def _pagina(
         "parcial": f"configuracoes/{_PARCIAIS[grupo]}.html",
         "erro": None,
         "motivo": None,
+        "salvo": False,
     }
     contexto |= await _CONTEXTOS[grupo](request, con)
     resposta = renderizar(request, "configuracoes/pagina.html", **(contexto | ctx))
@@ -129,8 +130,9 @@ def _grupo_valido(grupo: str) -> str:
     return grupo
 
 
-def _volta(grupo: str) -> RedirectResponse:
-    return RedirectResponse(f"/configuracoes/{grupo}", status_code=303)
+def _volta(grupo: str, salvo: bool = False) -> RedirectResponse:
+    # `?salvo=1` só faz a página seguinte dizer "Salvo."; nada fica guardado no servidor
+    return RedirectResponse(f"/configuracoes/{grupo}" + ("?salvo=1" if salvo else ""), 303)
 
 
 # --- gravações -----------------------------------------------------------------------------
@@ -144,7 +146,7 @@ async def _gravar_fontes(request: Request, con: Con) -> Response:
         raise HTTPException(422)
     for chave in sorted(conhecidas):
         cadastros.ligar_fonte(con, chave, chave in marcadas)
-    return _volta("fontes")
+    return _volta("fontes", salvo=True)
 
 
 async def _gravar_funcoes(request: Request, con: Con) -> Response:
@@ -178,7 +180,7 @@ async def _gravar_funcoes(request: Request, con: Con) -> Response:
     for chave, valor in novos.items():
         gravar_config(con, chave, valor)
     gravar_config(con, "destaques_n", destaques_n)
-    return _volta("funcoes")
+    return _volta("funcoes", salvo=True)
 
 
 async def _gravar_segundo_plano(request: Request, con: Con) -> Response:
@@ -196,13 +198,13 @@ async def _gravar_segundo_plano(request: Request, con: Con) -> Response:
     except (ValueError, OSError) as falha:  # caractere de controle no caminho, disco, permissão
         return await _pagina(request, con, "segundo-plano", erro=str(falha))
     gravar_config(con, "segundo_plano", ligar)
-    return _volta("segundo-plano")
+    return _volta("segundo-plano", salvo=True)
 
 
 async def _gravar_privacidade(request: Request, con: Con) -> Response:
     form = await request.form()
     gravar_config(con, "aviso_versao_ligada", "aviso_versao_ligada" in form)
-    return _volta("privacidade")
+    return _volta("privacidade", salvo=True)
 
 
 _GRAVADORES: dict[str, Callable[[Request, Con], Awaitable[Response]]] = {
@@ -223,7 +225,8 @@ async def raiz() -> RedirectResponse:
 
 @router.get("/{grupo}")
 async def mostrar(request: Request, con: Con, grupo: str) -> Response:
-    return await _pagina(request, con, _grupo_valido(grupo))
+    salvo = request.query_params.get("salvo") == "1"
+    return await _pagina(request, con, _grupo_valido(grupo), salvo=salvo)
 
 
 @router.post("/{grupo}")

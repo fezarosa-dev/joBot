@@ -281,3 +281,9 @@
   background-color: var(--trilho);
   color: var(--texto);
 }
+
+.config-salvo {
+  margin: 0 0 1rem;
+  color: var(--texto);
+  font-weight: 600;
+}

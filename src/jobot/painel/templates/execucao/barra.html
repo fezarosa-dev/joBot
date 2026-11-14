@@ -1,7 +1,7 @@
 {#- buscar agora, sair e a região aria-live do andamento, na casca de toda página (T49) -#}
 {#- a página de despedida do Sair passa sem_barra: com o servidor parando, os botões não valem -#}
 {%- if not sem_barra %}
-{%- set de_volta = request.url.path ~ ("?" ~ request.url.query if request.url.query else "") -%}
+{%- set de_volta = url_de_volta(request) -%}
 <link rel="stylesheet" href="/static/css/execucao.css">
 <div class="execucao">
   <form method="post" action="/buscar-agora" hx-post="/buscar-agora" hx-target="#andamento" hx-swap="innerHTML">
