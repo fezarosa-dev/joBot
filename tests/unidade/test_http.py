@@ -566,6 +566,15 @@ async def test_erro_de_rede_leva_o_status() -> None:
     assert getattr(erro.value, "status", "sem status") is None
 
 
+async def test_parou429_guarda_os_cabecalhos() -> None:
+    srv = Servidor(httpx.Response(429, headers={"Retry-After": "120"}))
+    cli, _ = _cliente(srv)
+    with pytest.raises(Parou429) as info:
+        await cli.escopo(para_no_429=True).pedir("GET", "https://a.example/")
+    assert getattr(info.value, "cabecalhos", {}).get("retry-after") == "120"
+    assert "Retry-After 120" in str(info.value)
+
+
 async def test_para_no_429_nao_vale_para_503() -> None:
     srv = Servidor(httpx.Response(503, headers={"Retry-After": "5"}), httpx.Response(200))
     cli, rel = _cliente(srv)
