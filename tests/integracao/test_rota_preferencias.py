@@ -23,6 +23,7 @@ PORTA = 47615
 GLOBAIS = (
     "salario_texto",
     "locais_texto",
+    "aviso_texto",
     "data_curta",
     "data_completa",
     "rotulo",
