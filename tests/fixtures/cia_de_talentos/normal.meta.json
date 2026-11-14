@@ -1,0 +1,13 @@
+{
+  "url": "https://vagas.ciadetalentos.com.br/applicant/rest/applicant/authentication/filter",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/json",
+    "Cache-Control": "no-cache, max-age=0, must-revalidate, no-store"
+  },
+  "sha256": "27eb2396a63c587ec91b73def75bebefb66a0c16bd80d6fb8b5fc2d880efdb0b",
+  "versao": "0.1.0",
+  "metodo": "POST",
+  "montado_a_mao": "Resposta real de 2026-11-13 (scratchpad captura/B3/ciadetalentos/amostra.json, 5 de 27 programas, com o invólucro _nota/itens da amostra tirado: a resposta é a lista pura, como loading.js lê). Reduzida por scripts/capturar.py (reduzir e limpar_pessoais). Corpo do pedido: {\"locale\":\"pt\"}."
+}
