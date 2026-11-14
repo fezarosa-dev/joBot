@@ -85,7 +85,7 @@ class LimiteAtingido(_ComCabecalhos):
     """429/503 sem sucesso depois das esperas, Retry-After acima de 10 min ou 429 de cota zero."""
 
 
-class Parou429(Exception):
+class Parou429(_ComCabecalhos):
     """Escopo com `para_no_429`: o primeiro 429 encerra sem esperar (o 503 segue a regra)."""
 
 
@@ -394,7 +394,11 @@ class HttpDoEscopo:
                 raise Bloqueio(f"{pedido.url}: HTTP {status}", cabecalhos=resposta.headers)
             if status in (429, 503):
                 if self._para_no_429 and status == 429:
-                    raise Parou429(f"{pedido.url}: HTTP {status}")
+                    pedida_txt = resposta.headers.get("Retry-After")
+                    sufixo = "" if pedida_txt is None else f" (Retry-After {pedida_txt})"
+                    raise Parou429(
+                        f"{pedido.url}: HTTP {status}{sufixo}", cabecalhos=resposta.headers
+                    )
                 pedida = _segundos_retry_after(resposta.headers.get("Retry-After"), relogio.agora())
                 if (
                     status == 429
