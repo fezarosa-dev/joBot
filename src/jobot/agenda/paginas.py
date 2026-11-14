@@ -1,0 +1,53 @@
+"""Execução das páginas acompanhadas (desenho 8.8, 12.2, 12.3; plano T72).
+
+Uma execução do tipo `paginas`, com trava própria: nunca segura a busca. Cada página ativa é
+lida uma vez; a que falha fica "falhou" sem apagar o texto e sem parar as outras.
+"""
+
+import logging
+import sqlite3
+
+from jobot.banco.execucoes import abrir_execucao, fechar_execucao, interromper_execucao
+from jobot.banco.paginas import gravar_leitura, marcar_falhou, paginas
+from jobot.nucleo.coletores.paginas import verificar
+from jobot.nucleo.http import ClienteEducado, Resolvedor
+from jobot.nucleo.relogio import Relogio
+
+log = logging.getLogger(__name__)
+
+
+async def executar_paginas(
+    con: sqlite3.Connection,
+    cliente: ClienteEducado,
+    relogio: Relogio,
+    *,
+    resolver: Resolvedor | None = None,
+) -> int | None:
+    """Confere as páginas ativas e devolve o id da execução; `None` se outra já está rodando.
+
+    Erro fora da leitura de uma página (banco) marca a execução "interrompida" e sobe (D54).
+    `resolver` é o DNS da conferência de host local (padrão: o do sistema; falso nos testes).
+    """
+    execucao_id = abrir_execucao(con, "paginas", "agenda", relogio.agora())
+    if execucao_id is None:
+        return None
+    try:
+        for pagina in paginas(con):
+            if not pagina.ativa:
+                continue
+            try:
+                mudanca = await verificar(
+                    cliente.escopo(condicional=False), pagina, resolver=resolver
+                )
+            except Exception:  # rede, bloqueio, endereço recusado: a página falha, o resto segue
+                log.warning("página acompanhada %s falhou", pagina.id, exc_info=True)
+                marcar_falhou(con, pagina.id)
+                continue
+            gravar_leitura(con, pagina.id, mudanca, relogio.agora())
+    except BaseException:
+        if con.in_transaction:
+            con.rollback()
+        interromper_execucao(con, execucao_id, relogio.agora())
+        raise
+    fechar_execucao(con, execucao_id, relogio.agora())
+    return execucao_id
