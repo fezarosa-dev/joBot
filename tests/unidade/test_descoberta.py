@@ -82,6 +82,7 @@ class Servidor:
     retry_after_cc: str | None = None  # Retry-After da recusa do Common Crawl
     falhas_gupy: int = 0  # a página da Gupy responde 503 este número de vezes antes de abrir
     pedaco: int = 64  # o cluster.idx chega em pedaços deste tamanho
+    cluster: bytes = (PASTA / "cluster.idx").read_bytes()
     pedidos: list[tuple[httpx.Request, datetime]] = field(default_factory=list)
     pedacos_lidos: int = 0
 
@@ -89,7 +90,7 @@ class Servidor:
         return [str(p.url) for p, _ in self.pedidos if p.url.host == host]
 
     async def _cluster(self) -> AsyncIterator[bytes]:
-        corpo = (PASTA / "cluster.idx").read_bytes()
+        corpo = self.cluster
         for i in range(0, len(corpo), self.pedaco):
             self.pedacos_lidos += 1
             yield corpo[i : i + self.pedaco]
@@ -257,6 +258,43 @@ async def test_blocos_por_range() -> None:
         (DADOS + "cdx-00001.gz", "bytes=0-367"),
         (DADOS + "cdx-00001.gz", "bytes=368-591"),
     ]
+
+
+def _cluster_com(depois_de: str, linha: str) -> bytes:
+    """O cluster.idx de exemplo com `linha` antes da linha que começa em `depois_de`."""
+    texto = (PASTA / "cluster.idx").read_text()
+    return texto.replace(depois_de, linha + "\n" + depois_de, 1).encode()
+
+
+async def test_bloco_gigante_de_outro_site_nao_derruba_a_descoberta() -> None:
+    # blocos de outros sites chegam a ~5,8 MB no índice real: nunca são baixados
+    gigante = "com,mimecast,services)/ 20261005000000\tcdx-00000.gz\t900\t5575359\t9"
+    servidor = Servidor(RelogioFalso(), cluster=_cluster_com("io,example)/", gigante))
+    await _sugerir(servidor)
+    faixas = [
+        p.headers["Range"]
+        for p, _ in servidor.pedidos
+        if p.url.host == "data.commoncrawl.org" and p.url.path.endswith(".gz")
+    ]
+    assert len(faixas) == 5
+    assert all("5575359" not in f for f in faixas)
+
+
+async def test_bloco_escolhido_acima_do_teto_continua_dando_erro() -> None:
+    gigante = "io,greenhouse,boards)/aaa 20261005000000\tcdx-00001.gz\t0\t5575359\t9"
+    servidor = Servidor(
+        RelogioFalso(), cluster=_cluster_com("io,greenhouse,boards)/delta", gigante)
+    )
+    with pytest.raises(ValueError, match="bloco de 5575359 bytes"):
+        await _sugerir(servidor)
+
+
+async def test_ultimo_bloco_escolhido_acima_do_teto_tambem_da_erro() -> None:
+    gigante = "io,greenhouse,boards)/zzz 20261013000000\tcdx-00001.gz\t963\t5575359\t9"
+    cluster = (PASTA / "cluster.idx").read_text().rstrip("\n") + "\n" + gigante + "\n"
+    # a última linha é do greenhouse; o bloco dela é o último e só `_blocos` o escolhe no fim
+    with pytest.raises(ValueError, match="bloco de 5575359 bytes"):
+        await _sugerir(Servidor(RelogioFalso(), cluster=cluster.encode()))
 
 
 async def test_prefixos_dos_quatro_ats() -> None:
