@@ -1,0 +1,13 @@
+{
+  "url": "https://vagas.ciadetalentos.com.br/applicant/rest/applicant/authentication/filter",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/json",
+    "Cache-Control": "no-cache, max-age=0, must-revalidate, no-store"
+  },
+  "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+  "versao": "0.1.0",
+  "metodo": "POST",
+  "montado_a_mao": "A rede não deu lista vazia: montado a mão no formato da resposta real (lista pura, sem programas)."
+}
