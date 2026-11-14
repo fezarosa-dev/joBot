@@ -28,6 +28,7 @@ Phase 1: the foundation of joBot. You can already install and use it.
 - Dashboard in Portuguese and English, with light and dark themes.
 - In the search progress bar, the list of the sources that are still running.
 - A "Saved." notice after saving in Settings.
+- `jobot abrir` prints the dashboard address and how to quit in the terminal; the search progress bar shows the details phase after collection.
 - A country restriction notice on the remote jobs from Himalayas, Jobicy and Remotive.
 - Project decisions (ADRs 0001 to 0021) and `duvidas.md`.
 - README with badges, diagram, tables and a FAQ, and the English version.
@@ -42,6 +43,7 @@ Phase 1: the foundation of joBot. You can already install and use it.
 - The README is no longer only a plan: it describes the phase 1 installation.
 - The label rules (field, level, work mode, contract, country and state) were tuned and measured on a set of jobs checked by hand.
 - Jobs from Brazil-only sites now come out with the country Brazil.
+- The country restriction notice names the countries, such as "Only for residents of: United States and Canada".
 
 ### Fixed
 
@@ -50,3 +52,6 @@ Phase 1: the foundation of joBot. You can already install and use it.
 - The schedule only starts searching after the first-run wizard is finished.
 - In Sources, a source that hit its limit shows the last round it actually ran.
 - A foreign country in the searches form no longer turns into a Brazilian state.
+- A city with a country's name, such as "Franca, São Paulo", no longer turns into the country.
+- In Sources, the "No change" card shows the jobs from the last round that read them and the right next search.
+- A newly added tracked page is read on the next scheduler round, without waiting 24 hours.
