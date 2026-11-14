@@ -69,11 +69,19 @@ class HttpEducado(Protocol):
         ...
 
 
-class Bloqueio(Exception):
+class _ComCabecalhos(Exception):
+    """Leva os cabeçalhos da resposta (ex.: `x-ratelimit-remaining`); vazio se ninguém passar."""
+
+    def __init__(self, *args: object, cabecalhos: Mapping[str, str] | None = None) -> None:
+        super().__init__(*args)
+        self.cabecalhos: Mapping[str, str] = httpx.Headers(cabecalhos)
+
+
+class Bloqueio(_ComCabecalhos):
     """401 ou 403: a fonte falhou e o joBot não tenta contornar."""
 
 
-class LimiteAtingido(Exception):
+class LimiteAtingido(_ComCabecalhos):
     """429/503 que não passou depois das esperas, ou Retry-After acima de 10 min."""
 
 
@@ -383,17 +391,22 @@ class HttpDoEscopo:
                 return resposta
             await resposta.aclose()
             if status in (401, 403):
-                raise Bloqueio(f"{pedido.url}: HTTP {status}")
+                raise Bloqueio(f"{pedido.url}: HTTP {status}", cabecalhos=resposta.headers)
             if status in (429, 503):
                 if self._para_no_429 and status == 429:
                     raise Parou429(f"{pedido.url}: HTTP {status}")
                 pedida = _segundos_retry_after(resposta.headers.get("Retry-After"), relogio.agora())
                 padrao = next(esperas_limite, None)
                 if padrao is None:
-                    raise LimiteAtingido(f"{pedido.url}: HTTP {status} depois das esperas")
+                    raise LimiteAtingido(
+                        f"{pedido.url}: HTTP {status} depois das esperas",
+                        cabecalhos=resposta.headers,
+                    )
                 espera = padrao if pedida is None else pedida
                 if espera > MAX_RETRY_AFTER_S:
-                    raise LimiteAtingido(f"{pedido.url}: Retry-After de {espera:.0f} s")
+                    raise LimiteAtingido(
+                        f"{pedido.url}: Retry-After de {espera:.0f} s", cabecalhos=resposta.headers
+                    )
                 await relogio.dormir(espera)
                 continue
             if status >= 500:
