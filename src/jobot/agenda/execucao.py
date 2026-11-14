@@ -27,11 +27,11 @@ from jobot.banco.execucoes import (
     JANELA_DETALHE,
     HistoricoDoBanco,
     abrir_execucao,
-    bater,
     fechar_execucao,
     gravar_saude,
     interromper_execucao,
 )
+from jobot.banco.execucoes import bater as gravar_batimento
 from jobot.banco.gravacao import (
     fechar_escopos_extintos,
     gravar_cache_detalhe,
@@ -87,7 +87,7 @@ async def executar_busca(
     execucao_id = abrir_execucao(con, "busca", motivo, inicio)
     if execucao_id is None:
         return None
-    batimento = asyncio.create_task(_bater(con, execucao_id, relogio))
+    batimento = asyncio.create_task(bater(con, execucao_id, relogio))
     try:
         todos = descobrir() if coletores is None else coletores
         saidas = await _coletar(con, execucao_id, cliente, relogio, todos)
@@ -121,7 +121,7 @@ def reprocessar_se_regras_mudaram(con: sqlite3.Connection) -> int:
     return reprocessar(con, VERSAO_REGRAS)
 
 
-async def _bater(con: sqlite3.Connection, execucao_id: int, relogio: Relogio) -> None:
+async def bater(con: sqlite3.Connection, execucao_id: int, relogio: Relogio) -> None:
     """Batimento numa conexão própria: duas tarefas não dividem uma `sqlite3.Connection`."""
     caminho = con.execute("PRAGMA database_list").fetchone()[2]
     if not caminho:  # banco em memória não tem outra conexão; fica sem batimento
@@ -131,7 +131,7 @@ async def _bater(con: sqlite3.Connection, execucao_id: int, relogio: Relogio) ->
         while True:
             await relogio.dormir(BATIMENTO_S)
             try:
-                bater(con2, execucao_id, relogio.agora())
+                gravar_batimento(con2, execucao_id, relogio.agora())
             except sqlite3.Error:
                 log.exception("batimento da execução %s falhou", execucao_id)
     finally:
