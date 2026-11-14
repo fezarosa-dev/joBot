@@ -125,6 +125,45 @@ def test_abrir_com_servidor_no_ar_so_abre_navegador(tmp_path: Path) -> None:
     assert navegador.chamadas == [f"http://127.0.0.1:{porta}"]
 
 
+def test_abrir_sem_servidor_diz_o_endereco_e_como_sair(tmp_path: Path) -> None:
+    navegador, saida = _Navegador(), _Saida()
+    porta = _porta_livre()
+    pilha: list[Any] = []
+
+    def subir() -> None:
+        contexto = _servidor(porta=porta)
+        contexto.__enter__()
+        pilha.append(contexto)
+
+    try:
+        env = {"JOBOT_PORTA": str(porta)}
+        codigo = abrir_painel(env, tmp_path, subir=subir, navegador=navegador, saida=saida)
+    finally:
+        for contexto in pilha:
+            contexto.__exit__(None, None, None)
+    assert codigo == 0
+    assert saida.linhas == [
+        f"joBot aberto em http://127.0.0.1:{porta}. Para sair, use Sair no painel "
+        "ou rode: jobot sair"
+    ]
+
+
+def test_abrir_com_servidor_no_ar_diz_que_ja_estava_aberto(tmp_path: Path) -> None:
+    navegador, saida = _Navegador(), _Saida()
+    with _servidor() as porta:
+        trava = Trava(tmp_path, porta)
+        assert trava.pegar() is True
+        codigo = abrir_painel(
+            {"JOBOT_PORTA": str(porta)}, tmp_path, subir=_nao_sobe, navegador=navegador, saida=saida
+        )
+        trava.soltar()
+    assert codigo == 0
+    assert saida.linhas == [
+        f"O joBot já estava aberto em http://127.0.0.1:{porta}. Para sair, use Sair no painel "
+        "ou rode: jobot sair"
+    ]
+
+
 def test_abrir_usa_a_porta_gravada_na_trava_e_nao_a_do_ambiente(tmp_path: Path) -> None:
     # o serviço systemd não herda o JOBOT_PORTA do shell do usuário
     navegador, saida = _Navegador(), _Saida()

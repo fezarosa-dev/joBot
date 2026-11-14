@@ -119,6 +119,9 @@ def abrir_painel(
             else f"O joBot não respondeu em {p}. Veja o log em {dados / 'logs' / 'jobot.log'}."
         )
         return 1
+    # o servidor roda à parte (sessão própria): Ctrl+C no terminal não o encerra
+    ja_aberto = "O joBot já estava aberto" if pid is not None else "joBot aberto"
+    saida(f"{ja_aberto} em {endereco}. Para sair, use Sair no painel ou rode: jobot sair")
     if not navegador(endereco, env):
         saida(f"Não consegui abrir o navegador. Abra este endereço: {endereco}")
     return 0

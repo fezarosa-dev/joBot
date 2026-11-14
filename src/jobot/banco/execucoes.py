@@ -42,6 +42,7 @@ class Andamento:
     batimento_em: datetime
     escopos_prontos: int  # linhas de `saude` já gravadas nesta execução
     fontes_rodando: tuple[str, ...] = ()  # começaram e não terminaram, na ordem de começo
+    coleta_acabou: bool = False  # toda fonte ligada começou e terminou: seguem detalhes e encaixe
 
 
 @dataclass(frozen=True)
@@ -242,6 +243,13 @@ def execucao_atual(con: sqlite3.Connection) -> Andamento | None:
         " ORDER BY comecou_em, fonte",
         (linha[0],),
     ).fetchall()
+    # a fila do semáforo do executor deixa fonte ligada sem linha: só acabou quando nenhuma falta
+    sem_fim_nem_fila = con.execute(
+        "SELECT (SELECT count(*) FROM execucao_fonte WHERE execucao_id = ?) > 0"
+        " AND NOT EXISTS (SELECT 1 FROM fonte f WHERE f.ligada = 1 AND NOT EXISTS"
+        "  (SELECT 1 FROM execucao_fonte x WHERE x.execucao_id = ? AND x.fonte = f.chave))",
+        (linha[0], linha[0]),
+    ).fetchone()[0]
     return Andamento(
         linha[0],
         linha[1],
@@ -250,6 +258,7 @@ def execucao_atual(con: sqlite3.Connection) -> Andamento | None:
         _data(linha[4]),
         linha[5],
         tuple(f for (f,) in rodando),
+        coleta_acabou=bool(sem_fim_nem_fila) and not rodando,
     )
 
 
