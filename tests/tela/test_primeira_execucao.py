@@ -59,7 +59,7 @@ def test_fluxo_completo_vai_do_passo_1_ao_fim_e_para_nos_destaques(
     page.get_by_label("Não ligar agora").check()
     page.get_by_role("button", name="Concluir").click()
     expect(page.get_by_role("heading", name="Tudo pronto")).to_be_visible()
-    expect(page.get_by_role("button", name="Buscar agora")).to_be_visible()
+    expect(page.locator("#conteudo").get_by_role("button", name="Buscar agora")).to_be_visible()
     assert all(c[0] != "enable" for c in sistema.systemctl())
 
     page.get_by_role("link", name="Ir para as vagas").click()
