@@ -1,0 +1,11 @@
+{
+  "url": "https://hn.algolia.com/api/v1/search_by_date?query=%22Ask+HN%3A+Who+is+hiring%22&tags=story%2Cauthor_whoishiring&hitsPerPage=5",
+  "data": "2026-11-14T06:27:05.381892+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/json"
+  },
+  "sha256": "2a451ec00490d4945043f624791e369fcb4fc67a5fee76ef984628de25524933",
+  "versao": "0.1.0",
+  "metodo": "GET"
+}
