@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block titulo %}{{ t("primeira_execucao.titulo") }} · joBot{% endblock %}
+{% block estilos %}<link rel="stylesheet" href="/static/css/primeira_execucao.css">{% endblock %}
+{% block conteudo %}
+<section class="assistente">
+  {% if etapa == "pronto" %}
+  {% include "primeira_execucao/pronto.html" %}
+  {% else %}
+  <p class="assistente-passo">{{ t("primeira_execucao.passo", n=passo) }}</p>
+  {% if passo == 1 %}{% include "primeira_execucao/passo1.html" %}{% else %}{% include "primeira_execucao/passo2.html" %}{% endif %}
+  {% endif %}
+</section>
+{% endblock %}

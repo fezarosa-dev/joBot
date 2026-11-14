@@ -355,7 +355,7 @@ def _vary(resposta: HTMLResponse) -> HTMLResponse:
 @router.get("/")
 async def raiz(con: Con) -> RedirectResponse:
     if not _config(con, "primeira_execucao_concluida", False):
-        return RedirectResponse("/primeira-execucao", status_code=303)
+        return RedirectResponse("/primeira-execucao/1", status_code=303)
     aba = ABA_DESTAQUES if _config(con, "destaques_ligados", True) else "todas"
     return RedirectResponse(f"/vagas?aba={aba}", status_code=303)
 
