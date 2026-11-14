@@ -168,6 +168,17 @@ async def test_nome_que_resolve_para_endereco_interno_recusado() -> None:
     assert srv.pedidos == []
 
 
+@pytest.mark.parametrize("enderecos", [["isto-nao-e-ip"], [PUBLICO, ""]])
+async def test_pagina_que_resolve_para_texto_que_nao_e_ip_e_recusada(enderecos: list[str]) -> None:
+    # a mesma regra do salto do cliente (T111, D72): o que não é IP global é recusado
+    srv = _Servidor()
+    dns = _Dns(*enderecos)
+    with pytest.raises(ErroDeRede):
+        await verificar(_cliente(srv).escopo(), _pagina(), resolver=dns)
+    assert dns.hosts == ["empresa.example"]
+    assert srv.pedidos == []
+
+
 @pytest.mark.parametrize(
     "destino", ["http://127.0.0.1:8000/admin", "http://192.168.0.1/", "http://interno.example/"]
 )
@@ -319,3 +330,69 @@ def test_servir_liga_a_tarefa_paginas(tmp_path: Path, monkeypatch: pytest.Monkey
     assert len(chamadas) == 1
     con, recebido = chamadas[0]
     assert isinstance(con, sqlite3.Connection) and recebido is cliente
+
+
+def test_tarefa_paginas_usa_conexao_propria(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # T111, D72: a conexão de `executar_paginas` é aberta pela tarefa e fechada ao fim dela;
+    # nunca a da leitura dos validadores, nem a de outra tarefa, nem a da volta anterior
+    recebidas: dict[str, list[sqlite3.Connection]] = {
+        "paginas": [],
+        "busca": [],
+        "descoberta": [],
+        "leitura": [],
+    }
+    terminou: list[bool] = []
+
+    async def paginas_falso(
+        con: sqlite3.Connection, cliente: ClienteEducado, relogio: Relogio
+    ) -> None:
+        recebidas["paginas"].append(con)
+
+    async def busca_falsa(
+        con: sqlite3.Connection, cliente: ClienteEducado, relogio: Relogio, motivo: str
+    ) -> None:
+        recebidas["busca"].append(con)
+
+    async def descoberta_falsa(
+        con: sqlite3.Connection, cliente: ClienteEducado, relogio: Relogio
+    ) -> None:
+        recebidas["descoberta"].append(con)
+
+    class _Validadores(_Leitor):
+        def __init__(self, con: sqlite3.Connection) -> None:
+            recebidas["leitura"].append(con)
+
+    async def laco_falso(
+        tarefas: Mapping[str, Callable[[], Awaitable[None]]],
+        estado: object,
+        relogio: Relogio,
+        *,
+        travas: Mapping[str, asyncio.Lock] | None = None,
+    ) -> None:
+        for nome in ("paginas", "busca", "descoberta", "paginas"):
+            await tarefas[nome]()
+        terminou.append(True)
+        await asyncio.Event().wait()
+
+    monkeypatch.setattr(servir, "executar_paginas", paginas_falso)
+    monkeypatch.setattr(servir, "executar_busca", busca_falsa)
+    monkeypatch.setattr(servir, "executar_descoberta", descoberta_falsa)
+    monkeypatch.setattr(servir, "ValidadoresDoBanco", _Validadores)
+    monkeypatch.setattr(servir, "laco", laco_falso)
+    app, _ = servir.montar(tmp_path, 47999, relogio=RelogioFalso(AGORA))
+    with TestClient(app, base_url="http://127.0.0.1:47999"):
+        for _ in range(500):
+            if terminou:
+                break
+            time.sleep(0.01)
+        assert terminou
+        primeira, segunda = recebidas["paginas"]
+        outras = recebidas["busca"] + recebidas["descoberta"] + recebidas["leitura"]
+        assert len(outras) == 3
+        assert primeira is not segunda
+        assert all(p is not o for p in (primeira, segunda) for o in outras)
+        for con in (primeira, segunda):  # fechada pela própria tarefa, com a agenda ainda viva
+            with pytest.raises(sqlite3.ProgrammingError):
+                con.execute("SELECT 1")

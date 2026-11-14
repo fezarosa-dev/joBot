@@ -172,6 +172,21 @@ async def _resolver_padrao(host: str) -> list[str]:
     return [str(info[4][0]) for info in infos]
 
 
+async def conferir_dns(host: str, resolver: Resolvedor | None = None) -> None:
+    """Recusa com `ErroDeRede` o nome que não resolve ou que resolve para algum endereço que não é
+    IP global, inclusive texto que não é IP (decisão 15). Usada pelo salto e pelas páginas (T111).
+
+    Fica aceito o rebinding entre esta conferência e a conexão (fixar o IP pediria um transporte
+    próprio)."""
+    try:
+        enderecos = await (resolver or _resolver_padrao)(host)
+    except (OSError, UnicodeError) as erro:  # gaierror é OSError; IDNA ruim, UnicodeError
+        raise ErroDeRede(f"não resolveu {host}: {erro}") from erro
+    ips = [_ip(e) for e in enderecos]
+    if not ips or any(ip is None or _nao_global(ip) for ip in ips):
+        raise ErroDeRede(f"{host} resolve para host local")
+
+
 async def _ler(resposta: httpx.Response, teto_bytes: int) -> AsyncIterator[bytes]:
     total = 0
     try:
@@ -244,18 +259,11 @@ class ClienteEducado:
         if host_local(destino.host):
             raise ErroDeRede(f"{resposta.request.url}: redirecionamento para host local")
         if _ip(destino.host) is None:
-            await self._conferir_nome(resposta.request.url, destino.host)
-
-    async def _conferir_nome(self, url: httpx.URL, host: str) -> None:
-        # Decisão 15: o nome que resolve para IP não global é recusado. Fica aceito o rebinding
-        # entre esta conferência e a conexão (fixar o IP pediria um transporte próprio).
-        try:
-            enderecos = await self._resolver(host)
-        except (OSError, UnicodeError) as erro:  # gaierror é OSError; IDNA ruim, UnicodeError
-            raise ErroDeRede(f"{url}: não resolveu {host}: {erro}") from erro
-        ips = [_ip(e) for e in enderecos]
-        if not ips or any(ip is None or _nao_global(ip) for ip in ips):
-            raise ErroDeRede(f"{url}: redirecionamento para host local ({host})")
+            try:
+                await conferir_dns(destino.host, self._resolver)
+            except ErroDeRede as erro:
+                erro.add_note(f"redirecionamento de {resposta.request.url}")
+                raise
 
     async def _enviar(self, pedido: httpx.Request, espera_s: float) -> httpx.Response:
         host = pedido.url.host
