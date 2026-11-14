@@ -14,6 +14,8 @@ USD = 1  # ids na ordem em que o `semear` grava
 HIMALAYAS = 3
 SCRIPT = 4
 PRAZO_3_DIAS = 6
+TRAINEE = 7  # prazo em 37 dias
+MINIMO_GRAFICO = 3  # WCAG 1.4.11: a marca da grade é desenho, o texto ao lado diz o mesmo
 
 
 @pytest.fixture
@@ -117,3 +119,44 @@ def test_teclado_chega_ao_link_de_correcao_e_o_foco_aparece(page: Page, painel: 
     assert estilo[1] >= 2
     page.keyboard.press("Enter")
     expect(page).to_have_url(f"{painel}/vagas/{USD}/correcao")
+
+
+# cor que `var(--alerta)` resolve na página; sem o token o `color` herda e iguala o do corpo
+COR_ALERTA = """() => {
+  const e = document.createElement('i');
+  e.style.color = 'var(--alerta)';
+  document.body.append(e);
+  const cor = getComputedStyle(e).color;
+  e.remove();
+  return cor;
+}"""
+COR = "el => getComputedStyle(el).color"
+
+
+@pytest.mark.parametrize("esquema", ["light", "dark"])
+def test_prazo_urgente_em_alerta_e_com_marca(page: Page, painel: str, esquema: str) -> None:
+    page.emulate_media(color_scheme="light" if esquema == "light" else "dark")
+    page.goto(f"{painel}/vagas/{PRAZO_3_DIAS}")
+    alerta = page.evaluate(COR_ALERTA)
+    assert alerta != page.locator("body").evaluate(COR), "o token --alerta não existe"
+    urgente = page.locator(".datas .urgente")
+    expect(urgente).to_contain_text("▲")  # a cor nunca é a única pista
+    assert urgente.evaluate(COR) == alerta
+    assert urgente.evaluate("el => getComputedStyle(el).fontWeight") == "700"
+    marca = page.locator(".meses .urgente")
+    expect(marca).to_have_text("▲")
+    assert marca.evaluate(COR) == alerta
+    assert urgente.evaluate(CONTRASTE) >= MINIMO
+    assert marca.evaluate(CONTRASTE) >= MINIMO_GRAFICO
+
+
+def test_prazo_longe_nao_fica_em_alerta(page: Page, painel: str) -> None:
+    page.goto(f"{painel}/vagas/{TRAINEE}")
+    alerta = page.evaluate(COR_ALERTA)
+    assert alerta != page.locator("body").evaluate(COR), "o token --alerta não existe"
+    prazo = page.locator(".datas li", has_text="▲")
+    expect(prazo).to_contain_text("Prazo: 20/12/2026")
+    assert prazo.evaluate(COR) != alerta
+    expect(page.locator(".datas .urgente")).to_have_count(0)
+    expect(page.locator(".meses .urgente")).to_have_count(0)
+    expect(page.locator(".meses .marcas", has_text="▲")).to_have_count(1)  # a marca segue lá
