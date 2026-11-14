@@ -1,0 +1,247 @@
+{
+  "content": [
+    {
+      "codigoVaga": 6299857,
+      "tipoVaga": "APRENDIZ",
+      "nomeEmpresa": "SURGITEC COMERCIO E FABRICACAO DE PRODUTOS MEDICOS E HOSPITALARES LTDA",
+      "areaAtuacao": "Arco Administrativo",
+      "areaProfissional": null,
+      "salario": 1600,
+      "bolsaAuxilio": null,
+      "quantidadeBeneficios": 1,
+      "tipoAuxilioBolsa": null,
+      "tipoValorBolsa": null,
+      "tipoSalarioValor": "FIXO",
+      "tipoSalario": "Mensal",
+      "bolsaAuxilioDe": null,
+      "bolsaAuxilioAte": null,
+      "salarioDe": null,
+      "salarioAte": null,
+      "beneficios": [],
+      "descricao": "Fabricação de instrumentos não-eletrônicos e utensílios para uso médico, cirúrgico, odontológico e de laboratório",
+      "local": {
+        "tipoLogradouro": null,
+        "endereco": null,
+        "numero": null,
+        "bairro": "Recanto das Primaveras I",
+        "complemento": null,
+        "cep": null,
+        "cidade": "Boituva",
+        "uf": "SP"
+      },
+      "tipoHorario": "DEFINIDO",
+      "horarioEntrada": "08:00:00",
+      "horarioSaida": "14:00:00",
+      "atividades": [
+        "Separar , organizar, digitalizar, arquivar e desarquivar documentos;Registrar a entrada e saída de documentos; Conferir notas fiscais, faturas e boletos; Coletar dados para relatórios; Atualizar base de dados e preencher formulários; Atualizar cadastros de clientes, funcionários e fornecedores; Fornecer informações sobre produtos e serviços; Controlar material de expediente e distribuir;  Apoiar o RH (convocar candidatos, solicitar documentos, atualizar dados de funcionários e candidatos);Auxiliar na organização de eventos internos e reuniões; SAC - Registrar reclamações dos clientes. ",
+        "Arquivar documentos nas formas eletrônica e papel; Inventariar documentos; Organizar fisicamente o acervo de documentos; Higienizar o acervo de documentos; Atualizar base de dados de documentos. ",
+        "Distribuir documentos, correspondências e encomendas dentro da empresa e protocolar; Coletar, preparar, abrir e entregar malotes (exceto receber);Arquivar e classificar documentos; Preencher formulários; Tirar cópias e digitalizar documentos; Fazer atendimento telefônico e anotar recados. "
+      ],
+      "requisitos": {
+        "semestreInicio": 0,
+        "semestreFinal": 0,
+        "escolas": null
+      },
+      "nivelEscolar": "T",
+      "logo": null
+    },
+    {
+      "codigoVaga": 6299816,
+      "tipoVaga": "APRENDIZ",
+      "nomeEmpresa": "Care Plus Clinic",
+      "areaAtuacao": "Arco Administrativo",
+      "areaProfissional": null,
+      "salario": 820,
+      "bolsaAuxilio": null,
+      "quantidadeBeneficios": 1,
+      "tipoAuxilioBolsa": null,
+      "tipoValorBolsa": null,
+      "tipoSalarioValor": "FIXO",
+      "tipoSalario": "Mensal",
+      "bolsaAuxilioDe": null,
+      "bolsaAuxilioAte": null,
+      "salarioDe": null,
+      "salarioAte": null,
+      "beneficios": [],
+      "descricao": "Atividade odontológica",
+      "local": {
+        "tipoLogradouro": null,
+        "endereco": null,
+        "numero": null,
+        "bairro": "Jardim das Acácias",
+        "complemento": null,
+        "cep": null,
+        "cidade": "São Paulo",
+        "uf": "SP"
+      },
+      "tipoHorario": "DEFINIDO",
+      "horarioEntrada": "14:00:00",
+      "horarioSaida": "18:00:00",
+      "atividades": [
+        "Separar , organizar, digitalizar, arquivar e desarquivar documentos;Registrar a entrada e saída de documentos; Conferir notas fiscais, faturas e boletos; Coletar dados para relatórios; Atualizar base de dados e preencher formulários; Atualizar cadastros de clientes, funcionários e fornecedores; Fornecer informações sobre produtos e serviços; Controlar material de expediente e distribuir;  Apoiar o RH (convocar candidatos, solicitar documentos, atualizar dados de funcionários e candidatos);Auxiliar na organização de eventos internos e reuniões; SAC - Registrar reclamações dos clientes. ",
+        "Arquivar documentos nas formas eletrônica e papel; Inventariar documentos; Organizar fisicamente o acervo de documentos; Higienizar o acervo de documentos; Atualizar base de dados de documentos. ",
+        "Distribuir documentos, correspondências e encomendas dentro da empresa e protocolar; Coletar, preparar, abrir e entregar malotes (exceto receber);Arquivar e classificar documentos; Preencher formulários; Tirar cópias e digitalizar documentos; Fazer atendimento telefônico e anotar recados. "
+      ],
+      "requisitos": {
+        "semestreInicio": 0,
+        "semestreFinal": 0,
+        "escolas": null
+      },
+      "nivelEscolar": "EM",
+      "logo": null
+    },
+    {
+      "codigoVaga": 6299815,
+      "tipoVaga": "APRENDIZ",
+      "nomeEmpresa": "Confidencial",
+      "areaAtuacao": "Múltiplas Ocup em Serv de Turismo e Hotelaria",
+      "areaProfissional": null,
+      "salario": 1069.48,
+      "bolsaAuxilio": null,
+      "quantidadeBeneficios": 1,
+      "tipoAuxilioBolsa": null,
+      "tipoValorBolsa": null,
+      "tipoSalarioValor": "FIXO",
+      "tipoSalario": "Mensal",
+      "bolsaAuxilioDe": null,
+      "bolsaAuxilioAte": null,
+      "salarioDe": null,
+      "salarioAte": null,
+      "beneficios": [],
+      "descricao": "Hotéis",
+      "local": {
+        "tipoLogradouro": null,
+        "endereco": null,
+        "numero": null,
+        "bairro": "Ponta Verde",
+        "complemento": null,
+        "cep": null,
+        "cidade": "Maceió",
+        "uf": "AL"
+      },
+      "tipoHorario": "DEFINIDO",
+      "horarioEntrada": "08:00:00",
+      "horarioSaida": "14:00:00",
+      "atividades": [
+        "Limpar , arrumar, organizar, vistoriar e abastecer apartamentos, camarotes, camarins, quartos e banheiros em hotéis, teatros, estúdios de televisão e cinema, navios e estabelecimentos similares; manter em ordem, conservar, classificar e organizar figurinos e vestuários de clientes e atores, identificando e controlando saídas, devoluções e substituições de roupas e acessórios; atender e auxiliar hóspedes e atores em suas solicitações e necessidades pessoais e profissionais."
+      ],
+      "requisitos": {
+        "semestreInicio": 0,
+        "semestreFinal": 0,
+        "escolas": null
+      },
+      "nivelEscolar": "T",
+      "logo": null
+    },
+    {
+      "codigoVaga": 6299796,
+      "tipoVaga": "APRENDIZ",
+      "nomeEmpresa": "MOVIESYSTEM CINEMATOGRAFICA LTDA",
+      "areaAtuacao": "JAC Arco Comércio Atacadista e Varejista",
+      "areaProfissional": null,
+      "salario": 761.55,
+      "bolsaAuxilio": null,
+      "quantidadeBeneficios": 1,
+      "tipoAuxilioBolsa": null,
+      "tipoValorBolsa": null,
+      "tipoSalarioValor": "FIXO",
+      "tipoSalario": "Mensal",
+      "bolsaAuxilioDe": null,
+      "bolsaAuxilioAte": null,
+      "salarioDe": null,
+      "salarioAte": null,
+      "beneficios": [],
+      "descricao": "Atividades de exibição cinematográfica",
+      "local": {
+        "tipoLogradouro": null,
+        "endereco": null,
+        "numero": null,
+        "bairro": "Jardim das Américas",
+        "complemento": null,
+        "cep": null,
+        "cidade": "Cuiabá",
+        "uf": "MT"
+      },
+      "tipoHorario": "DEFINIDO",
+      "horarioEntrada": "14:00:00",
+      "horarioSaida": "18:00:00",
+      "atividades": [
+        "Promover a venda de mercadorias, produtos, serviços e marcas, em diferentes canais de vendas. Efetua pesquisas sobre o potencial de mercado e a atuação da concorrência. Prospecta um novo ponto de venda, orientando a montagem de áreas de exposição e acompanhando seu desempenho de vendas. Divulga linhas de produto e serviços, realizando visitas presenciais e virtuais a clientes. Presta assistência aos revendedores e às equipes de venda. Elabora e organiza documentação em meio impresso e digital. Cumpre procedimentos e normas regulamentadoras de saúde e segurança no trabalho e de preservação ambiental.",
+        "Vender mercadorias em estabelecimentos de comércio atacadista. Realizar análise de informações técnicas e pesquisar preços do mercado, em relação às mercadorias em venda. Utilizar recursos e técnicas de vendas e de negociação para concretizar a transação comercial. Realizar ações de pós-venda. Elaborar ou atualizar o cadastro do comprador. Pode realizar vendas on-line. Atuar de acordo com a política de vendas da empresa, seguindo normas e procedimentos para prevenção de riscos. Cumprir normas regulamentadoras de saúde e segurança no trabalho e de preservação ambiental.",
+        "Vender produtos em estabelecimentos de comércio varejista. Planejar as ações de venda. Utilizar recursos e técnicas de vendas e de negociação, durante o atendimento ao cliente. Emitir notas ou cupons fiscais e registrar os dados relativos à venda efetuada. Realizar ações de pós-venda. Cadastrar ou atualizar os dados cadastrais do comprador. Atuar de acordo com os procedimentos e as políticas da empresa e cumpre as normas regulamentadoras de saúde e segurança no trabalho e de preservação do meio ambiente."
+      ],
+      "requisitos": {
+        "semestreInicio": 0,
+        "semestreFinal": 0,
+        "escolas": null
+      },
+      "nivelEscolar": "T",
+      "logo": "https://kairosdoc.s3.us-east-1.amazonaws.com/uploads/documentos/16489964/Captura de tela 2026-05-07 101642.png"
+    },
+    {
+      "codigoVaga": 6299791,
+      "tipoVaga": "APRENDIZ",
+      "nomeEmpresa": "Confidencial",
+      "areaAtuacao": "Múltiplas Ocup em Serv de Turismo e Hotelaria",
+      "areaProfissional": null,
+      "salario": 1069.48,
+      "bolsaAuxilio": null,
+      "quantidadeBeneficios": 1,
+      "tipoAuxilioBolsa": null,
+      "tipoValorBolsa": null,
+      "tipoSalarioValor": "FIXO",
+      "tipoSalario": "Mensal",
+      "bolsaAuxilioDe": null,
+      "bolsaAuxilioAte": null,
+      "salarioDe": null,
+      "salarioAte": null,
+      "beneficios": [],
+      "descricao": "Hotéis",
+      "local": {
+        "tipoLogradouro": null,
+        "endereco": null,
+        "numero": null,
+        "bairro": "Ponta Verde",
+        "complemento": null,
+        "cep": null,
+        "cidade": "Maceió",
+        "uf": "AL"
+      },
+      "tipoHorario": "DEFINIDO",
+      "horarioEntrada": "08:00:00",
+      "horarioSaida": "14:00:00",
+      "atividades": [
+        "Recepcionar e acompanhar cliente à mesa; Questionar as preferências do cliente e dar sugestões; Descrever pratos e produtos oferecidos; Encaminhar pedido para a cozinha e servir pratos; Preparar e servir couvert; Servir pratos, sobremesas e bebidas; Fazer porções para viagem;Montar mise-em-place (cortar, descascar, fatiar, ralar, etc); Montar kits de descartáveis (talheres, sal, guardanapo);Verificar estoque de bebidas e alimentos;Inventariar materiais e produtos;Repor material de apoio;Colocar bebidas para gelar;Completar bufê; Lavar e secar louça e utensílios que não sejam pérfuro-cortante; Limpar bandejas, balcão, bancada e mesas;Separar lixo e destinar o lixo;Retirar resto de comida e limpar o chão;Desmontar praça."
+      ],
+      "requisitos": {
+        "semestreInicio": 0,
+        "semestreFinal": 0,
+        "escolas": null
+      },
+      "nivelEscolar": "T",
+      "logo": null
+    }
+  ],
+  "pageable": {
+    "sort": {
+      "sorted": true,
+      "unsorted": false
+    },
+    "pageNumber": 0,
+    "pageSize": 1000,
+    "offset": 0,
+    "unpaged": false,
+    "paged": true
+  },
+  "last": false,
+  "totalElements": 1002,
+  "totalPages": 2,
+  "first": true,
+  "sort": {
+    "sorted": true,
+    "unsorted": false
+  },
+  "numberOfElements": 1000,
+  "size": 1000,
+  "number": 0
+}

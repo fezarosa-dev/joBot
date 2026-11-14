@@ -1,0 +1,255 @@
+{
+  "content": [
+    {
+      "codigoVaga": 6299866,
+      "tipoVaga": "ESTAGIO",
+      "nomeEmpresa": "Pessoa Exemplo LTDA",
+      "areaAtuacao": null,
+      "areaProfissional": "Ensino Médio",
+      "salario": null,
+      "bolsaAuxilio": 1300,
+      "quantidadeBeneficios": 1,
+      "tipoAuxilioBolsa": "Mensal",
+      "tipoValorBolsa": "FIXO",
+      "tipoSalarioValor": null,
+      "tipoSalario": null,
+      "bolsaAuxilioDe": null,
+      "bolsaAuxilioAte": null,
+      "salarioDe": null,
+      "salarioAte": null,
+      "beneficios": [],
+      "descricao": "Comércio varejista de artigos do vestuário e acessórios",
+      "local": {
+        "tipoLogradouro": null,
+        "endereco": null,
+        "numero": null,
+        "bairro": "Centro",
+        "complemento": null,
+        "cep": null,
+        "cidade": "São Vicente",
+        "uf": "SP"
+      },
+      "tipoHorario": "DEFINIDO",
+      "horarioEntrada": "13:30:00",
+      "horarioSaida": "19:00:00",
+      "atividades": [
+        "Auxiliar a separação de produtos e pedidos",
+        "Auxiliar na conferência de produtos",
+        "Auxiliar nas embalagens de produtos diversos",
+        "Auxiliar no atendimento ao público",
+        "Auxiliar no controle de estoques"
+      ],
+      "requisitos": {
+        "semestreInicio": 1,
+        "semestreFinal": 4,
+        "escolas": null
+      },
+      "nivelEscolar": "EM",
+      "logo": null
+    },
+    {
+      "codigoVaga": 6299856,
+      "tipoVaga": "ESTAGIO",
+      "nomeEmpresa": "SECRETARIA MUNICIPAL DE EDUCAÇÃO – SEMEC",
+      "areaAtuacao": null,
+      "areaProfissional": "Saúde",
+      "salario": null,
+      "bolsaAuxilio": 1000,
+      "quantidadeBeneficios": 1,
+      "tipoAuxilioBolsa": "Mensal",
+      "tipoValorBolsa": "FIXO",
+      "tipoSalarioValor": null,
+      "tipoSalario": null,
+      "bolsaAuxilioDe": null,
+      "bolsaAuxilioAte": null,
+      "salarioDe": null,
+      "salarioAte": null,
+      "beneficios": [],
+      "descricao": "Administração pública em geral",
+      "local": {
+        "tipoLogradouro": null,
+        "endereco": null,
+        "numero": null,
+        "bairro": "Centro",
+        "complemento": null,
+        "cep": null,
+        "cidade": "Teresina",
+        "uf": "PI"
+      },
+      "tipoHorario": "A_COMBINAR",
+      "horarioEntrada": null,
+      "horarioSaida": null,
+      "atividades": [
+        "as crianças com necessidades especiais nas suas necessidades diárias",
+        "estudantes com deficiência ou outras necessidades educacionais específicas em sala de aula, sob  supervisão do profissional responsável",
+        "apoio às crianças com necessidades específicas em suas demandas de higiene pessoal, atividades da vida diária, participação e permanência no ambiente escolar"
+      ],
+      "requisitos": {
+        "semestreInicio": 4,
+        "semestreFinal": 7,
+        "escolas": null
+      },
+      "nivelEscolar": "SU",
+      "logo": null
+    },
+    {
+      "codigoVaga": 6299849,
+      "tipoVaga": "ESTAGIO",
+      "nomeEmpresa": "Pessoa Exemplo LTDA",
+      "areaAtuacao": null,
+      "areaProfissional": "Ensino Médio",
+      "salario": null,
+      "bolsaAuxilio": 1300,
+      "quantidadeBeneficios": 1,
+      "tipoAuxilioBolsa": "Mensal",
+      "tipoValorBolsa": "FIXO",
+      "tipoSalarioValor": null,
+      "tipoSalario": null,
+      "bolsaAuxilioDe": null,
+      "bolsaAuxilioAte": null,
+      "salarioDe": null,
+      "salarioAte": null,
+      "beneficios": [],
+      "descricao": "Comércio varejista de artigos do vestuário e acessórios",
+      "local": {
+        "tipoLogradouro": null,
+        "endereco": null,
+        "numero": null,
+        "bairro": "Centro",
+        "complemento": null,
+        "cep": null,
+        "cidade": "São Vicente",
+        "uf": "SP"
+      },
+      "tipoHorario": "DEFINIDO",
+      "horarioEntrada": "09:30:00",
+      "horarioSaida": "15:00:00",
+      "atividades": [
+        "Acompanhar o atendimento ao cliente",
+        "Auxiliar no controle de estoques",
+        "Auxiliar o cadastro de produtos em estoque"
+      ],
+      "requisitos": {
+        "semestreInicio": 1,
+        "semestreFinal": 4,
+        "escolas": null
+      },
+      "nivelEscolar": "EM",
+      "logo": null
+    },
+    {
+      "codigoVaga": 6299843,
+      "tipoVaga": "ESTAGIO",
+      "nomeEmpresa": "CENTRO DE ESTETICA E SAUDE PESSOA EXEMPLO LTDA",
+      "areaAtuacao": null,
+      "areaProfissional": "Biomedicina",
+      "salario": null,
+      "bolsaAuxilio": 1000,
+      "quantidadeBeneficios": 1,
+      "tipoAuxilioBolsa": "Mensal",
+      "tipoValorBolsa": "FIXO",
+      "tipoSalarioValor": null,
+      "tipoSalario": null,
+      "bolsaAuxilioDe": null,
+      "bolsaAuxilioAte": null,
+      "salarioDe": null,
+      "salarioAte": null,
+      "beneficios": [],
+      "descricao": "Atividades de práticas integrativas e complementares em saúde humana",
+      "local": {
+        "tipoLogradouro": null,
+        "endereco": null,
+        "numero": null,
+        "bairro": "JARDIM TANAKA",
+        "complemento": null,
+        "cep": null,
+        "cidade": "Tangará da Serra",
+        "uf": "MT"
+      },
+      "tipoHorario": "A_COMBINAR",
+      "horarioEntrada": null,
+      "horarioSaida": null,
+      "atividades": [
+        "Acompanhar a avaliação do estado de saúde do paciente com o profissional responsável pelo estágio",
+        "Auxiliar na organização de dados dos pacientes para diagnóstico laboratorial",
+        "Auxiliar no planejamento da execução e gestão de serviços relacionados à estética, beleza e saúde",
+        "Elaborar relatórios específicos da área",
+        "Auxiliar no atendimento telefonico de pacientes"
+      ],
+      "requisitos": {
+        "semestreInicio": 1,
+        "semestreFinal": 8,
+        "escolas": null
+      },
+      "nivelEscolar": "SU",
+      "logo": null
+    },
+    {
+      "codigoVaga": 6299829,
+      "tipoVaga": "ESTAGIO",
+      "nomeEmpresa": "REDE DE ENSINO KUALITY BRASIL",
+      "areaAtuacao": null,
+      "areaProfissional": "Ensino Médio",
+      "salario": null,
+      "bolsaAuxilio": 700,
+      "quantidadeBeneficios": 1,
+      "tipoAuxilioBolsa": "Mensal",
+      "tipoValorBolsa": "FIXO",
+      "tipoSalarioValor": null,
+      "tipoSalario": null,
+      "bolsaAuxilioDe": null,
+      "bolsaAuxilioAte": null,
+      "salarioDe": null,
+      "salarioAte": null,
+      "beneficios": [],
+      "descricao": "Educação superior - graduação e pós-graduação",
+      "local": {
+        "tipoLogradouro": null,
+        "endereco": null,
+        "numero": null,
+        "bairro": "Marcos Freire I",
+        "complemento": null,
+        "cep": null,
+        "cidade": "Nossa Senhora do Socorro",
+        "uf": "SE"
+      },
+      "tipoHorario": "DEFINIDO",
+      "horarioEntrada": "16:00:00",
+      "horarioSaida": "22:00:00",
+      "atividades": [
+        "Ajudar no atendimento de telefone e de público",
+        "Atualizar e alimentar cadastro no sistema de dados",
+        "Auxiliar a recepção dos alunos no início da aula de forma supervisionada"
+      ],
+      "requisitos": {
+        "semestreInicio": 1,
+        "semestreFinal": 2,
+        "escolas": null
+      },
+      "nivelEscolar": "EM",
+      "logo": null
+    }
+  ],
+  "pageable": {
+    "sort": {
+      "sorted": true,
+      "unsorted": false
+    },
+    "pageNumber": 0,
+    "pageSize": 300,
+    "offset": 0,
+    "unpaged": false,
+    "paged": true
+  },
+  "last": false,
+  "totalPages": 14,
+  "totalElements": 4176,
+  "first": true,
+  "sort": {
+    "sorted": true,
+    "unsorted": false
+  },
+  "numberOfElements": 300,
+  "size": 300,
+  "number": 0
+}
