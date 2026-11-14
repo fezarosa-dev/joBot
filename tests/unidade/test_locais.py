@@ -35,6 +35,38 @@ def test_cidade_uf(bruto: str, esperado: Local) -> None:
     assert ler_locais([bruto]) == (esperado,)
 
 
+@pytest.mark.parametrize(
+    ("bruto", "cidade"),
+    [
+        ("Pittsburgh, PA", "Pittsburgh"),
+        ("Pittsburgh - PA", "Pittsburgh"),
+        ("Boston, MA", "Boston"),
+        ("Birmingham, AL", "Birmingham"),
+        ("Charleston, SC", "Charleston"),
+        ("Jackson, MS", "Jackson"),
+        ("Billings, MT", "Billings"),
+    ],
+)
+def test_cidade_estrangeira_com_estado_nao_vira_estado_brasileiro(bruto: str, cidade: str) -> None:
+    # sigla de estado dos EUA que também é de UF (PA, MA, AL, SC, MS, MT): cidade dos EUA conhecida
+    assert ler_locais([bruto]) == (Local(cidade=cidade, pais="US"),)
+
+
+@pytest.mark.parametrize(
+    ("bruto", "esperado"),
+    [
+        ("Belém, PA", Local(cidade="Belém", uf="PA", pais="BR")),
+        ("Florianópolis - SC", Local(cidade="Florianópolis", uf="SC", pais="BR")),
+        ("São Luís/MA", Local(cidade="São Luís", uf="MA", pais="BR")),
+        ("Campo Grande, MS", Local(cidade="Campo Grande", uf="MS", pais="BR")),
+    ],
+)
+def test_cidade_brasileira_com_sigla_que_os_eua_tambem_usam_segue_brasileira(
+    bruto: str, esperado: Local
+) -> None:
+    assert ler_locais([bruto]) == (esperado,)
+
+
 def test_varias_cidades_viram_varios_locais() -> None:
     sp = Local(cidade="São Paulo", uf="SP", pais="BR")
     rj = Local(cidade="Rio de Janeiro", uf="RJ", pais="BR")

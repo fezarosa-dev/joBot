@@ -5,8 +5,12 @@ from typing import Literal
 
 
 def normalizar(s: str) -> str:
-    """Minúsculas, sem acento e com espaços simples: base para comparar texto."""
+    """Minúsculas, sem acento e com espaços simples: base para comparar texto.
+
+    O apóstrofo curvo (U+2019) vira o reto: "don’t" e "don't" comparam iguais.
+    """
     sem_acento = "".join(c for c in unicodedata.normalize("NFD", s) if not unicodedata.combining(c))
+    sem_acento = sem_acento.replace("\u2019", "'")
     return " ".join(sem_acento.casefold().split())
 
 
@@ -84,11 +88,14 @@ def _linhas(s: str) -> str:
     return "\n".join(linha for linha in linhas if linha)
 
 
+_PASSADAS = 16
+
+
 def _de_html(bruto: str) -> str:
     # shortcut: HTML escapado (Greenhouse) só se repete enquanto a passada não achar tag de verdade;
-    # máx. 3 passadas. Escapado 4+ vezes deixa entidade no texto; subir o limite se aparecer.
+    # máx. _PASSADAS (escapado N vezes pede N + 1 passadas). Acima disso deixa entidade no texto.
     texto = bruto
-    for _ in range(3):
+    for _ in range(_PASSADAS):
         extrator = _Extrator()
         extrator.feed(texto)
         extrator.close()
