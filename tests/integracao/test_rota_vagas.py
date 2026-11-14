@@ -85,8 +85,10 @@ def _tag(html: str, id_: str) -> str:
 
 
 def _atual(html: str) -> list[str]:
-    """As abas marcadas com aria-current."""
-    return re.findall(r'<a\b[^>]*aria-current="page"[^>]*>', html)
+    """As abas marcadas com aria-current (só o `<nav class="abas">`, não o menu da casca)."""
+    abas = re.search(r'<nav class="abas".*?</nav>', html, re.S)
+    assert abas is not None
+    return re.findall(r'<a\b[^>]*aria-current="page"[^>]*>', abas.group(0))
 
 
 def test_raiz_vai_para_vagas_ou_para_a_primeira_execucao(painel: Painel) -> None:
