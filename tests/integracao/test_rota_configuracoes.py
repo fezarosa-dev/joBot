@@ -7,7 +7,7 @@ import html as html_lib
 import json
 import re
 import time
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from contextlib import closing
 from datetime import UTC, datetime
 from pathlib import Path
@@ -24,6 +24,7 @@ from jobot.banco.conexao import abrir
 from jobot.banco.migrar import migrar
 from jobot.painel.app import criar_app
 from jobot.painel.seguranca import CAMPO_CSRF
+from jobot.sistema.segundo_plano_linux import Resultado
 
 PORTA = 47618
 FUNCOES = (
@@ -38,6 +39,10 @@ FUNCOES_URL = "/configuracoes/funcoes"
 PRIVACIDADE = "/configuracoes/privacidade"
 SEGUNDO_PLANO = "/configuracoes/segundo-plano"
 FONTES = "/configuracoes/fontes"
+GRAVAR_CHAVE = (
+    "INSERT INTO config (chave, valor) VALUES ('segundo_plano', ?) "
+    "ON CONFLICT (chave) DO UPDATE SET valor = excluded.valor"
+)
 
 
 class Painel:
@@ -364,6 +369,7 @@ def test_segundo_plano_desligar_desabilita_o_servico_e_grava_a_chave(painel: Pai
     painel.post(SEGUNDO_PLANO)
     assert ("disable", "--now", "jobot.service") in painel.sistema.systemctl()
     assert painel.config("segundo_plano") is False
+    painel.sistema.falha_em["is-enabled"] = Resultado(1)  # o falso não guarda estado
     assert _interruptor(painel.get(SEGUNDO_PLANO).text, "segundo_plano") == (True, False)
 
 
@@ -382,6 +388,37 @@ def test_segundo_plano_mostra_o_container_e_o_estado_do_servico(painel: Painel) 
     assert "fedora-dev" in texto
     assert "Serviço instalado: sim" in texto
     assert "Rodando agora: sim" in texto
+
+
+def test_interruptor_segue_o_systemd_e_nao_a_chave(painel: Painel) -> None:
+    # D61: no Linux o "ligado" vem do is-enabled; ativo (is-active) não entra
+    painel.sql(GRAVAR_CHAVE, "false")
+    assert painel.config("segundo_plano") is False
+    assert _interruptor(painel.get(SEGUNDO_PLANO).text, "segundo_plano") == (True, True)
+    painel.sql(GRAVAR_CHAVE, "true")
+    painel.sistema.falha_em["is-enabled"] = Resultado(1)
+    assert _interruptor(painel.get(SEGUNDO_PLANO).text, "segundo_plano") == (True, False)
+    assert painel.config("segundo_plano") is True  # o GET só lê
+
+
+def test_interruptor_ligado_nao_depende_do_ativo(painel: Painel) -> None:
+    painel.sistema.falha_em["is-active"] = Resultado(3)
+    assert _interruptor(painel.get(SEGUNDO_PLANO).text, "segundo_plano") == (True, True)
+
+
+class _NaoDeviaChamar:
+    def __call__(self, comando: Sequence[str]) -> Resultado:
+        raise AssertionError(f"consultou o systemd fora do Linux: {comando!r}")
+
+
+def test_fora_do_linux_nao_consulta_o_systemd(painel: Painel) -> None:
+    painel.sql(GRAVAR_CHAVE, "true")
+    painel.app.state.plataforma = "win32"
+    painel.app.state.rodar_comando = _NaoDeviaChamar()
+    html = painel.get(SEGUNDO_PLANO).text
+    tag = next(t for t in re.findall(r"<input\b[^>]*>", html) if 'name="segundo_plano"' in t)
+    assert re.search(r"\sdisabled\b", tag)
+    assert not re.search(r"\schecked\b", tag)
 
 
 def test_segundo_plano_fora_do_linux_fica_desativado(painel: Painel) -> None:
