@@ -122,3 +122,12 @@ def test_contributing_cita_o_guia() -> None:
         assert proprio in alvos, f"{caminho} não aponta para {proprio}"
         assert outro not in alvos, f"{caminho} aponta para o guia da outra língua"
         assert (RAIZ / caminho).parent.joinpath(proprio).resolve().is_file()
+
+
+def test_contributing_sem_promessa_de_comandos() -> None:
+    # o guia já traz os comandos (seção 6): o CONTRIBUTING não promete documentá-los depois
+    promessa = re.compile(
+        r"serão documentados|will be documented|quando o código existir|code exists"
+    )
+    for caminho in CONTRIBUTING.values():
+        assert not promessa.search(texto(caminho)), f"{caminho} ainda promete os comandos"
