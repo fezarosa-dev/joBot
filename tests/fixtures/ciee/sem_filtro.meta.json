@@ -1,0 +1,12 @@
+{
+  "url": "https://api.ciee.org.br/vagas/vitrine-vaga/publicadas?page=0&size=5&sort=codigoVaga,desc",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/json;charset=UTF-8"
+  },
+  "sha256": "95e5ce0d676e866348818835ed3c7fb4de72d9ae0ae1f8702fc037ddc2516dde",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "resposta real da conferência de 2026-11-13 (captura/B3/ciee/api_p0_raw.json), com reduzir e limpar_pessoais e nome de pessoa na razão social trocado por Pessoa Exemplo (e sobrenomes de razão social por PESSOA EXEMPLO); url reconstruída: o corpo traz size 5 e totalElements 5186 (estágio mais aprendiz), então o pedido foi sem tipoVaga; mistura as duas modalidades"
+}
