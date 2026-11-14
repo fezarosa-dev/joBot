@@ -1,0 +1,14 @@
+{
+  "id": "5ff39a7b-5383-4b42-a940-0d71fcc58857",
+  "links": {},
+  "meta": {
+    "type": "error",
+    "responseTime": 0
+  },
+  "code": "NotFoundException",
+  "title": "Not Found Exception",
+  "status": "404",
+  "detail": [
+    "company not found"
+  ]
+}

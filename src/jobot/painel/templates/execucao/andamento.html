@@ -1,0 +1,26 @@
+{#- trecho do andamento: o HTMX pergunta a cada 2 s só enquanto a busca roda (desenho 13.2);
+    `visto` diz o que já está na tela, e sem mudança a rota devolve 204 e nada é trocado -#}
+{%- if saindo %}
+<div class="andamento">
+  <p class="andamento-aviso">{{ t("execucao.saindo") }}</p>
+</div>
+{%- elif rodando %}
+<div class="andamento" hx-get="/execucao/atual?visto={{ marca|urlencode }}" hx-trigger="every 2s" hx-swap="outerHTML">
+  {%- if ja_rodava %}
+  <p class="andamento-aviso">{{ t("execucao.ja_roda") }}</p>
+  {%- endif %}
+  <p><span class="andamento-ponto" aria-hidden="true"></span>{{ t("execucao.rodando") }}{% if atual %} · {{ t("execucao.prontas", n=atual.escopos_prontos) }}{% endif %}</p>
+  {%- if atual and atual.fontes_rodando %}
+  {%- set nomes = [] %}
+  {%- for f in atual.fontes_rodando[:5] %}{% set _ = nomes.append(rotulo("fonte." ~ f, f)) %}{% endfor %}
+  {%- set resto = atual.fontes_rodando|length - 5 %}
+  <p>{{ t("execucao.ainda_rodando", fontes=nomes|join(", ") ~ (" +" ~ resto if resto > 0 else "")) }}</p>
+  {%- elif atual and atual.coleta_acabou %}
+  <p>{{ t("execucao.detalhes") }}</p>
+  {%- endif %}
+</div>
+{%- elif ultima %}
+<div class="andamento">
+  <p>{{ t("execucao.terminou" if ultima.estado == "concluida" else "execucao.interrompida", n=ultima.novas) }}</p>
+</div>
+{%- endif %}

@@ -1,0 +1,46 @@
+{
+  "author": "exemplo",
+  "children": [
+    {
+      "author": "exemplo",
+      "children": [],
+      "created_at": "2026-11-02T16:01:43.000Z",
+      "created_at_i": 1793635303,
+      "id": 50338732,
+      "options": [],
+      "parent_id": 50338728,
+      "points": null,
+      "story_id": 50338728,
+      "text": "Simple Analytics | DevOps Engineer | REMOTE (worldwide, any timezone) | Full-time, 32h, 24h possible | €5,000&#x2F;month (full-time) | <a href=\"https:&#x2F;&#x2F;www.simpleanalytics.com&#x2F;jobs&#x2F;devops\" rel=\"nofollow\">https:&#x2F;&#x2F;www.simpleanalytics.com&#x2F;jobs&#x2F;devops</a><p>Hi HN, I&#x27;m Adriaan. Simple Analytics exists thanks to HN: it started with my Show HN in 2018 [1]. Today we&#x27;re a self-funded, profitable team of four building privacy-first analytics.<p>Privacy is why we run our own bare-metal servers instead of the cloud. We&#x27;re preparing for a LOT more traffic, and you&#x27;ll own the infrastructure and its reliability. We have good documentation. First project: leading the infra side of our Elasticsearch to ClickHouse migration, with Alex, our developer.<p>Stack: Ansible, OpenTofu, Docker Compose, Grafana, GitHub Actions, TypeScript. Clear async communication matters more than knowing every tool.<p>You can apply from your terminal:<p><pre><code>  curl https:&#x2F;&#x2F;www.simpleanalytics.com&#x2F;jobs&#x2F;devops.md\n</code></pre>\n[1] <a href=\"https:&#x2F;&#x2F;news.ycombinator.com&#x2F;item?id=18024277\">https:&#x2F;&#x2F;news.ycombinator.com&#x2F;item?id=18024277</a>",
+      "title": null,
+      "type": "comment",
+      "url": null
+    },
+    {
+      "author": "exemplo",
+      "body": "Synteq | Growth Lead &amp; Systems Administrator | Austin, TX | REMOTE (US) | Full-time<p>Synteq is a developer cloud running our own hardware and network. We do large-scale bare-metal, GPU, VPS, storage, and PaaS deployments across 5 US datacenters.<p>- Growth Lead: own top of funnel for a developer cloud product, covering SEO, community, PLG, and partnerships. Open to people new to growth or with some experience. <a href=\"https:&#x2F;&#x2F;synteq.com&#x2F;career&#x2F;growth-lead\" rel=\"nofollow\">https:&#x2F;&#x2F;synteq.com&#x2F;career&#x2F;growth-lead</a><p>- Systems Administrator: Proxmox hypervisors, networking, physical builds, Ceph, and bare metal. Ideally 2–15 YOE. <a href=\"https:&#x2F;&#x2F;synteq.com&#x2F;career&#x2F;systems-administrator\" rel=\"nofollow\">https:&#x2F;&#x2F;synteq.com&#x2F;career&#x2F;systems-administrator</a><p>Small, close-knit team that takes on hard problems. We&#x27;ve grown a lot this past year and there&#x27;s much more ahead. Come build it with us.",
+      "children": [],
+      "created_at": "2026-11-02T16:01:53.000Z",
+      "created_at_i": 1793635313,
+      "id": 50338736,
+      "options": [],
+      "parent_id": 50338728,
+      "points": null,
+      "story_id": 50338728,
+      "title": null,
+      "type": "comment",
+      "url": null
+    }
+  ],
+  "created_at": "2026-11-02T16:01:37.000Z",
+  "created_at_i": 1793635297,
+  "id": 50338728,
+  "options": [],
+  "parent_id": null,
+  "points": 258,
+  "story_id": 50338728,
+  "text": "Please state the location and include REMOTE for remote work, REMOTE (US)\nor similar if the country is restricted, and ONSITE when remote work is <i>not</i> an option.<p>Please only post if you personally are part of the hiring company—no\nrecruiting firms or job boards. One post per company. If it isn&#x27;t a household name,\nexplain what your company does.<p>Please only post if you are actively filling a position and are committed\nto replying to applicants.<p>Commenters: please don&#x27;t reply to job posts to complain about\nsomething. It&#x27;s off topic here.<p>Readers: please only email if you are personally interested in the job.<p>Searchers: try <a href=\"https:&#x2F;&#x2F;gethnjobs.com&#x2F;\" rel=\"nofollow\">https:&#x2F;&#x2F;gethnjobs.com&#x2F;</a>, <a href=\"https:&#x2F;&#x2F;hnwork.app\" rel=\"nofollow\">https:&#x2F;&#x2F;hnwork.app</a>, \n<a href=\"https:&#x2F;&#x2F;dheerajck.github.io&#x2F;hnwhoishiring&#x2F;\" rel=\"nofollow\">https:&#x2F;&#x2F;dheerajck.github.io&#x2F;hnwhoishiring&#x2F;</a>, <a href=\"http:&#x2F;&#x2F;nchelluri.github.io&#x2F;hnjobs&#x2F;\" rel=\"nofollow\">http:&#x2F;&#x2F;nchelluri.github.io&#x2F;hnjobs&#x2F;</a>,\n<a href=\"https:&#x2F;&#x2F;hnjobs.emilburzo.com\" rel=\"nofollow\">https:&#x2F;&#x2F;hnjobs.emilburzo.com</a>.<p>Don&#x27;t miss this other fine thread: <i>Who wants to be hired?</i> <a href=\"https:&#x2F;&#x2F;news.ycombinator.com&#x2F;item?id=50338726\">https:&#x2F;&#x2F;news.ycombinator.com&#x2F;item?id=50338726</a>",
+  "title": "Ask HN: Who is hiring? (November 2026)",
+  "type": "story",
+  "url": null
+}

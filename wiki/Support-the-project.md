@@ -22,6 +22,7 @@ Every bit of support helps the project keep going and reach more people.
 | | How | Where |
 |:---:|---|---|
 | 🇧🇷 | **Pix** (Brazil only) | Random key below |
+| 💛 | **GitHub Sponsors** (from any country) | [github.com/sponsors/fezarosa-dev](https://github.com/sponsors/fezarosa-dev) |
 | ☕ | **Buy Me a Coffee** (from any country) | [buymeacoffee.com/zanoni.dev](https://buymeacoffee.com/zanoni.dev) |
 
 Pix key (random):

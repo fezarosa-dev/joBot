@@ -1,0 +1,163 @@
+{
+  "status": 200,
+  "error": {
+    "message": "",
+    "body": ""
+  },
+  "data": {
+    "positions": [],
+    "filterDef": {
+      "facets": {
+        "locations": [
+          [
+            "Remote",
+            999999
+          ],
+          [
+            "MG, Brazil",
+            327
+          ],
+          [
+            "CABA, Argentina",
+            141
+          ],
+          [
+            "México D.F., CDMX, Mexico",
+            85
+          ],
+          [
+            "Santiago Metropolitan Region, Chile",
+            87
+          ]
+        ]
+      },
+      "smartFilters": [
+        {
+          "type": "toggle",
+          "filterName": "include_remote",
+          "title": "Include Eligible Remote Jobs",
+          "options": null,
+          "tooltip": "When selected, the results will include remote job opportunities",
+          "extraData": {},
+          "displayCount": 10,
+          "translateOptions": false,
+          "allowFreeText": false
+        }
+      ],
+      "allFilters": [
+        {
+          "type": "multi_select_facet_search",
+          "filterName": "skills",
+          "title": "Skills",
+          "options": [
+            {
+              "label": "Microsoft Excel",
+              "value": "Microsoft Excel"
+            },
+            {
+              "label": "Logística",
+              "value": "Logística"
+            },
+            {
+              "label": "Transportation",
+              "value": "Transportation"
+            }
+          ],
+          "tooltip": null,
+          "extraData": {},
+          "displayCount": 10,
+          "translateOptions": false,
+          "allowFreeText": false
+        },
+        {
+          "type": "multi_select",
+          "filterName": "department",
+          "title": "Department",
+          "options": [
+            {
+              "label": "Shipping",
+              "value": "Shipping"
+            },
+            {
+              "label": "IT",
+              "value": "IT"
+            },
+            {
+              "label": "Fintech",
+              "value": "Fintech"
+            }
+          ],
+          "tooltip": null,
+          "extraData": {},
+          "displayCount": 10,
+          "translateOptions": false,
+          "allowFreeText": false
+        },
+        {
+          "type": "multi_select",
+          "filterName": "seniority",
+          "title": "Seniority",
+          "options": [
+            {
+              "label": "Mid/Senior",
+              "value": "2"
+            },
+            {
+              "label": "Entry",
+              "value": "1"
+            },
+            {
+              "label": "Intern",
+              "value": "0"
+            }
+          ],
+          "tooltip": null,
+          "extraData": {},
+          "displayCount": 10,
+          "translateOptions": false,
+          "allowFreeText": false
+        },
+        {
+          "type": "multi_select",
+          "filterName": "work_location_option",
+          "title": "Workplace Type",
+          "options": [
+            {
+              "label": "Onsite",
+              "value": "onsite"
+            },
+            {
+              "label": "Hybrid",
+              "value": "hybrid"
+            }
+          ],
+          "tooltip": null,
+          "extraData": {},
+          "displayCount": 10,
+          "translateOptions": false,
+          "allowFreeText": false
+        }
+      ]
+    },
+    "count": 0,
+    "sortBy": "timestamp",
+    "appliedFilters": {
+      "includeRemote": [
+        "1"
+      ],
+      "includeRelocation": [
+        "0"
+      ]
+    },
+    "debug": {},
+    "savedSearchMetadata": {
+      "savedSearchParamsHash": null,
+      "isSavedSearchActive": false
+    },
+    "resultsMetaData": {
+      "usedFuzzSearch": false,
+      "mocTitle": null
+    }
+  },
+  "metadata": null
+}

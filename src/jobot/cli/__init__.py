@@ -11,6 +11,7 @@ COMANDOS: Mapping[str, str] = {
     "serve": "jobot.cli.servir",
     "buscar": "jobot.cli.buscar",
     "avaliar-rotulos": "jobot.cli.avaliar_rotulos",
+    "atualizar": "jobot.cli.atualizar",
 }
 
 
@@ -21,6 +22,7 @@ def _parser() -> argparse.ArgumentParser:
     sub.add_parser("sair", help="encerra o servidor")
     sub.add_parser("serve", help="sobe só o servidor, sem abrir nada")
     sub.add_parser("buscar", help="faz uma busca no terminal")
+    sub.add_parser("atualizar", help="atualiza o joBot para a versão mais nova")
     plano = sub.add_parser("segundo-plano", help="liga ou desliga o serviço de segundo plano")
     plano.add_argument("acao", choices=["ligar", "desligar", "status"])
     rotulos = sub.add_parser("avaliar-rotulos", help="mede as regras contra um gabarito")

@@ -1,0 +1,12 @@
+{
+  "url": "https://api.ciee.org.br/vagas/vitrine-vaga/publicadas?page=0&size=300&sort=codigoVaga,desc&tipoVaga=ESTAGIO",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/json;charset=UTF-8"
+  },
+  "sha256": "39125a907dc5f67d358bbbe919c9f64f414a5876409e252137e00263153ed762",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "resposta real da conferência de 2026-11-13 (captura/B3/ciee/amostra_estagio.json): tirado o campo _nota, passou por reduzir e limpar_pessoais; nome de pessoa na razão social trocado por Pessoa Exemplo (e sobrenomes de razão social por PESSOA EXEMPLO); o size do pedido real foi 300, o coletor pede 1000"
+}

@@ -1,0 +1,27 @@
+<p class="config-texto">{{ t("configuracoes.aparencia.explicacao") }}</p>
+<div class="config-form">
+  <form method="post" action="/preferencias/tema" class="campo" data-preferencia="tema">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="voltar" value="/configuracoes/aparencia">
+    <fieldset class="campo">
+      <legend>{{ t("casca.tema") }}</legend>
+      <div class="opcoes">
+        {%- for opcao in ("sistema", "claro", "escuro") %}
+        <button type="submit" name="tema" value="{{ opcao }}" class="botao botao-escolha" aria-pressed="{{ 'true' if opcao == tema else 'false' }}">{{ t("casca.tema." ~ opcao) }}</button>
+        {%- endfor %}
+      </div>
+    </fieldset>
+  </form>
+  <form method="post" action="/preferencias/idioma" class="campo" data-preferencia="idioma">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="voltar" value="/configuracoes/aparencia">
+    <fieldset class="campo">
+      <legend>{{ t("casca.idioma") }}</legend>
+      <div class="opcoes">
+        {%- for opcao in ("pt", "en") %}
+        <button type="submit" name="idioma" value="{{ opcao }}" lang="{{ opcao }}" class="botao botao-escolha" aria-pressed="{{ 'true' if opcao == idioma else 'false' }}">{{ t("casca.idioma." ~ opcao) }}</button>
+        {%- endfor %}
+      </div>
+    </fieldset>
+  </form>
+</div>

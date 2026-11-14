@@ -1,0 +1,12 @@
+{
+  "url": "https://mercadolibre.eightfold.ai/api/pcsx/search?domain=mercadolibre.com&query=&location=Brazil&start=0&sort_by=timestamp",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/json"
+  },
+  "sha256": "bd13d7ff41e6fe783f1dedc0a8d9830b3fd326963a924912fe38c08d3822078c",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "montado à mão a partir de normal_pcsx.json: a segunda vaga troca name por title e perde o id (formato mudou)"
+}

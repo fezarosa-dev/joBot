@@ -6,11 +6,13 @@ from pathlib import Path
 from typing import Any
 
 from jobot.nucleo.modelo import Area, Aviso, Contrato, Local, Modalidade, Nivel, VagaColetada
+from jobot.nucleo.tratamento.locais import ler_locais
 from jobot.nucleo.tratamento.rotulos import (
     _REGRAS,
     ARQUIVO,
     VERSAO_REGRAS,
     Rotulos,
+    fonte_so_no_brasil,
     rotular,
     versao_de,
 )
@@ -43,12 +45,18 @@ def _vaga(**campos: Any) -> VagaColetada:
 
 def _rotular_caso(caso: dict[str, Any]) -> Rotulos:
     vaga = _vaga(
+        fonte=caso.get("fonte", "teste"),
         titulo=caso["titulo"],
         etiquetas=tuple(caso.get("etiquetas", ())),
         modalidade_declarada=caso.get("modalidade_declarada"),
         contrato_declarado=caso.get("contrato_declarado"),
+        locais=tuple(caso.get("local", ())),
     )
-    locais = tuple(Local(**local) for local in caso.get("locais", ()))
+    # "local" é o texto cru da fonte; sem "locais" explícitos, vale o que o leitor de locais lê dele
+    if "locais" in caso:
+        locais = tuple(Local(**local) for local in caso["locais"])
+    else:
+        locais = ler_locais(vaga.locais)
     return rotular(vaga, caso.get("texto", ""), locais)
 
 
@@ -147,10 +155,28 @@ def test_clt_pj_so_no_brasil() -> None:
     assert contrato("Contratação PJ.", BRASIL) == Contrato.PJ
     assert contrato("Contratação CLT.", EUA) == Contrato.NAO_INFORMADO
     assert contrato("Contratação PJ.", EUA) == Contrato.NAO_INFORMADO
-    assert contrato("Contratação CLT.", ()) == Contrato.NAO_INFORMADO
+    # sem local, ou local sem país, o "CLT" escrito vale (só país de fora barra)
+    assert contrato("Contratação CLT.", ()) == Contrato.CLT
+    assert contrato("Contratação PJ.", (Local(),)) == Contrato.PJ
+    assert contrato("Contratação CLT.", (Local(cidade="Lisboa", pais="PT"),)) == (
+        Contrato.NAO_INFORMADO
+    )
     texas = (Local(cidade="Austin", uf="TX", pais="US"),)
     assert contrato("", texas, contrato_declarado="clt") == Contrato.NAO_INFORMADO
     assert contrato("", EUA, contrato_declarado="vacancy_type_effective") == (
         Contrato.NAO_INFORMADO
     )
     assert contrato("", BRASIL, contrato_declarado="vacancy_type_effective") == Contrato.CLT
+
+
+def test_fontes_das_regras_existem_em_fontes_json() -> None:
+    fontes = json.loads((ARQUIVO.parent / "fontes.json").read_text(encoding="utf-8"))
+    dados = json.loads(ARQUIVO.read_text(encoding="utf-8"))["fontes"]
+    for lista in dados.values():
+        assert lista and set(lista) <= set(fontes)
+    assert not set(dados["so_brasil"]) & set(dados["local_e_restricao_de_pais"])
+
+
+def test_fonte_so_no_brasil() -> None:
+    assert fonte_so_no_brasil("github_issues") and fonte_so_no_brasil("gupy")
+    assert not fonte_so_no_brasil("greenhouse") and not fonte_so_no_brasil("himalayas")

@@ -119,6 +119,9 @@ def abrir_painel(
             else f"O joBot não respondeu em {p}. Veja o log em {dados / 'logs' / 'jobot.log'}."
         )
         return 1
+    # o servidor roda à parte (sessão própria): Ctrl+C no terminal não o encerra
+    ja_aberto = "O joBot já estava aberto" if pid is not None else "joBot aberto"
+    saida(f"{ja_aberto} em {endereco}. Para sair, use Sair no painel ou rode: jobot sair")
     if not navegador(endereco, env):
         saida(f"Não consegui abrir o navegador. Abra este endereço: {endereco}")
     return 0
@@ -150,7 +153,7 @@ def sair_do_servidor(
     return 0
 
 
-def _subir_servidor() -> None:
+def subir_servidor() -> None:
     """Servidor em processo separado; o comando `serve` é da T48."""
     subprocess.Popen(
         [sys.executable, "-m", "jobot", "serve"],
@@ -167,7 +170,7 @@ def executar(args: argparse.Namespace) -> int:
     try:
         if getattr(args, "comando", "abrir") == "sair":
             return sair_do_servidor(dados)
-        return abrir_painel(env, dados, subir=_subir_servidor)
+        return abrir_painel(env, dados, subir=subir_servidor)
     except OSError as erro:  # ex.: o Python que sobe o servidor não existe mais
         print(f"Não consegui concluir o comando: {erro}", file=sys.stderr)
         return 1

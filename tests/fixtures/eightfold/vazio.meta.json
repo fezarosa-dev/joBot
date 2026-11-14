@@ -1,0 +1,12 @@
+{
+  "url": "https://mercadolibre.eightfold.ai/api/pcsx/search?domain=mercadolibre.com&query=&location=Brazil&start=0&sort_by=timestamp",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/json"
+  },
+  "sha256": "8a88ca0744b4eb0afe8797470ab6332bebfc701347f26abf0e2388cd0d45cd65",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "montado à mão a partir de normal_pcsx.json: positions vazio e count 0 (a rede não deu lista vazia)"
+}

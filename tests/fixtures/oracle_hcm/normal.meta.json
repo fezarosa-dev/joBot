@@ -1,0 +1,10 @@
+{
+  "url": "https://eeho.fa.us2.oraclecloud.com/hcmRestApi/resources/latest/recruitingCEJobRequisitions?onlyData=true&expand=requisitionList.secondaryLocations&finder=findReqs;siteNumber=CX_45001,facetsList=LOCATIONS%3BWORKPLACE_TYPES%3BPOSTING_DATES,limit=25,offset=0,sortBy=POSTING_DATES_DESC,selectedLocationsFacet=300000000106728",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {},
+  "sha256": "434a1408f2320bfaff582544ba033a5ed0a981f11f86d070a9532d851665056b",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "veio de captura/B1/oracle_hcm_oracle_lista_br.json (conferência ao vivo de 2026-11-13, lista da Oracle filtrada pelo Brasil; corte da conferência: 5 de 8 vagas, facetas reduzidas); passou por reduzir e limpar_pessoais; campo _nota da conferência mantido. Os cabeçalhos da resposta não foram guardados na conferência (cabecalhos vazio). A URL foi refeita dos campos da resposta (SiteNumber, Limit, Offset, SortBy, SelectedLocationsFacet) no formato do apêndice 3.3."
+}

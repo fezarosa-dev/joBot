@@ -8,8 +8,10 @@ from jobot.nucleo.modelo import (
     Modalidade,
     Nivel,
     Salario,
+    VagaColetada,
     VagaTratada,
 )
+from jobot.nucleo.tratamento.tratar import tratar
 
 SP = Local(cidade="São Paulo", uf="SP", pais="BR")
 CAMPINAS = Local(cidade="Campinas", uf="SP", pais="BR")
@@ -315,6 +317,27 @@ def test_remoto_restrito_a_outro_pais() -> None:
     assert _oculta(presencial, b, **kw) is None
     sem_pais = _tratada(modalidade=Modalidade.REMOTO, avisos=(Aviso.RESTRITO_A_PAIS,), locais=())
     assert _oculta(sem_pais, b, **kw) is None
+
+
+def test_vaga_so_brasileira_sem_local_restrita_conta_como_brasil() -> None:
+    vaga = tratar(
+        VagaColetada(
+            fonte="gupy",
+            escopo="",
+            url="https://exemplo.com/vaga/1",
+            titulo="Desenvolvedor Backend",
+            empresa="Acme",
+            descricao_formato="texto",
+            descricao="Trabalho remoto. Você must be based in Brazil para esta vaga.",
+            modalidade_declarada="remote",
+        )
+    )
+    assert Aviso.RESTRITO_A_PAIS in vaga.avisos
+    kw: dict[str, Any] = {"minimo_busca_brl": None}
+    base: dict[str, Any] = {"modalidades": (), "niveis": (), "idiomas": ()}
+    portugal = _busca(cidades=(Local(cidade="Lisboa", pais="PT"),), **base)
+    assert _oculta(vaga, portugal, **kw) == "pais"
+    assert _oculta(vaga, _busca(**base), **kw) is None  # busca padrão: Brasil
 
 
 def test_salario_abaixo_do_minimo_oculta() -> None:

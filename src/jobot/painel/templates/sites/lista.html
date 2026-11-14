@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block titulo %}{{ t("sites.titulo") }} · joBot{% endblock %}
+{% block estilos %}<link rel="stylesheet" href="/static/css/vagas.css"><link rel="stylesheet" href="/static/css/buscas.css"><link rel="stylesheet" href="/static/css/empresas.css"><link rel="stylesheet" href="/static/css/sites.css">{% endblock %}
+{% block conteudo %}
+<h1 class="titulo-pagina">{{ t("sites.titulo") }}</h1>
+<p class="situacao">{{ t("sites.intro") }}</p>
+{% if linhas %}
+<ul class="lista" id="lista-sites">
+  {%- for r in linhas %}
+  {%- set p = r.p %}
+  <li class="cartao{% if not p.ativa %} cartao-oculta{% endif %}" id="site-{{ p.id }}">
+    <div class="cartao-cabeca">
+      <h2 class="cartao-titulo">{{ p.nome }}</h2>
+      {%- if not p.ativa %}
+      <span class="selo">{{ t("sites.desativada") }}</span>
+      {%- endif %}
+    </div>
+    <ul class="meta">
+      <li>{{ p.url }}</li>
+      <li>
+        {%- if p.estado == "falhou" %}{{ t("sites.estado.falhou", motivo=t("sites.motivo." ~ (p.motivo or "desconhecido"))) }}
+        {%- elif p.estado == "ok" %}{{ t("sites.estado.ok", data=data_completa(p.verificada_em.isoformat(), idioma)) }}
+        {%- else %}{{ t("sites.estado.nova") }}{% endif %}</li>
+      {%- if p.mudou_em %}
+      <li>{{ t("sites.mudou_em", data=data_completa(p.mudou_em.isoformat(), idioma)) }}</li>
+      {%- endif %}
+    </ul>
+    {%- if r.mudancas %}
+    <details class="apagar">
+      <summary>{{ t("sites.ver_mudancas", n=r.mudancas | length) }}</summary>
+      <div class="mudancas">
+        {%- for m in r.mudancas %}
+        <section>
+          <h3>{{ t("sites.mudou_em", data=data_completa(m.detectada_em.isoformat(), idioma)) }}</h3>
+          <pre class="diferenca">{{ m.diferenca }}</pre>
+        </section>
+        {%- endfor %}
+      </div>
+    </details>
+    {%- endif %}
+    <div class="acoes">
+      {%- if p.ativa %}
+      <form method="post" action="/sites/{{ p.id }}/desativar">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button type="submit" class="secundario">{{ t("sites.desativar") }}</button>
+      </form>
+      {%- endif %}
+      <details class="apagar">
+        <summary>{{ t("sites.remover") }}</summary>
+        <form method="post" action="/sites/{{ p.id }}/remover">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <p>{{ t("sites.remover_aviso", nome=p.nome) }}</p>
+          <button type="submit" class="secundario">{{ t("sites.remover_confirmar") }}</button>
+        </form>
+      </details>
+    </div>
+  </li>
+  {%- endfor %}
+</ul>
+{% else %}
+<p class="vazio">{{ t("sites.vazio") }}</p>
+{% endif %}
+<section class="painel nova" aria-labelledby="nova-titulo">
+  <h2 id="nova-titulo">{{ t("sites.nova") }}</h2>
+  <form class="formulario" method="post" action="/sites">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    {%- if erro %}
+    <p class="erro" role="alert">{{ t(erro) }}</p>
+    {%- endif %}
+    <div class="campo">
+      <label for="site-nome">{{ t("sites.campo.nome") }}</label>
+      <input id="site-nome" type="text" name="nome" value="{{ f.nome }}" maxlength="100" required>
+    </div>
+    <div class="campo">
+      <label for="site-url">{{ t("sites.campo.url") }}</label>
+      <input id="site-url" type="text" name="url" value="{{ f.url }}" maxlength="500" required aria-describedby="site-url-dica">
+      <p class="dica" id="site-url-dica">{{ t("sites.dica.url") }}</p>
+    </div>
+    <div class="acoes-formulario">
+      <button type="submit">{{ t("sites.adicionar") }}</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

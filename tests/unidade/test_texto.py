@@ -1,8 +1,9 @@
+import html
 import time
 
 import pytest
 
-from jobot.nucleo.texto import detectar_idioma, para_texto
+from jobot.nucleo.texto import detectar_idioma, normalizar, para_texto
 
 PT = (
     "Estamos buscando uma pessoa para a nossa equipe de tecnologia. Você vai trabalhar com "
@@ -35,6 +36,20 @@ def test_script_escapado_tambem_some() -> None:
 
 def test_html_escapado_do_greenhouse() -> None:
     assert para_texto("&lt;p&gt;Oi&lt;/p&gt;", "html") == "Oi"
+
+
+def test_normalizar_apostrofo_curvo_igual_ao_reto() -> None:
+    assert normalizar("don\u2019t") == normalizar("don't") == "don't"
+    assert normalizar("Women\u2019s  Health") == "women's health"
+
+
+@pytest.mark.parametrize("vezes", [3, 4, 6])
+def test_html_escapado_quatro_vezes(vezes: int) -> None:
+    # a tag escapada 4 vezes ou mais some como a escapada 1 e 2 vezes (sem entidade sobrando)
+    bruto = "<p>Oi</p><p>List&lt;String&gt;</p>"
+    for _ in range(vezes):
+        bruto = html.escape(bruto)
+    assert para_texto(bruto, "html") == "Oi\nList<String>"
 
 
 def test_html_decodifica_entidades_e_quebra_blocos() -> None:

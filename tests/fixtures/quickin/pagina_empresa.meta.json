@@ -1,0 +1,12 @@
+{
+  "url": "https://jobs.quickin.io/connectforpeople/jobs",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "text/html;charset=utf-8"
+  },
+  "sha256": "c02d2ce54422d3a8e9f11f7f4bba12a857ed81ca4ed870a5643fca0c6c675e91",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "página mínima montada à mão para o resolver: o __NUXT_DATA__ real de 2026-11-13 (captura B2, quickin_cfp.html, formato devalue) reduzido ao caminho pinia.careerSite.site, com os valores reais de _id, locale, name, slug e account_id"
+}

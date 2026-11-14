@@ -11,7 +11,7 @@ Foram pensadas várias formas de ter essa ajuda: doação, versão paga na nuvem
 
 ## Decisão
 
-- O apoio é só por doação: Pix com chave aleatória e Buy Me a Coffee. O GitHub Sponsors entra quando o perfil for ativado.
+- O apoio é só por doação: Pix com chave aleatória, Buy Me a Coffee e GitHub Sponsors (ativo desde 2026-11-14).
 - O joBot continua inteiro grátis.
 - Não há anúncio, link de afiliado, rastreio, venda de dado nem recurso pago.
 - A doação não muda a ordem das vagas e não destaca nenhuma empresa.

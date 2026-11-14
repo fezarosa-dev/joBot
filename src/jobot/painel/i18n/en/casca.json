@@ -7,5 +7,13 @@
   "casca.tema.escuro": "Dark",
   "casca.idioma": "Language",
   "casca.idioma.pt": "Português",
-  "casca.idioma.en": "English"
+  "casca.idioma.en": "English",
+  "casca.menu": "Main",
+  "casca.menu.vagas": "Jobs",
+  "casca.menu.buscas": "Searches",
+  "casca.menu.fontes": "Sources",
+  "casca.menu.empresas": "Companies",
+  "casca.menu.sugeridas": "Suggested",
+  "casca.menu.sites": "Sites",
+  "casca.menu.configuracoes": "Settings"
 }

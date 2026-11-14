@@ -1,0 +1,45 @@
+<h1 class="assistente-titulo">{{ t("primeira_execucao.p2.titulo") }}</h1>
+{% if resumo %}
+<section class="assistente-resumo" data-resumo aria-labelledby="resumo-titulo">
+  <h2 id="resumo-titulo">{{ t("primeira_execucao.resumo.titulo") }}</h2>
+  <dl>
+    {% if resumo.busca.cargos %}<dt>{{ t("primeira_execucao.resumo.cargos") }}</dt><dd>{{ resumo.busca.cargos | join(", ") }}</dd>{% endif %}
+    {% if resumo.busca.cidades %}<dt>{{ t("primeira_execucao.resumo.cidades") }}</dt><dd>{{ resumo.cidades }}</dd>{% endif %}
+    {% if resumo.busca.modalidades %}<dt>{{ t("primeira_execucao.resumo.modalidades") }}</dt><dd>{% for m in resumo.busca.modalidades %}{{ t("modalidade." ~ m.value) }}{% if not loop.last %}, {% endif %}{% endfor %}</dd>{% endif %}
+    {% if resumo.busca.niveis %}<dt>{{ t("primeira_execucao.resumo.niveis") }}</dt><dd>{% for n in resumo.busca.niveis %}{{ t("nivel." ~ n.value) }}{% if not loop.last %}, {% endif %}{% endfor %}</dd>{% endif %}
+    {% if resumo.salario %}<dt>{{ t("primeira_execucao.resumo.salario") }}</dt><dd>{{ resumo.salario }}</dd>{% endif %}
+    {% if resumo.busca.idiomas %}<dt>{{ t("primeira_execucao.resumo.idiomas") }}</dt><dd>{% for i in resumo.busca.idiomas %}{{ t("primeira_execucao.idioma." ~ i) }}{% if not loop.last %}, {% endif %}{% endfor %}</dd>{% endif %}
+  </dl>
+</section>
+{% elif not busca_id %}
+<p class="assistente-texto">{{ t("primeira_execucao.resumo.vazio") }}</p>
+{% endif %}
+{% if motivo %}
+<div class="assistente-alerta" role="alert">
+  <strong>{{ t("primeira_execucao.p2.recusa_desligar" if desligando else "primeira_execucao.p2.recusa") }}</strong>
+  <p>{{ t(motivo.chave, **motivo.params) }}</p>
+</div>
+{% elif erro %}
+<div class="assistente-alerta" role="alert">
+  <p>{{ t("primeira_execucao.p2.erro_sistema", erro=erro) }}</p>
+</div>
+{% endif %}
+<p class="assistente-texto">{{ t("primeira_execucao.p2.explicacao") }}</p>
+{% if container %}<p class="assistente-texto" data-container="{{ container }}">{{ t("primeira_execucao.p2.container", container=container) }}</p>{% endif %}
+{% if not linux %}<p class="assistente-texto" data-desativado>{{ t("primeira_execucao.p2.nao_linux") }}</p>{% endif %}
+<form method="post" action="/primeira-execucao/2" class="assistente-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  {% if busca_id %}<input type="hidden" name="busca" value="{{ busca_id }}">{% endif %}
+  <fieldset class="campo"{% if not linux %} disabled{% endif %}>
+    <legend>{{ t("primeira_execucao.p2.escolha") }}</legend>
+    <div class="opcoes opcoes-coluna">
+      <label class="opcao"><input type="radio" name="segundo_plano" value="ligar"{% if linux %} checked{% endif %}> {{ t("primeira_execucao.p2.ligar") }}</label>
+      <label class="opcao"><input type="radio" name="segundo_plano" value="desligar"{% if not linux %} checked{% endif %}> {{ t("primeira_execucao.p2.desligar") }}</label>
+    </div>
+  </fieldset>
+  {% if not linux %}<input type="hidden" name="segundo_plano" value="desligar">{% endif %}
+  <div class="acoes">
+    <button type="submit" class="botao botao-primario">{{ t("primeira_execucao.p2.concluir") }}</button>
+    <a class="botao botao-secundario" href="/primeira-execucao/1{% if resumo %}?busca={{ busca_id }}{% endif %}">{{ t("primeira_execucao.p2.voltar") }}</a>
+  </div>
+</form>

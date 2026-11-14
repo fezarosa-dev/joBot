@@ -1,0 +1,12 @@
+{
+  "url": "https://mercadolibre.eightfold.ai/robots.txt",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "text/plain"
+  },
+  "sha256": "8a1eea54f13fbd30db5e063b5c9262e49a0ffef5ea2446336e1107b8aacd9f29",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "captura B1/eightfold_mercadolibre_robots.txt passada por capturar.limpar_pessoais (texto, sem reduzir: o reduzir só lê json, xml e html)"
+}

@@ -1,0 +1,12 @@
+{
+  "url": "https://api.ciee.org.br/vagas/vitrine-vaga/publicadas?page=0&size=1000&sort=codigoVaga,desc&tipoVaga=ESTAGIO",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/json;charset=UTF-8"
+  },
+  "sha256": "490d59d30aaf2b7e356bdd99dcb6a162bbb13d24abec0582cbb668e9a9c40362",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "montado à mão a partir de normal.json: content vazio, totalElements 0, totalPages 0, last true (a rede não devolveu página vazia)"
+}

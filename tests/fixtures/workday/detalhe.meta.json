@@ -1,0 +1,10 @@
+{
+  "url": "https://mastercard.wd1.myworkdayjobs.com/wday/cxs/mastercard/CorporateCareers/job/Sao-Paulo-Brazil/SME-Mid-Market-Business-Development-Director_R-295134-1",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {},
+  "sha256": "4058d35e11600ccabf33c01ceb3476ed917495c520fdc8612d72d06b56fee754",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "veio de captura/B1/workday_mastercard_detalhe.json (conferência ao vivo de 2026-11-13; detalhe da primeira vaga de so_locations.json); passou por reduzir e limpar_pessoais. Os cabeçalhos da resposta não foram guardados na conferência (cabecalhos vazio)."
+}

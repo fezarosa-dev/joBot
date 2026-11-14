@@ -1,0 +1,966 @@
+{
+  "totalPages": 2,
+  "currentPage": 2,
+  "count": 18,
+  "data": [
+    {
+      "killerQuestions": [],
+      "id": 920304,
+      "title": "Analista de orçamentos | Precificação | Preços | BH | MG ",
+      "description": "<p><strong>Requisitos: </strong></p>\n<ul>\n<li>Formação em Engenharia ou áreas correlatas;</li>\n<li>Experiência com elaboração e análise de orçamentos de serviços de engenharia;</li>\n<li>Conhecimento de composição de custos e formação de preços; Domínio em CPU — Composição de Preços Unitários;</li>\n</ul>\n<p><strong>Atividades</strong></p>\n<ul>\n<li>Calcular e aplicar encargos sociais e trabalhistas na composição dos custos de mão de obra.</li>\n<li>Elaborar composições de custos unitários para mão de obra, materiais, equipamentos e serviços.</li>\n<li>Analisar e interpretar editais, memoriais descritivos, especificações técnicas e planilhas quantitativas.</li>\n<li>Calcular e aplicar a taxa de BDI (Benefícios e Despesas Indiretas) na formação do preço final de venda.</li>\n</ul>",
+      "currentState": "em_andamento",
+      "referenceId": 89284,
+      "companyName": "DIEFRA",
+      "companyLogo": "https://c5gwmsmjx1.execute-api.us-east-1.amazonaws.com/prod/empresa/logo/89284/logo.png",
+      "state": {
+        "id": 17,
+        "name": "Minas Gerais",
+        "code": "MG"
+      },
+      "city": {
+        "id": 2310,
+        "name": "Belo Horizonte",
+        "stateId": 17
+      },
+      "address": {
+        "id": 109854389,
+        "neighborhood": "Olhos D'Água",
+        "number": "75",
+        "latitude": null,
+        "longitude": null,
+        "city": {
+          "id": 2310,
+          "name": "Belo Horizonte",
+          "stateId": 17
+        },
+        "state": {
+          "id": 17,
+          "name": "Minas Gerais",
+          "code": "MG"
+        },
+        "country": {
+          "id": 30,
+          "name": "Brasil",
+          "code": "BR"
+        },
+        "zipCode": "30390-080",
+        "streetAddress": "Rua Gabriela de Melo",
+        "foreignCity": null,
+        "foreignState": null,
+        "additionalInformation": null
+      },
+      "slug": "diefra",
+      "redirectLink": "https://diefra./vacancies/920304?origem=portal",
+      "type": "externa",
+      "isHiddenJob": false,
+      "homeOffice": false,
+      "jobType": "presencial",
+      "openPositions": 1,
+      "salary": {
+        "type": "simple",
+        "showRangeToApplicant": false,
+        "initialRange": null,
+        "finalRange": null,
+        "negotiable": false
+      },
+      "phases": [
+        {
+          "id": 4300279,
+          "name": "ANÁLISE DE CURRÍCULO",
+          "type": "fase_1",
+          "index": 0,
+          "show": true,
+          "description": null
+        },
+        {
+          "id": 4300280,
+          "name": "ANÁLISE COMPORTAMENTAL",
+          "type": "fase_2",
+          "index": 1,
+          "show": true,
+          "description": null
+        },
+        {
+          "id": 4300281,
+          "name": "PRÉ-ADMISSÃO",
+          "type": "pre_admissao",
+          "index": 2,
+          "show": true,
+          "description": null
+        }
+      ],
+      "hasSpecialNeeds": false,
+      "peopleWithDisabilities": false,
+      "disabilityType": null,
+      "pcdOnly": false,
+      "videoUrl": null,
+      "seniority": [
+        {
+          "id": 4,
+          "name": "Junior",
+          "level": null
+        },
+        {
+          "id": 5,
+          "name": "Pleno",
+          "level": null
+        }
+      ],
+      "recruitmentContractType": [
+        {
+          "id": 10,
+          "name": "CLT",
+          "level": null
+        }
+      ],
+      "benefits": [],
+      "language": [],
+      "hardSkills": [],
+      "education": [
+        {
+          "id": 45,
+          "name": "Graduação",
+          "level": null
+        },
+        {
+          "id": 47,
+          "name": "Pós Graduação",
+          "level": null
+        }
+      ],
+      "createdAt": "2026-09-13",
+      "availablePositions": 1,
+      "affirmative": [],
+      "occupationAreas": [
+        {
+          "id": 349581,
+          "name": "Administrativo",
+          "level": null
+        },
+        {
+          "id": 349596,
+          "name": "Comercial",
+          "level": null
+        },
+        {
+          "id": 349589,
+          "name": "Engenharia",
+          "level": null
+        }
+      ],
+      "isGoogleForJobsEnabled": true,
+      "requiredFields": [
+        "professionalExperiences",
+        "academicEducations",
+        "linkedin",
+        "salary",
+        "about_me"
+      ],
+      "receivingResume": true,
+      "showSkillsLevel": true,
+      "showModality": true,
+      "shift": [
+        {
+          "id": 42,
+          "name": "Integral",
+          "level": null
+        }
+      ],
+      "date": {
+        "due": "2026-10-30",
+        "show": false
+      },
+      "preApplyEnabled": false,
+      "startSolidesEnabled": true,
+      "publishers": null,
+      "isDisabled": false
+    },
+    {
+      "killerQuestions": [],
+      "id": 915136,
+      "title": "Analista de Custos | BH | MG ",
+      "description": "<p><strong>Atividades: </strong></p>\n<ul>\n<li>Realizar auditoria e conferência de contas, receitas, custos e despesas, identificando inconsistências, divergências e oportunidades de melhoria.</li>\n<li>Analisar resultados financeiros e operacionais, comparando valores realizados, orçados e projetados.</li>\n<li>Acompanhar a rentabilidade dos contratos e identificar desvios que possam impactar os resultados.</li>\n<li>Validar medições, faturamentos, custos e demais informações que compõem o resultado dos contratos.</li>\n<li>Elaborar análises e relatórios gerenciais para suporte à tomada de decisão.</li>\n<li>Identificar causas de desvios de custos e resultados, propondo ações corretivas e preventivas.</li>\n<li>Apoiar o fechamento mensal e a consolidação dos resultados da área.</li>\n<li>Realizar análises de variação de receita, custos e margem, apresentando os principais impactos do período.</li>\n<li>Garantir a confiabilidade e consistência das informações utilizadas nas análises financeiras.</li>\n<li>Apoiar as áreas de Contratos, Operações e Financeiro na análise de resultados e na identificação de riscos financeiros.</li>\n</ul>\n<p><strong>Requisitos: </strong></p>\n<ul>\n<li>Graduação em Administração, Ciências Contábeis, Economia, Engenharia de Produção ou áreas correlatas.</li>\n<li>Experiência em análise de custos, auditoria de contas, controle financeiro e análise de resultados.</li>\n<li>Conhecimento em análise de contratos, receitas, despesas e indicadores de desempenho.</li>\n<li>Conhecimento em sistemas ERP e ferramentas de BI será considerado um diferencial.</li>\n</ul>",
+      "currentState": "em_andamento",
+      "referenceId": 89284,
+      "companyName": "DIEFRA",
+      "companyLogo": "https://c5gwmsmjx1.execute-api.us-east-1.amazonaws.com/prod/empresa/logo/89284/logo.png",
+      "state": {
+        "id": 17,
+        "name": "Minas Gerais",
+        "code": "MG"
+      },
+      "city": {
+        "id": 2310,
+        "name": "Belo Horizonte",
+        "stateId": 17
+      },
+      "address": {
+        "id": 109524052,
+        "neighborhood": "Centro",
+        "number": "10",
+        "latitude": null,
+        "longitude": null,
+        "city": {
+          "id": 2310,
+          "name": "Belo Horizonte",
+          "stateId": 17
+        },
+        "state": {
+          "id": 17,
+          "name": "Minas Gerais",
+          "code": "MG"
+        },
+        "country": {
+          "id": 30,
+          "name": "Brasil",
+          "code": "BR"
+        },
+        "zipCode": "30130-003",
+        "streetAddress": "Avenida Afonso Pena",
+        "foreignCity": null,
+        "foreignState": null,
+        "additionalInformation": null
+      },
+      "slug": "diefra",
+      "redirectLink": "https://diefra./vacancies/915136?origem=portal",
+      "type": "mista",
+      "isHiddenJob": false,
+      "homeOffice": false,
+      "jobType": "presencial",
+      "openPositions": 1,
+      "salary": {
+        "type": "simple",
+        "showRangeToApplicant": false,
+        "initialRange": null,
+        "finalRange": null,
+        "negotiable": false
+      },
+      "phases": [
+        {
+          "id": 4278090,
+          "name": "ANÁLISE DE CURRÍCULO",
+          "type": "fase_1",
+          "index": 0,
+          "show": true,
+          "description": null
+        },
+        {
+          "id": 4278091,
+          "name": "ANÁLISE COMPORTAMENTAL",
+          "type": "fase_2",
+          "index": 1,
+          "show": true,
+          "description": null
+        },
+        {
+          "id": 4278092,
+          "name": "PRÉ-ADMISSÃO",
+          "type": "pre_admissao",
+          "index": 2,
+          "show": true,
+          "description": null
+        }
+      ],
+      "hasSpecialNeeds": false,
+      "peopleWithDisabilities": true,
+      "disabilityType": null,
+      "pcdOnly": false,
+      "videoUrl": null,
+      "seniority": [
+        {
+          "id": 4,
+          "name": "Junior",
+          "level": null
+        },
+        {
+          "id": 5,
+          "name": "Pleno",
+          "level": null
+        }
+      ],
+      "recruitmentContractType": [
+        {
+          "id": 10,
+          "name": "CLT",
+          "level": null
+        }
+      ],
+      "benefits": [
+        {
+          "id": 301309,
+          "name": "Assistência odontológica",
+          "level": null
+        },
+        {
+          "id": 301333,
+          "name": "Seguro de vida",
+          "level": null
+        },
+        {
+          "id": 301338,
+          "name": "Vale transporte",
+          "level": null
+        },
+        {
+          "id": 301334,
+          "name": "Vale alimentação",
+          "level": null
+        }
+      ],
+      "language": [],
+      "hardSkills": [
+        {
+          "id": 2173052,
+          "name": "Analise de custos",
+          "level": 2
+        },
+        {
+          "id": 2174701,
+          "name": "Auditoria",
+          "level": 2
+        }
+      ],
+      "education": [
+        {
+          "id": 47,
+          "name": "Pós Graduação",
+          "level": null
+        },
+        {
+          "id": 45,
+          "name": "Graduação",
+          "level": null
+        }
+      ],
+      "createdAt": "2026-09-02",
+      "availablePositions": 1,
+      "affirmative": [
+        {
+          "id": 351200,
+          "name": "Vaga afirmativa para Pessoas LGBTQIAP+",
+          "level": null
+        },
+        {
+          "id": 351202,
+          "name": "Vaga afirmativa para Mulheres",
+          "level": null
+        },
+        {
+          "id": 351203,
+          "name": "Vaga afirmativa para Indígenas",
+          "level": null
+        },
+        {
+          "id": 402110,
+          "name": "Vaga afirmativa para Pessoas com +40 anos",
+          "level": null
+        },
+        {
+          "id": 351201,
+          "name": "Vaga afirmativa para Pessoas Pretas",
+          "level": null
+        }
+      ],
+      "occupationAreas": [
+        {
+          "id": 349581,
+          "name": "Administrativo",
+          "level": null
+        },
+        {
+          "id": 349582,
+          "name": "Financeiro",
+          "level": null
+        },
+        {
+          "id": 420569,
+          "name": "Contabilidade",
+          "level": null
+        }
+      ],
+      "isGoogleForJobsEnabled": true,
+      "requiredFields": [
+        "professionalExperiences",
+        "academicEducations",
+        "linkedin",
+        "about_me",
+        "salary"
+      ],
+      "receivingResume": true,
+      "showSkillsLevel": true,
+      "showModality": true,
+      "shift": [
+        {
+          "id": 42,
+          "name": "Integral",
+          "level": null
+        }
+      ],
+      "date": {
+        "due": "2026-09-03",
+        "show": false
+      },
+      "preApplyEnabled": false,
+      "startSolidesEnabled": false,
+      "publishers": null,
+      "isDisabled": false
+    },
+    {
+      "killerQuestions": [],
+      "id": 912210,
+      "title": "Comprador(a) | Belo Horizonte | MG ",
+      "description": "<p><strong>Responsabilidades e atribuições:</strong></p>\n<ul>\n<li><span>Solicitar, analisar e negociar propostas de fornecedores para aquisição de materiais e serviços;</span></li>\n<li><span>Emitir pedidos de compra e acompanhar todo o processo até a entrega, garantindo o cumprimento de prazos e especificações;</span></li>\n<li><span>Desenvolver e manter relações com fornecedores, negociando condições comerciais vantajosas, como preço, prazo e qualidade;</span></li>\n<li><span>Manter o cadastro de fornecedores atualizado, garantindo alternativas para suprimentos estratégicos;</span></li>\n<li><span>Lançar NF quando necessário;</span></li>\n</ul>\n<p><strong>Requisitos:</strong></p>\n<ul>\n<li>Ensino superior em andamento ou completo;</li>\n<li>Conhecimento nos processos de compras e técnnicas de negociação;</li>\n</ul>\n<p> </p>",
+      "currentState": "em_andamento",
+      "referenceId": 89284,
+      "companyName": "DIEFRA",
+      "companyLogo": "https://c5gwmsmjx1.execute-api.us-east-1.amazonaws.com/prod/empresa/logo/89284/logo.png",
+      "state": {
+        "id": 17,
+        "name": "Minas Gerais",
+        "code": "MG"
+      },
+      "city": {
+        "id": 2310,
+        "name": "Belo Horizonte",
+        "stateId": 17
+      },
+      "address": {
+        "id": 109305596,
+        "neighborhood": "Olhos D'Água",
+        "number": "",
+        "latitude": null,
+        "longitude": null,
+        "city": {
+          "id": 2310,
+          "name": "Belo Horizonte",
+          "stateId": 17
+        },
+        "state": {
+          "id": 17,
+          "name": "Minas Gerais",
+          "code": "MG"
+        },
+        "country": {
+          "id": 30,
+          "name": "Brasil",
+          "code": "BR"
+        },
+        "zipCode": "30390-080",
+        "streetAddress": "Rua Gabriela de Melo",
+        "foreignCity": null,
+        "foreignState": null,
+        "additionalInformation": ""
+      },
+      "slug": "diefra",
+      "redirectLink": "https://diefra./vacancies/912210?origem=portal",
+      "type": "mista",
+      "isHiddenJob": false,
+      "homeOffice": false,
+      "jobType": "presencial",
+      "openPositions": 1,
+      "salary": {
+        "type": "simple",
+        "showRangeToApplicant": false,
+        "initialRange": null,
+        "finalRange": null,
+        "negotiable": false
+      },
+      "phases": [
+        {
+          "id": 4265741,
+          "name": "ANÁLISE DE CURRÍCULO",
+          "type": "fase_1",
+          "index": 0,
+          "show": true,
+          "description": null
+        },
+        {
+          "id": 4265742,
+          "name": "ANÁLISE COMPORTAMENTAL",
+          "type": "fase_2",
+          "index": 1,
+          "show": true,
+          "description": null
+        },
+        {
+          "id": 4265744,
+          "name": "ENTREVISTA COM RH",
+          "type": "customizado",
+          "index": 2,
+          "show": true,
+          "description": ""
+        },
+        {
+          "id": 4265745,
+          "name": "ENTREVISTA COM GESTOR",
+          "type": "customizado",
+          "index": 3,
+          "show": true,
+          "description": ""
+        },
+        {
+          "id": 4265746,
+          "name": "ADMISSÃO",
+          "type": "customizado",
+          "index": 4,
+          "show": true,
+          "description": ""
+        },
+        {
+          "id": 4265743,
+          "name": "PRÉ-ADMISSÃO",
+          "type": "pre_admissao",
+          "index": 5,
+          "show": true,
+          "description": null
+        }
+      ],
+      "hasSpecialNeeds": false,
+      "peopleWithDisabilities": false,
+      "disabilityType": null,
+      "pcdOnly": false,
+      "videoUrl": null,
+      "seniority": [
+        {
+          "id": 4,
+          "name": "Junior",
+          "level": null
+        },
+        {
+          "id": 5,
+          "name": "Pleno",
+          "level": null
+        }
+      ],
+      "recruitmentContractType": [
+        {
+          "id": 10,
+          "name": "CLT",
+          "level": null
+        }
+      ],
+      "benefits": [
+        {
+          "id": 301333,
+          "name": "Seguro de vida",
+          "level": null
+        },
+        {
+          "id": 301337,
+          "name": "Vale refeição",
+          "level": null
+        },
+        {
+          "id": 301338,
+          "name": "Vale transporte",
+          "level": null
+        }
+      ],
+      "language": [],
+      "hardSkills": [],
+      "education": [
+        {
+          "id": 45,
+          "name": "Graduação",
+          "level": null
+        },
+        {
+          "id": 47,
+          "name": "Pós Graduação",
+          "level": null
+        }
+      ],
+      "createdAt": "2026-08-27",
+      "availablePositions": 1,
+      "affirmative": [
+        {
+          "id": 351200,
+          "name": "Vaga afirmativa para Pessoas LGBTQIAP+",
+          "level": null
+        },
+        {
+          "id": 351201,
+          "name": "Vaga afirmativa para Pessoas Pretas",
+          "level": null
+        },
+        {
+          "id": 351202,
+          "name": "Vaga afirmativa para Mulheres",
+          "level": null
+        },
+        {
+          "id": 351203,
+          "name": "Vaga afirmativa para Indígenas",
+          "level": null
+        },
+        {
+          "id": 402110,
+          "name": "Vaga afirmativa para Pessoas com +40 anos",
+          "level": null
+        }
+      ],
+      "occupationAreas": [
+        {
+          "id": 349589,
+          "name": "Engenharia",
+          "level": null
+        },
+        {
+          "id": 420569,
+          "name": "Contabilidade",
+          "level": null
+        },
+        {
+          "id": 349582,
+          "name": "Financeiro",
+          "level": null
+        }
+      ],
+      "isGoogleForJobsEnabled": true,
+      "requiredFields": [
+        "professionalExperiences",
+        "linkedin",
+        "salary",
+        "academicEducations",
+        "about_me"
+      ],
+      "receivingResume": true,
+      "showSkillsLevel": true,
+      "showModality": true,
+      "shift": [
+        {
+          "id": 42,
+          "name": "Integral",
+          "level": null
+        }
+      ],
+      "date": {
+        "due": "2026-09-30",
+        "show": false
+      },
+      "preApplyEnabled": false,
+      "startSolidesEnabled": true,
+      "publishers": null,
+      "isDisabled": false
+    },
+    {
+      "killerQuestions": [],
+      "id": 911395,
+      "title": "Fiscal de Qualidade Subestações - Brasília- DF ",
+      "description": "<p>A Diefra é uma empresa multidisciplinar com maturidade técnica e consolidada formação profissional, resultado de uma postura empreendedora e proativa.</p>\n<p>Com um extenso portfólio de realizações, a Diefra oferece suporte operacional e tecnológico para empresas públicas e privadas em todo o Brasil.</p>\n<p> </p>\n<p><strong>Venha fazer parte da nossa equipe!</strong></p>\n<p> </p>\n<p><strong>Este profissional será responsável por:</strong></p>\n<ul>\n<li><span>Realizar a fiscalização da qualidade das obras executadas em subestações elétricas para a Neoenergia;</span></li>\n<li><span>Supervisionar as atividades de construção e retrofit de subestações;</span></li>\n<li><span>Monitorar o controle de qualidade das obras;</span></li>\n<li><span>Garantir o cumprimento das normas de saúde e segurança do trabalho em conjunto com o fiscal de segurança (TST) da obra;</span></li>\n<li><span>Inspecionar instalações, máquinas, equipamentos e documentação;</span></li>\n<li><span>Realizar medições das atividades executadas;</span></li>\n<li><span>Acompanhar o processo de confecção de PEX;</span></li>\n<li><span>Acompanhar o processo de comissionamento;</span></li>\n<li><span>Elaborar RDOs, listas de não conformidades, relatórios de mobilização do canteiro de obras e relatórios de encerramento de obras;</span></li>\n<li><span>Auditar os prontuários de medições das prestadoras de serviços;</span></li>\n<li><span>Monitorar e fiscalizar a execução dos programas ambientais relacionados ao empreendimento;</span></li>\n<li><span>Fiscalizar os processos de intervenção no Sistema Elétrico de Potência;</span></li>\n<li><span>Supervisionar a obtenção de autorizações para travessias (aeródromos, rodovias, estradas, ferrovias, oleodutos, gasodutos, etc.);</span></li>\n<li><span>Aplicar as normas técnicas disponibilizadas pelo cliente.</span></li>\n</ul>\n<p><strong>Requisitos: </strong></p>\n<ul>\n<li>Ensino Técnico em Eletrotécnica;</li>\n<li>Experiência com execução e fiscalização de obras de subestações comprovada;</li>\n<li>Certificação em NR 10 Básico e SEP;</li>\n<li>Domínio no pacote Office;</li>\n<li>CNH Categoria B;</li>\n<li>Disponibilidade para viagens em todo o Distrito Federal.</li>\n</ul>\n<p><strong>Benefícios:</strong></p>\n<ul>\n<li>Plano de Saúde e Odontológico;</li>\n<li>Vale Refeição;</li>\n<li>Wellhub (gympass);</li>\n<li>Parceria com faculdade;</li>\n<li>Periculosidade;</li>\n<li>Ajuda de custo viagem.</li>\n</ul>\n<p> </p>\n<p><strong>E aí, topa?!</strong></p>\n<p><br /><strong>Tem um time incrível te esperando =)</strong></p>",
+      "currentState": "em_andamento",
+      "referenceId": 89284,
+      "companyName": "DIEFRA",
+      "companyLogo": "https://c5gwmsmjx1.execute-api.us-east-1.amazonaws.com/prod/empresa/logo/89284/logo.png",
+      "state": {
+        "id": 27,
+        "name": "Distrito Federal",
+        "code": "DF"
+      },
+      "city": {
+        "id": 5570,
+        "name": "Brasília",
+        "stateId": 27
+      },
+      "address": {
+        "id": 109253950,
+        "neighborhood": "Asa Norte",
+        "number": null,
+        "latitude": null,
+        "longitude": null,
+        "city": {
+          "id": 5570,
+          "name": "Brasília",
+          "stateId": 27
+        },
+        "state": {
+          "id": 27,
+          "name": "Distrito Federal",
+          "code": "DF"
+        },
+        "country": {
+          "id": 30,
+          "name": "Brasil",
+          "code": "BR"
+        },
+        "zipCode": "70767-020",
+        "streetAddress": "Quadra SQN 314 Bloco B",
+        "foreignCity": null,
+        "foreignState": null,
+        "additionalInformation": null
+      },
+      "slug": "diefra",
+      "redirectLink": "https://diefra./vacancies/911395?origem=portal",
+      "type": "externa",
+      "isHiddenJob": false,
+      "homeOffice": false,
+      "jobType": "presencial",
+      "openPositions": 2,
+      "salary": {
+        "type": "simple",
+        "showRangeToApplicant": false,
+        "initialRange": null,
+        "finalRange": null,
+        "negotiable": false
+      },
+      "phases": [
+        {
+          "id": 4262196,
+          "name": "ANÁLISE DE CURRÍCULO",
+          "type": "fase_1",
+          "index": 0,
+          "show": true,
+          "description": null
+        },
+        {
+          "id": 4262197,
+          "name": "ANÁLISE COMPORTAMENTAL",
+          "type": "fase_2",
+          "index": 1,
+          "show": true,
+          "description": null
+        },
+        {
+          "id": 4262199,
+          "name": "TRIAGEM RH",
+          "type": "customizado",
+          "index": 2,
+          "show": true,
+          "description": ""
+        },
+        {
+          "id": 4262200,
+          "name": "ENTREVISTA TÉCNICA ",
+          "type": "customizado",
+          "index": 3,
+          "show": true,
+          "description": ""
+        },
+        {
+          "id": 4262201,
+          "name": "ADMISSÃO",
+          "type": "customizado",
+          "index": 4,
+          "show": true,
+          "description": ""
+        },
+        {
+          "id": 4262198,
+          "name": "PRÉ-ADMISSÃO",
+          "type": "pre_admissao",
+          "index": 5,
+          "show": true,
+          "description": null
+        }
+      ],
+      "hasSpecialNeeds": false,
+      "peopleWithDisabilities": true,
+      "disabilityType": null,
+      "pcdOnly": false,
+      "videoUrl": null,
+      "seniority": [
+        {
+          "id": 5,
+          "name": "Pleno",
+          "level": null
+        },
+        {
+          "id": 6,
+          "name": "Sênior",
+          "level": null
+        },
+        {
+          "id": 7,
+          "name": "Especialista",
+          "level": null
+        }
+      ],
+      "recruitmentContractType": [
+        {
+          "id": 10,
+          "name": "CLT",
+          "level": null
+        }
+      ],
+      "benefits": [],
+      "language": [],
+      "hardSkills": [],
+      "education": [
+        {
+          "id": 44,
+          "name": "Ensino Médio",
+          "level": null
+        },
+        {
+          "id": 46,
+          "name": "Tecnólogo",
+          "level": null
+        },
+        {
+          "id": 429327,
+          "name": "Ensino Técnico",
+          "level": null
+        }
+      ],
+      "createdAt": "2026-08-26",
+      "availablePositions": 2,
+      "affirmative": [],
+      "occupationAreas": [
+        {
+          "id": 349589,
+          "name": "Engenharia",
+          "level": null
+        }
+      ],
+      "isGoogleForJobsEnabled": true,
+      "requiredFields": [
+        "professionalExperiences",
+        "salary",
+        "about_me",
+        "academicEducations",
+        "drivers_license_category",
+        "linkedin"
+      ],
+      "receivingResume": true,
+      "showSkillsLevel": true,
+      "showModality": true,
+      "shift": [
+        {
+          "id": 42,
+          "name": "Integral",
+          "level": null
+        }
+      ],
+      "date": {
+        "due": "2026-12-31",
+        "show": false
+      },
+      "preApplyEnabled": false,
+      "startSolidesEnabled": false,
+      "publishers": null,
+      "isDisabled": false
+    },
+    {
+      "killerQuestions": [],
+      "id": 832640,
+      "title": "Teste suporte",
+      "description": "<p>A Diefra é uma empresa multidisciplinar com maturidade técnica e consolidada formação profissional, resultado de uma postura empreendedora e proativa. Com um extenso portfólio de realizações com 40 anos de atuação, a Diefra oferece suporte operacional e tecnológico para empresas públicas e privadas em todo o Brasil.</p>\n<p><strong>Venha fazer parte da nossa equipe!</strong><br><br><strong>Responsabilidades e atribuições:</strong></p>\n<ul>\n<li>Auxiliar na manutenção de máquinas, motores e equipamentos elétrico, mecânico e a combustão. </li>\n<li>Realizar transporte de equipamentos e ferramentas necessários ao trabalho. </li>\n<li>Realizar a limpeza, conservação e guarda das peças e de ferramentas e equipamentos utilizados</li>\n</ul>\n<p><strong>Habilidades específicas:</strong></p>\n<ul>\n<li>Experiência na área </li>\n<li>Pró atividade;</li>\n<li>Boa comunicação;</li>\n</ul>\n<p><strong>Benefícios:</strong></p>\n<ul>\n<li>Seguro de Vida</li>\n</ul>\n<p><strong>E aí, topa?!</strong><br><strong>Tem um time incrível te esperando =)</strong></p>",
+      "currentState": "em_andamento",
+      "referenceId": 89284,
+      "companyName": "DIEFRA",
+      "companyLogo": "https://c5gwmsmjx1.execute-api.us-east-1.amazonaws.com/prod/empresa/logo/89284/logo.png",
+      "state": {
+        "id": 17,
+        "name": "Minas Gerais",
+        "code": "MG"
+      },
+      "city": {
+        "id": 2310,
+        "name": "Belo Horizonte",
+        "stateId": 17
+      },
+      "address": {
+        "id": 104902853,
+        "neighborhood": "Olhos D'Água",
+        "number": "75",
+        "latitude": null,
+        "longitude": null,
+        "city": {
+          "id": 2310,
+          "name": "Belo Horizonte",
+          "stateId": 17
+        },
+        "state": {
+          "id": 17,
+          "name": "Minas Gerais",
+          "code": "MG"
+        },
+        "country": {
+          "id": 30,
+          "name": "Brasil",
+          "code": "BR"
+        },
+        "zipCode": "30390-080",
+        "streetAddress": "Rua Gabriela de Melo",
+        "foreignCity": null,
+        "foreignState": null,
+        "additionalInformation": ""
+      },
+      "slug": "diefra",
+      "redirectLink": "https://diefra./vacancies/832640?origem=portal",
+      "type": "externa",
+      "isHiddenJob": false,
+      "homeOffice": false,
+      "jobType": "presencial",
+      "openPositions": 1,
+      "salary": {
+        "type": "simple",
+        "showRangeToApplicant": true,
+        "initialRange": 0,
+        "finalRange": 0,
+        "negotiable": false
+      },
+      "phases": [
+        {
+          "id": 3924056,
+          "name": "ANÁLISE DE CURRÍCULO",
+          "type": "fase_1",
+          "index": 0,
+          "show": true,
+          "description": null
+        },
+        {
+          "id": 3924057,
+          "name": "ANÁLISE COMPORTAMENTAL",
+          "type": "fase_2",
+          "index": 1,
+          "show": true,
+          "description": null
+        },
+        {
+          "id": 3924058,
+          "name": "PRÉ-ADMISSÃO",
+          "type": "pre_admissao",
+          "index": 2,
+          "show": true,
+          "description": null
+        }
+      ],
+      "hasSpecialNeeds": false,
+      "peopleWithDisabilities": false,
+      "disabilityType": null,
+      "pcdOnly": false,
+      "videoUrl": null,
+      "seniority": [],
+      "recruitmentContractType": [],
+      "benefits": [],
+      "language": [],
+      "hardSkills": [],
+      "education": [],
+      "createdAt": "2026-04-20",
+      "availablePositions": 1,
+      "affirmative": [],
+      "occupationAreas": [],
+      "isGoogleForJobsEnabled": false,
+      "requiredFields": [],
+      "receivingResume": true,
+      "showSkillsLevel": true,
+      "showModality": true,
+      "shift": [
+        {
+          "id": 42,
+          "name": "Integral",
+          "level": null
+        }
+      ],
+      "date": {
+        "due": "2026-04-20",
+        "show": false
+      },
+      "preApplyEnabled": false,
+      "startSolidesEnabled": false,
+      "publishers": null,
+      "isDisabled": false
+    }
+  ]
+}

@@ -21,7 +21,7 @@
   <li class="selo">{{ t("vagas.selo.fecha_logo") }}</li>
   {%- endif %}
   {%- for aviso in item.avisos %}
-  <li class="selo">{{ rotulo("aviso." ~ aviso, aviso) }}</li>
+  <li class="selo">{{ aviso_texto(aviso, item.locais) }}</li>
   {%- endfor %}
   {%- if item.oculta_motivo == "manual" %}
   <li class="selo">{{ t("vagas.oculta.manual") }}</li>

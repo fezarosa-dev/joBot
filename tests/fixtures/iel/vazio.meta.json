@@ -1,0 +1,12 @@
+{
+  "url": "https://carreiras.iel.org.br/PE",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "text/html; charset=utf-8"
+  },
+  "sha256": "e6ca58291055bd9dfb1b8eeb4c2b7606eca8ba58e9e298c1b86130b377adbcbd",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "montado à mão a partir de normal.html com as listas vazias (estado sem vaga; a conferência não baixou página de estado vazio): a conferência de 2026-11-13 guardou só os registros embutidos (amostra_uf_PE.json, 5 de 289 vagas de https://carreiras.iel.org.br/PE), não o HTML bruto; o reduzir() do capturar.py apaga os scripts self.__next_f.push (não são JSON), então a página foi montada por script: registros passados por limpar_pessoais() e reduzir(json), cada um repetido duas vezes (como no site) dentro de self.__next_f.push([1,...]) no formato do vaga_exemplo.html (escape \\u003c), com a linha RSC partida em dois push no meio da terceira vaga; o envoltório (chaves uf, vagas, vagasFiltradas, total) é inventado: o coletor só lê os objetos {\"vagaOrigem\"; Content-Type suposto (a conferência não guardou cabeçalhos); o aviso <p>Nenhuma vaga encontrada</p> dentro de div#vagas foi acrescentado à mão (texto dado pelo brief A29, posição suposta: a conferência não baixou página de estado vazio)"
+}

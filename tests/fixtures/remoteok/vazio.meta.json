@@ -1,0 +1,11 @@
+{
+  "url": "https://remoteok.com/api?tag=xyzzyjobot",
+  "data": "2026-11-14T06:26:29.056636+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/json"
+  },
+  "sha256": "583ef5847a2292408e0579605171fcc0fb0283578e99124a16a4a7de499848f0",
+  "versao": "0.1.0",
+  "metodo": "GET"
+}

@@ -1,0 +1,112 @@
+{
+  "items": [
+    {
+      "Id": "348989",
+      "Title": "Engenheiro(a) DevOps e Migração Cloud — Oracle Cloud Infrastructure",
+      "Category": "Pre Sales",
+      "RequisitionType": "Professional",
+      "JobGrade": null,
+      "RequisitionId": 302970868143305,
+      "ExternalPostedStartDate": "2026-10-29T04:09:58+00:00",
+      "JobLevel": null,
+      "JobSchedule": null,
+      "JobShift": null,
+      "StudyLevel": null,
+      "InternationalTravelRequired": null,
+      "ExternalContactName": null,
+      "ExternalContactEmail": null,
+      "ContractType": null,
+      "ExternalPostedEndDate": null,
+      "JobFamilyId": 300000001917354,
+      "GeographyId": 300000330892546,
+      "GeographyNodeId": 100879842726761,
+      "ExternalDescriptionStr": "<p>Buscamos um profissional para atuar no planejamento e na execução de migrações de máquinas virtuais de ambientes VMware, AWS e Google Cloud para Oracle Cloud Infrastructure (OCI). A posição combina administração Linux, automação de infraestrutura e práticas DevOps, com atuação junto às equipes técnicas dos clientes para entregar ambientes seguros, estáveis e operacionais.</p>\n<p><strong>Requisitos obrigatórios: </strong></p>\n<ul>\n <li>Experiência prática em infraestrutura cloud, DevOps ou administração de sistemas. </li>\n <li>Experiência em projetos de migração de máquinas virtuais para OCI. </li>\n <li>Conhecimento de VMware vSphere, vCenter e dos conceitos de virtualização, snapshots e discos virtuais. </li>\n <li>Conhecimento de AWS EC2/EBS/VPC e Google Compute Engine, discos e VPC, com capacidade de avaliar os requisitos de migração para OCI. </li>\n <li>Conhecimento de OCI Compute, VCN, subnets, tabelas de rotas, NSGs, Security Lists, Block Volume, Object Storage e IAM. </li>\n <li>Experiência em administração Linux, incluindo serviços, permissões, pacotes, sistemas de arquivos, LVM, rede, logs e análise de desempenho.</li>\n <li>Experiência com Terraform e ferramentas de gerenciamento de configuração, como Ansible. </li>\n <li>Capacidade de desenvolver scripts em Bash e Python.</li>\n <li>Conhecimento de Git e pipelines de CI/CD. </li>\n <li>Conhecimento de TCP/IP, DNS, roteamento, firewalls, VPN e conectividade entre ambientes. </li>\n <li>Capacidade de comunicar riscos, dependências e resultados técnicos de forma clara, além de atuar em mudanças controladas de produção.</li>\n <li>Inglês fluente, com capacidade para participar de reuniões técnicas, interagir com clientes e equipes internacionais e compreender e elaborar documentação técnica.</li>\n</ul>\n<p> </p>\n<p><strong>Diferenciais:</strong></p>\n<ul>\n <li>Experiência com Oracle Cloud Migrations, importação de imagens customizadas e adaptação de drivers e configurações de boot.</li>\n <li>Conhecimento de Oracle Cloud VMware Solution (OCVS), VMware HCX e NSX. </li>\n <li>Experiência com OCI Resource Manager, OCI CLI e APIs. </li>\n <li>Conhecimento de Docker, Kubernetes e Oracle Kubernetes Engine (OKE). </li>\n <li>Experiência com observabilidade, backup e recuperação de desastres. </li>\n <li>Certificações OCI, Linux, Terraform, VMware, AWS ou Google Cloud.</li>\n <li>Conhecimento de espanhol para leitura e elaboração de documentação técnica e comunicação oral com clientes e equipes.</li>\n</ul>\n<p> </p>\n<p><strong>Perfil esperado:</strong></p>\n<ul>\n <li>Profissional com capacidade de execução, organização e autonomia, que trabalhe de forma colaborativa e mantenha atenção à continuidade dos serviços. </li>\n <li>Deve conseguir transformar requisitos de migração em procedimentos reproduzíveis, identificar limitações técnicas e conduzir atividades com critérios claros de validação e reversão.</li>\n</ul>\n<p> </p>",
+      "CorporateDescriptionStr": "<p style=\"margin-bottom:12pt\">Only Oracle brings together the data, infrastructure, applications, and expertise to power everything from industry innovations to life-saving care. And with AI embedded across our products and services, we help customers turn that promise into a better future for all. Discover your potential at a company leading the way in AI and cloud solutions that impact billions of lives.</p>\n<p style=\"margin-bottom:12pt\">True innovation starts when everyone is empowered to contribute. That’s why we’re committed to growing a workforce that promotes opportunities for all with competitive benefits that support our people with flexible medical, life insurance, and retirement options. We also encourage employees to give back to their communities through our volunteer programs.</p>\n<p style=\"margin-bottom:12pt\">We’re committed to including people with disabilities at all stages of the employment process. If you require accessibility assistance or accommodation for a disability at any point, let us know by emailing <u><a href=\"mailto:exemplo@exemplo.invalid\" target=\"_blank\" rel=\"nofollow\">exemplo@exemplo.invalid</a></u> or by calling +55 11 90000-0000 in the United States.</p>\n<p style=\"margin-bottom:12pt\">Oracle is an Equal Employment Opportunity Employer. All qualified applicants will receive consideration for employment without regard to race, color, religion, sex, national origin, sexual orientation, gender identity, disability and protected veterans’ status, or any other characteristic protected by law. Oracle will consider for employment qualified applicants with arrest and conviction records pursuant to applicable law.</p>",
+      "OrganizationDescriptionStr": "",
+      "ShortDescriptionStr": "Buscamos um profissional para atuar no planejamento e na execução de migrações de máquinas virtuais de ambientes VMware, AWS e Google Cloud para Oracle Cloud Infrastructure (OCI). A posição combina administração Linux, automação de infraestrutura e práticas DevOps, com atuação junto às equipes técnicas dos clientes para entregar ambientes seguros, estáveis e operacionais.",
+      "ContentLocale": "en",
+      "PrimaryLocation": "SAO PAULO, SP, Brazil",
+      "PrimaryLocationCountry": "BR",
+      "ObjectVerNumberProfile": "1",
+      "ApplyWhenNotPostedFlag": false,
+      "ExternalQualificationsStr": "",
+      "InternalQualificationsStr": "",
+      "InternalResponsibilitiesStr": "<p><strong>Principais responsabilidades:</strong></p><ul><li>Realizar o levantamento dos ambientes de origem, identificando dependências entre aplicações, sistemas operacionais, redes e armazenamento.</li><li> Planejar e executar migrações de VMs de VMware, AWS EC2 e Google Compute Engine para OCI, selecionando ferramentas e estratégias conforme a compatibilidade de cada ambiente.</li><li>Preparar a infraestrutura de destino em OCI, incluindo Compute, redes, armazenamento, acessos e monitoramento.</li><li>Administrar e solucionar problemas em servidores Linux antes, durante e após as migrações.</li><li>Desenvolver automações com Terraform, Ansible, Bash e Python para provisionamento, configuração e validação dos ambientes.</li><li>Criar e manter pipelines de CI/CD para mudanças de infraestrutura e configurações.</li><li>Elaborar planos de migração, procedimentos de execução, testes, critérios de aceite e planos de reversão.</li><li>Executar testes de migração, cutover e validação pós-migração em conjunto com as equipes responsáveis pelas aplicações.</li><li>Investigar problemas de conectividade, inicialização, desempenho e acesso aos sistemas migrados.</li><li>Documentar as soluções e realizar a transferência de conhecimento para as equipes de operação.</li></ul>",
+      "ExternalResponsibilitiesStr": "<p><strong>Principais responsabilidades:</strong></p><ul><li>Realizar o levantamento dos ambientes de origem, identificando dependências entre aplicações, sistemas operacionais, redes e armazenamento.</li><li> Planejar e executar migrações de VMs de VMware, AWS EC2 e Google Compute Engine para OCI, selecionando ferramentas e estratégias conforme a compatibilidade de cada ambiente.</li><li>Preparar a infraestrutura de destino em OCI, incluindo Compute, redes, armazenamento, acessos e monitoramento.</li><li>Administrar e solucionar problemas em servidores Linux antes, durante e após as migrações.</li><li>Desenvolver automações com Terraform, Ansible, Bash e Python para provisionamento, configuração e validação dos ambientes.</li><li>Criar e manter pipelines de CI/CD para mudanças de infraestrutura e configurações.</li><li>Elaborar planos de migração, procedimentos de execução, testes, critérios de aceite e planos de reversão.</li><li>Executar testes de migração, cutover e validação pós-migração em conjunto com as equipes responsáveis pelas aplicações.</li><li>Investigar problemas de conectividade, inicialização, desempenho e acesso aos sistemas migrados.</li><li>Documentar as soluções e realizar a transferência de conhecimento para as equipes de operação.</li></ul>",
+      "JobFunctionCode": "PRESALES-PRODTECH",
+      "HotJobFlag": false,
+      "TrendingFlag": true,
+      "BeFirstToApplyFlag": false,
+      "WorkplaceTypeCode": null,
+      "WorkplaceType": "",
+      "OtherRequisitionTitle": null,
+      "NumberOfOpenings": null,
+      "HiringManager": null,
+      "Organization": null,
+      "BusinessUnitId": 300001095889529,
+      "LegalEmployerId": 300000000864808,
+      "OrganizationId": 300001902541887,
+      "WorkerType": null,
+      "JobType": null,
+      "WorkMonths": null,
+      "WorkYears": null,
+      "WorkHours": null,
+      "WorkDays": null,
+      "LegalEmployer": null,
+      "BusinessUnit": null,
+      "Department": null,
+      "DomesticTravelRequired": null,
+      "JobFunction": "PRESALES-PRODTECH",
+      "secondaryLocations": [],
+      "media": [],
+      "workLocation": [],
+      "otherWorkLocations": [],
+      "requisitionFlexFields": [
+        {
+          "Prompt": "Role",
+          "Value": "Individual Contributor",
+          "ControlType": "SingleChoiceList",
+          "SequenceNumber": 4
+        },
+        {
+          "Prompt": "Job Type",
+          "Value": "Regular Employee",
+          "ControlType": "SingleChoiceList",
+          "SequenceNumber": 5
+        },
+        {
+          "Prompt": "Does this position require a security clearance?",
+          "Value": "No",
+          "ControlType": "SingleChoiceList",
+          "SequenceNumber": 12
+        },
+        {
+          "Prompt": "Years",
+          "Value": "Not Applicable",
+          "ControlType": "SingleChoiceList",
+          "SequenceNumber": 13
+        },
+        {
+          "Prompt": "Additional Info",
+          "Value": "Visa / work permit sponsorship is not available for this position",
+          "ControlType": "SingleChoiceList",
+          "SequenceNumber": 45
+        }
+      ],
+      "primaryLocationCoordinates": [
+        {
+          "GeographyNodeId": 100879842726761,
+          "GeographyId": 300000330892546,
+          "Latitude": "-23.55079",
+          "Longitude": "-46.48058",
+          "CountryCode": "BR"
+        }
+      ],
+      "skills": []
+    }
+  ],
+  "count": 1,
+  "hasMore": false,
+  "limit": 499,
+  "offset": 0
+}

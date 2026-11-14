@@ -1,0 +1,12 @@
+{
+  "url": "https://himalayas.app/jobs/api/search?q=python&country=BR&sort=recent",
+  "data": "2026-11-14T06:26:49.986533+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/json",
+    "Last-Modified": "Fri, 13 Nov 2026 23:06:49 GMT"
+  },
+  "sha256": "8192213a1bd258fe011a20b2a61832428ed9da1a00faf7a4eb0b27701bc7982b",
+  "versao": "0.1.0",
+  "metodo": "GET"
+}

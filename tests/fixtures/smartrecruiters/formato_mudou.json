@@ -1,0 +1,175 @@
+{
+  "offset": 0,
+  "limit": 100,
+  "totalFound": 2,
+  "content": [
+    {
+      "id": "744000161500208",
+      "name": "Analista de Dados e Relacionamento",
+      "uuid": "c9270513-59c9-43c8-9ae0-8b116381fb0c",
+      "jobAdId": "127a40e7-19f2-4f9b-bff1-4aea775142c9",
+      "defaultJobAd": false,
+      "refNumber": "R26_0025443|BR",
+      "company": {
+        "identifier": "NielsenIQ",
+        "name": "NielsenIQ"
+      },
+      "releasedDate": "2026-11-13T14:26:02.232Z",
+      "location": {
+        "city": "Barueri",
+        "region": "SP",
+        "country": "br",
+        "address": "Alameda Xingu, 512, Alphaville",
+        "remote": false,
+        "hybrid": true,
+        "hybridDescription": "1 dia presencial e 4 remotos",
+        "fullLocation": "Barueri, SP, Brazil"
+      },
+      "industry": {
+        "id": "market_research",
+        "label": "Market Research"
+      },
+      "department": {},
+      "function": {
+        "id": "general_business",
+        "label": "General Business"
+      },
+      "typeOfEmployment": {
+        "id": "permanent",
+        "label": "Full-time"
+      },
+      "experienceLevel": {
+        "id": "mid_senior_level",
+        "label": "Mid-Senior Level"
+      },
+      "customField": [
+        {
+          "fieldId": "66b9f751c3dea915005f52d3",
+          "fieldLabel": "Job Family Group",
+          "valueId": "JFG_Project Management",
+          "valueLabel": "Project Management"
+        },
+        {
+          "fieldId": "66ba11a2fbb6422bc1768d9c",
+          "fieldLabel": "Job Family",
+          "valueId": "JF_Project-slash-Program Management Generalist-slash-Multidiscipline",
+          "valueLabel": "Project/Program Management Generalist/Multidiscipline"
+        },
+        {
+          "fieldId": "COUNTRY",
+          "fieldLabel": "Country/Region",
+          "valueId": "br",
+          "valueLabel": "Brazil"
+        },
+        {
+          "fieldId": "5f4e1c0fb0ef7d27c76a592a",
+          "fieldLabel": "Brands",
+          "valueId": "default",
+          "valueLabel": "NielsenIQ"
+        },
+        {
+          "fieldId": "5f5739e25090fd3c6a2ab1c6",
+          "fieldLabel": "Career Site Team",
+          "valueId": "8e2b8b4e-ea77-4e43-9fa3-94e06cc5fbc1",
+          "valueLabel": "Operations"
+        },
+        {
+          "fieldId": "5f63c34d877060706d2a5a98",
+          "fieldLabel": "Referral Amount ($USD): Enter 0 for no amount.",
+          "valueLabel": "100"
+        }
+      ],
+      "visibility": "PUBLIC",
+      "ref": "https://api.smartrecruiters.com/v1/companies/NielsenIQ/postings/744000161500208",
+      "language": {
+        "code": "pt-BR",
+        "label": "Portuguese (Brazil)",
+        "labelNative": "português (Brasil)"
+      }
+    },
+    {
+      "id": "744000161181499",
+      "uuid": "e2d7edb7-1bb0-4dde-a286-bbca99dd8d7a",
+      "jobAdId": "9e130a92-cf62-49df-81d6-bf413e98f594",
+      "defaultJobAd": false,
+      "refNumber": "R26_0023709|BR",
+      "company": {
+        "identifier": "NielsenIQ",
+        "name": "NielsenIQ"
+      },
+      "releasedDate": "2026-11-11T23:38:26.295Z",
+      "location": {
+        "city": "Barueri",
+        "region": "SP",
+        "country": "br",
+        "address": "Alameda Xingu, 512, Alphaville",
+        "remote": false,
+        "hybrid": true,
+        "fullLocation": "Barueri, SP, Brazil"
+      },
+      "industry": {
+        "id": "market_research",
+        "label": "Market Research"
+      },
+      "department": {},
+      "function": {
+        "id": "general_business",
+        "label": "General Business"
+      },
+      "typeOfEmployment": {
+        "id": "permanent",
+        "label": "Full-time"
+      },
+      "experienceLevel": {
+        "id": "mid_senior_level",
+        "label": "Mid-Senior Level"
+      },
+      "customField": [
+        {
+          "fieldId": "5f4e1c0fb0ef7d27c76a592a",
+          "fieldLabel": "Brands",
+          "valueId": "default",
+          "valueLabel": "NielsenIQ"
+        },
+        {
+          "fieldId": "66b9f751c3dea915005f52d3",
+          "fieldLabel": "Job Family Group",
+          "valueId": "JFG_Customer Success",
+          "valueLabel": "Customer Success"
+        },
+        {
+          "fieldId": "5f64c8c4bf34c562e0ef861c",
+          "fieldLabel": "Job Level",
+          "valueId": "5",
+          "valueLabel": "5"
+        },
+        {
+          "fieldId": "66ba11a2fbb6422bc1768d9c",
+          "fieldLabel": "Job Family",
+          "valueId": "JF_Consulting",
+          "valueLabel": "Consulting"
+        },
+        {
+          "fieldId": "COUNTRY",
+          "fieldLabel": "Country/Region",
+          "valueId": "br",
+          "valueLabel": "Brazil"
+        },
+        {
+          "fieldId": "5f5739e25090fd3c6a2ab1c6",
+          "fieldLabel": "Career Site Team",
+          "valueId": "33a1d9e3-bf4d-417f-94c7-aed49db6aae9",
+          "valueLabel": "Customer Success"
+        }
+      ],
+      "visibility": "PUBLIC",
+      "ref": "https://api.smartrecruiters.com/v1/companies/NielsenIQ/postings/744000161181499",
+      "language": {
+        "code": "pt-BR",
+        "label": "Portuguese (Brazil)",
+        "labelNative": "português (Brasil)"
+      },
+      "title": "Analista de Inteligência de Mercado (Consultant)"
+    }
+  ]
+}

@@ -9,25 +9,21 @@ import json
 import re
 import sqlite3
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from typing import Annotated, Any
 from urllib.parse import urlencode
 
 from fastapi import APIRouter, Form, HTTPException, Path, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
-from jinja2 import pass_context
-from jinja2.runtime import Context
 from starlette.datastructures import QueryParams
 
 from jobot.banco import acoes, leitura
 from jobot.banco.leitura import Filtros, Fonte, Item
+from jobot.banco.paginas import paginas, ultimas_diferencas
 from jobot.nucleo.destaques import Candidata, destaques
-from jobot.nucleo.modelo import Motivo
 from jobot.nucleo.relogio import Relogio, RelogioReal
-from jobot.painel import formatos
-from jobot.painel.rotas.preferencias import _de_volta
-from jobot.painel.seguranca import TEMPLATES, Con, renderizar
+from jobot.painel.seguranca import Con, de_volta, renderizar
 
 router = APIRouter()
 
@@ -47,7 +43,7 @@ _ROTULO_CHIP = {
     "uf": None,
 }
 _MAX_TEXTO = 100
-_MAX_ID = 2**31
+MAX_ID = 2**31
 # o INTEGER do SQLite é de 64 bits com sinal: id maior estoura em OverflowError (500)
 VagaId = Annotated[int, Path(ge=1, le=2**63 - 1)]
 _MAX_PAGINA = 10_000
@@ -56,34 +52,7 @@ _DESTAQUES_N = 10
 _ANTES_DESTAQUES = "julianday(v.primeira_vista_em) >= julianday(:agora) - 2"
 
 
-@pass_context
-def _rotulo(contexto: Context, chave: str, padrao: str) -> str:
-    """O texto da chave; sem texto no catálogo, o `padrao` (valor que o sistema não conhece)."""
-    texto: str = contexto["t"](chave)
-    return padrao if texto == chave else texto
-
-
-@pass_context
-def _motivo(contexto: Context, motivo: Motivo) -> str:
-    """O motivo do encaixe em texto; chave desconhecida ou parâmetro faltando fica sem texto."""
-    try:
-        texto: str = contexto["t"](motivo.chave, **motivo.params)
-    except KeyError, IndexError, ValueError:
-        return ""
-    return "" if texto == motivo.chave else texto
-
-
-TEMPLATES.env.globals |= {
-    "salario_texto": formatos.salario_texto,
-    "locais_texto": formatos.locais_texto,
-    "data_curta": formatos.data_curta,
-    "data_completa": formatos.data_completa,
-    "rotulo": _rotulo,
-    "motivo": _motivo,
-}
-
-
-def _relogio(request: Request) -> Relogio:
+def relogio_do_painel(request: Request) -> Relogio:
     relogio: Relogio = getattr(request.app.state, "relogio", None) or RelogioReal()
     return relogio
 
@@ -93,7 +62,7 @@ def _config(con: sqlite3.Connection, chave: str, padrao: Any) -> Any:
     return padrao if linha is None else json.loads(linha[0])
 
 
-def _inteiro(texto: str | None, maximo: int) -> int | None:
+def inteiro_da_url(texto: str | None, maximo: int) -> int | None:
     """Número de 1 a `maximo`; qualquer outra coisa (letra, zero, negativo, enorme) é None."""
     if texto is None or not texto.isascii() or not texto.isdigit():
         return None
@@ -106,7 +75,7 @@ def _texto(texto: str | None) -> str | None:
     return limpo or None
 
 
-def _busca_efetiva(con: sqlite3.Connection, pedida: int | None) -> int | None:
+def busca_efetiva(con: sqlite3.Connection, pedida: int | None) -> int | None:
     """A busca da URL, se existir; senão a primeira ativa; sem nenhuma, None."""
     if pedida is not None and con.execute("SELECT 1 FROM busca WHERE id = ?", (pedida,)).fetchone():
         return pedida
@@ -184,8 +153,8 @@ def _ler_estado(params: QueryParams, con: sqlite3.Connection) -> Estado:
     validas = {*leitura.ABAS, *([ABA_DESTAQUES] if ligados else [])}
     pedida_aba = params.get("aba") or ""
     aba = pedida_aba if pedida_aba in validas else (ABA_DESTAQUES if ligados else "todas")
-    pedida = _inteiro(params.get("busca"), _MAX_ID)
-    busca_id = _busca_efetiva(con, pedida)
+    pedida = inteiro_da_url(params.get("busca"), MAX_ID)
+    busca_id = busca_efetiva(con, pedida)
     sem = _sem_criterio(con, busca_id)
     pedida_ordem = params.get("ordem") or ""
     ordem_url = pedida_ordem in leitura.ORDENS
@@ -203,7 +172,7 @@ def _ler_estado(params: QueryParams, con: sqlite3.Connection) -> Estado:
     )
 
 
-def _utc(texto: str) -> datetime | None:
+def utc_do_banco(texto: str) -> datetime | None:
     try:
         data = datetime.fromisoformat(texto)
     except ValueError:
@@ -229,13 +198,13 @@ def _ids_destaques(con: sqlite3.Connection, busca_id: int | None, agora: datetim
     ).fetchall()
     candidatas = []
     for vaga_id, empresa, nota, publicada, primeira in linhas:
-        vista = _utc(primeira)
+        vista = utc_do_banco(primeira)
         if vista is not None:
             candidata = Candidata(
                 vaga_id=vaga_id,
                 empresa=empresa,
                 nota=nota,
-                publicada_em=_utc(publicada) if publicada else None,
+                publicada_em=utc_do_banco(publicada) if publicada else None,
                 primeira_vista_em=vista,
             )
             candidatas.append(candidata)
@@ -311,6 +280,31 @@ def _grupos(con: sqlite3.Connection, estado: Estado, agora: datetime) -> list[di
     return grupos
 
 
+def _seletor(con: sqlite3.Connection, estado: Estado) -> list[dict[str, Any]]:
+    """As buscas ativas (e a da URL, mesmo desligada), cada uma com a vista atual trocada nela."""
+    linhas = con.execute(
+        "SELECT id, nome FROM busca WHERE ativa = 1 OR id = ? ORDER BY id", (estado.busca_id,)
+    ).fetchall()
+    if len(linhas) < 2:
+        return []
+    return [
+        {
+            "nome": nome,
+            "atual": id_ == estado.busca_id,
+            "url": replace(estado, busca_id=id_, busca_url=True).url(),
+        }
+        for id_, nome in linhas
+    ]
+
+
+def _paginas_programas(con: sqlite3.Connection) -> list[dict[str, Any]]:
+    """As páginas ativas (a que mudou há menos tempo primeiro), com a última diferença."""
+    ultima = ultimas_diferencas(con)
+    achadas = [p for p in paginas(con) if p.ativa]
+    achadas.sort(key=lambda p: p.mudou_em or datetime.min.replace(tzinfo=UTC), reverse=True)
+    return [{"p": p, "diferenca": ultima.get(p.id) if p.mudou_em else None} for p in achadas]
+
+
 def _contexto_pagina(con: sqlite3.Connection, estado: Estado, agora: datetime) -> dict[str, Any]:
     ids_destaques = _ids_destaques(con, estado.busca_id, agora) if estado.destaques_ligados else []
     contagens = leitura.contar_abas(con, estado.busca_id, agora)
@@ -340,7 +334,9 @@ def _contexto_pagina(con: sqlite3.Connection, estado: Estado, agora: datetime) -
         if pagina.tem_mais:
             mais_url = estado.url(extras=[("pagina", "2")])
     return {
+        "paginas_programas": _paginas_programas(con) if estado.aba == "programas" else [],
         "abas": abas,
+        "seletor": _seletor(con, estado),
         "grupos": grupos,
         "itens": itens,
         "fontes": fontes,
@@ -368,7 +364,7 @@ def _vary(resposta: HTMLResponse) -> HTMLResponse:
 @router.get("/")
 async def raiz(con: Con) -> RedirectResponse:
     if not _config(con, "primeira_execucao_concluida", False):
-        return RedirectResponse("/primeira-execucao", status_code=303)
+        return RedirectResponse("/primeira-execucao/1", status_code=303)
     aba = ABA_DESTAQUES if _config(con, "destaques_ligados", True) else "todas"
     return RedirectResponse(f"/vagas?aba={aba}", status_code=303)
 
@@ -376,11 +372,11 @@ async def raiz(con: Con) -> RedirectResponse:
 @router.get("/vagas")
 async def vagas(request: Request, con: Con) -> HTMLResponse:
     estado = _ler_estado(request.query_params, con)
-    agora = _relogio(request).agora()
+    agora = relogio_do_painel(request).agora()
     cabecalho = request.headers
     restaurando = cabecalho.get("hx-history-restore-request") == "true"
     parcial = cabecalho.get("hx-request") == "true" and not restaurando
-    pagina = _inteiro(request.query_params.get("pagina"), _MAX_PAGINA) or 1
+    pagina = inteiro_da_url(request.query_params.get("pagina"), _MAX_PAGINA) or 1
     if parcial and pagina > 1 and not estado.e_destaques:
         # "carregar mais": só os cartões novos e o botão da página seguinte
         lista = leitura.listar(con, estado.filtros(pagina), agora)
@@ -406,7 +402,7 @@ async def vagas(request: Request, con: Con) -> HTMLResponse:
 def _aplicar(request: Request, acao: Callable[[datetime], None]) -> None:
     """Roda a ação do `acoes`: vaga que não existe é 404; valor ou estado inválido, 422."""
     try:
-        acao(_relogio(request).agora())
+        acao(relogio_do_painel(request).agora())
     except LookupError as erro:
         raise HTTPException(404, "vaga não existe") from erro
     except ValueError as erro:
@@ -418,9 +414,9 @@ def _resposta(
 ) -> Response:
     """HTMX recebe o corpo novo do cartão; sem HTMX, a pessoa volta para a página de onde veio."""
     if request.headers.get("hx-request") != "true":
-        return _de_volta(voltar)
-    busca_id = _busca_efetiva(con, _inteiro(busca, _MAX_ID))
-    vaga = leitura.detalhe(con, vaga_id, busca_id, _relogio(request).agora())
+        return de_volta(voltar)
+    busca_id = busca_efetiva(con, inteiro_da_url(busca, MAX_ID))
+    vaga = leitura.detalhe(con, vaga_id, busca_id, relogio_do_painel(request).agora())
     if vaga is None:
         raise HTTPException(404, "vaga não existe")
     return renderizar(

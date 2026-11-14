@@ -1,5 +1,5 @@
 [build-system]
-requires = ["uv_build>=0.12.3,<0.13"]
+requires = ["uv_build>=0.12.3,<0.14"]
 build-backend = "uv_build"
 
 [project]
@@ -52,4 +52,4 @@ files = ["src", "tests"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = ["-ra", "--strict-markers"]
-markers = ["tela: teste de tela com Playwright (precisa do Chromium; só o CI instala)"]
+markers = ["tela: teste de tela com Playwright (precisa do Chromium do Playwright: uv run playwright install chromium)"]

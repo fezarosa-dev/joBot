@@ -1,0 +1,12 @@
+{
+  "url": "https://estagios.fea.usp.br/vagas/136",
+  "data": "2026-11-13T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "text/html; charset=utf-8"
+  },
+  "sha256": "c4fe765e62370b2bb0c02b242c7c5dc69f04dc0ffeb7296b477d3d76708b16e3",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "capturado de fea_vaga136.html (conferência ao vivo de 2026-11-13) com capturar.reduzir e limpar_pessoais (e-mail do contato vira exemplo); token CSRF trocado por 'exemplo-csrf'; cabeçalhos não guardados na conferência: Content-Type assumido"
+}

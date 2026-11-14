@@ -79,7 +79,8 @@ def empresas_iniciais() -> tuple[Empresa, ...]:
 def semear(con: sqlite3.Connection) -> None:
     """Copia as fontes e a lista inicial de empresas para o banco; pode rodar quantas vezes quiser.
 
-    Fonte: `leva` e `intervalo_min` seguem o arquivo; `ligada` é da pessoa e não é tocada.
+    Fonte: `leva` e `intervalo_min` seguem o arquivo; `ligada` só nasce do `ligada_padrao` do
+    arquivo e depois é da pessoa (a linha que já existe não é tocada).
     Empresa: casa por (`fonte`, `identificador`); quem já tem linha é pulada, mesmo desligada
     ou removida.
     """
@@ -87,10 +88,10 @@ def semear(con: sqlite3.Connection) -> None:
     with con:
         for chave, limites in carregar_fontes(texto).items():
             con.execute(
-                "INSERT INTO fonte (chave, leva, intervalo_min) VALUES (?, ?, ?)"
+                "INSERT INTO fonte (chave, leva, intervalo_min, ligada) VALUES (?, ?, ?, ?)"
                 " ON CONFLICT(chave) DO UPDATE SET leva = excluded.leva,"
                 " intervalo_min = excluded.intervalo_min",
-                (chave, limites.leva, limites.intervalo_min),
+                (chave, limites.leva, limites.intervalo_min, int(limites.ligada_padrao)),
             )
         for e in empresas_iniciais():
             con.execute(

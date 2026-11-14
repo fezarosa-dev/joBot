@@ -1,0 +1,255 @@
+{
+  "content": [
+    {
+      "codigoVaga": 6299866,
+      "tipoVaga": "ESTAGIO",
+      "nomeEmpresa": "Pessoa Exemplo LTDA",
+      "areaAtuacao": null,
+      "areaProfissional": "Ensino Médio",
+      "salario": null,
+      "bolsaAuxilio": 1300,
+      "quantidadeBeneficios": 1,
+      "tipoAuxilioBolsa": "Mensal",
+      "tipoValorBolsa": "FIXO",
+      "tipoSalarioValor": null,
+      "tipoSalario": null,
+      "bolsaAuxilioDe": null,
+      "bolsaAuxilioAte": null,
+      "salarioDe": null,
+      "salarioAte": null,
+      "beneficios": [],
+      "descricao": "Comércio varejista de artigos do vestuário e acessórios",
+      "local": {
+        "tipoLogradouro": null,
+        "endereco": null,
+        "numero": null,
+        "bairro": "Centro",
+        "complemento": null,
+        "cep": null,
+        "cidade": "São Vicente",
+        "uf": "SP"
+      },
+      "tipoHorario": "DEFINIDO",
+      "horarioEntrada": "13:30:00",
+      "horarioSaida": "19:00:00",
+      "atividades": [
+        "Auxiliar a separação de produtos e pedidos",
+        "Auxiliar na conferência de produtos",
+        "Auxiliar nas embalagens de produtos diversos",
+        "Auxiliar no atendimento ao público",
+        "Auxiliar no controle de estoques"
+      ],
+      "requisitos": {
+        "semestreInicio": 1,
+        "semestreFinal": 4,
+        "escolas": null
+      },
+      "nivelEscolar": "EM",
+      "logo": null
+    },
+    {
+      "codigoVaga": 6299857,
+      "tipoVaga": "APRENDIZ",
+      "nomeEmpresa": "SURGITEC COMERCIO E FABRICACAO DE PRODUTOS MEDICOS E HOSPITALARES LTDA",
+      "areaAtuacao": "Arco Administrativo",
+      "areaProfissional": null,
+      "salario": 1600,
+      "bolsaAuxilio": null,
+      "quantidadeBeneficios": 1,
+      "tipoAuxilioBolsa": null,
+      "tipoValorBolsa": null,
+      "tipoSalarioValor": "FIXO",
+      "tipoSalario": "Mensal",
+      "bolsaAuxilioDe": null,
+      "bolsaAuxilioAte": null,
+      "salarioDe": null,
+      "salarioAte": null,
+      "beneficios": [],
+      "descricao": "Fabricação de instrumentos não-eletrônicos e utensílios para uso médico, cirúrgico, odontológico e de laboratório",
+      "local": {
+        "tipoLogradouro": null,
+        "endereco": null,
+        "numero": null,
+        "bairro": "Recanto das Primaveras I",
+        "complemento": null,
+        "cep": null,
+        "cidade": "Boituva",
+        "uf": "SP"
+      },
+      "tipoHorario": "DEFINIDO",
+      "horarioEntrada": "08:00:00",
+      "horarioSaida": "14:00:00",
+      "atividades": [
+        "Separar , organizar, digitalizar, arquivar e desarquivar documentos;Registrar a entrada e saída de documentos; Conferir notas fiscais, faturas e boletos; Coletar dados para relatórios; Atualizar base de dados e preencher formulários; Atualizar cadastros de clientes, funcionários e fornecedores; Fornecer informações sobre produtos e serviços; Controlar material de expediente e distribuir;  Apoiar o RH (convocar candidatos, solicitar documentos, atualizar dados de funcionários e candidatos);Auxiliar na organização de eventos internos e reuniões; SAC - Registrar reclamações dos clientes. ",
+        "Arquivar documentos nas formas eletrônica e papel; Inventariar documentos; Organizar fisicamente o acervo de documentos; Higienizar o acervo de documentos; Atualizar base de dados de documentos. ",
+        "Distribuir documentos, correspondências e encomendas dentro da empresa e protocolar; Coletar, preparar, abrir e entregar malotes (exceto receber);Arquivar e classificar documentos; Preencher formulários; Tirar cópias e digitalizar documentos; Fazer atendimento telefônico e anotar recados. "
+      ],
+      "requisitos": {
+        "semestreInicio": 0,
+        "semestreFinal": 0,
+        "escolas": null
+      },
+      "nivelEscolar": "T",
+      "logo": null
+    },
+    {
+      "codigoVaga": 6299856,
+      "tipoVaga": "ESTAGIO",
+      "nomeEmpresa": "SECRETARIA MUNICIPAL DE EDUCAÇÃO – SEMEC",
+      "areaAtuacao": null,
+      "areaProfissional": "Saúde",
+      "salario": null,
+      "bolsaAuxilio": 1000,
+      "quantidadeBeneficios": 1,
+      "tipoAuxilioBolsa": "Mensal",
+      "tipoValorBolsa": "FIXO",
+      "tipoSalarioValor": null,
+      "tipoSalario": null,
+      "bolsaAuxilioDe": null,
+      "bolsaAuxilioAte": null,
+      "salarioDe": null,
+      "salarioAte": null,
+      "beneficios": [],
+      "descricao": "Administração pública em geral",
+      "local": {
+        "tipoLogradouro": null,
+        "endereco": null,
+        "numero": null,
+        "bairro": "Centro",
+        "complemento": null,
+        "cep": null,
+        "cidade": "Teresina",
+        "uf": "PI"
+      },
+      "tipoHorario": "A_COMBINAR",
+      "horarioEntrada": null,
+      "horarioSaida": null,
+      "atividades": [
+        "as crianças com necessidades especiais nas suas necessidades diárias",
+        "estudantes com deficiência ou outras necessidades educacionais específicas em sala de aula, sob  supervisão do profissional responsável",
+        "apoio às crianças com necessidades específicas em suas demandas de higiene pessoal, atividades da vida diária, participação e permanência no ambiente escolar"
+      ],
+      "requisitos": {
+        "semestreInicio": 4,
+        "semestreFinal": 7,
+        "escolas": null
+      },
+      "nivelEscolar": "SU",
+      "logo": null
+    },
+    {
+      "codigoVaga": 6299849,
+      "tipoVaga": "ESTAGIO",
+      "nomeEmpresa": "Pessoa Exemplo LTDA",
+      "areaAtuacao": null,
+      "areaProfissional": "Ensino Médio",
+      "salario": null,
+      "bolsaAuxilio": 1300,
+      "quantidadeBeneficios": 1,
+      "tipoAuxilioBolsa": "Mensal",
+      "tipoValorBolsa": "FIXO",
+      "tipoSalarioValor": null,
+      "tipoSalario": null,
+      "bolsaAuxilioDe": null,
+      "bolsaAuxilioAte": null,
+      "salarioDe": null,
+      "salarioAte": null,
+      "beneficios": [],
+      "descricao": "Comércio varejista de artigos do vestuário e acessórios",
+      "local": {
+        "tipoLogradouro": null,
+        "endereco": null,
+        "numero": null,
+        "bairro": "Centro",
+        "complemento": null,
+        "cep": null,
+        "cidade": "São Vicente",
+        "uf": "SP"
+      },
+      "tipoHorario": "DEFINIDO",
+      "horarioEntrada": "09:30:00",
+      "horarioSaida": "15:00:00",
+      "atividades": [
+        "Acompanhar o atendimento ao cliente",
+        "Auxiliar no controle de estoques",
+        "Auxiliar o cadastro de produtos em estoque"
+      ],
+      "requisitos": {
+        "semestreInicio": 1,
+        "semestreFinal": 4,
+        "escolas": null
+      },
+      "nivelEscolar": "EM",
+      "logo": null
+    },
+    {
+      "codigoVaga": 6299843,
+      "tipoVaga": "ESTAGIO",
+      "nomeEmpresa": "CENTRO DE ESTETICA E SAUDE PESSOA EXEMPLO LTDA",
+      "areaAtuacao": null,
+      "areaProfissional": "Biomedicina",
+      "salario": null,
+      "bolsaAuxilio": 1000,
+      "quantidadeBeneficios": 1,
+      "tipoAuxilioBolsa": "Mensal",
+      "tipoValorBolsa": "FIXO",
+      "tipoSalarioValor": null,
+      "tipoSalario": null,
+      "bolsaAuxilioDe": null,
+      "bolsaAuxilioAte": null,
+      "salarioDe": null,
+      "salarioAte": null,
+      "beneficios": [],
+      "descricao": "Atividades de práticas integrativas e complementares em saúde humana",
+      "local": {
+        "tipoLogradouro": null,
+        "endereco": null,
+        "numero": null,
+        "bairro": "JARDIM TANAKA",
+        "complemento": null,
+        "cep": null,
+        "cidade": "Tangará da Serra",
+        "uf": "MT"
+      },
+      "tipoHorario": "A_COMBINAR",
+      "horarioEntrada": null,
+      "horarioSaida": null,
+      "atividades": [
+        "Acompanhar a avaliação do estado de saúde do paciente com o profissional responsável pelo estágio",
+        "Auxiliar na organização de dados dos pacientes para diagnóstico laboratorial",
+        "Auxiliar no planejamento da execução e gestão de serviços relacionados à estética, beleza e saúde",
+        "Elaborar relatórios específicos da área",
+        "Auxiliar no atendimento telefonico de pacientes"
+      ],
+      "requisitos": {
+        "semestreInicio": 1,
+        "semestreFinal": 8,
+        "escolas": null
+      },
+      "nivelEscolar": "SU",
+      "logo": null
+    }
+  ],
+  "pageable": {
+    "sort": {
+      "sorted": true,
+      "unsorted": false
+    },
+    "pageNumber": 0,
+    "pageSize": 5,
+    "offset": 0,
+    "unpaged": false,
+    "paged": true
+  },
+  "last": false,
+  "totalElements": 5186,
+  "totalPages": 1038,
+  "first": true,
+  "sort": {
+    "sorted": true,
+    "unsorted": false
+  },
+  "numberOfElements": 5,
+  "size": 5,
+  "number": 0
+}

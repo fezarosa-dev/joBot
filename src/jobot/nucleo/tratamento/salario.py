@@ -52,20 +52,26 @@ _MULTIPLICADORES = {
     "k": 1000,
     "mil": 1000,
     "thousand": 1000,
+    "m": 1_000_000,
+    "mi": 1_000_000,
     "milhao": 1_000_000,
     "milhoes": 1_000_000,
     "million": 1_000_000,
     "millions": 1_000_000,
 }
 _MOEDA_TXT = rf"(?<![a-z])(?:{_alternativas(list(_MOEDAS))})(?![a-z])"
-# "401k" logo depois de símbolo de moeda é valor, não benefício ("$401k", "US$ 401k");
-# "$401(k)" e "$ bonus" seguem benefício
+# "401k" logo depois de símbolo ou código de moeda é valor, não benefício ("$401k", "US$ 401k",
+# "USD 401k"); "$401(k)" e "$ bonus" seguem benefício. O lookbehind tem largura fixa: o texto
+# chega com espaços repetidos reduzidos a um só (`ler_salario`). O `\b` barra palavra que termina
+# no código ("years 401k", "Fraud 401k"); código colado no número já cai no `(?<![a-z])`.
 _SIMBOLO = "[" + re.escape("".join(sorted({m[-1] for m in _MOEDAS if not m[-1].isalnum()}))) + "]"
+_APOS_CODIGO = "|".join(rf"(?<=\b{re.escape(c)}\s)\d+k" for c in _MOEDAS if c[-1].isalnum())
 _BENEFICIO_TXT = (
-    rf"(?<![a-z])(?!(?<={_SIMBOLO})\d+k|(?<={_SIMBOLO}\s)\d+k)"
+    rf"(?<![a-z])(?!(?<={_SIMBOLO})\d+k|(?<={_SIMBOLO}\s)\d+k|{_APOS_CODIGO})"
     rf"(?:{_alternativas(list(_BENEFICIOS))})(?![a-z])"
 )
-_NUMERO_TXT = rf"\d+(?:[.,]\d+)*(?:\s*(?:{_alternativas(list(_MULTIPLICADORES))})(?![a-z]))?"
+# "m²"/"m³"/"m2"/"m3" (área, volume) não é milhão: o lookahead barra expoente e dígito
+_NUMERO_TXT = rf"\d+(?:[.,]\d+)*(?:\s*(?:{_alternativas(list(_MULTIPLICADORES))})(?![a-z²³\d]))?"
 _RE_MOEDA = re.compile(_MOEDA_TXT)
 _RE_BENEFICIO = re.compile(_BENEFICIO_TXT)
 # benefício com o valor dele ("R$ 600 de VR", "VR de R$ 30", "bônus de até 3") sai do salário
@@ -75,13 +81,16 @@ _RE_BENEFICIO_COM_VALOR = re.compile(
 )
 _RE_SEGMENTO = re.compile(r"\s*(?:[+;|\n]|,\s)\s*")
 _RE_VALOR = re.compile(
-    rf"(?<![\w.,])(\d+(?:[.,]\d+)*)(?:\s*({_alternativas(list(_MULTIPLICADORES))})(?![a-z]))?"
+    rf"(?<![\w.,])(\d+(?:[.,]\d+)*)(?:\s*({_alternativas(list(_MULTIPLICADORES))})(?![a-z²³\d]))?"
 )
 # número que é duração, porcentagem, ordinal ou parte de palavra ("40 horas", "10%", "13º", "6x1")
 _RE_NAO_VALOR = re.compile(
     r"[a-z%ºª°]|\s*(?:%|hs?\b|hrs?\b|horas\b|hours\b|dias\b|days\b|semanas\b|weeks\b"
-    r"|meses\b|months\b|anos\b|years\b)"
+    r"|meses\b|months\b|anos\b|years\b|minutos\b|minutes\b|mins\b)"
 )
+# "30 min" é duração; "R$ 3.000 min a R$ 5.000 max" é rótulo de faixa (moeda colada antes do número)
+_RE_MIN = re.compile(r"\s*min\b")
+_RE_MOEDA_ANTES = re.compile(rf"(?:{_MOEDA_TXT})\s*$")
 # rótulos que não quebram a faixa ("Min $50k - Max $70k")
 _RE_ROTULO = re.compile(r"\b(?:min|minimo|minimum|max|maximo|maximum)\b\.?:?")
 _RE_LIGA = re.compile(r"\s*(?:-|–|—|~|a|ate|to|e|and)\s*")
@@ -139,6 +148,13 @@ def _valores(trecho: str) -> list[_Valor]:
     achados = []
     for m in _RE_VALOR.finditer(trecho):
         if m.group(2) is None and _RE_NAO_VALOR.match(trecho, m.end()):
+            continue
+        # shortcut: "3.000 min a 5.000 max" sem moeda lê só o segundo valor, até o gabarito (T78)
+        if (
+            m.group(2) is None
+            and _RE_MIN.match(trecho, m.end())
+            and not _RE_MOEDA_ANTES.search(trecho, 0, m.start())
+        ):
             continue
         multiplicador = _MULTIPLICADORES[m.group(2)] if m.group(2) else 1
         valor = _Valor(m.start(), m.end(), _numero(m.group(1)), multiplicador)
@@ -249,6 +265,7 @@ def mensal(centavos: int | None, periodo: Periodo) -> int | None:
 def ler_salario(texto: str | None, estruturado: SalarioBruto | None, idioma: str) -> Salario | None:
     # texto longo não é lido: as regex ficam quadráticas numa sequência longa de dígitos
     simples = _simples(texto) if texto and len(texto) <= _LIMITE_TEXTO else ""
+    simples = re.sub(r"[^\S\n]+", " ", simples)  # espaço repetido vira um (a quebra de linha fica)
     lido = _do_estruturado(estruturado) or _do_texto(simples)
     if lido is None:
         return None

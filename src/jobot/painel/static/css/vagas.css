@@ -151,9 +151,22 @@ select {
   color: var(--texto);
 }
 
-.chip[aria-pressed="true"] {
+.chip[aria-pressed="true"],
+.chip[aria-current="true"] {
   background-color: var(--destaque);
   color: var(--sobre-destaque);
+}
+
+/* seletor de busca: links com cara de chip */
+.seletor-busca {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0 0 1rem;
+}
+
+a.chip {
+  text-decoration: none;
 }
 
 .chip-vazio {

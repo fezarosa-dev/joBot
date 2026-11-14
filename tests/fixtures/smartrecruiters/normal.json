@@ -1,0 +1,411 @@
+{
+  "offset": 0,
+  "limit": 100,
+  "totalFound": 6,
+  "content": [
+    {
+      "id": "744000161500208",
+      "name": "Analista de Dados e Relacionamento",
+      "uuid": "c9270513-59c9-43c8-9ae0-8b116381fb0c",
+      "jobAdId": "127a40e7-19f2-4f9b-bff1-4aea775142c9",
+      "defaultJobAd": false,
+      "refNumber": "R26_0025443|BR",
+      "company": {
+        "identifier": "NielsenIQ",
+        "name": "NielsenIQ"
+      },
+      "releasedDate": "2026-11-13T14:26:02.232Z",
+      "location": {
+        "city": "Barueri",
+        "region": "SP",
+        "country": "br",
+        "address": "Alameda Xingu, 512, Alphaville",
+        "remote": false,
+        "hybrid": true,
+        "hybridDescription": "1 dia presencial e 4 remotos",
+        "fullLocation": "Barueri, SP, Brazil"
+      },
+      "industry": {
+        "id": "market_research",
+        "label": "Market Research"
+      },
+      "department": {},
+      "function": {
+        "id": "general_business",
+        "label": "General Business"
+      },
+      "typeOfEmployment": {
+        "id": "permanent",
+        "label": "Full-time"
+      },
+      "experienceLevel": {
+        "id": "mid_senior_level",
+        "label": "Mid-Senior Level"
+      },
+      "customField": [
+        {
+          "fieldId": "66b9f751c3dea915005f52d3",
+          "fieldLabel": "Job Family Group",
+          "valueId": "JFG_Project Management",
+          "valueLabel": "Project Management"
+        },
+        {
+          "fieldId": "66ba11a2fbb6422bc1768d9c",
+          "fieldLabel": "Job Family",
+          "valueId": "JF_Project-slash-Program Management Generalist-slash-Multidiscipline",
+          "valueLabel": "Project/Program Management Generalist/Multidiscipline"
+        },
+        {
+          "fieldId": "COUNTRY",
+          "fieldLabel": "Country/Region",
+          "valueId": "br",
+          "valueLabel": "Brazil"
+        },
+        {
+          "fieldId": "5f4e1c0fb0ef7d27c76a592a",
+          "fieldLabel": "Brands",
+          "valueId": "default",
+          "valueLabel": "NielsenIQ"
+        },
+        {
+          "fieldId": "5f5739e25090fd3c6a2ab1c6",
+          "fieldLabel": "Career Site Team",
+          "valueId": "8e2b8b4e-ea77-4e43-9fa3-94e06cc5fbc1",
+          "valueLabel": "Operations"
+        },
+        {
+          "fieldId": "5f63c34d877060706d2a5a98",
+          "fieldLabel": "Referral Amount ($USD): Enter 0 for no amount.",
+          "valueLabel": "100"
+        }
+      ],
+      "visibility": "PUBLIC",
+      "ref": "https://api.smartrecruiters.com/v1/companies/NielsenIQ/postings/744000161500208",
+      "language": {
+        "code": "pt-BR",
+        "label": "Portuguese (Brazil)",
+        "labelNative": "português (Brasil)"
+      }
+    },
+    {
+      "id": "744000161181499",
+      "name": "Analista de Inteligência de Mercado (Consultant)",
+      "uuid": "e2d7edb7-1bb0-4dde-a286-bbca99dd8d7a",
+      "jobAdId": "9e130a92-cf62-49df-81d6-bf413e98f594",
+      "defaultJobAd": false,
+      "refNumber": "R26_0023709|BR",
+      "company": {
+        "identifier": "NielsenIQ",
+        "name": "NielsenIQ"
+      },
+      "releasedDate": "2026-11-11T23:38:26.295Z",
+      "location": {
+        "city": "Barueri",
+        "region": "SP",
+        "country": "br",
+        "address": "Alameda Xingu, 512, Alphaville",
+        "remote": false,
+        "hybrid": true,
+        "fullLocation": "Barueri, SP, Brazil"
+      },
+      "industry": {
+        "id": "market_research",
+        "label": "Market Research"
+      },
+      "department": {},
+      "function": {
+        "id": "general_business",
+        "label": "General Business"
+      },
+      "typeOfEmployment": {
+        "id": "permanent",
+        "label": "Full-time"
+      },
+      "experienceLevel": {
+        "id": "mid_senior_level",
+        "label": "Mid-Senior Level"
+      },
+      "customField": [
+        {
+          "fieldId": "5f4e1c0fb0ef7d27c76a592a",
+          "fieldLabel": "Brands",
+          "valueId": "default",
+          "valueLabel": "NielsenIQ"
+        },
+        {
+          "fieldId": "66b9f751c3dea915005f52d3",
+          "fieldLabel": "Job Family Group",
+          "valueId": "JFG_Customer Success",
+          "valueLabel": "Customer Success"
+        },
+        {
+          "fieldId": "5f64c8c4bf34c562e0ef861c",
+          "fieldLabel": "Job Level",
+          "valueId": "5",
+          "valueLabel": "5"
+        },
+        {
+          "fieldId": "66ba11a2fbb6422bc1768d9c",
+          "fieldLabel": "Job Family",
+          "valueId": "JF_Consulting",
+          "valueLabel": "Consulting"
+        },
+        {
+          "fieldId": "COUNTRY",
+          "fieldLabel": "Country/Region",
+          "valueId": "br",
+          "valueLabel": "Brazil"
+        },
+        {
+          "fieldId": "5f5739e25090fd3c6a2ab1c6",
+          "fieldLabel": "Career Site Team",
+          "valueId": "33a1d9e3-bf4d-417f-94c7-aed49db6aae9",
+          "valueLabel": "Customer Success"
+        }
+      ],
+      "visibility": "PUBLIC",
+      "ref": "https://api.smartrecruiters.com/v1/companies/NielsenIQ/postings/744000161181499",
+      "language": {
+        "code": "pt-BR",
+        "label": "Portuguese (Brazil)",
+        "labelNative": "português (Brasil)"
+      }
+    },
+    {
+      "id": "744000161082329",
+      "name": "Aprendiz",
+      "uuid": "509c9ba7-424d-4e0c-bc73-613667eb394b",
+      "jobAdId": "69974dc4-074c-4594-ba86-f7c8c6f19e50",
+      "defaultJobAd": true,
+      "refNumber": "REF61869L",
+      "company": {
+        "identifier": "NielsenIQ",
+        "name": "NielsenIQ"
+      },
+      "releasedDate": "2026-11-11T13:12:14.932Z",
+      "location": {
+        "city": "Barueri",
+        "region": "SP",
+        "country": "br",
+        "remote": false,
+        "hybrid": true,
+        "latitude": "-23.5035117",
+        "longitude": "-46.8785468",
+        "fullLocation": "Barueri, SP, Brazil"
+      },
+      "industry": {
+        "id": "market_research",
+        "label": "Market Research"
+      },
+      "department": {},
+      "function": {
+        "id": "general_business",
+        "label": "General Business"
+      },
+      "typeOfEmployment": {
+        "id": "intern",
+        "label": "Intern"
+      },
+      "experienceLevel": {
+        "id": "internship",
+        "label": "Internship"
+      },
+      "customField": [
+        {
+          "fieldId": "5f4e1c0fb0ef7d27c76a592a",
+          "fieldLabel": "Brands",
+          "valueId": "c83a18a7-1926-4be1-9572-10cc0fbdc9b3",
+          "valueLabel": "NielsenIQ"
+        },
+        {
+          "fieldId": "66b9f751c3dea915005f52d3",
+          "fieldLabel": "Job Family Group",
+          "valueId": "JFG_Intern",
+          "valueLabel": "Intern"
+        },
+        {
+          "fieldId": "66ba11a2fbb6422bc1768d9c",
+          "fieldLabel": "Job Family",
+          "valueId": "JF_Intern_Apprentice",
+          "valueLabel": "Intern_Apprentice"
+        },
+        {
+          "fieldId": "COUNTRY",
+          "fieldLabel": "Country/Region",
+          "valueId": "br",
+          "valueLabel": "Brazil"
+        },
+        {
+          "fieldId": "5f5739e25090fd3c6a2ab1c6",
+          "fieldLabel": "Career Site Team",
+          "valueId": "8e2b8b4e-ea77-4e43-9fa3-94e06cc5fbc1",
+          "valueLabel": "Operations"
+        }
+      ],
+      "visibility": "PUBLIC",
+      "ref": "https://api.smartrecruiters.com/v1/companies/NielsenIQ/postings/744000161082329",
+      "language": {
+        "code": "pt",
+        "label": "Portuguese",
+        "labelNative": "português (Portugal)"
+      }
+    },
+    {
+      "id": "744000161077260",
+      "name": "Estágio em Processos Comerciais",
+      "uuid": "b4645867-1169-4e82-b2de-19d3881d5ba3",
+      "jobAdId": "55ea6ca5-cafd-41ce-bde3-fad4d4bc7bd0",
+      "defaultJobAd": true,
+      "refNumber": "REF61867T",
+      "company": {
+        "identifier": "NielsenIQ",
+        "name": "NielsenIQ"
+      },
+      "releasedDate": "2026-11-11T12:43:02.904Z",
+      "location": {
+        "city": "Barueri",
+        "region": "SP",
+        "country": "br",
+        "remote": false,
+        "hybrid": true,
+        "latitude": "-23.5035117",
+        "longitude": "-46.8785468",
+        "fullLocation": "Barueri, SP, Brazil"
+      },
+      "industry": {
+        "id": "market_research",
+        "label": "Market Research"
+      },
+      "department": {},
+      "function": {
+        "id": "general_business",
+        "label": "General Business"
+      },
+      "typeOfEmployment": {
+        "id": "intern",
+        "label": "Intern"
+      },
+      "experienceLevel": {
+        "id": "internship",
+        "label": "Internship"
+      },
+      "customField": [
+        {
+          "fieldId": "5f4e1c0fb0ef7d27c76a592a",
+          "fieldLabel": "Brands",
+          "valueId": "c83a18a7-1926-4be1-9572-10cc0fbdc9b3",
+          "valueLabel": "NielsenIQ"
+        },
+        {
+          "fieldId": "66b9f751c3dea915005f52d3",
+          "fieldLabel": "Job Family Group",
+          "valueId": "JFG_Intern",
+          "valueLabel": "Intern"
+        },
+        {
+          "fieldId": "66ba11a2fbb6422bc1768d9c",
+          "fieldLabel": "Job Family",
+          "valueId": "JF_Intern_Apprentice",
+          "valueLabel": "Intern_Apprentice"
+        },
+        {
+          "fieldId": "COUNTRY",
+          "fieldLabel": "Country/Region",
+          "valueId": "br",
+          "valueLabel": "Brazil"
+        }
+      ],
+      "visibility": "PUBLIC",
+      "ref": "https://api.smartrecruiters.com/v1/companies/NielsenIQ/postings/744000161077260",
+      "language": {
+        "code": "pt-BR",
+        "label": "Portuguese (Brazil)",
+        "labelNative": "português (Brasil)"
+      }
+    },
+    {
+      "id": "744000149966419",
+      "name": "Sales Project Consultant | Consumer Panel Services (CPS)",
+      "uuid": "e93d78d7-b141-4d20-94e3-512b5b12eeda",
+      "jobAdId": "27a42fa2-e93d-43bc-97af-cfa68c0ad0f0",
+      "defaultJobAd": false,
+      "refNumber": "R26_0021652|BR",
+      "company": {
+        "identifier": "NielsenIQ",
+        "name": "NielsenIQ"
+      },
+      "releasedDate": "2026-09-16T23:39:15.396Z",
+      "location": {
+        "city": "Barueri",
+        "region": "SP",
+        "country": "br",
+        "address": "Alameda Xingu, 512, Alphaville",
+        "remote": false,
+        "hybrid": true,
+        "fullLocation": "Barueri, SP, Brazil"
+      },
+      "industry": {
+        "id": "market_research",
+        "label": "Market Research"
+      },
+      "department": {},
+      "function": {
+        "id": "general_business",
+        "label": "General Business"
+      },
+      "typeOfEmployment": {
+        "id": "permanent",
+        "label": "Full-time"
+      },
+      "experienceLevel": {
+        "id": "mid_senior_level",
+        "label": "Mid-Senior Level"
+      },
+      "customField": [
+        {
+          "fieldId": "66b9f751c3dea915005f52d3",
+          "fieldLabel": "Job Family Group",
+          "valueId": "JFG_Sales",
+          "valueLabel": "Sales"
+        },
+        {
+          "fieldId": "5f64c8c4bf34c562e0ef861c",
+          "fieldLabel": "Job Level",
+          "valueId": "5",
+          "valueLabel": "5"
+        },
+        {
+          "fieldId": "66ba11a2fbb6422bc1768d9c",
+          "fieldLabel": "Job Family",
+          "valueId": "JF_Business Development",
+          "valueLabel": "Business Development_archived"
+        },
+        {
+          "fieldId": "COUNTRY",
+          "fieldLabel": "Country/Region",
+          "valueId": "br",
+          "valueLabel": "Brazil"
+        },
+        {
+          "fieldId": "5f4e1c0fb0ef7d27c76a592a",
+          "fieldLabel": "Brands",
+          "valueId": "default",
+          "valueLabel": "NielsenIQ"
+        },
+        {
+          "fieldId": "5f5739e25090fd3c6a2ab1c6",
+          "fieldLabel": "Career Site Team",
+          "valueId": "330fb375-2546-4bfe-b165-0079f6fe8fde",
+          "valueLabel": "Sales"
+        }
+      ],
+      "visibility": "PUBLIC",
+      "ref": "https://api.smartrecruiters.com/v1/companies/NielsenIQ/postings/744000149966419",
+      "language": {
+        "code": "en",
+        "label": "English",
+        "labelNative": "English (US)"
+      }
+    }
+  ]
+}

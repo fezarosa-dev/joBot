@@ -1,0 +1,12 @@
+{
+  "url": "https://api.lever.co/v0/postings/starkbank?mode=json",
+  "data": "2026-11-14T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/json"
+  },
+  "sha256": "97abe56fd25254c8e31e6e0d230757331bd29969bf0526a472d0164e8ce2c4f9",
+  "versao": "0.1.0",
+  "metodo": "GET",
+  "montado_a_mao": "montado à mão a partir de normal.json, reduzido a duas vagas: a segunda troca text por title e hostedUrl por url (formato mudou)"
+}
