@@ -1,0 +1,22 @@
+[
+ {
+  "id": "CC-MAIN-2026-43",
+  "name": "Outubro 2026 Index",
+  "timegate": "https://index.commoncrawl.org/CC-MAIN-2026-43/",
+  "cdx-api": "https://index.commoncrawl.org/CC-MAIN-2026-43-index",
+  "from": "2026-10-01T00:00:00",
+  "to": "2026-10-15T00:00:00"
+ },
+ {
+  "id": "CC-MAIN-2026-38",
+  "name": "Outubro 2026 Index",
+  "timegate": "https://index.commoncrawl.org/CC-MAIN-2026-38/",
+  "cdx-api": "https://index.commoncrawl.org/CC-MAIN-2026-38-index",
+  "from": "2026-10-01T00:00:00",
+  "to": "2026-10-15T00:00:00"
+ },
+ {
+  "id": "CC-MAIN-2009-2010",
+  "name": "Index antigo"
+ }
+]
