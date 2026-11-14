@@ -1,0 +1,33 @@
+{
+  "prefixos": [
+    "utm_",
+    "mc_",
+    "pk_"
+  ],
+  "exatos": [
+    "gclid",
+    "gclsrc",
+    "dclid",
+    "fbclid",
+    "msclkid",
+    "twclid",
+    "li_fat_id",
+    "igshid",
+    "yclid",
+    "_hsenc",
+    "_hsmi",
+    "mkt_tok",
+    "jobboardsource",
+    "trk",
+    "trackingid",
+    "refid",
+    "lever-source",
+    "lever-origin",
+    "gh_src",
+    "wbraid",
+    "gbraid",
+    "ttclid",
+    "_gl",
+    "_ga"
+  ]
+}
