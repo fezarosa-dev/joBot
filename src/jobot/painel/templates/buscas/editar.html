@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block titulo %}{{ t("buscas.editar") }} · joBot{% endblock %}
+{% block estilos %}<link rel="stylesheet" href="/static/css/vagas.css"><link rel="stylesheet" href="/static/css/buscas.css">{% endblock %}
+{% block conteudo %}
+<h1 class="titulo-pagina">{{ t("buscas.editar") }}</h1>
+<section class="painel" aria-label="{{ busca.nome }}">
+  {%- set envio = "buscas.salvar" %}
+  {%- set cancelar = true %}
+  {%- include "buscas/formulario.html" %}
+</section>
+{% endblock %}
