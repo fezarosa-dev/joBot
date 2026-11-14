@@ -42,6 +42,7 @@
   "primeira_execucao.p2.desligar": "Não ligar agora",
   "primeira_execucao.p2.concluir": "Concluir",
   "primeira_execucao.p2.recusa": "Não foi possível ligar o segundo plano",
+  "primeira_execucao.p2.recusa_desligar": "Não foi possível desligar o segundo plano",
   "primeira_execucao.p2.erro_sistema": "Não consegui concluir: {erro}",
   "primeira_execucao.p2.voltar": "Voltar ao passo 1",
   "primeira_execucao.pronto.titulo": "Tudo pronto",

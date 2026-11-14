@@ -16,7 +16,7 @@
 {% endif %}
 {% if motivo %}
 <div class="assistente-alerta" role="alert">
-  <strong>{{ t("primeira_execucao.p2.recusa") }}</strong>
+  <strong>{{ t("primeira_execucao.p2.recusa_desligar" if desligando else "primeira_execucao.p2.recusa") }}</strong>
   <p>{{ t(motivo.chave, **motivo.params) }}</p>
 </div>
 {% elif erro %}
@@ -40,6 +40,6 @@
   {% if not linux %}<input type="hidden" name="segundo_plano" value="desligar">{% endif %}
   <div class="acoes">
     <button type="submit" class="botao botao-primario">{{ t("primeira_execucao.p2.concluir") }}</button>
-    <a class="botao botao-secundario" href="/primeira-execucao/1">{{ t("primeira_execucao.p2.voltar") }}</a>
+    <a class="botao botao-secundario" href="/primeira-execucao/1{% if resumo %}?busca={{ busca_id }}{% endif %}">{{ t("primeira_execucao.p2.voltar") }}</a>
   </div>
 </form>
