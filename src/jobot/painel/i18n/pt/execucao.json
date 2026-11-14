@@ -8,5 +8,6 @@
   "execucao.terminou": "Busca concluída. Vagas novas: {n}.",
   "execucao.interrompida": "A busca parou antes do fim. Vagas novas: {n}.",
   "execucao.saiu_titulo": "joBot encerrado",
-  "execucao.saiu": "O joBot foi encerrado. Pode fechar esta aba."
+  "execucao.saiu": "O joBot foi encerrado. Pode fechar esta aba.",
+  "execucao.saindo": "O joBot está sendo encerrado; nenhuma busca nova vai começar."
 }

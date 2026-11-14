@@ -8,5 +8,6 @@
   "execucao.terminou": "Search finished. New jobs: {n}.",
   "execucao.interrompida": "The search stopped before the end. New jobs: {n}.",
   "execucao.saiu_titulo": "joBot closed",
-  "execucao.saiu": "joBot has been closed. You can close this tab."
+  "execucao.saiu": "joBot has been closed. You can close this tab.",
+  "execucao.saindo": "joBot is closing; no new search will start."
 }
