@@ -178,7 +178,9 @@ def test_execucao_atual_traz_as_fontes_que_comecaram_e_nao_terminaram(
     velha = abrir_execucao(con, "busca", "agenda", AGORA - timedelta(hours=3))
     assert velha is not None
     comecar_fonte(con, velha, "lever", AGORA - timedelta(hours=3))
-    interromper_execucao(con, velha, AGORA - timedelta(hours=2))  # a pendência dela não conta
+    interromper_execucao(
+        con, velha, AGORA - timedelta(hours=2), parada="erro"
+    )  # a pendência dela não conta
     busca = abrir_execucao(con, "busca", "agora", AGORA)
     assert busca is not None
     atual = execucao_atual(con)
@@ -244,20 +246,20 @@ def test_fechar_nao_ressuscita_interrompida(con: sqlite3.Connection) -> None:
 
 def test_interromper_execucao_inexistente_levanta_lookuperror(con: sqlite3.Connection) -> None:
     with pytest.raises(LookupError):
-        interromper_execucao(con, 999, AGORA)
+        interromper_execucao(con, 999, AGORA, parada="erro")
     assert not con.in_transaction
 
 
 def test_interromper_marca_na_hora_e_nao_mexe_na_concluida(con: sqlite3.Connection) -> None:
     rodando = abrir_execucao(con, "busca", "agenda", AGORA)
     assert rodando is not None
-    interromper_execucao(con, rodando, AGORA + timedelta(seconds=10))
+    interromper_execucao(con, rodando, AGORA + timedelta(seconds=10), parada="erro")
     assert _estado(con, rodando) == ("interrompida", (AGORA + timedelta(seconds=10)).isoformat())
 
     concluida = abrir_execucao(con, "busca", "agenda", AGORA + timedelta(minutes=1))
     assert concluida is not None
     fechar_execucao(con, concluida, AGORA + timedelta(minutes=2))
-    interromper_execucao(con, concluida, AGORA + timedelta(minutes=3))
+    interromper_execucao(con, concluida, AGORA + timedelta(minutes=3), parada="erro")
     assert _estado(con, concluida) == ("concluida", (AGORA + timedelta(minutes=2)).isoformat())
 
 

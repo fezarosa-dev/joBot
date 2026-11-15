@@ -27,6 +27,7 @@ from jobot.banco.cotacoes import aplicar_cotacoes, falta_cotacao, gravar_cotacao
 from jobot.banco.execucoes import (
     JANELA_DETALHE,
     HistoricoDoBanco,
+    Parada,
     abrir_execucao,
     fechar_execucao,
     gravar_saude,
@@ -75,7 +76,7 @@ async def executar_busca(
 ) -> int | None:
     """Roda uma busca inteira e devolve o id da execução; `None` se outra já está rodando.
 
-    Um erro no meio marca a execução "interrompida" na hora e sobe (D54).
+    Um erro no meio marca a execução "interrompida" na hora, com o motivo, e sobe (D54, T153).
     """
     inicio = relogio.agora()
     execucao_id = abrir_execucao(con, "busca", motivo, inicio)
@@ -97,10 +98,8 @@ async def executar_busca(
         # shortcut: recalcula todas as vagas das buscas ativas; trocar pelas mexidas nesta
         # execução se a base crescer a ponto de pesar.
         recalcular_encaixe(con, None, bool(ler_config(con, "regras_ocultar_ligadas")), hoje=hoje)
-    except BaseException:
-        if con.in_transaction:  # o passo que quebrou pode ter deixado a sua aberta
-            con.rollback()
-        interromper_execucao(con, execucao_id, relogio.agora())
+    except BaseException as erro:
+        interromper(con, execucao_id, erro, relogio.agora())
         raise
     finally:
         batimento.cancel()
@@ -108,6 +107,32 @@ async def executar_busca(
             await batimento
     fechar_execucao(con, execucao_id, relogio.agora())
     return execucao_id
+
+
+def parada_de(erro: BaseException) -> Parada:
+    """O motivo da parada que a exceção grava: cancelamento, Ctrl+C e saída valem "fechado"."""
+    if not isinstance(erro, Exception):  # CancelledError, KeyboardInterrupt, SystemExit
+        return "fechado"
+    if isinstance(erro, sqlite3.Error):
+        return "banco"
+    return "erro"
+
+
+def interromper(
+    con: sqlite3.Connection, execucao_id: int, erro: BaseException, agora: datetime
+) -> None:
+    """Desfaz a transação aberta e marca a execução interrompida com o motivo de `erro`.
+
+    Quem chama segue com `raise`: se marcar falhar (banco quebrado), a falha só vai ao log e a
+    exceção original é a que sobe, nunca esta. O traceback de `erro` fica com quem pega a
+    exceção (o `rodar` da agenda, o `jobot buscar`), para não sair duas vezes no log.
+    """
+    try:
+        if con.in_transaction:  # o passo que quebrou pode ter deixado a sua aberta
+            con.rollback()
+        interromper_execucao(con, execucao_id, agora, parada=parada_de(erro))
+    except Exception:
+        log.exception("não deu para marcar a execução %s como interrompida", execucao_id)
 
 
 def reprocessar_se_regras_mudaram(con: sqlite3.Connection) -> int:

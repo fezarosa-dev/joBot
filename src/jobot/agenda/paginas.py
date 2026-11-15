@@ -12,9 +12,9 @@ import sqlite3
 from datetime import datetime, timedelta
 
 from jobot.agenda.agendador import INTERVALOS
-from jobot.agenda.execucao import bater
+from jobot.agenda.execucao import bater, interromper
 from jobot.banco.cadastros import ler_config
-from jobot.banco.execucoes import abrir_execucao, fechar_execucao, interromper_execucao
+from jobot.banco.execucoes import abrir_execucao, fechar_execucao
 from jobot.banco.paginas import gravar_leitura, marcar_falhou, paginas
 from jobot.nucleo.coletores.paginas import ConteudoNaoLido, Pagina, verificar
 from jobot.nucleo.http import (
@@ -69,7 +69,8 @@ async def executar_paginas(
     """Confere as páginas ativas e devolve o id da execução; `None` se outra já está rodando
     ou se `paginas_ligadas` está desligada (a chave é relida a cada chamada).
 
-    Erro fora da leitura de uma página (banco) marca a execução "interrompida" e sobe (D54).
+    Erro fora da leitura de uma página (banco) marca a execução "interrompida", com o motivo
+    (T153), e sobe (D54).
     `resolver` é o DNS da conferência de host local (padrão: o do sistema; falso nos testes).
     """
     if not ler_config(con, "paginas_ligadas"):
@@ -92,10 +93,8 @@ async def executar_paginas(
                 marcar_falhou(con, pagina.id, _motivo(erro))
                 continue
             gravar_leitura(con, pagina.id, mudanca, relogio.agora())
-    except BaseException:
-        if con.in_transaction:
-            con.rollback()
-        interromper_execucao(con, execucao_id, relogio.agora())
+    except BaseException as erro:
+        interromper(con, execucao_id, erro, relogio.agora())
         raise
     finally:
         batimento.cancel()

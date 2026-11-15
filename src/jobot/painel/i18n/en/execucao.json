@@ -11,5 +11,11 @@
   "execucao.interrompida": "The search stopped before the end. New jobs: {n}.",
   "execucao.saiu_titulo": "joBot closed",
   "execucao.saiu": "joBot has been closed. You can close this tab.",
-  "execucao.saindo": "joBot is closing; no new search will start."
+  "execucao.saindo": "joBot is closing; no new search will start.",
+  "execucao.parada.fechado": "joBot was closed in the middle of the search.",
+  "execucao.parada.sem_batimento": "joBot or the computer was shut down in the middle of the search.",
+  "execucao.parada.banco": "There was a problem with the database (the disk may be full).",
+  "execucao.parada.erro": "There was an unexpected error; the details are in the joBot log file (logs/jobot.log).",
+  "execucao.parada.novas": "New jobs: {n}.",
+  "execucao.parada.tentar": "Click Search now to try again."
 }

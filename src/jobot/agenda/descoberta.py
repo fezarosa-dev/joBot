@@ -7,11 +7,11 @@
    quadro ao vivo e grava como sugestão o que tem vaga no Brasil ou remota;
 5. guarda o índice processado e fecha a execução.
 
-Um erro no meio marca a execução "interrompida" e sobe (A31, D71 b). Só o 503 e o limite seguram
-a próxima tentativa até o dia seguinte; os outros erros tentam de novo no mesmo dia depois de um
-recuo de uma hora, porque o laço acorda a cada 60 s e um erro que não some sozinho (403, formato,
-bloco grande) viraria uma tentativa por minuto, cada uma baixando de novo o cluster.idx. O
-cancelamento (o app fechou) não segura nada.
+Um erro no meio marca a execução "interrompida", com o motivo (T153), e sobe (A31, D71 b). Só
+o 503 e o limite seguram a próxima tentativa até o dia seguinte; os outros erros tentam de novo
+no mesmo dia depois de um recuo de uma hora, porque o laço acorda a cada 60 s e um erro que não
+some sozinho (403, formato, bloco grande) viraria uma tentativa por minuto, cada uma baixando de
+novo o cluster.idx. O cancelamento (o app fechou) não segura nada.
 """
 
 import asyncio
@@ -20,9 +20,9 @@ import logging
 import sqlite3
 from datetime import UTC, datetime, time, timedelta
 
-from jobot.agenda.execucao import bater
+from jobot.agenda.execucao import bater, interromper
 from jobot.banco.cadastros import gravar_config, ler_config
-from jobot.banco.execucoes import abrir_execucao, fechar_execucao, interromper_execucao
+from jobot.banco.execucoes import abrir_execucao, fechar_execucao
 from jobot.banco.sugeridas import conhecidas, gravar_sugestoes
 from jobot.nucleo.coletores.descoberta_cc import indice_mais_novo, sugerir, testar
 from jobot.nucleo.http import ClienteEducado, LimiteAtingido, OrcamentoGasto
@@ -61,11 +61,12 @@ async def executar_descoberta(
                     gravar_sugestoes(con, [s], relogio.agora())
             gravar_config(con, CHAVE_INDICE, indice)
     except BaseException as erro:
-        if con.in_transaction:
-            con.rollback()
-        interromper_execucao(con, execucao_id, relogio.agora())
+        interromper(con, execucao_id, erro, relogio.agora())
         if isinstance(erro, Exception):  # o cancelamento (BaseException) não adia
-            gravar_config(con, CHAVE_ADIADA, _adiar(erro, relogio.agora()).isoformat())
+            try:
+                gravar_config(con, CHAVE_ADIADA, _adiar(erro, relogio.agora()).isoformat())
+            except Exception:  # banco quebrado: a exceção original é a que sobe (T153)
+                log.exception("não deu para adiar a descoberta")
         raise
     finally:
         batimento.cancel()
