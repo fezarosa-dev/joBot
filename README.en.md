@@ -151,6 +151,8 @@ One search cycle, step by step:
 
 If one source fails, the others keep going. If the computer was off at the scheduled time, the missed search runs when it turns on.
 
+Want to see joBot from the inside, with folders, layers, database and diagrams? See the [Architecture page on the wiki](https://github.com/fezarosa-dev/joBot/wiki/Architecture).
+
 <a id="two-versions"></a>
 ## 🖥️ The two versions
 
