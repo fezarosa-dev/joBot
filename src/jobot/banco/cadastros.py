@@ -46,6 +46,7 @@ PADROES: Mapping[str, object] = MappingProxyType(
         "meu_pais": "BR",
         "moeda_exibicao": "",
         "captcha_ligado": False,  # ADR 0022: nasce desligado; só liga com chave salva
+        "login_horarios": ["09:00", "18:00"],  # leitura com login, hora local (D132.6)
     }
 )
 _SEM_PADRAO: Any = object()
