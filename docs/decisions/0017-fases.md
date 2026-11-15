@@ -6,7 +6,7 @@
 
 ## Contexto
 
-O projeto é grande. Ir por fases deixa cada entrega testada antes da próxima. Hoje a fase 1 está concluída (versão 0.1.1) e as outras estão planejadas.
+O projeto é grande. Ir por fases deixa cada entrega testada antes da próxima. Hoje a fase 1 está concluída (versão 0.2.0) e as outras estão planejadas.
 
 ## Decisão
 
