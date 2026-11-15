@@ -1,7 +1,7 @@
 """O que as rotas do painel leem do sistema: ambiente, executor de comando e plataforma.
 
-O teste troca os três em `app.state` (`ambiente`, `rodar_comando`, `plataforma`); sem troca, vale
-o real.
+O teste troca os quatro em `app.state` (`ambiente`, `rodar_comando`, `plataforma`, `cofre`); sem
+troca, vale o real.
 """
 
 import os
@@ -11,6 +11,7 @@ from collections.abc import Mapping
 from fastapi import Request
 
 from jobot.sistema import segundo_plano_linux
+from jobot.sistema.cofre import Cofre
 from jobot.sistema.segundo_plano_linux import Rodar
 
 
@@ -26,3 +27,8 @@ def rodar_do_painel(request: Request) -> Rodar:
 
 def no_linux(request: Request) -> bool:
     return str(getattr(request.app.state, "plataforma", sys.platform)).startswith("linux")
+
+
+def cofre_do_painel(request: Request) -> Cofre:
+    cofre: Cofre | None = getattr(request.app.state, "cofre", None)
+    return Cofre(request.app.state.banco.parent) if cofre is None else cofre

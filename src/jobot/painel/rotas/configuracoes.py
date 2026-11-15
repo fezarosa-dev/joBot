@@ -1,9 +1,10 @@
 """Configurações e interruptores (desenho 13.2 e 13.7; plano T54; decisão 17 e DP8).
 
-Cinco grupos em `/configuracoes/{grupo}`: fontes (uma chave por fonte, por leva), funções (as chaves
+Seis grupos em `/configuracoes/{grupo}`: fontes (uma chave por fonte, por leva), funções (as chaves
 da 13.7 e o N dos destaques), segundo plano, aparência (tema e idioma pelas rotas `/preferencias`;
-Meu país e moeda de exibição pelo próprio `/configuracoes/aparencia`) e privacidade (onde ficam
-os dados, a recomendação de disco cifrado e o aviso de versão).
+Meu país e moeda de exibição pelo próprio `/configuracoes/aparencia`), privacidade (onde ficam
+os dados, a recomendação de disco cifrado e o aviso de versão) e serviços (a chave do 2Captcha, que
+fica no cofre; o interruptor e o apagar moram em `servicos.py`, T184).
 
 Checkbox sem marca é chave desligada: o formulário de cada grupo manda o estado inteiro. Ligar ou
 desligar a conversão de moeda chama `aplicar_cotacoes` e, com ela ou com as regras de ocultar
@@ -26,9 +27,11 @@ from jobot.agenda.versao import aviso_ligado
 from jobot.banco import buscas, cadastros, cotacoes
 from jobot.banco.cadastros import gravar_config, ler_config, meu_pais
 from jobot.nucleo.cambio import MOEDAS_EXIBICAO, moeda_do_pais
+from jobot.nucleo.captcha import validar_chave
 from jobot.nucleo.tratamento.locais import codigos_de_pais
-from jobot.painel.ambiente import ambiente_do_painel, no_linux, rodar_do_painel
+from jobot.painel.ambiente import ambiente_do_painel, cofre_do_painel, no_linux, rodar_do_painel
 from jobot.painel.formatos import opcoes_de_pais
+from jobot.painel.rotas.servicos import NOME, contexto_captcha, no_cofre
 from jobot.painel.rotas.vagas import relogio_do_painel
 from jobot.painel.seguranca import Con, idioma_do_pedido, renderizar
 from jobot.sistema import caso, segundo_plano_linux
@@ -37,7 +40,7 @@ from jobot.sistema.segundo_plano_linux import Recusa
 router = APIRouter(prefix="/configuracoes")
 _LOG = logging.getLogger(__name__)
 
-GRUPOS = ("fontes", "funcoes", "segundo-plano", "aparencia", "privacidade")
+GRUPOS = ("fontes", "funcoes", "segundo-plano", "aparencia", "privacidade", "servicos")
 FUNCOES = (
     "descoberta_cc_ligada",
     "paginas_ligadas",
@@ -54,6 +57,7 @@ _PARCIAIS = {
     "segundo-plano": "segundo_plano",
     "aparencia": "aparencia",
     "privacidade": "privacidade",
+    "servicos": "servicos",
 }
 
 
@@ -118,6 +122,7 @@ _CONTEXTOS: dict[str, Contexto] = {
     "segundo-plano": _ctx_segundo_plano,
     "aparencia": _ctx_aparencia,
     "privacidade": _ctx_privacidade,
+    "servicos": contexto_captcha,
 }
 
 
@@ -245,12 +250,34 @@ async def _gravar_privacidade(request: Request, con: Con) -> Response:
     return _volta("privacidade", salvo=True)
 
 
+async def _gravar_servicos(request: Request, con: Con) -> Response:
+    form = await request.form()
+    bruto = form.get("chave")
+    if not isinstance(bruto, str) or not bruto.strip():
+        return _volta("servicos", salvo=True)  # campo vazio mantém a chave salva
+    try:
+        chave = validar_chave(bruto)
+    except ValueError:
+        return await _pagina(
+            request, con, "servicos", 422, erro="configuracoes.servicos.erro.formato"
+        )
+    try:
+        # shortcut: com o cofre travado espera até 2 prazos (gravar + reler a página) e a thread
+        # que estourou ainda pode gravar depois; trocar quando o cofre tiver API assíncrona
+        await no_cofre(cofre_do_painel(request).gravar, NOME, chave)
+    except OSError as erro:  # nem o cofre nem o arquivo: só o tipo vai ao log, nunca a chave
+        _LOG.warning("2captcha: não consegui gravar a chave: %s", type(erro).__name__)
+        return await _pagina(request, con, "servicos", erro="configuracoes.servicos.erro.cofre")
+    return _volta("servicos", salvo=True)
+
+
 _GRAVADORES: dict[str, Callable[[Request, Con], Awaitable[Response]]] = {
     "fontes": _gravar_fontes,
     "funcoes": _gravar_funcoes,
     "segundo-plano": _gravar_segundo_plano,
     "aparencia": _gravar_aparencia,
     "privacidade": _gravar_privacidade,
+    "servicos": _gravar_servicos,
 }
 
 
