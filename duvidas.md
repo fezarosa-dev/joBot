@@ -1924,6 +1924,8 @@ Acréscimo negativo é filtro que encolhe a lista e os chips. `contar_abas` não
 
 **Status:** decidida pela sessão em 2026-11-15 com o dono fora, para confirmar
 
+**Entrega:** Parte A entregue na dev em 2026-11-15 (T196 a T220; registros na REG24, escolhas na D134). Parte B (leitores reais, botão Baixar o navegador) segue com o dono.
+
 **Contexto:** o desenho está em `docs/superpowers/specs/2026-11-15-fase-2-design.md`. Passou por 4 rodadas de revisão, e a seção 12 lista todas as decisões, de D132.1 a D132.57.
 
 **Decisões:** o pacote `navegador/` é o único que importa o Playwright, e os leitores de cada site ficam em `nucleo/leitores/`, puros. As execuções automáticas só navegam, esperam e rolam a página. A checagem de login vem antes da do CAPTCHA, e o 2Captcha só age em página de desafio que não é de login. A proteção por AST do pacote `navegador` usa uma lista permitida de chamadas ao Playwright. Os testes usam só sites falsos em `127.0.0.1`. Entram as migrações 0007 (tipo de execução `login`) e 0008 (coluna `com_login` na `fonte`).
@@ -1974,6 +1976,7 @@ Acréscimo negativo é filtro que encolhe a lista e os chips. `contar_abas` não
 18. A lista permitida do Playwright confere os nomes de `Page`, `Frame`, `Locator`, `BrowserContext`, `Browser`, `Request` e `Response`. `APIRequestContext` fica fora, porque chegar a ele exige `.request`, que sempre reprova. Só `name` é tolerado como homônimo; o pacote usa `asyncio.timeout` e `json.loads` para não esbarrar em `wait_for` e `json`.
 19. O script de captura com login segura a trava do joBot com porta 0. Trava presa sem porta quer dizer captura em andamento: `jobot`, `jobot sair` e `jobot atualizar` avisam e saem, sem encerrar a captura nem subir servidor.
 20. Exceção à D132.13: a wiki muda na Parte A só em `Arquitetura.md` e `Architecture.md`, porque o teste do diagrama de camadas exige o nó `navegador` e uma seta para cada import novo entre pacotes. As outras páginas da wiki não mudam.
+21. Na execução: as escolhas feitas durante a execução estão na D134. O item 1 do "Para confirmar com o dono" abaixo seguiu a opção (a), e o item 3 também seguiu a opção (a) (leitor falso em `tests/apoio/site_falso.py`).
 
 **Para confirmar com o dono:**
 
@@ -1982,3 +1985,88 @@ Acréscimo negativo é filtro que encolhe a lista e os chips. `contar_abas` não
 3. Onde mora o leitor do site falso. Opções: (a) em `tests/apoio/`, fora do pacote publicado; (b) um leitor de exemplo em `src/jobot/nucleo/leitores/`, que apareceria no registro. Recomendação: (a), que mantém a Parte A sem nada visível (D132.23); o plano segue (a).
 
 **Como desfazer:** nada está construído; cada escolha mora numa tarefa do plano e num lugar só do código (os números em `navegador/limites.py` e `agenda/login.py`). O dono manda trocar e a tarefa dona muda o teste e o valor.
+
+## D134. Escolhas da sessão na execução da Parte A da fase 2 (T196 a T221)
+
+**Status:** decidida pela sessão em 2026-11-15 com o dono fora, para confirmar
+
+**Contexto:** a Parte A (desenho na D132, plano e escolhas do plano na D133) foi feita nas ondas 1 a 9 do plano e entrou na `dev`. Durante a execução saíram escolhas pequenas que o plano não fixava. Estão aqui, em ordem de tarefa, seguidas da rodada de segurança (T221).
+
+**Decisões:**
+
+1. (T202) A semeadura das fontes, dos leitores e das empresas é uma transação só: falha no meio desfaz tudo.
+2. (T204) `horarios_validos` confere as regras nesta ordem: formato, muitos (mais de 4, antes de olhar os itens), repetido, perto. Só dígitos ASCII contam.
+3. (T205) Os quatro motivos novos (`precisa_login`, `captcha`, `sem_tela`, `sem_navegador`) ficam fora do link "reportar problema" (`FORA_DO_LINK`), e o vigia não abre issue por eles (`SO_RESUMO`): são do lado de quem usa, não defeito do coletor, e o vigia só roda fontes públicas.
+4. (T206) `login_horarios` torto no banco vale o padrão e avisa no log uma vez por valor, não a cada volta de 60 s.
+5. (T207) Se a escrita do token lançar erro, `ENTREGAR_TOKEN` devolve false e não chama a função de retorno do site.
+6. (T207) `nome_retorno` fora do padrão de identificador devolve False sem chamar `evaluate`.
+7. (T207) Função nativa como retorno é recusada, o que também recusa `.bind()`.
+8. (T207) `navegador/js.py` não tem prazo próprio: quem chama envolve a chamada em `asyncio.timeout`.
+9. (T207) Nenhum teste do node prova que o token é escrito no campo de resposta; ficou como nota para o teste da T216 conferir.
+10. (T208) Fica aberta a janela TOCTOU em `Default/` (troca por symlink entre a checagem e a gravação); para usá-la, alguém precisa escrever na pasta de dados 0700 da própria pessoa.
+11. (T208) Os nomes das três chaves do Chromium seguem sem conferência no Chrome real.
+12. (T209) URL com `usuário:senha@` é aceita quando o hostname real está nos hosts do leitor (`https://mal.io@site.com/` passa; `https://site.com@mal.io/` não).
+13. (T209) Barra invertida, caractere de controle e porta inválida recusam a URL.
+14. (T210) Sem `DISPLAY` nem `WAYLAND_DISPLAY` válido, `ambiente_da_tela` devolve vazio mesmo com `XAUTHORITY` ou `XDG_RUNTIME_DIR` válidos: não há tela sem um dos dois.
+15. (T210) Linhas do `systemctl show-environment` com valor entre `$'...'` são ignoradas.
+16. (T211) Se o Chrome falha, o joBot cai no Chromium com log de nível debug sem `exc_info`, e o motivo da falha se perde; ligar o `exc_info` se o uso real mostrar falha frequente.
+17. (T211) A mensagem de erro do Playwright pode levar o caminho do perfil ao log local (que é 0600).
+18. (T211) O Chrome é procurado só em `/opt/google/chrome/chrome`; Chrome de Flatpak ou Snap cai no Chromium do Playwright.
+19. (T211) `navegador_instalado` não trata falha do driver: ela vira exceção para quem chama.
+20. (T212) Depois de rolar, "estável" só vale depois de pelo menos um pedido novo; página que não pede nada ao rolar espera os 5 passos (5 s em produção por navegação com rolar).
+21. (T212) `ESPERA_ASSENTAR_MS`, `_PASSOS_DEPOIS_DE_ROLAR` e a espera de 30 s do 429 sem `Retry-After` (`ESPERAS_LIMITE[0]`) ficam em `navegador/pagina.py`; levá-los para `navegador/limites.py` é tarefa nova.
+22. (T212) Os ouvintes da página não são desligados (comentário `shortcut:` no código).
+23. (T213) Entrada recusada pela política grava `falhou` com motivo `saude.listagem_incompleta` e escopo vazio; o site não é lido.
+24. (T213) Depois de um erro do Playwright, a execução espera até 1 s (`limites.ESPERA_FECHAR_S`, valor técnico) pelo `close` do contexto antes de decidir se a pessoa fechou o navegador.
+25. (T213) `fechar_escopos_extintos` roda mesmo quando o site para no meio de um escopo; só não roda com parada na entrada ou com `escopos()` quebrado, como o plano diz.
+26. (T214) Detalhe que quebra não tem recuo: pediria mudança de esquema (D54, opção c).
+27. (T214) Parada no detalhe não grava linha de saúde.
+28. (T214) Vaga em dois escopos grava a descrição numa ocorrência só.
+29. (T215) `navegador_instalado()` é lido ao subir o `serve`: instalar o Chrome com o `serve` no ar só aparece depois de reiniciar (atualizar quando o botão "Baixar o navegador" da Parte B existir).
+30. (T215) O "Buscar agora" só sobe o navegador com fonte ligada e leitor registrado.
+31. (T215) A mensagem do `serve` quando há uma captura no ar é tarefa nova.
+32. (T216) Widget numa página que passa em `leitor.pagina_logada` e veio com 200 é formulário da página, não desafio: não vai ao 2Captcha nem tem a função de retorno chamada, o que evita enviar formulário (A8, D132.11). Desafio que mantém o cabeçalho logado com 200 fica sem resolver: o leitor lê a página como está.
+33. (T216) `Ouvidas.ultimas` não separa documento de XHR (`shortcut:` no código; separar por `resource_type` se um site real fizer fetch à mesma URL).
+34. (T216) reCAPTCHA v3 do site inteiro em página não logada vira desafio sem resolver (`captcha`), como antes.
+35. (T216) 403 e 429 viram 200 quando o desafio sai sem documento novo; token sem saída é `captcha`; 429 depois do token repete o `goto` sem novo pedido ao 2Captcha.
+36. (T216) `PRAZO_COFRE_S` aparece em `navegador/limites.py` e em `painel/rotas/servicos.py`; um lugar só e o cache do cofre na Cola são tarefa nova.
+37. (T217) O aviso no computador sai só em português na Parte A; o idioma entra por `Dependencias` na Parte B.
+38. (T217) O tempo de olhar a janela vai para `limites.OLHAR_S = 5` (era `_OLHAR_S` em `navegador/execucao.py`), ao lado do `INTERVALO_LOGIN_MANUAL_S` da T219; são dois nomes porque medem coisas diferentes.
+39. (T218) O cartão mostra "rodando" com o site ligado no meio da leitura; `_estado` e `_motivo` de `fontes.py` viraram `estado_dos_escopos` e `motivo_mais_grave`, públicos.
+40. (T219) `_criar` de `painel/rotas/execucao.py` virou `criar_tarefa`, público, para o login manual reaproveitar; entra `limites.INTERVALO_LOGIN_MANUAL_S`.
+41. (T220) Segredo opaco sai pelo nome do campo (lista ampliada).
+42. (T220) JSON dentro de `<script>` no HTML não é limpo pela posição (`shortcut:`; a primeira captura é lida por gente).
+43. (T220) Valor trocado com menos de 3 caracteres não é procurado; caso existente é sobrescrito; o meta guarda `tipo`.
+
+**Rodada de segurança da Parte A (T221):**
+
+44. O semgrep (`p/security-audit`, `p/python`, `p/trailofbits`) em `src`, `scripts` e `.github` deu 17 alertas, todos já conhecidos (A60, D131); nada novo da Parte A.
+45. A revisão do diff `origin/main...dev` conferiu CSRF, Host, política de hosts, `js.py`, chave do 2Captcha, perfil, aviso, migrações e templates sem achado, e achou 2 problemas de gravidade baixa, corrigidos na T221.
+46. (T221) Página final que a política recusa (http no próprio host depois de redirecionar, da função de retorno do widget ou de uma troca sozinha ao rolar) vira `bloqueio`, ou `precisa_login` quando casa com o prefixo de login, como o salto para fora dos hosts. A conferência é refeita antes da cola do 2Captcha e antes da captura, com a URL lida depois do HTML.
+47. (T221) reCAPTCHA ou Turnstile preso a `button` ou `input` não é desafio, para não chamar a função de retorno que envia o formulário.
+48. Ficam para a Parte B, com fixture real: `div` invisível ou dentro de `<form>` tratada como desafio; downloads e service workers no contexto persistente (os padrões do Playwright não foram conferidos); o ambiente inteiro do `serve` passado ao Chrome.
+
+**Para confirmar com o dono:**
+
+1. (decisão 37) O aviso no computador só em português até a Parte B.
+2. (decisão 32) Widget em página logada que veio com 200 não é tratado como desafio: o joBot não resolve nem chama a função de retorno, e um desafio que mantém o cabeçalho logado fica sem resolver.
+3. (decisão 18) O Chrome só é achado em `/opt/google/chrome/chrome`; quem tem o Chrome por Flatpak ou Snap usa o Chromium do Playwright.
+4. (decisão 17) O caminho do perfil pode aparecer no log local (0600) pela mensagem de erro do Playwright.
+5. (decisão 10) A janela TOCTOU em `Default/` fica aberta, porque só alguém que já escreve na pasta de dados da pessoa a usaria.
+6. A Parte A fica na `dev`, sem PR para a `main`: quem instala clona a `main`, e o PR levaria as migrações 0007 e 0008 e o Playwright a quem usa antes da 0.3.0 (D132.23).
+
+**Tarefas novas para o plano da Parte B:**
+
+- Provar o `close` do contexto no `test_janela_parada` pelo evento `close`, não por `pages == []`.
+- Falso positivo do `achar_widget`, que devolve `None` também por timeout no `get_attribute`.
+- Desafio no detalhe parado na janela sem gravar `saude.captcha`.
+- A pessoa fecha só a aba parada e a execução espera o prazo inteiro.
+- `PRAZO_COFRE_S` num lugar só e cache do cofre na Cola.
+- Mensagem do `serve` quando há uma captura no ar.
+- Mover `ESPERA_ASSENTAR_MS`, `_PASSOS_DEPOIS_DE_ROLAR` e `ESPERAS_LIMITE[0]` de `navegador/pagina.py` para `navegador/limites.py`.
+- Aviso no computador no idioma da pessoa.
+- Com fixture real: `div` invisível ou dentro de `<form>` tratada como desafio.
+- Downloads e service workers no contexto persistente (conferir os padrões do Playwright).
+- O ambiente inteiro do `serve` passado ao Chrome.
+
+**Como desfazer:** o dono manda trocar qualquer item, e a troca vira tarefa nova, com teste, no plano da Parte B. Os pontos marcados com `shortcut:` estão no código com o limite escrito.
