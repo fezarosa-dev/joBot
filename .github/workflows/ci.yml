@@ -3,8 +3,13 @@ name: CI
 # Roda em todo pull request, de qualquer ramo (ADR 0018): o repositório é
 # público, o runner padrão não custa minutos e PR de fork precisa de teste.
 # Gatilho pull_request, nunca pull_request_target; sem segredos.
+# O push em lote/** serve a quem mantém testar um lote no Actions antes de
+# juntar, sem abrir PR; workflow_dispatch roda o CI à mão.
 on:
   pull_request:
+  push:
+    branches: ['lote/**']
+  workflow_dispatch:
 
 permissions:
   contents: read
