@@ -1760,3 +1760,41 @@ A meta de 90% só foi batida em UF. Ela não trava a fase 1.
 - Salário (parte B): `sal_de` e `sal_ate` seguem em unidades da moeda de exibição Y, sem moeda na URL (painel local, Y muda pouco). Um link antigo reaberto depois de trocar Y lê os mesmos números na moeda nova.
 
 **Como desfazer:** o dono manda trocar qualquer item. Vaga sem salário: tirar o filtro `sem_salario` e o aviso, ou deixar a vaga sempre dentro. Meu país: tirar o campo do passo 1 e deixar só em Configurações. Posição dos filtros: mover os chips para dentro do `<details>` (opção a; o custo é o mesmo). Moeda desconhecida: trocar o USD por uma pergunta ou por BRL. Limite: voltar ao 1 s absoluto numa máquina de referência. Moeda na URL: acrescentar o parâmetro e a conversão na rota. Nada disso está construído ainda; basta mudar o desenho e as tarefas.
+
+## D129. Custo dos filtros com 300 mil vagas e o que fazer na próxima versão (T170)
+
+**Status:** resolvida em 2026-11-15: medição feita pelo script da parte H; as propostas valem para a próxima versão, sem tarefa na 0.2.0 (D126)
+
+**Contexto:** a D126 pôs o limite de 1 s no acréscimo de cada filtro novo sobre a vista sem filtro, medido na mesma máquina, e mandou registrar a vista sem filtro também. `scripts/medir_filtros.py` semeia 300 mil vagas (316.667 locais, banco de cerca de 400 MB em disco) e cronometra, para cada filtro, `listar`, `contar_chips` e `contar_abas` (mediana de 3 rodadas, em segundos). Máquina: AMD Ryzen 5 220 (12 threads), 14 GB de RAM, com cerca de 5,7 GB livres e outros programas abertos durante a medição. Os valores valem pela comparação entre as linhas, não em absoluto.
+
+| Filtro | listar | chips | abas | total | acréscimo |
+|---|---|---|---|---|---|
+| sem filtro novo | 0,209 | 4,622 | 0,636 | 5,466 | 0 |
+| país | 0,211 | 4,824 | 0,626 | 5,660 | +0,194 |
+| UF | 0,208 | 5,349 | 0,653 | 6,210 | +0,744 |
+| cidade | 0,579 | 9,112 | 0,661 | 10,352 | **+4,886** |
+| empresa | 0,424 | 5,573 | 0,628 | 6,625 | **+1,159** |
+| publicada há 7 dias | 0,134 | 3,009 | 0,626 | 3,769 | -1,697 |
+| não pode ter | 0,207 | 4,496 | 0,619 | 5,322 | -0,144 |
+| salário: só de | 0,713 | 7,175 | 0,631 | 8,518 | **+3,052** |
+| salário: só até | 0,157 | 3,105 | 0,628 | 3,889 | -1,577 |
+| salário: de e até | 0,560 | 5,915 | 0,621 | 7,096 | **+1,630** |
+| salário: com sem salário | 0,177 | 4,299 | 0,624 | 5,100 | -0,366 |
+| todos juntos | 0,558 | 6,144 | 0,623 | 7,325 | **+1,859** |
+
+Acréscimo negativo é filtro que encolhe a lista e os chips. `contar_abas` não recebe filtro: custa o mesmo em toda linha. O plano de consulta (`tests/integracao/test_plano_consulta.py`) confirma que os índices da 0005 entram em país, UF, cidade, publicada e nos três casos de salário.
+
+**O que a medição mostra:**
+
+- A vista sem filtro já passa de 1 s (5,5 s), quase toda em `contar_chips` (4,6 s). `listar` leva 0,2 s. Dos chips, o de fonte custa 2,2 s (junção com `ocorrencia` e `COUNT(DISTINCT)`), UF 0,8 s, país 0,4 s e os outros cerca de 0,2 s cada.
+- Cidade e empresa passam de 1 s porque a condição chama a função `jobot_normalizar` em Python para cada linha de `local_vaga` ou de `vaga` (o índice `local_vaga_vaga` só resolve a junção por vaga; o `LIKE` sobre `jobot_normalizar` não usa índice nenhum), e cada uma das 9 consultas dos chips repete a condição. Uma só consulta de contagem leva 0,6 s (cidade) e 0,4 s (empresa).
+- Salário "só de" usa `vaga_sal_alto_brl`, mas o filtro deixa passar cerca de 159 mil das 300 mil vagas nos dados medidos: o índice não poupa trabalho e as 9 consultas dos chips repetem a condição. "De e até" passa de 1 s pelo mesmo motivo.
+
+**Proposta para a próxima versão (sem tarefa na 0.2.0):**
+
+1. Chips fora do caminho da lista: um fragmento HTMX (`hx-trigger="load"`) busca as contagens depois que a lista aparece. A lista chega em cerca de 0,2 s mesmo com filtros pesados, e a vista sem filtro deixa de bloquear. Resolve a vista sem filtro e o custo extra dos chips em todas as linhas acima.
+2. Cidade e empresa: gravar o texto já normalizado numa coluna própria (`local_vaga.cidade_normalizada` e `vaga.empresa_normalizada`, preenchidas junto de cada gravação) e filtrar por prefixo com índice. Isto muda o filtro de "contém" para "começa com" (mudança de contrato, a decidir com o dono). O `LIKE` só usa índice com collation `NOCASE` na coluna; mais simples é a faixa `col >= :p AND col < :p_proximo` sobre a coluna já normalizada. Se a busca precisar achar no meio do nome, a alternativa é uma tabela FTS5 só para cidade e empresa. As duas pedem migração e mudam o contrato de gravação, por isso ficam para a próxima versão.
+3. Fonte: contar com um índice que cubra `ocorrencia(fonte, vaga_id)` ou guardar a contagem por fonte numa tabela de resumo atualizada na gravação. Medir antes e depois com o mesmo script.
+4. Salário: não precisa de índice novo. O custo some com o item 1; se ainda pesar depois dele, contar os chips com uma consulta só (uma passada pela tabela) em vez de nove.
+
+**Como desfazer:** nada foi construído além do script e do teste do plano. Tirar `scripts/medir_filtros.py`, `tests/integracao/test_plano_consulta.py` e `tests/integracao/test_medir_filtros.py`; `sql_de_listar` é só a extração do SQL que `listar` já executava.

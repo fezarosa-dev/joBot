@@ -353,17 +353,24 @@ def _item(linha: dict[str, Any]) -> dict[str, Any]:
     return linha
 
 
-def listar(con: sqlite3.Connection, f: Filtros, agora: datetime) -> Pagina:
-    """Uma página de 50 vagas da aba, com os filtros, a busca e a ordem escolhidos."""
+def sql_de_listar(
+    con: sqlite3.Connection, f: Filtros, agora: datetime
+) -> tuple[str, dict[str, object]]:
+    """O SQL e os parâmetros que `listar` executa (também para `EXPLAIN QUERY PLAN`)."""
     _preparar(con)
     onde, params = _onde(con, f, agora)
     ordem = ORDENS.get(f.ordem, ORDENS["encaixe"])
     params |= {"limite": POR_PAGINA + 1, "pulo": (max(f.pagina, 1) - 1) * POR_PAGINA}
-    cur = con.execute(
+    sql = (
         f"SELECT {_COLUNAS} FROM {_DE} WHERE {onde} ORDER BY {ordem}, v.id"
-        " LIMIT :limite OFFSET :pulo",
-        params,
+        " LIMIT :limite OFFSET :pulo"
     )
+    return sql, params
+
+
+def listar(con: sqlite3.Connection, f: Filtros, agora: datetime) -> Pagina:
+    """Uma página de 50 vagas da aba, com os filtros, a busca e a ordem escolhidos."""
+    cur = con.execute(*sql_de_listar(con, f, agora))
     itens = tuple(Item(**_item(linha)) for linha in _linhas(cur))
     return Pagina(itens=itens[:POR_PAGINA], tem_mais=len(itens) > POR_PAGINA)
 
