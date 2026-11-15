@@ -104,18 +104,18 @@ def _ruins_do_js(arquivo: Path) -> list[str]:
         and isinstance(no.body[0].value, ast.Constant)
     }
     literais: set[int] = set()
-    for no in arvore.body:
+    for instr in arvore.body:
         alvo, valor = None, None
-        if isinstance(no, ast.AnnAssign) and isinstance(no.target, ast.Name):
-            alvo, valor = no.target.id, no.value
-        elif isinstance(no, ast.Assign) and isinstance(no.targets[0], ast.Name):
-            alvo, valor = no.targets[0].id, no.value
+        if isinstance(instr, ast.AnnAssign) and isinstance(instr.target, ast.Name):
+            alvo, valor = instr.target.id, instr.value
+        elif isinstance(instr, ast.Assign) and isinstance(instr.targets[0], ast.Name):
+            alvo, valor = instr.targets[0].id, instr.value
         if alvo in SCRIPTS:
             achados.add(alvo)
             if isinstance(valor, ast.Constant) and isinstance(valor.value, str):
                 literais.add(id(valor))
             else:
-                ruins.append(f"{arquivo.name}:{no.lineno}: {alvo} não é literal")
+                ruins.append(f"{arquivo.name}:{instr.lineno}: {alvo} não é literal")
     ruins += [f"{arquivo.name}: falta {n}" for n in sorted(SCRIPTS - achados)]
     for no in ast.walk(arvore):
         if isinstance(no, ast.Call) and isinstance(no.func, ast.Attribute):
