@@ -86,7 +86,7 @@ joBot has a single core and two "faces".
 |---|---|---|
 | **Installation** | Native, with one command (planned) | None: just open the site |
 | **Sources** | All | Public sources only |
-| **Sites with login** | Yes, with your manual login | No |
+| **Sites with login** | Yes, you sign in in a regular browser window | No |
 | **AI** | Automatic (Claude, local model) or manual | Manual (copy and paste); labels by rules only |
 | **Extension, Gmail and audio** | Yes | No |
 | **Where the data lives** | In the SQLite database on your computer | Your profile stays in your browser |
@@ -107,8 +107,9 @@ Each source has an on/off switch.
 | Brazilian portals | Gupy, CIEE, Sólides, IEL, Super Estágios, Cia de Talentos, Eureca, Abler |
 | Careers at big companies | Google, Amazon, Microsoft, NVIDIA |
 | Internship boards | Public boards, such as the one at USP |
-| 🔐 Sites with login (first) | LinkedIn, Indeed, Catho, Vagas.com |
-| 🔐 Sites with login (later, one at a time) | InfoJobs, Glassdoor, Programathor, GeekHunter, Remotar, Trampos, Revelo, Coodesh |
+| 🔐 Sites with login (first, in this order) | LinkedIn, Gupy (with login), Vagas.com, Catho, Indeed |
+| 🔐 Sites with login (later, one at a time) | InfoJobs, Glassdoor, Remotar, Trampos |
+| 🔐 Technology-only sites with login (last, one at a time) | Programathor, GeekHunter, Revelo, Coodesh |
 
 - 🤝 **Polite collection.** The robot identifies itself, waits between one request and the next and waits longer when the site asks for calm.
 - 🩺 **Health of each source.** On every search, each source is marked as ok, partial or failed, and you see this in the dashboard.
@@ -116,7 +117,7 @@ Each source has an on/off switch.
 
 > [!WARNING]
 > **Sites with login carry risk.** They may restrict accounts that access them automatically.
-> joBot reduces the risk: it opens a visible Chrome, you do the login, it only reads and visits rarely and slowly. Even so, the risk exists. **You decide whether to turn on each site.**
+> joBot reduces the risk: you sign in in a regular browser window, with no automation, however you like (Google, email and password), and close the window; joBot checks the session by itself and never types the password. After that it only reads and visits rarely and slowly. Even so, the risk exists. **You decide whether to turn on each site.**
 
 ## 📋 The dashboard
 
