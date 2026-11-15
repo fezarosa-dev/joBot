@@ -30,7 +30,7 @@ CHAVE = "falso_logado"
 INTERRUPTOR = f"{GRUPO}/{CHAVE}/interruptor"
 AGORA = datetime(2026, 11, 15, 12, 0, tzinfo=UTC)
 CHAVES_DE_HORARIO = ("formato", "repetido", "muitos", "perto")
-TEXTOS = {
+TEXTOS: dict[str, dict[str, Any]] = {
     "pt": {
         "explicacao": "O joBot nunca digita a sua senha",
         "risco": ("pode ir contra os termos", "conta pode ser restringida", "site por site"),
@@ -371,7 +371,7 @@ def test_aba_nao_sobe_o_driver(painel: Painel, monkeypatch: pytest.MonkeyPatch) 
 
     monkeypatch.setattr(abrir_navegador, "async_playwright", falso)
     with pytest.raises(AssertionError):  # controle: o falso está no lugar e levanta
-        abrir_navegador.async_playwright()
+        vars(abrir_navegador)["async_playwright"]()
     subidas.clear()
     painel.app.state.navegador_instalado = "chromium"
     assert painel.http.get(GRUPO).status_code == 200
