@@ -40,7 +40,7 @@ Pix key (random):
 - 💡 **Suggest an idea** with the [feature request form](https://github.com/fezarosa-dev/joBot/issues/new?template=sugestao.yml).
 - 🙋 **Answer other people's questions** in the [question issues](https://github.com/fezarosa-dev/joBot/issues?q=label%3Aquestion).
 - 📝 **Improve this wiki** with a PR in the [`wiki/`](https://github.com/fezarosa-dev/joBot/tree/main/wiki) folder.
-- 🧑‍💻 **Contribute code** following the [contribution guide](https://github.com/fezarosa-dev/joBot/blob/main/.github/CONTRIBUTING.en.md). Code PRs are accepted after the release (phase 8).
+- 🧑‍💻 **Contribute code** following the [contribution guide](https://github.com/fezarosa-dev/joBot/blob/main/.github/CONTRIBUTING.en.md). Code PRs are accepted after the release (phase 9).
 
 <div align="center">
 

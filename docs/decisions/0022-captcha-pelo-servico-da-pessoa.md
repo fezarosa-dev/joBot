@@ -54,7 +54,7 @@ O painel diz com franqueza, ao lado do interruptor:
 
 ### Desenho
 
-O desenho completo (parte do 2Captcha e a parte da IA pela sessão, que fica registrada para a fase 3) está em `docs/superpowers/specs/2026-11-15-captcha-design.md`.
+O desenho completo (parte do 2Captcha e a parte da IA pela sessão, que fica registrada para a fase 4) está em `docs/superpowers/specs/2026-11-15-captcha-design.md`.
 
 ## Consequências
 

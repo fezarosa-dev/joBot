@@ -20,7 +20,7 @@ Estas decisões vieram de 9 rodadas de perguntas e respostas feitas em 2026-11-1
 | 0012 | [Extensão do navegador](0012-extensao-do-navegador.md) | aceita |
 | 0013 | [Gmail e avisos](0013-gmail-e-avisos.md) | aceita |
 | 0014 | [Segurança e privacidade](0014-seguranca-e-privacidade.md) | aceita |
-| 0015 | [Treino de modelos (fase 6)](0015-treino.md) | aceita |
+| 0015 | [Treino de modelos (fase 7)](0015-treino.md) | aceita |
 | 0016 | [Licença, sala limpa e processo de trabalho](0016-licenca-clean-room-e-processo.md) | aceita |
 | 0017 | [Fases do projeto](0017-fases.md) | aceita |
 | 0018 | [Manutenção pela comunidade e CI aberto a todo PR](0018-manutencao-pela-comunidade.md) | aceita |
@@ -28,6 +28,7 @@ Estas decisões vieram de 9 rodadas de perguntas e respostas feitas em 2026-11-1
 | 0020 | [Apoio financeiro: só doação](0020-apoio-financeiro.md) | aceita |
 | 0021 | [Sem Dependabot: atualização de dependência à mão](0021-sem-dependabot.md) | aceita |
 | 0022 | [CAPTCHA resolvido pelo serviço que a pessoa liga](0022-captcha-pelo-servico-da-pessoa.md) | aceita |
+| 0023 | [Tudo pelo painel](0023-tudo-pelo-painel.md) | aceita |
 
 ## Como registrar uma nova decisão
 

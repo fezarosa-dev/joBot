@@ -17,7 +17,7 @@ O projeto quer ser mantido pela comunidade (ver a [0018](0018-manutencao-pela-co
 - O texto da wiki mora na pasta `wiki/` do repositório e é editado por PR, como qualquer arquivo.
 - Um workflow (tarefa automática do GitHub Actions) copia a pasta para a wiki a cada push na `main`. Ele usa shell próprio, só o checkout oficial como action, e o token do próprio GitHub com apenas `contents: write`. Nunca roda em `pull_request`, para código de fora não ter acesso a esse token.
 - A edição direta na wiki do GitHub fica só com quem mantém o projeto (padrão do GitHub). A edição direta é sobrescrita na próxima cópia, então toda mudança vai pela pasta `wiki/`.
-- A wiki é um repositório à parte (`joBot.wiki.git`). Ela convive com o GitHub Pages da fase 7, que sai de um ramo ou do GitHub Actions.
+- A wiki é um repositório à parte (`joBot.wiki.git`). Ela convive com o GitHub Pages da fase 8, que sai de um ramo ou do GitHub Actions.
 - Páginas futuras: "Como consertar uma fonte" (o guia da [0018](0018-manutencao-pela-comunidade.md)) e "Instalação".
 
 ## Consequências
