@@ -39,7 +39,7 @@ from typing import Any, Literal
 from urllib.parse import parse_qsl, unquote, urldefrag, urlsplit, urlunsplit
 
 from capturar import (
-    _CASO,
+    CASO,
     FIXTURES,
     achar_pessoais,
     limpar_pessoais,
@@ -380,7 +380,7 @@ def main(
 ) -> int:
     args = _analisador().parse_args(list(argv))
     env = os.environ if env is None else env
-    if not _CASO.fullmatch(args.caso):
+    if not CASO.fullmatch(args.caso):
         print(f"caso inválido: {args.caso!r} (minúsculas, dígitos, _ e -)", file=sys.stderr)
         return 2
     if ruins := [h for h in args.host if not _HOST.fullmatch(h)]:
