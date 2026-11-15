@@ -32,6 +32,7 @@ from jobot.navegador.abrir import Lancar
 from jobot.navegador.execucao import Dependencias, dependencias_de_producao, executar_login
 from jobot.navegador.politica import dentro_dos_hosts
 from jobot.nucleo.coletores.base import ContextoColeta
+from jobot.nucleo.coletores.executor import estado_da_fonte
 from jobot.nucleo.http import ClienteEducado, Validadores
 from jobot.nucleo.leitores.base import EscopoLogado
 from jobot.sistema import cofre as modulo_cofre
@@ -387,3 +388,45 @@ async def test_dependencias_de_producao_ligam_o_aviso(
     async with dependencias_de_producao(tmp_path, {"CONTAINER_ID": "caixa"}) as deps:
         deps.avisar("joBot", "Uma frase.")
     assert chamadas == [("joBot", "Uma frase.", {"CONTAINER_ID": "caixa"}, rodar_comando)]
+
+
+@pytest.mark.parametrize(
+    ("caminho", "saude", "avisos"),
+    [
+        ("/lista-desafio-na-vaga", ("falhou", "saude.captcha"), 1),
+        ("/lista-bloqueio-na-vaga", ("falhou", "saude.bloqueio"), 0),
+    ],
+)
+async def test_parada_no_detalhe_grava_a_saude_do_site(
+    caminho: str,
+    saude: tuple[str, str],
+    avisos: int,
+    site: SiteFalso,
+    montagem: Montagem,
+    con: sqlite3.Connection,
+    cofre: Cofre,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(limites, "JANELA_PARADA_S", 60)
+    gravar_config(con, "captcha_ligado", False)
+    leitor = LeitorFixo(base=site.url(""), urls=(("python", caminho),), lista_tem_descricao=False)
+    _ligar(con, leitor)
+    execucao_id = await executar_login(
+        con,
+        _cliente(Api2Captcha()),
+        montagem.relogio,
+        "agenda",
+        leitores=[leitor],
+        deps=montagem.deps(tmp_path, cofre),
+    )
+    assert execucao_id is not None
+    assert _saude(con, execucao_id) == {
+        ("falso_logado", "python"): ("ok", None),
+        ("falso_logado", ""): saude,
+    }
+    assert len(montagem.avisos) == avisos  # o 403 não abre a janela parada
+    estados = [
+        e for (fonte, _), (e, _) in _saude(con, execucao_id).items() if fonte == "falso_logado"
+    ]
+    assert estado_da_fonte(estados) == "parcial"

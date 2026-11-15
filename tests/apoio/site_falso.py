@@ -329,6 +329,10 @@ class SiteFalso:
                 return _Resposta(corpo=_pagina("Vagas", _lista_html([pagina * 10], proxima)))
             case "/lista-e-login":  # a segunda página é a de login (T213)
                 return _Resposta(corpo=_pagina("Vagas", _lista_html([1, 2], "/login")))
+            case "/lista-desafio-na-vaga":  # a vaga 77 abre num desafio (T224)
+                return _Resposta(corpo=_pagina("Vagas", _lista_html([77])))
+            case "/lista-bloqueio-na-vaga":  # a vaga 78 responde 403 (T224)
+                return _Resposta(corpo=_pagina("Vagas", _lista_html([78])))
             case "/vazia":
                 return _Resposta(corpo=_pagina("Vagas", _lista_html([])))
             case "/proxima-fora":
@@ -497,6 +501,11 @@ class SiteFalso:
             # vagas e ajudantes
             case "/campo-mudou" | "/conferir-token":
                 return _Resposta(204)
+            case "/vaga/77":
+                widget = _RECAPTCHA.format(chave=CHAVE_V2, retorno="recebeu", extra="")
+                return _Resposta(corpo=_pagina("Desafio", widget + _RETORNO))
+            case "/vaga/78":
+                return _Resposta(403, _pagina("Proibido", "<p>Proibido</p>"))
             case _ if caminho.startswith("/vaga/"):
                 n = caminho.removeprefix("/vaga/")
                 corpo = f"<h1>Vaga {n}</h1><div id='descricao'>Descrição da vaga {n}</div>"
