@@ -1,0 +1,10 @@
+{
+  "url": "https://www.linkedin.com/jobs/view/4300000001/",
+  "data": "2026-11-15T23:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {},
+  "tipo": "text/html",
+  "sha256": "4bf66801d12271453aefd1f93a2baa4b88142c22fbc40040149df500afff2a48",
+  "versao": "0.2.1",
+  "montado_a_mao": "montado à mão a partir de vaga_externa.html: link safety/go com url=javascript:alert(1); empresa fictícia"
+}

@@ -1,0 +1,17 @@
+{
+  "url": "https://www.linkedin.com/jobs/search-results/?currentJobId&keywords&f_TPR",
+  "codigo": 200,
+  "cabecalhos": {},
+  "tipo": "text/html",
+  "recorte": [
+    "[componentkey^=\"job-card-component-ref-\"]",
+    "[data-testid=\"primary-nav\"] a[href*=\"/notifications/\"]"
+  ],
+  "tirar": [
+    "alumni|ex-alunos|connections?|conex(ão|ões)|followers|seguidores"
+  ],
+  "data": "2026-11-15T22:25:43.813654+00:00",
+  "sha256": "1c00605493f53b8c0f7840fea54e19e88a7285f090e2d3ff44f78b983352baa0",
+  "versao": "0.2.1",
+  "limpeza_a_mao": "src do logo da escola no bloco de ex-alunos trocado por exemplo_escola"
+}
