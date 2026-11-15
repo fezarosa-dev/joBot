@@ -300,11 +300,17 @@ def test_cotacao_da_vaga_estragada_some_so_a_cotacao(
     assert (texto.convertido, texto.cotacao) == (convertido, None)
 
 
-def test_data_da_cotacao_da_vaga_ilegivel_some_so_a_cotacao() -> None:
+@pytest.mark.parametrize(
+    ("ex", "convertido"),
+    [(None, "≈ R$ 5.000/mês"), (_exibicao("EUR", "6.25"), "≈ € 800/mês")],
+)
+def test_data_da_cotacao_da_vaga_ilegivel_some_so_a_cotacao(
+    ex: Exibicao | None, convertido: str
+) -> None:
     campos = _USD_5000 | {"sal_cotacao_data": "xx"}
-    texto = formatos.salario_texto(_item(**campos), "pt", _exibicao("EUR", "6.25"))
+    texto = formatos.salario_texto(_item(**campos), "pt", ex)
     assert texto is not None
-    assert (texto.convertido, texto.cotacao) == ("≈ € 800/mês", None)
+    assert (texto.convertido, texto.cotacao) == (convertido, None)
 
 
 def test_taxa_cruzada_gigante_nao_estoura() -> None:
