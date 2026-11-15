@@ -87,6 +87,12 @@ def _tag(html: str, id_: str) -> str:
     return achou.group(0)
 
 
+def _chips(painel: Painel, url: str, **kw: Any) -> str:
+    """O fragmento dos chips da mesma vista: a página só traz o contêiner que o busca (T191)."""
+    assert url.startswith("/vagas?") or url == "/vagas"
+    return str(painel.get("/vagas/chips" + url.removeprefix("/vagas"), **kw).text)
+
+
 def _atual(html: str) -> list[str]:
     """As abas marcadas com aria-current (só o `<nav class="abas">`, não o menu da casca)."""
     abas = re.search(r'<nav class="abas".*?</nav>', html, re.S)
@@ -134,18 +140,72 @@ def test_abas_trazem_a_contagem(painel: Painel) -> None:
 
 
 def test_chips_com_contagem_e_aria_pressed(painel: Painel) -> None:
-    html = painel.get("/vagas?aba=todas").text
+    html = _chips(painel, "/vagas?aba=todas")
     remoto = _tag(html, "chip-modalidade-remoto")
     assert 'aria-pressed="false"' in remoto
     assert 'data-contagem="4"' in remoto
     assert 'data-contagem="2"' in _tag(html, "chip-modalidade-presencial")
-    ligado = painel.get("/vagas?aba=todas&modalidade=remoto").text
+    ligado = _chips(painel, "/vagas?aba=todas&modalidade=remoto")
     assert 'aria-pressed="true"' in _tag(ligado, "chip-modalidade-remoto")
+
+
+def _contador_que_falha(*_: object, **__: object) -> None:
+    raise AssertionError("contar_chips no caminho da lista")
+
+
+@pytest.mark.parametrize("cabecalhos", [{}, HX])
+def test_lista_nao_espera_as_contagens_dos_chips(
+    painel: Painel, monkeypatch: pytest.MonkeyPatch, cabecalhos: dict[str, str]
+) -> None:
+    monkeypatch.setattr("jobot.banco.leitura.contar_chips", _contador_que_falha)
+    resposta = painel.get("/vagas?aba=todas&modalidade=remoto&q=python", headers=cabecalhos)
+    assert resposta.status_code == 200
+    assert _cartoes(resposta.text)
+    recipiente = _tag(resposta.text, "filtros-chips")
+    assert 'hx-get="/vagas/chips?aba=todas&amp;q=python&amp;modalidade=remoto"' in recipiente
+    assert 'hx-trigger="load"' in recipiente
+    assert 'aria-busy="true"' in recipiente
+    assert "chip-modalidade-remoto" not in resposta.text
+    assert t("pt", "vagas.filtros_carregando") in resposta.text
+
+
+def test_destaques_nao_tem_o_recipiente_dos_chips(painel: Painel) -> None:
+    assert "filtros-chips" not in painel.get("/vagas?aba=destaques").text
+
+
+def test_rota_dos_chips_traz_o_fragmento_com_as_contagens(painel: Painel) -> None:
+    resposta = painel.get("/vagas/chips?aba=todas&modalidade=remoto", headers=HX)
+    assert resposta.status_code == 200
+    assert "<html" not in resposta.text
+    assert "HX-Request" in resposta.headers["vary"]
+    assert 'id="filtros-chips"' in resposta.text
+    assert "aria-busy" not in resposta.text
+    assert "hx-trigger" not in resposta.text.split('id="chip-')[0]
+    assert 'aria-pressed="true"' in _tag(resposta.text, "chip-modalidade-remoto")
+    assert 'data-contagem="2"' in _tag(resposta.text, "chip-modalidade-presencial")
+    assert _chips(painel, "/vagas?aba=todas") == painel.get("/vagas/chips?aba=todas").text
+
+
+def test_rota_dos_chips_sem_chips_vem_vazia(painel: Painel) -> None:
+    resposta = painel.get("/vagas/chips?aba=destaques")
+    assert (resposta.status_code, resposta.text.strip()) == (200, "")
+
+
+@pytest.mark.parametrize(
+    "consulta",
+    [
+        "aba=%FF&busca=x&sal_de=abc&sal_ate=-1&pais=ZZ&publicada=nunca&ordem=zzz&pagina=x",
+        "aba=todas&q=%00&cidade=%27%22&modalidade=" + "x" * 500,
+        "",
+    ],
+)
+def test_rota_dos_chips_com_parametro_torto_nao_da_500(painel: Painel, consulta: str) -> None:
+    assert painel.get(f"/vagas/chips?{consulta}").status_code == 200
 
 
 def test_filtro_vai_para_a_url_e_a_url_reabre_igual(painel: Painel) -> None:
     ids = painel.ids
-    html = painel.get("/vagas?aba=todas").text
+    html = _chips(painel, "/vagas?aba=todas")
     chip = _tag(html, "chip-modalidade-remoto")
     url = re.search(r'hx-get="([^"]+)"', chip)
     assert url
@@ -158,7 +218,7 @@ def test_filtro_vai_para_a_url_e_a_url_reabre_igual(painel: Painel) -> None:
     assert sorted(_cartoes(reaberta.text)) == sorted(quatro)
     assert _cartoes(pelo_chip.text) == _cartoes(reaberta.text)
     # apertar de novo o chip que está ligado tira o filtro
-    ligado = _tag(reaberta.text, "chip-modalidade-remoto")
+    ligado = _tag(_chips(painel, destino), "chip-modalidade-remoto")
     volta = re.search(r'hx-get="([^"]+)"', ligado)
     assert volta
     assert "modalidade" not in volta.group(1)
@@ -179,7 +239,8 @@ def test_busca_de_texto_e_preservada_nos_links(painel: Painel) -> None:
         [painel.ids["usd"], painel.ids["script"], painel.ids["prazo_3_dias"]]
     )
     assert "data-busca" in html
-    assert "q=python" in _tag(html, "chip-modalidade-remoto")
+    chips = _chips(painel, "/vagas?aba=todas&q=python")
+    assert "q=python" in _tag(chips, "chip-modalidade-remoto")
 
 
 @pytest.mark.parametrize(
@@ -660,6 +721,7 @@ def _input(html: str, nome: str) -> str:
 
 def test_parametros_novos_vao_e_voltam_na_url(painel: Painel) -> None:
     html = painel.get(f"/vagas?aba=todas&{_OITO}").text
+    chips = _chips(painel, f"/vagas?aba=todas&{_OITO}")
     for nome, valor in (
         ("excluir", "cobol"),
         ("cidade", "sao"),
@@ -669,8 +731,8 @@ def test_parametros_novos_vao_e_voltam_na_url(painel: Painel) -> None:
     ):
         assert f'value="{valor}"' in _input(html, nome), nome
     # o chip de outro valor do mesmo grupo troca só o dele e leva os outros sete campos
-    trocado = _hx_get(html, "chip-publicada-30d")
-    ligado = _hx_get(html, "chip-pais-PT")
+    trocado = _hx_get(chips, "chip-publicada-30d")
+    ligado = _hx_get(chips, "chip-pais-PT")
     for url, faltando in ((trocado, "publicada=30d"), (ligado, "publicada=7d")):
         for parte in _OITO.split("&"):
             if parte.startswith(("publicada=", "pais=")):
@@ -683,7 +745,7 @@ def test_parametros_novos_vao_e_voltam_na_url(painel: Painel) -> None:
 
 def test_clicar_num_chip_mantem_os_campos_de_mais_filtros(painel: Painel) -> None:
     painel.semear_mais(titulo="Vaga SP", modalidade="remoto", **_SAL_SP)
-    html = painel.get("/vagas?aba=todas&sal_de=7000&cidade=sao").text
+    html = _chips(painel, "/vagas?aba=todas&sal_de=7000&cidade=sao")
     url = _hx_get(html, "chip-modalidade-remoto")
     assert "sal_de=7000" in url
     assert "cidade=sao" in url
@@ -829,8 +891,8 @@ def test_aviso_sem_cotacao_da_moeda(painel: Painel) -> None:
 
 def test_chip_de_pais_com_nome_na_lingua_da_tela(painel: Painel) -> None:
     painel.semear_mais(titulo="Vaga na Alemanha", pais="DE")
-    pt = painel.get("/vagas?aba=todas").text
-    en = painel.get("/vagas?aba=todas", headers={"Accept-Language": "en"}).text
+    pt = _chips(painel, "/vagas?aba=todas")
+    en = _chips(painel, "/vagas?aba=todas", headers={"Accept-Language": "en"})
     chip = r'<button[^>]*id="chip-pais-DE"[^>]*>(.*?)</button>'
     achou_pt, achou_en = re.search(chip, pt, re.S), re.search(chip, en, re.S)
     assert achou_pt
@@ -847,7 +909,7 @@ def test_chips_publicada_na_ordem_fixa(painel: Painel) -> None:
             publicada_em=(AGORA - timedelta(hours=horas)).isoformat(),
             primeira_vista_em=(AGORA - timedelta(days=60)).isoformat(),
         )
-    html = painel.get("/vagas?aba=todas&q=zzmarca").text
+    html = _chips(painel, "/vagas?aba=todas&q=zzmarca")
     ids = re.findall(r'\bid="chip-publicada-([^"]+)"', html)
     assert ids == ["24h", "7d", "30d"]
     esperado = {"24h": ("24 h", "1"), "7d": ("7 dias", "2"), "30d": ("30 dias", "3")}
@@ -907,6 +969,9 @@ def test_campos_de_texto_novos_saem_escapados(painel: Painel) -> None:
     assert 'value=""><script>' not in html
     assert "&#34;&gt;&lt;script&gt;x&lt;/script&gt;" in _input(html, "cidade")
     assert "a&#34;b" in _input(html, "empresa")
-    # na URL dos chips os dois vão codificados (o chip existe: a vaga SP casa o q)
-    html_ok = painel.get("/vagas", params={"aba": "todas", "cidade": "sao", "empresa": 'a"b'}).text
-    assert "empresa=a%22b" in html_ok
+    # nas URLs do contêiner dos chips e nas dos chips o valor vai codificado
+    consulta = {"aba": "todas", "cidade": "sao", "empresa": 'a"b'}
+    assert "empresa=a%22b" in _tag(painel.get("/vagas", params=consulta).text, "filtros-chips")
+    painel.semear_mais(titulo="Vaga AB", empresa='a"b', modalidade="remoto", **_SAL_SP)
+    fragmento = painel.get("/vagas/chips", params=consulta).text
+    assert "empresa=a%22b" in _hx_get(fragmento, "chip-modalidade-remoto")

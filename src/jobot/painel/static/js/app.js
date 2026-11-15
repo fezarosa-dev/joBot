@@ -24,8 +24,40 @@
     foco.focus();
   });
 
-  // mensagem passageira (ex.: "Salvo." da aba Serviços): o [data-some-sozinho] que chegou numa troca,
-  // inclusive numa troca fora de banda (OOB), some 2 s depois; o nó em volta continua no lugar
+  // chips de filtro (T191): chegam num segundo pedido, depois da lista. O clique troca o miolo e o
+  // chip focado some do DOM; o HTMX só devolve o foco a quem existe na troca. Guardo o id do chip
+  // focado e, quando o fragmento dos chips chega (o de espera tem aria-busy), devolvo o foco a ele.
+  let chipFocado = null;
+  document.addEventListener("htmx:beforeRequest", (evento) => {
+    const no = evento.detail.elt;
+    if (no?.matches?.("button.chip[id]") && document.activeElement === no) chipFocado = no.id;
+  });
+  document.addEventListener("htmx:afterRequest", (evento) => {
+    if (!evento.detail.successful && evento.detail.elt?.id === chipFocado) chipFocado = null;
+  });
+  document.addEventListener("htmx:afterSwap", (evento) => {
+    const no = evento.target;
+    if (!chipFocado || no?.id !== "filtros-chips" || no.getAttribute("aria-busy") === "true") return;
+    const chip = document.getElementById(chipFocado);
+    chipFocado = null;
+    if (chip && document.activeElement === document.body) chip.focus();
+  });
+
+  // se o pedido dos chips falhar, o contêiner de espera não fica ocupado para sempre: o aviso global
+  // de erro (mais abaixo) já fala do erro; aqui só sai o aria-busy e o texto de espera
+  const chipsFalhou = (evento) => {
+    const no = evento.detail.elt;
+    if (no?.id !== "filtros-chips" || no.getAttribute("aria-busy") !== "true") return;
+    no.removeAttribute("aria-busy");
+    no.querySelector("[data-espera]")?.setAttribute("hidden", "");
+  };
+  document.addEventListener("htmx:responseError", chipsFalhou);
+  document.addEventListener("htmx:sendError", chipsFalhou);
+
+  // mensagem passageira ("Salvo."): o [data-some-sozinho] que está na página ao carregar, que chegou
+  // numa troca ou numa troca fora de banda (OOB) some 5 s depois (tempo para o leitor de tela); o nó
+  // em volta continua no lugar. Mostrada a mensagem, o ?salvo= sai da URL (os outros parâmetros e o
+  // hash ficam), para recarregar ou voltar não repetir o "Salvo."
   const agendados = new WeakSet();
   const agendarSumico = () => {
     for (const no of document.querySelectorAll("[data-some-sozinho]:not([hidden])")) {
@@ -33,11 +65,22 @@
       agendados.add(no);
       setTimeout(() => {
         no.hidden = true;
-      }, 2000);
+      }, 5000);
+    }
+    const url = new URL(location.href);
+    if (url.searchParams.has("salvo")) {
+      url.searchParams.delete("salvo");
+      history.replaceState(history.state, "", url);
     }
   };
+  agendarSumico();
   document.addEventListener("htmx:afterSwap", agendarSumico);
   document.addEventListener("htmx:oobAfterSwap", agendarSumico);
+  document.addEventListener("htmx:historyRestore", agendarSumico);
+  // o snapshot do histórico não guarda a mensagem passageira (senão a volta a mostraria de novo)
+  document.addEventListener("htmx:beforeHistorySave", () => {
+    for (const no of document.querySelectorAll("[data-some-sozinho]")) no.hidden = true;
+  });
 
   // botão olho: mostra ou oculta o que foi digitado no campo que ele controla (aria-controls);
   // o estado vive só no aria-pressed e o campo é buscado na hora (a troca do cartão o recria)
