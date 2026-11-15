@@ -2,6 +2,7 @@
 
 - **Status:** aceita
 - **Data:** 2026-11-13
+- **Atualizada:** 2026-11-15 (o Ollama volta como opção pelo backend compatível com OpenAI)
 
 ## Contexto
 
@@ -17,7 +18,7 @@ O público é leigo e usa computadores médios. O app precisa abrir um Chrome vi
 - Playwright para controlar o navegador.
 - uv para instalar e rodar.
 - ruff para estilo, mypy --strict para tipos e pytest com TDD (teste escrito antes do código).
-- Sem Ollama e sem PyTorch (ver 0009).
+- O pacote não traz Ollama nem PyTorch; quem usa Ollama liga pelo backend compatível com OpenAI (ver 0009).
 - Dependência nova só com justificativa e com licença compatível com MIT; evitar GPL e AGPL.
 
 ### Instalação

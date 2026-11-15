@@ -2,6 +2,7 @@
 
 - **Status:** aceita
 - **Data:** 2026-11-13
+- **Atualizada:** 2026-11-15 (mais backends: Google Gemini, OpenAI e compatível com OpenAI; teste ao ligar)
 
 ## Contexto
 
@@ -17,8 +18,19 @@ Algumas pessoas têm assinatura do Claude, outras têm chave de API (uma senha q
 ### Opções de IA (backends)
 
 - Cada tarefa de IA tem liga/desliga, backend e modelo próprios.
-- Backends: sessão do Claude Code (ver [0010](0010-claude-code-da-pessoa.md)), chave da API da Anthropic, modelo local, palavras-chave (sem IA) e IA manual. Na IA manual, o joBot monta o pedido, a pessoa cola numa IA de chat e cola a resposta de volta.
+- Backends: sessão do Claude Code (ver [0010](0010-claude-code-da-pessoa.md)), chave da API da Anthropic, Google Gemini (chave de API), OpenAI (chave de API), backend compatível com OpenAI (endereço e chave opcional), modelo local, palavras-chave (sem IA) e IA manual. Na IA manual, o joBot monta o pedido, a pessoa cola numa IA de chat e cola a resposta de volta.
+- O backend compatível com OpenAI atende serviços como OpenRouter, Groq, DeepSeek e Mistral e programas locais como Ollama e LM Studio.
+- A chave do Google Gemini, a da OpenAI e a do backend compatível com OpenAI seguem a mesma regra de guarda da chave da Anthropic (cofre de senhas do sistema, ver [0014](0014-seguranca-e-privacidade.md)).
 - Atalhos de configuração: "Tudo Claude", "Tudo offline" e "Personalizado".
+
+### Teste ao ligar
+
+- Ao ligar um backend, ou ao trocar a chave, o endereço ou o modelo, o painel mostra um sinal de espera e faz um teste curto, com tempo-limite.
+- Se o backend responde no formato esperado, o painel mostra ✓.
+- Se não, o painel mostra o erro e o que fazer (chave errada, sem rede, programa local fechado, modelo não encontrado), e o backend fica desligado.
+- O teste nunca trava o painel.
+- Na sessão do Claude Code, o teste inclui o `claude auth status` da [0010](0010-claude-code-da-pessoa.md).
+- Tudo isso é da fase 3.
 
 ### Modelos padrão com Claude
 
@@ -48,7 +60,7 @@ O instalador pergunta uma vez se a pessoa quer o pacote offline. Ele inclui:
 
 - O app roda o `llama-server` como subprocesso e conversa com ele por HTTP, no endpoint `/v1/chat/completions`.
 - O app pede a resposta em JSON, com `response_format` do tipo `json_schema`.
-- Sem Ollama e sem PyTorch.
+- O pacote não traz o Ollama nem o PyTorch; quem já usa Ollama ou LM Studio liga pelo backend compatível com OpenAI.
 - A versão do llama.cpp é fixada por uma tag `bNNNN`, porque o "latest" do GitHub aponta para uma tag antiga (v1.0.0).
 
 ### Classificação de e-mail
