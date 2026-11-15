@@ -13,6 +13,7 @@ from jobot.nucleo.leitores.estado import (
     estado_do_escopo,
     parada_mais_forte,
 )
+from jobot.nucleo.leitores.linkedin import LinkedIn
 from jobot.nucleo.modelo import VagaColetada
 
 
@@ -130,8 +131,13 @@ def _leitor(chave: str) -> Any:
     return SimpleNamespace(chave=chave)
 
 
-def test_registro_comeca_vazio() -> None:
-    assert registro.leitores() == ()
+def test_registro_so_tem_o_linkedin() -> None:
+    assert [lt.chave for lt in registro.leitores()] == ["linkedin_logado"]
+
+
+def test_linkedin_no_registro() -> None:
+    assert "linkedin_logado" in {lt.chave for lt in registro.leitores()}
+    assert LinkedIn().lista_exaustiva is False
 
 
 def test_registro_devolve_os_registrados(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -538,5 +538,7 @@ async def _ler_escopo(site: _Site, escopo: EscopoLogado, historico: HistoricoDoB
         urls_vistas=tuple(lidas),
         urls_sem_detalhe=(),
     )
-    gravar_escopo(site.con, site.execucao_id, saida, [tratar(v) for v in desfecho.vagas], agora)
+    tratadas = [tratar(v) for v in desfecho.vagas]
+    exaustiva = site.leitor.lista_exaustiva
+    gravar_escopo(site.con, site.execucao_id, saida, tratadas, agora, exaustiva=exaustiva)
     return parada is not None

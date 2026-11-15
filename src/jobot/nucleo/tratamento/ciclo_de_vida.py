@@ -22,7 +22,11 @@ class MudancasCiclo:
 
 
 def aplicar_ciclo(
-    abertas: Sequence[OcorrenciaAberta], vistas: Set[str], estado: str, agora: datetime
+    abertas: Sequence[OcorrenciaAberta],
+    vistas: Set[str],
+    estado: str,
+    agora: datetime,
+    exaustiva: bool = True,
 ) -> MudancasCiclo:
     """`abertas` traz as ocorrências do escopo, inclusive as já sumidas (para poder reaparecer)."""
     if estado == "sem_mudanca":
@@ -35,7 +39,8 @@ def aplicar_ciclo(
         return MudancasCiclo(sumiram=(), reviram=(), tocar=())
 
     def some(o: OcorrenciaAberta) -> bool:
-        return estado == "ok" or agora - o.ultima_vista_em > JANELA_PARCIAL
+        # lista não exaustiva (busca por relevância): "ok" vale como "parcial"
+        return (estado == "ok" and exaustiva) or agora - o.ultima_vista_em > JANELA_PARCIAL
 
     return MudancasCiclo(
         sumiram=tuple(
