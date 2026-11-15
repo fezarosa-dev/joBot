@@ -6,7 +6,7 @@
 
 ## Contexto
 
-O projeto é grande. Ir por fases deixa cada entrega testada antes da próxima. Hoje a fase 1 está concluída (versão 0.2.0) e as outras estão planejadas.
+O projeto é grande. Ir por fases deixa cada entrega testada antes da próxima. Hoje a fase 1 está concluída, as versões 0.1.0, 0.1.1 e 0.2.0 já saíram (a 0.2.0 traz filtros novos e deixa o 2Captcha preparado para a fase 2) e as outras fases estão planejadas.
 
 ## Decisão
 
