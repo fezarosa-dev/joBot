@@ -1878,3 +1878,26 @@ Acréscimo negativo é filtro que encolhe a lista e os chips. `contar_abas` não
 4. Salário: não precisa de índice novo. O custo some com o item 1; se ainda pesar depois dele, contar os chips com uma consulta só (uma passada pela tabela) em vez de nove.
 
 **Como desfazer:** nada foi construído além do script e do teste do plano. Tirar `scripts/medir_filtros.py`, `tests/integracao/test_plano_consulta.py` e `tests/integracao/test_medir_filtros.py`; `sql_de_listar` é só a extração do SQL que `listar` já executava.
+
+## D130. Rodada de segurança da 0.2.0 (T189, T190)
+
+**Status:** resolvida em 2026-11-15: escolha da sessão, para confirmar com o dono
+
+**Contexto:** antes do PR da 0.2.0 para a `main` rodaram a revisão do diff de segurança (cofre e reserva em arquivo, cliente do 2Captcha, CSRF, máscara da chave, teto diário, `http.py`, `app.js`), o `semgrep` e a varredura de padrões inseguros em `src/jobot`. O `semgrep` deu 7 achados de variável em `href`, todos falsos: os links de terceiros passam por `_http`/`http()`, que só aceita `http://` e `https://`. A varredura (6 categorias, 7 candidatos) não confirmou nenhum.
+
+**Confirmado:** a chave não vai a log, HTML, URL nem banco; o CSRF é global; o `Host` só aceita `127.0.0.1` e `localhost`; `captcha_ligado` nasce desligado e o portão exige a chave; o teto diário conta antes de qualquer pedido.
+
+**Corrigido agora:**
+
+- T189: o arquivo de reserva do cofre é gravado de forma atômica (arquivo `.tmp`, `fsync`, `os.replace`), porque uma queda ou disco cheio no meio da gravação apagava a chave antiga.
+- T190: contador negativo do teto diário vale como teto atingido (só acontece com banco adulterado).
+
+**Fica como está (risco baixo):**
+
+- Com o cofre do sistema trancado, a chave velha volta a valer depois do desbloqueio. Já está marcado como `shortcut:` no `cofre.py`; rever na fase 2.
+- A corrida entre ligar e apagar em duas abas deixa `captcha_ligado` sem chave, mas `captcha_pronto` exige a chave e nada é resolvido.
+- Com `seguir_saltos=False`, o gancho ainda consulta o DNS do `Location` de um 3xx antes de recusar; nenhum pedido sai.
+
+**Para confirmar:** a varredura completa do plugin de segurança de terceiros não rodou, porque ela pede escolhas interativas e o dono estava fora. Rodar na volta, se o dono quiser.
+
+**Como desfazer:** o dono manda trocar qualquer item. As duas correções são pequenas e têm teste próprio (T189 no cofre, T190 no teto diário); reverter uma delas devolve o comportamento anterior.
