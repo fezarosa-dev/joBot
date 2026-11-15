@@ -6,6 +6,7 @@ import jinja2
 from jinja2 import pass_context
 from jinja2.runtime import Context
 
+from jobot.banco.leitura import Item
 from jobot.nucleo.modelo import Local, Motivo
 from jobot.painel import formatos
 
@@ -35,9 +36,15 @@ def _aviso(contexto: Context, aviso: str, locais: Sequence[Local]) -> str:
     return _rotulo(contexto, "aviso." + aviso, aviso)
 
 
+@pass_context
+def _salario_texto(contexto: Context, item: Item) -> formatos.SalarioTexto | None:
+    """O salário do cartão na moeda de exibição (`exibicao`) e no idioma da pessoa."""
+    return formatos.salario_texto(item, contexto["idioma"], contexto.get("exibicao"))
+
+
 def registrar(env: jinja2.Environment) -> None:
     env.globals |= {
-        "salario_texto": formatos.salario_texto,
+        "salario_texto": _salario_texto,
         "locais_texto": formatos.locais_texto,
         "data_curta": formatos.data_curta,
         "data_completa": formatos.data_completa,

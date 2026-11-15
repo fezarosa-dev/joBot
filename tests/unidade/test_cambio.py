@@ -9,9 +9,21 @@ import httpx
 import pytest
 
 from apoio.relogio import RelogioFalso
-from jobot.nucleo.cambio import MOEDAS, Cotacao, buscar_cotacao, em_reais
+from jobot.nucleo.cambio import (
+    MOEDA_DO_PAIS,
+    MOEDAS,
+    MOEDAS_EXIBICAO,
+    Cotacao,
+    buscar_cotacao,
+    de_reais,
+    em_reais,
+    em_reais_inteiros,
+    moeda_do_pais,
+    taxa_cruzada,
+)
 from jobot.nucleo.http import ClienteEducado, HttpEducado, LeitorValidadores, Validadores
 from jobot.nucleo.relogio import Relogio
+from jobot.nucleo.tratamento.locais import codigos_de_pais
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "ptax"
 DOMINGO = date(2026, 11, 15)
@@ -175,3 +187,57 @@ async def test_moeda_fora_da_lista_nao_faz_pedido() -> None:
     for moeda in ("BRL", "MXN", "usd", "USD'&x='"):
         assert await buscar_cotacao(_http(servidor), moeda, DOMINGO) is None
     assert servidor.pedidos == []
+
+
+def test_moedas_de_exibicao_sao_as_onze() -> None:
+    assert MOEDAS_EXIBICAO == ("BRL", *MOEDAS)
+    assert len(MOEDAS_EXIBICAO) == 11
+
+
+@pytest.mark.parametrize(
+    ("pais", "moeda"),
+    [
+        ("BR", "BRL"),
+        ("US", "USD"),
+        ("GB", "GBP"),
+        ("CA", "CAD"),
+        ("AU", "AUD"),
+        ("CH", "CHF"),
+        ("JP", "JPY"),
+        ("SE", "SEK"),
+        ("NO", "NOK"),
+        ("DK", "DKK"),
+        ("PT", "EUR"),
+        ("DE", "EUR"),
+    ],
+)
+def test_moeda_do_pais_do_mapa(pais: str, moeda: str) -> None:
+    assert moeda_do_pais(pais) == moeda
+
+
+def test_moeda_de_pais_fora_do_mapa_e_usd() -> None:
+    assert moeda_do_pais("AR") == "USD"
+
+
+def test_paises_do_mapa_existem() -> None:
+    assert set(MOEDA_DO_PAIS) <= set(codigos_de_pais())
+    assert set(MOEDA_DO_PAIS.values()) <= set(MOEDAS_EXIBICAO)
+
+
+def test_em_reais_inteiros_arredonda_a_favor_da_vaga() -> None:
+    venda = Decimal("5.6549")
+    assert em_reais_inteiros(1000, venda, para_cima=False) == 5654
+    assert em_reais_inteiros(1000, venda, para_cima=True) == 5655
+    assert em_reais_inteiros(1000, Decimal("5.65"), para_cima=False) == 5650
+    assert em_reais_inteiros(1000, Decimal("5.65"), para_cima=True) == 5650
+
+
+def test_de_reais_eur_e_jpy() -> None:
+    assert de_reais(5000, Decimal("6.25")) == 800
+    assert de_reais(5000, Decimal("0.0368")) == 135870  # 1/0,0368 não termina: sem MemoryError
+    assert de_reais(5, Decimal("2")) == 3  # meio exato sobe
+
+
+def test_taxa_cruzada_divisao_que_nao_termina() -> None:
+    assert taxa_cruzada(Decimal("0.0368"), Decimal("5.65")) == Decimal("0.0065")
+    assert taxa_cruzada(Decimal("5.65"), Decimal("6.25")) == Decimal("0.9040")

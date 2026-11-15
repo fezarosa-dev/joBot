@@ -1,0 +1,11 @@
+{
+  "captcha.erro.chave_invalida": "O 2Captcha não reconhece esta chave. Confira se copiou a chave inteira.",
+  "captcha.erro.sem_saldo": "Sua conta no 2Captcha está sem saldo. Ponha saldo no site deles e tente de novo.",
+  "captcha.erro.sem_vaga": "O 2Captcha está sem vaga para resolver agora. Tente de novo em alguns minutos.",
+  "captcha.erro.nao_resolvivel": "O 2Captcha não conseguiu resolver este desafio. Nada foi cobrado.",
+  "captcha.erro.ip_bloqueado": "O 2Captcha recusou o IP deste computador. Confira a lista de IPs permitidos na sua conta.",
+  "captcha.erro.conta_suspensa": "Sua conta no 2Captcha está suspensa. Fale com o suporte deles.",
+  "captcha.erro.tempo_esgotado": "O 2Captcha demorou demais para responder. Tente de novo.",
+  "captcha.erro.teto_diario": "O joBot já chegou ao limite de resoluções de hoje. Amanhã volta a usar.",
+  "captcha.erro.outro": "O 2Captcha respondeu algo inesperado ou não respondeu. Tente de novo mais tarde."
+}

@@ -42,7 +42,24 @@ _FILTROS = {
     "uf": "EXISTS (SELECT 1 FROM local_vaga l WHERE l.vaga_id = v.id AND l.uf = :uf)",
     "fonte": "EXISTS (SELECT 1 FROM ocorrencia o WHERE o.vaga_id = v.id AND o.fonte = :fonte)",
     "encaixe": "e.nivel = :encaixe",
+    "pais": "EXISTS (SELECT 1 FROM local_vaga l WHERE l.vaga_id = v.id AND l.pais = :pais)",
 }
+# dias de cada chave de "Publicada há"; a rota valida por aqui
+PUBLICADA: Mapping[str, int] = {"24h": 1, "7d": 7, "30d": 30}
+# a expressão da esquerda é a do índice `vaga_publicada_ou_vista` (0005): mude as duas juntas
+_PUBLICADA = (
+    "julianday(COALESCE(v.publicada_em, v.primeira_vista_em)) >= julianday(:agora) - :{dias}"
+)
+# a vaga que a tela mostra sem salário (`painel/formatos.py`); `sal_plausivel` nulo não entra
+_SEM_SALARIO = (
+    "(v.sal_moeda IS NULL OR (v.sal_min IS NULL AND v.sal_max IS NULL) OR v.sal_plausivel = 0)"
+)
+# o máximo mensal na moeda original, com os fatores de `PARA_MENSAL` (nucleo/tratamento/salario.py)
+_MAXIMO_MENSAL = (
+    "CASE v.sal_periodo WHEN 'hora' THEN v.sal_max * 160 WHEN 'dia' THEN v.sal_max * 21"
+    " WHEN 'semana' THEN round(v.sal_max * 4.33) WHEN 'mes' THEN v.sal_max"
+    " WHEN 'ano' THEN round(v.sal_max / 12.0) END"
+)
 _MOTIVO_OCULTA = "CASE WHEN v.oculta_manual = 1 THEN 'manual' ELSE e.oculta_motivo END"
 # chip -> (valor, junção); "motivo" e "status" só contam, nas abas Ocultas e Candidatei
 _CHIPS = {
@@ -53,6 +70,7 @@ _CHIPS = {
     "uf": ("l.uf", "JOIN local_vaga l ON l.vaga_id = v.id"),
     "fonte": ("o.fonte", "JOIN ocorrencia o ON o.vaga_id = v.id"),
     "encaixe": ("e.nivel", ""),
+    "pais": ("l.pais", "JOIN local_vaga l ON l.vaga_id = v.id"),
 }
 _CHIPS_DA_ABA = {"ocultas": ("motivo", _MOTIVO_OCULTA), "candidatei": ("status", "v.status")}
 _RECENTES = "julianday(COALESCE(v.publicada_em, v.primeira_vista_em)) DESC"
@@ -86,6 +104,9 @@ class Filtros:
     aba: str = "todas"  # chave de ABAS; outra cai em "todas"
     busca_id: int | None = None
     q: str = ""
+    excluir: str = ""
+    cidade: str = ""
+    empresa: str = ""
     area: str | None = None
     nivel: str | None = None
     modalidade: str | None = None
@@ -93,6 +114,14 @@ class Filtros:
     uf: str | None = None
     fonte: str | None = None
     encaixe: str | None = None  # bom, medio, fraco
+    publicada: str | None = None  # chave de PUBLICADA; outra não filtra
+    pais: str | None = None
+    sal_de_brl: int | None = None  # reais inteiros por mês
+    sal_ate_brl: int | None = None
+    sal_moeda: str | None = None  # com ela, o modo "na moeda" (conversão desligada)
+    sal_de_centavos: int | None = None
+    sal_ate_centavos: int | None = None
+    sem_salario: bool = False
     ordem: str = "encaixe"  # chave de ORDENS; outra cai em "encaixe"
     pagina: int = 1
 
@@ -172,25 +201,100 @@ def _escapar_like(s: str) -> str:
     return s.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
+_CONTEM = {
+    "empresa": "jobot_normalizar(v.empresa) LIKE :empresa ESCAPE '\\'",
+    "cidade": (
+        "EXISTS (SELECT 1 FROM local_vaga l WHERE l.vaga_id = v.id"
+        " AND jobot_normalizar(COALESCE(l.cidade, '')) LIKE :cidade ESCAPE '\\')"
+    ),
+}
+
+
+def _limpo(texto: str) -> list[str]:
+    """Pedaços do texto sem espaço. O FTS5 corta a consulta no NUL (a frase fica sem a aspa
+    final) e surrogate sozinho não vira UTF-8: controle e surrogate viram espaço."""
+    return "".join(" " if unicodedata.category(c) in ("Cc", "Cs") else c for c in texto).split()
+
+
+def _palavras(texto: str) -> list[str]:
+    """Palavras da busca. Palavra sem letra nem número não busca nada (RF1)."""
+    return [p for p in _limpo(texto) if any(c.isalnum() for c in p)]
+
+
+def _frases(palavras: list[str], liga: str = " ") -> str:
+    return liga.join('"' + p.replace('"', '""') + '"*' for p in palavras)
+
+
+_TEXTO = "jobot_normalizar(v.titulo || ' ' || v.empresa || ' ' || v.descricao_texto)"
+
+
 def _busca(con: sqlite3.Connection, q: str) -> tuple[str, dict[str, str]]:
-    """Condição da busca de texto. Palavra sem letra nem número não busca nada (RF1)."""
-    # o FTS5 corta a consulta no NUL (a frase fica sem a aspa final) e surrogate sozinho
-    # não vira UTF-8: controle e surrogate viram espaço
-    q = "".join(" " if unicodedata.category(c) in ("Cc", "Cs") else c for c in q)
-    palavras = [p for p in q.split() if any(c.isalnum() for c in p)]
+    """Condição da busca de texto: todas as palavras."""
+    palavras = _palavras(q)
     if not palavras:
         return "", {}
     if _tem_fts(con):
-        frases = " ".join('"' + p.replace('"', '""') + '"*' for p in palavras)
-        return "v.id IN (SELECT rowid FROM vaga_fts WHERE vaga_fts MATCH :fts)", {"fts": frases}
-    texto = "jobot_normalizar(v.titulo || ' ' || v.empresa || ' ' || v.descricao_texto)"
-    params = {f"q{i}": f"%{_escapar_like(normalizar(p))}%" for i, p in enumerate(palavras)}
-    return " AND ".join(f"{texto} LIKE :{k} ESCAPE '\\'" for k in params), params
+        return "v.id IN (SELECT rowid FROM vaga_fts WHERE vaga_fts MATCH :fts)", {
+            "fts": _frases(palavras)
+        }
+    params = {f"q{i}": _contem(p) for i, p in enumerate(palavras)}
+    return " AND ".join(f"{_TEXTO} LIKE :{k} ESCAPE '\\'" for k in params), params
+
+
+def _excluir(con: sqlite3.Connection, texto: str) -> tuple[str, dict[str, str]]:
+    """Condição do "não pode ter": some a vaga que tem qualquer uma das palavras."""
+    palavras = _palavras(texto)
+    if not palavras:
+        return "", {}
+    if _tem_fts(con):
+        # shortcut: no FTS a palavra com símbolo (c++, c#) vira prefixo do primeiro token e o
+        # excluir esconde mais que no LIKE; tratar como frase sem prefixo se alguém reclamar
+        ou = _frases(palavras, " OR ")
+        return "v.id NOT IN (SELECT rowid FROM vaga_fts WHERE vaga_fts MATCH :fts_excluir)", {
+            "fts_excluir": ou
+        }
+    params = {f"e{i}": _contem(p) for i, p in enumerate(palavras)}
+    lista = " OR ".join(f"{_TEXTO} LIKE :{k} ESCAPE '\\'" for k in params)
+    return f"NOT ({lista})", params
+
+
+def _contem(texto: str) -> str:
+    """Parâmetro do LIKE "contém", sem acento nem caixa, com `%` e `_` como texto."""
+    return f"%{_escapar_like(normalizar(texto))}%"
 
 
 def _hoje(agora: datetime) -> str:
     """O dia no fuso local: o relógio dá UTC, e prazo e início são dias de calendário daqui."""
     return agora.astimezone().date().isoformat()
+
+
+def _salario(f: Filtros) -> tuple[str, dict[str, int | str]]:
+    """Condição do filtro de salário, sobreposição de faixas. Os dois modos guardam
+    `sal_plausivel` e só leem inteiros; sem limite nenhum, não filtra."""
+    if f.sal_moeda:
+        de, ate = f.sal_de_centavos, f.sal_ate_centavos
+        nome_de, nome_ate = "sal_de_centavos", "sal_ate_centavos"
+        partes = ["v.sal_plausivel IS NOT 0", "v.sal_moeda = :sal_moeda"]
+        alto = f"COALESCE({_MAXIMO_MENSAL}, v.sal_mensal_min)"
+        baixo = f"COALESCE(v.sal_mensal_min, {_MAXIMO_MENSAL})"
+        params: dict[str, int | str] = {"sal_moeda": f.sal_moeda}
+    else:
+        de, ate = f.sal_de_brl, f.sal_ate_brl
+        nome_de, nome_ate = "sal_de_brl", "sal_ate_brl"
+        partes = ["v.sal_plausivel IS NOT 0"]
+        alto = "COALESCE(v.sal_mensal_max_brl, v.sal_mensal_min_brl)"
+        baixo = "COALESCE(v.sal_mensal_min_brl, v.sal_mensal_max_brl)"
+        params = {}
+    if de is None and ate is None:
+        return "", {}
+    if de is not None:
+        partes.append(f"{alto} >= :{nome_de}")
+        params[nome_de] = de
+    if ate is not None:
+        partes.append(f"{baixo} <= :{nome_ate}")
+        params[nome_ate] = ate
+    condicao = " AND ".join(partes)
+    return (f"({condicao}) OR {_SEM_SALARIO}" if f.sem_salario else condicao), params
 
 
 def _onde(
@@ -208,10 +312,26 @@ def _onde(
         if valor and nome != sem:
             partes.append(condicao)
             params[nome] = valor
-    texto, params_texto = _busca(con, f.q)
-    if texto:
-        partes.append(texto)
-        params |= params_texto
+    dias = PUBLICADA.get(f.publicada or "")
+    if dias is not None and sem != "publicada":
+        partes.append(_PUBLICADA.format(dias="dias"))
+        params["dias"] = dias
+    textos: list[tuple[str, Mapping[str, Any]]] = [
+        _busca(con, f.q),
+        _excluir(con, f.excluir),
+    ]
+    if sem != "salario":
+        textos.append(_salario(f))
+    for texto, params_texto in textos:
+        if texto:
+            partes.append(texto)
+            params |= params_texto
+    for nome, condicao in _CONTEM.items():
+        # "%" e "_" aqui são texto; texto que some na normalização (só "\u0301") não filtra
+        texto_contem = normalizar(" ".join(_limpo(getattr(f, nome))))
+        if texto_contem:
+            partes.append(condicao)
+            params[nome] = _contem(texto_contem)
     return " AND ".join(f"({p})" for p in partes), params
 
 
@@ -233,17 +353,24 @@ def _item(linha: dict[str, Any]) -> dict[str, Any]:
     return linha
 
 
-def listar(con: sqlite3.Connection, f: Filtros, agora: datetime) -> Pagina:
-    """Uma página de 50 vagas da aba, com os filtros, a busca e a ordem escolhidos."""
+def sql_de_listar(
+    con: sqlite3.Connection, f: Filtros, agora: datetime
+) -> tuple[str, dict[str, object]]:
+    """O SQL e os parâmetros que `listar` executa (também para `EXPLAIN QUERY PLAN`)."""
     _preparar(con)
     onde, params = _onde(con, f, agora)
     ordem = ORDENS.get(f.ordem, ORDENS["encaixe"])
     params |= {"limite": POR_PAGINA + 1, "pulo": (max(f.pagina, 1) - 1) * POR_PAGINA}
-    cur = con.execute(
+    sql = (
         f"SELECT {_COLUNAS} FROM {_DE} WHERE {onde} ORDER BY {ordem}, v.id"
-        " LIMIT :limite OFFSET :pulo",
-        params,
+        " LIMIT :limite OFFSET :pulo"
     )
+    return sql, params
+
+
+def listar(con: sqlite3.Connection, f: Filtros, agora: datetime) -> Pagina:
+    """Uma página de 50 vagas da aba, com os filtros, a busca e a ordem escolhidos."""
+    cur = con.execute(*sql_de_listar(con, f, agora))
     itens = tuple(Item(**_item(linha)) for linha in _linhas(cur))
     return Pagina(itens=itens[:POR_PAGINA], tem_mais=len(itens) > POR_PAGINA)
 
@@ -266,7 +393,37 @@ def contar_chips(
             params,
         )
         contagens[nome] = {chave: n for chave, n in cur.fetchall()}
+    # os três períodos se sobrepõem: uma consulta só, sem GROUP BY
+    onde, params = _onde(con, f, agora, sem="publicada")
+    soma = ", ".join(
+        f"COALESCE(SUM(CASE WHEN {_PUBLICADA.format(dias=f'dias_{i}')} THEN 1 ELSE 0 END), 0)"
+        for i in range(len(PUBLICADA))
+    )
+    params |= {f"dias_{i}": dias for i, dias in enumerate(PUBLICADA.values())}
+    linha = con.execute(f"SELECT {soma} FROM {_DE} WHERE {onde}", params).fetchone()
+    contagens["publicada"] = dict(zip(PUBLICADA, linha, strict=True))
     return contagens
+
+
+def contar_fora_do_salario(con: sqlite3.Connection, f: Filtros, agora: datetime) -> tuple[int, int]:
+    """Vagas que o filtro de salário esconde, com os outros filtros ligados: (sem salário, com
+    salário e sem valor convertido). Sem filtro de salário, `(0, 0)`."""
+    if not _salario(f)[0]:
+        return 0, 0
+    _preparar(con)
+    onde, params = _onde(con, f, agora, sem="salario")
+    sem = 0
+    if not f.sem_salario:  # com "mostrar também" ligado, elas já estão na lista
+        sql = f"SELECT COUNT(*) FROM {_DE} WHERE {onde} AND {_SEM_SALARIO}"
+        sem = con.execute(sql, params).fetchone()[0]
+    sem_valor = 0
+    if not f.sal_moeda:  # na moeda, o aviso do modo já explica as outras moedas
+        sql = (
+            f"SELECT COUNT(*) FROM {_DE} WHERE {onde} AND COALESCE({_SEM_SALARIO}, 0) = 0"
+            " AND v.sal_mensal_min_brl IS NULL AND v.sal_mensal_max_brl IS NULL"
+        )
+        sem_valor = con.execute(sql, params).fetchone()[0]
+    return sem, sem_valor
 
 
 def contar_abas(

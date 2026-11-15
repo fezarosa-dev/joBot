@@ -5,14 +5,25 @@ original entra em centavos da moeda; o valor em reais sai em reais inteiros (col
 """
 
 import json
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
-from decimal import MAX_PREC, ROUND_HALF_UP, Context, Decimal, InvalidOperation
+from decimal import (
+    MAX_PREC,
+    ROUND_CEILING,
+    ROUND_FLOOR,
+    ROUND_HALF_UP,
+    Context,
+    Decimal,
+    InvalidOperation,
+)
+from fractions import Fraction
 from urllib.parse import quote
 
 from jobot.nucleo.http import HttpEducado
 
 MOEDAS = ("AUD", "CAD", "CHF", "DKK", "EUR", "GBP", "JPY", "NOK", "SEK", "USD")
+MOEDAS_EXIBICAO: tuple[str, ...] = ("BRL", *MOEDAS)
 BASE = "https://olinda.bcb.gov.br/olinda/servico/PTAX/versao/v1/odata/"
 JANELA_DIAS = 7  # o pedido cobre os 7 dias antes do dia pedido: fim de semana e feriado caem aqui
 _RECURSO = (
@@ -111,3 +122,47 @@ def em_reais(valor_centavos: int, cotacao: Decimal) -> int:
         return int(reais.quantize(Decimal(1), rounding=ROUND_HALF_UP, context=_EXATO))
     except InvalidOperation as erro:
         raise ValueError(f"valor fora do alcance: {valor_centavos!r}") from erro
+
+
+MOEDA_DO_PAIS: Mapping[str, str] = {
+    "BR": "BRL",
+    **dict.fromkeys(("AT", "BE", "DE", "ES", "FI", "FR", "GR", "IE", "IT", "NL", "PT"), "EUR"),
+    "US": "USD",
+    "GB": "GBP",
+    "CA": "CAD",
+    "AU": "AUD",
+    "CH": "CHF",
+    "JP": "JPY",
+    "SE": "SEK",
+    "NO": "NOK",
+    "DK": "DKK",
+}
+
+
+def moeda_do_pais(pais: str) -> str:
+    """Moeda de exibição padrão do país; fora do mapa, o dólar."""
+    return MOEDA_DO_PAIS.get(pais, "USD")
+
+
+def em_reais_inteiros(unidades: int, venda: Decimal, *, para_cima: bool) -> int:
+    """`unidades` da moeda vezes a venda, em reais inteiros: teto (`para_cima`) ou piso."""
+    if not venda.is_finite() or venda <= 0:
+        raise ValueError(f"cotação inválida: {venda!r}")
+    reais = _EXATO.multiply(Decimal(unidades), venda)
+    modo = ROUND_CEILING if para_cima else ROUND_FLOOR
+    return int(reais.quantize(Decimal(1), rounding=modo, context=_EXATO))
+
+
+def de_reais(reais: int, venda: Decimal) -> int:
+    """Unidades inteiras da moeda que valem `reais`: `reais / venda`, meio para cima."""
+    if not venda.is_finite() or venda <= 0:
+        raise ValueError(f"cotação inválida: {venda!r}")
+    razao = Fraction(reais) / Fraction(venda)  # exato: a divisão em Decimal pode não terminar
+    q, r = divmod(razao.numerator, razao.denominator)
+    return q + 1 if 2 * r >= razao.denominator else q
+
+
+def taxa_cruzada(venda_x: Decimal, venda_y: Decimal) -> Decimal:
+    """Quantas unidades de Y valem 1 de X (`venda_x / venda_y`), em 4 casas, meio para cima."""
+    taxa = Context(prec=34, rounding=ROUND_HALF_UP).divide(venda_x, venda_y)
+    return taxa.quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)

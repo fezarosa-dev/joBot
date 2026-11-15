@@ -269,8 +269,7 @@ def test_texto_de_vaga_sai_escapado(painel: Painel) -> None:
 def test_salario_em_dolar_mostra_cotacao_e_reais(painel: Painel) -> None:
     html = painel.get("/vagas?aba=todas").text
     assert "US$ 5.000/mês" in html
-    assert "US$ 1 = R$ 5,65 (PTAX de 13/11)" in html
-    assert "≈ R$ 28.250/mês" in html
+    assert "≈ R$ 28.250/mês · US$ 1 = R$ 5,65 (PTAX de 13/11)" in html
     assert "R$ 8.000/mês" in html
 
 
@@ -278,6 +277,60 @@ def _cartao_html(html: str, vaga: int) -> str:
     achou = re.search(rf'id="vaga-{vaga}".*?</article>', html, re.S)
     assert achou, f"sem cartão da vaga {vaga}"
     return achou.group(0)
+
+
+CONVERTIDO_EUR = (
+    r"<strong>US\$ 5\.000/mês</strong>\s*"
+    r'<small class="convertido">≈ € 4\.520/mês · US\$ 1 = € 0,904 \(PTAX de 12/11\)</small>'
+)
+
+
+def _em_euro(painel: Painel) -> None:
+    """Moeda de exibição EUR, com a cotação de 12/11 (a do USD é de 13/11)."""
+    painel.config("moeda_exibicao", "EUR")
+    painel.sql(
+        "INSERT INTO cotacao (moeda, data, venda, buscada_em)"
+        " VALUES ('EUR', '2026-11-12', '6.25', ?)",
+        AGORA.isoformat(),
+    )
+
+
+def test_valor_convertido_fica_em_linha_propria_no_cartao(painel: Painel) -> None:
+    _em_euro(painel)
+    cartao = _cartao_html(painel.get("/vagas?aba=todas").text, painel.ids["usd"])
+    assert re.search(CONVERTIDO_EUR, cartao)
+    assert "em-reais" not in cartao
+
+
+def test_valor_convertido_vale_no_carregar_mais(painel: Painel) -> None:
+    _em_euro(painel)
+    for n in range(60):
+        painel.semear_mais(
+            titulo=f"Extra {n}",
+            empresa=f"Extra SA {n}",
+            sal_moeda="USD",
+            sal_min=500000,
+            sal_periodo="mes",
+            sal_mensal_min=500000,
+            sal_mensal_min_brl=28250,
+            sal_cotacao_data="2026-11-13",
+            sal_plausivel=1,
+        )
+    primeira = painel.get("/vagas?aba=todas").text
+    segunda = painel.get(_hx_get(primeira, "mais-2"), headers=HX).text
+    assert re.search(CONVERTIDO_EUR, segunda)
+    assert "≈ R$" not in segunda
+
+
+def test_valor_convertido_vale_no_cartao_devolvido_pela_acao(painel: Painel) -> None:
+    _em_euro(painel)
+    resposta = painel.http.post(
+        f"/vagas/{painel.ids['usd']}/status",
+        data={CAMPO_CSRF: painel.token, "status": "salva", "voltar": "/vagas"},
+        headers=HX,
+    )
+    assert resposta.status_code == 200
+    assert re.search(CONVERTIDO_EUR, resposta.text)
 
 
 def test_vaga_sem_salario_diz_nao_informado(painel: Painel) -> None:
@@ -573,3 +626,287 @@ def test_banco_sem_vagas_nem_busca_pede_as_preferencias(tmp_path: Path) -> None:
     resposta = http.get("/vagas")
     assert resposta.status_code == 200
     assert 'data-aviso="sem-criterio"' in resposta.text
+
+
+# ---- filtros novos (plano T168) ----
+
+_OITO = (
+    "excluir=cobol&cidade=sao&empresa=zeta&sal_de=1&sal_ate=99999&sem_salario=1"
+    "&pais=PT&publicada=7d"
+)
+_SAL_SP = {
+    "uf": "SP",
+    "cidade": "São Paulo",
+    "sal_moeda": "BRL",
+    "sal_min": 900000,
+    "sal_periodo": "mes",
+    "sal_mensal_min": 900000,
+    "sal_mensal_min_brl": 9000,
+    "sal_plausivel": 1,
+}
+
+
+def _hx_get(html: str, id_: str) -> str:
+    achou = re.search(r'hx-get="([^"]+)"', _tag(html, id_))
+    assert achou, f"{id_} sem hx-get"
+    return achou.group(1).replace("&amp;", "&")
+
+
+def _input(html: str, nome: str) -> str:
+    achou = re.search(rf'<input\b[^>]*\bname="{nome}"[^>]*>', html)
+    assert achou, f"sem input {nome}"
+    return achou.group(0)
+
+
+def test_parametros_novos_vao_e_voltam_na_url(painel: Painel) -> None:
+    html = painel.get(f"/vagas?aba=todas&{_OITO}").text
+    for nome, valor in (
+        ("excluir", "cobol"),
+        ("cidade", "sao"),
+        ("empresa", "zeta"),
+        ("sal_de", "1"),
+        ("sal_ate", "99999"),
+    ):
+        assert f'value="{valor}"' in _input(html, nome), nome
+    # o chip de outro valor do mesmo grupo troca só o dele e leva os outros sete campos
+    trocado = _hx_get(html, "chip-publicada-30d")
+    ligado = _hx_get(html, "chip-pais-PT")
+    for url, faltando in ((trocado, "publicada=30d"), (ligado, "publicada=7d")):
+        for parte in _OITO.split("&"):
+            if parte.startswith(("publicada=", "pais=")):
+                continue
+            assert parte in url, (url, parte)
+        assert faltando in url
+    assert "pais=PT" in trocado
+    assert "pais=" not in ligado
+
+
+def test_clicar_num_chip_mantem_os_campos_de_mais_filtros(painel: Painel) -> None:
+    painel.semear_mais(titulo="Vaga SP", modalidade="remoto", **_SAL_SP)
+    html = painel.get("/vagas?aba=todas&sal_de=7000&cidade=sao").text
+    url = _hx_get(html, "chip-modalidade-remoto")
+    assert "sal_de=7000" in url
+    assert "cidade=sao" in url
+
+
+def test_url_das_abas_mantem_os_campos_novos(painel: Painel) -> None:
+    html = painel.get(
+        "/vagas?aba=todas&sal_de=7000&cidade=sao&excluir=cobol&modalidade=remoto"
+    ).text
+    abas = re.search(r'<nav class="abas".*?</nav>', html, re.S)
+    assert abas
+    links = re.findall(r'<a\b[^>]*\bhref="([^"]+)"', abas.group(0))
+    assert len(links) == 8
+    for link in links:
+        for parte in ("sal_de=7000", "cidade=sao", "excluir=cobol"):
+            assert parte in link, (link, parte)
+        assert "modalidade" not in link
+
+
+def test_sem_salario_vai_nos_campos_ocultos(painel: Painel) -> None:
+    oculto = '<input type="hidden" name="sem_salario" value="1">'
+    assert oculto in painel.get("/vagas?aba=todas&sal_de=1&sem_salario=1").text
+    assert oculto not in painel.get("/vagas?aba=todas&sal_de=1").text
+
+
+def test_carregar_mais_mantem_os_filtros_novos(painel: Painel) -> None:
+    com = [painel.semear_mais(titulo=f"Legado cobol {n}", empresa=f"Banco {n}") for n in range(60)]
+    for n in range(60):
+        painel.semear_mais(titulo=f"Moderna {n}", empresa=f"Startup {n}")
+    controle = painel.get("/vagas?aba=todas&q=cobol&ordem=recentes").text
+    assert set(_cartoes(controle)) <= set(com)
+    assert len(_cartoes(controle)) == 50
+    primeira = painel.get("/vagas?aba=todas&excluir=cobol").text
+    assert len(_cartoes(primeira)) == 50
+    assert not set(_cartoes(primeira)) & set(com)
+    mais = _hx_get(primeira, "mais-2")
+    assert "excluir=cobol" in mais
+    segunda = painel.get(mais, headers=HX)
+    assert len(_cartoes(segunda.text)) == 17
+    assert not set(_cartoes(segunda.text)) & set(com)
+
+
+def test_mais_filtros_fechado_sem_filtro_e_aberto_com_contador(painel: Painel) -> None:
+    fechado = painel.get("/vagas?aba=todas").text
+    assert '<details class="mais-filtros">' in fechado
+    assert "<summary>Mais filtros</summary>" in fechado
+    aberto = painel.get("/vagas?aba=todas&cidade=sao&sal_de=7000").text
+    assert '<details class="mais-filtros" open>' in aberto
+    assert "<summary>Mais filtros (2)</summary>" in aberto
+
+
+@pytest.mark.parametrize(
+    "torto",
+    [
+        "sal_de=abc",
+        "sal_de=-5",
+        "sal_de=0",
+        "sal_de=10000000000000",
+        "sem_salario=2",
+        "pais=xx",
+        "pais=ZZ",
+        "publicada=1h",
+        "cidade=%00",
+        "excluir=%00",
+        "empresa=%00",
+        "sal_de=" + "9" * 5000,
+    ],
+)
+def test_parametros_novos_tortos_caem_no_padrao(painel: Painel, torto: str) -> None:
+    padrao = _cartoes(painel.get("/vagas?aba=todas").text)
+    assert padrao
+    resposta = painel.get(f"/vagas?aba=todas&{torto}")
+    assert resposta.status_code == 200
+    assert _cartoes(resposta.text) == padrao
+
+
+def test_sal_de_maior_que_sal_ate_troca(painel: Painel) -> None:
+    certo = _cartoes(painel.get("/vagas?aba=todas&sal_de=7000&sal_ate=9000").text)
+    assert certo == [painel.ids["brl"]]
+    assert _cartoes(painel.get("/vagas?aba=todas&sal_de=9000&sal_ate=7000").text) == certo
+
+
+def test_salario_enorme_nao_da_500(painel: Painel) -> None:
+    painel.config("moeda_exibicao", "USD")
+    painel.sql("UPDATE cotacao SET venda = '99999999.9999' WHERE moeda = 'USD'")
+    resposta = painel.get("/vagas?aba=todas&sal_de=1000000000000")
+    assert resposta.status_code == 200
+    assert _cartoes(resposta.text) == []
+
+
+def test_aviso_sem_salario_e_mostrar_tambem(painel: Painel) -> None:
+    ids = painel.ids
+    html = painel.get("/vagas?aba=todas&sal_de=1").text
+    assert "Vagas sem salário que ficaram de fora: 5." in html
+    assert ids["himalayas"] not in _cartoes(html)
+    achou = re.search(r'<a\b[^>]*href="([^"]+)"[^>]*>Mostrar também</a>', html)
+    assert achou
+    seguido = painel.get(achou.group(1).replace("&amp;", "&"))
+    assert "sem_salario=1" in achou.group(1)
+    assert ids["himalayas"] in _cartoes(seguido.text)
+    assert len(_cartoes(seguido.text)) == 7
+
+
+def test_avisos_so_com_n_maior_que_zero(painel: Painel) -> None:
+    assert "ficaram de fora" in painel.get("/vagas?aba=todas&sal_de=1").text
+    assert "ficaram de fora" not in painel.get("/vagas?aba=todas&sal_de=1&sem_salario=1").text
+    sem_fora = painel.get("/vagas?aba=todas&sal_de=1&empresa=agil")
+    assert _cartoes(sem_fora.text) == [painel.ids["brl"]]
+    assert "ficaram de fora" not in sem_fora.text
+
+
+def test_aviso_sem_valor_convertido(painel: Painel) -> None:
+    painel.config("conversao_moeda_ligada", False)
+    painel.sql(
+        "UPDATE vaga SET sal_mensal_min_brl = NULL, sal_cotacao_data = NULL WHERE id = ?",
+        painel.ids["usd"],
+    )
+    html = painel.get("/vagas?aba=todas&sal_de=1").text
+    assert "Vagas em outra moeda, sem valor convertido, que ficaram de fora: 1." in html
+    assert "Ligue a conversão de moeda em Configurações" in html
+
+
+def test_aviso_so_moeda_com_conversao_desligada(painel: Painel) -> None:
+    painel.config("moeda_exibicao", "EUR")
+    painel.config("conversao_moeda_ligada", False)
+    html = painel.get("/vagas?aba=todas&sal_de=1").text
+    assert "Com a conversão desligada, o filtro de salário só olha vagas pagas em EUR." in html
+    assert "Salário de" in html
+    assert "EUR por mês" in html
+
+
+def test_aviso_sem_cotacao_da_moeda(painel: Painel) -> None:
+    painel.config("moeda_exibicao", "EUR")
+    sem = _cartoes(painel.get("/vagas?aba=todas").text)
+    html = painel.get("/vagas?aba=todas&sal_de=1")
+    msg = (
+        "Ainda não temos a cotação de EUR; o filtro de salário fica desligado até a próxima busca."
+    )
+    assert msg in html.text
+    assert _cartoes(html.text) == sem  # sem cotação o filtro não corta nada
+    assert "ficaram de fora" not in html.text
+
+
+def test_chip_de_pais_com_nome_na_lingua_da_tela(painel: Painel) -> None:
+    painel.semear_mais(titulo="Vaga na Alemanha", pais="DE")
+    pt = painel.get("/vagas?aba=todas").text
+    en = painel.get("/vagas?aba=todas", headers={"Accept-Language": "en"}).text
+    chip = r'<button[^>]*id="chip-pais-DE"[^>]*>(.*?)</button>'
+    achou_pt, achou_en = re.search(chip, pt, re.S), re.search(chip, en, re.S)
+    assert achou_pt
+    assert achou_en
+    assert achou_pt.group(1).strip().startswith("Alemanha")
+    assert achou_en.group(1).strip().startswith("Germany")
+    assert 'data-contagem="1"' in _tag(pt, "chip-pais-DE")
+
+
+def test_chips_publicada_na_ordem_fixa(painel: Painel) -> None:
+    for horas in (2, 72, 24 * 20):
+        painel.semear_mais(
+            titulo=f"Zzmarca {horas}",
+            publicada_em=(AGORA - timedelta(hours=horas)).isoformat(),
+            primeira_vista_em=(AGORA - timedelta(days=60)).isoformat(),
+        )
+    html = painel.get("/vagas?aba=todas&q=zzmarca").text
+    ids = re.findall(r'\bid="chip-publicada-([^"]+)"', html)
+    assert ids == ["24h", "7d", "30d"]
+    esperado = {"24h": ("24 h", "1"), "7d": ("7 dias", "2"), "30d": ("30 dias", "3")}
+    for chave, (texto, n) in esperado.items():
+        botao = re.search(
+            rf'<button[^>]*id="chip-publicada-{chave}"[^>]*>(.*?)</button>', html, re.S
+        )
+        assert botao
+        assert botao.group(1).strip().startswith(texto)
+        assert f'data-contagem="{n}"' in _tag(html, f"chip-publicada-{chave}")
+
+
+def test_cidade_sem_cidade_no_local_responde_200(painel: Painel) -> None:
+    resposta = painel.get("/vagas?aba=todas&cidade=sao")
+    assert resposta.status_code == 200
+    assert _cartoes(resposta.text) == []
+    painel.semear_mais(titulo="Vaga SP", **_SAL_SP)
+    assert len(_cartoes(painel.get("/vagas?aba=todas&cidade=sao").text)) == 1
+
+
+@pytest.mark.parametrize("campo", ["pagina", "busca", "sal_ate", "sal_de"])
+def test_numero_com_milhares_de_digitos_nao_da_500(painel: Painel, campo: str) -> None:
+    padrao = _cartoes(painel.get("/vagas?aba=todas").text)
+    assert padrao
+    resposta = painel.get(f"/vagas?aba=todas&{campo}=" + "9" * 5000)
+    assert resposta.status_code == 200
+    assert _cartoes(resposta.text) == padrao
+
+
+@pytest.mark.parametrize("venda", ["NaN", "0", "-1"])
+def test_cotacao_estragada_vale_como_sem_cotacao(painel: Painel, venda: str) -> None:
+    painel.config("moeda_exibicao", "USD")
+    painel.sql("UPDATE cotacao SET venda = ? WHERE moeda = 'USD'", venda)
+    sem = _cartoes(painel.get("/vagas?aba=todas").text)
+    resposta = painel.get("/vagas?aba=todas&sal_de=1")
+    assert resposta.status_code == 200
+    assert "Ainda não temos a cotação de USD" in resposta.text
+    assert _cartoes(resposta.text) == sem
+
+
+def test_aviso_de_salario_nao_aparece_nos_destaques(painel: Painel) -> None:
+    painel.config("moeda_exibicao", "EUR")
+    assert "Ainda não temos a cotação de EUR" in painel.get("/vagas?aba=todas&sal_de=1").text
+    destaques = painel.get("/vagas?aba=destaques&sal_de=1")
+    assert destaques.status_code == 200
+    assert "Ainda não temos a cotação" not in destaques.text
+    assert "ficaram de fora" not in destaques.text
+
+
+def test_campos_de_texto_novos_saem_escapados(painel: Painel) -> None:
+    painel.semear_mais(titulo="Vaga SP", modalidade="remoto", **_SAL_SP)
+    html = painel.get(
+        "/vagas",
+        params={"aba": "todas", "cidade": '"><script>x</script>', "empresa": 'a"b', "q": "vaga"},
+    ).text
+    assert "<script>x" not in html
+    assert 'value=""><script>' not in html
+    assert "&#34;&gt;&lt;script&gt;x&lt;/script&gt;" in _input(html, "cidade")
+    assert "a&#34;b" in _input(html, "empresa")
+    # na URL dos chips os dois vão codificados (o chip existe: a vaga SP casa o q)
+    html_ok = painel.get("/vagas", params={"aba": "todas", "cidade": "sao", "empresa": 'a"b'}).text
+    assert "empresa=a%22b" in html_ok

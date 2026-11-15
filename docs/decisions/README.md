@@ -2,7 +2,7 @@
 
 Um ADR (registro de decisão de arquitetura) é um texto curto que guarda uma decisão: o contexto em que ela foi tomada, o que ficou decidido e as consequências. Assim, quem chegar depois entende o porquê das escolhas.
 
-Estas decisões vieram de 9 rodadas de perguntas e respostas feitas em 2026-11-13, mais ajustes depois. O projeto está em desenvolvimento e a fase 1 está concluída (versão 0.1.1); parte das decisões descreve fases que ainda não existem.
+Estas decisões vieram de 9 rodadas de perguntas e respostas feitas em 2026-11-13, mais ajustes depois. O projeto está em desenvolvimento e a fase 1 está concluída (versão 0.2.0); parte das decisões descreve fases que ainda não existem.
 
 | Nº | Decisão | Status |
 |---|---|---|
@@ -27,11 +27,12 @@ Estas decisões vieram de 9 rodadas de perguntas e respostas feitas em 2026-11-1
 | 0019 | [Wiki do projeto e formulário de dúvida](0019-wiki-do-projeto.md) | aceita |
 | 0020 | [Apoio financeiro: só doação](0020-apoio-financeiro.md) | aceita |
 | 0021 | [Sem Dependabot: atualização de dependência à mão](0021-sem-dependabot.md) | aceita |
+| 0022 | [CAPTCHA resolvido pelo serviço que a pessoa liga](0022-captcha-pelo-servico-da-pessoa.md) | aceita |
 
 ## Como registrar uma nova decisão
 
 1. Copie o formato de uma ADR existente.
-2. Use o próximo número livre, com quatro dígitos, e um nome de arquivo curto (por exemplo, `0022-assunto.md`).
+2. Use o próximo número livre, com quatro dígitos, e um nome de arquivo curto (por exemplo, `0023-assunto.md`).
 3. Comece com o status `proposta`. Quando a decisão for confirmada, mude para `aceita`. Se outra decisão a trocar, mude para `substituída por NNNN`, com o número da nova.
 4. Acrescente a linha na tabela acima.
 

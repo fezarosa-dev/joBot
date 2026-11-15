@@ -1,0 +1,53 @@
+{% from "configuracoes/_interruptor.html" import interruptor %}
+{%- set c = captcha -%}
+<section id="cartao-captcha" class="config-bloco" aria-labelledby="captcha-titulo">
+  <h2 id="captcha-titulo">{{ t("configuracoes.servicos.captcha.titulo") }}</h2>
+  <p class="config-texto">{{ t("configuracoes.servicos.captcha.frase") }}</p>
+  {% if c.falhou %}
+  <div class="config-alerta" role="alert">
+    <p>{{ t("configuracoes.servicos.erro.cofre") }}</p>
+  </div>
+  {% endif %}
+  <div class="interruptores">
+    {{ interruptor("captcha_ligado", c.ligado, t("configuracoes.servicos.captcha.usar"), t("configuracoes.servicos.captcha.usar.ajuda" if c.mascara else "configuracoes.servicos.captcha.sem_chave"), not c.mascara, "/configuracoes/servicos/captcha/interruptor", foco) }}
+  </div>
+  <form method="post" action="/configuracoes/servicos" class="config-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div class="campo">
+      <label for="campo-chave-captcha">{{ t("configuracoes.servicos.captcha.chave") }}</label>
+      <div class="campo-linha">
+        <input type="password" class="campo-texto" id="campo-chave-captcha" name="chave" autocomplete="new-password" spellcheck="false"{% if foco_chave %} data-foco{% endif %} aria-describedby="chave-ajuda-captcha">
+        <button type="button" class="botao botao-secundario" data-olho aria-controls="campo-chave-captcha" aria-pressed="false">{{ t("configuracoes.servicos.captcha.mostrar") }}</button>
+      </div>
+      <small id="chave-ajuda-captcha">{{ t("configuracoes.servicos.captcha.chave.ajuda") }}</small>
+      {% if c.mascara %}<p class="config-texto">{{ t("configuracoes.servicos.captcha.salva", mascara=c.mascara) }}</p>{% endif %}
+      {% if c.local == "arquivo" %}<p class="config-texto">{{ t("configuracoes.servicos.captcha.no_arquivo") }}</p>{% endif %}
+    </div>
+    <div class="acoes">
+      <button type="submit" class="botao botao-primario">{{ t("configuracoes.salvar") }}</button>
+    </div>
+  </form>
+  <div class="acoes">
+    <button type="button" class="botao botao-secundario" hx-post="/configuracoes/servicos/captcha/testar" hx-include="#campo-chave-captcha" hx-target="#resultado-captcha" hx-disabled-elt="this"><span class="botao-rotulo">{{ t("configuracoes.servicos.captcha.testar") }}</span><span class="botao-espera">{{ t("configuracoes.servicos.captcha.testando") }}</span></button>
+  </div>
+  <div id="resultado-captcha" class="resultado" aria-live="polite"></div>
+  {% if c.mascara %}
+  <form method="post" action="/configuracoes/servicos/captcha/apagar" class="config-form" hx-post="/configuracoes/servicos/captcha/apagar" hx-target="#cartao-captcha" hx-swap="outerHTML">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div class="acoes">
+      <button type="submit" class="botao botao-secundario">{{ t("configuracoes.servicos.captcha.apagar") }}</button>
+    </div>
+  </form>
+  {% endif %}
+  <div class="config-aviso">
+    <h3>{{ t("configuracoes.servicos.captcha.aviso.titulo") }}</h3>
+    <ul>
+      <li>{{ t("configuracoes.servicos.captcha.aviso.login") }}</li>
+      <li>{{ t("configuracoes.servicos.captcha.aviso.termos") }}</li>
+      <li>{{ t("configuracoes.servicos.captcha.aviso.custo", teto=c.teto) }}</li>
+      <li>{{ t("configuracoes.servicos.captcha.aviso.dados") }}</li>
+    </ul>
+  </div>
+  <p class="acoes"><a class="botao botao-secundario" href="https://2captcha.com" target="_blank" rel="noopener noreferrer">{{ t("configuracoes.servicos.captcha.site") }}</a></p>
+</section>
+{% if cartao_salvo %}<p hx-swap-oob="innerHTML:#status-servicos"><span data-some-sozinho>{{ t("configuracoes.salvo") }}</span></p>{% endif %}

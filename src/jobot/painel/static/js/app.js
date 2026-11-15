@@ -10,14 +10,67 @@
   });
 
   // depois de uma troca, o foco vai para o [data-foco] do trecho novo, se ele tiver um;
-  // trecho sem [data-foco] (ex.: andamento que atualiza sozinho) não rouba o foco
+  // trecho sem [data-foco] (ex.: andamento que atualiza sozinho) não rouba o foco.
+  // Com hx-swap="outerHTML" o alvo é o nó antigo, já fora do DOM: aí vale o nó do evento
   document.addEventListener("htmx:afterSwap", (evento) => {
-    const foco = evento.detail.target?.querySelector("[data-foco]");
+    const alvo = evento.detail.target;
+    const raiz = alvo && alvo.isConnected ? alvo : evento.target;
+    if (!raiz) return;
+    const foco = raiz.matches("[data-foco]") ? raiz : raiz.querySelector("[data-foco]");
     if (!foco) return;
     if (!foco.matches("a[href], button, input, select, textarea, [tabindex]")) {
       foco.setAttribute("tabindex", "-1");
     }
     foco.focus();
+  });
+
+  // mensagem passageira (ex.: "Salvo." da aba Serviços): o [data-some-sozinho] que chegou numa troca,
+  // inclusive numa troca fora de banda (OOB), some 2 s depois; o nó em volta continua no lugar
+  const agendados = new WeakSet();
+  const agendarSumico = () => {
+    for (const no of document.querySelectorAll("[data-some-sozinho]:not([hidden])")) {
+      if (agendados.has(no)) continue;
+      agendados.add(no);
+      setTimeout(() => {
+        no.hidden = true;
+      }, 2000);
+    }
+  };
+  document.addEventListener("htmx:afterSwap", agendarSumico);
+  document.addEventListener("htmx:oobAfterSwap", agendarSumico);
+
+  // botão olho: mostra ou oculta o que foi digitado no campo que ele controla (aria-controls);
+  // o estado vive só no aria-pressed e o campo é buscado na hora (a troca do cartão o recria)
+  document.addEventListener("click", (evento) => {
+    const olho = evento.target.closest("[data-olho]");
+    if (!olho) return;
+    const campo = document.getElementById(olho.getAttribute("aria-controls"));
+    if (!campo) return;
+    const mostrar = campo.type === "password";
+    campo.type = mostrar ? "text" : "password";
+    olho.setAttribute("aria-pressed", String(mostrar));
+  });
+
+  // botão com texto de espera (.botao-espera): enquanto o pedido corre, o rótulo sai do nome acessível
+  // e o leitor de tela só ouve a espera; no fim o rótulo volta e, se o foco estava no botão (que o
+  // HTMX desativa), ele volta para lá. queueMicrotask: o HTMX reabilita o botão no mesmo ciclo
+  const comEspera = (evento) => {
+    const botao = evento.target;
+    return botao instanceof HTMLElement && botao.querySelector(".botao-espera") ? botao : null;
+  };
+  const tinhaFoco = new WeakSet();
+  document.addEventListener("htmx:beforeRequest", (evento) => {
+    const botao = comEspera(evento);
+    if (!botao) return;
+    if (document.activeElement === botao) tinhaFoco.add(botao);
+    botao.querySelector(".botao-rotulo")?.setAttribute("aria-hidden", "true");
+  });
+  document.addEventListener("htmx:afterRequest", (evento) => {
+    const botao = comEspera(evento);
+    if (!botao) return;
+    botao.querySelector(".botao-rotulo")?.removeAttribute("aria-hidden");
+    if (!tinhaFoco.delete(botao)) return;
+    queueMicrotask(() => botao.focus());
   });
 
   // erro de um clique do HTMX (T151; D106): o aviso fixo da casca mostra o texto que o servidor

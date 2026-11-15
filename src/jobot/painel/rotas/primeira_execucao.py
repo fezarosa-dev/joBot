@@ -1,16 +1,17 @@
 """Assistente de primeira execução: busca e segundo plano (desenho 13.6; plano T53).
 
-Passo 1 grava a primeira busca (tudo opcional) e passo 2 liga ou desliga o segundo plano com
-`sistema.segundo_plano_linux`. No fim grava `primeira_execucao_concluida` e oferece "buscar
-agora" (o botão só aponta para `POST /buscar-agora`, que é da T49). Todo comando do sistema passa
-pelo executor de `app.state.rodar_comando`, o ambiente de `app.state.ambiente` e a plataforma de
-`app.state.plataforma`: o teste põe os falsos, o padrão é o sistema de verdade.
+Passo 1 grava o Meu país e a primeira busca (a busca é opcional) e passo 2 liga ou desliga o
+segundo plano com `sistema.segundo_plano_linux`. No fim grava `primeira_execucao_concluida` e
+oferece "buscar agora" (o botão só aponta para `POST /buscar-agora`, que é da T49). Todo comando do
+sistema passa pelo executor de `app.state.rodar_comando`, o ambiente de `app.state.ambiente` e a
+plataforma de `app.state.plataforma`: o teste põe os falsos, o padrão é o sistema de verdade.
 
 Escolhas do redator: sem nenhum critério (ou "pular") o passo 1 não cria busca, e o painel mostra o
-aviso de "diga o que você procura"; o resumo vai na URL do passo 2 (`?busca=<id>`), para recarregar
-a página não criar outra busca. O "voltar" leva esse `?busca=<id>` ao passo 1, que abre preenchido
-e edita a mesma busca (nome, `ativa`, regras e `criada_em` ficam); formulário esvaziado de
-critérios com busca já gravada não mexe nela e segue ao passo 2.
+aviso de "diga o que você procura"; o país vem marcado pelo `Accept-Language` (ou pelo já gravado),
+"pular" grava o marcado se ainda não há Meu país; o resumo vai na URL do passo 2 (`?busca=<id>`),
+para recarregar a página não criar outra busca. O "voltar" leva esse `?busca=<id>` ao passo 1, que
+abre preenchido e edita a mesma busca (nome, `ativa`, regras e `criada_em` ficam); formulário
+esvaziado de critérios com busca já gravada não mexe nela e segue ao passo 2.
 
 Ligar recusado fica no passo 2 com o motivo em texto fixo (a saída do systemctl vai só para o
 log, nunca para a tela). Desligar nunca prende (D49 b, T152): se desligar ou criar o atalho falha,
@@ -35,12 +36,13 @@ from fastapi.responses import RedirectResponse, Response
 from starlette.concurrency import run_in_threadpool
 
 from jobot.banco import buscas
-from jobot.banco.cadastros import gravar_config, ler_config
+from jobot.banco.cadastros import gravar_config, ler_config, meu_pais
 from jobot.nucleo.cambio import MOEDAS
 from jobot.nucleo.modelo import Busca, Idioma, Local, Modalidade, Motivo, Nivel
+from jobot.nucleo.tratamento.locais import codigos_de_pais
 from jobot.painel import formatos
 from jobot.painel.ambiente import ambiente_do_painel, no_linux, rodar_do_painel
-from jobot.painel.i18n import t
+from jobot.painel.i18n import pais_do_accept_language, t
 from jobot.painel.rotas.vagas import relogio_do_painel
 from jobot.painel.seguranca import Con, idioma_do_pedido, renderizar
 from jobot.sistema import caso, segundo_plano_linux
@@ -95,6 +97,7 @@ class Entrada:
     salario: str = ""
     moeda: str = "BRL"
     idiomas: set[str] = field(default_factory=set)
+    pais: str | None = None  # `None`: o formulário não mandou o campo
 
 
 def _texto(valor: str) -> str:
@@ -160,6 +163,7 @@ async def _ler_entrada(request: Request) -> Entrada:
         salario=um("salario_min"),
         moeda=um("moeda", "BRL"),
         idiomas=set(textos("idiomas")),
+        pais=um("meu_pais") if "meu_pais" in form else None,
     )
 
 
@@ -235,8 +239,26 @@ def _pagina(request: Request, passo: int, status: int = 200, **ctx: Any) -> Resp
     return resposta
 
 
+def _pais_pre_escolhido(request: Request, con: Con) -> str:
+    """O Meu país já gravado; sem ele, o do `Accept-Language` (que o "pular" também grava)."""
+    gravado = ler_config(con, "meu_pais", None)
+    if isinstance(gravado, str) and gravado in codigos_de_pais():
+        return gravado
+    return pais_do_accept_language(request.headers.get("accept-language"))
+
+
+def _gravar_pais(request: Request, con: Con, pais: str) -> None:
+    """Grava o Meu país; se mudou, recalcula o encaixe de todas as buscas antes de gravar."""
+    if pais != meu_pais(con):
+        agora = relogio_do_painel(request).agora()
+        regras = bool(ler_config(con, "regras_ocultar_ligadas"))
+        buscas.recalcular_encaixe(con, None, regras, hoje=_dia_local(agora), pais_padrao=pais)
+    gravar_config(con, "meu_pais", pais)
+
+
 def _formulario_1(
     request: Request,
+    con: Con,
     entrada: Entrada,
     status: int = 200,
     erro: str | None = None,
@@ -244,7 +266,10 @@ def _formulario_1(
 ) -> Response:
     linhas = [*entrada.cidades, *[("", "")] * 3][:3]
     entrada.cidades = linhas
-    return _pagina(request, 1, status, entrada=entrada, erro=erro, busca_id=busca_id)
+    if entrada.pais is None:
+        entrada.pais = _pais_pre_escolhido(request, con)
+    paises = formatos.opcoes_de_pais(idioma_do_pedido(request))
+    return _pagina(request, 1, status, entrada=entrada, erro=erro, busca_id=busca_id, paises=paises)
 
 
 def _resumo(busca: Busca | None, idioma: str) -> dict[str, Any] | None:
@@ -294,8 +319,8 @@ async def mostrar(request: Request, con: Con, passo: str) -> Response:
     if numero == 1:
         voltando = _gravada(con, _id_valido(params.get("busca")))
         if voltando is None:
-            return _formulario_1(request, Entrada())
-        return _formulario_1(request, _entrada_de(voltando), busca_id=voltando.id)
+            return _formulario_1(request, con, Entrada())
+        return _formulario_1(request, con, _entrada_de(voltando), busca_id=voltando.id)
 
     if params.get("feito") == "1" and ler_config(con, "primeira_execucao_concluida", False) is True:
         aviso = params.get("aviso", "")
@@ -307,7 +332,16 @@ async def _gravar_passo_1(request: Request, con: Con) -> Response:
     form = await request.form()
     pedido = _id_valido(str(form.get("busca", "")))  # o "voltar" do passo 2 edita a mesma busca
     existente = _gravada(con, pedido)
+    pais = form.get("meu_pais")
+    if pais is not None and (not isinstance(pais, str) or pais not in codigos_de_pais()):
+        raise HTTPException(422)
     if "pular" in form:
+        if ler_config(con, "meu_pais", None) is None:
+            _gravar_pais(
+                request,
+                con,
+                pais or pais_do_accept_language(request.headers.get("accept-language")),
+            )
         return RedirectResponse(
             "/primeira-execucao/2" + (f"?busca={pedido}" if existente else ""), status_code=303
         )
@@ -318,6 +352,8 @@ async def _gravar_passo_1(request: Request, con: Con) -> Response:
     nome = existente.nome if existente else t(idioma, _PRIMEIRO + "nome_busca")
     try:
         busca = _montar(entrada, nome)
+        if pais is not None:  # depois de validar o formulário, antes de a busca ser encaixada
+            _gravar_pais(request, con, pais)
         if busca is None:
             destino = "/primeira-execucao/2" + (f"?busca={pedido}" if existente else "")
             return RedirectResponse(destino, status_code=303)
@@ -341,9 +377,10 @@ async def _gravar_passo_1(request: Request, con: Con) -> Response:
             except LookupError:  # apagada entre a leitura e a gravação
                 raise HTTPException(404) from None
     except _Invalido as invalido:
-        return _formulario_1(request, entrada, 422, _PRIMEIRO + invalido.chave, pedido)
+        return _formulario_1(request, con, entrada, 422, _PRIMEIRO + invalido.chave, pedido)
+    # shortcut: o país gravado fica se criar/editar_busca falhar aqui, trocar por transação única
     except ValueError:  # o banco recusou o valor (o salário não cabe)
-        return _formulario_1(request, entrada, 422, _PRIMEIRO + "erro.salario", pedido)
+        return _formulario_1(request, con, entrada, 422, _PRIMEIRO + "erro.salario", pedido)
     return RedirectResponse(f"/primeira-execucao/2?busca={busca_id}", status_code=303)
 
 

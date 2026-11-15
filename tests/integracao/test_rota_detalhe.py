@@ -178,7 +178,25 @@ def test_fonte_repetida_em_escopos_diferentes_mostra_todos_os_links(painel: Pain
 def test_salario_em_moeda_estrangeira_traz_a_cotacao_ao_lado(painel: Painel) -> None:
     texto = _texto(painel.detalhe("usd"))
     assert "US$ 5.000/mês" in texto
-    assert "US$ 1 = R$ 5,65 (PTAX de 13/11) · ≈ R$ 28.250/mês" in texto
+    assert "≈ R$ 28.250/mês · US$ 1 = R$ 5,65 (PTAX de 13/11)" in texto
+
+
+def test_valor_convertido_fica_em_linha_propria_no_detalhe(painel: Painel) -> None:
+    painel.sql(
+        "INSERT INTO cotacao (moeda, data, venda, buscada_em) VALUES ('EUR', '2026-11-12', '6.25',"
+        " '2026-11-13T12:00:00+00:00')"
+    )
+    painel.sql(
+        "INSERT INTO config (chave, valor) VALUES ('moeda_exibicao', '\"EUR\"')"
+        " ON CONFLICT(chave) DO UPDATE SET valor = excluded.valor"
+    )
+    html = painel.detalhe("usd")
+    assert re.search(
+        r"<strong>US\$ 5\.000/mês</strong>\s*"
+        r'<small class="convertido">≈ € 4\.520/mês · US\$ 1 = € 0,904 \(PTAX de 12/11\)</small>',
+        html,
+    )
+    assert 'class="cotacao"' not in html
 
 
 def test_salario_sem_cotacao_mostra_so_o_valor_original(painel: Painel) -> None:
@@ -290,7 +308,7 @@ def test_corrigir_aplica_na_hora(painel: Painel) -> None:
     assert resposta.headers["location"] == f"/vagas/{painel.ids['usd']}"
     texto = _texto(painel.detalhe("usd"))
     assert "US$ 6.000/mês" in texto
-    assert "US$ 1 = R$ 5,65 (PTAX de 13/11) · ≈ R$ 33.900/mês" in texto
+    assert "≈ R$ 33.900/mês · US$ 1 = R$ 5,65 (PTAX de 13/11)" in texto
     assert "US$ 5.000" not in texto
     colunas = painel.sql(
         "SELECT sal_mensal_min_brl, sal_cotacao_data FROM vaga WHERE id = ?", painel.ids["usd"]
@@ -352,7 +370,7 @@ def test_correcao_passa_o_dia_local_como_hoje(painel: Painel, fuso_sao_paulo: No
     painel.sql("UPDATE cotacao SET data = '2026-11-06', venda = '5.50'")  # 7 dias antes de 13/11
     painel.corrigir("usd", "salario", "USD 6.000 per month")
     texto = _texto(painel.detalhe("usd"))
-    assert "US$ 1 = R$ 5,50 (PTAX de 06/11) · ≈ R$ 33.000/mês" in texto
+    assert "≈ R$ 33.000/mês · US$ 1 = R$ 5,50 (PTAX de 06/11)" in texto
     # controle: um dia mais velha já não vale, e a vaga fica só com o valor original
     painel.sql("UPDATE cotacao SET data = '2026-11-05'")
     painel.corrigir("usd", "salario", "USD 7.000 per month")

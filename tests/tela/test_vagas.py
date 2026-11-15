@@ -325,3 +325,62 @@ def test_sem_preferencia_pede_o_que_procura_e_destaques_vem_por_data(
     _aguardar_lista(page)
     assert _titulos(page)[:2] == ["Recente", "Velha"]
     expect(page.locator("#ordem")).to_have_count(0)  # destaques não tem ordem para escolher
+
+
+@pytest.mark.parametrize("esquema", ["light", "dark"])
+def test_mais_filtros_preenche_manda_e_mostra_na_url(
+    page: Page, painel: str, banco: Path, esquema: str
+) -> None:
+    page.emulate_media(color_scheme="light" if esquema == "light" else "dark")
+    with closing(abrir(banco)) as con:
+        inserir_vaga(
+            con,
+            titulo="Vaga em São Paulo",
+            uf="SP",
+            cidade="São Paulo",
+            sal_moeda="BRL",
+            sal_min=900000,
+            sal_periodo="mes",
+            sal_mensal_min=900000,
+            sal_mensal_min_brl=9000,
+            sal_plausivel=1,
+        )
+    page.goto(f"{painel}/vagas?aba=todas")
+    assert len(_titulos(page)) > 1
+    page.get_by_text("Mais filtros", exact=True).click()
+    page.get_by_label("Cidade", exact=True).fill("sao")
+    campo = page.get_by_label("Salário de", exact=True)
+    campo.fill("7000")
+    with page.expect_response(lambda r: "cidade=sao" in r.url and "sal_de=7000" in r.url):
+        campo.press("Enter")
+    expect(page).to_have_url(re.compile(r"cidade=sao"))
+    expect(page).to_have_url(re.compile(r"sal_de=7000"))
+    expect(page.locator("main h3.cartao-titulo")).to_have_count(1)
+    assert _titulos(page) == ["Vaga em São Paulo"]
+
+
+COR_TEXTO_2 = """() => {
+  const e = document.createElement('i');
+  e.style.color = 'var(--texto-2)';
+  document.body.append(e);
+  const cor = getComputedStyle(e).color;
+  e.remove();
+  return cor;
+}"""
+
+
+@pytest.mark.parametrize("esquema", ["light", "dark"])
+def test_bloco_de_salario_no_claro_e_no_escuro(page: Page, painel: str, esquema: str) -> None:
+    page.emulate_media(color_scheme="light" if esquema == "light" else "dark")
+    page.goto(f"{painel}/vagas?aba=todas")
+    salario = _cartao(page, "Desenvolvedor Python").locator("p.salario")
+    forte = salario.locator("strong")
+    convertido = salario.locator("small.convertido")
+    expect(convertido).to_contain_text("≈ R$ 28.250/mês · US$ 1 = R$ 5,65 (PTAX de 13/11)")
+    forte_caixa = forte.bounding_box()
+    convertido_caixa = convertido.bounding_box()
+    assert forte_caixa is not None and convertido_caixa is not None
+    assert convertido_caixa["y"] >= forte_caixa["y"] + forte_caixa["height"]  # linha de baixo
+    tamanho = "el => parseFloat(getComputedStyle(el).fontSize)"
+    assert convertido.evaluate(tamanho) < forte.evaluate(tamanho)
+    assert convertido.evaluate("el => getComputedStyle(el).color") == page.evaluate(COR_TEXTO_2)

@@ -189,7 +189,7 @@ def test_changelog_tem_as_mesmas_secoes_nas_duas_linguas() -> None:
 
 def test_changelog_traz_a_versao_do_pacote() -> None:
     projeto = tomllib.loads(texto("pyproject.toml"))["project"]["version"]
-    assert projeto == __version__ == "0.1.1"
+    assert projeto == __version__ == "0.2.0"
     for caminho in CHANGELOG.values():
         conteudo = texto(caminho)
         for versao in (projeto, "0.1.0"):
@@ -301,9 +301,10 @@ def test_sem_caminho_de_gabarito_nem_dado_pessoal_nem_autoria_de_ia(arquivo: str
 def test_changelog_cita_as_adrs_que_existem(lingua: str) -> None:
     adrs = (RAIZ / "docs/decisions").glob("[0-9][0-9][0-9][0-9]-*.md")
     ultima = max(int(p.name[:4]) for p in adrs)
-    citada = re.search(r"ADRs 0001 \w+ (\d{4})", texto(CHANGELOG[lingua]))
-    assert citada is not None, f"{CHANGELOG[lingua]}: a 0.1.0 cita as ADRs"
-    assert int(citada.group(1)) == ultima
+    conteudo = texto(CHANGELOG[lingua])
+    assert re.search(r"ADRs 0001 \w+ \d{4}", conteudo), f"{CHANGELOG[lingua]}: a 0.1.0 cita as ADRs"
+    citadas = [int(n) for n in re.findall(r"ADRs? (?:0001 \w+ )?(\d{4})", conteudo)]
+    assert max(citadas) == ultima
 
 
 @pytest.mark.parametrize("lingua", LINGUAS)
@@ -352,6 +353,7 @@ CITA: Mapping[str, Mapping[str, tuple[str, ...]]] = {
         "endereço": (r"cola o endereço", r"só quando você"),
         "versão": (r"GitHub",),
         "atualização": (r"pelo git e pelo uv", r"só quando você pede para atualizar"),
+        "2captcha": (r"2Captcha", r"testa a chave"),
     },
     "en": {
         "fontes": (r"public job sources",),
@@ -361,6 +363,7 @@ CITA: Mapping[str, Mapping[str, tuple[str, ...]]] = {
         "endereço": (r"paste an address", r"only when you"),
         "versão": (r"GitHub",),
         "atualização": (r"through git and uv", r"only when you ask to update"),
+        "2captcha": (r"2Captcha", r"test the key"),
     },
 }
 CONDICAO: Mapping[str, Mapping[bool, str]] = {
@@ -373,6 +376,7 @@ CHAVE_DO_PADRAO = {
     "common crawl": "descoberta_cc_ligada",
     "páginas": "paginas_ligadas",
     "versão": "aviso_versao_ligada",
+    "2captcha": "captcha_ligado",
 }
 # o que o texto diz das fontes: todas vêm ligadas (o `fontes.json` não desliga nenhuma)
 FONTES_LIGADAS = {"pt": r"vêm todas ligadas", "en": r"all come on"}
@@ -459,12 +463,66 @@ def test_changelog_nao_cita_duvida_por_numero(lingua: str) -> None:
     assert achados == []
 
 
+NAO_LANCADO = {"pt": "## [Não lançado]", "en": "## [Unreleased]"}
+V0_2_0 = "## [0.2.0] - 2026-11-15"
+# o que a 0.2.0 diz dos filtros, do país e da moeda
+CITA_0_2_0 = {
+    "pt": ("Meu país", "moeda dos valores convertidos"),
+    "en": ("My country", "currency of converted values"),
+}
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_changelog_fecha_a_0_2_0(lingua: str) -> None:
+    """A 0.2.0 vem logo abaixo de "Não lançado", que fica sem itens."""
+    conteudo = texto(CHANGELOG[lingua])
+    inicio = conteudo.index(NAO_LANCADO[lingua])
+    fim = conteudo.index("\n## [", inicio + 1)
+    assert "\n- " not in conteudo[inicio:fim], f"{CHANGELOG[lingua]}: Não lançado não fica vazio"
+    assert conteudo[fim + 1 :].startswith(V0_2_0), CHANGELOG[lingua]
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_changelog_traz_os_filtros_da_0_2_0(lingua: str) -> None:
+    """A seção da 0.2.0 cita o país e a moeda; o resto do arquivo não vale."""
+    conteudo = texto(CHANGELOG[lingua])
+    inicio = conteudo.index(V0_2_0)
+    fim = conteudo.index("\n## [", inicio + 1)
+    secao_0_2_0 = conteudo[inicio:fim]
+    for termo in CITA_0_2_0[lingua]:
+        assert termo in secao_0_2_0, (CHANGELOG[lingua], termo)
+    assert re.findall(r"\bD\d+\b", secao_0_2_0) == []
+
+
+# a cotação que o pedido ao Banco Central traz, e o que sai dos textos de rede
+COTACAO_TRAZ = {
+    "pt": ("cotação das moedas das vagas", "moeda de exibição"),
+    "en": ("exchange rates of the currencies", "display currency"),
+}
+COTACAO_VELHO = {"pt": "do dólar", "en": "dollar rate"}
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_rede_fala_da_cotacao_das_moedas(lingua: str) -> None:
+    """README e painel falam da cotação das moedas das vagas e da moeda de exibição."""
+    privacidade = secao(texto(README[lingua]), SECAO_PRIVACIDADE[lingua])
+    bullet = next(linha for linha in privacidade.splitlines() if "Common Crawl" in linha)
+    fontes = {
+        README[lingua]: bullet,
+        f"i18n/{lingua}": i18n.carregar()[lingua]["configuracoes.privacidade.telemetria"],
+    }
+    for nome, conteudo in fontes.items():
+        assert COTACAO_VELHO[lingua] not in conteudo, nome
+        for termo in COTACAO_TRAZ[lingua]:
+            assert termo in conteudo, (nome, termo)
+
+
 # o que cada documento diz da fase 1 (T132): concluída, e não mais "em andamento"
 FASE_1_CONCLUIDA = {
     ".github/CONTRIBUTING.md": r"fase 1 \(base\) está concluída",
     ".github/CONTRIBUTING.en.md": r"Phase 1 \(foundation\) is complete",
-    ".github/SECURITY.md": r"(?i)só a versão mais recente \(hoje a 0\.1\.1\)",
-    ".github/SECURITY.en.md": r"(?i)only the latest version \(currently 0\.1\.1\)",
+    ".github/SECURITY.md": r"(?i)só a versão mais recente \(hoje a 0\.2\.0\)",
+    ".github/SECURITY.en.md": r"(?i)only the latest version \(currently 0\.2\.0\)",
     ".github/SUPPORT.md": r"formulário de bug",
     ".github/SUPPORT.en.md": r"bug form",
     "docs/decisions/0017-fases.md": r"fase 1 está concluída",

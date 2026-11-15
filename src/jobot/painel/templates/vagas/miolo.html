@@ -37,6 +37,30 @@
     {%- endfor %}
   </select>
   {%- endif %}
+  <details class="mais-filtros"{% if n_mais_filtros %} open{% endif %}>
+    <summary>{{ t("vagas.mais_filtros_n", n=n_mais_filtros) if n_mais_filtros else t("vagas.mais_filtros") }}</summary>
+    <div class="mais-filtros-campos">
+      <div class="campo-salario">
+        <label for="filtro-sal-de">{{ t("vagas.filtro.sal_de") }}</label>
+        <input id="filtro-sal-de" type="number" min="1" step="1" inputmode="numeric" name="sal_de" value="{{ sal_de if sal_de is not none else '' }}">
+        <label for="filtro-sal-ate">{{ t("vagas.filtro.sal_ate") }}</label>
+        <input id="filtro-sal-ate" type="number" min="1" step="1" inputmode="numeric" name="sal_ate" value="{{ sal_ate if sal_ate is not none else '' }}">
+        <span class="moeda-filtro">{{ t("vagas.filtro.por_mes", moeda=exibicao.moeda) }}</span>
+      </div>
+      <div class="campo-texto">
+        <label for="filtro-cidade">{{ t("vagas.filtro.cidade") }}</label>
+        <input id="filtro-cidade" type="text" name="cidade" value="{{ cidade }}" maxlength="100" autocomplete="off">
+      </div>
+      <div class="campo-texto">
+        <label for="filtro-empresa">{{ t("vagas.filtro.empresa") }}</label>
+        <input id="filtro-empresa" type="text" name="empresa" value="{{ empresa }}" maxlength="100" autocomplete="off">
+      </div>
+      <div class="campo-texto">
+        <label for="filtro-excluir">{{ t("vagas.filtro.excluir") }}</label>
+        <input id="filtro-excluir" type="text" name="excluir" value="{{ excluir }}" maxlength="100" autocomplete="off">
+      </div>
+    </div>
+  </details>
 </form>
 {% if grupos %}
 <div class="filtros" role="group" aria-label="{{ t('vagas.filtros') }}">
@@ -44,7 +68,7 @@
   <div class="grupo" role="group" aria-labelledby="grupo-{{ grupo.nome }}">
     <span class="grupo-titulo" id="grupo-{{ grupo.nome }}">{{ t("vagas.chip." ~ grupo.nome) }}</span>
     {%- for chip in grupo.chips %}
-    {%- set texto = rotulo(chip.chave, chip.valor) if chip.chave else chip.valor %}
+    {%- set texto = chip.texto or (rotulo(chip.chave, chip.valor) if chip.chave else chip.valor) %}
     {%- if grupo.interativo %}
     <button type="button" id="chip-{{ grupo.nome }}-{{ chip.id }}" class="chip{% if chip.n == 0 %} chip-vazio{% endif %}" aria-pressed="{{ 'true' if chip.pressionado else 'false' }}" data-contagem="{{ chip.n }}" hx-get="{{ chip.url }}" hx-target="#vagas-miolo" hx-swap="innerHTML" hx-push-url="true">{{ texto }} <span class="contagem">{{ chip.n }}</span></button>
     {%- else %}
@@ -53,6 +77,21 @@
     {%- endfor %}
   </div>
   {%- endfor %}
+</div>
+{% endif %}
+{% if aviso_salario or fora_sem_salario or fora_sem_valor %}
+<div class="avisos-filtro aviso">
+  {%- if aviso_salario == "so_moeda" %}
+  <p role="status">{{ t("vagas.aviso.so_moeda", moeda=exibicao.moeda) }}</p>
+  {%- elif aviso_salario == "sem_cotacao" %}
+  <p role="status">{{ t("vagas.aviso.sem_cotacao", moeda=exibicao.moeda) }}</p>
+  {%- endif %}
+  {%- if fora_sem_salario %}
+  <p role="status">{{ t("vagas.aviso.sem_salario", n=fora_sem_salario) }} <a href="{{ mostrar_tambem_url }}" hx-get="{{ mostrar_tambem_url }}" hx-target="#vagas-miolo" hx-swap="innerHTML" hx-push-url="true">{{ t("vagas.aviso.mostrar_tambem") }}</a></p>
+  {%- endif %}
+  {%- if fora_sem_valor %}
+  <p role="status">{{ t("vagas.aviso.sem_convertido", n=fora_sem_valor) }}</p>
+  {%- endif %}
 </div>
 {% endif %}
 {% if itens %}
