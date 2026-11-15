@@ -53,9 +53,17 @@ class Ouvidas(list[RespostaCapturada]):
         self._lendo: set[asyncio.Task[None]] = set()
 
     async def prontas(self) -> None:
-        """Espera os corpos que ainda estão sendo lidos."""
-        while self._lendo:
-            await asyncio.gather(*self._lendo)
+        """Espera os corpos que ainda estão sendo lidos, no máximo `PRAZO_CORPOS_S`.
+
+        Resposta em fluxo nunca entrega o corpo: o que sobrar no prazo é cancelado e não entra."""
+        laco = asyncio.get_running_loop()
+        fim = laco.time() + limites.PRAZO_CORPOS_S
+        while self._lendo and (resto := fim - laco.time()) > 0:
+            await asyncio.wait(self._lendo, timeout=resto)
+        presas = list(self._lendo)
+        for tarefa in presas:
+            tarefa.cancel()
+        await asyncio.gather(*presas, return_exceptions=True)
 
 
 def _host(url: str) -> str:
