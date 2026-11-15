@@ -74,6 +74,11 @@ SO_RESUMO = frozenset(
         "saude.parou_429",
         "saude.limite_atingido",
         "saude.orcamento",
+        # paradas da navegação com login: o vigia só roda fontes públicas
+        "saude.precisa_login",
+        "saude.captcha",
+        "saude.sem_tela",
+        "saude.sem_navegador",
     }
 )
 _SEM_DETALHE = "saude.sem_detalhe_n:"
