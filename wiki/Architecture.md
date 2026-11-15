@@ -63,6 +63,8 @@ flowchart TD
     agenda --> nucleo
     banco --> nucleo
     sistema --> nucleo
+    navegador --> sistema
+    navegador --> nucleo
 ```
 
 The test `tests/unidade/test_camadas.py` fails if someone breaks this rule.
