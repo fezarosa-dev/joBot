@@ -556,6 +556,7 @@ class LeitorFalso:
     campos_conta: tuple[str, ...] = ("#conta",)
     rolar: bool = False
     lista_tem_descricao: bool = True
+    lista_exaustiva: bool = True
     url_login: str = ""
     url_entrada: str = ""
 

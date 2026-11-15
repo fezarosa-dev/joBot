@@ -332,7 +332,7 @@ def test_conversao_ligada_sem_mudar_a_chave_nao_mexe_nas_vagas(painel: Painel) -
 
 def test_fontes_mostra_uma_chave_por_fonte_agrupadas_por_leva(painel: Painel) -> None:
     html = painel.get(FONTES).text
-    cadastradas = [f.chave for f in _fontes(painel)]
+    cadastradas = [f.chave for f in _fontes(painel) if not f.com_login]  # sem o linkedin_logado
     assert len(cadastradas) >= 28
     marcas = re.findall(r'<input\b[^>]*name="fonte"[^>]*>', html)
     assert [_valor(m) for m in marcas] == cadastradas
@@ -341,27 +341,30 @@ def test_fontes_mostra_uma_chave_por_fonte_agrupadas_por_leva(painel: Painel) ->
     assert html.count('class="grupo-leva"') == 2
 
 
+_PUBLICA = " AND com_login = 0"  # o linkedin_logado do registro nasce desligado
+
+
 def _fontes(painel: Painel) -> list[Any]:
     with closing(abrir(painel.banco)) as con:
         return cadastros.fontes(con)
 
 
 def test_desligar_fonte_pela_configuracao_grava_ligada_zero(painel: Painel) -> None:
-    todas = [f.chave for f in _fontes(painel)]
+    todas = [f.chave for f in _fontes(painel) if not f.com_login]
     resposta = painel.post(FONTES, {"fonte": [c for c in todas if c != "remotive"]})
     assert (resposta.status_code, resposta.headers.get("location")) == (303, FONTES + SALVO)
-    assert painel.sql("SELECT chave FROM fonte WHERE ligada = 0") == [("remotive",)]
+    assert painel.sql(f"SELECT chave FROM fonte WHERE ligada = 0{_PUBLICA}") == [("remotive",)]
     marcadas = re.findall(r'<input\b[^>]*name="fonte"[^>]*>', painel.get(FONTES).text)
     desmarcada = [m for m in marcadas if 'value="remotive"' in m]
     assert len(desmarcada) == 1 and not re.search(r"\schecked\b", desmarcada[0])
     painel.post(FONTES, {"fonte": todas})
-    assert painel.sql("SELECT COUNT(*) FROM fonte WHERE ligada = 0") == [(0,)]
+    assert painel.sql(f"SELECT COUNT(*) FROM fonte WHERE ligada = 0{_PUBLICA}") == [(0,)]
 
 
 def test_fonte_desconhecida_da_422_e_nao_grava(painel: Painel) -> None:
     resposta = painel.post(FONTES, {"fonte": ["remotive", "nao_existe"]})
     assert resposta.status_code == 422
-    assert painel.sql("SELECT chave FROM fonte WHERE ligada = 0") == []
+    assert painel.sql(f"SELECT chave FROM fonte WHERE ligada = 0{_PUBLICA}") == []
 
 
 def _com_leitor(painel: Painel, ligado: bool = True) -> None:

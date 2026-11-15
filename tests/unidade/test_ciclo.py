@@ -31,6 +31,14 @@ def test_parcial_so_marca_com_mais_de_30_dias() -> None:
     assert r.tocar == ()
 
 
+def test_lista_nao_exaustiva_so_fecha_depois_da_janela_parcial() -> None:
+    abertas = [_oc("29", 29), _oc("30", 30), _oc("31", 31), _oc("vista", 90)]
+    nao_exaustiva = aplicar_ciclo(abertas, {"vista"}, "ok", AGORA, exaustiva=False)
+    assert nao_exaustiva == MudancasCiclo(sumiram=("31",), reviram=(), tocar=())
+    exaustiva = aplicar_ciclo(abertas, {"vista"}, "ok", AGORA, exaustiva=True)
+    assert exaustiva.sumiram == ("29", "30", "31")
+
+
 def test_sem_mudanca_toca_todas_e_nao_marca_nenhuma() -> None:
     abertas = [_oc("a", 5), _oc("b", 40), _oc("c", sumida=True)]
     r = aplicar_ciclo(abertas, set(), "sem_mudanca", AGORA)

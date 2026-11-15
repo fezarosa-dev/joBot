@@ -293,6 +293,8 @@ def gravar_escopo(
     saida: SaidaEscopo,
     tratadas: Sequence[VagaTratada],
     agora: datetime,
+    *,
+    exaustiva: bool = True,
 ) -> ResumoEscopo:
     """Grava saúde, validadores, vagas, ocorrências, locais, cache de detalhe e ciclo de vida do
     escopo numa transação só: um erro no meio desfaz tudo, validadores inclusive (DR-12)."""
@@ -408,7 +410,7 @@ def gravar_escopo(
             for _, _, h, ultima, sumiu in linhas
         ]
         vistas = {t.url_hash for t in tratadas} | vistas_sem_vaga
-        mudancas = aplicar_ciclo(abertas, vistas, r.estado, agora.astimezone(UTC))
+        mudancas = aplicar_ciclo(abertas, vistas, r.estado, agora.astimezone(UTC), exaustiva)
         sumidas = {a.url_hash for a in abertas if a.sumiu_em is not None}
         tocar = set(mudancas.tocar) | set(mudancas.reviram)
         if r.estado in ("ok", "parcial", "sem_mudanca"):  # nos outros estados nada muda (T14)

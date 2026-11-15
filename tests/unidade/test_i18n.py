@@ -17,7 +17,7 @@ AVISOS = [e.value for e in Aviso]
 FONTES = (
     "github_issues remotive remoteok jobicy himalayas wwr hn_algolia greenhouse lever ashby "
     "smartrecruiters gupy inhire quickin recrutei solides abler ciee iel super_estagios "
-    "cia_de_talentos eureca usp workday eightfold oracle_hcm google amazon"
+    "cia_de_talentos eureca usp workday eightfold oracle_hcm google amazon linkedin_logado"
 ).split()
 ENCAIXE = (
     "cargo_titulo cargo_descricao cargo_ausente local_remoto modalidade_fora modalidade_ok "
