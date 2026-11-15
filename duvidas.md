@@ -2014,7 +2014,7 @@ Acréscimo negativo é filtro que encolhe a lista e os chips. `contar_abas` não
 18. (T211) O Chrome é procurado só em `/opt/google/chrome/chrome`; Chrome de Flatpak ou Snap cai no Chromium do Playwright.
 19. (T211) `navegador_instalado` não trata falha do driver: ela vira exceção para quem chama.
 20. (T212) Depois de rolar, "estável" só vale depois de pelo menos um pedido novo; página que não pede nada ao rolar espera os 5 passos (5 s em produção por navegação com rolar).
-21. (T212) `ESPERA_ASSENTAR_MS`, `_PASSOS_DEPOIS_DE_ROLAR` e a espera de 30 s do 429 sem `Retry-After` (`ESPERAS_LIMITE[0]`) ficam em `navegador/pagina.py`; levá-los para `navegador/limites.py` é tarefa nova.
+21. (T212) `ESPERA_ASSENTAR_MS`, `_PASSOS_DEPOIS_DE_ROLAR` e a espera de 30 s do 429 sem `Retry-After` (`ESPERAS_LIMITE[0]`) ficam em `navegador/pagina.py`; levá-los para `navegador/limites.py` é tarefa nova (feita na T228, D135.7).
 22. (T212) Os ouvintes da página não são desligados (comentário `shortcut:` no código).
 23. (T213) Entrada recusada pela política grava `falhou` com motivo `saude.listagem_incompleta` e escopo vazio; o site não é lido.
 24. (T213) Depois de um erro do Playwright, a execução espera até 1 s (`limites.ESPERA_FECHAR_S`, valor técnico) pelo `close` do contexto antes de decidir se a pessoa fechou o navegador.

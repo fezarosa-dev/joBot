@@ -20,15 +20,13 @@ from jobot.navegador import limites
 from jobot.navegador.captcha import Widget, achar_widget
 from jobot.navegador.js import rolar
 from jobot.navegador.politica import Politica, casa_login, dentro_dos_hosts
-from jobot.nucleo.http import ESPERAS_LIMITE, MAX_RETRY_AFTER_S, segundos_retry_after
+from jobot.nucleo.http import MAX_RETRY_AFTER_S, segundos_retry_after
 from jobot.nucleo.leitores.base import Captura, LeitorComLogin, ParadaLogin, RespostaCapturada
 from jobot.nucleo.relogio import Relogio
 
 _LOG = logging.getLogger(__name__)
 
 TIPOS_CAPTURADOS = frozenset({"application/json", "text/html"})
-ESPERA_ASSENTAR_MS = 10_000  # `networkidle` depois do `load` (E11); estouro é ignorado
-_PASSOS_DEPOIS_DE_ROLAR = 5  # shortcut: até 5 s de 1 em 1 pelos pedidos da página; rever na Parte B
 
 
 @dataclass(frozen=True)
@@ -145,7 +143,7 @@ async def _assentar(page: Page) -> None:
     """E11: `load` e depois `networkidle`, sem esperar além do prazo por este último."""
     await page.wait_for_load_state("load")
     try:
-        await page.wait_for_load_state("networkidle", timeout=ESPERA_ASSENTAR_MS)
+        await page.wait_for_load_state("networkidle", timeout=limites.ESPERA_ASSENTAR_MS)
     except EstouroDoPlaywright:
         pass
 
@@ -154,7 +152,7 @@ async def _depois_de_rolar(ouvidas: Ouvidas, relogio: Relogio, inicio: int) -> N
     """Dá tempo à página de pedir o resto: para quando ela pediu algo depois de rolar e todo
     pedido teve resposta por dois passos seguidos; sem pedido novo, espera todos os passos."""
     antes = -1
-    for _ in range(_PASSOS_DEPOIS_DE_ROLAR):
+    for _ in range(limites.PASSOS_DEPOIS_DE_ROLAR):
         await relogio.dormir(1)
         if ouvidas.pedidos == ouvidas.respondidos == antes:
             break
@@ -285,7 +283,7 @@ async def _uma_vez(
         )
         if ultima or (pedida is not None and pedida > MAX_RETRY_AFTER_S):
             return _parou("no_limite", page.url)
-        await relogio.dormir(ESPERAS_LIMITE[0] if pedida is None else pedida)
+        await relogio.dormir(limites.ESPERA_429_S if pedida is None else pedida)
         return None
     await _assentar(page)
     if leitor.rolar:

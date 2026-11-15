@@ -8,10 +8,11 @@ import pytest
 from playwright.async_api import BrowserContext, Page
 
 from apoio.site_falso import LeitorFalso, RelogioDoNavegador, SiteFalso
+from jobot.navegador import limites
 from jobot.navegador.limites import ESPERA_CLOUDFLARE_S, MAX_RESPOSTAS
 from jobot.navegador.pagina import Recusada, ouvir_respostas, visitar
 from jobot.navegador.politica import Politica, dentro_dos_hosts
-from jobot.nucleo.http import ESPERAS_LIMITE, MAX_RETRY_AFTER_S
+from jobot.nucleo.http import MAX_RETRY_AFTER_S
 from jobot.nucleo.leitores.base import Captura, EscopoLogado, RespostaCapturada
 
 pytestmark = [pytest.mark.tela, pytest.mark.anyio]
@@ -323,15 +324,34 @@ async def test_429_espera_o_retry_after(
 
 
 async def test_429_sem_retry_after_espera_o_padrao(
-    site: SiteFalso, contexto_de_teste: BrowserContext, politica_local: Politica
+    site: SiteFalso,
+    contexto_de_teste: BrowserContext,
+    politica_local: Politica,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setattr(limites, "ESPERA_429_S", 11.0)
     page = await _pagina(contexto_de_teste)
     leitor = LeitorFalso.para(site)
     relogio = RelogioDoNavegador()
     visita = await visitar(page, site.url("/429-sem-tempo"), leitor, politica_local, relogio)
     assert isinstance(visita, Captura)
-    assert relogio.dormidas == [ESPERAS_LIMITE[0]]
+    assert relogio.dormidas == [11.0]
     assert site.visitas["/429-sem-tempo"] == 2
+
+
+async def test_passos_depois_de_rolar_vem_de_limites(
+    site: SiteFalso,
+    contexto_de_teste: BrowserContext,
+    politica_local: Politica,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(limites, "PASSOS_DEPOIS_DE_ROLAR", 2)
+    page = await _pagina(contexto_de_teste)
+    relogio = RelogioDoNavegador()
+    leitor = LeitorFalso.para(site, rolar=True)
+    visita = await visitar(page, site.url("/lista-html"), leitor, politica_local, relogio)
+    assert isinstance(visita, Captura)
+    assert relogio.dormidas.count(1) == 2
 
 
 async def test_respostas_acima_do_teto_sao_ignoradas(
