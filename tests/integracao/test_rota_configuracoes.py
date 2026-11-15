@@ -16,6 +16,7 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
+from selectolax.lexbor import LexborHTMLParser
 
 from apoio.relogio import RelogioFalso
 from apoio.segundo_plano_falso import FalsoSistema
@@ -685,6 +686,19 @@ def test_salvar_mostra_salvo_na_pagina_seguinte_e_so_nela(
 def test_salvo_em_ingles(painel: Painel) -> None:
     assert painel.post("/preferencias/idioma", {"idioma": "en"}).status_code == 303
     assert _salvo(painel.get(PRIVACIDADE + SALVO).text) == "Saved."
+
+
+@pytest.mark.parametrize(
+    "url",
+    [FONTES, FUNCOES_URL, SEGUNDO_PLANO, PRIVACIDADE, APARENCIA, "/configuracoes/servicos"],
+)
+def test_salvo_estatico_some_sozinho(painel: Painel, url: str) -> None:
+    com = LexborHTMLParser(painel.get(url + SALVO).text).css_first(
+        "p.config-salvo[role=status] > [data-some-sozinho]"
+    )
+    assert com is not None
+    assert com.text(strip=True) == "Salvo."
+    assert LexborHTMLParser(painel.get(url).text).css_first("[data-some-sozinho]") is None
 
 
 @pytest.mark.parametrize("lixo", ["0", "2", "abc", "<b>x</b>", ""])
