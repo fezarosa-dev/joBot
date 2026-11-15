@@ -10,9 +10,13 @@
   });
 
   // depois de uma troca, o foco vai para o [data-foco] do trecho novo, se ele tiver um;
-  // trecho sem [data-foco] (ex.: andamento que atualiza sozinho) não rouba o foco
+  // trecho sem [data-foco] (ex.: andamento que atualiza sozinho) não rouba o foco.
+  // Com hx-swap="outerHTML" o alvo é o nó antigo, já fora do DOM: aí vale o nó do evento
   document.addEventListener("htmx:afterSwap", (evento) => {
-    const foco = evento.detail.target?.querySelector("[data-foco]");
+    const alvo = evento.detail.target;
+    const raiz = alvo && alvo.isConnected ? alvo : evento.target;
+    if (!raiz) return;
+    const foco = raiz.matches("[data-foco]") ? raiz : raiz.querySelector("[data-foco]");
     if (!foco) return;
     if (!foco.matches("a[href], button, input, select, textarea, [tabindex]")) {
       foco.setAttribute("tabindex", "-1");
