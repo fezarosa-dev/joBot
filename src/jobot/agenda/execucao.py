@@ -23,9 +23,9 @@ from jobot.banco.buscas import paises_das_buscas, recalcular_encaixe, termos_das
 from jobot.banco.cadastros import empresas_da_coleta, fontes, ler_config, moeda_efetiva
 from jobot.banco.cotacoes import aplicar_cotacoes, falta_cotacao, gravar_cotacao, moedas_em_aberto
 from jobot.banco.execucoes import (
-    JANELA_DETALHE,
     HistoricoDoBanco,
     abrir_execucao,
+    candidatas_a_detalhe,
     fechar_execucao,
     gravar_saude,
     interromper,
@@ -57,10 +57,6 @@ _PARA_DETALHES = (Bloqueio, LimiteAtingido, OrcamentoGasto, Parou429)
 # `_PARADAS_DA_FONTE` valem para a fonte toda e tiram todos os escopos dela (A14).
 _PARADAS_DA_FONTE = frozenset({"saude.orcamento", "saude.bloqueio", "saude.limite_atingido"})
 _PARADAS = _PARADAS_DA_FONTE | {"saude.intervalo", "saude.parou_429"}
-
-
-def _iso(quando: datetime) -> str:
-    return quando.astimezone(UTC).isoformat()
 
 
 async def executar_busca(
@@ -222,27 +218,12 @@ async def _enriquecer(
     # se houver mais de quatro fontes de sitemap.
     livres_total = MAX_DETALHES_POR_EXECUCAO - sum(usados.values())
     candidatas: defaultdict[str, list[tuple[int, str, VagaColetada]]] = defaultdict(list)
-    marcas = ",".join("?" * len(nomes))
-    # o SQL já descarta a maioria (as que têm descrição); o `strip()` abaixo fecha o resto
-    for oid, fonte, escopo, coletada in con.execute(
-        "SELECT o.id, o.fonte, o.escopo, o.coletada"
-        " FROM ocorrencia o JOIN vaga v ON v.id = o.vaga_id"
-        f" WHERE v.primeira_vista_em >= ? AND o.sumiu_em IS NULL AND o.fonte IN ({marcas})"
-        " AND trim(coalesce(json_extract(o.coletada, '$.descricao'), ''), char(32, 9, 10, 13))"
-        " = ''"
-        " ORDER BY v.primeira_vista_em DESC, o.id",
-        (_iso(inicio - JANELA_DETALHE), *nomes),
-    ).fetchall():
-        if (fonte, escopo) not in rodaram:
-            continue
-        v = VagaColetada.de_json(coletada)
-        if not v.descricao.strip() and canonica(v.url) not in ja_detalhadas:
-            candidatas[fonte].append((oid, escopo, v))
-    historico = HistoricoDoBanco(con, relogio)
+    for c in candidatas_a_detalhe(con, nomes, inicio, relogio):
+        if (c.fonte, c.escopo) in rodaram and canonica(c.vaga.url) not in ja_detalhadas:
+            candidatas[c.fonte].append((c.ocorrencia_id, c.escopo, c.vaga))
     for fonte, da_fonte in candidatas.items():
-        recentes = historico.detalhe_recente(fonte, [v.url for _, _, v in da_fonte])
         livres = min(MAX_DETALHES_POR_FONTE - usados[fonte], livres_total)
-        fila = [c for c in da_fonte if c[2].url not in recentes][: max(livres, 0)]
+        fila = da_fonte[: max(livres, 0)]
         coletor = coletores[fonte]
         gastos = pedidos[fonte]
         parados: set[str] = set()
@@ -269,7 +250,7 @@ async def _enriquecer(
                 break
             except Exception:  # só esta URL; sem cache, volta na próxima execução
                 # shortcut: sem recuo; a URL que sempre quebra é pedida em toda execução por
-                # até 30 dias (JANELA_DETALHE). Contar as falhas pede schema (D54, opção c).
+                # até 30 dias (`JANELA_DETALHE`). Contar as falhas pede schema (D54, opção c).
                 log.exception("detalhe de %s falhou", v.url)
                 continue
             finally:
