@@ -484,13 +484,11 @@ def test_changelog_traz_os_filtros_da_0_2_0(lingua: str) -> None:
 
 
 # a cotação que o pedido ao Banco Central traz, e o que sai dos textos de rede
-COTACAO = {
-    "pt": {"traz": ("cotação das moedas das vagas", "moeda de exibição"), "velho": "do dólar"},
-    "en": {
-        "traz": ("exchange rates of the currencies", "display currency"),
-        "velho": "dollar rate",
-    },
+COTACAO_TRAZ = {
+    "pt": ("cotação das moedas das vagas", "moeda de exibição"),
+    "en": ("exchange rates of the currencies", "display currency"),
 }
+COTACAO_VELHO = {"pt": "do dólar", "en": "dollar rate"}
 
 
 @pytest.mark.parametrize("lingua", LINGUAS)
@@ -503,8 +501,8 @@ def test_rede_fala_da_cotacao_das_moedas(lingua: str) -> None:
         f"i18n/{lingua}": i18n.carregar()[lingua]["configuracoes.privacidade.telemetria"],
     }
     for nome, conteudo in fontes.items():
-        assert COTACAO[lingua]["velho"] not in conteudo, nome
-        for termo in COTACAO[lingua]["traz"]:
+        assert COTACAO_VELHO[lingua] not in conteudo, nome
+        for termo in COTACAO_TRAZ[lingua]:
             assert termo in conteudo, (nome, termo)
 
 
