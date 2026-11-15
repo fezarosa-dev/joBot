@@ -16,22 +16,20 @@ import sqlite3
 from collections import defaultdict
 from collections.abc import Mapping
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Literal
 
 from jobot.banco import execucoes
 from jobot.banco.buscas import paises_das_buscas, recalcular_encaixe, termos_das_buscas
 from jobot.banco.cadastros import empresas_da_coleta, fontes, ler_config, moeda_efetiva
-from jobot.banco.conexao import abrir
 from jobot.banco.cotacoes import aplicar_cotacoes, falta_cotacao, gravar_cotacao, moedas_em_aberto
 from jobot.banco.execucoes import (
     JANELA_DETALHE,
     HistoricoDoBanco,
-    Parada,
     abrir_execucao,
     fechar_execucao,
     gravar_saude,
-    interromper_execucao,
+    interromper,
+    manter_batimento,
 )
 from jobot.banco.gravacao import (
     fechar_escopos_extintos,
@@ -54,7 +52,6 @@ log = logging.getLogger(__name__)
 
 MAX_DETALHES_POR_FONTE = 50
 MAX_DETALHES_POR_EXECUCAO = 200
-BATIMENTO_S = 30.0
 _PARA_DETALHES = (Bloqueio, LimiteAtingido, OrcamentoGasto, Parou429)
 # Escopo parado por estes (na listagem ou nos detalhes do executor) fica fora do passo 4; os de
 # `_PARADAS_DA_FONTE` valem para a fonte toda e tiram todos os escopos dela (A14).
@@ -82,7 +79,7 @@ async def executar_busca(
     execucao_id = abrir_execucao(con, "busca", motivo, inicio)
     if execucao_id is None:
         return None
-    batimento = asyncio.create_task(bater(con, execucao_id, relogio))
+    batimento = asyncio.create_task(manter_batimento(con, execucao_id, relogio))
     try:
         todos = descobrir() if coletores is None else coletores
         saidas = await _coletar(con, execucao_id, cliente, relogio, todos)
@@ -109,52 +106,9 @@ async def executar_busca(
     return execucao_id
 
 
-def parada_de(erro: BaseException) -> Parada:
-    """O motivo da parada que a exceção grava: cancelamento, Ctrl+C e saída valem "fechado"."""
-    if not isinstance(erro, Exception):  # CancelledError, KeyboardInterrupt, SystemExit
-        return "fechado"
-    if isinstance(erro, sqlite3.Error):
-        return "banco"
-    return "erro"
-
-
-def interromper(
-    con: sqlite3.Connection, execucao_id: int, erro: BaseException, agora: datetime
-) -> None:
-    """Desfaz a transação aberta e marca a execução interrompida com o motivo de `erro`.
-
-    Quem chama segue com `raise`: se marcar falhar (banco quebrado), a falha só vai ao log e a
-    exceção original é a que sobe, nunca esta. O traceback de `erro` fica com quem pega a
-    exceção (o `rodar` da agenda, o `jobot buscar`), para não sair duas vezes no log.
-    """
-    try:
-        if con.in_transaction:  # o passo que quebrou pode ter deixado a sua aberta
-            con.rollback()
-        interromper_execucao(con, execucao_id, agora, parada=parada_de(erro))
-    except Exception:
-        log.exception("não deu para marcar a execução %s como interrompida", execucao_id)
-
-
 def reprocessar_se_regras_mudaram(con: sqlite3.Connection) -> int:
     """Trata de novo as vagas abertas gravadas com outra versão das regras; devolve quantas."""
     return reprocessar(con, VERSAO_REGRAS)
-
-
-async def bater(con: sqlite3.Connection, execucao_id: int, relogio: Relogio) -> None:
-    """Batimento numa conexão própria: duas tarefas não dividem uma `sqlite3.Connection`."""
-    caminho = con.execute("PRAGMA database_list").fetchone()[2]
-    if not caminho:  # banco em memória não tem outra conexão; fica sem batimento
-        return
-    con2 = abrir(Path(caminho))
-    try:
-        while True:
-            await relogio.dormir(BATIMENTO_S)
-            try:
-                execucoes.bater(con2, execucao_id, relogio.agora())
-            except sqlite3.Error:
-                log.exception("batimento da execução %s falhou", execucao_id)
-    finally:
-        con2.close()
 
 
 async def _coletar(
