@@ -37,6 +37,8 @@ _CAMPO: Final[dict[Aceito, str]] = {
 # reCAPTCHA v3 (e o Enterprise de pontuação) carrega com `render=<sitekey>`; `render=explicit`
 # é o v2 desenhado pelo site.
 _SCRIPT_V3 = 'script[src*="recaptcha/api.js"][src*="render="]'
+# Widget preso a botão envia o formulário pela função de retorno: não é desafio (A8, D132.11).
+_NAO_BOTAO = "[data-sitekey]:not(button):not(input)"
 
 
 @dataclass(frozen=True)
@@ -70,11 +72,11 @@ async def achar_widget(page: Page) -> Widget | None:
             render = parse_qs(urlsplit(src).query).get("render", [""])[0]
             if render and render != "explicit":
                 return Widget("nao_aceito", render, False, None, None)
-        recaptcha = await page.locator(".g-recaptcha[data-sitekey]").all()
+        recaptcha = await page.locator(f".g-recaptcha{_NAO_BOTAO}").all()
         if recaptcha:
             invisivel = await _atributo(recaptcha[0], "data-size") == "invisible"
             return await _do_div(recaptcha[0], "recaptcha_v2", invisivel=invisivel, acao=None)
-        turnstile = await page.locator(".cf-turnstile[data-sitekey]").all()
+        turnstile = await page.locator(f".cf-turnstile{_NAO_BOTAO}").all()
         if turnstile:
             acao = await _atributo(turnstile[0], "data-action")
             return await _do_div(turnstile[0], "turnstile", invisivel=False, acao=acao)

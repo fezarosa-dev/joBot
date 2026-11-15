@@ -453,6 +453,42 @@ class SiteFalso:
             case "/callback-torto":
                 widget = _RECAPTCHA.format(chave=CHAVE_V2, retorno="alert(1)", extra="")
                 return _Resposta(corpo=_pagina("Desafio", _CONTA_ALERTAS + widget))
+            case "/salto-mesmo-host":  # salto no próprio host para uma página que a política recusa
+                return _Resposta(302, cabecalhos={"Location": "/inseguro/recaptcha"})
+            case "/inseguro/recaptcha":
+                widget = _RECAPTCHA.format(chave=CHAVE_V2, retorno="recebeu", extra="")
+                return _Resposta(corpo=_pagina("Desafio", widget + _RETORNO))
+            case "/inseguro/lista":
+                return _Resposta(corpo=_pagina("Vagas", _lista_html([1, 2])))
+            case "/recaptcha-vai-inseguro":  # a função de retorno leva à página recusada
+                widget = _RECAPTCHA.format(chave=CHAVE_V2, retorno="recebeu", extra="")
+                script = _RETORNO_PASSA.replace("/lista-html", "/inseguro/lista")
+                return _Resposta(corpo=_pagina("Desafio", widget + script))
+            case "/rolar-vai-inseguro":  # sai sozinha para a página recusada ao rolar
+                script = (
+                    "<div style='height: 5000px'></div><script>window.addEventListener("
+                    "'scroll', () => location.replace('/inseguro/lista'), {once: true});</script>"
+                )
+                return _Resposta(corpo=_pagina("Vagas", _lista_html([1, 2]) + script))
+            # reCAPTCHA e Turnstile presos a um botão de formulário: não são desafio (A8)
+            case "/botao-recaptcha":
+                botao = (
+                    f"<button class='g-recaptcha' data-sitekey='{CHAVE_V2}'"
+                    " data-callback='recebeu'>Enviar</button>"
+                )
+                return _Resposta(corpo=_pagina("Vagas", botao + _RETORNO + _lista_html([1, 2])))
+            case "/input-recaptcha":
+                botao = (
+                    f"<input type='submit' class='g-recaptcha' data-sitekey='{CHAVE_V2}'"
+                    " data-callback='recebeu' value='Enviar'>"
+                )
+                return _Resposta(corpo=_pagina("Vagas", botao + _RETORNO + _lista_html([1, 2])))
+            case "/botao-turnstile":
+                botao = (
+                    f"<button class='cf-turnstile' data-sitekey='{CHAVE_TURNSTILE}'"
+                    " data-callback='recebeu'>Enviar</button>"
+                )
+                return _Resposta(corpo=_pagina("Vagas", botao + _RETORNO + _lista_html([1, 2])))
             case "/desafio-pessoa":  # sai quando a pessoa resolve (cookie), como um desafio real
                 if "pessoa_ok=1" in cookie:
                     return _Resposta(corpo=_pagina("Vagas", _lista_html([1, 2])))
