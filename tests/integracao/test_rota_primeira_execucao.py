@@ -515,8 +515,8 @@ RECUSAS = {
         "the container home folder is not the host home folder",
     ),
     "systemctl_falhou": (
-        "o systemctl daemon-reload falhou: Failed to connect to bus",
-        "systemctl daemon-reload failed: Failed to connect to bus",
+        "O systemctl daemon-reload falhou. Os detalhes ficaram no jobot.log.",
+        "systemctl daemon-reload failed. The details are in jobot.log.",
     ),
 }
 
@@ -647,10 +647,13 @@ def test_catalogos_do_assistente_tem_as_mesmas_chaves_e_o_texto_do_sistema() -> 
     en = _carregar_sem_repetir(base / "en" / "primeira_execucao.json")
     assert set(pt) == set(en)
     for chave, texto in segundo_plano_linux._TEXTOS.items():
+        if chave == "segundo_plano.systemctl_falhou":
+            continue  # a linha de comando mostra a saída; a tela só diz onde achá-la (T159)
         assert pt[chave] == texto  # o pt é igual ao texto da linha de comando
         assert en[chave] != pt[chave]
-    assert "{comando}" in en["segundo_plano.systemctl_falhou"]
-    assert "{saida}" in en["segundo_plano.systemctl_falhou"]
+    for catalogo in (pt, en):
+        assert "{comando}" in catalogo["segundo_plano.systemctl_falhou"]
+        assert "{saida}" not in catalogo["segundo_plano.systemctl_falhou"]
 
 
 @pytest.mark.parametrize(

@@ -35,6 +35,7 @@ BOTOES = """() => {
     <button id="bhtml" hx-post="/_t/html" hx-swap="none">html</button>
     <button id="bvazio" hx-post="/_t/vazio" hx-swap="none">vazio</button>
     <button id="brede" hx-post="/_t/rede" hx-swap="none">rede</button>
+    <button id="bok" hx-get="/_t/ok" hx-swap="none">ok</button>
     <button id="bpush" hx-get="/_t/ok" hx-target="#alvo" hx-swap="innerHTML"
             hx-push-url="/_casca?p=1">push</button>
     <div id="alvo"></div>`);
@@ -103,6 +104,25 @@ def _abrir(page: Page, painel: str) -> None:
 
 def _clicar(page: Page, botao: str) -> None:
     page.locator(f"#{botao}").click()
+
+
+def _contar_pedidos(page: Page) -> None:
+    """`window.pedidos` conta os pedidos já tratados: o `afterRequest` vem depois dos avisos."""
+    page.evaluate(
+        "() => { window.pedidos = 0;"
+        " document.addEventListener('htmx:afterRequest', () => { window.pedidos++; }); }"
+    )
+
+
+def _pedir(page: Page, botao: str) -> None:
+    """Clica e espera o HTMX terminar de tratar o pedido (erro ou não)."""
+    antes = page.evaluate("window.pedidos")
+    _clicar(page, botao)
+    page.wait_for_function("antes => window.pedidos > antes", arg=antes)
+
+
+def _fechar(page: Page) -> None:
+    page.locator(REGIAO).get_by_role("button", name="Fechar aviso").click()
 
 
 def test_aviso_nasce_escondido(page: Page, painel: str) -> None:
@@ -263,3 +283,83 @@ def test_aviso_tem_contraste_nos_dois_temas(page: Page, painel: str, esquema: st
     expect(texto).to_be_visible()
     razao = texto.evaluate(CONTRASTE)
     assert razao >= MINIMO, f"contraste do aviso de erro no tema {esquema}: {razao}"
+
+
+def test_mesmo_aviso_nao_reabre_depois_de_fechado(page: Page, painel: str) -> None:
+    _abrir(page, painel)
+    _contar_pedidos(page)
+    regiao = page.locator(REGIAO)
+    _pedir(page, "b500")
+    expect(regiao).to_be_visible()
+    _fechar(page)
+    expect(regiao).to_be_hidden()
+    _pedir(page, "b500")  # a mesma falha de novo: o aviso fechado fica fechado
+    _pedir(page, "b500")
+    expect(regiao).to_be_hidden()
+
+
+def test_pedido_bom_zera_e_a_mesma_falha_reabre(page: Page, painel: str) -> None:
+    _abrir(page, painel)
+    _contar_pedidos(page)
+    regiao = page.locator(REGIAO)
+    _pedir(page, "b500")
+    _fechar(page)
+    _pedir(page, "bok")
+    expect(regiao).to_be_hidden()
+    _pedir(page, "b500")
+    expect(regiao).to_be_visible()
+    expect(regiao).to_contain_text(GENERICO_5XX)
+
+
+def test_texto_diferente_abre_e_o_fechado_antes_volta_a_valer(page: Page, painel: str) -> None:
+    _abrir(page, painel)
+    _contar_pedidos(page)
+    regiao = page.locator(REGIAO)
+    _pedir(page, "b500")
+    _fechar(page)
+    _pedir(page, "b409")  # texto novo: abre normalmente
+    expect(regiao).to_contain_text("Texto X")
+    _fechar(page)
+    _pedir(page, "b409")
+    expect(regiao).to_be_hidden()
+    _pedir(page, "b500")  # o aviso aberto depois do 5xx zerou o "fechado"
+    expect(regiao).to_contain_text(GENERICO_5XX)
+
+
+def test_aviso_aberto_sem_fechar_continua_aberto_com_o_mesmo_texto(page: Page, painel: str) -> None:
+    _abrir(page, painel)
+    _contar_pedidos(page)
+    regiao = page.locator(REGIAO)
+    _pedir(page, "b500")
+    _pedir(page, "b500")
+    expect(regiao).to_be_visible()
+    expect(regiao).to_contain_text(GENERICO_5XX)
+
+
+def test_carga_e_polling_avisam_mas_nao_insistem_depois_de_fechado(page: Page, painel: str) -> None:
+    chamadas: list[str] = []
+
+    def derrubar(rota: object) -> None:
+        chamadas.append("x")
+        rota.abort()  # type: ignore[attr-defined]
+
+    page.route("**/_t/fora", derrubar)
+    _abrir(page, painel)
+    _contar_pedidos(page)
+    regiao = page.locator(REGIAO)
+    page.evaluate(
+        """() => {
+          const main = document.querySelector('main');
+          main.insertAdjacentHTML('beforeend',
+            '<div id="poll" hx-get="/_t/fora" hx-trigger="load, every 300ms"'
+            + ' hx-swap="none"></div>');
+          htmx.process(main);
+        }"""
+    )
+    page.wait_for_function("window.pedidos >= 1")
+    expect(regiao).to_contain_text(GENERICO_REDE)  # o pedido de carga avisou
+    _fechar(page)
+    visto = page.evaluate("window.pedidos")
+    page.wait_for_function("visto => window.pedidos >= visto + 3", arg=visto)  # 3 rodadas
+    expect(regiao).to_be_hidden()
+    assert len(chamadas) >= 4

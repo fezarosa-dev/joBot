@@ -11,6 +11,11 @@ aviso de "diga o que você procura"; o resumo vai na URL do passo 2 (`?busca=<id
 a página não criar outra busca. O "voltar" leva esse `?busca=<id>` ao passo 1, que abre preenchido
 e edita a mesma busca (nome, `ativa`, regras e `criada_em` ficam); formulário esvaziado de
 critérios com busca já gravada não mexe nela e segue ao passo 2.
+
+Ligar recusado fica no passo 2 com o motivo em texto fixo (a saída do systemctl vai só para o
+log, nunca para a tela). Desligar nunca prende (D49 b, T152): se desligar ou criar o atalho falha,
+o passo 2 conclui mesmo assim e o fim mostra um aviso por código fixo em `?aviso=` (`_AVISOS`);
+o detalhe da falha vai para o log.
 """
 
 import json
@@ -356,7 +361,7 @@ async def _desligar_sem_prender(request: Request) -> str | None:
         try:
             await run_in_threadpool(passo, rodar, env=env)
         except Recusa as recusa:
-            _LOG.warning("segundo plano: não consegui desligar: %s", recusa.motivo)
+            _LOG.warning("segundo plano: não consegui desligar: %s", recusa.motivo.chave)
             sufixo = recusa.motivo.chave.removeprefix("segundo_plano.")
             codigo = codigo or (sufixo if sufixo in _AVISOS else "desligar")
         except ValueError, OSError:  # caractere de controle no caminho, disco, permissão

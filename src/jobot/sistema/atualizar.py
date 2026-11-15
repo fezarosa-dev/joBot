@@ -18,7 +18,15 @@ import jobot
 from jobot.nucleo.quebra import URL_REPOSITORIO
 from jobot.sistema.abrir import sair_do_servidor, subir_servidor
 from jobot.sistema.instancia import pid_do_servidor
-from jobot.sistema.segundo_plano_linux import Recusa, Resultado, Rodar, desligar, ligar, status
+from jobot.sistema.segundo_plano_linux import (
+    Recusa,
+    Resultado,
+    Rodar,
+    desligar,
+    ligar,
+    sem_eco_no_terminal,
+    status,
+)
 
 Tipo = Literal["clone_git", "uv_tool", "desconhecida"]
 
@@ -126,7 +134,8 @@ def _parar_e_atualizar(
 ) -> bool:
     try:
         if plano:
-            desligar(rodar)  # o disable --now também para o servidor que o systemd subiu
+            with sem_eco_no_terminal():
+                desligar(rodar)  # o disable --now também para o servidor que o systemd subiu
         if pid_do_servidor(dados) is not None and parar(dados) != 0:
             print("O servidor não encerrou; nada foi atualizado.", file=sys.stderr)
             return False
@@ -149,7 +158,8 @@ def _religar(
 ) -> bool:
     try:
         if plano:
-            ligar(rodar)  # o enable --now sobe o servidor
+            with sem_eco_no_terminal():
+                ligar(rodar)  # o enable --now sobe o servidor
         elif servidor and pid_do_servidor(dados) is None:  # o que não caiu não sobe de novo
             subir()
     except Recusa as recusa:
