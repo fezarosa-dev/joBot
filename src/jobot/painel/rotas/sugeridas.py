@@ -22,7 +22,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from jobot import __version__
 from jobot.banco.sugeridas import Sugerida, aprovar, descartar, sugeridas
-from jobot.nucleo.coletores import gupy
+from jobot.nucleo.coletores.plataformas import gupy
 from jobot.nucleo.http import ClienteEducado
 from jobot.painel.rotas.vagas import relogio_do_painel
 from jobot.painel.seguranca import Con, renderizar

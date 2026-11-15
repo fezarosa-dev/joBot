@@ -16,8 +16,8 @@ from dataclasses import dataclass
 from functools import partial
 from urllib.parse import urlsplit
 
-from jobot.nucleo.coletores import ashby, greenhouse, gupy, lever
 from jobot.nucleo.coletores.base import Coletor
+from jobot.nucleo.coletores.plataformas import ashby, greenhouse, gupy, lever
 from jobot.nucleo.coletores.registro import limites
 from jobot.nucleo.http import (
     Bloqueio,
