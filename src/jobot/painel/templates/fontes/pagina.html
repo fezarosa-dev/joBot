@@ -1,13 +1,9 @@
 {% extends "base.html" %}
+{% from "_motivo.html" import motivo_texto with context %}
 {% block titulo %}{{ t("fontes.titulo") }} · joBot{% endblock %}
 {% block estilos %}<link rel="stylesheet" href="/static/css/vagas.css"><link rel="stylesheet" href="/static/css/fontes.css">{% endblock %}
 {%- macro hora(d) -%}{{ data_curta(d.isoformat(), idioma) }} {{ d.strftime("%H:%M") }}{%- endmacro -%}
-{#- motivo "chave" ou "chave:valor" (a regra do executor): o valor serve ao {tipo} ou ao {n} da chave -#}
 {%- macro nunca() -%}<span aria-hidden="true">—</span><span class="so-leitor">{{ t("fontes.nunca_rodou") }}</span>{%- endmacro -%}
-{%- macro motivo_texto(m) -%}
-  {%- set partes = m.partition(":") -%}
-  {{ t(partes[0], tipo=partes[2], n=partes[2]) }}
-{%- endmacro -%}
 {%- macro reporte(r) -%}
 <p class="reportar">
   <a href="{{ r.url }}" target="_blank" rel="noopener noreferrer">{{ t("fontes.reportar") }}</a>

@@ -252,6 +252,14 @@ def inicio_da_ultima_leitura_login(con: sqlite3.Connection) -> datetime | None:
     return _data_ou_none(linha[0])
 
 
+def leitura_login_rodando(con: sqlite3.Connection) -> bool:
+    """Há uma execução "login" rodando agora (só a tela de Configurações pergunta)."""
+    return (
+        con.execute("SELECT 1 FROM execucao WHERE tipo='login' AND estado='rodando'").fetchone()
+        is not None
+    )
+
+
 def execucao_atual(con: sqlite3.Connection) -> Andamento | None:
     """A execução que roda; havendo mais de uma (tipos diferentes), a busca vem primeiro."""
     linha = con.execute(
