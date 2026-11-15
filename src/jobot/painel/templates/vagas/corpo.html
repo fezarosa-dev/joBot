@@ -1,4 +1,4 @@
-{%- set salario = salario_texto(item, idioma) -%}
+{%- set salario = salario_texto(item) -%}
 {%- set locais = locais_texto(item.locais) -%}
 {%- set achado = namespace(motivo="") -%}
 {%- for m in item.motivos -%}
@@ -42,8 +42,8 @@
 </ul>
 {%- if salario %}
 <p class="salario"><strong>{{ salario.original }}</strong>
-  {%- if salario.em_reais %} <span class="em-reais">{{ salario.em_reais }}</span>{% endif %}
-  {%- if salario.cotacao %} <span class="cotacao">{{ salario.cotacao }}</span>{% endif %}</p>
+  {%- set ao_lado = [salario.convertido, salario.cotacao] | select | list %}
+  {%- if ao_lado %} <small class="convertido">{{ ao_lado | join(" · ") }}</small>{% endif %}</p>
 {%- else %}
 <p class="salario nao-informado">{{ t("vagas.salario_nao_informado") }}</p>
 {%- endif %}

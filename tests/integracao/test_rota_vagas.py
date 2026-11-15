@@ -269,8 +269,7 @@ def test_texto_de_vaga_sai_escapado(painel: Painel) -> None:
 def test_salario_em_dolar_mostra_cotacao_e_reais(painel: Painel) -> None:
     html = painel.get("/vagas?aba=todas").text
     assert "US$ 5.000/mês" in html
-    assert "US$ 1 = R$ 5,65 (PTAX de 13/11)" in html
-    assert "≈ R$ 28.250/mês" in html
+    assert "≈ R$ 28.250/mês · US$ 1 = R$ 5,65 (PTAX de 13/11)" in html
     assert "R$ 8.000/mês" in html
 
 
@@ -278,6 +277,60 @@ def _cartao_html(html: str, vaga: int) -> str:
     achou = re.search(rf'id="vaga-{vaga}".*?</article>', html, re.S)
     assert achou, f"sem cartão da vaga {vaga}"
     return achou.group(0)
+
+
+CONVERTIDO_EUR = (
+    r"<strong>US\$ 5\.000/mês</strong>\s*"
+    r'<small class="convertido">≈ € 4\.520/mês · US\$ 1 = € 0,904 \(PTAX de 12/11\)</small>'
+)
+
+
+def _em_euro(painel: Painel) -> None:
+    """Moeda de exibição EUR, com a cotação de 12/11 (a do USD é de 13/11)."""
+    painel.config("moeda_exibicao", "EUR")
+    painel.sql(
+        "INSERT INTO cotacao (moeda, data, venda, buscada_em)"
+        " VALUES ('EUR', '2026-11-12', '6.25', ?)",
+        AGORA.isoformat(),
+    )
+
+
+def test_valor_convertido_fica_em_linha_propria_no_cartao(painel: Painel) -> None:
+    _em_euro(painel)
+    cartao = _cartao_html(painel.get("/vagas?aba=todas").text, painel.ids["usd"])
+    assert re.search(CONVERTIDO_EUR, cartao)
+    assert "em-reais" not in cartao
+
+
+def test_valor_convertido_vale_no_carregar_mais(painel: Painel) -> None:
+    _em_euro(painel)
+    for n in range(60):
+        painel.semear_mais(
+            titulo=f"Extra {n}",
+            empresa=f"Extra SA {n}",
+            sal_moeda="USD",
+            sal_min=500000,
+            sal_periodo="mes",
+            sal_mensal_min=500000,
+            sal_mensal_min_brl=28250,
+            sal_cotacao_data="2026-11-13",
+            sal_plausivel=1,
+        )
+    primeira = painel.get("/vagas?aba=todas").text
+    segunda = painel.get(_hx_get(primeira, "mais-2"), headers=HX).text
+    assert re.search(CONVERTIDO_EUR, segunda)
+    assert "≈ R$" not in segunda
+
+
+def test_valor_convertido_vale_no_cartao_devolvido_pela_acao(painel: Painel) -> None:
+    _em_euro(painel)
+    resposta = painel.http.post(
+        f"/vagas/{painel.ids['usd']}/status",
+        data={CAMPO_CSRF: painel.token, "status": "salva", "voltar": "/vagas"},
+        headers=HX,
+    )
+    assert resposta.status_code == 200
+    assert re.search(CONVERTIDO_EUR, resposta.text)
 
 
 def test_vaga_sem_salario_diz_nao_informado(painel: Painel) -> None:

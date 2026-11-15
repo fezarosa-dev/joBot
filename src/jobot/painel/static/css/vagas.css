@@ -326,9 +326,14 @@ a.chip {
   font-size: 0.9375rem;
 }
 
-.nao-informado,
-.em-reais,
-.cotacao {
+.nao-informado {
+  color: var(--texto-2);
+}
+
+/* o valor convertido e a cotação: linha de baixo, menor, no texto secundário */
+small.convertido {
+  display: block;
+  font-size: 0.8125rem;
   color: var(--texto-2);
 }
 
