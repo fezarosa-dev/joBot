@@ -12,14 +12,16 @@ from jobot.banco.cadastros import ler_config
 TETO_DIA = 30
 
 # Um comando só: o contador vale `{"dia": "AAAA-MM-DD", "n": N}`. Valor que não é JSON, ou sem
-# `dia` igual ao de hoje e `n` inteiro, recomeça em 1; com `n` no teto o WHERE barra a gravação.
+# `dia` igual ao de hoje e `n` inteiro, recomeça em 1;
+# com `n` no teto, ou negativo (banco adulterado), o WHERE barra a gravação.
 _RESERVAR = """
 INSERT INTO config (chave, valor) VALUES ('captcha_uso', json_object('dia', :dia, 'n', 1))
 ON CONFLICT(chave) DO UPDATE SET valor = json_object(
     'dia', :dia,
     'n', CASE WHEN {de_hoje} THEN json_extract(config.valor, '$.n') + 1 ELSE 1 END
 )
-WHERE NOT ({de_hoje} AND json_extract(config.valor, '$.n') >= :teto)
+WHERE NOT ({de_hoje} AND (json_extract(config.valor, '$.n') >= :teto
+                         OR json_extract(config.valor, '$.n') < 0))
 """.format(
     de_hoje="""(CASE WHEN json_valid(config.valor)
         THEN json_extract(config.valor, '$.dia') IS :dia
