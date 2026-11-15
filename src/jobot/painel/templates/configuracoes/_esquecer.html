@@ -1,0 +1,13 @@
+{#- "Esquecer logins": a confirmação mora aqui, sem o diálogo do navegador (D132.22) -#}
+{%- if fase == "pergunta" %}
+<p class="config-texto" data-foco>{{ t("configuracoes.sites_com_login.esquecer.pergunta") }}</p>
+<p class="config-texto">{{ t("configuracoes.sites_com_login.esquecer.explicacao") }}</p>
+<div class="acoes">
+  <button type="button" class="botao botao-primario" hx-post="/configuracoes/sites-com-login/esquecer/confirmar" hx-target="#esquecer-logins" hx-disabled-elt="this">{{ t("configuracoes.sites_com_login.esquecer.apagar") }}</button>
+  <a class="botao botao-secundario" href="/configuracoes/sites-com-login">{{ t("configuracoes.sites_com_login.esquecer.cancelar") }}</a>
+</div>
+{%- elif fase == "em_andamento" %}
+<p class="config-texto" data-foco>{{ t("configuracoes.sites_com_login.em_andamento") }}</p>
+{%- else %}
+<p class="config-texto" data-foco>{{ t("configuracoes.sites_com_login.esquecer." ~ fase) }}</p>
+{%- endif %}

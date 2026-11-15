@@ -1,4 +1,5 @@
-"""Grupo "Sites com login" no navegador: o interruptor grava na hora (plano T218).
+"""Grupo "Sites com login" no navegador: o interruptor grava na hora (plano T218) e "Esquecer
+logins" confirma na própria página (T219).
 
 Nenhum navegador de verdade abre aqui: o painel só lê o que o teste põe em `app.state`.
 """
@@ -13,11 +14,13 @@ from playwright.sync_api import Locator, Page, expect
 from apoio.site_falso import LeitorFalso
 from jobot.banco import cadastros
 from jobot.banco.conexao import abrir
+from jobot.sistema.pastas import PASTA_NAVEGADOR
 
 pytestmark = pytest.mark.tela
 
 CHAVE = "falso_logado"
 INTERRUPTOR = f"**/configuracoes/sites-com-login/{CHAVE}/interruptor"
+CONFIRMAR = "**/configuracoes/sites-com-login/esquecer/confirmar"
 
 
 @pytest.fixture
@@ -69,3 +72,25 @@ def test_estado_do_navegador_e_botao_esquecer_na_tela(page: Page, painel: str) -
     expect(page.get_by_text("Chrome encontrado")).to_be_visible()
     expect(page.get_by_role("button", name="Esquecer logins")).to_be_visible()
     expect(page.get_by_label("Horários (hora local)")).to_have_value("09:00, 18:00")
+
+
+def test_esquecer_logins_confirma_na_pagina(page: Page, painel: str, tmp_path: Path) -> None:
+    # sem tratador de `dialog`: um `confirm()` do navegador seria recusado e nada apagaria
+    perfil = tmp_path / PASTA_NAVEGADOR
+    (perfil / "Default").mkdir(parents=True)
+    (perfil / "Default" / "Cookies").write_text("sessao")
+    page.goto(f"{painel}/configuracoes/sites-com-login")
+
+    esquecer = page.get_by_role("button", name="Esquecer logins")
+    expect(esquecer).to_be_enabled()
+    esquecer.click()
+    pergunta = page.get_by_text("Apagar os logins de todos os sites?")
+    expect(pergunta).to_be_visible()
+    expect(pergunta).to_be_focused()  # o foco vai para a pergunta, que o leitor de tela lê
+    assert perfil.exists()  # o primeiro clique só pergunta
+
+    with page.expect_response(CONFIRMAR) as resposta:
+        page.get_by_role("button", name="Apagar", exact=True).click()
+    assert resposta.value.status == 200
+    expect(page.get_by_text("Logins apagados.")).to_be_visible()
+    assert not perfil.exists()

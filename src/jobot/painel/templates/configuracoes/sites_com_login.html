@@ -17,7 +17,8 @@
     <button type="submit" class="botao botao-primario">{{ t("configuracoes.salvar") }}</button>
   </div>
 </form>
-{#- o fluxo do botão é da T219; aqui ele só aparece -#}
-<div class="acoes">
-  <button type="button" class="botao botao-secundario" disabled>{{ t("configuracoes.sites_com_login.esquecer") }}</button>
+<div id="esquecer-logins" aria-live="polite">
+  <div class="acoes">
+    <button type="button" class="botao botao-secundario" hx-post="/configuracoes/sites-com-login/esquecer" hx-target="#esquecer-logins">{{ t("configuracoes.sites_com_login.esquecer") }}</button>
+  </div>
 </div>

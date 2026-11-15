@@ -88,5 +88,20 @@
   "configuracoes.sites_com_login.horarios.repetido": "Do not repeat a time.",
   "configuracoes.sites_com_login.horarios.muitos": "At most 4 times.",
   "configuracoes.sites_com_login.horarios.perto": "Leave at least 4 hours between one time and the next.",
-  "configuracoes.sites_com_login.esquecer": "Forget logins"
+  "configuracoes.sites_com_login.esquecer": "Forget logins",
+  "configuracoes.sites_com_login.fazer_login": "Sign in now",
+  "configuracoes.sites_com_login.em_andamento": "A reading is in progress; try again when it finishes.",
+  "configuracoes.sites_com_login.login.aguardando": "Sign in to the site in the browser window that opened. joBot waits up to {minutos} minutes and closes the window once you are in.",
+  "configuracoes.sites_com_login.login.pronto": "Signed in. joBot closed the window and can now read this site.",
+  "configuracoes.sites_com_login.login.tempo_esgotado": "Time ran out before you signed in. Try again.",
+  "configuracoes.sites_com_login.login.sem_tela": "Could not find the computer's screen to open the browser. Try again with the desktop session open.",
+  "configuracoes.sites_com_login.login.sem_navegador": "No browser found. Install Google Chrome and try again.",
+  "configuracoes.sites_com_login.login.fechado": "The browser was closed before you signed in.",
+  "configuracoes.sites_com_login.login.erro": "Something went wrong opening the browser. The details are in jobot.log.",
+  "configuracoes.sites_com_login.esquecer.pergunta": "Delete the logins for all sites?",
+  "configuracoes.sites_com_login.esquecer.explicacao": "joBot deletes its browser folder, with the sessions of every site. Your jobs stay. To read these sites again, sign in again.",
+  "configuracoes.sites_com_login.esquecer.apagar": "Delete",
+  "configuracoes.sites_com_login.esquecer.cancelar": "Cancel",
+  "configuracoes.sites_com_login.esquecer.apagados": "Logins deleted.",
+  "configuracoes.sites_com_login.esquecer.erro": "Could not delete the logins. The details are in jobot.log."
 }
