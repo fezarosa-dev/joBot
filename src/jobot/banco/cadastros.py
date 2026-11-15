@@ -43,6 +43,7 @@ PADROES: Mapping[str, object] = MappingProxyType(
         "destaques_n": 10,
         "meu_pais": "BR",
         "moeda_exibicao": "",
+        "captcha_ligado": False,  # ADR 0022: nasce desligado; só liga com chave salva
     }
 )
 _SEM_PADRAO: Any = object()

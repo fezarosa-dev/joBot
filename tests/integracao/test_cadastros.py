@@ -423,7 +423,13 @@ def test_padroes_de_config(con: sqlite3.Connection) -> None:
     for chave in INTERRUPTORES:
         assert ler_config(con, chave) is True, chave
     assert ler_config(con, "destaques_n") == 10
-    assert set(PADROES) == {*INTERRUPTORES, "destaques_n", "meu_pais", "moeda_exibicao"}
+    assert set(PADROES) == {
+        *INTERRUPTORES,
+        "destaques_n",
+        "meu_pais",
+        "moeda_exibicao",
+        "captcha_ligado",
+    }
 
 
 def test_gravar_e_ler_config(con: sqlite3.Connection) -> None:
