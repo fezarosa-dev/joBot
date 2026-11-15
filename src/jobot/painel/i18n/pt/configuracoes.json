@@ -88,5 +88,20 @@
   "configuracoes.sites_com_login.horarios.repetido": "Não repita o mesmo horário.",
   "configuracoes.sites_com_login.horarios.muitos": "No máximo 4 horários.",
   "configuracoes.sites_com_login.horarios.perto": "Deixe pelo menos 4 horas entre um horário e outro.",
-  "configuracoes.sites_com_login.esquecer": "Esquecer logins"
+  "configuracoes.sites_com_login.esquecer": "Esquecer logins",
+  "configuracoes.sites_com_login.fazer_login": "Fazer login agora",
+  "configuracoes.sites_com_login.em_andamento": "Uma leitura está em andamento; tente de novo quando terminar.",
+  "configuracoes.sites_com_login.login.aguardando": "Entre no site na janela do navegador que abriu. O joBot espera até {minutos} minutos e fecha a janela quando você entrar.",
+  "configuracoes.sites_com_login.login.pronto": "Login feito. O joBot fechou a janela e já pode ler este site.",
+  "configuracoes.sites_com_login.login.tempo_esgotado": "O tempo acabou antes de você entrar. Tente de novo.",
+  "configuracoes.sites_com_login.login.sem_tela": "Não achei a tela do computador para abrir o navegador. Tente de novo com a sessão gráfica aberta.",
+  "configuracoes.sites_com_login.login.sem_navegador": "Nenhum navegador encontrado. Instale o Google Chrome e tente de novo.",
+  "configuracoes.sites_com_login.login.fechado": "O navegador foi fechado antes de você entrar.",
+  "configuracoes.sites_com_login.login.erro": "Algo deu errado ao abrir o navegador. Os detalhes ficaram no jobot.log.",
+  "configuracoes.sites_com_login.esquecer.pergunta": "Apagar os logins de todos os sites?",
+  "configuracoes.sites_com_login.esquecer.explicacao": "O joBot apaga a pasta do navegador dele, com as sessões de todos os sites. As vagas continuam. Para ler esses sites de novo, faça login outra vez.",
+  "configuracoes.sites_com_login.esquecer.apagar": "Apagar",
+  "configuracoes.sites_com_login.esquecer.cancelar": "Cancelar",
+  "configuracoes.sites_com_login.esquecer.apagados": "Logins apagados.",
+  "configuracoes.sites_com_login.esquecer.erro": "Não consegui apagar os logins. Os detalhes ficaram no jobot.log."
 }

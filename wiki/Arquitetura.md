@@ -56,6 +56,7 @@ flowchart TD
     cli --> banco
     cli --> nucleo
     cli --> navegador
+    painel --> navegador
     painel --> agenda
     painel --> sistema
     painel --> banco
