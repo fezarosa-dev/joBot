@@ -14,7 +14,9 @@ algum seletor (um seletor sem nó não recusa; todos sem nó, sim, com o código
 (subdomínios e `srcset` incluídos) perdem o valor da query (menos `url=`) e nenhuma resposta JSON é
 guardada. Com `--tirar REGEX` (repetível), o texto e os atributos que casam viram `<limpo>` só no
 HTML gravado (as respostas JSON não passam por ele); o que ainda casar no HTML pronto (num
-comentário, por exemplo) recusa a gravação. As duas listas entram na `.meta.json` quando há recorte.
+comentário, por exemplo) recusa a gravação. Em todo HTML gravado, o endereço de toda imagem
+(`src`, `srcset`, `poster`, `href` de imagem SVG e `url(...)` de `style`) vira `<limpo>`.
+As duas listas entram na `.meta.json` quando há recorte.
 Com leitor, guarda as respostas dos `hosts` dele que casam com `respostas`, a partir da
 `url_entrada`; sem leitor, `--host` é obrigatório e entra todo JSON desses hosts e o HTML final da
 página. Cada resposta é limpa pela posição (`campos_conta` do leitor e cada `--campo`: caminho JSON
@@ -373,6 +375,41 @@ def tirar(html: str, padroes: Sequence[str]) -> str:
     return arvore.html or html
 
 
+_IMAGEM_ATRIBUTOS = {
+    "img": ("src", "srcset"),
+    "source": ("src", "srcset"),
+    "video": ("poster",),
+    "image": ("href", "xlink:href"),  # SVG
+}
+# shortcut: aspas com escape (url("a\")b")), `url(` sem `)` e image-set() com string sem url() não
+# são cobertos; rever se aparecer numa captura.
+_URL_CSS = re.compile(r"""url\(\s*(?:'[^']*'|"[^"]*"|[^)]*?)\s*\)""", re.IGNORECASE)
+
+
+def sem_imagens(html: str) -> str:
+    """Troca por `MARCADOR` o endereço de toda imagem: nenhum leitor lê imagem, e o logo de uma
+    escola ou empresa vizinho do texto limpo diria o que a pessoa não quer mostrar."""
+    arvore = LexborHTMLParser(html)
+    if arvore.root is None:
+        return html
+    for no in arvore.root.traverse():
+        nomes = _IMAGEM_ATRIBUTOS.get(no.tag or "", ())
+        for nome in nomes:
+            if nome in no.attributes:
+                no.attrs[nome] = MARCADOR
+        if nomes:  # carregamento preguiçoso: data-src, data-delayed-url etc. levam o mesmo endereço
+            for nome, valor in list(no.attributes.items()):
+                if (
+                    nome.startswith("data-")
+                    and valor
+                    and ("://" in valor or valor.startswith("//"))
+                ):
+                    no.attrs[nome] = MARCADOR
+        if (estilo := no.attributes.get("style")) is not None:
+            no.attrs["style"] = _URL_CSS.sub(f"url({MARCADOR})", estilo)
+    return arvore.html or html
+
+
 def conferir_tirar(html: str, padroes: Sequence[str]) -> list[str]:
     """O que ainda casa no HTML inteiro (comentário, nome de atributo); nunca traz o trecho."""
     return [
@@ -392,11 +429,12 @@ def preparar(
     recorte: Sequence[str] = (),
     padroes_tirar: Sequence[str] = (),
 ) -> tuple[bytes, frozenset[str]]:
-    """Recorta, tira, limpa pela posição, tira dado pessoal e reduz, na ordem do `capturar.py`."""
+    """Recorta, troca endereços de imagem, tira, limpa pela posição, tira dado pessoal, reduz."""
     formato: Literal["json", "html"] = "json" if "json" in tipo else "html"
     if formato == "html":
         if recorte:
             texto = recortar(texto, recorte, host or "")
+        texto = sem_imagens(texto)
         if padroes_tirar:
             texto = tirar(texto, padroes_tirar)
     limpo, trocados = limpar_logado(texto, tipo, campos)
