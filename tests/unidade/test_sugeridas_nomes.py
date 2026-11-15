@@ -1,4 +1,4 @@
-"""A rota de sugeridas usa o nome público do painel, sem cópia local (T127)."""
+"""A rota de sugeridas usa o cliente público do painel, sem cópia local (T127, T185)."""
 
 import ast
 from pathlib import Path
@@ -19,4 +19,4 @@ def test_sugeridas_nao_copia_nome_publico() -> None:
         if isinstance(n, ast.ImportFrom)
         for a in n.names
     }
-    assert ("jobot.painel.rotas.vagas", "relogio_do_painel") in importados
+    assert ("jobot.painel.cliente", "cliente_do_painel") in importados

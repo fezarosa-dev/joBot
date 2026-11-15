@@ -229,8 +229,12 @@ class ClienteEducado:
         condicional: bool = True,
         max_pedidos: int | None = None,
         para_no_429: bool = False,
+        teto_espera_s: float | None = None,
+        seguir_saltos: bool = True,
     ) -> HttpDoEscopo:
-        return HttpDoEscopo(self, espera_s, condicional, max_pedidos, para_no_429)
+        return HttpDoEscopo(
+            self, espera_s, condicional, max_pedidos, para_no_429, teto_espera_s, seguir_saltos
+        )
 
     async def fechar(self) -> None:
         await self._cliente.aclose()
@@ -245,6 +249,9 @@ class ClienteEducado:
 
     async def _conferir_salto(self, resposta: httpx.Response) -> None:
         # Roda antes de o httpx montar o próximo salto: Location ruim não vira erro de rede.
+        # shortcut: com `seguir_saltos=False` este gancho ainda resolve o DNS do Location antes de
+        # `_abrir` recusar o salto (nenhum pedido HTTP nem corpo sai); marcar o pedido por
+        # `extensions` e pular o DNS quando a consulta de nome passar a importar.
         if not resposta.has_redirect_location:
             return
         try:
@@ -290,12 +297,16 @@ class HttpDoEscopo:
         condicional: bool,
         max_pedidos: int | None,
         para_no_429: bool,
+        teto_espera_s: float | None = None,
+        seguir_saltos: bool = True,
     ) -> None:
         self._dono = dono
         self._espera_s = espera_s
         self._condicional = condicional
         self._max_pedidos = max_pedidos
         self._para_no_429 = para_no_429
+        self._teto_espera_s = teto_espera_s
+        self._seguir_saltos = seguir_saltos
         self.pedidos = 0
         self.validadores_novos: dict[str, Validadores] = {}
 
@@ -384,6 +395,8 @@ class HttpDoEscopo:
             status = resposta.status_code
             if resposta.next_request is not None:
                 await resposta.aclose()
+                if not self._seguir_saltos:  # o corpo (ex.: chave de API) não vai a outro endereço
+                    raise ErroDeRede(f"{pedido.url}: redirecionamento não seguido", status)
                 saltos += 1
                 if saltos > MAX_SALTOS:
                     raise ErroDeRede(f"{original.url}: mais de {MAX_SALTOS} redirecionamentos")
@@ -428,6 +441,11 @@ class HttpDoEscopo:
                 if espera > MAX_RETRY_AFTER_S:
                     raise LimiteAtingido(
                         f"{pedido.url}: Retry-After de {espera:.0f} s", cabecalhos=resposta.headers
+                    )
+                if self._teto_espera_s is not None and espera > self._teto_espera_s:
+                    raise LimiteAtingido(
+                        f"{pedido.url}: espera de {espera:.0f} s acima do teto do escopo",
+                        cabecalhos=resposta.headers,
                     )
                 await relogio.dormir(espera)
                 continue

@@ -8,6 +8,19 @@ O formato segue o [Keep a Changelog 1.1.0](https://keepachangelog.com/pt-BR/1.1.
 
 ## [Não lançado]
 
+## [0.2.0] - 2026-11-15
+
+### Adicionado
+
+- ADR 0022: CAPTCHA resolvido pelo serviço que a pessoa liga (2Captcha), só na navegação com login.
+- Aba Serviços em Configurações: guarde a chave do 2Captcha, teste a chave e veja o saldo. O uso chega com a navegação com login.
+- Filtros novos na lista de vagas: país, publicada há quantos dias e, em "Mais filtros", salário, cidade, empresa e palavras que a vaga não pode ter.
+- "Meu país", perguntado na primeira execução e guardado em Configurações, e a moeda dos valores convertidos, que você escolhe (a do seu país por padrão).
+
+### Alterado
+
+- O salário em moeda estrangeira aparece convertido numa linha própria, embaixo do valor original.
+
 ## [0.1.1] - 2026-11-15
 
 Erros mais claros e menos surpresas. Nada muda no que o joBot busca.

@@ -38,6 +38,7 @@ from jobot.banco.cadastros import (
     remover_empresa,
     semear,
 )
+from jobot.banco.captcha import captcha_pronto
 from jobot.banco.conexao import abrir
 from jobot.banco.migrar import migrar
 from jobot.banco.sugeridas import gravar_sugestoes, sugeridas
@@ -427,6 +428,14 @@ async def _conversao(dados: Path) -> None:
         assert servidor.ptax() == [] and _um(con, "SELECT count(*) FROM cotacao") == 0
 
 
+async def _captcha(dados: Path) -> None:
+    chave = "abcdef0123456789abcd"  # inventada
+    with closing(_banco(dados)) as con:
+        assert captcha_pronto(con, chave) is False  # sem linha: desligado, mesmo com chave
+        gravar_config(con, "captcha_ligado", True)
+        assert captcha_pronto(con, chave) is True  # controle positivo
+
+
 async def _aviso_versao(dados: Path) -> None:
     pedidos: list[httpx.Request] = []
 
@@ -518,6 +527,7 @@ CASOS: Mapping[str, Callable[[Path], Awaitable[None]]] = {
     "conversao_moeda_ligada": _conversao,
     "regras_ocultar_ligadas": _ocultar_geral,
     "aviso_versao_ligada": _aviso_versao,
+    "captcha_ligado": _captcha,
     "regras_ocultar_por_busca": _ocultar_por_busca,
     "segundo_plano": _segundo_plano,
 }

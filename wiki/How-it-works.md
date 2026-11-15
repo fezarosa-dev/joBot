@@ -66,7 +66,7 @@ One search cycle, step by step:
 <summary><strong>Salary</strong></summary>
 
 - The salary reader separates salary from benefits, checks the period (per hour, month or year) and whether the value is plausible.
-- A salary in a foreign currency is converted to reais using the PTAX rate from Brazil's Central Bank, when a rate is available.
+- A salary in a foreign currency is converted to the display currency you choose in Settings (your country's by default), using the PTAX rate from Brazil's Central Bank, when a rate is available.
 - Without a rate, the job is not removed by the minimum salary filter.
 </details>
 
@@ -121,7 +121,7 @@ Each source has an on/off switch.
 ## 📋 The dashboard
 
 - **Tabs:** Today's highlights, All, New, Closing soon, Saved, Applied, Programs and Hidden.
-- **Filters** as "chips" (little buttons) with counts. The current filter stays in the page address, so you can save the link. Quick search with the `/` key.
+- **Filters** as "chips" (little buttons) with counts: country and how many days ago the job was posted stay in view; salary, city, company and words the job must not have are under "More filters". The current filter stays in the page address, so you can save the link. Quick search with the `/` key.
 - **Status of each job:** new → saved → applied → interview → rejected or offer.
 - **12-month calendar** on each job, to see deadlines at a glance.
 - **"Something wrong with this job?"**: a button to fix a label or a piece of data.

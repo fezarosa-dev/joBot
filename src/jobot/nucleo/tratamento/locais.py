@@ -261,6 +261,11 @@ _ACENTOS = {
 _NOMES = {codigo: _ACENTOS.get(chave, chave.title()) for chave, codigo in _PAISES.items()}
 
 
+def codigos_de_pais() -> tuple[str, ...]:
+    """Códigos ISO de `_PAISES` sem repetição, na ordem em que aparecem."""
+    return tuple(dict.fromkeys(_PAISES.values()))
+
+
 def nome_do_pais(codigo: str) -> str | None:
     """Nome em português do país (ISO alfa-2 em maiúsculas); `None` se o código não consta."""
     return _NOMES.get(codigo)

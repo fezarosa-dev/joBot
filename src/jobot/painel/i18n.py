@@ -4,6 +4,8 @@ from functools import cache
 from pathlib import Path
 from typing import Literal
 
+from jobot.nucleo.tratamento.locais import codigos_de_pais
+
 PASTA = Path(__file__).parent / "i18n"
 
 
@@ -33,8 +35,8 @@ def t(idioma: str, chave: str, **params: object) -> str:
     return chave if texto is None else texto.format(**params)
 
 
-def idioma_inicial(accept_language: str | None) -> Literal["pt", "en"]:
-    """Primeiro idioma pt/en do Accept-Language, por peso (q); sem match, pt."""
+def _tags_por_peso(accept_language: str | None) -> list[str]:
+    """As tags do Accept-Language por peso (q), sem as de peso zero; empate fica na ordem dada."""
     preferidos: list[tuple[float, int, str]] = []
     for ordem, item in enumerate((accept_language or "").split(",")):
         tag, *parametros = item.strip().split(";")
@@ -47,10 +49,27 @@ def idioma_inicial(accept_language: str | None) -> Literal["pt", "en"]:
                 except ValueError:
                     peso = 0.0
         if peso > 0:
-            preferidos.append((-peso, ordem, tag.strip().lower().split("-")[0]))
-    for _, _, base in sorted(preferidos):
+            preferidos.append((-peso, ordem, tag.strip()))
+    return [tag for _, _, tag in sorted(preferidos)]
+
+
+def idioma_inicial(accept_language: str | None) -> Literal["pt", "en"]:
+    """Primeiro idioma pt/en do Accept-Language, por peso (q); sem match, pt."""
+    for tag in _tags_por_peso(accept_language):
+        base = tag.lower().split("-")[0]
         if base == "en":
             return "en"
         if base == "pt":
             return "pt"
     return "pt"
+
+
+def pais_do_accept_language(cabecalho: str | None) -> str:
+    """País da primeira região de duas letras que conhecemos, por peso (q); sem região, `BR`."""
+    conhecidos = codigos_de_pais()
+    for tag in _tags_por_peso(cabecalho):
+        for parte in tag.split("-")[1:]:
+            regiao = parte.upper()
+            if len(regiao) == 2 and regiao.isascii() and regiao.isalpha() and regiao in conhecidos:
+                return regiao
+    return "BR"

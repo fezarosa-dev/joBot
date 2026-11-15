@@ -6,10 +6,11 @@ O segundo plano e o systemd são falsos: nenhum teste chama `systemctl` nem `dis
 import html as html_lib
 import json
 import re
+import sqlite3
 import time
 from collections.abc import Iterator, Sequence
 from contextlib import closing
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -18,8 +19,8 @@ from fastapi.testclient import TestClient
 
 from apoio.relogio import RelogioFalso
 from apoio.segundo_plano_falso import FalsoSistema
-from apoio.semear import semear
-from jobot.banco import cadastros
+from apoio.semear import inserir_vaga, semear
+from jobot.banco import buscas, cadastros
 from jobot.banco.conexao import abrir
 from jobot.banco.migrar import migrar
 from jobot.painel.app import criar_app
@@ -465,6 +466,140 @@ def test_aparencia_usa_as_rotas_de_preferencia_e_volta_para_ela(painel: Painel) 
     assert painel.config("tema") == "escuro"
 
 
+APARENCIA = "/configuracoes/aparencia"
+HOJE = date(2026, 11, 13)
+
+
+def _gravar_pais(painel: Painel, pais: str) -> None:
+    painel.sql(
+        "INSERT INTO config (chave, valor) VALUES ('meu_pais', ?)"
+        " ON CONFLICT (chave) DO UPDATE SET valor = excluded.valor",
+        json.dumps(pais),
+    )
+
+
+def _vaga_restrita_a_pt(painel: Painel) -> tuple[int, int]:
+    """Busca sem cidade e vaga remota restrita a PT; o encaixe é calculado com Meu país = BR."""
+    with closing(abrir(painel.banco)) as con:
+        vaga = inserir_vaga(con, modalidade="remoto", avisos='["restrito_a_pais"]')
+        con.execute(
+            "INSERT INTO local_vaga (vaga_id, cidade, uf, pais) VALUES (?, NULL, NULL, 'PT')",
+            (vaga,),
+        )
+        cur = con.execute(
+            "INSERT INTO busca (nome, criada_em) VALUES ('sem cidade', '2026-11-13T12:00:00+00:00')"
+        )
+        busca = int(cur.lastrowid or 0)
+        con.commit()
+        buscas.recalcular_encaixe(con, [busca], True, hoje=HOJE)
+    return busca, vaga
+
+
+def _oculta_de(painel: Painel, busca: int, vaga: int) -> str | None:
+    linhas = painel.sql(
+        "SELECT oculta_motivo FROM encaixe WHERE busca_id = ? AND vaga_id = ?", busca, vaga
+    )
+    return None if linhas[0][0] is None else str(linhas[0][0])
+
+
+def test_aparencia_grava_meu_pais_e_moeda(painel: Painel) -> None:
+    resposta = painel.post(APARENCIA, {"meu_pais": "PT", "moeda_exibicao": "JPY"})
+    assert resposta.status_code == 303
+    assert resposta.headers.get("location") == APARENCIA + SALVO
+    assert painel.config("meu_pais") == "PT"
+    assert painel.config("moeda_exibicao") == "JPY"
+    painel.post(APARENCIA, {"meu_pais": "PT", "moeda_exibicao": ""})  # "" = a do país
+    assert painel.config("moeda_exibicao") == ""
+
+
+@pytest.mark.parametrize(
+    "dados",
+    [
+        {"meu_pais": "XX", "moeda_exibicao": ""},
+        {"meu_pais": "", "moeda_exibicao": ""},
+        {"meu_pais": "PT", "moeda_exibicao": "BTC"},
+        {"meu_pais": "pt", "moeda_exibicao": ""},
+        {"meu_pais": " PT", "moeda_exibicao": ""},
+        {"meu_pais": "PT"},
+    ],
+)
+def test_aparencia_recusa_valor_de_fora(painel: Painel, dados: dict[str, str]) -> None:
+    _gravar_pais(painel, "BR")
+    antes = painel.sql("SELECT chave, valor FROM config ORDER BY chave")
+    resposta = painel.post(APARENCIA, dados)
+    assert resposta.status_code == 422
+    assert painel.sql("SELECT chave, valor FROM config ORDER BY chave") == antes
+    # controle: o mesmo formulário com valores da lista é aceito
+    assert painel.post(APARENCIA, {"meu_pais": "PT", "moeda_exibicao": "EUR"}).status_code == 303
+
+
+def test_trocar_meu_pais_recalcula_o_encaixe(painel: Painel) -> None:
+    busca, vaga = _vaga_restrita_a_pt(painel)
+    assert _oculta_de(painel, busca, vaga) == "pais"  # controle: com BR a vaga de PT fica oculta
+    painel.post(APARENCIA, {"meu_pais": "PT", "moeda_exibicao": ""})
+    assert _oculta_de(painel, busca, vaga) is None
+
+
+def test_trocar_so_a_moeda_nao_recalcula(painel: Painel, monkeypatch: pytest.MonkeyPatch) -> None:
+    _gravar_pais(painel, "PT")
+    chamadas: list[object] = []
+
+    def conta(*args: object, **kw: object) -> int:
+        chamadas.append(args)
+        return 0
+
+    monkeypatch.setattr("jobot.painel.rotas.configuracoes.buscas.recalcular_encaixe", conta)
+    painel.post(APARENCIA, {"meu_pais": "PT", "moeda_exibicao": "JPY"})
+    assert chamadas == []
+    assert painel.config("moeda_exibicao") == "JPY"
+    painel.post(APARENCIA, {"meu_pais": "DE", "moeda_exibicao": "JPY"})  # controle: país muda
+    assert len(chamadas) == 1
+
+
+def test_recalculo_que_falha_ao_trocar_pais_nao_grava_a_chave(
+    painel: Painel, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    busca, vaga = _vaga_restrita_a_pt(painel)
+    _gravar_pais(painel, "BR")
+
+    def quebra(*_: object, **__: object) -> None:
+        raise sqlite3.OperationalError("banco travado")
+
+    with monkeypatch.context() as m:
+        m.setattr("jobot.painel.rotas.configuracoes.buscas.recalcular_encaixe", quebra)
+        with pytest.raises(sqlite3.OperationalError):
+            painel.post(APARENCIA, {"meu_pais": "PT", "moeda_exibicao": ""})
+    assert painel.config("meu_pais") == "BR"
+    assert _oculta_de(painel, busca, vaga) == "pais"  # o encaixe segue como estava
+    painel.post(APARENCIA, {"meu_pais": "PT", "moeda_exibicao": ""})  # sem falha: grava e recalcula
+    assert painel.config("meu_pais") == "PT"
+    assert _oculta_de(painel, busca, vaga) is None
+
+
+def _opcoes(html: str, nome: str) -> list[tuple[str, str]]:
+    select = re.search(rf'<select\b[^>]*name="{nome}".*?</select>', html, re.DOTALL)
+    assert select is not None
+    achadas = re.findall(r'<option value="([^"]*)"[^>]*>([^<]*)</option>', select.group(0))
+    return [(valor, html_lib.unescape(texto).strip()) for valor, texto in achadas]
+
+
+def test_aparencia_mostra_os_paises_na_lingua_da_tela(painel: Painel) -> None:
+    _gravar_pais(painel, "PT")
+    pt = painel.get(APARENCIA).text
+    paises = _opcoes(pt, "meu_pais")
+    assert len(paises) == 55
+    assert ("DE", "Alemanha") in paises
+    assert '<option value="DE">Alemanha' in pt
+    assert re.search(r'<option value="PT" selected>Portugal', pt)
+    moedas = _opcoes(pt, "moeda_exibicao")
+    assert len(moedas) == 12
+    assert moedas[0] == ("", "A do meu país (EUR)")
+    assert [valor for valor, _ in moedas[1:]][:2] == ["BRL", "AUD"]
+    en = painel.get(APARENCIA, headers={"Accept-Language": "en"}).text
+    assert ("DE", "Germany") in _opcoes(en, "meu_pais")
+    assert _opcoes(en, "moeda_exibicao")[0] == ("", "My country's (EUR)")
+
+
 # ------------------------------------------------------------------ privacidade
 
 
@@ -511,9 +646,9 @@ def test_interruptor_aviso_versao_aparece_em_privacidade_e_grava(painel: Painel)
 
 def test_privacidade_diz_que_o_aviso_de_versao_vem_ligado(painel: Painel) -> None:
     pt = _texto(painel.get(PRIVACIDADE).text)
-    assert "pergunta ao GitHub (vem ligado" in pt and "vem desligado" not in pt
+    assert "pergunta ao GitHub (vem ligado" in pt and "GitHub (vem desligado" not in pt
     en = _texto(painel.get(PRIVACIDADE, headers={"Accept-Language": "en"}).text)
-    assert "asks GitHub (it comes on" in en and "it comes off" not in en
+    assert "asks GitHub (it comes on" in en and "GitHub (it comes off" not in en
 
 
 def test_aviso_de_versao_gravado_desligado_aparece_desligado(painel: Painel) -> None:

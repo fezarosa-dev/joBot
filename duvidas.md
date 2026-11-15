@@ -2,7 +2,7 @@
 
 Decisões que dependem do dono do projeto. As resolvidas ficam registradas aqui, com a data.
 
-Status usados: **resolvida** (o dono decidiu ou aceitou a decisão da sessão, com a data); **decidido pelo dono** e **decisão aceita** (variantes de resolvida, com a data); **superada por Dn** (outra decisão tomou o lugar dela); **decidido pela sessão, para confirmar** (a sessão decidiu com o dono ausente: ele confirma ou manda desfazer). Textos antigos que dizem "para confirmar" (D11 a D76) são o registro de quando a decisão ainda estava com a sessão: o dono aceitou todas em 2026-11-15 (Q7), e a decisão final de cada uma está no Status do início dela. **resolvida com escolha da sessão para confirmar** (o dono decidiu o quê e a sessão escolheu o como, que ele ainda confirma: D121 e D123). Só as D110 a D119 e as escolhas da D121 e da D123 ainda esperam o dono.
+Status usados: **resolvida** (o dono decidiu ou aceitou a decisão da sessão, com a data); **decidido pelo dono** e **decisão aceita** (variantes de resolvida, com a data); **superada por Dn** (outra decisão tomou o lugar dela); **decidido pela sessão, para confirmar** (a sessão decidiu com o dono ausente: ele confirma ou manda desfazer). Textos antigos que dizem "para confirmar" (D11 a D76) são o registro de quando a decisão ainda estava com a sessão: o dono aceitou todas em 2026-11-15 (Q7), e a decisão final de cada uma está no Status do início dela. **resolvida com escolha da sessão para confirmar** (o dono decidiu o quê e a sessão escolheu o como, que ele ainda confirma: D121 e D123). Só as D110 a D119 e as escolhas da D121, da D123 e da D126 ainda esperam o dono.
 
 ## D1. Manter a opção "sessão do Claude Code"
 
@@ -1701,3 +1701,203 @@ A meta de 90% só foi batida em UF. Ela não trava a fase 1.
 **Decisão da sessão:** o `ci.yml` ganha o gatilho de push para branches `lote/**` do próprio repositório e o `workflow_dispatch`. Tudo o que a sessão rodaria na máquina (a bateria antes de juntar, a conferência do vermelho contra o código antigo e a nova rodada depois de uma correção) sobe numa branch `lote/<nome>` e roda no Actions. Uma tarefa só entra na `dev` com o CI verde, e a branch remota é apagada depois. Na máquina fica só o arquivo de teste da própria tarefa (vermelho e verde de quem implementa) e o `ruff`. A ADR 0018 ganhou a linha do novo gatilho. Desfazer: tirar o `push` e o `workflow_dispatch` do `ci.yml` (o `test_ci.py` acompanha).
 
 **Decisão do dono, no mesmo dia:** a `dev` vai para o GitHub toda vez que algo verde entra nela, e o PR da `dev` para a `main` sai com menos frequência, quando juntar um bloco bom, sem pedir de novo. Antes, os dois esperavam o fim da fase.
+
+## D124. 2Captcha: resolver CAPTCHA pelo serviço da pessoa (ADR 0022)
+
+**Status:** resolvida em 2026-11-15: escolha da sessão, para confirmar com o dono
+
+**Contexto:** o dono pediu, por voz, um campo em Configurações para a chave de API do 2Captcha e um liga/desliga; nas telas com CAPTCHA da navegação automática, com a chave posta e ligada, o 2Captcha resolve. Pediu também uma tela bonita, com animações e sem controle padrão do HTML. Hoje a ADR 0005 diz que o joBot nunca tenta contornar CAPTCHA e que a janela fica parada para a pessoa resolver. A fase 1 não tem navegador, e o token do 2Captcha sozinho não passa a tela "Just a moment" do Cloudflare num cliente HTTP. O desenho completo está em `docs/superpowers/specs/2026-11-15-captcha-design.md`.
+
+**Decisão da sessão, para confirmar:**
+
+- Escopo: o 2Captcha só age na navegação com login da fase 2 (Chrome visível pelo Playwright, com o perfil do joBot, ADR 0005). As fontes públicas seguem a ADR 0004 sem mudança: CAPTCHA é "a fonte falhou".
+- Vem desligado. O interruptor fica travado enquanto não houver chave salva, e o servidor recusa ligar sem chave.
+- A chave fica no cofre de senhas do sistema, pela `keyring` (já decidida na ADR 0014, licença MIT), fixada com `==`. Sem cofre: arquivo legível só pelo usuário (0600) na pasta de dados, e aviso no painel. O interruptor fica na tabela `config` (chave `captcha_ligado`, padrão falso em `cadastros.PADROES`).
+- Tipos: reCAPTCHA v2 (inclusive invisível), reCAPTCHA v3 e Cloudflare Turnstile, pelas tarefas sem proxy da API JSON (`createTask`, `getTaskResult`, `getBalance`, em `https://api.2captcha.com`). hCaptcha fica fora (não está na documentação pública).
+- Fluxo da fase 2: o navegador acha o desafio, pede ao 2Captcha com o endereço da página, a `sitekey` e o user agent do próprio navegador, consulta a cada 5 segundos ou mais, com tempo-limite total de 180 segundos, injeta o token e segue. Falha, tempo esgotado, saldo zero ou chave errada: cai no comportamento da 0005 (aviso vermelho, janela parada). Uma tentativa por página por rodada.
+- Teto de gasto: no máximo 30 resoluções por dia, valor fixo no código (não é configuração). Cada resolução vai para o `jobot.log` com o custo, sem a chave.
+- O que entra já, junto da 0.2.0: a aba nova "Serviços" em Configurações com o cartão do 2Captcha (campo de chave mascarado com botão mostrar e ocultar, Salvar, Apagar chave, interruptor, botão "Testar chave" que mostra o saldo), o cofre e o cliente da API no núcleo (saldo e resolver), tudo testado offline. A cola com o navegador (achar o desafio e injetar o token) entra com a fase 2.
+- Texto honesto no cartão: vale para a navegação com login, que chega numa versão futura; as fontes públicas nunca usam; resolver CAPTCHA pode ir contra os termos de alguns sites e a conta pode ser restringida; cada resolução custa dinheiro da conta da pessoa no 2Captcha. O link para o site do 2Captcha abre no navegador da pessoa (`target="_blank"`, `rel="noopener noreferrer"`); o painel não carrega recurso externo.
+- A chave nunca volta ao HTML (só pontos e os 4 últimos caracteres) e nunca vai para log, mensagem de erro ou exceção. Salvar com o campo vazio mantém a chave atual. Apagar é um POST próprio, com CSRF.
+- Erros da API viram mensagens do painel por um conjunto fechado de códigos (chave inexistente, sem saldo, sem vaga no momento, não resolvível, IP bloqueado, conta suspensa, tempo esgotado, outro), nos catálogos pt e en.
+- Rede: pelo `ClienteEducado` do núcleo (já aceita `POST` com `corpo_json`, `src/jobot/nucleo/http.py:302-312`), com o relógio injetado; o painel não importa `httpx`. O cliente não tem lista de hosts permitidos (`nucleo/http.py:238`), então `api.2captcha.com` passa sem mudança; o construtor confere com um teste e cuida de o `createTask` não ser repetido em erro de rede.
+- Visual: interruptor animado (melhora o `.chave` de `configuracoes.css`: mola na bolinha, cor do trilho em transição, bolinha que estica ao apertar, anel de foco, estado desativado de verdade); campos de texto e de chave com estilo próprio; botão com indicador de espera durante o teste (classe `htmx-request`); resultado do teste entra com fade e leve deslize; tudo respeita `prefers-reduced-motion`; acessível (rótulo, `aria-pressed` no olho, `aria-live` no resultado). JS só em arquivo do próprio painel (CSP `script-src 'self'`).
+
+**Escolhas da sessão dentro desta decisão, para confirmar:** o nome `captcha_ligado` (e não `captcha.ligado`) para seguir o padrão das outras chaves e cair na conferência de `test_integracao_final.py`; o interruptor grava na hora, num POST próprio, e não pelo "Salvar" da chave; o botão "Testar chave" usa a chave digitada, se houver, senão a salva, e não grava; o tamanho aceito da chave é de 16 a 64 caracteres, só letras e números.
+
+**Ainda aberto para o dono** (seção 7 do desenho): o teto de 30 por dia; chave em arquivo 0600 quando não há cofre; uso em todos os sites ou por site; saldo só ao clicar em "Testar chave"; nome da aba.
+
+**Como desfazer:** tirar a aba e o cliente da API, apagar a chave do cofre, e voltar a 0005 e a 0014 ao texto anterior (a 0022 passa a "substituída" ou sai).
+
+## D125. IA pela sessão do Claude Code e do Codex, com botão Baixar (ADR 0009)
+
+**Status:** resolvida em 2026-11-15: escolha da sessão, para confirmar com o dono
+
+**Contexto:** na configuração da IA, o dono pediu, por voz, rodar pela sessão do Claude Code e, se der, pela sessão do Codex da OpenAI, com um botão de download ao lado que baixa ou leva à página de download. A fase 3 (IA, ADR 0017) é quem constrói; agora só se registra.
+
+**Decisão da sessão, para confirmar:**
+
+- Nada é construído agora; só o registro, na ADR 0009 e no desenho `docs/superpowers/specs/2026-11-15-captcha-design.md` (parte F).
+- A sessão do Claude Code já está decidida (ADR 0010). Entra também a sessão do Codex CLI da pessoa (comando `codex exec`), com teste ao ligar no molde da 0009. Antes de construir, conferir nos termos da OpenAI se o uso do plano do ChatGPT em automação pessoal é permitido; a documentação pública recomenda chave de API e não autoriza nem proíbe o plano, e os Termos de Uso vigentes não foram lidos. Se não for permitido, o Codex entra só com chave de API (o backend OpenAI que já existe).
+- Ao lado de cada backend de sessão, um botão "Baixar" que abre a página oficial de instalação no navegador da pessoa (Claude Code: <https://code.claude.com/docs/en/setup>; Codex: a página oficial do Codex CLI, endereço conferido na fase 3). O joBot não baixa nem roda instalador: a página oficial escolhe o sistema certo, e o painel não carrega recurso externo. O botão aparece quando o programa não é achado no `PATH`.
+- "Codex" é marca da OpenAI; o joBot não é afiliado à OpenAI (mesma linha que já existe para o Claude).
+
+**Como desfazer:** tirar o backend do Codex e o botão da ADR 0009; nada de código a desfazer.
+
+## D126. Quatro escolhas do desenho da 0.2.0, limite de 1 s relativo e salário sem moeda na URL (D107)
+
+**Status:** resolvida em 2026-11-15: escolha da sessão, para confirmar com o dono
+
+**Contexto:** o desenho da 0.2.0 (`docs/superpowers/specs/2026-11-15-0-2-0-filtros-moeda-design.md`) deixou quatro perguntas na seção 7 para o dono, mais dois pontos que a sessão fechou ao conferir o código. O dono está ausente; a sessão decidiu pela recomendação de cada uma e o desenho já segue essas respostas.
+
+**Decisão da sessão, para confirmar:**
+
+- Vaga sem salário sai quando o filtro de salário está ligado, com o aviso "N vagas sem salário ficaram de fora" e um jeito de incluí-las (`sem_salario=1`).
+- "Meu país" é perguntado no passo 1 da primeira execução, já marcado pelo `Accept-Language` (região em `_PAISES`) e, sem ele, BR. O "pular" também grava o valor pré-escolhido quando ainda não há um.
+- Os campos novos (salário, cidade, empresa, "não pode ter") ficam dentro de "Mais filtros"; os chips de país e "publicada há" ficam à vista (opção b da seção 7).
+- País fora das 11 moedas mostra em USD.
+- Desempenho (parte H): o limite de 1 s vale para o acréscimo de cada filtro novo sobre a vista atual, medido antes e depois na mesma máquina pelo script da parte H (comparação relativa, sem máquina de referência). A vista sem filtro também é medida; se ela já passar de 1 s, vira uma D para a próxima versão, sem tarefa na 0.2.0.
+- Salário (parte B): `sal_de` e `sal_ate` seguem em unidades da moeda de exibição Y, sem moeda na URL (painel local, Y muda pouco). Um link antigo reaberto depois de trocar Y lê os mesmos números na moeda nova.
+
+**Como desfazer:** o dono manda trocar qualquer item. Vaga sem salário: tirar o filtro `sem_salario` e o aviso, ou deixar a vaga sempre dentro. Meu país: tirar o campo do passo 1 e deixar só em Configurações. Posição dos filtros: mover os chips para dentro do `<details>` (opção a; o custo é o mesmo). Moeda desconhecida: trocar o USD por uma pergunta ou por BRL. Limite: voltar ao 1 s absoluto numa máquina de referência. Moeda na URL: acrescentar o parâmetro e a conversão na rota. Nada disso está construído ainda; basta mudar o desenho e as tarefas.
+
+## D127. Escolhas do plano do 2Captcha (T180 a T187)
+
+**Status:** resolvida em 2026-11-15: escolha da sessão, para confirmar com o dono
+
+**Contexto:** o plano do 2Captcha (`docs/superpowers/plans/2026-11-15-captcha.md`) fez escolhas que o desenho (`docs/superpowers/specs/2026-11-15-captcha-design.md`) deixou em aberto. Elas seguem a D124 (CAPTCHA resolvido pelo serviço que a pessoa liga, só na navegação com login da fase 2); o dono está ausente e a sessão decidiu pela recomendação de cada uma. Cada escolha tem o teste que a prende.
+
+**Escolhas do plano:**
+
+| # | Escolha | Teste |
+|---|---|---|
+| E1 | `saldo` e `resolver` recebem o `ClienteEducado` (não um `HttpEducado`): o `createTask` sai num escopo próprio com `max_pedidos=1`, que transforma a repetição automática em `OrcamentoGasto`. O contrato do `HttpEducado` não muda. | `test_erro_de_rede_no_createtask_nao_abre_segunda_tarefa` |
+| E2 | O prazo de 180 s conta pelo relógio injetado, no topo de cada volta. Por fora, um teto real `asyncio.timeout(PRAZO_S + MARGEM_S)` em volta da resolução inteira (com o `RelogioFalso` nunca dispara) e `max_pedidos` também no escopo da consulta. | `test_passou_de_180_s_e_tempo_esgotado`, `test_503_com_retry_after_longo_nao_passa_do_prazo` |
+| E3 | Todo escopo do 2Captcha usa `para_no_429=True` e `teto_espera_s=30`: 429 vira `OUTRO` na hora; 503 com espera acima de 30 s também, sem dormir (frequência errada pode bloquear a conta). O parâmetro `teto_espera_s` é novo no `escopo` do `ClienteEducado`, opcional e `None` por padrão. | `test_saldo_429_vira_outro_sem_esperar`, `test_teto_espera_corta_retry_after_longo` |
+| E4 | O conjunto fechado ganha `TETO_DIARIO`, além dos oito do desenho. | `test_teto_recusa_antes_do_pedido` |
+| E5 | Sem vaga (`errorId` 2) até o prazo acabar devolve `SEM_VAGA`, não `TEMPO_ESGOTADO`. | `test_sem_vaga_ate_o_fim_e_sem_vaga` |
+| E6 | `userAgent` vai só no reCAPTCHA v2: a seção 4 do desenho lista o campo só nele. | `test_resolver_recaptcha_v2`, `test_resolver_recaptcha_v3`, `test_resolver_turnstile` |
+| E7 | Teto e contador em `banco/captcha.py` (`TETO_DIA = 30`), na chave `captcha_uso` da `config`, com `{"dia": "<AAAA-MM-DD local>", "n": <int>}`, num comando SQL só. Conta antes do `createTask`, uma vez por chamada de `resolver`. | `test_reserva_ate_o_teto_e_recusa_a_seguinte`, `test_reserva_e_um_comando_so` |
+| E8 | O portão da fase 2 é `captcha_pronto(con, chave)`, no `banco`. | `test_pronto_so_com_chave_e_ligado` |
+| E9 | Cofre: lê do sistema e depois do arquivo; grava no sistema e confere lendo de volta; deu certo, apaga o arquivo antigo; caiu no arquivo, tenta apagar a cópia do sistema. Apagar confere lendo de volta (ainda lá = `OSError`). Arquivo `<pasta de dados>/<nome>.segredo`. Log só com o tipo da exceção, sem `exc_info`. | `test_gravar_no_cofre_apaga_o_arquivo_antigo`, `test_cofre_que_falha_cai_no_arquivo_0600`, `test_reserva_no_arquivo_nao_deixa_chave_velha_no_sistema`, `test_apagar_que_o_cofre_recusa_levanta` |
+| E9b | Chamadas ao cofre no painel com `asyncio.wait_for(run_in_threadpool(...), 15)`; estourou = `erro.cofre`. `shortcut:` a thread do keyring fica presa até o cofre responder; trocar quando houver API assíncrona. | `test_cofre_que_trava_vira_erro_em_15_s` |
+| E9c | Dependências da `keyring` aceitas pelo ADR 0014; licença fora de MIT/BSD/Apache = parar (R4). A T180 lista a diferença do `uv.lock` (abaixo). | conferência manual na T180 |
+| E10 | Os testes rodam com `PYTHON_KEYRING_BACKEND=keyring.backends.fail.Keyring` (posto no topo de `tests/conftest.py`): nunca tocam o cofre real de quem roda. | `test_testes_nunca_tocam_o_cofre_real` |
+| E11 | "Testar chave" responde 200 com o resultado no fragmento, também no erro (o HTMX não troca resposta 4xx). Prazo do teste: 30 s. | `test_cada_falha_da_api_vira_o_texto_dela` |
+| E12 | Ligar sem chave salva: 409. | `test_ligar_sem_chave_da_409_e_nao_grava` |
+| E13 | Saldo com 2 casas, cortando (`ROUND_DOWN`), separadores do idioma, sem moeda. | `test_decimal_curto` |
+| E14 | Custo fora do formato vira `None`; a resolução continua valendo. | `test_custo_torto_fica_none` |
+| E15 | O interruptor é o `<input type="checkbox">` nativo com `role="switch"`, sem `aria-checked` (o estado vem do `checked`). | `test_espaco_liga_e_desliga` |
+| E16 | Cor nova `--sucesso: light-dark(#1e7b34, #30d158)` em `base.css` (5,33:1 no `#fff`, 4,9:1 no `#f5f5f7`, 8,42:1 no `#1c1c1e`), com par no contraste. | `test_contraste_minimo`, `test_resultado_ok_usa_o_token_nos_dois_temas` |
+| E17 | O `ClienteEducado` do painel nasce num lugar só (`painel/cliente.py:cliente_do_painel`), usado por empresas, sugeridas e serviços. | `test_cliente_do_painel_definido_uma_vez` |
+
+**Parâmetro novo:** `teto_espera_s` no `escopo` do `ClienteEducado` (E3): opcional, `None` por padrão; os escopos do 2Captcha passam 30. Quem não passa nada mantém o comportamento de antes.
+
+**Dependências que a T180 trouxe no `uv.lock`** (`keyring==25.7.0` é a única direta, fixada com `==`; as demais são transitivas):
+
+| Pacote | Versão | Licença | Roda para o 3.14 |
+|---|---|---|---|
+| keyring | 25.7.0 | MIT | `py3-none-any` |
+| jaraco-classes | 3.4.0 | MIT | `py3-none-any` |
+| jaraco-context | 6.1.2 | MIT | `py3-none-any` |
+| jaraco-functools | 4.6.0 | MIT | `py3-none-any` |
+| more-itertools | 11.2.1 | MIT | `py3-none-any` |
+| jeepney | 0.9.0 | MIT | `py3-none-any` (só Linux) |
+| secretstorage | 3.5.0 | BSD-3-Clause | `py3-none-any` (só Linux) |
+| cryptography | 50.0.2 | Apache-2.0 OR BSD-3-Clause | `cp311-abi3` (vale no 3.14) e `cp314-cp314t`, manylinux e musllinux (só Linux) |
+| cffi | 2.1.1 | MIT | `cp314-cp314` e `cp314t`: rodas de Linux (manylinux e musllinux) e de iOS; sem Windows nem macOS no lock |
+| pycparser | 3.12 | BSD-3-Clause | `py3-none-any` |
+| pywin32-ctypes | 0.2.3 | BSD-3-Clause | `py3-none-any` (só Windows) |
+
+`cryptography` e `cffi` entram só pelo `secretstorage`, que o `keyring` pede só no Linux: por isso o `uv.lock` não traz roda de Windows nem de macOS para eles. Todas as licenças estão em MIT, BSD ou Apache, como manda a E9c.
+
+**Escolhas extras da construção, para confirmar:**
+
+- `HttpEducado` ganha `seguir_saltos=False` nos escopos do 2Captcha: o POST com a chave no corpo não segue 307/308 (o httpx reenviaria o corpo ao `Location`). Aditivo, padrão `True`.
+- Cofre: apagar com o cofre trancado levanta `OSError`; só `NoKeyringError` conta como "não há cofre".
+- Cofre: `NoKeyringError` loga em DEBUG; outras falhas em WARNING, só com o tipo da exceção.
+- Cofre trancado no gravar: a chave velha do sistema pode voltar depois do desbloqueio (atalho aceito).
+- Teste da chave: `POST /configuracoes/servicos/captcha/testar` responde sempre 200, com prazo de 30 s (`PRAZO_TESTE_S`); o log da falha traz só o tipo da falha.
+- T173 nova: o detector de camadas resolve import relativo.
+
+**Como desfazer:** o dono manda trocar qualquer item; nada disso está no ar. Para mudar uma escolha, basta mudar o plano e a tarefa dona (a coluna "Teste" diz qual).
+
+## D128. Escolhas do redator da 0.2.0: filtros, país e moeda (T162 a T170)
+
+**Status:** resolvida em 2026-11-15: escolha da sessão, para confirmar com o dono
+
+**Contexto:** o desenho da 0.2.0 (`docs/superpowers/specs/2026-11-15-0-2-0-filtros-moeda-design.md`) e o plano (`docs/superpowers/plans/2026-11-15-0-2-0.md`) deixaram detalhes para quem escreve o código. O dono está ausente; a sessão decidiu pela recomendação de cada um, complementando a D126.
+
+**Decisão da sessão, para confirmar:**
+
+- Coroas (SEK, NOK, DKK) e franco suíço (CHF) aparecem pelo código, não por símbolo: o símbolo "kr" é o mesmo para as três coroas e "Fr" é ambíguo.
+- `publicada` (há quantos dias) conta dentro do `contar_chips`, como os outros chips, e não numa consulta à parte.
+- A conversão da moeda Y (a de exibição) para BRL mora em `nucleo/cambio.py`, junto da conversão que já existia.
+- A linha do valor convertido segue a ordem "≈ valor · cotação".
+- Vaga em BRL sem cotação da moeda Y: sem linha de convertido e sem nota (já está em reais). Vaga em outra moeda (nem BRL nem Y) quando Y não tem cotação: mostra o valor em reais, com a nota "em reais: ainda não temos a cotação de {moeda}" (en: "shown in reais: no {moeda} exchange rate yet").
+- `sql_de_listar` é público em `banco/leitura.py`, para o teste de plano (`EXPLAIN QUERY PLAN`) usar o mesmo SQL da tela.
+- Escolhas da construção da T169: `_SIMBOLO` com CAD `C$`, AUD `A$` e JPY `¥`; a data da cotação mostrada é a mais antiga das duas (taxa cruzada); valor convertido que passa do `INTEGER_MAX` do SQLite (cotação minúscula) some em vez de dar erro 500; cotação da vaga estragada (valor não finito, menor ou igual a zero, ou data ilegível) faz sumir só a cotação e mantém o convertido, nos dois ramos (exibição em reais e moeda cruzada).
+- O teste de plano compara a consulta com e sem o filtro, porque o texto do `EXPLAIN` muda com a versão do SQLite (o CI tem um SQLite mais velho).
+
+**Como desfazer:** o dono manda trocar qualquer item; nada disso muda dado gravado. Coroas e CHF: trocar o código pelo símbolo em `_SIMBOLO`. Chip `publicada`: mover para uma consulta própria. Ordem da linha: trocar a ordem no template. Vaga em outra moeda sem cotação de Y: esconder a nota, ou mostrar o valor original sem converter. Teste de plano: voltar a comparar o texto exato do `EXPLAIN`, o que quebra quando o SQLite muda.
+
+## D129. Custo dos filtros com 300 mil vagas e o que fazer na próxima versão (T170)
+
+**Status:** resolvida em 2026-11-15: medição feita pelo script da parte H; as propostas valem para a próxima versão, sem tarefa na 0.2.0 (D126)
+
+**Contexto:** a D126 pôs o limite de 1 s no acréscimo de cada filtro novo sobre a vista sem filtro, medido na mesma máquina, e mandou registrar a vista sem filtro também. `scripts/medir_filtros.py` semeia 300 mil vagas (316.667 locais, banco de cerca de 400 MB em disco) e cronometra, para cada filtro, `listar`, `contar_chips` e `contar_abas` (mediana de 3 rodadas, em segundos). Máquina: AMD Ryzen 5 220 (12 threads), 14 GB de RAM, com cerca de 5,7 GB livres e outros programas abertos durante a medição. Os valores valem pela comparação entre as linhas, não em absoluto.
+
+| Filtro | listar | chips | abas | total | acréscimo |
+|---|---|---|---|---|---|
+| sem filtro novo | 0,209 | 4,622 | 0,636 | 5,466 | 0 |
+| país | 0,211 | 4,824 | 0,626 | 5,660 | +0,194 |
+| UF | 0,208 | 5,349 | 0,653 | 6,210 | +0,744 |
+| cidade | 0,579 | 9,112 | 0,661 | 10,352 | **+4,886** |
+| empresa | 0,424 | 5,573 | 0,628 | 6,625 | **+1,159** |
+| publicada há 7 dias | 0,134 | 3,009 | 0,626 | 3,769 | -1,697 |
+| não pode ter | 0,207 | 4,496 | 0,619 | 5,322 | -0,144 |
+| salário: só de | 0,713 | 7,175 | 0,631 | 8,518 | **+3,052** |
+| salário: só até | 0,157 | 3,105 | 0,628 | 3,889 | -1,577 |
+| salário: de e até | 0,560 | 5,915 | 0,621 | 7,096 | **+1,630** |
+| salário: com sem salário | 0,177 | 4,299 | 0,624 | 5,100 | -0,366 |
+| todos juntos | 0,558 | 6,144 | 0,623 | 7,325 | **+1,859** |
+
+Acréscimo negativo é filtro que encolhe a lista e os chips. `contar_abas` não recebe filtro: custa o mesmo em toda linha. O plano de consulta (`tests/integracao/test_plano_consulta.py`) confirma que os índices da 0005 entram em país, UF, cidade, publicada e nos três casos de salário.
+
+**O que a medição mostra:**
+
+- A vista sem filtro já passa de 1 s (5,5 s), quase toda em `contar_chips` (4,6 s). `listar` leva 0,2 s. Dos chips, o de fonte custa 2,2 s (junção com `ocorrencia` e `COUNT(DISTINCT)`), UF 0,8 s, país 0,4 s e os outros cerca de 0,2 s cada.
+- Cidade e empresa passam de 1 s porque a condição chama a função `jobot_normalizar` em Python para cada linha de `local_vaga` ou de `vaga` (o índice `local_vaga_vaga` só resolve a junção por vaga; o `LIKE` sobre `jobot_normalizar` não usa índice nenhum), e cada uma das 9 consultas dos chips repete a condição. Uma só consulta de contagem leva 0,6 s (cidade) e 0,4 s (empresa).
+- Salário "só de" usa `vaga_sal_alto_brl`, mas o filtro deixa passar cerca de 159 mil das 300 mil vagas nos dados medidos: o índice não poupa trabalho e as 9 consultas dos chips repetem a condição. "De e até" passa de 1 s pelo mesmo motivo.
+
+**Proposta para a próxima versão (sem tarefa na 0.2.0):**
+
+1. Chips fora do caminho da lista: um fragmento HTMX (`hx-trigger="load"`) busca as contagens depois que a lista aparece. A lista chega em cerca de 0,2 s mesmo com filtros pesados, e a vista sem filtro deixa de bloquear. Resolve a vista sem filtro e o custo extra dos chips em todas as linhas acima.
+2. Cidade e empresa: gravar o texto já normalizado numa coluna própria (`local_vaga.cidade_normalizada` e `vaga.empresa_normalizada`, preenchidas junto de cada gravação) e filtrar por prefixo com índice. Isto muda o filtro de "contém" para "começa com" (mudança de contrato, a decidir com o dono). O `LIKE` só usa índice com collation `NOCASE` na coluna; mais simples é a faixa `col >= :p AND col < :p_proximo` sobre a coluna já normalizada. Se a busca precisar achar no meio do nome, a alternativa é uma tabela FTS5 só para cidade e empresa. As duas pedem migração e mudam o contrato de gravação, por isso ficam para a próxima versão.
+3. Fonte: contar com um índice que cubra `ocorrencia(fonte, vaga_id)` ou guardar a contagem por fonte numa tabela de resumo atualizada na gravação. Medir antes e depois com o mesmo script.
+4. Salário: não precisa de índice novo. O custo some com o item 1; se ainda pesar depois dele, contar os chips com uma consulta só (uma passada pela tabela) em vez de nove.
+
+**Como desfazer:** nada foi construído além do script e do teste do plano. Tirar `scripts/medir_filtros.py`, `tests/integracao/test_plano_consulta.py` e `tests/integracao/test_medir_filtros.py`; `sql_de_listar` é só a extração do SQL que `listar` já executava.
+
+## D130. Rodada de segurança da 0.2.0 (T189, T190)
+
+**Status:** resolvida em 2026-11-15: escolha da sessão, para confirmar com o dono
+
+**Contexto:** antes do PR da 0.2.0 para a `main` rodaram a revisão do diff de segurança (cofre e reserva em arquivo, cliente do 2Captcha, CSRF, máscara da chave, teto diário, `http.py`, `app.js`), o `semgrep` e a varredura de padrões inseguros em `src/jobot`. O `semgrep` deu 7 achados de variável em `href`, todos falsos: os links de terceiros passam por `_http`/`http()`, que só aceita `http://` e `https://`. A varredura (6 categorias, 7 candidatos) não confirmou nenhum.
+
+**Confirmado:** a chave não vai a log, HTML, URL nem banco; o CSRF é global; o `Host` só aceita `127.0.0.1` e `localhost`; `captcha_ligado` nasce desligado e o portão exige a chave; o teto diário conta antes de qualquer pedido.
+
+**Corrigido agora:**
+
+- T189: o arquivo de reserva do cofre é gravado de forma atômica (arquivo `.tmp`, `fsync`, `os.replace`), porque uma queda ou disco cheio no meio da gravação apagava a chave antiga.
+- T190: contador negativo do teto diário vale como teto atingido (só acontece com banco adulterado).
+
+**Fica como está (risco baixo):**
+
+- Com o cofre do sistema trancado, a chave velha volta a valer depois do desbloqueio. Já está marcado como `shortcut:` no `cofre.py`; rever na fase 2.
+- A corrida entre ligar e apagar em duas abas deixa `captcha_ligado` sem chave, mas `captcha_pronto` exige a chave e nada é resolvido.
+- Com `seguir_saltos=False`, o gancho ainda consulta o DNS do `Location` de um 3xx antes de recusar; nenhum pedido sai.
+
+**Para confirmar:** a varredura completa do plugin de segurança de terceiros não rodou, porque ela pede escolhas interativas e o dono estava fora. Rodar na volta, se o dono quiser.
+
+**Como desfazer:** o dono manda trocar qualquer item. As duas correções são pequenas e têm teste próprio (T189 no cofre, T190 no teto diário); reverter uma delas devolve o comportamento anterior.
