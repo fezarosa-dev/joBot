@@ -151,6 +151,8 @@ Um ciclo de busca, passo a passo:
 
 Se uma fonte falhar, as outras continuam. Se o computador estava desligado na hora marcada, a busca perdida roda quando ele liga.
 
+Quer ver o joBot por dentro, com pastas, camadas, banco e diagramas? Veja a [Arquitetura na wiki](https://github.com/fezarosa-dev/joBot/wiki/Arquitetura).
+
 <a id="as-duas-versoes"></a>
 ## 🖥️ As duas versões
 

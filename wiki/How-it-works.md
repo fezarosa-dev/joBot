@@ -48,6 +48,9 @@ One search cycle, step by step:
 > [!TIP]
 > If one source fails, the others continue. If the computer was off at the scheduled time, the missed search runs when it turns on.
 
+> [!NOTE]
+> Want to see joBot from the inside, with the folders, the layers, the database and the diagrams? See the [Architecture](Architecture) page.
+
 ## 🧹 How jobs are processed
 
 <details>
