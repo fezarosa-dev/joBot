@@ -4,6 +4,7 @@ import sqlite3
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -31,9 +32,9 @@ def _dias(n: float) -> str:
     return (AGORA - timedelta(days=n)).isoformat()
 
 
-def _vaga(con: sqlite3.Connection, n: int, **campos: object) -> int:
+def _vaga(con: sqlite3.Connection, n: int, **campos: Any) -> int:
     campos = {"descricao_texto": "", "url": f"https://a.exemplo.test/vagas/{n}"} | campos
-    return inserir_vaga(con, fonte=str(campos.pop("fonte", "a")), **campos)
+    return int(inserir_vaga(con, fonte=str(campos.pop("fonte", "a")), **campos))
 
 
 def _oid(con: sqlite3.Connection, vaga_id: int) -> int:
