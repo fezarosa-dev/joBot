@@ -243,6 +243,15 @@ def inicio_da_ultima_completa(con: sqlite3.Connection, tipo: Tipo) -> datetime |
     return _data_ou_none(linha[0])
 
 
+def inicio_da_ultima_leitura_login(con: sqlite3.Connection) -> datetime | None:
+    """Início da última execução "login" concluída ou interrompida; rodando não conta."""
+    linha = con.execute(
+        "SELECT MAX(iniciada_em) FROM execucao"
+        " WHERE tipo='login' AND estado IN ('concluida','interrompida')"
+    ).fetchone()
+    return _data_ou_none(linha[0])
+
+
 def execucao_atual(con: sqlite3.Connection) -> Andamento | None:
     """A execução que roda; havendo mais de uma (tipos diferentes), a busca vem primeiro."""
     linha = con.execute(
