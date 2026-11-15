@@ -4,9 +4,11 @@ O 2Captcha é um `httpx.MockTransport`; a chave é inventada e mora num `CofreFa
 """
 
 import ast
+import asyncio
 import json
 import logging
 import sqlite3
+import threading
 from collections.abc import AsyncIterator, Iterator, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -37,7 +39,7 @@ from jobot.banco.conexao import abrir
 from jobot.banco.migrar import migrar
 from jobot.navegador import execucao, limites
 from jobot.navegador.abrir import Lancar
-from jobot.navegador.captcha import Cola, Widget, achar_widget
+from jobot.navegador.captcha import ChaveDoCofre, Cola, Widget, achar_widget
 from jobot.navegador.execucao import Dependencias, dependencias_de_producao, executar_login
 from jobot.navegador.pagina import visitar
 from jobot.navegador.politica import Politica, dentro_dos_hosts
@@ -136,7 +138,7 @@ async def _pagina(contexto: BrowserContext) -> Page:
 def _cola(
     page: Page, con: sqlite3.Connection, api: Api2Captcha, cofre: Cofre, relogio: RelogioFalso
 ) -> Cola:
-    return Cola(page, con=con, cliente=_cliente(api), relogio=relogio, cofre=cofre)
+    return Cola(page, con=con, cliente=_cliente(api), relogio=relogio, chave=ChaveDoCofre(cofre))
 
 
 def _caminhos(site: SiteFalso) -> dict[str, int]:
@@ -590,6 +592,68 @@ def test_nome_no_cofre_definido_uma_vez() -> None:
                 for nome in nomes:
                     achados.append((arquivo.relative_to(SRC).as_posix(), nome))
     assert achados == [("jobot/banco/captcha.py", "NOME_NO_COFRE")]
+
+
+def test_prazo_do_cofre_definido_uma_vez() -> None:
+    """O prazo do cofre é atribuído uma vez só em `src/`, em `navegador/limites.py` (D135.4)."""
+    achados: list[tuple[str, str]] = []
+    for arquivo in sorted(SRC.rglob("*.py")):
+        for no in ast.walk(ast.parse(arquivo.read_text(encoding="utf-8"))):
+            if isinstance(no, ast.Assign):
+                alvos = no.targets
+            elif isinstance(no, ast.AnnAssign) and no.value is not None:
+                alvos = [no.target]
+            else:
+                continue
+            for nome in [a.id for a in alvos if isinstance(a, ast.Name)]:
+                if nome == "PRAZO_COFRE_S":
+                    achados.append((arquivo.relative_to(SRC).as_posix(), nome))
+    assert achados == [("jobot/navegador/limites.py", "PRAZO_COFRE_S")]
+
+
+async def test_duas_leituras_ao_mesmo_tempo_leem_o_cofre_uma_vez(tmp_path: Path) -> None:
+    """O `asyncio.Lock` da `ChaveDoCofre`: a segunda leitura espera a primeira (D135.5)."""
+    lidos: list[str] = []
+    contagem = threading.Lock()
+    entrou, solta = threading.Event(), threading.Event()
+    dentro = maximo = 0
+
+    class CofreContado(Cofre):
+        def ler(self, nome: str) -> tuple[str, OndeGuardou] | None:
+            nonlocal dentro, maximo
+            with contagem:
+                lidos.append(nome)
+                dentro += 1
+                maximo = max(maximo, dentro)
+            entrou.set()
+            solta.wait()
+            try:
+                return super().ler(nome)
+            finally:
+                with contagem:
+                    dentro -= 1
+
+    cofre = CofreContado(tmp_path, CofreFalso())
+    cofre.gravar(NOME_NO_COFRE, CHAVE)
+    chave = ChaveDoCofre(cofre)
+    solta.set()
+    assert cofre.ler(NOME_NO_COFRE) is not None  # controle: a chave está no cofre
+    lidos.clear()
+    solta.clear()
+    entrou.clear()
+    try:
+        primeira = asyncio.create_task(chave.ler())
+        await asyncio.to_thread(entrou.wait)  # a primeira leitura está dentro do cofre
+        segunda = asyncio.create_task(chave.ler())
+        await asyncio.sleep(0)  # a segunda chega à trava (sem ela, ao cofre) antes de soltar
+        solta.set()
+        a, b = await asyncio.gather(primeira, segunda)
+    finally:
+        solta.set()  # nunca deixa thread presa
+    assert lidos == [NOME_NO_COFRE]
+    assert a == b
+    assert a is not None and a[0] == CHAVE
+    assert maximo == 1
 
 
 # --- apoio da cola ---------------------------------------------------------------------------
