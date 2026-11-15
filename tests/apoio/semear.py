@@ -37,9 +37,14 @@ def inserir_vaga(
     fonte: str = "remotive",
     url_candidatura: str | None = None,
     uf: str | None = None,
+    cidade: str | None = None,
+    pais: str | None = None,
     **campos: object,
 ) -> int:
-    """Grava uma vaga com uma ocorrência (e um local, se `uf`); `campos` são colunas de `vaga`."""
+    """Grava uma vaga com uma ocorrência (e um local, se vier `uf`, `cidade` ou `pais`).
+
+    `campos` são colunas de `vaga`.
+    """
     n = con.execute("SELECT COALESCE(MAX(id), 0) + 1 FROM vaga").fetchone()[0]
     dados: dict[str, object] = _VAGA | {"titulo": f"Vaga {n}", "empresa": f"Empresa {n}"} | campos
     dados.setdefault("url", f"https://exemplo.test/vagas/{n}")
@@ -74,10 +79,11 @@ def inserir_vaga(
             fechada,
         ),
     )
-    if uf is not None:
+    if uf is not None or cidade is not None or pais is not None:
         con.execute(
-            "INSERT INTO local_vaga (vaga_id, cidade, uf, pais) VALUES (?, NULL, ?, 'BR')",
-            (vaga_id, uf),
+            "INSERT INTO local_vaga (vaga_id, cidade, uf, pais)"
+            " VALUES (?, ?, ?, COALESCE(?, 'BR'))",
+            (vaga_id, cidade, uf, pais),
         )
     con.commit()
     return vaga_id
