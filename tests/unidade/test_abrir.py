@@ -1,4 +1,5 @@
 import json
+import os
 import signal
 import socket
 import subprocess
@@ -418,3 +419,47 @@ def test_executar_sair_usa_a_pasta_de_dados_do_ambiente(
     with _filho_com_trava(tmp_path) as filho:
         assert executar(Namespace(comando="sair")) == 0
         assert filho.wait(timeout=5) == -signal.SIGTERM
+
+
+# --- captura de exemplos com login: trava presa sem porta (T220) ---
+
+AVISO_CAPTURA = (
+    "Uma captura de exemplos com login está em andamento. "
+    "Encerre-a no terminal dela e tente de novo."
+)
+
+
+def _captura(dados: Path) -> Trava:
+    trava = Trava(dados, 0)  # o capturar_logado.py não serve nada: porta 0
+    assert trava.pegar() is True
+    return trava
+
+
+def test_sair_nao_mata_a_captura(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    sinais: list[tuple[int, int]] = []
+    monkeypatch.setattr(os, "kill", lambda pid, sinal: sinais.append((pid, sinal)))
+    saida = _Saida()
+    trava = _captura(tmp_path)
+    try:
+        codigo = sair_do_servidor(tmp_path, saida=saida, esperar_s=0)
+    finally:
+        trava.soltar()
+    assert sinais == []
+    assert codigo == 1
+    assert saida.linhas == [AVISO_CAPTURA]
+
+
+def test_abrir_com_captura_avisa_na_hora(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def nao_consulta(porta: int) -> bool:
+        raise AssertionError("não devia consultar a porta")
+
+    monkeypatch.setattr(modulo_abrir, "e_o_jobot", nao_consulta)
+    navegador, saida = _Navegador(), _Saida()
+    trava = _captura(tmp_path)
+    try:
+        codigo = abrir_painel({}, tmp_path, subir=_nao_sobe, navegador=navegador, saida=saida)
+    finally:
+        trava.soltar()
+    assert codigo == 1
+    assert navegador.chamadas == []
+    assert saida.linhas == [AVISO_CAPTURA]
