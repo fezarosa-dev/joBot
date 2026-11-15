@@ -357,3 +357,30 @@ def test_mais_filtros_preenche_manda_e_mostra_na_url(
     expect(page).to_have_url(re.compile(r"sal_de=7000"))
     expect(page.locator("main h3.cartao-titulo")).to_have_count(1)
     assert _titulos(page) == ["Vaga em São Paulo"]
+
+
+COR_TEXTO_2 = """() => {
+  const e = document.createElement('i');
+  e.style.color = 'var(--texto-2)';
+  document.body.append(e);
+  const cor = getComputedStyle(e).color;
+  e.remove();
+  return cor;
+}"""
+
+
+@pytest.mark.parametrize("esquema", ["light", "dark"])
+def test_bloco_de_salario_no_claro_e_no_escuro(page: Page, painel: str, esquema: str) -> None:
+    page.emulate_media(color_scheme="light" if esquema == "light" else "dark")
+    page.goto(f"{painel}/vagas?aba=todas")
+    salario = _cartao(page, "Desenvolvedor Python").locator("p.salario")
+    forte = salario.locator("strong")
+    convertido = salario.locator("small.convertido")
+    expect(convertido).to_contain_text("≈ R$ 28.250/mês · US$ 1 = R$ 5,65 (PTAX de 13/11)")
+    forte_caixa = forte.bounding_box()
+    convertido_caixa = convertido.bounding_box()
+    assert forte_caixa is not None and convertido_caixa is not None
+    assert convertido_caixa["y"] >= forte_caixa["y"] + forte_caixa["height"]  # linha de baixo
+    tamanho = "el => parseFloat(getComputedStyle(el).fontSize)"
+    assert convertido.evaluate(tamanho) < forte.evaluate(tamanho)
+    assert convertido.evaluate("el => getComputedStyle(el).color") == page.evaluate(COR_TEXTO_2)

@@ -26,6 +26,7 @@ from jobot.banco.leitura import Detalhe
 from jobot.nucleo.modelo import Area, Contrato, Modalidade, Nivel
 from jobot.nucleo.tratamento.salario import ler_salario
 from jobot.painel.formulario import campo_unico
+from jobot.painel.moeda import exibicao_do_painel
 from jobot.painel.rotas.vagas import (
     MAX_ID,
     VagaId,
@@ -129,7 +130,9 @@ def _http(url: str | None) -> bool:
     return url is not None and url.lower().startswith(("http://", "https://"))
 
 
-def _contexto(request: Request, vaga: Detalhe, busca_url: int | None) -> dict[str, Any]:
+def _contexto(
+    request: Request, con: sqlite3.Connection, vaga: Detalhe, busca_url: int | None
+) -> dict[str, Any]:
     hoje = relogio_do_painel(request).agora().astimezone().date()
     # uma fonte pode mostrar a vaga em mais de um escopo, com URLs diferentes: todos os links
     unicas: dict[tuple[str, str], Any] = {}
@@ -140,6 +143,7 @@ def _contexto(request: Request, vaga: Detalhe, busca_url: int | None) -> dict[st
         candidatura = next((f.url for f in vaga.fontes if _http(f.url)), None)
     return {
         "vaga": vaga,
+        "exibicao": exibicao_do_painel(con, hoje),
         "fontes": list(unicas.values()),
         "candidatura": candidatura,
         "faixa": _faixa(vaga, hoje),
@@ -153,7 +157,7 @@ def _contexto(request: Request, vaga: Detalhe, busca_url: int | None) -> dict[st
 async def detalhe(request: Request, con: Con, vaga_id: VagaId) -> HTMLResponse:
     busca_url = inteiro_da_url(request.query_params.get("busca"), MAX_ID)
     vaga = _vaga_ou_404(request, con, vaga_id, busca_url)
-    return renderizar(request, "detalhe/pagina.html", **_contexto(request, vaga, busca_url))
+    return renderizar(request, "detalhe/pagina.html", **_contexto(request, con, vaga, busca_url))
 
 
 def _atual(vaga: Detalhe) -> dict[str, str]:

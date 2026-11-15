@@ -469,6 +469,7 @@ async def vagas(request: Request, con: Con) -> HTMLResponse:
             renderizar(
                 request,
                 "vagas/mais.html",
+                exibicao=ex,
                 itens=lista.itens,
                 fontes=_fontes(con, [i.id for i in lista.itens]),
                 mais_url=seguinte if lista.tem_mais else None,
@@ -500,12 +501,14 @@ def _resposta(
     if request.headers.get("hx-request") != "true":
         return de_volta(voltar)
     busca_id = busca_efetiva(con, inteiro_da_url(busca, MAX_ID))
-    vaga = leitura.detalhe(con, vaga_id, busca_id, relogio_do_painel(request).agora())
+    agora = relogio_do_painel(request).agora()
+    vaga = leitura.detalhe(con, vaga_id, busca_id, agora)
     if vaga is None:
         raise HTTPException(404, "vaga não existe")
     return renderizar(
         request,
         "vagas/corpo.html",
+        exibicao=exibicao_do_painel(con, agora.astimezone().date()),
         item=vaga,
         fontes={vaga.id: _unicas(vaga.fontes)},
         retorno=voltar,
