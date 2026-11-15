@@ -15,8 +15,7 @@ import copy
 import json
 import logging
 import sqlite3
-from collections.abc import AsyncIterator, Mapping
-from contextlib import asynccontextmanager
+from collections.abc import Mapping
 from dataclasses import dataclass
 from functools import cache
 from typing import Annotated
@@ -24,7 +23,6 @@ from typing import Annotated
 from fastapi import APIRouter, HTTPException, Path, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
-from jobot import __version__
 from jobot.banco.cadastros import adicionar_empresa, ativar_empresa, empresas, remover_empresa
 from jobot.nucleo.coletores.base import Coletor, ContextoColeta
 from jobot.nucleo.coletores.registro import descobrir
@@ -39,9 +37,9 @@ from jobot.nucleo.http import (
     RespostaGrande,
 )
 from jobot.nucleo.modelo import Empresa
+from jobot.painel.cliente import cliente_do_painel
 from jobot.painel.rotas.vagas import relogio_do_painel
 from jobot.painel.seguranca import Con, renderizar
-from jobot.painel.sem_validadores import SemValidadores
 
 router = APIRouter(prefix="/empresas")
 registro = logging.getLogger(__name__)
@@ -102,20 +100,6 @@ class _Erro(Exception):
         self.params = params
 
 
-@asynccontextmanager
-async def _cliente(request: Request) -> AsyncIterator[ClienteEducado]:
-    cliente = ClienteEducado(
-        getattr(request.app.state, "transporte", None),
-        relogio_do_painel(request),
-        SemValidadores(),
-        __version__,
-    )
-    try:
-        yield cliente
-    finally:
-        await cliente.fechar()
-
-
 def _escopo_http(cliente: ClienteEducado, coletor: Coletor) -> HttpDoEscopo:
     return cliente.escopo(
         espera_s=coletor.espera_s, condicional=False, max_pedidos=coletor.max_pedidos
@@ -169,7 +153,7 @@ def _conferir(coletor: Coletor, f: Formulario) -> None:
 async def _resolver(request: Request, coletor: Coletor, f: Formulario) -> Mapping[str, str]:
     """O que o resolver do coletor devolve; sem `identificador` é como se ele tivesse recusado."""
     try:
-        async with _cliente(request) as cliente, asyncio.timeout(PRAZO_S):
+        async with cliente_do_painel(request) as cliente, asyncio.timeout(PRAZO_S):
             resolvido = await coletor.resolver(f.endereco, _escopo_http(cliente, coletor))
     except ValueError as erro:
         raise _Erro("empresas.erro.endereco", 422, fonte=coletor.nome) from erro
@@ -200,7 +184,7 @@ async def _testar(request: Request, coletor: Coletor, empresa: Empresa) -> Teste
     n = 0
     motivo: tuple[str, str] | None = None
     falhou = False
-    async with _cliente(request) as cliente:
+    async with cliente_do_painel(request) as cliente:
         for escopo in coletor.escopos(ctx):  # D50: os escopos são do coletor, na mesma instância
             try:
                 async with asyncio.timeout(PRAZO_S):

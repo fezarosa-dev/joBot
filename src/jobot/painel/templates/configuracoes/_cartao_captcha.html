@@ -24,6 +24,10 @@
       <button type="submit" class="botao botao-primario">{{ t("configuracoes.salvar") }}</button>
     </div>
   </form>
+  <div class="acoes">
+    <button type="button" class="botao" hx-post="/configuracoes/servicos/captcha/testar" hx-include="#campo-chave-captcha" hx-target="#resultado-captcha" hx-disabled-elt="this" data-testando="{{ t("configuracoes.servicos.captcha.testando") }}">{{ t("configuracoes.servicos.captcha.testar") }}</button>
+  </div>
+  <div id="resultado-captcha" class="resultado" aria-live="polite"></div>
   {% if c.mascara %}
   <form method="post" action="/configuracoes/servicos/captcha/apagar" class="config-form" hx-post="/configuracoes/servicos/captcha/apagar" hx-target="#cartao-captcha" hx-swap="outerHTML">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">

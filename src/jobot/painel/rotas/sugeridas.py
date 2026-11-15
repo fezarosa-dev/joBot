@@ -20,13 +20,10 @@ from typing import Annotated
 from fastapi import APIRouter, HTTPException, Path, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
-from jobot import __version__
 from jobot.banco.sugeridas import Sugerida, aprovar, descartar, sugeridas
 from jobot.nucleo.coletores.plataformas import gupy
-from jobot.nucleo.http import ClienteEducado
-from jobot.painel.rotas.vagas import relogio_do_painel
+from jobot.painel.cliente import cliente_do_painel
 from jobot.painel.seguranca import Con, renderizar
-from jobot.painel.sem_validadores import SemValidadores
 
 router = APIRouter(prefix="/empresas/sugeridas")
 registro = logging.getLogger(__name__)
@@ -79,22 +76,13 @@ def _ja_e_empresa(con: sqlite3.Connection, s: Sugerida) -> bool:
 
 async def _resolvido(request: Request, identificador: str) -> Mapping[str, str]:
     """O que o resolver da Gupy devolve; `ValueError` ou erro de rede se não der."""
-    cliente = ClienteEducado(
-        getattr(request.app.state, "transporte", None),
-        relogio_do_painel(request),
-        SemValidadores(),
-        __version__,
-    )
-    try:
-        async with asyncio.timeout(PRAZO_S):
-            http = cliente.escopo(
-                espera_s=gupy.COLETOR.espera_s,
-                condicional=False,
-                max_pedidos=gupy.COLETOR.max_pedidos,
-            )
-            return await gupy.COLETOR.resolver(identificador, http)
-    finally:
-        await cliente.fechar()
+    async with cliente_do_painel(request) as cliente, asyncio.timeout(PRAZO_S):
+        http = cliente.escopo(
+            espera_s=gupy.COLETOR.espera_s,
+            condicional=False,
+            max_pedidos=gupy.COLETOR.max_pedidos,
+        )
+        return await gupy.COLETOR.resolver(identificador, http)
 
 
 @router.get("")

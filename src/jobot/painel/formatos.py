@@ -6,7 +6,7 @@ Os valores já vêm tratados do banco: aqui só viram texto no idioma da pessoa.
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
-from decimal import Decimal, InvalidOperation
+from decimal import ROUND_DOWN, Decimal, InvalidOperation
 
 from jobot.banco.leitura import Item
 from jobot.nucleo.modelo import Local
@@ -52,6 +52,16 @@ def taxa(venda: str, idioma: str) -> str:
     inteiro, _, fracao = f"{numero.normalize():f}".partition(".")
     _, decimal = _separadores(idioma)
     return f"{inteiro}{decimal}{fracao.ljust(2, '0')}"
+
+
+def decimal_curto(valor: Decimal, idioma: str) -> str:
+    """Duas casas, cortadas e não arredondadas: nunca mostra saldo que a conta não tem."""
+    milhar, decimal = _separadores(idioma)
+    # copy_abs e quantize no valor cheio: abs() e scaleb() arredondam pela precisão do contexto
+    cortado = valor.copy_abs().quantize(Decimal("0.01"), rounding=ROUND_DOWN)
+    inteiro, resto = divmod(int(cortado.scaleb(2)), 100)
+    sinal = "-" if valor < 0 else ""
+    return f"{sinal}{_milhar(inteiro, milhar)}{decimal}{resto:02d}"
 
 
 def _ler_data(data: str) -> datetime | None:

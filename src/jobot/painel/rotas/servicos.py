@@ -18,16 +18,21 @@ from starlette.concurrency import run_in_threadpool
 
 from jobot.banco.cadastros import gravar_config, ler_config
 from jobot.banco.captcha import TETO_DIA
-from jobot.nucleo.captcha import mascarar
+from jobot.nucleo.captcha import ErroCaptcha, Falha, mascarar, saldo, validar_chave
 from jobot.painel.ambiente import cofre_do_painel
-from jobot.painel.seguranca import Con, renderizar
+from jobot.painel.cliente import cliente_do_painel
+from jobot.painel.formatos import decimal_curto
+from jobot.painel.i18n import t
+from jobot.painel.seguranca import Con, idioma_do_pedido, renderizar
 
 router = APIRouter(prefix="/configuracoes/servicos/captcha")
 _LOG = logging.getLogger(__name__)
 
 NOME = "2captcha"
 PRAZO_COFRE_S = 15.0
+PRAZO_TESTE_S = 30.0
 _CARTAO = "configuracoes/_cartao_captcha.html"
+_RESULTADO = "configuracoes/_resultado_captcha.html"
 _VOLTA = "/configuracoes/servicos"
 
 
@@ -104,3 +109,43 @@ async def apagar(request: Request, con: Con) -> Response:
     ctx = await contexto_captcha(request, con)
     ctx["captcha"]["falhou"] = falhou or ctx["captcha"]["falhou"]
     return _cartao(request, ctx, salvo=not falhou, foco_chave=True)
+
+
+def _resultado(request: Request, ok: bool, chave: str, **params: object) -> Response:
+    """Sempre 200: o resultado do teste é o conteúdo, e o HTMX só troca o corpo de um 2xx."""
+    texto = t(idioma_do_pedido(request), chave, **params)
+    return renderizar(request, _RESULTADO, ok=ok, texto=texto)
+
+
+@router.post("/testar")
+async def testar(request: Request) -> Response:
+    """Consulta o saldo com a chave digitada, ou com a salva se o campo veio vazio; não grava."""
+    bruto = (await request.form()).get("chave")
+    digitada = bruto.strip() if isinstance(bruto, str) else ""
+    if digitada:
+        try:
+            chave = validar_chave(digitada)
+        except ValueError:
+            return _resultado(request, False, "configuracoes.servicos.erro.formato")
+    else:
+        try:
+            achado = await no_cofre(cofre_do_painel(request).ler, NOME)
+        except OSError as erro:
+            _LOG.warning("2captcha: não consegui ler a chave: %s", type(erro).__name__)
+            return _resultado(request, False, "configuracoes.servicos.erro.cofre")
+        if achado is None:
+            return _resultado(request, False, "configuracoes.servicos.erro.sem_chave")
+        chave = achado[0]
+    try:
+        async with cliente_do_painel(request) as cliente, asyncio.timeout(PRAZO_TESTE_S):
+            valor = await saldo(cliente, chave)
+    except (
+        ErroCaptcha
+    ) as erro:  # o núcleo nem sempre registra (resposta torta): só o valor da falha
+        _LOG.warning("2captcha: o teste da chave falhou: %s", erro.falha.value)
+        return _resultado(request, False, "captcha.erro." + erro.falha.value)
+    except TimeoutError:
+        _LOG.warning("2captcha: o teste da chave passou de %s s", PRAZO_TESTE_S)
+        return _resultado(request, False, "captcha.erro." + Falha.TEMPO_ESGOTADO.value)
+    saldo_texto = decimal_curto(valor, idioma_do_pedido(request))
+    return _resultado(request, True, "configuracoes.servicos.captcha.ok", saldo=saldo_texto)
