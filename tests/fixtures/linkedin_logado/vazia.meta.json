@@ -1,0 +1,15 @@
+{
+  "url": "https://www.linkedin.com/jobs/search-results/?keywords&f_TPR",
+  "codigo": 200,
+  "cabecalhos": {},
+  "tipo": "text/html",
+  "recorte": [
+    "section[aria-label=\"Primary content\"]"
+  ],
+  "tirar": [
+    "alumni|ex-alunos|connections?|conex(ão|ões)|followers|seguidores"
+  ],
+  "data": "2026-11-15T22:27:18.018543+00:00",
+  "sha256": "895e0cd6167f2fccec3315154455b8a4298562b496d3ed19c75ce10b5544513c",
+  "versao": "0.2.1"
+}

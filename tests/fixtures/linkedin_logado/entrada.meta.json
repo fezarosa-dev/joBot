@@ -1,0 +1,16 @@
+{
+  "url": "https://www.linkedin.com/jobs/",
+  "codigo": 200,
+  "cabecalhos": {},
+  "tipo": "text/html",
+  "recorte": [
+    "a[data-view-name=\"navigation-notifications\"]",
+    "[data-testid=\"primary-nav\"] a[href*=\"/notifications/\"]"
+  ],
+  "tirar": [
+    "alumni|ex-alunos|connections?|conex(ão|ões)|followers|seguidores"
+  ],
+  "data": "2026-11-15T22:28:11.108024+00:00",
+  "sha256": "5fa62f434bedab7d25afa8d0e7cdf52876999740fc0c58c789de77eafe432f95",
+  "versao": "0.2.1"
+}
