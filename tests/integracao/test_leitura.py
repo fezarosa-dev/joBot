@@ -490,3 +490,76 @@ def test_excluir_com_porcento_nos_dois_modos(con_modo: sqlite3.Connection) -> No
     controle = inserir_vaga(c, titulo="Dev Python", descricao_texto="x")
     assert set(_lista(c)) == {com, controle}
     assert _lista(c, excluir="100%") == [controle]
+
+
+def _vaga_ha(
+    c: sqlite3.Connection, *, publicada: timedelta | None, vista: timedelta, **campos: Any
+) -> int:
+    """Vaga publicada (ou só vista) há tanto tempo, contado de `AGORA`."""
+    return inserir_vaga(
+        c,
+        publicada_em=None if publicada is None else (AGORA - publicada).isoformat(),
+        primeira_vista_em=(AGORA - vista).isoformat(),
+        **campos,
+    )
+
+
+def test_publicada_24h_borda(con_modo: sqlite3.Connection) -> None:
+    c = con_modo
+    dentro = _vaga_ha(c, publicada=timedelta(hours=23), vista=timedelta(days=5))
+    _vaga_ha(c, publicada=timedelta(hours=25), vista=timedelta(days=5))
+    assert _lista(c, publicada="24h") == [dentro]
+
+
+def test_publicada_sem_data_usa_primeira_vista(con_modo: sqlite3.Connection) -> None:
+    c = con_modo
+    recente = _vaga_ha(c, publicada=None, vista=timedelta(hours=2))
+    _vaga_ha(c, publicada=None, vista=timedelta(days=3))
+    assert _lista(c, publicada="24h") == [recente]
+
+
+def test_publicada_7d_e_30d(con_modo: sqlite3.Connection) -> None:
+    c = con_modo
+    horas = _vaga_ha(c, publicada=timedelta(hours=2), vista=timedelta(hours=2))
+    dias = _vaga_ha(c, publicada=timedelta(days=3), vista=timedelta(days=3))
+    velha = _vaga_ha(c, publicada=timedelta(days=20), vista=timedelta(days=20))
+    assert set(_lista(c, publicada="7d")) == {horas, dias}
+    assert set(_lista(c, publicada="30d")) == {horas, dias, velha}
+    # valor fora de PUBLICADA não filtra
+    assert set(_lista(c, publicada="1a")) == {horas, dias, velha}
+
+
+def test_contar_publicada_soma_sobrepostos_com_outro_filtro(con_modo: sqlite3.Connection) -> None:
+    c = con_modo
+    _vaga_ha(c, publicada=timedelta(hours=2), vista=timedelta(hours=2), modalidade="remoto")
+    _vaga_ha(c, publicada=timedelta(days=3), vista=timedelta(days=3), modalidade="remoto")
+    _vaga_ha(c, publicada=timedelta(days=20), vista=timedelta(days=20), modalidade="remoto")
+    _vaga_ha(c, publicada=timedelta(hours=2), vista=timedelta(hours=2), modalidade="presencial")
+    chips = contar_chips(c, Filtros(modalidade="remoto"), AGORA)
+    assert chips["publicada"] == {"24h": 1, "7d": 2, "30d": 3}
+    # a contagem ignora o próprio filtro: com "24h" escolhido, os três números não mudam
+    chips = contar_chips(c, Filtros(modalidade="remoto", publicada="24h"), AGORA)
+    assert chips["publicada"] == {"24h": 1, "7d": 2, "30d": 3}
+    # sem nenhuma vaga na aba, os três continuam existindo, em zero
+    vazio = contar_chips(c, Filtros(aba="salvas"), AGORA)
+    assert vazio["publicada"] == {"24h": 0, "7d": 0, "30d": 0}
+
+
+def test_pais_filtra_por_local_vaga(con_modo: sqlite3.Connection) -> None:
+    c = con_modo
+    inserir_vaga(c, pais="BR")
+    pt = inserir_vaga(c, pais="PT")
+    inserir_vaga(c)  # sem local
+    assert _lista(c, pais="PT") == [pt]
+
+
+def test_contar_pais_considera_outros_filtros(con_modo: sqlite3.Connection) -> None:
+    c = con_modo
+    inserir_vaga(c, pais="PT", modalidade="remoto")
+    inserir_vaga(c, pais="BR", modalidade="remoto")
+    inserir_vaga(c, pais="BR", modalidade="presencial")
+    chips = contar_chips(c, Filtros(modalidade="remoto"), AGORA)
+    assert chips["pais"] == {"PT": 1, "BR": 1}
+    # o chip do país ignora o filtro dele mesmo
+    chips = contar_chips(c, Filtros(modalidade="remoto", pais="PT"), AGORA)
+    assert chips["pais"] == {"PT": 1, "BR": 1}
