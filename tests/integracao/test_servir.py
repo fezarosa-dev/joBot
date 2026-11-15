@@ -38,7 +38,7 @@ from jobot.nucleo.leitores import registro
 from jobot.nucleo.leitores.base import LeitorComLogin
 from jobot.nucleo.relogio import Relogio
 from jobot.painel.app import criar_app
-from jobot.sistema.instancia import Trava, pid_do_servidor
+from jobot.sistema.instancia import AVISO_CAPTURA, Trava, pid_do_servidor
 
 pytestmark = pytest.mark.usefixtures("laco_versao_parado")
 
@@ -526,6 +526,25 @@ def test_serve_com_outro_jobot_aberto_avisa_e_sai_com_1(
     finally:
         outro.soltar()
     assert "já está aberto" in capsys.readouterr().err
+
+
+def test_serve_com_captura_no_ar_diz_qual_e(
+    isolado: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    def montar_proibido(*args: object, **kwargs: object) -> None:
+        raise AssertionError("não sobe nada com a trava presa")
+
+    monkeypatch.setattr(servir, "montar", montar_proibido)
+    monkeypatch.setenv("JOBOT_PORTA", str(PORTA))
+    captura = Trava(isolado, 0)  # porta 0: é o `capturar_logado.py` quem prende (T215)
+    assert captura.pegar()
+    try:
+        assert servir.executar(argparse.Namespace(comando="serve")) == 1
+    finally:
+        captura.soltar()
+    erro = capsys.readouterr().err
+    assert AVISO_CAPTURA in erro
+    assert "já está aberto" not in erro
 
 
 def test_serve_com_porta_ocupada_avisa_e_solta_a_trava(
