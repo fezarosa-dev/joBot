@@ -12,6 +12,7 @@ ESPERA_MAX_S: Final = 8.0
 ESPERA_CLOUDFLARE_S: Final = 30  # (D132.30, D132.44)
 ESPERA_TOKEN_S: Final = 30  # (D132.31)
 JANELA_PARADA_S: Final = 900  # (D132.26)
+OLHAR_S: Final = 5  # a janela parada olha cada aba a cada 5 s (D132.26)
 PRAZO_LOGIN_MANUAL_S: Final = 600  # (D132.52)
 INTERVALO_LOGIN_MANUAL_S: Final = 5.0  # leitura da janela de login enquanto a pessoa entra
 MAX_RESPOSTA_BYTES: Final = 5 * 1024 * 1024  # (D132.54)

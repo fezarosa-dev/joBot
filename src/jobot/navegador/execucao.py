@@ -64,7 +64,6 @@ from jobot.sistema.tela import ambiente_da_tela
 log = logging.getLogger(__name__)
 
 _SEM_DATA = datetime.min.replace(tzinfo=UTC)  # escopo nunca lido vai primeiro no rodízio
-_OLHAR_S = 5  # a janela parada olha cada aba a cada 5 s (D132.26)
 _TITULO_AVISO = "joBot"
 _FRASE_AVISO = (
     "Um site com login parou num desafio. Termine na janela do navegador em até {} minutos."
@@ -270,7 +269,7 @@ class _Janela:
     async def esperar(self) -> None:
         fim = self._relogio.agora() + timedelta(seconds=limites.JANELA_PARADA_S)
         while self._paradas and (resta := (fim - self._relogio.agora()).total_seconds()) > 0:
-            await self._relogio.dormir(min(_OLHAR_S, resta))
+            await self._relogio.dormir(min(limites.OLHAR_S, resta))
             if self.fechado.is_set():
                 raise NavegadorFechado
             for parada in list(self._paradas):
