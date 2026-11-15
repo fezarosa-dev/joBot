@@ -87,5 +87,9 @@
   "saude.erro_de_rede": "Network error talking to the source",
   "saude.resposta_grande": "The source response exceeded the allowed size",
   "saude.excecao": "Unexpected error: {tipo}",
-  "saude.listagem_incompleta": "This source's job list came back incomplete: only some of the jobs were fetched this time"
+  "saude.listagem_incompleta": "This source's job list came back incomplete: only some of the jobs were fetched this time",
+  "saude.precisa_login": "You need to sign in to the site again: use Sign in now",
+  "saude.captcha": "The site asked for a CAPTCHA that was not solved",
+  "saude.sem_tela": "No display to open the browser",
+  "saude.sem_navegador": "No browser could open: install Chrome or the system libraries"
 }
