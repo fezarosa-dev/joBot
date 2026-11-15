@@ -90,6 +90,7 @@ class Montagem:
     contextos: list[BrowserContext] = field(default_factory=list)
     avisos: list[tuple[str, str, datetime]] = field(default_factory=list)
     fechadas: list[tuple[str, datetime]] = field(default_factory=list)
+    fechamentos: list[datetime] = field(default_factory=list)
 
     def avisar(self, titulo: str, frase: str) -> None:
         self.avisos.append((titulo, frase, self.relogio.agora()))
@@ -134,6 +135,7 @@ async def montagem() -> AsyncIterator[Montagem]:
             )
             await contexto.route("**/*", filtrar)
             contexto.on("page", ao_abrir)
+            contexto.on("close", lambda _: m.fechamentos.append(m.relogio.agora()))
             m.contextos.append(contexto)
             return contexto
 
@@ -244,7 +246,7 @@ async def test_captcha_sem_2captcha_para_a_janela(
     avisado_em = montagem.avisos[0][2]
     fechou_em = dict(montagem.fechadas)[caso.caminho]
     assert fechou_em - avisado_em >= timedelta(seconds=limites.JANELA_PARADA_S)
-    assert montagem.contextos[0].pages == []  # o contexto fechou no fim
+    assert len(montagem.fechamentos) == 1  # o contexto fechou no fim
     if caso.ligado and caso.chave and not caso.teto and caso.caminho == "/recaptcha-v2":
         assert api.pedidos[0] == "/createTask"  # controle: o 2Captcha foi tentado
     else:
@@ -338,7 +340,7 @@ async def test_duas_abas_dividem_os_15_minutos(
     # a aba resolvida seguiu logo na primeira olhada, não no fim do prazo
     fechou_em = dict(montagem.fechadas)["/desafio-pessoa"]
     assert fechou_em - montagem.avisos[0][2] < timedelta(seconds=10)
-    assert montagem.contextos[0].pages == []
+    assert len(montagem.fechamentos) == 1  # o contexto fechou no fim
 
 
 async def test_sem_parada_nao_avisa_nem_espera(

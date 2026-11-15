@@ -702,7 +702,6 @@ async def test_cancelar_a_leitura_fecha_o_navegador(
     with pytest.raises(asyncio.CancelledError):
         await tarefa
     assert fechou.is_set()  # o finally fechou o contexto, não só a aba
-    assert montagem.contextos[0].pages == []
     execucao_id = con.execute("SELECT max(id) FROM execucao").fetchone()[0]
     assert _execucao(con, execucao_id) == ("login", "interrompida", "fechado")
 
