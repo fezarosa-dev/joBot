@@ -144,12 +144,16 @@ def _idioma(v: VagaTratada, b: Busca) -> _Parte | None:
     return 0, peso, Motivo(chave="encaixe.idioma_fora")
 
 
-def _pais_da_pessoa(b: Busca) -> set[str]:
-    return {c.pais.upper() for c in b.cidades if c.pais} or {"BR"}
+def _pais_da_pessoa(b: Busca, pais_padrao: str) -> set[str]:
+    return {c.pais.upper() for c in b.cidades if c.pais} or {pais_padrao}
 
 
 def _regra_que_bate(
-    v: VagaTratada, b: Busca, sal_mensal_brl: int | None, minimo_busca_brl: int | None
+    v: VagaTratada,
+    b: Busca,
+    sal_mensal_brl: int | None,
+    minimo_busca_brl: int | None,
+    pais_padrao: str,
 ) -> list[str]:
     """Ids das regras de ocultar que batem, na ordem do desenho 11.3."""
     bate: list[tuple[str, bool]] = []
@@ -172,7 +176,7 @@ def _regra_que_bate(
             v.modalidade == Modalidade.REMOTO
             and Aviso.RESTRITO_A_PAIS in v.avisos
             and bool(paises)
-            and paises.isdisjoint(_pais_da_pessoa(b)),
+            and paises.isdisjoint(_pais_da_pessoa(b, pais_padrao)),
         )
     )
     return [regra for regra, bateu in bate if bateu]
@@ -192,10 +196,12 @@ def calcular(
     sal_mensal_brl: int | None,
     minimo_busca_brl: int | None,
     regras_ligadas: bool,
+    pais_padrao: str,
 ) -> Encaixe:
     """Nota, motivos e ocultação de uma vaga para uma busca.
 
     `sal_mensal_brl` e `minimo_busca_brl` em reais inteiros (None = sem cotação ou sem dado).
+    `pais_padrao` é o país da pessoa quando a busca não tem cidade (Meu país).
     """
     partes = [
         p
@@ -214,7 +220,7 @@ def calcular(
         oculta = next(
             (
                 r
-                for r in _regra_que_bate(v, b, sal_mensal_brl, minimo_busca_brl)
+                for r in _regra_que_bate(v, b, sal_mensal_brl, minimo_busca_brl, pais_padrao)
                 if ligadas.get(r, True)
             ),
             None,

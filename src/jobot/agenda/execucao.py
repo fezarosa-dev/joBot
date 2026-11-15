@@ -21,7 +21,7 @@ from typing import Literal
 
 from jobot.banco import execucoes
 from jobot.banco.buscas import paises_das_buscas, recalcular_encaixe, termos_das_buscas
-from jobot.banco.cadastros import empresas_da_coleta, fontes, ler_config
+from jobot.banco.cadastros import empresas_da_coleta, fontes, ler_config, moeda_efetiva
 from jobot.banco.conexao import abrir
 from jobot.banco.cotacoes import aplicar_cotacoes, falta_cotacao, gravar_cotacao, moedas_em_aberto
 from jobot.banco.execucoes import (
@@ -329,7 +329,11 @@ async def _cotacoes(con: sqlite3.Connection, cliente: ClienteEducado, agora: dat
         return
     hoje = agora.astimezone().date()
     http = cliente.escopo(condicional=False)
-    for moeda in moedas_em_aberto(con):
+    moedas = moedas_em_aberto(con)
+    exibicao = moeda_efetiva(con)
+    if exibicao != "BRL" and exibicao not in moedas:
+        moedas = sorted([*moedas, exibicao])
+    for moeda in moedas:
         if not falta_cotacao(con, moeda, agora.astimezone(UTC).date()):
             continue
         try:

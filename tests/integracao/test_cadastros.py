@@ -21,6 +21,8 @@ from jobot.banco.cadastros import (
     gravar_config,
     ler_config,
     ligar_fonte,
+    meu_pais,
+    moeda_efetiva,
     remover_empresa,
     semear,
 )
@@ -421,7 +423,7 @@ def test_padroes_de_config(con: sqlite3.Connection) -> None:
     for chave in INTERRUPTORES:
         assert ler_config(con, chave) is True, chave
     assert ler_config(con, "destaques_n") == 10
-    assert set(PADROES) == {*INTERRUPTORES, "destaques_n"}
+    assert set(PADROES) == {*INTERRUPTORES, "destaques_n", "meu_pais", "moeda_exibicao"}
 
 
 def test_gravar_e_ler_config(con: sqlite3.Connection) -> None:
@@ -457,3 +459,24 @@ def test_config_recusa_valor_que_nao_e_json(con: sqlite3.Connection) -> None:
     with pytest.raises(TypeError):
         gravar_config(con, "destaques_n", object())
     assert _total(con, "config") == 0
+
+
+def test_meu_pais_e_moeda_efetiva_padrao(con: sqlite3.Connection) -> None:
+    assert meu_pais(con) == "BR"
+    assert moeda_efetiva(con) == "BRL"
+
+
+def test_moeda_exibicao_vazia_segue_o_pais(con: sqlite3.Connection) -> None:
+    gravar_config(con, "meu_pais", "PT")
+    assert meu_pais(con) == "PT"
+    assert moeda_efetiva(con) == "EUR"
+
+
+@pytest.mark.parametrize("ruim", ["XX", 7, None])
+def test_valores_invalidos_caem_no_padrao(con: sqlite3.Connection, ruim: object) -> None:
+    gravar_config(con, "meu_pais", ruim)
+    assert meu_pais(con) == "BR"
+    gravar_config(con, "moeda_exibicao", "BTC")
+    assert moeda_efetiva(con) == "BRL"  # segue o país (padrão BR)
+    gravar_config(con, "moeda_exibicao", "JPY")
+    assert moeda_efetiva(con) == "JPY"
