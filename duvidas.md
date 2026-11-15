@@ -1919,3 +1919,29 @@ Acréscimo negativo é filtro que encolhe a lista e os chips. `contar_abas` não
 **Para confirmar com o dono:** (c) o tempo de 5 s e o F5 sem aviso; (d) se quer a busca por prefixo em cidade e empresa; (e) se vale medir de novo.
 
 **Rodada de segurança da 0.2.1 (T194).** Revisão do diff 842ce48..fe033be (`chips.py`, `chips.html`, `miolo.html`, `app.js` e a migração 0006): sem achado. O que se conferiu: as mesmas defesas de `/vagas` (Host, CSP, Vary, CSRF só em POST); `ler_estado` sem parâmetro novo e com bind no SQL; `Estado.url` com caminho fixo no código (sem open redirect); autoescape sem `|safe`; `app.js` sem `innerHTML` e com `replaceState` na mesma origem. O semgrep (`p/python`, `p/javascript`, `p/security-audit`) nos 5 arquivos deu 3 avisos `var-in-href` em `vagas/miolo.html`, linhas 10, 17 e 78. São falsos positivos, em linhas que já existiam na 0.2.0: as URLs saem de `Estado.url`, que sempre começa por `/vagas?`. Observação que não é falha nova: uma página de outro site pode disparar um GET para 127.0.0.1 e forçar a contagem dos chips (cerca de 0,46 s com 300 mil vagas), sem ler a resposta; isso já valia para `/vagas`. Fora de segurança: `_id_html` podia gerar id repetido (`a b` e `a_b`), e o foco podia voltar para o chip errado; feito na T195.
+
+## D132. Desenho da fase 2: leitura com login no navegador da pessoa (Parte A)
+
+**Status:** decidida pela sessão em 2026-11-15 com o dono fora, para confirmar
+
+**Contexto:** o desenho está em `docs/superpowers/specs/2026-11-15-fase-2-design.md`. Passou por 4 rodadas de revisão, e a seção 12 lista todas as decisões, de D132.1 a D132.57.
+
+**Decisões:** o pacote `navegador/` é o único que importa o Playwright, e os leitores de cada site ficam em `nucleo/leitores/`, puros. As execuções automáticas só navegam, esperam e rolam a página. A checagem de login vem antes da do CAPTCHA, e o 2Captcha só age em página de desafio que não é de login. A proteção por AST do pacote `navegador` usa uma lista permitida de chamadas ao Playwright. Os testes usam só sites falsos em `127.0.0.1`. Entram as migrações 0007 (tipo de execução `login`) e 0008 (coluna `com_login` na `fonte`).
+
+**Para confirmar com o dono:**
+
+1. (D132.6) Leituras com login nos horários 9h e 18h, com 15 minutos de tolerância; horário perdido é pulado, não recuperado ao ligar, e leitura com erro ou interrompida não repete na janela (foge da ADR 0006, que ganha nota).
+2. (D132.15) Na navegação com login vale o user agent do próprio Chrome, não o fixo do joBot (muda a regra de coleta educada do `CLAUDE.md`).
+3. (D132.19) Tetos por site em cada leitura: 10 páginas de lista e 20 de vaga, 30 no total, com 3 a 8 s entre navegações.
+4. (D132.24) Na `fedora-dev`, sem Chrome, usa o Chromium do Playwright: na Parte A só o já instalado; o botão "Baixar o navegador" entra com o primeiro site.
+5. (D132.25) "Buscar agora" também lê os sites com login se a última leitura começou há 4 horas ou mais (no máximo 6 por dia).
+6. (D132.26) Com CAPTCHA que o 2Captcha não resolve, as janelas ficam abertas até 15 minutos no total e depois fecham.
+7. (D132.27) Se a Gupy logada não mostrar nada além da pública, o primeiro site da 0.3.0 passa a ser o LinkedIn.
+8. (D132.28) Passo opcional "Sites com login" no assistente de primeira execução, com o primeiro site.
+9. (D132.29) A Gupy entra na lista da ADR 0005, com nota no lote do primeiro site.
+10. (D132.30) Ordem das checagens: login primeiro, depois o desafio do Cloudflare (30 s), depois o CAPTCHA reconhecido (mesmo com 403 ou 429), por fim o bloqueio; o desafio que volta depois do token vira bloqueio.
+11. (D132.31) O joBot escreve o token no campo do próprio CAPTCHA e chama o `data-callback` que ele declarou, só em página de desafio (nunca no login); reCAPTCHA v3 fica fora da fase 2.
+12. (D132.32) Sem descrição na lista, abre a página de até 20 vagas por site (as mais novas, sem detalhe tentado nos últimos 30 dias por qualquer fonte).
+13. (D132.44) O 2Captcha resolve só o Turnstile avulso; o desafio inteiro do Cloudflare ganha 30 s e depois fica para a pessoa (a ADR 0022 ganha um reparo).
+
+**Como desfazer:** nada está construído; o dono manda trocar qualquer item e a sessão muda o desenho (a seção 12 diz onde cada um vale).
