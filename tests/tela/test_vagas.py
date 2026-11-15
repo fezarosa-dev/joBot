@@ -325,3 +325,35 @@ def test_sem_preferencia_pede_o_que_procura_e_destaques_vem_por_data(
     _aguardar_lista(page)
     assert _titulos(page)[:2] == ["Recente", "Velha"]
     expect(page.locator("#ordem")).to_have_count(0)  # destaques não tem ordem para escolher
+
+
+@pytest.mark.parametrize("esquema", ["light", "dark"])
+def test_mais_filtros_preenche_manda_e_mostra_na_url(
+    page: Page, painel: str, banco: Path, esquema: str
+) -> None:
+    page.emulate_media(color_scheme="light" if esquema == "light" else "dark")
+    with closing(abrir(banco)) as con:
+        inserir_vaga(
+            con,
+            titulo="Vaga em São Paulo",
+            uf="SP",
+            cidade="São Paulo",
+            sal_moeda="BRL",
+            sal_min=900000,
+            sal_periodo="mes",
+            sal_mensal_min=900000,
+            sal_mensal_min_brl=9000,
+            sal_plausivel=1,
+        )
+    page.goto(f"{painel}/vagas?aba=todas")
+    assert len(_titulos(page)) > 1
+    page.get_by_text("Mais filtros", exact=True).click()
+    page.get_by_label("Cidade", exact=True).fill("sao")
+    campo = page.get_by_label("Salário de", exact=True)
+    campo.fill("7000")
+    with page.expect_response(lambda r: "cidade=sao" in r.url and "sal_de=7000" in r.url):
+        campo.press("Enter")
+    expect(page).to_have_url(re.compile(r"cidade=sao"))
+    expect(page).to_have_url(re.compile(r"sal_de=7000"))
+    expect(page.locator("main h3.cartao-titulo")).to_have_count(1)
+    assert _titulos(page) == ["Vaga em São Paulo"]

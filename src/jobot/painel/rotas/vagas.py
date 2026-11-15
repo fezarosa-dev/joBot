@@ -23,12 +23,14 @@ from jobot.banco.leitura import Filtros, Fonte, Item
 from jobot.banco.paginas import paginas, ultimas_diferencas
 from jobot.nucleo.destaques import Candidata, destaques
 from jobot.nucleo.relogio import Relogio, RelogioReal
-from jobot.painel.seguranca import Con, de_volta, renderizar
+from jobot.nucleo.tratamento.locais import codigos_de_pais, nome_do_pais, nome_em_ingles
+from jobot.painel.moeda import Exibicao, FiltroSalario, exibicao_do_painel, filtro_salario
+from jobot.painel.seguranca import Con, de_volta, idioma_do_pedido, renderizar
 
 router = APIRouter()
 
 ABA_DESTAQUES = "destaques"
-CHIPS = ("modalidade", "nivel", "area", "contrato", "uf", "fonte", "encaixe")
+CHIPS = ("modalidade", "nivel", "area", "contrato", "uf", "fonte", "encaixe", "pais", "publicada")
 _ENCAIXES = ("bom", "medio", "fraco")
 # rótulo do valor do chip: grupo -> prefixo da chave de i18n (None: o valor já é o texto)
 _ROTULO_CHIP = {
@@ -41,7 +43,10 @@ _ROTULO_CHIP = {
     "motivo": "vagas.motivo",
     "status": "vagas.status",
     "uf": None,
+    "pais": None,  # o nome vem de `_nome_do_pais`, na língua da tela
+    "publicada": "vagas.publicada",
 }
+_TETO_SALARIO = 10**12
 _MAX_TEXTO = 100
 MAX_ID = 2**31
 # o INTEGER do SQLite é de 64 bits com sinal: id maior estoura em OverflowError (500)
@@ -64,7 +69,8 @@ def _config(con: sqlite3.Connection, chave: str, padrao: Any) -> Any:
 
 def inteiro_da_url(texto: str | None, maximo: int) -> int | None:
     """Número de 1 a `maximo`; qualquer outra coisa (letra, zero, negativo, enorme) é None."""
-    if texto is None or not texto.isascii() or not texto.isdigit():
+    # o tamanho vem antes do `int()`: texto com mais de 4300 dígitos o faz levantar ValueError
+    if texto is None or not texto.isascii() or not texto.isdigit() or len(texto) > len(str(maximo)):
         return None
     numero = int(texto)
     return numero if 1 <= numero <= maximo else None
@@ -102,6 +108,13 @@ class Estado:
     busca_id: int | None
     busca_url: bool
     q: str
+    excluir: str
+    cidade: str
+    empresa: str
+    sal_de: int | None
+    sal_ate: int | None
+    sem_salario: bool
+    salario: FiltroSalario
     chips: Mapping[str, str]
     ordem: str
     ordem_url: bool
@@ -117,6 +130,17 @@ class Estado:
             aba=self.aba,
             busca_id=self.busca_id,
             q=self.q,
+            excluir=self.excluir,
+            cidade=self.cidade,
+            empresa=self.empresa,
+            sal_de_brl=self.salario.sal_de_brl,
+            sal_ate_brl=self.salario.sal_ate_brl,
+            sal_moeda=self.salario.sal_moeda,
+            sal_de_centavos=self.salario.sal_de_centavos,
+            sal_ate_centavos=self.salario.sal_ate_centavos,
+            sem_salario=self.sem_salario,
+            pais=self.chips.get("pais"),
+            publicada=self.chips.get("publicada"),
             area=self.chips.get("area"),
             nivel=self.chips.get("nivel"),
             modalidade=self.chips.get("modalidade"),
@@ -142,13 +166,26 @@ class Estado:
             pares.append(("busca", str(self.busca_id)))
         if self.q:
             pares.append(("q", self.q))
+        pares += [(k, v) for k in ("excluir", "cidade", "empresa") if (v := getattr(self, k))]
+        pares += [(k, str(v)) for k in ("sal_de", "sal_ate") if (v := getattr(self, k)) is not None]
+        if self.sem_salario:
+            pares.append(("sem_salario", "1"))
         pares += [(g, escolhidos[g]) for g in CHIPS if g in escolhidos]
         if self.ordem_url:
             pares.append(("ordem", self.ordem))
         return "/vagas?" + urlencode(pares + list(extras))
 
 
-def _ler_estado(params: QueryParams, con: sqlite3.Connection) -> Estado:
+def _chip_valido(grupo: str, valor: str) -> bool:
+    """`pais` e `publicada` têm conjunto fechado; os outros chips aceitam o que vier."""
+    if grupo == "pais":
+        return valor in codigos_de_pais()
+    if grupo == "publicada":
+        return valor in leitura.PUBLICADA
+    return True
+
+
+def _ler_estado(params: QueryParams, con: sqlite3.Connection, ex: Exibicao) -> Estado:
     ligados = bool(_config(con, "destaques_ligados", True))
     validas = {*leitura.ABAS, *([ABA_DESTAQUES] if ligados else [])}
     pedida_aba = params.get("aba") or ""
@@ -159,12 +196,23 @@ def _ler_estado(params: QueryParams, con: sqlite3.Connection) -> Estado:
     pedida_ordem = params.get("ordem") or ""
     ordem_url = pedida_ordem in leitura.ORDENS
     ordem = pedida_ordem if ordem_url else ("recentes" if sem else "encaixe")
+    sal_de = inteiro_da_url(params.get("sal_de"), _TETO_SALARIO)
+    sal_ate = inteiro_da_url(params.get("sal_ate"), _TETO_SALARIO)
+    if sal_de is not None and sal_ate is not None and sal_de > sal_ate:
+        sal_de, sal_ate = sal_ate, sal_de  # link torto cai numa faixa útil, não numa lista vazia
     return Estado(
         aba=aba,
         busca_id=busca_id,
         busca_url=pedida is not None and busca_id == pedida,
         q=_texto(params.get("q")) or "",
-        chips={g: v for g in CHIPS if (v := _texto(params.get(g)))},
+        excluir=_texto(params.get("excluir")) or "",
+        cidade=_texto(params.get("cidade")) or "",
+        empresa=_texto(params.get("empresa")) or "",
+        sal_de=sal_de,
+        sal_ate=sal_ate,
+        sem_salario=params.get("sem_salario") == "1",
+        salario=filtro_salario(sal_de, sal_ate, ex),
+        chips={g: v for g in CHIPS if (v := _texto(params.get(g))) and _chip_valido(g, v)},
         ordem=ordem,
         ordem_url=ordem_url,
         sem_criterio=sem,
@@ -242,10 +290,19 @@ def _id_html(valor: str) -> str:
 
 
 def _ordem_chip(grupo: str, valor: str) -> int:
+    if grupo == "publicada":
+        return list(leitura.PUBLICADA).index(valor) if valor in leitura.PUBLICADA else 0
     return _ENCAIXES.index(valor) if grupo == "encaixe" and valor in _ENCAIXES else 0
 
 
-def _grupos(con: sqlite3.Connection, estado: Estado, agora: datetime) -> list[dict[str, Any]]:
+def _nome_do_pais(codigo: str, idioma: str) -> str:
+    nome = nome_em_ingles if idioma == "en" else nome_do_pais
+    return nome(codigo) or codigo
+
+
+def _grupos(
+    con: sqlite3.Connection, estado: Estado, agora: datetime, idioma: str
+) -> list[dict[str, Any]]:
     """Os chips com contagem. Motivo (Ocultas) e situação (Candidatei) só contam: sem filtro."""
     contagens = leitura.contar_chips(con, estado.filtros(), agora)
     grupos: list[dict[str, Any]] = []
@@ -257,7 +314,8 @@ def _grupos(con: sqlite3.Connection, estado: Estado, agora: datetime) -> list[di
             valores[escolhido] = 0  # filtro sem nenhuma vaga continua visível, para desligar
         if not valores:
             continue
-        # encaixe vai de bom a fraco; os outros, do mais contado para o menos
+        # encaixe vai de bom a fraco e publicada de 24 h a 30 dias; os outros, do mais contado
+        # para o menos
         ordenados = sorted(
             valores.items(), key=lambda kv: (_ordem_chip(nome, kv[0]), -kv[1], kv[0])
         )
@@ -271,6 +329,7 @@ def _grupos(con: sqlite3.Connection, estado: Estado, agora: datetime) -> list[di
                     "id": _id_html(valor),
                     "valor": valor,
                     "chave": f"{prefixo}.{valor}" if prefixo else "",
+                    "texto": _nome_do_pais(valor, idioma) if nome == "pais" else None,
                     "n": n,
                     "pressionado": ligado,
                     "url": estado.url(chips=trocados if ligado else {**trocados, nome: valor}),
@@ -305,7 +364,9 @@ def _paginas_programas(con: sqlite3.Connection) -> list[dict[str, Any]]:
     return [{"p": p, "diferenca": ultima.get(p.id) if p.mudou_em else None} for p in achadas]
 
 
-def _contexto_pagina(con: sqlite3.Connection, estado: Estado, agora: datetime) -> dict[str, Any]:
+def _contexto_pagina(
+    con: sqlite3.Connection, estado: Estado, agora: datetime, idioma: str, ex: Exibicao
+) -> dict[str, Any]:
     ids_destaques = _ids_destaques(con, estado.busca_id, agora) if estado.destaques_ligados else []
     contagens = leitura.contar_abas(con, estado.busca_id, agora)
     chaves = [*([ABA_DESTAQUES] if estado.destaques_ligados else []), *leitura.ABAS]
@@ -321,6 +382,7 @@ def _contexto_pagina(con: sqlite3.Connection, estado: Estado, agora: datetime) -
     itens: Sequence[Item]
     mais_url = None
     grupos: list[dict[str, Any]] = []
+    fora_sem_salario = fora_sem_valor = 0
     if estado.e_destaques:
         achados = [leitura.detalhe(con, i, estado.busca_id, agora) for i in ids_destaques]
         detalhes = [d for d in achados if d is not None]
@@ -330,7 +392,10 @@ def _contexto_pagina(con: sqlite3.Connection, estado: Estado, agora: datetime) -
         pagina = leitura.listar(con, estado.filtros(), agora)
         itens = pagina.itens
         fontes = _fontes(con, [i.id for i in itens])
-        grupos = _grupos(con, estado, agora)
+        grupos = _grupos(con, estado, agora, idioma)
+        fora_sem_salario, fora_sem_valor = leitura.contar_fora_do_salario(
+            con, estado.filtros(), agora
+        )
         if pagina.tem_mais:
             mais_url = estado.url(extras=[("pagina", "2")])
     return {
@@ -345,10 +410,28 @@ def _contexto_pagina(con: sqlite3.Connection, estado: Estado, agora: datetime) -
         "ordens": list(leitura.ORDENS),
         "ordem": estado.ordem,
         "q": estado.q,
+        "excluir": estado.excluir,
+        "cidade": estado.cidade,
+        "empresa": estado.empresa,
+        "sal_de": estado.sal_de,
+        "sal_ate": estado.sal_ate,
+        "n_mais_filtros": sum(
+            1
+            for v in (estado.excluir, estado.cidade, estado.empresa, estado.sal_de, estado.sal_ate)
+            if v not in ("", None)
+        ),
+        "exibicao": ex,
+        "aviso_salario": None if estado.e_destaques else estado.salario.aviso,  # lista sem Filtros
+        "fora_sem_salario": fora_sem_salario,
+        "fora_sem_valor": fora_sem_valor,
+        "mostrar_tambem_url": replace(estado, sem_salario=True).url(),
         "sem_criterio": estado.sem_criterio,
         "e_destaques": estado.e_destaques,
         "aba_da_busca": "todas" if estado.e_destaques else estado.aba,
-        "campos_ocultos": [(g, v) for g in CHIPS if (v := estado.chips.get(g))],
+        "campos_ocultos": [
+            *((g, v) for g in CHIPS if (v := estado.chips.get(g))),
+            *([("sem_salario", "1")] if estado.sem_salario else []),
+        ],
         "busca_id": estado.busca_id,
         "busca_na_url": estado.busca_url,
         "retorno": estado.url(),
@@ -371,8 +454,9 @@ async def raiz(con: Con) -> RedirectResponse:
 
 @router.get("/vagas")
 async def vagas(request: Request, con: Con) -> HTMLResponse:
-    estado = _ler_estado(request.query_params, con)
     agora = relogio_do_painel(request).agora()
+    ex = exibicao_do_painel(con, agora.astimezone().date())
+    estado = _ler_estado(request.query_params, con, ex)
     cabecalho = request.headers
     restaurando = cabecalho.get("hx-history-restore-request") == "true"
     parcial = cabecalho.get("hx-request") == "true" and not restaurando
@@ -394,7 +478,7 @@ async def vagas(request: Request, con: Con) -> HTMLResponse:
                 busca_id=estado.busca_id,
             )
         )
-    contexto = _contexto_pagina(con, estado, agora)
+    contexto = _contexto_pagina(con, estado, agora, idioma_do_pedido(request), ex)
     modelo = "vagas/miolo.html" if parcial else "vagas/pagina.html"
     return _vary(renderizar(request, modelo, **contexto))
 
