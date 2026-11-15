@@ -12,6 +12,7 @@ import asyncio
 import json
 import socket
 import threading
+import time
 from collections import Counter
 from collections.abc import AsyncIterator, Iterator, Sequence
 from dataclasses import dataclass, field, replace
@@ -162,6 +163,18 @@ _FORM_LOGIN = (
 )
 _ENVIAR = "<script>function enviar(token) { document.forms[0].submit(); }</script>"
 
+# Sem o literal do id da conta: o `LeitorFalso` o acharia no HTML antes de o script rodar.
+_CONTA_TARDIA = """<script>
+window.addEventListener('load', () => {
+  fetch('/conta-tardia/dados').then((r) => r.text()).then((t) => {
+    if (t !== 'sim') return;
+    const el = document.createElement('div');
+    el.id = 'con' + 'ta';
+    el.textContent = 'Conta';
+    document.body.appendChild(el);
+  });
+});
+</script>"""
 _CLOUDFLARE = (
     "<h1>Verificando o navegador</h1>"
     "<script src='/cdn-cgi/challenge-platform/h/b/orchestrate/jsch/v1'></script>{extra}"
@@ -296,6 +309,23 @@ class SiteFalso:
                 )
             case "/logado":
                 return _Resposta(corpo=_pagina("Início", "<div id='conta'>Conta</div>"))
+            case "/conta":  # a conta só com o cookie da sessão; senão, o login (T232)
+                if "falso_sessao=1" in cookie:
+                    return _Resposta(corpo=_pagina("Início", "<div id='conta'>Conta</div>"))
+                return _Resposta(corpo=_pagina("Entrar", _FORM_LOGIN.format(extra="")))
+            case "/conta-tardia":  # a marca da conta só chega por script, depois do `load`
+                return _Resposta(corpo=_pagina("Início", _CONTA_TARDIA))
+            case "/conta-tardia/dados":
+                # atraso fixo do servidor falso: a resposta chega sempre depois do `load`
+                time.sleep(0.3)
+                sim = "falso_sessao=1" in cookie
+                return _Resposta(corpo=b"sim" if sim else b"nao", tipo="text/plain")
+            case "/entrar-guardado":  # cookie com prazo: fica gravado no perfil ao fechar
+                cabecalhos = {
+                    "Location": "/conta",
+                    "Set-Cookie": "falso_sessao=1; Path=/; Max-Age=3600",
+                }
+                return _Resposta(303, cabecalhos=cabecalhos)
             case "/entrar/sem-senha":
                 return _Resposta(corpo=_pagina("Entrar", "<p>Escolha como entrar</p>"))
             case "/sso/entrar":

@@ -1,69 +1,96 @@
-"""Fazer login agora (D132.18, D132.21, D132.52).
+"""Fazer login agora pela janela comum (D132.52, forma trocada pela T232, D136.1 a D136.8).
 
-Abre o navegador com o perfil do joBot na página de login do site e só olha: a cada
-`limites.INTERVALO_LOGIN_MANUAL_S` lê `content()` e `url`, até a página ficar logada ou o prazo
-`limites.PRAZO_LOGIN_MANUAL_S` acabar. Quem digita e envia é a pessoa; o joBot nunca preenche
-campo, clica nem envia nada.
+Abre o navegador com o perfil do joBot na página de login do site, numa janela comum, sem
+automação. Quem digita e envia é a pessoa (Google, e-mail e senha ou outro jeito de entrar); o
+joBot nunca preenche campo, clica nem envia nada. Quando a pessoa fecha a janela, ou o prazo
+`limites.PRAZO_LOGIN_MANUAL_S` acaba, o joBot abre a janela automática no mesmo perfil, vai ao
+`url_entrada` do leitor, confere a sessão com `pagina_logada` e fecha.
 """
 
-import asyncio
 import contextlib
 import logging
+from collections.abc import Mapping
+from pathlib import Path
 from typing import Literal
 
 from playwright.async_api import Error as ErroDoPlaywright
+from playwright.async_api import TimeoutError as EstouroDoPlaywright
 
 from jobot.navegador import limites
-from jobot.navegador.abrir import SemNavegador, SemTela, abrir_contexto
+from jobot.navegador.abrir import SemNavegador, SemTela, abrir_contexto, ambiente_do_navegador
 from jobot.navegador.execucao import Dependencias
+from jobot.navegador.janela_comum import (
+    JanelaComum,
+    argumentos_da_janela,
+    esperar_fechar,
+    perfil_em_uso,
+)
+from jobot.navegador.perfil import pasta_do_perfil, preparar_preferencias
 from jobot.nucleo.leitores.base import LeitorComLogin
-from jobot.nucleo.relogio import Relogio
 
 log = logging.getLogger(__name__)
 
-Resultado = Literal["pronto", "tempo_esgotado", "sem_tela", "sem_navegador", "fechado"]
+Resultado = Literal["pronto", "nao_entrou", "tempo_esgotado", "sem_tela", "sem_navegador", "em_uso"]
+Fim = Literal["fechou", "prazo", "sem_tela", "sem_navegador", "em_uso"]
 
 
-async def fazer_login(leitor: LeitorComLogin, deps: Dependencias, relogio: Relogio) -> Resultado:
-    """Espera a pessoa entrar no site; fecha o navegador ao sair (cancelado inclusive)."""
-    try:
-        contexto = await abrir_contexto(deps.dados, deps.ambiente(), deps.lancar)
-    except SemTela:
+async def abrir_e_esperar(
+    janela: JanelaComum, dados: Path, ambiente: Mapping[str, str], url: str
+) -> Fim:
+    """Abre a janela comum em `url` e espera ela fechar, ou o prazo acabar."""
+    if not ambiente:
         return "sem_tela"
-    except SemNavegador:
+    executavel = await janela.caminho()
+    if executavel is None:
         return "sem_navegador"
-    fechado = asyncio.Event()  # a pessoa desistiu: fechou a aba de login ou o navegador
-    contexto_fechado = asyncio.Event()  # só o `close` do contexto: aí não há o que fechar
-    contexto.on("close", lambda _: contexto_fechado.set())
-    contexto.on("close", lambda _: fechado.set())
+    perfil = pasta_do_perfil(dados)
+    # com o perfil aberto, o navegador repassa o endereço ao processo aberto e sai na hora
+    if perfil_em_uso(perfil):
+        return "em_uso"
+    preparar_preferencias(perfil)
+    processo = await janela.abrir(
+        argumentos_da_janela(executavel, perfil, url), ambiente_do_navegador(ambiente)
+    )
+    return "fechou" if await esperar_fechar(processo) else "prazo"
+
+
+async def _sessao_aberta(
+    leitor: LeitorComLogin, deps: Dependencias, ambiente: Mapping[str, str]
+) -> bool:
+    """A janela automática no mesmo perfil, em `url_entrada`: a página está logada?"""
+    contexto = await abrir_contexto(deps.dados, ambiente, deps.lancar)
     try:
-        # o perfil persistente já abre com uma aba: usa ela, sem deixar uma em branco ao lado
-        aba = contexto.pages[0] if contexto.pages else await contexto.new_page()
-        aba.on("close", lambda _: fechado.set())  # fechar a aba de login também desiste
-        await aba.goto(leitor.url_login)
-        inicio = relogio.agora()
-        while True:
-            try:
-                html, url = await aba.content(), aba.url
-            except ErroDoPlaywright:
-                if fechado.is_set():
-                    return "fechado"
-                # a página está trocando (a pessoa enviou): olha na próxima, sem perguntar ao
-                # leitor com texto vazio (o contrato não promete False para vazio)
-            else:
-                if leitor.pagina_logada(html, url):
-                    return "pronto"
-            if (relogio.agora() - inicio).total_seconds() >= limites.PRAZO_LOGIN_MANUAL_S:
-                return "tempo_esgotado"
-            await relogio.dormir(limites.INTERVALO_LOGIN_MANUAL_S)
-            if fechado.is_set():
-                return "fechado"
+        aba = await contexto.new_page()
+        await aba.goto(leitor.url_entrada)
+        # o site pode pôr a marca da sessão por script depois do `load`; estourar não é erro
+        with contextlib.suppress(EstouroDoPlaywright):
+            await aba.wait_for_load_state("networkidle", timeout=limites.ESPERA_ASSENTAR_MS)
+        return leitor.pagina_logada(await aba.content(), aba.url)
     except ErroDoPlaywright:
-        if fechado.is_set():
-            return "fechado"
-        raise
+        return False  # a página não se leu: não dá para dizer que entrou
     finally:
-        if not contexto_fechado.is_set():
-            with contextlib.suppress(ErroDoPlaywright):
-                await contexto.close()
-        log.info("login manual do site %s encerrado", leitor.chave)
+        with contextlib.suppress(ErroDoPlaywright):
+            await contexto.close()
+
+
+async def fazer_login(leitor: LeitorComLogin, deps: Dependencias, janela: JanelaComum) -> Resultado:
+    """Espera a pessoa entrar pela janela comum e confere a sessão (cancelar fecha a janela)."""
+    ambiente = deps.ambiente()
+    fim = await abrir_e_esperar(janela, deps.dados, ambiente, leitor.url_login)
+    resultado: Resultado
+    if fim == "sem_tela" or fim == "sem_navegador" or fim == "em_uso":
+        resultado = fim
+    else:
+        try:
+            logado = await _sessao_aberta(leitor, deps, ambiente)
+        except SemTela:
+            resultado = "sem_tela"
+        except SemNavegador:
+            resultado = "sem_navegador"
+        else:
+            if logado:
+                resultado = "pronto"
+            else:
+                resultado = "nao_entrou" if fim == "fechou" else "tempo_esgotado"
+    log.info("login manual do site %s: %s", leitor.chave, resultado)
+    return resultado
