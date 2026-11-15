@@ -106,13 +106,18 @@ def test_espaco_liga_e_desliga(page: Page, painel: str, cofre: Cofre) -> None:
     cofre.gravar("2captcha", CHAVE)
     page.goto(f"{painel}/configuracoes/servicos")
     _interruptor(page).focus()
-    with page.expect_response(INTERRUPTOR):
-        page.keyboard.press("Space")
-    expect(_interruptor(page)).to_be_checked()
-    # o cartão foi trocado (outerHTML): o foco voltou ao interruptor novo
-    with page.expect_response(INTERRUPTOR):
-        page.keyboard.press("Space")
-    expect(_interruptor(page)).not_to_be_checked()
+    for ligado in (True, False):
+        velho = _interruptor(page).element_handle()
+        with page.expect_response(INTERRUPTOR):
+            page.keyboard.press("Space")
+        # a resposta chega antes da troca (outerHTML): espera o nó velho sair do DOM
+        velho.wait_for_element_state("hidden")
+        # e o foco volta ao interruptor novo, onde a próxima tecla vai
+        expect(_interruptor(page)).to_be_focused()
+        if ligado:
+            expect(_interruptor(page)).to_be_checked()
+        else:
+            expect(_interruptor(page)).not_to_be_checked()
 
 
 def test_testar_mostra_espera_e_depois_o_saldo(page: Page, painel: str) -> None:
