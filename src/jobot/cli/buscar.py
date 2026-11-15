@@ -9,9 +9,9 @@ import sys
 from contextlib import closing
 
 from jobot import __version__
-from jobot.agenda.execucao import executar_busca, parada_de
+from jobot.agenda.execucao import executar_busca
 from jobot.banco.conexao import abrir
-from jobot.banco.execucoes import saude_recente
+from jobot.banco.execucoes import parada_de, saude_recente
 from jobot.banco.gravacao import ValidadoresDoBanco
 from jobot.banco.migrar import BancoMaisNovo
 from jobot.cli import interrompido

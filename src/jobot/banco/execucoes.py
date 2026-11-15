@@ -12,15 +12,20 @@ escopo grava a saúde junto com as vagas (desenho 12.4, passo 3), então ela só
 quando não há transação aberta; havendo, quem abriu confirma.
 """
 
+import logging
 import sqlite3
 from collections.abc import Iterator, Sequence, Set
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Literal
 
+from jobot.banco.conexao import abrir
 from jobot.nucleo.coletores.executor import Historico
 from jobot.nucleo.relogio import Relogio
 from jobot.nucleo.url import canonica, hash_url
+
+log = logging.getLogger(__name__)
 
 Tipo = Literal["busca", "descoberta", "paginas"]
 Motivo = Literal["agenda", "agora", "recuperacao"]
@@ -28,6 +33,7 @@ Motivo = Literal["agenda", "agora", "recuperacao"]
 Parada = Literal["fechado", "sem_batimento", "banco", "erro"]
 EstadoSaude = Literal["ok", "sem_mudanca", "parcial", "falhou", "desligada", "no_limite"]
 
+BATIMENTO_S = 30.0  # de quanto em quanto tempo uma execução que roda bate
 BATIMENTO_VELHO = timedelta(minutes=5)  # processo morto (desenho 12.3)
 JANELA_DETALHE = timedelta(days=30)  # cache de `enriquecimento` (desenho 8.1, DR-70)
 _LOTE = 500  # URLs por consulta, bem abaixo do limite de variáveis do SQLite
@@ -396,3 +402,46 @@ class HistoricoDoBanco(Historico):
                 if _data(buscado_em) >= desde:
                     recentes.update(por_hash[h])
         return recentes
+
+
+def parada_de(erro: BaseException) -> Parada:
+    """O motivo da parada que a exceção grava: cancelamento, Ctrl+C e saída valem "fechado"."""
+    if not isinstance(erro, Exception):  # CancelledError, KeyboardInterrupt, SystemExit
+        return "fechado"
+    if isinstance(erro, sqlite3.Error):
+        return "banco"
+    return "erro"
+
+
+def interromper(
+    con: sqlite3.Connection, execucao_id: int, erro: BaseException, agora: datetime
+) -> None:
+    """Desfaz a transação aberta e marca a execução interrompida com o motivo de `erro`.
+
+    Quem chama segue com `raise`: se marcar falhar (banco quebrado), a falha só vai ao log e a
+    exceção original é a que sobe, nunca esta. O traceback de `erro` fica com quem pega a
+    exceção (o `rodar` da agenda, o `jobot buscar`), para não sair duas vezes no log.
+    """
+    try:
+        if con.in_transaction:  # o passo que quebrou pode ter deixado a sua aberta
+            con.rollback()
+        interromper_execucao(con, execucao_id, agora, parada=parada_de(erro))
+    except Exception:
+        log.exception("não deu para marcar a execução %s como interrompida", execucao_id)
+
+
+async def manter_batimento(con: sqlite3.Connection, execucao_id: int, relogio: Relogio) -> None:
+    """Batimento numa conexão própria: duas tarefas não dividem uma `sqlite3.Connection`."""
+    caminho = con.execute("PRAGMA database_list").fetchone()[2]
+    if not caminho:  # banco em memória não tem outra conexão; fica sem batimento
+        return
+    con2 = abrir(Path(caminho))
+    try:
+        while True:
+            await relogio.dormir(BATIMENTO_S)
+            try:
+                bater(con2, execucao_id, relogio.agora())
+            except sqlite3.Error:
+                log.exception("batimento da execução %s falhou", execucao_id)
+    finally:
+        con2.close()
