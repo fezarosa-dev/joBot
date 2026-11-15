@@ -52,7 +52,7 @@ A fase 1: a base do joBot. Já dá para instalar e usar.
 - Aviso "Salvo." depois de salvar em Configurações.
 - `jobot abrir` escreve no terminal o endereço do painel e como sair; a barra de andamento da busca mostra a fase de detalhes depois da coleta.
 - Aviso de restrição a países nas vagas remotas da Himalayas, Jobicy e Remotive.
-- Decisões do projeto (ADRs 0001 a 0021) e o `duvidas.md`.
+- Decisões do projeto (ADRs 0001 a 0022) e o `duvidas.md`.
 - README com selos, diagrama, tabelas e perguntas frequentes, e a versão em inglês.
 - Gráfico de estrelas no README.
 - Imagem de prévia para redes sociais (`docs/imagens/previa-social.png`).
