@@ -75,7 +75,7 @@ def test_desligar_destaques_tira_a_aba_e_o_painel_abre_em_todas(
         expect(page.get_by_label(rotulo, exact=True)).to_be_checked()
     page.get_by_label("Destaques de hoje", exact=True).uncheck()
     page.get_by_role("button", name="Salvar").click()
-    expect(page).to_have_url(f"{painel}/configuracoes/funcoes?salvo=1")
+    expect(page).to_have_url(f"{painel}/configuracoes/funcoes")  # o app.js já tirou ?salvo=1
     expect(page.get_by_role("status").filter(has_text="Salvo.")).to_be_visible()
     expect(page.get_by_label("Destaques de hoje", exact=True)).not_to_be_checked()
 
@@ -107,7 +107,7 @@ def test_privacidade_mostra_a_pasta_e_o_aviso_de_versao_nasce_ligado_e_desliga(
     expect(aviso).to_be_checked()
     aviso.uncheck()
     page.get_by_role("button", name="Salvar").click()
-    expect(page).to_have_url(f"{painel}/configuracoes/privacidade?salvo=1")
+    expect(page.get_by_role("status").filter(has_text="Salvo.")).to_be_visible()
     expect(page.get_by_label("Avisar quando houver versão nova")).not_to_be_checked()
 
 
@@ -170,7 +170,7 @@ def test_aparencia_troca_meu_pais_e_moeda(
     page.goto(f"{painel}/configuracoes/aparencia")
     page.get_by_label("Meu país", exact=True).select_option(label="Portugal")
     page.get_by_role("button", name="Salvar").click()
-    expect(page).to_have_url(f"{painel}/configuracoes/aparencia?salvo=1")
+    expect(page.get_by_role("status").filter(has_text="Salvo.")).to_be_visible()
     page.goto(f"{painel}/configuracoes/aparencia")
     expect(page.get_by_label("Meu país", exact=True)).to_have_value("PT")
     expect(page.get_by_label("Meu país", exact=True).locator("option:checked")).to_have_text(
@@ -200,3 +200,20 @@ def test_interruptor_do_2captcha_liga_com_espaco_e_o_foco_volta_ao_cartao_novo(
     expect(interruptor).to_be_checked()
     expect(interruptor).to_be_focused()
     expect(page.locator("#status-servicos")).to_have_text("Salvo.")
+
+
+def test_salvo_estatico_some_sozinho_e_a_url_perde_o_parametro(page: Page, painel: str) -> None:
+    page.clock.install(time=0)
+    page.goto(f"{painel}/configuracoes/funcoes?salvo=1&x=2#fim")
+    # sem pause_at: o timer de 5 s nasce num instante incerto da carga e o pause_at, que salta o
+    # relógio, o dispararia. Os dois saltos têm folga dos dois lados (2 s e depois 6 s no total)
+    mensagem = page.locator("p.config-salvo [data-some-sozinho]")
+    expect(mensagem).to_have_text("Salvo.")
+    expect(mensagem).to_be_visible()
+    assert page.evaluate("location.search + location.hash") == "?x=2#fim"
+    page.clock.fast_forward(2000)  # a fronteira exata de 5 s está em test_servicos.py
+    expect(mensagem).to_be_visible()
+    page.clock.fast_forward(4000)
+    expect(mensagem).to_be_hidden()
+    page.reload()
+    expect(page.locator("[data-some-sozinho]")).to_have_count(0)
