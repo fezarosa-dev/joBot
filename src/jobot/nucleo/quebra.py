@@ -22,7 +22,8 @@ MOTIVOS_DE_QUEBRA: frozenset[str] = frozenset(
         "saude.listagem_incompleta",
     }
 )
-# exceção inesperada, contadores e estados de limite de ritmo: não são defeito da fonte
+# exceção inesperada, contadores, limite de ritmo e paradas da navegação com login (login,
+# CAPTCHA, sem tela, sem navegador): não são defeito da fonte
 FORA_DO_LINK: frozenset[str] = frozenset(
     {
         "saude.excecao",
@@ -33,6 +34,10 @@ FORA_DO_LINK: frozenset[str] = frozenset(
         "saude.parou_429",
         "saude.limite_atingido",
         "saude.orcamento",
+        "saude.precisa_login",
+        "saude.captcha",
+        "saude.sem_tela",
+        "saude.sem_navegador",
     }
 )
 
