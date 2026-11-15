@@ -28,6 +28,7 @@ from jobot.banco.execucoes import EstadoSaude, abrir_execucao, fechar_execucao, 
 from jobot.banco.migrar import migrar
 from jobot.navegador import abrir as abrir_navegador
 from jobot.nucleo.leitores.base import LeitorComLogin
+from jobot.painel import i18n
 from jobot.painel.app import criar_app
 from jobot.painel.rotas import configuracoes
 from jobot.painel.seguranca import CAMPO_CSRF
@@ -457,7 +458,7 @@ class LoginFalso:
         self.resultado = "pronto"
         self.erro: Exception | None = None
 
-    async def __call__(self, leitor: LeitorComLogin, deps: Any, relogio: Any) -> str:
+    async def __call__(self, leitor: LeitorComLogin, deps: Any, janela: Any) -> str:
         self.chamadas.append(leitor.chave)
         for _ in range(500):
             if self.liberar.is_set():
@@ -574,7 +575,7 @@ def test_login_agora_pega_a_trava_e_guarda_o_estado(
         dados = {CAMPO_CSRF: painel.token}
         resposta = http.post(LOGIN, data=dados)
         assert resposta.status_code == 200
-        assert "Entre no site na janela do navegador" in _texto(resposta.text)
+        assert "feche a janela quando terminar" in _texto(resposta.text)
         trava = painel.app.state.travas["login"]
         assert trava.locked()  # pega antes de responder: um segundo clique já vê presa
         assert painel.app.state.login_manual == {CHAVE: "aguardando"}
@@ -584,7 +585,7 @@ def test_login_agora_pega_a_trava_e_guarda_o_estado(
         # segundo clique no mesmo site com a janela aberta: segue esperando, com o polling
         segundo = http.post(LOGIN, data=dados).text
         assert 'hx-trigger="every 5s"' in segundo
-        assert "Entre no site na janela do navegador" in _texto(segundo)
+        assert "feche a janela quando terminar" in _texto(segundo)
         login_falso.liberar.set()
         assert _esperar(lambda: not trava.locked())
         assert painel.app.state.login_manual == {CHAVE: "pronto"}
@@ -609,21 +610,38 @@ def test_login_que_quebra_mostra_erro_e_solta_a_trava(
 
 _ESTADOS_DO_LOGIN = {
     "pt": {
-        "aguardando": "O joBot espera até 10 minutos",
-        "pronto": "Login feito",
-        "tempo_esgotado": "O tempo acabou antes de você entrar",
+        "aguardando": (
+            "Entre no site e feche a janela quando terminar. Depois o joBot confere o login"
+            " sozinho (a janela fecha em 10 minutos se ficar aberta)."
+        ),
+        "pronto": "Login feito. O joBot já pode ler este site.",
+        "nao_entrou": (
+            "Não deu para confirmar o login. Tente de novo e entre no site antes de fechar"
+            " a janela."
+        ),
+        "tempo_esgotado": (
+            "A janela ficou aberta por 10 minutos sem login e foi fechada. Tente de novo."
+        ),
         "sem_tela": "Não achei a tela do computador",
         "sem_navegador": "Nenhum navegador encontrado",
-        "fechado": "O navegador foi fechado antes de você entrar",
+        "em_uso": "O navegador do joBot já está aberto. Feche-o e tente de novo.",
         "erro": "Algo deu errado ao abrir o navegador",
     },
     "en": {
-        "aguardando": "joBot waits up to 10 minutes",
-        "pronto": "Signed in",
-        "tempo_esgotado": "Time ran out before you signed in",
+        "aguardando": (
+            "Sign in to the site and close the window when you are done. joBot then checks"
+            " the sign-in by itself (the window closes after 10 minutes if left open)."
+        ),
+        "pronto": "Signed in. joBot can now read this site.",
+        "nao_entrou": (
+            "Could not confirm the sign-in. Try again and sign in before closing the window."
+        ),
+        "tempo_esgotado": (
+            "The window stayed open for 10 minutes without a sign-in and was closed. Try again."
+        ),
         "sem_tela": "Could not find the computer's screen",
         "sem_navegador": "No browser found",
-        "fechado": "The browser was closed before you signed in",
+        "em_uso": "joBot's browser is already open. Close it and try again.",
         "erro": "Something went wrong opening the browser",
     },
 }
@@ -643,6 +661,11 @@ def test_estado_do_login_em_pt_e_en(painel: Painel, estado: str, idioma: str) ->
     assert esperado in _texto(resposta.text)
     polling = 'hx-trigger="every 5s"' in resposta.text
     assert polling == (estado == "aguardando")  # só a espera pergunta de novo
+
+
+@pytest.mark.parametrize("idioma", ["pt", "en"])
+def test_login_sem_resultado_fechado(idioma: str) -> None:
+    assert "configuracoes.sites_com_login.login.fechado" not in i18n.carregar()[idioma]
 
 
 @pytest.mark.parametrize("idioma", ["pt", "en"])
