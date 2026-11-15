@@ -60,7 +60,7 @@ As outras fontes continuam normalmente. O joBot nunca tenta passar pelo CAPTCHA 
 <summary><strong>Meus dados vão para algum servidor?</strong></summary>
 
 Não existe servidor do joBot. Seus dados ficam no seu computador.
-Eles só vão para os serviços que você ligar: Anthropic (se usar o Claude), Google (se ligar o Gmail) e Telegram (se ligar o resumo diário). Também podem ir para o Jev (se escolher essa opção na classificação de e-mail) e para o RunPod (só no treino da fase 6). Na IA manual, vão para a IA de chat onde você colar.
+Eles só vão para os serviços que você ligar: Anthropic (se usar o Claude), Google (se ligar o Gmail) e Telegram (se ligar o resumo diário). Também podem ir para o Jev (se escolher essa opção na classificação de e-mail) e para o RunPod (só no treino da fase 7). Na IA manual, vão para a IA de chat onde você colar.
 </details>
 
 <details>
