@@ -22,6 +22,7 @@ from jobot.banco.buscas import (
     recalcular_encaixe,
     termos_das_buscas,
 )
+from jobot.banco.cadastros import gravar_config
 from jobot.banco.conexao import abrir
 from jobot.banco.cotacoes import gravar_cotacao
 from jobot.banco.leitura import Filtros, listar
@@ -143,6 +144,12 @@ def test_termos_e_paises_so_das_buscas_ativas(con: sqlite3.Connection) -> None:
     assert paises_das_buscas(con) == ("BR", "PT")
 
 
+def test_paises_das_buscas_usa_meu_pais(con: sqlite3.Connection) -> None:
+    gravar_config(con, "meu_pais", "PT")
+    _busca(con, cargos=("Java",))  # sem cidade: o país é o Meu país
+    assert paises_das_buscas(con) == ("PT",)
+
+
 def test_sem_busca_ativa_termos_e_paises_vazios(con: sqlite3.Connection) -> None:
     assert termos_das_buscas(con) == ()
     assert paises_das_buscas(con) == ()
@@ -198,6 +205,21 @@ def test_recalcular_grava_nota_nivel_motivos_e_motivo_de_ocultar(con: sqlite3.Co
     assert (nota, nivel, motivo) == (0, "fraco", "modalidade")  # a primeira regra que bate
     assert "encaixe.cargo_ausente" in _chaves(str(motivos))
     assert not con.in_transaction
+
+
+def test_recalcular_le_meu_pais_e_aceita_o_passado(con: sqlite3.Connection) -> None:
+    vaga = inserir_vaga(con, modalidade="remoto", avisos='["restrito_a_pais"]')
+    con.execute(
+        "INSERT INTO local_vaga (vaga_id, cidade, uf, pais) VALUES (?, NULL, NULL, 'PT')", (vaga,)
+    )
+    con.commit()
+    gravar_config(con, "meu_pais", "PT")
+    bid = _busca(con)  # sem cidade
+    _limpar_encaixe(con)
+    recalcular_encaixe(con, None, True, hoje=HOJE)
+    assert (_encaixe(con, bid, vaga) or (0,) * 4)[3] is None
+    recalcular_encaixe(con, None, True, hoje=HOJE, pais_padrao="BR")
+    assert (_encaixe(con, bid, vaga) or (0,) * 4)[3] == "pais"
 
 
 def test_regras_desligadas_nao_ocultam(con: sqlite3.Connection) -> None:

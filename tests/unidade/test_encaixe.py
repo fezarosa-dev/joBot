@@ -86,6 +86,7 @@ def _nota(v: VagaTratada, b: Busca | None = None, **extra: Any) -> int | None:
         "sal_mensal_brl": 8000,
         "minimo_busca_brl": 5000 if busca.salario_min_centavos else None,
         "regras_ligadas": False,
+        "pais_padrao": "BR",
     }
     return calcular(v, busca, **(args | extra)).nota
 
@@ -128,6 +129,7 @@ def test_motivo_de_cargo_traz_a_palavra_como_a_pessoa_escreveu() -> None:
         sal_mensal_brl=None,
         minimo_busca_brl=None,
         regras_ligadas=False,
+        pais_padrao="BR",
     )
     assert r.motivos[0].params == {"palavra": "Estágio"}
 
@@ -199,7 +201,9 @@ def test_faixas() -> None:
     def faixa(*pontos: int) -> str | None:
         v = _compor(*pontos)
         sal = {15: 8000, 7: None, 0: 100}[pontos[3]]
-        return calcular(v, b, sal_mensal_brl=sal, minimo_busca_brl=5000, regras_ligadas=False).nivel
+        return calcular(
+            v, b, sal_mensal_brl=sal, minimo_busca_brl=5000, regras_ligadas=False, pais_padrao="BR"
+        ).nivel
 
     assert _nota_composta(40, 20, 0, 0, 10) == 70
     assert faixa(40, 20, 0, 0, 10) == "bom"
@@ -215,7 +219,12 @@ def test_faixas() -> None:
 
 def test_motivos_um_por_criterio_preenchido() -> None:
     r = calcular(
-        _vaga_completa(), _busca(), sal_mensal_brl=8000, minimo_busca_brl=5000, regras_ligadas=True
+        _vaga_completa(),
+        _busca(),
+        sal_mensal_brl=8000,
+        minimo_busca_brl=5000,
+        regras_ligadas=True,
+        pais_padrao="BR",
     )
     assert [m.chave for m in r.motivos] == [
         "encaixe.cargo_titulo",
@@ -231,6 +240,7 @@ def test_motivos_um_por_criterio_preenchido() -> None:
         sal_mensal_brl=None,
         minimo_busca_brl=5000,
         regras_ligadas=False,
+        pais_padrao="BR",
     )
     chaves = [m.chave for m in r2.motivos]
     assert chaves[0] == "encaixe.cargo_ausente"
@@ -240,7 +250,9 @@ def test_motivos_um_por_criterio_preenchido() -> None:
 def test_sem_criterio_nota_vazia() -> None:
     nada = Busca(nome="x")
     v = _tratada(nivel=Nivel.SENIOR, idioma="en", modalidade=Modalidade.REMOTO)
-    r = calcular(v, nada, sal_mensal_brl=10, minimo_busca_brl=None, regras_ligadas=True)
+    r = calcular(
+        v, nada, sal_mensal_brl=10, minimo_busca_brl=None, regras_ligadas=True, pais_padrao="BR"
+    )
     assert r.nota is None
     assert r.nivel is None
     assert r.motivos == ()
@@ -264,7 +276,12 @@ def _busca_ruim(**campos: Any) -> Busca:
 
 
 def _oculta(v: VagaTratada, b: Busca, **extra: Any) -> str | None:
-    args: dict[str, Any] = {"sal_mensal_brl": 100, "minimo_busca_brl": 5000, "regras_ligadas": True}
+    args: dict[str, Any] = {
+        "sal_mensal_brl": 100,
+        "minimo_busca_brl": 5000,
+        "regras_ligadas": True,
+        "pais_padrao": "BR",
+    }
     return calcular(v, b, **(args | extra)).oculta_motivo
 
 
@@ -319,6 +336,32 @@ def test_remoto_restrito_a_outro_pais() -> None:
     assert _oculta(sem_pais, b, **kw) is None
 
 
+def _restrita(pais: str) -> VagaTratada:
+    return _tratada(
+        modalidade=Modalidade.REMOTO, avisos=(Aviso.RESTRITO_A_PAIS,), locais=(Local(pais=pais),)
+    )
+
+
+def test_pais_padrao_pt_deixa_passar_vaga_restrita_a_pt() -> None:
+    b = _busca(cidades=(), modalidades=())
+    kw: dict[str, Any] = {"minimo_busca_brl": None, "pais_padrao": "PT"}
+    assert _oculta(_restrita("PT"), b, **kw) is None
+    assert _oculta(_restrita("BR"), b, **kw) == "pais"
+
+
+def test_pais_padrao_br_mantem_o_comportamento() -> None:
+    b = _busca(cidades=(), modalidades=())
+    kw: dict[str, Any] = {"minimo_busca_brl": None, "pais_padrao": "BR"}
+    assert _oculta(_restrita("BR"), b, **kw) is None
+    assert _oculta(_restrita("PT"), b, **kw) == "pais"
+
+
+def test_busca_com_cidade_ignora_pais_padrao() -> None:
+    b = _busca(cidades=(Local(cidade="Lisboa", pais="PT"),), modalidades=())
+    kw: dict[str, Any] = {"minimo_busca_brl": None, "pais_padrao": "BR"}
+    assert _oculta(_restrita("PT"), b, **kw) is None
+
+
 def test_vaga_so_brasileira_sem_local_restrita_conta_como_brasil() -> None:
     vaga = tratar(
         VagaColetada(
@@ -356,7 +399,9 @@ def test_sem_cotacao_nao_oculta() -> None:
     assert _oculta(_tratada(salario=None), b) is None  # sem dado
     # controles: o mesmo caso com cotação oculta, e sem cotação a nota fica neutra
     assert _oculta(v, b, sal_mensal_brl=4999, minimo_busca_brl=5000) == "salario"
-    sem = calcular(v, b, sal_mensal_brl=None, minimo_busca_brl=None, regras_ligadas=True)
+    sem = calcular(
+        v, b, sal_mensal_brl=None, minimo_busca_brl=None, regras_ligadas=True, pais_padrao="BR"
+    )
     assert sem.oculta_motivo is None
     assert [m.chave for m in sem.motivos] == ["encaixe.salario_nao_informado"]
     assert sem.nota == 47  # 100 x 7 / 15
@@ -365,16 +410,22 @@ def test_sem_cotacao_nao_oculta() -> None:
 def test_regras_desligadas_nao_ocultam() -> None:
     v = _ruim()
     b = _busca_ruim()
-    desligada = calcular(v, b, sal_mensal_brl=100, minimo_busca_brl=5000, regras_ligadas=False)
+    desligada = calcular(
+        v, b, sal_mensal_brl=100, minimo_busca_brl=5000, regras_ligadas=False, pais_padrao="BR"
+    )
     assert desligada.oculta_motivo is None
     assert desligada.nota is not None  # a nota continua sendo calculada
-    ligada = calcular(v, b, sal_mensal_brl=100, minimo_busca_brl=5000, regras_ligadas=True)
+    ligada = calcular(
+        v, b, sal_mensal_brl=100, minimo_busca_brl=5000, regras_ligadas=True, pais_padrao="BR"
+    )
     assert ligada.oculta_motivo == "modalidade"
     assert ligada.nota == desligada.nota
 
 
 def _motivo_local(v: VagaTratada, b: Busca) -> str:
-    r = calcular(v, b, sal_mensal_brl=None, minimo_busca_brl=None, regras_ligadas=False)
+    r = calcular(
+        v, b, sal_mensal_brl=None, minimo_busca_brl=None, regras_ligadas=False, pais_padrao="BR"
+    )
     return next(
         m.chave for m in r.motivos if m.chave.startswith(("encaixe.local_", "encaixe.modalidade_"))
     )

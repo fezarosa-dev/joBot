@@ -18,6 +18,7 @@ from decimal import Decimal
 from enum import StrEnum
 from typing import Any
 
+from jobot.banco.cadastros import meu_pais
 from jobot.banco.cotacoes import cotacao_mais_recente
 from jobot.nucleo.cambio import MOEDAS, em_reais
 from jobot.nucleo.encaixe import calcular
@@ -214,11 +215,12 @@ def termos_das_buscas(con: sqlite3.Connection) -> tuple[str, ...]:
 
 
 def paises_das_buscas(con: sqlite3.Connection) -> tuple[str, ...]:
-    """Países das buscas ativas, em ordem alfabética: os das cidades, ou o Brasil (11.1, DR-30)."""
+    """Países das buscas ativas, em ordem alfabética: os das cidades, ou o Meu país (11.1)."""
     paises: set[str] = set()
+    padrao = meu_pais(con)
     for b in _ativas(con):
         achados = {c.pais.upper() for c in b.cidades if c.pais}
-        paises |= achados or {"BR"}
+        paises |= achados or {padrao}
     return tuple(sorted(paises))
 
 
@@ -292,6 +294,7 @@ def _recalcular(
     regras_ligadas: bool,
     hoje: date,
     vaga_id: int | None,
+    pais_padrao: str | None = None,
 ) -> int:
     if busca_ids is None:
         alvo = _ativas(con)
@@ -304,6 +307,7 @@ def _recalcular(
         alvo = [_ler(linha) for linha in linhas]
     if not alvo:
         return 0
+    padrao = meu_pais(con) if pais_padrao is None else pais_padrao
     minimos = {b.id: minimo_busca_brl(con, b, hoje=hoje) for b in alvo}
     params = () if vaga_id is None else (vaga_id,)
 
@@ -326,6 +330,7 @@ def _recalcular(
                 sal_mensal_brl=dados["sal_mensal_min_brl"],
                 minimo_busca_brl=minimos[b.id],
                 regras_ligadas=regras_ligadas,
+                pais_padrao=padrao,
             )
             motivos = [{"chave": m.chave, "params": dict(m.params)} for m in e.motivos]
             texto = json.dumps(motivos, ensure_ascii=False)
@@ -347,13 +352,14 @@ def recalcular_encaixe(
     *,
     hoje: date,
     vaga_id: int | None = None,
+    pais_padrao: str | None = None,
 ) -> int:
     """Grava nota, nível, motivos e `oculta_motivo` de cada vaga para cada busca; devolve quantas.
 
     `busca_ids` `None`: as buscas ativas; uma lista: essas, ativas ou não. `vaga_id`: só aquela
     vaga (decisão 18: a rota de correção recalcula uma vaga). `regras_ligadas` é a chave geral de
     ocultar (11.3). `hoje` é o dia local do `Relogio` (`agora.astimezone().date()`), para a validade
-    de 7 dias da cotação.
+    de 7 dias da cotação. `pais_padrao` `None`: lê o Meu país do banco, uma vez por chamada.
     """
     with _escrita(con):
-        return _recalcular(con, busca_ids, regras_ligadas, hoje, vaga_id)
+        return _recalcular(con, busca_ids, regras_ligadas, hoje, vaga_id, pais_padrao)
