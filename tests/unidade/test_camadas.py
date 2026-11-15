@@ -1,4 +1,5 @@
 import ast
+import tomllib
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[2]
@@ -13,6 +14,8 @@ PROIBIDOS_NO_NUCLEO = (
     "jobot.banco",
     "jobot.sistema",
     "jobot.cli",
+    "playwright",
+    "jobot.navegador",
 )
 
 
@@ -75,11 +78,78 @@ def test_detector_acha_import_proibido(tmp_path: Path) -> None:
     assert _ruins(tmp_path, PROIBIDOS_NO_NUCLEO) == ["a.py: fastapi", "a.py: jobot.painel"]
 
 
-def test_captcha_so_fora_das_fontes_publicas() -> None:
+def _ruins_fora_de(fonte: Path, proibidos: tuple[str, ...], menos: tuple[str, ...]) -> list[str]:
+    """Imports proibidos em `fonte`, ignorando os pacotes de topo listados em `menos`."""
+    return [
+        f"{arquivo.name}: {modulo}"
+        for arquivo, modulo in _importados(fonte)
+        if arquivo.relative_to(fonte).parts[0] not in menos
+        and any(_casa(modulo, p) for p in proibidos)
+    ]
+
+
+def _playwright_fora_do_navegador(raiz: Path) -> list[str]:
+    """Quem importa `playwright` fora de `src/jobot/navegador` (inclui `scripts/*.py`)."""
+    return _ruins_fora_de(raiz / "src" / "jobot", ("playwright",), ("navegador",)) + _ruins(
+        raiz / "scripts", ("playwright",)
+    )
+
+
+def test_so_navegador_importa_playwright() -> None:
+    assert _playwright_fora_do_navegador(RAIZ) == []
+
+
+def test_captcha_so_em_navegador_e_painel() -> None:
     # ADR 0022: o 2Captcha só age na navegação com login da fase 2; fonte pública não o importa.
-    for pasta in ("nucleo/coletores", "agenda", "cli"):
-        assert _ruins(FONTE / pasta, ("jobot.nucleo.captcha",)) == [], pasta
-    assert _ruins(FONTE / "nucleo", PROIBIDOS_NO_NUCLEO) == []
+    assert _ruins_fora_de(FONTE, ("jobot.nucleo.captcha",), ("navegador", "painel")) == []
+
+
+def test_camadas_de_baixo_nao_importam_navegador() -> None:
+    for pasta in ("nucleo", "banco", "agenda", "sistema"):
+        assert _ruins(FONTE / pasta, ("jobot.navegador",)) == [], pasta
+
+
+def test_navegador_nao_importa_painel_agenda_cli() -> None:
+    assert _ruins(FONTE / "navegador", ("jobot.painel", "jobot.agenda", "jobot.cli")) == []
+
+
+def test_detector_acha_playwright_fora_do_navegador(tmp_path: Path) -> None:
+    jobot = tmp_path / "src" / "jobot"
+    (jobot / "navegador").mkdir(parents=True)
+    (jobot / "nucleo").mkdir()
+    (tmp_path / "scripts").mkdir()
+    (jobot / "navegador" / "ok.py").write_text("import playwright\n")
+    (jobot / "nucleo" / "a.py").write_text("from playwright.sync_api import sync_playwright\n")
+    (tmp_path / "scripts" / "b.py").write_text("import playwright.sync_api\n")
+    assert _playwright_fora_do_navegador(tmp_path) == [
+        "a.py: playwright.sync_api",
+        "a.py: playwright.sync_api.sync_playwright",
+        "b.py: playwright.sync_api",
+    ]
+
+
+def test_detector_acha_captcha_fora_da_lista(tmp_path: Path) -> None:
+    jobot = tmp_path / "jobot"
+    for pasta in ("agenda", "painel", "navegador"):
+        (jobot / pasta).mkdir(parents=True)
+        (jobot / pasta / "x.py").write_text("from jobot.nucleo import captcha\n")
+    assert _ruins_fora_de(jobot, ("jobot.nucleo.captcha",), ("navegador", "painel")) == [
+        "x.py: jobot.nucleo.captcha"
+    ]
+
+
+def test_detector_acha_navegador_em_banco(tmp_path: Path) -> None:
+    (tmp_path / "a.py").write_text("from jobot import navegador\n")
+    assert _ruins(tmp_path, ("jobot.navegador",)) == ["a.py: jobot.navegador"]
+
+
+def test_detector_acha_painel_no_navegador(tmp_path: Path) -> None:
+    (tmp_path / "a.py").write_text("from jobot.painel import rotas\nimport jobot.cli\n")
+    assert _ruins(tmp_path, ("jobot.painel", "jobot.agenda", "jobot.cli")) == [
+        "a.py: jobot.painel",
+        "a.py: jobot.painel.rotas",
+        "a.py: jobot.cli",
+    ]
 
 
 def test_detector_acha_import_do_captcha(tmp_path: Path) -> None:
@@ -102,3 +172,12 @@ def test_detector_resolve_import_relativo(tmp_path: Path) -> None:
         "x.py: jobot.banco.gravacao",
         "y.py: jobot.painel",
     ]
+
+
+def test_playwright_e_dependencia_de_execucao() -> None:
+    # D132.1: o navegador com login roda no uso normal, não só nos testes de tela.
+    pyproject = tomllib.loads((RAIZ / "pyproject.toml").read_text(encoding="utf-8"))
+    assert "playwright==1.65.1" in pyproject["project"]["dependencies"]
+    dev = pyproject["dependency-groups"]["dev"]
+    assert "playwright==1.65.1" not in dev
+    assert "pytest-playwright==0.10.0" in dev
