@@ -36,6 +36,7 @@ from jobot.banco.captcha import NOME_NO_COFRE
 from jobot.banco.execucoes import LinhaSaude, leitura_login_rodando, ultimas_que_rodaram
 from jobot.navegador import limites
 from jobot.navegador.execucao import dependencias_de_producao
+from jobot.navegador.janela_comum import janela_de_producao
 from jobot.navegador.login_manual import fazer_login
 from jobot.navegador.perfil import apagar_perfil
 from jobot.nucleo.cambio import MOEDAS_EXIBICAO, moeda_do_pais
@@ -469,7 +470,7 @@ def _fragmento_de_login(request: Request, chave: str, estado: str) -> Response:
 
 @router.post(f"/{_COM_LOGIN}/{{chave}}/login")
 async def fazer_login_agora(request: Request, chave: str) -> Response:
-    """Abre o navegador na página de login do site e espera a pessoa entrar (D132.18)."""
+    """Abre a janela comum na página de login do site e espera a pessoa entrar (D136.1)."""
     leitor = _leitor(request, chave)
     trava = _trava_de_login(request)
     estados = _estados_de_login(request)
@@ -480,14 +481,13 @@ async def fazer_login_agora(request: Request, chave: str) -> Response:
     # tudo que pode falhar vem antes do acquire: depois dele, só o que não solta exceção
     dados: Path = request.app.state.banco.parent
     env = ambiente_do_painel(request)
-    relogio = relogio_do_painel(request)
     await trava.acquire()  # livre: não suspende, então a checagem acima vale (como no laço)
     estados[chave] = "aguardando"
 
     async def login() -> None:
         try:
             async with dependencias_de_producao(dados, env) as deps:
-                estados[chave] = await fazer_login(leitor, deps, relogio)
+                estados[chave] = await fazer_login(leitor, deps, janela_de_producao())
         except Exception:
             estados[chave] = "erro"
             raise  # o `rodar` registra no log e solta a trava

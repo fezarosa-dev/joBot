@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 from typing import Any
 
+import playwright
 import pytest
 
 from jobot.navegador import abrir, limites
@@ -11,6 +12,7 @@ from jobot.navegador.abrir import (
     SemNavegador,
     SemTela,
     abrir_contexto,
+    caminho_do_navegador,
     lancador_de_producao,
     navegador_instalado,
 )
@@ -213,3 +215,28 @@ async def test_navegador_instalado(tmp_path: Path, monkeypatch: pytest.MonkeyPat
     assert await navegador_instalado() == "chromium"
     chrome.touch()
     assert await navegador_instalado() == "chrome"
+
+
+async def test_caminho_do_navegador_prefere_o_chrome(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    arquivo_existente = tmp_path / "chrome"
+    arquivo_existente.touch()
+
+    def explode() -> Any:
+        raise AssertionError("com o Chrome no lugar, o driver do Playwright não sobe")
+
+    monkeypatch.setattr(abrir, "CAMINHO_CHROME", arquivo_existente)
+    monkeypatch.setattr(abrir, "async_playwright", explode)
+    assert await caminho_do_navegador() == arquivo_existente
+
+
+def _core_bundle() -> Path:
+    return Path(playwright.__file__).parent / "driver" / "package" / "lib" / "coreBundle.js"
+
+
+def test_password_store_basic_vem_do_playwright() -> None:
+    # a janela automática lê os cookies v10 da janela comum só com esta opção (D136.9)
+    arquivo = _core_bundle()
+    assert arquivo.exists(), "o Playwright mudou o pacote: ache onde ficam os chromiumSwitches"
+    assert "--password-store=basic" in arquivo.read_text(encoding="utf-8")

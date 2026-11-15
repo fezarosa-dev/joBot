@@ -14,11 +14,13 @@ from jobot.sistema.pastas import PASTA_NAVEGADOR
 
 _LOG = logging.getLogger(__name__)
 
-# Chaves do Chromium que desligam o gerenciador de senhas e o preenchimento automático.
+# Chaves do Chromium que desligam o gerenciador de senhas, o preenchimento automático e a
+# ligação do perfil à conta do Google que a pessoa usa ao entrar com Google na página (D136.21).
 PREFERENCIAS: dict[str, object] = {
     "credentials_enable_service": False,
     "profile": {"password_manager_enabled": False},
     "autofill": {"profile_enabled": False},
+    "signin": {"allowed": False},
 }
 
 
@@ -66,7 +68,7 @@ def _junta(atual: dict[str, object]) -> dict[str, object]:
 
 
 def preparar_preferencias(perfil: Path) -> None:
-    """Grava as três chaves em `Default/Preferences`, mantendo o resto do arquivo.
+    """Grava as chaves de `PREFERENCIAS` em `Default/Preferences`, mantendo o resto do arquivo.
 
     `perfil` deve vir de `pasta_do_perfil`: só `Default/` é criada aqui (0700).
     """

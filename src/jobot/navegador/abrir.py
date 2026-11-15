@@ -73,27 +73,40 @@ async def abrir_contexto(
         raise SemNavegador("nenhum navegador abriu") from None
 
 
-def lancador_de_producao(playwright: Playwright, ambiente: Mapping[str, str]) -> Lancar:
-    """Visível, sem argumento extra; o `env` do Playwright troca o ambiente inteiro.
+def ambiente_do_navegador(ambiente: Mapping[str, str]) -> dict[str, str]:
+    """O ambiente das duas janelas: só `VARIAVEIS_DO_NAVEGADOR` (as que existirem em
+    `os.environ`) mais o `ambiente` da tela já validado; o resto do `serve` não passa."""
+    return {**{n: os.environ[n] for n in VARIAVEIS_DO_NAVEGADOR if n in os.environ}, **ambiente}
 
-    Vai só `VARIAVEIS_DO_NAVEGADOR` (as que existirem em `os.environ`) mais o `ambiente` da
-    tela já validado; o resto do ambiente do `serve` não chega ao navegador.
-    """
-    base = {n: os.environ[n] for n in VARIAVEIS_DO_NAVEGADOR if n in os.environ}
+
+def lancador_de_producao(playwright: Playwright, ambiente: Mapping[str, str]) -> Lancar:
+    """Visível, sem argumento extra; o `env` do Playwright troca o ambiente inteiro."""
+    env: dict[str, str | float | bool] = {**ambiente_do_navegador(ambiente)}
 
     async def lancar(**argumentos: Any) -> BrowserContext:
         return await playwright.chromium.launch_persistent_context(
-            **argumentos, headless=False, env={**base, **ambiente}
+            **argumentos, headless=False, env=env
         )
 
     return lancar
 
 
-async def navegador_instalado() -> Literal["chrome", "chromium"] | None:
-    """Chrome pelo caminho; Chromium pelo `executable_path` (sobe o driver do Playwright)."""
+async def caminho_do_navegador() -> Path | None:
+    """O Chrome se existe; senão o Chromium do Playwright (sobe o driver); senão `None`."""
+    # shortcut: escolhe o Chrome só porque o arquivo existe; se o canal chrome do Playwright
+    # falhar, o abrir_contexto cai no Chromium com o mesmo perfil, e os cookies v10 com
+    # --password-store=basic foram conferidos só no Chromium; mudar se aparecer sessão perdida
+    # nessa troca
     if CAMINHO_CHROME.exists():
-        return "chrome"
+        return CAMINHO_CHROME
     async with async_playwright() as playwright:
-        if Path(playwright.chromium.executable_path).exists():
-            return "chromium"
-    return None
+        chromium = Path(playwright.chromium.executable_path)
+    return chromium if chromium.exists() else None
+
+
+async def navegador_instalado() -> Literal["chrome", "chromium"] | None:
+    """Qual navegador as duas janelas usam, pelo `caminho_do_navegador`."""
+    caminho = await caminho_do_navegador()
+    if caminho is None:
+        return None
+    return "chrome" if caminho == CAMINHO_CHROME else "chromium"

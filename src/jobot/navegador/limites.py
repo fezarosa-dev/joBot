@@ -16,7 +16,7 @@ ESPERA_TOKEN_S: Final = 30  # (D132.31)
 JANELA_PARADA_S: Final = 900  # (D132.26)
 OLHAR_S: Final = 5  # a janela parada olha cada aba a cada 5 s (D132.26)
 PRAZO_LOGIN_MANUAL_S: Final = 600  # (D132.52)
-INTERVALO_LOGIN_MANUAL_S: Final = 5.0  # leitura da janela de login enquanto a pessoa entra
+ESPERA_SAIR_JANELA_S: Final = 10.0  # entre o SIGTERM e o SIGKILL da janela comum (D136.3)
 MAX_RESPOSTA_BYTES: Final = 5 * 1024 * 1024  # (D132.54)
 MAX_RESPOSTAS: Final = 50
 # Técnico, fora da D132: o `close` do contexto pode chegar logo depois do erro do Playwright que

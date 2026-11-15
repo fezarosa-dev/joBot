@@ -14,10 +14,11 @@ from jobot.navegador.perfil import (
 )
 from jobot.sistema.pastas import PASTA_NAVEGADOR
 
-TRES = {
+QUATRO = {
     "credentials_enable_service": False,
     "profile": {"password_manager_enabled": False},
     "autofill": {"profile_enabled": False},
+    "signin": {"allowed": False},
 }
 
 
@@ -42,8 +43,16 @@ def _com(perfil: Path, conteudo: bytes) -> None:
     _prefs(perfil).write_bytes(conteudo)
 
 
-def test_preferencias_sao_as_tres_chaves() -> None:
-    assert PREFERENCIAS == TRES
+def test_preferencias_sao_as_quatro_chaves() -> None:
+    assert PREFERENCIAS == QUATRO
+
+
+def test_preparar_preferencias_desliga_o_signin(tmp_path: Path) -> None:
+    perfil = tmp_path / "perfil"
+    perfil.mkdir()
+    preparar_preferencias(perfil)
+    prefs = json.loads(_prefs(perfil).read_text(encoding="utf-8"))
+    assert prefs.get("signin") == {"allowed": False}
 
 
 def test_pasta_do_perfil_nasce_0700(tmp_path: Path) -> None:
@@ -69,7 +78,7 @@ def test_preferencias_em_perfil_vazio(tmp_path: Path) -> None:
     perfil = tmp_path / "perfil"
     perfil.mkdir()
     preparar_preferencias(perfil)
-    assert _lido(perfil) == TRES
+    assert _lido(perfil) == QUATRO
     assert _modo(_prefs(perfil)) == 0o600
     assert sorted(p.name for p in _prefs(perfil).parent.iterdir()) == ["Preferences"]
 
@@ -89,6 +98,7 @@ def test_preferencias_preservam_outras_chaves(tmp_path: Path) -> None:
         "autofill": {"credit_card_enabled": True, "profile_enabled": False},
         "credentials_enable_service": False,
         "outra": 1,
+        "signin": {"allowed": False},
     }
 
 
@@ -96,7 +106,7 @@ def test_preferencias_com_bloco_que_nao_e_objeto(tmp_path: Path) -> None:
     perfil = tmp_path / "perfil"
     _com(perfil, json.dumps({"profile": 5, "autofill": [1], "outra": 1}).encode())
     preparar_preferencias(perfil)
-    assert _lido(perfil) == {**TRES, "outra": 1}
+    assert _lido(perfil) == {**QUATRO, "outra": 1}
 
 
 def test_preferencias_arquivo_torto_reescreve(
@@ -106,7 +116,7 @@ def test_preferencias_arquivo_torto_reescreve(
     _com(perfil, b"{quebrado SEGREDO")
     with caplog.at_level(logging.WARNING):
         preparar_preferencias(perfil)
-    assert _lido(perfil) == TRES
+    assert _lido(perfil) == QUATRO
     assert "reescrito" in caplog.text
     assert "SEGREDO" not in caplog.text
 
@@ -119,7 +129,7 @@ def test_preferencias_nao_utf8_ou_lista_reescreve(
     _com(perfil, conteudo)
     with caplog.at_level(logging.WARNING):
         preparar_preferencias(perfil)
-    assert _lido(perfil) == TRES
+    assert _lido(perfil) == QUATRO
     assert "reescrito" in caplog.text
 
 
@@ -211,7 +221,7 @@ def test_preferencias_gravam_pelo_tmp_0600(tmp_path: Path, monkeypatch: pytest.M
     assert origem != _prefs(perfil)
     assert modo == 0o600
     assert para_o_arquivo
-    assert _lido(perfil) == TRES
+    assert _lido(perfil) == QUATRO
 
 
 def test_preferencias_falha_na_troca_mantem_o_antigo_e_limpa_o_tmp(
@@ -237,7 +247,7 @@ def test_preferencias_tmp_velho_nao_atrapalha(tmp_path: Path) -> None:
     sobra = perfil / "Default" / "Preferences.tmp"
     sobra.write_text("lixo")
     preparar_preferencias(perfil)
-    assert _lido(perfil) == TRES
+    assert _lido(perfil) == QUATRO
     assert not sobra.exists()
 
 
