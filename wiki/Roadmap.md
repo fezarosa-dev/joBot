@@ -20,7 +20,7 @@ flowchart LR
 | | Phase | What is included | Status |
 |:---:|---|---|---|
 | ✅ | **1. Base** | Common core, public sources, database, dashboard and scheduling | Complete |
-| ⚪ | **2. Browser with login** | Visible Chrome, site mapping and CAPTCHA handling | Planned |
+| ⚪ | **2. Browser with login** | Login through a regular window, LinkedIn first, site mapping and CAPTCHA handling | Planned |
 | ⚪ | **3. Local AI** | Offline package (llama-server + Qwen) | Planned |
 | ⚪ | **4. Browser extension** | Browser extension for forms | Planned |
 | ⚪ | **5. Audio and Gmail** | Answers by voice and email reading | Planned |
@@ -43,8 +43,8 @@ flowchart LR
 <details>
 <summary><strong>⚪ Phase 2, Browser with login</strong></summary>
 
-- A visible Chrome controlled by Playwright. You log in with your own hands.
-- Site mapping order: Gupy, LinkedIn, Vagas.com, Catho, Indeed and the others.
+- The login happens in a regular browser window, with no automation: you sign in however you like (Google, email and password) and close the window. joBot checks the session by itself and never types the password.
+- Site mapping order: LinkedIn, Gupy, Vagas.com, Catho, Indeed and, last, the technology-only sites.
 - Logins join the first-run assistant.
 </details>
 

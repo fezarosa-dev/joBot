@@ -10,7 +10,7 @@
 <summary><strong>Why not use Docker?</strong></summary>
 
 The audience is non-technical and uses ordinary computers. Docker Desktop is heavy and, on Windows and macOS, runs inside a virtual machine.
-joBot needs to open a visible Chrome so you can log in and solve CAPTCHAs, use the microphone, start with the system and create shortcuts. All of this is hard inside a container.
+joBot needs to open a browser window so you can log in, use the microphone, start with the system and create shortcuts. All of this is hard inside a container.
 And the Claude Code login would have to be done again in there (on macOS it lives in the Keychain, which the container cannot see). See [ADR 0003](https://github.com/fezarosa-dev/joBot/blob/main/docs/decisions/0003-stack-e-instalacao-nativa.md).
 </details>
 
@@ -45,8 +45,15 @@ No. It prepares the application and helps fill in forms, but you are always the 
 <summary><strong>Can my LinkedIn account be restricted?</strong></summary>
 
 It can. The risk exists, and it can't be reduced to zero.
-joBot reduces the risk: you do the login with your own hands, it only reads, it visits a few times a day, it goes slowly and it never bypasses CAPTCHA.
+joBot reduces the risk: you do the login with your own hands, in a regular browser window, it only reads, it visits a few times a day, it goes slowly and it never bypasses CAPTCHA.
 Each site with login has a switch. You decide whether to turn it on.
+</details>
+
+<details>
+<summary><strong>What does "closed" mean for a LinkedIn job?</strong></summary>
+
+LinkedIn's search sorts by relevance, and joBot reads only the last week. So an open job can drop off the list without having closed.
+For LinkedIn, "closed" means "not seen for 30 days". If a job closed by mistake comes back to the list, it reopens by itself.
 </details>
 
 <details>

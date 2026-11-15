@@ -10,7 +10,7 @@
 <summary><strong>Por que não usar Docker?</strong></summary>
 
 O público é leigo e usa computadores comuns. O Docker Desktop é pesado e, no Windows e no macOS, roda dentro de uma máquina virtual.
-O joBot precisa abrir um Chrome visível para você fazer login e resolver CAPTCHA, usar o microfone, iniciar com o sistema e criar atalhos. Tudo isso é difícil dentro de um container.
+O joBot precisa abrir uma janela do navegador para você fazer login, usar o microfone, iniciar com o sistema e criar atalhos. Tudo isso é difícil dentro de um container.
 E o login do Claude Code teria de ser feito de novo lá dentro (no macOS ele fica no Keychain, que o container não enxerga). Veja a [ADR 0003](https://github.com/fezarosa-dev/joBot/blob/main/docs/decisions/0003-stack-e-instalacao-nativa.md).
 </details>
 
@@ -45,8 +45,15 @@ Não. Ele prepara a candidatura e ajuda a preencher formulários, mas quem revis
 <summary><strong>Minha conta do LinkedIn pode ser restringida?</strong></summary>
 
 Pode. O risco existe, e não dá para zerar.
-O joBot reduz o risco: você faz o login com as próprias mãos, ele só lê, visita poucas vezes por dia, vai devagar e nunca contorna CAPTCHA.
+O joBot reduz o risco: você faz o login com as próprias mãos, numa janela comum do navegador, ele só lê, visita poucas vezes por dia, vai devagar e nunca contorna CAPTCHA.
 Cada site com login tem uma chave. Você decide se liga.
+</details>
+
+<details>
+<summary><strong>O que quer dizer "fechada" para uma vaga do LinkedIn?</strong></summary>
+
+A busca do LinkedIn ordena por relevância, e o joBot lê só a última semana. Por isso uma vaga aberta pode sumir da lista sem ter fechado.
+Para o LinkedIn, "fechada" quer dizer "não vista há 30 dias". Se uma vaga fechada por engano voltar à lista, ela reabre sozinha.
 </details>
 
 <details>

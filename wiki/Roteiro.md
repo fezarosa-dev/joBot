@@ -20,7 +20,7 @@ flowchart LR
 | | Fase | O que entra | Estado |
 |:---:|---|---|---|
 | ✅ | **1. Base** | Núcleo comum, fontes públicas, banco, painel e agenda | Concluída |
-| ⚪ | **2. Navegador com login** | Chrome visível, mapeamento dos sites e tratamento de CAPTCHA | Planejada |
+| ⚪ | **2. Navegador com login** | Login pela janela comum, LinkedIn primeiro, mapeamento dos sites e tratamento de CAPTCHA | Planejada |
 | ⚪ | **3. IA local** | Pacote offline (llama-server + Qwen) | Planejada |
 | ⚪ | **4. Extensão do navegador** | Extensão do navegador para formulários | Planejada |
 | ⚪ | **5. Áudio e Gmail** | Respostas por voz e leitura de e-mails | Planejada |
@@ -43,8 +43,8 @@ flowchart LR
 <details>
 <summary><strong>⚪ Fase 2, Navegador com login</strong></summary>
 
-- Chrome visível controlado pelo Playwright. Você faz o login com as próprias mãos.
-- Ordem de mapeamento dos sites: Gupy, LinkedIn, Vagas.com, Catho, Indeed e os demais.
+- O login é numa janela comum do navegador, sem automação: você entra como quiser (Google, e-mail e senha) e fecha a janela. O joBot confere a sessão sozinho e nunca digita a senha.
+- Ordem de mapeamento dos sites: LinkedIn, Gupy, Vagas.com, Catho, Indeed e, por último, os sites só de tecnologia.
 - Os logins entram no assistente da primeira execução.
 </details>
 
