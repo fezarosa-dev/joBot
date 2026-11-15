@@ -17,5 +17,6 @@
   "execucao.parada.banco": "There was a problem with the database (the disk may be full).",
   "execucao.parada.erro": "There was an unexpected error; the details are in the joBot log file (logs/jobot.log).",
   "execucao.parada.novas": "New jobs: {n}.",
-  "execucao.parada.tentar": "Click Search now to try again."
+  "execucao.parada.tentar": "Click Search now to try again.",
+  "execucao.parada.tentar_cli": "Run jobot buscar again to try once more."
 }

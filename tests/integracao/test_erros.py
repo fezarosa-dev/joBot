@@ -36,6 +36,10 @@ def _app(dados: Path, banco_ok: bool = True) -> FastAPI:
     def quebra() -> None:
         raise RuntimeError(SEGREDO)
 
+    @app.get("/teste-quebra/{resto}")
+    def quebra_com_caminho(resto: str) -> None:
+        raise RuntimeError(SEGREDO)
+
     return app
 
 
@@ -149,10 +153,38 @@ def test_500_vira_pagina_sem_traceback_e_anota_no_log(
     _confere_cabecalhos(resposta)
     registros = [r for r in caplog.records if r.exc_info]
     assert len(registros) == 1
-    assert "GET /teste-quebra" in registros[0].getMessage()
+    assert "GET '/teste-quebra'" in registros[0].getMessage()
     assert "secreto" not in registros[0].getMessage()
     excecao = registros[0].exc_info[1]  # type: ignore[index]
     assert isinstance(excecao, RuntimeError) and str(excecao) == SEGREDO
+
+
+def test_500_nao_deixa_quebra_de_linha_do_caminho_no_log(
+    cliente: TestClient, caplog: pytest.LogCaptureFixture
+) -> None:
+    with caplog.at_level(logging.ERROR, logger="jobot"):
+        resposta = cliente.get("/teste-quebra/a%0A%1B[31mforjado")
+    assert resposta.status_code == 500
+    mensagens = [r.getMessage() for r in caplog.records if r.exc_info]
+    assert len(mensagens) == 1
+    assert mensagens[0].isprintable()  # sem \n nem ESC: o caminho chega decodificado
+    assert "forjado" in mensagens[0]
+
+
+def test_casca_quebrada_nao_deixa_quebra_de_linha_do_caminho_no_log(
+    cliente: TestClient, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    def quebra(*_: object) -> str:
+        raise RuntimeError(SEGREDO)
+
+    monkeypatch.setitem(seguranca.TEMPLATES.env.globals, "url_de_volta", quebra)
+    with caplog.at_level(logging.ERROR, logger="jobot"):
+        resposta = cliente.get("/teste-quebra/a%0A%1B[31mforjado")
+    assert resposta.status_code == 500
+    mensagens = [r.getMessage() for r in caplog.records if "casca" in r.getMessage()]
+    assert len(mensagens) == 1
+    assert mensagens[0].isprintable()  # sem \n nem ESC: o caminho chega decodificado
+    assert "forjado" in mensagens[0]
 
 
 def test_500_htmx_devolve_fragmento(tmp_path: Path, cliente: TestClient) -> None:
