@@ -1945,3 +1945,40 @@ Acréscimo negativo é filtro que encolhe a lista e os chips. `contar_abas` não
 13. (D132.44) O 2Captcha resolve só o Turnstile avulso; o desafio inteiro do Cloudflare ganha 30 s e depois fica para a pessoa (a ADR 0022 ganha um reparo).
 
 **Como desfazer:** nada está construído; o dono manda trocar qualquer item e a sessão muda o desenho (a seção 12 diz onde cada um vale).
+
+## D133. Escolhas do plano da Parte A da fase 2 (T196 a T220)
+
+**Status:** decidida pela sessão em 2026-11-15 com o dono fora, para confirmar
+
+**Contexto:** o plano `docs/superpowers/plans/2026-11-15-fase-2-parte-a.md` quebra a Parte A do desenho da fase 2 (D132) nas tarefas T196 a T220 e REG24. O desenho deixou escolhas pequenas para o plano (seção 9); estas são as que a sessão tomou, cada uma presa por um teste nomeado no plano.
+
+**Decisões:**
+
+1. (E1) Playwright pela API assíncrona: o `serve` é asyncio e a leitura com login roda no mesmo laço.
+2. (E2) Registro de leitores explícito em `nucleo/leitores/registro.py`, que começa vazio; o painel e os testes leem por `app.state`.
+3. (E3) Os padrões de resposta de cada leitor são expressões regulares sobre host e caminho; os prefixos de login casam pelo começo.
+4. (E4) O estado do escopo devolve junto as vagas que podem ser gravadas.
+5. (E5) Nomes: `manter_batimento`, `candidatas_a_detalhe` e `inicio_da_ultima_leitura_login`.
+6. (E6) O agendador ganha a leitura com login por um parâmetro opcional, e o estado do banco ganha `login()` na mesma tarefa, para a agenda não parar.
+7. (E7) Horários inválidos gravados no banco valem o padrão (9h e 18h), com aviso no log; no painel, os horários são um campo de texto.
+8. (E8) O Chrome é achado pelo caminho de instalação; o Chromium do Playwright, pelo próprio Playwright, calculado uma vez ao subir o `serve` e só com leitor registrado.
+9. (E9) O desafio do Cloudflare é reconhecido pelo título "Just a moment" ou pelo script do desafio; rever com página real na Parte B.
+10. (E10) "O mesmo desafio voltou" quer dizer mesmo tipo e mesma chave do widget, no mesmo site e na mesma leitura.
+11. (E11) A página assenta com o evento `load` e uma espera de até 10 s pela rede parada.
+12. (E12) Fechar o navegador é ação normal: a leitura fica interrompida com `fechado`, sem erro no log.
+13. (E13) O nome da chave do 2Captcha no cofre passa do painel para `banco/captcha.py`.
+14. (E14) A leitura do `Retry-After` do cliente HTTP vira pública, e o navegador usa o mesmo teto de 10 minutos.
+15. (E15) Testes de navegador em `tests/navegador/`, com o site e o leitor falsos em `tests/apoio/site_falso.py`.
+16. (E16) A página de entrada conta como uma das 10 páginas de lista, para o total por site ficar em 30.
+17. (E17) Só o pacote `navegador` abre o Playwright; o `cli`, o painel e o script de captura usam a entrada de produção dele.
+18. A lista permitida do Playwright confere os nomes de `Page`, `Frame`, `Locator`, `BrowserContext`, `Browser`, `Request` e `Response`. `APIRequestContext` fica fora, porque chegar a ele exige `.request`, que sempre reprova. Só `name` é tolerado como homônimo; o pacote usa `asyncio.timeout` e `json.loads` para não esbarrar em `wait_for` e `json`.
+19. O script de captura com login segura a trava do joBot com porta 0. Trava presa sem porta quer dizer captura em andamento: `jobot`, `jobot sair` e `jobot atualizar` avisam e saem, sem encerrar a captura nem subir servidor.
+20. Exceção à D132.13: a wiki muda na Parte A só em `Arquitetura.md` e `Architecture.md`, porque o teste do diagrama de camadas exige o nó `navegador` e uma seta para cada import novo entre pacotes. As outras páginas da wiki não mudam.
+
+**Para confirmar com o dono:**
+
+1. Página logada com campo de senha escondido (D132.37). O desenho trata como login toda página com campo de senha; um site logado com formulário de login escondido ficaria sempre em "precisa login". Opções: (a) qualquer campo de senha, como no desenho; (b) só campo visível; (c) a opção (a) mais o leitor poder dizer "não é login", o que muda o contrato do leitor. Recomendação: (a) na Parte A, que nunca põe nada numa página de login, e rever com a captura real do primeiro site.
+2. Cidades na busca dos sites com login (D132.35). Opções: (a) termos e países, como no desenho; (b) levar as cidades da busca ao contexto da coleta, o que muda o contrato de todos os coletores. Recomendação: (a), e decidir (b) na Parte B, site por site.
+3. Onde mora o leitor do site falso. Opções: (a) em `tests/apoio/`, fora do pacote publicado; (b) um leitor de exemplo em `src/jobot/nucleo/leitores/`, que apareceria no registro. Recomendação: (a), que mantém a Parte A sem nada visível (D132.23); o plano segue (a).
+
+**Como desfazer:** nada está construído; cada escolha mora numa tarefa do plano e num lugar só do código (os números em `navegador/limites.py` e `agenda/login.py`). O dono manda trocar e a tarefa dona muda o teste e o valor.
