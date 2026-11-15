@@ -313,11 +313,22 @@ def test_textos_da_parada_existem_nas_duas_linguas(idioma: str) -> None:
     textos = json.loads((I18N / idioma / "execucao.json").read_text("utf-8"))
     chaves = {f"execucao.parada.{p}" for p in PARADAS} | {
         "execucao.parada.tentar",
+        "execucao.parada.tentar_cli",
         "execucao.parada.novas",
     }
     assert sorted(c for c in chaves if not textos.get(c)) == []
     assert "{n}" in textos["execucao.parada.novas"]
     assert "logs/jobot.log" in textos["execucao.parada.erro"]
+
+
+def test_frase_do_terminal_tem_texto_proprio() -> None:
+    pt = json.loads((I18N / "pt" / "execucao.json").read_text("utf-8"))
+    en = json.loads((I18N / "en" / "execucao.json").read_text("utf-8"))
+    assert (
+        pt.get("execucao.parada.tentar_cli") == "Rode jobot buscar de novo para tentar outra vez."
+    )
+    assert en.get("execucao.parada.tentar_cli") == "Run jobot buscar again to try once more."
+    assert "Clique em" in pt["execucao.parada.tentar"]  # a da tela segue como era
 
 
 def test_textos_da_parada_diferem_entre_pt_e_en() -> None:
@@ -355,7 +366,6 @@ def isolado(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
     [
         (RuntimeError("quebrou no meio"), "erro"),
         (sqlite3.OperationalError("database or disk is full"), "banco"),
-        (asyncio.CancelledError(), "fechado"),
     ],
 )
 def test_buscar_imprime_o_motivo_da_parada(
@@ -372,8 +382,26 @@ def test_buscar_imprime_o_motivo_da_parada(
     assert buscar.executar(argparse.Namespace(comando="buscar")) == 1
     err = capsys.readouterr().err
     assert t("pt", f"execucao.parada.{parada}") in err
-    assert t("pt", "execucao.parada.tentar") in err
+    assert "Rode jobot buscar de novo para tentar outra vez." in err
+    assert "Clique em" not in err
     assert "Traceback" not in err and "quebrou no meio" not in err
+
+
+@pytest.mark.parametrize("erro", [KeyboardInterrupt(), asyncio.CancelledError()])
+def test_buscar_com_ctrl_c_sai_com_130(
+    isolado: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    erro: BaseException,
+) -> None:
+    async def busca_interrompida(*_: object) -> int | None:
+        raise erro
+
+    monkeypatch.setattr(buscar, "executar_busca", busca_interrompida)
+    assert buscar.executar(argparse.Namespace(comando="buscar")) == 130
+    err = capsys.readouterr().err
+    assert err.strip() == "Interrompido."
+    assert "Clique em" not in err and "Traceback" not in err
 
 
 def test_buscar_com_erro_grava_o_traceback_no_log(
