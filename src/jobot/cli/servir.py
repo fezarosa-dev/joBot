@@ -51,7 +51,7 @@ from jobot.nucleo.http import ClienteEducado
 from jobot.nucleo.leitores.registro import leitores
 from jobot.nucleo.relogio import Relogio, RelogioReal
 from jobot.painel.app import criar_app
-from jobot.sistema.instancia import Trava, porta
+from jobot.sistema.instancia import AVISO_CAPTURA, Trava, captura_em_andamento, porta
 from jobot.sistema.pastas import configurar_log, pasta_de_dados, preparar_pasta
 
 log = logging.getLogger(__name__)
@@ -241,7 +241,10 @@ def executar(args: argparse.Namespace) -> int:
         p = porta(os.environ)
         trava = Trava(dados, p)
         if not _pegar(trava):
-            print("O joBot já está aberto.", file=sys.stderr)
+            print(
+                AVISO_CAPTURA if captura_em_andamento(dados) else "O joBot já está aberto.",
+                file=sys.stderr,
+            )
             return 1
         try:
             app, config = montar(dados, p, env=os.environ)
