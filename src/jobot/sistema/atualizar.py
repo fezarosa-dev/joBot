@@ -17,7 +17,7 @@ from typing import Literal
 import jobot
 from jobot.nucleo.quebra import URL_REPOSITORIO
 from jobot.sistema.abrir import sair_do_servidor, subir_servidor
-from jobot.sistema.instancia import pid_do_servidor
+from jobot.sistema.instancia import AVISO_CAPTURA, captura_em_andamento, pid_do_servidor
 from jobot.sistema.segundo_plano_linux import (
     Recusa,
     Resultado,
@@ -203,6 +203,9 @@ def atualizar(
     raiz: Path | None = None,
 ) -> int:
     """Atualiza o joBot; 0 se deu certo, 1 se recusou ou falhou (religando o que parou)."""
+    if captura_em_andamento(dados):
+        print(AVISO_CAPTURA, file=sys.stderr)
+        return 1
     raiz = raiz or raiz_da_instalacao()
     tipo = tipo_de_instalacao(raiz)
     if tipo == "desconhecida":

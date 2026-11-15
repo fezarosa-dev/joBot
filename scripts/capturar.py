@@ -1,4 +1,4 @@
-"""Captura de exemplos das fontes (desenho 9.2): o único script que fala com a rede de propósito.
+"""Captura de exemplos das fontes públicas (desenho 9.2); site com login: `capturar_logado.py`.
 
 Uso: uv run python scripts/capturar.py <fonte> [--escopo <id>] --caso <nome>
 
