@@ -12,9 +12,8 @@ import sqlite3
 from datetime import datetime, timedelta
 
 from jobot.agenda.agendador import INTERVALOS
-from jobot.agenda.execucao import bater, interromper
 from jobot.banco.cadastros import ler_config
-from jobot.banco.execucoes import abrir_execucao, fechar_execucao
+from jobot.banco.execucoes import abrir_execucao, fechar_execucao, interromper, manter_batimento
 from jobot.banco.paginas import gravar_leitura, marcar_falhou, paginas
 from jobot.nucleo.coletores.paginas import ConteudoNaoLido, Pagina, verificar
 from jobot.nucleo.http import (
@@ -78,7 +77,7 @@ async def executar_paginas(
     execucao_id = abrir_execucao(con, "paginas", "agenda", relogio.agora())
     if execucao_id is None:
         return None
-    batimento = asyncio.create_task(bater(con, execucao_id, relogio))
+    batimento = asyncio.create_task(manter_batimento(con, execucao_id, relogio))
     try:
         for pagina in paginas(con):
             if not _devida(pagina, relogio.agora()):
