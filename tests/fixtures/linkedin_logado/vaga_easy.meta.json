@@ -1,0 +1,17 @@
+{
+  "url": "https://www.linkedin.com/jobs/view/4487938776/",
+  "codigo": 200,
+  "cabecalhos": {},
+  "tipo": "text/html",
+  "recorte": [
+    "[componentkey^=\"JobDetails_ManageJobBanner_\"] + div",
+    "[componentkey^=\"JobDetails_AboutTheJob_\"]",
+    "[aria-label^=\"Easy Apply\"]"
+  ],
+  "tirar": [
+    "alumni|ex-alunos|connections?|conex(ão|ões)|followers|seguidores"
+  ],
+  "data": "2026-11-15T22:32:16.957705+00:00",
+  "sha256": "b080437ad4c67dc68ece183e538a45eb02708bdd5fe5118940ecde7206642e87",
+  "versao": "0.2.1"
+}

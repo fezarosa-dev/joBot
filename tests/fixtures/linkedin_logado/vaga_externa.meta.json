@@ -1,0 +1,17 @@
+{
+  "url": "https://www.linkedin.com/jobs/view/4488964135/",
+  "codigo": 200,
+  "cabecalhos": {},
+  "tipo": "text/html",
+  "recorte": [
+    "[componentkey^=\"JobDetails_ManageJobBanner_\"] + div",
+    "[componentkey^=\"JobDetails_AboutTheJob_\"]",
+    "[aria-label=\"Apply on company website\"]"
+  ],
+  "tirar": [
+    "alumni|ex-alunos|connections?|conex(ão|ões)|followers|seguidores"
+  ],
+  "data": "2026-11-15T22:29:03.956155+00:00",
+  "sha256": "dbe1615723c6399ea4842a85995d90ace55ac45843361a21e1f486f7aec8a6af",
+  "versao": "0.2.1"
+}
