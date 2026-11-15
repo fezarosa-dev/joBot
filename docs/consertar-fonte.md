@@ -2,7 +2,7 @@
 
 **Português** · [English](consertar-fonte.en.md)
 
-Uma fonte é um site de vagas que o joBot lê. Cada fonte tem um **coletor**: um arquivo de código que sabe pedir as vagas ao site e entender a resposta. Quando o site muda o formato sem avisar, o coletor deixa de entender e a fonte "quebra". Este guia mostra, passo a passo, como achar o que mudou e consertar. O exemplo é o Greenhouse, o primeiro coletor do projeto (`src/jobot/nucleo/coletores/greenhouse.py`).
+Uma fonte é um site de vagas que o joBot lê. Cada fonte tem um **coletor**: um arquivo de código que sabe pedir as vagas ao site e entender a resposta. Quando o site muda o formato sem avisar, o coletor deixa de entender e a fonte "quebra". Este guia mostra, passo a passo, como achar o que mudou e consertar. O exemplo é o Greenhouse, o primeiro coletor do projeto (`src/jobot/nucleo/coletores/plataformas/greenhouse.py`).
 
 > [!IMPORTANT]
 > O joBot ainda está em desenvolvimento. Para mexer no código, clone o repositório e rode `uv sync` dentro dele (o [`uv`](https://docs.astral.sh/uv/) instala o Python 3.14 e as dependências). Pull requests de código só são aceitos depois da publicação (fase 8), e o fluxo da seção 7 vale a partir daí; veja o [guia de contribuição](../.github/CONTRIBUTING.md). Até lá, um conserto pode virar uma issue com o que você achou.
@@ -58,6 +58,8 @@ O que cada fonte devolve em condições normais está descrito no [apêndice das
 ## 4. Ajustar o coletor
 
 Antes de mexer no código, faça o primeiro passo da seção 5 (trocar o exemplo `normal` pelo novo) e rode o teste do coletor: ele tem de falhar. Isso prova que o teste pega a quebra. Só então corrija o código, que é o TDD do projeto: teste primeiro, falha, conserto, passa.
+
+Cada coletor mora na pasta do seu tipo, dentro de `src/jobot/nucleo/coletores/`: `plataformas/` (sistemas de vagas que várias empresas usam, como o Greenhouse), `agregadores/` (sites e APIs que juntam vagas de muitas empresas), `portais/` (estágio e primeiro emprego) e `carreiras/` (site de carreiras de uma empresa).
 
 O contrato de todo coletor está em `src/jobot/nucleo/coletores/base.py`. Cada coletor oferece:
 

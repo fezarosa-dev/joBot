@@ -2,7 +2,7 @@
 
 [Português](consertar-fonte.md) · **English**
 
-A source is a job site that joBot reads. Each source has a **collector**: a code file that knows how to ask the site for jobs and understand the answer. When the site changes its format without warning, the collector stops understanding it and the source "breaks". This guide shows, step by step, how to find what changed and fix it. The example is Greenhouse, the project's first collector (`src/jobot/nucleo/coletores/greenhouse.py`).
+A source is a job site that joBot reads. Each source has a **collector**: a code file that knows how to ask the site for jobs and understand the answer. When the site changes its format without warning, the collector stops understanding it and the source "breaks". This guide shows, step by step, how to find what changed and fix it. The example is Greenhouse, the project's first collector (`src/jobot/nucleo/coletores/plataformas/greenhouse.py`).
 
 > [!IMPORTANT]
 > joBot is still in development. To work on the code, clone the repository and run `uv sync` inside it ([`uv`](https://docs.astral.sh/uv/) installs Python 3.14 and the dependencies). Code pull requests are only accepted after the release (phase 8), and the workflow in section 7 applies from then on; see the [contributing guide](../.github/CONTRIBUTING.en.md). Until then, a fix can become an issue with what you found.
@@ -58,6 +58,8 @@ What each source returns under normal conditions is described in the [sources ap
 ## 4. Adjust the collector
 
 Before touching the code, do the first step of section 5 (replace the `normal` example with the new one) and run the collector's test: it must fail. That proves the test catches the break. Only then fix the code, which is the project's TDD: test first, it fails, fix, it passes.
+
+Each collector lives in the folder of its type, inside `src/jobot/nucleo/coletores/`: `plataformas/` (job systems that many companies use, like Greenhouse), `agregadores/` (sites and APIs that gather jobs from many companies), `portais/` (internships and first jobs) and `carreiras/` (one company's career site).
 
 Every collector's contract is in `src/jobot/nucleo/coletores/base.py`. Each collector offers:
 

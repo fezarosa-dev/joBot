@@ -10,7 +10,7 @@ import pytest
 from apoio.relogio import RelogioFalso
 from jobot.nucleo.coletores import registro
 from jobot.nucleo.coletores.base import Coletor, ContextoColeta, ResultadoEscopo
-from jobot.nucleo.coletores.portais import solides
+from jobot.nucleo.coletores.plataformas import solides
 from jobot.nucleo.http import ClienteEducado, HttpEducado, Validadores
 from jobot.nucleo.modelo import Empresa, SalarioBruto, VagaColetada
 from jobot.nucleo.relogio import Relogio

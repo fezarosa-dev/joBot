@@ -14,7 +14,7 @@ from jobot.nucleo.coletores.base import (
     ResultadoEscopo,
     UrlListada,
 )
-from jobot.nucleo.coletores.portais import abler
+from jobot.nucleo.coletores.plataformas import abler
 from jobot.nucleo.http import Bloqueio, ClienteEducado, HttpEducado, LeitorValidadores, Validadores
 from jobot.nucleo.modelo import Empresa, SalarioBruto, VagaColetada
 from jobot.nucleo.relogio import Relogio
