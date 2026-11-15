@@ -430,3 +430,160 @@ async def test_parada_no_detalhe_grava_a_saude_do_site(
         e for (fonte, _), (e, _) in _saude(con, execucao_id).items() if fonte == "falso_logado"
     ]
     assert estado_da_fonte(estados) == "parcial"
+
+
+def _travar_relogio(montagem: Montagem, monkeypatch: pytest.MonkeyPatch) -> asyncio.Event:
+    """O relógio da janela só anda depois do `set`: a pessoa age antes da primeira olhada."""
+    solto = asyncio.Event()
+    dormir = montagem.relogio.dormir
+
+    async def dormir_depois(s: float) -> None:
+        if s > 0:
+            await solto.wait()
+        await dormir(s)
+
+    monkeypatch.setattr(montagem.relogio, "dormir", dormir_depois)
+    return solto
+
+
+async def _ate_avisar(montagem: Montagem, tarefa: asyncio.Task[int | None]) -> None:
+    while not montagem.avisos and not tarefa.done():
+        await asyncio.sleep(0.01)
+    assert montagem.avisos, "a execução acabou sem parar na janela"
+
+
+@pytest.mark.parametrize("quando", ["logo", "depois"])
+async def test_fechar_a_aba_parada_encerra_a_espera(
+    quando: str,
+    site: SiteFalso,
+    montagem: Montagem,
+    con: sqlite3.Connection,
+    cofre: Cofre,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(limites, "JANELA_PARADA_S", 60)
+    monkeypatch.setattr(limites, "ESPERA_FECHAR_S", 0.05)  # o navegador não fecha: iria ao fim
+    gravar_config(con, "captcha_ligado", False)
+    solto = _travar_relogio(montagem, monkeypatch)
+    if quando == "logo":  # a pessoa fecha a aba enquanto o aviso aparece
+        loop = asyncio.get_running_loop()
+
+        async def fechar_aba() -> None:
+            await montagem.aba("/recaptcha-v2").close()
+            # o `close` da aba chegou antes de o `close()` voltar: a ordem não é corrida
+            assert "/recaptcha-v2" in dict(montagem.fechadas)
+
+        def avisar_e_fechar(titulo: str, frase: str) -> None:
+            montagem.avisos.append((titulo, frase, montagem.relogio.agora()))
+            asyncio.run_coroutine_threadsafe(fechar_aba(), loop).result()
+
+        monkeypatch.setattr(montagem, "avisar", avisar_e_fechar)
+        solto.set()
+    leitor = LeitorFixo(base=site.url(""), urls=(("python", "/recaptcha-v2"),))
+    _ligar(con, leitor)
+    tarefa = asyncio.create_task(
+        executar_login(
+            con,
+            _cliente(Api2Captcha()),
+            montagem.relogio,
+            "agenda",
+            leitores=[leitor],
+            deps=montagem.deps(tmp_path, cofre),
+        )
+    )
+    await _ate_avisar(montagem, tarefa)
+    if quando == "depois":
+        await montagem.aba("/recaptcha-v2").close()
+        solto.set()
+    execucao_id = await tarefa
+    assert execucao_id is not None
+    assert sum(montagem.relogio.dormidas) <= limites.OLHAR_S  # uma olhada, não o prazo inteiro
+    assert _saude(con, execucao_id) == {("falso_logado", "python"): ("falhou", "saude.captcha")}
+    estado = con.execute("SELECT estado FROM execucao WHERE id = ?", (execucao_id,)).fetchone()
+    assert estado == ("concluida",)
+
+
+async def test_fechar_o_navegador_com_a_janela_parada_interrompe(
+    site: SiteFalso,
+    montagem: Montagem,
+    con: sqlite3.Connection,
+    cofre: Cofre,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(limites, "JANELA_PARADA_S", 60)  # o `ESPERA_FECHAR_S` fica o de produção
+    gravar_config(con, "captcha_ligado", False)
+    # o contexto começa a fechar quando a primeira olhada acorda: ela vê a aba fechada e o
+    # contexto ainda fechando (fechado antes, o `close` dele chegaria antes da olhada)
+    solto = asyncio.Event()
+    fechando: list[asyncio.Task[None]] = []
+    dormir = montagem.relogio.dormir
+
+    async def dormir_e_fechar(s: float) -> None:
+        if s > 0:
+            await solto.wait()
+        await dormir(s)
+        if s > 0 and not fechando:
+            fechando.append(asyncio.create_task(montagem.contextos[0].close()))
+
+    monkeypatch.setattr(montagem.relogio, "dormir", dormir_e_fechar)
+    leitor = LeitorFixo(base=site.url(""), urls=(("python", "/recaptcha-v2"),))
+    _ligar(con, leitor)
+    tarefa = asyncio.create_task(
+        executar_login(
+            con,
+            _cliente(Api2Captcha()),
+            montagem.relogio,
+            "agenda",
+            leitores=[leitor],
+            deps=montagem.deps(tmp_path, cofre),
+        )
+    )
+    await _ate_avisar(montagem, tarefa)
+    await montagem.aba("/recaptcha-v2").close()  # o navegador fecha as abas antes de si
+    solto.set()
+    execucao_id = await tarefa
+    await fechando[0]
+    assert len(montagem.fechamentos) == 1  # o `close` do contexto chegou
+    assert execucao_id is not None
+    estado = con.execute(
+        "SELECT estado, parada FROM execucao WHERE id = ?", (execucao_id,)
+    ).fetchone()
+    assert estado == ("interrompida", "fechado")
+
+
+async def test_fechar_uma_aba_nao_encerra_a_espera_da_outra(
+    site: SiteFalso,
+    montagem: Montagem,
+    con: sqlite3.Connection,
+    cofre: Cofre,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(limites, "JANELA_PARADA_S", 60)
+    gravar_config(con, "captcha_ligado", False)
+    solto = _travar_relogio(montagem, monkeypatch)
+    um = LeitorFixo(base=site.url(""), urls=(("python", "/recaptcha-v2"),))
+    dois = LeitorFixo(base=site.url(""), urls=(("java", "/turnstile"),), chave="outro_logado")
+    _ligar(con, um, dois)
+    tarefa = asyncio.create_task(
+        executar_login(
+            con,
+            _cliente(Api2Captcha()),
+            montagem.relogio,
+            "agenda",
+            leitores=[um, dois],
+            deps=montagem.deps(tmp_path, cofre),
+        )
+    )
+    await _ate_avisar(montagem, tarefa)
+    await montagem.aba("/recaptcha-v2").close()  # só a primeira
+    solto.set()
+    execucao_id = await tarefa
+    assert execucao_id is not None
+    assert sum(montagem.relogio.dormidas) == limites.JANELA_PARADA_S  # a outra esperou o prazo
+    assert _saude(con, execucao_id) == {
+        ("falso_logado", "python"): ("falhou", "saude.captcha"),
+        ("outro_logado", "java"): ("falhou", "saude.captcha"),
+    }
