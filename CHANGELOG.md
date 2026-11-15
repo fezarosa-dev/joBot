@@ -8,6 +8,8 @@ O formato segue o [Keep a Changelog 1.1.0](https://keepachangelog.com/pt-BR/1.1.
 
 ## [Não lançado]
 
+## [0.2.1] - 2026-11-15
+
 ### Alterado
 
 - A lista de vagas abre sem esperar a contagem dos filtros: os chips chegam logo depois da lista. Sem JavaScript os chips não aparecem.
