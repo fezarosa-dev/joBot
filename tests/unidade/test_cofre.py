@@ -232,3 +232,104 @@ def test_outra_falha_do_cofre_segue_em_warning(
     assert any(
         r.levelno == logging.WARNING and "KeyringLocked" in r.getMessage() for r in caplog.records
     )
+
+
+def test_falha_na_escrita_mantem_o_arquivo_antigo_e_nao_deixa_tmp(
+    pasta: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    arquivo = pasta / f"{NOME}.segredo"
+    arquivo.write_text(OUTRA)
+
+    def _quebra(fd: int, modo: int) -> None:
+        raise OSError("disco cheio")
+
+    monkeypatch.setattr(os, "fchmod", _quebra)  # passo que o código antigo também fazia
+    with pytest.raises(OSError, match="disco cheio"):
+        Cofre(pasta, CofreFalso(falha=RuntimeError())).gravar(NOME, CHAVE)
+    assert arquivo.read_text() == OUTRA
+    assert sorted(p.name for p in pasta.iterdir()) == [arquivo.name]
+
+
+@pytest.mark.parametrize("mascara", [0o277, 0])
+def test_arquivo_final_fica_0600_e_o_tmp_nunca_e_frouxo(
+    pasta: Path, monkeypatch: pytest.MonkeyPatch, mascara: int
+) -> None:
+    modos: list[int] = []
+    fchmod = os.fchmod
+
+    def _mede(fd: int, modo: int) -> None:
+        modos.append(os.fstat(fd).st_mode & 0o777)  # como o .tmp nasceu, antes do fchmod
+        fchmod(fd, modo)
+
+    monkeypatch.setattr(os, "fchmod", _mede)
+    antiga = os.umask(mascara)
+    try:
+        Cofre(pasta, CofreFalso(falha=RuntimeError())).gravar(NOME, CHAVE)
+    finally:
+        os.umask(antiga)
+    arquivo = pasta / f"{NOME}.segredo"
+    assert len(modos) == 1
+    assert modos[0] & ~0o600 == 0
+    assert _modo(arquivo) == 0o600
+    assert arquivo.read_text() == CHAVE
+    assert [p.name for p in pasta.iterdir()] == [arquivo.name]
+
+
+def test_tmp_velho_de_queda_anterior_nao_impede_a_gravacao(pasta: Path, tmp_path: Path) -> None:
+    alvo = tmp_path / "alvo"
+    alvo.write_text("intacto")
+    (pasta / f"{NOME}.segredo.tmp").symlink_to(alvo)  # pior caso: o resto é um link
+    assert Cofre(pasta, CofreFalso(falha=RuntimeError())).gravar(NOME, CHAVE) == "arquivo"
+    assert (pasta / f"{NOME}.segredo").read_text() == CHAVE
+    assert not (pasta / f"{NOME}.segredo.tmp").exists()
+    assert alvo.read_text() == "intacto"
+
+
+def test_apagar_tira_tambem_o_tmp_de_queda(pasta: Path) -> None:
+    (pasta / f"{NOME}.segredo").write_text(CHAVE)
+    (pasta / f"{NOME}.segredo.tmp").write_text(CHAVE)
+    Cofre(pasta, CofreFalso()).apagar(NOME)
+    assert list(pasta.iterdir()) == []
+
+
+def test_gravar_no_sistema_tira_o_tmp_de_queda(pasta: Path) -> None:
+    (pasta / f"{NOME}.segredo.tmp").write_text(CHAVE)
+    assert Cofre(pasta, CofreFalso()).gravar(NOME, CHAVE) == "sistema"
+    assert list(pasta.iterdir()) == []
+
+
+def test_interrupcao_na_escrita_tambem_limpa_o_tmp(
+    pasta: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def _para(fd: int) -> None:
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(os, "fsync", _para)
+    with pytest.raises(KeyboardInterrupt):
+        Cofre(pasta, CofreFalso(falha=RuntimeError())).gravar(NOME, CHAVE)
+    assert list(pasta.iterdir()) == []
+
+
+def test_falha_no_fsync_da_pasta_nao_derruba_a_gravacao(
+    pasta: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fsync = os.fsync
+    pasta_fd: list[int] = []
+    abrir = os.open
+
+    def _abre(caminho: object, flags: int, *resto: int) -> int:
+        fd = abrir(caminho, flags, *resto)  # type: ignore[arg-type]
+        if caminho == pasta:
+            pasta_fd.append(fd)
+        return fd
+
+    def _fsync(fd: int) -> None:
+        if fd in pasta_fd:
+            raise OSError("sem fsync em diretório")
+        fsync(fd)
+
+    monkeypatch.setattr(os, "open", _abre)
+    monkeypatch.setattr(os, "fsync", _fsync)
+    assert Cofre(pasta, CofreFalso(falha=RuntimeError())).gravar(NOME, CHAVE) == "arquivo"
+    assert pasta_fd  # a pasta foi mesmo aberta para o fsync
+    assert (pasta / f"{NOME}.segredo").read_text() == CHAVE
