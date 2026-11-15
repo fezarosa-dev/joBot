@@ -89,27 +89,50 @@ class Cofre:
         except Exception as erro:
             _avisar(erro)
             conferido = False
+        tmp = caminho.with_name(caminho.name + ".tmp")
         if conferido:
             caminho.unlink(missing_ok=True)
+            tmp.unlink(missing_ok=True)  # resto de queda anterior
             return "sistema"
         if caminho.is_symlink():
             raise OSError("o arquivo do segredo é um link simbólico")
-        # nasce 0600 (o umask só tira bits); o fchmod acerta o arquivo antigo frouxo
-        fd = os.open(
-            caminho, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | _O_NOFOLLOW | os.O_CLOEXEC, _MODO
-        )
-        with os.fdopen(fd, "w", encoding="utf-8") as arquivo:
-            os.fchmod(fd, _MODO)
-            arquivo.write(valor)
+        # grava num .tmp 0600 e troca por rename: queda ou disco cheio no meio não apaga a chave
+        # antiga. O umask só tira bits; o fchmod garante o 0600.
+        tmp.unlink(missing_ok=True)  # resto de queda anterior (um link sai ele mesmo)
+        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | _O_NOFOLLOW | os.O_CLOEXEC, _MODO)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as arquivo:
+                os.fchmod(fd, _MODO)
+                arquivo.write(valor)
+                arquivo.flush()
+                os.fsync(fd)
+            os.replace(tmp, caminho)
+        except BaseException:  # também Ctrl+C: o .tmp leva o segredo e não pode ficar
+            tmp.unlink(missing_ok=True)
+            raise
+        self._sincronizar_pasta()
         # shortcut: com o cofre trancado, a chave velha do sistema volta a valer depois do
         # desbloqueio; trocar se aparecer caso real.
         self._tirar_do_sistema(nome)  # não deixa chave velha no sistema
         return "arquivo"
 
+    def _sincronizar_pasta(self) -> None:
+        # a troca só sobrevive à queda depois do fsync da pasta; onde não dá (sem O_DIRECTORY,
+        # outro sistema de arquivos) a gravação já valeu: não derruba
+        try:
+            fd = os.open(self._pasta, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | os.O_CLOEXEC)
+            try:
+                os.fsync(fd)
+            finally:
+                os.close(fd)
+        except OSError:
+            pass
+
     def apagar(self, nome: str) -> None:
         """Levanta `OSError` se o arquivo não sai ou se o segredo segue no sistema."""
         caminho = self._arquivo(nome)
         caminho.unlink(missing_ok=True)  # um symlink sai ele mesmo, sem tocar o alvo
+        caminho.with_name(caminho.name + ".tmp").unlink(missing_ok=True)  # resto de queda
         self._tirar_do_sistema(nome)
         confirmou = True
         resta: str | None = None
