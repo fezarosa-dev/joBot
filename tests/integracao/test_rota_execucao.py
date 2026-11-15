@@ -521,11 +521,13 @@ def test_busca_interrompida_avisa(tmp_path: Path) -> None:
         id_ = abrir_execucao(con, "busca", "agora", AGORA)
         assert id_ is not None
         inserir_vaga(con, primeira_vista_em=(AGORA + timedelta(minutes=1)).isoformat())
-        interromper_execucao(con, id_, AGORA + timedelta(minutes=2))
+        interromper_execucao(con, id_, AGORA + timedelta(minutes=2), parada="erro")
     with painel.cliente() as http:
         resposta = http.get("/execucao/atual", headers=HTMX)
     assert POLL not in resposta.text
-    assert _texto("execucao.interrompida", n=1) in unescape(resposta.text)
+    texto = unescape(resposta.text)
+    assert _texto("execucao.parada.erro") in texto  # o motivo da parada (T153)
+    assert _texto("execucao.parada.novas", n=1) in texto
 
 
 def test_sem_busca_nenhuma_nao_pergunta(tmp_path: Path) -> None:
