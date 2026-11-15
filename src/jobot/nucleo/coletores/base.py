@@ -16,7 +16,7 @@ from jobot.nucleo.http import (
     Parou429,
     host_local,
 )
-from jobot.nucleo.modelo import Empresa, VagaColetada, confere_http
+from jobot.nucleo.modelo import Busca, Empresa, VagaColetada, confere_http
 
 log = logging.getLogger(__name__)
 
@@ -33,6 +33,7 @@ class ContextoColeta:
     empresas: Sequence[Empresa]
     termos: Sequence[str]
     paises: Sequence[str]
+    buscas: Sequence[Busca] = ()
 
 
 @dataclass(frozen=True)

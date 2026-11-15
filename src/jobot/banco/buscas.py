@@ -201,14 +201,14 @@ def minimo_busca_brl(con: sqlite3.Connection, b: Busca, *, hoje: date) -> int | 
     return None if cotacao is None else em_reais(b.salario_min_centavos, cotacao.venda)
 
 
-def _ativas(con: sqlite3.Connection) -> list[Busca]:
-    return [b for b in buscas(con) if b.ativa]
+def buscas_ativas(con: sqlite3.Connection) -> tuple[Busca, ...]:
+    return tuple(b for b in buscas(con) if b.ativa)
 
 
 def termos_das_buscas(con: sqlite3.Connection) -> tuple[str, ...]:
     """Cargos das buscas ativas, sem repetição (ignora caixa e acento); vai ao `ContextoColeta`."""
     vistos: dict[str, str] = {}
-    for b in _ativas(con):
+    for b in buscas_ativas(con):
         for cargo in b.cargos:
             vistos.setdefault(normalizar(cargo), cargo.strip())
     return tuple(termo for chave, termo in vistos.items() if chave)
@@ -218,7 +218,7 @@ def paises_das_buscas(con: sqlite3.Connection) -> tuple[str, ...]:
     """Países das buscas ativas, em ordem alfabética: os das cidades, ou o Meu país (11.1)."""
     paises: set[str] = set()
     padrao = meu_pais(con)
-    for b in _ativas(con):
+    for b in buscas_ativas(con):
         achados = {c.pais.upper() for c in b.cidades if c.pais}
         paises |= achados or {padrao}
     return tuple(sorted(paises))
@@ -296,8 +296,9 @@ def _recalcular(
     vaga_id: int | None,
     pais_padrao: str | None = None,
 ) -> int:
+    alvo: Sequence[Busca]
     if busca_ids is None:
-        alvo = _ativas(con)
+        alvo = buscas_ativas(con)
     else:
         marcas = ", ".join("?" * len(busca_ids))
         linhas = con.execute(
