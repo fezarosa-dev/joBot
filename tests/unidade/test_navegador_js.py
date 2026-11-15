@@ -145,3 +145,13 @@ def test_script_de_entrega_nunca_lanca_erro_da_pagina(
     preparo: str, retorno: str, esperado: bool
 ) -> None:
     assert _roda_script(preparo, retorno) is esperado
+
+
+@pytest.mark.parametrize(
+    ("devolvido", "esperado"), [("Mozilla/5.0 X", "Mozilla/5.0 X"), (None, "")]
+)
+async def test_agente_do_navegador_le_so_o_navigator(devolvido: object, esperado: str) -> None:
+    falsa = PaginaFalsa(devolve=devolvido)
+    async with asyncio.timeout(5):
+        assert await js.agente_do_navegador(_pagina(falsa)) == esperado
+    assert falsa.chamadas == [(js.USER_AGENT, None)]
