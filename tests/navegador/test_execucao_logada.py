@@ -55,8 +55,10 @@ class LeitorDeTeste(LeitorFalso):
 
     urls: tuple[tuple[str, str], ...] | None = None
     quebrar: bool = False
+    contextos: list[ContextoColeta] = field(default_factory=list)
 
     def escopos(self, ctx: ContextoColeta) -> Sequence[EscopoLogado]:
+        self.contextos.append(ctx)
         if self.quebrar:
             raise RuntimeError("escopos quebrou")
         if self.urls is None:
@@ -252,6 +254,23 @@ async def test_execucao_grava_vaga_com_fonte_e_escopo(
     # a mesma URL da fonte pública: uma vaga, duas ocorrências
     assert con.execute("SELECT count(*) FROM vaga").fetchone()[0] == 2
     assert con.execute("SELECT count(*) FROM ocorrencia").fetchone()[0] == 3
+
+
+async def test_contexto_leva_as_buscas_ativas(
+    site: SiteFalso, montagem: Montagem, con: sqlite3.Connection
+) -> None:
+    leitor = LeitorDeTeste(base=site.url(""))
+    _ligar(con, leitor)
+    ativa = criar_busca(
+        con, Busca(nome="ativa", cargos=("python",)), ANTES, regras_ligadas=True, hoje=date.today()
+    )
+    parada = criar_busca(
+        con, Busca(nome="parada", cargos=("java",)), ANTES, regras_ligadas=True, hoje=date.today()
+    )
+    con.execute("UPDATE busca SET ativa = 0 WHERE id = ?", (parada,))
+    con.commit()
+    assert await _rodar(con, [leitor], montagem.deps()) is not None
+    assert [[b.id for b in c.buscas] for c in leitor.contextos] == [[ativa]]
 
 
 async def test_uma_gravacao_por_escopo_sem_cache_http(

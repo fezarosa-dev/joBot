@@ -23,7 +23,7 @@ from urllib.parse import urldefrag
 from playwright.async_api import BrowserContext, Page, async_playwright
 from playwright.async_api import Error as ErroDoPlaywright
 
-from jobot.banco.buscas import paises_das_buscas, termos_das_buscas
+from jobot.banco.buscas import buscas_ativas, paises_das_buscas, termos_das_buscas
 from jobot.banco.cadastros import empresas_da_coleta, fontes, ler_config
 from jobot.banco.execucoes import (
     HistoricoDoBanco,
@@ -438,6 +438,7 @@ async def _ler_paginas(site: _Site) -> None:
         empresas=empresas_da_coleta(site.con),
         termos=termos_das_buscas(site.con),
         paises=paises_das_buscas(site.con),
+        buscas=buscas_ativas(site.con),
     )
     escopos = list(leitor.escopos(ctx))  # quebrou: `_ler_site` grava `falhou` e nada fecha
     historico = HistoricoDoBanco(site.con, site.relogio)
