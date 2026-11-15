@@ -2,7 +2,7 @@
 
 - **Status:** aceita
 - **Data:** 2026-11-13
-- **Atualizada:** 2026-11-13
+- **Atualizada:** 2026-11-15 (seção do modelo leve na máquina da pessoa, D122); antes, em 2026-11-13
 
 ## Contexto
 
@@ -43,6 +43,13 @@ Nunca entra dado pessoal: currículo real e ações da pessoa no painel ficam fo
 - O artigo da central de ajuda da Anthropic "Can I use my Outputs to train an AI model?" (https://support.claude.com/en/articles/12326764) permite treinar modelos que não competem com os da Anthropic. Ele cita extração de informação e classificação.
 - A política de uso de 12/11/2026 fala em autorização prévia.
 - O dono decidiu seguir a central de ajuda, em 2026-11-13.
+
+## Modelo leve na máquina da pessoa (2026-11-15)
+
+- O problema: a mesma habilidade vem escrita de um jeito na vaga e de outro no currículo. A comparação pelo sentido resolve isso, com o Laya ajustado.
+- Primeiro se quantiza o modelo (int8, cerca de 4 vezes menor). Só se ainda ficar lento num PC comum (8 a 16 GB, sem placa de vídeo) ele é destilado para um modelo menor. Poda manual fica de fora.
+- O modelo roda só na máquina da pessoa. O GitHub Actions nunca recebe currículo nem as vagas da pessoa: só confere que o modelo carrega e acerta um teste pequeno, com exemplos públicos. Vale a regra da [0014](0014-seguranca-e-privacidade.md): os dados só saem do computador para os serviços que a pessoa ligar, e o modelo leve não precisa de nenhum.
+- O treino continua no RunPod. Esta seção não muda o status da ADR, que segue aceita (D122).
 
 ## Consequências
 
