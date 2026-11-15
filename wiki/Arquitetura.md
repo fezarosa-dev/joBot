@@ -65,6 +65,7 @@ flowchart TD
     sistema --> nucleo
     navegador --> sistema
     navegador --> nucleo
+    navegador --> banco
 ```
 
 O teste `tests/unidade/test_camadas.py` falha se alguém quebrar essa regra.

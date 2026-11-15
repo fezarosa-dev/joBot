@@ -15,3 +15,6 @@ JANELA_PARADA_S: Final = 900  # (D132.26)
 PRAZO_LOGIN_MANUAL_S: Final = 600  # (D132.52)
 MAX_RESPOSTA_BYTES: Final = 5 * 1024 * 1024  # (D132.54)
 MAX_RESPOSTAS: Final = 50
+# Técnico, fora da D132: o `close` do contexto pode chegar logo depois do erro do Playwright que
+# o fechamento causou; só nesse caminho de erro a execução espera por ele, no máximo este tempo.
+ESPERA_FECHAR_S: Final = 1.0
