@@ -209,7 +209,7 @@ Nada é construído agora. É a D125 e a emenda na ADR 0009.
 - O jeito de impedir a repetição do `createTask` (parte D), e o limite de tamanho do corpo da resposta (`teto_bytes` do `pedir`).
 - A cola da fase 2 (achar o desafio na página, injetar o token, `turnstile.render`, o retorno do reCAPTCHA) fica no plano da fase 2.
 - Quando o 2Captcha puder agir de verdade, atualizar juntos: `README.md` e `README.en.md` (as linhas "Não contorna CAPTCHA" e "Does not bypass CAPTCHA"), as páginas da `wiki/` que repetem isso (seção 4) e o `CLAUDE.md` do projeto (a regra de coleta educada passa a dizer "sem chave do 2Captcha ligada" para a navegação com login). Nada disso muda agora.
-- O teste de documentos (`tests/unidade/test_documentos.py:299-306`) exige que o CHANGELOG cite a última ADR; com a 0022, o CHANGELOG pt e en passam a dizer "ADRs 0001 a 0022", ou o teste muda de jeito. Isso é da tarefa de construção, não deste desenho.
+- O teste de documentos (`tests/unidade/test_documentos.py`, `test_changelog_cita_as_adrs_que_existem`) agora aceita a última ADR citada em qualquer ponto do CHANGELOG, então a 0.1.0 não é reescrita; a 0022 já está em "Não lançado" nos dois CHANGELOGs.
 - Repartir em tarefas `Tn` no plano (sugestão: cofre e `PADROES`; cliente da API no núcleo; aba "Serviços" e rotas; visual e `app.js`; textos de privacidade e README).
 
 ## 7. Perguntas pendentes do dono

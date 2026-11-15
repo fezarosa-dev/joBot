@@ -8,6 +8,10 @@ The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/
 
 ## [Unreleased]
 
+### Added
+
+- ADR 0022: CAPTCHA solved by the service the person turns on (2Captcha), only for logged-in browsing.
+
 ## [0.1.1] - 2026-11-15
 
 Clearer errors and fewer surprises. Nothing changes in what joBot searches.
@@ -52,7 +56,7 @@ Phase 1: the foundation of joBot. You can already install and use it.
 - A "Saved." notice after saving in Settings.
 - `jobot abrir` prints the dashboard address and how to quit in the terminal; the search progress bar shows the details phase after collection.
 - A country restriction notice on the remote jobs from Himalayas, Jobicy and Remotive.
-- Project decisions (ADRs 0001 to 0022) and `duvidas.md`.
+- Project decisions (ADRs 0001 to 0021) and `duvidas.md`.
 - README with badges, diagram, tables and a FAQ, and the English version.
 - Star history chart in the README.
 - Preview image for social networks (`docs/imagens/previa-social.png`).
