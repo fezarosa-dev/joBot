@@ -5,6 +5,8 @@ import sqlite3
 from collections.abc import Iterator
 from datetime import UTC, date, datetime
 from pathlib import Path
+from types import SimpleNamespace
+from typing import cast
 
 import pytest
 
@@ -18,6 +20,7 @@ from jobot.banco.cadastros import (
     empresas_da_coleta,
     empresas_iniciais,
     fontes,
+    fontes_com_login_ligadas,
     gravar_config,
     ler_config,
     ligar_fonte,
@@ -25,10 +28,12 @@ from jobot.banco.cadastros import (
     moeda_efetiva,
     remover_empresa,
     semear,
+    semear_leitores,
 )
 from jobot.banco.conexao import abrir
 from jobot.banco.migrar import migrar
 from jobot.nucleo.coletores.registro import carregar_fontes
+from jobot.nucleo.leitores.base import LeitorComLogin
 from jobot.nucleo.modelo import Empresa
 
 AGORA = datetime(2026, 11, 13, 12, 0, tzinfo=UTC)
@@ -486,3 +491,71 @@ def test_valores_invalidos_caem_no_padrao(con: sqlite3.Connection, ruim: object)
     assert moeda_efetiva(con) == "BRL"  # segue o país (padrão BR)
     gravar_config(con, "moeda_exibicao", "JPY")
     assert moeda_efetiva(con) == "JPY"
+
+
+def _leitor(chave: str) -> LeitorComLogin:
+    return cast(LeitorComLogin, SimpleNamespace(chave=chave))
+
+
+def test_semear_leitores_nasce_desligada_e_com_login(con: sqlite3.Connection) -> None:
+    semear_leitores(con, [_leitor("x_logado")])
+
+    assert con.execute(
+        "SELECT leva, intervalo_min, ligada, com_login FROM fonte WHERE chave = 'x_logado'"
+    ).fetchall() == [("A", None, 0, 1)]
+    [dela] = [f for f in fontes(con) if f.chave == "x_logado"]
+    assert dela.com_login is True and dela.ligada is False
+
+
+def test_semear_leitores_nao_troca_ligada(con: sqlite3.Connection) -> None:
+    semear_leitores(con, [_leitor("x_logado")])
+    ligar_fonte(con, "x_logado", True)
+
+    semear_leitores(con, [_leitor("x_logado")])
+
+    assert con.execute(
+        "SELECT ligada, com_login FROM fonte WHERE chave = 'x_logado'"
+    ).fetchall() == [(1, 1)]
+
+
+def test_semear_chama_semear_leitores_com_o_registro(
+    con: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(cadastros, "leitores", lambda: (_leitor("y_logado"),))
+
+    semear(con)
+
+    assert con.execute("SELECT com_login FROM fonte WHERE chave = 'y_logado'").fetchall() == [(1,)]
+    assert {f.chave for f in fontes(con) if f.com_login} == {"y_logado"}
+
+
+def test_fonte_publica_nasce_sem_login(con: sqlite3.Connection) -> None:
+    semear(con)
+    assert not any(f.com_login for f in fontes(con))
+
+
+def test_fontes_com_login_ligadas_so_as_ligadas(con: sqlite3.Connection) -> None:
+    semear(con)
+    assert fontes_com_login_ligadas(con) == []  # controle: sem leitor, lista vazia
+    semear_leitores(con, [_leitor("a_logado"), _leitor("b_logado")])
+    ligar_fonte(con, "b_logado", True)
+    ligar_fonte(con, "greenhouse", True)  # pública ligada não entra
+
+    assert fontes_com_login_ligadas(con) == ["b_logado"]
+
+
+def test_semear_e_uma_transacao_so(
+    con: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Falha nas empresas desfaz também as fontes e os leitores já postos na mesma semeadura."""
+    monkeypatch.setattr(cadastros, "leitores", lambda: (_leitor("z_logado"),))
+
+    def quebra() -> list[Empresa]:
+        raise RuntimeError("empresas")
+
+    monkeypatch.setattr(cadastros, "empresas_iniciais", quebra)
+
+    with pytest.raises(RuntimeError):
+        semear(con)
+
+    assert con.execute("SELECT count(*) FROM fonte").fetchone() == (0,)
