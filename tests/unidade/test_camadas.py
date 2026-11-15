@@ -23,10 +23,31 @@ def _importados(pasta: Path) -> list[tuple[Path, str]]:
         for no in ast.walk(ast.parse(arquivo.read_text(encoding="utf-8"))):
             if isinstance(no, ast.Import):
                 achados += [(arquivo, a.name) for a in no.names]
-            elif isinstance(no, ast.ImportFrom) and no.level == 0 and no.module:
-                achados.append((arquivo, no.module))
-                achados += [(arquivo, f"{no.module}.{a.name}") for a in no.names]
+            elif isinstance(no, ast.ImportFrom):
+                base = _base_do_import(arquivo, no)
+                if base:
+                    if no.module or no.level:
+                        achados.append((arquivo, base))
+                    achados += [(arquivo, f"{base}.{a.name}") for a in no.names]
     return achados
+
+
+def _base_do_import(arquivo: Path, no: ast.ImportFrom) -> str:
+    """Nome absoluto de onde o `from` importa; relativo resolve pelo caminho (jobot.…)."""
+    if no.level == 0:
+        return no.module or ""
+    partes = list(arquivo.with_suffix("").parts)
+    if "jobot" not in partes:
+        return ""
+    partes = partes[len(partes) - 1 - partes[::-1].index("jobot") :]
+    if partes[-1] == "__init__":
+        partes.pop()
+    else:
+        partes = partes[:-1]
+    partes = partes[: max(len(partes) - (no.level - 1), 0)]
+    if not partes:
+        return ""
+    return ".".join([*partes, *([no.module] if no.module else [])])
 
 
 def _casa(modulo: str, proibido: str) -> bool:
@@ -52,3 +73,20 @@ def test_painel_nao_importa_httpx() -> None:
 def test_detector_acha_import_proibido(tmp_path: Path) -> None:
     (tmp_path / "a.py").write_text("import fastapi\nfrom jobot import painel\nimport os\n")
     assert _ruins(tmp_path, PROIBIDOS_NO_NUCLEO) == ["a.py: fastapi", "a.py: jobot.painel"]
+
+
+def test_detector_resolve_import_relativo(tmp_path: Path) -> None:
+    nucleo = tmp_path / "src" / "jobot" / "nucleo"
+    (nucleo / "coletores").mkdir(parents=True)
+    (nucleo / "coletores" / "x.py").write_text("from ...banco import gravacao\n")
+    (nucleo / "y.py").write_text("from .. import painel\n")
+    (nucleo / "coletores" / "z.py").write_text("from . import base\n")
+    (nucleo / "coletores" / "__init__.py").write_text("from ...banco import gravacao\n")
+    (nucleo / "coletores" / "w.py").write_text("from ......banco import gravacao\n")  # além do topo
+    assert _ruins(nucleo, PROIBIDOS_NO_NUCLEO) == [
+        "__init__.py: jobot.banco",
+        "__init__.py: jobot.banco.gravacao",
+        "x.py: jobot.banco",
+        "x.py: jobot.banco.gravacao",
+        "y.py: jobot.painel",
+    ]
