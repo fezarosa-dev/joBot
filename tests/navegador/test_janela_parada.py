@@ -694,3 +694,113 @@ async def test_cofre_que_nao_responde_custa_um_prazo_por_execucao(
         ("outro_logado", "java"): ("falhou", "saude.captcha"),
     }
     assert api.pedidos == []
+
+
+async def _abas_da_janela(
+    montagem: Montagem, tmp_path: Path, quantas: int
+) -> tuple[execucao._Janela, list[Page]]:
+    """A janela sem o resto da execução e `quantas` abas que não são a última do contexto."""
+    contexto = await montagem.lancar(user_data_dir=str(tmp_path / "perfil"))
+    abas = [await contexto.new_page() for _ in range(quantas)]
+    return execucao._Janela(montagem.relogio, montagem.avisar, asyncio.Event(), "pt"), abas
+
+
+async def test_aba_fechada_antes_do_parar_nao_espera_o_prazo(
+    montagem: Montagem, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(limites, "JANELA_PARADA_S", 60)
+    monkeypatch.setattr(limites, "ESPERA_FECHAR_S", 0.05)  # o navegador não fecha: iria ao fim
+    janela, (aba,) = await _abas_da_janela(montagem, tmp_path, 1)
+    await aba.close()  # o `close` já passou quando o `parar` começa a ouvir
+    saiu: list[bool] = []
+
+    async def site() -> None:
+        saiu.append(await janela.parar(aba))
+
+    await janela.ler(site())
+    await janela.esperar()
+    assert sum(montagem.relogio.dormidas) <= limites.OLHAR_S  # uma olhada, não o prazo inteiro
+    assert saiu == [False]
+
+
+async def test_abas_fechadas_na_mesma_olhada_esperam_o_contexto_uma_vez(
+    montagem: Montagem, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(limites, "JANELA_PARADA_S", 60)
+    monkeypatch.setattr(limites, "ESPERA_FECHAR_S", 0.05)  # o navegador não fecha: iria ao fim
+    chamadas: list[asyncio.Event] = []
+    fechando = execucao._fechando
+
+    async def espiao(fechado: asyncio.Event) -> bool:
+        chamadas.append(fechado)
+        return await fechando(fechado)
+
+    monkeypatch.setattr(execucao, "_fechando", espiao)
+    janela, abas = await _abas_da_janela(montagem, tmp_path, 2)
+    saiu: list[bool] = []
+
+    async def site(aba: Page) -> None:
+        saiu.append(await janela.parar(aba))
+
+    for aba in abas:
+        await janela.ler(site(aba))
+    for aba in abas:
+        await aba.close()
+    await janela.esperar()
+    assert saiu == [False, False]
+    assert len(chamadas) == 1  # uma espera pelo contexto para as duas, não uma atrás da outra
+
+
+def _fechar_na_marca(janela: execucao._Janela, aba: Page, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A primeira `_marca` da olhada fecha a `aba` e o contexto (o `close` das duas já chegou)."""
+    marcar = execucao._marca
+    feito: list[bool] = []
+
+    async def marca_e_fecha(outra: Page) -> Any:
+        resultado = await marcar(outra)
+        if not feito:
+            feito.append(True)
+            await aba.close()
+            parada = next(p for p in janela._paradas if p.aba is aba)
+            await asyncio.wait_for(parada.fechada.wait(), 5)
+            janela.fechado.set()
+        return resultado
+
+    monkeypatch.setattr(execucao, "_marca", marca_e_fecha)
+
+
+async def test_aba_que_fecha_durante_a_olhada_fica_para_a_proxima(
+    montagem: Montagem, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(limites, "JANELA_PARADA_S", 60)
+    monkeypatch.setattr(limites, "ESPERA_FECHAR_S", 0.05)
+    janela, abas = await _abas_da_janela(montagem, tmp_path, 2)
+    saiu: list[bool] = []
+
+    async def site(aba: Page) -> None:
+        saiu.append(await janela.parar(aba))
+
+    for aba in abas:
+        await janela.ler(site(aba))
+    _fechar_na_marca(janela, abas[1], monkeypatch)  # fecha depois de a olhada começar
+    with pytest.raises(execucao.NavegadorFechado):
+        await janela.esperar()
+    assert saiu == []  # a segunda não seguiu o seu site como se só a aba tivesse fechado
+
+
+async def test_aba_fechada_na_ultima_olhada_confere_o_contexto(
+    montagem: Montagem, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(limites, "JANELA_PARADA_S", limites.OLHAR_S)  # uma olhada e o prazo acaba
+    monkeypatch.setattr(limites, "ESPERA_FECHAR_S", 0.05)
+    janela, (aba,) = await _abas_da_janela(montagem, tmp_path, 1)
+    saiu: list[bool] = []
+
+    async def site() -> None:
+        saiu.append(await janela.parar(aba))
+
+    await janela.ler(site())
+    _fechar_na_marca(janela, aba, monkeypatch)
+    with pytest.raises(execucao.NavegadorFechado):
+        await janela.esperar()
+    assert saiu == []
