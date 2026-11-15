@@ -103,7 +103,9 @@ def test_chip_vai_para_a_url_e_a_url_reabre_o_filtro(page: Page, painel: str) ->
     page.goto(f"{painel}/vagas?aba=todas")
     todos = len(_titulos(page))
     chip = page.locator("button.chip", has_text="Presencial")
+    # os chips chegam depois da lista (T191): o expect espera por eles
     expect(chip).to_have_attribute("aria-pressed", "false")
+    expect(page.locator("#filtros-chips")).not_to_have_attribute("aria-busy", "true")
     esperado = int(chip.get_attribute("data-contagem") or "-1")
     assert 0 < esperado < todos
 
@@ -114,6 +116,8 @@ def test_chip_vai_para_a_url_e_a_url_reabre_o_filtro(page: Page, painel: str) ->
     )
     expect(page).to_have_url(re.compile(r"modalidade=presencial"))
     assert len(_titulos(page)) == esperado
+    # os chips novos chegam depois da lista: o foco tem de cair no chip clicado, não se perder
+    expect(page.locator("button.chip", has_text="Presencial")).to_be_focused()
 
     page.reload()
     expect(page.locator("button.chip", has_text="Presencial")).to_have_attribute(
@@ -126,6 +130,21 @@ def test_chip_vai_para_a_url_e_a_url_reabre_o_filtro(page: Page, painel: str) ->
         "aria-pressed", "false"
     )
     assert len(_titulos(page)) == todos
+
+
+@pytest.mark.parametrize("falha", ["abort", "500"])
+def test_chips_que_falham_deixam_de_esperar(page: Page, painel: str, falha: str) -> None:
+    """Pedido dos chips com erro: o aria-busy sai e o texto de espera some (o aviso global fica)."""
+    if falha == "abort":
+        page.route("**/vagas/chips*", lambda rota: rota.abort())
+    else:
+        page.route("**/vagas/chips*", lambda rota: rota.fulfill(status=500, body="erro"))
+    page.goto(f"{painel}/vagas?aba=todas")
+    expect(page.locator("#lista-vagas")).to_be_visible()
+    espera = page.locator("#filtros-chips")
+    expect(espera).not_to_have_attribute("aria-busy", "true")
+    expect(espera.locator("[data-espera]")).to_be_hidden()
+    expect(page.locator("#aviso-erro")).to_be_visible()
 
 
 def test_tecla_barra_foca_a_busca(page: Page, painel: str) -> None:
