@@ -181,7 +181,14 @@ async def executar_login(
 
 async def _fechou(fechado: asyncio.Event, erro: Exception) -> bool:
     """O erro veio do navegador fechado? Espera um pouco pelo `close`, só com erro do Playwright."""
-    if not fechado.is_set() and isinstance(erro, ErroDoPlaywright):
+    if isinstance(erro, ErroDoPlaywright):
+        return await _fechando(fechado)
+    return fechado.is_set()
+
+
+async def _fechando(fechado: asyncio.Event) -> bool:
+    """Espera até `limites.ESPERA_FECHAR_S` pelo `close` do contexto, que pode chegar atrasado."""
+    if not fechado.is_set():
         with contextlib.suppress(TimeoutError):
             async with asyncio.timeout(limites.ESPERA_FECHAR_S):
                 await fechado.wait()
@@ -206,6 +213,7 @@ class _Parada:
     marca: _Marca | None
     tarefa: asyncio.Task[None]
     saiu: asyncio.Future[bool]
+    fechada: asyncio.Event  # a pessoa fechou a aba (T225)
 
 
 class _Janela:
@@ -233,6 +241,9 @@ class _Janela:
         """Chamada pelo site parado: True quando a pessoa tirou a aba do desafio no prazo."""
         if self._acabou:
             return False
+        # antes do aviso: a pessoa pode fechar a aba logo ao vê-lo, e o `close` não se perde
+        fechada = asyncio.Event()
+        aba.on("close", lambda _: fechada.set())
         marca = await _marca(aba)
         if not self._avisou:  # uma vez por execução, sem endereço
             self._avisou = True
@@ -242,7 +253,7 @@ class _Janela:
         tarefa = asyncio.current_task()
         assert tarefa is not None
         saiu: asyncio.Future[bool] = asyncio.get_running_loop().create_future()
-        self._paradas.append(_Parada(aba, marca, tarefa, saiu))
+        self._paradas.append(_Parada(aba, marca, tarefa, saiu, fechada))
         self._parou.set()
         return await saiu
 
@@ -273,6 +284,14 @@ class _Janela:
             if self.fechado.is_set():
                 raise NavegadorFechado
             for parada in list(self._paradas):
+                if parada.fechada.is_set():
+                    # o `close` da aba pode chegar antes do do contexto: o navegador inteiro
+                    # fechando não passa por fechamento só desta aba
+                    if await _fechando(self.fechado):
+                        raise NavegadorFechado
+                    self._paradas.remove(parada)
+                    await self._seguir(parada, False)
+                    continue
                 marca = await _marca(parada.aba)
                 if marca is None or marca == parada.marca:
                     continue

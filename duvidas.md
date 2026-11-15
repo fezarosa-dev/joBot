@@ -1937,7 +1937,7 @@ Acréscimo negativo é filtro que encolhe a lista e os chips. `contar_abas` não
 3. (D132.19) Tetos por site em cada leitura: 10 páginas de lista e 20 de vaga, 30 no total, com 3 a 8 s entre navegações.
 4. (D132.24) Na `fedora-dev`, sem Chrome, usa o Chromium do Playwright: na Parte A só o já instalado; o botão "Baixar o navegador" entra com o primeiro site.
 5. (D132.25) "Buscar agora" também lê os sites com login se a última leitura começou há 4 horas ou mais (no máximo 6 por dia).
-6. (D132.26) Com CAPTCHA que o 2Captcha não resolve, as janelas ficam abertas até 15 minutos no total e depois fecham.
+6. (D132.26) Com CAPTCHA que o 2Captcha não resolve, as janelas ficam abertas até 15 minutos no total e depois fecham (complementada pela T225, D135.3).
 7. (D132.27) Se a Gupy logada não mostrar nada além da pública, o primeiro site da 0.3.0 passa a ser o LinkedIn.
 8. (D132.28) Passo opcional "Sites com login" no assistente de primeira execução, com o primeiro site.
 9. (D132.29) A Gupy entra na lista da ADR 0005, com nota no lote do primeiro site.

@@ -20,7 +20,8 @@ INTERVALO_LOGIN_MANUAL_S: Final = 5.0  # leitura da janela de login enquanto a p
 MAX_RESPOSTA_BYTES: Final = 5 * 1024 * 1024  # (D132.54)
 MAX_RESPOSTAS: Final = 50
 # Técnico, fora da D132: o `close` do contexto pode chegar logo depois do erro do Playwright que
-# o fechamento causou; só nesse caminho de erro a execução espera por ele, no máximo este tempo.
+# o fechamento causou, ou do `close` da aba parada que fechou (T225); só nesses dois caminhos a
+# execução espera por ele, no máximo este tempo.
 ESPERA_FECHAR_S: Final = 1.0
 # Técnicos, fora da D132: o cofre do sistema pode travar esperando a senha da pessoa; o widget
 # acabou de ser achado, então ler um atributo dele não espera mais que isto.
