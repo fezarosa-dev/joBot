@@ -361,3 +361,132 @@ def test_recentes_usa_a_data_de_publicacao(con: sqlite3.Connection) -> None:
     velha = inserir_vaga(con, primeira_vista_em=(AGORA - timedelta(days=1)).isoformat())
     publicada = inserir_vaga(con, primeira_vista_em=vista, publicada_em=AGORA.isoformat())
     assert _lista(con, ordem="recentes") == [publicada, velha]
+
+
+@pytest.fixture(params=["fts", "like"])
+def con_modo(
+    request: pytest.FixtureRequest, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> Iterator[sqlite3.Connection]:
+    """Banco limpo com FTS5 e sem ele (o mesmo `monkeypatch` de `test_sem_fts5_usa_like`)."""
+    if request.param == "like":
+        monkeypatch.setattr(modulo_migrar, "tem_fts5", lambda con: False)
+    c = _banco(tmp_path / "jobot.db")
+    assert _tem_fts(c) == (request.param == "fts")
+    yield c
+    c.close()
+
+
+def test_excluir_tira_vaga_com_a_palavra_no_titulo_empresa_ou_descricao(
+    con_modo: sqlite3.Connection,
+) -> None:
+    c = con_modo
+    no_titulo = inserir_vaga(c, titulo="Analista Cobol", empresa="Alfa", descricao_texto="x")
+    na_empresa = inserir_vaga(c, titulo="Analista", empresa="Cobol SA", descricao_texto="x")
+    na_descricao = inserir_vaga(c, titulo="Analista", empresa="Beta", descricao_texto="usa cobol")
+    controle = inserir_vaga(c, titulo="Analista Python", empresa="Gama", descricao_texto="x")
+    assert set(_lista(c)) == {no_titulo, na_empresa, na_descricao, controle}
+    assert _lista(c, excluir="cobol") == [controle]
+
+
+def test_excluir_duas_palavras_e_ou(con_modo: sqlite3.Connection) -> None:
+    c = con_modo
+    inserir_vaga(c, titulo="Analista Cobol", descricao_texto="x")
+    inserir_vaga(c, titulo="Analista Fortran", descricao_texto="x")
+    controle = inserir_vaga(c, titulo="Analista Python", descricao_texto="x")
+    assert _lista(c, excluir="cobol fortran") == [controle]
+
+
+def test_excluir_com_sintaxe_nunca_levanta(con_modo: sqlite3.Connection) -> None:
+    c = con_modo
+    ids = semear(c)
+    todas = set(_lista(c))
+    assert ids["script"] in todas
+    for termo in [*SINTAXE, '"', "%", "_", "\x00", "\ud800"]:
+        pagina = _pagina(c, excluir=termo)
+        assert isinstance(pagina.itens, tuple), termo
+    # % e _ são texto, não curinga: nenhuma vaga tem a palavra
+    assert set(_lista(c, excluir="%")) == todas
+    assert set(_lista(c, excluir="_")) == todas
+
+
+def test_excluir_so_pontuacao_nao_filtra(con_modo: sqlite3.Connection) -> None:
+    c = con_modo
+    semear(c)
+    assert _lista(c, excluir="!!! ...") == _lista(c)
+    assert len(_lista(c)) > 0
+
+
+def test_q_e_excluir_juntos(con_modo: sqlite3.Connection) -> None:
+    c = con_modo
+    certa = inserir_vaga(c, titulo="Dev Python", descricao_texto="flask")
+    inserir_vaga(c, titulo="Dev Python", descricao_texto="django")
+    inserir_vaga(c, titulo="Dev Java", descricao_texto="flask")
+    assert _lista(c, q="python", excluir="django") == [certa]
+
+
+def test_cidade_contem_sem_acento_e_sem_caixa(con_modo: sqlite3.Connection) -> None:
+    c = con_modo
+    sp = inserir_vaga(c, cidade="São Paulo", uf="SP")
+    inserir_vaga(c, cidade="Curitiba", uf="PR")
+    assert _lista(c, cidade="sao") == [sp]
+    assert _lista(c, cidade="PAULO") == [sp]
+    assert _lista(c, cidade="rio") == []
+
+
+def test_cidade_e_empresa_tratam_curinga_como_texto(con_modo: sqlite3.Connection) -> None:
+    c = con_modo
+    cem = inserir_vaga(c, empresa="100% Remoto", cidade="Rio_Claro")
+    inserir_vaga(c, empresa="Acme", cidade="Rio Preto")
+    assert _lista(c, empresa="%") == [cem]
+    assert _lista(c, empresa="_") == []
+    assert _lista(c, cidade="_") == [cem]
+    assert _lista(c, cidade="o_c") == [cem]
+    assert _lista(c, cidade="%") == []
+
+
+def test_cidade_com_local_sem_cidade_nao_levanta(con_modo: sqlite3.Connection) -> None:
+    c = con_modo
+    vaga = inserir_vaga(c, uf="SP")
+    assert _lista(c) == [vaga]
+    assert _lista(c, cidade="sao") == []
+
+
+def test_cidade_com_dois_locais_casa_o_que_tem_cidade(con_modo: sqlite3.Connection) -> None:
+    c = con_modo
+    vaga = inserir_vaga(c, uf="RJ")
+    c.execute(
+        "INSERT INTO local_vaga (vaga_id, cidade, uf, pais) VALUES (?, 'São Paulo', 'SP', 'BR')",
+        (vaga,),
+    )
+    c.commit()
+    assert _lista(c, cidade="sao paulo") == [vaga]
+
+
+def test_empresa_sem_acento_e_sem_caixa(con_modo: sqlite3.Connection) -> None:
+    c = con_modo
+    agil = inserir_vaga(c, empresa="Ágil Soluções")
+    inserir_vaga(c, empresa="Acme")
+    assert _lista(c, empresa="AGIL") == [agil]
+    assert _lista(c, empresa="ágil") == [agil]
+
+
+def test_cidade_e_empresa_so_com_marca_combinante_nao_filtram(
+    con_modo: sqlite3.Connection,
+) -> None:
+    c = con_modo
+    inserir_vaga(c, empresa="Acme", cidade="Recife")
+    inserir_vaga(c, empresa="Beta", uf="SP")
+    inserir_vaga(c, empresa="Gama")  # sem local
+    todas = _lista(c)
+    assert len(todas) == 3
+    # a marca sozinha some na normalização: virava LIKE '%%' e exigia um local
+    assert _lista(c, cidade="\u0301") == todas
+    assert _lista(c, empresa="\u0301") == todas
+
+
+def test_excluir_com_porcento_nos_dois_modos(con_modo: sqlite3.Connection) -> None:
+    c = con_modo
+    com = inserir_vaga(c, titulo="Bônus de 100% remoto", descricao_texto="x")
+    controle = inserir_vaga(c, titulo="Dev Python", descricao_texto="x")
+    assert set(_lista(c)) == {com, controle}
+    assert _lista(c, excluir="100%") == [controle]

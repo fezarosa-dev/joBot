@@ -86,6 +86,9 @@ class Filtros:
     aba: str = "todas"  # chave de ABAS; outra cai em "todas"
     busca_id: int | None = None
     q: str = ""
+    excluir: str = ""
+    cidade: str = ""
+    empresa: str = ""
     area: str | None = None
     nivel: str | None = None
     modalidade: str | None = None
@@ -172,20 +175,66 @@ def _escapar_like(s: str) -> str:
     return s.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
+_CONTEM = {
+    "empresa": "jobot_normalizar(v.empresa) LIKE :empresa ESCAPE '\\'",
+    "cidade": (
+        "EXISTS (SELECT 1 FROM local_vaga l WHERE l.vaga_id = v.id"
+        " AND jobot_normalizar(COALESCE(l.cidade, '')) LIKE :cidade ESCAPE '\\')"
+    ),
+}
+
+
+def _limpo(texto: str) -> list[str]:
+    """Pedaços do texto sem espaço. O FTS5 corta a consulta no NUL (a frase fica sem a aspa
+    final) e surrogate sozinho não vira UTF-8: controle e surrogate viram espaço."""
+    return "".join(" " if unicodedata.category(c) in ("Cc", "Cs") else c for c in texto).split()
+
+
+def _palavras(texto: str) -> list[str]:
+    """Palavras da busca. Palavra sem letra nem número não busca nada (RF1)."""
+    return [p for p in _limpo(texto) if any(c.isalnum() for c in p)]
+
+
+def _frases(palavras: list[str], liga: str = " ") -> str:
+    return liga.join('"' + p.replace('"', '""') + '"*' for p in palavras)
+
+
+_TEXTO = "jobot_normalizar(v.titulo || ' ' || v.empresa || ' ' || v.descricao_texto)"
+
+
 def _busca(con: sqlite3.Connection, q: str) -> tuple[str, dict[str, str]]:
-    """Condição da busca de texto. Palavra sem letra nem número não busca nada (RF1)."""
-    # o FTS5 corta a consulta no NUL (a frase fica sem a aspa final) e surrogate sozinho
-    # não vira UTF-8: controle e surrogate viram espaço
-    q = "".join(" " if unicodedata.category(c) in ("Cc", "Cs") else c for c in q)
-    palavras = [p for p in q.split() if any(c.isalnum() for c in p)]
+    """Condição da busca de texto: todas as palavras."""
+    palavras = _palavras(q)
     if not palavras:
         return "", {}
     if _tem_fts(con):
-        frases = " ".join('"' + p.replace('"', '""') + '"*' for p in palavras)
-        return "v.id IN (SELECT rowid FROM vaga_fts WHERE vaga_fts MATCH :fts)", {"fts": frases}
-    texto = "jobot_normalizar(v.titulo || ' ' || v.empresa || ' ' || v.descricao_texto)"
-    params = {f"q{i}": f"%{_escapar_like(normalizar(p))}%" for i, p in enumerate(palavras)}
-    return " AND ".join(f"{texto} LIKE :{k} ESCAPE '\\'" for k in params), params
+        return "v.id IN (SELECT rowid FROM vaga_fts WHERE vaga_fts MATCH :fts)", {
+            "fts": _frases(palavras)
+        }
+    params = {f"q{i}": _contem(p) for i, p in enumerate(palavras)}
+    return " AND ".join(f"{_TEXTO} LIKE :{k} ESCAPE '\\'" for k in params), params
+
+
+def _excluir(con: sqlite3.Connection, texto: str) -> tuple[str, dict[str, str]]:
+    """Condição do "não pode ter": some a vaga que tem qualquer uma das palavras."""
+    palavras = _palavras(texto)
+    if not palavras:
+        return "", {}
+    if _tem_fts(con):
+        # shortcut: no FTS a palavra com símbolo (c++, c#) vira prefixo do primeiro token e o
+        # excluir esconde mais que no LIKE; tratar como frase sem prefixo se alguém reclamar
+        ou = _frases(palavras, " OR ")
+        return "v.id NOT IN (SELECT rowid FROM vaga_fts WHERE vaga_fts MATCH :fts_excluir)", {
+            "fts_excluir": ou
+        }
+    params = {f"e{i}": _contem(p) for i, p in enumerate(palavras)}
+    lista = " OR ".join(f"{_TEXTO} LIKE :{k} ESCAPE '\\'" for k in params)
+    return f"NOT ({lista})", params
+
+
+def _contem(texto: str) -> str:
+    """Parâmetro do LIKE "contém", sem acento nem caixa, com `%` e `_` como texto."""
+    return f"%{_escapar_like(normalizar(texto))}%"
 
 
 def _hoje(agora: datetime) -> str:
@@ -208,10 +257,16 @@ def _onde(
         if valor and nome != sem:
             partes.append(condicao)
             params[nome] = valor
-    texto, params_texto = _busca(con, f.q)
-    if texto:
-        partes.append(texto)
-        params |= params_texto
+    for texto, params_texto in (_busca(con, f.q), _excluir(con, f.excluir)):
+        if texto:
+            partes.append(texto)
+            params |= params_texto
+    for nome, condicao in _CONTEM.items():
+        # "%" e "_" aqui são texto; texto que some na normalização (só "\u0301") não filtra
+        texto_contem = normalizar(" ".join(_limpo(getattr(f, nome))))
+        if texto_contem:
+            partes.append(condicao)
+            params[nome] = _contem(texto_contem)
     return " AND ".join(f"({p})" for p in partes), params
 
 
