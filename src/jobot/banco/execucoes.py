@@ -270,7 +270,8 @@ def execucao_atual(con: sqlite3.Connection) -> Andamento | None:
     # a fila do semáforo do executor deixa fonte ligada sem linha: só acabou quando nenhuma falta
     sem_fim_nem_fila = con.execute(
         "SELECT (SELECT count(*) FROM execucao_fonte WHERE execucao_id = ?) > 0"
-        " AND NOT EXISTS (SELECT 1 FROM fonte f WHERE f.ligada = 1 AND NOT EXISTS"
+        " AND NOT EXISTS (SELECT 1 FROM fonte f WHERE f.ligada = 1 AND f.com_login = 0"
+        "  AND NOT EXISTS"
         "  (SELECT 1 FROM execucao_fonte x WHERE x.execucao_id = ? AND x.fonte = f.chave))",
         (linha[0], linha[0]),
     ).fetchone()[0]
