@@ -8,6 +8,11 @@ The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/
 
 ## [Unreleased]
 
+### Added
+
+- LinkedIn, the first site with login. The reader comes off: you turn it on in Settings, Sites with login. It searches for each job title in your searches, with the city and remote, and reads only the last week, sorted by relevance. Because the list is not complete, a LinkedIn job only closes after 30 days without being seen, and reopens if it comes back.
+- Login in a regular browser window, with no automation: you sign in however you like (Google, email and password) and close the window. joBot checks the session by itself and never types the password.
+
 ### Fixed
 
 - Focus returns to the right chip after changing the filter, even when two values differ only by a space and an `_`.

@@ -32,7 +32,7 @@ It gathers, filters and organizes jobs from many sites into a nice dashboard tha
 
 > [!IMPORTANT]
 > **joBot phase 1 (the foundation) is done: version 0.2.1.** It searches public sources for jobs, keeps everything on your computer and shows it in a dashboard. You can already [install and use it](#requirements-and-installation).
-> The rest (sites with login, AI, browser extension, Gmail and audio) is still a plan. See the [roadmap](#roadmap). Before you turn on the sources, read the [usage and terms notices](#license-and-notices).
+> LinkedIn, the first site with login, arrives in the next version and comes off. The rest (the other sites with login, AI, browser extension, Gmail and audio) is still a plan. See the [roadmap](#roadmap). Before you turn on the sources, read the [usage and terms notices](#license-and-notices).
 
 ## 📑 Contents
 
@@ -73,7 +73,7 @@ What it does today (phase 1):
 
 What comes in the next phases:
 
-- 🔐 **Sites that require login**, with your login done by hand (phase 2).
+- 🔐 **Sites that require login**: you sign in in a regular browser window, with no automation, and joBot reads the jobs (phase 2; LinkedIn comes first).
 - ✍️ **Prepare the application**: cover letter, a résumé summary adjusted to the job and a list of what you have and what is missing, always in the job's language (phase 3, with optional AI).
 - 🧩 **Help with forms**: a browser extension suggests answers, and you confirm (phase 4).
 - 📬 **Read Gmail** (optional): brings in jobs from alert emails and suggests status changes when a recruiter replies (phase 5).
@@ -101,7 +101,7 @@ joBot does not do the following, and was planned never to:
 
 - **It does not mass-apply.** There is no "apply to 200 jobs with one click".
 - **It does not send anything on its own.** You are always the one who sends the application.
-- **It does not type your password.** On sites with login, you sign in with your own hands.
+- **It does not type your password.** On sites with login, you sign in with your own hands, in a regular browser window: however you like (Google, email and password), and then you close the window. joBot checks the session by itself.
 - **It does not bypass CAPTCHA.** If one shows up, it stops and warns you.
 - **It does not send telemetry.** joBot does not send usage data to anyone.
 - **It does not invent experience.** The AI only uses what is in your profile.
@@ -162,7 +162,7 @@ joBot will have a single core and two "faces". The **local version** is the focu
 |---|---|---|
 | **Installation** | Native, with uv ([how to install](#requirements-and-installation)) | None: just open the site |
 | **Sources** | All | Public sources only |
-| **Sites with login** | Yes, with your manual login | No |
+| **Sites with login** | Yes, you sign in in a regular browser window | No |
 | **AI** | Automatic (Claude, local model) or manual | Manual (copy and paste); labels by rules only |
 | **Browser extension** | Yes | No |
 | **Gmail** | Yes (optional) | No |
@@ -187,8 +187,9 @@ Three Brazilian portals call for care, because of their terms of use: Eureca, Ab
 | Brazilian portals | Gupy, CIEE, Sólides, IEL, Super Estágios, Cia de Talentos, Eureca, Abler |
 | Careers at big companies | Google, Amazon, Microsoft, NVIDIA |
 | Internship boards | Public boards, such as the one at USP |
-| 🔐 Sites with login (phase 2, first) | LinkedIn, Indeed, Catho, Vagas.com |
-| 🔐 Sites with login (phase 2, later, one at a time) | InfoJobs, Glassdoor, Programathor, GeekHunter, Remotar, Trampos, Revelo, Coodesh |
+| 🔐 Sites with login (phase 2, first, in this order) | LinkedIn, Gupy (with login), Vagas.com, Catho, Indeed |
+| 🔐 Sites with login (phase 2, later, one at a time) | InfoJobs, Glassdoor, Remotar, Trampos |
+| 🔐 Technology-only sites with login (phase 2, last, one at a time) | Programathor, GeekHunter, Revelo, Coodesh |
 
 Also in phase 1:
 
@@ -202,7 +203,7 @@ Also in phase 1:
 
 > [!WARNING]
 > **Sites with login carry risk.** LinkedIn, Indeed and others may restrict accounts that access them automatically, and this may go against their terms of use.
-> joBot reduces the risk: it opens a visible Chrome, you do the login, it only reads (it does not click "apply", it does not send messages), and it visits rarely and slowly.
+> joBot reduces the risk: you sign in in a regular browser window, with your own hands; after that it only reads (it does not click "apply", it does not send messages), and it visits rarely and slowly.
 > Even so, the risk exists. **You decide whether to turn on each site.**
 
 <a id="dashboard"></a>
@@ -330,7 +331,7 @@ Details in [ADR 0010](docs/decisions/0010-claude-code-da-pessoa.md) (in Portugue
 
 - **There is no joBot server.** Your data stays on your computer.
 - **No telemetry.** No usage data is sent.
-- **Search and check requests only.** joBot only makes network requests in these cases: to the public job sources you leave on (they all come on), including each job's page; to the Central Bank of Brazil, to get the exchange rates of the currencies in the jobs and show salaries in the display currency you choose, with currency conversion on (it comes on); to Common Crawl, once a week, to discover new companies, and then to those companies' job boards, to check them (it comes on); to the pages you ask it to follow (it comes on, but with no pages on the list there is no request); to 2Captcha, only when you test the key in Settings, Services, or, while browsing with login (a future version), with the key saved and the switch on (comes off); to a company's website, only when you paste an address, test it or accept a suggestion; to the internet through git and uv, to download the new joBot version, only when you ask to update (the jobot atualizar command). With the version notice (next item) on, it also asks GitHub (it comes on; you can turn it off). Whoever receives a request sees your computer's IP address, as with any internet request.
+- **Search and check requests only.** joBot only makes network requests in these cases: to the public job sources you leave on (they all come on), including each job's page; to the Central Bank of Brazil, to get the exchange rates of the currencies in the jobs and show salaries in the display currency you choose, with currency conversion on (it comes on); to Common Crawl, once a week, to discover new companies, and then to those companies' job boards, to check them (it comes on); to the pages you ask it to follow (it comes on, but with no pages on the list there is no request); to the sites with login you turn on (they come off), through the browser, with your account; to 2Captcha, only when you test the key in Settings, Services, or, while browsing with login, with the key saved and the switch on (comes off); to a company's website, only when you paste an address, test it or accept a suggestion; to the internet through git and uv, to download the new joBot version, only when you ask to update (the jobot atualizar command). With the version notice (next item) on, it also asks GitHub (it comes on; you can turn it off). Whoever receives a request sees your computer's IP address, as with any internet request.
 - **Version notice on by default.** Once a day joBot asks `api.github.com` which version is the newest. The request carries only joBot's fixed user agent (which includes the version number) and your computer's IP, like any request on the internet. It carries no search and no data of yours. To turn it off, go to Settings, Privacy; off, it makes no request at all.
 - **Secrets in the system vault.** The Gmail token, the API key and the Telegram token stay in the operating system's password vault. Without a vault, they go to a file that only your user can read, and the dashboard warns you.
 - **Protected personal data.** CPF (Brazilian tax ID) and date of birth stay in the database, in a folder that only your user can access and that is not synced to the cloud. The dashboard recommends turning on disk encryption (LUKS, BitLocker or FileVault).
@@ -432,7 +433,7 @@ Each phase only starts after the previous one passes the tests. No dates are pro
 | Phase | What is included | Status |
 |---|---|---|
 | **1. Base** | Common core, public sources, database, dashboard and scheduling | 🟢 Done (version 0.1.0) |
-| **2. Browser with login** | Visible Chrome, site mapping, CAPTCHA handling | ⚪ Planned |
+| **2. Browser with login** | Login through a regular window, LinkedIn first, site mapping, CAPTCHA handling | ⚪ Planned |
 | **3. Local AI** | Offline package (llama-server + Qwen) | ⚪ Planned |
 | **4. Browser extension** | Browser extension for forms | ⚪ Planned |
 | **5. Audio and Gmail** | Answers by voice and email reading | ⚪ Planned |
@@ -520,7 +521,7 @@ Other ways to help and more details are on the [Support the project wiki page](h
 
 - **License:** MIT. See the [`LICENSE`](LICENSE) file.
 - **Trademarks:** Claude and Claude Code are trademarks of Anthropic. joBot is not affiliated with Anthropic. The other trademarks mentioned belong to their owners.
-- **Terms of use:** respect the terms of use of each site you turn on. joBot is gentle with the sources (it waits between requests, uses no login and bypasses no block), but you decide what to turn on, at your own risk.
+- **Terms of use:** respect the terms of use of each site you turn on. joBot is gentle with the sources (it waits between requests and bypasses no block; on public sites it uses no login, and on sites with login it only uses the session you opened and never types a password), but you decide what to turn on, at your own risk.
 - **Personal use:** joBot is made for one person to organize their own job search, on their own computer. Do not use it to build a job site or to pass the jobs on to other people: several sources forbid that.
 - **Eureca, Abler and Gupy:** these three Brazilian portals have no open API, with published usage rules, for a program like joBot. It reads only what the portals themselves show without login, slowly, and always with the link to the original job. Their terms of use may restrict this use, and each one has its own on/off switch.
 - **Eureca and prior consent:** Eureca's terms ask for prior consent, and Eureca comes on like the other sources. If you prefer to respect that request, turn Eureca off in Settings, Sources, by unchecking Eureca and saving.

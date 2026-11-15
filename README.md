@@ -32,7 +32,7 @@ Ele junta, filtra e organiza vagas de muitos sites num painel bonito que roda no
 
 > [!IMPORTANT]
 > **A fase 1 do joBot (a base) está pronta: versão 0.2.1.** Ele busca vagas em fontes públicas, guarda tudo no seu computador e mostra num painel. Já dá para [instalar e usar](#requisitos-e-instalacao).
-> O resto (sites com login, IA, extensão do navegador, Gmail e áudio) ainda é plano. Veja o [roteiro](#roteiro). Antes de ligar as fontes, leia os [avisos de uso e de termos](#licenca-e-avisos).
+> O LinkedIn, o primeiro site com login, chega na próxima versão e vem desligado. O resto (os outros sites com login, IA, extensão do navegador, Gmail e áudio) ainda é plano. Veja o [roteiro](#roteiro). Antes de ligar as fontes, leia os [avisos de uso e de termos](#licenca-e-avisos).
 
 ## 📑 Sumário
 
@@ -73,7 +73,7 @@ O que ele faz hoje (fase 1):
 
 O que vem nas próximas fases:
 
-- 🔐 **Sites que exigem login**, com o seu login feito à mão (fase 2).
+- 🔐 **Sites que exigem login**: você entra numa janela comum do navegador, sem automação, e o joBot lê as vagas (fase 2; o LinkedIn vem primeiro).
 - ✍️ **Preparar candidatura**: carta de apresentação, resumo do currículo ajustado à vaga e lista do que você tem e do que falta, sempre no idioma da vaga (fase 3, com IA opcional).
 - 🧩 **Ajudar nos formulários**: uma extensão do navegador sugere respostas, e você confirma (fase 4).
 - 📬 **Ler o Gmail** (opcional): traz vagas dos e-mails de alerta e sugere mudanças de status quando um recrutador responde (fase 5).
@@ -101,7 +101,7 @@ O joBot não faz, e foi planejado para nunca fazer:
 
 - **Não se candidata em massa.** Não existe "aplicar em 200 vagas com um clique".
 - **Não envia nada sozinho.** Quem envia a candidatura é sempre você.
-- **Não digita a sua senha.** Nos sites com login, você entra com as próprias mãos.
+- **Não digita a sua senha.** Nos sites com login, você entra com as próprias mãos, numa janela comum do navegador: como quiser (Google, e-mail e senha) e depois fecha a janela. O joBot confere a sessão sozinho.
 - **Não contorna CAPTCHA.** Se aparecer um, ele para e avisa você.
 - **Não manda telemetria.** O joBot não envia dados de uso para ninguém.
 - **Não inventa experiência.** A IA só usa o que está no seu perfil.
@@ -162,7 +162,7 @@ O joBot vai ter um núcleo só e duas "caras". A **versão local** é o foco. A 
 |---|---|---|
 | **Instalação** | Nativa, com o uv ([como instalar](#requisitos-e-instalacao)) | Nenhuma: é só abrir o site |
 | **Fontes** | Todas | Só fontes públicas |
-| **Sites com login** | Sim, com o seu login manual | Não |
+| **Sites com login** | Sim, você entra numa janela comum do navegador | Não |
 | **IA** | Automática (Claude, modelo local) ou manual | Manual (copiar e colar); rótulos só por regras |
 | **Extensão do navegador** | Sim | Não |
 | **Gmail** | Sim (opcional) | Não |
@@ -187,8 +187,9 @@ Três portais brasileiros pedem cuidado, por causa dos termos de uso deles: Eure
 | Portais brasileiros | Gupy, CIEE, Sólides, IEL, Super Estágios, Cia de Talentos, Eureca, Abler |
 | Carreiras de grandes empresas | Google, Amazon, Microsoft, NVIDIA |
 | Murais de estágio | Murais públicos, como o da USP |
-| 🔐 Sites com login (fase 2, primeiro) | LinkedIn, Indeed, Catho, Vagas.com |
-| 🔐 Sites com login (fase 2, depois, um de cada vez) | InfoJobs, Glassdoor, Programathor, GeekHunter, Remotar, Trampos, Revelo, Coodesh |
+| 🔐 Sites com login (fase 2, primeiro, nesta ordem) | LinkedIn, Gupy (com login), Vagas.com, Catho, Indeed |
+| 🔐 Sites com login (fase 2, depois, um de cada vez) | InfoJobs, Glassdoor, Remotar, Trampos |
+| 🔐 Sites com login só de tecnologia (fase 2, por último, um de cada vez) | Programathor, GeekHunter, Revelo, Coodesh |
 
 Também na fase 1:
 
@@ -202,7 +203,7 @@ Também na fase 1:
 
 > [!WARNING]
 > **Sites com login têm risco.** LinkedIn, Indeed e outros podem restringir contas que acessam de forma automática, e isso pode ir contra os termos de uso deles.
-> O joBot reduz o risco: abre um Chrome visível, você faz o login, ele só lê (não clica em "candidatar", não manda mensagem), visita poucas vezes e devagar.
+> O joBot reduz o risco: você entra numa janela comum do navegador, com as próprias mãos; depois ele só lê (não clica em "candidatar", não manda mensagem), visita poucas vezes e devagar.
 > Mesmo assim, o risco existe. **Você decide se liga cada site.**
 
 <a id="o-painel"></a>
@@ -330,7 +331,7 @@ Detalhes na [ADR 0010](docs/decisions/0010-claude-code-da-pessoa.md).
 
 - **Não existe servidor do joBot.** Seus dados ficam no seu computador.
 - **Sem telemetria.** Nenhum dado de uso é enviado.
-- **Só pedidos de busca e conferência.** O joBot só faz pedidos de rede nestes casos: às fontes públicas de vagas que você deixa ligadas (vêm todas ligadas), incluindo a página de cada vaga; ao Banco Central, para pegar a cotação das moedas das vagas e mostrar o salário na moeda de exibição que você escolhe, com a conversão de moeda ligada (vem ligada); ao Common Crawl, uma vez por semana, para descobrir empresas novas, e depois aos quadros de vagas dessas empresas, para conferir (vem ligada); às páginas que você manda acompanhar (vem ligada, mas sem páginas na lista não há pedido); ao 2Captcha, só quando você testa a chave em Configurações, Serviços, ou, na navegação com login (versão futura), com a chave posta e o interruptor ligado (vem desligado); ao site de uma empresa, só quando você cola o endereço dela, testa ou aceita uma sugestão; à internet pelo git e pelo uv, para baixar a versão nova do joBot, só quando você pede para atualizar (comando jobot atualizar). Com o aviso de versão (próximo item) ligado, também pergunta ao GitHub (vem ligado; você pode desligar). Quem recebe o pedido vê o IP do seu computador, como em qualquer pedido na internet.
+- **Só pedidos de busca e conferência.** O joBot só faz pedidos de rede nestes casos: às fontes públicas de vagas que você deixa ligadas (vêm todas ligadas), incluindo a página de cada vaga; ao Banco Central, para pegar a cotação das moedas das vagas e mostrar o salário na moeda de exibição que você escolhe, com a conversão de moeda ligada (vem ligada); ao Common Crawl, uma vez por semana, para descobrir empresas novas, e depois aos quadros de vagas dessas empresas, para conferir (vem ligada); às páginas que você manda acompanhar (vem ligada, mas sem páginas na lista não há pedido); aos sites com login que você liga (vêm desligados), pelo navegador, com a sua conta; ao 2Captcha, só quando você testa a chave em Configurações, Serviços, ou, na navegação com login, com a chave posta e o interruptor ligado (vem desligado); ao site de uma empresa, só quando você cola o endereço dela, testa ou aceita uma sugestão; à internet pelo git e pelo uv, para baixar a versão nova do joBot, só quando você pede para atualizar (comando jobot atualizar). Com o aviso de versão (próximo item) ligado, também pergunta ao GitHub (vem ligado; você pode desligar). Quem recebe o pedido vê o IP do seu computador, como em qualquer pedido na internet.
 - **Aviso de versão ligado por padrão.** Uma vez por dia o joBot pergunta ao `api.github.com` qual é a versão mais nova. O pedido leva só o user agent fixo do joBot (que traz o número da versão) e o IP do seu computador, como todo pedido na internet. Não leva busca nem dado seu. Para desligar, vá em Configurações, Privacidade; desligado, não faz pedido nenhum.
 - **Segredos no cofre do sistema.** Token do Gmail, chave da API e token do Telegram ficam no cofre de senhas do sistema operacional. Sem cofre, vão para um arquivo que só o seu usuário lê, e o painel avisa.
 - **Dados pessoais protegidos.** CPF e data de nascimento ficam no banco, numa pasta que só o seu usuário acessa e que não é sincronizada com nuvem. O painel recomenda ligar a criptografia de disco (LUKS, BitLocker ou FileVault).
@@ -432,7 +433,7 @@ Cada fase só começa depois que a anterior passa nos testes. Não há datas pro
 | Fase | O que entra | Status |
 |---|---|---|
 | **1. Base** | Núcleo comum, fontes públicas, banco, painel e agenda | 🟢 Pronta (versão 0.1.0) |
-| **2. Navegador com login** | Chrome visível, mapeamento dos sites, tratamento de CAPTCHA | ⚪ Planejada |
+| **2. Navegador com login** | Login pela janela comum, LinkedIn primeiro, mapeamento dos sites, tratamento de CAPTCHA | ⚪ Planejada |
 | **3. IA local** | Pacote offline (llama-server + Qwen) | ⚪ Planejada |
 | **4. Extensão do navegador** | Extensão do navegador para formulários | ⚪ Planejada |
 | **5. Áudio e Gmail** | Respostas por voz e leitura de e-mails | ⚪ Planejada |
@@ -520,7 +521,7 @@ Outras formas de ajudar e mais detalhes estão na [página Apoie da wiki](https:
 
 - **Licença:** MIT. Veja o arquivo [`LICENSE`](LICENSE).
 - **Marcas:** Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthropic. As demais marcas citadas pertencem aos seus donos.
-- **Termos de uso:** respeite os termos de uso de cada site que você ligar. O joBot é gentil com as fontes (espera entre os pedidos, sem login, sem contornar bloqueio), mas quem decide o que ligar é você, por sua conta e risco.
+- **Termos de uso:** respeite os termos de uso de cada site que você ligar. O joBot é gentil com as fontes (espera entre os pedidos e não contorna bloqueio; nos sites públicos não usa login, e nos sites com login só usa a sessão que você abriu, e nunca digita senha), mas quem decide o que ligar é você, por sua conta e risco.
 - **Uso pessoal:** o joBot é feito para uma pessoa organizar a própria busca de vagas, no próprio computador. Não use para montar site de vagas nem para repassar as vagas a outras pessoas: várias fontes proíbem isso.
 - **Eureca, Abler e Gupy:** estes três portais brasileiros não têm uma API aberta, com regras de uso publicadas, para um programa como o joBot. Ele lê só o que os próprios portais mostram sem login, devagar, e sempre com o link para a vaga original. Os termos de uso deles podem restringir esse uso, e cada um tem a sua chave liga/desliga.
 - **Eureca e consentimento prévio:** os termos da Eureca pedem consentimento prévio, e a Eureca vem ligada como as outras fontes. Quem preferir respeitar esse pedido desliga a Eureca em Configurações, Fontes, desmarcando a Eureca e salvando.

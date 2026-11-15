@@ -86,7 +86,7 @@ O joBot tem um núcleo só e duas "caras".
 |---|---|---|
 | **Instalação** | Nativa, com um comando (planejada) | Nenhuma: é só abrir o site |
 | **Fontes** | Todas | Só fontes públicas |
-| **Sites com login** | Sim, com o seu login manual | Não |
+| **Sites com login** | Sim, você entra numa janela comum do navegador | Não |
 | **IA** | Automática (Claude, modelo local) ou manual | Manual (copiar e colar); rótulos só por regras |
 | **Extensão, Gmail e áudio** | Sim | Não |
 | **Onde ficam os dados** | No banco SQLite do seu computador | Seu perfil fica no seu navegador |
@@ -107,8 +107,9 @@ Cada fonte tem uma chave liga/desliga.
 | Portais brasileiros | Gupy, CIEE, Sólides, IEL, Super Estágios, Cia de Talentos, Eureca, Abler |
 | Carreiras de grandes empresas | Google, Amazon, Microsoft, NVIDIA |
 | Murais de estágio | Murais públicos, como o da USP |
-| 🔐 Sites com login (primeiro) | LinkedIn, Indeed, Catho, Vagas.com |
-| 🔐 Sites com login (depois, um de cada vez) | InfoJobs, Glassdoor, Programathor, GeekHunter, Remotar, Trampos, Revelo, Coodesh |
+| 🔐 Sites com login (primeiro, nesta ordem) | LinkedIn, Gupy (com login), Vagas.com, Catho, Indeed |
+| 🔐 Sites com login (depois, um de cada vez) | InfoJobs, Glassdoor, Remotar, Trampos |
+| 🔐 Sites com login só de tecnologia (por último, um de cada vez) | Programathor, GeekHunter, Revelo, Coodesh |
 
 - 🤝 **Coleta educada.** O robô se identifica, espera entre um pedido e outro e espera mais quando o site pede calma.
 - 🩺 **Saúde de cada fonte.** A cada busca, cada fonte fica marcada como ok, parcial ou falhou, e você vê isso no painel.
@@ -116,7 +117,7 @@ Cada fonte tem uma chave liga/desliga.
 
 > [!WARNING]
 > **Sites com login têm risco.** Eles podem restringir contas que acessam de forma automática.
-> O joBot reduz o risco: abre um Chrome visível, você faz o login, ele só lê e visita poucas vezes, devagar. Mesmo assim, o risco existe. **Você decide se liga cada site.**
+> O joBot reduz o risco: você entra numa janela comum do navegador, sem automação, como quiser (Google, e-mail e senha), e fecha a janela; o joBot confere a sessão sozinho e nunca digita a senha. Depois ele só lê e visita poucas vezes, devagar. Mesmo assim, o risco existe. **Você decide se liga cada site.**
 
 ## 📋 O painel
 

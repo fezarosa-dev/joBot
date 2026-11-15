@@ -354,6 +354,7 @@ CITA: Mapping[str, Mapping[str, tuple[str, ...]]] = {
         "versão": (r"GitHub",),
         "atualização": (r"pelo git e pelo uv", r"só quando você pede para atualizar"),
         "2captcha": (r"2Captcha", r"testa a chave"),
+        "sites com login": (r"sites com login que você liga", r"vêm desligados", r"pelo navegador"),
     },
     "en": {
         "fontes": (r"public job sources",),
@@ -364,6 +365,7 @@ CITA: Mapping[str, Mapping[str, tuple[str, ...]]] = {
         "versão": (r"GitHub",),
         "atualização": (r"through git and uv", r"only when you ask to update"),
         "2captcha": (r"2Captcha", r"test the key"),
+        "sites com login": (r"sites with login you turn on", r"come off", r"through the browser"),
     },
 }
 CONDICAO: Mapping[str, Mapping[bool, str]] = {
@@ -381,7 +383,8 @@ CHAVE_DO_PADRAO = {
 # o que o texto diz das fontes: todas vêm ligadas (o `fontes.json` não desliga nenhuma)
 FONTES_LIGADAS = {"pt": r"vêm todas ligadas", "en": r"all come on"}
 # pedidos que só saem quando a pessoa age, sem padrão ligado ou desligado: a frase diz quando
-SO_QUANDO_PEDE = {"endereço", "atualização"}
+# (os sites com login são vários, cada um com a sua chave, sempre desligada: a frase diz isso)
+SO_QUANDO_PEDE = {"endereço", "atualização", "sites com login"}
 
 
 def test_condicao_aceita_os_dois_generos() -> None:
@@ -464,6 +467,12 @@ def test_changelog_nao_cita_duvida_por_numero(lingua: str) -> None:
 
 
 NAO_LANCADO = {"pt": "## [Não lançado]", "en": "## [Unreleased]"}
+ADICIONADO = {"pt": "### Adicionado", "en": "### Added"}
+# termos que só o item do LinkedIn e do login pela janela comum têm
+CITA_LOGIN_JANELA = {
+    "pt": ("LinkedIn", "janela comum", "nunca digita"),
+    "en": ("LinkedIn", "regular browser window", "never types"),
+}
 V0_2_0 = "## [0.2.0] - 2026-11-15"
 # o que a 0.2.0 diz dos filtros, do país e da moeda
 CITA_0_2_0 = {
@@ -509,6 +518,40 @@ def test_changelog_traz_os_filtros_da_0_2_0(lingua: str) -> None:
     for termo in CITA_0_2_0[lingua]:
         assert termo in secao_0_2_0, (CHANGELOG[lingua], termo)
     assert re.findall(r"\bD\d+\b", secao_0_2_0) == []
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_changelog_cita_o_login_pela_janela_comum(lingua: str) -> None:
+    """Em "Não lançado", "Adicionado" diz do LinkedIn e do login pela janela comum."""
+    conteudo = texto(CHANGELOG[lingua])
+    assert NAO_LANCADO[lingua] in conteudo, CHANGELOG[lingua]
+    inicio = conteudo.index(NAO_LANCADO[lingua])
+    secao_nova = conteudo[inicio : conteudo.index("\n## [", inicio + 1)]
+    assert ADICIONADO[lingua] in secao_nova, CHANGELOG[lingua]
+    adicionado = secao_nova[secao_nova.index(ADICIONADO[lingua]) :]
+    for termo in CITA_LOGIN_JANELA[lingua]:
+        assert termo in adicionado, (CHANGELOG[lingua], termo)
+
+
+FAQ = {"pt": "wiki/Perguntas-frequentes.md", "en": "wiki/Frequently-asked-questions.md"}
+# o que a pergunta sobre a vaga "fechada" no LinkedIn diz: só o texto novo tem estes termos
+FAQ_FECHADA = {
+    "pt": ("não vista há 30 dias", "última semana", "reabre"),
+    "en": ("not seen for 30 days", "last week", "reopens"),
+}
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_faq_diz_o_que_fechada_quer_dizer_no_linkedin(lingua: str) -> None:
+    """Na wiki, a resposta do LinkedIn (relevância, última semana, 30 dias, reabre) é uma só."""
+    conteudo = texto(FAQ[lingua])
+    marcador = FAQ_FECHADA[lingua][0]
+    assert marcador in conteudo, FAQ[lingua]
+    resposta = conteudo[: conteudo.index("</details>", conteudo.index(marcador))]
+    resposta = resposta[resposta.rindex("<details>") :]
+    assert "LinkedIn" in resposta, FAQ[lingua]
+    for termo in FAQ_FECHADA[lingua]:
+        assert termo in resposta, (FAQ[lingua], termo)
 
 
 # a cotação que o pedido ao Banco Central traz, e o que sai dos textos de rede
