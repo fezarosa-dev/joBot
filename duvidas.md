@@ -2029,7 +2029,7 @@ Acréscimo negativo é filtro que encolhe a lista e os chips. `contar_abas` não
 33. (T216) `Ouvidas.ultimas` não separa documento de XHR (`shortcut:` no código; separar por `resource_type` se um site real fizer fetch à mesma URL).
 34. (T216) reCAPTCHA v3 do site inteiro em página não logada vira desafio sem resolver (`captcha`), como antes.
 35. (T216) 403 e 429 viram 200 quando o desafio sai sem documento novo; token sem saída é `captcha`; 429 depois do token repete o `goto` sem novo pedido ao 2Captcha.
-36. (T216) `PRAZO_COFRE_S` aparece em `navegador/limites.py` e em `painel/rotas/servicos.py`; um lugar só e o cache do cofre na Cola são tarefa nova.
+36. (T216) `PRAZO_COFRE_S` aparece em `navegador/limites.py` e em `painel/rotas/servicos.py`; um lugar só e o cache do cofre na Cola são tarefa nova. (trocada pela T226, D135.4 e D135.5)
 37. (T217) O aviso no computador sai só em português na Parte A; o idioma entra por `Dependencias` na Parte B.
 38. (T217) O tempo de olhar a janela vai para `limites.OLHAR_S = 5` (era `_OLHAR_S` em `navegador/execucao.py`), ao lado do `INTERVALO_LOGIN_MANUAL_S` da T219; são dois nomes porque medem coisas diferentes.
 39. (T218) O cartão mostra "rodando" com o site ligado no meio da leitura; `_estado` e `_motivo` de `fontes.py` viraram `estado_dos_escopos` e `motivo_mais_grave`, públicos.
