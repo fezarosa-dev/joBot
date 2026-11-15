@@ -497,15 +497,27 @@ def test_privacidade_em_ingles(painel: Painel) -> None:
 
 
 def test_interruptor_aviso_versao_aparece_em_privacidade_e_grava(painel: Painel) -> None:
-    # nasce desligado (ADR 0014: os dados só saem para o que a pessoa liga)
-    assert _interruptor(painel.get(PRIVACIDADE).text, "aviso_versao_ligada") == (True, False)
+    # D105: banco novo, aviso ligado; a pessoa desliga aqui e a escolha fica gravada
+    assert _interruptor(painel.get(PRIVACIDADE).text, "aviso_versao_ligada") == (True, True)
     assert painel.config("aviso_versao_ligada") is None
+    painel.post(PRIVACIDADE)
+    assert painel.config("aviso_versao_ligada") is False
+    assert _interruptor(painel.get(PRIVACIDADE).text, "aviso_versao_ligada") == (True, False)
     resposta = painel.post(PRIVACIDADE, {"aviso_versao_ligada": "on"})
     assert (resposta.status_code, resposta.headers.get("location")) == (303, PRIVACIDADE + SALVO)
     assert painel.config("aviso_versao_ligada") is True
     assert _interruptor(painel.get(PRIVACIDADE).text, "aviso_versao_ligada") == (True, True)
-    painel.post(PRIVACIDADE)
-    assert painel.config("aviso_versao_ligada") is False
+
+
+def test_privacidade_diz_que_o_aviso_de_versao_vem_ligado(painel: Painel) -> None:
+    pt = _texto(painel.get(PRIVACIDADE).text)
+    assert "pergunta ao GitHub (vem ligado" in pt and "vem desligado" not in pt
+    en = _texto(painel.get(PRIVACIDADE, headers={"Accept-Language": "en"}).text)
+    assert "asks GitHub (it comes on" in en and "it comes off" not in en
+
+
+def test_aviso_de_versao_gravado_desligado_aparece_desligado(painel: Painel) -> None:
+    painel.post(PRIVACIDADE)  # grava False
     assert _interruptor(painel.get(PRIVACIDADE).text, "aviso_versao_ligada") == (True, False)
 
 
@@ -579,7 +591,8 @@ def test_falha_de_sistema_no_segundo_plano_nao_mostra_salvo(
 
     monkeypatch.setattr("jobot.painel.rotas.configuracoes.segundo_plano_linux.ligar", quebra)
     resposta = painel.post(SEGUNDO_PLANO, {"segundo_plano": "on"})
-    assert "disco cheio" in _alerta(resposta.text)
+    assert "disco cheio" not in resposta.text  # o texto da exceção fica no log (D106)
+    assert "Não consegui gravar os arquivos do serviço" in _alerta(resposta.text)
     assert _salvo(resposta.text) is None
 
 

@@ -20,6 +20,31 @@
     foco.focus();
   });
 
+  // erro de um clique do HTMX (T151; D106): o aviso fixo da casca mostra o texto que o servidor
+  // mandou em <p data-aviso-erro> ou, sem ele, o genérico da faixa do status. Só textContent.
+  // Voltar/avançar troca o conteúdo do body (push-url sem hx-history-elt): o nó é buscado na hora,
+  // o botão fechar usa delegação e o aviso é escondido antes de o histórico guardar a página.
+  const mostrarAviso = (chave, texto) => {
+    const aviso = document.getElementById("aviso-erro");
+    if (!aviso) return;
+    aviso.querySelector("[data-aviso-texto]").textContent = texto || aviso.getAttribute(chave);
+    aviso.hidden = false;
+  };
+  document.addEventListener("htmx:responseError", (evento) => {
+    const xhr = evento.detail.xhr;
+    const doc = new DOMParser().parseFromString(xhr.responseText ?? "", "text/html");
+    const texto = doc.querySelector("[data-aviso-erro]")?.textContent.trim();
+    mostrarAviso(xhr.status < 500 ? "data-msg-4xx" : "data-msg-5xx", texto);
+  });
+  document.addEventListener("htmx:sendError", () => mostrarAviso("data-msg-rede"));
+  document.addEventListener("htmx:beforeHistorySave", () => {
+    const aviso = document.getElementById("aviso-erro");
+    if (aviso) aviso.hidden = true;
+  });
+  document.addEventListener("click", (evento) => {
+    if (evento.target.closest("[data-aviso-fechar]")) document.getElementById("aviso-erro").hidden = true;
+  });
+
   // tecla "/" vai para a busca ([data-busca]), fora de campos de texto
   document.addEventListener("keydown", (evento) => {
     if (evento.key !== "/" || evento.ctrlKey || evento.metaKey || evento.altKey) return;

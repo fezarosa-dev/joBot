@@ -9,6 +9,7 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
+from markupsafe import escape
 
 from apoio.relogio import RelogioFalso
 from apoio.semear import AGORA, inserir_vaga, semear
@@ -16,6 +17,7 @@ from jobot.banco import acoes
 from jobot.banco.conexao import abrir
 from jobot.banco.migrar import migrar
 from jobot.painel.app import criar_app
+from jobot.painel.i18n import t
 from jobot.painel.seguranca import CAMPO_CSRF
 
 PORTA = 47616
@@ -457,7 +459,9 @@ def test_mostrar_e_ocultar_valor_invalido_422(
     vaga = painel.ids["nova"]  # visível: a rota /mostrar chama `acoes.mostrar`
     resposta = painel.post(f"/vagas/{vaga}/{acao}")
     assert resposta.status_code == 422
-    assert resposta.json()["detail"] == "estado inválido"
+    # T150: o texto da tela sai do status, nunca do `str(erro)`
+    assert "estado inválido" not in resposta.text
+    assert str(escape(t("pt", "erro.invalido.texto"))) in resposta.text
     assert painel.sql("SELECT COUNT(*) FROM evento") == [(0,)]
 
 

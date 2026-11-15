@@ -23,7 +23,7 @@
   "buscas.campo.moeda": "Currency",
   "buscas.campo.idiomas": "Job languages",
   "buscas.campo.regras": "Hide jobs that do not fit",
-  "buscas.dica.cargos": "Separate with commas or new lines. Leave empty to not filter by title.",
+  "buscas.dica.cargos": "Separate with commas or new lines. To find more jobs, add variations of the same title, one per line (e.g. infrastructure, servers, sysadmin). Leave empty to not filter by title.",
   "buscas.dica.cidades": "One per line, with state or country: Curitiba, PR or Lisbon, Portugal.",
   "buscas.dica.salario": "Per month, in reais or the chosen currency: 5.000,50. Leave empty for no minimum.",
   "buscas.dica.regras": "Each rule hides from the list the jobs that go against what you ticked above.",

@@ -15,5 +15,9 @@
   "casca.menu.empresas": "Companies",
   "casca.menu.sugeridas": "Suggested",
   "casca.menu.sites": "Sites",
-  "casca.menu.configuracoes": "Settings"
+  "casca.menu.configuracoes": "Settings",
+  "casca.erro.4xx": "That could not be done. Reload the page and try again.",
+  "casca.erro.5xx": "Something went wrong in joBot. Try again; if it keeps happening, check the joBot log file.",
+  "casca.erro.rede": "joBot did not answer. It may have been closed: open it again with jobot abrir (or from the menu shortcut).",
+  "casca.erro.fechar": "Close notice"
 }
