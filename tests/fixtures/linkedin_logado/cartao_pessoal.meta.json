@@ -1,0 +1,10 @@
+{
+  "url": "https://www.linkedin.com/jobs/search-results/?keywords&f_TPR",
+  "data": "2026-11-15T23:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {},
+  "tipo": "text/html",
+  "sha256": "b52b298eb299eb7dde048384be488ae66d56c757864cbd5d1be1069e7f783060",
+  "versao": "0.2.1",
+  "montado_a_mao": "montado à mão a partir de busca.html: um cartão com a frase pessoal '2 school alumni work here', que a captura troca por <limpo>; empresa fictícia"
+}
