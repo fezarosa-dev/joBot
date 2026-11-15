@@ -2070,3 +2070,33 @@ Acréscimo negativo é filtro que encolhe a lista e os chips. `contar_abas` não
 - O ambiente inteiro do `serve` passado ao Chrome.
 
 **Como desfazer:** o dono manda trocar qualquer item, e a troca vira tarefa nova, com teste, no plano da Parte B. Os pontos marcados com `shortcut:` estão no código com o limite escrito.
+
+## D135. Escolhas do plano das sobras da Parte A (T222 a T231)
+
+**Status:** decidida pela sessão em 2026-11-15 com o dono fora, para confirmar
+
+**Contexto:** a D134 deixou dez tarefas novas da execução da Parte A, e o plano `docs/superpowers/plans/2026-11-15-fase-2-sobras-a.md` as transforma em T222 a T231. O item com fixture real (`div` invisível ou dentro de `<form>` tratada como desafio) fica para a Parte B. O plano fixa as escolhas abaixo. Cada tarefa que troca um item da D134 marca esse item na mesma entrega.
+
+**Decisões:**
+
+1. (T223) Quando o `get_attribute` do widget estoura o prazo, o `achar_widget` devolve um desafio `nao_aceito`. A página para como `captcha` e nunca passa como página limpa. A exceção é a página logada que veio com 200: ali o widget continua sendo tratado como formulário (D134.32). Página que troca no meio continua sem widget. Na espera do token e na olhada da janela, o `nao_aceito` conta como "saiu do desafio", do mesmo jeito que o `None` contava antes. Por isso um estouro passageiro na olhada faz o site ler a mesma página de novo uma vez; se o desafio continua, ela volta à janela no mesmo prazo. É aceito: custa uma leitura a mais, não o prazo.
+2. (T224) Parada no detalhe grava a linha de saúde do site, com escopo vazio, pelo mesmo `estado_do_escopo` da parada na entrada. Um desafio só na página da vaga deixa a fonte `parcial`, com motivo `saude.captcha`. Troca a D134.27.
+3. (T225) Quando a pessoa fecha a aba parada, a espera daquela aba acaba, mesmo que ela feche logo ao ver o aviso (o joBot passa a ouvir o fechamento antes de avisar). O site grava `captcha` logo, as outras abas paradas seguem no mesmo prazo e a execução termina `concluida`. Para o resto da execução, fechar a aba não vale como fechar o navegador. Quando o navegador inteiro fecha, o fechamento da aba pode chegar antes do dele; por isso, antes de decidir que foi só a aba, a espera aguarda até `limites.ESPERA_FECHAR_S` (o mesmo 1 s da D134.24) pelo fechamento do navegador, e se ele vier a execução para como `fechado`. A alternativa seria marcar a execução inteira como interrompida (`fechado`).
+4. (T226) `PRAZO_COFRE_S` fica só em `navegador/limites.py`. A aba "Serviços" lê `limites.PRAZO_COFRE_S`. O painel já importava `jobot.navegador.limites`, então não há import novo entre pacotes.
+5. (T226) A chave do 2Captcha é lida do cofre uma vez por execução e serve a todas as abas. Um cofre que não responde custa um prazo por execução, não um por site. A chave fica na memória do processo até a execução acabar. Antes ela também ficava, mas só durante cada resolução.
+6. (T227) O `serve` que acha uma captura de exemplos no ar mostra a mensagem que o `abrir` e o `atualizar` já usam para esse caso. Ela sai só em português, como as outras mensagens do terminal.
+7. (T228) `ESPERA_ASSENTAR_MS`, `PASSOS_DEPOIS_DE_ROLAR` e `ESPERA_429_S` passam a morar em `navegador/limites.py`. O `ESPERA_429_S` é o primeiro valor de `ESPERAS_LIMITE` de `nucleo/http.py`, para o número continuar num lugar só.
+8. (T229) O aviso no computador sai no idioma salvo na configuração (`idioma`), lido no começo de cada execução. Sem idioma salvo, ou com um valor que não é `pt` nem `en`, sai em português. As duas frases ficam em `navegador/execucao.py`, porque o navegador não importa o painel. O idioma não entra por `Dependencias`, como a D134.37 previa, para não mexer nas montagens de teste.
+9. (T230) O contexto do navegador abre com downloads recusados e com o registro de service workers bloqueado. A resposta continua chegando pelo evento `response`, e toda a bateria de navegação roda com essas duas opções.
+10. (T231) O Chrome recebe do ambiente do `serve` só `PATH`, `HOME`, `USER`, `LOGNAME`, `LANG`, `LC_ALL`, `LANGUAGE`, `TMPDIR`, `XDG_CONFIG_HOME`, `XDG_CACHE_HOME`, `XDG_DATA_HOME`, `XDG_DATA_DIRS`, `XDG_CURRENT_DESKTOP`, `XDG_SESSION_TYPE` e `DBUS_SESSION_BUS_ADDRESS`. Recebe também o ambiente da tela já validado (`DISPLAY`, `WAYLAND_DISPLAY`, `XAUTHORITY`, `XDG_RUNTIME_DIR`). O resto não passa, nem token nem chave de API. As `XDG_*`, `TMPDIR`, `USER` e `LOGNAME` entram porque o Chrome costuma lê-las e nenhuma carrega segredo. Risco: os testes usam lançador falso, então nenhum deles prova que o Chrome ou o Chromium abre com esse ambiente. Se faltar alguma variável, o navegador não abre (`SemNavegador`) e a leitura com login para para todo mundo. A T231 traz uma verificação manual com tela, com o Chromium e, se houver, com o Chrome; o resultado vai no resumo da tarefa.
+11. (T222) O fechamento do contexto no `test_janela_parada` passa a ser provado pelo evento `close`. A linha `pages == []` que sobrava no teste de cancelar sai.
+
+**Para confirmar com o dono:**
+
+1. (T231) Variáveis de proxy (`http_proxy`, `https_proxy`, `no_proxy`, `all_proxy` e as maiúsculas). Sem elas, quem usa proxy só pelo ambiente perde o proxy no Chrome. Opções: (a) passá-las junto com a lista; (b) deixá-las de fora. Recomendação: (a), porque o navegador precisa delas para sair pela rede da pessoa. A T231 sai sem elas até a resposta.
+2. (decisão 3) Fechar a aba parada encerra só a espera daquele site.
+3. (decisão 5) A chave do 2Captcha fica na memória durante a execução inteira, e não só durante cada resolução.
+4. (decisão 9) Downloads e service workers desligados também no login manual e na captura de exemplos (`login_manual.py` e `scripts/capturar_logado.py` abrem pelo mesmo `abrir_contexto`).
+5. (decisão 10) O `env` do Chrome é só a lista, sem conferência automática no Chrome real; a única prova é a verificação manual da T231.
+
+**Como desfazer:** o dono manda trocar qualquer item, e a troca vira tarefa nova com teste. Os nomes e os valores ficam em `navegador/limites.py`, em `navegador/abrir.py` e em `navegador/execucao.py`.
