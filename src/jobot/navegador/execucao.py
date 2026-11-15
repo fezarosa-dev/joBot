@@ -27,13 +27,14 @@ from jobot.banco.execucoes import (
     HistoricoDoBanco,
     Motivo,
     abrir_execucao,
+    candidatas_a_detalhe,
     fechar_execucao,
     gravar_saude,
     interromper,
     interromper_execucao,
     manter_batimento,
 )
-from jobot.banco.gravacao import fechar_escopos_extintos, gravar_escopo
+from jobot.banco.gravacao import fechar_escopos_extintos, gravar_cache_detalhe, gravar_escopo
 from jobot.navegador import limites
 from jobot.navegador.abrir import (
     Lancar,
@@ -51,6 +52,7 @@ from jobot.nucleo.leitores.base import Captura, EscopoLogado, LeitorComLogin, Le
 from jobot.nucleo.leitores.estado import estado_do_escopo
 from jobot.nucleo.relogio import Relogio
 from jobot.nucleo.tratamento.tratar import tratar
+from jobot.nucleo.url import canonica
 from jobot.sistema.segundo_plano_linux import rodar_comando
 from jobot.sistema.tela import ambiente_da_tela
 
@@ -240,8 +242,10 @@ async def _ler_site(
 
 
 async def _ler_paginas(site: _Site) -> None:
-    """Entrada, escopos em rodízio e o fechamento dos escopos que o site não tem mais."""
+    """Entrada, escopos em rodízio, o fechamento dos escopos que o site não tem mais e, quando a
+    lista não traz a descrição, o detalhe das vagas."""
     leitor = site.leitor
+    inicio = site.relogio.agora()
     entrada = await site.ir(leitor.url_entrada)
     parada: ParadaLogin | None = None
     if isinstance(entrada, Captura):
@@ -265,12 +269,53 @@ async def _ler_paginas(site: _Site) -> None:
     em_rodizio = sorted(
         escopos, key=lambda e: historico.ultima_coleta(leitor.chave, e.id) or _SEM_DATA
     )
+    visitados: set[str] = set()
+    parou = False
     for escopo in em_rodizio:
         if site.usadas >= limites.MAX_LISTA:
             break
-        if await _ler_escopo(site, escopo, historico):
+        visitados.add(escopo.id)  # mesmo com a 1ª URL recusada; a política filtra a vaga também
+        if parou := await _ler_escopo(site, escopo, historico):
             break  # parada encerra o site
     fechar_escopos_extintos(site.con, leitor.chave, {e.id for e in escopos}, site.relogio.agora())
+    if not parou and not leitor.lista_tem_descricao:
+        await _detalhar_site(site, inicio, visitados)
+
+
+async def _detalhar_site(site: _Site, inicio: datetime, escopos: set[str]) -> None:
+    """Abre a página de cada vaga aberta, sem descrição e sem detalhe tentado há 30 dias (a mais
+    nova primeiro), só dos escopos lidos agora, até `limites.MAX_VAGA` páginas (D132.32).
+
+    Cada página aberta grava o detalhe e a tentativa no cache de 30 dias; `detalhar` que devolve
+    `None` grava a tentativa com o conteúdo vazio. Parada do site encerra o detalhe: os escopos já
+    estão gravados, e as vagas que sobram voltam na próxima execução.
+    """
+    leitor = site.leitor
+    candidatas = candidatas_a_detalhe(site.con, [leitor.chave], inicio, site.relogio)
+    vistas: set[str] = set()  # a mesma vaga em dois escopos abre uma página só
+    abertas = 0
+    for c in candidatas:
+        url = canonica(c.vaga.url)
+        if c.escopo not in escopos or url in vistas:
+            continue
+        if abertas >= limites.MAX_VAGA:
+            break
+        vistas.add(url)
+        visita = await site.ir(c.vaga.url)
+        if isinstance(visita, Recusada):
+            continue
+        if not isinstance(visita, Captura):
+            log.info("detalhes do site %s parados: %s", leitor.chave, visita)
+            return
+        abertas += 1
+        try:
+            detalhe = leitor.detalhar(visita, c.vaga)
+        except Exception:  # só esta vaga; sem cache, volta na próxima execução
+            # shortcut: sem recuo; a vaga que sempre quebra ocupa o teto e é pedida em toda
+            # execução por até 30 dias. Contar as falhas pede schema (D54, opção c).
+            log.exception("detalhe de uma vaga do site %s quebrou", leitor.chave)
+            continue
+        gravar_cache_detalhe(site.con, c.ocorrencia_id, c.vaga.url, detalhe, site.relogio.agora())
 
 
 async def _ler_escopo(site: _Site, escopo: EscopoLogado, historico: HistoricoDoBanco) -> bool:
