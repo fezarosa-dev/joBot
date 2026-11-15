@@ -118,3 +118,21 @@ def test_todo_motivo_tem_texto_nas_duas_linguas(lingua: str) -> None:
     for chave in ("sites.estado.falhou", "vagas.programas.falhou"):
         assert "{motivo}" in catalogo[chave], (lingua, chave)
         assert i18n.t(lingua, chave, motivo="MOTIVO-X").count("MOTIVO-X") == 1
+
+
+@pytest.mark.parametrize(
+    ("cabecalho", "esperado"),
+    [
+        ("pt-BR,pt;q=0.9", "BR"),
+        ("en-GB", "GB"),
+        ("pt-br", "BR"),
+        ("en-419", "BR"),
+        ("*", "BR"),
+        ("en", "BR"),
+        (None, "BR"),
+        ("fr-CA;q=0.5, de-DE;q=0.9", "DE"),
+        ("en-ZZ, pt-PT;q=0.8", "PT"),
+    ],
+)
+def test_pais_do_accept_language(cabecalho: str | None, esperado: str) -> None:
+    assert i18n.pais_do_accept_language(cabecalho) == esperado

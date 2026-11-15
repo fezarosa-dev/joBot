@@ -5,6 +5,7 @@
   "primeira_execucao.p1.intro": "Everything is optional, and you can change it later under Searches. The more you say, the better joBot ranks the jobs.",
   "primeira_execucao.p1.cargos": "Job titles or keywords",
   "primeira_execucao.p1.cargos_dica": "One per line, or separated by commas. Up to 20. To find more jobs, add variations of the same title (e.g. infrastructure, servers, sysadmin).",
+  "primeira_execucao.p1.meu_pais": "My country",
   "primeira_execucao.p1.cidades": "Cities",
   "primeira_execucao.p1.cidade": "City {n}",
   "primeira_execucao.p1.uf": "State",

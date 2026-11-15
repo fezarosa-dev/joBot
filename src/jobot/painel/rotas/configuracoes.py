@@ -1,8 +1,9 @@
 """Configurações e interruptores (desenho 13.2 e 13.7; plano T54; decisão 17 e DP8).
 
 Cinco grupos em `/configuracoes/{grupo}`: fontes (uma chave por fonte, por leva), funções (as chaves
-da 13.7 e o N dos destaques), segundo plano, aparência (tema e idioma, pelas rotas `/preferencias`)
-e privacidade (onde ficam os dados, a recomendação de disco cifrado e o aviso de versão).
+da 13.7 e o N dos destaques), segundo plano, aparência (tema e idioma pelas rotas `/preferencias`;
+Meu país e moeda de exibição pelo próprio `/configuracoes/aparencia`) e privacidade (onde ficam
+os dados, a recomendação de disco cifrado e o aviso de versão).
 
 Checkbox sem marca é chave desligada: o formulário de cada grupo manda o estado inteiro. Ligar ou
 desligar a conversão de moeda chama `aplicar_cotacoes` e, com ela ou com as regras de ocultar
@@ -23,10 +24,13 @@ from starlette.concurrency import run_in_threadpool
 
 from jobot.agenda.versao import aviso_ligado
 from jobot.banco import buscas, cadastros, cotacoes
-from jobot.banco.cadastros import gravar_config, ler_config
+from jobot.banco.cadastros import gravar_config, ler_config, meu_pais
+from jobot.nucleo.cambio import MOEDAS_EXIBICAO, moeda_do_pais
+from jobot.nucleo.tratamento.locais import codigos_de_pais
 from jobot.painel.ambiente import ambiente_do_painel, no_linux, rodar_do_painel
+from jobot.painel.formatos import opcoes_de_pais
 from jobot.painel.rotas.vagas import relogio_do_painel
-from jobot.painel.seguranca import Con, renderizar
+from jobot.painel.seguranca import Con, idioma_do_pedido, renderizar
 from jobot.sistema import caso, segundo_plano_linux
 from jobot.sistema.segundo_plano_linux import Recusa
 
@@ -90,7 +94,15 @@ async def _ctx_segundo_plano(request: Request, con: Con) -> dict[str, Any]:
 
 
 async def _ctx_aparencia(request: Request, con: Con) -> dict[str, Any]:
-    return {}
+    pais = meu_pais(con)
+    moeda = ler_config(con, "moeda_exibicao")
+    return {
+        "paises": opcoes_de_pais(idioma_do_pedido(request)),
+        "meu_pais": pais,
+        "moedas": MOEDAS_EXIBICAO,
+        "moeda_exibicao": moeda if isinstance(moeda, str) and moeda in MOEDAS_EXIBICAO else "",
+        "moeda_do_pais": moeda_do_pais(pais),
+    }
 
 
 async def _ctx_privacidade(request: Request, con: Con) -> dict[str, Any]:
@@ -206,6 +218,27 @@ async def _gravar_segundo_plano(request: Request, con: Con) -> Response:
     return _volta("segundo-plano", salvo=True)
 
 
+async def _gravar_aparencia(request: Request, con: Con) -> Response:
+    form = await request.form()
+    pais, moeda = form.get("meu_pais"), form.get("moeda_exibicao")
+    if not isinstance(pais, str) or pais not in codigos_de_pais():
+        raise HTTPException(422)
+    if not isinstance(moeda, str) or (moeda and moeda not in MOEDAS_EXIBICAO):
+        raise HTTPException(422)
+    # recalcula antes de gravar, como nas funções: se falhar, o país segue como estava
+    if pais != meu_pais(con):
+        buscas.recalcular_encaixe(
+            con,
+            None,
+            bool(ler_config(con, "regras_ocultar_ligadas")),
+            hoje=_hoje(request),
+            pais_padrao=pais,
+        )
+    gravar_config(con, "meu_pais", pais)
+    gravar_config(con, "moeda_exibicao", moeda)
+    return _volta("aparencia", salvo=True)
+
+
 async def _gravar_privacidade(request: Request, con: Con) -> Response:
     form = await request.form()
     gravar_config(con, "aviso_versao_ligada", "aviso_versao_ligada" in form)
@@ -216,6 +249,7 @@ _GRAVADORES: dict[str, Callable[[Request, Con], Awaitable[Response]]] = {
     "fontes": _gravar_fontes,
     "funcoes": _gravar_funcoes,
     "segundo-plano": _gravar_segundo_plano,
+    "aparencia": _gravar_aparencia,
     "privacidade": _gravar_privacidade,
 }
 
@@ -236,7 +270,4 @@ async def mostrar(request: Request, con: Con, grupo: str) -> Response:
 
 @router.post("/{grupo}")
 async def gravar(request: Request, con: Con, grupo: str) -> Response:
-    gravador = _GRAVADORES.get(_grupo_valido(grupo))
-    if gravador is None:  # aparência grava pelas rotas /preferencias
-        raise HTTPException(404)
-    return await gravador(request, con)
+    return await _GRAVADORES[_grupo_valido(grupo)](request, con)

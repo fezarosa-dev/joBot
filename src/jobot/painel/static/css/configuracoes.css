@@ -194,6 +194,19 @@
   font: inherit;
 }
 
+.config-form .campo select {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 24rem;
+  min-height: 2.5rem;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--borda);
+  border-radius: 10px;
+  background-color: var(--superficie);
+  color: var(--texto);
+  font: inherit;
+}
+
 .config .botao-escolha {
   background-color: var(--trilho);
   color: var(--texto);
