@@ -4,11 +4,13 @@ Tudo que fala com o sistema passa por `rodar`, o executor de comandos injetado.
 """
 
 import argparse
+import logging
 import os
 import re
 import subprocess
 import sys
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -16,6 +18,7 @@ from jobot.nucleo.modelo import Motivo
 from jobot.sistema.caso import nome_do_container, prefixo_host
 
 SERVICO = "jobot.service"
+_LOG = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -182,6 +185,8 @@ def _no_host(env: Mapping[str, str], rodar: Rodar, script: str) -> Resultado:
 def _falha_do_systemctl(args: Sequence[str], feito: Resultado) -> Recusa:
     texto = (feito.erro or feito.saida).strip()
     params = {"comando": " ".join(args), "saida": texto}
+    # a saída completa só vai ao log (uma vez, aqui); a tela mostra um texto fixo (T159)
+    _LOG.warning("systemctl %s falhou (código %s): %s", params["comando"], feito.codigo, texto)
     return Recusa(Motivo(chave="segundo_plano.systemctl_falhou", params=params))
 
 
@@ -264,7 +269,23 @@ def status(rodar: Rodar, *, env: Mapping[str, str] | None = None) -> Estado:
     )
 
 
+@contextmanager
+def sem_eco_no_terminal() -> Iterator[None]:
+    """No terminal a frase do comando já traz a saída; sem handler o logging a repetiria crua."""
+    silencio = logging.NullHandler()
+    logging.getLogger("jobot").addHandler(silencio)
+    try:
+        yield
+    finally:
+        logging.getLogger("jobot").removeHandler(silencio)
+
+
 def executar(args: argparse.Namespace) -> int:
+    with sem_eco_no_terminal():
+        return _executar(args)
+
+
+def _executar(args: argparse.Namespace) -> int:
     try:
         if args.acao == "ligar":
             ligar(rodar_comando)

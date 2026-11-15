@@ -35,6 +35,7 @@ class Resultado:
 
     estado: str  # concluida ou interrompida
     novas: int
+    parada: str | None = None  # motivo da interrompida (T153); nulo nas de antes da coluna
 
 
 def _ultima(con: sqlite3.Connection) -> Resultado | None:
@@ -43,11 +44,11 @@ def _ultima(con: sqlite3.Connection) -> Resultado | None:
     linha = con.execute(
         "SELECT e.estado, (SELECT count(*) FROM vaga v"
         "   WHERE julianday(v.primeira_vista_em)"
-        "   BETWEEN julianday(e.iniciada_em) AND julianday(e.terminada_em))"
+        "   BETWEEN julianday(e.iniciada_em) AND julianday(e.terminada_em)), e.parada"
         " FROM execucao e WHERE e.tipo = 'busca' AND e.estado <> 'rodando'"
         " ORDER BY julianday(e.iniciada_em) DESC, e.id DESC LIMIT 1"
     ).fetchone()
-    return None if linha is None else Resultado(linha[0], linha[1])
+    return None if linha is None else Resultado(linha[0], linha[1], linha[2])
 
 
 def _tarefas(request: Request) -> set[asyncio.Task[None]]:

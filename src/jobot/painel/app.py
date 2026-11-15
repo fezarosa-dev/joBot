@@ -11,7 +11,7 @@ from fastapi.responses import PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from jobot.painel import rotas
+from jobot.painel import erros, rotas
 from jobot.painel.seguranca import exigir_csrf
 
 ESTATICOS = Path(__file__).parent / "static"
@@ -38,6 +38,7 @@ def criar_app(dados: Path, porta: int) -> FastAPI:
     )
     app.state.csrf = secrets.token_urlsafe(32)
     app.state.banco = dados / "jobot.db"
+    erros.registrar(app, CABECALHOS)
 
     for modulo in pkgutil.iter_modules(rotas.__path__):
         app.include_router(importlib.import_module(f"{rotas.__name__}.{modulo.name}").router)

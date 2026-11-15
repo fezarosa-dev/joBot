@@ -7,8 +7,9 @@ import httpx
 import pytest
 
 from apoio.relogio import RelogioFalso
-from jobot.nucleo.coletores import base, inhire, registro
+from jobot.nucleo.coletores import base, registro
 from jobot.nucleo.coletores.base import Coletor, ContextoColeta, ResultadoEscopo
+from jobot.nucleo.coletores.plataformas import inhire
 from jobot.nucleo.http import ClienteEducado, ErroDeRede, HttpEducado, Validadores
 from jobot.nucleo.modelo import Empresa, VagaColetada
 from jobot.nucleo.relogio import Relogio

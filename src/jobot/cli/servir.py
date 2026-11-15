@@ -11,6 +11,7 @@ import asyncio
 import contextlib
 import logging
 import os
+import sqlite3
 import sys
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable, Mapping
@@ -35,6 +36,7 @@ from jobot.banco.execucoes import Motivo, Tipo, inicio_da_ultima_completa, marca
 from jobot.banco.gravacao import ValidadoresDoBanco
 from jobot.banco.migrar import BancoMaisNovo, migrar
 from jobot.banco.paginas import existe_pagina_nova
+from jobot.cli import caminho_do_log, mensagem_do_banco
 from jobot.nucleo.http import ClienteEducado
 from jobot.nucleo.relogio import Relogio, RelogioReal
 from jobot.painel.app import criar_app
@@ -200,6 +202,10 @@ def executar(args: argparse.Namespace) -> int:
                 servidor.run()
         finally:
             trava.soltar()
+    except sqlite3.Error as erro:
+        log.error("o servidor não subiu: erro do banco", exc_info=erro)
+        print(mensagem_do_banco(f" Detalhes em {caminho_do_log()}."), file=sys.stderr)
+        return 1
     except (BancoMaisNovo, ValueError, OSError) as erro:
         log.error("o servidor não subiu: %s", erro)
         print(f"jobot: {erro}", file=sys.stderr)

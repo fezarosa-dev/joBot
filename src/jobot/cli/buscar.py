@@ -2,21 +2,25 @@
 
 import argparse
 import asyncio
+import logging
 import os
 import sqlite3
 import sys
 from contextlib import closing
 
 from jobot import __version__
-from jobot.agenda.execucao import executar_busca
+from jobot.agenda.execucao import executar_busca, parada_de
 from jobot.banco.conexao import abrir
 from jobot.banco.execucoes import saude_recente
 from jobot.banco.gravacao import ValidadoresDoBanco
 from jobot.banco.migrar import BancoMaisNovo
+from jobot.cli import interrompido
 from jobot.cli.servir import preparar_banco, preparar_dados
 from jobot.nucleo.http import ClienteEducado
 from jobot.nucleo.relogio import RelogioReal
 from jobot.painel.i18n import t
+
+log = logging.getLogger(__name__)
 
 
 async def _buscar(con: sqlite3.Connection, relogio: RelogioReal) -> int | None:
@@ -47,6 +51,13 @@ def _resumo(con: sqlite3.Connection, execucao_id: int) -> list[str]:
     return linhas
 
 
+def _parada_em_portugues(erro: BaseException) -> str:
+    """O motivo da parada com os textos da tela do andamento, em português fixo (D23)."""
+    return (
+        f"{t('pt', f'execucao.parada.{parada_de(erro)}')} {t('pt', 'execucao.parada.tentar_cli')}"
+    )
+
+
 def executar(args: argparse.Namespace) -> int:
     relogio = RelogioReal()
     try:
@@ -54,7 +65,14 @@ def executar(args: argparse.Namespace) -> int:
         caminho = dados / "jobot.db"
         preparar_banco(caminho, relogio)
         with closing(abrir(caminho)) as con:
-            execucao_id = asyncio.run(_buscar(con, relogio))
+            try:
+                execucao_id = asyncio.run(_buscar(con, relogio))
+            except (Exception, KeyboardInterrupt, asyncio.CancelledError) as erro:
+                if not isinstance(erro, Exception):  # Ctrl+C; o motivo já foi gravado no banco
+                    return interrompido()
+                log.exception("a busca do jobot buscar parou")  # o traceback vai ao log
+                print(_parada_em_portugues(erro), file=sys.stderr)
+                return 1
             if execucao_id is None:
                 print("Uma busca já está rodando; espere ela terminar.", file=sys.stderr)
                 return 1

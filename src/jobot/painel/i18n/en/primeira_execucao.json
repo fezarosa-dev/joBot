@@ -4,7 +4,7 @@
   "primeira_execucao.p1.titulo": "What are you looking for?",
   "primeira_execucao.p1.intro": "Everything is optional, and you can change it later under Searches. The more you say, the better joBot ranks the jobs.",
   "primeira_execucao.p1.cargos": "Job titles or keywords",
-  "primeira_execucao.p1.cargos_dica": "One per line, or separated by commas. Up to 20.",
+  "primeira_execucao.p1.cargos_dica": "One per line, or separated by commas. Up to 20. To find more jobs, add variations of the same title (e.g. infrastructure, servers, sysadmin).",
   "primeira_execucao.p1.cidades": "Cities",
   "primeira_execucao.p1.cidade": "City {n}",
   "primeira_execucao.p1.uf": "State",
@@ -42,8 +42,10 @@
   "primeira_execucao.p2.desligar": "Not now",
   "primeira_execucao.p2.concluir": "Finish",
   "primeira_execucao.p2.recusa": "Background mode could not be turned on",
-  "primeira_execucao.p2.recusa_desligar": "Background mode could not be turned off",
-  "primeira_execucao.p2.erro_sistema": "I could not finish: {erro}",
+  "primeira_execucao.p2.erro_arquivos": "I could not write the service files. It may be a permission or disk space problem (details in the log). You can try again or choose \"Not now\".",
+  "primeira_execucao.p2.aviso": "Background mode could not be turned off properly: {motivo}. Try again in Settings > Background.",
+  "primeira_execucao.p2.aviso.arquivos": "I could not change the service files (may be permission or disk; details in the log)",
+  "primeira_execucao.p2.aviso.systemctl_falhou": "systemctl could not turn the service off (details in the log)",
   "primeira_execucao.p2.voltar": "Back to step 1",
   "primeira_execucao.pronto.titulo": "All set",
   "primeira_execucao.pronto.texto": "joBot can look for jobs now. Use the Search now button at the top, or see what is already here.",
@@ -51,5 +53,5 @@
   "segundo_plano.sem_host_exec": "could not reach the host system: distrobox-host-exec or distrobox-enter is missing",
   "segundo_plano.systemd_nao_responde": "the user systemd is not responding",
   "segundo_plano.home_diferente": "the container home folder is not the host home folder",
-  "segundo_plano.systemctl_falhou": "systemctl {comando} failed: {saida}"
+  "segundo_plano.systemctl_falhou": "systemctl {comando} failed. The details are in jobot.log."
 }

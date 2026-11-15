@@ -47,7 +47,7 @@ def test_link_apoie_visivel_e_alcancavel_pelo_teclado(page: Page, painel: str) -
 def test_contraste_do_link_apoie_e_do_aviso(page: Page, painel: str, esquema: str) -> None:
     page.emulate_media(color_scheme="light" if esquema == "light" else "dark")
     page.goto(painel + CASCA)
-    # o aviso nasce vazio (desligado): põe o fragmento da T85 depois que o htmx já respondeu
+    # o aviso nasce vazio (sem versão nova gravada): põe o fragmento da T85 à mão, depois do htmx
     page.wait_for_load_state("networkidle")
     page.evaluate(
         "document.getElementById('aviso-versao').innerHTML ="

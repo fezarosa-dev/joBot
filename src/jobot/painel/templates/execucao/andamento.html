@@ -21,6 +21,12 @@
 </div>
 {%- elif ultima %}
 <div class="andamento">
-  <p>{{ t("execucao.terminou" if ultima.estado == "concluida" else "execucao.interrompida", n=ultima.novas) }}</p>
+  {%- if ultima.estado == "concluida" %}
+  <p>{{ t("execucao.terminou", n=ultima.novas) }}</p>
+  {%- elif ultima.parada %}
+  <p>{{ t("execucao.parada." ~ ultima.parada) }} {{ t("execucao.parada.novas", n=ultima.novas) }} {{ t("execucao.parada.tentar") }}</p>
+  {%- else %}{#- execução de antes do motivo da parada (T153) #}
+  <p>{{ t("execucao.interrompida", n=ultima.novas) }}</p>
+  {%- endif %}
 </div>
 {%- endif %}

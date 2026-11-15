@@ -31,7 +31,7 @@ It gathers, filters and organizes jobs from many sites into a nice dashboard tha
 </div>
 
 > [!IMPORTANT]
-> **joBot phase 1 (the foundation) is done: version 0.1.0.** It searches public sources for jobs, keeps everything on your computer and shows it in a dashboard. You can already [install and use it](#requirements-and-installation).
+> **joBot phase 1 (the foundation) is done: version 0.1.1.** It searches public sources for jobs, keeps everything on your computer and shows it in a dashboard. You can already [install and use it](#requirements-and-installation).
 > The rest (sites with login, AI, browser extension, Gmail and audio) is still a plan. See the [roadmap](#roadmap). Before you turn on the sources, read the [usage and terms notices](#license-and-notices).
 
 ## 📑 Contents
@@ -150,6 +150,8 @@ One search cycle, step by step:
 6. **When the AI arrives** (phase 3) and you turn it on, it will calculate the match with your profile and help prepare applications. Until then, the match comes from the rules of your search.
 
 If one source fails, the others keep going. If the computer was off at the scheduled time, the missed search runs when it turns on.
+
+Want to see joBot from the inside, with folders, layers, database and diagrams? See the [Architecture page on the wiki](https://github.com/fezarosa-dev/joBot/wiki/Architecture).
 
 <a id="two-versions"></a>
 ## 🖥️ The two versions
@@ -328,8 +330,8 @@ Details in [ADR 0010](docs/decisions/0010-claude-code-da-pessoa.md) (in Portugue
 
 - **There is no joBot server.** Your data stays on your computer.
 - **No telemetry.** No usage data is sent.
-- **Search and check requests only.** joBot only makes network requests in these cases: to the public job sources you leave on (they all come on), including each job's page; to the Central Bank of Brazil, to get the dollar rate, with currency conversion on (it comes on); to Common Crawl, once a week, to discover new companies, and then to those companies' job boards, to check them (it comes on); to the pages you ask it to follow (it comes on, but with no pages on the list there is no request); to a company's website, only when you paste an address, test it or accept a suggestion; to the internet through git and uv, to download the new joBot version, only when you ask to update (the jobot atualizar command). If you turn on the version notice (next item), it also asks GitHub (it comes off). Whoever receives a request sees your computer's IP address, as with any internet request.
-- **Version notice off by default.** If you turn it on (Settings, Privacy), once a day joBot asks `api.github.com` which version is the newest. The request carries only joBot's fixed user agent (which includes the version number) and your computer's IP, like any request on the internet. It carries no search and no data of yours. Off, it makes no request at all.
+- **Search and check requests only.** joBot only makes network requests in these cases: to the public job sources you leave on (they all come on), including each job's page; to the Central Bank of Brazil, to get the dollar rate, with currency conversion on (it comes on); to Common Crawl, once a week, to discover new companies, and then to those companies' job boards, to check them (it comes on); to the pages you ask it to follow (it comes on, but with no pages on the list there is no request); to a company's website, only when you paste an address, test it or accept a suggestion; to the internet through git and uv, to download the new joBot version, only when you ask to update (the jobot atualizar command). With the version notice (next item) on, it also asks GitHub (it comes on; you can turn it off). Whoever receives a request sees your computer's IP address, as with any internet request.
+- **Version notice on by default.** Once a day joBot asks `api.github.com` which version is the newest. The request carries only joBot's fixed user agent (which includes the version number) and your computer's IP, like any request on the internet. It carries no search and no data of yours. To turn it off, go to Settings, Privacy; off, it makes no request at all.
 - **Secrets in the system vault.** The Gmail token, the API key and the Telegram token stay in the operating system's password vault. Without a vault, they go to a file that only your user can read, and the dashboard warns you.
 - **Protected personal data.** CPF (Brazilian tax ID) and date of birth stay in the database, in a folder that only your user can access and that is not synced to the cloud. The dashboard recommends turning on disk encryption (LUKS, BitLocker or FileVault).
 - **Exporting the profile does not include documents** such as the CPF, unless you check that option.
@@ -343,7 +345,7 @@ Details in [ADR 0010](docs/decisions/0010-claude-code-da-pessoa.md) (in Portugue
 <a id="requirements-and-installation"></a>
 ## 📦 Requirements and installation
 
-> This is the phase 1 installation (version 0.1.0): you download the code and run it with uv. The one-command installer only arrives in phase 8.
+> This is the phase 1 installation (version 0.1.1): you download the code and run it with uv. The one-command installer only arrives in phase 8.
 
 ### Requirements
 
@@ -407,7 +409,7 @@ Then press **Search now**, at the top of the dashboard, or wait for the next sch
 
 ### Updating
 
-Run `uv run jobot atualizar`. The version notice is optional and comes **off by default**: to turn it on, go to Settings, Privacy. The details are in [Privacy and security](#privacy-and-security).
+Run `uv run jobot atualizar`. The version notice comes **on by default**: to turn it off, go to Settings, Privacy. The details are in [Privacy and security](#privacy-and-security).
 
 ### What the next phases will download
 
