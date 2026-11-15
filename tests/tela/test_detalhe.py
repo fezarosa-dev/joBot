@@ -30,7 +30,7 @@ def test_abre_o_detalhe_pelo_titulo_do_cartao(page: Page, painel: str) -> None:
     expect(page).to_have_url(f"{painel}/vagas/{USD}")
     expect(page.get_by_role("heading", level=1, name="Desenvolvedor Python")).to_be_visible()
     expect(page.get_by_text("US$ 5.000/mês")).to_be_visible()
-    expect(page.get_by_text("US$ 1 = R$ 5,65 (PTAX de 13/11) · ≈ R$ 28.250/mês")).to_be_visible()
+    expect(page.get_by_text("≈ R$ 28.250/mês · US$ 1 = R$ 5,65 (PTAX de 13/11)")).to_be_visible()
 
 
 def test_descricao_com_script_aparece_como_texto(page: Page, painel: str) -> None:
@@ -62,7 +62,7 @@ def test_corrigir_o_salario_mostra_o_valor_novo_na_hora(page: Page, painel: str)
     page.get_by_role("button", name="Salvar a correção de Salário").click()
     expect(page).to_have_url(f"{painel}/vagas/{USD}")
     expect(page.get_by_text("US$ 6.000/mês")).to_be_visible()
-    expect(page.get_by_text("US$ 1 = R$ 5,65 (PTAX de 13/11) · ≈ R$ 33.900/mês")).to_be_visible()
+    expect(page.get_by_text("≈ R$ 33.900/mês · US$ 1 = R$ 5,65 (PTAX de 13/11)")).to_be_visible()
 
 
 def test_correcao_invalida_volta_com_o_texto_e_a_mensagem(page: Page, painel: str) -> None:
@@ -98,7 +98,7 @@ def test_contraste_dos_textos_menores(page: Page, painel: str, esquema: str) -> 
     page.goto(f"{painel}/vagas/{USD}")
     razoes = [
         page.locator(seletor).first.evaluate(CONTRASTE)
-        for seletor in (".cotacao", ".cartao-empresa", ".fontes a", "h2")
+        for seletor in (".convertido", ".cartao-empresa", ".fontes a", "h2")
     ]
     assert [r for r in razoes if r < MINIMO] == [], f"contraste no tema {esquema}: {razoes}"
 

@@ -25,11 +25,6 @@
   font-size: 1.0625rem;
 }
 
-/* a cotação fica ao lado do valor, menor */
-.detalhe small.cotacao {
-  font-size: 0.8125rem;
-}
-
 .detalhe .acoes {
   align-items: center;
 }
