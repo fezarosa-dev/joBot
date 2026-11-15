@@ -92,7 +92,7 @@ def test_numero_de_destaques_invalido_mostra_o_aviso_e_nao_grava(page: Page, pai
     expect(page.get_by_label("Conversão de moeda", exact=True)).to_be_checked()
 
 
-def test_privacidade_mostra_a_pasta_e_o_aviso_de_versao_nasce_desligado_e_grava(
+def test_privacidade_mostra_a_pasta_e_o_aviso_de_versao_nasce_ligado_e_desliga(
     page: Page, painel: str, tmp_path: Path
 ) -> None:
     page.goto(f"{painel}/configuracoes/privacidade")
@@ -100,11 +100,11 @@ def test_privacidade_mostra_a_pasta_e_o_aviso_de_versao_nasce_desligado_e_grava(
     expect(page.get_by_text("criptografar o disco")).to_be_visible()
     expect(page.locator("code")).to_have_text(str(tmp_path))
     aviso = page.get_by_label("Avisar quando houver versão nova")
-    expect(aviso).not_to_be_checked()
-    aviso.check()
+    expect(aviso).to_be_checked()
+    aviso.uncheck()
     page.get_by_role("button", name="Salvar").click()
     expect(page).to_have_url(f"{painel}/configuracoes/privacidade?salvo=1")
-    expect(page.get_by_label("Avisar quando houver versão nova")).to_be_checked()
+    expect(page.get_by_label("Avisar quando houver versão nova")).not_to_be_checked()
 
 
 def test_segundo_plano_liga_pela_tela_e_mostra_o_estado(

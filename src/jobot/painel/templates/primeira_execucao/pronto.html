@@ -1,5 +1,10 @@
 <h1 class="assistente-titulo">{{ t("primeira_execucao.pronto.titulo") }}</h1>
 <p class="assistente-texto">{{ t("primeira_execucao.pronto.texto") }}</p>
+{% if aviso_motivo %}
+<div class="assistente-alerta" role="status">
+  <p>{{ t("primeira_execucao.p2.aviso", motivo=t(aviso_motivo)) }}</p>
+</div>
+{% endif %}
 {#- o Buscar agora desta tela é o da casca (T49, T107): um só botão, com o andamento ao vivo -#}
 <div class="acoes">
   <a class="botao botao-secundario" href="/vagas?aba=destaques">{{ t("primeira_execucao.pronto.ver_vagas") }}</a>

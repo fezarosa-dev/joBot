@@ -23,7 +23,7 @@
   "buscas.campo.moeda": "Moeda",
   "buscas.campo.idiomas": "Idiomas da vaga",
   "buscas.campo.regras": "Ocultar vagas que não servem",
-  "buscas.dica.cargos": "Separe por vírgula ou por linha. Deixe vazio para não filtrar por cargo.",
+  "buscas.dica.cargos": "Separe por vírgula ou por linha. Para achar mais vagas, ponha variações do mesmo cargo, uma por linha (ex.: infraestrutura, servidores, sysadmin). Deixe vazio para não filtrar por cargo.",
   "buscas.dica.cidades": "Uma por linha, com estado ou país: Curitiba, PR ou Lisboa, Portugal.",
   "buscas.dica.salario": "Em reais ou na moeda escolhida, por mês: 5.000,50. Deixe vazio para não ter mínimo.",
   "buscas.dica.regras": "Cada regra esconde da lista as vagas que contrariam o que você marcou acima.",

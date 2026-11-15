@@ -9,6 +9,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.testclient import TestClient
 from jinja2 import DictLoader
+from markupsafe import escape
 
 from jobot.banco.conexao import abrir
 from jobot.banco.migrar import migrar
@@ -99,7 +100,7 @@ def test_token_velho_pede_recarregar(tmp_path: Path) -> None:
     assert _token(depois) != token_velho
     resposta = depois.post("/teste", headers={"X-CSRF-Token": token_velho, "Accept-Language": "en"})
     assert resposta.status_code == 403
-    assert resposta.json()["detail"] == t("en", "seguranca.recarregue")
+    assert str(escape(t("en", "seguranca.recarregue"))) in resposta.text  # página de erro (T150)
 
 
 def test_cabecalhos(cliente: TestClient) -> None:
@@ -218,7 +219,7 @@ def test_idioma_salvo_vale_sem_con(tmp_path: Path, monkeypatch: pytest.MonkeyPat
     assert cliente.get("/sem-con", headers=en).text == t("pt", "seguranca.recarregue")
     recusa = cliente.post("/sem-con", headers=en)  # o 403 do CSRF roda antes de Con
     assert recusa.status_code == 403
-    assert recusa.json()["detail"] == t("pt", "seguranca.recarregue")
+    assert str(escape(t("pt", "seguranca.recarregue"))) in recusa.text  # página de erro (T150)
 
 
 def csrf_token_de(app: FastAPI) -> str:

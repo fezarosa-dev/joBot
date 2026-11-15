@@ -1,10 +1,10 @@
 """Checagem diária de versão nova no GitHub (plano T85; ADR 0014 e 0018; D31).
 
-Nasce desligada: só roda com `aviso_versao_ligada` verdadeira, que a pessoa liga em Privacidade
-(a T54 é dona do interruptor; aqui só se lê, com padrão `False`). O pedido passa pelo
-`ClienteEducado` e leva só o user agent fixo (que traz a versão do joBot); o GitHub vê o IP, como em
-qualquer pedido. A etiqueta da resposta é dado de terceiro que vai para a tela: só vale com até 32
-caracteres e no formato `v?N.N.N` em ASCII, conferidos antes de qualquer `int()`.
+Nasce ligada (D105): roda enquanto `aviso_versao_ligada` for verdadeira, e a pessoa a desliga em
+Privacidade (a T54 é dona do interruptor; aqui só se lê, e o padrão mora em `PADROES`). O pedido
+passa pelo `ClienteEducado` e leva só o user agent fixo (que traz a versão do joBot); o GitHub vê o
+IP, como em qualquer pedido. A etiqueta da resposta é dado de terceiro que vai para a tela: só vale
+com até 32 caracteres e no formato `v?N.N.N` em ASCII, conferidos antes de qualquer `int()`.
 """
 
 import logging
@@ -62,8 +62,8 @@ def _versao_atual() -> tuple[int, ...] | None:
 
 
 def aviso_ligado(con: sqlite3.Connection) -> bool:
-    """O aviso de versão está ligado; nasce desligado."""
-    return ler_config(con, "aviso_versao_ligada", False) is True
+    """O aviso de versão está ligado; nasce ligado (padrão em `PADROES`), a pessoa desliga."""
+    return ler_config(con, "aviso_versao_ligada") is True
 
 
 def versao_para_avisar(con: sqlite3.Connection) -> str | None:

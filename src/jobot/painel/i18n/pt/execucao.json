@@ -11,5 +11,11 @@
   "execucao.interrompida": "A busca parou antes do fim. Vagas novas: {n}.",
   "execucao.saiu_titulo": "joBot encerrado",
   "execucao.saiu": "O joBot foi encerrado. Pode fechar esta aba.",
-  "execucao.saindo": "O joBot está sendo encerrado; nenhuma busca nova vai começar."
+  "execucao.saindo": "O joBot está sendo encerrado; nenhuma busca nova vai começar.",
+  "execucao.parada.fechado": "O joBot foi fechado no meio da busca.",
+  "execucao.parada.sem_batimento": "O joBot ou o computador foi desligado no meio da busca.",
+  "execucao.parada.banco": "Houve um problema no banco de dados (pode ser disco cheio).",
+  "execucao.parada.erro": "Houve um erro inesperado; os detalhes estão no arquivo de log do joBot (logs/jobot.log).",
+  "execucao.parada.novas": "Vagas novas: {n}.",
+  "execucao.parada.tentar": "Clique em Buscar agora para tentar de novo."
 }

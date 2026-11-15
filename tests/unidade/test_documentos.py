@@ -4,10 +4,8 @@ Os dois idiomas têm de ter as mesmas seções na mesma ordem; os avisos de uso,
 distrobox e de versão têm de estar lá; e todo comando `jobot` citado tem de existir no `--help`.
 """
 
-import contextlib
 import json
 import re
-import sqlite3
 import tomllib
 from collections.abc import Mapping
 from pathlib import Path
@@ -16,9 +14,8 @@ from urllib.parse import urlsplit
 import pytest
 
 from jobot import __version__
-from jobot.agenda.versao import URL_VERSOES, aviso_ligado
+from jobot.agenda.versao import URL_VERSOES
 from jobot.banco import cadastros
-from jobot.banco.migrar import migrar
 from jobot.cli import COMANDOS, main
 from jobot.nucleo.cambio import BASE
 from jobot.nucleo.coletores.descoberta_cc import COLLINFO
@@ -54,14 +51,16 @@ FRASES: Mapping[str, Mapping[str, str]] = {
         "consentimento": r"consentimento prévio",
         "ligada": r"vem ligada",
         "onde": r"Configurações",
-        "padrao_desligado": r"desligado por padrão",
+        "padrao_ligado": r"(?<!des)ligado por padrão",
+        "como_desligar": r"Para desligar",
     },
     "en": {
         "pessoal": r"personal use",
         "consentimento": r"prior consent",
         "ligada": r"comes on",
         "onde": r"Settings",
-        "padrao_desligado": r"off by default",
+        "padrao_ligado": r"(?<!off )on by default",
+        "como_desligar": r"To turn it off",
     },
 }
 
@@ -232,7 +231,8 @@ def test_aviso_de_versao_diz_o_que_vai_no_pedido(lingua: str) -> None:
     linhas = [linha for linha in privacidade.splitlines() if "api.github.com" in linha]
     assert linhas, f"{README[lingua]}: o aviso de versão não cita o api.github.com"
     aviso = " ".join(linhas)
-    assert re.search(frases["padrao_desligado"], aviso)
+    assert re.search(frases["padrao_ligado"], aviso)  # D105: o aviso nasce ligado
+    assert re.search(frases["como_desligar"], aviso) and re.search(frases["onde"], aviso)
     assert "user agent" in aviso.lower() and "IP" in aviso
     assert urlsplit(URL_VERSOES).hostname == "api.github.com"
 
@@ -369,6 +369,7 @@ CHAVE_DO_PADRAO = {
     "banco central": "conversao_moeda_ligada",
     "common crawl": "descoberta_cc_ligada",
     "páginas": "paginas_ligadas",
+    "versão": "aviso_versao_ligada",
 }
 # o que o texto diz das fontes: todas vêm ligadas (o `fontes.json` não desliga nenhuma)
 FONTES_LIGADAS = {"pt": r"vêm todas ligadas", "en": r"all come on"}
@@ -387,11 +388,7 @@ def test_condicao_aceita_os_dois_generos() -> None:
 
 
 def _ligado_por_padrao(pedido: str) -> bool:
-    """O padrão de verdade do pedido: `PADROES` do banco, ou o padrão de código do aviso."""
-    if pedido == "versão":
-        with contextlib.closing(sqlite3.connect(":memory:")) as con:
-            migrar(con, Path(":memory:"))
-            return aviso_ligado(con)
+    """O padrão de verdade do pedido, em `PADROES` do banco."""
     return bool(cadastros.PADROES[CHAVE_DO_PADRAO[pedido]])
 
 
