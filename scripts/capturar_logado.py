@@ -49,9 +49,10 @@ from capturar import (
 from selectolax.lexbor import LexborHTMLParser
 
 from jobot import __version__
+from jobot.navegador import limites
 from jobot.navegador.abrir import abrir_contexto
 from jobot.navegador.execucao import Dependencias, dependencias_de_producao
-from jobot.navegador.pagina import ESPERA_ASSENTAR_MS, ouvir_respostas
+from jobot.navegador.pagina import ouvir_respostas
 from jobot.navegador.politica import dentro_dos_hosts
 from jobot.nucleo.leitores.base import LeitorComLogin, RespostaCapturada
 from jobot.nucleo.leitores.registro import leitores
@@ -287,7 +288,7 @@ async def _navegar(
         )
         await enter()
         with contextlib.suppress(Exception):  # estouro do `networkidle` não impede a captura
-            await page.wait_for_load_state("networkidle", timeout=ESPERA_ASSENTAR_MS)
+            await page.wait_for_load_state("networkidle", timeout=limites.ESPERA_ASSENTAR_MS)
         await ouvidas.prontas()
         ouvidas.ativa = False
         capturadas = list({r.url: r for r in ouvidas}.values())  # a última de cada URL
