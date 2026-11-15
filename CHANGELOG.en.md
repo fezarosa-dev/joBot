@@ -12,6 +12,11 @@ The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/
 
 - LinkedIn, the first site with login. The reader comes off: you turn it on in Settings, Sites with login. It searches for each job title in your searches, with the city and remote, and reads only the last week, sorted by relevance. Because the list is not complete, a LinkedIn job only closes after 30 days without being seen, and reopens if it comes back.
 - Login in a regular browser window, with no automation: you sign in however you like (Google, email and password) and close the window. joBot checks the session by itself and never types the password.
+- ADR 0023: everything through the dashboard. External tools, updating and quitting get a button, no terminal needed.
+
+### Changed
+
+- New roadmap: after phase 2 comes version 0.3.0 ("Overview" screen and complete application queue); phase 3 becomes the Installer and the later phases move up one number, up to phase 9 (release).
 
 ### Fixed
 

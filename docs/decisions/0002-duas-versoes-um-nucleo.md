@@ -13,7 +13,7 @@ Nem todo mundo quer instalar um programa. Uma versão no navegador, sem instala�
 
 - Um único repositório com um núcleo comum (coletores, rótulos, remoção de duplicadas, leitura de salário) e duas versões.
 - Versão local (o foco): completa, com sites que exigem login, IA automática, extensão do navegador, Gmail e áudio.
-- Versão GitHub Pages (fase 7): o GitHub Actions (serviço do GitHub que roda tarefas automáticas) roda uma vez por dia só com fontes públicas, nunca com logins ou segredos. Os dados ficam num ramo separado chamado `dados`, sobrescrito a cada dia.
+- Versão GitHub Pages (fase 8): o GitHub Actions (serviço do GitHub que roda tarefas automáticas) roda uma vez por dia só com fontes públicas, nunca com logins ou segredos. Os dados ficam num ramo separado chamado `dados`, sobrescrito a cada dia.
 
 ### O que a versão Pages tem
 
@@ -22,7 +22,7 @@ Nem todo mundo quer instalar um programa. Uma versão no navegador, sem instala�
 - Status por vaga, exportar/importar o perfil em arquivo (que também pode ser importado na versão local), o mesmo visual e um botão "baixar versão completa".
 - Os rótulos vêm só de regras. Usar o Haiku com a chave do próprio visitante fica como opção, desligada por padrão.
 - Fora da versão Pages: logins, Gmail, extensão, IA automática e áudio.
-- Toda página da versão Pages (fase 7) terá uma faixa fixa no topo dizendo que a versão para baixar é mais completa, com o que ela tem a mais (mais fontes, segundo plano, inteligência artificial, sites com login) e um link para a instalação. O texto final e o visual da faixa são decididos na fase 7.
+- Toda página da versão Pages (fase 8) terá uma faixa fixa no topo dizendo que a versão para baixar é mais completa, com o que ela tem a mais (mais fontes, segundo plano, inteligência artificial, sites com login) e um link para a instalação. O texto final e o visual da faixa são decididos na fase 8.
 
 ### Quando e como a versão Pages roda
 

@@ -91,7 +91,7 @@ joBot has a single core and two "faces".
 | **Extension, Gmail and audio** | Yes | No |
 | **Where the data lives** | In the SQLite database on your computer | Your profile stays in your browser |
 | **Updates** | Every 3 h (public) and twice a day (login) | Once a day |
-| **When it arrives** | It is the project's focus | Phase 7 |
+| **When it arrives** | It is the project's focus | Phase 8 |
 
 In the browser version, you can export your profile to a file and import it later into the download version. It never uses logins or secrets.
 

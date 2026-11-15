@@ -40,7 +40,7 @@ Chave Pix (aleatória):
 - 💡 **Sugira uma ideia** pelo [formulário de sugestão](https://github.com/fezarosa-dev/joBot/issues/new?template=sugestao.yml).
 - 🙋 **Responda dúvidas** de outras pessoas nas [issues de dúvida](https://github.com/fezarosa-dev/joBot/issues?q=label%3Aquestion).
 - 📝 **Melhore esta wiki** por PR na pasta [`wiki/`](https://github.com/fezarosa-dev/joBot/tree/main/wiki).
-- 🧑‍💻 **Contribua com código** seguindo o [guia de contribuição](https://github.com/fezarosa-dev/joBot/blob/main/.github/CONTRIBUTING.md). PRs de código são aceitos depois da publicação (fase 8).
+- 🧑‍💻 **Contribua com código** seguindo o [guia de contribuição](https://github.com/fezarosa-dev/joBot/blob/main/.github/CONTRIBUTING.md). PRs de código são aceitos depois da publicação (fase 9).
 
 <div align="center">
 
