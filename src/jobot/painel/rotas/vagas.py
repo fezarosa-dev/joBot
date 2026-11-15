@@ -186,7 +186,7 @@ def _chip_valido(grupo: str, valor: str) -> bool:
     return True
 
 
-def _ler_estado(params: QueryParams, con: sqlite3.Connection, ex: Exibicao) -> Estado:
+def ler_estado(params: QueryParams, con: sqlite3.Connection, ex: Exibicao) -> Estado:
     ligados = bool(_config(con, "destaques_ligados", True))
     validas = {*leitura.ABAS, *([ABA_DESTAQUES] if ligados else [])}
     pedida_aba = params.get("aba") or ""
@@ -301,7 +301,7 @@ def _nome_do_pais(codigo: str, idioma: str) -> str:
     return nome(codigo) or codigo
 
 
-def _grupos(
+def grupos_dos_chips(
     con: sqlite3.Connection, estado: Estado, agora: datetime, idioma: str
 ) -> list[dict[str, Any]]:
     """Os chips com contagem. Motivo (Ocultas) e situação (Candidatei) só contam: sem filtro."""
@@ -438,7 +438,7 @@ def _contexto_pagina(
     }
 
 
-def _vary(resposta: HTMLResponse) -> HTMLResponse:
+def com_vary(resposta: HTMLResponse) -> HTMLResponse:
     resposta.headers["Vary"] = "HX-Request, HX-History-Restore-Request"
     return resposta
 
@@ -455,7 +455,7 @@ async def raiz(con: Con) -> RedirectResponse:
 async def vagas(request: Request, con: Con) -> HTMLResponse:
     agora = relogio_do_painel(request).agora()
     ex = exibicao_do_painel(con, agora.astimezone().date())
-    estado = _ler_estado(request.query_params, con, ex)
+    estado = ler_estado(request.query_params, con, ex)
     cabecalho = request.headers
     restaurando = cabecalho.get("hx-history-restore-request") == "true"
     parcial = cabecalho.get("hx-request") == "true" and not restaurando
@@ -464,7 +464,7 @@ async def vagas(request: Request, con: Con) -> HTMLResponse:
         # "carregar mais": só os cartões novos e o botão da página seguinte
         lista = leitura.listar(con, estado.filtros(pagina), agora)
         seguinte = estado.url(extras=[("pagina", str(pagina + 1))])
-        return _vary(
+        return com_vary(
             renderizar(
                 request,
                 "vagas/mais.html",
@@ -480,7 +480,7 @@ async def vagas(request: Request, con: Con) -> HTMLResponse:
         )
     contexto = _contexto_pagina(con, estado, agora, ex)
     modelo = "vagas/miolo.html" if parcial else "vagas/pagina.html"
-    return _vary(renderizar(request, modelo, **contexto))
+    return com_vary(renderizar(request, modelo, **contexto))
 
 
 def _aplicar(request: Request, acao: Callable[[datetime], None]) -> None:
