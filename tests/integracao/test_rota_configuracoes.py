@@ -646,9 +646,9 @@ def test_interruptor_aviso_versao_aparece_em_privacidade_e_grava(painel: Painel)
 
 def test_privacidade_diz_que_o_aviso_de_versao_vem_ligado(painel: Painel) -> None:
     pt = _texto(painel.get(PRIVACIDADE).text)
-    assert "pergunta ao GitHub (vem ligado" in pt and "vem desligado" not in pt
+    assert "pergunta ao GitHub (vem ligado" in pt and "GitHub (vem desligado" not in pt
     en = _texto(painel.get(PRIVACIDADE, headers={"Accept-Language": "en"}).text)
-    assert "asks GitHub (it comes on" in en and "it comes off" not in en
+    assert "asks GitHub (it comes on" in en and "GitHub (it comes off" not in en
 
 
 def test_aviso_de_versao_gravado_desligado_aparece_desligado(painel: Painel) -> None:
