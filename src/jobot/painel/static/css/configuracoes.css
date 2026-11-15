@@ -539,3 +539,12 @@
     border: 2px solid ButtonText;
   }
 }
+
+/* Sites com login (T218): um cartão por site, só as medidas e cores já usadas acima. */
+.cartao-site {
+  margin: 0 0 1rem;
+}
+
+.cartao-site .config-texto {
+  margin: 0.25rem 0 0;
+}

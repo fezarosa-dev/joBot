@@ -73,5 +73,20 @@
   "configuracoes.servicos.captcha.testar": "Testar chave",
   "configuracoes.servicos.captcha.testando": "Testando…",
   "configuracoes.servicos.captcha.ok": "Chave válida. Saldo: {saldo}",
-  "configuracoes.servicos.erro.sem_chave": "Digite uma chave ou salve uma antes de testar."
+  "configuracoes.servicos.erro.sem_chave": "Digite uma chave ou salve uma antes de testar.",
+  "configuracoes.grupo.sites_com_login": "Sites com login",
+  "configuracoes.sites_com_login.explicacao": "Ler sites com login pode ir contra os termos deles, e a sua conta pode ser restringida. Você decide site por site. O joBot nunca digita a sua senha e só lê: você entra no site e ele lê as vagas dessa sessão, só nos sites que você ligar aqui.",
+  "configuracoes.sites_com_login.navegador.chrome": "Chrome encontrado",
+  "configuracoes.sites_com_login.navegador.chromium": "Usando o Chromium do Playwright",
+  "configuracoes.sites_com_login.navegador.nenhum": "Nenhum navegador encontrado. Instale o Google Chrome para usar estes sites.",
+  "configuracoes.sites_com_login.ainda_nao_leu": "Ainda não leu",
+  "configuracoes.sites_com_login.ultima": "Última leitura: {estado}",
+  "configuracoes.sites_com_login.rodando": "Lendo agora",
+  "configuracoes.sites_com_login.horarios": "Horários (hora local)",
+  "configuracoes.sites_com_login.horarios.ajuda": "De 1 a 4 horários no formato HH:MM, separados por vírgula, com pelo menos 4 horas entre eles. Exemplo: 09:00, 18:00.",
+  "configuracoes.sites_com_login.horarios.formato": "Use o formato HH:MM, separando os horários por vírgula (por exemplo 09:00, 18:00).",
+  "configuracoes.sites_com_login.horarios.repetido": "Não repita o mesmo horário.",
+  "configuracoes.sites_com_login.horarios.muitos": "No máximo 4 horários.",
+  "configuracoes.sites_com_login.horarios.perto": "Deixe pelo menos 4 horas entre um horário e outro.",
+  "configuracoes.sites_com_login.esquecer": "Esquecer logins"
 }
