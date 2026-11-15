@@ -13,7 +13,15 @@ import pytest
 from apoio.semear import AGORA, inserir_vaga, semear
 from jobot.banco import migrar as modulo_migrar
 from jobot.banco.conexao import abrir
-from jobot.banco.leitura import Filtros, Pagina, contar_abas, contar_chips, detalhe, listar
+from jobot.banco.leitura import (
+    Filtros,
+    Pagina,
+    contar_abas,
+    contar_chips,
+    contar_fora_do_salario,
+    detalhe,
+    listar,
+)
 from jobot.banco.migrar import migrar
 
 # RF1: nada disso pode virar sintaxe do FTS5 nem do LIKE
@@ -563,3 +571,166 @@ def test_contar_pais_considera_outros_filtros(con_modo: sqlite3.Connection) -> N
     # o chip do país ignora o filtro dele mesmo
     chips = contar_chips(c, Filtros(modalidade="remoto", pais="PT"), AGORA)
     assert chips["pais"] == {"PT": 1, "BR": 1}
+
+
+def _paga(
+    c: sqlite3.Connection,
+    moeda: str = "BRL",
+    minimo: int | None = None,
+    maximo: int | None = None,
+    periodo: str = "mes",
+    **campos: Any,
+) -> int:
+    """Vaga com salário: `minimo` e `maximo` em unidades inteiras da moeda, por `periodo`.
+
+    As colunas `_brl` vão direto em `campos`; sem elas ficam nulas (sem valor convertido).
+    """
+    fator = {"hora": 160, "dia": 21, "mes": 1, "ano": 1 / 12}[periodo]
+    mensal = None if minimo is None else round(minimo * 100 * fator)
+    return inserir_vaga(
+        c,
+        sal_moeda=moeda,
+        sal_min=None if minimo is None else minimo * 100,
+        sal_max=None if maximo is None else maximo * 100,
+        sal_periodo=periodo,
+        sal_mensal_min=mensal,
+        **campos,
+    )
+
+
+def test_salario_sobreposicao_de_faixas(con: sqlite3.Connection) -> None:
+    v = _paga(con, minimo=5000, maximo=8000, sal_mensal_min_brl=5000, sal_mensal_max_brl=8000)
+    assert _lista(con, sal_de_brl=7000, sal_ate_brl=10000) == [v]
+    assert _lista(con, sal_de_brl=1000, sal_ate_brl=5000) == [v]
+    assert _lista(con, sal_de_brl=9000, sal_ate_brl=10000) == []
+
+
+def test_salario_so_com_minimo_ou_so_com_maximo(con: sqlite3.Connection) -> None:
+    so_min = _paga(con, minimo=6000, sal_mensal_min_brl=6000)
+    so_max = inserir_vaga(
+        con, sal_moeda="BRL", sal_max=800000, sal_periodo="mes", sal_mensal_max_brl=8000
+    )
+    assert so_min in _lista(con, sal_de_brl=6000)
+    assert so_max in _lista(con, sal_ate_brl=8000)
+    assert so_max in _lista(con, sal_de_brl=8000)
+    assert so_max not in _lista(con, sal_de_brl=8001)
+
+
+def test_salario_implausivel_fica_fora_e_conta_como_sem_salario(con: sqlite3.Connection) -> None:
+    _paga(
+        con,
+        minimo=5000,
+        maximo=8000,
+        sal_mensal_min_brl=5000,
+        sal_mensal_max_brl=8000,
+        sal_plausivel=0,
+    )
+    assert _lista(con, sal_de_brl=1000, sal_ate_brl=10000) == []
+    assert contar_fora_do_salario(con, Filtros(sal_de_brl=1000, sal_ate_brl=10000), AGORA)[0] == 1
+
+
+def test_sem_salario_fica_fora_e_volta_com_sem_salario(con: sqlite3.Connection) -> None:
+    sem = inserir_vaga(con)
+    com = _paga(con, minimo=5000, maximo=8000, sal_mensal_min_brl=5000, sal_mensal_max_brl=8000)
+    assert _lista(con, sal_de_brl=1) == [com]
+    assert set(_lista(con, sal_de_brl=1, sem_salario=True)) == {sem, com}
+
+
+def test_salario_na_moeda_com_conversao_desligada(con: sqlite3.Connection) -> None:
+    mes = _paga(con, "USD", 5000, 8000, "mes")
+    hora = inserir_vaga(con, sal_moeda="USD", sal_max=5000, sal_periodo="hora")  # 800.000 por mês
+    ano = inserir_vaga(con, sal_moeda="USD", sal_max=9600000, sal_periodo="ano")
+    fora = inserir_vaga(con, sal_moeda="USD", sal_max=5000, sal_periodo="mes")
+    _paga(con, "EUR", 5000, 8000, "mes")
+    f = {"sal_moeda": "USD", "sal_de_centavos": 700000, "sal_ate_centavos": 1000000}
+    assert set(_lista(con, **f)) == {mes, hora, ano}
+    assert fora not in _lista(con, **f)
+
+
+def test_sem_salario_no_modo_na_moeda_nao_traz_outras_moedas(con: sqlite3.Connection) -> None:
+    sem = inserir_vaga(con)
+    _paga(con, "USD", 1000, 2000, "mes")  # USD fora da faixa
+    _paga(con, "EUR", 5000, 8000, "mes")
+    f = {"sal_moeda": "USD", "sal_de_centavos": 700000, "sal_ate_centavos": 1000000}
+    assert _lista(con, **f, sem_salario=True) == [sem]
+
+
+def test_contagem_dos_avisos_nao_mistura(con: sqlite3.Connection) -> None:
+    _paga(con, "USD", 5000, 8000)  # _brl nulo: com salário e sem valor convertido
+    inserir_vaga(con)  # sem salário
+    inserir_vaga(con, modalidade="presencial")
+    _paga(con, "USD", 5000, 8000, modalidade="presencial")
+    f = Filtros(sal_de_brl=1)
+    assert contar_fora_do_salario(con, f, AGORA) == (2, 2)
+    assert contar_fora_do_salario(con, replace(f, modalidade="remoto"), AGORA) == (1, 1)
+
+
+def test_sem_salario_ligado_zera_a_contagem_de_fora(con: sqlite3.Connection) -> None:
+    inserir_vaga(con)
+    _paga(con, "USD", 5000, 8000)
+    assert contar_fora_do_salario(con, Filtros(sal_de_brl=1), AGORA) == (1, 1)
+    assert contar_fora_do_salario(con, Filtros(sal_de_brl=1, sem_salario=True), AGORA) == (0, 1)
+
+
+def test_salario_no_teto_nao_estoura(con: sqlite3.Connection) -> None:
+    _paga(con, minimo=5000, maximo=8000, sal_mensal_min_brl=5000, sal_mensal_max_brl=8000)
+    teto = 2**63 - 1
+    assert _lista(con, sal_de_brl=teto) == []
+    assert _lista(con, sal_moeda="BRL", sal_de_centavos=teto) == []
+    assert contar_fora_do_salario(con, Filtros(sal_de_brl=teto), AGORA) == (0, 0)
+
+
+def test_so_o_ate_exclui(con: sqlite3.Connection) -> None:
+    reais = _paga(con, minimo=5000, maximo=8000, sal_mensal_min_brl=5000, sal_mensal_max_brl=8000)
+    usd = _paga(con, "USD", 5000, 8000)
+    assert _lista(con, sal_ate_brl=4000) == []
+    assert _lista(con, sal_ate_brl=5000) == [reais]
+    f = {"sal_moeda": "USD", "sal_ate_centavos": 400000}
+    assert _lista(con, **f) == []
+    assert _lista(con, sal_moeda="USD", sal_ate_centavos=500000) == [usd]
+
+
+def test_salario_implausivel_na_moeda_fica_fora_e_volta_com_sem_salario(
+    con: sqlite3.Connection,
+) -> None:
+    v = _paga(con, "USD", 5000, 8000, sal_plausivel=0)
+    f = {"sal_moeda": "USD", "sal_de_centavos": 400000, "sal_ate_centavos": 1000000}
+    assert _lista(con, **f) == []
+    assert _lista(con, **f, sem_salario=True) == [v]
+
+
+def test_maximo_mensal_usa_o_fator_do_periodo(con: sqlite3.Connection) -> None:
+    dia = inserir_vaga(con, sal_moeda="USD", sal_max=10000, sal_periodo="dia")  # 210.000 por mês
+    semana = inserir_vaga(con, sal_moeda="USD", sal_max=10000, sal_periodo="semana")  # 43.300
+    so_min = inserir_vaga(
+        con, sal_moeda="USD", sal_min=300000, sal_periodo="mes", sal_mensal_min=300000
+    )
+    sem_periodo = inserir_vaga(con, sal_moeda="USD", sal_max=10000, sal_periodo="turno")
+
+    def casa(de: int, ate: int) -> set[int]:
+        f = {"sal_moeda": "USD", "sal_de_centavos": de, "sal_ate_centavos": ate}
+        return set(_lista(con, **f))
+
+    assert casa(210000, 210000) == {dia}
+    assert casa(43300, 43300) == {semana}
+    assert casa(300000, 300000) == {so_min}
+    assert sem_periodo not in casa(0, 2**62)
+
+
+def test_contar_fora_do_salario_sem_filtro_de_salario_da_zero(con: sqlite3.Connection) -> None:
+    inserir_vaga(con)
+    _paga(con, "USD", 5000, 8000)
+    assert contar_fora_do_salario(con, Filtros(), AGORA) == (0, 0)
+    assert contar_fora_do_salario(con, Filtros(modalidade="remoto"), AGORA) == (0, 0)
+
+
+def test_contar_fora_do_salario_na_moeda_nao_conta_o_sem_valor(con: sqlite3.Connection) -> None:
+    _paga(con, "EUR", 5000, 8000)  # _brl nulo
+    f = Filtros(sal_moeda="USD", sal_de_centavos=1)
+    assert contar_fora_do_salario(con, f, AGORA)[1] == 0
+    assert contar_fora_do_salario(con, Filtros(sal_de_brl=1), AGORA)[1] == 1
+
+
+def test_sem_salario_so_pela_ausencia_de_minimo_e_maximo(con: sqlite3.Connection) -> None:
+    inserir_vaga(con, sal_moeda="USD", sal_periodo="mes")  # moeda sem valor nenhum
+    assert contar_fora_do_salario(con, Filtros(sal_de_brl=1), AGORA) == (1, 0)
