@@ -1,7 +1,7 @@
 """Aviso de versão nova no painel (plano T85; ADR 0014 e 0018; D31).
 
-O aviso nasce desligado: sem a pessoa ligar `aviso_versao_ligada` em Privacidade, nada vai ao
-GitHub e o fragmento sai vazio.
+O aviso nasce ligado (D105): a pessoa o desliga em Privacidade (`aviso_versao_ligada`); desligado,
+nada vai ao GitHub e o fragmento sai vazio.
 """
 
 import asyncio
@@ -62,18 +62,18 @@ def _checar(dados: Path, pedidos: list[httpx.Request]) -> None:
     asyncio.run(rodar())
 
 
-def test_aviso_nasce_desligado_e_nao_checa_nem_mostra(dados: Path) -> None:
+def test_aviso_nasce_ligado_e_desligado_nao_checa_nem_mostra(dados: Path) -> None:
     pedidos: list[httpx.Request] = []
     _checar(dados, pedidos)
-    assert pedidos == []  # sem ligar, nenhum pedido ao GitHub
+    assert len(pedidos) == 1  # banco novo: checa sem a pessoa ter ligado nada
+    assert "99.0.0" in _cliente(dados).get("/aviso-versao").text
+    with closing(abrir(dados / "jobot.db")) as con:
+        gravar_config(con, "aviso_versao_ligada", False)
+    _checar(dados, pedidos)
+    assert len(pedidos) == 1  # desligado, não checa de novo
     resposta = _cliente(dados).get("/aviso-versao")
     assert resposta.status_code == 200
     assert resposta.text.strip() == ""
-    with closing(abrir(dados / "jobot.db")) as con:
-        gravar_config(con, "aviso_versao_ligada", True)
-    _checar(dados, pedidos)
-    assert len(pedidos) == 1  # ligado, checa
-    assert "99.0.0" in _cliente(dados).get("/aviso-versao").text
 
 
 def test_aviso_aparece_no_painel_com_role_status(dados: Path) -> None:
