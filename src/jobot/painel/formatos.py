@@ -5,7 +5,7 @@ Os valores já vêm tratados do banco: aqui só viram texto no idioma da pessoa.
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from decimal import ROUND_DOWN, Decimal, InvalidOperation
 
 from jobot.banco.leitura import Item
@@ -132,20 +132,21 @@ def _cotacao(idioma: str, moeda: str, taxa_texto: str, data: str) -> str:
     return t(idioma, "vagas.cotacao", um=um, taxa=taxa_texto, data=data_curta(data, idioma))
 
 
-def _cotacao_cruzada(item: Item, idioma: str, venda_x: Decimal | None, y: Cotacao) -> str | None:
+def _cotacao_cruzada(
+    item: Item, idioma: str, venda_x: Decimal | None, dia_x: date | None, y: Cotacao
+) -> str | None:
     """`US$ 1 = € 0,904 (PTAX de 12/11)`; vaga em reais, só a taxa do Y; sem a do X, nada."""
     moeda = item.sal_moeda or ""
     if moeda == "BRL":
         return _cotacao(idioma, y.moeda, "R$ " + taxa(str(y.venda), idioma), y.data.isoformat())
-    data_x = _ler_data(item.sal_cotacao_data or "")
-    if venda_x is None or data_x is None:
+    if venda_x is None or dia_x is None:
         return None
     try:
         cruzada = taxa_cruzada(venda_x, y.venda)
     except ArithmeticError:  # taxa que não cabe em 34 dígitos
         return None
     texto = f"{_SIMBOLO.get(y.moeda, y.moeda)} {taxa(str(cruzada), idioma)}"
-    return _cotacao(idioma, moeda, texto, min(data_x.date(), y.data).isoformat())
+    return _cotacao(idioma, moeda, texto, min(dia_x, y.data).isoformat())
 
 
 def salario_texto(item: Item, idioma: str, exibicao: Exibicao | None = None) -> SalarioTexto | None:
@@ -165,18 +166,22 @@ def salario_texto(item: Item, idioma: str, exibicao: Exibicao | None = None) -> 
     if moeda == ex.moeda or not ex.conversao_ligada:
         return SalarioTexto(original, None, None)
     venda_x = _venda(item.sal_cotacao_venda)
+    lida = _ler_data(item.sal_cotacao_data or "")  # data ilegível: some só a cotação
+    dia_x = None if lida is None else lida.date()
     if ex.moeda == "BRL":  # a vaga está em outra moeda
         cotacao = None
-        if venda_x is not None and item.sal_cotacao_data:
+        if venda_x is not None and dia_x is not None:
             texto = "R$ " + taxa(str(venda_x), idioma)
-            cotacao = _cotacao(idioma, moeda, texto, item.sal_cotacao_data)
+            cotacao = _cotacao(idioma, moeda, texto, dia_x.isoformat())
         return SalarioTexto(original, _convertido(item, idioma, "BRL", None), cotacao)
     if ex.cotacao is None:  # sem a cotação de Y: o valor em reais, com a nota
         convertido = None if moeda == "BRL" else _convertido(item, idioma, "BRL", None)
         nota = t(idioma, "vagas.sem_cotacao_exibicao", moeda=ex.moeda) if convertido else None
         return SalarioTexto(original, convertido, nota)
     convertido = _convertido(item, idioma, ex.moeda, ex.cotacao.venda)
-    return SalarioTexto(original, convertido, _cotacao_cruzada(item, idioma, venda_x, ex.cotacao))
+    return SalarioTexto(
+        original, convertido, _cotacao_cruzada(item, idioma, venda_x, dia_x, ex.cotacao)
+    )
 
 
 def locais_texto(locais: Sequence[Local]) -> str:
