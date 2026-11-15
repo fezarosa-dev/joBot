@@ -1,3 +1,4 @@
+import ast
 import logging
 import os
 from pathlib import Path
@@ -49,6 +50,32 @@ class _Chromium:
 class _Playwright:
     def __init__(self, executable_path: str = "") -> None:
         self.chromium = _Chromium(executable_path)
+
+
+def test_limites_da_pagina_moram_em_limites() -> None:
+    raiz = Path(__file__).resolve().parents[2]
+    arquivos = [
+        *(raiz / "src" / "jobot" / "navegador").glob("*.py"),
+        raiz / "scripts" / "capturar_logado.py",
+    ]
+    nomes = {
+        "ESPERA_ASSENTAR_MS",
+        "_PASSOS_DEPOIS_DE_ROLAR",
+        "PASSOS_DEPOIS_DE_ROLAR",
+        "ESPERA_429_S",
+        "ESPERAS_LIMITE",
+    }
+    achados: list[str] = []
+    for arquivo in arquivos:
+        if arquivo.name == "limites.py":
+            continue
+        for no in ast.walk(ast.parse(arquivo.read_text(encoding="utf-8"))):
+            if isinstance(no, ast.Name) and no.id in nomes:
+                achados.append(f"{arquivo.name}:{no.lineno} {no.id}")
+            elif isinstance(no, ast.alias) and no.name in nomes:
+                achados.append(f"{arquivo.name} import {no.name}")
+    assert achados == []
+    assert (limites.ESPERA_ASSENTAR_MS, limites.PASSOS_DEPOIS_DE_ROLAR) == (10_000, 5)
 
 
 def test_limites_valores_do_plano() -> None:
