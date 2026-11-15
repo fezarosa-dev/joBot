@@ -87,5 +87,9 @@
   "saude.erro_de_rede": "Erro de rede ao falar com a fonte",
   "saude.resposta_grande": "A resposta da fonte passou do tamanho permitido",
   "saude.excecao": "Erro inesperado: {tipo}",
-  "saude.listagem_incompleta": "A lista de vagas desta fonte veio incompleta: só parte das vagas foi trazida nesta busca"
+  "saude.listagem_incompleta": "A lista de vagas desta fonte veio incompleta: só parte das vagas foi trazida nesta busca",
+  "saude.precisa_login": "Precisa entrar de novo no site: use Fazer login agora",
+  "saude.captcha": "O site pediu um CAPTCHA que não foi resolvido",
+  "saude.sem_tela": "Sem tela para abrir o navegador",
+  "saude.sem_navegador": "Nenhum navegador pôde abrir: instale o Chrome ou as bibliotecas do sistema"
 }
