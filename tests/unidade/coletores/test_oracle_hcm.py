@@ -9,8 +9,9 @@ import httpx
 import pytest
 
 from apoio.relogio import RelogioFalso
-from jobot.nucleo.coletores import oracle_hcm, registro
+from jobot.nucleo.coletores import registro
 from jobot.nucleo.coletores.base import Coletor, ContextoColeta, Item, ResultadoEscopo, UrlListada
+from jobot.nucleo.coletores.plataformas import oracle_hcm
 from jobot.nucleo.http import ClienteEducado, ErroDeRede, HttpEducado, Validadores
 from jobot.nucleo.modelo import Empresa, VagaColetada
 from jobot.nucleo.relogio import Relogio
