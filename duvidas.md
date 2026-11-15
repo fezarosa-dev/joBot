@@ -2024,7 +2024,7 @@ Acréscimo negativo é filtro que encolhe a lista e os chips. `contar_abas` não
 28. (T214) Vaga em dois escopos grava a descrição numa ocorrência só.
 29. (T215) `navegador_instalado()` é lido ao subir o `serve`: instalar o Chrome com o `serve` no ar só aparece depois de reiniciar (atualizar quando o botão "Baixar o navegador" da Parte B existir).
 30. (T215) O "Buscar agora" só sobe o navegador com fonte ligada e leitor registrado.
-31. (T215) A mensagem do `serve` quando há uma captura no ar é tarefa nova.
+31. (T215) A mensagem do `serve` quando há uma captura no ar é tarefa nova. (feita na T227, D135.6)
 32. (T216) Widget numa página que passa em `leitor.pagina_logada` e veio com 200 é formulário da página, não desafio: não vai ao 2Captcha nem tem a função de retorno chamada, o que evita enviar formulário (A8, D132.11). Desafio que mantém o cabeçalho logado com 200 fica sem resolver: o leitor lê a página como está.
 33. (T216) `Ouvidas.ultimas` não separa documento de XHR (`shortcut:` no código; separar por `resource_type` se um site real fizer fetch à mesma URL).
 34. (T216) reCAPTCHA v3 do site inteiro em página não logada vira desafio sem resolver (`captcha`), como antes.
