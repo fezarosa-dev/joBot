@@ -65,3 +65,9 @@ async def entregar_token(page: Page, campo: str, token: str, nome_retorno: str |
     if nome_retorno is not None and not nome_de_retorno_valido(nome_retorno):
         return False
     return await page.evaluate(ENTREGAR_TOKEN, [campo, token, nome_retorno]) is True
+
+
+async def agente_do_navegador(page: Page) -> str:
+    """O user agent do próprio navegador, para quando nenhum pedido trouxe o cabeçalho."""
+    agente = await page.evaluate(USER_AGENT)
+    return agente if isinstance(agente, str) else ""

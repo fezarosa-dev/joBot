@@ -20,6 +20,7 @@ import httpx
 import pytest
 from playwright.async_api import BrowserContext, Route, async_playwright
 
+from apoio.cofre_falso import CofreFalso
 from apoio.relogio import RelogioFalso
 from apoio.site_falso import LOCAIS, LeitorFalso, RelogioDoNavegador, SiteFalso
 from jobot.banco.buscas import apagar_busca, criar_busca
@@ -40,6 +41,7 @@ from jobot.nucleo.http import ClienteEducado
 from jobot.nucleo.leitores.base import EscopoLogado, LeitorComLogin
 from jobot.nucleo.modelo import Busca, VagaColetada
 from jobot.nucleo.tratamento.tratar import tratar
+from jobot.sistema.cofre import Cofre
 
 pytestmark = [pytest.mark.tela, pytest.mark.anyio]
 
@@ -86,6 +88,7 @@ class Montagem:
             ambiente=lambda: {"DISPLAY": ":0"},
             politica=lambda leitor: lambda url: dentro_dos_hosts(url, leitor.hosts),
             sortear=sortear,
+            cofre=Cofre(self.dados, CofreFalso()),
         )
 
 
@@ -548,11 +551,11 @@ async def test_fechar_durante_a_conferencia_nao_grava_o_escopo(
 ) -> None:
     original = visitar
 
-    async def visitar_e_fechar(aba: Any, url: str, *argumentos: Any) -> Any:
+    async def visitar_e_fechar(aba: Any, url: str, *argumentos: Any, **nomeados: Any) -> Any:
         if url.endswith("q=cf"):  # fecha enquanto confere a página, como no `_e_cloudflare`
             await aba.context.close()
             return "captcha"
-        return await original(aba, url, *argumentos)
+        return await original(aba, url, *argumentos, **nomeados)
 
     monkeypatch.setattr(execucao, "visitar", visitar_e_fechar)
     leitor = _leitor(site, ("a", "/lista-html?q=a"), ("b", "/lista-html?q=cf"))
@@ -607,6 +610,7 @@ def _deps_sem_navegador(
         ambiente=lambda: ambiente,
         politica=lambda leitor: lambda url: True,
         sortear=lambda: limites.ESPERA_MIN_S,
+        cofre=Cofre(tmp_path, CofreFalso()),
     )
 
 

@@ -26,12 +26,13 @@ from starlette.concurrency import run_in_threadpool
 from jobot.agenda.versao import aviso_ligado
 from jobot.banco import buscas, cadastros, cotacoes
 from jobot.banco.cadastros import gravar_config, ler_config, meu_pais
+from jobot.banco.captcha import NOME_NO_COFRE
 from jobot.nucleo.cambio import MOEDAS_EXIBICAO, moeda_do_pais
 from jobot.nucleo.captcha import validar_chave
 from jobot.nucleo.tratamento.locais import codigos_de_pais
 from jobot.painel.ambiente import ambiente_do_painel, cofre_do_painel, no_linux, rodar_do_painel
 from jobot.painel.formatos import opcoes_de_pais
-from jobot.painel.rotas.servicos import NOME, contexto_captcha, no_cofre
+from jobot.painel.rotas.servicos import contexto_captcha, no_cofre
 from jobot.painel.rotas.vagas import relogio_do_painel
 from jobot.painel.seguranca import Con, idioma_do_pedido, renderizar
 from jobot.sistema import caso, segundo_plano_linux
@@ -264,7 +265,7 @@ async def _gravar_servicos(request: Request, con: Con) -> Response:
     try:
         # shortcut: com o cofre travado espera até 2 prazos (gravar + reler a página) e a thread
         # que estourou ainda pode gravar depois; trocar quando o cofre tiver API assíncrona
-        await no_cofre(cofre_do_painel(request).gravar, NOME, chave)
+        await no_cofre(cofre_do_painel(request).gravar, NOME_NO_COFRE, chave)
     except OSError as erro:  # nem o cofre nem o arquivo: só o tipo vai ao log, nunca a chave
         _LOG.warning("2captcha: não consegui gravar a chave: %s", type(erro).__name__)
         return await _pagina(request, con, "servicos", erro="configuracoes.servicos.erro.cofre")
