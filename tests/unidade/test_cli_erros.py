@@ -11,6 +11,7 @@ from types import SimpleNamespace
 import pytest
 
 from jobot import cli
+from jobot.banco.migrar import BancoMaisNovo
 from jobot.cli import servir
 
 
@@ -84,13 +85,27 @@ def test_ctrl_c_sai_com_130_sem_traceback(
     assert len(saida.err.strip().splitlines()) == 1
 
 
+def test_banco_mais_novo_mostra_a_frase_do_banco_e_vai_para_o_log(
+    dados: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    frase = "banco na versão 99; este joBot conhece até a 3"
+    _comando(monkeypatch, _levanta(BancoMaisNovo(frase)))
+    assert cli.main(["buscar"]) == 1
+    err = capsys.readouterr().err
+    assert "Traceback" not in err
+    assert err.strip() == f"jobot: {frase}"
+    texto = (dados / "logs" / "jobot.log").read_text(encoding="utf-8")
+    assert "Traceback" in texto
+    assert f"BancoMaisNovo: {frase}" in texto
+
+
 def test_sem_log_so_a_mensagem_curta(
     dados: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     def log_quebrado(pasta: Path) -> None:
         raise OSError("sem permissão")
 
-    monkeypatch.setattr(cli, "configurar_log", log_quebrado, raising=False)
+    monkeypatch.setattr(cli, "configurar_log", log_quebrado)
     _comando(monkeypatch, _levanta(RuntimeError("x")))
     assert cli.main(["buscar"]) == 1
     err = capsys.readouterr().err

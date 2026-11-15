@@ -94,7 +94,10 @@ def migrar(con: sqlite3.Connection, caminho: Path, pasta: Path = MIGRACOES) -> i
     atual = _versao(con)
     conhecida = migracoes[-1][0] if migracoes else 0
     if atual > conhecida:
-        raise BancoMaisNovo(f"banco na versão {atual}; este joBot conhece até a {conhecida}")
+        raise BancoMaisNovo(
+            f"banco na versão {atual}; este joBot conhece até a {conhecida}. "
+            "Atualize o joBot (jobot atualizar) para abrir este banco."
+        )
     faltam = [(n, p) for n, p in migracoes if n > atual]
     if faltam and con.in_transaction:
         # com transação aberta o PRAGMA foreign_keys=OFF não vale e o DROP TABLE apagaria filhos
