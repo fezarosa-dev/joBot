@@ -8,6 +8,7 @@ from pathlib import Path
 _LOG = logging.getLogger(__name__)
 _MODO_PASTA = 0o700
 _MODO_ARQUIVO = 0o600
+PASTA_NAVEGADOR = "navegador"
 
 
 def pasta_de_dados(env: Mapping[str, str]) -> Path:
@@ -34,6 +35,10 @@ def preparar_pasta(p: Path) -> None:
     p.mkdir(mode=_MODO_PASTA, parents=True, exist_ok=True)
     corrigidos = [p] if _fechar(p, _MODO_PASTA) else []
     for dono, pastas, arquivos in os.walk(p):
+        if Path(dono) == p and PASTA_NAVEGADOR in pastas:
+            # perfil do navegador: só a pasta fecha; o conteúdo é do navegador (e pode ser symlink)
+            pastas.remove(PASTA_NAVEGADOR)
+            corrigidos += [c] if _fechar(c := p / PASTA_NAVEGADOR, _MODO_PASTA) else []
         corrigidos += [c for n in pastas if _fechar(c := Path(dono, n), _MODO_PASTA)]
         corrigidos += [c for n in arquivos if _fechar(c := Path(dono, n), _MODO_ARQUIVO)]
     if corrigidos:
