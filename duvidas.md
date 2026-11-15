@@ -1763,7 +1763,7 @@ A meta de 90% só foi batida em UF. Ela não trava a fase 1.
 
 ## D127. Escolhas do plano do 2Captcha (T180 a T187)
 
-**Status:** resolvida: escolha da sessão, para confirmar com o dono
+**Status:** resolvida em 2026-11-15: escolha da sessão, para confirmar com o dono
 
 **Contexto:** o plano do 2Captcha (`docs/superpowers/plans/2026-11-15-captcha.md`) fez escolhas que o desenho (`docs/superpowers/specs/2026-11-15-captcha-design.md`) deixou em aberto. Elas seguem a D124 (CAPTCHA resolvido pelo serviço que a pessoa liga, só na navegação com login da fase 2); o dono está ausente e a sessão decidiu pela recomendação de cada uma. Cada escolha tem o teste que a prende.
 
@@ -1805,7 +1805,7 @@ A meta de 90% só foi batida em UF. Ela não trava a fase 1.
 | jeepney | 0.9.0 | MIT | `py3-none-any` (só Linux) |
 | secretstorage | 3.5.0 | BSD-3-Clause | `py3-none-any` (só Linux) |
 | cryptography | 50.0.2 | Apache-2.0 OR BSD-3-Clause | `cp311-abi3` (vale no 3.14) e `cp314-cp314t`, manylinux e musllinux (só Linux) |
-| cffi | 2.1.1 | MIT | `cp314-cp314` e `cp314t`, manylinux e musllinux (só Linux) |
+| cffi | 2.1.1 | MIT | `cp314-cp314` e `cp314t`: rodas de Linux (manylinux e musllinux) e de iOS; sem Windows nem macOS no lock |
 | pycparser | 3.12 | BSD-3-Clause | `py3-none-any` |
 | pywin32-ctypes | 0.2.3 | BSD-3-Clause | `py3-none-any` (só Windows) |
 
@@ -1821,6 +1821,25 @@ A meta de 90% só foi batida em UF. Ela não trava a fase 1.
 - T173 nova: o detector de camadas resolve import relativo.
 
 **Como desfazer:** o dono manda trocar qualquer item; nada disso está no ar. Para mudar uma escolha, basta mudar o plano e a tarefa dona (a coluna "Teste" diz qual).
+
+## D128. Escolhas do redator da 0.2.0: filtros, país e moeda (T162 a T170)
+
+**Status:** resolvida em 2026-11-15: escolha da sessão, para confirmar com o dono
+
+**Contexto:** o desenho da 0.2.0 (`docs/superpowers/specs/2026-11-15-0-2-0-filtros-moeda-design.md`) e o plano (`docs/superpowers/plans/2026-11-15-0-2-0.md`) deixaram detalhes para quem escreve o código. O dono está ausente; a sessão decidiu pela recomendação de cada um, complementando a D126.
+
+**Decisão da sessão, para confirmar:**
+
+- Coroas (SEK, NOK, DKK) e franco suíço (CHF) aparecem pelo código, não por símbolo: o símbolo "kr" é o mesmo para as três coroas e "Fr" é ambíguo.
+- `publicada` (há quantos dias) conta dentro do `contar_chips`, como os outros chips, e não numa consulta à parte.
+- A conversão da moeda Y (a de exibição) para BRL mora em `nucleo/cambio.py`, junto da conversão que já existia.
+- A linha do valor convertido segue a ordem "≈ valor · cotação".
+- Vaga em BRL sem cotação da moeda Y: sem linha de convertido e sem nota (já está em reais). Vaga em outra moeda (nem BRL nem Y) quando Y não tem cotação: mostra o valor em reais, com a nota "em reais: ainda não temos a cotação de {moeda}" (en: "shown in reais: no {moeda} exchange rate yet").
+- `sql_de_listar` é público em `banco/leitura.py`, para o teste de plano (`EXPLAIN QUERY PLAN`) usar o mesmo SQL da tela.
+- Escolhas da construção da T169: `_SIMBOLO` com CAD `C$`, AUD `A$` e JPY `¥`; a data da cotação mostrada é a mais antiga das duas (taxa cruzada); valor convertido que passa do `INTEGER_MAX` do SQLite (cotação minúscula) some em vez de dar erro 500; cotação da vaga estragada (valor não finito, menor ou igual a zero, ou data ilegível) faz sumir só a cotação e mantém o convertido, nos dois ramos (exibição em reais e moeda cruzada).
+- O teste de plano compara a consulta com e sem o filtro, porque o texto do `EXPLAIN` muda com a versão do SQLite (o CI tem um SQLite mais velho).
+
+**Como desfazer:** o dono manda trocar qualquer item; nada disso muda dado gravado. Coroas e CHF: trocar o código pelo símbolo em `_SIMBOLO`. Chip `publicada`: mover para uma consulta própria. Ordem da linha: trocar a ordem no template. Vaga em outra moeda sem cotação de Y: esconder a nota, ou mostrar o valor original sem converter. Teste de plano: voltar a comparar o texto exato do `EXPLAIN`, o que quebra quando o SQLite muda.
 
 ## D129. Custo dos filtros com 300 mil vagas e o que fazer na próxima versão (T170)
 

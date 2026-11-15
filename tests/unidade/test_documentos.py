@@ -463,6 +463,51 @@ def test_changelog_nao_cita_duvida_por_numero(lingua: str) -> None:
     assert achados == []
 
 
+NAO_LANCADO = {"pt": "## [Não lançado]", "en": "## [Unreleased]"}
+# o que o "Não lançado" diz dos filtros, do país e da moeda da 0.2.0
+CITA_0_2_0 = {
+    "pt": ("Meu país", "moeda dos valores convertidos"),
+    "en": ("My country", "currency of converted values"),
+}
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_changelog_traz_os_filtros_da_0_2_0(lingua: str) -> None:
+    """O item de "Não lançado" cita o país e a moeda; o resto do arquivo não vale."""
+    conteudo = texto(CHANGELOG[lingua])
+    inicio = conteudo.index(NAO_LANCADO[lingua])
+    fim = conteudo.index("\n## [", inicio + 1)
+    nao_lancado = conteudo[inicio:fim]
+    for termo in CITA_0_2_0[lingua]:
+        assert termo in nao_lancado, (CHANGELOG[lingua], termo)
+    assert re.findall(r"\bD\d+\b", nao_lancado) == []
+
+
+# a cotação que o pedido ao Banco Central traz, e o que sai dos textos de rede
+COTACAO = {
+    "pt": {"traz": ("cotação das moedas das vagas", "moeda de exibição"), "velho": "do dólar"},
+    "en": {
+        "traz": ("exchange rates of the currencies", "display currency"),
+        "velho": "dollar rate",
+    },
+}
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_rede_fala_da_cotacao_das_moedas(lingua: str) -> None:
+    """README e painel falam da cotação das moedas das vagas e da moeda de exibição."""
+    privacidade = secao(texto(README[lingua]), SECAO_PRIVACIDADE[lingua])
+    bullet = next(linha for linha in privacidade.splitlines() if "Common Crawl" in linha)
+    fontes = {
+        README[lingua]: bullet,
+        f"i18n/{lingua}": i18n.carregar()[lingua]["configuracoes.privacidade.telemetria"],
+    }
+    for nome, conteudo in fontes.items():
+        assert COTACAO[lingua]["velho"] not in conteudo, nome
+        for termo in COTACAO[lingua]["traz"]:
+            assert termo in conteudo, (nome, termo)
+
+
 # o que cada documento diz da fase 1 (T132): concluída, e não mais "em andamento"
 FASE_1_CONCLUIDA = {
     ".github/CONTRIBUTING.md": r"fase 1 \(base\) está concluída",
