@@ -1,6 +1,6 @@
 """Uma navegação com as checagens do desenho A7 (D132.30, D132.37, D132.42, D132.54).
 
-Ordem: política → `goto` → host de `page.url` → login → Cloudflare → CAPTCHA (A8) →
+Ordem: política → `goto` → host e política de `page.url` → login → Cloudflare → CAPTCHA (A8) →
 401/403/bloqueio → 429 → assentar → rolar → `Captura`. Nada aqui clica, digita nem envia: só lê
 a página; a única escrita é a da `cola` do CAPTCHA (`navegador/captcha.py`).
 """
@@ -187,7 +187,7 @@ async def visitar(
         ouvidas = ouvir_respostas(page, leitor.hosts, leitor.respostas)
         try:
             visita = await _uma_vez(
-                page, url, leitor, ouvidas, relogio, cola=cola, ultima=tentativa == 1
+                page, url, leitor, politica, ouvidas, relogio, cola=cola, ultima=tentativa == 1
             )
         finally:
             ouvidas.ativa = False  # o ouvinte fica na page: solta o que ele juntou
@@ -198,10 +198,22 @@ async def visitar(
     raise AssertionError("inalcançável: a segunda tentativa sempre decide")
 
 
-async def _fora_ou_login(page: Page, leitor: LeitorComLogin, status: int) -> ParadaLogin | None:
-    """Host de `page.url` e login; refeitas quando a página troca sozinha (Cloudflare)."""
-    if not dentro_dos_hosts(page.url, leitor.hosts):
-        return "precisa_login" if casa_login(page.url, leitor.prefixos_login) else "bloqueio"
+def _recusada(url: str, leitor: LeitorComLogin, politica: Politica) -> ParadaLogin | None:
+    """Host e política da página atual, sem ler o conteúdo: a política vale também para a página
+    a que um salto, a função de retorno do widget ou a própria página levaram."""
+    if dentro_dos_hosts(url, leitor.hosts):
+        if politica(url):
+            return None
+        _LOG.info("página final recusada pela política: %r", _host(url))
+    return "precisa_login" if casa_login(url, leitor.prefixos_login) else "bloqueio"
+
+
+async def _fora_ou_login(
+    page: Page, leitor: LeitorComLogin, politica: Politica, status: int
+) -> ParadaLogin | None:
+    """Host, política e login; refeitas quando a página troca sozinha (Cloudflare)."""
+    if parada := _recusada(page.url, leitor, politica):
+        return parada
     if (
         await page.locator("input[type=password]").count() > 0
         or leitor.e_login(Captura(page.url, status, await page.content(), ()))
@@ -222,6 +234,7 @@ async def _uma_vez(
     page: Page,
     url: str,
     leitor: LeitorComLogin,
+    politica: Politica,
     ouvidas: Ouvidas,
     relogio: Relogio,
     *,
@@ -231,7 +244,7 @@ async def _uma_vez(
     """Uma navegação; `None` quando o 429 pede outra tentativa depois da espera."""
     resposta = await page.goto(url)
     status = resposta.status if resposta is not None else 0
-    if parada := await _fora_ou_login(page, leitor, status):
+    if parada := await _fora_ou_login(page, leitor, politica, status):
         return _parou(parada, page.url)
     if await _e_cloudflare(page):
         for _ in range(limites.ESPERA_CLOUDFLARE_S):
@@ -244,12 +257,14 @@ async def _uma_vez(
         # o status e o Retry-After da nova; page.url traz o #, a resposta não
         resposta = ouvidas.ultimas.get(urldefrag(page.url).url, resposta)
         status = resposta.status if resposta is not None else 0
-        if parada := await _fora_ou_login(page, leitor, status):
+        if parada := await _fora_ou_login(page, leitor, politica, status):
             return _parou(parada, page.url)
     # o widget vem antes do 401/403 e do 429: o site que desafia responde com eles
     while (widget := await _desafio(page, leitor, status)) is not None:
         if cola is None:
             return widget
+        if parada := _recusada(page.url, leitor, politica):  # trocou depois da checagem
+            return _parou(parada, page.url)
         if parada := await cola(widget):
             return _parou(parada, page.url)
         await page.wait_for_load_state("load")
@@ -258,7 +273,7 @@ async def _uma_vez(
         nova = ouvidas.ultimas.get(urldefrag(page.url).url)
         resposta = None if nova is resposta else nova
         status = resposta.status if resposta is not None else 200
-        if parada := await _fora_ou_login(page, leitor, status):
+        if parada := await _fora_ou_login(page, leitor, politica, status):
             return _parou(parada, page.url)
     html = await page.content()
     if status in (401, 403) or leitor.pagina_bloqueada(html, page.url):
@@ -278,4 +293,10 @@ async def _uma_vez(
         await rolar(page)
         await _depois_de_rolar(ouvidas, relogio, inicio)
     await ouvidas.prontas()
-    return Captura(page.url, status, await page.content(), tuple(ouvidas))
+    html = await page.content()
+    # a página pode ter saído sozinha depois das checagens (refresh, JS, rolar); a URL é lida
+    # depois do HTML, para um salto no meio nunca passar com o HTML da página nova
+    final = page.url
+    if parada := _recusada(final, leitor, politica):
+        return _parou(parada, final)
+    return Captura(final, status, html, tuple(ouvidas))

@@ -10,7 +10,7 @@ from playwright.async_api import BrowserContext, Page
 from apoio.site_falso import LeitorFalso, RelogioDoNavegador, SiteFalso
 from jobot.navegador.limites import ESPERA_CLOUDFLARE_S, MAX_RESPOSTAS
 from jobot.navegador.pagina import Recusada, ouvir_respostas, visitar
-from jobot.navegador.politica import Politica
+from jobot.navegador.politica import Politica, dentro_dos_hosts
 from jobot.nucleo.http import ESPERAS_LIMITE, MAX_RETRY_AFTER_S
 from jobot.nucleo.leitores.base import Captura, EscopoLogado, RespostaCapturada
 
@@ -81,6 +81,58 @@ async def test_resposta_acima_de_5_mb_e_ignorada(
     assert site.visitas["/api/grande-com-tamanho"] == 1  # com Content-Length
     assert site.visitas["/api/grande-sem"] == 1  # sem Content-Length
     assert not caminhos & {"/api/grande-com-tamanho", "/api/grande-sem"}
+
+
+class _RelogioDeRolar(RelogioDoNavegador):
+    """Cada passo espera a página sair para `/inseguro/lista` (o evento, não o tempo): a troca
+    ao rolar já aconteceu antes da captura."""
+
+    def __init__(self, page: Page) -> None:
+        super().__init__()
+        self._aba = page
+
+    async def dormir(self, s: float) -> None:
+        await super().dormir(s)
+        await self._aba.wait_for_url("**/inseguro/lista")
+        await self._aba.wait_for_load_state("load")
+
+
+async def test_pagina_que_sai_sozinha_para_endereco_recusado_e_bloqueio(
+    site: SiteFalso, contexto_de_teste: BrowserContext
+) -> None:
+    """A página trocou sozinha depois das checagens (aqui, ao rolar): a política vale de novo."""
+    page = await _pagina(contexto_de_teste)
+    leitor = LeitorFalso.para(site, rolar=True)
+    url = site.url("/rolar-vai-inseguro")
+    # controle: com a política que aceita o caminho, a captura é a da página para onde saiu
+    aceita = await visitar(
+        page, url, leitor, lambda u: dentro_dos_hosts(u, leitor.hosts), _RelogioDeRolar(page)
+    )
+    assert isinstance(aceita, Captura) and _caminho(aceita.url) == "/inseguro/lista"
+
+    def politica(u: str) -> bool:
+        return dentro_dos_hosts(u, leitor.hosts) and "/inseguro" not in u
+
+    assert politica(url)
+    assert await visitar(page, url, leitor, politica, _RelogioDeRolar(page)) == "bloqueio"
+    assert site.visitas["/inseguro/lista"] == 2
+
+
+async def test_salto_recusado_pela_politica_para_login_e_precisa_login(
+    site: SiteFalso, contexto_de_teste: BrowserContext
+) -> None:
+    """Página recusada pela política que casa com o login: igual ao salto para fora dos hosts."""
+    page = await _pagina(contexto_de_teste)
+    leitor = LeitorFalso.para(site, prefixos_login=("127.0.0.1/inseguro",))
+
+    def politica(u: str) -> bool:
+        return dentro_dos_hosts(u, leitor.hosts) and "/inseguro" not in u
+
+    url = site.url("/salto-mesmo-host")
+    assert await visitar(page, url, leitor, politica, RelogioDoNavegador()) == "precisa_login"
+    # controle: sem o prefixo de login, a mesma página recusada é bloqueio
+    leitor = LeitorFalso.para(site)
+    assert await visitar(page, url, leitor, politica, RelogioDoNavegador()) == "bloqueio"
 
 
 async def test_rolar_traz_mais_itens(
