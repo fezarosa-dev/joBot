@@ -428,14 +428,14 @@ Cada fatia entra verde e sem mudar nada visível na versão publicada (D132.23).
 
 ## 6. O como, Parte B (com o dono, um site por vez)
 
-- Ordem: Gupy, LinkedIn, Vagas.com, Catho, Indeed, depois os demais (ADR 0005, `:16`; D132.12). A ADR 0005 tem a Gupy fora da lista do `:15`; ver a seção 11.
+- Ordem: LinkedIn, Gupy, Vagas.com, Catho, Indeed, depois os demais, com os sites só de tecnologia por último (ADR 0005, nota de 2026-11-15; D136, que trocou a ordem da D132.12). A ADR 0005 tem a Gupy fora da lista de "Quais sites"; ver a seção 11.
 - Para cada site, numa sessão com o dono:
   1. O dono faz o login no perfil do joBot (pelo `capturar_logado.py`, que abre o mesmo perfil) e navega até a lista de vagas.
   2. A sessão captura com `scripts/capturar_logado.py`, lê cada arquivo e, se sobrar nome ou dado da conta, acrescenta a posição em `campos_conta` e captura de novo.
   3. TDD do leitor com as fixtures: `e_login`, `prefixos_login`, `campos_conta`, `pagina_logada`, `pagina_bloqueada`, `proxima`, `ler`, o mapeamento das buscas da pessoa para a busca do site (`escopos`) e, se a lista não traz a descrição, `detalhar`.
   4. O leitor entra no registro. Com o primeiro leitor, o grupo "Sites com login" passa a aparecer (D132.23).
   5. O dono testa na máquina real: liga o site, faz o login pelo botão, espera o horário (ou "Buscar agora"), confere as vagas e a saúde.
-- Gupy primeiro: a Gupy já é fonte pública (ADR 0004, `:19`). A primeira sessão de mapeamento confere o que a Gupy logada mostra a mais que a pública. Se não mostrar nada a mais, a sessão registra no `duvidas.md` e propõe pular para o LinkedIn como primeiro site da 0.3.0 (D132.27).
+- LinkedIn primeiro (D132.27, respondida pelo dono em 2026-11-15, D136): o LinkedIn é o primeiro site da 0.3.0. A Gupy já é fonte pública (ADR 0004, `:19`); quando chegar a vez dela, a sessão de mapeamento confere o que a Gupy logada mostra a mais que a pública.
 - No lote do primeiro site que funciona, tudo junto (D132.13, D132.24; ADR 0022, `:64`):
   - o botão "Baixar o navegador" no grupo "Sites com login": roda `<python> -m playwright install chromium` como processo filho, sem `--with-deps` (pede root), avisa o tamanho (mais de 100 MB, `2026-11-13-fase-1-design.md:1498`) e mostra o estado (baixando, pronto, falhou com o que fazer). O Chromium vai para a pasta padrão do Playwright, a mesma dos testes de tela;
   - `README.md` e `README.en.md`: a navegação com login, o aviso de risco, os caminhos de rede novos (os sites ligados e o download do Chromium pelos servidores do Playwright), e a troca de "não contorna CAPTCHA" por "só resolve CAPTCHA pelo serviço da pessoa, se ela pôs a chave e ligou";
@@ -445,7 +445,7 @@ Cada fatia entra verde e sem mudar nada visível na versão publicada (D132.23).
   - nota na ADR 0005 pondo a Gupy na lista do `:15`, se o dono confirmar (D132.29); nota na ADR 0006 sobre o horário perdido (D132.6) e reparo na ADR 0022 sobre o Turnstile (D132.44), se o dono confirmar;
   - `CHANGELOG.md` e o par em inglês, na 0.3.0; ADR 0017 com a fase 2 concluída.
 - Passo "Sites com login" no assistente de primeira execução (ADR 0011, `docs/decisions/0011-perfil-e-primeira-execucao.md:25`, `:29`, `:31`): entra com o primeiro site, opcional, com o mesmo cartão do grupo de Configurações e o botão "Pular" (D132.28).
-- A 0.3.0 sai com a Gupy (ou com o primeiro site que funcionar). Os outros sites saem em versões seguintes, um de cada vez.
+- A 0.3.0 sai com o LinkedIn. Os outros sites saem em versões seguintes, um de cada vez.
 
 ## 7. Riscos
 
@@ -652,7 +652,7 @@ Cada item é **decisão da sessão, para confirmar**. "Pergunta ao dono" marca a
 24. Na `fedora-dev`, o Chromium do Playwright; na Parte A, só o já instalado; o botão "Baixar o navegador", o texto de privacidade e o teste dele entram no lote do primeiro site. Pergunta ao dono.
 25. "Buscar agora" lê os sites com login quando `agora - ultima >= 4 h`, com a mesma `ultima` da D132.6 (concluída ou interrompida); com a regra do horário, há sempre 4 h ou mais entre os inícios de duas leituras com login, terminem como terminarem (no máximo 6 por dia). Pergunta ao dono.
 26. Janela parada: até 15 minutos no total, olhando todas as abas paradas ao mesmo tempo. Pergunta ao dono.
-27. Se a Gupy logada não trouxer nada a mais, o LinkedIn vira o primeiro site da 0.3.0. Pergunta ao dono.
+27. Se a Gupy logada não trouxer nada a mais, o LinkedIn vira o primeiro site da 0.3.0. Pergunta ao dono. (respondida, ver D136)
 28. Passo opcional "Sites com login" no assistente de primeira execução, com o primeiro site. Pergunta ao dono.
 29. A Gupy entra na lista da ADR 0005 (`:15`), com nota no lote do primeiro site. Pergunta ao dono.
 30. Ordem das checagens: host, login, desafio gerenciado do Cloudflare (30 s), página de desafio com widget reconhecido (mesmo com 403 ou 429), bloqueio; o desafio que volta depois do token vira `saude.bloqueio`. Pergunta ao dono.
