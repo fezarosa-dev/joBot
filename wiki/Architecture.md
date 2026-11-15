@@ -48,6 +48,7 @@ flowchart TD
     agenda["agenda<br/>scheduler and search runs"]
     sistema["sistema<br/>folders, single instance, background"]
     banco["banco<br/>SQLite, migrations, queries"]
+    navegador["navegador<br/>browser with login (Playwright)"]
     nucleo["nucleo<br/>model, collectors, treatment, match"]
     cli --> painel
     cli --> agenda

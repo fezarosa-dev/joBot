@@ -405,6 +405,7 @@ dependencies = [
     { name = "httpx" },
     { name = "jinja2" },
     { name = "keyring" },
+    { name = "playwright" },
     { name = "python-multipart" },
     { name = "selectolax" },
     { name = "uvicorn" },
@@ -413,7 +414,6 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "mypy" },
-    { name = "playwright" },
     { name = "pytest" },
     { name = "pytest-playwright" },
     { name = "ruff" },
@@ -425,6 +425,7 @@ requires-dist = [
     { name = "httpx", specifier = "==0.28.1" },
     { name = "jinja2", specifier = "==3.1.6" },
     { name = "keyring", specifier = "==25.7.0" },
+    { name = "playwright", specifier = "==1.65.1" },
     { name = "python-multipart", specifier = "==0.0.33" },
     { name = "selectolax", specifier = "==1.0.2" },
     { name = "uvicorn", specifier = "==0.54.0" },
@@ -433,7 +434,6 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "mypy", specifier = "==2.4.1" },
-    { name = "playwright", specifier = "==1.65.1" },
     { name = "pytest", specifier = "==9.2.0" },
     { name = "pytest-playwright", specifier = "==0.10.0" },
     { name = "ruff", specifier = "==0.17.5" },
