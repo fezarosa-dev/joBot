@@ -53,5 +53,5 @@
   "segundo_plano.sem_host_exec": "could not reach the host system: distrobox-host-exec or distrobox-enter is missing",
   "segundo_plano.systemd_nao_responde": "the user systemd is not responding",
   "segundo_plano.home_diferente": "the container home folder is not the host home folder",
-  "segundo_plano.systemctl_falhou": "systemctl {comando} failed: {saida}"
+  "segundo_plano.systemctl_falhou": "systemctl {comando} failed. The details are in jobot.log."
 }

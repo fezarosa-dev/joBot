@@ -53,5 +53,5 @@
   "segundo_plano.sem_host_exec": "não consegui falar com o sistema de fora: faltam o distrobox-host-exec ou o distrobox-enter",
   "segundo_plano.systemd_nao_responde": "o systemd do usuário não responde",
   "segundo_plano.home_diferente": "a pasta pessoal do container não é a do sistema",
-  "segundo_plano.systemctl_falhou": "o systemctl {comando} falhou: {saida}"
+  "segundo_plano.systemctl_falhou": "O systemctl {comando} falhou. Os detalhes ficaram no jobot.log."
 }
