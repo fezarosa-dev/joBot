@@ -89,6 +89,7 @@ class Montagem:
             politica=lambda leitor: lambda url: dentro_dos_hosts(url, leitor.hosts),
             sortear=sortear,
             cofre=Cofre(self.dados, CofreFalso()),
+            avisar=lambda titulo, frase: None,
         )
 
 
@@ -611,6 +612,7 @@ def _deps_sem_navegador(
         politica=lambda leitor: lambda url: True,
         sortear=lambda: limites.ESPERA_MIN_S,
         cofre=Cofre(tmp_path, CofreFalso()),
+        avisar=lambda titulo, frase: None,
     )
 
 

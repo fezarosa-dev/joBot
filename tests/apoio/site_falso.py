@@ -453,6 +453,11 @@ class SiteFalso:
             case "/callback-torto":
                 widget = _RECAPTCHA.format(chave=CHAVE_V2, retorno="alert(1)", extra="")
                 return _Resposta(corpo=_pagina("Desafio", _CONTA_ALERTAS + widget))
+            case "/desafio-pessoa":  # sai quando a pessoa resolve (cookie), como um desafio real
+                if "pessoa_ok=1" in cookie:
+                    return _Resposta(corpo=_pagina("Vagas", _lista_html([1, 2])))
+                widget = _RECAPTCHA.format(chave=CHAVE_V2, retorno="recebeu", extra="")
+                return _Resposta(corpo=_pagina("Desafio", widget + _RETORNO))
             # vagas e ajudantes
             case "/campo-mudou" | "/conferir-token":
                 return _Resposta(204)

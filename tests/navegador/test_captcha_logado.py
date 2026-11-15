@@ -200,6 +200,7 @@ async def _executar(
         politica=lambda lido: lambda url: dentro_dos_hosts(url, lido.hosts),
         sortear=lambda: limites.ESPERA_MIN_S,
         cofre=cofre,
+        avisar=lambda titulo, frase: None,
     )
     execucao_id = await executar_login(
         con, _cliente(api), RelogioDoNavegador(), "agenda", leitores=[leitor], deps=deps
@@ -219,7 +220,9 @@ async def test_login_com_captcha_nao_chama_resolver(
     cofre: Cofre,
     lancar: Lancar,
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setattr(limites, "JANELA_PARADA_S", 10)  # o controle cai na janela parada
     leitor = LeitorFixo(base=site.url(""), url_entrada=site.url("/login-recaptcha"))
     saude = await _executar(con, leitor, api, cofre, lancar, tmp_path)
     assert saude == {("falso_logado", ""): ("falhou", "saude.precisa_login")}

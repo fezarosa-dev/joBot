@@ -3,7 +3,8 @@
 Abre o navegador uma vez e lê os sites com login ligados, um depois do outro, cada um numa aba
 nova: a página de entrada confere a sessão, os escopos vão dos lidos há mais tempo aos mais
 recentes, e o teto de páginas de lista por site (`limites.MAX_LISTA`) conta a entrada (E16).
-Cada escopo grava numa transação só, sem cache HTTP.
+Cada escopo grava numa transação só, sem cache HTTP. A aba que para num desafio sem 2Captcha
+fica aberta para a pessoa terminar (janela parada, D132.26) enquanto os outros sites seguem.
 """
 
 import asyncio
@@ -11,12 +12,13 @@ import contextlib
 import logging
 import random
 import sqlite3
-from collections.abc import AsyncIterator, Callable, Mapping, Sequence
+from collections.abc import AsyncIterator, Callable, Coroutine, Mapping, Sequence
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
+from urllib.parse import urldefrag
 
 from playwright.async_api import BrowserContext, Page, async_playwright
 from playwright.async_api import Error as ErroDoPlaywright
@@ -43,7 +45,7 @@ from jobot.navegador.abrir import (
     abrir_contexto,
     lancador_de_producao,
 )
-from jobot.navegador.captcha import Cola, Widget
+from jobot.navegador.captcha import Cola, Widget, achar_widget
 from jobot.navegador.pagina import Recusada, visitar
 from jobot.navegador.politica import Politica, politica_de_producao
 from jobot.nucleo.coletores.base import ContextoColeta, Estado, ResultadoEscopo
@@ -54,6 +56,7 @@ from jobot.nucleo.leitores.estado import estado_do_escopo
 from jobot.nucleo.relogio import Relogio
 from jobot.nucleo.tratamento.tratar import tratar
 from jobot.nucleo.url import canonica
+from jobot.sistema.aviso import avisar
 from jobot.sistema.cofre import Cofre
 from jobot.sistema.segundo_plano_linux import rodar_comando
 from jobot.sistema.tela import ambiente_da_tela
@@ -61,6 +64,11 @@ from jobot.sistema.tela import ambiente_da_tela
 log = logging.getLogger(__name__)
 
 _SEM_DATA = datetime.min.replace(tzinfo=UTC)  # escopo nunca lido vai primeiro no rodízio
+_OLHAR_S = 5  # a janela parada olha cada aba a cada 5 s (D132.26)
+_TITULO_AVISO = "joBot"
+_FRASE_AVISO = (
+    "Um site com login parou num desafio. Termine na janela do navegador em até {} minutos."
+)
 
 
 @dataclass(frozen=True)
@@ -71,6 +79,7 @@ class Dependencias:
     politica: Callable[[LeitorComLogin], Politica]
     sortear: Callable[[], float]
     cofre: Cofre
+    avisar: Callable[[str, str], None]  # aviso no computador: título e frase, sem URL
 
 
 class NavegadorFechado(Exception):
@@ -100,6 +109,7 @@ async def dependencias_de_producao(
             politica=lambda leitor: politica_de_producao(leitor.hosts),
             sortear=lambda: random.uniform(limites.ESPERA_MIN_S, limites.ESPERA_MAX_S),
             cofre=Cofre(dados),
+            avisar=lambda titulo, frase: avisar(titulo, frase, env, rodar_comando),
         )
 
 
@@ -127,6 +137,7 @@ async def executar_login(
         return None
     batimento = asyncio.create_task(manter_batimento(con, execucao_id, relogio))
     contexto: BrowserContext | None = None
+    janela: _Janela | None = None
     try:
         for leitor in leitores:
             if cadastradas.get(leitor.chave) is False:
@@ -140,8 +151,11 @@ async def executar_login(
         else:
             fechado = asyncio.Event()
             contexto.on("close", lambda _: fechado.set())
+            janela = _Janela(relogio, deps.avisar, fechado)
             for leitor in ligados:
-                await _ler_site(con, execucao_id, leitor, contexto, deps, cliente, relogio, fechado)
+                site = _ler_site(con, execucao_id, leitor, contexto, deps, cliente, relogio, janela)
+                await janela.ler(site)
+            await janela.esperar()
     except NavegadorFechado:
         if con.in_transaction:
             con.rollback()
@@ -152,6 +166,8 @@ async def executar_login(
         interromper(con, execucao_id, erro, relogio.agora())
         raise
     finally:
+        if janela is not None:
+            await janela.cancelar()
         if contexto is not None:
             try:
                 await contexto.close()
@@ -173,6 +189,107 @@ async def _fechou(fechado: asyncio.Event, erro: Exception) -> bool:
     return fechado.is_set()
 
 
+_Marca = tuple[str, str, Widget | None]
+
+
+async def _marca(aba: Page) -> _Marca | None:
+    """Endereço sem o fragmento, título e widget: mudou, a aba saiu do desafio; `None` com a
+    página trocando ou fechada."""
+    try:
+        return urldefrag(aba.url).url, await aba.title(), await achar_widget(aba)
+    except ErroDoPlaywright:
+        return None
+
+
+@dataclass
+class _Parada:
+    aba: Page
+    marca: _Marca | None
+    tarefa: asyncio.Task[None]
+    saiu: asyncio.Future[bool]
+
+
+class _Janela:
+    """As abas paradas num desafio sem 2Captcha (D132.26, D132.44).
+
+    Cada site lê numa tarefa, um por vez: a conexão nunca é usada por duas ao mesmo tempo. A
+    parada suspende a tarefa do site com a aba aberta, e a execução segue com o próximo. Depois do
+    último, `esperar` olha as abas paradas até `limites.JANELA_PARADA_S` no total; a que saiu do
+    desafio segue o seu site no mesmo prazo, e no fim as restantes gravam a parada `captcha`.
+    """
+
+    def __init__(
+        self, relogio: Relogio, avisar: Callable[[str, str], None], fechado: asyncio.Event
+    ) -> None:
+        self._relogio = relogio
+        self._avisar = avisar
+        self.fechado = fechado
+        self._paradas: list[_Parada] = []
+        self._tarefas: list[asyncio.Task[None]] = []
+        self._parou = asyncio.Event()
+        self._avisou = False
+        self._acabou = False
+
+    async def parar(self, aba: Page) -> bool:
+        """Chamada pelo site parado: True quando a pessoa tirou a aba do desafio no prazo."""
+        if self._acabou:
+            return False
+        marca = await _marca(aba)
+        if not self._avisou:  # uma vez por execução, sem endereço
+            self._avisou = True
+            frase = _FRASE_AVISO.format(limites.JANELA_PARADA_S // 60)
+            # o `notify-send` roda fora do laço: o painel não para enquanto ele responde
+            await asyncio.to_thread(self._avisar, _TITULO_AVISO, frase)
+        tarefa = asyncio.current_task()
+        assert tarefa is not None
+        saiu: asyncio.Future[bool] = asyncio.get_running_loop().create_future()
+        self._paradas.append(_Parada(aba, marca, tarefa, saiu))
+        self._parou.set()
+        return await saiu
+
+    async def ler(self, site: Coroutine[Any, Any, None]) -> None:
+        """Lê um site até ele acabar ou parar num desafio."""
+        tarefa = asyncio.create_task(site)
+        self._tarefas.append(tarefa)
+        await self._ate_parar(tarefa)
+
+    async def _ate_parar(self, tarefa: asyncio.Task[None]) -> None:
+        self._parou = asyncio.Event()  # `clear` é nome do Playwright: o test_navegador_ast recusa
+        parou = asyncio.create_task(self._parou.wait())
+        try:
+            await asyncio.wait((tarefa, parou), return_when=asyncio.FIRST_COMPLETED)
+        finally:
+            parou.cancel()
+        if tarefa.done():
+            tarefa.result()  # sobe o navegador fechado e o banco quebrado
+
+    async def _seguir(self, parada: _Parada, saiu: bool) -> None:
+        parada.saiu.set_result(saiu)
+        await self._ate_parar(parada.tarefa)
+
+    async def esperar(self) -> None:
+        fim = self._relogio.agora() + timedelta(seconds=limites.JANELA_PARADA_S)
+        while self._paradas and (resta := (fim - self._relogio.agora()).total_seconds()) > 0:
+            await self._relogio.dormir(min(_OLHAR_S, resta))
+            if self.fechado.is_set():
+                raise NavegadorFechado
+            for parada in list(self._paradas):
+                marca = await _marca(parada.aba)
+                if marca is None or marca == parada.marca:
+                    continue
+                self._paradas.remove(parada)
+                await self._seguir(parada, True)
+        self._acabou = True
+        while self._paradas:
+            await self._seguir(self._paradas.pop(0), False)
+
+    async def cancelar(self) -> None:
+        """Cancela os sites que sobraram (parados, ou o que lia quando a execução parou)."""
+        for tarefa in self._tarefas:
+            tarefa.cancel()
+        await asyncio.gather(*self._tarefas, return_exceptions=True)
+
+
 @dataclass
 class _Site:
     """O que a leitura de um site carrega de página em página."""
@@ -186,6 +303,7 @@ class _Site:
     relogio: Relogio
     fechado: asyncio.Event
     cola: Cola  # o 2Captcha desta aba (A8)
+    janela: _Janela
     usadas: int = 0  # navegações do site, entrada inclusive (teto `MAX_LISTA`)
 
     async def ir(self, url: str) -> Captura | ParadaLogin | Recusada:
@@ -200,6 +318,9 @@ class _Site:
             raise NavegadorFechado
         if not isinstance(visita, Recusada):
             self.usadas += 1
+        if visita == "captcha" and await self.janela.parar(self.aba):
+            self.usadas -= 1  # a mesma página de novo, agora fora do desafio
+            return await self.ir(url)
         return visita
 
     def saude(self, estado: Estado, motivo: str | None) -> None:
@@ -222,15 +343,16 @@ async def _ler_site(
     deps: Dependencias,
     cliente: ClienteEducado,
     relogio: Relogio,
-    fechado: asyncio.Event,
+    janela: _Janela,
 ) -> None:
     """Um site inteiro; um erro aqui grava `falhou` no site e não para os outros."""
+    fechado = janela.fechado
     page: Page | None = None
     try:
         page = await contexto.new_page()
         cola = Cola(page, con=con, cliente=cliente, relogio=relogio, cofre=deps.cofre)
         politica = deps.politica(leitor)
-        site = _Site(con, execucao_id, leitor, page, politica, deps, relogio, fechado, cola)
+        site = _Site(con, execucao_id, leitor, page, politica, deps, relogio, fechado, cola, janela)
         await _ler_paginas(site)
     except sqlite3.Error:
         raise  # banco quebrado não é falha do site: a execução para com `banco`

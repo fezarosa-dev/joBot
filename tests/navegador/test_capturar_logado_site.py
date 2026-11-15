@@ -112,6 +112,7 @@ def test_captura_do_site_falso_grava_limpa(tmp_path: Path) -> None:
                 politica=lambda leitor: lambda url: dentro_dos_hosts(url, leitor.hosts),
                 sortear=lambda: limites.ESPERA_MIN_S,
                 cofre=Cofre(d, CofreFalso()),
+                avisar=lambda titulo, frase: None,
             )
 
     async def enter() -> None:  # a pessoa aperta Enter com a captura em andamento
