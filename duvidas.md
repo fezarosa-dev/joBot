@@ -2020,7 +2020,7 @@ Acréscimo negativo é filtro que encolhe a lista e os chips. `contar_abas` não
 24. (T213) Depois de um erro do Playwright, a execução espera até 1 s (`limites.ESPERA_FECHAR_S`, valor técnico) pelo `close` do contexto antes de decidir se a pessoa fechou o navegador.
 25. (T213) `fechar_escopos_extintos` roda mesmo quando o site para no meio de um escopo; só não roda com parada na entrada ou com `escopos()` quebrado, como o plano diz.
 26. (T214) Detalhe que quebra não tem recuo: pediria mudança de esquema (D54, opção c).
-27. (T214) Parada no detalhe não grava linha de saúde.
+27. (T214) Parada no detalhe não grava linha de saúde. (trocada pela T224, D135.2)
 28. (T214) Vaga em dois escopos grava a descrição numa ocorrência só.
 29. (T215) `navegador_instalado()` é lido ao subir o `serve`: instalar o Chrome com o `serve` no ar só aparece depois de reiniciar (atualizar quando o botão "Baixar o navegador" da Parte B existir).
 30. (T215) O "Buscar agora" só sobe o navegador com fonte ligada e leitor registrado.
