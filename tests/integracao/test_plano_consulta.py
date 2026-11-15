@@ -4,7 +4,6 @@ Confere o plano do SQLite (`EXPLAIN QUERY PLAN`) da consulta que `listar` execut
 tempo: tempo é instável no CI; quem mede é `scripts/medir_filtros.py`.
 """
 
-import re
 import sqlite3
 from collections.abc import Iterator
 from datetime import timedelta
@@ -50,14 +49,17 @@ def _plano(con: sqlite3.Connection, f: Filtros) -> str:
 
 
 def test_plano_pais_usa_local_vaga_pais(con: sqlite3.Connection) -> None:
-    plano = _plano(con, Filtros(pais="US"))
-    assert re.search(r"l EXISTS USING (COVERING )?INDEX local_vaga_pais", plano), plano
+    # sem o filtro o índice não aparece; o texto do EXISTS muda com a versão do SQLite
+    assert "local_vaga_pais" not in _plano(con, Filtros())
+    assert "local_vaga_pais" in _plano(con, Filtros(pais="US"))
 
 
 def test_plano_uf_e_cidade_usam_local_vaga_vaga(con: sqlite3.Connection) -> None:
-    # "EXISTS" separa o filtro da subconsulta `locais` das colunas, que sempre usa o índice
-    assert "l EXISTS USING INDEX local_vaga_vaga" in _plano(con, Filtros(uf="SP"))
-    assert "l EXISTS USING INDEX local_vaga_vaga" in _plano(con, Filtros(cidade="Cidade 3"))
+    # a subconsulta `locais` das colunas já cita o índice: o filtro tem de citá-lo mais uma vez
+    sem = _plano(con, Filtros()).count("local_vaga_vaga")
+    assert sem > 0
+    assert _plano(con, Filtros(uf="SP")).count("local_vaga_vaga") > sem
+    assert _plano(con, Filtros(cidade="Cidade 3")).count("local_vaga_vaga") > sem
 
 
 def test_plano_publicada_usa_o_indice_da_data(con: sqlite3.Connection) -> None:
