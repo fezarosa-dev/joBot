@@ -40,7 +40,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 ## D4. Botão de patrocínio (FUNDING.yml)
 
-**Status:** o arquivo já existe no repositório (ver a atualização de 2026-11-14); aberta só para o dono confirmar a conta
+**Status:** resolvida em 2026-11-15: GitHub Sponsors ativo e a conta Buy Me a Coffee zanoni.dev é do dono
 
 **Contexto:** o arquivo `.github/FUNDING.yml` mostra o botão Sponsor, mas precisa de uma conta de patrocínio, como GitHub Sponsors ou Ko-fi, que o projeto ainda não tem.
 
@@ -52,7 +52,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 ## D5. Convenções da rotulagem do gabarito
 
-**Status:** aberta, para confirmar (o registro vem de uma passada anterior e não consta nas decisões da sessão; o código segue a opção atual até o dono decidir)
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** O gabarito de 329 vagas (fora do repositório) foi rotulado por dois modelos, com um juiz nas 100 divergências. Algumas vagas não cabem num valor só.
 
@@ -60,7 +60,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 ## D6. Ferramentas do esqueleto
 
-**Status:** aberta, para confirmar (o registro vem de uma passada anterior e não consta nas decisões da sessão; o código segue a opção atual até o dono decidir). A parte do Dependabot (`target-branch`) está obsoleta pela ADR 0021.
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão (a parte do Dependabot segue obsoleta pela ADR 0021)
 
 **Contexto:** A T01 montou o pyproject, o CI e o Dependabot (o Dependabot saiu: obsoleta pela ADR 0021).
 
@@ -68,7 +68,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 ## D7. Pasta de dados
 
-**Status:** aberta, para confirmar (o registro vem de uma passada anterior e não consta nas decisões da sessão; o código segue a opção atual até o dono decidir)
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** A T02 lê a pasta de `JOBOT_DADOS`, depois `XDG_DATA_HOME`, depois `~/.local/share/jobot`.
 
@@ -76,7 +76,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 ## D8. Cópia antes de migrar o banco
 
-**Status:** aberta, para confirmar (o registro vem de uma passada anterior e não consta nas decisões da sessão; o código segue a opção atual até o dono decidir)
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** Antes de migrar, o joBot copia o banco.
 
@@ -84,7 +84,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 ## D9. Tipos do núcleo
 
-**Status:** aberta, para confirmar (o registro vem de uma passada anterior e não consta nas decisões da sessão; o código segue a opção atual até o dono decidir)
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** A T04 fechou os tipos que as outras tarefas usam.
 
@@ -92,7 +92,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 ## D10. Catálogo de textos (i18n)
 
-**Status:** aberta, para confirmar (o registro vem de uma passada anterior e não consta nas decisões da sessão; o código segue a opção atual até o dono decidir)
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** A T07 criou o catálogo base em português e inglês.
 
@@ -100,7 +100,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 ## D11. Quem aplica a correção na vaga (T21)
 
-**Status:** decidido pela sessão em 2026-11-13, para confirmar
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** O desenho se contradiz: a linha 553 diz que o reprocessamento aplica a correção por cima das regras, e a linha 1299 (seção 13.5) diz que a correção "aplica na hora". A T21 expôs o conflito.
 
@@ -110,7 +110,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 ## D12. Ações da vaga (T21)
 
-**Status:** decidido pela sessão em 2026-11-13, para confirmar
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** A T21 gravou as ações de status, ocultar e mostrar. O desenho não define alguns detalhes.
 
@@ -122,7 +122,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 ## D13. Cliente HTTP educado (T05)
 
-**Status:** decidido pela sessão em 2026-11-13, para confirmar
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** A revisão da T05 deixou quatro escolhas para o dono. O Greenhouse (T27) precisa do 404 e o 4xx genérico virava `ErroDeRede` sem o status.
 
@@ -136,7 +136,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 ## D14. Leitor de salário (T10)
 
-**Status:** decidido pela sessão em 2026-11-13, para confirmar
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** A T10 leu salário em texto livre. Algumas escolhas foram do construtor.
 
@@ -146,7 +146,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 ## D15. Testes de tela rodam na fedora-dev (T36)
 
-**Status:** decidido pela sessão em 2026-11-13, para confirmar
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** A caixa nortao não tem a `libatomic` que o driver do Playwright pede, então o Chromium não abre lá.
 
@@ -156,7 +156,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 ## D16. Texto e idioma (T08)
 
-**Status:** aberta, para confirmar
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** `detectar_idioma` e o extrator de HTML foram escritos sem corpus real.
 
@@ -166,7 +166,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 ## D17. Parâmetros de rastreio na URL (T09)
 
-**Status:** aberta, para confirmar
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** `source`, `src`, `ref`, `referrer` e `referral` podem identificar a vaga em alguns sites.
 
@@ -176,7 +176,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 ## D18. Contrato e local nas vagas do Brasil (T13)
 
-**Status:** aberta, para confirmar
+**Status:** superada por D97 (T144) em 2026-11-15
 
 **Contexto:** `clt` e `pj` só valem para vaga no Brasil (D5). A Gupy remota chega com cidade e estado vazios, e `rotular()` não sabe que é Brasil.
 
@@ -188,7 +188,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 ## D19. Contrato do ciclo de vida (T14)
 
-**Status:** aberta, para confirmar
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** A T14 fechou as funções puras do ciclo de vida sem mudar o esquema.
 
@@ -198,7 +198,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 ## D20. Encaixe da busca (T15)
 
-**Status:** decidido pela sessão em 2026-11-13, para confirmar
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** Com cidades preenchidas e modalidades vazias, vaga remota fora das cidades dá 0 no critério de local (`local_fora`, `src/jobot/nucleo/encaixe.py:93-97`): remoto só pontua com `REMOTO` nas modalidades (`:80`). Com cidades e modalidades vazias o critério é neutro (`:77-78`). O desenho (11.1) diz que critério vazio é neutro.
 
@@ -210,7 +210,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 ## D21. Data de referência na leitura (T20)
 
-**Status:** aberta, para confirmar
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** `detalhe(..., agora: datetime | None = None)` lê o relógio da parede quando o valor padrão é usado (`src/jobot/banco/leitura.py:286-291`).
 
@@ -220,7 +220,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 ## D22. App do painel (T26)
 
-**Status:** aberta, para confirmar
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** O `abrir()` usa `check_same_thread=True`, e o 500 não tratado sai sem CSP e sem `nosniff`, porque o handler de `Exception` fica por fora do middleware de cabeçalhos.
 
@@ -230,7 +230,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 ## D23. Abrir e sair do programa (T43, T48)
 
-**Status:** aberta, para confirmar
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** A T43 decide como o comando sabe se o servidor local é o joBot e o que diz no terminal.
 
@@ -240,7 +240,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 ## D24. Segundo plano no Linux (T44, T53)
 
-**Status:** aberta, para confirmar
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** A T44 liga o joBot em segundo plano pelo systemd do usuário. A tela de configurações (T53) mostra as mensagens.
 
@@ -250,7 +250,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 ## D25. Referrer do painel e o CSRF (T36)
 
-**Status:** decidido pela sessão em 2026-11-13, para confirmar
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** O desenho 14.2 manda `Referrer-Policy: no-referrer` (`src/jobot/painel/app.py:25`). Com ele, o Chromium manda `Origin: null` no POST de formulário sem JS, e o `exigir_csrf` responde 403 (`src/jobot/painel/seguranca.py:80-83`).
 
@@ -260,7 +260,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 ## D26. Salário que não cabe no banco (T19)
 
-**Status:** decidido pela sessão em 2026-11-13, para confirmar
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** O SQLite só guarda inteiro de até 2**63-1; acima disso o `sqlite3` levanta `OverflowError` ao ligar o valor e a gravação do escopo inteiro quebra. Um texto de salário absurdo (ou um por hora, multiplicado por 160 no cálculo mensal) chega a isso. As colunas inteiras de salário são `sal_min`, `sal_max`, `sal_mensal_min` (centavos), `sal_mensal_min_brl` e `sal_mensal_max_brl` (`src/jobot/banco/migracoes/0001_inicial.sql:71-74`); as `_brl` são gravadas pela T25 (`aplicar_cotacoes`) e valem o valor mensal vezes a cotação. Elas podem estourar mesmo com o original gravado: o `sal_mensal_min` que a T19 confere vira `sal_mensal_min_brl` vezes a cotação, e o `sal_mensal_max_brl` parte de `sal_max` vezes o fator do período, que a T19 não confere.
 
@@ -270,7 +270,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 ## D27. Estados de `juntar_paginas` e a sentinela do 304 (T06, T07, T16)
 
-**Status:** decidido pela sessão em 2026-11-14, para confirmar
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** A revisão da leva B achou lacunas no contrato do coletor: o 304 de uma página não tinha sentinela pública, o `LimiteAtingido` e o `ErroDeRede` sem nenhuma página lida viravam "parcial" com lista vazia, e o 304 misturado com 200 podia dar motivo `None`.
 
@@ -282,7 +282,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 ## D28. `hoje` em quem chama a conversão e `_brl` gigante (T25, T41, T24, T54)
 
-**Status:** decidido pela sessão em 2026-11-14, para confirmar
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** A cotação do PTAX vale 7 dias (`data >= hoje - 7`), mas quem chama a conversão não passava a data, e a `_brl` de um salário gigante estourava o INTEGER do SQLite.
 
@@ -296,7 +296,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 ## D29. "Aplica na hora" vale para todas as colunas derivadas (T19, T24, T46)
 
-**Status:** decidido pela sessão em 2026-11-14, para confirmar
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** A D11 fazia a correção voltar com o valor novo, mas a rota de correção deixava o salário em reais e o encaixe por busca com o valor velho até a próxima busca.
 
@@ -308,7 +308,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 ## D30. Resolvedor de DNS e URL de host local (T05, T06, molde, T69, T73)
 
-**Status:** decidido pela sessão em 2026-11-14, para confirmar
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** A D13 aceitava o risco de DNS rebinding inteiro e de URL local vinda da fonte. A revisão de segurança automática pediu uma defesa.
 
@@ -322,7 +322,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 ## D31. ADR 0018: manutenção pela comunidade, vigia, `jobot atualizar` e link "reportar problema" (T50, T83, T84, T85, T01)
 
-**Status:** decidido pela sessão em 2026-11-14, para confirmar
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão; o aviso de versão desligado por padrão e a lista de serviços da ADR 0014 ficam substituídos pela D105; falta o dono criar o rótulo `fonte-quebrada` no GitHub
 
 **Contexto:** O dono quer divulgar o joBot para muita gente e que a comunidade ajude a manter os coletores. Em 2026-11-14 pediu que o vigia semanal e a atualização fácil, antes da fase 8, entrem já na fase 1, junto com o que deixar o projeto bom para a comunidade (ADR 0018, [0017](docs/decisions/0017-fases.md)).
 
@@ -348,7 +348,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 ## D32. `tratar` chama `ler_requisitos` em toda vaga (T18)
 
-**Status:** decidido pela sessão em 2026-11-14, para confirmar
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** A leitura de requisitos de estágio (T12) roda no `tratar` para vaga de qualquer área, não só para as que dizem ser de estágio.
 
@@ -358,7 +358,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 ## D33. Aprovação do primeiro PR de quem nunca contribuiu (ADR 0018)
 
-**Status:** aberta, para confirmar com o dono
+**Status:** decisão aceita em 2026-11-15 (opção (a), deixar ligada); falta o dono conferir em Settings > Actions > General > Fork pull request workflows, na tela do GitHub
 
 **Contexto:** A ADR 0018 põe o CI em todo PR, inclusive de fork. O GitHub tem uma configuração que segura o primeiro PR de quem nunca contribuiu até o dono aprovar a execução. Ela não está no repositório.
 
@@ -370,7 +370,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 ## D34. O guia de conserto só depois da T17, da T27, da T50 e da T84 (ADR 0018)
 
-**Status:** aberta, para confirmar com o dono
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** O guia "Como consertar uma fonte que quebrou" (T83) usa o script de captura (T17) e o Greenhouse (T27) como exemplo real, e cita o link "reportar problema" (T50) e a issue do vigia (T84), então só pode ser escrito depois deles. No plano ele está na onda 8, com `depende_de: T17, T27, T50, T84`.
 
@@ -381,7 +381,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 ## D35. Executor: motivo do escopo, erro do detalhar e parada da fonte (T16, F3, molde do coletor)
 
-**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** A T16 escolheu, sem o desenho dizer, como o executor traduz erro em motivo de saúde. As chaves de i18n já existem: `Bloqueio` vira `saude.bloqueio`, `LimiteAtingido` vira `saude.limite_atingido`, `OrcamentoGasto` vira `saude.orcamento`, `Parou429` vira `saude.parou_429`, `ErroDeRede` vira `saude.erro_de_rede`, `RespostaGrande` vira `saude.resposta_grande` e o resto vira `saude.excecao:<Tipo>`. A ordem de prioridade é: o motivo do coletor, depois `zero_inesperado`, depois o erro do detalhe e por último `sem_detalhe_n`. Quem consome isso é o vigia (T84, que copia a regra) e a tela de fontes (T50).
 
@@ -399,7 +399,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 ## D36. Captura de exemplos: limpeza de dado pessoal e alcance do script (T17)
 
-**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** O `scripts/capturar.py` guarda exemplos de resposta de fonte no repositório e limpa dado pessoal antes de gravar. Três escolhas ficaram abertas.
 
@@ -418,7 +418,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 ## D37. Cadastros: país, área, etiqueta de banco de talentos e configuração (T23, T51, T54)
 
-**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** A T23 criou `cadastros.py` e `empresas.json`. O apêndice (seção 7) não traz país da empresa, e a área vem como texto livre.
 
@@ -438,7 +438,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 ## D38. Buscas salvas e conversão: dia local e transação (T24, T41, T46, T49, T52, T53, T54)
 
-**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** A D28 tornou `hoje` obrigatório em quem chama a conversão e o encaixe. A T24 acrescentou duas coisas que o desenho não dizia.
 
@@ -450,7 +450,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 ## D39. Medição dos rótulos no gabarito (T37, T78)
 
-**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** A T37 criou `avaliar-rotulos`, que mede o acerto das regras da T13 contra o gabarito (fora do repositório). O plano diz só "acerto por rótulo" e nomeia `avisos`.
 
@@ -468,7 +468,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 ## D40. Tela de vagas: foco, "mostrar" e pendências baixas (T45, T46, T82)
 
-**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** A T45 deixou três pontos para o dono e quatro pendências baixas da revisão.
 
@@ -484,7 +484,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 ## D41. Guarda de rede dos testes e renomeações do F3 (F3, T05, T25)
 
-**Status:** aberta, para confirmar (a guarda (b) foi entregue pela T88 em 2026-11-14; faltam a confirmação do `_brl`, do texto da decisão 19 e das escolhas do redator)
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** O F3 trouxe o resolvedor de DNS (D30) e a conversão de `_brl` gigante (D28). Sobraram quatro pontos.
 
@@ -502,7 +502,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 ## D42. Correções da pessoa na vaga: formato do valor e efeito (T19, T46, T90)
 
-**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** A T19 aplica as linhas de `correcao` por cima das regras, da mais velha para a mais nova (`_corrigir` em `src/jobot/banco/gravacao.py`). O desenho não diz em que formato a tela manda cada valor. Quem manda é a rota de correção da T46.
 
@@ -526,7 +526,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 ## D43. Gravação do escopo: validadores no 304 e outras escolhas (T19)
 
-**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** O desenho (`docs/superpowers/specs/2026-11-13-fase-1-design.md`, perto da linha 753) diz que os validadores (`ETag`, `Last-Modified`) são gravados "só quando o escopo termina ok". O teste do plano `test_304_toca_e_guarda_validadores` pede que eles fiquem guardados também no 304 (estado `sem_mudanca`).
 
@@ -545,7 +545,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 ## D44. Execuções e saúde: forma das funções (T22, T41, T50, T51)
 
-**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** O plano deixou sem forma algumas funções de `src/jobot/banco/execucoes.py`. A T41 (execução), a T50 (tela de fontes) e a T51 dependem delas.
 
@@ -565,7 +565,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 ## D45. Coletor Greenhouse: itens pulados, endereço colado e prazo (T27, T51, T54, T84)
 
-**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** O primeiro coletor (`src/jobot/nucleo/coletores/greenhouse.py`) deixou quatro pontos. O primeiro mexe no i18n compartilhado e no vigia, então é R4.
 
@@ -586,7 +586,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 ## D46. Tela de buscas: formato do formulário (T52)
 
-**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** A T52 criou a tela de buscas salvas (`src/jobot/painel/rotas/buscas.py`). O desenho não diz como a pessoa digita cidades e salário.
 
@@ -606,7 +606,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 ## D47. Menu da casca (T86, T53)
 
-**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** A T86 pôs o menu principal na casca (`templates/base.html`), com seis itens: Vagas, Buscas, Fontes, Empresas, Sites e Configurações.
 
@@ -621,7 +621,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 ## D48. Tratamento: cidades dos EUA, curso composto e salário (T82, T92, T78)
 
-**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** A T82 fechou ajustes pequenos do tratamento. Algumas escolhas mudam o que a vaga mostra e dependem do gabarito (T78) para calibrar.
 
@@ -642,7 +642,9 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 ## D49. Primeira execução: "Não ligar" quando o sistema falha (T53)
 
-**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+**Status:** resolvida em 2026-11-15: o dono escolheu concluir o passo 2 com aviso, sem prender a pessoa (opção (b))
+
+**Princípio do dono:** nenhum erro trava o programa; todo erro aparece com o que a pessoa pode fazer (ver D106).
 
 **Contexto:** No passo 2 da primeira execução, "Não ligar" chama `desligar` sempre no Linux (`_gravar_passo_2` em `src/jobot/painel/rotas/primeira_execucao.py`), porque um "ligar" recusado no meio já deixou o arquivo do serviço. `desligar` pode falhar (`systemctl_falhou`) quando o arquivo ficou e o `systemd` não responde. Nesse caso a pessoa não consegue concluir a primeira execução: nenhuma das duas opções termina.
 
@@ -652,7 +654,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 ## D50. Escopo opaco e nome da empresa no coletor (T28, T29, T30, T35, T38, T40, T41, T50, T51, T84)
 
-**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** O contrato `coletar(escopo, http)` só recebe uma string, então cada coletor da leva A escolheu o que põe nela:
 - SmartRecruiters (T30): `<identificador>|<pais>`, um escopo por par.
@@ -682,7 +684,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 ## D51. GitHub Issues: cota, empresa e página 2 (T31, T84, T94, T99)
 
-**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** O coletor (`src/jobot/nucleo/coletores/github_issues.py`) deixou três pontos.
 - Cota (antes da T94). A linha da tabela do plano promete "cota de 60/h acabou → no_limite", mas a cota esgotada chega como 403 ou 429. O `http.py` converte isso em `Bloqueio` sem os cabeçalhos, e o escopo sai `falhou` com `saude.bloqueio`, em vez de `no_limite` com `saude.cota`. O `no_limite` do coletor só sai com 200, `x-ratelimit-remaining: 0` e `Link rel=next`, quase inalcançável com `per_page=100`. No vigia (T84), `saude.bloqueio` só entra no resumo, sem issue; o efeito visível é o link "reportar problema" da tela de fontes (T50), inclusive para o 403 de cota.
@@ -703,7 +705,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 ## D52. SmartRecruiters: chave da vaga e empresa inexistente (T30, T51)
 
-**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** Dois pontos do coletor (`src/jobot/nucleo/coletores/smartrecruiters.py`).
 - Chave da vaga. A URL da vaga é montada da lista como `https://jobs.smartrecruiters.com/<identificador>/<id>`, sem slug, e é a chave da vaga. A `postingUrl` real do detalhe tem slug (`/744000161500208-analista-de-dados-e-relacionamento`). A URL sem slug nunca foi aberta na rede (os testes usam `MockTransport`). Se ela não abrir ou não redirecionar, o link do painel quebra, e a deduplicação entre fontes não casa com a URL que tem slug.
@@ -724,7 +726,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 ## D53. Gupy: escolhas do redator (T40, T51, T54)
 
-**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** O coletor (`src/jobot/nucleo/coletores/gupy.py`) fez quatro escolhas sem decisão no plano, além das da D50 e da D45.
 
@@ -740,7 +742,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 ## D54. Execução completa: o que ficou para confirmar (T41, T95)
 
-**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** A T41 (`src/jobot/agenda/execucao.py`) entregou a execução de sete passos e deixou pontos que mexem em `banco/` ou em escolha do dono.
 
@@ -761,7 +763,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 ## D55. Agendador: travas compartilhadas com "buscar agora" (T42, T48, T49)
 
-**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** O `laco` do `src/jobot/agenda/agendador.py` cria os `asyncio.Lock`, um por tipo, dentro dele mesmo. A rota de "buscar agora" da T49 não alcança essas travas, mas o plano diz que ela "usa o laço da agenda e a trava", e o desenho (12.3, item 3, e a DR-36) pede um `asyncio.Lock` por tipo no processo, sem separar a agenda do botão. A primeira recomendação da T42 (deixar assim e contar só com o índice único `execucao_uma_por_tipo`) estava errada e foi corrigida.
 
@@ -778,7 +780,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 ## D56. Detalhe da vaga: cor do prazo urgente (T46, T96)
 
-**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** O desenho 13.5 pede o prazo com "▲, em vermelho se faltam menos de 7 dias". A T46 entregou o corte de 7 dias, mas marca a faixa e o texto só em negrito, porque o vermelho pede um token novo (`--alerta`) e o par de contraste em `base.css` e na lista de contrastes, e o `base.css` é da T36. A marca ▲ da grade de meses também ficou sem destaque, pelo mesmo motivo.
 
@@ -793,7 +795,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 ## D57. Coletores da leva A: escolhas dos redatores, para confirmar (T28, T29, T32, T33, T34, T35, T38, T39, T93)
 
-**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** Cada coletor fez escolhas sem decisão no plano ou no apêndice. Um item por fonte. A recomendação de todos é manter, salvo onde está dito.
 
@@ -813,7 +815,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 ## D58. Comandos `serve` e `buscar`: recuperação, cliente único e saída do terminal (T48, T49, T100)
 
-**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** A T48 (`src/jobot/cli/servir.py`, `src/jobot/cli/buscar.py`) sobe o servidor com a agenda e roda a busca pela linha de comando. Quatro escolhas ficaram sem decisão no plano.
 
@@ -831,7 +833,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 ## D59. Tela de fontes: link "reportar problema" e forma da lista (T50)
 
-**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** A T50 (`src/jobot/painel/rotas/fontes.py`) mostra a saúde das fontes e o link "reportar problema" (ADR 0018, D31). O escopo é texto opaco de cada coletor (D50), e nem todo escopo é identificador de empresa.
 
@@ -849,7 +851,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 ## D60. Tela de empresas: cópia do coletor no "testar" e nome padrão (T51)
 
-**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** A T51 (`src/jobot/painel/rotas/empresas.py`) adiciona, testa, desliga e remove empresas. Ela chama `escopos` e `coletar` fora do executor, o que toca na nuance da D50.
 
@@ -870,7 +872,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 ## D61. Configurações: interruptor do segundo plano e 422 seco (T54, T91, T98)
 
-**Status:** segundo plano: decidido (b) pela sessão em 2026-11-14 com o dono fora, para confirmar (A1, entregue na T98). 422 seco: aberta, para confirmar (o código segue a opção atual até o dono decidir)
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão (segundo plano pela opção (b), A1; 422 seco como está)
 
 **Contexto:** Dois pontos baixos das revisões da T54 e da T91.
 - Segundo plano. O interruptor da tela de configurações (`_ctx_segundo_plano` em `src/jobot/painel/rotas/configuracoes.py`) mostra a chave `segundo_plano` do banco, não o estado real do systemd (desenho 12.5). Se o serviço for ligado ou desligado por fora, a tela erra.
@@ -884,7 +886,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 ## D62. Primeira execução: sobras da tela de execução (T49, T106, T107)
 
-**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** Cinco pontos baixos da revisão da T49.
 - Nomes privados. Rotas importam nomes com `_` de outros módulos: `_rodar` (de `agenda/agendador.py`, em `rotas/execucao.py:20`), `_relogio` (de `rotas/vagas.py`, em `rotas/execucao.py:25`, `fontes.py:30` e `detalhe.py:28`) e `_de_volta` (de `painel/seguranca.py`, em `rotas/vagas.py:25`, `preferencias.py:15` e `execucao.py:26`).
@@ -899,7 +901,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 ## D63. Levas H, I e J: ordem do trabalho e cópia de segurança (A3, A10, A11, A12)
 
-**Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** Três escolhas de ordem, tomadas sem o dono.
 - A3. A leva I juntou a T71 (descoberta) e a T72 (páginas acompanhadas) antes da T55, porque só dependiam de tarefas prontas e não dependem da rede real. O plano já diz isso na linha da onda 8.
@@ -913,7 +915,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 ## D64. Aviso de versão e link de apoio: sobras (T85, T87, T104, T105)
 
-**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir); o item de CSS, o item do salto recusado e o do link da versão foram decididos pela sessão em 2026-11-14 com o dono fora, para confirmar
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:**
 - Hora da checagem (`checar_versao_nova` em `src/jobot/agenda/versao.py:100-126`). A hora só é gravada quando o servidor respondeu, mesmo com erro. `OrcamentoGasto` e `ErroDeRede` com `status` `None` voltam sem gravar, e a próxima volta (de hora em hora) tenta de novo. Escolha do agente que implementou, para confirmar.
@@ -930,7 +932,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 ## D65. Primeira execução em modo edição e idioma do `jobot buscar` (T89, T100)
 
-**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir); a escolha do formulário esvaziado é do redator
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:**
 - Formulário esvaziado. No passo 1 em modo edição, se a pessoa esvazia todos os campos, a busca não muda e a tela segue ao passo 2. Escolha do redator, para confirmar.
@@ -944,7 +946,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 ## D66. Desligar limpo e ajustes baixos da leva H (A2, A5, T101, T102)
 
-**Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:**
 - A2. Ctrl+C e SIGTERM fechavam o cliente HTTP com a busca do "Buscar agora" ainda rodando. A T101 cancela e aguarda essa busca no lifespan, antes de fechar o cliente. `/sair` marca `app.state.saindo` e o "Buscar agora" recusa busca nova nessa janela. O relógio do app vem do `montar`. Sem HTMX, o aviso "já roda" volta pela página do redirect. É correção, não tem o que desfazer.
@@ -957,7 +959,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 ## D67. Segundo plano: falso dos testes sem estado (T98, T113)
 
-**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir). A decisão da fonte de verdade (A1) está na D61.
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão (a decisão da fonte de verdade, A1, está na D61)
 
 **Contexto:** O `FalsoSistema` dos testes de configuração não guarda estado: o teste de desligar força o `is-enabled` na mão, com um comentário.
 
@@ -967,7 +969,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 ## D68. Busca real na rede: resultado da T55 e rodízio da Gupy e da Himalayas (A7, T55)
 
-**Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar
+**Status:** resolvida em 2026-11-15: o dono confirmou a recomendação (rodízio em lotes da Gupy e da Himalayas)
 
 **Contexto:** A sessão rodou a T55 na `fedora-dev` em 2026-11-14 (3 min 8 s, 95 escopos). Todas as fontes da leva A ficaram "ok" ao menos uma vez e nenhuma respondeu 403. Gupy (30 pedidos) e Himalayas (30 pedidos) deixaram escopos `no_limite`: é o rodízio do DR-52, que atende primeiro os escopos mais antigos e deixa o resto para a próxima execução. O user agent fica provado pelos testes de unidade e pela ausência de 403 na rede real. A divergência real, o teto do Ashby, virou a T103 (D69).
 
@@ -977,7 +979,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 ## D69. Ashby: teto de 32 MB e motivos do executor (A8, T103)
 
-**Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** Na T55, os dois maiores quadros Ashby (14,8 MB e 8,1 MB) passaram do teto de 5 MB e falharam. A API do Ashby não tem paginação nem opção sem descrição. A T103 fez o Ashby ler com teto de 32 MB (o mesmo do feed do Google, `TETO_QUADRO_BYTES` em `nucleo/coletores/ashby.py:32`). O executor também passou a dar motivo próprio ao escopo: `RespostaGrande` vira `saude.resposta_grande` e `ErroDeRede` vira `saude.erro_de_rede`, em vez de `saude.excecao:<Tipo>`. Isso muda o motivo de quem antes caía no genérico: cada coletor que levantava esses dois tipos no escopo agora sai com o motivo novo, e `saude.resposta_grande` está em `MOTIVOS_DE_QUEBRA`, então passa a gerar o link "reportar problema".
 
@@ -987,7 +989,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 ## D70. Exemplos dos coletores da leva B vêm das respostas reais guardadas (A9)
 
-**Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** Os exemplos (fixtures) dos coletores da leva B saem das respostas reais guardadas na conferência ao vivo de 2026-11-13, reduzidas e limpas pelas funções do `scripts/capturar.py`, em vez de esperar uma captura nova por fonte. Depois de juntar a leva, a sessão roda uma busca real das fontes novas, como a T55, e abre tarefa para o que divergir.
 
@@ -997,7 +999,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 ## D71. Descoberta de empresas: sobras da T71 (T71, T108, T109, T110)
 
-**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:**
 - Empresa removida. Aprovar a sugestão de uma empresa já cadastrada e depois removida marca a sugestão como aprovada e devolve o id da removida, sem reativá-la.
@@ -1021,7 +1023,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 ## D72. Páginas acompanhadas: DNS, escolhas do redator e o que falta para a T75 (T72, T111, T112)
 
-**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir); o DNS foi escolha do agente (regra R2), para confirmar
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:**
 - DNS antes do primeiro pedido (R2). `verificar` resolve o host e recusa endereço local antes de pedir; o resolver é injetável. O hook do cliente só confere o esquema, então a URL digitada pela pessoa precisava disso. O mesmo código está repetido em `nucleo/coletores/paginas.py` (cópias de `_resolver_padrao` e `_conferir_dns` de `nucleo/http.py`), e a cópia é mais fraca: usa `host_local`, que não recusa texto que não é IP, e o original recusa.
@@ -1040,7 +1042,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 ## D73. Aviso de depreciação do Starlette nos testes (ADR 0021)
 
-**Status:** aberta, para confirmar (o código segue a opção atual até o dono decidir)
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** O `TestClient` do Starlette avisa em toda a suíte que pede `httpx2` ("install httpx2"). Hoje só é ruído. A ADR 0021 tirou o Dependabot, então a atualização de dependências é manual.
 
@@ -1052,7 +1054,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 ## D74. Busca real da leva B: resultado e as quatro correções (A13, A26, A27, A28, A29, T55b)
 
-**Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** Depois de juntar a leva J, a sessão rodou as 10 fontes novas na `fedora-dev` em 2026-11-14, com as empresas de exemplo de cada uma: cerca de 8,2 mil vagas (T55b, no plano). Quatro coisas divergiram, e a sessão achou a causa de cada uma:
 - CIEE, estágio `parcial` em toda rodada. 134 de 3.962 vagas vêm com `nomeEmpresa` só com espaço (empresa confidencial) e eram descartadas. Cada página de `size=1000` tem cerca de 1,07 MB e cabe no teto de 5 MB: fecha a dúvida da T60.
@@ -1086,7 +1088,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 ## D75. ATS por empresa da leva B: InHire, Quickin, Recrutei e Sólides (T56, T57, T58, T59, T120)
 
-**Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar; as escolhas do redator trazem o status dentro de cada item
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto e opções:**
 - InHire. O link `/vagas/<jobId>` vem do código do site e responde 200, mas a página monta a vaga no navegador e a extensão do Chrome estava desligada: não foi vista aberta (A24, para conferir). A página de carreira que não é a `default` usa outro caminho, e o coletor a ignora. O identificador do tenant é sempre minúsculo: o resolver normaliza, o coletor não, então quem montar `empresas.json` grava em minúsculas. Sem `tenantName`, a empresa vira o identificador. O `.meta.json` leva o campo extra `cabecalho_do_pedido` (X-Tenant), fora de `CAMPOS_META`. Opções: (a) aceitar o campo como convenção dos coletores com cabeçalho de pedido e acrescentá-lo como opcional na lista de `scripts/capturar.py`, numa tarefa pequena; (b) tirar o campo do meta. Recomendação: (a). Status: escolha do redator, para confirmar.
@@ -1098,7 +1100,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 ## D76. Portais da leva B: CIEE, IEL, Cia de Talentos e USP (T59, T60, T61, T62, T63, T116, T118, T119)
 
-**Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar; as escolhas do redator trazem o status dentro de cada item
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto e opções:**
 - CIEE. `size=1000` cabe no teto de 5 MB (cerca de 1,07 MB por página): fecha a dúvida da T60. Empresa em branco vira "CIEE" (D74).
@@ -1112,7 +1114,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 ## D77. Fontes mundiais da leva B e o enriquecimento por escopo (T64, T65, T114, T115, T117)
 
-**Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto e opções:**
 - Workday. Nome da empresa guardado na instância (D50, A16). Países das buscas, com Brasil quando a lista vier vazia, e local com país, para o rótulo "no Brasil" e o contrato CLT funcionarem nas vagas do Santander (A17, T115). Um escopo por empresa e país: a fase 1 ainda não saiu, então as ocorrências com o nome de escopo antigo não se migram (A33). Resposta 521 ou 422 fica `saude.erro_de_rede`, sem chave nova (A22). Achados da T64: `total` vem 0 nas páginas com `offset` maior que 0, há tenant cuja faceta só tem `locations`, e `postedOn` é relativo (apêndice 3.3).
@@ -1129,7 +1131,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 ## D78. Leva K e as sobras da leva J (A25, A30, A31, A34, T106, T119, T120, T121)
 
-**Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:**
 - A25. As sobras baixas da leva J viram tarefas pequenas por assunto: T119 (Cia de Talentos, Sólides e USP), T120 (testes que não provam e exemplos da Quickin, Recrutei e InHire) e T121 (vigia: "voltou" só com o detalhe conferido). Os nomes privados do executor que `scripts/vigia.py` importa (`_PARA_DETALHES`, `_motivo_do_detalhe`, `_motivo_do_escopo`) entram na T106, e o teste de varredura dela também olha `scripts/`, porque o ruff e o mypy de `src` não avisam se alguém os renomear.
@@ -1143,7 +1145,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 ## D79. Sobras da leva K aceitas (A38, T108, T114 a T121)
 
-**Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** as revisões da leva K deixaram estas sobras. A sessão as aceita sem mexer no código; cada uma vira tarefa pequena se o dono quiser:
 - Um 429 no detalhe deixa sem descrição, naquela execução, as vagas do escopo que já estavam dentro do limite de 50 por fonte; as vagas dos outros escopos não ocupam o lugar, e a próxima execução as pega (T114).
@@ -1186,7 +1188,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 ## D81. Leva L: o que entrou e o que ficou para a leva M (A41, A43)
 
-**Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** a leva L roda até 8 tarefas ao mesmo tempo: os seis coletores que faltam (Oracle HCM, Google, Amazon, Super Estágios, Eureca e Abler), o guia de conserto de fonte (T83), os nomes públicos junto com o log do 429 (T106 e T123, numa tarefa só), o DNS compartilhado (T111), a tela de empresas sugeridas (T74), os textos da tela (T122), o país no Workday (T124), as sobras pequenas (T125) e os registros (REG9). Ficam para a leva M, por mexerem nos mesmos arquivos de tarefas desta leva: a T75 (mexe em `rotas/vagas.py`, como a T106), a T112 (mexe em `tests/unidade/test_paginas.py`, como a T111) e a T76 (`empresas.json`, depende do Oracle HCM).
 
@@ -1204,7 +1206,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 ## D82. Sobras da leva L aceitas (A45, T66 a T74, T83, T106, T123)
 
-**Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** as revisões da leva L deixaram estas sobras. A sessão as aceita sem mudar o código; cada uma vira tarefa pequena se o dono quiser (a origem de cada item está entre parênteses):
 - Oracle HCM (T66): só tenants em `*.oraclecloud.com` (`oracle_hcm.py:37`); o `site_number` aceito é `[A-Za-z0-9_]{1,50}` e o caminho do resolver é `/hcmUI/CandidateExperience/<idioma>/sites/<site>`, escolhas do coletor a partir de `CX_45001` e `CX_1001`; vaga com o Brasil só como local secundário entra (o filtro BR trouxe uma vaga do México) e o tratamento decide; `PostingEndDate` e `ExternalPostedEndDate` vieram nulos em todas as amostras, então o prazo nunca foi visto preenchido (`oracle_hcm.py:151,309`); o nome da empresa vem do cadastro (D50). O segundo pedido de descoberta é da T126 (D83).
@@ -1224,7 +1226,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 ## D83. Sobras da leva L que viram tarefa na leva M (A46, A47, T126, T127)
 
-**Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** duas tarefas novas, livres, na leva M (no plano, T126 e T127).
 - T126, coletores: (1) Oracle HCM, segundo pedido de descoberta com `keyword=<nome do país em inglês>` quando a faceta do país não vem (D74), com `nome_em_ingles` público em `locais.py`; (2) Amazon, `publicada_em` à meia-noite de Brasília, não de UTC (hoje cai no dia anterior); (3) Super Estágios, a empresa `CONFIDENCIAL` (`super_estagios.py:206`) vira `Super Estágios`, como o CIEE faz com `CIEE`, para vagas de empresas diferentes não se misturarem; (4) Eureca, `workModels` com mais de um valor deixa `modalidade_declarada` vazia, como a Amazon faz com tipos mistos; (5) as docstrings de `_FormatoMudou` do Google e da Abler dizem o que de fato levanta, e o sitemap da Abler só com `<url>` sem `<loc>` termina `falhou`, não `parcial` (`abler.py:124`); (6) a mensagem do `ErroDeRede` do salto recusado volta a trazer a URL de origem (D72); (7) `juntar_paginas` registra no log o texto do erro (D77).
@@ -1242,7 +1244,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 ## D84. Sobras da leva M aceitas (A49, T75, T76, T126, T127, REG10)
 
-**Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** as revisões da leva M deixaram estas sobras. A sessão as aceita sem mudar o código; a tarefa de origem está entre parênteses:
 - T75: página sem `Content-Type` segue lida como HTML (`nucleo/coletores/paginas.py:99-105`: sem o cabeçalho a checagem de tipo não roda e o texto passa por `para_texto(..., "html")`); `adicionar_pagina` com o mesmo endereço reativa a página desativada (`banco/paginas.py:48`, `ativa=1`; o docstring de `desativar_pagina` diz isso).
@@ -1258,7 +1260,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 ## D85. Sobras da leva M que viram tarefa na leva N (A49, A50, T128, T129, T130)
 
-**Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** três tarefas novas, livres, na leva N (no plano, T128 a T130).
 - T128, sobras da leva M: (1) motivo da falha de página (R4 da T75, D72), com coluna `motivo` por migração nova em `pagina_acompanhada`, gravada por `marcar_falhou`, limpa pela leitura `ok` e mostrada em `/sites` e na aba Programas; (2) a aba Programas mostra `falhou` também na página que já mudou antes (`templates/vagas/miolo.html`); (3) teste próprio de `ultimas_diferencas` (`banco/paginas.py:96`); (4) `executar_paginas` relê `paginas_ligadas`, como `executar_descoberta` (hoje só o laço da agenda respeita a chave, e nenhuma rota chama a função direto); (5) `conferir_empresas.py` usa `copy.copy(coletor)` (D50, D60), e o teste de que não escreve no `empresas.json` vira teste de efeito, com sha256 antes e depois; (6) `test_empresas_json_tem_67` ganha nome que diz o que confere; (7) teste do 404 na descoberta com keyword do Oracle HCM (`oracle_hcm.py:219`, hoje sem teste).
@@ -1271,7 +1273,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 ## D86. Sobras da leva N aceitas (A52, A53, T79, T80d, T128, T129, T130)
 
-**Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** as revisões da leva N deixaram estas sobras. A sessão as aceita sem mudar o código; a tarefa de origem está entre parênteses:
 - T128: o `ErroDeRede` que vem de "resolve para host local" ou de redirecionamento para host local cai em `fora_do_ar` (`agenda/paginas.py:41-42`), e a tela diz "parece estar fora do ar". Distinguir pediria código novo ou ler a mensagem do erro.
@@ -1290,7 +1292,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 ## D87. Sobras da leva N que viram tarefa (A53, T131, T132)
 
-**Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** duas tarefas novas, livres, na leva O (no plano, T131 e T132).
 - T131, sobras da leva N: (1) o texto de privacidade do README em pt e en (item "Só pedidos de busca", `README.md:318` e `README.en.md:318`) e o texto do painel (`configuracoes.privacidade.telemetria`) esquecem a descoberta semanal pelo Common Crawl, que vem ligada por padrão (`banco/cadastros.py`, `descoberta_cc_ligada`; hosts em `nucleo/coletores/descoberta_cc.py`); a tarefa levanta todo pedido de rede que o joBot faz sozinho e completa os quatro textos; (2) o teste da Eureca de `tests/unidade/test_documentos.py` perde o `skip`, porque a T130 já entrou; (3) o CHANGELOG em pt e en troca os itens que citam D1 e D3 por número por frases com o efeito, ou os tira; (4) teste novo de que todo código de `MOTIVOS` tem a chave `sites.motivo.<código>` em pt e en; (5) o `except` que o `ruff format` partiu em `agenda/paginas.py` volta a uma linha; (6) o teste da migração `0002` aplica só o arquivo dela; (7) o teste de cópias nas rotas olha também `AsyncFunctionDef` e prova por AST que nenhuma rota lê `app.state.relogio`; (8) o teste da Eureca em `test_cadastros.py` deriva o total de fontes ligadas do `fontes.json`, sem o 27 fixo; (9) `_ambiente`, `_rodar` e `_no_linux` (em `configuracoes.py` e `primeira_execucao.py`) e `_um` (em `buscas.py` e `detalhe.py`) ficam numa versão só, se os corpos forem iguais.
@@ -1318,7 +1320,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 ## D89. Sobras da leva O aceitas (A54, A55, T131, T133, REG12)
 
-**Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão; o aviso de versão desligado por padrão (item de `aviso_versao_ligada`) foi substituído pela D105
 
 **Contexto:** as revisões da T131, da T133 e da REG12 deixaram estas sobras. A sessão as aceita sem mudar o código; a tarefa de origem está no começo de cada item:
 - T131: dois módulos novos do painel, `painel/ambiente.py` (`ambiente_do_painel`, `rodar_do_painel`, `no_linux`) e `painel/formulario.py` (`campo_unico`). Os nomes são novos porque o nome antigo sem sublinhado seria sombreado por variável local nas rotas (`rodar, env = rodar(request)` dá `UnboundLocalError`). Se o dono preferir um módulo só, é juntar os dois.
@@ -1337,7 +1339,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 ## D90. T133 entregue: a privacidade cita a atualização e o teste lê o padrão real (A55, T133)
 
-**Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** a T133 fechou as ressalvas da revisão da T131 (A54) e foi juntada na `dev` (`a51cb69`). O que mudou:
 - O texto de privacidade (`README.md`, `README.en.md` e `configuracoes.privacidade.telemetria` em pt e en) cita o pedido de rede de `jobot atualizar` (o git e o uv, só quando a pessoa pede).
@@ -1370,7 +1372,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 ## D92. Rodada de segurança antes do PR da fase 1 (A60, A61, A64, T134)
 
-**Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar; a varredura extra de segurança foi adiada pelo dono em 2026-11-14 (A75)
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão (a varredura extra de segurança segue adiada pelo dono, A75)
 
 **Contexto:**
 - (A60) O semgrep (regras `p/python`, `p/security-audit`, `p/owasp-top-ten`, `p/trailofbits`, métricas desligadas) rodou em `src`, `scripts` e `.github`: 215 arquivos, 20 alertas.
@@ -1393,7 +1395,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 ## D93. Defeitos do ensaio da T80 corrigidos (A67 a A72, T137 a T142)
 
-**Status:** decidido pela sessão em 2026-11-14, para confirmar
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** o ensaio da T80 (o roteiro do dono, rodado na `fedora-dev`) achou oito defeitos. Seis viraram tarefa e foram entregues e juntadas na `dev` em 2026-11-14, com a bateria verde (unidade, tela, `ruff check`, `ruff format --check` e `mypy`). Os outros dois estão na D95, e o item da agenda parada tem a D94. As decisões A67 a A72 são as escolhas da sessão em cada tarefa:
 - (A67, T137, defeito 1) O teto de 4 MiB do `cluster.idx` da descoberta pelo Common Crawl vale só para os blocos escolhidos para baixar (`_TETO_BLOCO` e `escolher()` em `nucleo/coletores/descoberta_cc.py`). Os blocos de outros sites chegam a cerca de 5,8 MB e nunca são baixados. Toda linha que recusa tamanho 0 continua recusando. Antes, um bloco grande de outro site derrubava a descoberta inteira.
@@ -1409,7 +1411,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 ## D94. Agenda parada se o assistente nunca for concluído (A69, T139)
 
-**Status:** aberta, para confirmar (o código segue a opção (a) até o dono decidir)
+**Status:** resolvida em 2026-11-15: o dono manteve (a agenda espera o fim do assistente)
 
 **Contexto:** desde a T139 (A69, a escolha da sessão de segurar a agenda até o assistente acabar), o agendador não roda nada enquanto `primeira_execucao_concluida` não for verdadeira (`cli/servir.py`). A razão (o comentário do código): sem as preferências do assistente a busca sairia vazia e ocuparia o "Buscar agora" do fim dele. Efeito colateral: quem sobe o `jobot serve` e nunca conclui o assistente fica com a agenda parada, sem aviso. O painel e `jobot buscar` não passam pela trava, então buscar à mão sempre funciona.
 
@@ -1419,7 +1421,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 ## D95. Defeitos 5 e 7 do ensaio da T80 mantidos como desenhado (A73)
 
-**Status:** defeito 7 resolvido em 2026-11-14 (o dono confirmou (a): "ligar" o segundo plano continua marcado); defeito 5 (rodízio) aberto, para confirmar
+**Status:** resolvida em 2026-11-15: defeito 7 confirmado antes; defeito 5 (rodízio) confirmado pelo dono
 
 **Contexto:** dos oito defeitos do ensaio (D93), dois não viraram tarefa. A decisão A73 é mantê-los como estão:
 - Defeito 5: o rodízio de escopos da Gupy, como no desenho 8.3. Com `max_pedidos`, o executor reordena os escopos por `ultima_coleta`, então cada rodada lê uma parte e a seguinte lê as que ficaram para trás.
@@ -1441,7 +1443,7 @@ Esse texto vira `vaga.escopo`, `ocorrencia.escopo` e chave de `por_escopo`. Quem
 
 ## D97. Rótulos medidos e ajustados (T37, T78, T144; A77-A80)
 
-**Status:** decidido pela sessão em 2026-11-14 com o dono fora, para confirmar
+**Status:** resolvida em 2026-11-15: o dono manteve o país BR
 
 **Contexto:** a T37 mediu os rótulos das regras contra o gabarito de 329 vagas (comando `jobot avaliar-rotulos`; o relatório `docs/rotulos-medidos.md` traz só números, sem texto de vaga). A T78 ajustou as regras e a T144 passou a trazer o país e a restrição da própria fonte. As três foram entregues e juntadas na `dev` em 2026-11-14. Acerto por rótulo:
 
@@ -1480,7 +1482,7 @@ A meta de 90% só foi batida em UF. Ela não trava a fase 1.
 
 ## D98. Triagem do ensaio da T80 (A82)
 
-**Status:** decidido pela sessão em 2026-11-14, para confirmar com o dono
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** a sessão rodou o roteiro da T80 dentro da `fedora-dev`. Dezoito passos passaram; seis defeitos viraram as tarefas T145 a T149 (cidade com nome de país, sinais de vida na busca e no terminal, países no aviso de restrição, cartão "Sem mudança" em Fontes e página nova). Ficam como estão: o rodízio de escopos da Gupy (A73), a ordem por salário com a conversão desligada (salário em dólar sai da ordem), um clique perdido em filtro com cliques muito rápidos (aconteceu uma vez, depende de tempo), a vaga Worldwide sem local no cartão e o "Ligar o segundo plano" marcado por padrão (D95).
 
@@ -1490,7 +1492,7 @@ A meta de 90% só foi batida em UF. Ela não trava a fase 1.
 
 ## D99. Cidade com nome de país e UF brasileira vira cidade (T145)
 
-**Status:** decidido pela sessão em 2026-11-14, para confirmar com o dono
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** "Franca, São Paulo" (Gupy e Sólides) virava o país FR. Agora, quando um token tem nome de país diferente de BR e outro token tem UF brasileira, o token vira cidade no Brasil. Os casos ambíguos "Peru, Amazonas", "Denmark, SC" e "SP, Spain" ficam Brasil. "Franca, sp" (sigla minúscula) continua país FR, como antes. A `versao_algoritmo` subiu para 4, para reprocessar.
 
@@ -1500,7 +1502,7 @@ A meta de 90% só foi batida em UF. Ela não trava a fase 1.
 
 ## D100. Sinais de vida na busca e no terminal (T146)
 
-**Status:** decidido pela sessão em 2026-11-14, para confirmar com o dono
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** a linha do terminal do `jobot abrir` sai só em português, como o resto da CLI. A fase "depois da coleta" aparece na tela de andamento quando toda fonte ligada já gravou em `execucao_fonte`. O link de pular para o conteúdo fica sem mouse até receber foco.
 
@@ -1510,7 +1512,7 @@ A meta de 90% só foi batida em UF. Ela não trava a fase 1.
 
 ## D101. Aviso de restrição diz os países (T147)
 
-**Status:** decidido pela sessão em 2026-11-14, para confirmar com o dono
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** o aviso lista os países na ordem dos locais da fonte; código sem nome conhecido aparece como código ISO.
 
@@ -1520,7 +1522,7 @@ A meta de 90% só foi batida em UF. Ela não trava a fase 1.
 
 ## D102. Cartão "Sem mudança" mostra as vagas da última rodada que leu (T148)
 
-**Status:** decidido pela sessão em 2026-11-14, para confirmar com o dono
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** o cartão mostra a hora e a duração da checagem, mas as vagas da última rodada que leu; escopo que nunca leu fica em 0. O sintoma "pode rodar de novo" com a hora vencida não reproduziu nos testes; ficou teste de regressão.
 
@@ -1530,7 +1532,7 @@ A meta de 90% só foi batida em UF. Ela não trava a fase 1.
 
 ## D103. Página nova é lida na próxima volta da agenda (T149)
 
-**Status:** decidido pela sessão em 2026-11-14, para confirmar com o dono
+**Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
 
 **Contexto:** a página nova é lida na próxima volta da agenda (até 60 s); a regra de "devida" tem folga de 1 h (23 h). A página que falha é tentada de novo a cada execução de páginas. A execução extra por página nova reinicia o ritmo das outras: no pior caso, até cerca de 48 h entre duas leituras de uma página.
 
@@ -1547,3 +1549,39 @@ A meta de 90% só foi batida em UF. Ela não trava a fase 1.
 **Opções:** (a) marcar já como concluída e tratar uma falha desses passos como correção numa versão 0.1.x; (b) esperar o dono rodar os três passos. Recomendação: (a): o ensaio da sessão cobriu o resto, e o dono autorizou em 2026-11-14 a sessão a abrir o PR para a `main` quando julgar pronto.
 
 **Decisão provisória:** (a). Desfazer: voltar o status nos documentos para "em andamento" (o teste `test_status_da_fase_1_igual_nos_documentos` acompanha).
+
+## D105. Aviso de versão ligado por padrão (Q3)
+
+**Status:** resolvida em 2026-11-15: o dono decidiu
+
+**Contexto:** o aviso de versão nascia desligado por causa da regra da ADR 0014. Ele não usa login: uma vez por dia pergunta à API pública de versões do GitHub qual é a última versão; o pedido leva só o user agent fixo e o IP.
+
+**Decisão:** passa a nascer ligado. A pessoa desliga em Configurações, Privacidade. Quem já gravou a escolha mantém a sua. README, README.en, CHANGELOG e o texto de privacidade passam a dizer isso. ADRs 0014 e 0018 atualizadas. Feito na versão 0.1.1.
+
+## D106. Nenhum erro trava, todo erro aparece: versão 0.1.1 (QA, D49)
+
+**Status:** resolvida em 2026-11-15: o dono decidiu
+
+**Contexto:** pedido do dono: os erros devem ser avisados para a pessoa tomar providência, e nenhum erro, problema ou falta de alguma coisa pode travar o programa. Hoje há buracos: erro inesperado mostra página seca (500), clique HTMX que falha não mostra nada, alguns formulários respondem 422 seco, o passo 2 da primeira execução pode prender a pessoa e "a busca parou" não diz o motivo.
+
+**Decisão:** versão 0.1.1, antes da fase 2, fecha os cinco buracos. Cada aviso diz o que aconteceu e o que a pessoa pode fazer. Tarefas no plano.
+
+## D107. Filtros novos, país e moeda: versão 0.2.0 (QB, QC, QD, QE)
+
+**Status:** resolvida em 2026-11-15: o dono decidiu
+
+**Decisão:** versão 0.2.0, antes da fase 2. Filtros novos na tela de vagas: faixa de salário (de... até...), país, cidade, empresa, publicada há (24 h, 7 dias, 30 dias), "precisa ter estas palavras" e "não pode ter estas palavras". O valor convertido pequeno e apagado embaixo do salário passa a usar a moeda que a pessoa escolher, entre 11: real e as 10 que o Banco Central já fornece (USD, EUR, GBP, CAD, AUD, CHF, JPY, SEK, NOK, DKK), sem fonte nova; outras só se alguém pedir. Nova opção "Meu país" em Configurações: define o país usado quando a busca não tem cidade e a moeda que vem escolhida (Brasil, real). O idioma do painel continua à parte. O desenho detalhado fica em docs/superpowers/specs.
+
+## D108. Mais IAs e teste ao ligar, na fase 3 (QF, QG, QH)
+
+**Status:** resolvida em 2026-11-15: o dono decidiu
+
+**Decisão:** além da sessão do Claude Code, da chave da API da Anthropic e do modelo local, entram Google Gemini, OpenAI e um backend "compatível com OpenAI" (endereço e chave opcional), que atende serviços como OpenRouter, Groq, DeepSeek e Mistral e programas locais como Ollama e LM Studio. Isso reverte a exclusão do Ollama como opção (o pacote continua sem trazer o Ollama). Toda IA, ao ser ligada, mostra um sinal de espera, faz um teste curto e mostra ✓ ou o erro com o que fazer. A IA continua na fase 3, depois da fase 2. ADRs 0003, 0009 e 0014 atualizadas.
+
+## D109. Dica de variações na tela de buscas (QI)
+
+**Status:** resolvida em 2026-11-15: o dono decidiu
+
+**Contexto:** o encaixe compara a palavra exata, sem sinônimos; comparar pelo sentido só chega na fase 3.
+
+**Decisão:** na tela de buscas, uma dica em pt e en: coloque variações, uma por linha (ex.: infraestrutura, servidores, sysadmin). Feita na versão 0.1.1.

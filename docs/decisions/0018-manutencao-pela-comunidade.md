@@ -2,7 +2,7 @@
 
 - **Status:** aceita
 - **Data:** 2026-11-14
-- **Atualizada:** 2026-11-14 (vigia semanal e `jobot atualizar` passam para a fase 1, a pedido do dono)
+- **Atualizada:** 2026-11-15 (o aviso de versão nasce ligado, a pedido do dono); antes, em 2026-11-14: vigia semanal e `jobot atualizar` passam para a fase 1, a pedido do dono
 
 ## Contexto
 
@@ -28,7 +28,7 @@ Em 2026-11-14 o dono pediu que o vigia semanal e a atualização fácil da insta
   - A aprovação do GitHub para o primeiro PR de quem nunca contribuiu deve ficar ligada (Settings > Actions > General > Fork pull request workflows). Essa configuração não está no repositório: o dono confere na tela do GitHub antes de divulgar o projeto. É a principal trava contra abuso de minutos, e o custo é o primeiro PR de cada pessoa esperar o ok do dono.
 - Vigia semanal das fontes (T84, fase 1): um fluxo do GitHub Actions que roda toda semana, testa de verdade cada fonte pública e abre uma issue quando uma delas quebra. Segue o ritmo e os limites da [0004](0004-fontes-publicas.md) e deixa de fora as fontes de termos restritivos que a 0004 nomeia (Eureca, Abler e Gupy). Roda só por agenda e à mão, nunca em PR, sem segredo e com permissão de escrever só em issues. Como roda de IP de datacenter do GitHub, bloqueio de IP não conta como quebra do coletor. Por proposta do redator, a confirmar (D31), a exceção que sai de `escopos` ou de `coletar` conta como quebra; erro do `detalhar` vai só para o resumo, salvo em fonte de escopo único quando todos os detalhes tentados falham (D31), e a issue leva só o nome do tipo, nunca o texto da exceção; o vigia só mexe nas issues que ele mesmo abriu (autor `github-actions[bot]`), nunca nas de pessoas, mesmo que tragam a marca dele. É script de CI, fora do joBot instalado, e é o único código do projeto que leva token (o `GITHUB_TOKEN`, só para `api.github.com`). O `schedule` só vale no ramo padrão, então o vigia só começa a rodar depois do merge na `main`, e o GitHub desliga o `schedule` de repositório público sem atividade por 60 dias (D31).
 - `jobot atualizar` (T85, fase 1): um comando e um aviso no painel que levam o conserto a quem já usa o joBot. Para o servidor e o segundo plano antes, religa depois, recusa quando há mudança local e mostra as novidades do CHANGELOG. Atende a instalação por clone do repositório e a por `uv tool`; qualquer outra recusa e explica, porque o canal de instalação para o público fica para a fase 8.
-  - O aviso de versão no painel faz uma checagem por dia ao GitHub (`api.github.com`). Por causa da regra da [0014](0014-seguranca-e-privacidade.md) de que os dados só saem do computador para os serviços que a pessoa ligar, ele nasce **desligado** e a pessoa liga no interruptor de Privacidade. O pedido leva só o user agent fixo, que traz a versão do joBot, sem cookie, busca nem identificador; o GitHub também vê o IP, como em qualquer pedido.
+  - O aviso de versão no painel faz uma checagem por dia ao GitHub (`api.github.com`). Ele nasce **ligado**, a pedido do dono (2026-11-15), e a pessoa desliga no interruptor de Privacidade; quem já gravou a escolha mantém a sua. O pedido não leva dado pessoal: só o user agent fixo, que traz a versão do joBot, sem cookie, busca nem identificador; o GitHub também vê o IP, como em qualquer pedido. A [0014](0014-seguranca-e-privacidade.md) lista esse pedido entre os que o joBot faz por padrão.
 - PR de fora: o dono escolhe quais PRs serão revisados, por quem e o que conferir em cada um. Não há revisão automática por padrão.
 
 ## Consequências
@@ -37,7 +37,7 @@ Em 2026-11-14 o dono pediu que o vigia semanal e a atualização fácil da insta
 - Cada fonte nova ou consertada precisa trazer exemplo capturado e teste. PR sem isso não entra.
 - O guia de contribuição (português e inglês) será atualizado quando o guia de conserto existir. Até lá, PR de código segue aceito só depois da fase 8, como está.
 - A fase 1 cresce com a T83, a T84 e a T85, e a fase 8 deixa de ter o vigia e a atualização (ver [0017](0017-fases.md)).
-- O dono ainda precisa confirmar duas coisas, registradas no `duvidas.md`: a aprovação do primeiro PR de quem nunca contribuiu e o guia de conserto sair só depois da T17, da T27, da T50 e da T84 (D34). A D31 guarda as escolhas do redator (canal de instalação do `jobot atualizar`, aviso de versão desligado por padrão, regras do vigia) e a pendência de pôr o GitHub, para o aviso de versão, na lista de serviços que a pessoa liga da [0014](0014-seguranca-e-privacidade.md).
+- O dono ainda precisa confirmar duas coisas, registradas no `duvidas.md`: a aprovação do primeiro PR de quem nunca contribuiu e o guia de conserto sair só depois da T17, da T27, da T50 e da T84 (D34). A D31 guarda as escolhas do redator (canal de instalação do `jobot atualizar` e regras do vigia). O aviso de versão ligado por padrão e o GitHub na [0014](0014-seguranca-e-privacidade.md) ficaram decididos na D105.
 
 ## Ver também
 

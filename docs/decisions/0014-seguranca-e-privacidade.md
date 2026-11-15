@@ -2,6 +2,7 @@
 
 - **Status:** aceita
 - **Data:** 2026-11-13
+- **Atualizada:** 2026-11-15 (mais serviços de IA e o aviso de versão ligado por padrão)
 
 ## Contexto
 
@@ -19,7 +20,7 @@ O joBot guarda dados sensíveis (CPF, data de nascimento, currículo) e segredos
 
 ## Consequências
 
-- Os dados só saem do computador para os serviços que a pessoa ligar: Anthropic, Google e Telegram, e também o Jev (classificação de e-mail, ver [0009](0009-ia-backends-e-modelos.md)) e o RunPod (só no treino da fase 6). Na IA manual, os dados vão para a IA de chat onde a pessoa colar.
+- Os dados só saem do computador para os serviços que a pessoa ligar: Anthropic, OpenAI, Google (Gmail e Gemini), Telegram e o serviço que a pessoa configurar no backend compatível com OpenAI (ver [0009](0009-ia-backends-e-modelos.md)), e também o Jev (classificação de e-mail, ver [0009](0009-ia-backends-e-modelos.md)) e o RunPod (só no treino da fase 6). Na IA manual, os dados vão para a IA de chat onde a pessoa colar. Pedidos sem dado pessoal que o joBot faz por padrão: às fontes públicas de vagas, ao Banco Central (cotação) e ao GitHub (aviso de versão, uma vez por dia; desliga em Configurações, Privacidade).
 
 ## Ver também
 
