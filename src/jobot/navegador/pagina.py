@@ -1,0 +1,243 @@
+"""Uma navegação com as checagens do desenho A7 (D132.30, D132.37, D132.42, D132.54).
+
+Ordem: política → `goto` → host de `page.url` → login → Cloudflare → 401/403/bloqueio → 429 →
+assentar → rolar → `Captura`. Nada aqui clica, digita nem envia: só lê a página.
+"""
+
+import asyncio
+import logging
+import re
+from collections.abc import Sequence
+from dataclasses import dataclass
+from urllib.parse import urldefrag, urlsplit
+
+from playwright.async_api import Error as ErroDoPlaywright
+from playwright.async_api import Page, Response
+from playwright.async_api import TimeoutError as EstouroDoPlaywright
+
+from jobot.navegador import limites
+from jobot.navegador.js import rolar
+from jobot.navegador.politica import Politica, casa_login, dentro_dos_hosts
+from jobot.nucleo.http import ESPERAS_LIMITE, MAX_RETRY_AFTER_S, segundos_retry_after
+from jobot.nucleo.leitores.base import Captura, LeitorComLogin, ParadaLogin, RespostaCapturada
+from jobot.nucleo.relogio import Relogio
+
+_LOG = logging.getLogger(__name__)
+
+TIPOS_CAPTURADOS = frozenset({"application/json", "text/html"})
+ESPERA_ASSENTAR_MS = 10_000  # `networkidle` depois do `load` (E11); estouro é ignorado
+_PASSOS_DEPOIS_DE_ROLAR = 5  # shortcut: até 5 s de 1 em 1 pelos pedidos da página; rever na Parte B
+
+
+@dataclass(frozen=True)
+class Recusada:
+    url_host: str
+
+
+Visita = Captura | ParadaLogin | Recusada
+
+
+class Ouvidas(list[RespostaCapturada]):
+    """A lista que `ouvir_respostas` vai enchendo, mais o que a navegação precisa saber dela."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.ativa = True  # desligada, o ouvinte não faz nada (o Playwright não sai da página)
+        self.ultimas: dict[str, Response] = {}  # última resposta por URL, de qualquer host
+        self.pedidos = 0
+        self.respondidos = 0
+        self._lendo: set[asyncio.Task[None]] = set()
+
+    async def prontas(self) -> None:
+        """Espera os corpos que ainda estão sendo lidos."""
+        while self._lendo:
+            await asyncio.gather(*self._lendo)
+
+
+def _host(url: str) -> str:
+    """Host da URL, ou "" quando ela é torta (colchete sem par)."""
+    try:
+        return urlsplit(url).hostname or ""
+    except ValueError:
+        return ""
+
+
+def _onde(url: str) -> str:
+    """Host e caminho, para o log: nunca query, cookie, cabeçalho ou corpo."""
+    partes = urlsplit(url)
+    return f"{partes.hostname or ''}{partes.path}"
+
+
+def _casa(url: str, padroes: Sequence[str] | None) -> bool:
+    """E3: `re.fullmatch` com `host + caminho`, sem query; `None` aceita tudo."""
+    return padroes is None or any(re.fullmatch(p, _onde(url)) for p in padroes)
+
+
+def ouvir_respostas(page: Page, hosts: Sequence[str], padroes: Sequence[str] | None) -> Ouvidas:
+    """Liga o evento `response` da página e devolve a lista que vai enchendo (D132.54).
+
+    Entra só resposta dos `hosts`, JSON ou HTML, até `MAX_RESPOSTA_BYTES` e `MAX_RESPOSTAS`."""
+    ouvidas = Ouvidas()
+
+    async def guardar(resposta: Response, tipo: str) -> None:
+        try:
+            corpo = await resposta.body()
+        except ErroDoPlaywright:  # salto, página que já saiu: sem corpo
+            return
+        if (
+            not ouvidas.ativa
+            or len(corpo) > limites.MAX_RESPOSTA_BYTES
+            or len(ouvidas) >= limites.MAX_RESPOSTAS
+        ):
+            return
+        texto = corpo.decode("utf-8", errors="replace")
+        ouvidas.append(RespostaCapturada(resposta.url, resposta.status, tipo, texto))
+
+    def ao_responder(resposta: Response) -> None:
+        if not ouvidas.ativa:
+            return
+        ouvidas.respondidos += 1
+        ouvidas.ultimas[resposta.url] = resposta
+        cabecalhos = resposta.headers
+        tipo = cabecalhos.get("content-type", "").split(";")[0].strip().lower()
+        if (
+            not dentro_dos_hosts(resposta.url, hosts)
+            or tipo not in TIPOS_CAPTURADOS
+            or not _casa(resposta.url, padroes)
+            or len(ouvidas) >= limites.MAX_RESPOSTAS
+        ):
+            return
+        tamanho = cabecalhos.get("content-length", "")
+        if tamanho.isdigit() and int(tamanho) > limites.MAX_RESPOSTA_BYTES:
+            return
+        tarefa = asyncio.get_running_loop().create_task(guardar(resposta, tipo))
+        ouvidas._lendo.add(tarefa)
+        tarefa.add_done_callback(ouvidas._lendo.discard)
+
+    def ao_pedir(_: object) -> None:
+        if ouvidas.ativa:
+            ouvidas.pedidos += 1
+
+    # shortcut: o ouvinte fica na page (a lista permitida não tem remove_listener) e só se cala;
+    # rever se uma page passar de dezenas de navegações
+    page.on("response", ao_responder)
+    page.on("request", ao_pedir)
+    return ouvidas
+
+
+async def _e_cloudflare(page: Page) -> bool:
+    """E9: título "Just a moment" ou o script do desafio. Página trocando no meio: ainda nele."""
+    try:
+        if (await page.title()).startswith("Just a moment"):
+            return True
+        return await page.locator('script[src*="/cdn-cgi/challenge-platform/"]').count() > 0
+    except ErroDoPlaywright:
+        return True
+
+
+async def _assentar(page: Page) -> None:
+    """E11: `load` e depois `networkidle`, sem esperar além do prazo por este último."""
+    await page.wait_for_load_state("load")
+    try:
+        await page.wait_for_load_state("networkidle", timeout=ESPERA_ASSENTAR_MS)
+    except EstouroDoPlaywright:
+        pass
+
+
+async def _depois_de_rolar(ouvidas: Ouvidas, relogio: Relogio, inicio: int) -> None:
+    """Dá tempo à página de pedir o resto: para quando ela pediu algo depois de rolar e todo
+    pedido teve resposta por dois passos seguidos; sem pedido novo, espera todos os passos."""
+    antes = -1
+    for _ in range(_PASSOS_DEPOIS_DE_ROLAR):
+        await relogio.dormir(1)
+        if ouvidas.pedidos == ouvidas.respondidos == antes:
+            break
+        quieta = ouvidas.pedidos == ouvidas.respondidos and ouvidas.pedidos > inicio
+        antes = ouvidas.pedidos if quieta else -1
+
+
+def _parou(parada: ParadaLogin, url: str) -> ParadaLogin:
+    _LOG.info("navegação parou (%s) em %r", parada, _onde(url))
+    return parada
+
+
+async def visitar(
+    page: Page, url: str, leitor: LeitorComLogin, politica: Politica, relogio: Relogio
+) -> Visita:
+    """Navega a `url` e devolve a `Captura`, a parada do site ou a `Recusada` pela política."""
+    if not politica(url):
+        host = _host(url)
+        _LOG.info("navegação recusada pela política: %r", host)
+        return Recusada(host)
+    for tentativa in range(2):
+        ouvidas = ouvir_respostas(page, leitor.hosts, leitor.respostas)
+        try:
+            visita = await _uma_vez(page, url, leitor, ouvidas, relogio, ultima=tentativa == 1)
+        finally:
+            ouvidas.ativa = False  # o ouvinte fica na page: solta o que ele juntou
+            del ouvidas[:]  # `clear` é nome do Playwright: o test_navegador_ast recusa
+            ouvidas.ultimas = {}
+        if visita is not None:
+            return visita
+    raise AssertionError("inalcançável: a segunda tentativa sempre decide")
+
+
+async def _fora_ou_login(page: Page, leitor: LeitorComLogin, status: int) -> ParadaLogin | None:
+    """Host de `page.url` e login; refeitas quando a página troca sozinha (Cloudflare)."""
+    if not dentro_dos_hosts(page.url, leitor.hosts):
+        return "precisa_login" if casa_login(page.url, leitor.prefixos_login) else "bloqueio"
+    if (
+        await page.locator("input[type=password]").count() > 0
+        or leitor.e_login(Captura(page.url, status, await page.content(), ()))
+        or casa_login(page.url, leitor.prefixos_login)
+    ):
+        return "precisa_login"
+    return None
+
+
+async def _uma_vez(
+    page: Page,
+    url: str,
+    leitor: LeitorComLogin,
+    ouvidas: Ouvidas,
+    relogio: Relogio,
+    *,
+    ultima: bool,
+) -> Visita | None:
+    """Uma navegação; `None` quando o 429 pede outra tentativa depois da espera."""
+    resposta = await page.goto(url)
+    status = resposta.status if resposta is not None else 0
+    if parada := await _fora_ou_login(page, leitor, status):
+        return _parou(parada, page.url)
+    if await _e_cloudflare(page):
+        for _ in range(limites.ESPERA_CLOUDFLARE_S):
+            await relogio.dormir(1)
+            if not await _e_cloudflare(page):
+                break
+        else:
+            return _parou("captcha", page.url)  # não saiu sozinho: sem 2Captcha (A8)
+        await page.wait_for_load_state("load")
+        # o status e o Retry-After da nova; page.url traz o #, a resposta não
+        resposta = ouvidas.ultimas.get(urldefrag(page.url).url, resposta)
+        status = resposta.status if resposta is not None else 0
+        if parada := await _fora_ou_login(page, leitor, status):
+            return _parou(parada, page.url)
+    html = await page.content()
+    if status in (401, 403) or leitor.pagina_bloqueada(html, page.url):
+        return _parou("bloqueio", page.url)
+    if status == 429:
+        pedida = segundos_retry_after(
+            resposta.headers.get("retry-after") if resposta is not None else None,
+            relogio.agora(),
+        )
+        if ultima or (pedida is not None and pedida > MAX_RETRY_AFTER_S):
+            return _parou("no_limite", page.url)
+        await relogio.dormir(ESPERAS_LIMITE[0] if pedida is None else pedida)
+        return None
+    await _assentar(page)
+    if leitor.rolar:
+        inicio = ouvidas.pedidos
+        await rolar(page)
+        await _depois_de_rolar(ouvidas, relogio, inicio)
+    await ouvidas.prontas()
+    return Captura(page.url, status, await page.content(), tuple(ouvidas))
