@@ -69,10 +69,14 @@
     </details>
     {%- endif %}
     <div class="acoes">
+      {%- if c.com_login %}
+      <a href="/configuracoes/sites-com-login">{{ t("fontes.ligar_em_sites_com_login") }}</a>
+      {%- else %}
       <form method="post" action="/fontes/{{ c.chave | urlencode }}/{{ 'desligar' if c.ligada else 'ligar' }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <button type="submit" class="secundario">{{ t("fontes.desligar" if c.ligada else "fontes.ligar") }}</button>
       </form>
+      {%- endif %}
     </div>
   </li>
   {%- endfor %}

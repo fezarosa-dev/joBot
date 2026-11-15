@@ -554,6 +554,29 @@ def test_ligar_e_desligar_fonte_inexistente_404(painel: Painel) -> None:
     assert painel.post("/fontes/nao_existe/desligar").status_code == 404
 
 
+def test_cartao_de_site_com_login_tem_nome_e_link_sem_interruptor(painel: Painel) -> None:
+    linkedin = painel.cartao("linkedin_logado")
+    assert '<h2 class="cartao-titulo">LinkedIn</h2>' in linkedin
+    assert 'action="/fontes/linkedin_logado/' not in linkedin
+    link = re.findall(r'<a [^>]*href="/configuracoes/sites-com-login"[^>]*>([^<]*)</a>', linkedin)
+    assert link == ["Ligue e desligue em Configurações › Sites com login"]
+    # controle: a fonte pública tem o interruptor e não o link
+    remotive = painel.cartao("remotive")
+    assert 'action="/fontes/remotive/desligar"' in remotive
+    assert "/configuracoes/sites-com-login" not in remotive
+
+
+@pytest.mark.parametrize("acao", ["ligar", "desligar"])
+def test_ligar_e_desligar_site_com_login_da_422_e_nao_grava(painel: Painel, acao: str) -> None:
+    antes = painel.sql("SELECT ligada FROM fonte WHERE chave = 'linkedin_logado'")
+    assert antes == [(0,)]
+    assert painel.post(f"/fontes/linkedin_logado/{acao}").status_code == 422
+    assert painel.sql("SELECT ligada FROM fonte WHERE chave = 'linkedin_logado'") == antes
+    painel.sql("UPDATE fonte SET ligada = 1 WHERE chave = 'linkedin_logado'")
+    assert painel.post(f"/fontes/linkedin_logado/{acao}").status_code == 422
+    assert painel.sql("SELECT ligada FROM fonte WHERE chave = 'linkedin_logado'") == [(1,)]
+
+
 def test_ligar_sem_token_csrf_403(painel: Painel) -> None:
     assert painel.http.post("/fontes/remotive/desligar").status_code == 403
     assert painel.sql("SELECT ligada FROM fonte WHERE chave='remotive'") == [(1,)]

@@ -106,6 +106,7 @@ def _gravar(
     validadores: Mapping[str, Validadores] | None = None,
     urls_vistas: Sequence[str] = (),
     urls_sem_detalhe: Sequence[str] = (),
+    exaustiva: bool = True,
 ) -> ResumoEscopo:
     vagas = [replace(v, escopo=escopo, fonte=fonte) for v in vagas]
     resultado = ResultadoEscopo(tuple(vagas), estado, None, 1)  # type: ignore[arg-type]
@@ -118,7 +119,8 @@ def _gravar(
         tuple(urls_vistas),
         tuple(urls_sem_detalhe),
     )
-    return gravar_escopo(con, _execucao(con, agora), saida, [tratar(v) for v in vagas], agora)
+    tratadas = [tratar(v) for v in vagas]
+    return gravar_escopo(con, _execucao(con, agora), saida, tratadas, agora, exaustiva=exaustiva)
 
 
 def _um(con: sqlite3.Connection, sql: str, *params: object) -> Any:
@@ -212,6 +214,19 @@ def test_ciclo_de_vida_no_banco(con: sqlite3.Connection) -> None:
     _gravar(con, [_coletada(url=url_b)], agora=_dias(33))
     assert _ocorrencias(con, b)[0][2:] == (_dias(33).isoformat(), None)
     assert _vaga(con, b)["fechada_em"] is None
+
+
+@pytest.mark.parametrize(("exaustiva", "fechadas"), [(False, 0), (True, 1)])
+def test_lista_nao_exaustiva_ok_nao_fecha_a_recem_sumida(
+    con: sqlite3.Connection, exaustiva: bool, fechadas: int
+) -> None:
+    url_b = "https://exemplo.test/vagas/2"
+    _gravar(con, [_coletada(), _coletada(url=url_b)], agora=T0)
+    b = _id(con, url_b)
+    resumo = _gravar(con, [_coletada()], agora=_dias(1), exaustiva=exaustiva)
+    assert resumo.fechadas == fechadas
+    assert (_vaga(con, b)["fechada_em"] is None) is not exaustiva
+    assert _um(con, "SELECT estado FROM saude ORDER BY execucao_id DESC LIMIT 1") == "ok"
 
 
 def test_304_toca_e_guarda_validadores(con: sqlite3.Connection) -> None:
