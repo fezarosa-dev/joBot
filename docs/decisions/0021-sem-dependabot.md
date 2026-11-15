@@ -16,6 +16,7 @@ O Dependabot abria pull requests sozinho para subir versões. Esses PRs atrapalh
   2. versões das GitHub Actions nos workflows (`.github/workflows/*.yml`). As Actions ficam fixadas pelo hash do commit, com a versão em comentário; a atualização troca o hash e o comentário juntos;
   3. HTMX e fonte Inter vendorizados conferidos (versão e sha256);
   4. bateria verde: pytest de unidade e de tela, ruff e mypy.
+- Armadilhas da atualização: `uv lock --upgrade` não passa dos `==` do `pyproject.toml` (troque o pino à mão e rode `uv lock`); `test_actions_fixadas_por_hash` só confere o formato do hash de 40 dígitos, o hash se confere à mão; `uv_build` fica fora do `uv.lock` (confira com `uv build --wheel`); HTMX e Inter: sha256 contra o `.meta.json`, versão contra o npm e o GitHub; ao travar gatilhos de workflow por texto, tire os comentários antes de procurar strings proibidas.
 - Na fase 1, isso inclui subir `actions/checkout` para a v7 e `astral-sh/setup-uv` para a v7, e o requisito `uv-build` para `<0.14` se o lock aceitar.
 - Um teste de guarda (`test_sem_dependabot`) falha se o `dependabot.yml` voltar.
 
