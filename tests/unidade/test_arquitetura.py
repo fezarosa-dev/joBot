@@ -38,7 +38,7 @@ def _bloco(pagina: str, tipo: str, marca: str | None = None) -> str:
     for bloco in BLOCO_MERMAID.findall(pagina):
         primeira = bloco.lstrip().splitlines()[0] if bloco.strip() else ""
         if primeira.startswith(tipo) and (marca is None or f"%% {marca}" in bloco):
-            return bloco
+            return str(bloco)
     return ""
 
 
