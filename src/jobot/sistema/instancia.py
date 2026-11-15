@@ -92,3 +92,15 @@ def porta(env: Mapping[str, str]) -> int:
     if valor.isascii() and valor.isdigit() and 1 <= int(valor) <= 65535:
         return int(valor)
     return PORTA_PADRAO
+
+
+AVISO_CAPTURA = (
+    "Uma captura de exemplos com login está em andamento. "
+    "Encerre-a no terminal dela e tente de novo."
+)
+
+
+def captura_em_andamento(dados: Path) -> bool:
+    """Trava presa sem porta: quem a prende é o `capturar_logado.py` (`Trava(dados, 0)`)."""
+    pid, p = pid_e_porta_do_servidor(dados)  # uma só leitura da trava
+    return pid is not None and p is None

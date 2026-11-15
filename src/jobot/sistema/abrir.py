@@ -14,7 +14,12 @@ from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 
 from jobot.sistema.caso import prefixo_host
-from jobot.sistema.instancia import pid_do_servidor, pid_e_porta_do_servidor, porta
+from jobot.sistema.instancia import (
+    AVISO_CAPTURA,
+    pid_do_servidor,
+    pid_e_porta_do_servidor,
+    porta,
+)
 from jobot.sistema.pastas import pasta_de_dados
 
 _ESPERA_PASSO_S = 0.2
@@ -101,6 +106,9 @@ def abrir_painel(
     # com o servidor no ar vale a porta que ele gravou na trava: o serviço não herda o env do shell
     # PID e porta saem da mesma leitura da trava, senão dois donos diferentes poderiam se misturar
     pid, porta_gravada = pid_e_porta_do_servidor(dados)
+    if pid is not None and porta_gravada is None:  # trava sem porta: captura com login no ar
+        saida(AVISO_CAPTURA)
+        return 1
     p = porta_gravada or porta(env)
     endereco = f"http://127.0.0.1:{p}"
     ocupada = (
@@ -131,7 +139,10 @@ def sair_do_servidor(
     dados: Path, *, saida: Callable[[str], None] = print, esperar_s: float = 10.0
 ) -> int:
     """SIGTERM ao PID da trava (só se ela está presa) e espera a trava soltar."""
-    pid = pid_do_servidor(dados)
+    pid, p = pid_e_porta_do_servidor(dados)  # uma leitura só: o PID e a porta são do mesmo dono
+    if pid is not None and p is None:  # a trava é da captura, não do servidor: nada de SIGTERM
+        saida(AVISO_CAPTURA)
+        return 1
     if pid is None:
         saida("O joBot não está rodando.")
         return 0
