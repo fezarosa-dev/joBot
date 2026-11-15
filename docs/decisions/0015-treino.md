@@ -1,4 +1,4 @@
-# 0015. Treino de modelos (fase 6)
+# 0015. Treino de modelos (fase 7)
 
 - **Status:** aceita
 - **Data:** 2026-11-13
@@ -6,7 +6,7 @@
 
 ## Contexto
 
-Com o tempo, as vagas que a pessoa salva e descarta mostram o que ela quer de verdade. Isso pode ser usado para ensinar um modelo a sugerir melhor. Modelos pequenos também podem ser ajustados para entender vagas melhor do que saem de fábrica. O projeto ainda não tem código; isto é o plano para a fase 6.
+Com o tempo, as vagas que a pessoa salva e descarta mostram o que ela quer de verdade. Isso pode ser usado para ensinar um modelo a sugerir melhor. Modelos pequenos também podem ser ajustados para entender vagas melhor do que saem de fábrica. O projeto ainda não tem código; isto é o plano para a fase 7.
 
 ## Decisão
 
@@ -55,11 +55,11 @@ Nunca entra dado pessoal: currículo real e ações da pessoa no painel ficam fo
 
 - Um modelo ajustado que não ganha do original no gabarito não é usado.
 - Dado pessoal nunca sai do computador da pessoa por causa de treino.
-- A fase 1 já guarda o que a fase 6 vai usar: o texto completo das vagas e o histórico das ações da pessoa no painel (ADR 0007).
+- A fase 1 já guarda o que a fase 7 vai usar: o texto completo das vagas e o histórico das ações da pessoa no painel (ADR 0007).
 
 ## Pontos em aberto
 
-- Antes da fase 6, conferir nos termos de cada fonte se as vagas dela podem entrar em treino de modelo público. Algumas fontes proíbem repassar as vagas (ADR 0004).
+- Antes da fase 7, conferir nos termos de cada fonte se as vagas dela podem entrar em treino de modelo público. Algumas fontes proíbem repassar as vagas (ADR 0004).
 
 ## Ver também
 

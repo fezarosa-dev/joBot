@@ -74,9 +74,9 @@ What it does today (phase 1):
 What comes in the next phases:
 
 - 🔐 **Sites that require login**, with your login done by hand (phase 2).
-- ✍️ **Prepare the application**: cover letter, a résumé summary adjusted to the job and a list of what you have and what is missing, always in the job's language (phase 3, with optional AI).
-- 🧩 **Help with forms**: a browser extension suggests answers, and you confirm (phase 4).
-- 📬 **Read Gmail** (optional): brings in jobs from alert emails and suggests status changes when a recruiter replies (phase 5).
+- ✍️ **Prepare the application**: cover letter, a résumé summary adjusted to the job and a list of what you have and what is missing, always in the job's language (phase 4, with optional AI).
+- 🧩 **Help with forms**: a browser extension suggests answers, and you confirm (phase 5).
+- 📬 **Read Gmail** (optional): brings in jobs from alert emails and suggests status changes when a recruiter replies (phase 6).
 
 It works for every kind of job and every field: full-time employment (CLT), contractor (PJ), internship, trainee, temporary, apprentice, research and scholarships, programs and summer schools, public exams and notices.
 Every feature can be turned on or off.
@@ -147,7 +147,7 @@ One search cycle, step by step:
 3. **The core** merges duplicate jobs, understands the salary, adds labels and marks as closed the jobs that disappeared.
 4. **Everything goes to the SQLite database**, a file that stays on your computer.
 5. **The dashboard** shows the result in your browser. It only works on your computer (address 127.0.0.1).
-6. **When the AI arrives** (phase 3) and you turn it on, it will calculate the match with your profile and help prepare applications. Until then, the match comes from the rules of your search.
+6. **When the AI arrives** (phase 4) and you turn it on, it will calculate the match with your profile and help prepare applications. Until then, the match comes from the rules of your search.
 
 If one source fails, the others keep going. If the computer was off at the scheduled time, the missed search runs when it turns on.
 
@@ -156,7 +156,7 @@ Want to see joBot from the inside, with folders, layers, database and diagrams? 
 <a id="two-versions"></a>
 ## 🖥️ The two versions
 
-joBot will have a single core and two "faces". The **local version** is the focus. The **browser version** (GitHub Pages) is for people who don't want to install anything, and it arrives in phase 7.
+joBot will have a single core and two "faces". The **local version** is the focus. The **browser version** (GitHub Pages) is for people who don't want to install anything, and it arrives in phase 8.
 
 | | 💻 Local version | 🌐 Browser version (GitHub Pages) |
 |---|---|---|
@@ -223,7 +223,7 @@ The dashboard opens in your browser, at `http://127.0.0.1:47615`. The menu has J
 <a id="artificial-intelligence"></a>
 ## 🧠 Artificial intelligence
 
-The AI is **optional** and arrives in phase 3. Without it, joBot works with rules and keywords, and that is how phase 1 works.
+The AI is **optional** and arrives in phase 4. Without it, joBot works with rules and keywords, and that is how phase 1 works.
 
 > **Golden rule:** the AI only uses the data in your profile. It never invents experience, courses or skills, and it shows which data it used.
 > If information is missing, it asks a question, and your answer is saved in the profile.
@@ -276,7 +276,7 @@ A "checksum" is a fingerprint of the file: joBot checks that the downloaded file
 <a id="using-claude-code"></a>
 ## ✨ Using the Claude Code you already have
 
-> This section describes phase 3. Phase 1 does not use AI.
+> This section describes phase 4. Phase 1 does not use AI.
 
 If you already use Claude Code on your computer, joBot can use Claude **with no extra login**.
 You do not log in to Claude inside joBot. Ever.
@@ -345,13 +345,13 @@ Details in [ADR 0010](docs/decisions/0010-claude-code-da-pessoa.md) (in Portugue
 <a id="requirements-and-installation"></a>
 ## 📦 Requirements and installation
 
-> This is the phase 1 installation (version 0.2.1): you download the code and run it with uv. The one-command installer only arrives in phase 8.
+> This is the phase 1 installation (version 0.2.1): you download the code and run it with uv. The one-command installer only arrives in phase 3.
 
 ### Requirements
 
 - **System:** Linux. Windows and macOS have not been tested yet, and the background service only exists on Linux.
 - **Programs:** [git](https://git-scm.com/) and [uv](https://docs.astral.sh/uv/). uv downloads Python 3.14 and the libraries by itself.
-- **Memory:** an ordinary computer is enough. The 8 GB of RAM only matter when the local AI arrives (phase 3).
+- **Memory:** an ordinary computer is enough. The 8 GB of RAM only matter when the local AI arrives (phase 4).
 - **Graphics card and Docker:** not needed. The installation is native.
 - **Internet:** to download joBot and to search for jobs.
 
@@ -418,10 +418,10 @@ In phase 1, `uv sync` only downloads Python 3.14 (if missing) and joBot's librar
 | Item | Size | When |
 |---|---|---|
 | Browser controlled by Playwright | To be defined | Phase 2, only for sites with login |
-| llama-server | ~17 to 25 MB, depending on the system | Phase 3 (offline package) |
-| Qwen3.5-2B **or** Qwen3.5-4B model | 1.28 GB or 2.74 GB | Phase 3 (offline package) |
-| Audio transcription "small" | 484 MB | Phase 5 |
-| Audio transcription "medium" | 1.53 GB | Phase 5, optional |
+| llama-server | ~17 to 25 MB, depending on the system | Phase 4 (offline package) |
+| Qwen3.5-2B **or** Qwen3.5-4B model | 1.28 GB or 2.74 GB | Phase 4 (offline package) |
+| Audio transcription "small" | 484 MB | Phase 6 |
+| Audio transcription "medium" | 1.53 GB | Phase 6, optional |
 | multilingual-e5-small model | ~120 MB | Only if some label falls below 90% accuracy |
 
 <a id="roadmap"></a>
@@ -433,12 +433,15 @@ Each phase only starts after the previous one passes the tests. No dates are pro
 |---|---|---|
 | **1. Base** | Common core, public sources, database, dashboard and scheduling | 🟢 Done (version 0.1.0) |
 | **2. Browser with login** | Visible Chrome, site mapping, CAPTCHA handling | ⚪ Planned |
-| **3. Local AI** | Offline package (llama-server + Qwen) | ⚪ Planned |
-| **4. Browser extension** | Browser extension for forms | ⚪ Planned |
-| **5. Audio and Gmail** | Answers by voice and email reading | ⚪ Planned |
-| **6. Training** | Learn from what you save and discard | ⚪ Planned |
-| **7. GitHub Pages version** | GitHub Pages version, no installation | ⚪ Planned |
-| **8. Release** | Installers, README with badges and security review | ⚪ Planned |
+| **3. Installer** | 64-bit installer with a list of tools to tick (Windows and Linux first, Mac later) | ⚪ Planned |
+| **4. Local AI** | Offline package (llama-server + Qwen) | ⚪ Planned |
+| **5. Browser extension** | Browser extension for forms | ⚪ Planned |
+| **6. Audio and Gmail** | Answers by voice and email reading | ⚪ Planned |
+| **7. Training** | Learn from what you save and discard | ⚪ Planned |
+| **8. GitHub Pages version** | GitHub Pages version, no installation | ⚪ Planned |
+| **9. Release** | README with badges and security review | ⚪ Planned |
+
+Between phase 2 and phase 3 comes version 0.3.0, with the "Overview" screen and the complete application queue.
 
 <a id="faq"></a>
 ## ❓ FAQ
@@ -469,13 +472,15 @@ Each important decision is recorded in a short document called an ADR (architect
 | 0012 | [Browser extension](docs/decisions/0012-extensao-do-navegador.md) |
 | 0013 | [Gmail and notices](docs/decisions/0013-gmail-e-avisos.md) |
 | 0014 | [Security and privacy](docs/decisions/0014-seguranca-e-privacidade.md) |
-| 0015 | [Model training (phase 6)](docs/decisions/0015-treino.md) |
+| 0015 | [Model training (phase 7)](docs/decisions/0015-treino.md) |
 | 0016 | [License, clean room and work process](docs/decisions/0016-licenca-clean-room-e-processo.md) |
 | 0017 | [Project phases](docs/decisions/0017-fases.md) |
 | 0018 | [Community maintenance and CI open to every PR](docs/decisions/0018-manutencao-pela-comunidade.md) |
 | 0019 | [Project wiki and question form](docs/decisions/0019-wiki-do-projeto.md) |
 | 0020 | [Financial support: donations only](docs/decisions/0020-apoio-financeiro.md) |
 | 0021 | [No Dependabot: dependencies updated by hand](docs/decisions/0021-sem-dependabot.md) |
+| 0022 | [CAPTCHA solved by the service the person turns on](docs/decisions/0022-captcha-pelo-servico-da-pessoa.md) |
+| 0023 | [Everything through the dashboard: tools, updates and shutdown](docs/decisions/0023-tudo-pelo-painel.md) |
 
 <a id="how-to-contribute"></a>
 ## 🤝 How to contribute
@@ -484,7 +489,7 @@ The repository is on GitHub. Phase 1 is done, and the next ones are being planne
 
 - **Suggestions and job sources** can already be sent through issues, with ready-made forms.
 - **Questions** go through the [question form](https://github.com/fezarosa-dev/joBot/issues/new?template=duvida.yml). Read the [FAQ](https://github.com/fezarosa-dev/joBot/wiki/Frequently-asked-questions) first.
-- **Code** only after the release (phase 8).
+- **Code** only after the release (phase 9).
 - The wiki is edited through PRs on the `wiki/` folder of the repository.
 - The complete rules are in the contribution guide.
 

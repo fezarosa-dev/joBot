@@ -2191,3 +2191,45 @@ Escolha da sessão (dono fora): a opção (a), para confirmar. Consequências: o
 Escolha da sessão (dono fora): a opção (a), para confirmar. Consequência: com o filtro de 7 dias, "fechada" no LinkedIn quer dizer "não vista há 30 dias" (a T236 documenta); uma vaga fechada por engano reabre ao reaparecer. Se o dono mudar a escolha depois, a sessão reescreve a T238.
 
 **Como desfazer:** o dono manda trocar qualquer item, e a troca vira tarefa nova com teste. Voltar ao login dentro da janela automática é trocar a `JanelaComum` do `fazer_login` pelo `abrir_contexto` de antes; o Google volta a recusar. Os nomes e os prazos ficam em `navegador/janela_comum.py`, `navegador/abrir.py`, `navegador/limites.py` e `nucleo/leitores/linkedin.py`.
+
+## D138. Ideias do memo: painel, fila, instalador e ordem das fases
+
+**Status:** decidida pelo dono em 2026-11-15 (itens 1 a 14); itens 15 a 17 são escolhas da sessão, para confirmar
+
+**Contexto:** o dono respondeu às perguntas do memo de ideias. As respostas mudam a ordem das fases (ADR [0017](docs/decisions/0017-fases.md)), criam a tela Ferramentas e o princípio "tudo pelo painel" (ADR [0023](docs/decisions/0023-tudo-pelo-painel.md)) e mexem na [0009](docs/decisions/0009-ia-backends-e-modelos.md) (Claude Code e Codex). Os números Q1 a Q13 são os das perguntas do memo.
+
+**Decisões do dono:**
+
+1. (Q3, dono) A candidatura automática fica para depois. A ADR 0001 segue como está.
+2. (Q1, dono) A tela "Panorama" (visão geral das vagas e da busca) entra na 0.3.0, num lote separado do login.
+3. (Q2, dono) Completar a fila de candidaturas: link de candidatura por e-mail, a pergunta "Você se candidatou?" quando a pessoa volta ao painel e as datas de cada passo. Entra na 0.3.0, junto com o Panorama.
+4. (Q4, dono) O instalador vem logo depois da fase 2, só para 64 bits.
+5. (Q5, dono) O instalador mostra uma lista de ferramentas para marcar. As que ficarem sem marca aparecem depois no painel, para baixar quando a pessoa quiser. O painel permite reconfigurar a escolha.
+6. (Q9, dono) A lista mostra só o que o joBot já usa naquela versão. O Claude Code e o Codex entram junto com a IA.
+7. (Q10, dono) Tela "Ferramentas" em Configurações, com estado, tamanho e botão "Baixar". O navegador pode ser removido. O Claude Code e o Codex o joBot instala, pelos instaladores oficiais deles, mas nunca remove. O joBot nunca vê senha nem token: o login é feito pela própria ferramenta. A ADR 0009 registra isso.
+8. (Q11, dono) O botão "Baixar o navegador" (T240) vira o primeiro item da tela Ferramentas. O cartão dos sites com login aponta para lá.
+9. (Q12, dono) Ordem: LinkedIn (fase 2), Panorama e fila, versão 0.3.0, instalador (vira a fase 3), IA local (vira a fase 4). As fases seguintes andam um número: extensão fase 5, áudio e Gmail fase 6, treino fase 7, GitHub Pages fase 8, publicação fase 9. Os instaladores saem da fase de publicação. A ADR 0017 e os documentos de quem usa (README, wiki, guia de contribuição) já usam a nova ordem.
+10. (Q13, dono) O instalador sai para Windows e Linux primeiro. O Mac vem depois e é testado só no GitHub Actions.
+11. (Q6, dono) Tudo pelo painel: quem usa nunca precisa do terminal. O painel ganha os botões "Atualizar o joBot" e "Encerrar". Registrado na ADR 0023.
+12. (Q7, dono) A revisão da documentação vem depois da T236.
+13. (Q8, dono) O mapa das perguntas do perfil é escrito agora, só como documento: `docs/superpowers/specs/2026-11-15-perguntas-do-perfil.md`. Outro trabalho o escreve; aqui só se cita.
+14. (pedido novo, dono) No instalador, as ferramentas 100% essenciais vêm marcadas e não dá para desmarcar. A tela do instalador deve ser muito bonita, para quem instala ter confiança, e pode usar outra linguagem, mais adequada para essa tela.
+
+**Escolhas da sessão (para confirmar):**
+
+15. (sessão) Quais são as essenciais travadas: o joBot e o Python que ele usa. O navegador para sites com login é opcional: vem marcado, mas dá para desmarcar.
+16. (sessão) A tecnologia da tela do instalador e a assinatura de código (que tem custo) não foram escolhidas. A pesquisa voltou; a sessão recomenda, para o dono decidir:
+   - Tela: Tauri. A tela é feita em HTML e CSS, no mesmo visual do painel, num projeto à parte (Rust e HTML); gera o instalador NSIS no Windows, AppImage e .deb no Linux e .dmg no Mac. O joBot em si continua instalado pelo `uv tool install`, chamado pela tela. Alternativas: Inno Setup com a página de componentes (só Windows, visual limitado) ou pywebview com PyInstaller (tudo em Python, visual menos polido).
+   - Assinatura no Windows: SignPath Foundation, grátis para projeto de código aberto (exige o build no GitHub Actions, MFA e uma página com a política de assinatura). Sem assinatura, o SmartScreen pede "Executar assim mesmo"; mesmo assinado, ele avisa até o programa ganhar reputação. O Azure Artifact Signing (US$ 9,99 por mês) não atende o Brasil. Um certificado OV custa de US$ 129 a 434 por ano.
+   - Mac: sem a conta de desenvolvedor da Apple (US$ 99 por ano) e a notarização, a pessoa precisa liberar o programa em Ajustes, em "Abrir Mesmo Assim". Recomendação: documentar esse passo até o Mac entrar (decisão 10).
+17. (sessão) Sem PR da `dev` para a `main` até a 0.3.0 (já na D134.6).
+
+**Para confirmar com o dono:**
+
+1. (decisão 15) As essenciais travadas são só o joBot e o Python que ele usa. Se a pessoa desmarca o navegador, os sites com login ficam desligados até ela baixar pela tela Ferramentas.
+2. (decisão 16) A tecnologia da tela do instalador (recomendação: Tauri) e a assinatura de código (recomendação: SignPath Foundation no Windows, grátis; no Mac, documentar o "Abrir Mesmo Assim" até decidir sobre os US$ 99 por ano).
+3. (decisão 17) Nenhum PR para a `main` até a 0.3.0.
+4. (decisão 7) O Claude Code e o Codex passam a ser baixados pelo joBot. Antes, a D125 só abria a página oficial. Falta conferir, na fase 4, o endereço e o jeito de cada instalador oficial, e se os termos de cada um permitem o joBot chamá-lo.
+5. (decisão 14) A "linguagem mais adequada" para a tela do instalador depende do item 2 acima.
+
+**Como desfazer:** o dono manda trocar qualquer item. A ordem das fases fica na ADR 0017 e a regra "tudo pelo painel" na ADR 0023; trocar uma delas é editar a ADR e os documentos listados na decisão 9.

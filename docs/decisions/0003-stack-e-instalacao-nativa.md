@@ -24,7 +24,7 @@ O público é leigo e usa computadores médios. O app precisa abrir um Chrome vi
 ### Instalação
 
 - Instalação nativa, planejada para um comando, via uv. Sem Docker.
-- Multiplataforma: Linux, Windows e macOS. O desenvolvimento acontece no Linux; os instaladores de Windows e macOS chegam na fase 8.
+- Multiplataforma: Linux, Windows e macOS. O desenvolvimento acontece no Linux; os instaladores chegam na fase 3 (64 bits; Windows e Linux primeiro, macOS depois, testado só no GitHub Actions).
 
 ### Por que sem Docker
 
@@ -35,7 +35,7 @@ O público é leigo e usa computadores médios. O app precisa abrir um Chrome vi
 
 ## Consequências
 
-- Cada sistema operacional precisa ser testado na fase 8.
+- Cada sistema operacional precisa ser testado na fase 3.
 - O instalador baixa só o necessário; o pacote de IA offline é opcional.
 - Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthropic.
 
