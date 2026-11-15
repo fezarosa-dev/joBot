@@ -2,7 +2,7 @@
 
 - **Status:** aceita
 - **Data:** 2026-11-14
-- **Atualizada:** 2026-11-15 (o aviso de versão nasce ligado, a pedido do dono); antes, em 2026-11-14: vigia semanal e `jobot atualizar` passam para a fase 1, a pedido do dono
+- **Atualizada:** 2026-11-15 (o aviso de versão nasce ligado, a pedido do dono; o CI também roda em push de `lote/**` e à mão, D123); antes, em 2026-11-14: vigia semanal e `jobot atualizar` passam para a fase 1, a pedido do dono
 
 ## Contexto
 
@@ -25,6 +25,7 @@ Em 2026-11-14 o dono pediu que o vigia semanal e a atualização fácil da insta
 - CI (testes automáticos no GitHub) roda em todo PR, inclusive de fork (cópia do repositório feita por outra pessoa) e para a `dev`. O repositório é público, e o GitHub Actions em runner padrão não cobra minutos de repositório público (mesma fonte da [0002](0002-duas-versoes-um-nucleo.md)).
   - O gatilho é `pull_request`, nunca `pull_request_target` (que roda com mais permissões e é perigoso com código de fora).
   - O token é só de leitura e nenhum segredo entra no CI.
+  - Além de todo PR, o CI roda em push para branches `lote/**` do próprio repositório (só quem tem acesso de escrita sobe branch lá, e PR de fork não passa por esse gatilho) e por `workflow_dispatch`. Continua sem `pull_request_target` e sem segredo (D123).
   - A aprovação do GitHub para o primeiro PR de quem nunca contribuiu deve ficar ligada (Settings > Actions > General > Fork pull request workflows). Essa configuração não está no repositório: o dono confere na tela do GitHub antes de divulgar o projeto. É a principal trava contra abuso de minutos, e o custo é o primeiro PR de cada pessoa esperar o ok do dono.
 - Vigia semanal das fontes (T84, fase 1): um fluxo do GitHub Actions que roda toda semana, testa de verdade cada fonte pública e abre uma issue quando uma delas quebra. Segue o ritmo e os limites da [0004](0004-fontes-publicas.md) e deixa de fora as fontes de termos restritivos que a 0004 nomeia (Eureca, Abler e Gupy). Roda só por agenda e à mão, nunca em PR, sem segredo e com permissão de escrever só em issues. Como roda de IP de datacenter do GitHub, bloqueio de IP não conta como quebra do coletor. Por proposta do redator, a confirmar (D31), a exceção que sai de `escopos` ou de `coletar` conta como quebra; erro do `detalhar` vai só para o resumo, salvo em fonte de escopo único quando todos os detalhes tentados falham (D31), e a issue leva só o nome do tipo, nunca o texto da exceção; o vigia só mexe nas issues que ele mesmo abriu (autor `github-actions[bot]`), nunca nas de pessoas, mesmo que tragam a marca dele. É script de CI, fora do joBot instalado, e é o único código do projeto que leva token (o `GITHUB_TOKEN`, só para `api.github.com`). O `schedule` só vale no ramo padrão, então o vigia só começa a rodar depois do merge na `main`, e o GitHub desliga o `schedule` de repositório público sem atividade por 60 dias (D31).
 - `jobot atualizar` (T85, fase 1): um comando e um aviso no painel que levam o conserto a quem já usa o joBot. Para o servidor e o segundo plano antes, religa depois, recusa quando há mudança local e mostra as novidades do CHANGELOG. Atende a instalação por clone do repositório e a por `uv tool`; qualquer outra recusa e explica, porque o canal de instalação para o público fica para a fase 8.
