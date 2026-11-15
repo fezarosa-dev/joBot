@@ -21,8 +21,10 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Any, Literal, cast
 
+from jobot.nucleo.cambio import MOEDAS_EXIBICAO, moeda_do_pais
 from jobot.nucleo.coletores.registro import carregar_fontes
 from jobot.nucleo.modelo import Empresa
+from jobot.nucleo.tratamento.locais import codigos_de_pais
 
 _DADOS = Path(__file__).resolve().parents[1] / "nucleo" / "dados"
 
@@ -39,6 +41,9 @@ PADROES: Mapping[str, object] = MappingProxyType(
         "regras_ocultar_ligadas": True,
         "aviso_versao_ligada": True,  # D105: nasce ligado; a pessoa desliga em Privacidade
         "destaques_n": 10,
+        "meu_pais": "BR",
+        "moeda_exibicao": "",
+        "captcha_ligado": False,  # ADR 0022: nasce desligado; só liga com chave salva
     }
 )
 _SEM_PADRAO: Any = object()
@@ -246,3 +251,17 @@ def gravar_config(con: sqlite3.Connection, chave: str, valor: object) -> None:
             " ON CONFLICT(chave) DO UPDATE SET valor = excluded.valor",
             (chave, texto),
         )
+
+
+def meu_pais(con: sqlite3.Connection) -> str:
+    """País da pessoa (`meu_pais`); valor que não é um código conhecido vale `"BR"`."""
+    valor = ler_config(con, "meu_pais")
+    return valor if isinstance(valor, str) and valor in codigos_de_pais() else "BR"
+
+
+def moeda_efetiva(con: sqlite3.Connection) -> str:
+    """Moeda de exibição: a escolhida se for uma das 11, senão a do Meu país."""
+    valor = ler_config(con, "moeda_exibicao")
+    if isinstance(valor, str) and valor in MOEDAS_EXIBICAO:
+        return valor
+    return moeda_do_pais(meu_pais(con))

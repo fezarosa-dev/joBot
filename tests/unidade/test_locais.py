@@ -6,6 +6,7 @@ import pytest
 from jobot.nucleo.modelo import Local
 from jobot.nucleo.tratamento.locais import (
     _PAISES,
+    codigos_de_pais,
     ler_locais,
     nome_do_pais,
     nome_em_ingles,
@@ -298,3 +299,10 @@ def test_so_paises_so_com_todo_local_virando_pais(brutos: list[str], esperado: b
 )
 def test_regiao_nova_fica_sem_pais(bruto: str) -> None:
     assert ler_locais([bruto]) == (Local(),)
+
+
+def test_codigos_de_pais_tem_nome_e_nao_repetem() -> None:
+    codigos = codigos_de_pais()
+    assert len(codigos) == 55
+    assert len(set(codigos)) == 55
+    assert all(nome_do_pais(c) and nome_em_ingles(c) for c in codigos)

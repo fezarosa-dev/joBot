@@ -844,6 +844,26 @@ async def test_cotacao_so_com_interruptor_ligado(
         assert _brl(con, usd.url) == (None, None)
 
 
+@pytest.mark.usefixtures("fuso_local")
+@pytest.mark.parametrize(
+    ("ligada", "exibicao", "moedas"),
+    [(True, "EUR", ["EUR", "USD"]), (False, "EUR", []), (True, "USD", ["USD"])],
+)
+async def test_cotacao_pede_a_moeda_de_exibicao(
+    con: sqlite3.Connection, ligada: bool, exibicao: str, moedas: list[str]
+) -> None:
+    gravar_config(con, "conversao_moeda_ligada", ligada)
+    gravar_config(con, "moeda_exibicao", exibicao)
+    servidor = Servidor()
+
+    await _executar(
+        con, [Falso(lista={"": (_vaga(1, salario_texto="US$ 5,000/month"),)})], servidor=servidor
+    )
+
+    ptax = [p for p in servidor.pedidos if p.url.host == "olinda.bcb.gov.br"]
+    assert sorted(p.url.params["@moeda"].strip("'") for p in ptax) == moedas
+
+
 async def test_conversao_desligada_ainda_filtra_vaga_em_brl(con: sqlite3.Connection) -> None:
     gravar_config(con, "conversao_moeda_ligada", False)
     gravar_cotacao(con, Cotacao(moeda="USD", data=HOJE, venda=Decimal("5.65")), AGORA)
