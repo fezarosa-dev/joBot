@@ -11,6 +11,7 @@ O formato segue o [Keep a Changelog 1.1.0](https://keepachangelog.com/pt-BR/1.1.
 ### Adicionado
 
 - ADR 0022: CAPTCHA resolvido pelo serviço que a pessoa liga (2Captcha), só na navegação com login.
+- Aba Serviços em Configurações: guarde a chave do 2Captcha, teste a chave e veja o saldo. O uso chega com a navegação com login.
 
 ## [0.1.1] - 2026-11-15
 

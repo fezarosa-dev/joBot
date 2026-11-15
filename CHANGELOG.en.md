@@ -11,6 +11,7 @@ The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/
 ### Added
 
 - ADR 0022: CAPTCHA solved by the service the person turns on (2Captcha), only for logged-in browsing.
+- Services tab in Settings: save the 2Captcha key, test the key and see the balance. Use comes with logged-in browsing.
 
 ## [0.1.1] - 2026-11-15
 
