@@ -50,6 +50,16 @@ PUBLICADA: Mapping[str, int] = {"24h": 1, "7d": 7, "30d": 30}
 _PUBLICADA = (
     "julianday(COALESCE(v.publicada_em, v.primeira_vista_em)) >= julianday(:agora) - :{dias}"
 )
+# a vaga que a tela mostra sem salário (`painel/formatos.py`); `sal_plausivel` nulo não entra
+_SEM_SALARIO = (
+    "(v.sal_moeda IS NULL OR (v.sal_min IS NULL AND v.sal_max IS NULL) OR v.sal_plausivel = 0)"
+)
+# o máximo mensal na moeda original, com os fatores de `PARA_MENSAL` (nucleo/tratamento/salario.py)
+_MAXIMO_MENSAL = (
+    "CASE v.sal_periodo WHEN 'hora' THEN v.sal_max * 160 WHEN 'dia' THEN v.sal_max * 21"
+    " WHEN 'semana' THEN round(v.sal_max * 4.33) WHEN 'mes' THEN v.sal_max"
+    " WHEN 'ano' THEN round(v.sal_max / 12.0) END"
+)
 _MOTIVO_OCULTA = "CASE WHEN v.oculta_manual = 1 THEN 'manual' ELSE e.oculta_motivo END"
 # chip -> (valor, junção); "motivo" e "status" só contam, nas abas Ocultas e Candidatei
 _CHIPS = {
@@ -106,6 +116,12 @@ class Filtros:
     encaixe: str | None = None  # bom, medio, fraco
     publicada: str | None = None  # chave de PUBLICADA; outra não filtra
     pais: str | None = None
+    sal_de_brl: int | None = None  # reais inteiros por mês
+    sal_ate_brl: int | None = None
+    sal_moeda: str | None = None  # com ela, o modo "na moeda" (conversão desligada)
+    sal_de_centavos: int | None = None
+    sal_ate_centavos: int | None = None
+    sem_salario: bool = False
     ordem: str = "encaixe"  # chave de ORDENS; outra cai em "encaixe"
     pagina: int = 1
 
@@ -252,6 +268,35 @@ def _hoje(agora: datetime) -> str:
     return agora.astimezone().date().isoformat()
 
 
+def _salario(f: Filtros) -> tuple[str, dict[str, int | str]]:
+    """Condição do filtro de salário, sobreposição de faixas. Os dois modos guardam
+    `sal_plausivel` e só leem inteiros; sem limite nenhum, não filtra."""
+    if f.sal_moeda:
+        de, ate = f.sal_de_centavos, f.sal_ate_centavos
+        nome_de, nome_ate = "sal_de_centavos", "sal_ate_centavos"
+        partes = ["v.sal_plausivel IS NOT 0", "v.sal_moeda = :sal_moeda"]
+        alto = f"COALESCE({_MAXIMO_MENSAL}, v.sal_mensal_min)"
+        baixo = f"COALESCE(v.sal_mensal_min, {_MAXIMO_MENSAL})"
+        params: dict[str, int | str] = {"sal_moeda": f.sal_moeda}
+    else:
+        de, ate = f.sal_de_brl, f.sal_ate_brl
+        nome_de, nome_ate = "sal_de_brl", "sal_ate_brl"
+        partes = ["v.sal_plausivel IS NOT 0"]
+        alto = "COALESCE(v.sal_mensal_max_brl, v.sal_mensal_min_brl)"
+        baixo = "COALESCE(v.sal_mensal_min_brl, v.sal_mensal_max_brl)"
+        params = {}
+    if de is None and ate is None:
+        return "", {}
+    if de is not None:
+        partes.append(f"{alto} >= :{nome_de}")
+        params[nome_de] = de
+    if ate is not None:
+        partes.append(f"{baixo} <= :{nome_ate}")
+        params[nome_ate] = ate
+    condicao = " AND ".join(partes)
+    return (f"({condicao}) OR {_SEM_SALARIO}" if f.sem_salario else condicao), params
+
+
 def _onde(
     con: sqlite3.Connection, f: Filtros, agora: datetime, sem: str | None = None
 ) -> tuple[str, dict[str, Any]]:
@@ -267,10 +312,17 @@ def _onde(
         if valor and nome != sem:
             partes.append(condicao)
             params[nome] = valor
-    if f.publicada in PUBLICADA and sem != "publicada":
+    dias = PUBLICADA.get(f.publicada or "")
+    if dias is not None and sem != "publicada":
         partes.append(_PUBLICADA.format(dias="dias"))
-        params["dias"] = PUBLICADA[f.publicada]
-    for texto, params_texto in (_busca(con, f.q), _excluir(con, f.excluir)):
+        params["dias"] = dias
+    textos: list[tuple[str, Mapping[str, Any]]] = [
+        _busca(con, f.q),
+        _excluir(con, f.excluir),
+    ]
+    if sem != "salario":
+        textos.append(_salario(f))
+    for texto, params_texto in textos:
         if texto:
             partes.append(texto)
             params |= params_texto
@@ -344,6 +396,27 @@ def contar_chips(
     linha = con.execute(f"SELECT {soma} FROM {_DE} WHERE {onde}", params).fetchone()
     contagens["publicada"] = dict(zip(PUBLICADA, linha, strict=True))
     return contagens
+
+
+def contar_fora_do_salario(con: sqlite3.Connection, f: Filtros, agora: datetime) -> tuple[int, int]:
+    """Vagas que o filtro de salário esconde, com os outros filtros ligados: (sem salário, com
+    salário e sem valor convertido). Sem filtro de salário, `(0, 0)`."""
+    if not _salario(f)[0]:
+        return 0, 0
+    _preparar(con)
+    onde, params = _onde(con, f, agora, sem="salario")
+    sem = 0
+    if not f.sem_salario:  # com "mostrar também" ligado, elas já estão na lista
+        sql = f"SELECT COUNT(*) FROM {_DE} WHERE {onde} AND {_SEM_SALARIO}"
+        sem = con.execute(sql, params).fetchone()[0]
+    sem_valor = 0
+    if not f.sal_moeda:  # na moeda, o aviso do modo já explica as outras moedas
+        sql = (
+            f"SELECT COUNT(*) FROM {_DE} WHERE {onde} AND COALESCE({_SEM_SALARIO}, 0) = 0"
+            " AND v.sal_mensal_min_brl IS NULL AND v.sal_mensal_max_brl IS NULL"
+        )
+        sem_valor = con.execute(sql, params).fetchone()[0]
+    return sem, sem_valor
 
 
 def contar_abas(
