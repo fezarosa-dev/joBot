@@ -62,21 +62,9 @@
     </div>
   </details>
 </form>
-{% if grupos %}
-<div class="filtros" role="group" aria-label="{{ t('vagas.filtros') }}">
-  {%- for grupo in grupos %}
-  <div class="grupo" role="group" aria-labelledby="grupo-{{ grupo.nome }}">
-    <span class="grupo-titulo" id="grupo-{{ grupo.nome }}">{{ t("vagas.chip." ~ grupo.nome) }}</span>
-    {%- for chip in grupo.chips %}
-    {%- set texto = chip.texto or (rotulo(chip.chave, chip.valor) if chip.chave else chip.valor) %}
-    {%- if grupo.interativo %}
-    <button type="button" id="chip-{{ grupo.nome }}-{{ chip.id }}" class="chip{% if chip.n == 0 %} chip-vazio{% endif %}" aria-pressed="{{ 'true' if chip.pressionado else 'false' }}" data-contagem="{{ chip.n }}" hx-get="{{ chip.url }}" hx-target="#vagas-miolo" hx-swap="innerHTML" hx-push-url="true">{{ texto }} <span class="contagem">{{ chip.n }}</span></button>
-    {%- else %}
-    <span class="chip chip-info" data-contagem="{{ chip.n }}">{{ texto }} <span class="contagem">{{ chip.n }}</span></span>
-    {%- endif %}
-    {%- endfor %}
-  </div>
-  {%- endfor %}
+{% if chips_url %}
+<div id="filtros-chips" class="filtros" role="group" aria-label="{{ t('vagas.filtros') }}" aria-busy="true" hx-get="{{ chips_url }}" hx-trigger="load" hx-swap="outerHTML">
+  <span class="grupo-titulo" data-espera>{{ t("vagas.filtros_carregando") }}</span>
 </div>
 {% endif %}
 {% if aviso_salario or fora_sem_salario or fora_sem_valor %}

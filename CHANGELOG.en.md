@@ -8,6 +8,14 @@ The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-11-15
+
+### Changed
+
+- The job list opens without waiting for the filter counts: the chips arrive right after the list. Without JavaScript the chips do not appear.
+- The source chip is faster on large databases, thanks to a new index (migration 0006).
+- The "Saved." notice disappears by itself after 5 seconds on every Settings screen and does not come back when you refresh the page.
+
 ## [0.2.0] - 2026-11-15
 
 ### Added

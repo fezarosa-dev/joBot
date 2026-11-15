@@ -31,7 +31,7 @@ It gathers, filters and organizes jobs from many sites into a nice dashboard tha
 </div>
 
 > [!IMPORTANT]
-> **joBot phase 1 (the foundation) is done: version 0.2.0.** It searches public sources for jobs, keeps everything on your computer and shows it in a dashboard. You can already [install and use it](#requirements-and-installation).
+> **joBot phase 1 (the foundation) is done: version 0.2.1.** It searches public sources for jobs, keeps everything on your computer and shows it in a dashboard. You can already [install and use it](#requirements-and-installation).
 > The rest (sites with login, AI, browser extension, Gmail and audio) is still a plan. See the [roadmap](#roadmap). Before you turn on the sources, read the [usage and terms notices](#license-and-notices).
 
 ## 📑 Contents
@@ -345,7 +345,7 @@ Details in [ADR 0010](docs/decisions/0010-claude-code-da-pessoa.md) (in Portugue
 <a id="requirements-and-installation"></a>
 ## 📦 Requirements and installation
 
-> This is the phase 1 installation (version 0.2.0): you download the code and run it with uv. The one-command installer only arrives in phase 8.
+> This is the phase 1 installation (version 0.2.1): you download the code and run it with uv. The one-command installer only arrives in phase 8.
 
 ### Requirements
 

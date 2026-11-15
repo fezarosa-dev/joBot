@@ -1,4 +1,4 @@
-"""Os filtros da 0.2.0 usam os índices da migração 0005 (T162, T170).
+"""Os filtros da 0.2.0 usam os índices das migrações 0005 e 0006 (T162, T170, T192).
 
 Confere o plano do SQLite (`EXPLAIN QUERY PLAN`) da consulta que `listar` executa. Não mede
 tempo: tempo é instável no CI; quem mede é `scripts/medir_filtros.py`.
@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 
 from apoio.semear import AGORA, inserir_vaga
-from jobot.banco.leitura import Filtros, sql_de_listar
+from jobot.banco.leitura import Filtros, contar_chips, sql_de_listar
 from jobot.banco.migrar import migrar
 
 _UFS = ("SP", "RJ", "MG", "PR", "RS")
@@ -79,3 +79,22 @@ def test_plano_publicada_usa_o_indice_da_data(con: sqlite3.Connection) -> None:
 def test_plano_salario_usa_indice(con: sqlite3.Connection, filtros: Filtros) -> None:
     plano = _plano(con, filtros)
     assert "vaga_sal_baixo_brl" in plano or "vaga_sal_alto_brl" in plano
+
+
+def _plano_do_chip_de_fonte(con: sqlite3.Connection) -> str:
+    """O plano da consulta do chip de fonte, tirada do que `contar_chips` executa de verdade."""
+    vistas: list[str] = []
+    con.set_trace_callback(vistas.append)  # o SQL já vem com os parâmetros no lugar
+    try:
+        contar_chips(con, Filtros(), AGORA)
+    finally:
+        con.set_trace_callback(None)
+    sql = next(s for s in vistas if "JOIN ocorrencia" in s and "GROUP BY" in s)
+    return "\n".join(str(linha[3]) for linha in con.execute(f"EXPLAIN QUERY PLAN {sql}"))
+
+
+def test_plano_chip_de_fonte_usa_o_indice(con: sqlite3.Connection) -> None:
+    # o SQLite do CI é mais velho: compara com o plano sem o índice, nunca o texto do nó
+    assert "ocorrencia_fonte_vaga" in _plano_do_chip_de_fonte(con)
+    con.execute("DROP INDEX ocorrencia_fonte_vaga")  # prova por mutação
+    assert "ocorrencia_fonte_vaga" not in _plano_do_chip_de_fonte(con)

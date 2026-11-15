@@ -25,7 +25,7 @@ from jobot.nucleo.destaques import Candidata, destaques
 from jobot.nucleo.relogio import Relogio, RelogioReal
 from jobot.nucleo.tratamento.locais import codigos_de_pais, nome_do_pais, nome_em_ingles
 from jobot.painel.moeda import Exibicao, FiltroSalario, exibicao_do_painel, filtro_salario
-from jobot.painel.seguranca import Con, de_volta, idioma_do_pedido, renderizar
+from jobot.painel.seguranca import Con, de_volta, renderizar
 
 router = APIRouter()
 
@@ -158,6 +158,7 @@ class Estado:
         aba: str | None = None,
         chips: Mapping[str, str] | None = None,
         extras: Sequence[tuple[str, str]] = (),
+        caminho: str = "/vagas",
     ) -> str:
         """O endereço desta vista, com a aba primeiro; `chips` troca os filtros de chip."""
         escolhidos = self.chips if chips is None else chips
@@ -173,7 +174,7 @@ class Estado:
         pares += [(g, escolhidos[g]) for g in CHIPS if g in escolhidos]
         if self.ordem_url:
             pares.append(("ordem", self.ordem))
-        return "/vagas?" + urlencode(pares + list(extras))
+        return f"{caminho}?" + urlencode(pares + list(extras))
 
 
 def _chip_valido(grupo: str, valor: str) -> bool:
@@ -185,7 +186,7 @@ def _chip_valido(grupo: str, valor: str) -> bool:
     return True
 
 
-def _ler_estado(params: QueryParams, con: sqlite3.Connection, ex: Exibicao) -> Estado:
+def ler_estado(params: QueryParams, con: sqlite3.Connection, ex: Exibicao) -> Estado:
     ligados = bool(_config(con, "destaques_ligados", True))
     validas = {*leitura.ABAS, *([ABA_DESTAQUES] if ligados else [])}
     pedida_aba = params.get("aba") or ""
@@ -300,7 +301,7 @@ def _nome_do_pais(codigo: str, idioma: str) -> str:
     return nome(codigo) or codigo
 
 
-def _grupos(
+def grupos_dos_chips(
     con: sqlite3.Connection, estado: Estado, agora: datetime, idioma: str
 ) -> list[dict[str, Any]]:
     """Os chips com contagem. Motivo (Ocultas) e situação (Candidatei) só contam: sem filtro."""
@@ -365,7 +366,7 @@ def _paginas_programas(con: sqlite3.Connection) -> list[dict[str, Any]]:
 
 
 def _contexto_pagina(
-    con: sqlite3.Connection, estado: Estado, agora: datetime, idioma: str, ex: Exibicao
+    con: sqlite3.Connection, estado: Estado, agora: datetime, ex: Exibicao
 ) -> dict[str, Any]:
     ids_destaques = _ids_destaques(con, estado.busca_id, agora) if estado.destaques_ligados else []
     contagens = leitura.contar_abas(con, estado.busca_id, agora)
@@ -381,7 +382,6 @@ def _contexto_pagina(
     ]
     itens: Sequence[Item]
     mais_url = None
-    grupos: list[dict[str, Any]] = []
     fora_sem_salario = fora_sem_valor = 0
     if estado.e_destaques:
         achados = [leitura.detalhe(con, i, estado.busca_id, agora) for i in ids_destaques]
@@ -392,7 +392,6 @@ def _contexto_pagina(
         pagina = leitura.listar(con, estado.filtros(), agora)
         itens = pagina.itens
         fontes = _fontes(con, [i.id for i in itens])
-        grupos = _grupos(con, estado, agora, idioma)
         fora_sem_salario, fora_sem_valor = leitura.contar_fora_do_salario(
             con, estado.filtros(), agora
         )
@@ -402,7 +401,7 @@ def _contexto_pagina(
         "paginas_programas": _paginas_programas(con) if estado.aba == "programas" else [],
         "abas": abas,
         "seletor": _seletor(con, estado),
-        "grupos": grupos,
+        "chips_url": None if estado.e_destaques else estado.url(caminho="/vagas/chips"),
         "itens": itens,
         "fontes": fontes,
         "mais_url": mais_url,
@@ -439,7 +438,7 @@ def _contexto_pagina(
     }
 
 
-def _vary(resposta: HTMLResponse) -> HTMLResponse:
+def com_vary(resposta: HTMLResponse) -> HTMLResponse:
     resposta.headers["Vary"] = "HX-Request, HX-History-Restore-Request"
     return resposta
 
@@ -456,7 +455,7 @@ async def raiz(con: Con) -> RedirectResponse:
 async def vagas(request: Request, con: Con) -> HTMLResponse:
     agora = relogio_do_painel(request).agora()
     ex = exibicao_do_painel(con, agora.astimezone().date())
-    estado = _ler_estado(request.query_params, con, ex)
+    estado = ler_estado(request.query_params, con, ex)
     cabecalho = request.headers
     restaurando = cabecalho.get("hx-history-restore-request") == "true"
     parcial = cabecalho.get("hx-request") == "true" and not restaurando
@@ -465,7 +464,7 @@ async def vagas(request: Request, con: Con) -> HTMLResponse:
         # "carregar mais": só os cartões novos e o botão da página seguinte
         lista = leitura.listar(con, estado.filtros(pagina), agora)
         seguinte = estado.url(extras=[("pagina", str(pagina + 1))])
-        return _vary(
+        return com_vary(
             renderizar(
                 request,
                 "vagas/mais.html",
@@ -479,9 +478,9 @@ async def vagas(request: Request, con: Con) -> HTMLResponse:
                 busca_id=estado.busca_id,
             )
         )
-    contexto = _contexto_pagina(con, estado, agora, idioma_do_pedido(request), ex)
+    contexto = _contexto_pagina(con, estado, agora, ex)
     modelo = "vagas/miolo.html" if parcial else "vagas/pagina.html"
-    return _vary(renderizar(request, modelo, **contexto))
+    return com_vary(renderizar(request, modelo, **contexto))
 
 
 def _aplicar(request: Request, acao: Callable[[datetime], None]) -> None:
