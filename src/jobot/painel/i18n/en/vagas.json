@@ -21,6 +21,7 @@
   "vagas.ordem.salario": "Highest salary",
   "vagas.ordem.empresa": "Company (A to Z)",
   "vagas.filtros": "Filters",
+  "vagas.filtros_carregando": "Loading filters…",
   "vagas.chip.area": "Field",
   "vagas.chip.nivel": "Level",
   "vagas.chip.modalidade": "Work mode",

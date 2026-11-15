@@ -24,6 +24,36 @@
     foco.focus();
   });
 
+  // chips de filtro (T191): chegam num segundo pedido, depois da lista. O clique troca o miolo e o
+  // chip focado some do DOM; o HTMX só devolve o foco a quem existe na troca. Guardo o id do chip
+  // focado e, quando o fragmento dos chips chega (o de espera tem aria-busy), devolvo o foco a ele.
+  let chipFocado = null;
+  document.addEventListener("htmx:beforeRequest", (evento) => {
+    const no = evento.detail.elt;
+    if (no?.matches?.("button.chip[id]") && document.activeElement === no) chipFocado = no.id;
+  });
+  document.addEventListener("htmx:afterRequest", (evento) => {
+    if (!evento.detail.successful && evento.detail.elt?.id === chipFocado) chipFocado = null;
+  });
+  document.addEventListener("htmx:afterSwap", (evento) => {
+    const no = evento.target;
+    if (!chipFocado || no?.id !== "filtros-chips" || no.getAttribute("aria-busy") === "true") return;
+    const chip = document.getElementById(chipFocado);
+    chipFocado = null;
+    if (chip && document.activeElement === document.body) chip.focus();
+  });
+
+  // se o pedido dos chips falhar, o contêiner de espera não fica ocupado para sempre: o aviso global
+  // de erro (mais abaixo) já fala do erro; aqui só sai o aria-busy e o texto de espera
+  const chipsFalhou = (evento) => {
+    const no = evento.detail.elt;
+    if (no?.id !== "filtros-chips" || no.getAttribute("aria-busy") !== "true") return;
+    no.removeAttribute("aria-busy");
+    no.querySelector("[data-espera]")?.setAttribute("hidden", "");
+  };
+  document.addEventListener("htmx:responseError", chipsFalhou);
+  document.addEventListener("htmx:sendError", chipsFalhou);
+
   // mensagem passageira (ex.: "Salvo." da aba Serviços): o [data-some-sozinho] que chegou numa troca,
   // inclusive numa troca fora de banda (OOB), some 2 s depois; o nó em volta continua no lugar
   const agendados = new WeakSet();
