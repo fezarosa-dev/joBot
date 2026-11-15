@@ -4,11 +4,15 @@ O fixture `laco_versao_parado` (T85, T104) é pedido só pelas suítes que sobem
 """
 
 import asyncio
+import os
 import socket
 from collections.abc import Iterator
 from typing import Any
 
 import pytest
+
+# antes de qualquer import do jobot: os testes nunca tocam o cofre de senhas real (T180)
+os.environ["PYTHON_KEYRING_BACKEND"] = "keyring.backends.fail.Keyring"
 
 _LOCAIS = {"127.0.0.1", "::1"}
 

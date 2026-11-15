@@ -18,6 +18,7 @@
 | 🗄️ **SQLite** | The database. | A single file that stays on your computer. No database server to install. |
 | 🌐 **httpx** (0.28.1) | Request the pages and APIs of the job sources. | It is joBot's only HTTP client, where polite collection lives (identification and a pause between requests). |
 | 🔍 **selectolax** (1.0.2) | Read the HTML of job pages. | Separate the job data from the rest of the page. |
+| 🔐 **keyring** (25.7.0) | Keep the 2Captcha key in the system password vault. | The key is not left in a plain file; without a vault, it goes to a file only you can read (ADR 0014). |
 | 🎭 **Playwright** (1.65.1) | Control a browser. | Opens a visible Chrome so you can log in and solve CAPTCHAs (phase 2). It also runs the screen tests. |
 
 ## ✅ Quality
