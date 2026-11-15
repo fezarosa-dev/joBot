@@ -15,5 +15,9 @@
   "casca.menu.empresas": "Empresas",
   "casca.menu.sugeridas": "Sugeridas",
   "casca.menu.sites": "Sites",
-  "casca.menu.configuracoes": "Configurações"
+  "casca.menu.configuracoes": "Configurações",
+  "casca.erro.4xx": "Não deu para fazer isso. Recarregue a página e tente de novo.",
+  "casca.erro.5xx": "Algo deu errado no joBot. Tente de novo; se repetir, veja o arquivo de log do joBot.",
+  "casca.erro.rede": "O joBot não respondeu. Ele pode ter sido fechado: abra de novo com jobot abrir (ou pelo atalho do menu).",
+  "casca.erro.fechar": "Fechar aviso"
 }
