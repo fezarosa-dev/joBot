@@ -1,0 +1,14 @@
+{
+  "erro.inicio": "Voltar ao início",
+  "erro.nao_existe.titulo": "Não encontrado",
+  "erro.nao_existe.texto": "A página ou o item não existe (talvez tenha sido removido). Volte ao início.",
+  "erro.desatualizada.titulo": "Página desatualizada",
+  "erro.invalido.titulo": "Valor inválido",
+  "erro.invalido.texto": "Algum valor enviado não é válido. Volte e confira os campos.",
+  "erro.outro.titulo": "Não deu certo",
+  "erro.outro.texto": "Não deu para fazer isso. Recarregue a página e tente de novo.",
+  "erro.indisponivel.titulo": "O joBot não está pronto",
+  "erro.indisponivel.texto": "O joBot não está pronto para isso agora. Feche e abra de novo com jobot abrir.",
+  "erro.interno.titulo": "Algo deu errado",
+  "erro.interno.texto": "Algo deu errado do lado do joBot. O erro foi anotado em {log}. Tente de novo e, se repetir, abra uma issue com esse arquivo."
+}
