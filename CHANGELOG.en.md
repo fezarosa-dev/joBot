@@ -8,6 +8,28 @@ The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-11-15
+
+Clearer errors and fewer surprises. Nothing changes in what joBot searches.
+
+### Added
+
+- A notice on screen when a click fails or the dashboard does not respond. It does not keep trying after the dashboard is closed.
+- The screen and `jobot buscar` say why the search stopped.
+- A hint in the searches screen: write the variations of a job title, one per line.
+
+### Changed
+
+- The new-version notice now comes on by default. Anyone who already chose keeps the choice.
+- Ctrl+C in the terminal exits with code 130.
+- The systemctl output goes only to `jobot.log`, not to the screen.
+
+### Fixed
+
+- An error in the dashboard shows a friendly page, instead of the bare 500 error. The 404 and 422 errors also get a message.
+- Step 2 of the first run no longer gets stuck: if the background service fails, it finishes with a notice.
+- The terminal no longer shows a traceback: the technical error goes to `jobot.log`.
+
 ## [0.1.0] - 2026-11-14
 
 Phase 1: the foundation of joBot. You can already install and use it.
