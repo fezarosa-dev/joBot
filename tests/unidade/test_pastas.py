@@ -43,6 +43,37 @@ def test_permissoes(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     assert caplog.records == []
 
 
+def test_preparar_pasta_nao_desce_em_navegador(tmp_path: Path) -> None:
+    pasta = tmp_path / "jobot"
+    (pasta / "navegador" / "Default").mkdir(parents=True)
+    (pasta / "outra").mkdir()
+    cookies = pasta / "navegador" / "Default" / "Cookies"
+    cookies.write_text("x")
+    cookies.chmod(0o644)
+    (pasta / "navegador").chmod(0o755)
+    controle = pasta / "outra" / "a.txt"
+    controle.write_text("x")
+    controle.chmod(0o644)
+    preparar_pasta(pasta)
+    assert _modo(cookies) == 0o644
+    assert _modo(pasta / "navegador") == 0o700
+    assert _modo(controle) == 0o600
+
+
+def test_preparar_pasta_nao_segue_navegador_symlink(tmp_path: Path) -> None:
+    alvo = tmp_path / "fora"
+    alvo.mkdir()
+    (alvo / "Cookies").write_text("x")
+    (alvo / "Cookies").chmod(0o644)
+    alvo.chmod(0o755)
+    pasta = tmp_path / "jobot"
+    pasta.mkdir()
+    (pasta / "navegador").symlink_to(alvo, target_is_directory=True)
+    preparar_pasta(pasta)
+    assert _modo(alvo) == 0o755
+    assert _modo(alvo / "Cookies") == 0o644
+
+
 def test_pasta_nova_nasce_fechada(tmp_path: Path) -> None:
     pasta = tmp_path / "a" / "jobot"
     preparar_pasta(pasta)
