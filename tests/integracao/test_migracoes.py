@@ -268,9 +268,10 @@ def test_banco_mais_novo_recusa_sem_tocar(tmp_path: Path) -> None:
     antes = caminho.read_bytes()
 
     con = abrir(caminho)
-    with pytest.raises(BancoMaisNovo):
+    with pytest.raises(BancoMaisNovo) as erro:
         migrar(con, caminho)
     con.close()
 
+    assert "jobot atualizar" in str(erro.value)
     assert caminho.read_bytes() == antes
     assert list(tmp_path.glob("jobot.db.antes-v*")) == []

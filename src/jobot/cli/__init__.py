@@ -9,6 +9,7 @@ import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 
+from jobot.banco.migrar import BancoMaisNovo
 from jobot.sistema.pastas import configurar_log, pasta_de_dados
 
 COMANDOS: Mapping[str, str] = {
@@ -48,6 +49,12 @@ def mensagem_do_banco(onde: str = "") -> str:
     )
 
 
+def interrompido() -> int:
+    """Ctrl+C: a linha curta e o código 130 de quem morre por SIGINT."""
+    print("Interrompido.", file=sys.stderr)
+    return 130
+
+
 def _falhou(erro: Exception) -> int:
     """Traceback só no log (D106); no terminal, a frase curta com o caminho do log (T154)."""
     try:
@@ -58,6 +65,8 @@ def _falhou(erro: Exception) -> int:
         onde = ""
     if isinstance(erro, sqlite3.Error):
         print(mensagem_do_banco(onde), file=sys.stderr)
+    elif isinstance(erro, BancoMaisNovo):  # a frase diz o que fazer; o traceback ficou no log
+        print(f"jobot: {erro}", file=sys.stderr)
     else:
         extra = " Se repetir, abra uma issue com esse arquivo." if onde else ""
         print(f"O joBot encontrou um erro e parou.{onde}{extra}", file=sys.stderr)
@@ -75,7 +84,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         modulo = importlib.import_module(COMANDOS[args.comando])
         return int(modulo.executar(args))
     except KeyboardInterrupt:
-        print("Interrompido.", file=sys.stderr)
-        return 130
+        return interrompido()
     except Exception as erro:  # noqa: BLE001 - nenhum erro trava sem dizer onde está o log
         return _falhou(erro)

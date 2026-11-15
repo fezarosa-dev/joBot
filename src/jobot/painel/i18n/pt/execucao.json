@@ -17,5 +17,6 @@
   "execucao.parada.banco": "Houve um problema no banco de dados (pode ser disco cheio).",
   "execucao.parada.erro": "Houve um erro inesperado; os detalhes estão no arquivo de log do joBot (logs/jobot.log).",
   "execucao.parada.novas": "Vagas novas: {n}.",
-  "execucao.parada.tentar": "Clique em Buscar agora para tentar de novo."
+  "execucao.parada.tentar": "Clique em Buscar agora para tentar de novo.",
+  "execucao.parada.tentar_cli": "Rode jobot buscar de novo para tentar outra vez."
 }

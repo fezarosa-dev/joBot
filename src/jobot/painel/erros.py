@@ -73,7 +73,7 @@ def _responder(request: Request, status: int, cabecalhos: Mapping[str, str] | No
             request, "erro/pagina.html", contexto, status_code=status, headers=cabecalhos
         )
     except Exception:
-        _LOG.exception("a casca da página de erro falhou em %s", request.url.path)
+        _LOG.exception("a casca da página de erro falhou em %r", request.url.path)
         inicio = t(idioma, "erro.inicio")
         return HTMLResponse(
             _minima(idioma, tema, titulo, texto, inicio), status_code=status, headers=cabecalhos
@@ -91,7 +91,7 @@ def registrar(app: FastAPI, cabecalhos_de_seguranca: Mapping[str, str]) -> None:
         return _responder(request, 422, None)
 
     async def interno(request: Request, exc: Exception) -> Response:
-        _LOG.exception("erro em %s %s", request.method, request.url.path, exc_info=exc)
+        _LOG.exception("erro em %s %r", request.method, request.url.path, exc_info=exc)
         resposta = _responder(request, 500, None)
         resposta.headers.update(cabecalhos_de_seguranca)
         return resposta
