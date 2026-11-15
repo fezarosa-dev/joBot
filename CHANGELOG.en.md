@@ -8,6 +8,8 @@ The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-11-15
+
 ### Changed
 
 - The job list opens without waiting for the filter counts: the chips arrive right after the list. Without JavaScript the chips do not appear.

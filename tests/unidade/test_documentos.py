@@ -189,7 +189,7 @@ def test_changelog_tem_as_mesmas_secoes_nas_duas_linguas() -> None:
 
 def test_changelog_traz_a_versao_do_pacote() -> None:
     projeto = tomllib.loads(texto("pyproject.toml"))["project"]["version"]
-    assert projeto == __version__ == "0.2.0"
+    assert projeto == __version__ == "0.2.1"
     for caminho in CHANGELOG.values():
         conteudo = texto(caminho)
         for versao in (projeto, "0.1.0"):
@@ -472,33 +472,38 @@ CITA_0_2_0 = {
 }
 
 
+V0_2_1 = "## [0.2.1] - 2026-11-15"
+# termos que só os três itens da 0.2.1 têm: os chips, o índice 0006 e o "Salvo." em 5 s
+CITA_0_2_1 = {"pt": ("chips", "0006", "5 segundos"), "en": ("chips", "0006", "5 seconds")}
+
+
 @pytest.mark.parametrize("lingua", LINGUAS)
-def test_changelog_fecha_a_0_2_0(lingua: str) -> None:
-    """A 0.2.0 vem logo abaixo de "Não lançado"."""
+def test_changelog_fecha_a_0_2_1(lingua: str) -> None:
+    """A 0.2.1 vem logo abaixo de "Não lançado", que fica sem itens."""
     conteudo = texto(CHANGELOG[lingua])
+    assert NAO_LANCADO[lingua] in conteudo, CHANGELOG[lingua]
     inicio = conteudo.index(NAO_LANCADO[lingua])
     fim = conteudo.index("\n## [", inicio + 1)
-    assert conteudo[fim + 1 :].startswith(V0_2_0), CHANGELOG[lingua]
-
-
-# termos que só os três itens de "Não lançado" têm: os chips, o índice 0006 e o "Salvo." em 5 s
-CITA_NAO_LANCADO = {"pt": ("chips", "0006", "5 segundos"), "en": ("chips", "0006", "5 seconds")}
+    assert "\n- " not in conteudo[inicio:fim], f"{CHANGELOG[lingua]}: Não lançado não fica vazio"
+    assert conteudo[fim + 1 :].startswith(V0_2_1), CHANGELOG[lingua]
 
 
 @pytest.mark.parametrize("lingua", LINGUAS)
-def test_changelog_nao_lancado_traz_os_tres_itens_da_0_2_1(lingua: str) -> None:
-    """A seção "Não lançado" diz o que muda na 0.2.1: os chips, o índice da fonte e o aviso."""
+def test_changelog_traz_os_tres_itens_da_0_2_1(lingua: str) -> None:
+    """A seção da 0.2.1 diz o que mudou: os chips, o índice da fonte e o aviso."""
     conteudo = texto(CHANGELOG[lingua])
-    inicio = conteudo.index(NAO_LANCADO[lingua])
-    secao_nova = conteudo[inicio : conteudo.index("\n## [", inicio + 1)]
-    for termo in CITA_NAO_LANCADO[lingua]:
-        assert termo in secao_nova, (CHANGELOG[lingua], termo)
+    assert V0_2_1 in conteudo, CHANGELOG[lingua]
+    inicio = conteudo.index(V0_2_1)
+    secao_0_2_1 = conteudo[inicio : conteudo.index("\n## [", inicio + 1)]
+    for termo in CITA_0_2_1[lingua]:
+        assert termo in secao_0_2_1, (CHANGELOG[lingua], termo)
 
 
 @pytest.mark.parametrize("lingua", LINGUAS)
 def test_changelog_traz_os_filtros_da_0_2_0(lingua: str) -> None:
     """A seção da 0.2.0 cita o país e a moeda; o resto do arquivo não vale."""
     conteudo = texto(CHANGELOG[lingua])
+    assert V0_2_0 in conteudo, CHANGELOG[lingua]
     inicio = conteudo.index(V0_2_0)
     fim = conteudo.index("\n## [", inicio + 1)
     secao_0_2_0 = conteudo[inicio:fim]
@@ -534,8 +539,8 @@ def test_rede_fala_da_cotacao_das_moedas(lingua: str) -> None:
 FASE_1_CONCLUIDA = {
     ".github/CONTRIBUTING.md": r"fase 1 \(base\) está concluída",
     ".github/CONTRIBUTING.en.md": r"Phase 1 \(foundation\) is complete",
-    ".github/SECURITY.md": r"(?i)só a versão mais recente \(hoje a 0\.2\.0\)",
-    ".github/SECURITY.en.md": r"(?i)only the latest version \(currently 0\.2\.0\)",
+    ".github/SECURITY.md": r"(?i)só a versão mais recente \(hoje a 0\.2\.1\)",
+    ".github/SECURITY.en.md": r"(?i)only the latest version \(currently 0\.2\.1\)",
     ".github/SUPPORT.md": r"formulário de bug",
     ".github/SUPPORT.en.md": r"bug form",
     "docs/decisions/0017-fases.md": r"fase 1 está concluída",
