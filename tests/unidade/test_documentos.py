@@ -301,9 +301,10 @@ def test_sem_caminho_de_gabarito_nem_dado_pessoal_nem_autoria_de_ia(arquivo: str
 def test_changelog_cita_as_adrs_que_existem(lingua: str) -> None:
     adrs = (RAIZ / "docs/decisions").glob("[0-9][0-9][0-9][0-9]-*.md")
     ultima = max(int(p.name[:4]) for p in adrs)
-    citada = re.search(r"ADRs 0001 \w+ (\d{4})", texto(CHANGELOG[lingua]))
-    assert citada is not None, f"{CHANGELOG[lingua]}: a 0.1.0 cita as ADRs"
-    assert int(citada.group(1)) == ultima
+    conteudo = texto(CHANGELOG[lingua])
+    assert re.search(r"ADRs 0001 \w+ \d{4}", conteudo), f"{CHANGELOG[lingua]}: a 0.1.0 cita as ADRs"
+    citadas = [int(n) for n in re.findall(r"ADRs? (?:0001 \w+ )?(\d{4})", conteudo)]
+    assert max(citadas) == ultima
 
 
 @pytest.mark.parametrize("lingua", LINGUAS)
