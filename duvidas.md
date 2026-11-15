@@ -2,7 +2,7 @@
 
 Decisões que dependem do dono do projeto. As resolvidas ficam registradas aqui, com a data.
 
-Status usados: **resolvida** (o dono decidiu ou aceitou a decisão da sessão, com a data); **decidido pelo dono** e **decisão aceita** (variantes de resolvida, com a data); **superada por Dn** (outra decisão tomou o lugar dela). Textos antigos que dizem "para confirmar" são o registro de quando a decisão ainda estava com a sessão: o dono aceitou todas em 2026-11-15 (Q7), e a decisão final de cada uma está no Status do início dela.
+Status usados: **resolvida** (o dono decidiu ou aceitou a decisão da sessão, com a data); **decidido pelo dono** e **decisão aceita** (variantes de resolvida, com a data); **superada por Dn** (outra decisão tomou o lugar dela); **decidido pela sessão, para confirmar** (a sessão decidiu com o dono ausente: ele confirma ou manda desfazer). Textos antigos que dizem "para confirmar" (D11 a D76) são o registro de quando a decisão ainda estava com a sessão: o dono aceitou todas em 2026-11-15 (Q7), e a decisão final de cada uma está no Status do início dela. Só as D110 em diante ainda esperam o dono.
 
 ## D1. Manter a opção "sessão do Claude Code"
 
@@ -1585,3 +1585,83 @@ A meta de 90% só foi batida em UF. Ela não trava a fase 1.
 **Contexto:** o encaixe compara a palavra exata, sem sinônimos; comparar pelo sentido só chega na fase 3.
 
 **Decisão:** na tela de buscas, uma dica em pt e en: coloque variações, uma por linha (ex.: infraestrutura, servidores, sysadmin). Feita na versão 0.1.1.
+
+## D110. Ctrl+C sai com 130 em todos os comandos (T154, T158)
+
+**Status:** decidido pela sessão em 2026-11-15, para confirmar
+
+**Contexto:** a T153 recomendou sair com 1 quando o `jobot buscar` é interrompido por Ctrl+C. A T154 faz o `main` sair com 130 e a frase "Interrompido." nos outros comandos. Dois códigos para o mesmo gesto confundem quem usa o terminal em script.
+
+**Decisão:** todo comando sai com 130 no Ctrl+C, inclusive o `buscar`; os outros erros seguem com 1, e o motivo da parada continua gravado no banco. Vale a consistência com a T154. Desfazer: voltar o `buscar` a 1 (uma linha e um teste).
+
+## D111. Frase do terminal separada da tela (T153, T158)
+
+**Status:** decidido pela sessão em 2026-11-15, para confirmar
+
+**Contexto:** a frase de motivo da parada reaproveitava a chave da tela, que termina com "Clique em Buscar agora para tentar de novo". No terminal não há botão.
+
+**Decisão:** o terminal ganha a chave `execucao.parada.tentar_cli` ("Rode jobot buscar de novo para tentar outra vez." / "Run jobot buscar again to try once more."); a tela fica com a dela.
+
+## D112. CLI só em português, sem escolha de língua (T153, T154, T158)
+
+**Status:** decidido pela sessão em 2026-11-15, para confirmar
+
+**Contexto:** o painel tem pt e en, e as mensagens novas do terminal (parada da busca, erro do banco, "Interrompido.") saem em português fixo, como o resto da CLI e como a D100 já decidiu para o `jobot abrir`.
+
+**Decisão:** a CLI continua só em português nesta versão, sem opção de língua. Quem quiser em inglês abre uma tarefa própria (idioma do painel guardado em `config`, lido pela CLI).
+
+## D113. Aviso de erro também nos pedidos de carga, sem insistir (T151, T159)
+
+**Status:** decidido pela sessão em 2026-11-15, para confirmar
+
+**Contexto:** pedidos que a página faz sozinha (`hx-get` em `load` e o polling da tela de andamento) também podem falhar, e com o servidor fechado o aviso reabriria a cada tentativa.
+
+**Decisão:** todo erro aparece, inclusive o dos pedidos de carga; depois que a pessoa fecha, o mesmo aviso (mesmo texto) não reabre até um pedido HTMX dar certo, e um aviso de texto diferente abre normalmente.
+
+## D114. Saída do `systemctl` e `str(exceção)` só no log (T152, T159)
+
+**Status:** decidido pela sessão em 2026-11-15, para confirmar
+
+**Contexto:** a `Recusa` do segundo plano levava a saída crua do `systemctl` para a tela do passo 2 e de Configurações, e os `except (ValueError, OSError)` passavam o texto da exceção. Isso mostra caminho e jargão a quem não pediu, contra a D106.
+
+**Decisão:** a tela mostra texto fixo ("O systemctl {comando} falhou. Os detalhes ficaram no jobot.log.") e a saída completa vai ao log com `warning`, uma vez, onde a `Recusa` nasce. Vale para todo ponto de `src/jobot/painel` e `src/jobot/sistema` que levava saída de comando ou `str(exceção)` à tela.
+
+## D115. `role='alert'` em aspas simples na casca (T151)
+
+**Status:** decidido pela sessão em 2026-11-15, para confirmar
+
+**Contexto:** a região do aviso de erro está em `base.html`, ou seja, em toda página, e vários testes de rota procuram `role="alert"` como sinal de erro da página. Com a região na casca eles passariam à toa.
+
+**Decisão:** o atributo leva aspas simples (`role='alert'`) de propósito, com teste que confere a casca; o HTML é o mesmo para o navegador e o leitor de tela. Desfazer: trocar os testes de rota para outro sinal e usar aspas duplas.
+
+## D116. Os "para confirmar" antigos ficam como estão
+
+**Status:** decidido pela sessão em 2026-11-15, para confirmar
+
+**Contexto:** o critério de zerar "para confirmar" não passa por `grep` literal: sobram 36 ocorrências antigas (fora a legenda da linha 5), todas em D11 a D76 (a D76, "Escolhas do redator, para confirmar", inclusive). São o registro de quando a decisão estava com a sessão, e o dono aceitou todas em 2026-11-15 (Q7).
+
+**Decisão:** ficam como estão, explicadas na linha 5 deste arquivo. O critério vale como "fora do histórico".
+
+## D117. A T157 troca também as frases de versão atual (T157)
+
+**Status:** decidido pela sessão em 2026-11-15, para confirmar
+
+**Contexto:** o plano da 0.1.1 listava só SECURITY, CONTRIBUTING e README. Outros arquivos também dizem "versão 0.1.0" como versão atual.
+
+**Decisão:** a T157 troca para 0.1.1 as frases de versão atual de `SECURITY`, `CONTRIBUTING`, `README`, das quatro páginas da `wiki/` que dizem o status, da ADR 0017 e de `docs/decisions/README.md`. Ficam em 0.1.0 as frases históricas: o `## [0.1.0]` do CHANGELOG, as fixtures e os testes que usam a versão como dado.
+
+## D118. Todo 403 mostra "recarregue a página" (T150)
+
+**Status:** decidido pela sessão em 2026-11-15, para confirmar
+
+**Contexto:** o único 403 do painel é o do CSRF, que vira a frase `seguranca.recarregue` na página e no fragmento HTMX.
+
+**Decisão:** o handler dá essa frase a todo 403. Se surgir outro 403 (permissão, por exemplo), ele ganha texto próprio na mesma entrega.
+
+## D119. A dica de variações também vai ao passo 1 da primeira execução (T156)
+
+**Status:** decidido pela sessão em 2026-11-15, para confirmar
+
+**Contexto:** a D109 pediu a dica na tela de buscas, mas o campo de cargos aparece também no passo 1 da primeira execução, onde a pessoa nova digita os cargos.
+
+**Decisão:** a dica entra nas duas telas (`buscas.dica.cargos` e `primeira_execucao.p1.cargos_dica`), em pt e en.
