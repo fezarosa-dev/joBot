@@ -8,6 +8,28 @@ O formato segue o [Keep a Changelog 1.1.0](https://keepachangelog.com/pt-BR/1.1.
 
 ## [Não lançado]
 
+## [0.1.1] - 2026-11-15
+
+Erros mais claros e menos surpresas. Nada muda no que o joBot busca.
+
+### Adicionado
+
+- Aviso na tela quando um clique falha ou o painel não responde. Ele não insiste depois que o painel é fechado.
+- A tela e o `jobot buscar` dizem por que a busca parou.
+- Dica na tela de buscas: escreva as variações de um cargo, uma por linha.
+
+### Alterado
+
+- O aviso de versão agora vem ligado por padrão. Quem já escolheu mantém a escolha.
+- Ctrl+C no terminal sai com o código 130.
+- A saída do systemctl vai só para o `jobot.log`, não para a tela.
+
+### Corrigido
+
+- Um erro no painel mostra uma página amigável, no lugar do erro 500 seco. Os erros 404 e 422 também ganham uma mensagem.
+- O passo 2 da primeira execução não prende mais: se o segundo plano falhar, conclui com um aviso.
+- O terminal não mostra mais traceback: o erro técnico vai para o `jobot.log`.
+
 ## [0.1.0] - 2026-11-14
 
 A fase 1: a base do joBot. Já dá para instalar e usar.

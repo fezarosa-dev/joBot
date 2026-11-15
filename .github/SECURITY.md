@@ -6,7 +6,7 @@ Obrigado por ajudar a manter o joBot seguro.
 
 ## Versões com suporte
 
-Só a versão mais recente (hoje a 0.1.0) recebe correção de segurança.
+Só a versão mais recente (hoje a 0.1.1) recebe correção de segurança.
 
 ## Como relatar uma falha
 

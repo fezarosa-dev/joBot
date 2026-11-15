@@ -31,7 +31,7 @@ Ele junta, filtra e organiza vagas de muitos sites num painel bonito que roda no
 </div>
 
 > [!IMPORTANT]
-> **A fase 1 do joBot (a base) está pronta: versão 0.1.0.** Ele busca vagas em fontes públicas, guarda tudo no seu computador e mostra num painel. Já dá para [instalar e usar](#requisitos-e-instalacao).
+> **A fase 1 do joBot (a base) está pronta: versão 0.1.1.** Ele busca vagas em fontes públicas, guarda tudo no seu computador e mostra num painel. Já dá para [instalar e usar](#requisitos-e-instalacao).
 > O resto (sites com login, IA, extensão do navegador, Gmail e áudio) ainda é plano. Veja o [roteiro](#roteiro). Antes de ligar as fontes, leia os [avisos de uso e de termos](#licenca-e-avisos).
 
 ## 📑 Sumário
@@ -343,7 +343,7 @@ Detalhes na [ADR 0010](docs/decisions/0010-claude-code-da-pessoa.md).
 <a id="requisitos-e-instalacao"></a>
 ## 📦 Requisitos e instalação
 
-> Esta é a instalação da fase 1 (versão 0.1.0): você baixa o código e roda com o uv. O instalador de um comando só chega na fase 8.
+> Esta é a instalação da fase 1 (versão 0.1.1): você baixa o código e roda com o uv. O instalador de um comando só chega na fase 8.
 
 ### Requisitos
 

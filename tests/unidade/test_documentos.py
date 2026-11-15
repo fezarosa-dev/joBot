@@ -187,15 +187,18 @@ def test_changelog_tem_as_mesmas_secoes_nas_duas_linguas() -> None:
     assert all(nome in GRUPOS.values() for nivel, nome, _ in assinatura if nivel == 3)
 
 
-def test_changelog_traz_a_versao_0_1_0_do_pacote() -> None:
+def test_changelog_traz_a_versao_do_pacote() -> None:
     projeto = tomllib.loads(texto("pyproject.toml"))["project"]["version"]
-    assert projeto == __version__ == "0.1.0"
+    assert projeto == __version__ == "0.1.1"
     for caminho in CHANGELOG.values():
         conteudo = texto(caminho)
-        assert re.search(
-            rf"^## \[{re.escape(projeto)}\] - \d{{4}}-\d{{2}}-\d{{2}}$", conteudo, re.M
-        )
-        bloco = conteudo.split(f"[{projeto}]", 1)[1]
+        for versao in (projeto, "0.1.0"):
+            assert re.search(
+                rf"^## \[{re.escape(versao)}\] - \d{{4}}-\d{{2}}-\d{{2}}$", conteudo, re.M
+            )
+        # a mais nova vem logo abaixo de "Não lançado", e a fase 1 continua dizendo o que entregou
+        assert conteudo.index(f"[{projeto}]") < conteudo.index("[0.1.0]")
+        bloco = conteudo.split("[0.1.0]", 1)[1]
         assert bloco.count("\n- ") >= 8, f"{caminho}: a 0.1.0 precisa dizer o que a fase 1 entrega"
 
 
@@ -460,8 +463,8 @@ def test_changelog_nao_cita_duvida_por_numero(lingua: str) -> None:
 FASE_1_CONCLUIDA = {
     ".github/CONTRIBUTING.md": r"fase 1 \(base\) está concluída",
     ".github/CONTRIBUTING.en.md": r"Phase 1 \(foundation\) is complete",
-    ".github/SECURITY.md": r"(?i)só a versão mais recente \(hoje a 0\.1\.0\)",
-    ".github/SECURITY.en.md": r"(?i)only the latest version \(currently 0\.1\.0\)",
+    ".github/SECURITY.md": r"(?i)só a versão mais recente \(hoje a 0\.1\.1\)",
+    ".github/SECURITY.en.md": r"(?i)only the latest version \(currently 0\.1\.1\)",
     ".github/SUPPORT.md": r"formulário de bug",
     ".github/SUPPORT.en.md": r"bug form",
     "docs/decisions/0017-fases.md": r"fase 1 está concluída",
