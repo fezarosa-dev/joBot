@@ -35,12 +35,18 @@ async def abrir_contexto(
         raise SemTela("sem tela gráfica")
     perfil = pasta_do_perfil(dados)
     preparar_preferencias(perfil)
+    # sem download e sem service worker: a resposta vem da rede e `response` segue (D135.9)
+    base: dict[str, Any] = {
+        "user_data_dir": str(perfil),
+        "accept_downloads": False,
+        "service_workers": "block",
+    }
     try:
-        return await lancar(user_data_dir=str(perfil), channel="chrome")
+        return await lancar(**base, channel="chrome")
     except Exception:  # o motivo do Chrome não é o que a pessoa precisa ver; o do Chromium é
         _LOG.debug("Chrome não abriu; tentando o Chromium do Playwright")
     try:
-        return await lancar(user_data_dir=str(perfil))
+        return await lancar(**base)
     except Exception:
         # a mensagem do Playwright pode trazer caminhos e variáveis: só no log, nunca na exceção
         _LOG.error("nenhum navegador abriu", exc_info=True)

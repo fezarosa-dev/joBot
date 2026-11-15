@@ -122,6 +122,15 @@ async def test_chrome_primeiro_depois_chromium(tmp_path: Path) -> None:
     assert "channel" not in lancador.chamadas[1]
 
 
+async def test_contexto_sem_downloads_nem_service_workers(tmp_path: Path) -> None:
+    lancador = _Lancador(falham=(1,))
+    await abrir_contexto(tmp_path, TELA, lancador)
+    assert len(lancador.chamadas) == 2
+    for chamada in lancador.chamadas:
+        assert chamada.get("accept_downloads") is False
+        assert chamada.get("service_workers") == "block"
+
+
 async def test_chrome_que_abre_nao_tenta_o_chromium(tmp_path: Path) -> None:
     lancador = _Lancador()
     await abrir_contexto(tmp_path, TELA, lancador)
