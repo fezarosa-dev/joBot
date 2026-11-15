@@ -26,7 +26,7 @@ from jobot.nucleo.captcha import Desafio, ErroCaptcha, resolver
 from jobot.nucleo.http import ClienteEducado
 from jobot.nucleo.leitores.base import ParadaLogin
 from jobot.nucleo.relogio import Relogio
-from jobot.sistema.cofre import Cofre
+from jobot.sistema.cofre import Cofre, OndeGuardou
 
 _LOG = logging.getLogger(__name__)
 
@@ -90,6 +90,32 @@ async def achar_widget(page: Page) -> Widget | None:
     return None
 
 
+class ChaveDoCofre:
+    """A chave do 2Captcha lida do cofre uma vez numa execução, para todas as abas (D135.5).
+
+    O cofre que não responde no prazo também fica guardado (`None`): custa um prazo por execução.
+    """
+
+    def __init__(self, cofre: Cofre) -> None:
+        self._cofre = cofre
+        self._trava = asyncio.Lock()
+        self._lida = False
+        self._achado: tuple[str, OndeGuardou] | None = None
+
+    async def ler(self) -> tuple[str, OndeGuardou] | None:
+        async with self._trava:
+            if not self._lida:
+                try:
+                    async with asyncio.timeout(limites.PRAZO_COFRE_S):
+                        # shortcut: a thread do keyring fica presa até o cofre responder; trocar
+                        # quando o cofre tiver API assíncrona
+                        self._achado = await asyncio.to_thread(self._cofre.ler, NOME_NO_COFRE)
+                except TimeoutError:
+                    _LOG.warning("2captcha: o cofre não respondeu em %s s", limites.PRAZO_COFRE_S)
+                self._lida = True
+            return self._achado
+
+
 async def resolver_na_pagina(
     page: Page,
     widget: Widget,
@@ -97,7 +123,7 @@ async def resolver_na_pagina(
     con: sqlite3.Connection,
     cliente: ClienteEducado,
     relogio: Relogio,
-    cofre: Cofre,
+    chave: ChaveDoCofre,
     user_agent: str,
 ) -> bool:
     """Uma resolução: True quando a página saiu do desafio em até `limites.ESPERA_TOKEN_S`."""
@@ -107,14 +133,7 @@ async def resolver_na_pagina(
     if ler_config(con, "captcha_ligado") is not True:  # desligado nem abre o cofre (pede senha)
         _LOG.info("2captcha desligado: o desafio fica sem resolver")
         return False
-    try:
-        async with asyncio.timeout(limites.PRAZO_COFRE_S):
-            # shortcut: a thread do keyring fica presa até o cofre responder; trocar quando o
-            # cofre tiver API assíncrona
-            achado = await asyncio.to_thread(cofre.ler, NOME_NO_COFRE)
-    except TimeoutError:
-        _LOG.warning("2captcha: o cofre não respondeu em %s s", limites.PRAZO_COFRE_S)
-        return False
+    achado = await chave.ler()
     if achado is None or not captcha_pronto(con, achado[0]):
         _LOG.info("2captcha sem chave: o desafio fica sem resolver")
         return False
@@ -155,13 +174,13 @@ class Cola:
         con: sqlite3.Connection,
         cliente: ClienteEducado,
         relogio: Relogio,
-        cofre: Cofre,
+        chave: ChaveDoCofre,
     ) -> None:
         self._aba = page  # `page` é nome do Playwright: o test_navegador_ast recusa
         self._con = con
         self._cliente = cliente
         self._relogio = relogio
-        self._cofre = cofre
+        self._chave = chave
         self._agente = ""
         self._aceitos: set[tuple[str, str]] = set()
         self._tentadas: set[str] = set()
@@ -184,7 +203,7 @@ class Cola:
             con=self._con,
             cliente=self._cliente,
             relogio=self._relogio,
-            cofre=self._cofre,
+            chave=self._chave,
             user_agent=self._agente or await agente_do_navegador(self._aba),
         )
         if not resolveu:

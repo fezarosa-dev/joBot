@@ -7,6 +7,7 @@ a pessoa "resolve" é a do `/desafio-pessoa`, que sai do desafio com um cookie, 
 import asyncio
 import contextlib
 import sqlite3
+import threading
 from collections.abc import AsyncIterator, Callable, Iterator, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -36,7 +37,7 @@ from jobot.nucleo.coletores.executor import estado_da_fonte
 from jobot.nucleo.http import ClienteEducado, Validadores
 from jobot.nucleo.leitores.base import EscopoLogado
 from jobot.sistema import cofre as modulo_cofre
-from jobot.sistema.cofre import Cofre
+from jobot.sistema.cofre import Cofre, OndeGuardou
 from jobot.sistema.segundo_plano_linux import Rodar, rodar_comando
 
 pytestmark = [pytest.mark.tela, pytest.mark.anyio]
@@ -587,3 +588,73 @@ async def test_fechar_uma_aba_nao_encerra_a_espera_da_outra(
         ("falso_logado", "python"): ("falhou", "saude.captcha"),
         ("outro_logado", "java"): ("falhou", "saude.captcha"),
     }
+
+
+def _cofre_contado(dados: Path, backend: CofreFalso, lidos: list[str]) -> Cofre:
+    """Um `Cofre` que anota cada leitura que entra no cofre."""
+
+    class CofreContado(Cofre):
+        def ler(self, nome: str) -> tuple[str, OndeGuardou] | None:
+            lidos.append(nome)
+            return super().ler(nome)
+
+    return CofreContado(dados, backend)
+
+
+async def test_chave_lida_do_cofre_uma_vez_por_execucao(
+    site: SiteFalso, montagem: Montagem, con: sqlite3.Connection, tmp_path: Path
+) -> None:
+    lidos: list[str] = []
+    cofre = _cofre_contado(tmp_path, CofreFalso(), lidos)
+    cofre.gravar(NOME_NO_COFRE, CHAVE)
+    um = LeitorFixo(base=site.url(""), urls=(("python", "/recaptcha-passa"),))
+    dois = LeitorFixo(base=site.url(""), urls=(("java", "/recaptcha-passa"),), chave="outro_logado")
+    _ligar(con, um, dois)
+    api = Api2Captcha()
+    execucao_id = await executar_login(
+        con,
+        _cliente(api),
+        montagem.relogio,
+        "agenda",
+        leitores=[um, dois],
+        deps=montagem.deps(tmp_path, cofre),
+    )
+    assert execucao_id is not None
+    assert lidos == [NOME_NO_COFRE]  # as duas abas usam a mesma leitura (D135.5)
+    assert api.pedidos.count("/createTask") == 2  # controle: as duas abas usaram a chave
+
+
+async def test_cofre_que_nao_responde_custa_um_prazo_por_execucao(
+    site: SiteFalso,
+    montagem: Montagem,
+    con: sqlite3.Connection,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(limites, "PRAZO_COFRE_S", 0.05)
+    monkeypatch.setattr(limites, "JANELA_PARADA_S", 60)
+    trava = threading.Event()
+    lidos: list[str] = []
+    cofre = _cofre_contado(tmp_path, CofreFalso(trava=trava), lidos)
+    um = LeitorFixo(base=site.url(""), urls=(("python", "/recaptcha-v2"),))
+    dois = LeitorFixo(base=site.url(""), urls=(("java", "/turnstile"),), chave="outro_logado")
+    _ligar(con, um, dois)
+    api = Api2Captcha()
+    try:
+        execucao_id = await executar_login(
+            con,
+            _cliente(api),
+            montagem.relogio,
+            "agenda",
+            leitores=[um, dois],
+            deps=montagem.deps(tmp_path, cofre),
+        )
+    finally:
+        trava.set()  # solta a thread presa no cofre
+    assert execucao_id is not None
+    assert lidos == [NOME_NO_COFRE]  # o estouro fica guardado: um prazo por execução
+    assert _saude(con, execucao_id) == {
+        ("falso_logado", "python"): ("falhou", "saude.captcha"),
+        ("outro_logado", "java"): ("falhou", "saude.captcha"),
+    }
+    assert api.pedidos == []
