@@ -1,4 +1,4 @@
-"""A rota de sugeridas usa o nome público do painel, sem cópia local (T127; cliente_do_painel desde a T185)."""
+"""A rota de sugeridas usa o cliente público do painel, sem cópia local (T127, T185)."""
 
 import ast
 from pathlib import Path
