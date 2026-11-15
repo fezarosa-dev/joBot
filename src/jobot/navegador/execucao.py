@@ -17,14 +17,14 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, Final, Literal
 from urllib.parse import urldefrag
 
 from playwright.async_api import BrowserContext, Page, async_playwright
 from playwright.async_api import Error as ErroDoPlaywright
 
 from jobot.banco.buscas import paises_das_buscas, termos_das_buscas
-from jobot.banco.cadastros import empresas_da_coleta, fontes
+from jobot.banco.cadastros import empresas_da_coleta, fontes, ler_config
 from jobot.banco.execucoes import (
     HistoricoDoBanco,
     Motivo,
@@ -65,9 +65,11 @@ log = logging.getLogger(__name__)
 
 _SEM_DATA = datetime.min.replace(tzinfo=UTC)  # escopo nunca lido vai primeiro no rodízio
 _TITULO_AVISO = "joBot"
-_FRASE_AVISO = (
-    "Um site com login parou num desafio. Termine na janela do navegador em até {} minutos."
-)
+_FRASES_AVISO: Final = {
+    "pt": "Um site com login parou num desafio. Termine na janela do navegador em até {} minutos.",
+    "en": "A site with login stopped at a challenge. Finish it in the browser window within {}"
+    " minutes.",
+}
 
 
 @dataclass(frozen=True)
@@ -112,6 +114,11 @@ async def dependencias_de_producao(
         )
 
 
+def _idioma(con: sqlite3.Connection) -> Literal["pt", "en"]:
+    """O idioma salvo na configuração, `pt` para qualquer outro valor (como o painel)."""
+    return "en" if ler_config(con, "idioma", "pt") == "en" else "pt"
+
+
 async def executar_login(
     con: sqlite3.Connection,
     cliente: ClienteEducado,
@@ -150,7 +157,7 @@ async def executar_login(
         else:
             fechado = asyncio.Event()
             contexto.on("close", lambda _: fechado.set())
-            janela = _Janela(relogio, deps.avisar, fechado)
+            janela = _Janela(relogio, deps.avisar, fechado, _idioma(con))
             chave = ChaveDoCofre(deps.cofre)  # todas as abas usam a mesma leitura (D135.5)
             for leitor in ligados:
                 site = _ler_site(
@@ -229,9 +236,14 @@ class _Janela:
     """
 
     def __init__(
-        self, relogio: Relogio, avisar: Callable[[str, str], None], fechado: asyncio.Event
+        self,
+        relogio: Relogio,
+        avisar: Callable[[str, str], None],
+        fechado: asyncio.Event,
+        idioma: Literal["pt", "en"],
     ) -> None:
         self._relogio = relogio
+        self._idioma = idioma
         self._avisar = avisar
         self.fechado = fechado
         self._paradas: list[_Parada] = []
@@ -250,7 +262,7 @@ class _Janela:
         marca = await _marca(aba)
         if not self._avisou:  # uma vez por execução, sem endereço
             self._avisou = True
-            frase = _FRASE_AVISO.format(limites.JANELA_PARADA_S // 60)
+            frase = _FRASES_AVISO[self._idioma].format(limites.JANELA_PARADA_S // 60)
             # o `notify-send` roda fora do laço: o painel não para enquanto ele responde
             await asyncio.to_thread(self._avisar, _TITULO_AVISO, frase)
         tarefa = asyncio.current_task()

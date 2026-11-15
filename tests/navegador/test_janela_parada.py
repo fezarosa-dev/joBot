@@ -255,6 +255,42 @@ async def test_captcha_sem_2captcha_para_a_janela(
         assert api.pedidos == []
 
 
+@pytest.mark.parametrize(
+    ("idioma", "esperado"),
+    [
+        pytest.param(None, "Um site com login parou", id="sem_idioma"),
+        pytest.param("en", "A site with login stopped", id="en"),
+        pytest.param("xx", "Um site com login parou", id="desconhecido"),
+    ],
+)
+async def test_aviso_sai_no_idioma_da_pessoa(
+    idioma: str | None,
+    esperado: str,
+    site: SiteFalso,
+    montagem: Montagem,
+    con: sqlite3.Connection,
+    cofre: Cofre,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(limites, "JANELA_PARADA_S", 60)
+    if idioma is not None:
+        gravar_config(con, "idioma", idioma)
+    gravar_config(con, "captcha_ligado", False)  # sem 2Captcha: a aba para na janela
+    leitor = LeitorFixo(base=site.url(""), urls=(("python", "/recaptcha-v2"),))
+    _ligar(con, leitor)
+    await executar_login(
+        con,
+        _cliente(Api2Captcha()),
+        montagem.relogio,
+        "agenda",
+        leitores=[leitor],
+        deps=montagem.deps(tmp_path, cofre),
+    )
+    assert montagem.avisos[0][1].startswith(esperado)
+    assert _sem_endereco(montagem.avisos)
+
+
 async def test_cloudflare_que_nao_sai_vai_para_a_janela_sem_resolver(
     site: SiteFalso,
     montagem: Montagem,
