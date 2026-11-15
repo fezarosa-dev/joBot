@@ -12,7 +12,7 @@ from apoio.relogio import RelogioFalso
 from jobot.nucleo.coletores.base import ContextoColeta
 from jobot.nucleo.leitores.base import Captura, EscopoLogado, LeitorComLogin, Leitura
 from jobot.nucleo.leitores.linkedin import LinkedIn, _data_relativa
-from jobot.nucleo.modelo import VagaColetada
+from jobot.nucleo.modelo import Busca, Local, Modalidade, VagaColetada
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "linkedin_logado"
 AGORA = datetime(2026, 11, 15, 12, 0, tzinfo=UTC)
@@ -94,6 +94,67 @@ def test_escopos_um_por_termo() -> None:
             "https://www.linkedin.com/jobs/search/?keywords=dev+python&f_TPR=r604800",
         ),
     ]
+
+
+def _ids_e_urls(*buscas: Busca) -> list[EscopoLogado]:
+    # `termos` difere dos cargos: o leitor tem de usar as buscas, não os termos
+    ctx = ContextoColeta(empresas=(), termos=("outro termo",), paises=(), buscas=buscas)
+    return list(_leitor().escopos(ctx))
+
+
+def test_escopos_com_cidade_e_remoto() -> None:
+    busca = Busca(
+        nome="b",
+        cargos=("Enfermeiro", "Dev Python"),
+        cidades=(Local(cidade="São Paulo", uf="SP", pais="BR"),),
+        modalidades=(Modalidade.REMOTO,),
+    )
+    escopos = _ids_e_urls(busca)
+    assert [e.id for e in escopos] == [
+        "Enfermeiro em São Paulo, SP",
+        "Enfermeiro remoto",
+        "Dev Python em São Paulo, SP",
+        "Dev Python remoto",
+    ]
+    assert escopos[1].url == (
+        "https://www.linkedin.com/jobs/search/?keywords=Enfermeiro+remoto&f_TPR=r604800"
+    )
+
+
+def test_escopos_cidade_sem_uf() -> None:
+    busca = Busca(nome="b", cargos=("Enfermeiro",), cidades=(Local(cidade="Belo Horizonte"),))
+    assert [e.id for e in _ids_e_urls(busca)] == ["Enfermeiro em Belo Horizonte"]
+
+
+def test_escopos_pulam_local_sem_cidade() -> None:
+    busca = Busca(nome="b", cargos=("Enfermeiro",), cidades=(Local(uf="MG"), Local(pais="PT")))
+    assert [e.id for e in _ids_e_urls(busca)] == ["Enfermeiro"]
+
+
+def test_escopos_repetidos_contam_uma_vez() -> None:
+    a = Busca(nome="a", cargos=("Enfermeiro",))
+    b = Busca(nome="b", cargos=("enfermeiro",))
+    assert [e.id for e in _ids_e_urls(a, b)] == ["Enfermeiro"]
+
+
+def test_escopos_limpam_espacos_de_cidade_e_uf() -> None:
+    def ids(*locais: Local) -> list[str]:
+        return [e.id for e in _ids_e_urls(Busca(nome="b", cargos=("Cargo",), cidades=locais))]
+
+    assert ids(Local(cidade="  ", uf="MG")) == ["Cargo"]
+    assert ids(Local(cidade=" Belo Horizonte ", uf=" MG ")) == ["Cargo em Belo Horizonte, MG"]
+    assert ids(Local(cidade="Contagem", uf="  ")) == ["Cargo em Contagem"]
+
+
+def test_escopos_cargo_com_espacos() -> None:
+    busca = Busca(nome="b", cargos=("  ", " Enfermeiro "), cidades=(Local(cidade="Contagem"),))
+    assert [e.id for e in _ids_e_urls(busca)] == ["Enfermeiro em Contagem"]
+
+
+def test_escopos_mesmo_cargo_em_duas_buscas() -> None:
+    a = Busca(nome="a", cargos=("Enfermeiro",), cidades=(Local(cidade="Contagem"),))
+    b = Busca(nome="b", cargos=("Enfermeiro",), cidades=(Local(cidade="Betim"),))
+    assert [e.id for e in _ids_e_urls(a, b)] == ["Enfermeiro em Contagem", "Enfermeiro em Betim"]
 
 
 def test_proxima_soma_25_sem_current_job_id() -> None:

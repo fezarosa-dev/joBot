@@ -10,8 +10,9 @@ from selectolax.lexbor import LexborHTMLParser, LexborNode
 
 from jobot.nucleo.coletores.base import ContextoColeta
 from jobot.nucleo.leitores.base import Captura, EscopoLogado, Leitura
-from jobot.nucleo.modelo import VagaColetada, confere_http
+from jobot.nucleo.modelo import Busca, Modalidade, VagaColetada, confere_http
 from jobot.nucleo.relogio import Relogio, RelogioReal
+from jobot.nucleo.texto import normalizar
 
 _HOST = "www.linkedin.com"
 _SEMANA = "r604800"  # f_TPR: última semana
@@ -102,6 +103,25 @@ def _linhas(cartao: LexborNode) -> list[str]:
     return linhas
 
 
+def _textos_das_buscas(buscas: Sequence[Busca]) -> list[str]:
+    """Texto por cargo e cidade, mais o remoto; repetido (ignora caixa) fica a 1ª grafia."""
+    vistos: dict[str, str] = {}
+    for busca in buscas:
+        for cargo in (c.strip() for c in busca.cargos):
+            if not cargo:
+                continue
+            achados = [
+                f"{cargo} em {', '.join(p for p in (cidade, (local.uf or '').strip()) if p)}"
+                for local in busca.cidades
+                if (cidade := (local.cidade or "").strip())
+            ]
+            if Modalidade.REMOTO in busca.modalidades:
+                achados.append(f"{cargo} remoto")
+            for texto in achados or [cargo]:
+                vistos.setdefault(normalizar(texto), texto)
+    return list(vistos.values())
+
+
 class LinkedIn:
     chave = "linkedin_logado"
     nome = "LinkedIn"
@@ -124,12 +144,13 @@ class LinkedIn:
         self._relogio = relogio or RelogioReal()
 
     def escopos(self, ctx: ContextoColeta) -> Sequence[EscopoLogado]:
+        textos = _textos_das_buscas(ctx.buscas) if ctx.buscas else list(dict.fromkeys(ctx.termos))
         return [
             EscopoLogado(
-                termo,
-                f"https://www.linkedin.com/jobs/search/?keywords={quote_plus(termo)}&f_TPR={_SEMANA}",
+                texto,
+                f"https://www.linkedin.com/jobs/search/?keywords={quote_plus(texto)}&f_TPR={_SEMANA}",
             )
-            for termo in dict.fromkeys(ctx.termos)
+            for texto in textos
         ]
 
     def _no_login(self, url: str) -> bool:
