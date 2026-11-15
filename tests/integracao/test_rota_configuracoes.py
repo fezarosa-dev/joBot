@@ -12,7 +12,8 @@ from collections.abc import Iterator, Sequence
 from contextlib import closing
 from datetime import UTC, date, datetime
 from pathlib import Path
-from typing import Any
+from types import SimpleNamespace
+from typing import Any, cast
 
 import pytest
 from fastapi.testclient import TestClient
@@ -24,6 +25,7 @@ from apoio.semear import inserir_vaga, semear
 from jobot.banco import buscas, cadastros
 from jobot.banco.conexao import abrir
 from jobot.banco.migrar import migrar
+from jobot.nucleo.leitores.base import LeitorComLogin
 from jobot.painel.app import criar_app
 from jobot.painel.seguranca import CAMPO_CSRF
 from jobot.sistema.segundo_plano_linux import Resultado
@@ -360,6 +362,36 @@ def test_fonte_desconhecida_da_422_e_nao_grava(painel: Painel) -> None:
     resposta = painel.post(FONTES, {"fonte": ["remotive", "nao_existe"]})
     assert resposta.status_code == 422
     assert painel.sql("SELECT chave FROM fonte WHERE ligada = 0") == []
+
+
+def _com_leitor(painel: Painel, ligado: bool = True) -> None:
+    leitor = cast(LeitorComLogin, SimpleNamespace(chave="x_logado"))
+    with closing(abrir(painel.banco)) as con:
+        cadastros.semear_leitores(con, [leitor])
+        cadastros.ligar_fonte(con, "x_logado", ligado)
+
+
+def test_aba_fontes_nao_lista_fonte_com_login(painel: Painel) -> None:
+    _com_leitor(painel)
+    marcas = re.findall(r'<input\b[^>]*name="fonte"[^>]*>', painel.get(FONTES).text)
+    valores = [_valor(m) for m in marcas]
+    assert len(valores) >= 28
+    assert "x_logado" not in valores
+
+
+def test_salvar_aba_fontes_nao_desliga_site_com_login(painel: Painel) -> None:
+    _com_leitor(painel)
+    publicas = [f.chave for f in _fontes(painel) if not f.com_login]
+    resposta = painel.post(FONTES, {"fonte": publicas})
+    assert resposta.status_code == 303
+    assert painel.sql("SELECT ligada FROM fonte WHERE chave = 'x_logado'") == [(1,)]
+
+
+def test_salvar_aba_fontes_com_chave_com_login_da_422(painel: Painel) -> None:
+    _com_leitor(painel, ligado=False)
+    resposta = painel.post(FONTES, {"fonte": ["remotive", "x_logado"]})
+    assert resposta.status_code == 422
+    assert painel.sql("SELECT ligada FROM fonte WHERE chave = 'x_logado'") == [(0,)]
 
 
 # ------------------------------------------------------------------ segundo plano
