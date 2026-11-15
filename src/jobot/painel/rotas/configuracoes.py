@@ -72,7 +72,7 @@ Contexto = Callable[[Request, Con], Awaitable[dict[str, Any]]]
 
 
 async def _ctx_fontes(request: Request, con: Con) -> dict[str, Any]:
-    todas = cadastros.fontes(con)
+    todas = [f for f in cadastros.fontes(con) if not f.com_login]  # as com login têm aba própria
     return {"levas": [(leva, [f for f in todas if f.leva == leva]) for leva in ("A", "B")]}
 
 
@@ -160,7 +160,7 @@ def _volta(grupo: str, salvo: bool = False) -> RedirectResponse:
 async def _gravar_fontes(request: Request, con: Con) -> Response:
     form = await request.form()
     marcadas = {str(v) for v in form.getlist("fonte")}
-    conhecidas = {f.chave for f in cadastros.fontes(con)}
+    conhecidas = {f.chave for f in cadastros.fontes(con) if not f.com_login}
     if not marcadas <= conhecidas:
         raise HTTPException(422)
     for chave in sorted(conhecidas):

@@ -228,6 +228,19 @@ def test_execucao_atual_traz_as_fontes_que_comecaram_e_nao_terminaram(
     assert [(f, c < t) for f, c, t in linhas] == [("gupy", True), ("remotive", True)]
 
 
+def test_coleta_acaba_com_fonte_com_login_ligada(con: sqlite3.Connection) -> None:
+    con.execute("UPDATE fonte SET ligada = 0 WHERE chave != 'remotive'")
+    con.execute("INSERT INTO fonte (chave, leva, ligada, com_login) VALUES ('x_logado', 'A', 1, 1)")
+    con.commit()
+    id_ = abrir_execucao(con, "busca", "agenda", AGORA)
+    assert id_ is not None
+    comecar_fonte(con, id_, "remotive", AGORA)
+    terminar_fonte(con, id_, "remotive", AGORA)
+    atual = execucao_atual(con)
+    assert atual is not None
+    assert atual.coleta_acabou is True
+
+
 def test_agora_sem_fuso_recusado(con: sqlite3.Connection) -> None:
     sem_fuso = datetime(2026, 11, 13, 12, 0)
     with pytest.raises(ValueError, match="fuso"):
