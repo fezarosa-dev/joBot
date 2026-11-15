@@ -2044,7 +2044,7 @@ Acréscimo negativo é filtro que encolhe a lista e os chips. `contar_abas` não
 45. A revisão do diff `origin/main...dev` conferiu CSRF, Host, política de hosts, `js.py`, chave do 2Captcha, perfil, aviso, migrações e templates sem achado, e achou 2 problemas de gravidade baixa, corrigidos na T221.
 46. (T221) Página final que a política recusa (http no próprio host depois de redirecionar, da função de retorno do widget ou de uma troca sozinha ao rolar) vira `bloqueio`, ou `precisa_login` quando casa com o prefixo de login, como o salto para fora dos hosts. A conferência é refeita antes da cola do 2Captcha e antes da captura, com a URL lida depois do HTML.
 47. (T221) reCAPTCHA ou Turnstile preso a `button` ou `input` não é desafio, para não chamar a função de retorno que envia o formulário.
-48. Ficam para a Parte B, com fixture real: `div` invisível ou dentro de `<form>` tratada como desafio; downloads e service workers no contexto persistente (os padrões do Playwright não foram conferidos); o ambiente inteiro do `serve` passado ao Chrome.
+48. Ficam para a Parte B, com fixture real: `div` invisível ou dentro de `<form>` tratada como desafio; downloads e service workers no contexto persistente (os padrões do Playwright não foram conferidos); o ambiente inteiro do `serve` passado ao Chrome. (downloads e service workers: T230, D135.9)
 
 **Para confirmar com o dono:**
 
