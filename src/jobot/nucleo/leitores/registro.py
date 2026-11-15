@@ -1,8 +1,9 @@
-"""Registro explícito dos leitores com login (E2). Vazio na Parte A; a Parte B acrescenta."""
+"""Registro explícito dos leitores com login (E2)."""
 
 from jobot.nucleo.leitores.base import LeitorComLogin
+from jobot.nucleo.leitores.linkedin import LinkedIn
 
-LEITORES: tuple[LeitorComLogin, ...] = ()
+LEITORES: tuple[LeitorComLogin, ...] = (LinkedIn(),)
 
 
 def leitores() -> tuple[LeitorComLogin, ...]:

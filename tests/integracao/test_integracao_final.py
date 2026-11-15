@@ -111,7 +111,8 @@ def test_toda_fonte_tem_coletor_interruptor_e_saude(dados: Path) -> None:
     coletores = descobrir()
     catalogo = carregar()
     with closing(_banco(dados)) as con:
-        cadastradas = {f.chave: f for f in fontes(con)}
+        # site com login tem leitor e aba própria, não coletor (o linkedin_logado do registro)
+        cadastradas = {f.chave: f for f in fontes(con) if not f.com_login}
     cliente = _app(dados)
     saude = cliente.get("/fontes").text
     config = cliente.get("/configuracoes/fontes").text

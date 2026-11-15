@@ -50,6 +50,7 @@ class LeitorComLogin(Protocol):
     campos_conta: tuple[str, ...]
     rolar: bool
     lista_tem_descricao: bool
+    lista_exaustiva: bool  # falso: a vaga ausente só fecha depois de `JANELA_PARCIAL`
 
     def escopos(self, ctx: ContextoColeta) -> Sequence[EscopoLogado]: ...
 

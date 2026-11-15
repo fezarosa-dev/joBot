@@ -1,4 +1,4 @@
-"""Leitor do LinkedIn com login (D136.12 a D136.18). Ainda fora de `LEITORES` (D136.19)."""
+"""Leitor do LinkedIn com login (D136.12 a D136.18)."""
 
 import dataclasses
 import re
@@ -139,6 +139,7 @@ class LinkedIn:
     campos_conta: tuple[str, ...] = ()
     rolar = True
     lista_tem_descricao = False
+    lista_exaustiva = False  # busca por relevância da última semana: vaga aberta sai da lista
 
     def __init__(self, relogio: Relogio | None = None) -> None:
         self._relogio = relogio or RelogioReal()

@@ -61,6 +61,7 @@ class Escopo:
 class Cartao:
     chave: str
     ligada: bool
+    com_login: bool  # liga e desliga só em Configurações > Sites com login (aviso de risco)
     estado: str
     motivo: str | None
     tem_execucao: bool
@@ -224,6 +225,7 @@ def _cartoes(con: sqlite3.Connection, agora: datetime, historico: HistoricoDoBan
             Cartao(
                 chave=chave,
                 ligada=fonte.ligada,
+                com_login=fonte.com_login,
                 estado=estado,
                 motivo=motivo,
                 tem_execucao=bool(ultima),
@@ -249,6 +251,8 @@ async def listar(request: Request, con: Con) -> HTMLResponse:
 
 
 def _ligar(con: sqlite3.Connection, chave: str, ligada: bool) -> RedirectResponse:
+    if any(f.chave == chave and f.com_login for f in fontes(con)):
+        raise HTTPException(422, "site com login liga em Configurações > Sites com login")
     try:
         ligar_fonte(con, chave, ligada)
     except LookupError as erro:

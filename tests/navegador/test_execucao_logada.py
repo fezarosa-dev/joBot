@@ -283,9 +283,11 @@ async def test_uma_gravacao_por_escopo_sem_cache_http(
     _ligar(con, leitor)
     gravadas: list[SaidaEscopo] = []
 
-    def espiao(c: sqlite3.Connection, eid: int, saida: SaidaEscopo, *args: Any) -> Any:
+    def espiao(
+        c: sqlite3.Connection, eid: int, saida: SaidaEscopo, *args: Any, **kwargs: Any
+    ) -> Any:
         gravadas.append(saida)
-        return gravar_escopo_do_banco(c, eid, saida, *args)
+        return gravar_escopo_do_banco(c, eid, saida, *args, **kwargs)
 
     monkeypatch.setattr(execucao, "gravar_escopo", espiao)
     cache_antes = con.execute("SELECT count(*) FROM cache_http").fetchone()[0]
@@ -478,6 +480,27 @@ async def test_escopos_extintos(
         assert _abertas(con, leitor.chave, "velho") == {"/vaga/99"}
 
 
+@pytest.mark.parametrize(("exaustiva", "abertas"), [(False, {1, 2, 3, 4}), (True, {1, 2})])
+async def test_lista_nao_exaustiva_nao_fecha_vaga_ausente(
+    site: SiteFalso,
+    montagem: Montagem,
+    con: sqlite3.Connection,
+    exaustiva: bool,
+    abertas: set[int],
+) -> None:
+    leitor = _leitor(site, ("x", "/paginada"), lista_exaustiva=exaustiva)
+    _ligar(con, leitor)
+    primeira = await _rodar(con, [leitor], montagem.deps())
+    assert primeira is not None
+    assert _abertas(con, leitor.chave, "x") == {f"/vaga/{n}" for n in (1, 2, 3, 4)}
+    leitor.urls = (("x", site.url("/lista-html")),)  # as vagas 3 e 4 saem da lista
+    relogio = RelogioDoNavegador(INICIO + timedelta(hours=4))
+    segunda = await _rodar(con, [leitor], montagem.deps(), relogio)
+    assert segunda is not None
+    assert _saude(con, segunda) == {("falso_logado", "x"): ("ok", None)}
+    assert _abertas(con, leitor.chave, "x") == {f"/vaga/{n}" for n in abertas}
+
+
 async def test_escopos_que_quebram_gravam_falhou_e_nao_fecham(
     site: SiteFalso,
     montagem: Montagem,
@@ -509,7 +532,7 @@ async def test_banco_quebrado_interrompe_com_banco(
     outro = _leitor(site, ("b", "/lista-html?q=b"), chave="outro_logado")
     _ligar(con, leitor, outro)
 
-    def quebrar(*_: Any) -> None:
+    def quebrar(*_: Any, **__: Any) -> None:
         raise sqlite3.OperationalError("database is locked")
 
     monkeypatch.setattr(execucao, "gravar_escopo", quebrar)
