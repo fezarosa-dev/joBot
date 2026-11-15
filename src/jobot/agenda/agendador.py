@@ -12,6 +12,7 @@ from collections.abc import Awaitable, Callable, Mapping
 from datetime import datetime, timedelta
 from typing import Protocol
 
+from jobot.agenda.login import Login, login_vencido
 from jobot.banco.execucoes import Tipo
 from jobot.nucleo.relogio import Relogio
 
@@ -41,6 +42,10 @@ class Estado(Protocol):
         """Há página ativa que nunca foi lida: as páginas não esperam as 24 h (T149)."""
         ...
 
+    def login(self) -> Login | None:
+        """Horários e última leitura com login; `None` = nenhum site com login ligado."""
+        ...
+
 
 def _vencida(agora: datetime, ultima: datetime | None, intervalo: timedelta) -> bool:
     # ultima no futuro (relógio voltou) conta como vencida, senão trava para sempre (RF4)
@@ -56,12 +61,14 @@ def o_que_roda(
     interruptores: Mapping[str, bool],
     *,
     pagina_nova: bool = False,
+    login: Login | None = None,
 ) -> list[Tipo]:
-    """Tipos vencidos e ligados, na ordem busca, descoberta, páginas.
+    """Tipos vencidos e ligados, na ordem busca, descoberta, páginas e, por último, login.
 
     Nos primeiros 60 s depois de o app iniciar nada roda: a execução perdida sai 60 s
     depois. Se o relógio voltou para antes de `iniciou_em`, essa espera não vale.
-    `pagina_nova` torna as páginas devidas na hora, sem esperar as 24 h (T149).
+    `pagina_nova` torna as páginas devidas na hora, sem esperar as 24 h (T149). `login` só
+    roda pelos horários de parede (`login_vencido`) e com algum site ligado (`login` não nulo).
     """
     if timedelta(0) <= agora - iniciou_em < ESPERA_AO_INICIAR:
         return []
@@ -70,12 +77,19 @@ def o_que_roda(
         "descoberta": ultima_descoberta,
         "paginas": ultima_paginas,
     }
-    return [
+    vencidos: list[Tipo] = [
         tipo
         for tipo, ultima in ultimas.items()
         if interruptores.get(tipo, True)
         and (_vencida(agora, ultima, INTERVALOS[tipo]) or (tipo == "paginas" and pagina_nova))
     ]
+    if (
+        login is not None
+        and interruptores.get("login", True)
+        and login_vencido(agora, login.horarios, login.ultima)
+    ):
+        vencidos.append("login")
+    return vencidos
 
 
 async def rodar(tipo: str, trava: asyncio.Lock, tarefa: Callable[[], Awaitable[None]]) -> None:
@@ -114,6 +128,7 @@ async def laco(
                     iniciou_em,
                     estado.interruptores(),
                     pagina_nova=estado.pagina_nova(),
+                    login=estado.login(),
                 )
             except Exception:
                 # ex.: banco travado; cair aqui cancelaria as tarefas e pararia a agenda
