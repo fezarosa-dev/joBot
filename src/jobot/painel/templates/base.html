@@ -62,6 +62,13 @@
     {% include "execucao/barra.html" %}
   </header>
   <div id="aviso-versao" role="status" hx-get="/aviso-versao" hx-trigger="load" hx-swap="innerHTML"></div>
+  {#- erro de um clique do HTMX (T151; D106): região fixa, fora do que o HTMX troca; o app.js preenche.
+      O role leva aspas simples de propósito: os testes de rota procuram o alerta da página por
+      `role="alert"` e a casca, que está em toda página, os faria passar à toa -#}
+  <div id="aviso-erro" role='alert' hidden data-msg-4xx="{{ t('casca.erro.4xx') }}" data-msg-5xx="{{ t('casca.erro.5xx') }}" data-msg-rede="{{ t('casca.erro.rede') }}">
+    <p data-aviso-texto></p>
+    <button type="button" data-aviso-fechar aria-label="{{ t('casca.erro.fechar') }}"><span aria-hidden="true">&times;</span></button>
+  </div>
   <main id="conteudo" tabindex="-1">
     {% block conteudo %}{% endblock %}
   </main>
