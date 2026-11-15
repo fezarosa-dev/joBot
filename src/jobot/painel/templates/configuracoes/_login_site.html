@@ -4,5 +4,5 @@
 {%- elif estado == "em_andamento" %}
 <p class="config-texto">{{ t("configuracoes.sites_com_login.em_andamento") }}</p>
 {%- else %}
-<p class="config-texto">{{ t("configuracoes.sites_com_login.login." ~ estado) }}</p>
+<p class="config-texto">{{ t("configuracoes.sites_com_login.login." ~ estado, minutos=minutos) }}</p>
 {%- endif %}
