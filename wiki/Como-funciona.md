@@ -48,6 +48,9 @@ Um ciclo de busca, passo a passo:
 > [!TIP]
 > Se uma fonte falhar, as outras continuam. Se o computador estava desligado na hora marcada, a busca perdida roda quando ele liga.
 
+> [!NOTE]
+> Quer ver o joBot por dentro, com as pastas, as camadas, o banco e os diagramas? Veja a página [Arquitetura](Arquitetura).
+
 ## 🧹 O tratamento das vagas
 
 <details>
