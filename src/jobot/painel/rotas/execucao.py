@@ -112,10 +112,10 @@ def _disparar(request: Request, trava: asyncio.Lock) -> None:
         with closing(abrir(banco)) as con:  # conexão própria: nunca dividida entre tarefas
             await executar_busca(con, cliente, relogio, "agora")
 
-    _criar(request, "busca", trava, busca)
+    criar_tarefa(request, "busca", trava, busca)
 
 
-def _criar(
+def criar_tarefa(
     request: Request, tipo: str, trava: asyncio.Lock, tarefa: Callable[[], Awaitable[None]]
 ) -> None:
     # o `rodar` da agenda: registra o erro e solta a trava no fim, como na busca da agenda
@@ -142,7 +142,7 @@ async def _disparar_login(request: Request, con: sqlite3.Connection) -> None:
     if not pode_ler_agora(relogio_do_painel(request).agora(), inicio_da_ultima_leitura_login(con)):
         return
     await trava.acquire()  # livre: não suspende, então a checagem acima vale (como no laço)
-    _criar(request, "login", trava, partial(tarefa, "agora"))
+    criar_tarefa(request, "login", trava, partial(tarefa, "agora"))
 
 
 @router.post("/buscar-agora")

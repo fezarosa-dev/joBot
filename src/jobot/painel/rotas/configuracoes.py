@@ -6,7 +6,8 @@ Meu país e moeda de exibição pelo próprio `/configuracoes/aparencia`), priva
 os dados, a recomendação de disco cifrado e o aviso de versão), serviços (a chave do 2Captcha, que
 fica no cofre; o interruptor e o apagar moram em `servicos.py`, T184) e sites com login (T218: só
 existe com leitor registrado; o interruptor de cada site grava na hora e os horários são um campo
-só). Este módulo não importa `jobot.navegador`: o estado do navegador vem de `app.state`.
+só). "Fazer login agora" e "Esquecer logins" (T219) usam o `jobot.navegador` e a trava `login` do
+`serve`: nunca abrem o navegador nem apagam o perfil enquanto uma leitura com login roda.
 
 Checkbox sem marca é chave desligada: o formulário de cada grupo manda o estado inteiro. Ligar ou
 desligar a conversão de moeda chama `aplicar_cotacoes` e, com ela ou com as regras de ocultar
@@ -15,11 +16,13 @@ Todo comando do sistema passa pelo executor de `app.state.rodar_comando`, o ambi
 `app.state.ambiente` e a plataforma de `app.state.plataforma`: o teste põe os falsos.
 """
 
+import asyncio
 import logging
 import re
 import sqlite3
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from datetime import date
+from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
@@ -31,6 +34,10 @@ from jobot.banco import buscas, cadastros, cotacoes
 from jobot.banco.cadastros import PADROES, gravar_config, ler_config, ligar_fonte, meu_pais
 from jobot.banco.captcha import NOME_NO_COFRE
 from jobot.banco.execucoes import LinhaSaude, leitura_login_rodando, ultimas_que_rodaram
+from jobot.navegador import limites
+from jobot.navegador.execucao import dependencias_de_producao
+from jobot.navegador.login_manual import fazer_login
+from jobot.navegador.perfil import apagar_perfil
 from jobot.nucleo.cambio import MOEDAS_EXIBICAO, moeda_do_pais
 from jobot.nucleo.captcha import validar_chave
 from jobot.nucleo.horarios import horarios_validos
@@ -39,6 +46,7 @@ from jobot.nucleo.leitores.registro import leitores
 from jobot.nucleo.tratamento.locais import codigos_de_pais
 from jobot.painel.ambiente import ambiente_do_painel, cofre_do_painel, no_linux, rodar_do_painel
 from jobot.painel.formatos import opcoes_de_pais
+from jobot.painel.rotas.execucao import criar_tarefa
 from jobot.painel.rotas.fontes import estado_dos_escopos, motivo_mais_grave
 from jobot.painel.rotas.servicos import contexto_captcha, no_cofre
 from jobot.painel.rotas.vagas import relogio_do_painel
@@ -180,6 +188,8 @@ def _cartoes_de_sites(request: Request, con: sqlite3.Connection) -> list[dict[st
                 "estado": ultima[0] if ultima else None,
                 "motivo": ultima[1] if ultima else None,
                 "rodando": lendo and ligada,  # a leitura com login lê só os sites ligados
+                "login": _estados_de_login(request).get(leitor.chave),
+                "minutos": _minutos_de_login(),
             }
         )
     return cartoes
@@ -412,3 +422,113 @@ async def interruptor_do_site(request: Request, con: Con, chave: str) -> Respons
     return renderizar(
         request, "configuracoes/_cartao_site_login.html", c=cartao, foco=True, cartao_salvo=True
     )
+
+
+# --- fazer login agora e esquecer logins (T219; D132.18, D132.21, D132.22, D132.52) ----------
+
+
+def _minutos_de_login() -> int:
+    return int(limites.PRAZO_LOGIN_MANUAL_S // 60)  # lido na hora: o monkeypatch vai em limites
+
+
+def _leitor(request: Request, chave: str) -> LeitorComLogin:
+    """Só chave de leitor registrado; sem leitor o grupo nem existe (404)."""
+    _grupo_valido(request, _COM_LOGIN)
+    for leitor in _leitores(request):
+        if leitor.chave == chave:
+            return leitor
+    raise HTTPException(404)
+
+
+def _trava_de_login(request: Request) -> asyncio.Lock:
+    # a mesma trava da leitura com login (o `serve` cria); app sem o lifespan cria a sua
+    estado = request.app.state
+    if not hasattr(estado, "travas"):
+        estado.travas = {}
+    trava: asyncio.Lock = estado.travas.setdefault("login", asyncio.Lock())
+    return trava
+
+
+def _estados_de_login(request: Request) -> dict[str, str]:
+    estado = request.app.state
+    if not hasattr(estado, "login_manual"):
+        estado.login_manual = {}
+    estados: dict[str, str] = estado.login_manual
+    return estados
+
+
+def _fragmento_de_login(request: Request, chave: str, estado: str) -> Response:
+    return renderizar(
+        request,
+        "configuracoes/_login_site.html",
+        chave=chave,
+        estado=estado,
+        minutos=_minutos_de_login(),
+    )
+
+
+@router.post(f"/{_COM_LOGIN}/{{chave}}/login")
+async def fazer_login_agora(request: Request, chave: str) -> Response:
+    """Abre o navegador na página de login do site e espera a pessoa entrar (D132.18)."""
+    leitor = _leitor(request, chave)
+    trava = _trava_de_login(request)
+    estados = _estados_de_login(request)
+    if trava.locked():
+        # o mesmo site já espera a pessoa: devolve a espera, que mantém o polling na tela
+        estado = "aguardando" if estados.get(chave) == "aguardando" else "em_andamento"
+        return _fragmento_de_login(request, chave, estado)
+    # tudo que pode falhar vem antes do acquire: depois dele, só o que não solta exceção
+    dados: Path = request.app.state.banco.parent
+    env = ambiente_do_painel(request)
+    relogio = relogio_do_painel(request)
+    await trava.acquire()  # livre: não suspende, então a checagem acima vale (como no laço)
+    estados[chave] = "aguardando"
+
+    async def login() -> None:
+        try:
+            async with dependencias_de_producao(dados, env) as deps:
+                estados[chave] = await fazer_login(leitor, deps, relogio)
+        except Exception:
+            estados[chave] = "erro"
+            raise  # o `rodar` registra no log e solta a trava
+
+    criar_tarefa(request, "login manual", trava, login)
+    return _fragmento_de_login(request, chave, "aguardando")
+
+
+@router.get(f"/{_COM_LOGIN}/{{chave}}/login")
+async def estado_do_login(request: Request, chave: str) -> Response:
+    """O HTMX pergunta a cada 5 s; enquanto espera, 204 (nada troca na tela)."""
+    _leitor(request, chave)
+    estado = _estados_de_login(request).get(chave)
+    if estado == "aguardando":
+        return Response(status_code=204)
+    if estado is None:
+        return Response()  # nunca pediu login: nada a mostrar
+    return _fragmento_de_login(request, chave, estado)
+
+
+@router.post(f"/{_COM_LOGIN}/esquecer")
+async def esquecer_logins(request: Request) -> Response:
+    """Primeiro clique: só a pergunta, no próprio fragmento (sem diálogo do navegador)."""
+    _grupo_valido(request, _COM_LOGIN)
+    return renderizar(request, "configuracoes/_esquecer.html", fase="pergunta")
+
+
+@router.post(f"/{_COM_LOGIN}/esquecer/confirmar")
+async def esquecer_logins_confirmado(request: Request) -> Response:
+    """Segundo clique: apaga a pasta do perfil, nunca com leitura ou login rodando (D132.22)."""
+    _grupo_valido(request, _COM_LOGIN)
+    trava = _trava_de_login(request)
+    if trava.locked():
+        return renderizar(request, "configuracoes/_esquecer.html", fase="em_andamento")
+    await trava.acquire()  # livre: não suspende; segura enquanto apaga
+    try:
+        await run_in_threadpool(apagar_perfil, request.app.state.banco.parent)
+    except OSError as erro:  # symlink recusado ou disco: o caminho fica só no log
+        _LOG.warning("esquecer logins: não consegui apagar o perfil: %s", type(erro).__name__)
+        return renderizar(request, "configuracoes/_esquecer.html", fase="erro")
+    finally:
+        trava.release()
+    _estados_de_login(request).clear()  # o "Login feito" de antes não vale mais
+    return renderizar(request, "configuracoes/_esquecer.html", fase="apagados")
