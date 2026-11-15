@@ -45,7 +45,7 @@ from jobot.navegador.abrir import (
     abrir_contexto,
     lancador_de_producao,
 )
-from jobot.navegador.captcha import Cola, Widget, achar_widget
+from jobot.navegador.captcha import ChaveDoCofre, Cola, Widget, achar_widget
 from jobot.navegador.pagina import Recusada, visitar
 from jobot.navegador.politica import Politica, politica_de_producao
 from jobot.nucleo.coletores.base import ContextoColeta, Estado, ResultadoEscopo
@@ -151,8 +151,11 @@ async def executar_login(
             fechado = asyncio.Event()
             contexto.on("close", lambda _: fechado.set())
             janela = _Janela(relogio, deps.avisar, fechado)
+            chave = ChaveDoCofre(deps.cofre)  # todas as abas usam a mesma leitura (D135.5)
             for leitor in ligados:
-                site = _ler_site(con, execucao_id, leitor, contexto, deps, cliente, relogio, janela)
+                site = _ler_site(
+                    con, execucao_id, leitor, contexto, deps, cliente, relogio, janela, chave
+                )
                 await janela.ler(site)
             await janela.esperar()
     except NavegadorFechado:
@@ -362,13 +365,14 @@ async def _ler_site(
     cliente: ClienteEducado,
     relogio: Relogio,
     janela: _Janela,
+    chave: ChaveDoCofre,
 ) -> None:
     """Um site inteiro; um erro aqui grava `falhou` no site e não para os outros."""
     fechado = janela.fechado
     page: Page | None = None
     try:
         page = await contexto.new_page()
-        cola = Cola(page, con=con, cliente=cliente, relogio=relogio, cofre=deps.cofre)
+        cola = Cola(page, con=con, cliente=cliente, relogio=relogio, chave=chave)
         politica = deps.politica(leitor)
         site = _Site(con, execucao_id, leitor, page, politica, deps, relogio, fechado, cola, janela)
         await _ler_paginas(site)
