@@ -21,6 +21,7 @@
   "vagas.ordem.salario": "Maior salário",
   "vagas.ordem.empresa": "Empresa (A a Z)",
   "vagas.filtros": "Filtros",
+  "vagas.filtros_carregando": "Carregando filtros…",
   "vagas.chip.area": "Área",
   "vagas.chip.nivel": "Nível",
   "vagas.chip.modalidade": "Modalidade",
