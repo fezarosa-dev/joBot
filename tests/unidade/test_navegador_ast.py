@@ -35,6 +35,7 @@ PERMITIDOS = {
     "url",
     "title",
     "close",
+    "is_closed",
     "frames",
     "on",
     "once",

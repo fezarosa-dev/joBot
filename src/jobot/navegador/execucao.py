@@ -259,6 +259,8 @@ class _Janela:
         # antes do aviso: a pessoa pode fechar a aba logo ao vê-lo, e o `close` não se perde
         fechada = asyncio.Event()
         aba.on("close", lambda _: fechada.set())
+        if aba.is_closed():  # fechada antes de ouvir: o `close` já passou
+            fechada.set()
         marca = await _marca(aba)
         if not self._avisou:  # uma vez por execução, sem endereço
             self._avisou = True
@@ -298,12 +300,15 @@ class _Janela:
             await self._relogio.dormir(min(limites.OLHAR_S, resta))
             if self.fechado.is_set():
                 raise NavegadorFechado
-            for parada in list(self._paradas):
-                if parada.fechada.is_set():
-                    # o `close` da aba pode chegar antes do do contexto: o navegador inteiro
-                    # fechando não passa por fechamento só desta aba
-                    if await _fechando(self.fechado):
-                        raise NavegadorFechado
+            paradas = list(self._paradas)
+            # o `close` da aba pode chegar antes do do contexto: o navegador inteiro fechando
+            # não passa por fechamento só desta aba. Uma espera vale para todas da olhada, e só
+            # as fechadas antes dela: a que fecha durante a olhada fica para a próxima.
+            fechadas = [p for p in paradas if p.fechada.is_set()]
+            if fechadas and await _fechando(self.fechado):
+                raise NavegadorFechado
+            for parada in paradas:
+                if parada in fechadas:
                     self._paradas.remove(parada)
                     await self._seguir(parada, False)
                     continue
@@ -313,6 +318,9 @@ class _Janela:
                 self._paradas.remove(parada)
                 await self._seguir(parada, True)
         self._acabou = True
+        # a aba fechada na última olhada junto com o navegador não sai como parada `captcha`
+        if any(p.fechada.is_set() for p in self._paradas) and await _fechando(self.fechado):
+            raise NavegadorFechado
         while self._paradas:
             await self._seguir(self._paradas.pop(0), False)
 
