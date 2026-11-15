@@ -291,14 +291,14 @@ Efeito de pôr o leitor em `LEITORES`: o `test_registro_comeca_vazio` de `tests/
 
 ## Tarefa e dificuldade
 
-| Tarefa | Dificuldade | Modelo | Effort | Por quê |
-|---|---|---|---|---|
-| T232 | alta | Opus | high | processo filho, cancelamento, sinais, trava do perfil e a conferência pela janela automática |
-| T234 | média | Sonnet | high | parser de HTML e regras de limpeza já especificadas |
-| T235 | alta | Opus | high | leitor de página com classes embaralhadas, pt e en, privacidade das fixtures |
-| T237 | média | Sonnet | high | campo opcional e montagem de escopos especificados |
-| T238 | alta | Opus | high | contrato do protocolo e ciclo de vida das vagas |
-| T236 | média | Sonnet | high | textos bilíngues com testes de documento |
+| Tarefa | Dificuldade | Por quê |
+|---|---|---|
+| T232 | alta | processo filho, cancelamento, sinais, trava do perfil e a conferência pela janela automática |
+| T234 | média | parser de HTML e regras de limpeza já especificadas |
+| T235 | alta | leitor de página com classes embaralhadas, pt e en, privacidade das fixtures |
+| T237 | média | campo opcional e montagem de escopos especificados |
+| T238 | alta | contrato do protocolo e ciclo de vida das vagas |
+| T236 | média | textos bilíngues com testes de documento |
 
 ## Fora deste plano
 
