@@ -795,3 +795,61 @@ async def test_conferir_dns_falha_do_resolvedor_vira_erro_de_rede() -> None:
     with pytest.raises(ErroDeRede) as recebido:
         await conferir_dns("b.example", ResolvedorFalso(erro=erro))
     assert recebido.value.__cause__ is erro
+
+
+async def test_teto_espera_corta_retry_after_longo() -> None:
+    srv = Servidor(httpx.Response(503, headers={"Retry-After": "600"}), httpx.Response(200))
+    cli, rel = _cliente(srv)
+    with pytest.raises(LimiteAtingido):
+        await cli.escopo(teto_espera_s=30).pedir("GET", "https://a.example/x")
+    assert len(srv.pedidos) == 1
+    assert rel.dormidas == []
+
+
+async def test_teto_espera_corta_a_espera_padrao_acima_dele() -> None:
+    srv = Servidor(httpx.Response(429), httpx.Response(429), httpx.Response(200))
+    cli, rel = _cliente(srv)
+    with pytest.raises(LimiteAtingido):  # 30 s passa; a segunda espera padrão (60 s) não
+        await cli.escopo(teto_espera_s=30).pedir("GET", "https://a.example/x")
+    assert rel.dormidas == [30.0]
+
+
+async def test_teto_espera_deixa_espera_curta() -> None:
+    srv = Servidor(httpx.Response(503, headers={"Retry-After": "10"}), httpx.Response(200))
+    cli, rel = _cliente(srv)
+    resposta = await cli.escopo(teto_espera_s=30).pedir("GET", "https://a.example/x")
+    assert resposta.status == 200
+    assert rel.dormidas == [10.0]
+
+
+async def test_sem_teto_de_espera_obedece_retry_after_longo() -> None:
+    srv = Servidor(httpx.Response(503, headers={"Retry-After": "600"}), httpx.Response(200))
+    cli, rel = _cliente(srv)
+    resposta = await cli.escopo().pedir("GET", "https://a.example/x")
+    assert resposta.status == 200
+    assert rel.dormidas == [600.0]
+
+
+@pytest.mark.parametrize("status", [301, 302, 303, 307, 308])
+async def test_sem_seguir_saltos_3xx_vira_erro_sem_pedir_o_destino(status: int) -> None:
+    srv = Servidor(
+        httpx.Response(status, headers={"Location": "https://b.example/fim"}),
+        httpx.Response(200, text="ok"),
+    )
+    cli, _ = _cliente(srv)
+    with pytest.raises(ErroDeRede, match="redirecionamento"):
+        await cli.escopo(seguir_saltos=False).pedir(
+            "POST", "https://a.example/x", corpo_json={"k": 1}
+        )
+    assert [str(p.url) for p in srv.pedidos] == ["https://a.example/x"]
+
+
+async def test_seguir_saltos_e_o_padrao() -> None:
+    srv = Servidor(
+        httpx.Response(307, headers={"Location": "https://b.example/fim"}),
+        httpx.Response(200, text="ok"),
+    )
+    cli, _ = _cliente(srv)
+    resposta = await cli.escopo().pedir("POST", "https://a.example/x", corpo_json={"k": 1})
+    assert resposta.texto == "ok"
+    assert [str(p.url) for p in srv.pedidos] == ["https://a.example/x", "https://b.example/fim"]
