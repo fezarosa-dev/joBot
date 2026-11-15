@@ -8,6 +8,10 @@ The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/
 
 ## [Unreleased]
 
+### Added
+
+- ADR 0022: CAPTCHA solved by the service the person turns on (2Captcha), only for logged-in browsing.
+
 ## [0.1.1] - 2026-11-15
 
 Clearer errors and fewer surprises. Nothing changes in what joBot searches.
