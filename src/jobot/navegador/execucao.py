@@ -438,6 +438,8 @@ async def _detalhar_site(site: _Site, inicio: datetime, escopos: set[str]) -> No
             continue
         if not isinstance(visita, Captura):
             log.info("detalhes do site %s parados: %s", leitor.chave, visita)
+            desfecho = estado_do_escopo((), parada=visita, cortada=False, tres_ok_com_vagas=False)
+            site.saude(desfecho.estado, desfecho.motivo)  # a página de saúde não mostra "ok"
             return
         abertas += 1
         try:
