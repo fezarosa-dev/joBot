@@ -52,7 +52,7 @@ Phase 1: the foundation of joBot. You can already install and use it.
 - A "Saved." notice after saving in Settings.
 - `jobot abrir` prints the dashboard address and how to quit in the terminal; the search progress bar shows the details phase after collection.
 - A country restriction notice on the remote jobs from Himalayas, Jobicy and Remotive.
-- Project decisions (ADRs 0001 to 0021) and `duvidas.md`.
+- Project decisions (ADRs 0001 to 0022) and `duvidas.md`.
 - README with badges, diagram, tables and a FAQ, and the English version.
 - Star history chart in the README.
 - Preview image for social networks (`docs/imagens/previa-social.png`).

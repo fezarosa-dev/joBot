@@ -2,6 +2,7 @@
 
 - **Status:** aceita
 - **Data:** 2026-11-13
+- **Atualizada:** 2026-11-15 (CAPTCHA pode ser resolvido pelo serviço que a pessoa liga; ver [0022](0022-captcha-pelo-servico-da-pessoa.md))
 
 ## Contexto
 
@@ -26,7 +27,8 @@ LinkedIn, Indeed e outros só mostram vagas completas para quem está logado. Au
 
 - Aviso vermelho no painel e aviso no computador.
 - A janela fica parada na página bloqueada para a pessoa resolver; as outras fontes continuam.
-- O joBot nunca tenta contornar CAPTCHA.
+- Sem chave de serviço de CAPTCHA ligada, o joBot não tenta contornar CAPTCHA. Foi a regra original desta decisão e continua valendo para as fontes públicas ([0004](0004-fontes-publicas.md)).
+- Com a chave do 2Captcha salva e o interruptor ligado (decisão de 2026-11-15, ver [0022](0022-captcha-pelo-servico-da-pessoa.md)), o joBot manda o desafio ao serviço e segue com o token que voltar. Se o serviço falhar, acabar o saldo ou passar de 180 segundos, vale o aviso e a janela parada acima.
 
 ### Mapeamento de cada site
 
@@ -44,3 +46,4 @@ LinkedIn, Indeed e outros só mostram vagas completas para quem está logado. Au
 - [0004. Fontes públicas de vagas e coleta educada](0004-fontes-publicas.md)
 - [0006. Agenda das buscas e segundo plano](0006-agenda-e-segundo-plano.md)
 - [0014. Segurança e privacidade](0014-seguranca-e-privacidade.md)
+- [0022. CAPTCHA resolvido pelo serviço que a pessoa liga](0022-captcha-pelo-servico-da-pessoa.md)
