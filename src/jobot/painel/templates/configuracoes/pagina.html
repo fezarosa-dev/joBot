@@ -18,7 +18,7 @@
   </div>
   {% elif erro %}
   <div class="config-alerta" role="alert">
-    <p>{{ t(erro) if erro.startswith("configuracoes.") else t("configuracoes.erro.sistema", erro=erro) }}</p>
+    <p>{{ t(erro) }}</p>
   </div>
   {% endif %}
   {% if salvo %}
