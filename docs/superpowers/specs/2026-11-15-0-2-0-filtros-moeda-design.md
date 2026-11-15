@@ -33,10 +33,10 @@ Objetivos
 
 Não objetivos (ficam como estão)
 
-- O encaixe continua comparando em reais (`minimo_busca_brl`, `nucleo/encaixe.py:122-131`).
+- O encaixe continua comparando em reais (`minimo_busca_brl` é calculado em `banco/buscas.py:187` e comparado em `nucleo/encaixe.py:122-131`).
 - A ordem "salário" continua pelo valor em reais (`ORDENS["salario"]`, `banco/leitura.py:59,60-66`).
 - A descoberta automática de quadros continua pelo critério do Brasil: `_no_brasil_ou_remota` aceita a vaga remota ou com local no Brasil (`nucleo/coletores/descoberta_cc.py:228-230`). Com Meu país diferente de BR ela sugere quadros pelo critério do Brasil. Fica para depois: o construtor registra uma D no `duvidas.md` ("descoberta pelo Meu país"), sem código na 0.2.0.
-- O país de reserva dos coletores quando nenhuma busca ativa manda país (o "testar" do painel) continua o deles: `_PADRAO` do Workday, do Oracle e do Eightfold (`nucleo/coletores/workday.py:41`, `oracle_hcm.py:46`, `eightfold.py:64`). Com busca ativa eles já recebem o `ctx.paises`, que passa a vir do Meu país (parte G).
+- O país de reserva dos coletores quando nenhuma busca ativa manda país (o "testar" do painel) continua o deles: `_PADRAO` do Workday, do Oracle e do Eightfold (`nucleo/coletores/workday.py:41`, `oracle_hcm.py:46`, `eightfold.py:64`) e o `ctx.paises` vazio do Amazon, que vira `["BR"]` (`nucleo/coletores/carreiras/amazon.py:168`). Com busca ativa eles já recebem o `ctx.paises`, que passa a vir do Meu país (parte G).
 - O formulário de buscas e a primeira execução continuam oferecendo BRL e as 10 do PTAX (`painel/rotas/buscas.py:36`, `painel/rotas/primeira_execucao.py:208`).
 - Moeda fora das 11, outra fonte de câmbio, filtro por competência com IA (fase 3, D108).
 - Sem chips novos para cidade e empresa (são caixas de texto).
@@ -130,7 +130,7 @@ País e configuração
 - Faixa da vaga em reais: baixo = `COALESCE(v.sal_mensal_min_brl, v.sal_mensal_max_brl)` e alto = `COALESCE(v.sal_mensal_max_brl, v.sal_mensal_min_brl)`. Vaga só com máximo ("até 8 mil") ou só com mínimo usa o mesmo número nas duas pontas.
 - Condição (conversão ligada, ou Y = BRL), por sobreposição de faixas, com essas expressões escritas exatamente assim (são as dos índices da parte H):
   `v.sal_plausivel IS NOT 0 AND COALESCE(v.sal_mensal_max_brl, v.sal_mensal_min_brl) >= :sal_de_brl AND COALESCE(v.sal_mensal_min_brl, v.sal_mensal_max_brl) <= :sal_ate_brl` (cada lado só quando o valor veio; com um lado só, a vaga sem valor convertido cai fora porque `NULL >= x` não é verdadeiro).
-- Conversão desligada e Y diferente de BRL: só compara vagas pagas em Y (`v.sal_moeda = :sal_moeda`), em centavos da moeda original (valor digitado `* 100`):
+- Conversão desligada e Y diferente de BRL: só compara vagas pagas em Y e com salário plausível (`v.sal_plausivel IS NOT 0 AND v.sal_moeda = :sal_moeda`, a mesma guarda do modo ligado), em centavos da moeda original (valor digitado `* 100`):
   - baixo = `COALESCE(v.sal_mensal_min, <máximo mensal>)` e alto = `COALESCE(<máximo mensal>, v.sal_mensal_min)`;
   - `<máximo mensal>` sai de `sal_max` e `sal_periodo`, com os fatores de `PARA_MENSAL` (`nucleo/tratamento/salario.py:43-49`), do mesmo jeito que `mensal` (`:261-262`) e `_calcula` (`banco/cotacoes.py:100-102`, período fora da lista dá nulo):
     `CASE v.sal_periodo WHEN 'hora' THEN v.sal_max * 160 WHEN 'dia' THEN v.sal_max * 21 WHEN 'semana' THEN round(v.sal_max * 4.33) WHEN 'mes' THEN v.sal_max WHEN 'ano' THEN round(v.sal_max / 12.0) END`.
