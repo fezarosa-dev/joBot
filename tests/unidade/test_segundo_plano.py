@@ -1,4 +1,5 @@
 import argparse
+import logging
 import sys
 from collections.abc import Sequence
 from pathlib import Path
@@ -237,6 +238,23 @@ def test_systemctl_que_falha_vira_recusa(tmp_path: Path) -> None:
     assert erro.value.motivo.params["saida"] == "Failed to enable"
 
 
+def test_systemctl_que_falha_loga_a_saida_completa_uma_vez(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    class Quebrado(Sistema):
+        def __call__(self, comando: Sequence[str]) -> Resultado:
+            resposta = super().__call__(comando)
+            return Resultado(1, "", "SAIDA-CRUA do systemctl") if "enable" in comando else resposta
+
+    with caplog.at_level(logging.WARNING), pytest.raises(Recusa) as erro:
+        ligar(Quebrado(tmp_path), env=_env(tmp_path))
+    registros = [r for r in caplog.records if "SAIDA-CRUA do systemctl" in r.getMessage()]
+    assert len(registros) == 1
+    assert registros[0].levelno == logging.WARNING
+    assert "enable --now jobot.service" in registros[0].getMessage()
+    assert erro.value.motivo.params["saida"] == "SAIDA-CRUA do systemctl"  # a linha de comando usa
+
+
 def test_atalho_criado_mesmo_com_segundo_plano_desligado(tmp_path: Path) -> None:
     rodar = Sistema(tmp_path)
     criar_atalho(rodar, env=_env(tmp_path, "fedora-dev"))
@@ -403,3 +421,20 @@ def test_executar_ligar_sem_poder_gravar_o_arquivo_sai_com_1(
     linhas = capsys.readouterr().err.strip().splitlines()
     assert len(linhas) == 1
     assert "Traceback" not in linhas[0]
+
+
+def test_linha_de_comando_nao_repete_a_saida_do_systemctl_no_stderr(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.delenv("CONTAINER_ID", raising=False)
+    ligar(Sistema(tmp_path), env=_env(tmp_path))
+    _rodar_com(monkeypatch, _DisableFalha(tmp_path))
+    # sem handler algum (como no terminal) o logging imprimiria o aviso cru no stderr (T159)
+    monkeypatch.setattr(logging.getLogger("jobot"), "handlers", [])
+    monkeypatch.setattr(logging.root, "handlers", [])
+    capsys.readouterr()
+    assert executar(argparse.Namespace(acao="desligar")) == 1
+    err = capsys.readouterr().err
+    assert err.count("Failed to disable unit") == 1
+    assert logging.getLogger("jobot").handlers == []  # o silenciador sai ao terminar

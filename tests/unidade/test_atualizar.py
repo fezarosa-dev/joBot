@@ -8,6 +8,7 @@ mexem em `~/.config/systemd/user`.
 
 import argparse
 import importlib
+import logging
 import os
 import subprocess
 from collections.abc import Callable, Mapping, Sequence
@@ -405,3 +406,21 @@ def test_recusa_branch_divergente(
     assert not any(r.startswith("systemctl") for r in registro)
     assert _git(clone, "rev-parse", "HEAD") == antes
     assert "divergiu" in capsys.readouterr().err
+
+
+def test_desligar_recusado_nao_repete_a_saida_do_systemctl_no_stderr(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # sem nenhum handler (como no terminal), o logging imprimiria o aviso cru no stderr (T159)
+    monkeypatch.setattr(logging.getLogger("jobot"), "handlers", [])
+    monkeypatch.setattr(logging.root, "handlers", [])
+    servico = tmp_path / "casa" / ".config" / "systemd" / "user" / "jobot.service"
+    servico.parent.mkdir(parents=True)
+    servico.write_text("[Service]\n")
+    registro: list[str] = []
+    rodar = _Sistema(registro, plano_ligado=True)
+    rodar.falha_em["systemctl disable"] = Resultado(1, erro="Failed to connect to bus")
+    parar, subir = _falsos(registro, None)
+    codigo = atualizar(rodar, tmp_path, parar=parar, subir=subir, raiz=_clone_falso(tmp_path / "c"))
+    assert codigo == 1
+    assert capsys.readouterr().err.count("Failed to connect to bus") == 1
