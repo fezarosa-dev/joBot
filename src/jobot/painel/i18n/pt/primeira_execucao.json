@@ -5,6 +5,7 @@
   "primeira_execucao.p1.intro": "Tudo é opcional, e você muda isso depois em Buscas. Quanto mais você disser, melhor o joBot ordena as vagas.",
   "primeira_execucao.p1.cargos": "Cargos ou palavras-chave",
   "primeira_execucao.p1.cargos_dica": "Um por linha, ou separados por vírgula. Até 20. Para achar mais vagas, ponha variações do mesmo cargo (ex.: infraestrutura, servidores, sysadmin).",
+  "primeira_execucao.p1.meu_pais": "Meu país",
   "primeira_execucao.p1.cidades": "Cidades",
   "primeira_execucao.p1.cidade": "Cidade {n}",
   "primeira_execucao.p1.uf": "UF",

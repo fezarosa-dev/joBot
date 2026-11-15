@@ -10,7 +10,8 @@ from decimal import Decimal, InvalidOperation
 
 from jobot.banco.leitura import Item
 from jobot.nucleo.modelo import Local
-from jobot.nucleo.tratamento.locais import nome_do_pais, nome_em_ingles
+from jobot.nucleo.texto import normalizar
+from jobot.nucleo.tratamento.locais import codigos_de_pais, nome_do_pais, nome_em_ingles
 from jobot.painel.i18n import t
 
 _SIMBOLO = {"USD": "US$", "BRL": "R$", "EUR": "€", "GBP": "£"}
@@ -136,3 +137,10 @@ def paises_texto(locais: Sequence[Local], idioma: str) -> str:
     if len(nomes) > 1:
         return f"{', '.join(nomes[:-1])} {_E.get(idioma, _E['pt'])} {nomes[-1]}"
     return "".join(nomes)
+
+
+def opcoes_de_pais(idioma: str) -> list[tuple[str, str]]:
+    """(código, nome) de cada país que o leitor de locais conhece, em ordem alfabética do nome."""
+    nome = nome_em_ingles if idioma == "en" else nome_do_pais
+    pares = [(codigo, nome(codigo) or codigo) for codigo in codigos_de_pais()]
+    return sorted(pares, key=lambda par: normalizar(par[1]))

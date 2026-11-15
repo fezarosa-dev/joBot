@@ -4,8 +4,10 @@ O segundo plano e o systemd são falsos: nenhum teste chama `systemctl` nem `dis
 e o `subprocess.run` é trocado por uma armadilha. O `HOME` do teste é uma pasta temporária.
 """
 
+import html as html_lib
 import json
 import os
+import re
 import subprocess
 import time
 from collections.abc import Iterator
@@ -20,6 +22,7 @@ from fastapi.testclient import TestClient
 
 from apoio.relogio import RelogioFalso
 from apoio.segundo_plano_falso import FalsoSistema
+from apoio.semear import inserir_vaga
 from jobot.banco import buscas
 from jobot.banco.conexao import abrir
 from jobot.banco.migrar import migrar
@@ -301,6 +304,109 @@ def test_passo1_valor_fora_da_lista_e_ignorado(cenario: Cenario) -> None:
     assert busca.modalidades == (Modalidade.REMOTO,)
     assert busca.niveis == ()
     assert busca.idiomas == ("en",)
+
+
+def _pais_marcado(html: str) -> str:
+    select = re.search(r'<select\b[^>]*name="meu_pais".*?</select>', html, re.DOTALL)
+    assert select is not None
+    (marcado,) = re.findall(r'<option value="([A-Z]{2})"[^>]*\sselected', select.group(0))
+    return str(marcado)
+
+
+def test_passo1_marca_o_pais_do_accept_language(cenario: Cenario) -> None:
+    assert _pais_marcado(cenario.get(PASSO_1, headers={"Accept-Language": "en-GB"}).text) == "GB"
+    assert _pais_marcado(cenario.get(PASSO_1).text) == "BR"
+    html = cenario.get(PASSO_1).text
+    assert "Alemanha" in html_lib.unescape(html)
+
+
+def test_passo1_grava_meu_pais_antes_da_busca(cenario: Cenario) -> None:
+    with closing(abrir(cenario.banco)) as con:
+        vaga = inserir_vaga(con, modalidade="remoto", avisos='["restrito_a_pais"]')
+        con.execute(
+            "INSERT INTO local_vaga (vaga_id, cidade, uf, pais) VALUES (?, NULL, NULL, 'PT')",
+            (vaga,),
+        )
+        con.commit()
+    resposta = cenario.post(PASSO_1, {"cargos": "Python", "meu_pais": "PT"})
+    assert resposta.status_code == 303
+    assert cenario.config("meu_pais") == "PT"
+    (busca,) = cenario.buscas()
+    with closing(abrir(cenario.banco)) as con:
+        oculta = con.execute(
+            "SELECT oculta_motivo FROM encaixe WHERE busca_id = ? AND vaga_id = ?",
+            (busca.id, vaga),
+        ).fetchone()
+    assert oculta is not None
+    assert oculta[0] is None  # com Meu país = BR a vaga de PT ficaria oculta por `pais`
+
+
+def test_pular_grava_o_pais_pre_escolhido_so_se_nao_houver(cenario: Cenario) -> None:
+    cenario.post(PASSO_1, {"pular": "1"}, headers={"Accept-Language": "en-GB"})
+    assert cenario.config("meu_pais") == "GB"
+    with closing(abrir(cenario.banco)) as con:
+        con.execute("UPDATE config SET valor = '\"PT\"' WHERE chave = 'meu_pais'")
+        con.commit()
+    cenario.post(PASSO_1, {"pular": "1"}, headers={"Accept-Language": "en-GB"})
+    assert cenario.config("meu_pais") == "PT"
+
+
+@pytest.mark.parametrize(
+    "dados",
+    [
+        {"cargos": "Python", "meu_pais": "XX"},
+        {"cargos": "Python", "meu_pais": ""},
+        {"cargos": "Python", "meu_pais": "pt"},
+        {"cargos": "Python", "meu_pais": " PT"},
+        {"pular": "1", "meu_pais": "XX"},
+    ],
+)
+def test_passo1_recusa_pais_de_fora(cenario: Cenario, dados: dict[str, str]) -> None:
+    assert cenario.post(PASSO_1, dados).status_code == 422
+    assert cenario.config("meu_pais") is None
+    assert cenario.buscas() == []
+    controle = cenario.post(PASSO_1, dados | {"meu_pais": "PT"})  # a mesma entrada, país da lista
+    assert controle.status_code == 303
+    assert cenario.config("meu_pais") == "PT"
+
+
+def test_voltar_ao_passo_1_e_trocar_o_pais_recalcula_o_encaixe_das_buscas(
+    cenario: Cenario,
+) -> None:
+    with closing(abrir(cenario.banco)) as con:
+        vaga = inserir_vaga(con, modalidade="remoto", avisos='["restrito_a_pais"]')
+        con.execute(
+            "INSERT INTO local_vaga (vaga_id, cidade, uf, pais) VALUES (?, NULL, NULL, 'PT')",
+            (vaga,),
+        )
+        cur = con.execute(
+            "INSERT INTO busca (nome, criada_em) VALUES ('sem cidade', '2026-11-13T12:00:00+00:00')"
+        )
+        busca = int(cur.lastrowid or 0)
+        con.commit()
+        buscas.recalcular_encaixe(con, [busca], True, hoje=date(2026, 11, 13))
+
+    def oculta() -> object:
+        with closing(abrir(cenario.banco)) as con:
+            linha = con.execute(
+                "SELECT oculta_motivo FROM encaixe WHERE busca_id = ? AND vaga_id = ?",
+                (busca, vaga),
+            ).fetchone()
+        assert linha is not None
+        return linha[0]
+
+    assert oculta() == "pais"  # controle: com Meu país = BR a vaga de PT fica oculta
+    resposta = cenario.post(PASSO_1, {"busca": str(busca), "meu_pais": "PT"})  # critérios vazios
+    _redireciona(resposta, f"{PASSO_2}?busca={busca}")
+    assert cenario.config("meu_pais") == "PT"
+    assert oculta() is None
+
+
+def test_passo1_com_busca_invalida_nao_grava_meu_pais(cenario: Cenario) -> None:
+    resposta = cenario.post(PASSO_1, {"cargos": "Python", "meu_pais": "PT", "salario_min": "abc"})
+    assert resposta.status_code == 422
+    assert cenario.config("meu_pais") is None
+    assert cenario.buscas() == []
 
 
 def test_passo1_cargos_sem_repeticao_e_no_maximo_20(cenario: Cenario) -> None:

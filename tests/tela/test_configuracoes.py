@@ -1,6 +1,7 @@
 """Configurações no navegador: abas, interruptores, aparência e privacidade (plano T54)."""
 
 from pathlib import Path
+from typing import Literal
 
 import pytest
 from fastapi import FastAPI
@@ -156,3 +157,22 @@ def test_so_pelo_teclado_liga_e_desliga_a_chave(page: Page, painel: str) -> None
     expect(chave).not_to_be_checked()
     page.keyboard.press("Space")
     expect(chave).to_be_checked()
+
+
+@pytest.mark.parametrize("esquema", ["light", "dark"])
+def test_aparencia_troca_meu_pais_e_moeda(
+    page: Page, painel: str, esquema: Literal["light", "dark"]
+) -> None:
+    page.emulate_media(color_scheme=esquema)
+    page.goto(f"{painel}/configuracoes/aparencia")
+    page.get_by_label("Meu país", exact=True).select_option(label="Portugal")
+    page.get_by_role("button", name="Salvar").click()
+    expect(page).to_have_url(f"{painel}/configuracoes/aparencia?salvo=1")
+    page.goto(f"{painel}/configuracoes/aparencia")
+    expect(page.get_by_label("Meu país", exact=True)).to_have_value("PT")
+    expect(page.get_by_label("Meu país", exact=True).locator("option:checked")).to_have_text(
+        "Portugal"
+    )
+    moeda = page.get_by_label("Moeda dos valores convertidos")
+    expect(moeda.locator("option").first).to_have_text("A do meu país (EUR)")
+    expect(moeda).to_have_value("")

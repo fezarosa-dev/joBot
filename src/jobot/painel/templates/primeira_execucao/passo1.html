@@ -10,6 +10,12 @@
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   {% if busca_id %}<input type="hidden" name="busca" value="{{ busca_id }}">{% endif %}
   <div class="campo">
+    <label for="meu_pais">{{ t("primeira_execucao.p1.meu_pais") }}</label>
+    <select id="meu_pais" name="meu_pais">
+      {% for codigo, nome in paises %}<option value="{{ codigo }}"{% if codigo == entrada.pais %} selected{% endif %}>{{ nome }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="campo">
     <label for="cargos">{{ t("primeira_execucao.p1.cargos") }}</label>
     <textarea id="cargos" name="cargos" rows="3" aria-describedby="cargos-dica">{{ entrada.cargos }}</textarea>
     <small id="cargos-dica">{{ t("primeira_execucao.p1.cargos_dica") }}</small>
