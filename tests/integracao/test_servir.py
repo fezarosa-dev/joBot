@@ -15,8 +15,10 @@ import time
 from collections.abc import Awaitable, Callable, Iterator, Mapping
 from contextlib import closing
 from datetime import UTC, date, datetime, timedelta
+from datetime import time as hora
 from pathlib import Path
-from typing import Any
+from types import SimpleNamespace
+from typing import Any, cast
 
 import pytest
 from fastapi.testclient import TestClient
@@ -24,12 +26,15 @@ from fastapi.testclient import TestClient
 import jobot
 from apoio.relogio import RelogioFalso
 from jobot.agenda.agendador import o_que_roda
-from jobot.banco.cadastros import gravar_config
+from jobot.agenda.login import Login
+from jobot.banco.cadastros import gravar_config, ligar_fonte, semear_leitores
 from jobot.banco.conexao import abrir
 from jobot.banco.execucoes import abrir_execucao, fechar_execucao, gravar_saude
 from jobot.banco.migrar import migrar
 from jobot.cli import COMANDOS, buscar, servir
 from jobot.nucleo.http import ClienteEducado
+from jobot.nucleo.leitores import registro
+from jobot.nucleo.leitores.base import LeitorComLogin
 from jobot.nucleo.relogio import Relogio
 from jobot.painel.app import criar_app
 from jobot.sistema.instancia import Trava, pid_do_servidor
@@ -207,6 +212,79 @@ def test_estado_so_liga_a_agenda_com_a_primeira_execucao_concluida(
     interruptores = servir._EstadoDoBanco(dados / "jobot.db").interruptores()
     vencidos = o_que_roda(AGORA, None, None, None, AGORA - timedelta(hours=1), interruptores)
     assert vencidos == (["busca", "descoberta", "paginas"] if valor is True else [])
+
+
+def _com_leitor(monkeypatch: pytest.MonkeyPatch, con: sqlite3.Connection, ligada: bool) -> None:
+    leitor = cast(LeitorComLogin, SimpleNamespace(chave="teste_logado"))
+    monkeypatch.setattr(registro, "LEITORES", (leitor,))
+    semear_leitores(con, [leitor])
+    ligar_fonte(con, "teste_logado", ligada)
+
+
+def test_horarios_tortos_no_banco_valem_o_padrao(
+    dados: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    with closing(_banco(dados)) as con:
+        _com_leitor(monkeypatch, con, True)
+        gravar_config(con, "login_horarios", "x")
+    with caplog.at_level(logging.WARNING, logger="jobot.cli.servir"):
+        login = servir._EstadoDoBanco(dados / "jobot.db").login()
+    assert login == Login((hora(9), hora(18)), None)
+    chave = "configuracoes.sites_com_login.horarios.formato"
+    assert [r.getMessage() for r in caplog.records if chave in r.getMessage()]
+
+
+def test_horarios_tortos_avisam_uma_vez_por_valor(
+    dados: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    # o laço lê o estado a cada 60 s: o mesmo valor torto não enche o log
+    with closing(_banco(dados)) as con:
+        _com_leitor(monkeypatch, con, True)
+        gravar_config(con, "login_horarios", "x")
+    estado = servir._EstadoDoBanco(dados / "jobot.db")
+    with caplog.at_level(logging.WARNING, logger="jobot.cli.servir"):
+        estado.login()
+        estado.login()
+        with closing(abrir(dados / "jobot.db")) as con:
+            gravar_config(con, "login_horarios", "y")
+        estado.login()
+    avisos = [r for r in caplog.records if "login_horarios" in r.getMessage()]
+    assert len(avisos) == 2
+
+
+def test_estado_login_le_horarios_e_ultima_do_banco(
+    dados: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    with closing(_banco(dados)) as con:
+        _com_leitor(monkeypatch, con, True)
+        gravar_config(con, "login_horarios", ["20:00", "08:00"])
+        id_ = abrir_execucao(con, "login", "agenda", AGORA)
+        assert id_ is not None
+        fechar_execucao(con, id_, AGORA + timedelta(minutes=5))
+    login = servir._EstadoDoBanco(dados / "jobot.db").login()
+    assert login == Login((hora(8), hora(20)), AGORA)
+
+
+def test_estado_login_none_sem_site_ligado(dados: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    caminho = dados / "jobot.db"
+    with closing(_banco(dados)) as con:
+        _com_leitor(monkeypatch, con, False)
+    assert servir._EstadoDoBanco(caminho).login() is None
+    # fonte com login ligada no banco, mas sem leitor registrado: também não roda
+    with closing(abrir(caminho)) as con:
+        ligar_fonte(con, "teste_logado", True)
+    monkeypatch.setattr(registro, "LEITORES", ())
+    assert servir._EstadoDoBanco(caminho).login() is None
+
+
+def test_login_parado_antes_da_primeira_execucao(dados: Path) -> None:
+    caminho = dados / "jobot.db"
+    with closing(_banco(dados)):
+        pass
+    assert servir._EstadoDoBanco(caminho).interruptores().get("login", True) is False
+    with closing(abrir(caminho)) as con:
+        gravar_config(con, "primeira_execucao_concluida", True)
+    assert servir._EstadoDoBanco(caminho).interruptores().get("login", True) is True
 
 
 def test_laco_e_rota_buscar_agora_dividem_as_mesmas_travas(
