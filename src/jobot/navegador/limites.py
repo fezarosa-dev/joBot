@@ -5,6 +5,8 @@ Moram só aqui: o resto do código e os testes leem daqui.
 
 from typing import Final
 
+from jobot.nucleo.http import ESPERAS_LIMITE
+
 MAX_LISTA: Final = 10  # páginas de lista por site, contando a `url_entrada` (D132.19, E16)
 MAX_VAGA: Final = 20  # páginas de vaga por site (D132.32)
 ESPERA_MIN_S: Final = 3.0  # espera antes de cada navegação depois da primeira (D132.19)
@@ -24,3 +26,9 @@ ESPERA_FECHAR_S: Final = 1.0
 # acabou de ser achado, então ler um atributo dele não espera mais que isto.
 PRAZO_COFRE_S: Final = 15.0
 ESPERA_ATRIBUTO_MS: Final = 1_000
+# Técnicos, fora da D132 (T228, D135.7): moravam em `pagina.py`.
+ESPERA_ASSENTAR_MS: Final = 10_000  # `networkidle` depois do `load` (E11); estouro é ignorado
+PASSOS_DEPOIS_DE_ROLAR: Final = (
+    5  # shortcut: até 5 s de 1 em 1 pelos pedidos da página; rever na Parte B
+)
+ESPERA_429_S: Final = ESPERAS_LIMITE[0]  # 429 sem `Retry-After`: o número único de `nucleo/http.py`
