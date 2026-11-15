@@ -73,5 +73,20 @@
   "configuracoes.servicos.captcha.testar": "Test key",
   "configuracoes.servicos.captcha.testando": "Testing…",
   "configuracoes.servicos.captcha.ok": "Valid key. Balance: {saldo}",
-  "configuracoes.servicos.erro.sem_chave": "Type a key or save one before testing."
+  "configuracoes.servicos.erro.sem_chave": "Type a key or save one before testing.",
+  "configuracoes.grupo.sites_com_login": "Sites with login",
+  "configuracoes.sites_com_login.explicacao": "Reading sites with login may go against their terms, and your account may be restricted. You decide site by site. joBot never types your password and only reads: you sign in to the site and it reads the jobs from that session, only on the sites you turn on here.",
+  "configuracoes.sites_com_login.navegador.chrome": "Chrome found",
+  "configuracoes.sites_com_login.navegador.chromium": "Using Playwright's Chromium",
+  "configuracoes.sites_com_login.navegador.nenhum": "No browser found. Install Google Chrome to use these sites.",
+  "configuracoes.sites_com_login.ainda_nao_leu": "Not read yet",
+  "configuracoes.sites_com_login.ultima": "Last read: {estado}",
+  "configuracoes.sites_com_login.rodando": "Reading now",
+  "configuracoes.sites_com_login.horarios": "Times (local time)",
+  "configuracoes.sites_com_login.horarios.ajuda": "1 to 4 times in the HH:MM format, separated by commas, at least 4 hours apart. Example: 09:00, 18:00.",
+  "configuracoes.sites_com_login.horarios.formato": "Use the HH:MM format, separating the times with commas (for example 09:00, 18:00).",
+  "configuracoes.sites_com_login.horarios.repetido": "Do not repeat a time.",
+  "configuracoes.sites_com_login.horarios.muitos": "At most 4 times.",
+  "configuracoes.sites_com_login.horarios.perto": "Leave at least 4 hours between one time and the next.",
+  "configuracoes.sites_com_login.esquecer": "Forget logins"
 }

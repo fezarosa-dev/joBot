@@ -1,0 +1,23 @@
+<p class="config-texto">{{ t("configuracoes.sites_com_login.explicacao") }}</p>
+<p class="config-texto">{{ t("configuracoes.sites_com_login.navegador." ~ navegador) }}</p>
+<p id="status-sites" role="status" aria-live="polite" class="config-salvo"></p>
+<div class="cartoes-site">
+  {%- for c in cartoes %}
+  {% include "configuracoes/_cartao_site_login.html" %}
+  {%- endfor %}
+</div>
+<form method="post" action="/configuracoes/sites-com-login" class="config-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <div class="campo">
+    <label for="campo-horarios">{{ t("configuracoes.sites_com_login.horarios") }}</label>
+    <input type="text" class="campo-texto" id="campo-horarios" name="horarios" value="{{ horarios_texto }}" autocomplete="off" spellcheck="false" aria-describedby="horarios-ajuda">
+    <small id="horarios-ajuda">{{ t("configuracoes.sites_com_login.horarios.ajuda") }}</small>
+  </div>
+  <div class="acoes">
+    <button type="submit" class="botao botao-primario">{{ t("configuracoes.salvar") }}</button>
+  </div>
+</form>
+{#- o fluxo do botão é da T219; aqui ele só aparece -#}
+<div class="acoes">
+  <button type="button" class="botao botao-secundario" disabled>{{ t("configuracoes.sites_com_login.esquecer") }}</button>
+</div>

@@ -74,7 +74,7 @@ class Cartao:
     reporte: Reporte | None
 
 
-def _estado(estados: Sequence[str]) -> str:
+def estado_dos_escopos(estados: Sequence[str]) -> str:
     """Estado da fonte por escopos: `estado_da_fonte` mais "sem mudança" e "desligada"."""
     rodaram = [e for e in estados if e not in _NAO_RODOU]
     if not rodaram:
@@ -84,7 +84,7 @@ def _estado(estados: Sequence[str]) -> str:
     return estado_da_fonte(rodaram)
 
 
-def _motivo(linhas: Sequence[LinhaSaude]) -> str | None:
+def motivo_mais_grave(linhas: Sequence[LinhaSaude]) -> str | None:
     """O motivo do escopo mais grave que tiver um."""
     for linha in sorted(linhas, key=lambda ln: _GRAVIDADE.get(ln.estado, 3)):
         if linha.motivo:
@@ -155,11 +155,11 @@ def _cartoes(con: sqlite3.Connection, agora: datetime, historico: HistoricoDoBan
         chave = fonte.chave
         por_exec = por_fonte.get(chave, {})
         pontos = tuple(
-            _estado([ln.estado for ln in por_exec[e]]) if e in por_exec else "vazio"
+            estado_dos_escopos([ln.estado for ln in por_exec[e]]) if e in por_exec else "vazio"
             for e in reversed(execucoes)
         )
         ultima = next((por_exec[e] for e in execucoes if e in por_exec), [])
-        estado = _estado([ln.estado for ln in ultima]) if ultima else "sem_execucao"
+        estado = estado_dos_escopos([ln.estado for ln in ultima]) if ultima else "sem_execucao"
         if not fonte.ligada:
             estado = "desligada"
         elif estado == "desligada":  # sobra de antes de a pessoa ligar de novo
@@ -210,12 +210,12 @@ def _cartoes(con: sqlite3.Connection, agora: datetime, historico: HistoricoDoBan
                 proxima = None
 
         # o motivo de um escopo parado por limite não explica um cartão que rodou
-        motivo = _motivo(
+        motivo = motivo_mais_grave(
             [ln for ln in ultima if estado in _NAO_RODOU or ln.estado not in _NAO_RODOU]
         )
         # escopo que não é empresa cadastrada não tem link próprio: o do cartão leva só a chave
         sem_link = [ln for ln in ultima if (chave, ln.escopo) not in cadastradas]
-        motivo_reporte = _motivo(sem_link) if com_escopos else motivo
+        motivo_reporte = motivo_mais_grave(sem_link) if com_escopos else motivo
         livre = min((d for d in livres.values() if d is not None), default=None)
         if estado == "no_limite" and livre is not None:  # a fonte parada só roda depois de livre
             proxima = livre if proxima is None else max(proxima, livre)

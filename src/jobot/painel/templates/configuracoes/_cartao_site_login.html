@@ -1,0 +1,13 @@
+{% from "configuracoes/_interruptor.html" import interruptor %}
+{% from "_motivo.html" import motivo_texto with context %}
+<div id="cartao-site-{{ c.chave }}" class="cartao-site">
+  <div class="interruptores">
+    {{ interruptor("ligada", c.ligada, c.nome, "", False, "/configuracoes/sites-com-login/" ~ c.chave ~ "/interruptor", foco, "#cartao-site-" ~ c.chave) }}
+  </div>
+  <p class="config-texto">
+    {%- if c.estado %}{{ t("configuracoes.sites_com_login.ultima", estado=t("fontes.estado." ~ c.estado)) }}{% else %}{{ t("configuracoes.sites_com_login.ainda_nao_leu") }}{% endif -%}
+  </p>
+  {% if c.motivo %}<p class="config-texto">{{ motivo_texto(c.motivo) }}</p>{% endif %}
+  {% if c.rodando %}<p class="config-texto">{{ t("configuracoes.sites_com_login.rodando") }}</p>{% endif %}
+</div>
+{% if cartao_salvo %}<p hx-swap-oob="innerHTML:#status-sites"><span data-some-sozinho>{{ t("configuracoes.salvo") }}</span></p>{% endif %}
