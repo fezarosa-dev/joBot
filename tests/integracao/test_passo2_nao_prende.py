@@ -120,7 +120,7 @@ def test_nao_ligar_com_recusa_do_systemctl_conclui_e_avisa(
     assert "O segundo plano não pôde ser desligado direito" in pagina
     assert SEGREDO not in pagina  # a saída do systemctl fica no log
     assert SEGREDO not in resposta.headers["location"]
-    assert SEGREDO in caplog.text
+    assert sum(SEGREDO in r.getMessage() for r in caplog.records) == 1  # uma vez, na origem
 
 
 MOTIVOS_FIXOS = {
@@ -253,3 +253,37 @@ def test_chaves_novas_existem_em_pt_e_en() -> None:
         for chave in novas:
             assert catalogo[idioma][chave].strip(), (idioma, chave)
     assert "primeira_execucao.p2.erro_sistema" not in catalogo["pt"]
+
+
+TEXTO_SYSTEMCTL = {
+    "pt": "O systemctl daemon-reload falhou. Os detalhes ficaram no jobot.log.",
+    "en": "systemctl daemon-reload failed. The details are in jobot.log.",
+}
+
+
+@pytest.mark.parametrize("idioma", ["pt", "en"])
+@pytest.mark.parametrize("onde", [PASSO_2, CONFIG_SP])
+def test_systemctl_recusado_mostra_texto_fixo_e_loga_a_saida_uma_vez(
+    painel: Painel, caplog: pytest.LogCaptureFixture, idioma: str, onde: str
+) -> None:
+    painel.sistema.falha_em["daemon-reload"] = Resultado(1, "", SEGREDO)
+    dados = {"segundo_plano": "ligar" if onde == PASSO_2 else "on"}
+    with caplog.at_level(logging.WARNING):
+        resposta = painel.post(onde, dados, headers={"Accept-Language": idioma})
+    assert resposta.status_code == 200
+    pagina = html.unescape(resposta.text)
+    assert TEXTO_SYSTEMCTL[idioma] in pagina
+    assert SEGREDO not in pagina
+    assert "segundo_plano.systemctl_falhou" not in pagina  # nunca a chave crua
+    com_saida = [r for r in caplog.records if SEGREDO in r.getMessage()]
+    assert len(com_saida) == 1  # a saída completa vai ao log uma vez só
+    assert com_saida[0].levelno == logging.WARNING
+
+
+@pytest.mark.parametrize("idioma", ["pt", "en"])
+def test_texto_do_systemctl_nao_tem_o_marcador_da_saida(idioma: str) -> None:
+    texto = i18n.carregar()[idioma]["segundo_plano.systemctl_falhou"]
+    assert "{saida}" not in texto
+    assert i18n.t(idioma, "segundo_plano.systemctl_falhou", comando="x", saida=SEGREDO) == (
+        TEXTO_SYSTEMCTL[idioma].replace("daemon-reload", "x")
+    )
