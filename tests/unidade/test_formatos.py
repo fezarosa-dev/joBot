@@ -1,5 +1,6 @@
 """Textos de salário, data e local do cartão da vaga (desenho 13.4; plano T45)."""
 
+from decimal import Decimal
 from typing import Any
 
 import pytest
@@ -202,3 +203,20 @@ def test_locais(locais: tuple[Local, ...], esperado: str) -> None:
 )
 def test_paises_texto(paises: tuple[str, ...], idioma: str, esperado: str) -> None:
     assert formatos.paises_texto([Local(pais=p) for p in paises], idioma) == esperado
+
+
+@pytest.mark.parametrize(
+    ("valor", "idioma", "esperado"),
+    [
+        (Decimal("1234.567"), "pt", "1.234,56"),
+        (Decimal("1234.567"), "en", "1,234.56"),
+        (Decimal("0.9"), "pt", "0,90"),
+        (Decimal("0"), "en", "0.00"),
+        (Decimal("-1.234"), "pt", "-1,23"),
+        (Decimal("-1.234"), "en", "-1.23"),
+        (Decimal(10**15), "pt", "1.000.000.000.000.000,00"),
+        (Decimal("0." + "9" * 29), "pt", "0,99"),  # passa da precisão do contexto: não arredonda
+    ],
+)
+def test_decimal_curto(valor: Decimal, idioma: str, esperado: str) -> None:
+    assert formatos.decimal_curto(valor, idioma) == esperado

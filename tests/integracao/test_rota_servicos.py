@@ -3,23 +3,29 @@
 O cofre de senhas é o `CofreFalso`: nenhum teste toca o do sistema.
 """
 
+import asyncio
 import html as html_lib
+import json
 import logging
 import re
 import threading
+from collections.abc import Callable
 from contextlib import closing
 from pathlib import Path
 from typing import Any
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 from selectolax.lexbor import LexborHTMLParser, LexborNode
 
 from apoio.cofre_falso import CofreFalso
+from apoio.relogio import RelogioFalso
 from jobot.banco import cadastros
 from jobot.banco.captcha import TETO_DIA
 from jobot.banco.conexao import abrir
 from jobot.banco.migrar import migrar
+from jobot.nucleo.captcha import Falha
 from jobot.painel.app import criar_app
 from jobot.painel.i18n import carregar, t
 from jobot.painel.rotas import servicos
@@ -32,6 +38,9 @@ SEGREDO = "segredo-do-cofre-QWERTY"
 SERVICOS = "/configuracoes/servicos"
 INTERRUPTOR = SERVICOS + "/captcha/interruptor"
 APAGAR = SERVICOS + "/captcha/apagar"
+TESTAR = SERVICOS + "/captcha/testar"
+DIGITADA = "ZyXw9876VuTs5432RqPo1098NmLk7654"
+API_SALDO = "https://api.2captcha.com/getBalance"
 NOME = "2captcha"
 HX = {"HX-Request": "true"}
 CARTAO = re.compile(r'\s*<[a-z]+[^>]*\bid="cartao-captcha"')
@@ -54,6 +63,8 @@ class Painel:
         self.cofre = Cofre(tmp_path, self.backend)
         self.app = criar_app(tmp_path, PORTA)
         self.app.state.cofre = self.cofre
+        self.app.state.relogio = RelogioFalso()
+        self.pedidos: list[httpx.Request] = []
         self.http = TestClient(
             self.app,
             base_url=f"http://127.0.0.1:{PORTA}",
@@ -77,6 +88,18 @@ class Painel:
         if htmx:
             return self.http.post(url, data=dados or {}, headers={**HX, "X-CSRF-Token": self.token})
         return self.http.post(url, data={CAMPO_CSRF: self.token, **(dados or {})})
+
+    def api(self, handler: Callable[[httpx.Request], httpx.Response]) -> None:
+        """Troca a rede do painel por `handler`; cada pedido que chega fica em `pedidos`."""
+
+        def gravando(pedido: httpx.Request) -> httpx.Response:
+            self.pedidos.append(pedido)
+            return handler(pedido)
+
+        self.app.state.transporte = httpx.MockTransport(gravando)
+
+    def testar(self, chave: str) -> Any:
+        return self.post(TESTAR, {"chave": chave}, htmx=True)
 
     def salvar(self, chave: str) -> Any:
         return self.post(SERVICOS, {"chave": chave})
@@ -345,16 +368,212 @@ def test_cofre_que_trava_vira_erro_em_15_s(
     assert CHAVE not in caplog.text
 
 
+# --- testar a chave ------------------------------------------------------------------------
+
+
+def _so_se_chamado(pedido: httpx.Request) -> httpx.Response:
+    raise AssertionError("o teste não devia falar com o 2Captcha")
+
+
+def _saldo(corpo: dict[str, object]) -> Callable[[httpx.Request], httpx.Response]:
+    return lambda _pedido: httpx.Response(200, json=corpo)
+
+
+def test_testar_com_a_chave_digitada_mostra_o_saldo(painel: Painel) -> None:
+    def handler(pedido: httpx.Request) -> httpx.Response:
+        assert str(pedido.url) == API_SALDO
+        assert json.loads(pedido.content) == {"clientKey": DIGITADA}
+        return httpx.Response(200, json={"errorId": 0, "balance": 1234.567})
+
+    painel.api(handler)
+    resposta = painel.testar(DIGITADA)
+    assert resposta.status_code == 200
+    assert pt("configuracoes.servicos.captcha.ok", saldo="1.234,56").endswith("Saldo: 1.234,56")
+    assert pt("configuracoes.servicos.captcha.ok", saldo="1.234,56") in _texto(resposta)
+    assert len(painel.pedidos) == 1
+    assert painel.cofre.ler(NOME) is None  # testar não grava
+    assert DIGITADA not in resposta.text
+
+
+def test_testar_sem_digitar_usa_a_salva(painel: Painel) -> None:
+    painel.salvar(CHAVE)
+
+    def handler(pedido: httpx.Request) -> httpx.Response:
+        assert json.loads(pedido.content) == {"clientKey": CHAVE}
+        return httpx.Response(200, json={"errorId": 0, "balance": 0.9})
+
+    painel.api(handler)
+    resposta = painel.testar("")
+    assert resposta.status_code == 200
+    assert pt("configuracoes.servicos.captcha.ok", saldo="0,90") in _texto(resposta)
+    assert CHAVE not in resposta.text
+    assert len(painel.pedidos) == 1
+
+
+def test_testar_sem_chave_nenhuma_explica_sem_pedido(painel: Painel) -> None:
+    painel.api(_so_se_chamado)
+    resposta = painel.testar("")
+    assert resposta.status_code == 200
+    assert pt("configuracoes.servicos.erro.sem_chave") in _texto(resposta)
+    assert painel.pedidos == []
+
+
+def test_testar_chave_torta_nao_faz_pedido(painel: Painel) -> None:
+    painel.salvar(CHAVE)  # com chave salva: a torta digitada não cai na salva
+    painel.api(_so_se_chamado)
+    resposta = painel.testar("curta")
+    assert resposta.status_code == 200
+    assert pt("configuracoes.servicos.erro.formato") in _texto(resposta)
+    assert painel.pedidos == []
+    achado = painel.cofre.ler(NOME)
+    assert achado is not None
+    assert achado[0] == CHAVE  # a chave salva segue intacta
+
+
+def test_testar_com_o_cofre_travado_mostra_erro_do_cofre(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    trava = threading.Event()
+    painel = Painel(tmp_path, CofreFalso(trava=trava))
+    painel.api(_so_se_chamado)
+    monkeypatch.setattr(servicos, "PRAZO_COFRE_S", 0.05)
+    try:
+        resposta = painel.testar("")
+    finally:
+        trava.set()  # solta a thread presa
+    assert resposta.status_code == 200
+    assert pt("configuracoes.servicos.erro.cofre") in _texto(resposta)
+    assert painel.pedidos == []
+
+
+def _levanta(erro: BaseException) -> Callable[[httpx.Request], httpx.Response]:
+    def handler(_pedido: httpx.Request) -> httpx.Response:
+        raise erro
+
+    return handler
+
+
+@pytest.mark.parametrize(
+    ("handler", "falha"),
+    [
+        (_saldo({"errorId": 1, "errorCode": "ERROR_KEY_DOES_NOT_EXIST"}), Falha.CHAVE_INVALIDA),
+        (_saldo({"errorId": 10, "errorCode": "ERROR_ZERO_BALANCE"}), Falha.SEM_SALDO),
+        (_saldo({"errorId": 11, "errorCode": "ERROR_IP_NOT_ALLOWED"}), Falha.IP_BLOQUEADO),
+        (_saldo({"errorId": 55, "errorCode": "ERROR_ACCOUNT_SUSPENDED"}), Falha.CONTA_SUSPENSA),
+        (_levanta(httpx.ConnectError("x")), Falha.OUTRO),
+        (_levanta(TimeoutError()), Falha.TEMPO_ESGOTADO),
+    ],
+)
+def test_cada_falha_da_api_vira_o_texto_dela(
+    painel: Painel, handler: Callable[[httpx.Request], httpx.Response], falha: Falha
+) -> None:
+    painel.api(handler)
+    resposta = painel.testar(DIGITADA)
+    assert resposta.status_code == 200
+    esperado = pt("captcha.erro." + falha.value)
+    assert esperado != "captcha.erro." + falha.value
+    assert esperado in _texto(resposta)
+    assert pt("configuracoes.servicos.captcha.ok", saldo="") not in _texto(resposta)
+
+
+def test_testar_que_passa_do_prazo_vira_tempo_esgotado(
+    painel: Painel, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    painel.api(_so_se_chamado)
+
+    async def lento(*_: object, **__: object) -> None:
+        await asyncio.sleep(5)
+
+    monkeypatch.setattr(servicos, "PRAZO_TESTE_S", 0.05)
+    monkeypatch.setattr(servicos, "saldo", lento)
+    resposta = painel.testar(DIGITADA)
+    assert resposta.status_code == 200
+    assert pt("captcha.erro.tempo_esgotado") in _texto(resposta)
+
+
+def _testar_com(painel: Painel, salva: bool) -> tuple[Any, str]:
+    """Testa com a chave digitada ou, se `salva`, com a do cofre; devolve a resposta e a chave."""
+    if not salva:
+        return painel.testar(DIGITADA), DIGITADA
+    painel.salvar(CHAVE)
+    return painel.testar(""), CHAVE
+
+
+@pytest.mark.parametrize("salva", [False, True])
+def test_segredo_nunca_no_log_nem_na_resposta(
+    painel: Painel, caplog: pytest.LogCaptureFixture, salva: bool
+) -> None:
+    painel.api(_levanta(httpx.ConnectError(DIGITADA + CHAVE)))  # o erro de rede leva as duas
+    with caplog.at_level(logging.DEBUG):
+        resposta, _ = _testar_com(painel, salva)
+    assert resposta.status_code == 200
+    assert painel.pedidos  # o pedido saiu de verdade (o cliente tenta mais de uma vez)
+    for segredo in (DIGITADA, CHAVE):
+        assert segredo not in caplog.text
+        assert segredo not in resposta.text
+        assert segredo not in "".join(f"{k}={v}" for k, v in resposta.headers.items())
+
+
+@pytest.mark.parametrize("salva", [False, True])
+@pytest.mark.parametrize("balance", ["abc", -1])
+def test_saldo_torto_loga_a_falha_sem_a_chave(
+    painel: Painel, caplog: pytest.LogCaptureFixture, balance: object, salva: bool
+) -> None:
+    """O núcleo não registra a resposta torta: a rota loga `falha.value`, e só ele."""
+    painel.api(_saldo({"errorId": 0, "balance": balance}))
+    with caplog.at_level(logging.DEBUG):
+        resposta, _ = _testar_com(painel, salva)
+    assert resposta.status_code == 200
+    assert pt("captcha.erro.outro") in _texto(resposta)
+    da_rota = [r.getMessage() for r in caplog.records if r.name == servicos.__name__]
+    assert any(Falha.OUTRO.value in m for m in da_rota), da_rota
+    for segredo in (DIGITADA, CHAVE):
+        assert segredo not in caplog.text
+        assert segredo not in resposta.text
+
+
+def test_o_botao_testar_leva_a_chave_digitada_e_mostra_onde_cai(painel: Painel) -> None:
+    html = painel.get(SERVICOS).text
+    botao = _no(html, f'button[hx-post="{TESTAR}"]')
+    assert botao.attributes["hx-include"] == "#campo-chave-captcha"
+    assert botao.attributes["hx-target"] == "#resultado-captcha"
+    assert botao.attributes["hx-disabled-elt"] == "this"
+    assert "botao" in str(botao.attributes["class"]).split()
+    assert "form" not in {p.tag for p in _pais(botao)}  # fora do form: não envia a chave ao salvar
+    assert pt("configuracoes.servicos.captcha.testar") in botao.text()
+    regiao = _no(html, "#resultado-captcha")
+    assert regiao.attributes["aria-live"] == "polite"
+    assert regiao.text(strip=True) == ""
+
+
+def _pais(no: LexborNode) -> list[LexborNode]:
+    achados: list[LexborNode] = []
+    atual = no.parent
+    while atual is not None:
+        achados.append(atual)
+        atual = atual.parent
+    return achados
+
+
+def test_todo_codigo_de_falha_tem_texto_em_pt_e_en() -> None:
+    for falha in Falha:
+        chave = "captcha.erro." + falha.value
+        for idioma in ("pt", "en"):
+            assert t(idioma, chave) != chave, (idioma, chave)
+
+
 # --- CSRF e catálogo -----------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("url", [SERVICOS, INTERRUPTOR, APAGAR])
+@pytest.mark.parametrize("url", [SERVICOS, INTERRUPTOR, APAGAR, TESTAR])
 def test_post_servicos_sem_token_da_403(painel: Painel, url: str) -> None:
     painel.ligar(True)
+    painel.api(_so_se_chamado)
     resposta = painel.http.post(url, data={"chave": CHAVE, "captcha_ligado": "on"})
     assert resposta.status_code == 403
     assert painel.cofre.ler(NOME) is None
     assert painel.ligado() is True  # nada mudou: nem o apagar desligou
+    assert painel.pedidos == []  # o 403 vem antes de qualquer pedido ao 2Captcha
 
 
 def test_chaves_novas_em_pt_e_en() -> None:

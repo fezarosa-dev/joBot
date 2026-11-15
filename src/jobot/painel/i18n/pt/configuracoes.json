@@ -68,5 +68,9 @@
   "configuracoes.servicos.captcha.aviso.dados": "Vai ao 2Captcha só o endereço da página, o código público do desafio e o user agent do navegador. Nenhum dado pessoal.",
   "configuracoes.servicos.captcha.site": "Abrir o site do 2Captcha",
   "configuracoes.servicos.erro.formato": "A chave precisa ter de 16 a 64 letras e números, sem espaços. Nada foi salvo.",
-  "configuracoes.servicos.erro.cofre": "Não consegui guardar ou apagar a chave. Os detalhes ficaram no jobot.log."
+  "configuracoes.servicos.erro.cofre": "Não consegui guardar ou apagar a chave. Os detalhes ficaram no jobot.log.",
+  "configuracoes.servicos.captcha.testar": "Testar chave",
+  "configuracoes.servicos.captcha.testando": "Testando…",
+  "configuracoes.servicos.captcha.ok": "Chave válida. Saldo: {saldo}",
+  "configuracoes.servicos.erro.sem_chave": "Digite uma chave ou salve uma antes de testar."
 }
