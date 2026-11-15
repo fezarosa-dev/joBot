@@ -2,12 +2,13 @@
 
 A chave chega como texto e nunca sai daqui: não vai a log, a mensagem de erro nem a repr."""
 
+import asyncio
 import json
 import logging
-import math
 import re
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
+from datetime import date, datetime
 from decimal import Decimal
 from enum import StrEnum
 from typing import Literal, NoReturn
@@ -25,6 +26,7 @@ from jobot.nucleo.http import (
     Resposta,
     RespostaGrande,
 )
+from jobot.nucleo.relogio import Relogio
 
 _LOG = logging.getLogger(__name__)
 
@@ -32,6 +34,10 @@ API = "https://api.2captcha.com"
 ESPERA_S = 5.0
 PRAZO_S = 180.0
 TETO_BYTES = 64 * 1024
+MARGEM_S = 15.0  # folga do teto real, por fora do prazo contado pelo relógio injetado
+TETO_ESPERA_S = 30.0
+MAX_CONSULTAS = 40
+MAX_EXPOENTE_SALDO = 15  # saldo acima de 10**15 é resposta torta e quebraria a formatação
 
 _CHAVE = re.compile(r"[A-Za-z0-9]{16,64}", re.ASCII)
 _SITEKEY = re.compile(r"[A-Za-z0-9_-]{1,200}", re.ASCII)
@@ -161,7 +167,7 @@ def _ler_resposta(resposta: Resposta) -> Mapping[str, object]:
     """JSON da resposta como dicionário, com `errorId` 0; erro da API vira `ErroCaptcha`."""
     try:
         corpo = json.loads(resposta.texto, parse_float=Decimal, parse_constant=_constante_proibida)
-    except ValueError, RecursionError:
+    except ValueError, RecursionError, ArithmeticError:  # ArithmeticError: expoente enorme
         raise ErroCaptcha(Falha.OUTRO) from None
     if not isinstance(corpo, dict):
         raise ErroCaptcha(Falha.OUTRO)
@@ -172,7 +178,7 @@ def _ler_resposta(resposta: Resposta) -> Mapping[str, object]:
         codigo = corpo.get("errorCode")
         if not isinstance(codigo, str) or not _CODIGO.fullmatch(codigo):
             codigo = "?"
-        _LOG.warning("2captcha: errorId=%d errorCode=%s", error_id, codigo)
+        _LOG.warning("2captcha: errorId=%d errorCode=%r", error_id, codigo)
         raise ErroCaptcha(_falha_do_erro(error_id))
     return corpo
 
@@ -188,14 +194,150 @@ async def _post(http: HttpEducado, caminho: str, corpo: object) -> Mapping[str, 
 
 
 async def saldo(cliente: ClienteEducado, chave: str) -> Decimal:
-    http = cliente.escopo(espera_s=ESPERA_S, condicional=False, para_no_429=True)
+    http = cliente.escopo(
+        espera_s=ESPERA_S,
+        condicional=False,
+        para_no_429=True,
+        teto_espera_s=TETO_ESPERA_S,
+        seguir_saltos=False,  # o corpo leva a chave: 307/308 não a reenvia a outro endereço
+    )
     corpo = await _post(http, "/getBalance", {"clientKey": chave})
     valor = corpo.get("balance")
-    if (
-        not isinstance(valor, Decimal | int)
-        or isinstance(valor, bool)
-        or not math.isfinite(valor)
-        or valor < 0
-    ):
+    if not isinstance(valor, Decimal | int) or isinstance(valor, bool):
         raise ErroCaptcha(Falha.OUTRO)
-    return Decimal(valor)
+    total = Decimal(valor)  # `math.isfinite` estoura em int enorme; Decimal compara sem converter
+    if not total.is_finite() or total < 0 or total.adjusted() > MAX_EXPOENTE_SALDO:
+        raise ErroCaptcha(Falha.OUTRO)
+    return total or Decimal(0)  # -0.0 vira 0
+
+
+_CAMPO_DO_TOKEN = {
+    "recaptcha_v2": "gRecaptchaResponse",
+    "recaptcha_v3": "gRecaptchaResponse",
+    "turnstile": "token",
+}
+_CUSTO = re.compile(r"[0-9]{1,6}(\.[0-9]{1,8})?", re.ASCII)
+
+
+def _tarefa(desafio: Desafio) -> dict[str, object]:
+    base: dict[str, object] = {"websiteURL": desafio.url, "websiteKey": desafio.sitekey}
+    if desafio.tipo == "recaptcha_v2":
+        return {
+            "type": "RecaptchaV2TaskProxyless",
+            **base,
+            "isInvisible": desafio.invisivel,
+            "userAgent": desafio.user_agent,
+        }
+    if desafio.tipo == "recaptcha_v3":
+        extra: dict[str, object] = {"minScore": desafio.min_score}
+        if desafio.acao is not None:
+            extra["pageAction"] = desafio.acao
+        return {"type": "RecaptchaV3TaskProxyless", **base, **extra}
+    extra = {} if desafio.acao is None else {"action": desafio.acao}
+    return {"type": "TurnstileTaskProxyless", **base, **extra}
+
+
+def _id_da_tarefa(corpo: Mapping[str, object]) -> int:
+    valor = corpo.get("taskId")
+    if not isinstance(valor, int) or isinstance(valor, bool) or valor <= 0:
+        raise ErroCaptcha(Falha.OUTRO)
+    return valor
+
+
+def _solucao(corpo: Mapping[str, object], desafio: Desafio, id_tarefa: int) -> Solucao:
+    pronta = corpo.get("solution")
+    if not isinstance(pronta, dict):
+        raise ErroCaptcha(Falha.OUTRO)
+    token = pronta.get(_CAMPO_DO_TOKEN[desafio.tipo])
+    if not isinstance(token, str) or not token:
+        raise ErroCaptcha(Falha.OUTRO)
+    custo_txt = corpo.get("cost")
+    custo = (
+        Decimal(custo_txt)
+        if isinstance(custo_txt, str) and _CUSTO.fullmatch(custo_txt)
+        else None  # custo fora do formato não derruba uma resolução que deu certo
+    )
+    agente = pronta.get("userAgent") if desafio.tipo == "turnstile" else None
+    return Solucao(token, custo, agente if isinstance(agente, str) else None, id_tarefa)
+
+
+async def _abrir_tarefa(
+    cliente: ClienteEducado, chave: str, desafio: Desafio, relogio: Relogio, inicio: datetime
+) -> int:
+    """`createTask` uma vez só por tarefa: `max_pedidos=1` impede a repetição automática de rede
+    ou 5xx de abrir uma segunda tarefa (e cobrar duas vezes). Sem vaga tenta de novo até o prazo."""
+    pedido = {"clientKey": chave, "task": _tarefa(desafio)}
+    while True:
+        http = cliente.escopo(
+            espera_s=ESPERA_S,
+            condicional=False,
+            max_pedidos=1,
+            para_no_429=True,
+            teto_espera_s=TETO_ESPERA_S,
+            seguir_saltos=False,
+        )
+        try:
+            return _id_da_tarefa(await _post(http, "/createTask", pedido))
+        except ErroCaptcha as erro:
+            if (
+                erro.falha is not Falha.SEM_VAGA
+                or (relogio.agora() - inicio).total_seconds() >= PRAZO_S
+            ):
+                raise
+
+
+async def _consultar(
+    cliente: ClienteEducado,
+    chave: str,
+    desafio: Desafio,
+    relogio: Relogio,
+    inicio: datetime,
+    id_tarefa: int,
+) -> Solucao:
+    http = cliente.escopo(
+        espera_s=ESPERA_S,
+        condicional=False,
+        max_pedidos=MAX_CONSULTAS,
+        para_no_429=True,
+        teto_espera_s=TETO_ESPERA_S,
+        seguir_saltos=False,
+    )
+    while True:
+        if (relogio.agora() - inicio).total_seconds() >= PRAZO_S:
+            raise ErroCaptcha(Falha.TEMPO_ESGOTADO)
+        corpo = await _post(http, "/getTaskResult", {"clientKey": chave, "taskId": id_tarefa})
+        estado = corpo.get("status")
+        if estado == "ready":
+            return _solucao(corpo, desafio, id_tarefa)
+        if estado != "processing":
+            raise ErroCaptcha(Falha.OUTRO)
+
+
+async def resolver(
+    cliente: ClienteEducado,
+    chave: str,
+    desafio: Desafio,
+    relogio: Relogio,
+    *,
+    reservar: Callable[[date], bool],
+) -> Solucao:
+    """Abre a tarefa e consulta até `ready`; falha do conjunto fechado vira `ErroCaptcha`.
+
+    `reservar` conta a resolução no teto do dia (dia local) antes de qualquer pedido. O prazo de
+    180 s conta pelo relógio injetado; o `asyncio.timeout` por fora só corta um pedido preso."""
+    inicio = relogio.agora()
+    if not reservar(inicio.astimezone().date()):
+        raise ErroCaptcha(Falha.TETO_DIARIO)
+    try:
+        async with asyncio.timeout(PRAZO_S + MARGEM_S):
+            id_tarefa = await _abrir_tarefa(cliente, chave, desafio, relogio, inicio)
+            solucao = await _consultar(cliente, chave, desafio, relogio, inicio, id_tarefa)
+    except TimeoutError:
+        raise ErroCaptcha(Falha.TEMPO_ESGOTADO) from None
+    _LOG.info(
+        "2captcha: %s resolvido em %.0f s, custo %s",
+        desafio.tipo,
+        (relogio.agora() - inicio).total_seconds(),
+        solucao.custo,
+    )
+    return solucao
