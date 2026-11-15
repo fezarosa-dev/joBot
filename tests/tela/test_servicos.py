@@ -114,10 +114,9 @@ def test_espaco_liga_e_desliga(page: Page, painel: str, cofre: Cofre) -> None:
         velho.wait_for_element_state("hidden")
         # e o foco volta ao interruptor novo, onde a próxima tecla vai
         expect(_interruptor(page)).to_be_focused()
-        if ligado:
-            expect(_interruptor(page)).to_be_checked()
-        else:
-            expect(_interruptor(page)).not_to_be_checked()
+        # o HTMX só liga o hx-post do nó novo no fim do settle: antes disso a tecla não faz pedido
+        expect(page.locator("#cartao-captcha")).not_to_have_class(re.compile(r"\bhtmx-settling\b"))
+        expect(_interruptor(page)).to_be_checked(checked=ligado)
 
 
 def test_testar_mostra_espera_e_depois_o_saldo(page: Page, painel: str) -> None:
