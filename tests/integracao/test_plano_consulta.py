@@ -93,7 +93,7 @@ def _plano_do_chip_de_fonte(con: sqlite3.Connection) -> str:
     return "\n".join(str(linha[3]) for linha in con.execute(f"EXPLAIN QUERY PLAN {sql}"))
 
 
-def test_plano_chip_de_fonte_usa_indice_que_cobre(con: sqlite3.Connection) -> None:
+def test_plano_chip_de_fonte_usa_o_indice(con: sqlite3.Connection) -> None:
     # o SQLite do CI é mais velho: compara com o plano sem o índice, nunca o texto do nó
     assert "ocorrencia_fonte_vaga" in _plano_do_chip_de_fonte(con)
     con.execute("DROP INDEX ocorrencia_fonte_vaga")  # prova por mutação
