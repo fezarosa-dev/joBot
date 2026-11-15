@@ -58,6 +58,7 @@
   "configuracoes.servicos.captcha.sem_chave": "Save a key first.",
   "configuracoes.servicos.captcha.chave": "API key",
   "configuracoes.servicos.captcha.chave.ajuda": "The key stays in the system password vault and never comes back to the screen. Leave it empty to keep the saved key.",
+  "configuracoes.servicos.captcha.mostrar": "Show what I typed",
   "configuracoes.servicos.captcha.salva": "Saved key: {mascara}",
   "configuracoes.servicos.captcha.no_arquivo": "This computer has no password vault available. The key was kept in a file that only your user can read, in the data folder.",
   "configuracoes.servicos.captcha.apagar": "Delete key",

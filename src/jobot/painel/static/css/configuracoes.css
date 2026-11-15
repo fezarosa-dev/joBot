@@ -136,7 +136,8 @@
   min-height: 2.25rem;
 }
 
-/* A chave: um checkbox sem a aparência do sistema, com a bolinha que corre. */
+/* A chave: um checkbox sem a aparência do sistema, com a bolinha que corre. Ao apertar, a bolinha
+   estica para os lados; ligada, ela cresce para a esquerda (a borda direita fica no lugar). */
 .chave {
   appearance: none;
   position: relative;
@@ -157,10 +158,12 @@
   left: 0.125rem;
   width: 1.375rem;
   height: 1.375rem;
-  border-radius: 50%;
+  border-radius: 999px;
   background-color: var(--segmento);
   box-shadow: 0 1px 3px var(--sombra);
-  transition: transform var(--duracao) var(--mola);
+  transition:
+    transform var(--duracao) var(--mola),
+    width var(--duracao) var(--mola);
 }
 
 .chave:checked {
@@ -172,14 +175,31 @@
   background-color: var(--sobre-destaque);
 }
 
+.chave:active:not(:disabled)::after {
+  width: 1.75rem;
+}
+
+.chave:checked:active:not(:disabled)::after {
+  transform: translateX(0.75rem);
+}
+
 .chave:focus-visible {
   outline: 2px solid var(--foco);
   outline-offset: 2px;
 }
 
-.chave:disabled {
-  opacity: 0.5;
+/* desativada: trilho neutro, sem a cor de destaque e sem sombra na bolinha; não é só a opacidade */
+.chave:disabled,
+.chave:disabled:checked {
+  background-color: var(--trilho);
+  box-shadow: inset 0 0 0 1px var(--borda);
+  opacity: 0.6;
   cursor: not-allowed;
+}
+
+.chave:disabled::after {
+  background-color: var(--segmento);
+  box-shadow: none;
 }
 
 .config-form .campo input.campo-texto,
@@ -198,6 +218,39 @@
 .config-form .campo input.campo-texto {
   width: 100%;
   max-width: 24rem;
+  transition:
+    border-color 150ms ease-out,
+    box-shadow 150ms ease-out;
+}
+
+/* o anel do foco é uma sombra que entra com a borda; o contorno transparente fica para o modo de
+   alto contraste, que o troca por uma linha visível */
+.config-form .campo input.campo-texto:focus-visible {
+  border-color: var(--foco);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--foco) 35%, transparent);
+  outline: 2px solid transparent;
+}
+
+.campo-texto::-ms-reveal {
+  display: none;
+}
+
+/* campo e botão olho na mesma linha; em tela estreita o botão desce */
+.campo-linha {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.config-form .campo .campo-linha input.campo-texto {
+  flex: 1 1 14rem;
+  width: auto;
+}
+
+.config .botao[data-olho][aria-pressed="true"] {
+  background-color: var(--destaque);
+  color: var(--sobre-destaque);
 }
 
 .config-aviso {
@@ -239,13 +292,6 @@
 .config .botao-escolha[aria-pressed="true"] {
   background-color: var(--destaque);
   color: var(--sobre-destaque);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .chave,
-  .chave::after {
-    transition: none;
-  }
 }
 
 /* Campos, opções e botões: o mesmo desenho do assistente, escopado aqui. */
@@ -305,8 +351,60 @@
   transition: transform var(--duracao) var(--mola);
 }
 
-.config .botao:active {
+.config .botao:active:not(:disabled) {
   transform: scale(0.96);
+}
+
+.config .botao:disabled {
+  cursor: not-allowed;
+}
+
+/* botão à espera da resposta (o HTMX põe .htmx-request e desativa): o texto some sem mudar a
+   largura do botão e um ponto pulsa no lugar; o texto "Testando…" fica só para leitor de tela */
+.config .botao {
+  position: relative;
+}
+
+.botao-espera {
+  display: none;
+}
+
+.config .botao.htmx-request {
+  cursor: progress;
+}
+
+.config .botao.htmx-request .botao-rotulo {
+  opacity: 0;
+}
+
+.config .botao.htmx-request .botao-espera {
+  position: absolute;
+  display: block;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.config .botao.htmx-request::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin: -0.25rem 0 0 -0.25rem;
+  border-radius: 50%;
+  background-color: currentcolor;
+  animation: pulsar-botao 800ms ease-in-out infinite alternate;
+}
+
+@keyframes pulsar-botao {
+  from {
+    opacity: 0.25;
+    transform: scale(0.7);
+  }
 }
 
 .config .botao-primario {
@@ -326,6 +424,118 @@
 }
 
 /* a região de status da aba Serviços fica no lugar (aria-live) e só ganha margem com texto */
-.config-salvo:empty {
+.config-salvo:empty,
+.config-salvo:has(> [data-some-sozinho][hidden]) {
   margin: 0;
+}
+
+/* espaço entre os blocos do cartão do 2Captcha */
+#cartao-captcha > :is(.interruptores, .config-form, .acoes, .config-aviso) {
+  margin: 0 0 1rem;
+}
+
+/* resultado do teste da chave: vazio não ocupa lugar; a resposta entra com um deslize curto. O
+   estado vai também no símbolo, não só na cor */
+.resultado {
+  margin: 0 0 1rem;
+}
+
+.resultado:empty {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  height: 0;
+}
+
+.resultado > * {
+  display: flex;
+  gap: 0.5rem;
+  margin: 0;
+  font-weight: 500;
+  animation: resultado-entra 200ms ease-out both;
+}
+
+.resultado-ok {
+  color: var(--sucesso);
+}
+
+.resultado-ok::before {
+  content: "✓";
+  content: "✓" / "";
+  font-weight: 700;
+}
+
+.resultado-erro {
+  color: var(--alerta);
+}
+
+.resultado-erro::before {
+  content: "✕";
+  content: "✕" / "";
+  font-weight: 700;
+}
+
+@keyframes resultado-entra {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* a regra do base.css já zera tudo; aqui o cartão do 2Captcha fica explícito: o indicador de
+   espera para num ponto fixo e o resultado aparece sem subir */
+@media (prefers-reduced-motion: reduce) {
+  .chave,
+  .chave::after,
+  .config-form .campo input.campo-texto {
+    transition: none;
+  }
+
+  .config .botao.htmx-request::after,
+  .resultado > * {
+    animation: none;
+  }
+}
+
+/* modo de alto contraste: o navegador troca as cores; a chave ganha borda e cores do sistema para
+   ligado e desligado não ficarem iguais, e o botão olho apertado ganha borda além do fundo */
+@media (forced-colors: active) {
+  .chave {
+    border: 2px solid ButtonText;
+    background-color: Canvas;
+    forced-color-adjust: none;
+  }
+
+  .chave::after {
+    top: 0;
+    left: 0;
+    width: calc(1.625rem - 4px);
+    height: calc(1.625rem - 4px);
+    background-color: ButtonText;
+    box-shadow: none;
+  }
+
+  .chave:checked {
+    background-color: Highlight;
+  }
+
+  .chave:checked::after {
+    background-color: HighlightText;
+  }
+
+  .chave:disabled,
+  .chave:disabled:checked {
+    border-color: GrayText;
+    background-color: Canvas;
+    box-shadow: none;
+    opacity: 1;
+  }
+
+  .chave:disabled::after {
+    background-color: GrayText;
+  }
+
+  .config .botao[data-olho][aria-pressed="true"] {
+    border: 2px solid ButtonText;
+  }
 }

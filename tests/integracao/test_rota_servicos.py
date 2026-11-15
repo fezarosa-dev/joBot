@@ -546,6 +546,43 @@ def test_o_botao_testar_leva_a_chave_digitada_e_mostra_onde_cai(painel: Painel) 
     assert regiao.text(strip=True) == ""
 
 
+def test_botao_testar_tem_rotulo_e_texto_de_espera_para_leitor_de_tela(painel: Painel) -> None:
+    html = painel.get(SERVICOS).text
+    botao = _no(html, f'button[hx-post="{TESTAR}"]')
+    assert "botao-secundario" in str(botao.attributes["class"]).split()
+    rotulo = _no(html, f'button[hx-post="{TESTAR}"] .botao-rotulo')
+    assert rotulo.text(strip=True) == pt("configuracoes.servicos.captcha.testar")
+    espera = _no(html, f'button[hx-post="{TESTAR}"] .botao-espera')
+    assert espera.text(strip=True) == pt("configuracoes.servicos.captcha.testando")
+    assert "data-testando" not in botao.attributes
+
+
+def test_olho_mostra_o_que_foi_digitado_pelo_aria_controls(painel: Painel) -> None:
+    html = painel.get(SERVICOS).text
+    olho = _no(html, "button[data-olho]").attributes
+    assert olho["type"] == "button"
+    assert olho["aria-controls"] == "campo-chave-captcha"
+    assert olho["aria-pressed"] == "false"
+    assert {"botao", "botao-secundario"} <= set(str(olho["class"]).split())
+    assert _no(html, "button[data-olho]").text(strip=True) == pt(
+        "configuracoes.servicos.captcha.mostrar"
+    )
+    campo = _no(html, "#campo-chave-captcha").attributes
+    assert campo["type"] == "password"
+    assert "campo-texto" in str(campo["class"]).split()
+
+
+def test_salvo_some_sozinho_so_a_mensagem_e_nao_o_no_do_status(painel: Painel) -> None:
+    painel.salvar(CHAVE)
+    resposta = painel.post(INTERRUPTOR, {"captcha_ligado": "on"}, htmx=True)
+    oob = _no(resposta.text, "[hx-swap-oob]")
+    assert "data-some-sozinho" not in oob.attributes  # o innerHTML OOB descarta o <p>
+    filho = _no(resposta.text, "[hx-swap-oob] > [data-some-sozinho]")
+    assert filho.text(strip=True) == pt("configuracoes.salvo")
+    # a página não traz a mensagem pronta: só aparece depois de salvar
+    assert "data-some-sozinho" not in painel.get(SERVICOS).text
+
+
 def _pais(no: LexborNode) -> list[LexborNode]:
     achados: list[LexborNode] = []
     atual = no.parent

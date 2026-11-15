@@ -50,3 +50,10 @@ def test_alerta_tem_par_com_superficie_e_com_fundo() -> None:
     css = BASE_CSS.read_text(encoding="utf-8")
     pares = {par for bloco in PARES.findall(css) for par in bloco.split()}
     assert {"alerta/superficie", "alerta/fundo"} <= pares
+
+
+def test_sucesso_tem_par_com_superficie_e_com_fundo() -> None:
+    """O verde do resultado do teste da chave sai nos dois fundos: os pares entram na lista."""
+    css = BASE_CSS.read_text(encoding="utf-8")
+    pares = {par for bloco in PARES.findall(css) for par in bloco.split()}
+    assert {"sucesso/superficie", "sucesso/fundo"} <= pares
