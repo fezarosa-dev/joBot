@@ -6,14 +6,26 @@ Nome e id da conta são inventados (`Fulana Exemplo`, `u-998877`); os segredos d
 import importlib.util
 import json
 import os
+import socket
 import sys
-from collections.abc import AsyncIterator, Mapping
+from collections.abc import AsyncIterator, Mapping, Sequence
 from contextlib import asynccontextmanager
 from pathlib import Path
 from types import ModuleType
+from typing import Any
+from urllib.parse import parse_qs, urlsplit
 
 import pytest
+from selectolax.lexbor import LexborHTMLParser, LexborNode
 
+from apoio.cofre_falso import CofreFalso
+from apoio.relogio import RelogioFalso
+from jobot.navegador import limites
+from jobot.navegador.execucao import Dependencias
+from jobot.navegador.janela_comum import Janela, JanelaComum
+from jobot.navegador.perfil import pasta_do_perfil
+from jobot.nucleo.leitores.base import RespostaCapturada
+from jobot.sistema.cofre import Cofre
 from jobot.sistema.instancia import (
     Trava,
     captura_em_andamento,
@@ -218,3 +230,389 @@ def test_segura_o_jobot_lock_sem_porta(tmp_path: Path) -> None:
     assert vistos == [((os.getpid(), None), True)]
     assert codigo == 1
     assert pid_do_servidor(tmp_path) is None  # soltou a trava ao sair
+
+
+# --- recorte, tirar e login pela janela comum (T234; D136.10, D136.11) -------------------
+
+SELETOR = '[componentkey^="job-card-component-ref-"]'
+FRASE = "2 school alumni work here"
+PADRAO = "alumni|ex-alunos"
+PAGINA = (
+    "<!doctype html><html><head><title>Vagas</title></head><body>"
+    "<nav>Menu NAVTEXTO</nav><ul>"
+    '<li componentkey="job-card-component-ref-1">Vaga A<ul>'
+    '<li componentkey="job-card-component-ref-2">Interna</li></ul></li>'
+    '<li componentkey="job-card-component-ref-3">Vaga B</li></ul></body></html>'
+)
+
+
+def _recortar(html: str, seletores: list[str], host: str) -> str:
+    saida: str = capturar_logado.recortar(html, seletores, host)
+    return saida
+
+
+def _no(html: str, seletor: str) -> LexborNode:
+    no = LexborHTMLParser(html).css_first(seletor)
+    assert no is not None, seletor
+    return no
+
+
+def _tirar(html: str, padroes: list[str]) -> str:
+    saida: str = capturar_logado.tirar(html, padroes)
+    return saida
+
+
+def _conferir_tirar(html: str, padroes: list[str]) -> list[str]:
+    restos: list[str] = capturar_logado.conferir_tirar(html, padroes)
+    return restos
+
+
+class _JanelaQueFecha:
+    async def wait(self) -> int:
+        return 0
+
+    def terminate(self) -> None:
+        pass
+
+    def kill(self) -> None:
+        pass
+
+
+def _janela(abertas: list[Sequence[str]], caminho: Path | None = Path("/x/chrome")) -> JanelaComum:
+    async def achar() -> Path | None:
+        return caminho
+
+    async def abrir(argumentos: Sequence[str], ambiente: Mapping[str, str]) -> Janela:
+        abertas.append(argumentos)
+        return _JanelaQueFecha()
+
+    return JanelaComum(caminho=achar, abrir=abrir)
+
+
+def _com_deps(ambiente: Mapping[str, str]) -> Any:
+    @asynccontextmanager
+    async def dependencias(dados: Path, env: Mapping[str, str]) -> AsyncIterator[Dependencias]:
+        async def lancar(**argumentos: Any) -> Any:
+            raise AssertionError("o `_navegar` está trocado: ninguém lança o navegador")
+
+        yield Dependencias(
+            dados=dados,
+            lancar=lancar,
+            ambiente=lambda: ambiente,
+            politica=lambda leitor: lambda url: True,
+            sortear=lambda: limites.ESPERA_MIN_S,
+            cofre=Cofre(dados, CofreFalso()),
+            avisar=lambda titulo, frase: None,
+        )
+
+    return dependencias
+
+
+def _capturar(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    html: str,
+    argv: list[str],
+    *,
+    eventos: list[str] | None = None,
+    ambiente: Mapping[str, str] | None = None,
+    janela: JanelaComum | None = None,
+) -> tuple[int, Path]:
+    """Roda o `main` com o `_navegar` trocado por uma resposta de HTML sintético."""
+
+    async def falso(*args: Any, **kwargs: Any) -> list[RespostaCapturada]:
+        if eventos is not None:
+            eventos.append("navegar")
+        url = "https://www.linkedin.com/jobs/search/?keywords=enfermeiro"
+        return [RespostaCapturada(url, 200, "text/html", html)]
+
+    monkeypatch.setattr(capturar_logado, "_navegar", falso)
+    base = tmp_path / "fixtures"
+    codigo: int = capturar_logado.main(
+        ["--caso", "caso", "--host", "www.linkedin.com", *argv],
+        env={"JOBOT_DADOS": str(tmp_path / "dados")},
+        dependencias=_com_deps({"DISPLAY": ":0"} if ambiente is None else ambiente),
+        base=base,
+        relogio=RelogioFalso(),
+        janela=janela,
+    )
+    return codigo, base / "caso"
+
+
+def test_recorte_guarda_titulo_e_nos_de_fora() -> None:
+    saida = _recortar(PAGINA, [SELETOR], "www.linkedin.com")
+    assert "<title>Vagas</title>" in saida
+    assert saida.count("Vaga A") == 1
+    assert saida.count("Interna") == 1  # dentro do nó de fora, uma vez só
+    assert saida.count("Vaga B") == 1
+    assert saida.index("Vaga A") < saida.index("Vaga B")
+    assert "NAVTEXTO" not in saida
+
+
+def test_recorte_sem_no_recusa(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    codigo, pasta = _capturar(tmp_path, monkeypatch, PAGINA, ["--recorte", ".nao-existe"])
+    assert codigo == 2
+    saida = capsys.readouterr()
+    assert "recorte sem nó" in saida.err + saida.out
+    assert not pasta.exists()
+
+
+def test_recorte_com_um_seletor_sem_no_grava(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    argv = ["--recorte", ".nao-existe", "--recorte", SELETOR]
+    codigo, pasta = _capturar(tmp_path, monkeypatch, PAGINA, argv)
+    assert codigo == 0
+    texto = (pasta / "caso.html").read_text(encoding="utf-8")
+    assert "Vaga B" in texto
+    assert "NAVTEXTO" not in texto
+
+
+def test_recorte_limpa_o_valor_da_query() -> None:
+    pagina = (
+        "<html><head><title>T</title></head><body><div id='c'>"
+        "<a id='l' href='https://www.linkedin.com/safety/go/"
+        "?url=https%3A%2F%2Fempresa.test%2Fvaga&mt=SEGREDO&urlhash=abc'>x</a>"
+        "<img id='i' src='/x?trackingId=SEGREDO'>"
+        "<a id='o' href='https://outro.test/p?mt=VALOR'>y</a></div></body></html>"
+    )
+    saida = _recortar(pagina, ["#c"], "www.linkedin.com")
+    href = _no(saida, "#l").attributes["href"] or ""
+    src = _no(saida, "#i").attributes["src"] or ""
+    assert parse_qs(urlsplit(href).query) == {
+        "url": ["https://empresa.test/vaga"],
+        "mt": [MARCADOR],
+        "urlhash": [MARCADOR],
+    }
+    assert parse_qs(urlsplit(src).query) == {"trackingId": [MARCADOR]}
+    assert "SEGREDO" not in saida
+    assert _no(saida, "#o").attributes["href"] == "https://outro.test/p?mt=VALOR"
+
+
+@pytest.mark.parametrize(
+    ("link", "limpo"),
+    [
+        ("https://br.linkedin.com/p?mt=VALOR", True),
+        ("https://linkedin.com/p?mt=VALOR", True),
+        ("https://www.linkedin.com/p?mt=VALOR", True),
+        ("https://a.b.linkedin.com/p?mt=VALOR", True),
+        ("https://outro.test/p?mt=VALOR", False),
+        ("https://naolinkedin.com/p?mt=VALOR", False),
+        ("https://linkedin.com.outro.test/p?mt=VALOR", False),
+    ],
+)
+def test_recorte_limpa_a_query_do_site_com_ou_sem_subdominio(link: str, limpo: bool) -> None:
+    pagina = f"<html><body><div id='c'><a id='l' href='{link}'>x</a></div></body></html>"
+    saida = _recortar(pagina, ["#c"], "www.linkedin.com")
+    esperado = link.replace("VALOR", MARCADOR) if limpo else link
+    assert _no(saida, "#l").attributes["href"] == esperado
+
+
+def test_recorte_limpa_cada_url_do_srcset() -> None:
+    pagina = (
+        "<html><body><div id='c'><img id='i' srcset='"
+        "https://media.linkedin.com/a?t=SEGREDO1&url=https%3A%2F%2Fx.test 1x, "
+        "/b?t=SEGREDO2 2x, https://outro.test/c?t=FICA 480w'></div></body></html>"
+    )
+    saida = _recortar(pagina, ["#c"], "www.linkedin.com")
+    srcset = _no(saida, "#i").attributes["srcset"] or ""
+    assert "SEGREDO" not in saida
+    itens = [i.strip().rsplit(" ", 1) for i in srcset.split(", ")]
+    assert [d for _, d in itens] == ["1x", "2x", "480w"]
+    assert parse_qs(urlsplit(itens[0][0]).query) == {
+        "t": [MARCADOR],
+        "url": ["https://x.test"],
+    }
+    assert parse_qs(urlsplit(itens[1][0]).query) == {"t": [MARCADOR]}
+    assert itens[2][0] == "https://outro.test/c?t=FICA"
+
+
+@pytest.mark.parametrize(
+    "srcset",
+    [
+        "https://www.linkedin.com/i?a=1,b=SEGREDO 2x, https://www.linkedin.com/j?c=SEGREDO2 1x",
+        "https://www.linkedin.com/i?a=SEGREDO 1x,https://www.linkedin.com/j?b=SEGREDO2 2x",
+        "  ,https://www.linkedin.com/i?a=SEGREDO,, https://www.linkedin.com/j?b=SEGREDO2 480w ,",
+    ],
+)
+def test_recorte_srcset_com_virgula_na_url_ou_sem_espaco(srcset: str) -> None:
+    pagina = f"<html><body><div id='c'><img id='i' srcset='{srcset}'></div></body></html>"
+    saida = _recortar(pagina, ["#c"], "www.linkedin.com")
+    novo = _no(saida, "#i").attributes["srcset"] or ""
+    assert "SEGREDO" not in saida
+    descritores = [d for d in ("1x", "2x", "480w") if d in srcset]
+    assert all(d in novo for d in descritores)
+    assert MARCADOR in novo
+
+
+def test_recorte_troca_o_link_que_nao_se_le() -> None:
+    pagina = "<html><body><div id='c'><a id='l' href='http://[abc/p?mt=SEGREDO'>x</a></div></body></html>"
+    saida = _recortar(pagina, ["#c"], "www.linkedin.com")
+    assert _no(saida, "#l").attributes["href"] == MARCADOR
+    assert "SEGREDO" not in saida
+
+
+def test_tirar_troca_o_texto_e_o_atributo() -> None:
+    pagina = (
+        f"<html><body><p id='t'>{FRASE}</p><p id='u' aria-label='{FRASE}'>ok</p>"
+        "<p id='v'>fica</p></body></html>"
+    )
+    saida = _tirar(pagina, [PADRAO])
+    assert _no(saida, "#t").text(deep=False) == MARCADOR
+    assert _no(saida, "#u").attributes["aria-label"] == MARCADOR
+    assert _no(saida, "#u").text(deep=False) == "ok"
+    assert _no(saida, "#v").text(deep=False) == "fica"
+    assert "alumni" not in saida
+
+
+def test_tirar_recusa_o_residuo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    com_comentario = PAGINA.replace("</ul></body>", f"</ul><!-- {FRASE} --></body>")
+    assert len(_conferir_tirar(_tirar(com_comentario, [PADRAO]), [PADRAO])) == 1
+    codigo, pasta = _capturar(
+        tmp_path, monkeypatch, com_comentario, ["--recorte", "body", "--tirar", PADRAO]
+    )
+    assert codigo == 1
+    assert not pasta.exists()
+    # controle: a mesma montagem, sem o comentário, grava
+    codigo, pasta = _capturar(
+        tmp_path, monkeypatch, PAGINA, ["--recorte", "body", "--tirar", PADRAO]
+    )
+    assert codigo == 0
+    assert (pasta / "caso.html").is_file()
+
+
+def test_tirar_com_expressao_torta_devolve_2(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    codigo, pasta = _capturar(tmp_path, monkeypatch, PAGINA, ["--tirar", "("])
+    assert codigo == 2
+    assert not pasta.exists()
+
+
+def test_recorte_com_seletor_invalido_devolve_2_antes_de_tudo(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    abertas: list[Sequence[str]] = []
+    eventos: list[str] = []
+    codigo, pasta = _capturar(
+        tmp_path,
+        monkeypatch,
+        PAGINA,
+        ["--recorte", SELETOR, "--recorte", "[[", "--login", "https://www.linkedin.com/login"],
+        eventos=eventos,
+        janela=_janela(abertas),
+    )
+    assert codigo == 2
+    assert abertas == []
+    assert eventos == []
+    assert not pasta.exists()
+    assert "--recorte" in capsys.readouterr().err
+
+
+def test_recorte_cabe_no_limite(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    grande = (
+        "<html><head><title>Vagas</title></head><body>"
+        f"<div>{'texto ' * 40000}</div><div id='alvo'>pequeno</div></body></html>"
+    )
+    codigo, pasta = _capturar(tmp_path, monkeypatch, grande, ["--recorte", "#alvo"])
+    assert codigo == 0
+    assert (pasta / "caso.html").stat().st_size < 50 * 1024  # MAX_BYTES do `capturar.py`
+
+
+def test_meta_guarda_recorte_e_tirar(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    argv = ["--recorte", SELETOR, "--recorte", "nav", "--tirar", PADRAO, "--tirar", "outro"]
+    codigo, pasta = _capturar(tmp_path, monkeypatch, PAGINA, argv)
+    assert codigo == 0
+    meta = json.loads((pasta / "caso.meta.json").read_text(encoding="utf-8"))
+    assert meta.get("recorte") == [SELETOR, "nav"]
+    assert meta.get("tirar") == [PADRAO, "outro"]
+
+
+def test_meta_so_com_tirar_nao_guarda_as_listas(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    codigo, pasta = _capturar(tmp_path, monkeypatch, PAGINA, ["--tirar", PADRAO])
+    assert codigo == 0
+    meta = json.loads((pasta / "caso.meta.json").read_text(encoding="utf-8"))
+    assert "recorte" not in meta
+    assert "tirar" not in meta
+
+
+@pytest.mark.parametrize("url", ["javascript:alert(1)", "--remote-debugging-port=9222"])
+def test_login_recusa_endereco_que_nao_e_http(tmp_path: Path, url: str) -> None:
+    abertas: list[Sequence[str]] = []
+    env = {"JOBOT_DADOS": str(tmp_path)}
+
+    def rodar(endereco: str) -> int:
+        codigo: int = capturar_logado.main(
+            ["--caso", "conta", "--host", "site.invalid", f"--login={endereco}"],
+            env=env,
+            dependencias=_nao_abre,
+            janela=_janela(abertas),
+        )
+        return codigo
+
+    assert rodar(url) == 2
+    assert abertas == []
+    assert rodar("https://site.invalid/login") == 1  # controle: o `_nao_abre` é que para
+
+
+def test_login_abre_a_janela_antes_da_captura(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    abertas: list[Sequence[str]] = []
+    eventos: list[str] = []
+    janela = _janela(abertas)
+    abrir = janela.abrir
+
+    async def abrir_anotando(argumentos: Sequence[str], ambiente: Mapping[str, str]) -> Janela:
+        eventos.append("janela")
+        return await abrir(argumentos, ambiente)
+
+    janela = JanelaComum(caminho=janela.caminho, abrir=abrir_anotando)
+    url = "https://www.linkedin.com/login"
+    codigo, _ = _capturar(
+        tmp_path, monkeypatch, PAGINA, ["--login", url], eventos=eventos, janela=janela
+    )
+    assert codigo == 0
+    assert eventos == ["janela", "navegar"]
+    assert abertas[0][-1] == url
+    assert "Entre no site e feche a janela quando terminar." in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    ("fim", "trecho"),
+    [
+        ("sem_navegador", "Não achei um navegador"),
+        ("sem_tela", "Não há tela"),
+        ("em_uso", "já está aberto"),
+    ],
+)
+def test_login_que_nao_abre_a_janela_devolve_1(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    fim: str,
+    trecho: str,
+) -> None:
+    abertas: list[Sequence[str]] = []
+    eventos: list[str] = []
+    if fim == "em_uso":
+        perfil = pasta_do_perfil(tmp_path / "dados")
+        (perfil / "SingletonLock").symlink_to(f"{socket.gethostname()}-{os.getpid()}")
+    janela = _janela(abertas, None if fim == "sem_navegador" else Path("/x/chrome"))
+    codigo, pasta = _capturar(
+        tmp_path,
+        monkeypatch,
+        PAGINA,
+        ["--login", "https://www.linkedin.com/login"],
+        eventos=eventos,
+        ambiente={} if fim == "sem_tela" else None,
+        janela=janela,
+    )
+    assert codigo == 1
+    assert abertas == []
+    assert eventos == []  # a captura nem começa
+    assert trecho in capsys.readouterr().err
