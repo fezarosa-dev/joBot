@@ -42,3 +42,35 @@ def test_meta_json_hash_errado_e_detectado(tmp_path: Path) -> None:
     assert divergencias(copia) == ["vendor/htmx.min.js: sha256 diferente"]
     (copia / "fontes" / "OFL.txt").unlink()
     assert "fontes/OFL.txt: falta" in divergencias(copia)
+
+
+def _bloco_forced_colors(css: str) -> str:
+    """O texto do `@media (forced-colors: active) { ... }` (chaves contadas), ou vazio."""
+    inicio = css.find("@media (forced-colors: active)")
+    if inicio == -1:
+        return ""
+    abre = css.index("{", inicio)
+    fundo = 0
+    for i in range(abre, len(css)):
+        fundo += {"{": 1, "}": -1}.get(css[i], 0)
+        if fundo == 0:
+            return css[abre : i + 1]
+    return ""
+
+
+def test_interruptor_tem_bloco_de_cores_forcadas() -> None:
+    """Sem cores próprias (modo de alto contraste) o trilho e a bolinha precisam de borda e de
+    cores do sistema, senão ligado e desligado ficam iguais."""
+    css = (STATIC / "css" / "configuracoes.css").read_text(encoding="utf-8")
+    bloco = _bloco_forced_colors(css)
+    assert ".chave" in bloco
+    for pedaco in ("ButtonText", "Highlight", "HighlightText", "GrayText", "forced-color-adjust"):
+        assert pedaco in bloco, pedaco
+    assert "[data-olho]" in bloco
+
+
+def test_detector_do_bloco_forced_colors_acha_so_o_certo() -> None:
+    assert _bloco_forced_colors("a { b: c }") == ""  # controle: sem bloco
+    achado = _bloco_forced_colors("@media (forced-colors: active) { .x { a: b } } .y { c: d }")
+    assert ".x" in achado
+    assert ".y" not in achado

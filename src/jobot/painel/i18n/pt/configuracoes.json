@@ -58,6 +58,7 @@
   "configuracoes.servicos.captcha.sem_chave": "Salve uma chave primeiro.",
   "configuracoes.servicos.captcha.chave": "Chave da API",
   "configuracoes.servicos.captcha.chave.ajuda": "A chave fica no cofre de senhas do sistema e nunca volta para a tela. Deixe vazio para manter a chave salva.",
+  "configuracoes.servicos.captcha.mostrar": "Mostrar o que digitei",
   "configuracoes.servicos.captcha.salva": "Chave salva: {mascara}",
   "configuracoes.servicos.captcha.no_arquivo": "Este computador não tem cofre de senhas disponível. A chave ficou num arquivo que só o seu usuário lê, na pasta de dados.",
   "configuracoes.servicos.captcha.apagar": "Apagar chave",

@@ -15,7 +15,10 @@
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <div class="campo">
       <label for="campo-chave-captcha">{{ t("configuracoes.servicos.captcha.chave") }}</label>
-      <input type="password" class="campo-texto" id="campo-chave-captcha" name="chave" autocomplete="new-password" spellcheck="false"{% if foco_chave %} data-foco{% endif %} aria-describedby="chave-ajuda-captcha">
+      <div class="campo-linha">
+        <input type="password" class="campo-texto" id="campo-chave-captcha" name="chave" autocomplete="new-password" spellcheck="false"{% if foco_chave %} data-foco{% endif %} aria-describedby="chave-ajuda-captcha">
+        <button type="button" class="botao botao-secundario" data-olho aria-controls="campo-chave-captcha" aria-pressed="false">{{ t("configuracoes.servicos.captcha.mostrar") }}</button>
+      </div>
       <small id="chave-ajuda-captcha">{{ t("configuracoes.servicos.captcha.chave.ajuda") }}</small>
       {% if c.mascara %}<p class="config-texto">{{ t("configuracoes.servicos.captcha.salva", mascara=c.mascara) }}</p>{% endif %}
       {% if c.local == "arquivo" %}<p class="config-texto">{{ t("configuracoes.servicos.captcha.no_arquivo") }}</p>{% endif %}
@@ -25,7 +28,7 @@
     </div>
   </form>
   <div class="acoes">
-    <button type="button" class="botao" hx-post="/configuracoes/servicos/captcha/testar" hx-include="#campo-chave-captcha" hx-target="#resultado-captcha" hx-disabled-elt="this" data-testando="{{ t("configuracoes.servicos.captcha.testando") }}">{{ t("configuracoes.servicos.captcha.testar") }}</button>
+    <button type="button" class="botao botao-secundario" hx-post="/configuracoes/servicos/captcha/testar" hx-include="#campo-chave-captcha" hx-target="#resultado-captcha" hx-disabled-elt="this"><span class="botao-rotulo">{{ t("configuracoes.servicos.captcha.testar") }}</span><span class="botao-espera">{{ t("configuracoes.servicos.captcha.testando") }}</span></button>
   </div>
   <div id="resultado-captcha" class="resultado" aria-live="polite"></div>
   {% if c.mascara %}
@@ -45,6 +48,6 @@
       <li>{{ t("configuracoes.servicos.captcha.aviso.dados") }}</li>
     </ul>
   </div>
-  <p class="acoes"><a class="botao" href="https://2captcha.com" target="_blank" rel="noopener noreferrer">{{ t("configuracoes.servicos.captcha.site") }}</a></p>
+  <p class="acoes"><a class="botao botao-secundario" href="https://2captcha.com" target="_blank" rel="noopener noreferrer">{{ t("configuracoes.servicos.captcha.site") }}</a></p>
 </section>
-{% if cartao_salvo %}<p hx-swap-oob="innerHTML:#status-servicos">{{ t("configuracoes.salvo") }}</p>{% endif %}
+{% if cartao_salvo %}<p hx-swap-oob="innerHTML:#status-servicos"><span data-some-sozinho>{{ t("configuracoes.salvo") }}</span></p>{% endif %}
