@@ -2,7 +2,7 @@
 
 Decisões que dependem do dono do projeto. As resolvidas ficam registradas aqui, com a data.
 
-Status usados: **resolvida** (o dono decidiu ou aceitou a decisão da sessão, com a data); **decidido pelo dono** e **decisão aceita** (variantes de resolvida, com a data); **superada por Dn** (outra decisão tomou o lugar dela); **decidido pela sessão, para confirmar** (a sessão decidiu com o dono ausente: ele confirma ou manda desfazer). Textos antigos que dizem "para confirmar" (D11 a D76) são o registro de quando a decisão ainda estava com a sessão: o dono aceitou todas em 2026-11-15 (Q7), e a decisão final de cada uma está no Status do início dela. **resolvida com escolha da sessão para confirmar** (o dono decidiu o quê e a sessão escolheu o como, que ele ainda confirma: D121 e D123). Só as D110 a D119 e as escolhas da D121 e da D123 ainda esperam o dono.
+Status usados: **resolvida** (o dono decidiu ou aceitou a decisão da sessão, com a data); **decidido pelo dono** e **decisão aceita** (variantes de resolvida, com a data); **superada por Dn** (outra decisão tomou o lugar dela); **decidido pela sessão, para confirmar** (a sessão decidiu com o dono ausente: ele confirma ou manda desfazer). Textos antigos que dizem "para confirmar" (D11 a D76) são o registro de quando a decisão ainda estava com a sessão: o dono aceitou todas em 2026-11-15 (Q7), e a decisão final de cada uma está no Status do início dela. **resolvida com escolha da sessão para confirmar** (o dono decidiu o quê e a sessão escolheu o como, que ele ainda confirma: D121 e D123). Só as D110 a D119 e as escolhas da D121, da D123 e da D126 ainda esperam o dono.
 
 ## D1. Manter a opção "sessão do Claude Code"
 
@@ -1743,3 +1743,20 @@ A meta de 90% só foi batida em UF. Ela não trava a fase 1.
 - "Codex" é marca da OpenAI; o joBot não é afiliado à OpenAI (mesma linha que já existe para o Claude).
 
 **Como desfazer:** tirar o backend do Codex e o botão da ADR 0009; nada de código a desfazer.
+
+## D126. Quatro escolhas do desenho da 0.2.0, limite de 1 s relativo e salário sem moeda na URL (D107)
+
+**Status:** resolvida em 2026-11-15: escolha da sessão, para confirmar com o dono
+
+**Contexto:** o desenho da 0.2.0 (`docs/superpowers/specs/2026-11-15-0-2-0-filtros-moeda-design.md`) deixou quatro perguntas na seção 7 para o dono, mais dois pontos que a sessão fechou ao conferir o código. O dono está ausente; a sessão decidiu pela recomendação de cada uma e o desenho já segue essas respostas.
+
+**Decisão da sessão, para confirmar:**
+
+- Vaga sem salário sai quando o filtro de salário está ligado, com o aviso "N vagas sem salário ficaram de fora" e um jeito de incluí-las (`sem_salario=1`).
+- "Meu país" é perguntado no passo 1 da primeira execução, já marcado pelo `Accept-Language` (região em `_PAISES`) e, sem ele, BR. O "pular" também grava o valor pré-escolhido quando ainda não há um.
+- Os campos novos (salário, cidade, empresa, "não pode ter") ficam dentro de "Mais filtros"; os chips de país e "publicada há" ficam à vista (opção b da seção 7).
+- País fora das 11 moedas mostra em USD.
+- Desempenho (parte H): o limite de 1 s vale para o acréscimo de cada filtro novo sobre a vista atual, medido antes e depois na mesma máquina pelo script da parte H (comparação relativa, sem máquina de referência). A vista sem filtro também é medida; se ela já passar de 1 s, vira uma D para a próxima versão, sem tarefa na 0.2.0.
+- Salário (parte B): `sal_de` e `sal_ate` seguem em unidades da moeda de exibição Y, sem moeda na URL (painel local, Y muda pouco). Um link antigo reaberto depois de trocar Y lê os mesmos números na moeda nova.
+
+**Como desfazer:** o dono manda trocar qualquer item. Vaga sem salário: tirar o filtro `sem_salario` e o aviso, ou deixar a vaga sempre dentro. Meu país: tirar o campo do passo 1 e deixar só em Configurações. Posição dos filtros: mover os chips para dentro do `<details>` (opção a; o custo é o mesmo). Moeda desconhecida: trocar o USD por uma pergunta ou por BRL. Limite: voltar ao 1 s absoluto numa máquina de referência. Moeda na URL: acrescentar o parâmetro e a conversão na rota. Nada disso está construído ainda; basta mudar o desenho e as tarefas.

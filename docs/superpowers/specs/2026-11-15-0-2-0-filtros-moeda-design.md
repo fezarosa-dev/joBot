@@ -36,8 +36,8 @@ Não objetivos (ficam como estão)
 - O encaixe continua comparando em reais (`minimo_busca_brl` é calculado em `banco/buscas.py:187` e comparado em `nucleo/encaixe.py:122-131`).
 - A ordem "salário" continua pelo valor em reais (`ORDENS["salario"]`, `banco/leitura.py:59,60-66`).
 - A descoberta automática de quadros continua pelo critério do Brasil: `_no_brasil_ou_remota` aceita a vaga remota ou com local no Brasil (`nucleo/coletores/descoberta_cc.py:228-230`). Com Meu país diferente de BR ela sugere quadros pelo critério do Brasil. Fica para depois: o construtor registra uma D no `duvidas.md` ("descoberta pelo Meu país"), sem código na 0.2.0.
-- O país de reserva dos coletores quando nenhuma busca ativa manda país (o "testar" do painel) continua o deles: `_PADRAO` do Workday, do Oracle e do Eightfold (`nucleo/coletores/workday.py:41`, `oracle_hcm.py:46`, `eightfold.py:64`) e o `ctx.paises` vazio do Amazon, que vira `["BR"]` (`nucleo/coletores/carreiras/amazon.py:168`). Com busca ativa eles já recebem o `ctx.paises`, que passa a vir do Meu país (parte G).
-- O formulário de buscas e a primeira execução continuam oferecendo BRL e as 10 do PTAX (`painel/rotas/buscas.py:36`, `painel/rotas/primeira_execucao.py:208`).
+- O país de reserva dos coletores quando nenhuma busca ativa manda país (o "testar" do painel) continua o deles: `_PADRAO` do Workday, do Oracle e do Eightfold (`nucleo/coletores/plataformas/workday.py:41`, `oracle_hcm.py:46`, `eightfold.py:64`) e o `ctx.paises` vazio do Amazon, que vira `["BR"]` (`nucleo/coletores/carreiras/amazon.py:168`). Com busca ativa eles já recebem o `ctx.paises`, que passa a vir do Meu país (parte G).
+- O formulário de buscas e a primeira execução continuam oferecendo BRL e as 10 do PTAX (`painel/rotas/buscas.py:36`, `painel/rotas/primeira_execucao.py:223`).
 - Moeda fora das 11, outra fonte de câmbio, filtro por competência com IA (fase 3, D108).
 - Sem chips novos para cidade e empresa (são caixas de texto).
 
@@ -54,7 +54,7 @@ Anti-objetivos (o que a 0.2.0 não pode fazer)
 Do `CLAUDE.md` do projeto e das lições (`registros/padroes.md`):
 
 - Painel só em `127.0.0.1`, sem recurso externo, CSP sem script inline; texto de fora sempre escapado.
-- Mudança de esquema por migração `.sql` em `src/jobot/banco/migracoes/`. A 0.1.1 usa a 0004 (T153, ainda não está na `dev`); a 0.2.0 usa a próxima livre, a 0005. A versão do banco nos testes vem de `ULTIMA` (`tests/integracao/test_migracoes.py:13`).
+- Mudança de esquema por migração `.sql` em `src/jobot/banco/migracoes/`. A 0004 (T153) já está na `dev`; a 0.2.0 usa a próxima livre, a 0005. A versão do banco nos testes vem de `ULTIMA` (`tests/integracao/test_migracoes.py:13`).
 - Gravação: `INSERT ... ON CONFLICT DO UPDATE`, nunca `INSERT OR REPLACE`; nada é apagado (`vaga_sem_delete`, `banco/migracoes/0001_inicial.sql:97`). A 0005 só cria índices: não reconstrói `vaga`, não mexe em gatilho nem no FTS.
 - Sem dependência nova. Lista de países, mapa país para moeda e símbolos ficam no código.
 - Todo texto novo da tela entra em `i18n/pt` e `i18n/en`, com o mesmo conjunto de chaves; chave com parâmetro é contrato.
@@ -93,16 +93,16 @@ Câmbio e moeda
 
 - `nucleo/cambio.py`: `MOEDAS` são as 10 do PTAX (`:15`), `buscar_cotacao` (`:92`), `em_reais` (`:105-113`).
 - `banco/cotacoes.py`: `_BRL` (`:14`), validade de 7 dias (`:15`), `moedas_em_aberto` (`:19-24`), `cotacao_mais_recente` (`:59-76`), `aplicar_cotacoes` (`:106` em diante; conversão desligada deixa `NULL` nas `_brl` de toda vaga em moeda estrangeira, `:136-137`).
-- `_cotacoes` (`agenda/execucao.py:301-317`) busca só as moedas de `moedas_em_aberto` e só com `conversao_moeda_ligada`.
+- `_cotacoes` (`agenda/execucao.py:326-342`) busca só as moedas de `moedas_em_aberto` e só com `conversao_moeda_ligada`.
 - `painel/formatos.py`: `_SIMBOLO` só tem USD, BRL, EUR, GBP (`:16`); `salario_texto` devolve `SalarioTexto(original, cotacao, em_reais)` (`:23-26`, `:87-112`); vaga em BRL não ganha linha de conversão (`:96-97`).
 - i18n: `vagas.cotacao` tem `R$` fixo (`i18n/pt/vagas.json:78`, `i18n/en/vagas.json:78`); `vagas.em_reais` é `"≈ {valor}"` (`i18n/pt/vagas.json:79`).
 
 País e configuração
 
-- `banco/cadastros.py`: `ler_config` (`:225`), `gravar_config` (`:239`), `PADROES` (`:32-42`).
-- Configurações: `rotas/configuracoes.py` com `GRUPOS = ("fontes", "funcoes", "segundo-plano", "aparencia", "privacidade")` (`:34`), `FUNCOES` (`:35`), `_ctx_aparencia` vazio (`:90-91`), `_gravar_funcoes` (`:152`); o idioma fica em Aparência pelas rotas `/preferencias` (`templates/configuracoes/aparencia.html:15-22`).
-- `paises_das_buscas` usa `{"BR"}` fixo para busca sem cidade (`banco/buscas.py:216-222`) e vai para o contexto dos coletores (`agenda/execucao.py:150`).
-- O encaixe também tem BR fixo: `_pais_da_pessoa` devolve os países das cidades da busca ou, sem cidade, `{"BR"}` (`nucleo/encaixe.py:147-148`). Esse valor alimenta a regra de ocultar `pais`: vaga remota restrita a um país que não é o da pessoa (`nucleo/encaixe.py:167-176`). O encaixe é gravado por `_recalcular` (`banco/buscas.py:289-340`), que chama `calcular` (`:323-329`); todos os caminhos passam por ele: `criar_busca` e `editar_busca` (`:157`, `:177`), `recalcular_encaixe` (`:343-360`) chamado pela execução (`agenda/execucao.py:99`), pela tela de Funções quando muda a conversão ou as regras (`painel/rotas/configuracoes.py:175-179`, que recalcula antes de gravar a chave) e pela correção da vaga (`painel/rotas/detalhe.py:248`).
+- `banco/cadastros.py`: `ler_config` (`:226`), `gravar_config` (`:240`), `PADROES` (`:32-43`).
+- Configurações: `rotas/configuracoes.py` com `GRUPOS = ("fontes", "funcoes", "segundo-plano", "aparencia", "privacidade")` (`:36`), `FUNCOES` (`:37`), `_ctx_aparencia` vazio (`:92-93`), `_gravar_funcoes` (`:154`); a Aparência não tem gravador em `_GRAVADORES` (`:215-219`): o `POST /configuracoes/aparencia` cai no ramo `gravador is None` e dá 404 (`:240`); o idioma fica em Aparência pelas rotas `/preferencias` (`templates/configuracoes/aparencia.html:15-22`).
+- `paises_das_buscas` usa `{"BR"}` fixo para busca sem cidade (`banco/buscas.py:216-222`) e vai para o contexto dos coletores (`agenda/execucao.py:175`).
+- O encaixe também tem BR fixo: `_pais_da_pessoa` devolve os países das cidades da busca ou, sem cidade, `{"BR"}` (`nucleo/encaixe.py:147-148`). Esse valor alimenta a regra de ocultar `pais`: vaga remota restrita a um país que não é o da pessoa (`nucleo/encaixe.py:167-176`). O encaixe é gravado por `_recalcular` (`banco/buscas.py:289-340`), que chama `calcular` (`:323-329`); todos os caminhos passam por ele: `criar_busca` e `editar_busca` (`:157`, `:177`), `recalcular_encaixe` (`:343-360`) chamado pela execução (`agenda/execucao.py:100`), pela tela de Funções quando muda a conversão ou as regras (`painel/rotas/configuracoes.py:178-181`, que recalcula antes de gravar a chave) e pela correção da vaga (`painel/rotas/detalhe.py:248`).
 - Correção ao brief: `nucleo/tratamento/locais.py:232-233` (`if uf and not pais: pais = "BR"`) não é país padrão: é "sigla de UF brasileira implica Brasil". Fica como está; Meu país não mexe nele.
 - `locais._PAISES` (`nucleo/tratamento/locais.py:15-77`) tem 106 nomes e 55 códigos ISO (não 62); `nome_do_pais` (`:264-266`) e `nome_em_ingles` (`:273-276`). Não há mapa país para moeda.
 - O idioma inicial vem do `Accept-Language` (`painel/i18n.py:36`, `painel/seguranca.py:68-82`).
@@ -120,7 +120,7 @@ País e configuração
 
 ### Parte B. Salário de... até...
 
-- Parâmetros `sal_de` e `sal_ate`: inteiros, em unidades inteiras da moeda de exibição Y (sem centavos), por mês. Lidos com `inteiro_da_url` (`painel/rotas/vagas.py:65-70`) com teto `10**12`; outra coisa (letra, zero, negativo, enorme) é como não ter vindo. `sal_de > sal_ate`: troque os dois (link torto cai num valor útil, não em lista vazia).
+- Parâmetros `sal_de` e `sal_ate`: inteiros, em unidades inteiras da moeda de exibição Y (sem centavos), por mês. Eles não levam a moeda na URL: o painel é local e Y muda pouco; um link antigo reaberto depois de trocar Y lê os mesmos números na moeda nova. Decisão da sessão (D126), para confirmar. Lidos com `inteiro_da_url` (`painel/rotas/vagas.py:65-70`) com teto `10**12`; outra coisa (letra, zero, negativo, enorme) é como não ter vindo. `sal_de > sal_ate`: troque os dois (link torto cai num valor útil, não em lista vazia).
 - Campos novos em `Filtros`: `sal_de_brl: int | None`, `sal_ate_brl: int | None` (já em reais inteiros) e, para o caso da conversão desligada, `sal_moeda: str | None` com `sal_de_centavos`/`sal_ate_centavos`. A rota converte; `banco/leitura.py` só compara inteiros.
 - Conversão Y para BRL, na rota (ou num helper puro em `nucleo/cambio.py`): `reais = Decimal(valor) * venda_Y`, com `venda_Y` de `cotacao_mais_recente(con, Y, hoje=dia_local)`. "De" arredonda para baixo, "até" para cima (o filtro nunca corta uma vaga por arredondamento). Y = BRL: sem conversão.
 - Três grupos de vaga, que não se misturam (uma coluna `_brl` nula não quer dizer "sem salário": ela também fica nula com a conversão desligada, sem cotação de X ou quando o valor em reais não cabe no INTEGER, `banco/cotacoes.py:85-87,132-137`):
@@ -138,7 +138,7 @@ País e configuração
   - esse modo não tem índice (é o modo raro); aceito e medido na parte H;
   - a tela mostra um aviso: "Com a conversão desligada, o filtro de salário só olha vagas pagas em {moeda}."
 - Conversão ligada e sem cotação de Y nos últimos 7 dias: o filtro não corta nada e a tela avisa: "Ainda não temos a cotação de {moeda}; o filtro de salário fica desligado até a próxima busca."
-- Vaga sem salário: fica fora quando o filtro está ligado (pergunta 1, recomendação sim), com aviso "N vagas sem salário ficaram de fora" e um link "Mostrar também" que liga `sem_salario=1` (parâmetro booleano: só `1` vale; outro valor é como não ter vindo). Com `sem_salario=1`, a condição vira `(<condição acima>) OR (<sem salário>)`, nos dois modos; nunca `OR v.sal_mensal_min_brl IS NULL`, que traria de volta, no modo desligado, toda vaga em moeda estrangeira.
+- Vaga sem salário: fica fora quando o filtro está ligado (pergunta 1, decidido: sim), com aviso "N vagas sem salário ficaram de fora" e um link "Mostrar também" que liga `sem_salario=1` (parâmetro booleano: só `1` vale; outro valor é como não ter vindo). Com `sem_salario=1`, a condição vira `(<condição acima>) OR (<sem salário>)`, nos dois modos; nunca `OR v.sal_mensal_min_brl IS NULL`, que traria de volta, no modo desligado, toda vaga em moeda estrangeira.
 - Vaga com salário e sem valor convertido (conversão desligada com Y = BRL, sem cotação de X, valor que não cabe): fica fora e ganha aviso próprio, "N vagas em outra moeda, sem valor convertido, ficaram de fora", com o que fazer (ligar a conversão ou esperar a próxima busca). Não entra no `sem_salario=1`. No modo desligado com Y ≠ BRL, o aviso desse modo já explica as vagas de outras moedas.
 - As duas contagens dos avisos usam os mesmos filtros ligados, sem o de salário, e as definições acima: nenhuma vaga é contada no aviso errado.
 
@@ -167,7 +167,7 @@ País e configuração
 
 - Um `<details class="mais-filtros">` com `<summary>` "Mais filtros" dentro do `form.busca`, depois da caixa de busca. Dentro: salário de/até (dois `input type="number" min="1" step="1" inputmode="numeric"` com a moeda Y escrita ao lado), cidade, empresa e "não pode ter estas palavras", com `label` visível em cada um.
 - Fechado por padrão; o servidor renderiza `open` quando algum campo dele está preenchido. Um contador no `summary` ("Mais filtros (2)") mostra quantos estão ligados.
-- Desvio do que a sessão decidiu (que punha tudo no `<details>`): os grupos de chips `pais` e `publicada` ficam no `div.filtros`, junto dos outros chips. Motivo: o chip mostra a contagem e corta a lista num clique, como os de UF e modalidade (`painel/rotas/vagas.py:248-281`, `templates/vagas/miolo.html:42-56`); escondido, a pessoa não vê quantas vagas há por país nem por data. Os chips são `type=button` com `hx-get` e funcionariam também dentro do `<details>`, então as duas opções custam o mesmo. Quem decide é o dono, na pergunta 3.
+- Desvio do que a sessão decidiu (que punha tudo no `<details>`): os grupos de chips `pais` e `publicada` ficam no `div.filtros`, junto dos outros chips. Motivo: o chip mostra a contagem e corta a lista num clique, como os de UF e modalidade (`painel/rotas/vagas.py:248-281`, `templates/vagas/miolo.html:42-56`); escondido, a pessoa não vê quantas vagas há por país nem por data. Os chips são `type=button` com `hx-get` e funcionariam também dentro do `<details>`, então as duas opções custam o mesmo. Decidido pela sessão na pergunta 3 (D126), para confirmar com o dono.
 - Tudo vai para a URL pelo mesmo caminho dos chips:
   - `_ler_estado` lê `excluir`, `sal_de`, `sal_ate`, `sem_salario`, `cidade`, `empresa`, `pais`, `publicada`;
   - `Estado` ganha os campos de texto e de salário; `pais` e `publicada` entram em `CHIPS` e em `Estado.chips`;
@@ -181,20 +181,20 @@ País e configuração
 
 Configuração
 
-- Chaves novas em `config`, com padrão em `PADROES` (`banco/cadastros.py:32-42`): `meu_pais` (padrão `"BR"`) e `moeda_exibicao` (padrão `""` = segue o país).
+- Chaves novas em `config`, com padrão em `PADROES` (`banco/cadastros.py:32-43`): `meu_pais` (padrão `"BR"`) e `moeda_exibicao` (padrão `""` = segue o país).
 - Mapa país para moeda, puro, em `nucleo/cambio.py` (ex.: `moeda_do_pais(pais) -> str` e `MOEDAS_EXIBICAO = ("BRL", *MOEDAS)`, as 11):
   BR BRL; zona do euro EUR (dos códigos de `_PAISES`: AT, BE, DE, ES, FI, FR, GR, IE, IT, NL, PT); US USD; GB GBP; CA CAD; AU AUD; CH CHF; JP JPY; SE SEK; NO NOK; DK DKK; os demais caem em USD (pergunta 4).
 - Moeda efetiva Y = `moeda_exibicao` se estiver entre as 11, senão `moeda_do_pais(meu_pais)`. Valor gravado inválido (código fora de `_PAISES`, moeda fora das 11) cai no padrão, sem erro.
-- Tela: em Configurações > Aparência (onde já está o idioma, `templates/configuracoes/aparencia.html`), dois campos: "Meu país" (`select` com os 55 países de `_PAISES`, nome na língua da tela, em ordem alfabética) e "Moeda dos valores convertidos" (`select` com "A do meu país ({moeda})" e as 11). Texto de ajuda: "Usado nas buscas sem cidade e para escolher a moeda. O idioma do painel é escolhido à parte." Gravação no mesmo padrão de `_gravar_*` de `rotas/configuracoes.py`.
+- Tela: em Configurações > Aparência (onde já está o idioma, `templates/configuracoes/aparencia.html`), dois campos: "Meu país" (`select` com os 55 países de `_PAISES`, nome na língua da tela, em ordem alfabética) e "Moeda dos valores convertidos" (`select` com "A do meu país ({moeda})" e as 11). Texto de ajuda: "Usado nas buscas sem cidade e para escolher a moeda. O idioma do painel é escolhido à parte." Gravação no mesmo padrão de `_gravar_*` de `rotas/configuracoes.py`: como a Aparência não tem gravador hoje, a 0.2.0 cria `_gravar_aparencia` e o registra em `_GRAVADORES`.
 - `paises_das_buscas` (`banco/buscas.py:221`) troca o `{"BR"}` fixo por `{meu_pais}`. Sem busca ativa continua devolvendo `()` (`tests/integracao/test_buscas.py:148`); os coletores mantêm o padrão deles.
 - Encaixe: `_pais_da_pessoa` (`nucleo/encaixe.py:147-148`, núcleo puro) troca o `{"BR"}` fixo por `{pais_padrao}`, recebido por parâmetro: `calcular` ganha o argumento nomeado `pais_padrao: str` (`nucleo/encaixe.py:188-195`) e o repassa a `_regra_que_bate`. Busca com cidade continua usando os países das cidades; só a busca sem cidade usa o Meu país. O núcleo não lê config.
 - Quem chama: `_recalcular` (`banco/buscas.py:289`) lê `meu_pais` uma vez por chamada (com o mesmo tratamento de valor inválido, que cai em BR) e passa a `calcular`. Assim os cinco caminhos que gravam encaixe (criar e editar busca, execução, Funções, correção da vaga) usam o Meu país sem mudança neles. `recalcular_encaixe` ganha `pais_padrao: str | None = None` (`None` = ler a config), para quem precisa recalcular com um valor ainda não gravado.
-- Quando recalcula: ao salvar um Meu país diferente do gravado, a rota de Configurações chama `recalcular_encaixe(con, None, regras, hoje=hoje, pais_padrao=novo)` e só depois grava a chave, no mesmo padrão de Funções (`painel/rotas/configuracoes.py:175-181`: se o recálculo falhar, a chave fica como estava e salvar de novo refaz). Trocar só a moeda de exibição não recalcula (o encaixe compara em BRL). Na primeira execução, grave o Meu país antes de criar as buscas (`painel/rotas/primeira_execucao.py:313`), para que `criar_busca` já calcule o encaixe com ele.
+- Quando recalcula: ao salvar um Meu país diferente do gravado, a rota de Configurações chama `recalcular_encaixe(con, None, regras, hoje=hoje, pais_padrao=novo)` e só depois grava a chave, no mesmo padrão de Funções (`painel/rotas/configuracoes.py:175-181`: se o recálculo falhar, a chave fica como estava e salvar de novo refaz). Trocar só a moeda de exibição não recalcula (o encaixe compara em BRL). Na primeira execução, grave o Meu país antes de criar as buscas (`buscas.criar_busca`, `painel/rotas/primeira_execucao.py:327`), para que `criar_busca` já calcule o encaixe com ele. O ramo "pular" (`:310`) volta antes de ler o formulário: ali o Meu país também é gravado, com o valor pré-escolhido (`Accept-Language`, senão BR), quando ainda não houver um.
 - Primeira execução, passo 1: "Meu país" já marcado (pergunta 2). O padrão vem da região do `Accept-Language` (`pt-BR` dá BR, `en-GB` dá GB), só se a região estiver em `_PAISES`; sem região ou desconhecida, BR.
 
 Cotação
 
-- `_cotacoes` (`agenda/execucao.py:301-317`) passa a buscar também Y quando Y não é BRL e não está em `moedas_em_aberto`. Uma consulta a mais por dia ao mesmo serviço do Banco Central, já declarado (ADR 0014); continua só com `conversao_moeda_ligada`.
+- `_cotacoes` (`agenda/execucao.py:326-342`) passa a buscar também Y quando Y não é BRL e não está em `moedas_em_aberto`. Uma consulta a mais por dia ao mesmo serviço do Banco Central, já declarado (ADR 0014); continua só com `conversao_moeda_ligada`.
 - O painel não busca cotação. Ao trocar a moeda, até a próxima busca a tela mostra a nota de "sem cotação" (abaixo).
 
 Exibição (cartão e detalhe)
@@ -228,7 +228,7 @@ Como medir:
 
 - Teste automático (roda no CI, sem tempo): base em memória com o esquema real (`migrar(con, Path(":memory:"))`), algumas centenas de vagas semeadas, e `EXPLAIN QUERY PLAN` da consulta de `listar` com cada filtro novo; afirma que aparece `USING INDEX` com o índice esperado (país, publicada; salário com "só de", "só até" e os dois juntos, aceitando qualquer um dos dois índices de salário no caso dos dois juntos) e, em cada `EXISTS` de `local_vaga`, o índice próprio dele: país com `local_vaga_pais (pais=? AND vaga_id=?)`, que cobre a consulta e é o que o SQLite prefere; UF e cidade com `local_vaga_vaga (vaga_id=?)` (conferido com `EXPLAIN QUERY PLAN` num esquema mínimo com os índices da 0005). Não mede tempo (instável no CI).
 - Medição à mão (script em `scripts/`, fora do CI): semeia 300 mil vagas com locais e salários variados num arquivo temporário e cronometra `listar`, `contar_chips` e `contar_abas` com cada filtro e com todos juntos.
-- Limite aceito: a página de vagas (lista, chips e abas) responde em menos de 1 s com 300 mil vagas numa máquina comum. Cidade e empresa por "contém" são lineares; se passarem do limite, a próxima versão troca por prefixo ou por FTS (registrar como D, não agora).
+- Limite aceito: o acréscimo de cada filtro novo sobre a vista atual fica abaixo de 1 s com 300 mil vagas, medido antes e depois na mesma máquina pelo script desta parte (comparação relativa, sem máquina de referência). A vista sem filtro também é medida; se ela já passar de 1 s, vira uma D para a próxima versão, sem tarefa nesta. Decisão da sessão (D126), para confirmar. Cidade e empresa por "contém" são lineares; se passarem do limite, a próxima versão troca por prefixo ou por FTS (registrar como D, não agora).
 
 ## 6. O que fica para o construtor
 
@@ -239,20 +239,20 @@ Como medir:
 - Confirmar no `EXPLAIN QUERY PLAN`, já com a consulta real de `listar`, que o SQLite usa os índices de expressão ("publicada há" e os dois de salário). Se algum não for usado, ajustar a consulta para repetir a expressão do índice letra por letra antes de mexer no índice, e conferir de novo.
 - Repartir em tarefas `Tn` no plano (sugestão: A e E juntas; B; C e D juntas; F; G em duas, configuração e exibição; H primeiro, porque a 0005 é base das outras).
 
-## 7. Perguntas pendentes do dono
+## 7. Perguntas decididas pela sessão, para confirmar com o dono
+
+Decididas pela sessão em 2026-11-15 (D126), com o dono ausente. Cada resposta abaixo é a recomendação, já escrita no desenho; o dono confirma ou manda desfazer.
 
 1. Vaga sem salário fica fora quando o filtro de salário está ligado?
-   Recomendação: sim, fica fora, com o aviso "N vagas sem salário ficaram de fora" e um jeito de incluí-las (`sem_salario=1`). O desenho acima já segue isso.
-2. Pedir "Meu país" no passo 1 da primeira execução, já marcado pelo `Accept-Language` e, sem ele, BR?
-   Recomendação: sim.
-3. Os filtros novos ficam escondidos em "Mais filtros"? Duas opções, com o mesmo custo de construir:
-   - (a) tudo dentro de "Mais filtros": campos e chips de país e "publicada há". Tela inicial mais limpa, mas a pessoa só vê as contagens por país e por data depois de abrir;
-   - (b) os campos (salário, cidade, empresa, "não pode ter") dentro de "Mais filtros", e os chips de país e "publicada há" à vista, junto dos outros chips.
-   Recomendação: (b). Os chips mostram quantas vagas há e cortam num clique, como os de UF e modalidade; os campos de digitar são os que pesam na tela. É um desvio do que a sessão tinha decidido (tudo escondido), por isso a decisão é do dono. O desenho acima segue (b).
+   Decidido: sim, fica fora, com o aviso "N vagas sem salário ficaram de fora" e um jeito de incluí-las (`sem_salario=1`).
+2. Pedir "Meu país" no passo 1 da primeira execução?
+   Decidido: sim, já marcado pelo `Accept-Language` e, sem ele, BR.
+3. Onde ficam os filtros novos?
+   Decidido: opção (b). Os campos (salário, cidade, empresa, "não pode ter") ficam dentro de "Mais filtros", e os chips de país e "publicada há" ficam à vista, junto dos outros chips. Os chips mostram quantas vagas há e cortam num clique, como os de UF e modalidade; os campos de digitar são os que pesam na tela. É um desvio do que a sessão tinha decidido antes (tudo escondido). A opção (a), tudo dentro de "Mais filtros", deixaria a tela inicial mais limpa, mas a pessoa só veria as contagens depois de abrir.
 4. País fora das 11 moedas cai em USD?
-   Recomendação: sim.
+   Decidido: sim, a moeda desconhecida mostra em USD.
 
-Enquanto o dono não responde, o construtor segue as recomendações e registra cada uma no `duvidas.md` como "para confirmar".
+Também decididos na D126: o limite de 1 s relativo (parte H) e o salário sem moeda na URL (parte B). O construtor segue estas respostas.
 
 ## 8. Testes esperados, por parte
 
