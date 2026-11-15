@@ -262,6 +262,11 @@ def _tirar(html: str, padroes: list[str]) -> str:
     return saida
 
 
+def _sem_imagens(html: str) -> str:
+    saida: str = capturar_logado.sem_imagens(html)
+    return saida
+
+
 def _conferir_tirar(html: str, padroes: list[str]) -> list[str]:
     restos: list[str] = capturar_logado.conferir_tirar(html, padroes)
     return restos
@@ -481,6 +486,97 @@ def test_tirar_recusa_o_residuo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch)
     )
     assert codigo == 0
     assert (pasta / "caso.html").is_file()
+
+
+def test_sem_imagens_troca_todo_endereco_de_imagem() -> None:
+    pagina = (
+        "<html><body>"
+        "<img id='a' src='https://cdn.exemplo/escola.png' srcset='https://cdn.exemplo/e1.png 1x, "
+        "https://cdn.exemplo/e2.png 2x' alt='Logo da escola'>"
+        "<picture><source id='b' srcset='https://cdn.exemplo/p.webp 480w'><img id='b2'></picture>"
+        "<video id='c' poster='https://cdn.exemplo/capa.jpg'></video>"
+        "<svg><image id='d' href='https://cdn.exemplo/s.svg' xlink:href='https://cdn.exemplo/x.svg'>"
+        "</image></svg>"
+        "<div id='e' style=\"color:red;background-image:url('https://cdn.exemplo/f.png')\">t</div>"
+        "<a id='f' href='https://www.linkedin.com/jobs/view/1'>Vaga</a>"
+        "</body></html>"
+    )
+    saida = _sem_imagens(pagina)
+    assert "cdn.exemplo" not in saida
+    assert _no(saida, "#a").attributes["src"] == MARCADOR
+    assert _no(saida, "#a").attributes["srcset"] == MARCADOR
+    assert _no(saida, "#a").attributes["alt"] == "Logo da escola"
+    assert _no(saida, "#b").attributes["srcset"] == MARCADOR
+    assert _no(saida, "#c").attributes["poster"] == MARCADOR
+    assert _no(saida, "#d").attributes["href"] == MARCADOR
+    assert _no(saida, "#d").attributes["xlink:href"] == MARCADOR
+    assert _no(saida, "#e").attributes["style"] == f"color:red;background-image:url({MARCADOR})"
+    assert _no(saida, "#f").attributes["href"] == "https://www.linkedin.com/jobs/view/1"
+    assert _no(saida, "#f").text(deep=False) == "Vaga"
+
+
+@pytest.mark.parametrize(
+    ("entrada", "esperado"),
+    [
+        ('url("a")', f"url({MARCADOR})"),
+        ("url(a)", f"url({MARCADOR})"),
+        ("URL(a)", f"url({MARCADOR})"),
+        ('url( "a" ) no-repeat, url(b)', f"url({MARCADOR}) no-repeat, url({MARCADOR})"),
+        ("url('a)b')", f"url({MARCADOR})"),
+        ('url("a)b")', f"url({MARCADOR})"),
+        ('url( "a)b" )', f"url({MARCADOR})"),
+        ('url("a)b" )', f"url({MARCADOR})"),
+        ("color:red;background:url(a) top", f"color:red;background:url({MARCADOR}) top"),
+    ],
+)
+def test_sem_imagens_troca_cada_url_do_style(entrada: str, esperado: str) -> None:
+    estilo = entrada.replace("&", "&amp;").replace('"', "&quot;")
+    saida = _sem_imagens(f'<html><body><div id="e" style="{estilo}">t</div></body></html>')
+    assert _no(saida, "#e").attributes["style"] == esperado
+
+
+def test_sem_imagens_troca_o_src_do_source_dentro_de_video() -> None:
+    pagina = (
+        "<html><body><video><source id='s' src='https://cdn.exemplo/v.mp4'></video></body></html>"
+    )
+    saida = _sem_imagens(pagina)
+    assert _no(saida, "#s").attributes["src"] == MARCADOR
+    assert "cdn.exemplo" not in saida
+
+
+def test_sem_imagens_troca_o_data_com_endereco_e_deixa_o_resto() -> None:
+    pagina = (
+        "<html><body>"
+        "<img id='a' data-src='https://cdn.exemplo/a.png' data-delayed-url='//cdn.exemplo/b.png'"
+        " data-id='7'>"
+        "<source id='b' data-srcset='https://cdn.exemplo/c.webp 2x'>"
+        "<video id='c' data-ghost-url='https://cdn.exemplo/d.jpg'></video>"
+        "<svg><image id='d' data-src='https://cdn.exemplo/e.svg'></image></svg>"
+        "<div id='e' data-src='https://cdn.exemplo/f.png'>t</div>"
+        "</body></html>"
+    )
+    saida = _sem_imagens(pagina)
+    assert _no(saida, "#a").attributes["data-src"] == MARCADOR
+    assert _no(saida, "#a").attributes["data-delayed-url"] == MARCADOR
+    assert _no(saida, "#a").attributes["data-id"] == "7"
+    assert _no(saida, "#b").attributes["data-srcset"] == MARCADOR
+    assert _no(saida, "#c").attributes["data-ghost-url"] == MARCADOR
+    assert _no(saida, "#d").attributes["data-src"] == MARCADOR
+    # fora de img, source, video e image o atributo data-* não é tocado
+    assert _no(saida, "#e").attributes["data-src"] == "https://cdn.exemplo/f.png"
+
+
+def test_captura_grava_html_sem_endereco_de_imagem(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    pagina = PAGINA.replace(
+        "Vaga B", "Vaga B<img src='https://escola-qualquer.exemplo/logo.png' alt='x'>"
+    )
+    codigo, pasta = _capturar(tmp_path, monkeypatch, pagina, [])
+    assert codigo == 0
+    gravado = (pasta / "caso.html").read_text(encoding="utf-8")
+    assert "escola-qualquer.exemplo" not in gravado
+    assert _no(gravado, "img").attributes["src"] == MARCADOR
 
 
 def test_tirar_com_expressao_torta_devolve_2(
