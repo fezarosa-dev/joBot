@@ -1761,6 +1761,86 @@ A meta de 90% só foi batida em UF. Ela não trava a fase 1.
 
 **Como desfazer:** o dono manda trocar qualquer item. Vaga sem salário: tirar o filtro `sem_salario` e o aviso, ou deixar a vaga sempre dentro. Meu país: tirar o campo do passo 1 e deixar só em Configurações. Posição dos filtros: mover os chips para dentro do `<details>` (opção a; o custo é o mesmo). Moeda desconhecida: trocar o USD por uma pergunta ou por BRL. Limite: voltar ao 1 s absoluto numa máquina de referência. Moeda na URL: acrescentar o parâmetro e a conversão na rota. Nada disso está construído ainda; basta mudar o desenho e as tarefas.
 
+## D127. Escolhas do plano do 2Captcha (T180 a T187)
+
+**Status:** resolvida em 2026-11-15: escolha da sessão, para confirmar com o dono
+
+**Contexto:** o plano do 2Captcha (`docs/superpowers/plans/2026-11-15-captcha.md`) fez escolhas que o desenho (`docs/superpowers/specs/2026-11-15-captcha-design.md`) deixou em aberto. Elas seguem a D124 (CAPTCHA resolvido pelo serviço que a pessoa liga, só na navegação com login da fase 2); o dono está ausente e a sessão decidiu pela recomendação de cada uma. Cada escolha tem o teste que a prende.
+
+**Escolhas do plano:**
+
+| # | Escolha | Teste |
+|---|---|---|
+| E1 | `saldo` e `resolver` recebem o `ClienteEducado` (não um `HttpEducado`): o `createTask` sai num escopo próprio com `max_pedidos=1`, que transforma a repetição automática em `OrcamentoGasto`. O contrato do `HttpEducado` não muda. | `test_erro_de_rede_no_createtask_nao_abre_segunda_tarefa` |
+| E2 | O prazo de 180 s conta pelo relógio injetado, no topo de cada volta. Por fora, um teto real `asyncio.timeout(PRAZO_S + MARGEM_S)` em volta da resolução inteira (com o `RelogioFalso` nunca dispara) e `max_pedidos` também no escopo da consulta. | `test_passou_de_180_s_e_tempo_esgotado`, `test_503_com_retry_after_longo_nao_passa_do_prazo` |
+| E3 | Todo escopo do 2Captcha usa `para_no_429=True` e `teto_espera_s=30`: 429 vira `OUTRO` na hora; 503 com espera acima de 30 s também, sem dormir (frequência errada pode bloquear a conta). O parâmetro `teto_espera_s` é novo no `escopo` do `ClienteEducado`, opcional e `None` por padrão. | `test_saldo_429_vira_outro_sem_esperar`, `test_teto_espera_corta_retry_after_longo` |
+| E4 | O conjunto fechado ganha `TETO_DIARIO`, além dos oito do desenho. | `test_teto_recusa_antes_do_pedido` |
+| E5 | Sem vaga (`errorId` 2) até o prazo acabar devolve `SEM_VAGA`, não `TEMPO_ESGOTADO`. | `test_sem_vaga_ate_o_fim_e_sem_vaga` |
+| E6 | `userAgent` vai só no reCAPTCHA v2: a seção 4 do desenho lista o campo só nele. | `test_resolver_recaptcha_v2`, `test_resolver_recaptcha_v3`, `test_resolver_turnstile` |
+| E7 | Teto e contador em `banco/captcha.py` (`TETO_DIA = 30`), na chave `captcha_uso` da `config`, com `{"dia": "<AAAA-MM-DD local>", "n": <int>}`, num comando SQL só. Conta antes do `createTask`, uma vez por chamada de `resolver`. | `test_reserva_ate_o_teto_e_recusa_a_seguinte`, `test_reserva_e_um_comando_so` |
+| E8 | O portão da fase 2 é `captcha_pronto(con, chave)`, no `banco`. | `test_pronto_so_com_chave_e_ligado` |
+| E9 | Cofre: lê do sistema e depois do arquivo; grava no sistema e confere lendo de volta; deu certo, apaga o arquivo antigo; caiu no arquivo, tenta apagar a cópia do sistema. Apagar confere lendo de volta (ainda lá = `OSError`). Arquivo `<pasta de dados>/<nome>.segredo`. Log só com o tipo da exceção, sem `exc_info`. | `test_gravar_no_cofre_apaga_o_arquivo_antigo`, `test_cofre_que_falha_cai_no_arquivo_0600`, `test_reserva_no_arquivo_nao_deixa_chave_velha_no_sistema`, `test_apagar_que_o_cofre_recusa_levanta` |
+| E9b | Chamadas ao cofre no painel com `asyncio.wait_for(run_in_threadpool(...), 15)`; estourou = `erro.cofre`. `shortcut:` a thread do keyring fica presa até o cofre responder; trocar quando houver API assíncrona. | `test_cofre_que_trava_vira_erro_em_15_s` |
+| E9c | Dependências da `keyring` aceitas pelo ADR 0014; licença fora de MIT/BSD/Apache = parar (R4). A T180 lista a diferença do `uv.lock` (abaixo). | conferência manual na T180 |
+| E10 | Os testes rodam com `PYTHON_KEYRING_BACKEND=keyring.backends.fail.Keyring` (posto no topo de `tests/conftest.py`): nunca tocam o cofre real de quem roda. | `test_testes_nunca_tocam_o_cofre_real` |
+| E11 | "Testar chave" responde 200 com o resultado no fragmento, também no erro (o HTMX não troca resposta 4xx). Prazo do teste: 30 s. | `test_cada_falha_da_api_vira_o_texto_dela` |
+| E12 | Ligar sem chave salva: 409. | `test_ligar_sem_chave_da_409_e_nao_grava` |
+| E13 | Saldo com 2 casas, cortando (`ROUND_DOWN`), separadores do idioma, sem moeda. | `test_decimal_curto` |
+| E14 | Custo fora do formato vira `None`; a resolução continua valendo. | `test_custo_torto_fica_none` |
+| E15 | O interruptor é o `<input type="checkbox">` nativo com `role="switch"`, sem `aria-checked` (o estado vem do `checked`). | `test_espaco_liga_e_desliga` |
+| E16 | Cor nova `--sucesso: light-dark(#1e7b34, #30d158)` em `base.css` (5,33:1 no `#fff`, 4,9:1 no `#f5f5f7`, 8,42:1 no `#1c1c1e`), com par no contraste. | `test_contraste_minimo`, `test_resultado_ok_usa_o_token_nos_dois_temas` |
+| E17 | O `ClienteEducado` do painel nasce num lugar só (`painel/cliente.py:cliente_do_painel`), usado por empresas, sugeridas e serviços. | `test_cliente_do_painel_definido_uma_vez` |
+
+**Parâmetro novo:** `teto_espera_s` no `escopo` do `ClienteEducado` (E3): opcional, `None` por padrão; os escopos do 2Captcha passam 30. Quem não passa nada mantém o comportamento de antes.
+
+**Dependências que a T180 trouxe no `uv.lock`** (`keyring==25.7.0` é a única direta, fixada com `==`; as demais são transitivas):
+
+| Pacote | Versão | Licença | Roda para o 3.14 |
+|---|---|---|---|
+| keyring | 25.7.0 | MIT | `py3-none-any` |
+| jaraco-classes | 3.4.0 | MIT | `py3-none-any` |
+| jaraco-context | 6.1.2 | MIT | `py3-none-any` |
+| jaraco-functools | 4.6.0 | MIT | `py3-none-any` |
+| more-itertools | 11.2.1 | MIT | `py3-none-any` |
+| jeepney | 0.9.0 | MIT | `py3-none-any` (só Linux) |
+| secretstorage | 3.5.0 | BSD-3-Clause | `py3-none-any` (só Linux) |
+| cryptography | 50.0.2 | Apache-2.0 OR BSD-3-Clause | `cp311-abi3` (vale no 3.14) e `cp314-cp314t`, manylinux e musllinux (só Linux) |
+| cffi | 2.1.1 | MIT | `cp314-cp314` e `cp314t`: rodas de Linux (manylinux e musllinux) e de iOS; sem Windows nem macOS no lock |
+| pycparser | 3.12 | BSD-3-Clause | `py3-none-any` |
+| pywin32-ctypes | 0.2.3 | BSD-3-Clause | `py3-none-any` (só Windows) |
+
+`cryptography` e `cffi` entram só pelo `secretstorage`, que o `keyring` pede só no Linux: por isso o `uv.lock` não traz roda de Windows nem de macOS para eles. Todas as licenças estão em MIT, BSD ou Apache, como manda a E9c.
+
+**Escolhas extras da construção, para confirmar:**
+
+- `HttpEducado` ganha `seguir_saltos=False` nos escopos do 2Captcha: o POST com a chave no corpo não segue 307/308 (o httpx reenviaria o corpo ao `Location`). Aditivo, padrão `True`.
+- Cofre: apagar com o cofre trancado levanta `OSError`; só `NoKeyringError` conta como "não há cofre".
+- Cofre: `NoKeyringError` loga em DEBUG; outras falhas em WARNING, só com o tipo da exceção.
+- Cofre trancado no gravar: a chave velha do sistema pode voltar depois do desbloqueio (atalho aceito).
+- Teste da chave: `POST /configuracoes/servicos/captcha/testar` responde sempre 200, com prazo de 30 s (`PRAZO_TESTE_S`); o log da falha traz só o tipo da falha.
+- T173 nova: o detector de camadas resolve import relativo.
+
+**Como desfazer:** o dono manda trocar qualquer item; nada disso está no ar. Para mudar uma escolha, basta mudar o plano e a tarefa dona (a coluna "Teste" diz qual).
+
+## D128. Escolhas do redator da 0.2.0: filtros, país e moeda (T162 a T170)
+
+**Status:** resolvida em 2026-11-15: escolha da sessão, para confirmar com o dono
+
+**Contexto:** o desenho da 0.2.0 (`docs/superpowers/specs/2026-11-15-0-2-0-filtros-moeda-design.md`) e o plano (`docs/superpowers/plans/2026-11-15-0-2-0.md`) deixaram detalhes para quem escreve o código. O dono está ausente; a sessão decidiu pela recomendação de cada um, complementando a D126.
+
+**Decisão da sessão, para confirmar:**
+
+- Coroas (SEK, NOK, DKK) e franco suíço (CHF) aparecem pelo código, não por símbolo: o símbolo "kr" é o mesmo para as três coroas e "Fr" é ambíguo.
+- `publicada` (há quantos dias) conta dentro do `contar_chips`, como os outros chips, e não numa consulta à parte.
+- A conversão da moeda Y (a de exibição) para BRL mora em `nucleo/cambio.py`, junto da conversão que já existia.
+- A linha do valor convertido segue a ordem "≈ valor · cotação".
+- Vaga em BRL sem cotação da moeda Y: sem linha de convertido e sem nota (já está em reais). Vaga em outra moeda (nem BRL nem Y) quando Y não tem cotação: mostra o valor em reais, com a nota "em reais: ainda não temos a cotação de {moeda}" (en: "shown in reais: no {moeda} exchange rate yet").
+- `sql_de_listar` é público em `banco/leitura.py`, para o teste de plano (`EXPLAIN QUERY PLAN`) usar o mesmo SQL da tela.
+- Escolhas da construção da T169: `_SIMBOLO` com CAD `C$`, AUD `A$` e JPY `¥`; a data da cotação mostrada é a mais antiga das duas (taxa cruzada); valor convertido que passa do `INTEGER_MAX` do SQLite (cotação minúscula) some em vez de dar erro 500; cotação da vaga estragada (valor não finito, menor ou igual a zero, ou data ilegível) faz sumir só a cotação e mantém o convertido, nos dois ramos (exibição em reais e moeda cruzada).
+- O teste de plano compara a consulta com e sem o filtro, porque o texto do `EXPLAIN` muda com a versão do SQLite (o CI tem um SQLite mais velho).
+
+**Como desfazer:** o dono manda trocar qualquer item; nada disso muda dado gravado. Coroas e CHF: trocar o código pelo símbolo em `_SIMBOLO`. Chip `publicada`: mover para uma consulta própria. Ordem da linha: trocar a ordem no template. Vaga em outra moeda sem cotação de Y: esconder a nota, ou mostrar o valor original sem converter. Teste de plano: voltar a comparar o texto exato do `EXPLAIN`, o que quebra quando o SQLite muda.
+
 ## D129. Custo dos filtros com 300 mil vagas e o que fazer na próxima versão (T170)
 
 **Status:** resolvida em 2026-11-15: medição feita pelo script da parte H; as propostas valem para a próxima versão, sem tarefa na 0.2.0 (D126)

@@ -6,7 +6,7 @@ Thank you for helping keep joBot safe.
 
 ## Supported versions
 
-Only the latest version (currently 0.1.1) receives security fixes.
+Only the latest version (currently 0.2.0) receives security fixes.
 
 ## How to report a vulnerability
 

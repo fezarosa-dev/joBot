@@ -66,7 +66,7 @@ Um ciclo de busca, passo a passo:
 <summary><strong>Salário</strong></summary>
 
 - O leitor de salário separa salário de benefícios, confere o período (por hora, mês ou ano) e se o valor é plausível.
-- Salário em moeda estrangeira é convertido para reais pela cotação PTAX do Banco Central, quando houver cotação.
+- Salário em moeda estrangeira é convertido para a moeda de exibição que você escolhe em Configurações (a do seu país por padrão), pela cotação PTAX do Banco Central, quando houver cotação.
 - Sem cotação, a vaga não é eliminada pelo filtro de salário mínimo.
 </details>
 
@@ -121,7 +121,7 @@ Cada fonte tem uma chave liga/desliga.
 ## 📋 O painel
 
 - **Abas:** Destaques de hoje, Todas, Novas, Fecham logo, Salvas, Candidatei, Programas e Ocultas.
-- **Filtros** em "chips" (botõezinhos) com contagem. O filtro atual fica no endereço da página, então dá para salvar o link. Busca rápida com a tecla `/`.
+- **Filtros** em "chips" (botõezinhos) com contagem: país e há quantos dias a vaga foi publicada ficam à vista; salário, cidade, empresa e palavras que a vaga não pode ter ficam em "Mais filtros". O filtro atual fica no endereço da página, então dá para salvar o link. Busca rápida com a tecla `/`.
 - **Status de cada vaga:** nova → salva → candidatei → entrevista → recusada ou oferta.
 - **Calendário de 12 meses** em cada vaga, para ver prazos de relance.
 - **"Algo errado nesta vaga?"**: um botão para corrigir um rótulo ou dado.
