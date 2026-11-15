@@ -4,7 +4,7 @@ import logging
 import os
 from collections.abc import Awaitable, Callable, Mapping
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Final, Literal
 
 from playwright.async_api import BrowserContext, Playwright, async_playwright
 
@@ -14,6 +14,26 @@ _LOG = logging.getLogger(__name__)
 
 # Onde o canal `chrome` do Playwright procura o Chrome no Linux (conferido na 1.65.1, E8).
 CAMINHO_CHROME = Path("/opt/google/chrome/chrome")
+
+# Do ambiente do `serve` só o que o Chrome lê (pastas, área de trabalho, usuário, idioma);
+# nenhuma carrega segredo. O resto, token e chave de API inclusos, não passa (D135.10).
+VARIAVEIS_DO_NAVEGADOR: Final = (
+    "PATH",
+    "HOME",
+    "USER",
+    "LOGNAME",
+    "LANG",
+    "LC_ALL",
+    "LANGUAGE",
+    "TMPDIR",
+    "XDG_CONFIG_HOME",
+    "XDG_CACHE_HOME",
+    "XDG_DATA_HOME",
+    "XDG_DATA_DIRS",
+    "XDG_CURRENT_DESKTOP",
+    "XDG_SESSION_TYPE",
+    "DBUS_SESSION_BUS_ADDRESS",
+)
 
 # Recebe os mesmos argumentos de nome de `launch_persistent_context`.
 Lancar = Callable[..., Awaitable[BrowserContext]]
@@ -54,11 +74,16 @@ async def abrir_contexto(
 
 
 def lancador_de_producao(playwright: Playwright, ambiente: Mapping[str, str]) -> Lancar:
-    """Visível, sem argumento extra; o `env` do Playwright troca o ambiente inteiro."""
+    """Visível, sem argumento extra; o `env` do Playwright troca o ambiente inteiro.
+
+    Vai só `VARIAVEIS_DO_NAVEGADOR` (as que existirem em `os.environ`) mais o `ambiente` da
+    tela já validado; o resto do ambiente do `serve` não chega ao navegador.
+    """
+    base = {n: os.environ[n] for n in VARIAVEIS_DO_NAVEGADOR if n in os.environ}
 
     async def lancar(**argumentos: Any) -> BrowserContext:
         return await playwright.chromium.launch_persistent_context(
-            **argumentos, headless=False, env={**os.environ, **ambiente}
+            **argumentos, headless=False, env={**base, **ambiente}
         )
 
     return lancar
