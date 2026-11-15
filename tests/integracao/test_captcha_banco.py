@@ -127,3 +127,19 @@ def test_so_uma_conexao_leva_a_ultima_vaga(
     resultados = [reservar_resolucao(a, DIA), reservar_resolucao(b, DIA)]
     assert sorted(resultados) == [False, True]
     assert _uso(a) == {"dia": "2026-11-15", "n": 30}
+
+
+def test_reserva_com_contador_negativo_conta_como_teto(con: sqlite3.Connection) -> None:
+    valor = '{"dia": "2026-11-15", "n": -5}'
+    con.execute("INSERT INTO config (chave, valor) VALUES ('captcha_uso', ?)", (valor,))
+    assert reservar_resolucao(con, DIA) is False
+    assert (
+        con.execute("SELECT valor FROM config WHERE chave = 'captcha_uso'").fetchone()[0] == valor
+    )
+
+
+def test_reserva_com_contador_negativo_de_outro_dia_recomeca(con: sqlite3.Connection) -> None:
+    valor = '{"dia": "2026-11-14", "n": -5}'
+    con.execute("INSERT INTO config (chave, valor) VALUES ('captcha_uso', ?)", (valor,))
+    assert reservar_resolucao(con, DIA) is True
+    assert _uso(con) == {"dia": "2026-11-15", "n": 1}
