@@ -2030,7 +2030,7 @@ Acréscimo negativo é filtro que encolhe a lista e os chips. `contar_abas` não
 34. (T216) reCAPTCHA v3 do site inteiro em página não logada vira desafio sem resolver (`captcha`), como antes.
 35. (T216) 403 e 429 viram 200 quando o desafio sai sem documento novo; token sem saída é `captcha`; 429 depois do token repete o `goto` sem novo pedido ao 2Captcha.
 36. (T216) `PRAZO_COFRE_S` aparece em `navegador/limites.py` e em `painel/rotas/servicos.py`; um lugar só e o cache do cofre na Cola são tarefa nova. (trocada pela T226, D135.4 e D135.5)
-37. (T217) O aviso no computador sai só em português na Parte A; o idioma entra por `Dependencias` na Parte B.
+37. (T217) O aviso no computador sai só em português na Parte A; o idioma entra por `Dependencias` na Parte B. (trocada pela T229, D135.8)
 38. (T217) O tempo de olhar a janela vai para `limites.OLHAR_S = 5` (era `_OLHAR_S` em `navegador/execucao.py`), ao lado do `INTERVALO_LOGIN_MANUAL_S` da T219; são dois nomes porque medem coisas diferentes.
 39. (T218) O cartão mostra "rodando" com o site ligado no meio da leitura; `_estado` e `_motivo` de `fontes.py` viraram `estado_dos_escopos` e `motivo_mais_grave`, públicos.
 40. (T219) `_criar` de `painel/rotas/execucao.py` virou `criar_tarefa`, público, para o login manual reaproveitar; entra `limites.INTERVALO_LOGIN_MANUAL_S`.
@@ -2048,7 +2048,7 @@ Acréscimo negativo é filtro que encolhe a lista e os chips. `contar_abas` não
 
 **Para confirmar com o dono:**
 
-1. (decisão 37) O aviso no computador só em português até a Parte B.
+1. (decisão 37) O aviso no computador só em português até a Parte B. (trocada pela T229, D135.8)
 2. (decisão 32) Widget em página logada que veio com 200 não é tratado como desafio: o joBot não resolve nem chama a função de retorno, e um desafio que mantém o cabeçalho logado fica sem resolver.
 3. (decisão 18) O Chrome só é achado em `/opt/google/chrome/chrome`; quem tem o Chrome por Flatpak ou Snap usa o Chromium do Playwright.
 4. (decisão 17) O caminho do perfil pode aparecer no log local (0600) pela mensagem de erro do Playwright.
