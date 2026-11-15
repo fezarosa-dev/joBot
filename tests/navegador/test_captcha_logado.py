@@ -411,6 +411,83 @@ async def test_callback_de_nome_torto_nao_resolve_nem_chama_nada(
     assert await page.evaluate("window.__alertas") == 1
 
 
+async def test_salto_para_pagina_recusada_pela_politica_e_bloqueio(
+    site: SiteFalso,
+    contexto_de_teste: BrowserContext,
+    con: sqlite3.Connection,
+    api: Api2Captcha,
+    cofre: Cofre,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A política vale também para a página final de um salto (o http no próprio host)."""
+    page = await _pagina(contexto_de_teste)
+    relogio = RelogioDoNavegador()
+    cola = _cola(page, con, api, cofre, relogio)
+    leitor = LeitorFalso.para(site)
+
+    def politica(url: str) -> bool:  # análogo do http: mesmo host, caminho recusado
+        return dentro_dos_hosts(url, leitor.hosts) and "/inseguro" not in url
+
+    url = site.url("/salto-mesmo-host")
+    assert politica(url)  # a entrada passa; só a página final é recusada
+    with caplog.at_level(logging.INFO, logger="jobot.navegador.pagina"):
+        visita = await visitar(page, url, leitor, politica, relogio, cola=cola)
+    assert visita == "bloqueio"
+    assert (api.pedidos, site.tokens) == ([], [])
+    assert ler_config(con, "captcha_uso", None) is None
+    assert any(
+        "política" in r.getMessage() and "127.0.0.1" in r.getMessage() for r in caplog.records
+    )
+    # controle: com a política que aceita o caminho, a mesma página vai ao 2Captcha
+    aceita = await visitar(page, url, leitor, lambda u: dentro_dos_hosts(u, leitor.hosts), relogio)
+    assert aceita == Widget("recaptcha_v2", CHAVE_V2, False, "recebeu", None)
+
+
+async def test_retorno_do_widget_que_leva_a_pagina_recusada_e_bloqueio(
+    site: SiteFalso,
+    contexto_de_teste: BrowserContext,
+    con: sqlite3.Connection,
+    api: Api2Captcha,
+    cofre: Cofre,
+) -> None:
+    page = await _pagina(contexto_de_teste)
+    relogio = RelogioDoNavegador()
+    cola = _cola(page, con, api, cofre, relogio)
+    leitor = LeitorFalso.para(site)
+
+    def politica(url: str) -> bool:
+        return dentro_dos_hosts(url, leitor.hosts) and "/inseguro" not in url
+
+    url = site.url("/recaptcha-vai-inseguro")
+    assert await visitar(page, url, leitor, politica, relogio, cola=cola) == "bloqueio"
+    assert site.visitas["/inseguro/lista"] == 1  # controle: a função de retorno levou lá
+    assert len(api.tarefas()) == 1  # só a página aceita foi ao 2Captcha
+
+
+@pytest.mark.parametrize("caminho", ["/botao-recaptcha", "/input-recaptcha", "/botao-turnstile"])
+async def test_widget_preso_a_botao_nao_e_desafio(
+    site: SiteFalso,
+    contexto_de_teste: BrowserContext,
+    politica_local: Politica,
+    con: sqlite3.Connection,
+    api: Api2Captcha,
+    cofre: Cofre,
+    caminho: str,
+) -> None:
+    """reCAPTCHA invisível ou Turnstile num botão envia o formulário pela função de retorno: a
+    visita não o resolve, nem numa página não logada (A8, D132.11)."""
+    page = await _pagina(contexto_de_teste)
+    relogio = RelogioDoNavegador()
+    cola = _cola(page, con, api, cofre, relogio)
+    leitor = LeitorFalso.para(site)
+    visita = await visitar(page, site.url(caminho), leitor, politica_local, relogio, cola=cola)
+    assert isinstance(visita, Captura)
+    assert [v.titulo for v in leitor.ler(visita, ESCOPO).vagas] == ["Vaga 1", "Vaga 2"]
+    assert (api.pedidos, site.tokens) == ([], [])  # a função de retorno não foi chamada
+    assert await achar_widget(page) is None
+    assert await page.locator("[data-sitekey]").count() == 1  # controle: o botão está na página
+
+
 async def test_turnstile_com_user_agent_diferente_nao_troca_o_do_navegador(
     site: SiteFalso,
     contexto_de_teste: BrowserContext,
