@@ -8,6 +8,10 @@ The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/
 
 ## [Unreleased]
 
+### Fixed
+
+- Focus returns to the right chip after changing the filter, even when two values differ only by a space and an `_`.
+
 ## [0.2.1] - 2026-11-15
 
 ### Changed
