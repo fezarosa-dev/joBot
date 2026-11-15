@@ -24,6 +24,8 @@ from jobot.nucleo.url import canonica, hash_url
 
 Tipo = Literal["busca", "descoberta", "paginas"]
 Motivo = Literal["agenda", "agora", "recuperacao"]
+# por que a execução parou antes do fim (coluna `execucao.parada`, T153)
+Parada = Literal["fechado", "sem_batimento", "banco", "erro"]
 EstadoSaude = Literal["ok", "sem_mudanca", "parcial", "falhou", "desligada", "no_limite"]
 
 BATIMENTO_VELHO = timedelta(minutes=5)  # processo morto (desenho 12.3)
@@ -124,14 +126,18 @@ def fechar_execucao(con: sqlite3.Connection, id: int, agora: datetime) -> None:
     con.commit()
 
 
-def interromper_execucao(con: sqlite3.Connection, id: int, agora: datetime) -> None:
-    """Marca como "interrompida" na hora a execução que roda (exceção no meio, D54).
+def interromper_execucao(
+    con: sqlite3.Connection, id: int, agora: datetime, *, parada: Parada
+) -> None:
+    """Marca como "interrompida" na hora a execução que roda (exceção no meio, D54), com o
+    motivo da parada (T153).
 
     Já encerrada fica como está; `id` inexistente levanta `LookupError`."""
     _sem_transacao(con)
     cur = con.execute(
-        "UPDATE execucao SET estado='interrompida', terminada_em=? WHERE id=? AND estado='rodando'",
-        (_iso(agora), id),
+        "UPDATE execucao SET estado='interrompida', terminada_em=?, parada=?"
+        " WHERE id=? AND estado='rodando'",
+        (_iso(agora), parada, id),
     )
     if (
         cur.rowcount == 0
@@ -143,11 +149,13 @@ def interromper_execucao(con: sqlite3.Connection, id: int, agora: datetime) -> N
 
 
 def marcar_interrompidas(con: sqlite3.Connection, agora: datetime) -> int:
-    """Batimento com mais de 5 min vira "interrompida", terminada no último batimento."""
+    """Batimento com mais de 5 min vira "interrompida" (parada `sem_batimento`), terminada no
+    último batimento."""
     _sem_transacao(con)
     limite = _iso(agora - BATIMENTO_VELHO)
     cur = con.execute(
-        "UPDATE execucao SET estado='interrompida', terminada_em=batimento_em"
+        "UPDATE execucao SET estado='interrompida', terminada_em=batimento_em,"
+        " parada='sem_batimento'"
         " WHERE estado='rodando' AND batimento_em < ?",
         (limite,),
     )
