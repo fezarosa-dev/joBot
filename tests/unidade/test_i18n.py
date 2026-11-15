@@ -28,7 +28,7 @@ ENCAIXE = (
 MOTIVOS = (
     "formato_mudou zero_inesperado parcial_n sem_detalhe_n empresa_nao_encontrada bloqueio cota "
     "intervalo orcamento parou_429 limite_atingido tempo_esgotado erro_de_rede resposta_grande "
-    "excecao listagem_incompleta"
+    "excecao listagem_incompleta precisa_login captcha sem_tela sem_navegador"
 ).split()
 
 
@@ -95,6 +95,10 @@ def test_motivos_fixos_existem(idioma: str) -> None:
 
 def test_textos_pt_e_en_diferem_nos_motivos() -> None:
     assert i18n.t("pt", "seguranca.recarregue") != i18n.t("en", "seguranca.recarregue")
+    catalogo = i18n.carregar()  # direto, sem `t`: alguns textos pedem parâmetros ({n}, {tipo})
+    for motivo in MOTIVOS:
+        chave = f"saude.{motivo}"
+        assert catalogo["pt"].get(chave) != catalogo["en"].get(chave), motivo
 
 
 @pytest.mark.parametrize("idioma", ["pt", "en"])
