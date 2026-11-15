@@ -22,6 +22,7 @@ from jobot.banco.execucoes import (
     fechar_execucao,
     gravar_saude,
     inicio_da_ultima_completa,
+    inicio_da_ultima_leitura_login,
     interromper_execucao,
     marcar_interrompidas,
     saude_recente,
@@ -145,6 +146,25 @@ def test_interrompida_nao_conta_como_completa(con: sqlite3.Connection) -> None:
     assert inicio_da_ultima_completa(con, "busca") == completa
     assert inicio_da_ultima_completa(con, "descoberta") == completa + timedelta(hours=3)
     assert inicio_da_ultima_completa(con, "paginas") is None
+
+
+def test_ultima_leitura_conta_concluida_e_interrompida(con: sqlite3.Connection) -> None:
+    assert inicio_da_ultima_leitura_login(con) is None
+    concluida = AGORA + timedelta(hours=1)
+    _rodada(con, concluida, [], tipo="login")
+    assert inicio_da_ultima_leitura_login(con) == concluida
+    interrompida = abrir_execucao(con, "login", "agenda", concluida + timedelta(hours=5))
+    assert interrompida is not None
+    marcar_interrompidas(con, concluida + timedelta(hours=9))
+    assert inicio_da_ultima_leitura_login(con) == concluida + timedelta(hours=5)
+
+
+def test_ultima_leitura_ignora_rodando_e_outros_tipos(con: sqlite3.Connection) -> None:
+    _rodada(con, AGORA, [], tipo="busca")
+    _rodada(con, AGORA + timedelta(hours=1), [], tipo="descoberta")
+    assert inicio_da_ultima_leitura_login(con) is None
+    abrir_execucao(con, "login", "agenda", AGORA + timedelta(hours=2))  # ainda rodando
+    assert inicio_da_ultima_leitura_login(con) is None
 
 
 def test_execucao_rodando_nao_conta_como_completa(con: sqlite3.Connection) -> None:
