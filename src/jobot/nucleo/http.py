@@ -109,7 +109,7 @@ class CabecalhoProibido(ValueError):
     """Cabeçalho fora da lista permitida (DR-51)."""
 
 
-def _segundos_retry_after(valor: str | None, agora: datetime) -> float | None:
+def segundos_retry_after(valor: str | None, agora: datetime) -> float | None:
     if valor is None:
         return None
     valor = valor.strip()
@@ -421,7 +421,7 @@ class HttpDoEscopo:
                     raise Parou429(
                         f"{pedido.url}: HTTP {status}{sufixo}", cabecalhos=resposta.headers
                     )
-                pedida = _segundos_retry_after(resposta.headers.get("Retry-After"), relogio.agora())
+                pedida = segundos_retry_after(resposta.headers.get("Retry-After"), relogio.agora())
                 if (
                     status == 429
                     and pedida is None
