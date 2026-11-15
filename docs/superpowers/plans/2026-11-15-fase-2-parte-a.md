@@ -578,17 +578,17 @@ Só documentos: a D133 do `duvidas.md` (já criada com este plano) ganha o que m
 
 Tarefas novas que a execução da Parte A deixou (D134):
 
-- Provar o `close` do contexto no `test_janela_parada` pelo evento `close`, não por `pages == []` (fechar a aba já esvazia a lista).
-- Falso positivo do `achar_widget`: ele devolve `None` também por timeout no `get_attribute`, e `None` não prova "sem desafio".
-- Desafio no detalhe parado na janela sem gravar `saude.captcha`.
-- A pessoa fecha só a aba parada e a execução espera o prazo inteiro da janela.
-- `PRAZO_COFRE_S` em dois lugares (`navegador/limites.py` e `painel/rotas/servicos.py`): um lugar só, e cache do cofre na Cola.
-- Mensagem do `serve` quando há uma captura no ar.
-- Mover `ESPERA_ASSENTAR_MS`, `_PASSOS_DEPOIS_DE_ROLAR` e `ESPERAS_LIMITE[0]` de `navegador/pagina.py` para `navegador/limites.py`.
-- Aviso no computador no idioma da pessoa (na Parte A sai só em português; o idioma entra por `Dependencias`).
+- Provar o `close` do contexto no `test_janela_parada` pelo evento `close`, não por `pages == []` (fechar a aba já esvazia a lista). (T222, plano das sobras)
+- Falso positivo do `achar_widget`: ele devolve `None` também por timeout no `get_attribute`, e `None` não prova "sem desafio". (T223, plano das sobras)
+- Desafio no detalhe parado na janela sem gravar `saude.captcha`. (T224, plano das sobras)
+- A pessoa fecha só a aba parada e a execução espera o prazo inteiro da janela. (T225, plano das sobras)
+- `PRAZO_COFRE_S` em dois lugares (`navegador/limites.py` e `painel/rotas/servicos.py`): um lugar só, e cache do cofre na Cola. (T226, plano das sobras)
+- Mensagem do `serve` quando há uma captura no ar. (T227, plano das sobras)
+- Mover `ESPERA_ASSENTAR_MS`, `_PASSOS_DEPOIS_DE_ROLAR` e `ESPERAS_LIMITE[0]` de `navegador/pagina.py` para `navegador/limites.py`. (T228, plano das sobras)
+- Aviso no computador no idioma da pessoa (na Parte A sai só em português; o idioma entra por `Dependencias`). (T229, plano das sobras)
 - Com fixture real: `div` invisível ou dentro de `<form>` tratada como desafio (rodada de segurança, T221).
-- Downloads e service workers no contexto persistente: conferir os padrões do Playwright (rodada de segurança, T221).
-- O ambiente inteiro do `serve` passado ao Chrome (rodada de segurança, T221).
+- Downloads e service workers no contexto persistente: conferir os padrões do Playwright (rodada de segurança, T221). (T230, plano das sobras)
+- O ambiente inteiro do `serve` passado ao Chrome (rodada de segurança, T221). (T231, plano das sobras)
 
 ## Autoconferência
 
