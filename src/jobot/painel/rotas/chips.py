@@ -8,7 +8,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
 from jobot.painel.moeda import exibicao_do_painel
-from jobot.painel.rotas.vagas import _grupos, _ler_estado, _vary, relogio_do_painel
+from jobot.painel.rotas.vagas import com_vary, grupos_dos_chips, ler_estado, relogio_do_painel
 from jobot.painel.seguranca import Con, idioma_do_pedido, renderizar
 
 router = APIRouter()
@@ -18,6 +18,10 @@ router = APIRouter()
 async def chips(request: Request, con: Con) -> HTMLResponse:
     agora = relogio_do_painel(request).agora()
     ex = exibicao_do_painel(con, agora.astimezone().date())
-    estado = _ler_estado(request.query_params, con, ex)
-    grupos = [] if estado.e_destaques else _grupos(con, estado, agora, idioma_do_pedido(request))
-    return _vary(renderizar(request, "vagas/chips.html", grupos=grupos))
+    estado = ler_estado(request.query_params, con, ex)
+    grupos = (
+        []
+        if estado.e_destaques
+        else grupos_dos_chips(con, estado, agora, idioma_do_pedido(request))
+    )
+    return com_vary(renderizar(request, "vagas/chips.html", grupos=grupos))
