@@ -1,10 +1,12 @@
-{#- Um interruptor: checkbox com cara de chave. Rótulo e ajuda já chegam traduzidos. -#}
-{% macro interruptor(nome, marcado, rotulo, ajuda="", desativado=False) %}
+{#- Um interruptor: checkbox com cara de chave. Rótulo e ajuda já chegam traduzidos.
+    Com `hx_post` ele grava na hora (HTMX) e troca o cartão `#cartao-captcha`; `foco` marca
+    o input para o foco voltar a ele depois da troca. -#}
+{% macro interruptor(nome, marcado, rotulo, ajuda="", desativado=False, hx_post=None, foco=False) %}
 <div class="interruptor">
   <label class="interruptor-linha">
     <span class="interruptor-texto">{{ rotulo }}</span>
-    <input type="checkbox" class="chave" name="{{ nome }}"{% if marcado %} checked{% endif %}{% if desativado %} disabled{% endif %}>
+    <input type="checkbox" class="chave" role="switch" name="{{ nome }}"{% if marcado %} checked{% endif %}{% if desativado %} disabled{% endif %}{% if ajuda %} aria-describedby="ajuda-{{ nome }}"{% endif %}{% if hx_post %} hx-post="{{ hx_post }}" hx-trigger="change" hx-target="#cartao-captcha" hx-swap="outerHTML"{% endif %}{% if foco %} data-foco{% endif %}>
   </label>
-  {% if ajuda %}<small>{{ ajuda }}</small>{% endif %}
+  {% if ajuda %}<small id="ajuda-{{ nome }}">{{ ajuda }}</small>{% endif %}
 </div>
 {% endmacro %}

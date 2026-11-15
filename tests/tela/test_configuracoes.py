@@ -7,8 +7,10 @@ import pytest
 from fastapi import FastAPI
 from playwright.sync_api import Page, expect
 
+from apoio.cofre_falso import CofreFalso
 from apoio.relogio import RelogioFalso
 from apoio.segundo_plano_falso import FalsoSistema
+from jobot.sistema.cofre import Cofre
 
 pytestmark = pytest.mark.tela
 
@@ -51,6 +53,7 @@ def test_menu_leva_as_configuracoes_e_cada_aba_abre_o_seu_grupo(page: Page, pain
         ("Segundo plano", "segundo-plano"),
         ("Aparência", "aparencia"),
         ("Privacidade", "privacidade"),
+        ("Serviços", "servicos"),
     ):
         grupos.get_by_role("link", name=nome).click()
         expect(page).to_have_url(f"{painel}/configuracoes/{caminho}")
@@ -176,3 +179,24 @@ def test_aparencia_troca_meu_pais_e_moeda(
     moeda = page.get_by_label("Moeda dos valores convertidos")
     expect(moeda.locator("option").first).to_have_text("A do meu país (EUR)")
     expect(moeda).to_have_value("")
+
+
+def test_interruptor_do_2captcha_liga_com_espaco_e_o_foco_volta_ao_cartao_novo(
+    page: Page, painel: str, app_painel: FastAPI, tmp_path: Path
+) -> None:
+    cofre = Cofre(tmp_path, CofreFalso())
+    cofre.gravar("2captcha", "AbCd1234EfGh5678IjKl9012MnOp3456")
+    app_painel.state.cofre = cofre
+    page.goto(f"{painel}/configuracoes/servicos")
+    interruptor = page.get_by_role("switch", name="Usar o 2Captcha")
+    expect(interruptor).to_be_enabled()
+    expect(interruptor).not_to_be_checked()
+    interruptor.focus()
+    with page.expect_response("**/configuracoes/servicos/captcha/interruptor") as resposta:
+        page.keyboard.press("Space")
+    assert resposta.value.status == 200
+    # o cartão inteiro foi trocado (outerHTML): o foco tem de estar no interruptor novo
+    interruptor = page.get_by_role("switch", name="Usar o 2Captcha")
+    expect(interruptor).to_be_checked()
+    expect(interruptor).to_be_focused()
+    expect(page.locator("#status-servicos")).to_have_text("Salvo.")
