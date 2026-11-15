@@ -18,6 +18,7 @@
 | 🗄️ **SQLite** | O banco de dados. | Um arquivo só, que fica no seu computador. Nenhum servidor de banco para instalar. |
 | 🌐 **httpx** (0.28.1) | Pedir as páginas e APIs das fontes de vagas. | É o único cliente HTTP do joBot, onde mora a coleta educada (identificação e intervalo entre pedidos). |
 | 🔍 **selectolax** (1.0.2) | Ler o HTML das páginas de vagas. | Separar os dados da vaga do resto da página. |
+| 🔐 **keyring** (25.7.0) | Guardar a chave do 2Captcha no cofre de senhas do sistema. | A chave não fica num arquivo comum; sem cofre, vai a um arquivo que só você lê (ADR 0014). |
 | 🎭 **Playwright** (1.65.1) | Controlar um navegador. | Abre um Chrome visível para você fazer login e resolver CAPTCHA (fase 2). Também roda os testes de tela. |
 
 ## ✅ Qualidade
