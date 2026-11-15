@@ -33,3 +33,6 @@ PASSOS_DEPOIS_DE_ROLAR: Final = (
     5  # shortcut: até 5 s de 1 em 1 pelos pedidos da página; rever na Parte B
 )
 ESPERA_429_S: Final = ESPERAS_LIMITE[0]  # 429 sem `Retry-After`: o número único de `nucleo/http.py`
+# Técnico, fora da D132: resposta em fluxo (long-poll) nunca entrega o corpo; `prontas()` espera
+# os corpos só este tempo e cancela os que sobrarem.
+PRAZO_CORPOS_S: Final = 10.0
