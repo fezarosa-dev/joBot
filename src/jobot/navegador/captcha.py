@@ -16,6 +16,7 @@ from urllib.parse import parse_qs, urldefrag, urlsplit
 
 from playwright.async_api import Error as ErroDoPlaywright
 from playwright.async_api import Locator, Page, Request
+from playwright.async_api import TimeoutError as EstouroDoPlaywright
 
 from jobot.banco.cadastros import ler_config
 from jobot.banco.captcha import NOME_NO_COFRE, captcha_pronto, reservar_resolucao
@@ -65,7 +66,9 @@ async def _do_div(div: Locator, tipo: Aceito, *, invisivel: bool, acao: str | No
 
 
 async def achar_widget(page: Page) -> Widget | None:
-    """O primeiro widget da página; `None` sem widget ou com a página trocando no meio."""
+    """O primeiro widget da página; `None` sem widget ou com a página trocando no meio.
+
+    Estouro de prazo ao ler um atributo é desafio não aceito, não página limpa."""
     try:
         for script in await page.locator(_SCRIPT_V3).all():
             src = await _atributo(script, "src") or ""
@@ -80,7 +83,9 @@ async def achar_widget(page: Page) -> Widget | None:
         if turnstile:
             acao = await _atributo(turnstile[0], "data-action")
             return await _do_div(turnstile[0], "turnstile", invisivel=False, acao=acao)
-    except ErroDoPlaywright:  # o estouro do `get_attribute` também é um `Error`
+    except EstouroDoPlaywright:  # vem antes: o estouro também é um `Error`
+        return Widget("nao_aceito", "", False, None, None)
+    except ErroDoPlaywright:
         return None
     return None
 
