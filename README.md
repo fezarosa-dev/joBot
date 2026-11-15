@@ -74,9 +74,9 @@ O que ele faz hoje (fase 1):
 O que vem nas próximas fases:
 
 - 🔐 **Sites que exigem login**: você entra numa janela comum do navegador, sem automação, e o joBot lê as vagas (fase 2; o LinkedIn vem primeiro).
-- ✍️ **Preparar candidatura**: carta de apresentação, resumo do currículo ajustado à vaga e lista do que você tem e do que falta, sempre no idioma da vaga (fase 3, com IA opcional).
-- 🧩 **Ajudar nos formulários**: uma extensão do navegador sugere respostas, e você confirma (fase 4).
-- 📬 **Ler o Gmail** (opcional): traz vagas dos e-mails de alerta e sugere mudanças de status quando um recrutador responde (fase 5).
+- ✍️ **Preparar candidatura**: carta de apresentação, resumo do currículo ajustado à vaga e lista do que você tem e do que falta, sempre no idioma da vaga (fase 4, com IA opcional).
+- 🧩 **Ajudar nos formulários**: uma extensão do navegador sugere respostas, e você confirma (fase 5).
+- 📬 **Ler o Gmail** (opcional): traz vagas dos e-mails de alerta e sugere mudanças de status quando um recrutador responde (fase 6).
 
 Serve para todo tipo de vaga e toda área: CLT, PJ, estágio, trainee, temporário, aprendiz, pesquisa e bolsa, programas e escolas de verão, concursos e editais.
 Toda função pode ser ligada ou desligada.
@@ -147,7 +147,7 @@ Um ciclo de busca, passo a passo:
 3. **O núcleo** junta vagas repetidas, entende o salário, coloca rótulos e marca como fechadas as vagas que sumiram.
 4. **Tudo vai para o banco** SQLite, um arquivo que fica no seu computador.
 5. **O painel** mostra o resultado no seu navegador. Ele só funciona no seu computador (endereço 127.0.0.1).
-6. **Quando a IA chegar** (fase 3) e você ligá-la, ela vai calcular o encaixe com o seu perfil e ajudar a preparar candidaturas. Até lá, o encaixe vem das regras da sua busca.
+6. **Quando a IA chegar** (fase 4) e você ligá-la, ela vai calcular o encaixe com o seu perfil e ajudar a preparar candidaturas. Até lá, o encaixe vem das regras da sua busca.
 
 Se uma fonte falhar, as outras continuam. Se o computador estava desligado na hora marcada, a busca perdida roda quando ele liga.
 
@@ -156,7 +156,7 @@ Quer ver o joBot por dentro, com pastas, camadas, banco e diagramas? Veja a [Arq
 <a id="as-duas-versoes"></a>
 ## 🖥️ As duas versões
 
-O joBot vai ter um núcleo só e duas "caras". A **versão local** é o foco. A **versão no navegador** (GitHub Pages) é para quem não quer instalar nada e chega na fase 7.
+O joBot vai ter um núcleo só e duas "caras". A **versão local** é o foco. A **versão no navegador** (GitHub Pages) é para quem não quer instalar nada e chega na fase 8.
 
 | | 💻 Versão local | 🌐 Versão no navegador (GitHub Pages) |
 |---|---|---|
@@ -224,7 +224,7 @@ O painel abre no seu navegador, em `http://127.0.0.1:47615`. O menu tem Vagas, B
 <a id="inteligencia-artificial"></a>
 ## 🧠 Inteligência artificial
 
-A IA é **opcional** e chega na fase 3. Sem ela, o joBot funciona com regras e palavras-chave, e é assim que a fase 1 funciona.
+A IA é **opcional** e chega na fase 4. Sem ela, o joBot funciona com regras e palavras-chave, e é assim que a fase 1 funciona.
 
 > **Regra de ouro:** a IA só usa os dados do seu perfil. Ela nunca inventa experiência, curso ou habilidade, e mostra quais dados usou.
 > Se faltar informação, ela faz uma pergunta, e a sua resposta fica salva no perfil.
@@ -277,7 +277,7 @@ Um "checksum" é uma impressão digital do arquivo: o joBot confere se o arquivo
 <a id="usando-o-claude-code"></a>
 ## ✨ Usando o Claude Code que você já tem
 
-> Esta seção descreve a fase 3. A fase 1 não usa IA.
+> Esta seção descreve a fase 4. A fase 1 não usa IA.
 
 Se você já usa o Claude Code no seu computador, o joBot pode usar o Claude **sem nenhum login extra**.
 Você não faz login do Claude dentro do joBot. Nunca.
@@ -346,13 +346,13 @@ Detalhes na [ADR 0010](docs/decisions/0010-claude-code-da-pessoa.md).
 <a id="requisitos-e-instalacao"></a>
 ## 📦 Requisitos e instalação
 
-> Esta é a instalação da fase 1 (versão 0.2.1): você baixa o código e roda com o uv. O instalador de um comando só chega na fase 8.
+> Esta é a instalação da fase 1 (versão 0.2.1): você baixa o código e roda com o uv. O instalador de um comando só chega na fase 3.
 
 ### Requisitos
 
 - **Sistema:** Linux. O Windows e o macOS ainda não foram testados, e o segundo plano só existe no Linux.
 - **Programas:** [git](https://git-scm.com/) e [uv](https://docs.astral.sh/uv/). O uv baixa sozinho o Python 3.14 e as bibliotecas.
-- **Memória:** um computador comum serve. Os 8 GB de RAM só contam quando a IA local chegar (fase 3).
+- **Memória:** um computador comum serve. Os 8 GB de RAM só contam quando a IA local chegar (fase 4).
 - **Placa de vídeo e Docker:** não precisa. A instalação é nativa.
 - **Internet:** para baixar o joBot e para buscar as vagas.
 
@@ -419,10 +419,10 @@ Na fase 1, o `uv sync` só baixa o Python 3.14 (se faltar) e as bibliotecas do j
 | Item | Tamanho | Quando |
 |---|---|---|
 | Navegador controlado pelo Playwright | A definir | Fase 2, só para sites com login |
-| llama-server | ~17 a 25 MB, conforme o sistema | Fase 3 (pacote offline) |
-| Modelo Qwen3.5-2B **ou** Qwen3.5-4B | 1,28 GB ou 2,74 GB | Fase 3 (pacote offline) |
-| Transcrição de áudio "small" | 484 MB | Fase 5 |
-| Transcrição de áudio "medium" | 1,53 GB | Fase 5, opcional |
+| llama-server | ~17 a 25 MB, conforme o sistema | Fase 4 (pacote offline) |
+| Modelo Qwen3.5-2B **ou** Qwen3.5-4B | 1,28 GB ou 2,74 GB | Fase 4 (pacote offline) |
+| Transcrição de áudio "small" | 484 MB | Fase 6 |
+| Transcrição de áudio "medium" | 1,53 GB | Fase 6, opcional |
 | Modelo multilingual-e5-small | ~120 MB | Só se algum rótulo ficar abaixo de 90% de acerto |
 
 <a id="roteiro"></a>
@@ -434,12 +434,15 @@ Cada fase só começa depois que a anterior passa nos testes. Não há datas pro
 |---|---|---|
 | **1. Base** | Núcleo comum, fontes públicas, banco, painel e agenda | 🟢 Pronta (versão 0.1.0) |
 | **2. Navegador com login** | Login pela janela comum, LinkedIn primeiro, mapeamento dos sites, tratamento de CAPTCHA | ⚪ Planejada |
-| **3. IA local** | Pacote offline (llama-server + Qwen) | ⚪ Planejada |
-| **4. Extensão do navegador** | Extensão do navegador para formulários | ⚪ Planejada |
-| **5. Áudio e Gmail** | Respostas por voz e leitura de e-mails | ⚪ Planejada |
-| **6. Treino** | Aprender com o que você salva e descarta | ⚪ Planejada |
-| **7. Versão GitHub Pages** | Versão GitHub Pages, sem instalação | ⚪ Planejada |
-| **8. Publicação** | Instaladores, README com selos e revisão de segurança | ⚪ Planejada |
+| **3. Instalador** | Instalador de 64 bits, com lista de ferramentas para marcar (Windows e Linux primeiro, Mac depois) | ⚪ Planejada |
+| **4. IA local** | Pacote offline (llama-server + Qwen) | ⚪ Planejada |
+| **5. Extensão do navegador** | Extensão do navegador para formulários | ⚪ Planejada |
+| **6. Áudio e Gmail** | Respostas por voz e leitura de e-mails | ⚪ Planejada |
+| **7. Treino** | Aprender com o que você salva e descarta | ⚪ Planejada |
+| **8. Versão GitHub Pages** | Versão GitHub Pages, sem instalação | ⚪ Planejada |
+| **9. Publicação** | README com selos e revisão de segurança | ⚪ Planejada |
+
+Entre a fase 2 e a fase 3 sai a versão 0.3.0, com a tela "Panorama" e a fila de candidaturas completa.
 
 <a id="perguntas-frequentes"></a>
 ## ❓ Perguntas frequentes
@@ -470,13 +473,15 @@ Cada decisão importante está registrada num documento curto, chamado ADR (regi
 | 0012 | [Extensão do navegador](docs/decisions/0012-extensao-do-navegador.md) |
 | 0013 | [Gmail e avisos](docs/decisions/0013-gmail-e-avisos.md) |
 | 0014 | [Segurança e privacidade](docs/decisions/0014-seguranca-e-privacidade.md) |
-| 0015 | [Treino de modelos (fase 6)](docs/decisions/0015-treino.md) |
+| 0015 | [Treino de modelos (fase 7)](docs/decisions/0015-treino.md) |
 | 0016 | [Licença, sala limpa e processo de trabalho](docs/decisions/0016-licenca-clean-room-e-processo.md) |
 | 0017 | [Fases do projeto](docs/decisions/0017-fases.md) |
 | 0018 | [Manutenção pela comunidade e CI aberto a todo PR](docs/decisions/0018-manutencao-pela-comunidade.md) |
 | 0019 | [Wiki do projeto e formulário de dúvida](docs/decisions/0019-wiki-do-projeto.md) |
 | 0020 | [Apoio financeiro: só doação](docs/decisions/0020-apoio-financeiro.md) |
 | 0021 | [Sem Dependabot: atualização de dependência à mão](docs/decisions/0021-sem-dependabot.md) |
+| 0022 | [CAPTCHA resolvido pelo serviço que a pessoa liga](docs/decisions/0022-captcha-pelo-servico-da-pessoa.md) |
+| 0023 | [Tudo pelo painel: ferramentas, atualização e encerramento](docs/decisions/0023-tudo-pelo-painel.md) |
 
 <a id="como-contribuir"></a>
 ## 🤝 Como contribuir
@@ -485,7 +490,7 @@ O repositório está no GitHub. A fase 1 está pronta, e as próximas estão em 
 
 - **Sugestões e fontes de vagas** já podem ser enviadas pelas issues, com formulários prontos.
 - **Dúvidas** vão pelo [formulário de dúvida](https://github.com/fezarosa-dev/joBot/issues/new?template=duvida.yml). Leia antes as [perguntas frequentes](https://github.com/fezarosa-dev/joBot/wiki/Perguntas-frequentes).
-- **Código** só depois da publicação (fase 8).
+- **Código** só depois da publicação (fase 9).
 - A wiki é editada por PR na pasta `wiki/` do repositório.
 - As regras completas estão no guia de contribuição.
 

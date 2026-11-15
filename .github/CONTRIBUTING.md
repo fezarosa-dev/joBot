@@ -6,13 +6,13 @@ Obrigado pelo interesse! Este guia explica como ajudar com o joBot, agora e depo
 
 ## Estado do projeto
 
-A fase 1 (base) está concluída: o joBot 0.2.1 já dá para instalar e usar ([como instalar](../README.md#requisitos-e-instalacao)). As fases 2 a 8 estão planejadas. As decisões já tomadas estão em [`docs/decisions/`](../docs/decisions/README.md) (só em português por enquanto). Para saber o que o projeto é e para onde ele vai, leia o [README](../README.md).
+A fase 1 (base) está concluída: o joBot 0.2.1 já dá para instalar e usar ([como instalar](../README.md#requisitos-e-instalacao)). As fases 2 a 9 estão planejadas. As decisões já tomadas estão em [`docs/decisions/`](../docs/decisions/README.md) (só em português por enquanto). Para saber o que o projeto é e para onde ele vai, leia o [README](../README.md).
 
 ## Como ajudar agora
 
 - **Sugestões e fontes de vagas** são bem-vindas desde já. Abra uma issue pelos formulários: Bug, Sugestão ou Fonte de vagas.
 - **Uma fonte de vagas quebrou?** O guia [Como consertar uma fonte que quebrou](../docs/consertar-fonte.md) mostra como achar o que mudou e consertar. Hoje ele serve para você entender o caminho e relatar o que achou numa issue; o PR com o conserto segue a regra abaixo.
-- **Pull requests de código** só serão aceitos depois da publicação (fase 8). Até lá, o código ainda está mudando muito.
+- **Pull requests de código** só serão aceitos depois da publicação (fase 9). Até lá, o código ainda está mudando muito.
 - Issues e PRs podem ser escritos em **português ou inglês**.
 - Achou uma falha de segurança? **Não abra issue pública.** Veja a [Política de Segurança](SECURITY.md).
 - Precisa de ajuda ou tem uma dúvida? Veja o [Suporte](SUPPORT.md).
@@ -26,7 +26,7 @@ A fase 1 (base) está concluída: o joBot 0.2.1 já dá para instalar e usar ([c
 - **Qualidade:** o `ruff` cuida do estilo, o `mypy` no modo estrito (`--strict`) cuida dos tipos e o `pytest` roda os testes.
 - **Dependência nova** só com justificativa e com licença compatível com a MIT.
 
-## Fluxo para código (depois da fase 8)
+## Fluxo para código (depois da fase 9)
 
 1. Faça um fork do repositório.
 2. Crie um ramo a partir da `dev` atualizada, com o prefixo certo (`feat/`, `fix/`, `docs/` ou `ci/`).

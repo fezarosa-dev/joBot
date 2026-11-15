@@ -28,7 +28,7 @@
 | 🧪 **pytest** (9.2.0) | Rodar os testes. | TDD em todo código: escrever o teste, ver falhar, implementar, ver passar. |
 | 🧹 **ruff** (0.17.5) | Estilo e erros comuns. | Um estilo só em todo o projeto. |
 | 🔎 **mypy** strict (2.4.1) | Conferir os tipos. | No modo estrito, erros de tipo aparecem antes de rodar. |
-| 🤖 **GitHub Actions** | Tarefas automáticas no GitHub. | Roda os testes em todo PR (pedido de integração), inclusive de fork, de graça em repositório público. Também copia esta wiki e vai gerar a versão GitHub Pages (fase 7). |
+| 🤖 **GitHub Actions** | Tarefas automáticas no GitHub. | Roda os testes em todo PR (pedido de integração), inclusive de fork, de graça em repositório público. Também copia esta wiki e vai gerar a versão GitHub Pages (fase 8). |
 
 > [!NOTE]
 > As versões entre parênteses são as que o [`pyproject.toml`](https://github.com/fezarosa-dev/joBot/blob/main/pyproject.toml) fixa hoje.
@@ -64,6 +64,6 @@ A instalação é nativa ([ADR 0003](https://github.com/fezarosa-dev/joBot/blob/
 
 ## 💻 Onde roda
 
-- **Sistemas:** Linux, Windows e macOS. O desenvolvimento acontece no Linux; os instaladores de Windows e macOS chegam na fase 8.
+- **Sistemas:** Linux, Windows e macOS. O desenvolvimento acontece no Linux; os instaladores chegam na fase 3: Windows e Linux primeiro, macOS depois.
 - **Memória:** 8 GB de RAM (16 GB deixam tudo mais folgado).
 - **Placa de vídeo:** não precisa.

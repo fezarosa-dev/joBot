@@ -67,7 +67,7 @@ The other sources continue normally. joBot never tries to get past the CAPTCHA o
 <summary><strong>Does my data go to any server?</strong></summary>
 
 There is no joBot server. Your data stays on your computer.
-It only goes to the services you turn on: Anthropic (if you use Claude), Google (if you turn on Gmail) and Telegram (if you turn on the daily summary). It may also go to Jev (if you choose that option in email classification) and to RunPod (only in the phase 6 training). With manual AI, it goes to the chat AI where you paste it.
+It only goes to the services you turn on: Anthropic (if you use Claude), Google (if you turn on Gmail) and Telegram (if you turn on the daily summary). It may also go to Jev (if you choose that option in email classification) and to RunPod (only in the phase 7 training). With manual AI, it goes to the chat AI where you paste it.
 </details>
 
 <details>

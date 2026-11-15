@@ -2,7 +2,7 @@
 
 # 🗺️ Roteiro
 
-**As 8 fases do joBot, da base até a publicação.**
+**As 9 fases do joBot, da base até a publicação.**
 
 ---
 
@@ -11,8 +11,9 @@
 
 ```mermaid
 flowchart LR
-    F1["✅ Fase 1 · Base"] --> F2["⚪ Fase 2 · Navegador com login"] --> F3["⚪ Fase 3 · IA local"] --> F4["⚪ Fase 4 · Extensão"]
-    F4 --> F5["⚪ Fase 5 · Áudio e Gmail"] --> F6["⚪ Fase 6 · Treino"] --> F7["⚪ Fase 7 · GitHub Pages"] --> F8["⚪ Fase 8 · Publicação"]
+    F1["✅ Fase 1 · Base"] --> F2["⚪ Fase 2 · Navegador com login"] --> F3["⚪ Fase 3 · Instalador"] --> F4["⚪ Fase 4 · IA local"]
+    F4 --> F5["⚪ Fase 5 · Extensão"] --> F6["⚪ Fase 6 · Áudio e Gmail"] --> F7["⚪ Fase 7 · Treino"]
+    F7 --> F8["⚪ Fase 8 · GitHub Pages"] --> F9["⚪ Fase 9 · Publicação"]
 ```
 
 ## 🧭 As fases
@@ -21,14 +22,17 @@ flowchart LR
 |:---:|---|---|---|
 | ✅ | **1. Base** | Núcleo comum, fontes públicas, banco, painel e agenda | Concluída |
 | ⚪ | **2. Navegador com login** | Login pela janela comum, LinkedIn primeiro, mapeamento dos sites e tratamento de CAPTCHA | Planejada |
-| ⚪ | **3. IA local** | Pacote offline (llama-server + Qwen) | Planejada |
-| ⚪ | **4. Extensão do navegador** | Extensão do navegador para formulários | Planejada |
-| ⚪ | **5. Áudio e Gmail** | Respostas por voz e leitura de e-mails | Planejada |
-| ⚪ | **6. Treino** | Aprender com o que você salva e descarta | Planejada |
-| ⚪ | **7. Versão GitHub Pages** | Versão no navegador, sem instalação | Planejada |
-| ⚪ | **8. Publicação** | Instaladores, README com selos e revisão de segurança | Planejada |
+| ⚪ | **3. Instalador** | Instalador de 64 bits, com lista de ferramentas para marcar (Windows e Linux primeiro, Mac depois) | Planejada |
+| ⚪ | **4. IA local** | Pacote offline (llama-server + Qwen) | Planejada |
+| ⚪ | **5. Extensão do navegador** | Extensão do navegador para formulários | Planejada |
+| ⚪ | **6. Áudio e Gmail** | Respostas por voz e leitura de e-mails | Planejada |
+| ⚪ | **7. Treino** | Aprender com o que você salva e descarta | Planejada |
+| ⚪ | **8. Versão GitHub Pages** | Versão no navegador, sem instalação | Planejada |
+| ⚪ | **9. Publicação** | README com selos e revisão de segurança | Planejada |
 
 <sub>✅ concluída · ⚪ planejada</sub>
+
+Entre a fase 2 e a fase 3 sai a versão 0.3.0, com a tela "Panorama" (visão geral das vagas e da busca) e a fila de candidaturas completa.
 
 ## 🔍 Um pouco mais sobre cada fase
 
@@ -49,7 +53,15 @@ flowchart LR
 </details>
 
 <details>
-<summary><strong>⚪ Fase 3, IA local</strong></summary>
+<summary><strong>⚪ Fase 3, Instalador</strong></summary>
+
+- Instalador de 64 bits, feito para quem nunca abriu um terminal. Windows e Linux primeiro; o Mac vem depois.
+- Uma lista de ferramentas para marcar. O essencial já vem marcado e não dá para desmarcar. O que ficar sem marcar aparece depois no painel, para baixar quando você quiser.
+- No painel dá para baixar as ferramentas que ficaram de fora e refazer a escolha depois.
+</details>
+
+<details>
+<summary><strong>⚪ Fase 4, IA local</strong></summary>
 
 - Pacote offline: llama-server e um modelo Qwen, para usar IA sem internet e sem pagar.
 - Entram no assistente a escolha da IA, o currículo e o questionário.
@@ -57,36 +69,36 @@ flowchart LR
 </details>
 
 <details>
-<summary><strong>⚪ Fase 4, Extensão do navegador</strong></summary>
+<summary><strong>⚪ Fase 5, Extensão do navegador</strong></summary>
 
 - Uma extensão que reconhece os campos dos formulários e sugere respostas. Você clica OK para preencher.
 - Nunca toca em campos de senha ou de cartão.
 </details>
 
 <details>
-<summary><strong>⚪ Fase 5, Áudio e Gmail</strong></summary>
+<summary><strong>⚪ Fase 6, Áudio e Gmail</strong></summary>
 
 - Responder ao questionário falando, com transcrição no seu computador.
 - Ler os e-mails de alerta de vagas e as respostas de recrutadores, só leitura.
 </details>
 
 <details>
-<summary><strong>⚪ Fase 6, Treino</strong></summary>
+<summary><strong>⚪ Fase 7, Treino</strong></summary>
 
 - Ajuste fino de modelos, que só substituem os originais se ganharem no gabarito.
 - Um classificador pessoal "salvar ou descartar", treinado e guardado no seu computador.
 </details>
 
 <details>
-<summary><strong>⚪ Fase 7, Versão GitHub Pages</strong></summary>
+<summary><strong>⚪ Fase 8, Versão GitHub Pages</strong></summary>
 
 - A versão no navegador, sem instalação, atualizada uma vez por dia só com fontes públicas.
 </details>
 
 <details>
-<summary><strong>⚪ Fase 8, Publicação</strong></summary>
+<summary><strong>⚪ Fase 9, Publicação</strong></summary>
 
-- Instaladores, README com selos e revisão de segurança.
+- README com selos e revisão de segurança.
 - Planejado: um vigia semanal que testa cada fonte e abre issue quando uma quebra, e um jeito fácil de atualizar a instalação.
 - A partir daqui, pull requests de código passam a ser aceitos.
 </details>
