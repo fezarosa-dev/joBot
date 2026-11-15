@@ -130,6 +130,26 @@ _TURNSTILE = (
 _RETORNO = """<script>
 function recebeu(token) { fetch('/conferir-token?token=' + encodeURIComponent(token)); }
 </script>"""
+# Sai do desafio: confere o token e leva a uma lista (página nova).
+_RETORNO_PASSA = """<script>
+function recebeu(token) {
+  fetch('/conferir-token?token=' + encodeURIComponent(token))
+    .then(() => { location.href = '/lista-html'; });
+}
+</script>"""
+# Sai do desafio sem página nova: tira o widget e mostra a lista no lugar.
+_RETORNO_NO_LUGAR = """<script>
+function recebeu(token) {
+  fetch('/conferir-token?token=' + encodeURIComponent(token)).then(() => {
+    document.querySelector('.cf-turnstile').remove();
+    document.getElementById('lugar').innerHTML = __LISTA__;
+  });
+}
+</script>"""
+# Conta as chamadas de `alert` sem abrir caixa nenhuma.
+_CONTA_ALERTAS = (
+    "<script>window.__alertas = 0; window.alert = () => { window.__alertas += 1; };</script>"
+)
 _RETORNO_VOLTA = """<script>
 function recebeu(token) { location.href = '/desafio-volta?depois=1'; }
 </script>"""
@@ -175,6 +195,7 @@ class SiteFalso:
         self.visitas: Counter[str] = Counter()
         self.campos_mudados = 0
         self.tokens: list[str] = []
+        self.agentes: list[str] = []  # cabeçalho User-Agent de cada GET
         self._trava = threading.Lock()
         self._servidores: list[ThreadingHTTPServer] = []
         self._linhas: list[threading.Thread] = []
@@ -256,6 +277,7 @@ class SiteFalso:
                 self.campos_mudados += 1
             if caminho == "/conferir-token":
                 self.tokens.extend(query.get("token", []))
+            self.agentes.append(pedido.headers.get("User-Agent") or "")
         cookie = pedido.headers.get("Cookie") or ""
         return self._rota(caminho, query, vez, cookie)
 
@@ -391,15 +413,37 @@ class SiteFalso:
             case "/recaptcha-v2":
                 widget = _RECAPTCHA.format(chave=CHAVE_V2, retorno="recebeu", extra="")
                 return _Resposta(corpo=_pagina("Desafio", widget + _RETORNO))
+            case "/logada-com-formulario":  # conta logada com reCAPTCHA invisível de formulário
+                extra = " data-size='invisible'"
+                widget = _RECAPTCHA.format(chave=CHAVE_V2, retorno="recebeu", extra=extra)
+                corpo = "<div id='conta'>Conta</div>" + widget + _RETORNO + _lista_html([1, 2])
+                return _Resposta(corpo=_pagina("Vagas", corpo))
             case "/turnstile":
                 widget = _TURNSTILE.format(chave=CHAVE_TURNSTILE, retorno="recebeu")
                 return _Resposta(corpo=_pagina("Desafio", widget + _RETORNO))
+            case "/turnstile-acao":  # sem função de retorno, com a ação
+                widget = (
+                    f"<div class='cf-turnstile' data-sitekey='{CHAVE_TURNSTILE}'"
+                    " data-action='busca/vagas'></div>"
+                    "<input type='hidden' name='cf-turnstile-response'>"
+                )
+                return _Resposta(corpo=_pagina("Desafio", widget))
             case "/403-turnstile":
                 widget = _TURNSTILE.format(chave=CHAVE_TURNSTILE, retorno="recebeu")
                 return _Resposta(403, _pagina("Desafio", widget + _RETORNO))
             case "/429-recaptcha":
                 widget = _RECAPTCHA.format(chave=CHAVE_V2, retorno="recebeu", extra="")
                 return _Resposta(429, _pagina("Desafio", widget + _RETORNO))
+            case "/recaptcha-passa":
+                widget = _RECAPTCHA.format(chave=CHAVE_V2, retorno="recebeu", extra="")
+                return _Resposta(corpo=_pagina("Desafio", widget + _RETORNO_PASSA))
+            case "/403-turnstile-some":
+                widget = _TURNSTILE.format(chave=CHAVE_TURNSTILE, retorno="recebeu")
+                lista = json.dumps(_lista_html([1, 2]))
+                script = _RETORNO_NO_LUGAR.replace("__LISTA__", lista)
+                return _Resposta(
+                    403, _pagina("Desafio", widget + "<div id='lugar'></div>" + script)
+                )
             case "/desafio-volta":
                 widget = _RECAPTCHA.format(chave=CHAVE_V2, retorno="recebeu", extra="")
                 return _Resposta(corpo=_pagina("Desafio", widget + _RETORNO_VOLTA))
@@ -408,7 +452,7 @@ class SiteFalso:
                 return _Resposta(corpo=_pagina("Desafio", script))
             case "/callback-torto":
                 widget = _RECAPTCHA.format(chave=CHAVE_V2, retorno="alert(1)", extra="")
-                return _Resposta(corpo=_pagina("Desafio", widget))
+                return _Resposta(corpo=_pagina("Desafio", _CONTA_ALERTAS + widget))
             # vagas e ajudantes
             case "/campo-mudou" | "/conferir-token":
                 return _Resposta(204)

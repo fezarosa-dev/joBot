@@ -43,7 +43,8 @@ from jobot.navegador.abrir import (
     abrir_contexto,
     lancador_de_producao,
 )
-from jobot.navegador.pagina import Recusada, Visita, visitar
+from jobot.navegador.captcha import Cola, Widget
+from jobot.navegador.pagina import Recusada, visitar
 from jobot.navegador.politica import Politica, politica_de_producao
 from jobot.nucleo.coletores.base import ContextoColeta, Estado, ResultadoEscopo
 from jobot.nucleo.coletores.executor import SaidaEscopo, motivo_do_escopo
@@ -53,6 +54,7 @@ from jobot.nucleo.leitores.estado import estado_do_escopo
 from jobot.nucleo.relogio import Relogio
 from jobot.nucleo.tratamento.tratar import tratar
 from jobot.nucleo.url import canonica
+from jobot.sistema.cofre import Cofre
 from jobot.sistema.segundo_plano_linux import rodar_comando
 from jobot.sistema.tela import ambiente_da_tela
 
@@ -68,6 +70,7 @@ class Dependencias:
     ambiente: Callable[[], Mapping[str, str]]
     politica: Callable[[LeitorComLogin], Politica]
     sortear: Callable[[], float]
+    cofre: Cofre
 
 
 class NavegadorFechado(Exception):
@@ -96,6 +99,7 @@ async def dependencias_de_producao(
             ambiente=ambiente,
             politica=lambda leitor: politica_de_producao(leitor.hosts),
             sortear=lambda: random.uniform(limites.ESPERA_MIN_S, limites.ESPERA_MAX_S),
+            cofre=Cofre(dados),
         )
 
 
@@ -137,7 +141,7 @@ async def executar_login(
             fechado = asyncio.Event()
             contexto.on("close", lambda _: fechado.set())
             for leitor in ligados:
-                await _ler_site(con, execucao_id, leitor, contexto, deps, relogio, fechado)
+                await _ler_site(con, execucao_id, leitor, contexto, deps, cliente, relogio, fechado)
     except NavegadorFechado:
         if con.in_transaction:
             con.rollback()
@@ -181,13 +185,17 @@ class _Site:
     deps: Dependencias
     relogio: Relogio
     fechado: asyncio.Event
+    cola: Cola  # o 2Captcha desta aba (A8)
     usadas: int = 0  # navegações do site, entrada inclusive (teto `MAX_LISTA`)
 
-    async def ir(self, url: str) -> Visita:
+    async def ir(self, url: str) -> Captura | ParadaLogin | Recusada:
         """Espera o sorteio antes de toda navegação menos a primeira; recusada não navega."""
         if self.usadas and self.politica(url):
             await self.relogio.dormir(self.deps.sortear())
-        visita = await visitar(self.aba, url, self.leitor, self.politica, self.relogio)
+        visita = await visitar(
+            self.aba, url, self.leitor, self.politica, self.relogio, cola=self.cola
+        )
+        assert not isinstance(visita, Widget)  # com a `cola`, o widget vira parada ou passa
         if self.fechado.is_set():  # a visita pode ter engolido o erro do fechamento (Cloudflare)
             raise NavegadorFechado
         if not isinstance(visita, Recusada):
@@ -212,6 +220,7 @@ async def _ler_site(
     leitor: LeitorComLogin,
     contexto: BrowserContext,
     deps: Dependencias,
+    cliente: ClienteEducado,
     relogio: Relogio,
     fechado: asyncio.Event,
 ) -> None:
@@ -219,7 +228,9 @@ async def _ler_site(
     page: Page | None = None
     try:
         page = await contexto.new_page()
-        site = _Site(con, execucao_id, leitor, page, deps.politica(leitor), deps, relogio, fechado)
+        cola = Cola(page, con=con, cliente=cliente, relogio=relogio, cofre=deps.cofre)
+        politica = deps.politica(leitor)
+        site = _Site(con, execucao_id, leitor, page, politica, deps, relogio, fechado, cola)
         await _ler_paginas(site)
     except sqlite3.Error:
         raise  # banco quebrado não é falha do site: a execução para com `banco`

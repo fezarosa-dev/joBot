@@ -1,13 +1,14 @@
 """Uma navegação com as checagens do desenho A7 (D132.30, D132.37, D132.42, D132.54).
 
-Ordem: política → `goto` → host de `page.url` → login → Cloudflare → 401/403/bloqueio → 429 →
-assentar → rolar → `Captura`. Nada aqui clica, digita nem envia: só lê a página.
+Ordem: política → `goto` → host de `page.url` → login → Cloudflare → CAPTCHA (A8) →
+401/403/bloqueio → 429 → assentar → rolar → `Captura`. Nada aqui clica, digita nem envia: só lê
+a página; a única escrita é a da `cola` do CAPTCHA (`navegador/captcha.py`).
 """
 
 import asyncio
 import logging
 import re
-from collections.abc import Sequence
+from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 from urllib.parse import urldefrag, urlsplit
 
@@ -16,6 +17,7 @@ from playwright.async_api import Page, Response
 from playwright.async_api import TimeoutError as EstouroDoPlaywright
 
 from jobot.navegador import limites
+from jobot.navegador.captcha import Widget, achar_widget
 from jobot.navegador.js import rolar
 from jobot.navegador.politica import Politica, casa_login, dentro_dos_hosts
 from jobot.nucleo.http import ESPERAS_LIMITE, MAX_RETRY_AFTER_S, segundos_retry_after
@@ -34,7 +36,8 @@ class Recusada:
     url_host: str
 
 
-Visita = Captura | ParadaLogin | Recusada
+Visita = Captura | ParadaLogin | Recusada | Widget
+Desafiar = Callable[[Widget], Awaitable[ParadaLogin | None]]
 
 
 class Ouvidas(list[RespostaCapturada]):
@@ -44,6 +47,9 @@ class Ouvidas(list[RespostaCapturada]):
         super().__init__()
         self.ativa = True  # desligada, o ouvinte não faz nada (o Playwright não sai da página)
         self.ultimas: dict[str, Response] = {}  # última resposta por URL, de qualquer host
+        # shortcut: não separa documento de XHR; um fetch à mesma URL depois do documento troca o
+        # status lido. Separar por `request.resource_type` se um site real fizer isso (o
+        # test_navegador_ast recusa `request` e `resource_type` hoje).
         self.pedidos = 0
         self.respondidos = 0
         self._lendo: set[asyncio.Task[None]] = set()
@@ -162,9 +168,17 @@ def _parou(parada: ParadaLogin, url: str) -> ParadaLogin:
 
 
 async def visitar(
-    page: Page, url: str, leitor: LeitorComLogin, politica: Politica, relogio: Relogio
+    page: Page,
+    url: str,
+    leitor: LeitorComLogin,
+    politica: Politica,
+    relogio: Relogio,
+    *,
+    cola: Desafiar | None = None,
 ) -> Visita:
-    """Navega a `url` e devolve a `Captura`, a parada do site ou a `Recusada` pela política."""
+    """Navega a `url` e devolve a `Captura`, a parada do site ou a `Recusada` pela política.
+
+    Página com CAPTCHA vai à `cola`; sem ela, a visita devolve o `Widget` achado."""
     if not politica(url):
         host = _host(url)
         _LOG.info("navegação recusada pela política: %r", host)
@@ -172,7 +186,9 @@ async def visitar(
     for tentativa in range(2):
         ouvidas = ouvir_respostas(page, leitor.hosts, leitor.respostas)
         try:
-            visita = await _uma_vez(page, url, leitor, ouvidas, relogio, ultima=tentativa == 1)
+            visita = await _uma_vez(
+                page, url, leitor, ouvidas, relogio, cola=cola, ultima=tentativa == 1
+            )
         finally:
             ouvidas.ativa = False  # o ouvinte fica na page: solta o que ele juntou
             del ouvidas[:]  # `clear` é nome do Playwright: o test_navegador_ast recusa
@@ -195,6 +211,13 @@ async def _fora_ou_login(page: Page, leitor: LeitorComLogin, status: int) -> Par
     return None
 
 
+async def _desafio(page: Page, leitor: LeitorComLogin, status: int) -> Widget | None:
+    """O widget que barra a página; numa página logada com 200 ele é de formulário, não se toca."""
+    if status not in (401, 403, 429) and leitor.pagina_logada(await page.content(), page.url):
+        return None
+    return await achar_widget(page)
+
+
 async def _uma_vez(
     page: Page,
     url: str,
@@ -202,6 +225,7 @@ async def _uma_vez(
     ouvidas: Ouvidas,
     relogio: Relogio,
     *,
+    cola: Desafiar | None,
     ultima: bool,
 ) -> Visita | None:
     """Uma navegação; `None` quando o 429 pede outra tentativa depois da espera."""
@@ -220,6 +244,20 @@ async def _uma_vez(
         # o status e o Retry-After da nova; page.url traz o #, a resposta não
         resposta = ouvidas.ultimas.get(urldefrag(page.url).url, resposta)
         status = resposta.status if resposta is not None else 0
+        if parada := await _fora_ou_login(page, leitor, status):
+            return _parou(parada, page.url)
+    # o widget vem antes do 401/403 e do 429: o site que desafia responde com eles
+    while (widget := await _desafio(page, leitor, status)) is not None:
+        if cola is None:
+            return widget
+        if parada := await cola(widget):
+            return _parou(parada, page.url)
+        await page.wait_for_load_state("load")
+        # saiu do desafio: o status e o Retry-After são os do documento novo; sem documento novo
+        # (o desafio saiu no lugar), o 403/429 era do desafio e não vale mais
+        nova = ouvidas.ultimas.get(urldefrag(page.url).url)
+        resposta = None if nova is resposta else nova
+        status = resposta.status if resposta is not None else 200
         if parada := await _fora_ou_login(page, leitor, status):
             return _parou(parada, page.url)
     html = await page.content()
