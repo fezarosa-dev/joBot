@@ -474,12 +474,25 @@ CITA_0_2_0 = {
 
 @pytest.mark.parametrize("lingua", LINGUAS)
 def test_changelog_fecha_a_0_2_0(lingua: str) -> None:
-    """A 0.2.0 vem logo abaixo de "Não lançado", que fica sem itens."""
+    """A 0.2.0 vem logo abaixo de "Não lançado"."""
     conteudo = texto(CHANGELOG[lingua])
     inicio = conteudo.index(NAO_LANCADO[lingua])
     fim = conteudo.index("\n## [", inicio + 1)
-    assert "\n- " not in conteudo[inicio:fim], f"{CHANGELOG[lingua]}: Não lançado não fica vazio"
     assert conteudo[fim + 1 :].startswith(V0_2_0), CHANGELOG[lingua]
+
+
+# termos que só os três itens de "Não lançado" têm: os chips, o índice 0006 e o "Salvo." em 5 s
+CITA_NAO_LANCADO = {"pt": ("chips", "0006", "5 segundos"), "en": ("chips", "0006", "5 seconds")}
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_changelog_nao_lancado_traz_os_tres_itens_da_0_2_1(lingua: str) -> None:
+    """A seção "Não lançado" diz o que muda na 0.2.1: os chips, o índice da fonte e o aviso."""
+    conteudo = texto(CHANGELOG[lingua])
+    inicio = conteudo.index(NAO_LANCADO[lingua])
+    secao_nova = conteudo[inicio : conteudo.index("\n## [", inicio + 1)]
+    for termo in CITA_NAO_LANCADO[lingua]:
+        assert termo in secao_nova, (CHANGELOG[lingua], termo)
 
 
 @pytest.mark.parametrize("lingua", LINGUAS)
