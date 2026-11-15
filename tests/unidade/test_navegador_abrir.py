@@ -114,6 +114,36 @@ async def test_lancador_de_producao_mantem_home_e_path(
     assert env["DISPLAY"] == ":7"
 
 
+async def test_lancador_de_producao_passa_so_o_ambiente_do_navegador(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # lista literal: iterar `abrir.VARIAVEIS_DO_NAVEGADOR` daria AttributeError no vermelho
+    nomes = (
+        "PATH", "HOME", "USER", "LOGNAME", "LANG", "LC_ALL", "LANGUAGE", "TMPDIR",
+        "XDG_CONFIG_HOME", "XDG_CACHE_HOME", "XDG_DATA_HOME", "XDG_DATA_DIRS",
+        "XDG_CURRENT_DESKTOP", "XDG_SESSION_TYPE", "DBUS_SESSION_BUS_ADDRESS",
+        "DISPLAY", "WAYLAND_DISPLAY", "XAUTHORITY", "XDG_RUNTIME_DIR", "SEGREDO_DO_TESTE",
+    )  # fmt: skip
+    for nome in nomes:
+        monkeypatch.delenv(nome, raising=False)
+    monkeypatch.setenv("HOME", "/casa/x")
+    monkeypatch.setenv("PATH", "/bin:/usr/bin")
+    monkeypatch.setenv("LANG", "pt_BR.UTF-8")
+    monkeypatch.setenv("SEGREDO_DO_TESTE", "x")
+    monkeypatch.setenv("DISPLAY", ":99")
+    pw = _Playwright()
+    await abrir_contexto(tmp_path, {"DISPLAY": ":7"}, lancador_de_producao(pw, {"DISPLAY": ":7"}))  # type: ignore[arg-type]
+    assert len(pw.chromium.chamadas) == 1
+    env = pw.chromium.chamadas[0]["env"]
+    assert "SEGREDO_DO_TESTE" not in env
+    assert env == {
+        "HOME": "/casa/x",
+        "PATH": "/bin:/usr/bin",
+        "LANG": "pt_BR.UTF-8",
+        "DISPLAY": ":7",
+    }
+
+
 async def test_chrome_primeiro_depois_chromium(tmp_path: Path) -> None:
     lancador = _Lancador(falham=(1,))
     assert await abrir_contexto(tmp_path, TELA, lancador) is CONTEXTO
