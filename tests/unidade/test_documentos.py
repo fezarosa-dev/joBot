@@ -353,6 +353,7 @@ CITA: Mapping[str, Mapping[str, tuple[str, ...]]] = {
         "endereço": (r"cola o endereço", r"só quando você"),
         "versão": (r"GitHub",),
         "atualização": (r"pelo git e pelo uv", r"só quando você pede para atualizar"),
+        "2captcha": (r"2Captcha", r"testa a chave"),
     },
     "en": {
         "fontes": (r"public job sources",),
@@ -362,6 +363,7 @@ CITA: Mapping[str, Mapping[str, tuple[str, ...]]] = {
         "endereço": (r"paste an address", r"only when you"),
         "versão": (r"GitHub",),
         "atualização": (r"through git and uv", r"only when you ask to update"),
+        "2captcha": (r"2Captcha", r"test the key"),
     },
 }
 CONDICAO: Mapping[str, Mapping[bool, str]] = {
@@ -374,6 +376,7 @@ CHAVE_DO_PADRAO = {
     "common crawl": "descoberta_cc_ligada",
     "páginas": "paginas_ligadas",
     "versão": "aviso_versao_ligada",
+    "2captcha": "captcha_ligado",
 }
 # o que o texto diz das fontes: todas vêm ligadas (o `fontes.json` não desliga nenhuma)
 FONTES_LIGADAS = {"pt": r"vêm todas ligadas", "en": r"all come on"}
