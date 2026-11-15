@@ -18,11 +18,13 @@ from urllib.parse import urlsplit
 import pytest
 from playwright.async_api import BrowserContext, Route, async_playwright
 
+from apoio.cofre_falso import CofreFalso
 from apoio.relogio import RelogioFalso
 from apoio.site_falso import LOCAIS, LeitorFalso, SiteFalso, _Resposta
 from jobot.navegador import limites
 from jobot.navegador.execucao import Dependencias
 from jobot.navegador.politica import dentro_dos_hosts
+from jobot.sistema.cofre import Cofre
 from jobot.sistema.instancia import captura_em_andamento, pid_do_servidor
 
 pytestmark = pytest.mark.tela
@@ -109,6 +111,7 @@ def test_captura_do_site_falso_grava_limpa(tmp_path: Path) -> None:
                 ambiente=lambda: {"DISPLAY": ":0"},
                 politica=lambda leitor: lambda url: dentro_dos_hosts(url, leitor.hosts),
                 sortear=lambda: limites.ESPERA_MIN_S,
+                cofre=Cofre(d, CofreFalso()),
             )
 
     async def enter() -> None:  # a pessoa aperta Enter com a captura em andamento

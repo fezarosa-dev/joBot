@@ -18,3 +18,7 @@ MAX_RESPOSTAS: Final = 50
 # Técnico, fora da D132: o `close` do contexto pode chegar logo depois do erro do Playwright que
 # o fechamento causou; só nesse caminho de erro a execução espera por ele, no máximo este tempo.
 ESPERA_FECHAR_S: Final = 1.0
+# Técnicos, fora da D132: o cofre do sistema pode travar esperando a senha da pessoa; o widget
+# acabou de ser achado, então ler um atributo dele não espera mais que isto.
+PRAZO_COFRE_S: Final = 15.0
+ESPERA_ATRIBUTO_MS: Final = 1_000
