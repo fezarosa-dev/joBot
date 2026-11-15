@@ -4,13 +4,16 @@ A rota usa a trava e o cliente que o lifespan de `cli/servir.py` põe em `app.st
 com a trava `busca` presa (pela agenda ou por outro clique), não dispara outra e mostra o
 andamento da que roda. A busca roda numa tarefa asyncio, com conexão própria, como a da agenda,
 e o pedido volta na hora. O dia local (DP8) é calculado por `executar_busca`, com o `Relogio`
-do app.
+do app. Com a tarefa `login` do lifespan, a rota também dispara a leitura dos sites com login
+(D132.25), com a trava `login` do laço; essa leitura não aparece no andamento.
 """
 
 import asyncio
 import sqlite3
+from collections.abc import Awaitable, Callable
 from contextlib import closing
 from dataclasses import dataclass
+from functools import partial
 from pathlib import Path
 from typing import Annotated
 
@@ -19,9 +22,12 @@ from fastapi.responses import HTMLResponse, Response
 
 from jobot.agenda.agendador import rodar
 from jobot.agenda.execucao import executar_busca
+from jobot.agenda.login import pode_ler_agora
+from jobot.banco.cadastros import fontes_com_login_ligadas
 from jobot.banco.conexao import abrir
-from jobot.banco.execucoes import execucao_atual
+from jobot.banco.execucoes import execucao_atual, inicio_da_ultima_leitura_login
 from jobot.nucleo.http import ClienteEducado
+from jobot.nucleo.leitores.registro import leitores
 from jobot.painel.rotas.vagas import relogio_do_painel
 from jobot.painel.seguranca import Con, de_volta, renderizar
 
@@ -106,11 +112,37 @@ def _disparar(request: Request, trava: asyncio.Lock) -> None:
         with closing(abrir(banco)) as con:  # conexão própria: nunca dividida entre tarefas
             await executar_busca(con, cliente, relogio, "agora")
 
+    _criar(request, "busca", trava, busca)
+
+
+def _criar(
+    request: Request, tipo: str, trava: asyncio.Lock, tarefa: Callable[[], Awaitable[None]]
+) -> None:
     # o `rodar` da agenda: registra o erro e solta a trava no fim, como na busca da agenda
-    tarefa = asyncio.create_task(rodar("busca", trava, busca))
+    criada = asyncio.create_task(rodar(tipo, trava, tarefa))
     tarefas = _tarefas(request)
-    tarefas.add(tarefa)
-    tarefa.add_done_callback(tarefas.discard)
+    tarefas.add(criada)
+    criada.add_done_callback(tarefas.discard)
+
+
+async def _disparar_login(request: Request, con: sqlite3.Connection) -> None:
+    """Lê os sites com login junto, se há site ligado, passou o intervalo e nenhuma roda (D132.25).
+
+    Não espera a leitura; o andamento da casca continua só da busca.
+    """
+    tarefa: Callable[[str], Awaitable[None]] | None = getattr(
+        request.app.state, "tarefa_login", None
+    )
+    trava: asyncio.Lock | None = request.app.state.travas.get("login")
+    if tarefa is None or trava is None or trava.locked():
+        return
+    # cruza com os leitores registrados, como o laço: fonte órfã não sobe o navegador à toa
+    if not {leitor.chave for leitor in leitores()}.intersection(fontes_com_login_ligadas(con)):
+        return
+    if not pode_ler_agora(relogio_do_painel(request).agora(), inicio_da_ultima_leitura_login(con)):
+        return
+    await trava.acquire()  # livre: não suspende, então a checagem acima vale (como no laço)
+    _criar(request, "login", trava, partial(tarefa, "agora"))
 
 
 @router.post("/buscar-agora")
@@ -128,6 +160,7 @@ async def buscar_agora(
     if not ja_rodava:
         await trava.acquire()  # livre: não suspende, então a checagem acima vale (como no laço)
         _disparar(request, trava)
+    await _disparar_login(request, con)
     if not htmx:
         resposta = de_volta(voltar)  # sem HTMX: volta para a página de onde veio
         if ja_rodava:

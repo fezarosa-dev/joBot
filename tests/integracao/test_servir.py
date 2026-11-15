@@ -6,13 +6,14 @@ pelo nome importado em `cli/servir.py` e `cli/buscar.py`, para nenhum teste ir �
 
 import argparse
 import asyncio
+import contextlib
 import importlib
 import logging
 import os
 import socket
 import sqlite3
 import time
-from collections.abc import Awaitable, Callable, Iterator, Mapping
+from collections.abc import AsyncIterator, Awaitable, Callable, Iterator, Mapping
 from contextlib import closing
 from datetime import UTC, date, datetime, timedelta
 from datetime import time as hora
@@ -307,9 +308,111 @@ def test_laco_e_rota_buscar_agora_dividem_as_mesmas_travas(
     with TestClient(app, base_url=BASE):
         assert _esperar(lambda: bool(recebidas))
     travas: dict[str, asyncio.Lock] = app.state.travas
-    assert set(travas) == {"busca", "descoberta", "paginas"}
+    assert set(travas) == {"busca", "descoberta", "paginas", "login"}
     assert all(isinstance(trava, asyncio.Lock) for trava in travas.values())
     assert recebidas[0] is travas  # o mesmo objeto, não uma cópia (D55)
+
+
+def test_travas_tem_login_e_e_o_mesmo_objeto_do_laco(
+    dados: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    recebidas: list[
+        tuple[Mapping[str, Callable[[], Awaitable[None]]], Mapping[str, asyncio.Lock] | None]
+    ] = []
+
+    async def laco_falso(
+        tarefas: Mapping[str, Callable[[], Awaitable[None]]],
+        estado: object,
+        relogio: Relogio,
+        *,
+        travas: Mapping[str, asyncio.Lock] | None = None,
+    ) -> None:
+        recebidas.append((tarefas, travas))
+        await asyncio.Event().wait()
+
+    monkeypatch.setattr(servir, "laco", laco_falso)
+    app, _ = servir.montar(dados, PORTA, relogio=RelogioFalso(AGORA))
+    with TestClient(app, base_url=BASE):
+        assert _esperar(lambda: bool(recebidas))
+    tarefas, travas = recebidas[0]
+    assert travas is app.state.travas  # o mesmo objeto que o "Buscar agora" usa (D55)
+    assert travas is not None
+    assert isinstance(travas.get("login"), asyncio.Lock)
+    assert "login" in tarefas
+    assert app.state.tarefa_login is tarefas["login"]  # a rota dispara a mesma tarefa do laço
+
+
+def test_tarefa_login_usa_as_dependencias_de_producao(
+    dados: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    deps = object()
+    eventos: list[str] = []
+    chamadas: list[dict[str, Any]] = []
+
+    @contextlib.asynccontextmanager
+    async def producao_falsa(pasta: Path, env: Mapping[str, str]) -> AsyncIterator[object]:
+        eventos.append(f"abriu:{pasta == dados}:{env.get('JOBOT_TESTE')}")
+        yield deps
+        eventos.append("fechou")
+
+    async def login_falso(
+        con: sqlite3.Connection, cliente: Any, relogio: Any, motivo: str, **kw: Any
+    ) -> None:
+        con.execute("SELECT 1")  # a conexão própria está aberta durante a leitura
+        chamadas.append({"cliente": cliente, "relogio": relogio, "motivo": motivo, **kw})
+
+    leitor = cast(LeitorComLogin, SimpleNamespace(chave="teste_logado"))
+    monkeypatch.setattr(registro, "LEITORES", (leitor,))
+    monkeypatch.setattr(servir, "navegador_instalado", _instalado_falso([]))
+    monkeypatch.setattr(servir, "laco", _parado)
+    monkeypatch.setattr(servir, "dependencias_de_producao", producao_falsa)
+    monkeypatch.setattr(servir, "executar_login", login_falso)
+    relogio = RelogioFalso(AGORA)
+    app, _ = servir.montar(dados, PORTA, relogio=relogio, env={"JOBOT_TESTE": "sim"})
+    with TestClient(app, base_url=BASE) as http:
+        tarefa = getattr(app.state, "tarefa_login", None)
+        assert tarefa is not None, "o lifespan não guardou a tarefa login"
+        portal = http.portal
+        assert portal is not None  # dentro do `with` o TestClient tem o laço do app
+        portal.call(tarefa)
+        portal.call(tarefa, "agora")
+        cliente = app.state.cliente
+    assert eventos == ["abriu:True:sim", "fechou", "abriu:True:sim", "fechou"]
+    assert [c["motivo"] for c in chamadas] == ["agenda", "agora"]
+    assert all(c["deps"] is deps and c["cliente"] is cliente for c in chamadas)
+    assert all(c["relogio"] is relogio and c["leitores"] == (leitor,) for c in chamadas)
+
+
+async def _parado(*_: object, **__: object) -> None:
+    await asyncio.Event().wait()
+
+
+def _instalado_falso(chamadas: list[str]) -> Callable[[], Awaitable[str | None]]:
+    async def instalado() -> str | None:
+        chamadas.append("x")
+        return "chrome"
+
+    return instalado
+
+
+def test_servir_so_sobe_o_driver_com_leitor(dados: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    chamadas: list[str] = []
+    monkeypatch.setattr(servir, "navegador_instalado", _instalado_falso(chamadas))
+    monkeypatch.setattr(servir, "laco", _parado)
+    monkeypatch.setattr(registro, "LEITORES", ())
+    app, _ = servir.montar(dados, PORTA, relogio=RelogioFalso(AGORA))
+    with TestClient(app, base_url=BASE):
+        pass
+    assert chamadas == []  # sem leitor registrado, o driver do Playwright nem sobe
+    assert not hasattr(app.state, "navegador_instalado")
+    # controle: com um leitor registrado, calcula uma vez ao subir e guarda em app.state
+    leitor = cast(LeitorComLogin, SimpleNamespace(chave="teste_logado"))
+    monkeypatch.setattr(registro, "LEITORES", (leitor,))
+    app, _ = servir.montar(dados, PORTA, relogio=RelogioFalso(AGORA))
+    with TestClient(app, base_url=BASE) as http:
+        http.get("/saude-local")
+    assert chamadas == ["x"]
+    assert app.state.navegador_instalado == "chrome"
 
 
 @pytest.fixture
