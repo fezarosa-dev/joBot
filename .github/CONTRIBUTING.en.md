@@ -6,7 +6,7 @@ Thanks for your interest! This guide explains how to help with joBot, now and af
 
 ## Project status
 
-Phase 1 (foundation) is complete: joBot 0.1.1 can already be installed and used ([how to install](../README.en.md#requirements-and-installation)). Phases 2 to 8 are planned. The decisions made so far are in [`docs/decisions/`](../docs/decisions/README.md) (Portuguese only for now). To learn what the project is and where it is going, read the [README](../README.en.md).
+Phase 1 (foundation) is complete: joBot 0.2.0 can already be installed and used ([how to install](../README.en.md#requirements-and-installation)). Phases 2 to 8 are planned. The decisions made so far are in [`docs/decisions/`](../docs/decisions/README.md) (Portuguese only for now). To learn what the project is and where it is going, read the [README](../README.en.md).
 
 ## How to help now
 
