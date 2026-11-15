@@ -2,7 +2,7 @@
 
 Decisões que dependem do dono do projeto. As resolvidas ficam registradas aqui, com a data.
 
-Status usados: **resolvida** (o dono decidiu ou aceitou a decisão da sessão, com a data); **decidido pelo dono** e **decisão aceita** (variantes de resolvida, com a data); **superada por Dn** (outra decisão tomou o lugar dela); **decidido pela sessão, para confirmar** (a sessão decidiu com o dono ausente: ele confirma ou manda desfazer). Textos antigos que dizem "para confirmar" (D11 a D76) são o registro de quando a decisão ainda estava com a sessão: o dono aceitou todas em 2026-11-15 (Q7), e a decisão final de cada uma está no Status do início dela. Só as D110 em diante ainda esperam o dono.
+Status usados: **resolvida** (o dono decidiu ou aceitou a decisão da sessão, com a data); **decidido pelo dono** e **decisão aceita** (variantes de resolvida, com a data); **superada por Dn** (outra decisão tomou o lugar dela); **decidido pela sessão, para confirmar** (a sessão decidiu com o dono ausente: ele confirma ou manda desfazer). Textos antigos que dizem "para confirmar" (D11 a D76) são o registro de quando a decisão ainda estava com a sessão: o dono aceitou todas em 2026-11-15 (Q7), e a decisão final de cada uma está no Status do início dela. **resolvida com escolha da sessão para confirmar** (o dono decidiu o quê e a sessão escolheu o como, que ele ainda confirma: D121 e D123). Só as D110 a D119 e as escolhas da D121 e da D123 ainda esperam o dono.
 
 ## D1. Manter a opção "sessão do Claude Code"
 
@@ -1665,3 +1665,39 @@ A meta de 90% só foi batida em UF. Ela não trava a fase 1.
 **Contexto:** a D109 pediu a dica na tela de buscas, mas o campo de cargos aparece também no passo 1 da primeira execução, onde a pessoa nova digita os cargos.
 
 **Decisão:** a dica entra nas duas telas (`buscas.dica.cargos` e `primeira_execucao.p1.cargos_dica`), em pt e en.
+
+## D120. Documentação de arquitetura na wiki (T160)
+
+**Status:** resolvida em 2026-11-15: o dono decidiu
+
+**Contexto:** o projeto é público e feito para a comunidade manter os coletores, mas não tem uma página que mostre como as peças se encaixam.
+
+**Decisão:** uma página Arquitetura (e Architecture, em inglês) na wiki, com o modelo entidade-relacionamento do banco, as camadas, a sequência de uma busca, os casos de uso e um `classDiagram` pequeno do núcleo, tudo em Mermaid. Um teste prende o ER às migrações e o diagrama às camadas, para a página não envelhecer. Sai antes da 0.2.0. O diagrama de classes UML completo ficou de fora: o código é quase todo função e dataclass, e um diagrama de classes inteiro mostraria pouco.
+
+## D121. Estrutura de pastas do código (T161)
+
+**Status:** resolvida em 2026-11-15: o dono decidiu
+
+**Contexto:** `nucleo/coletores/` mistura ATS, agregadores e portais num só nível. As subpastas `carreiras/` e `portais/` que já existem têm uma divisão diferente da do apêndice de fontes (`portais/` guarda até Sólides e Abler). A T161 reorganiza o que já existe.
+
+**Decisão:** os coletores se separam por tipo, seguindo o apêndice de fontes; todo pacote ganha uma docstring que diz o que ele é, com teste que confere; os nomes continuam em português e a raiz do repositório fica como está. Ordem: REG19, T161, T160 e depois a 0.2.0.
+
+**Escolhas da sessão, para confirmar:** a pasta de agregadores se chama `agregadores/` (e não `quadros/`, porque "quadro" já quer dizer a página de uma empresa num sistema de vagas); Sólides e Abler ficam em `plataformas/`; os testes e as fixtures continuam soltos, sem acompanhar as pastas novas. Desfazer: renomear a pasta ou mover os dois coletores, com ajuste dos imports.
+
+## D122. Modelo leve na máquina da pessoa, fases 3 e 6
+
+**Status:** resolvida em 2026-11-15: o dono decidiu
+
+**Contexto:** o problema a resolver é a mesma habilidade escrita de um jeito na vaga e de outro no currículo. Comparar só a palavra exata (D109) não pega isso.
+
+**Decisão:** comparar pelo sentido, com o Laya ajustado (ADR 0015). Se ele pesar demais, o caminho é: quantizar primeiro (int8, cerca de 4 vezes menor); destilar para um modelo menor só se ainda ficar lento num PC comum (8 a 16 GB, sem placa de vídeo); poda manual fica de fora. O modelo roda só na máquina da pessoa. O GitHub Actions nunca recebe currículo nem as vagas da pessoa: só confere que o modelo carrega e acerta um teste pequeno, com exemplos públicos. O treino continua no RunPod. A ADR 0015 ganhou a seção "Modelo leve na máquina da pessoa (2026-11-15)".
+
+## D123. A bateria de testes roda no GitHub Actions (CI1)
+
+**Status:** resolvida em 2026-11-15: o dono pediu; o jeito foi escolha da sessão, para confirmar
+
+**Contexto:** a memória RAM da máquina do dono estoura com a bateria de testes. Ele pediu que os testes rodem no GitHub Actions (repositório público, sem custo), com quantas branches forem precisas lá.
+
+**Decisão da sessão:** o `ci.yml` ganha o gatilho de push para branches `lote/**` do próprio repositório e o `workflow_dispatch`. Tudo o que a sessão rodaria na máquina (a bateria antes de juntar, a conferência do vermelho contra o código antigo e a nova rodada depois de uma correção) sobe numa branch `lote/<nome>` e roda no Actions. Uma tarefa só entra na `dev` com o CI verde, e a branch remota é apagada depois. Na máquina fica só o arquivo de teste da própria tarefa (vermelho e verde de quem implementa) e o `ruff`. A ADR 0018 ganhou a linha do novo gatilho. Desfazer: tirar o `push` e o `workflow_dispatch` do `ci.yml` (o `test_ci.py` acompanha).
+
+**Decisão do dono, no mesmo dia:** a `dev` vai para o GitHub toda vez que algo verde entra nela, e o PR da `dev` para a `main` sai com menos frequência, quando juntar um bloco bom, sem pedir de novo. Antes, os dois esperavam o fim da fase.
