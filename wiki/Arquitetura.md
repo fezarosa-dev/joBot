@@ -48,6 +48,7 @@ flowchart TD
     agenda["agenda<br/>agendador e execução das buscas"]
     sistema["sistema<br/>pastas, instância única, segundo plano"]
     banco["banco<br/>SQLite, migrações, consultas"]
+    navegador["navegador<br/>navegador com login (Playwright)"]
     nucleo["nucleo<br/>modelo, coletores, tratamento, encaixe"]
     cli --> painel
     cli --> agenda
