@@ -13,6 +13,7 @@ ESPERA_CLOUDFLARE_S: Final = 30  # (D132.30, D132.44)
 ESPERA_TOKEN_S: Final = 30  # (D132.31)
 JANELA_PARADA_S: Final = 900  # (D132.26)
 PRAZO_LOGIN_MANUAL_S: Final = 600  # (D132.52)
+INTERVALO_LOGIN_MANUAL_S: Final = 5.0  # leitura da janela de login enquanto a pessoa entra
 MAX_RESPOSTA_BYTES: Final = 5 * 1024 * 1024  # (D132.54)
 MAX_RESPOSTAS: Final = 50
 # Técnico, fora da D132: o `close` do contexto pode chegar logo depois do erro do Playwright que

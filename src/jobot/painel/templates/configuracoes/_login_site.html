@@ -1,0 +1,8 @@
+{#- estado do "Fazer login agora" de um site: a espera pergunta de novo a cada 5 s -#}
+{%- if estado == "aguardando" %}
+<p class="config-texto" hx-get="/configuracoes/sites-com-login/{{ chave }}/login" hx-trigger="every 5s" hx-target="#login-site-{{ chave }}">{{ t("configuracoes.sites_com_login.login.aguardando", minutos=minutos) }}</p>
+{%- elif estado == "em_andamento" %}
+<p class="config-texto">{{ t("configuracoes.sites_com_login.em_andamento") }}</p>
+{%- else %}
+<p class="config-texto">{{ t("configuracoes.sites_com_login.login." ~ estado) }}</p>
+{%- endif %}
