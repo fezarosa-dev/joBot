@@ -16,12 +16,12 @@
 {% endif %}
 {% if motivo %}
 <div class="assistente-alerta" role="alert">
-  <strong>{{ t("primeira_execucao.p2.recusa_desligar" if desligando else "primeira_execucao.p2.recusa") }}</strong>
+  <strong>{{ t("primeira_execucao.p2.recusa") }}</strong>
   <p>{{ t(motivo.chave, **motivo.params) }}</p>
 </div>
 {% elif erro %}
 <div class="assistente-alerta" role="alert">
-  <p>{{ t("primeira_execucao.p2.erro_sistema", erro=erro) }}</p>
+  <p>{{ t(erro) }}</p>
 </div>
 {% endif %}
 <p class="assistente-texto">{{ t("primeira_execucao.p2.explicacao") }}</p>

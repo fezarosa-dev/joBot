@@ -25,6 +25,7 @@ from apoio.segundo_plano_falso import FalsoSistema
 from jobot.agenda.agendador import o_que_roda
 from jobot.agenda.descoberta import executar_descoberta
 from jobot.agenda.execucao import executar_busca
+from jobot.agenda.versao import checar_versao_nova
 from jobot.banco.buscas import criar_busca
 from jobot.banco.cadastros import (
     PADROES,
@@ -426,6 +427,30 @@ async def _conversao(dados: Path) -> None:
         assert servidor.ptax() == [] and _um(con, "SELECT count(*) FROM cotacao") == 0
 
 
+async def _aviso_versao(dados: Path) -> None:
+    pedidos: list[httpx.Request] = []
+
+    def github(pedido: httpx.Request) -> httpx.Response:
+        pedidos.append(pedido)
+        return httpx.Response(200, json={"tag_name": "v99.0.0"})
+
+    async def checar(con: sqlite3.Connection) -> None:
+        relogio = RelogioFalso(AGORA)
+        cliente = ClienteEducado(httpx.MockTransport(github), relogio, _SemValidadores(), "0.1.0")
+        try:
+            await checar_versao_nova(con, cliente, relogio)
+        finally:
+            await cliente.fechar()
+
+    with closing(_banco(dados)) as con:
+        gravar_config(con, "aviso_versao_ligada", False)
+        await checar(con)
+        assert pedidos == []  # desligado: nenhum pedido ao GitHub
+        gravar_config(con, "aviso_versao_ligada", True)  # controle: ligado, checa
+        await checar(con)
+        assert len(pedidos) == 1
+
+
 async def _ocultar(dados: Path, geral: bool, regras_da_busca: Mapping[str, bool]) -> None:
     """Duas buscas iguais, uma com `regras_da_busca`; a vaga em BRL fica abaixo do mínimo."""
     brl = _vaga("remotive", "https://remotive.exemplo.test/vagas/brl", salario_texto="R$ 3.000/mês")
@@ -492,6 +517,7 @@ CASOS: Mapping[str, Callable[[Path], Awaitable[None]]] = {
     "destaques_ligados": _destaques,
     "conversao_moeda_ligada": _conversao,
     "regras_ocultar_ligadas": _ocultar_geral,
+    "aviso_versao_ligada": _aviso_versao,
     "regras_ocultar_por_busca": _ocultar_por_busca,
     "segundo_plano": _segundo_plano,
 }

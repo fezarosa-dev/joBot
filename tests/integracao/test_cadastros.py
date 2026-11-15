@@ -121,6 +121,7 @@ INTERRUPTORES = (
     "destaques_ligados",
     "conversao_moeda_ligada",
     "regras_ocultar_ligadas",
+    "aviso_versao_ligada",
 )
 
 
