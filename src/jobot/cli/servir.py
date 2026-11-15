@@ -44,6 +44,8 @@ from jobot.banco.gravacao import ValidadoresDoBanco
 from jobot.banco.migrar import BancoMaisNovo, migrar
 from jobot.banco.paginas import existe_pagina_nova
 from jobot.cli import caminho_do_log, mensagem_do_banco
+from jobot.navegador.abrir import navegador_instalado
+from jobot.navegador.execucao import dependencias_de_producao, executar_login
 from jobot.nucleo.horarios import horarios_validos
 from jobot.nucleo.http import ClienteEducado
 from jobot.nucleo.leitores.registro import leitores
@@ -55,7 +57,7 @@ from jobot.sistema.pastas import configurar_log, pasta_de_dados, preparar_pasta
 log = logging.getLogger(__name__)
 
 HOST = "127.0.0.1"  # fixo: não aceita outro valor (14.1)
-TIPOS: tuple[Tipo, ...] = ("busca", "descoberta", "paginas")
+TIPOS: tuple[Tipo, ...] = ("busca", "descoberta", "paginas", "login")
 _INTERRUPTORES: Mapping[Tipo, str] = {
     "descoberta": "descoberta_cc_ligada",
     "paginas": "paginas_ligadas",
@@ -142,7 +144,11 @@ def _perdida(caminho: Path, agora: datetime) -> bool:
 
 
 def montar(
-    dados: Path, porta: int, *, relogio: Relogio | None = None
+    dados: Path,
+    porta: int,
+    *,
+    relogio: Relogio | None = None,
+    env: Mapping[str, str] = os.environ,
 ) -> tuple[FastAPI, uvicorn.Config]:
     """App do painel com a agenda no lifespan e a configuração do uvicorn (só 127.0.0.1)."""
     relogio = relogio or RelogioReal()
@@ -175,11 +181,25 @@ def montar(
                 with closing(abrir(caminho)) as con:  # conexão própria, como a busca
                     await executar_paginas(con, cliente, relogio)
 
+            async def login(motivo: Motivo = "agenda") -> None:
+                with closing(abrir(caminho)) as con:  # conexão própria, como a busca
+                    async with dependencias_de_producao(dados, env) as deps:
+                        await executar_login(
+                            con, cliente, relogio, motivo, leitores=leitores(), deps=deps
+                        )
+
             tarefas: Mapping[str, Callable[[], Awaitable[None]]] = {
                 "busca": busca,
                 "descoberta": descoberta,
                 "paginas": paginas,
+                "login": login,
             }
+            app.state.tarefa_login = login  # o "Buscar agora" dispara a mesma, com motivo "agora"
+            if leitores():
+                # shortcut: navegador_instalado é calculado ao subir o serve; instalar o Chrome
+                # com o serve no ar só aparece depois de reiniciar; atualizar app.state quando o
+                # botão Baixar da Parte B existir
+                app.state.navegador_instalado = await navegador_instalado()
             agenda = asyncio.create_task(
                 laco(tarefas, _EstadoDoBanco(caminho), relogio, travas=travas)
             )
@@ -224,7 +244,7 @@ def executar(args: argparse.Namespace) -> int:
             print("O joBot já está aberto.", file=sys.stderr)
             return 1
         try:
-            app, config = montar(dados, p)
+            app, config = montar(dados, p, env=os.environ)
             servidor = uvicorn.Server(config)
             app.state.servidor = servidor  # o POST /sair pede o encerramento por aqui (T49)
             with contextlib.suppress(SystemExit):  # o uvicorn sai assim se não consegue escutar

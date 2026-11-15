@@ -15,7 +15,7 @@ from datetime import UTC, date, datetime, timedelta
 from html import unescape
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, cast
 
 import pytest
 import uvicorn
@@ -25,7 +25,8 @@ from fastapi.testclient import TestClient
 from apoio.relogio import RelogioFalso
 from apoio.semear import inserir_vaga
 from jobot.agenda import execucao as agenda_execucao
-from jobot.banco.cadastros import semear
+from jobot.agenda.login import INTERVALO_MINIMO
+from jobot.banco.cadastros import ligar_fonte, semear, semear_leitores
 from jobot.banco.conexao import abrir
 from jobot.banco.execucoes import (
     abrir_execucao,
@@ -38,6 +39,8 @@ from jobot.banco.execucoes import (
 from jobot.banco.migrar import migrar
 from jobot.cli import servir
 from jobot.nucleo.http import ClienteEducado
+from jobot.nucleo.leitores import registro
+from jobot.nucleo.leitores.base import LeitorComLogin
 from jobot.painel.app import criar_app
 from jobot.painel.i18n import t
 from jobot.painel.rotas import execucao as rota
@@ -763,3 +766,104 @@ def test_buscar_agora_sem_htmx_com_busca_rodando_avisa_na_pagina_do_redirect(
         assert aviso not in unescape(depois.text)
     painel.trava.release()
     assert chamadas == []
+
+
+class _LeituraEspiada:
+    """Troca a tarefa `login` do lifespan: conta os motivos e só termina quando liberada."""
+
+    def __init__(self) -> None:
+        self.motivos: list[str] = []
+        self.liberar = threading.Event()
+
+    async def __call__(self, motivo: str = "agenda") -> None:
+        self.motivos.append(motivo)
+        for _ in range(500):  # prazo de 5 s: uma rota que espera a leitura falha, não pendura
+            if self.liberar.is_set():
+                return
+            await asyncio.sleep(0.01)
+
+
+def _ligar_site_com_login(
+    painel: Painel, monkeypatch: pytest.MonkeyPatch, *, registrado: bool = True
+) -> None:
+    leitor = cast(LeitorComLogin, SimpleNamespace(chave="teste_logado"))
+    if registrado:
+        monkeypatch.setattr(registro, "LEITORES", (leitor,))
+    with closing(abrir(painel.banco)) as con:
+        semear_leitores(con, [leitor])
+        ligar_fonte(con, "teste_logado", True)
+
+
+def _leitura_login(painel: Painel, ha: timedelta) -> None:
+    with closing(abrir(painel.banco)) as con:
+        execucao = abrir_execucao(con, "login", "agenda", AGORA - ha)
+        assert execucao is not None
+        fechar_execucao(con, execucao, AGORA - ha + timedelta(minutes=5))
+
+
+@pytest.mark.parametrize(
+    "caso",
+    ["sem_tarefa", "sem_site_ligado", "fonte_sem_leitor", "ultima_ha_3h", "trava_presa", "dispara"],
+)
+def test_buscar_agora(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caso: str) -> None:
+    painel = Painel(tmp_path)
+    _espiar_busca(monkeypatch, [])  # a busca sem login segue o caminho de sempre, sem rede
+    espiao = _LeituraEspiada()
+    if caso != "sem_tarefa":
+        painel.app.state.tarefa_login = espiao
+    if caso != "sem_site_ligado":
+        # fonte com login ligada de um banco mais novo, sem leitor registrado: não sobe o navegador
+        _ligar_site_com_login(painel, monkeypatch, registrado=caso != "fonte_sem_leitor")
+    # a última leitura há 3 h ainda segura; há exatamente o intervalo mínimo (4 h), já pode
+    _leitura_login(painel, timedelta(hours=3) if caso == "ultima_ha_3h" else INTERVALO_MINIMO)
+    trava: asyncio.Lock = painel.app.state.travas["login"]
+    if caso == "trava_presa":
+        asyncio.run(trava.acquire())  # livre: não prende o Lock a outro laço de eventos
+    with painel.cliente() as http:
+        resposta = http.post("/buscar-agora", headers=painel.htmx())
+        assert resposta.status_code == 200
+        if caso != "dispara":
+            time.sleep(0.1)
+            assert espiao.motivos == []
+            assert trava.locked() is (caso == "trava_presa")
+            return
+        # a resposta já voltou e o espião segue preso: a rota não espera a leitura
+        assert _esperar(lambda: espiao.motivos == ["agora"]), "a rota não disparou a leitura"
+        assert trava.locked()
+        assert painel.app.state.tarefas  # guardada para o Sair e o lifespan cancelarem
+        espiao.liberar.set()
+        assert _esperar(lambda: not trava.locked()), "a trava login não foi solta no fim"
+
+
+def test_buscar_agora_duas_vezes_dispara_uma_leitura(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    painel = Painel(tmp_path)
+    _espiar_busca(monkeypatch, [])
+    espiao = _LeituraEspiada()
+    painel.app.state.tarefa_login = espiao
+    _ligar_site_com_login(painel, monkeypatch)
+    with painel.cliente() as http:
+        assert http.post("/buscar-agora", headers=painel.htmx()).status_code == 200
+        assert http.post("/buscar-agora", headers=painel.htmx()).status_code == 200
+        assert _esperar(lambda: bool(espiao.motivos))
+        time.sleep(0.1)
+        assert espiao.motivos == ["agora"]  # o clique duplo dispara uma leitura só (RF4)
+        espiao.liberar.set()
+        assert _esperar(lambda: not painel.app.state.travas["login"].locked())
+
+
+def test_andamento_nao_mostra_a_leitura_com_login(tmp_path: Path) -> None:
+    painel = Painel(tmp_path)
+    with closing(abrir(painel.banco)) as con:
+        assert abrir_execucao(con, "login", "agenda", AGORA) is not None
+    asyncio.run(painel.app.state.travas["login"].acquire())  # a leitura com login segura a sua
+    with painel.cliente() as http:
+        resposta = http.get("/execucao/atual", headers=HTMX)
+        assert resposta.status_code == 200
+        assert POLL not in resposta.text  # a leitura com login não tem andamento aqui
+        # controle: com uma busca rodando junto, o andamento aparece
+        with closing(abrir(painel.banco)) as con:
+            assert abrir_execucao(con, "busca", "agenda", AGORA - timedelta(minutes=1))
+        resposta = http.get("/execucao/atual", headers=HTMX)
+        assert POLL in resposta.text
