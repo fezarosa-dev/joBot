@@ -14,6 +14,7 @@ critérios com busca já gravada não mexe nela e segue ao passo 2.
 """
 
 import json
+import logging
 import re
 from collections.abc import Sequence
 from dataclasses import dataclass, field, replace
@@ -55,6 +56,15 @@ _MODALIDADES = (Modalidade.PRESENCIAL, Modalidade.HIBRIDO, Modalidade.REMOTO)
 _NIVEIS = tuple(n for n in Nivel if n is not Nivel.NAO_INFORMADO)
 _IDIOMAS: dict[str, Idioma] = {"pt": "pt", "en": "en", "es": "es"}
 _PRIMEIRO = "primeira_execucao."
+_LOG = logging.getLogger(__name__)
+# Código fixo do `?aviso=` do fim (nunca texto livre na URL) -> chave do motivo em texto simples.
+_AVISOS = {
+    "desligar": _PRIMEIRO + "p2.aviso.arquivos",
+    "sem_host_exec": "segundo_plano.sem_host_exec",
+    "systemd_nao_responde": "segundo_plano.systemd_nao_responde",
+    "home_diferente": "segundo_plano.home_diferente",
+    "systemctl_falhou": _PRIMEIRO + "p2.aviso.systemctl_falhou",
+}
 
 
 @cache
@@ -209,7 +219,7 @@ def _pagina(request: Request, passo: int, status: int = 200, **ctx: Any) -> Resp
         "ufs": _ufs(),
         "erro": None,
         "motivo": None,
-        "desligando": False,
+        "aviso_motivo": None,
         "resumo": None,
         "busca_id": None,
         "linux": True,
@@ -254,7 +264,6 @@ def _formulario_2(
     status: int = 200,
     motivo: Motivo | None = None,
     erro: str | None = None,
-    desligando: bool = False,
 ) -> Response:
     env = ambiente_do_painel(request)
     achada = _gravada(con, busca_id)
@@ -263,7 +272,6 @@ def _formulario_2(
         2,
         status,
         motivo=motivo,
-        desligando=desligando,
         erro=erro,
         resumo=_resumo(achada, idioma_do_pedido(request)),
         busca_id=busca_id,
@@ -285,7 +293,8 @@ async def mostrar(request: Request, con: Con, passo: str) -> Response:
         return _formulario_1(request, _entrada_de(voltando), busca_id=voltando.id)
 
     if params.get("feito") == "1" and ler_config(con, "primeira_execucao_concluida", False) is True:
-        return _pagina(request, 2, etapa="pronto")
+        aviso = params.get("aviso", "")
+        return _pagina(request, 2, etapa="pronto", aviso_motivo=_AVISOS.get(aviso))
     return _formulario_2(request, con, busca_id=_id_valido(params.get("busca")))
 
 
@@ -337,31 +346,52 @@ def _dia_local(agora: datetime) -> date:
     return agora.astimezone().date()
 
 
+async def _desligar_sem_prender(request: Request) -> str | None:
+    """Desliga e cria o atalho; falha vira log e o código fixo do aviso (D49 b), nunca trava."""
+    rodar, env = rodar_do_painel(request), ambiente_do_painel(request)
+    codigo = None
+    # sempre: um ligar recusado no meio já deixou o arquivo do serviço, mesmo sem a config
+    # DR-37: sem ligar o segundo plano, o atalho do menu é criado mesmo assim
+    for passo in (segundo_plano_linux.desligar, segundo_plano_linux.criar_atalho):
+        try:
+            await run_in_threadpool(passo, rodar, env=env)
+        except Recusa as recusa:
+            _LOG.warning("segundo plano: não consegui desligar: %s", recusa.motivo)
+            sufixo = recusa.motivo.chave.removeprefix("segundo_plano.")
+            codigo = codigo or (sufixo if sufixo in _AVISOS else "desligar")
+        except ValueError, OSError:  # caractere de controle no caminho, disco, permissão
+            _LOG.warning("segundo plano: não consegui desligar", exc_info=True)
+            codigo = codigo or "desligar"
+    return codigo
+
+
 async def _gravar_passo_2(request: Request, con: Con) -> Response:
     form = await request.form()
     escolha = form.get("segundo_plano")
     busca_id = _id_valido(str(form.get("busca", "")))
     if escolha not in ("ligar", "desligar"):
         raise HTTPException(422)
-    rodar, env = rodar_do_painel(request), ambiente_do_painel(request)
     ligar = escolha == "ligar" and no_linux(request)  # fora do Linux o segundo plano é desativado
-    try:
-        if ligar:
-            await run_in_threadpool(segundo_plano_linux.ligar, rodar, env=env)
-        elif no_linux(request):
-            # sempre: um ligar recusado no meio já deixou o arquivo do serviço, mesmo sem a config
-            await run_in_threadpool(segundo_plano_linux.desligar, rodar, env=env)
-            # DR-37: sem ligar o segundo plano, o atalho do menu é criado mesmo assim
-            await run_in_threadpool(segundo_plano_linux.criar_atalho, rodar, env=env)
-    except Recusa as recusa:
-        return _formulario_2(
-            request, con, busca_id=busca_id, motivo=recusa.motivo, desligando=not ligar
-        )
-    except (ValueError, OSError) as falha:  # caractere de controle no caminho, disco, permissão
-        return _formulario_2(request, con, busca_id=busca_id, erro=str(falha))
+    aviso = None
+    if ligar:
+        try:
+            await run_in_threadpool(
+                segundo_plano_linux.ligar, rodar_do_painel(request), env=ambiente_do_painel(request)
+            )
+        except Recusa as recusa:
+            return _formulario_2(request, con, busca_id=busca_id, motivo=recusa.motivo)
+        except ValueError, OSError:  # o detalhe vai para o log, a tela leva texto fixo
+            _LOG.warning("segundo plano: não consegui ligar", exc_info=True)
+            return _formulario_2(
+                request, con, busca_id=busca_id, erro=_PRIMEIRO + "p2.erro_arquivos"
+            )
+    elif no_linux(request):
+        aviso = await _desligar_sem_prender(request)
     gravar_config(con, "segundo_plano", ligar)
     gravar_config(con, "primeira_execucao_concluida", True)
-    return RedirectResponse("/primeira-execucao/2?feito=1", status_code=303)
+    return RedirectResponse(
+        "/primeira-execucao/2?feito=1" + (f"&aviso={aviso}" if aviso else ""), status_code=303
+    )
 
 
 @router.post("/{passo}")

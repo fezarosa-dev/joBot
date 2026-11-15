@@ -37,6 +37,7 @@ PADROES: Mapping[str, object] = MappingProxyType(
         "destaques_ligados": True,
         "conversao_moeda_ligada": True,
         "regras_ocultar_ligadas": True,
+        "aviso_versao_ligada": True,  # D105: nasce ligado; a pessoa desliga em Privacidade
         "destaques_n": 10,
     }
 )
