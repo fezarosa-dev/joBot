@@ -299,6 +299,12 @@ class SiteFalso:
                 if pagina == 1:
                     return _Resposta(corpo=_pagina("Vagas", _lista_html([1, 2], "?p=2")))
                 return _Resposta(corpo=_pagina("Vagas", "<p>Nada por aqui</p>"))
+            case "/quatro":  # quatro páginas de lista por `q` (teto de páginas, T213)
+                q = (query.get("q") or [""])[0]
+                proxima = f"?q={q}&p={pagina + 1}" if pagina < 4 else None
+                return _Resposta(corpo=_pagina("Vagas", _lista_html([pagina * 10], proxima)))
+            case "/lista-e-login":  # a segunda página é a de login (T213)
+                return _Resposta(corpo=_pagina("Vagas", _lista_html([1, 2], "/login")))
             case "/vazia":
                 return _Resposta(corpo=_pagina("Vagas", _lista_html([])))
             case "/proxima-fora":
