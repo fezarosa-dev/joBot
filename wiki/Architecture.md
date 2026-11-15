@@ -65,6 +65,7 @@ flowchart TD
     sistema --> nucleo
     navegador --> sistema
     navegador --> nucleo
+    navegador --> banco
 ```
 
 The test `tests/unidade/test_camadas.py` fails if someone breaks this rule.
