@@ -52,3 +52,15 @@ def test_painel_nao_importa_httpx() -> None:
 def test_detector_acha_import_proibido(tmp_path: Path) -> None:
     (tmp_path / "a.py").write_text("import fastapi\nfrom jobot import painel\nimport os\n")
     assert _ruins(tmp_path, PROIBIDOS_NO_NUCLEO) == ["a.py: fastapi", "a.py: jobot.painel"]
+
+
+def test_captcha_so_fora_das_fontes_publicas() -> None:
+    # ADR 0022: o 2Captcha só age na navegação com login da fase 2; fonte pública não o importa.
+    for pasta in ("nucleo/coletores", "agenda", "cli"):
+        assert _ruins(FONTE / pasta, ("jobot.nucleo.captcha",)) == [], pasta
+    assert _ruins(FONTE / "nucleo", PROIBIDOS_NO_NUCLEO) == []
+
+
+def test_detector_acha_import_do_captcha(tmp_path: Path) -> None:
+    (tmp_path / "a.py").write_text("from jobot.nucleo import captcha\n")
+    assert _ruins(tmp_path, ("jobot.nucleo.captcha",)) == ["a.py: jobot.nucleo.captcha"]
