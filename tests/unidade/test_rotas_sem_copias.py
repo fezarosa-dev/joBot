@@ -5,7 +5,7 @@ from pathlib import Path
 
 PAINEL = Path(__file__).resolve().parents[2] / "src/jobot/painel"
 ROTAS = sorted((PAINEL / "rotas").glob("*.py"))
-USAM_A_HORA = ("buscas", "configuracoes", "empresas", "primeira_execucao", "sugeridas")
+USAM_A_HORA = ("buscas", "configuracoes", "empresas", "primeira_execucao")
 
 
 def _arvore(caminho: Path) -> ast.Module:
@@ -74,14 +74,13 @@ def test_sem_validadores_definido_uma_vez() -> None:
         if isinstance(n, ast.ClassDef) and n.name.lstrip("_") == "SemValidadores"
     ]
     assert len(donos) == 1, donos
-    for nome in ("empresas", "sugeridas"):
-        importados = {
-            a.name
-            for n in ast.walk(_arvore(PAINEL / "rotas" / f"{nome}.py"))
-            if isinstance(n, ast.ImportFrom)
-            for a in n.names
-        }
-        assert "SemValidadores" in importados, nome
+    importados = {
+        a.name
+        for n in ast.walk(_arvore(PAINEL / "cliente.py"))  # só o cliente do painel o usa (T185)
+        if isinstance(n, ast.ImportFrom)
+        for a in n.names
+    }
+    assert "SemValidadores" in importados
 
 
 # o que cada auxiliar era (cópia privada nas rotas) e o nome que ele tem no módulo único
@@ -117,3 +116,41 @@ def test_funcoes_das_rotas_definidas_uma_vez() -> None:
             for a in n.names
         }
         assert set(esperados) <= importados, rota
+
+
+def _cria_cliente(arvore: ast.AST) -> bool:
+    """Chamada `ClienteEducado(...)`, qualquer que seja o jeito de importar o nome."""
+    return any(
+        isinstance(n, ast.Call)
+        and (
+            (isinstance(n.func, ast.Name) and n.func.id == "ClienteEducado")
+            or (isinstance(n.func, ast.Attribute) and n.func.attr == "ClienteEducado")
+        )
+        for n in ast.walk(arvore)
+    )
+
+
+def test_prova_do_cliente_pega_a_criacao_e_deixa_passar_o_uso() -> None:
+    """Controle do detector: criar o cliente cai, usar `cliente_do_painel` não."""
+    assert _cria_cliente(ast.parse("ClienteEducado(None, r, l, v)"))
+    assert _cria_cliente(ast.parse("http.ClienteEducado(None, r, l, v)"))
+    assert not _cria_cliente(ast.parse("cliente_do_painel(request)"))
+    assert not _cria_cliente(ast.parse("def f(c: ClienteEducado) -> None: ..."))
+
+
+def test_cliente_do_painel_definido_uma_vez() -> None:
+    """Só `painel/cliente.py` monta o `ClienteEducado`; as rotas que têm rede o importam."""
+    donos = [
+        str(caminho.relative_to(PAINEL))
+        for caminho in PAINEL.rglob("*.py")
+        if _cria_cliente(_arvore(caminho))
+    ]
+    assert donos == ["cliente.py"], donos
+    for nome in ("empresas", "sugeridas", "servicos"):
+        importados = {
+            (n.module, a.name)
+            for n in ast.walk(_arvore(PAINEL / "rotas" / f"{nome}.py"))
+            if isinstance(n, ast.ImportFrom)
+            for a in n.names
+        }
+        assert ("jobot.painel.cliente", "cliente_do_painel") in importados, nome

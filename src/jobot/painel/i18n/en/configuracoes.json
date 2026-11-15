@@ -68,5 +68,9 @@
   "configuracoes.servicos.captcha.aviso.dados": "Only the page address, the challenge's public code and the browser's user agent go to 2Captcha. No personal data.",
   "configuracoes.servicos.captcha.site": "Open the 2Captcha website",
   "configuracoes.servicos.erro.formato": "The key must have 16 to 64 letters and numbers, with no spaces. Nothing was saved.",
-  "configuracoes.servicos.erro.cofre": "I could not store or delete the key. The details are in jobot.log."
+  "configuracoes.servicos.erro.cofre": "I could not store or delete the key. The details are in jobot.log.",
+  "configuracoes.servicos.captcha.testar": "Test key",
+  "configuracoes.servicos.captcha.testando": "Testing…",
+  "configuracoes.servicos.captcha.ok": "Valid key. Balance: {saldo}",
+  "configuracoes.servicos.erro.sem_chave": "Type a key or save one before testing."
 }

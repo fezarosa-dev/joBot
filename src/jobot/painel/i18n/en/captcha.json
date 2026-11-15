@@ -1,0 +1,11 @@
+{
+  "captcha.erro.chave_invalida": "2Captcha does not recognize this key. Check that you copied the whole key.",
+  "captcha.erro.sem_saldo": "Your 2Captcha account has no balance. Add funds on their site and try again.",
+  "captcha.erro.sem_vaga": "2Captcha has no free worker right now. Try again in a few minutes.",
+  "captcha.erro.nao_resolvivel": "2Captcha could not solve this challenge. You were not charged.",
+  "captcha.erro.ip_bloqueado": "2Captcha refused this computer's IP. Check the allowed IP list on your account.",
+  "captcha.erro.conta_suspensa": "Your 2Captcha account is suspended. Contact their support.",
+  "captcha.erro.tempo_esgotado": "2Captcha took too long to answer. Try again.",
+  "captcha.erro.teto_diario": "joBot has reached today's limit of solves. It will work again tomorrow.",
+  "captcha.erro.outro": "2Captcha answered something unexpected or did not answer. Try again later."
+}
