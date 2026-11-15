@@ -24,8 +24,10 @@
     foco.focus();
   });
 
-  // mensagem passageira (ex.: "Salvo." da aba Serviços): o [data-some-sozinho] que chegou numa troca,
-  // inclusive numa troca fora de banda (OOB), some 2 s depois; o nó em volta continua no lugar
+  // mensagem passageira ("Salvo."): o [data-some-sozinho] que está na página ao carregar, que chegou
+  // numa troca ou numa troca fora de banda (OOB) some 5 s depois (tempo para o leitor de tela); o nó
+  // em volta continua no lugar. Mostrada a mensagem, o ?salvo= sai da URL (os outros parâmetros e o
+  // hash ficam), para recarregar ou voltar não repetir o "Salvo."
   const agendados = new WeakSet();
   const agendarSumico = () => {
     for (const no of document.querySelectorAll("[data-some-sozinho]:not([hidden])")) {
@@ -33,11 +35,22 @@
       agendados.add(no);
       setTimeout(() => {
         no.hidden = true;
-      }, 2000);
+      }, 5000);
+    }
+    const url = new URL(location.href);
+    if (url.searchParams.has("salvo")) {
+      url.searchParams.delete("salvo");
+      history.replaceState(history.state, "", url);
     }
   };
+  agendarSumico();
   document.addEventListener("htmx:afterSwap", agendarSumico);
   document.addEventListener("htmx:oobAfterSwap", agendarSumico);
+  document.addEventListener("htmx:historyRestore", agendarSumico);
+  // o snapshot do histórico não guarda a mensagem passageira (senão a volta a mostraria de novo)
+  document.addEventListener("htmx:beforeHistorySave", () => {
+    for (const no of document.querySelectorAll("[data-some-sozinho]")) no.hidden = true;
+  });
 
   // botão olho: mostra ou oculta o que foi digitado no campo que ele controla (aria-controls);
   // o estado vive só no aria-pressed e o campo é buscado na hora (a troca do cartão o recria)

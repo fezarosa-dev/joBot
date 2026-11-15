@@ -98,7 +98,9 @@ def test_salvar_chave_habilita_e_ligar_grava(page: Page, painel: str, tmp_path: 
     mensagem = page.locator("#status-servicos [data-some-sozinho]")
     expect(mensagem).to_have_text("Salvo.")
     expect(mensagem).to_be_visible()
-    page.clock.fast_forward(2000)
+    page.clock.fast_forward(4999)  # ainda dentro dos 5 s
+    expect(mensagem).to_be_visible()
+    page.clock.fast_forward(1)
     expect(mensagem).to_be_hidden()
 
 
