@@ -2,7 +2,7 @@
 {% block titulo %}{{ t("detalhe.titulo_pagina", titulo=vaga.titulo) }}{% endblock %}
 {% block estilos %}<link rel="stylesheet" href="/static/css/vagas.css"><link rel="stylesheet" href="/static/css/detalhe.css">{% endblock %}
 {% block conteudo %}
-{%- set salario = salario_texto(vaga, idioma) -%}
+{%- set salario = salario_texto(vaga) -%}
 {%- set locais = locais_texto(vaga.locais) -%}
 {%- set proximos = {"nova": ["salva"], "salva": ["candidatei"], "candidatei": ["entrevista"], "entrevista": ["oferta", "recusada"]}.get(vaga.status, []) -%}
 {%- set anterior = {"salva": "nova", "candidatei": "salva", "entrevista": "candidatei", "oferta": "entrevista", "recusada": "entrevista"}.get(vaga.status) -%}
@@ -43,8 +43,8 @@
   </ul>
   {%- if salario %}
   <p class="salario"><strong>{{ salario.original }}</strong>
-    {%- set ao_lado = [salario.cotacao, salario.em_reais] | select | list %}
-    {%- if ao_lado %} <small class="cotacao">{{ ao_lado | join(" · ") }}</small>{% endif %}</p>
+    {%- set ao_lado = [salario.convertido, salario.cotacao] | select | list %}
+    {%- if ao_lado %} <small class="convertido">{{ ao_lado | join(" · ") }}</small>{% endif %}</p>
   {%- else %}
   <p class="salario nao-informado">{{ t("vagas.salario_nao_informado") }}</p>
   {%- endif %}

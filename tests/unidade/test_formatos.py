@@ -1,13 +1,16 @@
 """Textos de salário, data e local do cartão da vaga (desenho 13.4; plano T45)."""
 
+from datetime import date
 from decimal import Decimal
 from typing import Any
 
 import pytest
 
 from jobot.banco.leitura import Item
+from jobot.nucleo.cambio import Cotacao
 from jobot.nucleo.modelo import Local
-from jobot.painel import formatos
+from jobot.painel import formatos, i18n
+from jobot.painel.moeda import Exibicao
 
 _BASE: dict[str, Any] = {
     "id": 1,
@@ -111,7 +114,7 @@ def test_salario_em_moeda_estrangeira_mostra_cotacao_e_reais() -> None:
     assert texto is not None
     assert texto.original == "US$ 5.000/mês"
     assert texto.cotacao == "US$ 1 = R$ 5,65 (PTAX de 13/11)"
-    assert texto.em_reais == "≈ R$ 28.250/mês"
+    assert texto.convertido == "≈ R$ 28.250/mês"
 
 
 def test_salario_em_ingles() -> None:
@@ -119,14 +122,14 @@ def test_salario_em_ingles() -> None:
     assert texto is not None
     assert texto.original == "US$ 5,000/month"
     assert texto.cotacao == "US$ 1 = R$ 5.65 (PTAX of 11/13)"
-    assert texto.em_reais == "≈ R$ 28,250/month"
+    assert texto.convertido == "≈ R$ 28,250/month"
 
 
 def test_salario_em_reais_nao_tem_cotacao() -> None:
     campos = {"sal_moeda": "BRL", "sal_min_centavos": 800000, "sal_periodo": "mes"}
     texto = formatos.salario_texto(_item(**campos, sal_plausivel=True), "pt")
     assert texto is not None
-    assert (texto.original, texto.cotacao, texto.em_reais) == ("R$ 8.000/mês", None, None)
+    assert (texto.original, texto.convertido, texto.cotacao) == ("R$ 8.000/mês", None, None)
 
 
 def test_salario_sem_cotacao_mostra_so_o_valor_original() -> None:
@@ -137,7 +140,7 @@ def test_salario_sem_cotacao_mostra_so_o_valor_original() -> None:
     }
     texto = formatos.salario_texto(_item(**campos), "pt")
     assert texto is not None
-    assert (texto.original, texto.cotacao, texto.em_reais) == ("US$ 5.000/mês", None, None)
+    assert (texto.original, texto.convertido, texto.cotacao) == ("US$ 5.000/mês", None, None)
 
 
 def test_salario_com_faixa_e_periodo_anual() -> None:
@@ -149,13 +152,205 @@ def test_salario_com_faixa_e_periodo_anual() -> None:
     texto = formatos.salario_texto(_item(**campos), "pt")
     assert texto is not None
     assert texto.original == "US$ 5.000 a US$ 7.000/mês"
-    assert texto.em_reais == "≈ R$ 28.250 a R$ 39.550/mês"
+    assert texto.convertido == "≈ R$ 28.250 a R$ 39.550/mês"
     anual = formatos.salario_texto(
         _item(sal_moeda="BRL", sal_min_centavos=12000000, sal_periodo="ano", sal_plausivel=True),
         "en",
     )
     assert anual is not None
     assert anual.original == "R$ 120,000/year"
+
+
+def _exibicao(
+    moeda: str, venda: str | None, dia: date = date(2026, 11, 12), ligada: bool = True
+) -> Exibicao:
+    cotacao = None if venda is None else Cotacao(moeda=moeda, data=dia, venda=Decimal(venda))
+    return Exibicao(moeda, cotacao, ligada)
+
+
+_USD_5000 = _USD | {"sal_mensal_min_brl": 5000}  # US$ 5.000 = R$ 5.000 na conta dos testes
+_BRL_5000: dict[str, Any] = {
+    "sal_moeda": "BRL",
+    "sal_min_centavos": 500000,
+    "sal_periodo": "mes",
+    "sal_mensal_min_brl": 5000,
+    "sal_plausivel": True,
+}
+
+
+def test_convertido_em_euro() -> None:
+    ex = _exibicao("EUR", "6.25")
+    texto = formatos.salario_texto(_item(**_USD_5000), "pt", ex)
+    assert texto is not None
+    assert texto.original == "US$ 5.000/mês"
+    assert texto.convertido == "≈ € 800/mês"
+    assert texto.cotacao == "US$ 1 = € 0,904 (PTAX de 12/11)"
+    em_ingles = formatos.salario_texto(_item(**_USD_5000), "en", ex)
+    assert em_ingles is not None
+    assert em_ingles.convertido == "≈ € 800/month"
+    assert em_ingles.cotacao == "US$ 1 = € 0.904 (PTAX of 11/12)"
+
+
+def test_data_da_cotacao_cruzada_e_a_mais_antiga_das_duas() -> None:
+    # USD de 13/11 e EUR de 10/11: vale 10/11; com o USD mais velho, vale o do USD
+    nova = formatos.salario_texto(
+        _item(**_USD_5000), "pt", _exibicao("EUR", "6.25", date(2026, 11, 10))
+    )
+    assert nova is not None and nova.cotacao is not None
+    assert nova.cotacao.endswith("(PTAX de 10/11)")
+    velha = _USD_5000 | {"sal_cotacao_data": "2026-11-09"}
+    texto = formatos.salario_texto(
+        _item(**velha), "pt", _exibicao("EUR", "6.25", date(2026, 11, 12))
+    )
+    assert texto is not None and texto.cotacao is not None
+    assert texto.cotacao.endswith("(PTAX de 09/11)")
+
+
+def test_convertido_em_iene_sem_centavos() -> None:
+    texto = formatos.salario_texto(_item(**_USD_5000), "pt", _exibicao("JPY", "0.0368"))
+    assert texto is not None
+    assert texto.convertido == "≈ ¥ 135.870/mês"
+
+
+def test_convertido_em_faixa_na_moeda_de_exibicao() -> None:
+    campos = _USD_5000 | {"sal_max_centavos": 700000, "sal_mensal_max_brl": 7000}
+    texto = formatos.salario_texto(_item(**campos), "pt", _exibicao("EUR", "6.25"))
+    assert texto is not None
+    assert texto.convertido == "≈ € 800 a € 1.120/mês"
+
+
+def test_vaga_em_reais_com_moeda_euro() -> None:
+    texto = formatos.salario_texto(_item(**_BRL_5000), "pt", _exibicao("EUR", "6.25"))
+    assert texto is not None
+    assert texto.convertido == "≈ € 800/mês"
+    assert texto.cotacao == "€ 1 = R$ 6,25 (PTAX de 12/11)"
+
+
+def test_vaga_em_reais_com_exibicao_em_reais_nao_tem_linha() -> None:
+    for ex in (None, _exibicao("BRL", None)):
+        texto = formatos.salario_texto(_item(**_BRL_5000), "pt", ex)
+        assert texto is not None
+        assert (texto.convertido, texto.cotacao) == (None, None)
+
+
+def test_vaga_na_moeda_de_exibicao_sem_linha() -> None:
+    campos = _USD_5000 | {"sal_moeda": "EUR"}
+    texto = formatos.salario_texto(_item(**campos), "pt", _exibicao("EUR", "6.25"))
+    assert texto is not None
+    assert (texto.original, texto.convertido, texto.cotacao) == ("€ 5.000/mês", None, None)
+
+
+@pytest.mark.parametrize(
+    "ex", [_exibicao("BRL", None, ligada=False), _exibicao("EUR", "6.25", ligada=False)]
+)
+def test_conversao_desligada_sem_linha(ex: Exibicao) -> None:
+    texto = formatos.salario_texto(_item(**_USD_5000), "pt", ex)
+    assert texto is not None
+    assert (texto.original, texto.convertido, texto.cotacao) == ("US$ 5.000/mês", None, None)
+
+
+def test_sem_cotacao_da_exibicao_mostra_reais_com_nota() -> None:
+    ex = _exibicao("EUR", None)
+    texto = formatos.salario_texto(_item(**_USD), "pt", ex)
+    assert texto is not None
+    assert texto.convertido == "≈ R$ 28.250/mês"
+    assert texto.cotacao == "em reais: ainda não temos a cotação de EUR"
+    em_ingles = formatos.salario_texto(_item(**_USD), "en", ex)
+    assert em_ingles is not None
+    assert em_ingles.cotacao == "shown in reais: no EUR exchange rate yet"
+    # sem valor em reais (a vaga não foi convertida), a nota "em reais" ficaria sem o que explicar
+    sem_reais = formatos.salario_texto(_item(**_USD | {"sal_mensal_min_brl": None}), "pt", ex)
+    assert sem_reais is not None
+    assert (sem_reais.convertido, sem_reais.cotacao) == (None, None)
+    # vaga em reais: o valor em reais repetiria o original, então nem linha nem nota
+    em_reais = formatos.salario_texto(_item(**_BRL_5000), "pt", ex)
+    assert em_reais is not None
+    assert (em_reais.convertido, em_reais.cotacao) == (None, None)
+
+
+@pytest.mark.parametrize(
+    ("ex", "esperado"),
+    [(None, "≈ R$ 8.000/mês"), (_exibicao("EUR", "6.25"), "≈ € 1.280/mês")],
+)
+def test_vaga_so_com_maximo_ganha_linha(ex: Exibicao | None, esperado: str) -> None:
+    campos = _USD | {"sal_mensal_min_brl": None, "sal_mensal_max_brl": 8000}
+    texto = formatos.salario_texto(_item(**campos), "pt", ex)
+    assert texto is not None
+    assert texto.convertido == esperado
+
+
+def test_taxa_cruzada_que_nao_termina_na_tela() -> None:
+    campos = _USD_5000 | {"sal_moeda": "JPY", "sal_cotacao_venda": "0.0368"}
+    texto = formatos.salario_texto(_item(**campos), "pt", _exibicao("USD", "5.65"))
+    assert texto is not None and texto.cotacao is not None
+    assert "US$ 0,0065" in texto.cotacao
+
+
+@pytest.mark.parametrize(
+    ("ex", "convertido"),
+    [(None, "≈ R$ 5.000/mês"), (_exibicao("EUR", "6.25"), "≈ € 800/mês")],
+)
+@pytest.mark.parametrize("venda_da_vaga", ["abc", "0", "-1", "NaN"])
+def test_cotacao_da_vaga_estragada_some_so_a_cotacao(
+    venda_da_vaga: str, ex: Exibicao | None, convertido: str
+) -> None:
+    campos = _USD_5000 | {"sal_cotacao_venda": venda_da_vaga}
+    texto = formatos.salario_texto(_item(**campos), "pt", ex)
+    assert texto is not None
+    assert (texto.convertido, texto.cotacao) == (convertido, None)
+
+
+def test_data_da_cotacao_da_vaga_ilegivel_some_so_a_cotacao() -> None:
+    campos = _USD_5000 | {"sal_cotacao_data": "xx"}
+    texto = formatos.salario_texto(_item(**campos), "pt", _exibicao("EUR", "6.25"))
+    assert texto is not None
+    assert (texto.convertido, texto.cotacao) == ("≈ € 800/mês", None)
+
+
+def test_taxa_cruzada_gigante_nao_estoura() -> None:
+    campos = _USD_5000 | {"sal_cotacao_venda": "9" * 30}
+    texto = formatos.salario_texto(_item(**campos), "pt", _exibicao("EUR", "0.0000001"))
+    assert texto is not None
+    assert texto.convertido is not None
+    assert texto.cotacao is None
+
+
+def test_convertido_que_nao_cabe_no_inteiro_do_banco_some() -> None:
+    # 9e16 reais a 1 por 1 são 9e18 centavos (cabe); 1e17 são 1e19 (passa de 2**63 - 1)
+    cabe = formatos.salario_texto(
+        _item(**_USD_5000 | {"sal_mensal_min_brl": 9 * 10**16}), "pt", _exibicao("EUR", "1")
+    )
+    assert cabe is not None and cabe.convertido is not None
+    campos = _USD_5000 | {"sal_mensal_min_brl": 10**17}
+    nao_cabe = formatos.salario_texto(_item(**campos), "pt", _exibicao("EUR", "1"))
+    assert nao_cabe is not None
+    assert nao_cabe.convertido is None
+
+
+def test_cotacao_minuscula_da_exibicao_nao_estoura() -> None:
+    # 5.000 / 1E-5000 tem mais de 4300 dígitos: o texto do inteiro levantaria ValueError
+    texto = formatos.salario_texto(_item(**_USD_5000), "pt", _exibicao("EUR", "1E-5000"))
+    assert texto is not None
+    assert (texto.original, texto.convertido, texto.cotacao) == ("US$ 5.000/mês", None, None)
+
+
+def test_simbolos_das_moedas_novas() -> None:
+    assert formatos.dinheiro(100000, "CAD", "pt") == "C$ 1.000"
+    assert formatos.dinheiro(100000, "AUD", "pt") == "A$ 1.000"
+    assert formatos.dinheiro(100000, "JPY", "pt") == "¥ 1.000"
+    assert formatos.dinheiro(100000, "SEK", "pt") == "SEK 1.000"
+
+
+@pytest.mark.parametrize("idioma", ["pt", "en"])
+def test_cotacao_sem_real_fixo_em_pt_e_en(idioma: str) -> None:
+    assert "R$" not in i18n.carregar()[idioma]["vagas.cotacao"]
+
+
+@pytest.mark.parametrize("idioma", ["pt", "en"])
+def test_chave_em_reais_saiu(idioma: str) -> None:
+    catalogo = i18n.carregar()[idioma]
+    assert "vagas.em_reais" not in catalogo
+    assert "vagas.convertido" in catalogo
 
 
 @pytest.mark.parametrize(
