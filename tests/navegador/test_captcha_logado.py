@@ -16,6 +16,8 @@ from urllib.parse import urlsplit
 import httpx
 import pytest
 from playwright.async_api import BrowserContext, Page, Route, async_playwright
+from playwright.async_api import Error as ErroDoPlaywright
+from playwright.async_api import TimeoutError as EstouroDoPlaywright
 
 from apoio.cofre_falso import CofreFalso
 from apoio.relogio import RelogioFalso
@@ -609,6 +611,37 @@ async def test_achar_widget_le_os_atributos(
     page = await _pagina(contexto_de_teste)
     await page.goto(site.url(caminho))
     assert await achar_widget(page) == esperado
+
+
+class _AlvoQueLevanta:
+    def __init__(self, erro: Exception) -> None:
+        self.erro = erro
+
+    async def get_attribute(self, nome: str, *, timeout: float) -> str | None:
+        raise self.erro
+
+
+class _PaginaFalsa:
+    """Todo `locator(...).all()` devolve um alvo cujo `get_attribute` levanta `erro`."""
+
+    def __init__(self, erro: Exception) -> None:
+        self.erro = erro
+
+    def locator(self, _seletor: str) -> _PaginaFalsa:
+        return self
+
+    async def all(self) -> list[_AlvoQueLevanta]:
+        return [_AlvoQueLevanta(self.erro)]
+
+
+async def test_estouro_ao_ler_atributo_vira_desafio_nao_aceito() -> None:
+    pagina: Any = _PaginaFalsa(EstouroDoPlaywright("estourou"))
+    assert await achar_widget(pagina) == Widget("nao_aceito", "", False, None, None)
+
+
+async def test_pagina_trocando_no_meio_continua_sem_widget() -> None:
+    pagina: Any = _PaginaFalsa(ErroDoPlaywright("Execution context was destroyed"))
+    assert await achar_widget(pagina) is None
 
 
 async def test_dependencias_de_producao_ligam_o_cofre_da_pasta_de_dados(
