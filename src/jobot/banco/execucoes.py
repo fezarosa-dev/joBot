@@ -27,7 +27,7 @@ from jobot.nucleo.url import canonica, hash_url
 
 log = logging.getLogger(__name__)
 
-Tipo = Literal["busca", "descoberta", "paginas"]
+Tipo = Literal["busca", "descoberta", "paginas", "login"]
 Motivo = Literal["agenda", "agora", "recuperacao"]
 # por que a execução parou antes do fim (coluna `execucao.parada`, T153)
 Parada = Literal["fechado", "sem_batimento", "banco", "erro"]
