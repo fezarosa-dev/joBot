@@ -91,7 +91,7 @@ O joBot tem um núcleo só e duas "caras".
 | **Extensão, Gmail e áudio** | Sim | Não |
 | **Onde ficam os dados** | No banco SQLite do seu computador | Seu perfil fica no seu navegador |
 | **Atualização** | A cada 3 h (públicas) e 2x por dia (login) | Uma vez por dia |
-| **Quando chega** | É o foco do projeto | Fase 7 |
+| **Quando chega** | É o foco do projeto | Fase 8 |
 
 Na versão no navegador, você pode exportar o perfil num arquivo e importar depois na versão para baixar. Ela nunca usa logins nem segredos.
 

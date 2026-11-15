@@ -8,6 +8,14 @@ The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/
 
 ## [Unreleased]
 
+### Added
+
+- ADR 0023: everything through the dashboard. External tools, updating and quitting get a button, no terminal needed.
+
+### Changed
+
+- New roadmap: after phase 2 comes version 0.3.0 ("Overview" screen and complete application queue); phase 3 becomes the Installer and the later phases move up one number, up to phase 9 (release).
+
 ### Fixed
 
 - Focus returns to the right chip after changing the filter, even when two values differ only by a space and an `_`.
