@@ -429,7 +429,9 @@ def test_padroes_de_config(con: sqlite3.Connection) -> None:
         "meu_pais",
         "moeda_exibicao",
         "captcha_ligado",
+        "login_horarios",
     }
+    assert ler_config(con, "login_horarios") == ["09:00", "18:00"]
 
 
 def test_gravar_e_ler_config(con: sqlite3.Connection) -> None:
