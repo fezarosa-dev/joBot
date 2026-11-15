@@ -17,6 +17,7 @@ import pytest
 from apoio.relogio import RelogioFalso
 from jobot import __version__
 from jobot.agenda import versao
+from jobot.banco import cadastros
 from jobot.banco.cadastros import gravar_config, ler_config
 from jobot.banco.conexao import abrir
 from jobot.banco.migrar import migrar
@@ -113,11 +114,36 @@ def test_aviso_so_para_versao_maior(
     assert versao.versao_para_avisar(con) == (etiqueta if avisa else None)
 
 
-def test_aviso_desligado_nao_mostra_versao_gravada(con: sqlite3.Connection) -> None:
+def test_aviso_nasce_ligado_e_checa_sem_a_pessoa_gravar_nada(con: sqlite3.Connection) -> None:
+    """D105: banco novo, sem linha em `config`, vale o padrão ligado."""
+    assert cadastros.PADROES.get("aviso_versao_ligada") is True
+    assert (
+        con.execute("SELECT 1 FROM config WHERE chave = 'aviso_versao_ligada'").fetchone() is None
+    )
+    assert versao.aviso_ligado(con) is True
+    github = _GitHub()
+    _checar(con, github, RelogioFalso(AGORA))
+    assert len(github.pedidos) == 1
+    assert versao.versao_para_avisar(con) == "v99.0.0"
+
+
+def test_escolha_gravada_desligada_continua_desligada(con: sqlite3.Connection) -> None:
+    """Quem já gravou `False` mantém a escolha: o padrão novo não a sobrescreve."""
+    gravar_config(con, "aviso_versao_ligada", False)
+    assert versao.aviso_ligado(con) is False
+    github = _GitHub()
+    _checar(con, github, RelogioFalso(AGORA))
+    assert github.pedidos == []
     gravar_config(con, "versao_nova", "v99.0.0")
     assert versao.versao_para_avisar(con) is None
-    gravar_config(con, "aviso_versao_ligada", False)
-    assert versao.versao_para_avisar(con) is None
+
+
+def test_padrao_do_aviso_mora_so_em_padroes(
+    con: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """O leitor não leva padrão próprio: trocar `PADROES` muda o aviso."""
+    monkeypatch.setattr(cadastros, "PADROES", {**cadastros.PADROES, "aviso_versao_ligada": False})
+    assert versao.aviso_ligado(con) is False
 
 
 @pytest.mark.parametrize(

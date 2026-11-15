@@ -2,7 +2,15 @@
 
 import argparse
 import importlib
+import logging
+import os
+import sqlite3
+import sys
 from collections.abc import Mapping, Sequence
+from pathlib import Path
+
+from jobot.banco.migrar import BancoMaisNovo
+from jobot.sistema.pastas import configurar_log, pasta_de_dados
 
 COMANDOS: Mapping[str, str] = {
     "abrir": "jobot.sistema.abrir",
@@ -31,6 +39,40 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
+def caminho_do_log() -> Path:
+    return pasta_de_dados(os.environ) / "logs" / "jobot.log"
+
+
+def mensagem_do_banco(onde: str = "") -> str:
+    return (
+        "Problema no banco de dados do joBot (pode ser disco cheio ou arquivo danificado)." + onde
+    )
+
+
+def interrompido() -> int:
+    """Ctrl+C: a linha curta e o código 130 de quem morre por SIGINT."""
+    print("Interrompido.", file=sys.stderr)
+    return 130
+
+
+def _falhou(erro: Exception) -> int:
+    """Traceback só no log (D106); no terminal, a frase curta com o caminho do log (T154)."""
+    try:
+        configurar_log(pasta_de_dados(os.environ))
+        logging.getLogger("jobot").error("o comando falhou", exc_info=erro)
+        onde = f" Detalhes em {caminho_do_log()}."
+    except Exception:  # noqa: BLE001 - se nem o log abre, sobra a mensagem curta
+        onde = ""
+    if isinstance(erro, sqlite3.Error):
+        print(mensagem_do_banco(onde), file=sys.stderr)
+    elif isinstance(erro, BancoMaisNovo):  # a frase diz o que fazer; o traceback ficou no log
+        print(f"jobot: {erro}", file=sys.stderr)
+    else:
+        extra = " Se repetir, abra uma issue com esse arquivo." if onde else ""
+        print(f"O joBot encontrou um erro e parou.{onde}{extra}", file=sys.stderr)
+    return 1
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     try:
         args = _parser().parse_args(argv)
@@ -38,5 +80,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         return saida.code if isinstance(saida.code, int) else 1
     if args.comando is None:
         args.comando = "abrir"
-    modulo = importlib.import_module(COMANDOS[args.comando])
-    return int(modulo.executar(args))
+    try:
+        modulo = importlib.import_module(COMANDOS[args.comando])
+        return int(modulo.executar(args))
+    except KeyboardInterrupt:
+        return interrompido()
+    except Exception as erro:  # noqa: BLE001 - nenhum erro trava sem dizer onde está o log
+        return _falhou(erro)

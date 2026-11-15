@@ -31,7 +31,7 @@ Ele junta, filtra e organiza vagas de muitos sites num painel bonito que roda no
 </div>
 
 > [!IMPORTANT]
-> **A fase 1 do joBot (a base) está pronta: versão 0.1.0.** Ele busca vagas em fontes públicas, guarda tudo no seu computador e mostra num painel. Já dá para [instalar e usar](#requisitos-e-instalacao).
+> **A fase 1 do joBot (a base) está pronta: versão 0.1.1.** Ele busca vagas em fontes públicas, guarda tudo no seu computador e mostra num painel. Já dá para [instalar e usar](#requisitos-e-instalacao).
 > O resto (sites com login, IA, extensão do navegador, Gmail e áudio) ainda é plano. Veja o [roteiro](#roteiro). Antes de ligar as fontes, leia os [avisos de uso e de termos](#licenca-e-avisos).
 
 ## 📑 Sumário
@@ -150,6 +150,8 @@ Um ciclo de busca, passo a passo:
 6. **Quando a IA chegar** (fase 3) e você ligá-la, ela vai calcular o encaixe com o seu perfil e ajudar a preparar candidaturas. Até lá, o encaixe vem das regras da sua busca.
 
 Se uma fonte falhar, as outras continuam. Se o computador estava desligado na hora marcada, a busca perdida roda quando ele liga.
+
+Quer ver o joBot por dentro, com pastas, camadas, banco e diagramas? Veja a [Arquitetura na wiki](https://github.com/fezarosa-dev/joBot/wiki/Arquitetura).
 
 <a id="as-duas-versoes"></a>
 ## 🖥️ As duas versões
@@ -328,8 +330,8 @@ Detalhes na [ADR 0010](docs/decisions/0010-claude-code-da-pessoa.md).
 
 - **Não existe servidor do joBot.** Seus dados ficam no seu computador.
 - **Sem telemetria.** Nenhum dado de uso é enviado.
-- **Só pedidos de busca e conferência.** O joBot só faz pedidos de rede nestes casos: às fontes públicas de vagas que você deixa ligadas (vêm todas ligadas), incluindo a página de cada vaga; ao Banco Central, para pegar a cotação do dólar, com a conversão de moeda ligada (vem ligada); ao Common Crawl, uma vez por semana, para descobrir empresas novas, e depois aos quadros de vagas dessas empresas, para conferir (vem ligada); às páginas que você manda acompanhar (vem ligada, mas sem páginas na lista não há pedido); ao site de uma empresa, só quando você cola o endereço dela, testa ou aceita uma sugestão; à internet pelo git e pelo uv, para baixar a versão nova do joBot, só quando você pede para atualizar (comando jobot atualizar). Se você ligar o aviso de versão (próximo item), também pergunta ao GitHub (vem desligado). Quem recebe o pedido vê o IP do seu computador, como em qualquer pedido na internet.
-- **Aviso de versão desligado por padrão.** Se você ligar (Configurações, Privacidade), uma vez por dia o joBot pergunta ao `api.github.com` qual é a versão mais nova. O pedido leva só o user agent fixo do joBot (que traz o número da versão) e o IP do seu computador, como todo pedido na internet. Não leva busca nem dado seu. Desligado, não faz pedido nenhum.
+- **Só pedidos de busca e conferência.** O joBot só faz pedidos de rede nestes casos: às fontes públicas de vagas que você deixa ligadas (vêm todas ligadas), incluindo a página de cada vaga; ao Banco Central, para pegar a cotação do dólar, com a conversão de moeda ligada (vem ligada); ao Common Crawl, uma vez por semana, para descobrir empresas novas, e depois aos quadros de vagas dessas empresas, para conferir (vem ligada); às páginas que você manda acompanhar (vem ligada, mas sem páginas na lista não há pedido); ao site de uma empresa, só quando você cola o endereço dela, testa ou aceita uma sugestão; à internet pelo git e pelo uv, para baixar a versão nova do joBot, só quando você pede para atualizar (comando jobot atualizar). Com o aviso de versão (próximo item) ligado, também pergunta ao GitHub (vem ligado; você pode desligar). Quem recebe o pedido vê o IP do seu computador, como em qualquer pedido na internet.
+- **Aviso de versão ligado por padrão.** Uma vez por dia o joBot pergunta ao `api.github.com` qual é a versão mais nova. O pedido leva só o user agent fixo do joBot (que traz o número da versão) e o IP do seu computador, como todo pedido na internet. Não leva busca nem dado seu. Para desligar, vá em Configurações, Privacidade; desligado, não faz pedido nenhum.
 - **Segredos no cofre do sistema.** Token do Gmail, chave da API e token do Telegram ficam no cofre de senhas do sistema operacional. Sem cofre, vão para um arquivo que só o seu usuário lê, e o painel avisa.
 - **Dados pessoais protegidos.** CPF e data de nascimento ficam no banco, numa pasta que só o seu usuário acessa e que não é sincronizada com nuvem. O painel recomenda ligar a criptografia de disco (LUKS, BitLocker ou FileVault).
 - **Exportar o perfil não leva documentos** como o CPF, a menos que você marque essa opção.
@@ -343,7 +345,7 @@ Detalhes na [ADR 0010](docs/decisions/0010-claude-code-da-pessoa.md).
 <a id="requisitos-e-instalacao"></a>
 ## 📦 Requisitos e instalação
 
-> Esta é a instalação da fase 1 (versão 0.1.0): você baixa o código e roda com o uv. O instalador de um comando só chega na fase 8.
+> Esta é a instalação da fase 1 (versão 0.1.1): você baixa o código e roda com o uv. O instalador de um comando só chega na fase 8.
 
 ### Requisitos
 
@@ -407,7 +409,7 @@ Depois, aperte **Buscar agora**, no topo do painel, ou espere a próxima busca d
 
 ### Atualizar
 
-Rode `uv run jobot atualizar`. O aviso de versão é opcional e vem **desligado por padrão**: para ligar, vá em Configurações, Privacidade. Os detalhes estão em [Privacidade e segurança](#privacidade-e-seguranca).
+Rode `uv run jobot atualizar`. O aviso de versão vem **ligado por padrão**: para desligar, vá em Configurações, Privacidade. Os detalhes estão em [Privacidade e segurança](#privacidade-e-seguranca).
 
 ### O que as próximas fases vão baixar
 

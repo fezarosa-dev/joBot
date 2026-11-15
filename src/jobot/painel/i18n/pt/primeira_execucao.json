@@ -4,7 +4,7 @@
   "primeira_execucao.p1.titulo": "O que você procura?",
   "primeira_execucao.p1.intro": "Tudo é opcional, e você muda isso depois em Buscas. Quanto mais você disser, melhor o joBot ordena as vagas.",
   "primeira_execucao.p1.cargos": "Cargos ou palavras-chave",
-  "primeira_execucao.p1.cargos_dica": "Um por linha, ou separados por vírgula. Até 20.",
+  "primeira_execucao.p1.cargos_dica": "Um por linha, ou separados por vírgula. Até 20. Para achar mais vagas, ponha variações do mesmo cargo (ex.: infraestrutura, servidores, sysadmin).",
   "primeira_execucao.p1.cidades": "Cidades",
   "primeira_execucao.p1.cidade": "Cidade {n}",
   "primeira_execucao.p1.uf": "UF",
@@ -42,8 +42,10 @@
   "primeira_execucao.p2.desligar": "Não ligar agora",
   "primeira_execucao.p2.concluir": "Concluir",
   "primeira_execucao.p2.recusa": "Não foi possível ligar o segundo plano",
-  "primeira_execucao.p2.recusa_desligar": "Não foi possível desligar o segundo plano",
-  "primeira_execucao.p2.erro_sistema": "Não consegui concluir: {erro}",
+  "primeira_execucao.p2.erro_arquivos": "Não consegui gravar os arquivos do serviço. Pode ser permissão ou falta de espaço no disco (detalhes no log). Você pode tentar de novo ou escolher \"Não ligar agora\".",
+  "primeira_execucao.p2.aviso": "O segundo plano não pôde ser desligado direito: {motivo}. Tente de novo em Configurações > Segundo plano.",
+  "primeira_execucao.p2.aviso.arquivos": "não consegui mexer nos arquivos do serviço (pode ser permissão ou disco; detalhes no log)",
+  "primeira_execucao.p2.aviso.systemctl_falhou": "o systemctl não conseguiu desligar o serviço (detalhes no log)",
   "primeira_execucao.p2.voltar": "Voltar ao passo 1",
   "primeira_execucao.pronto.titulo": "Tudo pronto",
   "primeira_execucao.pronto.texto": "O joBot já pode buscar vagas. Use o botão Buscar agora no topo, ou veja o que já tem.",
@@ -51,5 +53,5 @@
   "segundo_plano.sem_host_exec": "não consegui falar com o sistema de fora: faltam o distrobox-host-exec ou o distrobox-enter",
   "segundo_plano.systemd_nao_responde": "o systemd do usuário não responde",
   "segundo_plano.home_diferente": "a pasta pessoal do container não é a do sistema",
-  "segundo_plano.systemctl_falhou": "o systemctl {comando} falhou: {saida}"
+  "segundo_plano.systemctl_falhou": "O systemctl {comando} falhou. Os detalhes ficaram no jobot.log."
 }

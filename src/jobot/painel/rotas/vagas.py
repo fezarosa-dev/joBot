@@ -406,7 +406,7 @@ def _aplicar(request: Request, acao: Callable[[datetime], None]) -> None:
     except LookupError as erro:
         raise HTTPException(404, "vaga não existe") from erro
     except ValueError as erro:
-        raise HTTPException(422, str(erro)) from erro
+        raise HTTPException(422) from erro  # o texto da tela sai do status (T150)
 
 
 def _resposta(

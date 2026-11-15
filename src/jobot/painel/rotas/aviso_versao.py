@@ -1,6 +1,6 @@
 """`GET /aviso-versao`: fragmento HTMX do aviso de versão nova (plano T85; D31).
 
-Lê só o que `agenda/versao.py` gravou; não faz pedido nenhum. Com o aviso desligado (o padrão)
+Lê só o que `agenda/versao.py` gravou; não faz pedido nenhum. Com o aviso desligado pela pessoa
 ou sem versão maior que a instalada, o fragmento sai vazio.
 """
 

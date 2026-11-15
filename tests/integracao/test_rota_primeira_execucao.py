@@ -482,23 +482,15 @@ def test_passo2_recusa_e_erro_mantem_o_resumo_da_busca(
     assert "Dados" in erro.text
 
 
-def test_nao_ligar_com_falha_mostra_titulo_de_desligar(cenario: Cenario) -> None:
+def test_nao_ligar_com_falha_conclui_com_aviso(cenario: Cenario) -> None:
     cenario.post(PASSO_2, {"segundo_plano": "ligar"})
     assert cenario.servico.exists()
     cenario.sistema.falha_em["disable"] = Resultado(1, "", "boom")
     resposta = cenario.post(PASSO_2, {"segundo_plano": "desligar"})
-    assert resposta.status_code == 200
-    assert ALERTA in resposta.text
-    assert "Não foi possível desligar o segundo plano" in resposta.text
-    assert "Não foi possível ligar" not in resposta.text
-    assert "boom" in resposta.text  # o motivo
-    assert 'name="segundo_plano"' in resposta.text  # D49 (a): volta ao passo 2
-    assert cenario.config("segundo_plano") is True  # nada foi gravado pelo desligar que falhou
-    en = cenario.post(
-        PASSO_2, {"segundo_plano": "desligar"}, headers={"Accept-Language": "en"}
-    ).text
-    assert "Background mode could not be turned off" in en
-    assert "could not be turned on" not in en
+    _redireciona(resposta, f"{PASSO_2}?feito=1&aviso=systemctl_falhou")  # D49 (b): não prende
+    assert cenario.config("primeira_execucao_concluida") is True
+    assert cenario.config("segundo_plano") is False
+    assert "boom" not in cenario.get(resposta.headers["location"]).text  # a saída fica no log
 
 
 def test_passo2_sem_escolha_valida_nao_conclui(cenario: Cenario) -> None:
@@ -523,8 +515,8 @@ RECUSAS = {
         "the container home folder is not the host home folder",
     ),
     "systemctl_falhou": (
-        "o systemctl daemon-reload falhou: Failed to connect to bus",
-        "systemctl daemon-reload failed: Failed to connect to bus",
+        "O systemctl daemon-reload falhou. Os detalhes ficaram no jobot.log.",
+        "systemctl daemon-reload failed. The details are in jobot.log.",
     ),
 }
 
@@ -578,7 +570,8 @@ def test_passo2_erro_do_sistema_de_arquivos_nao_estoura(
     resposta = cenario.post(PASSO_2, {"segundo_plano": "ligar"})
     assert resposta.status_code == 200
     assert ALERTA in resposta.text
-    assert "sem permissão" in resposta.text
+    assert "sem permissão" not in resposta.text  # o texto da exceção fica no log (D106)
+    assert "Não consegui gravar os arquivos do serviço" in resposta.text
     assert cenario.config("primeira_execucao_concluida") is None
 
 
@@ -654,7 +647,20 @@ def test_catalogos_do_assistente_tem_as_mesmas_chaves_e_o_texto_do_sistema() -> 
     en = _carregar_sem_repetir(base / "en" / "primeira_execucao.json")
     assert set(pt) == set(en)
     for chave, texto in segundo_plano_linux._TEXTOS.items():
+        if chave == "segundo_plano.systemctl_falhou":
+            continue  # a linha de comando mostra a saída; a tela só diz onde achá-la (T159)
         assert pt[chave] == texto  # o pt é igual ao texto da linha de comando
         assert en[chave] != pt[chave]
-    assert "{comando}" in en["segundo_plano.systemctl_falhou"]
-    assert "{saida}" in en["segundo_plano.systemctl_falhou"]
+    for catalogo in (pt, en):
+        assert "{comando}" in catalogo["segundo_plano.systemctl_falhou"]
+        assert "{saida}" not in catalogo["segundo_plano.systemctl_falhou"]
+
+
+@pytest.mark.parametrize(
+    ("idioma", "trecho"),
+    [("pt", "variações do mesmo cargo"), ("en", "variations of the same title")],
+)
+def test_passo1_dica_de_cargos_sugere_variacoes(cenario: Cenario, idioma: str, trecho: str) -> None:
+    html = cenario.get(PASSO_1, headers={"Accept-Language": idioma}).text
+    assert trecho in html
+    assert "sysadmin" in html

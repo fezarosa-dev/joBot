@@ -11,6 +11,7 @@ Todo comando do sistema passa pelo executor de `app.state.rodar_comando`, o ambi
 `app.state.ambiente` e a plataforma de `app.state.plataforma`: o teste põe os falsos.
 """
 
+import logging
 import re
 from collections.abc import Awaitable, Callable
 from datetime import date
@@ -30,6 +31,7 @@ from jobot.sistema import caso, segundo_plano_linux
 from jobot.sistema.segundo_plano_linux import Recusa
 
 router = APIRouter(prefix="/configuracoes")
+_LOG = logging.getLogger(__name__)
 
 GRUPOS = ("fontes", "funcoes", "segundo-plano", "aparencia", "privacidade")
 FUNCOES = (
@@ -195,8 +197,11 @@ async def _gravar_segundo_plano(request: Request, con: Con) -> Response:
             await run_in_threadpool(segundo_plano_linux.desligar, rodar, env=env)
     except Recusa as recusa:
         return await _pagina(request, con, "segundo-plano", motivo=recusa.motivo)
-    except (ValueError, OSError) as falha:  # caractere de controle no caminho, disco, permissão
-        return await _pagina(request, con, "segundo-plano", erro=str(falha))
+    except ValueError, OSError:  # caractere de controle no caminho, disco, permissão
+        _LOG.warning("segundo plano: não consegui mudar", exc_info=True)
+        return await _pagina(
+            request, con, "segundo-plano", erro="configuracoes.erro.segundo_plano_arquivos"
+        )
     gravar_config(con, "segundo_plano", ligar)
     return _volta("segundo-plano", salvo=True)
 

@@ -446,3 +446,15 @@ def test_seletor_leva_a_url_e_muda_a_lista(painel: Painel) -> None:
     escolhida = painel.get(destino)
     assert [atual for _, atual in _seletor(escolhida.text)] == [False, True]
     assert "Analista de Sistemas" not in _titulos(escolhida.text)
+
+
+@pytest.mark.parametrize(
+    ("idioma", "trecho"),
+    [("pt", "variações do mesmo cargo"), ("en", "variations of the same title")],
+)
+def test_formulario_dica_de_cargos_sugere_variacoes(
+    painel: Painel, idioma: str, trecho: str
+) -> None:
+    html = painel.http.get("/buscas", headers={"Accept-Language": idioma}).text
+    assert trecho in html
+    assert "sysadmin" in html
