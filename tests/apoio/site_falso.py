@@ -318,9 +318,9 @@ class SiteFalso:
             case "/api/outra":
                 return _Resposta(corpo=_json_vagas([9]), tipo="application/json")
             case "/api/grande-com-tamanho" | "/api/grande-sem":
-                corpo = b'{"x": "' + b"a" * MAX_RESPOSTA_BYTES + b'"}'
+                grande = b'{"x": "' + b"a" * MAX_RESPOSTA_BYTES + b'"}'
                 sem = caminho == "/api/grande-sem"
-                return _Resposta(corpo=corpo, tipo="application/json", sem_tamanho=sem)
+                return _Resposta(corpo=grande, tipo="application/json", sem_tamanho=sem)
             # paradas
             case "/bloqueio":
                 return _Resposta(
