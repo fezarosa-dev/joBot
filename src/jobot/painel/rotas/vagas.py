@@ -287,7 +287,9 @@ def _fontes(con: sqlite3.Connection, ids: Sequence[int]) -> dict[int, list[Fonte
 
 
 def _id_html(valor: str) -> str:
-    return re.sub(r"[^A-Za-z0-9_-]", "_", valor)
+    """Id de HTML que não se repete: todo caractere fora de `[A-Za-z0-9-]` (o `_` também) vira
+    `_<hex>_`; como o hex não tem `_`, dois valores diferentes nunca dão o mesmo id."""
+    return re.sub(r"[^A-Za-z0-9-]", lambda m: f"_{ord(m.group()):x}_", valor)
 
 
 def _ordem_chip(grupo: str, valor: str) -> int:

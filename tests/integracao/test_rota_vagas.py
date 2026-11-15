@@ -186,6 +186,19 @@ def test_rota_dos_chips_traz_o_fragmento_com_as_contagens(painel: Painel) -> Non
     assert _chips(painel, "/vagas?aba=todas") == painel.get("/vagas/chips?aba=todas").text
 
 
+def test_chips_de_valores_que_so_diferem_por_espaco_e_sublinhado_tem_ids_diferentes(
+    painel: Painel,
+) -> None:
+    painel.semear_mais(fonte="a b")
+    painel.semear_mais(fonte="a_b")
+    html = _chips(painel, "/vagas?aba=todas")
+    botoes = re.findall(r'<button\b[^>]*\bid="(chip-fonte-[^"]*)"', html)
+    assert len(botoes) == len(set(botoes))
+    assert len([b for b in botoes if b.startswith("chip-fonte-a_")]) == 2
+    ids = re.findall(r'\bid="([^"]+)"', html)
+    assert len(ids) == len(set(ids))
+
+
 def test_rota_dos_chips_sem_chips_vem_vazia(painel: Painel) -> None:
     resposta = painel.get("/vagas/chips?aba=destaques")
     assert (resposta.status_code, resposta.text.strip()) == (200, "")

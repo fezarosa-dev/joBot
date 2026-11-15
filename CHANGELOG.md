@@ -8,6 +8,10 @@ O formato segue o [Keep a Changelog 1.1.0](https://keepachangelog.com/pt-BR/1.1.
 
 ## [Não lançado]
 
+### Corrigido
+
+- O foco volta ao chip certo depois de trocar o filtro, mesmo quando dois valores diferem só por um espaço e um `_`.
+
 ## [0.2.1] - 2026-11-15
 
 ### Alterado
