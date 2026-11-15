@@ -43,6 +43,11 @@ INDICES = {
     "ocorrencia_escopo",
     "ocorrencia_vaga",
     "encaixe_ordem",
+    "local_vaga_vaga",
+    "local_vaga_pais",
+    "vaga_publicada_ou_vista",
+    "vaga_sal_baixo_brl",
+    "vaga_sal_alto_brl",
 }
 GATILHOS = {"vaga_sem_delete", "evento_sem_update", "evento_sem_delete"}
 AGORA = "2026-11-13T12:00:00Z"
