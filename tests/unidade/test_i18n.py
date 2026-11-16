@@ -292,3 +292,32 @@ def test_estados_e_motivos_tem_texto(idioma: str) -> None:
     for motivo in set(MOTIVOS_DE_SESSAO) - {"esquecido"}:
         assert catalogo[f"configuracoes.contas.motivo.{motivo}"].strip(), motivo
     assert "configuracoes.contas.motivo.esquecido" not in catalogo
+
+
+@pytest.mark.parametrize("idioma", ["pt", "en"])
+def test_conferir_tem_texto(idioma: str) -> None:
+    """T277: as frases do "Conferir agora" nos dois idiomas (desenho 5.8) e o anúncio do fim."""
+    catalogo = i18n.carregar()[idioma]
+    esperado = {
+        "pt": {
+            "configuracoes.contas.conferir": "Conferir agora",
+            "configuracoes.contas.conferindo": "Conferindo…",
+            "configuracoes.contas.ocupado": "Já tem algo usando o navegador; tente daqui a pouco.",
+            "configuracoes.contas.conferir_espera": (
+                "Conferido há pouco. Dá para conferir de novo em alguns minutos."
+            ),
+            "configuracoes.contas.conferido_resultado": "{site}: {estado}.",
+        },
+        "en": {
+            "configuracoes.contas.conferir": "Check now",
+            "configuracoes.contas.conferindo": "Checking…",
+            "configuracoes.contas.ocupado": (
+                "Something is already using the browser; try again in a moment."
+            ),
+            "configuracoes.contas.conferir_espera": (
+                "Checked a moment ago. You can check again in a few minutes."
+            ),
+            "configuracoes.contas.conferido_resultado": "{site}: {estado}.",
+        },
+    }[idioma]
+    assert {chave: catalogo.get(chave) for chave in esperado} == esperado

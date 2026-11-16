@@ -310,6 +310,7 @@ Chaves novas em `src/jobot/painel/i18n/{pt,en}/configuracoes.json` e `casca` (D1
 | `configuracoes.contas.conferindo` | Conferindo… | Checking… |
 | `configuracoes.contas.ocupado` | Já tem algo usando o navegador; tente daqui a pouco. | Something is already using the browser; try again in a moment. |
 | `configuracoes.contas.conferir_espera` | Conferido há pouco. Dá para conferir de novo em alguns minutos. | Checked a moment ago. You can check again in a few minutes. |
+| `configuracoes.contas.conferido_resultado` | {site}: {estado}. | {site}: {estado}. |
 | `configuracoes.contas.motivo.sem_rede` | Sem internet ou o site não respondeu. | No internet, or the site did not answer. |
 | `configuracoes.contas.motivo.desafio` | O site pediu uma verificação anti-robô. | The site asked for an anti-robot check. |
 | `configuracoes.contas.motivo.bloqueio` | O site recusou o acesso. | The site refused access. |
@@ -326,6 +327,7 @@ Chaves novas em `src/jobot/painel/i18n/{pt,en}/configuracoes.json` e `casca` (D1
 | `casca.aviso_contas.entrar` | Entrar de novo | Sign in again |
 
 - O motivo `esquecido` não aparece: ele só existe para "Nunca entrou".
+- `configuracoes.contas.conferido_resultado` anuncia o resultado do "Conferir agora"; o motivo vem depois como frase própria.
 - Os conjuntos fechados (estados e motivos) têm teste que confere as chaves em pt e en (`padroes.md («i18n»)`).
 - O `erro` é uma chave fixa, dada a qualquer exceção na entrada que não seja `ErroDoPlaywright`, `NavegadorFechado` nem `sqlite3.Error` (seção 5.1); o detalhe vai para `_LOG.warning` com `exc_info` onde a falha nasce (`padroes.md («Falha de sistema na tela»)`).
 - Nenhum texto manda a pessoa ao terminal (`padroes.md («Painel e ADRs»)`, ADR 0023).
