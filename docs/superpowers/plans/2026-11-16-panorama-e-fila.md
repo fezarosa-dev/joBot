@@ -582,8 +582,8 @@ Mudar uma delas muda a tarefa responsável antes de ela começar.
 - **i18n.** `panorama.json` (pt e en) com as chaves `panorama.*` do desenho 5.8, mais `panorama.busca.proxima_dia` (E19): "Próxima busca automática em {dia}, por volta das {hora}." / "Next automatic search on {dia}, around {hora}."
 - **Medição (E13).** Antes de fechar a tarefa, o tempo do `GET /panorama` com o banco de `scripts/medir_filtros.py` vai no resumo.
 
-- [ ] **Primeiro, valor errado:** a rota renderiza a página com os quatro grupos, mas com o contexto todo zerado e as listas vazias. `pct` devolve 100 sempre.
-- [ ] **Testes que falham** em `tests/integracao/test_rota_panorama.py`:
+- [x] **Primeiro, valor errado:** a rota renderiza a página com os quatro grupos, mas com o contexto todo zerado e as listas vazias. `pct` devolve 100 sempre.
+- [x] **Testes que falham** em `tests/integracao/test_rota_panorama.py`:
   - **Hoje:**
     - `test_quatro_grupos_em_ordem`: os `<h2>` Hoje, Candidaturas, A busca e O que aparece, nessa ordem, cada um com o seu `aria-labelledby`.
     - `test_numeros_hoje_batem_com_contar_abas`.
@@ -623,14 +623,14 @@ Mudar uma delas muda a tarefa responsável antes de ela começar.
     - `test_para_responder_vazio`.
 
     O de erro da faixa já está na T285. Cada teste de "some" traz o controle positivo na mesma montagem.
-- [ ] **Testes que falham** em `tests/unidade/test_contraste.py` e em `tests/unidade/test_i18n.py`:
+- [x] **Testes que falham** em `tests/unidade/test_contraste.py` e em `tests/unidade/test_i18n.py`:
   - o par `--destaque` sobre `--trilho-progresso`, a 3:1 no teste gráfico, nos dois temas;
   - `test_panorama_tem_texto`, com as chaves em pt e en e os mesmos parâmetros.
-- [ ] **Testes de tela** (CI) em `tests/tela/test_tela_panorama.py`:
+- [x] **Testes de tela** (CI) em `tests/tela/test_tela_panorama.py`:
   - `test_teclado_pelos_numeros_e_barras`: o Tab passa pelos links dos números e das barras, com o foco visível.
   - `test_para_responder_atualiza_com_o_evento`: Sim num botão de "Para responder" mostra a confirmação na faixa, e a lista perde a pergunta sem recarregar.
-- [ ] **Ver falhar:** `uv run pytest tests/integracao/test_rota_panorama.py tests/unidade/test_contraste.py tests/unidade/test_i18n.py -q`.
-- [ ] **Implementar** os itens de Interfaces e a medição.
+- [x] **Ver falhar:** `uv run pytest tests/integracao/test_rota_panorama.py tests/unidade/test_contraste.py tests/unidade/test_i18n.py -q`.
+- [x] **Implementar** os itens de Interfaces e a medição.
 - [ ] **Ver passar:** os mesmos arquivos, `tests/unidade/test_rotas_sem_copias.py`, `tests/unidade/test_estaticos.py` e `tests/unidade/test_camadas.py`; ruff; `-m tela` e mypy no CI do `lote/panorama-tela`.
 
 ### T289: Panorama na lateral e na paleta

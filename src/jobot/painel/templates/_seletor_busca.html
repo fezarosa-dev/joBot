@@ -1,0 +1,21 @@
+{#- O menu pop-up da busca escolhida (T253, T254; desenho 5.2, D143.50), que Vagas e o Panorama
+    (T288) mostram na barra. `seletor` vem de `seletor_de_buscas` (vazio com menos de duas buscas:
+    o menu some); `campos` são os parâmetros da vista que a troca mantém; `caminho` é a rota que
+    recebe a troca e `alvo` o que o HTMX troca. Com `selecao`, a resposta é a página inteira e o
+    HTMX tira dela só esse trecho (`hx-select`), no lugar do alvo. Importe `with context`. -#}
+{%- macro seletor_busca(seletor, campos, caminho, alvo, selecao="") -%}
+{%- if seletor %}
+  <form class="seletor-busca" method="get" action="{{ caminho }}" hx-get="{{ caminho }}" hx-target="{{ alvo }}"{% if selecao %} hx-select="{{ selecao }}" hx-swap="outerHTML"{% else %} hx-swap="innerHTML"{% endif %} hx-push-url="true" hx-trigger="change">
+    {%- for nome, valor in campos %}
+    <input type="hidden" name="{{ nome }}" value="{{ valor }}">
+    {%- endfor %}
+    <label class="so-leitor" for="busca-escolhida">{{ t("vagas.seletor") }}</label>
+    <select id="busca-escolhida" name="busca">
+      {%- for b in seletor %}
+      <option value="{{ b.id }}"{% if b.atual %} selected{% endif %}>{{ b.nome }}</option>
+      {%- endfor %}
+    </select>
+    <noscript><button type="submit" class="secundario">{{ t("vagas.busca.botao") }}</button></noscript>
+  </form>
+{%- endif %}
+{%- endmacro %}
