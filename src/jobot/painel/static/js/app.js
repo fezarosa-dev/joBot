@@ -45,6 +45,20 @@
     if (chip && document.activeElement === document.body) chip.focus();
   });
 
+  // "Mais filtros" (T301): vem fechado do servidor; se a pessoa o abriu, ele fica aberto quando o
+  // miolo é trocado (clique num chip, envio, troca da busca), e o foco do chip acima ainda acha o
+  // chip, que mora dentro dele
+  let maisFiltrosAberto = false;
+  document.addEventListener("htmx:beforeSwap", (evento) => {
+    if (evento.detail.target?.id !== "vagas-miolo") return;
+    maisFiltrosAberto = Boolean(document.querySelector("#vagas-miolo details.mais-filtros")?.open);
+  });
+  document.addEventListener("htmx:afterSwap", (evento) => {
+    if (evento.detail.target?.id !== "vagas-miolo" || !maisFiltrosAberto) return;
+    const mais = document.querySelector("#vagas-miolo details.mais-filtros");
+    if (mais) mais.open = true;
+  });
+
   // se o pedido dos chips falhar, o contêiner de espera não fica ocupado para sempre: o aviso global
   // de erro (mais abaixo) já fala do erro; aqui só sai o aria-busy e o texto de espera
   const chipsFalhou = (evento) => {
@@ -179,7 +193,8 @@
 
   // lista de vagas (T254; desenho 5.5): listbox de seleção única com tabindex móvel. O HTML chega
   // sem tabindex nas linhas (sem JS, cada <a> é um link no Tab); aqui só uma fica no Tab, a
-  // escolhida. Setas, Home, End, J e K movem; Return segue o link (o <a> já faz).
+  // escolhida. Setas, Home, End, J e K movem; Return segue o link (o <a> já faz). Sem escolha
+  // (T301), a primeira entra no Tab sem marca: a marca só vem quando a pessoa escolhe.
   const opcoesDe = (lista) => [...lista.querySelectorAll(':scope > [role="option"]')];
   const escolher = (lista, opcao, focar) => {
     for (const outra of opcoesDe(lista)) {
@@ -191,8 +206,9 @@
   const prepararListas = () => {
     for (const lista of document.querySelectorAll('[role="listbox"]')) {
       const opcoes = opcoesDe(lista);
-      const atual = opcoes.find((o) => o.ariaSelected === "true") ?? opcoes[0];
+      const atual = opcoes.find((o) => o.ariaSelected === "true");
       if (atual) escolher(lista, atual, false);
+      else opcoes.forEach((o, i) => (o.tabIndex = i === 0 ? 0 : -1));
     }
   };
   prepararListas();
@@ -203,8 +219,11 @@
     const lista = no.closest?.('[role="listbox"]');
     if (!lista) return;
     if (no === lista) {
-      // o "pular para a lista" foca o listbox: o foco desce para a linha escolhida
-      const atual = opcoesDe(lista).find((o) => o.ariaSelected === "true");
+      // o "pular para a lista" foca o listbox: o foco desce para a linha escolhida ou, sem escolha,
+      // para a que está no Tab
+      const opcoes = opcoesDe(lista);
+      const atual =
+        opcoes.find((o) => o.ariaSelected === "true") ?? opcoes.find((o) => o.tabIndex === 0);
       if (atual) atual.focus();
     } else if (no.matches('[role="option"]')) {
       escolher(lista, no, false);
@@ -255,10 +274,37 @@
     const lista = linha?.parentElement;
     if (lista?.getAttribute("role") === "listbox") escolher(lista, linha, false);
   });
+  // sobreposto preso à janela (T301): o #vagas-miolo é container (contenção de layout) e prende o
+  // position: fixed à rolagem da coluna; na camada de cima (popover manual, sem modal) o <dialog>
+  // fica preso à janela. Em coluna ele volta ao fluxo da grade. Sem JS, fica no fluxo do miolo.
+  const acertarCamada = () => {
+    const no = lado();
+    if (!no?.showPopover) return;
+    const subir = no.open && modo() === "sobreposto";
+    if (subir === no.matches(":popover-open")) return;
+    if (subir) no.showPopover();
+    else no.hidePopover();
+  };
+  acertarCamada();
+  // afterSwap também: na troca do #detalhe-vaga o nó novo sobe antes do settle, sem piscar no fluxo
+  document.addEventListener("htmx:afterSwap", acertarCamada);
+  document.addEventListener("htmx:afterSettle", acertarCamada);
+  // a largura do miolo muda com a janela e com a barra lateral. Voltar/Avançar troca o body e a
+  // .coluna: o observador passa para a nova (o observe já chama acertarCamada uma vez)
+  const observadorDaColuna = new ResizeObserver(acertarCamada);
+  const observarColuna = () => {
+    observadorDaColuna.disconnect();
+    const coluna = document.querySelector(".coluna");
+    if (coluna) observadorDaColuna.observe(coluna);
+    acertarCamada();
+  };
+  observarColuna();
+  document.addEventListener("htmx:historyRestore", observarColuna);
   const fecharLado = (devolverFoco = true) => {
     const no = lado();
     if (!no?.open) return;
     const id = no.dataset.vaga;
+    if (no.matches(":popover-open")) no.hidePopover();
     no.close();
     delete no.dataset.vaga;
     const url = new URL(location.href);
@@ -288,8 +334,10 @@
   // agora (aba, busca e ordem ficam) em vez de achar a posição da linha à mão.
   const faixa = () => document.getElementById("faixa-desfazer");
   const botaoDaFaixa = () => faixa()?.querySelector('button[type="submit"]');
+  // sem escolha (T301), a linha que está no Tab, como no "pular para a lista"
   const linhaEscolhida = () =>
-    document.querySelector('[role="listbox"] > [role="option"][aria-selected="true"]');
+    document.querySelector('[role="listbox"] > [role="option"][aria-selected="true"]') ??
+    document.querySelector('[role="listbox"] > [role="option"][tabindex="0"]');
   // onde estava o foco antes da ação: na faixa (o botão dela é trocado), na lista ou no detalhe
   // (a linha ou o detalhe somem) ou em nenhum lugar; em outro ponto ele fica onde está
   const ondeEstava = (no) => {

@@ -111,6 +111,26 @@ def test_raiz_vai_para_vagas_ou_para_a_primeira_execucao(painel: Painel) -> None
     assert painel.get("/").headers["location"] == "/vagas?aba=todas"
 
 
+def test_config_estragada_cai_no_padrao_em_vez_de_dar_500(painel: Painel) -> None:
+    # sem relançar a exceção da rota: o vermelho é o 500, não um traceback no cliente
+    http = TestClient(
+        painel.http.app,
+        base_url=f"http://127.0.0.1:{PORTA}",
+        follow_redirects=False,
+        raise_server_exceptions=False,
+    )
+    painel.config("primeira_execucao_concluida", True)
+    painel.sql("INSERT INTO config (chave, valor) VALUES ('destaques_ligados', '{')")
+    lista = http.get("/vagas")
+    assert lista.status_code == 200
+    assert "aba=destaques" in _atual(lista.text)[0]  # o padrão de `destaques_ligados` é True
+    raiz = http.get("/")
+    assert (raiz.status_code, raiz.headers.get("location")) == (303, "/vagas?aba=destaques")
+    painel.sql("UPDATE config SET valor = '{' WHERE chave = 'primeira_execucao_concluida'")
+    raiz = http.get("/")
+    assert (raiz.status_code, raiz.headers.get("location")) == (303, "/primeira-execucao/1")
+
+
 def test_oito_abas_e_so_a_atual_tem_aria_current(painel: Painel) -> None:
     html = painel.get("/vagas?aba=salvas").text
     assert [bool(re.search(rf'href="/vagas\?aba={a}[&"]', html)) for a in ABAS] == [True] * 8
@@ -968,13 +988,44 @@ def test_carregar_mais_mantem_os_filtros_novos(painel: Painel) -> None:
     assert not set(_cartoes(segunda.text)) & set(com)
 
 
-def test_mais_filtros_fechado_sem_filtro_e_aberto_com_contador(painel: Painel) -> None:
+def test_mais_filtros_fechado_com_contador(painel: Painel) -> None:
+    """T301 item 1: o "Mais filtros" vem fechado mesmo com filtro; o resumo diz quantos valem."""
     fechado = painel.get("/vagas?aba=todas").text
     assert '<details class="mais-filtros">' in fechado
     assert "<summary>Mais filtros</summary>" in fechado
-    aberto = painel.get("/vagas?aba=todas&cidade=sao&sal_de=7000").text
-    assert '<details class="mais-filtros" open>' in aberto
-    assert "<summary>Mais filtros (2)</summary>" in aberto
+    com_filtro = painel.get("/vagas?aba=todas&cidade=sao&sal_de=7000").text
+    assert '<details class="mais-filtros">' in com_filtro
+    assert "<summary>Mais filtros (2)</summary>" in com_filtro
+
+
+MAIS_FILTROS = re.compile(r"<details\b[^>]*\bclass=\"mais-filtros\"[^>]*>.*?</details>", re.S)
+
+
+def test_barra_da_lista_numa_linha_com_filtros_no_mais(painel: Painel) -> None:
+    """T301 item 1: os grupos de chips entram no "Mais filtros", que vem fechado com chip ativo."""
+    html = painel.get("/vagas?aba=todas&modalidade=remoto").text
+    barra = re.search(r'<div class="barra-lista">.*?</form>\s*</div>', html, re.S)
+    assert barra
+    mais = MAIS_FILTROS.search(barra.group(0))
+    assert mais
+    assert mais.group(0).startswith('<details class="mais-filtros">')  # sem `open`
+    assert 'id="filtros-chips"' in mais.group(0)
+    assert barra.group(0).count('id="filtros-chips"') == 1  # só dentro do "Mais filtros"
+    # o recipiente herda do form#busca o alvo e a URL: ele troca a si mesmo e não mexe na URL
+    recipiente = _tag(html, "filtros-chips")
+    assert 'hx-target="this"' in recipiente
+    assert 'hx-push-url="false"' in recipiente
+
+
+@pytest.mark.parametrize(
+    ("idioma", "resumo"), [("pt", "Mais filtros (2)"), ("en", "More Filters (2)")]
+)
+def test_mais_filtros_conta_os_ativos(painel: Painel, idioma: str, resumo: str) -> None:
+    """T301 item 1: os chips ativos contam no resumo, como os campos."""
+    html = painel.get(
+        "/vagas?aba=todas&modalidade=remoto&nivel=pleno", headers={"Accept-Language": idioma}
+    ).text
+    assert f"<summary>{resumo}</summary>" in html
 
 
 @pytest.mark.parametrize(
@@ -1702,3 +1753,28 @@ def test_menu_de_contexto_vem_renderizado(painel: Painel, idioma: str) -> None:
     assert 'data-menu="menu-vaga"' in oculta and "data-ocultar" not in oculta
     # a troca do miolo por HTMX não traz outro menu: ele mora fora do #vagas-miolo
     assert 'role="menu"' not in painel.get("/vagas?aba=novas", headers={**cab, **HX}).text
+
+
+ENCAIXE = re.compile(r'<span class="([^"]*\bicone-encaixe\b[^"]*)"([^>]*)></span>')
+
+
+def test_encaixe_da_linha_e_icone(painel: Painel) -> None:
+    """T301 item 5: ícone Lucide numa caixa fixa, presente também sem encaixe; sem os glifos."""
+    sem = painel.semear_mais(titulo="Vaga sem encaixe")
+    html = painel.get("/vagas?aba=todas").text
+    esperado = {"usd": "circle", "brl": "contrast", "trainee": "circle-dashed"}
+    for nome, icone in esperado.items():
+        abertura, miolo = _linha(html, painel.ids[nome])
+        caixas = ENCAIXE.findall(miolo)
+        assert len(caixas) == 1, nome
+        classes, atributos = caixas[0]
+        assert "icone" in classes.split()
+        assert f'data-icone="{icone}"' in atributos
+        assert 'aria-hidden="true"' in atributos
+        assert "so-leitor" in miolo  # o texto para leitor de tela continua
+    _, vazia = _linha(html, sem)
+    caixas = ENCAIXE.findall(vazia)
+    assert len(caixas) == 1  # a caixa vazia segura o x do título
+    assert "data-icone" not in caixas[0][1]
+    for glifo in "●◐○":
+        assert glifo not in _listbox(html)[1]

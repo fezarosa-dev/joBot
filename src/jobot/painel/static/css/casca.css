@@ -33,8 +33,10 @@ body {
   border-inline-end: 1px solid var(--separador);
 }
 
+/* a âncora --topo deixa o detalhe sobreposto (vagas.css) começar no pé real da barra */
 .topo {
   grid-area: topo;
+  anchor-name: --topo;
 }
 
 #aviso-erro {
@@ -156,6 +158,19 @@ body {
   mask: var(--icone) center / contain no-repeat;
 }
 
+/* encaixe (T301): caixa de 1em, também vazia, para os títulos da lista começarem no mesmo x; fica
+   na linha do texto (no detalhe, dentro de um <p>) */
+.icone-encaixe {
+  display: inline-block;
+  flex: none;
+  inline-size: 1em;
+  block-size: 1em;
+  vertical-align: -0.125em;
+}
+
+[data-icone="circle"] { --icone: url("/static/icones/circle.svg"); }
+[data-icone="contrast"] { --icone: url("/static/icones/contrast.svg"); }
+[data-icone="circle-dashed"] { --icone: url("/static/icones/circle-dashed.svg"); }
 [data-icone="sparkles"] { --icone: url("/static/icones/sparkles.svg"); }
 [data-icone="inbox"] { --icone: url("/static/icones/inbox.svg"); }
 [data-icone="circle-dot"] { --icone: url("/static/icones/circle-dot.svg"); }
@@ -225,16 +240,18 @@ body {
   background-color: var(--hover);
 }
 
-/* busca: 180px, cresce para 280px com o foco; nunca mais larga que a barra */
+/* busca: 180px, cresce para 280px com o foco; nunca mais larga que a barra. Em em (T301): no
+   tamanho Maior o campo cresce com a letra e o placeholder (casca.busca.campo) cabe inteiro */
 .topo-busca {
-  inline-size: 180px;
+  inline-size: 14em;
+  min-inline-size: 12em;
   max-inline-size: 100%;
   min-block-size: 28px;
   transition: inline-size var(--duracao) var(--mola);
 }
 
 .topo-busca:focus {
-  inline-size: 280px;
+  inline-size: 21.5em;
 }
 
 /* faixas logo abaixo da barra; vazias, não ocupam altura */
@@ -382,13 +399,21 @@ body {
     display: none;
   }
 
+  /* a faixa de navegação é uma linha só que rola de lado dentro dela; a página não (RF6, T301) */
   .menu {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 4px;
     padding-block: 8px;
     padding-inline: 8px;
-    overflow: visible;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-inline: contain;
+  }
+
+  .menu a {
+    flex: none;
+    white-space: nowrap;
   }
 
   .menu ul {
@@ -408,9 +433,30 @@ body {
     overflow: visible;
   }
 
+  /* topo numa linha (T301): título, busca, Buscar agora e Sair; a busca encolhe primeiro */
+  .topo,
+  .topo-fim {
+    flex-wrap: nowrap;
+  }
+
+  .topo-inicio {
+    flex: none;
+  }
+
+  .topo-fim {
+    flex: 1 1 auto;
+  }
+
   .topo-busca,
   .topo-busca:focus {
-    inline-size: 100%;
+    flex: 1 1000 auto;
+    inline-size: auto;
+    min-inline-size: 0;
+  }
+
+  .topo-fim .execucao {
+    flex: 0 1 auto;
+    min-inline-size: 0;
   }
 }
 

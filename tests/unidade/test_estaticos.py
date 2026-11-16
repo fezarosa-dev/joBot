@@ -91,6 +91,8 @@ ICONES = (
     # grupos de Configurações, estado vazio e página Saiu
     "sliders-horizontal", "toggle-right", "timer", "shield", "plug", "key-round",
     "search-x", "log-out",
+    # encaixe da linha, do cartão e do detalhe (T301)
+    "circle", "contrast",
 )  # fmt: skip
 
 
@@ -116,7 +118,7 @@ def test_icones_tem_licenca() -> None:
 
 
 def test_icones_do_mapa_existem() -> None:
-    assert len(ICONES) == 35
+    assert len(ICONES) == 37
     faltam = [n for n in ICONES if not (ICONES_DIR / f"{n}.svg").is_file()]
     assert faltam == []
 
