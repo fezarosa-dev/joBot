@@ -312,6 +312,8 @@ def test_url_de_exemplo_so_vira_link_se_for_http(painel: Painel) -> None:
     assert 'href="javascript:' not in texto
 
 
-def test_menu_leva_para_a_tela_nova(painel: Painel) -> None:
-    texto = painel.http.get("/vagas").text
-    assert 'href="/empresas/sugeridas"' in texto
+def test_menu_leva_para_a_tela_nova_com_sugestao_pendente(painel: Painel) -> None:
+    # a lateral só mostra Sugeridas com sugestão pendente (T251)
+    assert 'href="/empresas/sugeridas"' not in painel.http.get("/vagas").text
+    painel.sugerir("greenhouse", "boa", "https://boards.greenhouse.io/boa")
+    assert 'href="/empresas/sugeridas"' in painel.http.get("/vagas").text

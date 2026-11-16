@@ -134,7 +134,8 @@ def test_destaques_desligado_some_a_aba_e_abre_em_todas(painel: Painel) -> None:
 
 def test_abas_trazem_a_contagem(painel: Painel) -> None:
     html = painel.get("/vagas?aba=todas").text
-    todas = re.search(r'<a\b[^>]*href="/vagas\?aba=todas[^"]*"[^>]*>(.*?)</a>', html, re.S)
+    # a aba da tela (id="aba-todas"); a lateral também leva para ela (a contagem dela é da T253)
+    todas = re.search(r'<a\b[^>]*id="aba-todas"[^>]*>(.*?)</a>', html, re.S)
     assert todas
     assert "7" in todas.group(1)
 

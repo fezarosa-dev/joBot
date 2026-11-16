@@ -7,8 +7,9 @@ Fica neste arquivo porque o app inclui as rotas em ordem alfabética e `detalhe.
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
+from jobot.painel.consultas import relogio_do_painel
 from jobot.painel.moeda import exibicao_do_painel
-from jobot.painel.rotas.vagas import com_vary, grupos_dos_chips, ler_estado, relogio_do_painel
+from jobot.painel.rotas.vagas import com_vary, grupos_dos_chips, ler_estado
 from jobot.painel.seguranca import Con, idioma_do_pedido, renderizar
 
 router = APIRouter()

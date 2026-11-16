@@ -18,7 +18,7 @@
     {%- endfor %}
   </ul>
 </nav>
-<form class="busca" role="search" method="get" action="/vagas" hx-get="/vagas" hx-target="#vagas-miolo" hx-swap="innerHTML" hx-push-url="true" hx-trigger="submit, change from:#ordem">
+<form id="busca" class="busca" role="search" method="get" action="/vagas" hx-get="/vagas" hx-target="#vagas-miolo" hx-swap="innerHTML" hx-push-url="true" hx-trigger="submit, change from:#ordem">
   <input type="hidden" name="aba" value="{{ aba_da_busca }}">
   {%- if busca_na_url %}
   <input type="hidden" name="busca" value="{{ busca_id }}">
@@ -26,8 +26,7 @@
   {%- for grupo, valor in campos_ocultos %}
   <input type="hidden" name="{{ grupo }}" value="{{ valor }}">
   {%- endfor %}
-  <label class="so-leitor" for="busca-q">{{ t("vagas.busca.rotulo") }}</label>
-  <input id="busca-q" type="search" name="q" value="{{ q }}" maxlength="100" autocomplete="off" placeholder="{{ t('vagas.busca.dica') }}" data-busca>
+  {#- o campo de texto (q) fica na barra de ferramentas da casca, ligado a este form por form="busca" -#}
   <button type="submit" class="primario">{{ t("vagas.busca.botao") }}</button>
   {%- if not e_destaques %}
   <label for="ordem">{{ t("vagas.ordem.rotulo") }}</label>

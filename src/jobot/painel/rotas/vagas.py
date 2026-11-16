@@ -21,9 +21,13 @@ from starlette.datastructures import QueryParams
 from jobot.banco import acoes, leitura
 from jobot.banco.leitura import Filtros, Fonte, Item
 from jobot.banco.paginas import paginas, ultimas_diferencas
-from jobot.nucleo.destaques import Candidata, destaques
-from jobot.nucleo.relogio import Relogio, RelogioReal
 from jobot.nucleo.tratamento.locais import codigos_de_pais, nome_do_pais, nome_em_ingles
+from jobot.painel.consultas import (
+    busca_efetiva,
+    config_ou_padrao,
+    ids_destaques,
+    relogio_do_painel,
+)
 from jobot.painel.moeda import Exibicao, FiltroSalario, exibicao_do_painel, filtro_salario
 from jobot.painel.seguranca import Con, de_volta, renderizar
 
@@ -52,19 +56,6 @@ MAX_ID = 2**31
 # o INTEGER do SQLite é de 64 bits com sinal: id maior estoura em OverflowError (500)
 VagaId = Annotated[int, Path(ge=1, le=2**63 - 1)]
 _MAX_PAGINA = 10_000
-_DESTAQUES_N = 10
-# janela larga para o SQL; a de 24 h é da função pura `destaques`
-_ANTES_DESTAQUES = "julianday(v.primeira_vista_em) >= julianday(:agora) - 2"
-
-
-def relogio_do_painel(request: Request) -> Relogio:
-    relogio: Relogio = getattr(request.app.state, "relogio", None) or RelogioReal()
-    return relogio
-
-
-def _config(con: sqlite3.Connection, chave: str, padrao: Any) -> Any:
-    linha = con.execute("SELECT valor FROM config WHERE chave = ?", (chave,)).fetchone()
-    return padrao if linha is None else json.loads(linha[0])
 
 
 def inteiro_da_url(texto: str | None, maximo: int) -> int | None:
@@ -79,14 +70,6 @@ def inteiro_da_url(texto: str | None, maximo: int) -> int | None:
 def _texto(texto: str | None) -> str | None:
     limpo = "".join(c for c in texto or "" if c.isprintable()).strip()[:_MAX_TEXTO]
     return limpo or None
-
-
-def busca_efetiva(con: sqlite3.Connection, pedida: int | None) -> int | None:
-    """A busca da URL, se existir; senão a primeira ativa; sem nenhuma, None."""
-    if pedida is not None and con.execute("SELECT 1 FROM busca WHERE id = ?", (pedida,)).fetchone():
-        return pedida
-    linha = con.execute("SELECT id FROM busca WHERE ativa = 1 ORDER BY id LIMIT 1").fetchone()
-    return None if linha is None else int(linha[0])
 
 
 def _sem_criterio(con: sqlite3.Connection, busca_id: int | None) -> bool:
@@ -187,7 +170,7 @@ def _chip_valido(grupo: str, valor: str) -> bool:
 
 
 def ler_estado(params: QueryParams, con: sqlite3.Connection, ex: Exibicao) -> Estado:
-    ligados = bool(_config(con, "destaques_ligados", True))
+    ligados = bool(config_ou_padrao(con, "destaques_ligados", True))
     validas = {*leitura.ABAS, *([ABA_DESTAQUES] if ligados else [])}
     pedida_aba = params.get("aba") or ""
     aba = pedida_aba if pedida_aba in validas else (ABA_DESTAQUES if ligados else "todas")
@@ -219,45 +202,6 @@ def ler_estado(params: QueryParams, con: sqlite3.Connection, ex: Exibicao) -> Es
         sem_criterio=sem,
         destaques_ligados=ligados,
     )
-
-
-def utc_do_banco(texto: str) -> datetime | None:
-    try:
-        data = datetime.fromisoformat(texto)
-    except ValueError:
-        return None
-    return data if data.tzinfo else data.replace(tzinfo=UTC)
-
-
-def _ids_destaques(con: sqlite3.Connection, busca_id: int | None, agora: datetime) -> list[int]:
-    """As vagas da aba Destaques: só abertas, não ocultas e novas (a função pura faz o resto)."""
-    quantas = _config(con, "destaques_n", _DESTAQUES_N)
-    if not isinstance(quantas, int) or isinstance(quantas, bool) or quantas < 1:
-        quantas = _DESTAQUES_N
-    linhas = con.execute(
-        "SELECT v.id, v.empresa, e.nota, v.publicada_em, v.primeira_vista_em"
-        " FROM vaga v LEFT JOIN encaixe e ON e.vaga_id = v.id AND e.busca_id = :busca"
-        f" WHERE {leitura.ABAS['novas']} AND {_ANTES_DESTAQUES}",
-        # o dia de calendário é o do fuso local (mesma regra do `leitura`)
-        {
-            "agora": agora.isoformat(),
-            "hoje": agora.astimezone().date().isoformat(),
-            "busca": busca_id,
-        },
-    ).fetchall()
-    candidatas = []
-    for vaga_id, empresa, nota, publicada, primeira in linhas:
-        vista = utc_do_banco(primeira)
-        if vista is not None:
-            candidata = Candidata(
-                vaga_id=vaga_id,
-                empresa=empresa,
-                nota=nota,
-                publicada_em=utc_do_banco(publicada) if publicada else None,
-                primeira_vista_em=vista,
-            )
-            candidatas.append(candidata)
-    return [c.vaga_id for c in destaques(candidatas, agora, quantas)]
 
 
 def _unicas(fontes: Sequence[Fonte]) -> list[Fonte]:
@@ -370,13 +314,13 @@ def _paginas_programas(con: sqlite3.Connection) -> list[dict[str, Any]]:
 def _contexto_pagina(
     con: sqlite3.Connection, estado: Estado, agora: datetime, ex: Exibicao
 ) -> dict[str, Any]:
-    ids_destaques = _ids_destaques(con, estado.busca_id, agora) if estado.destaques_ligados else []
+    ids_de_destaque = ids_destaques(con, estado.busca_id, agora) if estado.destaques_ligados else []
     contagens = leitura.contar_abas(con, estado.busca_id, agora)
     chaves = [*([ABA_DESTAQUES] if estado.destaques_ligados else []), *leitura.ABAS]
     abas = [
         {
             "chave": chave,
-            "n": len(ids_destaques) if chave == ABA_DESTAQUES else contagens[chave],
+            "n": len(ids_de_destaque) if chave == ABA_DESTAQUES else contagens[chave],
             "atual": chave == estado.aba,
             "url": estado.url(aba=chave, chips={}),
         }
@@ -386,7 +330,7 @@ def _contexto_pagina(
     mais_url = None
     fora_sem_salario = fora_sem_valor = 0
     if estado.e_destaques:
-        achados = [leitura.detalhe(con, i, estado.busca_id, agora) for i in ids_destaques]
+        achados = [leitura.detalhe(con, i, estado.busca_id, agora) for i in ids_de_destaque]
         detalhes = [d for d in achados if d is not None]
         itens = detalhes
         fontes = {d.id: _unicas(d.fontes) for d in detalhes}
@@ -428,6 +372,7 @@ def _contexto_pagina(
         "mostrar_tambem_url": replace(estado, sem_salario=True).url(),
         "sem_criterio": estado.sem_criterio,
         "e_destaques": estado.e_destaques,
+        "tem_busca": True,  # a casca põe o campo q na barra, ligado ao form#busca do miolo
         "aba_da_busca": "todas" if estado.e_destaques else estado.aba,
         "campos_ocultos": [
             *((g, v) for g in CHIPS if (v := estado.chips.get(g))),
@@ -447,9 +392,9 @@ def com_vary(resposta: HTMLResponse) -> HTMLResponse:
 
 @router.get("/")
 async def raiz(con: Con) -> RedirectResponse:
-    if not _config(con, "primeira_execucao_concluida", False):
+    if not config_ou_padrao(con, "primeira_execucao_concluida", False):
         return RedirectResponse("/primeira-execucao/1", status_code=303)
-    aba = ABA_DESTAQUES if _config(con, "destaques_ligados", True) else "todas"
+    aba = ABA_DESTAQUES if config_ou_padrao(con, "destaques_ligados", True) else "todas"
     return RedirectResponse(f"/vagas?aba={aba}", status_code=303)
 
 

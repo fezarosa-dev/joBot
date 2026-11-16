@@ -512,9 +512,9 @@ def test_segundo_plano_fora_do_linux_fica_desativado(painel: Painel) -> None:
 
 def test_geral_usa_as_rotas_de_preferencia_e_volta_para_ela(painel: Painel) -> None:
     html = painel.get(GERAL).text
-    for qual in ("tema", "idioma", "texto"):  # os formulários da página, além dos da casca
+    for qual in ("tema", "idioma", "texto"):  # tema e idioma saíram da barra (T251): só aqui
         assert re.search(rf'<form [^>]*action="/preferencias/{qual}"[^>]*data-preferencia', html)
-    assert html.count(f'name="voltar" value="{GERAL}"') >= 5
+    assert html.count(f'name="voltar" value="{GERAL}"') >= 4  # os 3 da página e o Buscar agora
     resposta = painel.post("/preferencias/tema", {"tema": "escuro", "voltar": GERAL})
     assert resposta.headers.get("location") == GERAL
     assert painel.config("tema") == "escuro"

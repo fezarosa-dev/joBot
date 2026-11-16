@@ -28,7 +28,7 @@ from jobot.banco.execucoes import (
 from jobot.nucleo.coletores.executor import estado_da_fonte
 from jobot.nucleo.coletores.registro import limites
 from jobot.nucleo.quebra import link_reportar
-from jobot.painel.rotas.vagas import relogio_do_painel
+from jobot.painel.consultas import relogio_do_painel
 from jobot.painel.seguranca import Con, renderizar
 
 router = APIRouter(prefix="/fontes")

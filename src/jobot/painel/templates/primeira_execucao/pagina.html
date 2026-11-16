@@ -1,4 +1,6 @@
 {% extends "base.html" %}
+{#- o assistente é um caminho só: sem a barra lateral (T251) -#}
+{% set sem_lateral = true %}
 {% block titulo %}{{ t("primeira_execucao.titulo") }} · joBot{% endblock %}
 {% block estilos %}<link rel="stylesheet" href="/static/css/primeira_execucao.css">{% if passo == "sites" %}<link rel="stylesheet" href="/static/css/configuracoes.css">{% endif %}{% endblock %}
 {% block conteudo %}

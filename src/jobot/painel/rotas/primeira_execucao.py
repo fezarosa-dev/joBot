@@ -47,13 +47,13 @@ from jobot.nucleo.modelo import Busca, Idioma, Local, Modalidade, Motivo, Nivel
 from jobot.nucleo.tratamento.locais import codigos_de_pais
 from jobot.painel import formatos
 from jobot.painel.ambiente import ambiente_do_painel, no_linux, rodar_do_painel
+from jobot.painel.consultas import relogio_do_painel
 from jobot.painel.i18n import pais_do_accept_language, t
 from jobot.painel.rotas.configuracoes import (
     contexto_ferramenta_navegador,
     contexto_sites_com_login,
     leitores_do_painel,
 )
-from jobot.painel.rotas.vagas import relogio_do_painel
 from jobot.painel.seguranca import Con, idioma_do_pedido, renderizar
 from jobot.sistema import caso, segundo_plano_linux
 from jobot.sistema.segundo_plano_linux import Recusa

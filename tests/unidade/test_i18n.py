@@ -63,6 +63,16 @@ def test_grupo_aparencia_saiu(idioma: str) -> None:
     assert catalogo["casca.tema"] == {"pt": "Tema", "en": "Appearance"}[idioma]
 
 
+@pytest.mark.parametrize("idioma", ["pt", "en"])
+def test_preferencias_da_barra_saiu(idioma: str) -> None:
+    """Tema, idioma e a busca da tela saíram (T251); as chaves de tema e idioma ficam para
+    Configurações > Geral, e a busca da barra usa `casca.busca.*`."""
+    catalogo = i18n.carregar()[idioma]
+    for chave in ("casca.preferencias", "vagas.busca.rotulo", "vagas.busca.dica"):
+        assert chave not in catalogo
+    assert catalogo["casca.idioma"]
+
+
 def test_chave_repetida_em_dois_arquivos_falha(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
