@@ -36,6 +36,7 @@ TABELAS = {
     "andamento_fonte",
     "sessao_site",
     "sessao_conta",
+    "candidatura",
 }
 INDICES = {
     "execucao_uma_por_tipo",
@@ -53,7 +54,12 @@ INDICES = {
     "vaga_sal_baixo_brl",
     "vaga_sal_alto_brl",
 }
-GATILHOS = {"vaga_sem_delete", "evento_sem_update", "evento_sem_delete"}
+GATILHOS = {
+    "vaga_sem_delete",
+    "evento_sem_update",
+    "evento_sem_delete",
+    "candidatura_sem_delete",
+}
 AGORA = "2026-11-13T12:00:00Z"
 
 
