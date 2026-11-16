@@ -504,8 +504,8 @@
   document.addEventListener("keydown", (evento) => {
     const pediu = evento.key === "ContextMenu" || (evento.key === "F10" && evento.shiftKey);
     if (!pediu || evento.ctrlKey || evento.metaKey || evento.altKey) return;
-    const alvo = evento.target;
-    if (!alvo.matches?.("[data-menu]")) return;
+    const alvo = evento.target.closest?.("[data-menu]");
+    if (!alvo) return;
     const caixa = alvo.getBoundingClientRect();
     if (abrirMenu(alvo, caixa.left, caixa.bottom, caixa.top, true)) evento.preventDefault();
   });
@@ -580,6 +580,9 @@
       alvo?.click();
     } else if (item.matches("[data-modelo-copiar]") && alvo) {
       copiarLink(menu, item, preencher(item.dataset.modeloCopiar, alvo));
+    } else if (item.matches("[data-acionar]")) {
+      // o item não age sozinho: aperta o botão da própria linha (o alerta de Apagar, por exemplo)
+      alvo.querySelector("[data-alerta-abre]")?.click();
     }
   });
   // rolar fecha o menu; o aviso de rolagem chega no quadro seguinte, então a rolagem que veio antes
@@ -754,15 +757,74 @@
     delete raiz.dataset.janela;
   });
 
-  // menus de Configurações > Geral: salvam ao mudar; o botão do <noscript> cobre quem não tem JS
+  // menus de Configurações > Geral e o interruptor de cada busca: enviam ao mudar; o botão do
+  // <noscript> cobre quem não tem JS
   document.addEventListener("change", (evento) => {
     const menu = evento.target;
-    const formulario = menu.closest && menu.closest("form[data-preferencia]");
+    const formulario = menu.closest && menu.closest("form[data-preferencia], form[data-envia-ao-mudar]");
     if (!formulario) return;
     if (menu.name === "tema") document.documentElement.dataset.tema = menu.value;
     if (menu.name === "tamanho") document.documentElement.dataset.texto = menu.value;
     formulario.requestSubmit();
   });
+
+  // alerta (T259; desenho 5.4): o <dialog> de _alerta.html. O botão com data-alerta-abre é o submit
+  // de hoje; com <dialog> aberto por aqui ele vira "abrir o alerta". showModal() deixa o resto da
+  // página inerte e põe o foco no próprio <dialog> (autofocus: Return logo depois não aperta nada).
+  // Esc e ⌘. cancelam, o clique no véu não, o Tab não sai e o foco volta ao botão que abriu.
+  let abridorDoAlerta = null;
+  const alertaAberto = () => document.querySelector("dialog[data-alerta][open]");
+  document.addEventListener("click", (evento) => {
+    const abre = evento.target.closest?.("[data-alerta-abre]");
+    if (abre) {
+      const alerta = document.getElementById(abre.dataset.alertaAbre);
+      if (!alerta?.showModal || alerta.open) return; // sem <dialog>, o submit de hoje segue
+      evento.preventDefault();
+      abridorDoAlerta = abre;
+      alerta.showModal();
+      alerta.focus({ preventScroll: true });
+      return;
+    }
+    evento.target.closest?.("[data-alerta-fecha]")?.closest("dialog")?.close();
+  });
+  document.addEventListener(
+    "keydown",
+    (evento) => {
+      const alerta = alertaAberto();
+      if (!alerta) return;
+      const cancela = evento.key === "Escape" || (evento.key === "." && (evento.metaKey || evento.ctrlKey));
+      if (cancela) {
+        evento.preventDefault();
+        evento.stopPropagation();
+        alerta.close();
+        return;
+      }
+      if (evento.key !== "Tab") return;
+      const botoes = [...alerta.querySelectorAll("button:not(:disabled)")];
+      const primeiro = botoes[0];
+      const ultimo = botoes[botoes.length - 1];
+      const ativo = document.activeElement;
+      if (evento.shiftKey && (ativo === alerta || ativo === primeiro)) {
+        evento.preventDefault();
+        ultimo?.focus();
+      } else if (!evento.shiftKey && ativo === ultimo) {
+        evento.preventDefault();
+        primeiro?.focus();
+      }
+    },
+    true,
+  );
+  // o Esc nativo (cancel) também passa por aqui quando o navegador o trata antes do keydown
+  document.addEventListener(
+    "close",
+    (evento) => {
+      if (!evento.target.matches?.("dialog[data-alerta]")) return;
+      const abridor = abridorDoAlerta;
+      abridorDoAlerta = null;
+      if (abridor?.isConnected) abridor.focus({ preventScroll: true });
+    },
+    true, // close não sobe: só a captura o vê no document
+  );
 
   // componente de progresso (T252; desenho 5.9). O CSP barra o atributo style, então a largura vem
   // de data-valor e anda numa animação linear de 2 s a partir da largura que estava na tela antes

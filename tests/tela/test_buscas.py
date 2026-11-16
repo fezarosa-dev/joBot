@@ -1,4 +1,4 @@
-"""Tela de buscas no navegador: criar, editar, desligar, apagar e o seletor da lista (T52)."""
+"""Tela de buscas no navegador: criar, editar, desligar, apagar e o seletor (T52, T259)."""
 
 import re
 
@@ -20,7 +20,7 @@ def app_painel(app_painel: FastAPI) -> FastAPI:
 
 
 def _cartoes(page: Page) -> Locator:
-    return page.locator("#lista-buscas li.cartao")
+    return page.locator("#lista-buscas > li")
 
 
 def _cartao(page: Page, nome: str) -> Locator:
@@ -85,22 +85,107 @@ def test_editar_muda_o_nome_e_mostra_o_formulario_preenchido(page: Page, painel:
     expect(_cartao(page, "Dados em Curitiba")).to_have_count(0)
 
 
-def test_desligar_ligar_e_apagar(page: Page, painel: str) -> None:
+def test_desligar_e_ligar_pelo_interruptor(page: Page, painel: str) -> None:
     _criar(page, painel, "Outra busca")
     cartao = _cartao(page, "Outra busca")
     expect(cartao.get_by_text("Desligada", exact=True)).to_have_count(0)
+    expect(cartao.get_by_role("switch")).to_be_checked()
 
-    cartao.get_by_role("button", name="Desligar").click()
+    cartao.get_by_role("switch").click()
     expect(_cartao(page, "Outra busca").get_by_text("Desligada", exact=True)).to_be_visible()
-    _cartao(page, "Outra busca").get_by_role("button", name="Ligar").click()
+    expect(_cartao(page, "Outra busca").get_by_role("switch")).not_to_be_checked()
+    _cartao(page, "Outra busca").get_by_role("switch").click()
     expect(_cartao(page, "Outra busca").get_by_text("Desligada", exact=True)).to_have_count(0)
 
-    cartao = _cartao(page, "Outra busca")
-    expect(cartao.get_by_role("button", name="Apagar mesmo")).to_be_hidden()
-    cartao.get_by_text("Apagar", exact=True).click()  # o resumo abre a confirmação, sem JS
-    cartao.get_by_role("button", name="Apagar mesmo").click()
+
+def test_interruptor_mini_pelo_teclado(page: Page, painel: str) -> None:
+    """O interruptor é um checkbox: Tab chega nele e o Espaço liga e desliga, sem o mouse."""
+    _criar(page, painel, "Outra busca")
+    chave = _cartao(page, "Outra busca").get_by_role("switch")
+    chave.focus()
+    expect(chave).to_be_focused()
+    page.keyboard.press("Space")
+    expect(_cartao(page, "Outra busca").get_by_text("Desligada", exact=True)).to_be_visible()
+    _cartao(page, "Outra busca").get_by_role("switch").focus()
+    page.keyboard.press("Space")
+    expect(_cartao(page, "Outra busca").get_by_text("Desligada", exact=True)).to_have_count(0)
+
+
+def _abrir_alerta(page: Page, nome: str) -> Locator:
+    _cartao(page, nome).get_by_role("button", name="Apagar", exact=True).click()
+    alerta = page.get_by_role("alertdialog")
+    expect(alerta).to_be_visible()
+    return alerta
+
+
+def test_apagar_abre_o_alerta_e_cancelar_nao_apaga(page: Page, painel: str) -> None:
+    _criar(page, painel, "Outra busca")
+    alerta = _abrir_alerta(page, "Outra busca")
+    expect(alerta).to_contain_text("Apagar a busca «Outra busca»?")
+    expect(alerta).to_contain_text("As vagas que ela trouxe continuam.")
+    expect(alerta).to_be_focused()  # o foco fica no próprio alerta, nunca num botão (E13)
+
+    alerta.get_by_role("button", name="Cancelar").click()
+    expect(alerta).to_be_hidden()
+    expect(
+        _cartao(page, "Outra busca").get_by_role("button", name="Apagar", exact=True)
+    ).to_be_focused()
+    expect(_cartoes(page)).to_have_count(2)
+
+    alerta = _abrir_alerta(page, "Outra busca")
+    alerta.get_by_role("button", name="Apagar", exact=True).click()
     expect(_cartoes(page)).to_have_count(1)
     expect(_cartao(page, "Outra busca")).to_have_count(0)
+
+
+def test_menu_de_contexto_apagar_abre_o_alerta_e_esc_devolve_o_foco(
+    page: Page, painel: str
+) -> None:
+    _criar(page, painel, "Outra busca")
+    _cartao(page, "Outra busca").click(button="right", position={"x": 40, "y": 12})
+    page.get_by_role("menuitem", name="Apagar…").click()
+    alerta = page.get_by_role("alertdialog")
+    expect(alerta).to_be_visible()
+    expect(alerta).to_contain_text("Outra busca")
+    page.keyboard.press("Control+.")  # Command+ponto no Mac: o mesmo atalho de cancelar
+    expect(alerta).to_be_hidden()
+    expect(_cartoes(page)).to_have_count(2)
+    expect(
+        _cartao(page, "Outra busca").get_by_role("button", name="Apagar", exact=True)
+    ).to_be_focused()
+
+    _cartao(page, "Outra busca").click(button="right", position={"x": 40, "y": 12})
+    page.get_by_role("menuitem", name="Apagar…").click()
+    page.keyboard.press("Escape")
+    expect(page.get_by_role("alertdialog")).to_be_hidden()
+
+
+def test_return_ao_abrir_nao_apaga(page: Page, painel: str) -> None:
+    _criar(page, painel, "Outra busca")
+    alerta = _abrir_alerta(page, "Outra busca")
+    page.keyboard.press("Enter")
+    expect(alerta).to_be_visible()
+    page.reload()
+    expect(_cartoes(page)).to_have_count(2)
+    expect(_cartao(page, "Outra busca")).to_have_count(1)
+
+
+def test_esc_cancela(page: Page, painel: str) -> None:
+    _criar(page, painel, "Outra busca")
+    alerta = _abrir_alerta(page, "Outra busca")
+    page.keyboard.press("Escape")
+    expect(alerta).to_be_hidden()
+    expect(_cartoes(page)).to_have_count(2)
+
+
+def test_clique_no_veu_nao_fecha_e_tab_fica_dentro(page: Page, painel: str) -> None:
+    _criar(page, painel, "Outra busca")
+    alerta = _abrir_alerta(page, "Outra busca")
+    page.mouse.click(5, 5)  # o véu
+    expect(alerta).to_be_visible()
+    for _ in range(6):
+        page.keyboard.press("Tab")
+        assert page.evaluate("document.activeElement.closest('dialog') !== null")
 
 
 def test_seletor_da_lista_muda_a_url_e_a_lista(page: Page, painel: str) -> None:

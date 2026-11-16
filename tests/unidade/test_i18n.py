@@ -193,3 +193,43 @@ def test_abas_do_topo_sairam_e_a_lista_tem_rotulo(idioma: str) -> None:
         catalogo["vagas.vazio.titulo"],
         catalogo["vagas.vazio.buscar"],
     ) == esperado
+
+
+@pytest.mark.parametrize("idioma", ["pt", "en"])
+def test_alerta_de_apagar_busca_e_botoes_comuns(idioma: str) -> None:
+    """T259: o alerta da busca e os rótulos que a Sites e o Esquecer logins reaproveitam; o
+    "Apagar mesmo" em dois cliques saiu. Em inglês, Title Case nos botões e no título."""
+    catalogo = i18n.carregar()[idioma]
+    for velha in ("buscas.apagar_aviso", "buscas.apagar_confirmar"):
+        assert velha not in catalogo
+    esperado = {
+        "pt": {
+            "buscas.apagar_titulo": "Apagar a busca «{nome}»?",
+            "buscas.apagar_texto": "As vagas que ela trouxe continuam.",
+            "comum.apagar": "Apagar",
+            "comum.remover": "Remover",
+            "comum.esquecer": "Esquecer",
+            "comum.cancelar": "Cancelar",
+        },
+        "en": {
+            "buscas.apagar_titulo": 'Delete the Search "{nome}"?',
+            "buscas.apagar_texto": "Jobs it brought in stay.",
+            "comum.apagar": "Delete",
+            "comum.remover": "Remove",
+            "comum.esquecer": "Forget",
+            "comum.cancelar": "Cancel",
+        },
+    }[idioma]
+    assert {chave: catalogo.get(chave) for chave in esperado} == esperado
+    assert catalogo["buscas.apagar_titulo"].endswith("?")
+
+
+@pytest.mark.parametrize("idioma", ["pt", "en"])
+def test_menu_e_interruptor_da_lista_de_buscas(idioma: str) -> None:
+    catalogo = i18n.carregar()[idioma]
+    for chave in ("buscas.menu.rotulo", "buscas.menu.apagar", "buscas.chave_rotulo"):
+        assert catalogo[chave].strip(), chave
+    rotulo = catalogo["buscas.chave_rotulo"]
+    assert "{nome}" in rotulo
+    # nome do interruptor identifica o item; o estado vem do checked (nada de verbo fixo)
+    assert not rotulo.startswith(("Ligar", "Turn", "Desligar"))

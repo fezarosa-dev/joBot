@@ -379,3 +379,79 @@ def test_titulo_do_detalhe_ao_lado_em_titulo_3() -> None:
     ]
     assert regras
     assert [_valor(r, "font") for r in regras] == ["var(--t-title3)"] * len(regras)
+
+
+def _regra_de(nome: str, seletor: str) -> Regra:
+    achadas = [r for arq, r in _todas() if arq == nome and r.seletor == seletor and not r.contexto]
+    assert achadas, f"{nome}: sem a regra {seletor}"
+    return achadas[0]
+
+
+def test_alerta_tem_a_medida_o_raio_e_o_veu_do_desenho() -> None:
+    """Desenho 5.4 (Alerta): 260px, raio 18px, véu --veu; o display só com [open] (fechado, o
+    dialog precisa continuar escondido); botões presos no pé, só o texto rola (E17)."""
+    alerta = _regra_de("base.css", ".alerta")
+    assert _valor(alerta, "inline-size") == "16.25rem"
+    assert _valor(alerta, "border-radius") == "var(--raio-sheet)"
+    sombra = _valor(alerta, "box-shadow") or ""
+    assert "var(--sombra-alerta)" in sombra and "var(--vidro-borda)" in sombra  # sombra e filete
+    assert _valor(alerta, "display") is None
+    aberto = _regra_de("base.css", ".alerta[open]")
+    assert (_valor(aberto, "display"), _valor(aberto, "flex-direction")) == ("flex", "column")
+    assert _valor(aberto, "max-block-size")
+    assert _valor(_regra_de("base.css", ".alerta::backdrop"), "background-color") == "var(--veu)"
+    assert _valor(_regra_de("base.css", ".alerta-corpo"), "overflow-y") == "auto"
+    pe = _regra_de("base.css", ".alerta-acoes")
+    assert (_valor(pe, "flex"), _valor(pe, "flex-direction")) == ("none", "column")
+
+
+def test_alerta_entra_com_fade_e_escala_de_96() -> None:
+    """Fade e scale(.96) em 200ms; o bloco global de movimento reduzido zera o transform e deixa
+    só o fundido."""
+    css = _base()
+    assert re.search(
+        r"@starting-style\s*\{[^@]*\.alerta\[open\]\s*\{[^}]*opacity:\s*0[^}]*scale\(0?\.96\)", css
+    )
+    aberto = _regra_de("base.css", ".alerta[open]")
+    transicao = _valor(aberto, "transition") or ""
+    assert "opacity 200ms" in transicao and "transform 200ms" in transicao
+
+
+def test_alerta_usa_vidro_so_pela_classe() -> None:
+    """O desenho dá `.vidro-grande` ao alerta no HTML; nenhum backdrop-filter novo no CSS dele."""
+    for seletor in (".alerta", ".alerta[open]", ".alerta::backdrop"):
+        assert "backdrop-filter" not in _regra_de("base.css", seletor).corpo
+
+
+def test_alerta_nao_anula_o_caminho_solido_do_vidro() -> None:
+    """`.alerta` (0,1,0) reseta borda e sombra do UA: escrita DEPOIS dos blocos sólidos do vidro,
+    ela anularia a borda de 1px de contraste e de transparência reduzida. Fica antes deles."""
+    css = _sem_comentarios(_base())
+    alerta = css.index("\n.alerta {")
+    solido = re.search(r"@media \(prefers-(reduced-transparency|contrast)[^{]*\{\s*\.vidro,", css)
+    assert solido
+    assert alerta < solido.start(), "base.css: .alerta depois dos blocos sólidos do vidro"
+
+
+def test_toda_tela_com_apagar_em_details_liga_o_css_que_o_estiliza() -> None:
+    """Empresas e Sites ainda usam <details class="apagar">; a regra só sai com o último uso."""
+    modelos = ESTATICOS.parent / "templates"
+    for modelo in modelos.rglob("*.html"):
+        if 'class="apagar"' not in modelo.read_text(encoding="utf-8"):
+            continue
+        texto = modelo.read_text(encoding="utf-8")
+        if modelo.name != "lista.html" and "{% extends" not in texto:
+            continue  # parcial: o CSS vem da página que a inclui
+        ligados = {m for m in re.findall(r"/static/css/([\w-]+)\.css", texto)}
+        estilizado = any(
+            r.seletor == ".apagar summary" for arq, r in _todas() if arq[:-4] in ligados
+        )
+        assert estilizado, f'{modelo.name}: class="apagar" sem .apagar summary no CSS ligado'
+
+
+def test_buscas_carregam_o_interruptor_e_o_estilo_da_lista() -> None:
+    """O interruptor mini (30x18px) mora no configuracoes.css, que a lista de buscas liga."""
+    mini = _regra_de("configuracoes.css", ".chave-mini")
+    assert (_valor(mini, "--larg"), _valor(mini, "--alt")) == ("1.875rem", "1.125rem")
+    modelo = (ESTATICOS.parent / "templates" / "buscas" / "lista.html").read_text(encoding="utf-8")
+    assert "/static/css/configuracoes.css" in modelo
