@@ -600,6 +600,134 @@ main {
   inline-size: 100%;
 }
 
+/* A chave (desenho 5.3): um checkbox sem a aparência do sistema, 38x22px (a .chave-mini, 30x18px),
+   com a bolinha que corre. Ao apertar, a bolinha estica; ligada, ela cresce para a esquerda (a
+   borda direita fica no lugar). A bolinha anda por inset-inline-start, sem transform, para o
+   movimento reduzido (que zera o transform) mudar de posição sem animar. */
+.chave {
+  --larg: 2.375rem;
+  --alt: 1.375rem;
+  --bolinha: 1.125rem;
+  --folga: 0.125rem;
+  appearance: none;
+  position: relative;
+  flex: none;
+  width: var(--larg);
+  height: var(--alt);
+  margin: 0;
+  border-radius: 999px;
+  background-color: var(--trilho);
+  cursor: default;
+  transition: background-color var(--duracao) var(--mola);
+}
+
+.chave-mini {
+  --larg: 1.875rem;
+  --alt: 1.125rem;
+  --bolinha: 0.875rem;
+}
+
+.chave::after {
+  content: "";
+  position: absolute;
+  inset-block-start: var(--folga);
+  inset-inline-start: var(--folga);
+  width: var(--bolinha);
+  height: var(--bolinha);
+  border-radius: 999px;
+  background-color: var(--segmento);
+  box-shadow: 0 1px 3px var(--sombra);
+  transition:
+    inset-inline-start var(--duracao) var(--mola),
+    width var(--duracao) var(--mola);
+}
+
+.chave:checked {
+  background-color: var(--destaque);
+}
+
+.chave:checked::after {
+  inset-inline-start: calc(var(--larg) - var(--bolinha) - var(--folga));
+  background-color: var(--sobre-destaque);
+}
+
+.chave:active:not(:disabled)::after {
+  width: calc(var(--bolinha) + 0.25rem);
+}
+
+.chave:checked:active:not(:disabled)::after {
+  inset-inline-start: calc(var(--larg) - var(--bolinha) - 0.25rem - var(--folga));
+}
+
+.chave:focus-visible {
+  outline: 2px solid var(--foco);
+  outline-offset: 2px;
+}
+
+/* desativada: trilho neutro, sem a cor de destaque e sem sombra na bolinha; não é só a opacidade */
+.chave:disabled,
+.chave:disabled:checked {
+  background-color: var(--trilho);
+  box-shadow: inset 0 0 0 1px var(--borda);
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.chave:disabled::after {
+  background-color: var(--segmento);
+  box-shadow: none;
+}
+
+/* A caixa de marcar (desenho 5.3): 14px, raio 4px, visto branco sobre --destaque. O interruptor
+   (.chave) fica só onde a opção comanda um grupo. A borda desmarcada é --texto-2 sobre --superficie
+   (3:1 de objeto gráfico, WCAG 1.4.11; o par texto-2/superficie está na lista de contraste do topo)
+   e o visto é --sobre-destaque sobre --destaque (par sobre-destaque/destaque, também na lista).
+   O visto é um ::after recortado por clip-path: sem transform (o movimento reduzido o zera) e sem
+   url(data:) (o CSP só aceita 'self'). */
+input[type="checkbox"]:not(.chave) {
+  appearance: none;
+  position: relative;
+  flex: none;
+  inline-size: 0.875rem;
+  block-size: 0.875rem;
+  margin: 0;
+  border: 1px solid var(--texto-2);
+  border-radius: 4px;
+  background-color: var(--superficie);
+  cursor: default;
+  transition:
+    background-color var(--duracao) var(--mola),
+    border-color var(--duracao) var(--mola);
+}
+
+input[type="checkbox"]:not(.chave)::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-color: var(--sobre-destaque);
+  clip-path: polygon(20% 52%, 28% 44%, 42% 58%, 74% 24%, 82% 32%, 42% 74%);
+  opacity: 0;
+}
+
+input[type="checkbox"]:not(.chave):checked {
+  border-color: var(--destaque);
+  background-color: var(--destaque);
+}
+
+input[type="checkbox"]:not(.chave):checked::after {
+  opacity: 1;
+}
+
+input[type="checkbox"]:not(.chave):focus-visible {
+  outline: 2px solid var(--foco);
+  outline-offset: 2px;
+}
+
+input[type="checkbox"]:not(.chave):disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 /* cores forçadas: o navegador troca as cores; o que só o fundo dizia ganha contorno */
 @media (forced-colors: active) {
   button,
@@ -632,6 +760,65 @@ main {
     backdrop-filter: none;
     border: 1px solid CanvasText;
   }
+  .chave {
+    border: 2px solid ButtonText;
+    background-color: Canvas;
+    forced-color-adjust: none;
+  }
+
+  .chave::after {
+    inset-block-start: 0;
+    inset-inline-start: 0;
+    width: calc(var(--alt) - 4px);
+    height: calc(var(--alt) - 4px);
+    background-color: ButtonText;
+    box-shadow: none;
+  }
+
+  .chave:checked {
+    background-color: Highlight;
+  }
+
+  .chave:checked::after {
+    inset-inline-start: calc(var(--larg) - var(--alt));
+    background-color: HighlightText;
+  }
+
+  .chave:disabled,
+  .chave:disabled:checked {
+    border-color: GrayText;
+    background-color: Canvas;
+    box-shadow: none;
+    opacity: 1;
+  }
+
+  .chave:disabled::after {
+    background-color: GrayText;
+  }
+
+  input[type="checkbox"]:not(.chave) {
+    border: 1px solid ButtonText;
+    background-color: Canvas;
+    forced-color-adjust: none;
+  }
+
+  input[type="checkbox"]:not(.chave)::after {
+    background-color: HighlightText;
+  }
+
+  input[type="checkbox"]:not(.chave):checked {
+    border-color: Highlight;
+    background-color: Highlight;
+  }
+
+  input[type="checkbox"]:not(.chave):disabled {
+    border-color: GrayText;
+    opacity: 1;
+  }
+
+  input[type="checkbox"]:not(.chave):disabled:checked {
+    background-color: GrayText;
+  }
 }
 
 /* movimento reduzido, sempre por último: sem transform nem laço; só cor, fundo e opacidade, em 120ms */
@@ -645,5 +832,11 @@ main {
     transition-duration: 120ms !important;
     transition-delay: 0s !important;
     scroll-behavior: auto !important;
+  }
+
+  /* a chave e a bolinha não correm: mudam de posição na hora (vence o fundido de 120ms acima) */
+  .chave,
+  .chave::after {
+    transition: none !important;
   }
 }

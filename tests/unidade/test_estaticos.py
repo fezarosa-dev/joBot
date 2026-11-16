@@ -63,12 +63,14 @@ def _bloco_forced_colors(css: str) -> str:
 def test_interruptor_tem_bloco_de_cores_forcadas() -> None:
     """Sem cores próprias (modo de alto contraste) o trilho e a bolinha precisam de borda e de
     cores do sistema, senão ligado e desligado ficam iguais."""
-    css = (STATIC / "css" / "configuracoes.css").read_text(encoding="utf-8")
+    css = (STATIC / "css" / "base.css").read_text(encoding="utf-8")
     bloco = _bloco_forced_colors(css)
     assert ".chave" in bloco
     for pedaco in ("ButtonText", "Highlight", "HighlightText", "GrayText", "forced-color-adjust"):
         assert pedaco in bloco, pedaco
-    assert "[data-olho]" in bloco
+    # o botão olho apertado (campo de senha do 2Captcha) segue no CSS de Configurações
+    config = (STATIC / "css" / "configuracoes.css").read_text(encoding="utf-8")
+    assert "[data-olho]" in _bloco_forced_colors(config)
 
 
 def test_detector_do_bloco_forced_colors_acha_so_o_certo() -> None:

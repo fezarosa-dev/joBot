@@ -107,7 +107,7 @@ textarea {
 }
 
 /* lista agrupada (desenho 5.8): um bloco opaco sobre --superficie, linhas separadas por filete.
-   O interruptor mini (.chave-mini) e o estilo dele vêm do configuracoes.css, ligado junto. */
+   O interruptor mini (.chave-mini) e o estilo dele vêm do base.css. */
 .lista-buscas {
   margin: 0 0 1rem;
   padding: 0;

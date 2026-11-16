@@ -1,10 +1,10 @@
-{% from "configuracoes/_interruptor.html" import interruptor %}
+{% from "configuracoes/_interruptor.html" import caixa %}
 <p class="config-texto">{{ t("configuracoes.funcoes.explicacao") }}</p>
 <form method="post" action="/configuracoes/funcoes" class="config-form">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   <div class="interruptores">
     {%- for chave in funcoes %}
-    {{ interruptor(chave, valores[chave], t("configuracoes.funcao." ~ chave), t("configuracoes.funcao." ~ chave ~ ".ajuda")) }}
+    {{ caixa(chave, valores[chave], t("configuracoes.funcao." ~ chave), t("configuracoes.funcao." ~ chave ~ ".ajuda")) }}
     {%- endfor %}
   </div>
   <div class="campo">

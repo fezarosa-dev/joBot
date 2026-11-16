@@ -2,7 +2,7 @@
    Cartão, selo, botões e .so-leitor vêm do vagas.css, carregado junto. O estado nunca vai só
    pela cor: o selo e o texto do ponto dizem o estado, e o ponto muda também de forma. */
 
-.chave {
+.fonte-chave {
   color: var(--texto-2);
   font-size: 0.8125rem;
 }

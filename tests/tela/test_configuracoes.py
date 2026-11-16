@@ -174,14 +174,62 @@ def test_fontes_desliga_uma_e_ela_volta_desmarcada(page: Page, painel: str) -> N
     expect(page.get_by_label("Himalayas", exact=True)).to_be_checked()
 
 
-def test_so_pelo_teclado_liga_e_desliga_a_chave(page: Page, painel: str) -> None:
+def test_so_pelo_teclado_liga_e_desliga_a_caixa_de_marcar(page: Page, painel: str) -> None:
     page.goto(f"{painel}/configuracoes/funcoes")
-    chave = page.get_by_label("Páginas acompanhadas", exact=True)
+    caixa = page.get_by_label("Páginas acompanhadas", exact=True)
+    expect(caixa).to_have_attribute("type", "checkbox")
+    expect(caixa).not_to_have_attribute("role", "switch")
+    medidas = caixa.bounding_box()
+    assert medidas is not None and round(medidas["width"]) == round(medidas["height"]) == 14
+    caixa.focus()
+    page.keyboard.press("Space")
+    expect(caixa).not_to_be_checked()
+    page.keyboard.press("Space")
+    expect(caixa).to_be_checked()
+
+
+def test_o_interruptor_fica_onde_a_opcao_comanda_um_grupo(page: Page, painel: str) -> None:
+    page.goto(f"{painel}/configuracoes/segundo-plano")
+    chave = page.get_by_role("switch")
+    expect(chave).to_have_count(1)
     chave.focus()
     page.keyboard.press("Space")
-    expect(chave).not_to_be_checked()
-    page.keyboard.press("Space")
-    expect(chave).to_be_checked()
+    expect(page.get_by_role("switch")).to_be_checked()
+
+
+def test_item_configuracoes_abre_o_ultimo_grupo(page: Page, painel: str) -> None:
+    item = page.get_by_role("navigation", name="Principal").get_by_role(
+        "link", name="Configurações"
+    )
+    page.goto(f"{painel}/vagas")
+    expect(item).to_have_attribute("href", "/configuracoes/geral")  # sem registro: Geral
+    page.goto(f"{painel}/configuracoes/privacidade")
+    page.goto(f"{painel}/vagas")
+    expect(item).to_have_attribute("href", "/configuracoes/privacidade")
+    item.click()
+    expect(page).to_have_url(f"{painel}/configuracoes/privacidade")
+
+    page.goto(f"{painel}/vagas")  # o atalho vai ao mesmo lugar
+    page.keyboard.press("ControlOrMeta+,")
+    expect(page).to_have_url(f"{painel}/configuracoes/privacidade")
+
+    page.evaluate("localStorage.clear()")  # sem registro de novo
+    page.goto(f"{painel}/vagas")
+    expect(item).to_have_attribute("href", "/configuracoes/geral")
+    page.keyboard.press("ControlOrMeta+,")
+    expect(page).to_have_url(f"{painel}/configuracoes/geral")
+
+
+def test_ultimo_grupo_sem_armazenamento_cai_em_geral(page: Page, painel: str) -> None:
+    page.add_init_script(
+        "Object.defineProperty(window, 'localStorage', {get() { throw new Error('bloqueado'); }})"
+    )
+    page.goto(f"{painel}/configuracoes/privacidade")
+    page.goto(f"{painel}/vagas")
+    item = page.get_by_role("navigation", name="Principal").get_by_role(
+        "link", name="Configurações"
+    )
+    expect(item).to_have_attribute("href", "/configuracoes/geral")
 
 
 @pytest.mark.parametrize("esquema", ["light", "dark"])

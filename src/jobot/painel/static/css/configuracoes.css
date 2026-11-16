@@ -1,7 +1,7 @@
 /* Configurações (plano T54): só as cores e medidas da base.css, nenhuma cor nova. */
 
 .config {
-  max-width: 44rem;
+  max-width: 56rem;
   margin: 0 auto;
 }
 
@@ -11,32 +11,82 @@
   font-weight: 700;
 }
 
+/* lista de grupos à esquerda, grupo aberto à direita (jeito dos Ajustes) */
+.config-corpo {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.5rem;
+}
+
+.config-conteudo {
+  flex: 1;
+  min-inline-size: 0;
+}
+
+.config-grupos {
+  flex: none;
+  inline-size: 13rem;
+}
+
 .config-grupos ul {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem;
-  margin: 0 0 1.5rem;
-  padding: 0.25rem;
-  border-radius: 12px;
-  background-color: var(--trilho);
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
   list-style: none;
 }
 
 .config-grupos a {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  min-height: 2.25rem;
-  padding: 0.25rem 0.9rem;
-  border-radius: 9px;
+  gap: 8px;
+  min-block-size: 32px;
+  padding-inline: 8px;
+  border-radius: var(--raio-controle);
   color: var(--texto);
-  font-size: 0.9375rem;
+  font-size: 0.8125rem;
+  line-height: 1rem;
   text-decoration: none;
 }
 
+.config-grupos a:hover:not([aria-current]) {
+  background-color: var(--hover);
+}
+
+/* grupo aberto: cor de destaque e texto branco, como o item da lateral */
 .config-grupos a[aria-current="page"] {
-  background-color: var(--segmento);
-  box-shadow: 0 1px 3px var(--sombra);
-  font-weight: 600;
+  background-color: var(--destaque);
+  color: var(--sobre-destaque);
+}
+
+/* ícone de 20px, desenhado por máscara na cor do texto (as máscaras de rss e globe vêm da casca.css) */
+.config-grupos a::before {
+  content: "";
+  display: block;
+  flex: none;
+  inline-size: 20px;
+  block-size: 20px;
+  background-color: currentColor;
+  -webkit-mask: var(--icone) center / contain no-repeat;
+  mask: var(--icone) center / contain no-repeat;
+}
+
+[data-icone="sliders-horizontal"] { --icone: url("/static/icones/sliders-horizontal.svg"); }
+[data-icone="toggle-right"] { --icone: url("/static/icones/toggle-right.svg"); }
+[data-icone="timer"] { --icone: url("/static/icones/timer.svg"); }
+[data-icone="shield"] { --icone: url("/static/icones/shield.svg"); }
+[data-icone="plug"] { --icone: url("/static/icones/plug.svg"); }
+[data-icone="key-round"] { --icone: url("/static/icones/key-round.svg"); }
+
+@media (max-width: 40rem) {
+  .config-corpo {
+    flex-direction: column;
+  }
+
+  .config-grupos {
+    inline-size: 100%;
+  }
 }
 
 .config-texto {
@@ -114,6 +164,12 @@
   font-weight: 500;
 }
 
+/* caixa de marcar: o quadrado vem antes do texto, que não engorda como o do interruptor */
+.interruptor-caixa {
+  justify-content: flex-start;
+  font-weight: 400;
+}
+
 .grupo-leva {
   display: grid;
   gap: 0.25rem;
@@ -131,86 +187,8 @@
 }
 
 .grupo-leva .opcao {
-  justify-content: space-between;
+  justify-content: flex-start;
   min-height: 2.25rem;
-}
-
-/* A chave (desenho 5.3): um checkbox sem a aparência do sistema, 38x22px (a .chave-mini, 30x18px),
-   com a bolinha que corre. Ao apertar, a bolinha estica; ligada, ela cresce para a esquerda (a
-   borda direita fica no lugar). A bolinha anda por inset-inline-start, sem transform, para o
-   movimento reduzido (que zera o transform) mudar de posição sem animar. */
-.chave {
-  --larg: 2.375rem;
-  --alt: 1.375rem;
-  --bolinha: 1.125rem;
-  --folga: 0.125rem;
-  appearance: none;
-  position: relative;
-  flex: none;
-  width: var(--larg);
-  height: var(--alt);
-  margin: 0;
-  border-radius: 999px;
-  background-color: var(--trilho);
-  cursor: default;
-  transition: background-color var(--duracao) var(--mola);
-}
-
-.chave-mini {
-  --larg: 1.875rem;
-  --alt: 1.125rem;
-  --bolinha: 0.875rem;
-}
-
-.chave::after {
-  content: "";
-  position: absolute;
-  inset-block-start: var(--folga);
-  inset-inline-start: var(--folga);
-  width: var(--bolinha);
-  height: var(--bolinha);
-  border-radius: 999px;
-  background-color: var(--segmento);
-  box-shadow: 0 1px 3px var(--sombra);
-  transition:
-    inset-inline-start var(--duracao) var(--mola),
-    width var(--duracao) var(--mola);
-}
-
-.chave:checked {
-  background-color: var(--destaque);
-}
-
-.chave:checked::after {
-  inset-inline-start: calc(var(--larg) - var(--bolinha) - var(--folga));
-  background-color: var(--sobre-destaque);
-}
-
-.chave:active:not(:disabled)::after {
-  width: calc(var(--bolinha) + 0.25rem);
-}
-
-.chave:checked:active:not(:disabled)::after {
-  inset-inline-start: calc(var(--larg) - var(--bolinha) - 0.25rem - var(--folga));
-}
-
-.chave:focus-visible {
-  outline: 2px solid var(--foco);
-  outline-offset: 2px;
-}
-
-/* desativada: trilho neutro, sem a cor de destaque e sem sombra na bolinha; não é só a opacidade */
-.chave:disabled,
-.chave:disabled:checked {
-  background-color: var(--trilho);
-  box-shadow: inset 0 0 0 1px var(--borda);
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.chave:disabled::after {
-  background-color: var(--segmento);
-  box-shadow: none;
 }
 
 .config-form .campo input.campo-texto,
@@ -482,8 +460,6 @@
 /* a regra do base.css já zera tudo; aqui o cartão do 2Captcha fica explícito: o indicador de
    espera para num ponto fixo e o resultado aparece sem subir */
 @media (prefers-reduced-motion: reduce) {
-  .chave,
-  .chave::after,
   .config-form .campo input.campo-texto {
     transition: none !important; /* vence o fundido de 120ms do base.css (!important, seletor menor) */
   }
@@ -494,43 +470,23 @@
   }
 }
 
-/* modo de alto contraste: o navegador troca as cores; a chave ganha borda e cores do sistema para
-   ligado e desligado não ficarem iguais, e o botão olho apertado ganha borda além do fundo */
+/* modo de alto contraste: o botão olho apertado ganha borda além do fundo (a chave e a caixa de
+   marcar têm o bloco delas no base.css) */
 @media (forced-colors: active) {
-  .chave {
-    border: 2px solid ButtonText;
-    background-color: Canvas;
+  .config-grupos a::before {
     forced-color-adjust: none;
+    background-color: CanvasText;
   }
 
-  .chave::after {
-    inset-block-start: 0;
-    inset-inline-start: 0;
-    width: calc(var(--alt) - 4px);
-    height: calc(var(--alt) - 4px);
-    background-color: ButtonText;
-    box-shadow: none;
-  }
-
-  .chave:checked {
+  .config-grupos a[aria-current="page"],
+  .config-grupos a[aria-current="page"]::before {
+    forced-color-adjust: none;
     background-color: Highlight;
+    color: HighlightText;
   }
 
-  .chave:checked::after {
-    inset-inline-start: calc(var(--larg) - var(--alt));
+  .config-grupos a[aria-current="page"]::before {
     background-color: HighlightText;
-  }
-
-  .chave:disabled,
-  .chave:disabled:checked {
-    border-color: GrayText;
-    background-color: Canvas;
-    box-shadow: none;
-    opacity: 1;
-  }
-
-  .chave:disabled::after {
-    background-color: GrayText;
   }
 
   .config .botao[data-olho][aria-pressed="true"] {
