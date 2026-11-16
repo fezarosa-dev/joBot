@@ -830,5 +830,5 @@ def test_estado_da_fonte_tem_icone_e_texto(painel: Painel, estado: str, icone: s
 
 def test_lista_de_fontes_e_agrupada_e_sem_cartao(painel: Painel) -> None:
     html = painel.get().text
-    assert re.search(r'<ul class="lista-fontes" id="lista-fontes">', html)
+    assert re.search(r'<ul class="lista-agrupada" id="lista-fontes">', html)
     assert '<li class="cartao' not in html
