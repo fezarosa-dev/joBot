@@ -218,7 +218,7 @@ O painel abre no seu navegador, em `http://127.0.0.1:47615`. O menu tem Vagas, B
 - **Calendário de 12 meses** em cada vaga, para ver prazos de relance.
 - **Vagas ocultas** por regra podem voltar. O painel mostra quantas foram escondidas por cada motivo.
 - **"Algo errado nesta vaga?"**: um botão para corrigir um rótulo ou dado.
-- **Visual inspirado no estilo da Apple:** translucidez, animações suaves, modo claro e escuro seguindo o sistema. Fonte SF no Mac e Inter nos outros sistemas.
+- **Visual inspirado no estilo da Apple:** translucidez, animações suaves, modo claro e escuro seguindo o sistema. Fonte SF no Mac e Inter nos outros sistemas. Ícones do [Lucide](https://lucide.dev) (licença ISC, em `src/jobot/painel/static/icones/LICENSE`).
 - **Idiomas:** português e inglês.
 
 <a id="inteligencia-artificial"></a>
