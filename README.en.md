@@ -113,7 +113,7 @@ joBot does not do the following, and was planned never to:
 flowchart LR
     subgraph Fontes["Job sources"]
         P["Public sources<br/>(APIs, job boards, GitHub)"]
-        L["Sites with login<br/>(LinkedIn, Indeed...)"]
+        L["Sites with login<br/>(LinkedIn)"]
         G["Gmail<br/>(optional)"]
     end
 
@@ -187,9 +187,10 @@ Three Brazilian portals call for care, because of their terms of use: Eureca, Ab
 | Brazilian portals | Gupy, CIEE, Sólides, IEL, Super Estágios, Cia de Talentos, Eureca, Abler |
 | Careers at big companies | Google, Amazon, Microsoft, NVIDIA |
 | Internship boards | Public boards, such as the one at USP |
-| 🔐 Sites with login (phase 2, first, in this order) | LinkedIn, Gupy (with login), Vagas.com, Catho, Indeed |
-| 🔐 Sites with login (phase 2, later, one at a time) | InfoJobs, Glassdoor, Remotar, Trampos |
-| 🔐 Technology-only sites with login (phase 2, last, one at a time) | Programathor, GeekHunter, Revelo, Coodesh |
+| 🔐 Site with login (phase 2, the only one for now) | LinkedIn |
+| 🔐 Sites with login (ideas for the future, no date yet) | Vagas.com, Catho, Indeed |
+| 🔐 Sites with login (ideas for the future, one at a time) | InfoJobs, Glassdoor, Remotar, Trampos |
+| 🔐 Technology-only sites with login (ideas for the future, last, one at a time) | Programathor, GeekHunter, Revelo, Coodesh |
 
 Also in phase 1:
 
@@ -202,7 +203,7 @@ Also in phase 1:
 **Health of each source.** On every search, each source is marked as ok, partial or failed. You see this in the dashboard.
 
 > [!WARNING]
-> **Sites with login carry risk.** LinkedIn, Indeed and others may restrict accounts that access them automatically, and this may go against their terms of use.
+> **Sites with login carry risk.** LinkedIn and other sites with login that may join later may restrict accounts that access them automatically, and this may go against their terms of use.
 > joBot reduces the risk: you sign in in a regular browser window, with your own hands; after that it only reads (it does not click "apply", it does not send messages), and it visits rarely and slowly.
 > Even so, the risk exists. **You decide whether to turn on each site.**
 
