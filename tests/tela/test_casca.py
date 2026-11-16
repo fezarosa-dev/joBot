@@ -167,8 +167,11 @@ def test_painel_e_translucido(page: Page, painel: str) -> None:
 
 def test_sem_vidro_com_mais_contraste_ou_cores_forcadas(page: Page, painel: str) -> None:
     page.goto(painel + CASCA)
-    for emulacao in ({"contrast": "more"}, {"forced_colors": "active"}):
-        page.emulate_media(**emulacao)
+    for emulacao in ("contrast", "forced_colors"):
+        if emulacao == "contrast":
+            page.emulate_media(contrast="more")
+        else:
+            page.emulate_media(forced_colors="active")
         estilo = page.evaluate(ESTILO_VIDRO)
         assert estilo["topo"]["filtro"] == "none", emulacao
         assert estilo["painel"]["filtro"] == "none", emulacao
