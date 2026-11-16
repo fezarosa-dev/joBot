@@ -1,22 +1,10 @@
+{%- from "_seletor_busca.html" import seletor_busca with context -%}
 <a class="pular" href="#lista-vagas">{{ t("vagas.pular_lista") }}</a>
 {#- barra da lista (T254, T301; desenho 5.2, D143.52): busca escolhida, ordem e "Mais filtros",
     numa linha; os chips e os campos ficam dentro do "Mais filtros". O form#busca fica nela; o campo
     da barra de ferramentas e a ordem entram por form="busca". -#}
 <div class="barra-lista">
-  {%- if seletor %}
-  <form class="seletor-busca" method="get" action="/vagas" hx-get="/vagas" hx-target="#vagas-miolo" hx-swap="innerHTML" hx-push-url="true" hx-trigger="change">
-    {%- for nome, valor in campos_do_seletor %}
-    <input type="hidden" name="{{ nome }}" value="{{ valor }}">
-    {%- endfor %}
-    <label class="so-leitor" for="busca-escolhida">{{ t("vagas.seletor") }}</label>
-    <select id="busca-escolhida" name="busca">
-      {%- for b in seletor %}
-      <option value="{{ b.id }}"{% if b.atual %} selected{% endif %}>{{ b.nome }}</option>
-      {%- endfor %}
-    </select>
-    <noscript><button type="submit" class="secundario">{{ t("vagas.busca.botao") }}</button></noscript>
-  </form>
-  {%- endif %}
+  {{- seletor_busca(seletor, campos_do_seletor, "/vagas", "#vagas-miolo") }}
   {%- if not e_destaques %}
   <label class="rotulo-ordem" for="ordem">{{ t("vagas.ordem.rotulo") }}</label>
   <select id="ordem" name="ordem" form="busca">
