@@ -11,6 +11,8 @@ The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/
 ### Added
 
 - LinkedIn, the first site with login. The reader comes off: you turn it on in Settings, Sites with login. It searches for each job title in your searches, with the city and remote, and reads only the last week, sorted by relevance. Because the list is not complete, a LinkedIn job only closes after 30 days without being seen, and reopens if it comes back.
+- The Tools screen in Settings, to download and remove the browser for sites with login (about 210 MB), with no terminal.
+- The optional "Sites with login" step in the first-run assistant: turn on the sites, check the browser and download it, before you see the jobs.
 - Login in a regular browser window, with no automation: you sign in however you like (Google, email and password) and close the window. joBot checks the session by itself and never types the password.
 - ADR 0023: everything through the dashboard. External tools, updating and quitting get a button, no terminal needed.
 - ADR 0024: Gmail will be read over IMAP with an app password pasted into the dashboard (the card comes with the Accounts tab; reading the emails, in phase 6). The wiki gets the step-by-step guide.

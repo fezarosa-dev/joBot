@@ -389,7 +389,7 @@ Conexão com o banco
 - Grupo novo `sites-com-login` em `GRUPOS` (`src/jobot/painel/rotas/configuracoes.py:43`), com parcial, contexto e gravador próprios (`:54-61`, `:119-126`, `:274-281`). Ele só aparece quando há pelo menos um leitor registrado (D132.23): sem leitor, a rota devolve 404 e a aba não é listada. As abas deixam de sair direto da tupla fixa (`:134`) e passam por esse filtro; o teste de abas acompanha.
 - Conteúdo, de cima para baixo (D132.8):
   1. Uma frase do que é e do risco: ler sites com login pode ir contra os termos deles, e a conta pode ser restringida; a pessoa decide site por site; o joBot nunca digita senha e só lê.
-  2. Estado do navegador: "Chrome encontrado", "Usando o Chromium do Playwright" ou "Nenhum navegador encontrado", com o que fazer. O botão "Baixar o navegador" entra aqui só na Parte B (seção 6).
+  2. Estado do navegador: "Chrome encontrado", "Usando o Chromium do Playwright" ou "Nenhum navegador encontrado", com o que fazer. Sem navegador, a linha leva ao grupo "Ferramentas" de Configurações, onde se baixa e se remove o Chromium (T240; seção 6); o grupo "Sites com login" não tem botão próprio.
   3. Um cartão por site: interruptor (nasce desligado), estado da última leitura com o motivo, se uma leitura está rodando agora (D132.41), e o botão "Fazer login agora".
   4. Horários das leituras (`login_horarios`, seção A6).
   5. "Esquecer logins".
@@ -437,7 +437,7 @@ Cada fatia entra verde e sem mudar nada visível na versão publicada (D132.23).
   5. O dono testa na máquina real: liga o site, faz o login pelo botão, espera o horário (ou "Buscar agora"), confere as vagas e a saúde.
 - LinkedIn primeiro (D132.27, respondida pelo dono em 2026-11-15, D136): o LinkedIn é o primeiro site da 0.3.0. A Gupy já é fonte pública (ADR 0004, `:19`); quando chegar a vez dela, a sessão de mapeamento confere o que a Gupy logada mostra a mais que a pública.
 - No lote do primeiro site que funciona, tudo junto (D132.13, D132.24; ADR 0022, `:64`):
-  - o botão "Baixar o navegador" no grupo "Sites com login": roda `<python> -m playwright install chromium` como processo filho, sem `--with-deps` (pede root), avisa o tamanho (mais de 100 MB, `2026-11-13-fase-1-design.md:1498`) e mostra o estado (baixando, pronto, falhou com o que fazer). O Chromium vai para a pasta padrão do Playwright, a mesma dos testes de tela;
+  - a tela "Ferramentas" em Configurações (T240; D137), visível só com leitor: "Baixar" roda `<python> -P -m playwright install --no-shell chromium` como processo filho num grupo de processos próprio, sem `--with-deps` (pede root), com prazo de 30 minutos (`limites.PRAZO_BAIXAR_S`); avisa o tamanho (uns 210 MB de download e 420 MB no disco) e mostra o estado (baixando, instalado, falhou com o que fazer, sem mandar ao terminal). "Remover" roda `<python> -P -m playwright uninstall` (sem `--all`), só com o Chromium do Playwright e nunca com leitura ou login abertos; se outra instalação do Playwright usa a mesma pasta, o navegador fica e o painel diz isso. O Chromium só conta como instalado com a marca `INSTALLATION_COMPLETE` do Playwright. Ele vai para a pasta padrão do Playwright, a mesma dos testes de tela;
   - `README.md` e `README.en.md`: a navegação com login, o aviso de risco, os caminhos de rede novos (os sites ligados e o download do Chromium pelos servidores do Playwright), e a troca de "não contorna CAPTCHA" por "só resolve CAPTCHA pelo serviço da pessoa, se ela pôs a chave e ligou";
   - `configuracoes.privacidade.telemetria` em pt e en, com o `test_privacidade_cita_todos_os_pedidos` cobrindo os caminhos novos;
   - `wiki/`, nas páginas que repetem a regra (lista no desenho do 2Captcha, `2026-11-15-captcha-design.md:76`);
@@ -544,7 +544,7 @@ Painel (integração e tela)
 - Sem leitor registrado: a aba não aparece e `/configuracoes/sites-com-login` dá 404.
 - Com o leitor do site falso: o interruptor nasce desligado e grava na hora; "Fazer login agora" com a trava presa responde "em andamento"; "Esquecer logins" pede confirmação na página, apaga a pasta só no segundo POST e não toca o banco; o cartão mostra a leitura rodando.
 - Todos os textos novos em pt e en; os motivos percorridos nos dois idiomas; nenhum `<input type="checkbox">` sem `.chave`; cor nova com contraste em `test_contraste_minimo`.
-- Parte B: o botão "Baixar o navegador" chama o comando de instalação pelo executor falso e mostra os três estados; o `test_privacidade_cita_todos_os_pedidos` cobre os caminhos novos.
+- Parte B: a tela "Ferramentas" (T240) é coberta por `tests/unidade/test_instalador.py` (comandos, ambiente, grupo de processos, prazo e cancelamento), `tests/integracao/test_rota_ferramentas.py` (estados, avisos, travas, 404 sem leitor, pt e en), `test_chromium_sem_marca_de_instalacao_nao_conta` e `tests/navegador/test_marca_de_instalacao.py` (a marca do Playwright); o `test_privacidade_cita_todos_os_pedidos` cobre o pedido novo aos servidores do Playwright e o `test_readme_diz_o_tamanho_do_chromium`, o tamanho.
 
 ## 9. O que fica para o construtor
 

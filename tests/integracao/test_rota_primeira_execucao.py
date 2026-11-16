@@ -23,7 +23,8 @@ from fastapi.testclient import TestClient
 from apoio.relogio import RelogioFalso
 from apoio.segundo_plano_falso import FalsoSistema
 from apoio.semear import inserir_vaga
-from jobot.banco import buscas
+from apoio.site_falso import LeitorFalso
+from jobot.banco import buscas, cadastros
 from jobot.banco.conexao import abrir
 from jobot.banco.migrar import migrar
 from jobot.nucleo.modelo import Busca, Local, Modalidade, Nivel
@@ -35,6 +36,8 @@ from jobot.sistema.segundo_plano_linux import Resultado
 PORTA = 47617
 PASSO_1 = "/primeira-execucao/1"
 PASSO_2 = "/primeira-execucao/2"
+SITES = "/primeira-execucao/sites"
+INTERRUPTOR = "/configuracoes/sites-com-login/falso_logado/interruptor"
 ALERTA = 'role="alert"'
 
 
@@ -51,9 +54,22 @@ class Cenario:
         self.app.state.rodar_comando = self.sistema
         self.app.state.ambiente = {"HOME": str(self.casa)}
         self.app.state.plataforma = "linux"
+        self.app.state.leitores = ()  # sem leitor o assistente é o de hoje; o caso novo liga um
         self.http = TestClient(
             self.app, base_url=f"http://127.0.0.1:{PORTA}", follow_redirects=False
         )
+
+    def com_leitor(self) -> None:
+        leitor = LeitorFalso(base="http://127.0.0.1:9")
+        with closing(abrir(self.banco)) as con:
+            cadastros.semear(con)
+            cadastros.semear_leitores(con, [leitor])
+        self.app.state.leitores = (leitor,)
+        self.app.state.navegador_instalado = None
+
+    def ligadas(self) -> list[str]:
+        with closing(abrir(self.banco)) as con:
+            return cadastros.fontes_com_login_ligadas(con)
 
     def na_distrobox(self, nome: str = "fedora-dev") -> None:
         self.app.state.ambiente = {"HOME": str(self.casa), "CONTAINER_ID": nome}
@@ -770,3 +786,147 @@ def test_passo1_dica_de_cargos_sugere_variacoes(cenario: Cenario, idioma: str, t
     html = cenario.get(PASSO_1, headers={"Accept-Language": idioma}).text
     assert trecho in html
     assert "sysadmin" in html
+
+
+# --- passo "Sites com login" (T241; D137.9 a D137.11 e D137.15) ---------------------------------
+
+
+def _caminho_do_passo_1(cenario: Cenario, caminho: str) -> tuple[Any, str]:
+    """A resposta do `POST` do passo 1 por cada um dos quatro caminhos, e o que ela leva na URL."""
+    if caminho == "pular":
+        return cenario.post(PASSO_1, COMPLETO | {"pular": "1"}), ""
+    if caminho == "vazio":
+        return cenario.post(PASSO_1, {"cargos": "  \n ", "cidade": ["", ""], "uf": ["", ""]}), ""
+    if caminho == "criada":
+        resposta = cenario.post(PASSO_1, COMPLETO)
+        return resposta, f"?busca={cenario.buscas()[0].id}"
+    cenario.post(PASSO_1, COMPLETO)
+    (busca,) = cenario.buscas()
+    resposta = cenario.post(PASSO_1, COMPLETO | {"cargos": "Rust", "busca": str(busca.id)})
+    return resposta, f"?busca={busca.id}"
+
+
+CAMINHOS_DO_PASSO_1 = ["pular", "vazio", "criada", "editada"]
+
+
+@pytest.mark.parametrize("caminho", CAMINHOS_DO_PASSO_1)
+def test_passo_1_vai_aos_sites_com_leitor(cenario: Cenario, caminho: str) -> None:
+    cenario.com_leitor()
+    resposta, busca = _caminho_do_passo_1(cenario, caminho)
+    assert resposta.status_code == 303
+    assert resposta.headers["location"].startswith(SITES)
+    assert ("busca=" in resposta.headers["location"]) == bool(busca)
+
+
+@pytest.mark.parametrize("caminho", CAMINHOS_DO_PASSO_1)
+def test_sem_leitor_o_assistente_nao_muda(cenario: Cenario, caminho: str) -> None:
+    resposta, busca = _caminho_do_passo_1(cenario, caminho)
+    _redireciona(resposta, PASSO_2 + busca)
+    assert cenario.get(SITES).status_code == 404
+    assert cenario.post(SITES, {"continuar": "1"}).status_code == 404
+
+
+@pytest.mark.parametrize(
+    ("idioma", "leitor", "url", "frase"),
+    [
+        ("pt", True, PASSO_1, "Passo 1 de 3"),
+        ("pt", True, SITES, "Passo 2 de 3"),
+        ("pt", True, PASSO_2, "Passo 3 de 3"),
+        ("en", True, SITES, "Step 2 of 3"),
+        ("pt", False, PASSO_1, "Passo 1 de 2"),
+        ("pt", False, PASSO_2, "Passo 2 de 2"),
+        ("en", False, PASSO_2, "Step 2 of 2"),
+    ],
+)
+def test_contagem_de_passos(
+    cenario: Cenario, idioma: str, leitor: bool, url: str, frase: str
+) -> None:
+    if leitor:
+        cenario.com_leitor()
+    html = cenario.get(url, headers={"Accept-Language": idioma}).text
+    assert frase in html
+    if url == PASSO_2:  # o passo do número 3 é o do segundo plano, não o do passo 1
+        assert 'name="segundo_plano"' in html
+
+
+def test_passo_sites_mostra_o_cartao(cenario: Cenario) -> None:
+    cenario.com_leitor()
+    html = cenario.get(SITES).text
+    assert "Site falso" in html
+    assert INTERRUPTOR in html and 'role="switch"' in html
+    assert "/configuracoes/ferramentas/navegador/baixar" in html  # o fragmento da T240
+    assert 'href="/configuracoes/ferramentas"' not in html  # o cartão está aqui, sem link
+    assert 'id="status-sites"' in html
+    assert "/static/css/configuracoes.css" in html
+    assert "horarios" not in html  # os horários ficam em Configurações (D137.10)
+
+
+def test_continuar_segue_ao_segundo_plano(cenario: Cenario) -> None:
+    cenario.com_leitor()
+    cenario.post(PASSO_1, COMPLETO)
+    (busca,) = cenario.buscas()
+    resposta = cenario.post(SITES, {"continuar": "1", "busca": str(busca.id)})
+    _redireciona(resposta, f"{PASSO_2}?busca={busca.id}")
+    _redireciona(cenario.post(SITES, {"continuar": "1"}), PASSO_2)
+
+
+def test_pular_desliga_os_sites(cenario: Cenario) -> None:
+    cenario.com_leitor()
+    assert cenario.post(INTERRUPTOR, {"ligada": "on"}).status_code == 200
+    assert cenario.ligadas() == ["falso_logado"]
+    _redireciona(cenario.post(SITES, {"pular": "1"}), PASSO_2)
+    assert cenario.ligadas() == []
+
+
+def test_continuar_mantem_o_que_a_pessoa_ligou(cenario: Cenario) -> None:
+    cenario.com_leitor()
+    cenario.post(INTERRUPTOR, {"ligada": "on"})
+    _redireciona(cenario.post(SITES, {"continuar": "1"}), PASSO_2)
+    assert cenario.ligadas() == ["falso_logado"]
+
+
+def test_busca_invalida_na_url_dos_sites_cai_fora(cenario: Cenario) -> None:
+    cenario.com_leitor()
+    cenario.post(PASSO_1, COMPLETO)
+    (busca,) = cenario.buscas()
+    existente = str(busca.id)
+    # controle positivo: com a busca que existe o destino a leva
+    _redireciona(
+        cenario.post(SITES, {"continuar": "1", "busca": existente}), f"{PASSO_2}?busca={existente}"
+    )
+    html = cenario.get(f"{SITES}?busca={existente}").text
+    assert f'name="busca" value="{existente}"' in html
+    assert f'href="{PASSO_1}?busca={existente}"' in html
+    for ruim in ("abc", "999", "0", "-1", "9" * 30):
+        _redireciona(cenario.post(SITES, {"continuar": "1", "busca": ruim}), PASSO_2)
+        _redireciona(cenario.post(SITES, {"pular": "1", "busca": ruim}), PASSO_2)
+        html = cenario.get(f"{SITES}?busca={ruim}").text
+        assert 'name="busca"' not in html
+        assert f"{PASSO_1}?busca" not in html  # (o seletor de tema repete a URL do pedido)
+        assert f'href="{PASSO_1}"' in html
+
+
+def test_voltar_do_segundo_plano_vai_aos_sites(cenario: Cenario) -> None:
+    cenario.com_leitor()
+    cenario.post(PASSO_1, COMPLETO)
+    (busca,) = cenario.buscas()
+    segundo = cenario.get(f"{PASSO_2}?busca={busca.id}").text
+    assert f'href="{SITES}?busca={busca.id}"' in segundo
+    sites = cenario.get(f"{SITES}?busca={busca.id}").text
+    assert f'href="{PASSO_1}?busca={busca.id}"' in sites
+    assert "Voltar ao passo 2" in segundo  # o número do passo anterior vem do assistente
+    assert "Voltar ao passo 1" in sites
+    # sem resumo os dois links vão sem o `?busca=`
+    assert f'href="{SITES}"' in cenario.get(PASSO_2).text
+    assert f'href="{PASSO_1}"' in cenario.get(SITES).text
+    assert 'name="busca"' not in cenario.get(SITES).text
+
+
+def test_voltar_do_segundo_plano_sem_leitor_vai_ao_passo_1(cenario: Cenario) -> None:
+    cenario.post(PASSO_1, COMPLETO)
+    (busca,) = cenario.buscas()
+    html = cenario.get(f"{PASSO_2}?busca={busca.id}").text
+    assert f'href="{PASSO_1}?busca={busca.id}"' in html
+    assert "Voltar ao passo 1" in html
+    assert 'href="/primeira-execucao/sites' not in html
+    assert 'href="/primeira-execucao/1"' in cenario.get(PASSO_2).text

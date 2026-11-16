@@ -1,6 +1,7 @@
 """Assistente de primeira execução no navegador: dois passos, recusa e fim (plano T53)."""
 
 import re
+from contextlib import closing
 from pathlib import Path
 
 import pytest
@@ -9,6 +10,9 @@ from playwright.sync_api import Page, expect
 
 from apoio.relogio import RelogioFalso
 from apoio.segundo_plano_falso import FalsoSistema
+from apoio.site_falso import LeitorFalso
+from jobot.banco import cadastros
+from jobot.banco.conexao import abrir
 
 pytestmark = pytest.mark.tela
 
@@ -27,6 +31,7 @@ def app_painel(app_painel: FastAPI, sistema: FalsoSistema, tmp_path: Path) -> Fa
     app_painel.state.rodar_comando = sistema
     app_painel.state.ambiente = {"HOME": str(casa)}
     app_painel.state.plataforma = "linux"
+    app_painel.state.leitores = ()  # sem leitor o assistente tem dois passos; o caso novo liga um
     return app_painel
 
 
@@ -117,3 +122,28 @@ def test_regiao_do_andamento_vazia_nao_ocupa_linha(page: Page, painel: str) -> N
     assert caixa is not None and barra is not None and botao is not None
     assert caixa["height"] == 0
     assert barra["height"] <= botao["height"] + 1  # a barra tem só a linha dos botões
+
+
+def test_passo_dos_sites_liga_o_site_e_segue(
+    page: Page, painel: str, app_painel: FastAPI, tmp_path: Path
+) -> None:
+    leitor = LeitorFalso(base="http://127.0.0.1:9")
+    with closing(abrir(tmp_path / "jobot.db")) as con:
+        cadastros.semear_leitores(con, [leitor])
+    app_painel.state.leitores = (leitor,)
+    app_painel.state.navegador_instalado = "chrome"
+
+    page.goto(f"{painel}/primeira-execucao/1")
+    expect(page.get_by_text("Passo 1 de 3")).to_be_visible()
+    _passo_1(page)
+    expect(page).to_have_url(re.compile(r"/primeira-execucao/sites\?busca=\d+$"))
+    expect(page.get_by_text("Passo 2 de 3")).to_be_visible()
+
+    with page.expect_response("**/configuracoes/sites-com-login/falso_logado/interruptor"):
+        page.get_by_role("switch", name="Site falso").click()
+    expect(page.locator("#status-sites")).to_contain_text("Salvo")
+    page.get_by_role("button", name="Continuar").click()
+    expect(page).to_have_url(re.compile(r"/primeira-execucao/2\?busca=\d+$"))
+    expect(page.get_by_text("Passo 3 de 3")).to_be_visible()
+    with closing(abrir(tmp_path / "jobot.db")) as con:
+        assert cadastros.fontes_com_login_ligadas(con) == ["falso_logado"]
