@@ -32,6 +32,7 @@
   "execucao.etapa.regras": "Updating jobs with the new rules",
   "execucao.etapa.cotacoes": "Converting salaries",
   "execucao.etapa.encaixe": "Matching jobs to your searches",
+  "execucao.etapa.esquecer": "Deleting saved sign-ins",
   "execucao.etapa.fila": "Queued",
   "execucao.etapa.lendo": "Reading",
   "execucao.etapa.pronto": "Done",

@@ -62,9 +62,21 @@
   font-weight: 600;
 }
 
-/* limiar de 1 s: só a resposta do clique traz o envoltório; busca curta não pisca a barra */
-.andamento-entrada {
+/* limiar de 1 s: só a resposta do clique traz o envoltório; busca curta não pisca a barra. As
+   outras esperas (T266) usam a mesma animação: o componente fica escondido na página e o HTMX o
+   mostra (.htmx-request) a partir do pedido; espera curta nunca o deixa aparecer */
+.andamento-entrada,
+.progresso-espera.htmx-request {
   animation: andamento-entrar 200ms ease-out 1s backwards;
+}
+
+.progresso-espera {
+  display: none;
+}
+
+.progresso-espera.htmx-request {
+  display: block;
+  margin-block-start: 0.75rem;
 }
 
 @keyframes andamento-entrar {
@@ -248,7 +260,8 @@
     opacity: 0.4;
   }
 
-  .andamento-entrada {
+  .andamento-entrada,
+  .progresso-espera.htmx-request {
     animation: andamento-entrar 1ms linear 1s backwards !important;
   }
 }
