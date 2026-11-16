@@ -314,6 +314,8 @@ a.chip {
 
 .salario {
   font-size: 0.9375rem;
+  /* a entrelinha de 16px do corpo é menor que o negrito de 15px: a linha convertida cairia por cima */
+  line-height: 1.25rem;
 }
 
 .nao-informado {
