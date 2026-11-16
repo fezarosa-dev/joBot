@@ -78,8 +78,6 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: chromium-${{ runner.os }}-${{ steps.playwright.outputs.versao }}
-      - if: steps.cache-chromium.outputs.cache-hit == 'true'
-        run: uv run playwright install-deps chromium
       - if: steps.cache-chromium.outputs.cache-hit != 'true'
         run: uv run playwright install --with-deps chromium
       - run: uv run pytest -m tela --durations=5
