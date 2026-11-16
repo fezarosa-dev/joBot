@@ -67,7 +67,7 @@
         {%- endfor %}
       </ul>
       <ul>
-        <li><a data-icone="{{ config[3] }}" href="{{ config[1] }}"{% if config[2] == ns.atual %} aria-current="{{ 'page' if caminho == config[1] else 'true' }}"{% endif %}>{{ t("casca.menu." ~ config[0]) }}</a></li>
+        <li><a data-icone="{{ config[3] }}" data-abre-configuracoes href="{{ config[1] }}"{% if config[2] == ns.atual %} aria-current="{{ 'page' if caminho == config[1] else 'true' }}"{% endif %}>{{ t("casca.menu." ~ config[0]) }}</a></li>
       </ul>
     </nav>
     <div class="divisor" role="separator" aria-orientation="vertical" aria-valuemin="180" aria-valuemax="320" aria-valuenow="240" tabindex="0" aria-controls="lateral" aria-label="{{ t('casca.lateral.divisor') }}" data-divisor></div>

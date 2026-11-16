@@ -12,8 +12,13 @@
     <button type="submit" class="botao botao-primario">{{ t("configuracoes.salvar") }}</button>
   </div>
 </form>
+{% from "_alerta.html" import alerta with context %}
 <div id="esquecer-logins" aria-live="polite">
-  <div class="acoes">
-    <button type="button" class="botao botao-secundario" hx-post="/configuracoes/sites-com-login/esquecer" hx-target="#esquecer-logins">{{ t("configuracoes.sites_com_login.esquecer") }}</button>
-  </div>
+  <form method="post" action="/configuracoes/sites-com-login/esquecer/confirmar">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div class="acoes">
+      <button type="submit" class="botao botao-secundario" data-alerta-abre="alerta-esquecer">{{ t("configuracoes.sites_com_login.esquecer") }}</button>
+    </div>
+  </form>
+  {{ alerta("alerta-esquecer", t("configuracoes.sites_com_login.esquecer.pergunta"), t("configuracoes.sites_com_login.esquecer.explicacao"), t("comum.esquecer"), "/configuracoes/sites-com-login/esquecer/confirmar", alvo_htmx="#esquecer-logins") }}
 </div>

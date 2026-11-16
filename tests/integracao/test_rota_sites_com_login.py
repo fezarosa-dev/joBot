@@ -441,13 +441,52 @@ def test_nenhum_checkbox_sem_chave(painel: Painel, pagina: str) -> None:
         assert 'role="switch"' in caixa, caixa
 
 
-def test_botao_esquecer_logins_pede_confirmacao_na_pagina(painel: Painel) -> None:
+def test_esquecer_tem_alerta(painel: Painel) -> None:
+    """O botão abre o alerta (T259); sem JavaScript ele segue sendo o envio do formulário."""
     html = painel.http.get(GRUPO).text
-    botao = re.search(r"<button\b[^>]*>\s*Esquecer logins\s*</button>", html)
+    botao = re.search(
+        r"<button\b[^>]*data-alerta-abre=\"alerta-esquecer\"[^>]*>\s*Esquecer logins\s*</button>",
+        html,
+    )
     assert botao is not None
-    assert f'hx-post="{ESQUECER}"' in botao[0]
-    assert "disabled" not in botao[0]
+    assert 'type="submit"' in botao[0] and "disabled" not in botao[0]
+    assert f'hx-post="{ESQUECER}"' not in html  # a pergunta de dois cliques saiu
+    alerta = re.search(r'<dialog id="alerta-esquecer".*?</dialog>', html, re.S)
+    assert alerta is not None
+    corpo = alerta.group(0)
+    assert 'role="alertdialog"' in corpo and "data-alerta" in corpo
+    assert f'action="{CONFIRMAR}"' in corpo  # a rota de confirmar é a mesma
+    assert re.search(r'<button type="submit">\s*Esquecer\s*</button>', corpo)
+    assert re.search(r"<button type=\"button\" data-alerta-fecha>\s*Cancelar\s*</button>", corpo)
+    assert "Apagar os logins de todos os sites?" in _texto(corpo)
     assert "hx-confirm" not in html and "confirm(" not in html  # nada de diálogo do navegador
+
+
+@pytest.mark.parametrize("idioma", ["pt", "en"])
+def test_alerta_de_esquecer_em_pt_e_en(painel: Painel, idioma: str) -> None:
+    painel.idioma(idioma)
+    alerta = re.search(
+        r'<dialog id="alerta-esquecer".*?</dialog>', painel.http.get(GRUPO).text, re.S
+    )
+    assert alerta is not None
+    texto = _texto(alerta.group(0))
+    esperado = {
+        "pt": ("Apagar os logins de todos os sites?", "Esquecer", "Cancelar"),
+        "en": ("Delete the logins for all sites?", "Forget", "Cancel"),
+    }[idioma]
+    for trecho in esperado:
+        assert trecho in texto
+
+
+def test_grupos_do_login_e_das_ferramentas_tem_icone(painel: Painel) -> None:
+    html = painel.http.get(GRUPO).text
+    nav = re.search(r'<nav class="config-grupos".*?</nav>', html, re.S)
+    assert nav is not None
+    icones = dict(
+        re.findall(r'<a href="/configuracoes/([^"]+)" data-icone="([^"]+)"', nav.group(0))
+    )
+    assert icones["sites-com-login"] == "key-round"
+    assert icones["ferramentas"] == "globe"
 
 
 def test_nenhum_recurso_externo_na_pagina(painel: Painel) -> None:
@@ -537,7 +576,7 @@ _EM_ANDAMENTO = "Uma leitura está em andamento; tente de novo quando terminar."
 
 @pytest.mark.parametrize(
     ("metodo", "rota"),
-    [("POST", LOGIN), ("GET", LOGIN), ("POST", ESQUECER), ("POST", CONFIRMAR)],
+    [("POST", LOGIN), ("GET", LOGIN), ("POST", CONFIRMAR)],
 )
 def test_sem_leitor_rotas_de_login_e_esquecer_dao_404(
     sem_leitor: Painel, painel: Painel, login_falso: LoginFalso, metodo: str, rota: str
@@ -701,7 +740,9 @@ def test_cartao_tem_fazer_login_agora(painel: Painel, idioma: str) -> None:
 
 
 @pytest.mark.parametrize("idioma", ["pt", "en"])
-def test_esquecer_pede_confirmacao_e_so_apaga_no_segundo_post(painel: Painel, idioma: str) -> None:
+def test_esquecer_so_apaga_ao_confirmar_e_a_pergunta_antiga_saiu(
+    painel: Painel, idioma: str
+) -> None:
     painel.idioma(idioma)
     perfil = _perfil(painel)
     with closing(abrir(painel.banco)) as con:
@@ -710,22 +751,13 @@ def test_esquecer_pede_confirmacao_e_so_apaga_no_segundo_post(painel: Painel, id
     antes = _contagem(painel)
     assert antes == (1, 1)
 
-    primeira = painel.post(ESQUECER)
-    assert primeira.status_code == 200
-    texto = _texto(primeira.text)
-    pergunta, apagar, cancelar, apagados = {
-        "pt": ("Apagar os logins de todos os sites?", "Apagar", "Cancelar", "Logins apagados"),
-        "en": ("Delete the logins for all sites?", "Delete", "Cancel", "Logins deleted"),
-    }[idioma]
-    assert pergunta in texto
-    assert re.search(rf'<button\b[^>]*hx-post="{CONFIRMAR}"[^>]*>\s*{apagar}\s*<', primeira.text)
-    assert re.search(rf'<a\b[^>]*href="{GRUPO}"[^>]*>\s*{cancelar}\s*</a>', primeira.text)
-    assert "hx-confirm" not in primeira.text
+    assert painel.post(ESQUECER).status_code in (404, 405)  # a pergunta é o alerta da página
     assert perfil.exists() and (perfil / "Default" / "Cookies").exists()
 
-    segunda = painel.post(CONFIRMAR)
-    assert segunda.status_code == 200
-    assert apagados in _texto(segunda.text)
+    resposta = painel.post(CONFIRMAR)
+    assert resposta.status_code == 200
+    apagados = {"pt": "Logins apagados", "en": "Logins deleted"}[idioma]
+    assert apagados in _texto(resposta.text)
     assert not perfil.exists()
     assert _contagem(painel) == antes  # vagas e ocorrências intactas
     assert painel.http.get(GRUPO).status_code == 200

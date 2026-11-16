@@ -449,9 +449,88 @@ def test_toda_tela_com_apagar_em_details_liga_o_css_que_o_estiliza() -> None:
         assert estilizado, f'{modelo.name}: class="apagar" sem .apagar summary no CSS ligado'
 
 
-def test_buscas_carregam_o_interruptor_e_o_estilo_da_lista() -> None:
-    """O interruptor mini (30x18px) mora no configuracoes.css, que a lista de buscas liga."""
-    mini = _regra_de("configuracoes.css", ".chave-mini")
+def test_interruptor_mora_na_base_e_buscas_nao_liga_o_css_de_configuracoes() -> None:
+    """O interruptor (38x22px) e o mini (30x18px) moram no base.css, que toda página liga: a lista
+    de buscas não precisa mais do configuracoes.css."""
+    base = _base()
+    regras = {r.seletor: r for r in _regras(base) if not r.contexto}
+    assert {".chave", ".chave-mini"} <= regras.keys(), "base.css sem o interruptor"
+    mini = regras[".chave-mini"]
     assert (_valor(mini, "--larg"), _valor(mini, "--alt")) == ("1.875rem", "1.125rem")
+    assert (_valor(regras[".chave"], "--larg"), _valor(regras[".chave"], "--alt")) == (
+        "2.375rem",
+        "1.375rem",
+    )
+    assert ".chave" not in _sem_comentarios((PASTA / "configuracoes.css").read_text("utf-8"))
     modelo = (ESTATICOS.parent / "templates" / "buscas" / "lista.html").read_text(encoding="utf-8")
-    assert "/static/css/configuracoes.css" in modelo
+    assert "/static/css/configuracoes.css" not in modelo
+    assert "configuracoes.css" not in (PASTA / "buscas.css").read_text(encoding="utf-8")
+
+
+CAIXA = 'input[type="checkbox"]:not(.chave)'
+
+
+def _regra_da_caixa(seletor: str, *, contexto: tuple[str, ...] = ()) -> Regra:
+    achadas = [r for r in _regras(_base()) if r.seletor == seletor and r.contexto == contexto]
+    assert achadas, f"base.css sem a regra {seletor}"
+    return achadas[0]
+
+
+def test_caixa_de_marcar_14px_raio_4_e_visto_branco_sobre_o_destaque() -> None:
+    """Desenho 5.3: caixa de 14px, raio 4px, visto em --sobre-destaque sobre --destaque. Sem
+    transform no visto (o movimento reduzido o zera) e sem url(data:) (o CSP só aceita 'self')."""
+    caixa = _regra_da_caixa(CAIXA)
+    assert _valor(caixa, "appearance") == "none"
+    assert _valor(caixa, "inline-size") == _valor(caixa, "block-size") == "0.875rem"
+    assert _valor(caixa, "border-radius") == "4px"
+    marcada = _regra_da_caixa(f"{CAIXA}:checked")
+    assert _valor(marcada, "background-color") == "var(--destaque)"
+    visto = _regra_da_caixa(f"{CAIXA}::after")
+    assert _valor(visto, "background-color") == "var(--sobre-destaque)"
+    assert _valor(visto, "clip-path") is not None
+    assert "transform" not in visto.corpo and "data:" not in visto.corpo
+    assert _valor(_regra_da_caixa(f"{CAIXA}:checked::after"), "opacity") == "1"
+
+
+def test_caixa_de_marcar_tem_foco_desativada_e_cores_forcadas() -> None:
+    foco = _regra_da_caixa(f"{CAIXA}:focus-visible")
+    assert _valor(foco, "outline") == "2px solid var(--foco)"
+    desativada = _regra_da_caixa(f"{CAIXA}:disabled")
+    assert _valor(desativada, "opacity") == "0.45"
+    bloco = [r for r in _regras(_base()) if r.contexto == ("@media (forced-colors: active)",)]
+    na_caixa = [r for r in bloco if r.seletor.startswith(CAIXA)]
+    assert na_caixa, "a caixa de marcar não tem regra em cores forçadas"
+    texto = " ".join(r.corpo for r in na_caixa)
+    for cor in ("ButtonText", "Highlight", "HighlightText", "GrayText"):
+        assert cor in texto, cor
+
+
+def test_borda_da_caixa_de_marcar_cita_o_contraste() -> None:
+    """A borda da caixa desmarcada é --texto-2 (3:1 de objeto gráfico, WCAG 1.4.11), par já na
+    lista de contraste do base.css; o comentário da regra diz isso."""
+    css = BASE.read_text(encoding="utf-8")
+    assert f"{CAIXA} {{" in css, "base.css sem a regra da caixa de marcar"
+    antes = css[: css.index(f"{CAIXA} {{")]
+    comentario = antes[antes.rindex("/*") :]
+    assert "texto-2/superficie" in comentario and "sobre-destaque/destaque" in comentario
+    assert _valor(_regra_da_caixa(CAIXA), "border") == "1px solid var(--texto-2)"
+    lista = re.search(r"/\* contraste: ([^*]+)\*/", css)
+    assert lista is not None
+    pares = lista.group(1).split()
+    assert "texto-2/superficie" in pares and "sobre-destaque/destaque" in pares
+
+
+def test_classe_chave_so_em_caixa_de_marcar() -> None:
+    """`.chave` mora no base.css (global): só `<input>` a usa (um `<code>` virava trilho)."""
+    achados = []
+    for modelo in sorted((ESTATICOS.parent / "templates").rglob("*.html")):
+        for tag in re.findall(
+            r"<(\w+)[^>]*\bclass=\"[^\"]*(?<![\w-])chave(?:-mini)?(?![\w-])[^\"]*\"",
+            modelo.read_text("utf-8"),
+        ):
+            if tag != "input":
+                achados.append(f"{modelo.name}: <{tag}>")
+    assert not achados
+    assert not re.search(
+        r"(^|[\s,}])\.chave\b", _sem_comentarios((PASTA / "fontes.css").read_text("utf-8"))
+    )
