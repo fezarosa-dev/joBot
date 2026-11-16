@@ -29,7 +29,7 @@
   "detalhe.faixa.hoje": "ends today",
   "detalhe.faixa.vencido": "expired",
   "detalhe.faixa.hoje_marca": "Current month",
-  "detalhe.correcao.titulo": "Something wrong with this job?",
+  "detalhe.correcao.titulo": "Something Wrong with This Job?",
   "detalhe.correcao.vaga": "Job: {titulo}, {empresa}",
   "detalhe.correcao.dica": "Fix what is wrong, one item at a time. The job shows up corrected right away, and the correction also holds in future searches.",
   "detalhe.correcao.comentario": "Comment (optional)",

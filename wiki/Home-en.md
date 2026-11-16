@@ -70,6 +70,7 @@ It works for every kind of job and every field: full-time employment (CLT), cont
 |---|---|
 | 💡 [The idea and the story](The-idea-and-the-story) | Why joBot exists, what it does, what it does not do and its principles. |
 | ⚙️ [How it works](How-it-works) | The path of a job, from the source to the dashboard, and the two versions. |
+| ⌨️ [Keyboard shortcuts](Keyboard-shortcuts) | The dashboard's keys: command palette, job list, Undo and help. |
 | 🧰 [Technologies](Technologies) | The tools used and the reason for each one. |
 | 📚 [Decisions](Decisions) | Every project decision, each in one line. |
 | 🗺️ [Roadmap](Roadmap) | The 9 phases and which one we are in. |
