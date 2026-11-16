@@ -49,7 +49,7 @@ class Andamento:
     motivo: str
     iniciada_em: datetime
     batimento_em: datetime
-    escopos_prontos: int  # linhas de `saude` já gravadas nesta execução
+    escopos_prontos: int  # linhas de `saude` já gravadas nesta execução, fora as desligadas
     fontes_rodando: tuple[str, ...] = ()  # começaram e não terminaram, na ordem de começo
     coleta_acabou: bool = False  # toda fonte ligada começou e terminou: seguem detalhes e encaixe
 
@@ -264,7 +264,7 @@ def execucao_atual(con: sqlite3.Connection) -> Andamento | None:
     """A execução que roda; havendo mais de uma (tipos diferentes), a busca vem primeiro."""
     linha = con.execute(
         "SELECT e.id, e.tipo, e.motivo, e.iniciada_em, e.batimento_em,"
-        " (SELECT count(*) FROM saude WHERE execucao_id = e.id)"
+        " (SELECT count(*) FROM saude WHERE execucao_id = e.id AND estado <> 'desligada')"
         " FROM execucao e WHERE e.estado='rodando'"
         " ORDER BY e.tipo = 'busca' DESC, e.iniciada_em DESC LIMIT 1"
     ).fetchone()

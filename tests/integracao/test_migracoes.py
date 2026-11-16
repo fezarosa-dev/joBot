@@ -32,6 +32,8 @@ TABELAS = {
     "pagina_acompanhada",
     "mudanca_pagina",
     "config",
+    "andamento",
+    "andamento_fonte",
 }
 INDICES = {
     "execucao_uma_por_tipo",

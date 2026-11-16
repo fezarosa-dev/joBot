@@ -85,6 +85,9 @@ erDiagram
     fonte ||--o{ execucao_fonte : "fonte"
     execucao ||--o{ saude : "execucao_id"
     execucao ||--o{ execucao_fonte : "execucao_id"
+    execucao ||--o| andamento : "execucao_id"
+    execucao ||--o{ andamento_fonte : "execucao_id"
+    fonte ||--o{ andamento_fonte : "fonte"
     vaga ||--o{ local_vaga : "vaga_id"
     vaga ||--o{ ocorrencia : "vaga_id"
     vaga ||--o{ encaixe : "vaga_id"
@@ -128,6 +131,25 @@ erDiagram
         TEXT fonte PK, FK
         TEXT comecou_em
         TEXT terminou_em
+    }
+    andamento {
+        INTEGER execucao_id PK, FK
+        TEXT etapas
+        TEXT etapa
+        INTEGER feitas
+        INTEGER total
+        INTEGER total_planejado
+        REAL partida
+        TEXT mudou_em
+    }
+    andamento_fonte {
+        INTEGER execucao_id PK, FK
+        TEXT fonte PK, FK
+        TEXT estado
+        INTEGER feitas
+        INTEGER total
+        TEXT espera_ate
+        TEXT espera_motivo
     }
     saude {
         INTEGER execucao_id PK, FK
