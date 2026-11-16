@@ -47,5 +47,11 @@
   "casca.aviso_contas.um": "Sua sessão no {site} caiu. Entre de novo para o joBot voltar a ler as vagas.",
   "casca.aviso_contas.varios": "Sua sessão caiu em {quantos} contas. Entre de novo em Configurações › Contas.",
   "casca.aviso_contas.gmail": "Sua sessão no Gmail caiu. Entre de novo em Configurações › Contas.",
-  "casca.aviso_contas.entrar": "Entrar de novo"
+  "casca.aviso_contas.entrar": "Entrar de novo",
+  "casca.aviso_candidatura.pergunta": "Você se candidatou a {titulo} ({empresa})?",
+  "casca.aviso_candidatura.quando": "Você abriu a candidatura {quando}.",
+  "casca.aviso_candidatura.sim": "Sim, me candidatei",
+  "casca.aviso_candidatura.ainda_nao": "Ainda não",
+  "casca.aviso_candidatura.mais": "e mais {n} para responder",
+  "casca.aviso_candidatura.marcada": "{titulo} marcada como Candidatei."
 }
