@@ -428,6 +428,38 @@ GMAIL = {
 }
 
 
+PANORAMA = {
+    "titulo": set(),
+    "busca_contada": {"busca"},
+    "sem_busca": set(),
+    "vazio": set(),
+    "hoje.titulo": set(),
+    "candidaturas.titulo": set(),
+    "candidaturas.ver": set(),
+    "responder.titulo": set(),
+    "responder.vazio": set(),
+    "fecham.titulo": set(),
+    "fecham.prazo": {"data"},
+    "fecham.vazio": set(),
+    "fecham.ver": set(),
+    "busca.titulo": set(),
+    "busca.ultima": {"quando"},
+    "busca.nunca": set(),
+    "busca.proxima": {"hora"},
+    "busca.proxima_dia": {"dia", "hora"},
+    "busca.rodando": set(),
+    "busca.fontes_ok": set(),
+    "busca.fontes_problema": {"n"},
+    "busca.ver_fontes": set(),
+    "busca.contas": {"n"},
+    "busca.ver_contas": set(),
+    "aparece.titulo": set(),
+    "aparece.descricao": set(),
+    "aparece.mais_comum": {"valor", "n", "total"},
+    "aparece.ver": set(),
+}
+
+
 @pytest.mark.parametrize("idioma", ["pt", "en"])
 def test_gmail_tem_texto(idioma: str) -> None:
     """T278: as frases do cartão do Gmail nos dois idiomas, frase por frase, com o tutorial na
@@ -491,3 +523,22 @@ def test_detalhe_passos_e_email_tem_texto(idioma: str) -> None:
     # o template monta a chave por `t("detalhe.passos." ~ chave)`: todo passo tem texto
     for passo in ("vista", "abriu", *PASSOS):
         assert "{data}" in catalogo.get(f"detalhe.passos.{passo}", ""), passo
+
+
+@pytest.mark.parametrize("idioma", ["pt", "en"])
+def test_panorama_tem_texto(idioma: str) -> None:
+    """T288: as chaves `panorama.*` do desenho 5.8 mais a `proxima_dia` (E19), com os mesmos
+    parâmetros nos dois idiomas. A frase do estado vazio cita o botão pelo texto da chave dele."""
+    catalogo = i18n.carregar()[idioma]
+    achadas = {c.removeprefix("panorama.") for c in catalogo if c.startswith("panorama.")}
+    assert achadas == set(PANORAMA)
+    for chave, esperados in PANORAMA.items():
+        texto = catalogo[f"panorama.{chave}"]
+        assert texto, chave
+        assert set(re.findall(r"\{(\w+)\}", texto)) == esperados, chave
+    assert f'"{catalogo["execucao.buscar_agora"]}"' in catalogo["panorama.vazio"]
+    esperado = {
+        "pt": ("Panorama", "Próxima busca automática em {dia}, por volta das {hora}."),
+        "en": ("Overview", "Next automatic search on {dia}, around {hora}."),
+    }[idioma]
+    assert (catalogo["panorama.titulo"], catalogo["panorama.busca.proxima_dia"]) == esperado

@@ -258,7 +258,7 @@ def grupos_dos_chips(
     return grupos
 
 
-def _seletor(con: sqlite3.Connection, estado: Estado) -> list[dict[str, Any]]:
+def seletor_de_buscas(con: sqlite3.Connection, estado: Estado) -> list[dict[str, Any]]:
     """As buscas ativas (e a da URL, mesmo desligada), para o menu pop-up da barra da lista."""
     linhas = con.execute(
         "SELECT id, nome FROM busca WHERE ativa = 1 OR id = ? ORDER BY id", (estado.busca_id,)
@@ -305,7 +305,7 @@ def _contexto_pagina(
             mais_url = estado.url(extras=[("pagina", str(ate_pagina + 1))])
     return {
         "paginas_programas": _paginas_programas(con) if estado.aba == "programas" else [],
-        "seletor": _seletor(con, estado),
+        "seletor": seletor_de_buscas(con, estado),
         # o menu de busca manda a vista de agora (aba, filtros, ordem) e só troca a `busca`
         "campos_do_seletor": parse_qsl(urlsplit(replace(estado, busca_url=False).url()).query),
         "chips_url": None if estado.e_destaques else estado.url(caminho="/vagas/chips"),

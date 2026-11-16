@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% from "_seletor_busca.html" import seletor_busca with context %}
+{% block titulo %}{{ t("panorama.titulo") }} · joBot{% endblock %}
+{% block estilos %}<link rel="stylesheet" href="/static/css/vagas.css"><link rel="stylesheet" href="/static/css/panorama.css">{% endblock %}
+{#- o rótulo do chip como a lista de Vagas o escreve (vagas/chips.html) -#}
+{%- macro texto_do_chip(chip) -%}{{ chip.texto or (rotulo(chip.chave, chip.valor) if chip.chave else chip.valor) }}{%- endmacro -%}
+{#- A tela Panorama (T288; desenho 5.1 a 5.3 e 5.10). Os quatro grupos têm ordem fixa e um h2 cada.
+    O miolo é o que a troca de busca refaz: o menu manda a página inteira e o HTMX tira dela só o
+    #panorama-miolo (hx-select). -#}
+{% block conteudo %}
+<h1 class="titulo-pagina">{{ t("panorama.titulo") }}</h1>
+<div id="panorama-miolo" class="panorama">
+{%- if vazio %}
+  <p class="panorama-vazio">{{ t("panorama.vazio") }}</p>
+{%- else %}
+  <div class="barra-lista">
+    {{- seletor_busca(seletor, [], "/panorama", "#panorama-miolo", "#panorama-miolo") }}
+    <p class="busca-contada">{{ t("panorama.busca_contada", busca=busca.nome) if busca else t("panorama.sem_busca") }}</p>
+  </div>
+
+  <section class="painel" aria-labelledby="panorama-hoje">
+    <h2 id="panorama-hoje">{{ t("panorama.hoje.titulo") }}</h2>
+    <ul class="numeros">
+      {%- for aba, n, url in hoje %}
+      <li><a href="{{ url }}"><span class="numero">{{ n }}</span><span class="rotulo">{{ t("vagas.aba." ~ aba) }}</span></a></li>
+      {%- endfor %}
+    </ul>
+  </section>
+
+  <section class="painel" aria-labelledby="panorama-candidaturas">
+    <h2 id="panorama-candidaturas">{{ t("panorama.candidaturas.titulo") }}</h2>
+    <ul class="passos">
+      {%- for status, n in passos %}
+      <li><span class="rotulo">{{ t("vagas.status." ~ status) }}</span> <span class="numero">{{ n }}</span></li>
+      {%- endfor %}
+    </ul>
+    <p><a href="{{ url_candidatei }}">{{ t("panorama.candidaturas.ver") }}</a></p>
+    <div class="bloco">
+      <h3 id="panorama-responder">{{ t("panorama.responder.titulo") }}</h3>
+      <div id="para-responder" hx-get="/panorama/para-responder" hx-trigger="candidatura-mudou from:body">
+        {%- include "panorama/_para_responder.html" %}
+      </div>
+    </div>
+    <div class="bloco">
+      <h3 id="panorama-fecham">{{ t("panorama.fecham.titulo") }}</h3>
+      {%- if fecham %}
+      <ul class="fecham">
+        {%- for f in fecham %}
+        <li><a href="/vagas/{{ f.vaga_id }}">{{ f.titulo }}</a> <span class="empresa">{{ f.empresa }}</span> <span class="prazo">{{ t("panorama.fecham.prazo", data=data_curta(f.prazo, idioma)) }}</span></li>
+        {%- endfor %}
+      </ul>
+      {%- else %}
+      <p class="nada">{{ t("panorama.fecham.vazio") }}</p>
+      {%- endif %}
+      <p><a href="{{ url_salvas }}">{{ t("panorama.fecham.ver") }}</a></p>
+    </div>
+  </section>
+{%- endif %}
+
+  <section class="painel" aria-labelledby="panorama-busca">
+    <h2 id="panorama-busca">{{ t("panorama.busca.titulo") }}</h2>
+    <ul class="linhas-busca">
+      <li>{{ t("panorama.busca.ultima", quando=ultima) if ultima else t("panorama.busca.nunca") }}</li>
+      {%- if rodando %}
+      <li>{{ t("panorama.busca.rodando") }}</li>
+      {%- elif proxima and proxima.dia %}
+      <li>{{ t("panorama.busca.proxima_dia", dia=proxima.dia, hora=proxima.hora) }}</li>
+      {%- elif proxima %}
+      <li>{{ t("panorama.busca.proxima", hora=proxima.hora) }}</li>
+      {%- endif %}
+      {%- if fontes_problema %}
+      <li>{{ t("panorama.busca.fontes_problema", n=fontes_problema) }} <a href="/fontes">{{ t("panorama.busca.ver_fontes") }}</a></li>
+      {%- elif fontes_ok %}
+      <li>{{ t("panorama.busca.fontes_ok") }}</li>
+      {%- endif %}
+      {%- if contas %}
+      <li>{{ t("panorama.busca.contas", n=contas) }} <a href="/configuracoes/contas">{{ t("panorama.busca.ver_contas") }}</a></li>
+      {%- endif %}
+    </ul>
+  </section>
+
+{%- if not vazio %}
+  <section class="painel" aria-labelledby="panorama-aparece">
+    <h2 id="panorama-aparece">{{ t("panorama.aparece.titulo") }}</h2>
+    <p class="descricao">{{ t("panorama.aparece.descricao") }}</p>
+    {%- for bloco in blocos %}
+    <div class="bloco" role="group" aria-labelledby="panorama-aparece-{{ bloco.nome }}">
+      <h3 id="panorama-aparece-{{ bloco.nome }}">{{ t("vagas.chip." ~ bloco.nome) }}</h3>
+      <p class="mais-comum">{{ t("panorama.aparece.mais_comum", valor=texto_do_chip(bloco.mais_comum), n=bloco.mais_comum.n, total=total) }}</p>
+      <ul class="barras">
+        {%- for chip in bloco.chips %}
+        <li><a href="{{ chip.url }}"><span class="rotulo">{{ texto_do_chip(chip) }}</span><span class="so-leitor">, </span><svg class="barra" aria-hidden="true" focusable="false"><rect width="{{ chip.pct }}%" height="100%"/></svg><span class="numero">{{ chip.n }}</span></a></li>
+        {%- endfor %}
+      </ul>
+      {%- if bloco.ver %}
+      <p><a href="{{ bloco.ver }}">{{ t("panorama.aparece.ver") }}</a></p>
+      {%- endif %}
+    </div>
+    {%- endfor %}
+  </section>
+{%- endif %}
+</div>
+{% endblock %}
