@@ -172,8 +172,10 @@ def test_sem_leitor_o_interruptor_da_404(sem_leitor: Painel) -> None:
     assert sem_leitor.ligada() == 0
 
 
-def test_o_grupo_e_o_ultimo_das_abas(painel: Painel) -> None:
-    assert _abas(painel.http.get("/configuracoes/fontes").text)[-1] == GRUPO
+def test_o_grupo_e_o_penultimo_das_abas(painel: Painel) -> None:
+    """Ferramentas (T240) entra por último; Sites com login vem logo antes."""
+    abas = _abas(painel.http.get("/configuracoes/fontes").text)
+    assert abas[-2:] == [GRUPO, "/configuracoes/ferramentas"]
 
 
 # ------------------------------------------------------------------ o interruptor
@@ -373,6 +375,23 @@ def test_estado_do_navegador(painel: Painel, achado: str | None, idioma: str) ->
 def test_sem_calculo_do_serve_o_navegador_conta_como_nenhum(painel: Painel) -> None:
     assert not hasattr(painel.app.state, "navegador_instalado")
     assert TEXTOS["pt"]["nenhum"] in _texto(painel.http.get(GRUPO).text)
+
+
+@pytest.mark.parametrize("idioma", ["pt", "en"])
+def test_sites_com_login_aponta_ferramentas(painel: Painel, idioma: str) -> None:
+    """Sem navegador, a aba diz onde baixar e leva a Ferramentas (T240; D137.8)."""
+    painel.idioma(idioma)
+    painel.app.state.navegador_instalado = None
+    link = 'href="/configuracoes/ferramentas"'  # a aba já tem um; o atalho é o segundo
+    html = painel.http.get(GRUPO).text
+    assert html.count(link) == 2
+    em_ferramentas = {
+        "pt": "baixe o navegador em Ferramentas",
+        "en": "download the browser in Tools",
+    }
+    assert em_ferramentas[idioma] in _texto(html)
+    painel.app.state.navegador_instalado = "chrome"  # controle: com navegador, sem o atalho
+    assert painel.http.get(GRUPO).text.count(link) == 1
 
 
 def test_aba_nao_sobe_o_driver(painel: Painel, monkeypatch: pytest.MonkeyPatch) -> None:

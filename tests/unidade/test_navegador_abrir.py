@@ -197,21 +197,43 @@ async def test_preferencias_gravadas_antes_de_abrir(tmp_path: Path) -> None:
     assert visto == [True]
 
 
-async def test_navegador_instalado(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    chrome = tmp_path / "chrome"
-    chromium = tmp_path / "chromium"
+def _chromium_falso(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, criar: bool) -> Path:
+    """O executável no lugar onde o Playwright o põe (`chromium-<n>/chrome-linux64/chrome`)."""
+    executavel = tmp_path / "chromium-1" / "chrome-linux64" / "chrome"
+    executavel.parent.mkdir(parents=True)
+    if criar:
+        executavel.touch()
 
     class _Gerenciador:
         async def __aenter__(self) -> _Playwright:
-            return _Playwright(str(chromium))
+            return _Playwright(str(executavel))
 
         async def __aexit__(self, *saida: object) -> None:
             return None
 
-    monkeypatch.setattr(abrir, "CAMINHO_CHROME", chrome)
     monkeypatch.setattr(abrir, "async_playwright", _Gerenciador)
+    return executavel
+
+
+@pytest.mark.parametrize("com_marca", [False, True], ids=["sem-marca", "com-marca"])
+async def test_chromium_sem_marca_de_instalacao_nao_conta(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, com_marca: bool
+) -> None:
+    monkeypatch.setattr(abrir, "CAMINHO_CHROME", tmp_path / "nao-existe")
+    executavel = _chromium_falso(tmp_path, monkeypatch, criar=True)
+    if com_marca:
+        (tmp_path / "chromium-1" / "INSTALLATION_COMPLETE").touch()
+    # um download cortado deixa o executável sem a marca: não passa por instalado (D137.6)
+    assert await caminho_do_navegador() == (executavel if com_marca else None)
+
+
+async def test_navegador_instalado(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    chrome = tmp_path / "chrome"
+    chromium = _chromium_falso(tmp_path, monkeypatch, criar=False)
+    monkeypatch.setattr(abrir, "CAMINHO_CHROME", chrome)
     assert await navegador_instalado() is None
     chromium.touch()
+    (chromium.parents[1] / "INSTALLATION_COMPLETE").touch()
     assert await navegador_instalado() == "chromium"
     chrome.touch()
     assert await navegador_instalado() == "chrome"

@@ -1,0 +1,7 @@
+{#- o status e os cartões dos sites com login: o grupo em Configurações e o passo do assistente (T241) -#}
+<p id="status-sites" role="status" aria-live="polite" class="config-salvo"></p>
+<div class="cartoes-site">
+  {%- for c in cartoes %}
+  {% include "configuracoes/_cartao_site_login.html" %}
+  {%- endfor %}
+</div>
