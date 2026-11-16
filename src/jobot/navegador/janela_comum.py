@@ -90,7 +90,7 @@ def janela_de_producao() -> JanelaComum:
     return JanelaComum(caminho=caminho_do_navegador, abrir=abrir)
 
 
-async def _fechar(janela: Janela) -> None:
+async def encerrar(janela: Janela) -> None:
     """SIGTERM, espera `limites.ESPERA_SAIR_JANELA_S` e só então SIGKILL (D136.3)."""
     with contextlib.suppress(ProcessLookupError):  # saiu entre o prazo e o sinal
         janela.terminate()
@@ -111,10 +111,10 @@ async def esperar_fechar(janela: Janela) -> bool:
         async with asyncio.timeout(limites.PRAZO_LOGIN_MANUAL_S):
             codigo = await janela.wait()
     except TimeoutError:
-        await _fechar(janela)
+        await encerrar(janela)
         return False
     except BaseException:  # cancelamento ou erro na espera: a janela não fica aberta sozinha
-        await _fechar(janela)
+        await encerrar(janela)
         raise
     if codigo != 0:
         _LOG.warning("janela comum saiu com o código %s", codigo)

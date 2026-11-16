@@ -36,6 +36,7 @@ from jobot.banco.captcha import NOME_NO_COFRE
 from jobot.banco.execucoes import LinhaSaude, leitura_login_rodando, ultimas_que_rodaram
 from jobot.navegador import limites
 from jobot.navegador.execucao import dependencias_de_producao
+from jobot.navegador.instalador import baixar_chromium, remover_chromium
 from jobot.navegador.janela_comum import janela_de_producao
 from jobot.navegador.login_manual import fazer_login
 from jobot.navegador.perfil import apagar_perfil
@@ -45,7 +46,14 @@ from jobot.nucleo.horarios import horarios_validos
 from jobot.nucleo.leitores.base import LeitorComLogin
 from jobot.nucleo.leitores.registro import leitores
 from jobot.nucleo.tratamento.locais import codigos_de_pais
-from jobot.painel.ambiente import ambiente_do_painel, cofre_do_painel, no_linux, rodar_do_painel
+from jobot.painel.ambiente import (
+    abrir_instalador_do_painel,
+    ambiente_do_painel,
+    cofre_do_painel,
+    ler_navegador_do_painel,
+    no_linux,
+    rodar_do_painel,
+)
 from jobot.painel.formatos import opcoes_de_pais
 from jobot.painel.rotas.execucao import criar_tarefa
 from jobot.painel.rotas.fontes import estado_dos_escopos, motivo_mais_grave
@@ -66,8 +74,11 @@ GRUPOS = (
     "privacidade",
     "servicos",
     "sites-com-login",
+    "ferramentas",
 )
 _COM_LOGIN = "sites-com-login"
+_FERRAMENTAS = "ferramentas"
+_SO_COM_LEITOR = (_COM_LOGIN, _FERRAMENTAS)  # hoje a única ferramenta é o navegador do login
 FUNCOES = (
     "descoberta_cc_ligada",
     "paginas_ligadas",
@@ -86,15 +97,17 @@ _PARCIAIS = {
     "privacidade": "privacidade",
     "servicos": "servicos",
     "sites-com-login": "sites_com_login",
+    "ferramentas": "ferramentas",
 }
 
 
 def grupos_visiveis(leitores: Sequence[LeitorComLogin]) -> tuple[str, ...]:
-    """Os grupos da página: "Sites com login" só existe com leitor registrado (D132.23)."""
-    return GRUPOS if leitores else tuple(g for g in GRUPOS if g != _COM_LOGIN)
+    """Os grupos da página: "Sites com login" e "Ferramentas" só existem com leitor registrado
+    (D132.23, D137.12)."""
+    return GRUPOS if leitores else tuple(g for g in GRUPOS if g not in _SO_COM_LEITOR)
 
 
-def _leitores(request: Request) -> Sequence[LeitorComLogin]:
+def leitores_do_painel(request: Request) -> Sequence[LeitorComLogin]:
     # o teste põe os leitores em `app.state` (E2); sem eles vale o registro
     registrados: Sequence[LeitorComLogin] = getattr(request.app.state, "leitores", leitores())
     return registrados
@@ -178,7 +191,7 @@ def _cartoes_de_sites(request: Request, con: sqlite3.Connection) -> list[dict[st
     saude = ultimas_que_rodaram(con)
     lendo = leitura_login_rodando(con)
     cartoes: list[dict[str, Any]] = []
-    for leitor in _leitores(request):
+    for leitor in leitores_do_painel(request):
         ligada = ligadas.get(leitor.chave, False)
         ultima = _ultima_leitura(saude.get(leitor.chave, {}))
         cartoes.append(
@@ -196,13 +209,50 @@ def _cartoes_de_sites(request: Request, con: sqlite3.Connection) -> list[dict[st
     return cartoes
 
 
-async def _ctx_sites_com_login(request: Request, con: Con) -> dict[str, Any]:
+async def contexto_sites_com_login(request: Request, con: Con) -> dict[str, Any]:
     achado = getattr(request.app.state, "navegador_instalado", None)  # nunca sobe o driver (E8)
     return {
         "navegador": achado if achado in ("chrome", "chromium") else "nenhum",
         "cartoes": _cartoes_de_sites(request, con),
         "horarios_texto": _horarios_em_texto(con),
     }
+
+
+def _ferramentas(request: Request) -> dict[str, str]:
+    """O estado do que roda ou do último resultado de cada ferramenta (D137.4)."""
+    estado = request.app.state
+    if getattr(estado, "ferramentas", None) is None:  # sem o lifespan do `serve`
+        estado.ferramentas = {}
+    ferramentas: dict[str, str] = estado.ferramentas
+    return ferramentas
+
+
+_RODANDO = ("baixando", "removendo")
+_TERMINAIS = ("pronto", "removido", "continua", "falhou_baixar", "falhou_remover")
+
+
+def contexto_ferramenta_navegador(request: Request) -> dict[str, Any]:
+    """O navegador, o resultado e o rótulo do estado; resultado terminal aparece uma vez só
+    (D137.4): a leitura que o devolve também o apaga."""
+    achado = getattr(request.app.state, "navegador_instalado", None)
+    navegador = achado if achado in ("chrome", "chromium") else None
+    ferramentas = _ferramentas(request)
+    resultado = ferramentas.get("navegador")
+    if resultado in _TERMINAIS:
+        ferramentas.pop("navegador")
+    if resultado in _RODANDO:
+        estado = resultado
+    elif resultado in ("falhou_baixar", "falhou_remover"):
+        estado = "falhou"
+    elif navegador == "chrome":
+        estado = "chrome"
+    else:
+        estado = "instalado" if navegador == "chromium" else "nao_instalado"
+    return {"navegador": navegador, "resultado": resultado, "estado": estado}
+
+
+async def _contexto_ferramentas(request: Request, con: Con) -> dict[str, Any]:
+    return contexto_ferramenta_navegador(request)
 
 
 _CONTEXTOS: dict[str, Contexto] = {
@@ -212,7 +262,8 @@ _CONTEXTOS: dict[str, Contexto] = {
     "aparencia": _ctx_aparencia,
     "privacidade": _ctx_privacidade,
     "servicos": contexto_captcha,
-    "sites-com-login": _ctx_sites_com_login,
+    "sites-com-login": contexto_sites_com_login,
+    "ferramentas": _contexto_ferramentas,
 }
 
 
@@ -223,7 +274,7 @@ async def _pagina(
         "grupo": grupo,
         "abas": [
             (g, "configuracoes.grupo." + g.replace("-", "_"))
-            for g in grupos_visiveis(_leitores(request))
+            for g in grupos_visiveis(leitores_do_painel(request))
         ],
         "parcial": f"configuracoes/{_PARCIAIS[grupo]}.html",
         "erro": None,
@@ -237,7 +288,7 @@ async def _pagina(
 
 
 def _grupo_valido(request: Request, grupo: str) -> str:
-    if grupo not in grupos_visiveis(_leitores(request)):
+    if grupo not in grupos_visiveis(leitores_do_painel(request)):
         raise HTTPException(404)
     return grupo
 
@@ -405,14 +456,17 @@ async def mostrar(request: Request, con: Con, grupo: str) -> Response:
 
 @router.post("/{grupo}")
 async def gravar(request: Request, con: Con, grupo: str) -> Response:
-    return await _GRAVADORES[_grupo_valido(request, grupo)](request, con)
+    gravador = _GRAVADORES.get(_grupo_valido(request, grupo))
+    if gravador is None:  # "Ferramentas" não tem formulário: cada ação tem a sua rota
+        raise HTTPException(405)
+    return await gravador(request, con)
 
 
 @router.post(f"/{_COM_LOGIN}/{{chave}}/interruptor")
 async def interruptor_do_site(request: Request, con: Con, chave: str) -> Response:
     """Liga ou desliga um site na hora (D132.8); só chave de leitor, nunca de fonte pública."""
     _grupo_valido(request, _COM_LOGIN)
-    if chave not in {leitor.chave for leitor in _leitores(request)}:
+    if chave not in {leitor.chave for leitor in leitores_do_painel(request)}:
         raise HTTPException(404)
     ligar = "ligada" in await request.form()
     try:
@@ -435,19 +489,23 @@ def _minutos_de_login() -> int:
 def _leitor(request: Request, chave: str) -> LeitorComLogin:
     """Só chave de leitor registrado; sem leitor o grupo nem existe (404)."""
     _grupo_valido(request, _COM_LOGIN)
-    for leitor in _leitores(request):
+    for leitor in leitores_do_painel(request):
         if leitor.chave == chave:
             return leitor
     raise HTTPException(404)
 
 
-def _trava_de_login(request: Request) -> asyncio.Lock:
-    # a mesma trava da leitura com login (o `serve` cria); app sem o lifespan cria a sua
+def _trava(request: Request, nome: str) -> asyncio.Lock:
+    # as travas do `serve` (a de login é a mesma da leitura); app sem o lifespan cria as suas
     estado = request.app.state
     if not hasattr(estado, "travas"):
         estado.travas = {}
-    trava: asyncio.Lock = estado.travas.setdefault("login", asyncio.Lock())
+    trava: asyncio.Lock = estado.travas.setdefault(nome, asyncio.Lock())
     return trava
+
+
+def _trava_de_login(request: Request) -> asyncio.Lock:
+    return _trava(request, "login")
 
 
 def _estados_de_login(request: Request) -> dict[str, str]:
@@ -532,3 +590,88 @@ async def esquecer_logins_confirmado(request: Request) -> Response:
         trava.release()
     _estados_de_login(request).clear()  # o "Login feito" de antes não vale mais
     return renderizar(request, "configuracoes/_esquecer.html", fase="apagados")
+
+
+# --- ferramentas: o navegador dos sites com login (T240; D137.1 a D137.8, D137.12 a D137.14) ---
+
+_NAVEGADOR = "/ferramentas/navegador"
+
+
+def _fragmento_do_navegador(request: Request, **ctx: Any) -> Response:
+    return renderizar(
+        request,
+        "configuracoes/_ferramenta_navegador.html",
+        **(contexto_ferramenta_navegador(request) | ctx),
+    )
+
+
+@router.get(_NAVEGADOR)
+async def estado_do_navegador(request: Request) -> Response:
+    """O HTMX pergunta a cada 5 s; enquanto baixa ou remove, 204 (nada troca na tela)."""
+    _grupo_valido(request, _FERRAMENTAS)
+    if _ferramentas(request).get("navegador") in _RODANDO:
+        return Response(status_code=204)
+    return _fragmento_do_navegador(request)
+
+
+@router.post(_NAVEGADOR + "/baixar")
+async def baixar_navegador(request: Request) -> Response:
+    """Baixa o Chromium do Playwright em segundo plano; um download por vez (D137.4)."""
+    _grupo_valido(request, _FERRAMENTAS)
+    trava = _trava(request, "navegador")
+    if getattr(request.app.state, "navegador_instalado", None) or trava.locked():
+        return _fragmento_do_navegador(request)
+    # tudo que pode falhar vem antes do acquire: depois dele, só o que não solta exceção
+    abrir = abrir_instalador_do_painel(request)
+    ler = ler_navegador_do_painel(request)
+    ferramentas = _ferramentas(request)
+    await trava.acquire()  # livre: não suspende, então a checagem acima vale
+    ferramentas["navegador"] = "baixando"
+
+    async def baixar() -> None:
+        resultado = "falhou_baixar"  # erro inesperado sai assim; o `rodar` registra e solta
+        try:
+            if await baixar_chromium(abrir) == "pronto":
+                request.app.state.navegador_instalado = await ler()
+                if request.app.state.navegador_instalado:
+                    resultado = "pronto"
+                else:
+                    _LOG.warning("o instalador terminou, mas o navegador não apareceu no disco")
+        finally:
+            ferramentas["navegador"] = resultado
+
+    criar_tarefa(request, "baixar navegador", trava, baixar)
+    return _fragmento_do_navegador(request)
+
+
+@router.post(_NAVEGADOR + "/remover")
+async def remover_navegador(request: Request) -> Response:
+    """Remove o Chromium do Playwright, nunca com o navegador aberto num site (D137.13)."""
+    _grupo_valido(request, _FERRAMENTAS)
+    trava = _trava(request, "navegador")
+    login = _trava_de_login(request)
+    if getattr(request.app.state, "navegador_instalado", None) != "chromium" or trava.locked():
+        return _fragmento_do_navegador(request)
+    if login.locked():  # leitura ou login com o navegador aberto: só nesta resposta
+        return _fragmento_do_navegador(request, resultado="em_uso")
+    abrir = abrir_instalador_do_painel(request)
+    ler = ler_navegador_do_painel(request)
+    ferramentas = _ferramentas(request)
+    await trava.acquire()  # as duas livres: nenhum acquire suspende
+    await login.acquire()
+    ferramentas["navegador"] = "removendo"
+
+    async def remover() -> None:
+        resultado = "falhou_remover"
+        try:
+            if await remover_chromium(abrir) == "pronto":
+                request.app.state.navegador_instalado = await ler()
+                # outra instalação do Playwright pode usar a mesma pasta: o uninstall a mantém
+                ficou = request.app.state.navegador_instalado == "chromium"
+                resultado = "continua" if ficou else "removido"
+        finally:
+            ferramentas["navegador"] = resultado
+            login.release()
+
+    criar_tarefa(request, "remover navegador", trava, remover)
+    return _fragmento_do_navegador(request)

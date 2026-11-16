@@ -101,7 +101,10 @@ async def caminho_do_navegador() -> Path | None:
         return CAMINHO_CHROME
     async with async_playwright() as playwright:
         chromium = Path(playwright.chromium.executable_path)
-    return chromium if chromium.exists() else None
+    # o Playwright grava a marca no fim do download: sem ela o Chromium está pela metade
+    # shortcut: marca conferida só em Linux e Windows; revisar quando o Mac entrar
+    pronto = chromium.exists() and (chromium.parents[1] / "INSTALLATION_COMPLETE").exists()
+    return chromium if pronto else None
 
 
 async def navegador_instalado() -> Literal["chrome", "chromium"] | None:

@@ -40,6 +40,6 @@
   {% if not linux %}<input type="hidden" name="segundo_plano" value="desligar">{% endif %}
   <div class="acoes">
     <button type="submit" class="botao botao-primario">{{ t("primeira_execucao.p2.concluir") }}</button>
-    <a class="botao botao-secundario" href="/primeira-execucao/1{% if resumo %}?busca={{ busca_id }}{% endif %}">{{ t("primeira_execucao.p2.voltar") }}</a>
+    <a class="botao botao-secundario" href="{{ voltar_url }}{% if resumo %}?busca={{ busca_id }}{% endif %}">{{ t("primeira_execucao.p2.voltar", n=voltar_n) }}</a>
   </div>
 </form>

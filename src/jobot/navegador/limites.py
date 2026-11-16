@@ -36,3 +36,6 @@ ESPERA_429_S: Final = ESPERAS_LIMITE[0]  # 429 sem `Retry-After`: o número úni
 # Técnico, fora da D132: resposta em fluxo (long-poll) nunca entrega o corpo; `prontas()` espera
 # os corpos só este tempo e cancela os que sobrarem.
 PRAZO_CORPOS_S: Final = 10.0
+# Instalador do navegador (T240): o processo do Playwright que baixa ou remove o Chromium.
+PRAZO_BAIXAR_S: Final = 1800  # download do Chromium; 210 MB cabem a 1 Mbit/s (D137.3)
+PRAZO_REMOVER_S: Final = 300  # o uninstall só apaga pastas locais (D137.13)
