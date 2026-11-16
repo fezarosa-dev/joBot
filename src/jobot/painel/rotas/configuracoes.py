@@ -77,6 +77,23 @@ GRUPOS = (
     "sites-com-login",
     "ferramentas",
 )
+# um ícone Lucide por grupo (T262), na ordem de GRUPOS; o desenho é a máscara em configuracoes.css
+_ICONES = dict(
+    zip(
+        GRUPOS,
+        (
+            "sliders-horizontal",
+            "rss",
+            "toggle-right",
+            "timer",
+            "shield",
+            "plug",
+            "key-round",
+            "globe",
+        ),
+        strict=True,
+    )
+)
 _COM_LOGIN = "sites-com-login"
 _FERRAMENTAS = "ferramentas"
 _SO_COM_LEITOR = (_COM_LOGIN, _FERRAMENTAS)  # hoje a única ferramenta é o navegador do login
@@ -274,7 +291,7 @@ async def _pagina(
     contexto: dict[str, Any] = {
         "grupo": grupo,
         "abas": [
-            (g, "configuracoes.grupo." + g.replace("-", "_"))
+            (g, "configuracoes.grupo." + g.replace("-", "_"), _ICONES[g])
             for g in grupos_visiveis(leitores_do_painel(request))
         ],
         "parcial": f"configuracoes/{_PARCIAIS[grupo]}.html",
@@ -573,16 +590,9 @@ async def estado_do_login(request: Request, chave: str) -> Response:
     return _fragmento_de_login(request, chave, estado)
 
 
-@router.post(f"/{_COM_LOGIN}/esquecer")
-async def esquecer_logins(request: Request) -> Response:
-    """Primeiro clique: só a pergunta, no próprio fragmento (sem diálogo do navegador)."""
-    _grupo_valido(request, _COM_LOGIN)
-    return renderizar(request, "configuracoes/_esquecer.html", fase="pergunta")
-
-
 @router.post(f"/{_COM_LOGIN}/esquecer/confirmar")
 async def esquecer_logins_confirmado(request: Request) -> Response:
-    """Segundo clique: apaga a pasta do perfil, nunca com leitura ou login rodando (D132.22)."""
+    """Confirma o alerta: apaga a pasta do perfil, nunca com leitura ou login rodando (D132.22)."""
     _grupo_valido(request, _COM_LOGIN)
     trava = _trava_de_login(request)
     if trava.locked():

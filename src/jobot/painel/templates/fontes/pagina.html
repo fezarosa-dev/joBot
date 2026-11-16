@@ -18,7 +18,7 @@
   <li class="cartao{% if not c.ligada %} cartao-oculta{% endif %}" id="fonte-{{ c.chave }}">
     <div class="cartao-cabeca">
       <h2 class="cartao-titulo">{{ rotulo("fonte." ~ c.chave, c.chave) }}</h2>
-      <code class="chave">{{ c.chave }}</code>
+      <code class="fonte-chave">{{ c.chave }}</code>
       <span class="selo selo-{{ c.estado }}">{{ t("fontes.estado." ~ c.estado) }}</span>
     </div>
     <dl class="dados">

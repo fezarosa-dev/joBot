@@ -4,13 +4,15 @@
 {% block conteudo %}
 <section class="config">
   <h1 class="config-titulo">{{ t("configuracoes.titulo") }}</h1>
+  <div class="config-corpo">
   <nav class="config-grupos" aria-label="{{ t('configuracoes.grupos') }}">
     <ul>
-      {%- for slug, chave in abas %}
-      <li><a href="/configuracoes/{{ slug }}"{% if slug == grupo %} aria-current="page"{% endif %}>{{ t(chave) }}</a></li>
+      {%- for slug, chave, icone in abas %}
+      <li><a href="/configuracoes/{{ slug }}" data-icone="{{ icone }}"{% if slug == grupo %} aria-current="page"{% endif %}>{{ t(chave) }}</a></li>
       {%- endfor %}
     </ul>
   </nav>
+  <div class="config-conteudo">
   {% if motivo %}
   <div class="config-alerta" role="alert">
     <strong>{{ t("configuracoes.segundo_plano.recusa") }}</strong>
@@ -25,5 +27,7 @@
   <p role="status" class="config-salvo" aria-live="polite"><span data-some-sozinho>{{ t("configuracoes.salvo") }}</span></p>
   {% endif %}
   {% include parcial %}
+  </div>
+  </div>
 </section>
 {% endblock %}

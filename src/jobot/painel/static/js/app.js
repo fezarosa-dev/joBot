@@ -923,6 +923,25 @@
     true, // close não sobe: só a captura o vê no document
   );
 
+  // último grupo de Configurações (T262): ao abrir um grupo, o slug fica guardado; o item da lateral
+  // e ⌘, (Ctrl+, fora do Mac) levam a ele. Sem registro, sem armazenamento ou sem JavaScript, o
+  // href do HTML (/configuracoes/geral) vale.
+  const GRUPO_GUARDADO = "jobot.configuracoes.grupo";
+  const slugValido = (slug) => typeof slug === "string" && /^[a-z]+(-[a-z]+)*$/.test(slug);
+  const grupoAberto = document.querySelector('.config-grupos a[aria-current="page"]');
+  const slugAberto = grupoAberto?.getAttribute("href")?.split("/").pop();
+  if (slugValido(slugAberto)) guardar(GRUPO_GUARDADO, slugAberto);
+  const itemConfiguracoes = document.querySelector("a[data-abre-configuracoes]");
+  const ultimoGrupo = lerGuardado(GRUPO_GUARDADO);
+  if (itemConfiguracoes && slugValido(ultimoGrupo)) itemConfiguracoes.href = `/configuracoes/${ultimoGrupo}`;
+  document.addEventListener("keydown", (evento) => {
+    if (evento.key !== "," || evento.altKey || evento.shiftKey) return;
+    if (noMac ? !evento.metaKey || evento.ctrlKey : !evento.ctrlKey || evento.metaKey) return;
+    if (!itemConfiguracoes || alertaAberto()) return;
+    evento.preventDefault();
+    itemConfiguracoes.click();
+  });
+
   // componente de progresso (T252; desenho 5.9). O CSP barra o atributo style, então a largura vem
   // de data-valor e anda numa animação linear de 2 s a partir da largura que estava na tela antes
   // da troca (a animação não escreve no style). A pergunta de 2 s recria o "Ver detalhes": aberto

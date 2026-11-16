@@ -74,23 +74,49 @@ def test_estado_do_navegador_e_botao_esquecer_na_tela(page: Page, painel: str) -
     expect(page.get_by_label("Horários (hora local)")).to_have_value("09:00, 18:00")
 
 
-def test_esquecer_logins_confirma_na_pagina(page: Page, painel: str, tmp_path: Path) -> None:
-    # sem tratador de `dialog`: um `confirm()` do navegador seria recusado e nada apagaria
+def _perfil_com_login(tmp_path: Path) -> Path:
     perfil = tmp_path / PASTA_NAVEGADOR
     (perfil / "Default").mkdir(parents=True)
     (perfil / "Default" / "Cookies").write_text("sessao")
-    page.goto(f"{painel}/configuracoes/sites-com-login")
+    return perfil
 
+
+def test_esquecer_abre_o_alerta_e_cancelar_nao_apaga(
+    page: Page, painel: str, tmp_path: Path
+) -> None:
+    perfil = _perfil_com_login(tmp_path)
+    page.goto(f"{painel}/configuracoes/sites-com-login")
     esquecer = page.get_by_role("button", name="Esquecer logins")
     expect(esquecer).to_be_enabled()
     esquecer.click()
-    pergunta = page.get_by_text("Apagar os logins de todos os sites?")
-    expect(pergunta).to_be_visible()
-    expect(pergunta).to_be_focused()  # o foco vai para a pergunta, que o leitor de tela lê
-    assert perfil.exists()  # o primeiro clique só pergunta
+    alerta = page.get_by_role("alertdialog", name="Apagar os logins de todos os sites?")
+    expect(alerta).to_be_visible()
+    expect(alerta).to_be_focused()  # Return logo depois de abrir não aperta nenhum botão
+    assert perfil.exists()  # abrir o alerta não apaga
+
+    page.get_by_role("button", name="Cancelar").click()
+    expect(alerta).to_be_hidden()
+    expect(esquecer).to_be_focused()  # o foco volta ao botão que abriu
+    assert (perfil / "Default" / "Cookies").exists()
+
+    esquecer.click()  # Esc também cancela
+    expect(alerta).to_be_visible()
+    page.keyboard.press("Escape")
+    expect(alerta).to_be_hidden()
+    assert (perfil / "Default" / "Cookies").exists()
+
+
+def test_esquecer_logins_confirma_pelo_alerta(page: Page, painel: str, tmp_path: Path) -> None:
+    # sem tratador de `dialog`: um `confirm()` do navegador seria recusado e nada apagaria
+    perfil = _perfil_com_login(tmp_path)
+    page.goto(f"{painel}/configuracoes/sites-com-login")
+    page.get_by_role("button", name="Esquecer logins").click()
+    alerta = page.get_by_role("alertdialog")
+    expect(alerta).to_be_visible()
 
     with page.expect_response(CONFIRMAR) as resposta:
-        page.get_by_role("button", name="Apagar", exact=True).click()
+        alerta.get_by_role("button", name="Esquecer", exact=True).click()
     assert resposta.value.status == 200
     expect(page.get_by_text("Logins apagados.")).to_be_visible()
+    expect(page.get_by_role("alertdialog")).to_have_count(0)
     assert not perfil.exists()
