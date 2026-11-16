@@ -13,6 +13,10 @@ para recarregar a página não criar outra busca. O "voltar" leva esse `?busca=<
 abre preenchido e edita a mesma busca (nome, `ativa`, regras e `criada_em` ficam); formulário
 esvaziado de critérios com busca já gravada não mexe nela e segue ao passo 2.
 
+O passo opcional "Sites com login" (T241, ADR 0011) fica entre a busca e o segundo plano e só
+existe com leitor registrado: sem leitor o assistente tem os dois passos de sempre. O
+`/primeira-execucao/2` continua sendo o segundo plano, para não quebrar endereço guardado.
+
 Ligar recusado fica no passo 2 com o motivo em texto fixo (a saída do systemctl vai só para o
 log, nunca para a tela). Desligar nunca prende (D49 b, T152): se desligar ou criar o atalho falha,
 o passo 2 conclui mesmo assim e o fim mostra um aviso por código fixo em `?aviso=` (`_AVISOS`);
@@ -23,6 +27,7 @@ import json
 import logging
 import re
 from collections.abc import Sequence
+from contextlib import suppress
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime
 from decimal import Decimal
@@ -36,13 +41,18 @@ from fastapi.responses import RedirectResponse, Response
 from starlette.concurrency import run_in_threadpool
 
 from jobot.banco import buscas
-from jobot.banco.cadastros import gravar_config, ler_config, meu_pais
+from jobot.banco.cadastros import gravar_config, ler_config, ligar_fonte, meu_pais
 from jobot.nucleo.cambio import MOEDAS
 from jobot.nucleo.modelo import Busca, Idioma, Local, Modalidade, Motivo, Nivel
 from jobot.nucleo.tratamento.locais import codigos_de_pais
 from jobot.painel import formatos
 from jobot.painel.ambiente import ambiente_do_painel, no_linux, rodar_do_painel
 from jobot.painel.i18n import pais_do_accept_language, t
+from jobot.painel.rotas.configuracoes import (
+    contexto_ferramenta_navegador,
+    contexto_sites_com_login,
+    leitores_do_painel,
+)
 from jobot.painel.rotas.vagas import relogio_do_painel
 from jobot.painel.seguranca import Con, idioma_do_pedido, renderizar
 from jobot.sistema import caso, segundo_plano_linux
@@ -50,7 +60,8 @@ from jobot.sistema.segundo_plano_linux import Recusa
 
 router = APIRouter(prefix="/primeira-execucao")
 
-PASSOS = {"1": 1, "2": 2}
+_PASSO_2 = "/primeira-execucao/2"
+_SITES = "/primeira-execucao/sites"
 _MAX_CARGOS = 20
 _MAX_CIDADES = 10
 _MAX_TEXTO = 100
@@ -72,6 +83,11 @@ _AVISOS = {
     "home_diferente": "segundo_plano.home_diferente",
     "systemctl_falhou": _PRIMEIRO + "p2.aviso.systemctl_falhou",
 }
+
+
+def numeros_dos_passos(com_sites: bool) -> dict[str, int]:
+    """Id do passo na URL -> o número que a pessoa vê; o passo dos sites só existe com leitor."""
+    return {passo: n for n, passo in enumerate(("1", "sites", "2") if com_sites else ("1", "2"), 1)}
 
 
 @cache
@@ -216,9 +232,12 @@ def _id_valido(texto: str | None) -> int | None:
     return numero if 1 <= numero <= _MAX_CENTAVOS else None
 
 
-def _pagina(request: Request, passo: int, status: int = 200, **ctx: Any) -> Response:
+def _pagina(request: Request, passo: str, status: int = 200, **ctx: Any) -> Response:
+    numeros = numeros_dos_passos(bool(leitores_do_painel(request)))
     contexto: dict[str, Any] = {
         "passo": passo,
+        "n": numeros[passo],
+        "total": len(numeros),
         "etapa": "passo",
         "entrada": Entrada(),
         "modalidades": [m.value for m in _MODALIDADES],
@@ -269,7 +288,9 @@ def _formulario_1(
     if entrada.pais is None:
         entrada.pais = _pais_pre_escolhido(request, con)
     paises = formatos.opcoes_de_pais(idioma_do_pedido(request))
-    return _pagina(request, 1, status, entrada=entrada, erro=erro, busca_id=busca_id, paises=paises)
+    return _pagina(
+        request, "1", status, entrada=entrada, erro=erro, busca_id=busca_id, paises=paises
+    )
 
 
 def _resumo(busca: Busca | None, idioma: str) -> dict[str, Any] | None:
@@ -297,10 +318,13 @@ def _formulario_2(
 ) -> Response:
     env = ambiente_do_painel(request)
     achada = _gravada(con, busca_id)
+    com_sites = bool(leitores_do_painel(request))
     return _pagina(
         request,
-        2,
+        "2",
         status,
+        voltar_n=numeros_dos_passos(com_sites)["2"] - 1,
+        voltar_url=_SITES if com_sites else "/primeira-execucao/1",
         motivo=motivo,
         erro=erro,
         resumo=_resumo(achada, idioma_do_pedido(request)),
@@ -310,13 +334,30 @@ def _formulario_2(
     )
 
 
+async def _formulario_sites(request: Request, con: Con, busca_id: int | None) -> Response:
+    # o mesmo fragmento da tela "Ferramentas" (D137.15); o do navegador vale sobre o dos sites
+    contexto = await contexto_sites_com_login(request, con) | contexto_ferramenta_navegador(request)
+    return _pagina(request, "sites", busca_id=busca_id, **contexto)
+
+
+def _busca_da_url(con: Con, texto: object) -> int | None:
+    """O `?busca=` só vale se for uma busca que existe (`registros/padroes.md`, modo edição)."""
+    achada = _gravada(con, _id_valido(texto if isinstance(texto, str) else None))
+    return achada.id if achada else None
+
+
+def _com_busca(destino: str, busca_id: int | None) -> str:
+    return destino + (f"?busca={busca_id}" if busca_id else "")
+
+
 @router.get("/{passo}")
 async def mostrar(request: Request, con: Con, passo: str) -> Response:
-    numero = PASSOS.get(passo)
-    if numero is None:
+    if passo not in numeros_dos_passos(bool(leitores_do_painel(request))):
         raise HTTPException(404)
     params = request.query_params
-    if numero == 1:
+    if passo == "sites":
+        return await _formulario_sites(request, con, _busca_da_url(con, params.get("busca")))
+    if passo == "1":
         voltando = _gravada(con, _id_valido(params.get("busca")))
         if voltando is None:
             return _formulario_1(request, con, Entrada())
@@ -324,8 +365,16 @@ async def mostrar(request: Request, con: Con, passo: str) -> Response:
 
     if params.get("feito") == "1" and ler_config(con, "primeira_execucao_concluida", False) is True:
         aviso = params.get("aviso", "")
-        return _pagina(request, 2, etapa="pronto", aviso_motivo=_AVISOS.get(aviso))
+        return _pagina(request, "2", etapa="pronto", aviso_motivo=_AVISOS.get(aviso))
     return _formulario_2(request, con, busca_id=_id_valido(params.get("busca")))
+
+
+def _proximo_do_passo_1(request: Request) -> str:
+    return _SITES if leitores_do_painel(request) else _PASSO_2
+
+
+def _depois_do_passo_1(request: Request, existente: Busca | None) -> str:
+    return _com_busca(_proximo_do_passo_1(request), existente.id if existente else None)
 
 
 async def _gravar_passo_1(request: Request, con: Con) -> Response:
@@ -342,9 +391,7 @@ async def _gravar_passo_1(request: Request, con: Con) -> Response:
                 con,
                 pais or pais_do_accept_language(request.headers.get("accept-language")),
             )
-        return RedirectResponse(
-            "/primeira-execucao/2" + (f"?busca={pedido}" if existente else ""), status_code=303
-        )
+        return RedirectResponse(_depois_do_passo_1(request, existente), status_code=303)
     entrada = await _ler_entrada(request)
     idioma = idioma_do_pedido(request)
     if pedido is not None and existente is None:
@@ -355,8 +402,7 @@ async def _gravar_passo_1(request: Request, con: Con) -> Response:
         if pais is not None:  # depois de validar o formulário, antes de a busca ser encaixada
             _gravar_pais(request, con, pais)
         if busca is None:
-            destino = "/primeira-execucao/2" + (f"?busca={pedido}" if existente else "")
-            return RedirectResponse(destino, status_code=303)
+            return RedirectResponse(_depois_do_passo_1(request, existente), status_code=303)
         agora = relogio_do_painel(request).agora()
         regras = bool(ler_config(con, "regras_ocultar_ligadas"))
         if existente is None:
@@ -381,7 +427,7 @@ async def _gravar_passo_1(request: Request, con: Con) -> Response:
     # shortcut: o país gravado fica se criar/editar_busca falhar aqui, trocar por transação única
     except ValueError:  # o banco recusou o valor (o salário não cabe)
         return _formulario_1(request, con, entrada, 422, _PRIMEIRO + "erro.salario", pedido)
-    return RedirectResponse(f"/primeira-execucao/2?busca={busca_id}", status_code=303)
+    return RedirectResponse(_com_busca(_proximo_do_passo_1(request), busca_id), status_code=303)
 
 
 def _dia_local(agora: datetime) -> date:
@@ -436,11 +482,22 @@ async def _gravar_passo_2(request: Request, con: Con) -> Response:
     )
 
 
+async def _gravar_sites(request: Request, con: Con) -> Response:
+    """Continuar segue com o que a pessoa ligou; Pular desliga os sites com login (D137.10)."""
+    form = await request.form()
+    if "pular" in form:
+        for leitor in leitores_do_painel(request):
+            with suppress(LookupError):  # o leitor sem linha na tabela de fontes
+                ligar_fonte(con, leitor.chave, False)
+    return RedirectResponse(_com_busca(_PASSO_2, _busca_da_url(con, form.get("busca"))), 303)
+
+
 @router.post("/{passo}")
 async def gravar(request: Request, con: Con, passo: str) -> Response:
-    numero = PASSOS.get(passo)
-    if numero is None:
+    if passo not in numeros_dos_passos(bool(leitores_do_painel(request))):
         raise HTTPException(404)
-    if numero == 1:
+    if passo == "1":
         return await _gravar_passo_1(request, con)
+    if passo == "sites":
+        return await _gravar_sites(request, con)
     return await _gravar_passo_2(request, con)
