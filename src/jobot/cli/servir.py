@@ -196,9 +196,9 @@ def montar(
             }
             app.state.tarefa_login = login  # o "Buscar agora" dispara a mesma, com motivo "agora"
             if leitores():
-                # shortcut: navegador_instalado é calculado ao subir o serve; instalar o Chrome
-                # com o serve no ar só aparece depois de reiniciar; atualizar app.state quando o
-                # botão Baixar da Parte B existir
+                # shortcut: navegador_instalado é calculado ao subir o serve; "Baixar" e
+                # "Remover" em Ferramentas atualizam app.state, mas instalar o Chrome com o serve
+                # no ar só aparece depois de reiniciar; reler se isso confundir alguém
                 app.state.navegador_instalado = await navegador_instalado()
             agenda = asyncio.create_task(
                 laco(tarefas, _EstadoDoBanco(caminho), relogio, travas=travas)

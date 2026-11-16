@@ -355,6 +355,7 @@ CITA: Mapping[str, Mapping[str, tuple[str, ...]]] = {
         "atualização": (r"pelo git e pelo uv", r"só quando você pede para atualizar"),
         "2captcha": (r"2Captcha", r"testa a chave"),
         "sites com login": (r"sites com login que você liga", r"vêm desligados", r"pelo navegador"),
+        "navegador": (r"servidores do Playwright", r"só quando você"),
     },
     "en": {
         "fontes": (r"public job sources",),
@@ -366,6 +367,7 @@ CITA: Mapping[str, Mapping[str, tuple[str, ...]]] = {
         "atualização": (r"through git and uv", r"only when you ask to update"),
         "2captcha": (r"2Captcha", r"test the key"),
         "sites com login": (r"sites with login you turn on", r"come off", r"through the browser"),
+        "navegador": (r"Playwright's servers", r"only when you"),
     },
 }
 CONDICAO: Mapping[str, Mapping[bool, str]] = {
@@ -384,7 +386,7 @@ CHAVE_DO_PADRAO = {
 FONTES_LIGADAS = {"pt": r"vêm todas ligadas", "en": r"all come on"}
 # pedidos que só saem quando a pessoa age, sem padrão ligado ou desligado: a frase diz quando
 # (os sites com login são vários, cada um com a sua chave, sempre desligada: a frase diz isso)
-SO_QUANDO_PEDE = {"endereço", "atualização", "sites com login"}
+SO_QUANDO_PEDE = {"endereço", "atualização", "sites com login", "navegador"}
 
 
 def test_condicao_aceita_os_dois_generos() -> None:
@@ -457,6 +459,24 @@ def test_texto_acompanha_o_padrao_real(
     monkeypatch.setattr(cadastros, "PADROES", invertido)
     with pytest.raises(AssertionError, match=re.escape(f"'{pedido}'")):
         _conferir_pedidos(lingua)
+
+
+TAMANHO_DO_CHROMIUM = {
+    "pt": "| Navegador controlado pelo Playwright",
+    "en": "| Browser controlled by Playwright",
+}
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_readme_diz_o_tamanho_do_chromium(lingua: str) -> None:
+    """A tabela de tamanhos diz quanto o Chromium baixa (T240; D137.8), no lugar de "A definir"."""
+    linhas = [
+        linha
+        for linha in texto(README[lingua]).splitlines()
+        if linha.startswith(TAMANHO_DO_CHROMIUM[lingua])
+    ]
+    assert len(linhas) == 1
+    assert "210 MB" in linhas[0]
 
 
 @pytest.mark.parametrize("lingua", LINGUAS)
