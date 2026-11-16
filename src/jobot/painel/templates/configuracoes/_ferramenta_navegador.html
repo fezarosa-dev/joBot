@@ -22,3 +22,4 @@
   </div>
   {%- endif %}
 </div>
+{%- if cartoes_oob is defined %}{% with cartoes = cartoes_oob, oob = True, assistente = True %}{% include "configuracoes/_sites_cartoes.html" %}{% endwith %}{%- endif %}

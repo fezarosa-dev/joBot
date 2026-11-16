@@ -494,11 +494,54 @@
   }
 }
 
-/* Sites com login (T218): um cartão por site, só as medidas e cores já usadas acima. */
+/* Contas (T218, T275): um cartão por site, só as medidas e cores já usadas acima. */
 .cartao-site {
   margin: 0 0 1rem;
 }
 
 .cartao-site .config-texto {
   margin: 0.25rem 0 0;
+}
+
+/* o selo do estado (E15): texto e forma juntos (contorno, tracejado ou fundo), nunca só a cor */
+.cartao-site .selo {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  background-color: var(--superficie);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.cartao-site .selo-conectado {
+  color: var(--sucesso);
+}
+
+/* a mesma cor de estado do conectado não basta: contorno de 2px, com o padding 1px menor */
+.cartao-site .selo-precisa_entrar {
+  padding: calc(0.1rem - 1px) calc(0.5rem - 1px);
+  border-width: 2px;
+  color: var(--alerta);
+}
+
+.cartao-site .selo-nao_conferiu {
+  border-color: var(--borda-controle);
+  background-color: var(--trilho);
+  color: var(--texto);
+}
+
+.cartao-site .selo-nunca_entrou {
+  border: 1px dashed var(--borda-controle);
+  color: var(--texto-2);
+}
+
+.cartao-site .selo-desligado {
+  border-color: transparent;
+  background-color: var(--sob-pagina);
+  color: var(--texto-2);
+}
+
+.cartao-site .conta-hora {
+  color: var(--texto-2);
 }
