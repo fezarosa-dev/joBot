@@ -533,13 +533,13 @@ Mudar uma delas muda a tarefa responsável antes de ela começar.
 **Interfaces:**
 - Só na aba Candidatei, o selo de status da linha vira `t("vagas.linha.desde", status=<rótulo de vagas.status.*>, data=data_curta(item.status_em))`. Com `status_em` nulo, fica o selo de hoje, só com o status. As outras abas não mudam.
 
-- [ ] **Primeiro, valor errado:** o template ainda não usa `status_em`.
-- [ ] **Testes que falham** em `tests/integracao/test_rota_vagas.py`:
+- [x] **Primeiro, valor errado:** o template ainda não usa `status_em`.
+- [x] **Testes que falham** em `tests/integracao/test_rota_vagas.py`:
   - `test_candidatei_mostra_desde`: "Candidatei desde 16/11" em pt e "Applied since 11/16" em en. O `status_em` é `2026-11-17T01:30:00+00:00`, com o `TZ` em `<-03>3`: o dia mostrado é o local (E16).
   - `test_status_em_nulo_sem_desde`: uma vaga antiga com `status_em` nulo mostra só o status. Controle: a vaga com `status_em` mostra "desde".
   - `test_outras_abas_sem_desde`: é guarda e nasce verde. Mutante: mostrar "desde" em toda aba.
-- [ ] **Ver falhar:** `uv run pytest tests/integracao/test_rota_vagas.py tests/unidade/test_i18n.py -q`.
-- [ ] **Implementar** os itens de Interfaces.
+- [x] **Ver falhar:** `uv run pytest tests/integracao/test_rota_vagas.py tests/unidade/test_i18n.py -q`.
+- [x] **Implementar** os itens de Interfaces.
 - [ ] **Ver passar:** os mesmos arquivos e `tests/unidade/test_camadas.py`; ruff; `-m tela` e mypy no CI do `lote/panorama-tela`.
 
 ### T288: a tela Panorama

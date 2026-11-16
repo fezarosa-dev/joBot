@@ -332,3 +332,10 @@ def test_conferir_tem_texto(idioma: str) -> None:
         },
     }[idioma]
     assert {chave: catalogo.get(chave) for chave in esperado} == esperado
+
+
+@pytest.mark.parametrize("idioma", ["pt", "en"])
+def test_linha_desde_tem_texto(idioma: str) -> None:
+    """T287: a frase "{status} desde {data}" da aba Candidatei, nos dois idiomas."""
+    esperado = {"pt": "{status} desde {data}", "en": "{status} since {data}"}[idioma]
+    assert i18n.carregar()[idioma].get("vagas.linha.desde") == esperado
