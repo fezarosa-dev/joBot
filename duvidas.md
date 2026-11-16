@@ -2977,3 +2977,23 @@ Uma escolha de desenho da T301 vai junto, também para confirmar: o "Mais filtro
 **Como desfazer:** tirar o trecho do `localStorage` em `src/jobot/painel/static/js/app.js` (procure `itemConfiguracoes`); o item volta a abrir `/configuracoes/geral`.
 
 **Ver também:** T308.
+
+## D165. Esquecer logins sem JavaScript devolve só um pedaço de página (para confirmar)
+
+**Status:** para confirmar. Decidido pela sessão, com o dono fora.
+
+**Contexto:** depois da T307, a confirmação de "Esquecer logins" em Configurações > Sites com login funciona sem JavaScript por uma página própria (`GET .../esquecer/confirmar`). Mas o `POST` que ela envia, sem JavaScript, responde o fragmento `_esquecer.html`: um `<p>` solto, sem o layout do painel. Era assim antes da T307 também; a T307 não mudou esse contrato porque os testes `test_esquecer_so_apaga_ao_confirmar` e `test_resposta_de_esquecer_nao_traz_o_componente` esperam 200 com o fragmento.
+
+**Escolhas:**
+
+- **A.** Deixar como está.
+- **B (recomendada).** Sem o cabeçalho `HX-Request`, responder 303 para `/configuracoes/sites-com-login` com um aviso do tipo "salvo", como os outros formulários do painel.
+- **C.** Sem `HX-Request`, renderizar a página inteira do grupo já com o resultado.
+
+**Recomendação:** B, numa tarefa própria (T310): segue o padrão dos outros formulários e só muda a resposta sem `HX-Request`; com HTMX continua o fragmento.
+
+**O que o dono faz:** confirmar a B ou escolher outra. Nada a fazer na máquina.
+
+**Como desfazer:** antes de construir, trocar a escolha aqui e na T310. Depois, voltar a resposta sem `HX-Request` para o fragmento e os dois testes para 200. Nenhum dado muda.
+
+**Ver também:** D163, T307, T310.
