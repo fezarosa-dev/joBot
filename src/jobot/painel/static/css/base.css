@@ -125,6 +125,15 @@ html {
   text-size-adjust: 100%;
 }
 
+/* tamanho do texto (Configurações > Geral): tudo está em rem, e o corpo de 13px vira 15px e 17px */
+html[data-texto="grande"] {
+  font-size: 115.4%;
+}
+
+html[data-texto="maior"] {
+  font-size: 130.8%;
+}
+
 body {
   margin: 0;
   min-height: 100vh;

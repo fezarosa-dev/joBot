@@ -295,16 +295,6 @@
   font: inherit;
 }
 
-.config .botao-escolha {
-  background-color: var(--trilho);
-  color: var(--texto);
-}
-
-.config .botao-escolha[aria-pressed="true"] {
-  background-color: var(--destaque);
-  color: var(--sobre-destaque);
-}
-
 /* Campos, opções e botões: o mesmo desenho do assistente, escopado aqui. */
 .config .campo {
   display: grid;

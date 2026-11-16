@@ -27,6 +27,7 @@ from jobot.banco.conexao import abrir
 from jobot.banco.migrar import migrar
 from jobot.nucleo.leitores.base import LeitorComLogin
 from jobot.painel.app import criar_app
+from jobot.painel.rotas.configuracoes import GRUPOS
 from jobot.painel.seguranca import CAMPO_CSRF
 from jobot.sistema.segundo_plano_linux import Resultado
 
@@ -43,6 +44,7 @@ FUNCOES_URL = "/configuracoes/funcoes"
 PRIVACIDADE = "/configuracoes/privacidade"
 SEGUNDO_PLANO = "/configuracoes/segundo-plano"
 FONTES = "/configuracoes/fontes"
+GERAL = "/configuracoes/geral"
 SALVO = "?salvo=1"
 GRAVAR_CHAVE = (
     "INSERT INTO config (chave, valor) VALUES ('segundo_plano', ?) "
@@ -161,12 +163,30 @@ def _salvo(html: str) -> str | None:
 
 def test_raiz_leva_ao_primeiro_grupo(painel: Painel) -> None:
     resposta = painel.get("/configuracoes")
-    assert (resposta.status_code, resposta.headers.get("location")) == (303, FONTES)
+    assert (resposta.status_code, resposta.headers.get("location")) == (303, GERAL)
 
 
-@pytest.mark.parametrize(
-    "grupo", ["fontes", "funcoes", "segundo-plano", "aparencia", "privacidade"]
-)
+def test_geral_e_o_primeiro_grupo(painel: Painel) -> None:
+    assert GRUPOS[0] == "geral"
+    assert "aparencia" not in GRUPOS
+    abas = re.findall(
+        r'<a href="(/configuracoes/[^"]+)"', painel.get(GERAL).text.split("config-grupos")[1]
+    )
+    assert abas[0] == GERAL
+    assert "/configuracoes/aparencia" not in abas
+
+
+def test_aparencia_vai_para_geral(painel: Painel) -> None:
+    resposta = painel.get("/configuracoes/aparencia")
+    assert (resposta.status_code, resposta.headers.get("location")) == (303, GERAL)
+    assert painel.get(GERAL).status_code == 200
+    # só o GET muda de endereço: o POST do endereço velho não grava mais (D139.25)
+    resposta = painel.post("/configuracoes/aparencia", {"meu_pais": "PT", "moeda_exibicao": ""})
+    assert resposta.status_code == 404
+    assert painel.config("meu_pais") is None
+
+
+@pytest.mark.parametrize("grupo", ["geral", "fontes", "funcoes", "segundo-plano", "privacidade"])
 def test_cada_grupo_abre_com_a_aba_dele_marcada(painel: Painel, grupo: str) -> None:
     resposta = painel.get(f"/configuracoes/{grupo}")
     assert resposta.status_code == 200
@@ -490,19 +510,16 @@ def test_segundo_plano_fora_do_linux_fica_desativado(painel: Painel) -> None:
 # ------------------------------------------------------------------ aparência
 
 
-def test_aparencia_usa_as_rotas_de_preferencia_e_volta_para_ela(painel: Painel) -> None:
-    html = painel.get("/configuracoes/aparencia").text
-    for qual in ("tema", "idioma"):  # os formulários da página, além dos da casca
+def test_geral_usa_as_rotas_de_preferencia_e_volta_para_ela(painel: Painel) -> None:
+    html = painel.get(GERAL).text
+    for qual in ("tema", "idioma", "texto"):  # os formulários da página, além dos da casca
         assert re.search(rf'<form [^>]*action="/preferencias/{qual}"[^>]*data-preferencia', html)
-    assert html.count('name="voltar" value="/configuracoes/aparencia"') >= 4
-    resposta = painel.post(
-        "/preferencias/tema", {"tema": "escuro", "voltar": "/configuracoes/aparencia"}
-    )
-    assert resposta.headers.get("location") == "/configuracoes/aparencia"
+    assert html.count(f'name="voltar" value="{GERAL}"') >= 5
+    resposta = painel.post("/preferencias/tema", {"tema": "escuro", "voltar": GERAL})
+    assert resposta.headers.get("location") == GERAL
     assert painel.config("tema") == "escuro"
 
 
-APARENCIA = "/configuracoes/aparencia"
 HOJE = date(2026, 11, 13)
 
 
@@ -538,13 +555,13 @@ def _oculta_de(painel: Painel, busca: int, vaga: int) -> str | None:
     return None if linhas[0][0] is None else str(linhas[0][0])
 
 
-def test_aparencia_grava_meu_pais_e_moeda(painel: Painel) -> None:
-    resposta = painel.post(APARENCIA, {"meu_pais": "PT", "moeda_exibicao": "JPY"})
+def test_pais_e_moeda_gravam_por_geral(painel: Painel) -> None:
+    resposta = painel.post(GERAL, {"meu_pais": "PT", "moeda_exibicao": "JPY"})
     assert resposta.status_code == 303
-    assert resposta.headers.get("location") == APARENCIA + SALVO
+    assert resposta.headers.get("location") == GERAL + SALVO
     assert painel.config("meu_pais") == "PT"
     assert painel.config("moeda_exibicao") == "JPY"
-    painel.post(APARENCIA, {"meu_pais": "PT", "moeda_exibicao": ""})  # "" = a do país
+    painel.post(GERAL, {"meu_pais": "PT", "moeda_exibicao": ""})  # "" = a do país
     assert painel.config("moeda_exibicao") == ""
 
 
@@ -559,20 +576,20 @@ def test_aparencia_grava_meu_pais_e_moeda(painel: Painel) -> None:
         {"meu_pais": "PT"},
     ],
 )
-def test_aparencia_recusa_valor_de_fora(painel: Painel, dados: dict[str, str]) -> None:
+def test_geral_recusa_valor_de_fora(painel: Painel, dados: dict[str, str]) -> None:
     _gravar_pais(painel, "BR")
     antes = painel.sql("SELECT chave, valor FROM config ORDER BY chave")
-    resposta = painel.post(APARENCIA, dados)
+    resposta = painel.post(GERAL, dados)
     assert resposta.status_code == 422
     assert painel.sql("SELECT chave, valor FROM config ORDER BY chave") == antes
     # controle: o mesmo formulário com valores da lista é aceito
-    assert painel.post(APARENCIA, {"meu_pais": "PT", "moeda_exibicao": "EUR"}).status_code == 303
+    assert painel.post(GERAL, {"meu_pais": "PT", "moeda_exibicao": "EUR"}).status_code == 303
 
 
 def test_trocar_meu_pais_recalcula_o_encaixe(painel: Painel) -> None:
     busca, vaga = _vaga_restrita_a_pt(painel)
     assert _oculta_de(painel, busca, vaga) == "pais"  # controle: com BR a vaga de PT fica oculta
-    painel.post(APARENCIA, {"meu_pais": "PT", "moeda_exibicao": ""})
+    painel.post(GERAL, {"meu_pais": "PT", "moeda_exibicao": ""})
     assert _oculta_de(painel, busca, vaga) is None
 
 
@@ -585,10 +602,10 @@ def test_trocar_so_a_moeda_nao_recalcula(painel: Painel, monkeypatch: pytest.Mon
         return 0
 
     monkeypatch.setattr("jobot.painel.rotas.configuracoes.buscas.recalcular_encaixe", conta)
-    painel.post(APARENCIA, {"meu_pais": "PT", "moeda_exibicao": "JPY"})
+    painel.post(GERAL, {"meu_pais": "PT", "moeda_exibicao": "JPY"})
     assert chamadas == []
     assert painel.config("moeda_exibicao") == "JPY"
-    painel.post(APARENCIA, {"meu_pais": "DE", "moeda_exibicao": "JPY"})  # controle: país muda
+    painel.post(GERAL, {"meu_pais": "DE", "moeda_exibicao": "JPY"})  # controle: país muda
     assert len(chamadas) == 1
 
 
@@ -604,10 +621,10 @@ def test_recalculo_que_falha_ao_trocar_pais_nao_grava_a_chave(
     with monkeypatch.context() as m:
         m.setattr("jobot.painel.rotas.configuracoes.buscas.recalcular_encaixe", quebra)
         with pytest.raises(sqlite3.OperationalError):
-            painel.post(APARENCIA, {"meu_pais": "PT", "moeda_exibicao": ""})
+            painel.post(GERAL, {"meu_pais": "PT", "moeda_exibicao": ""})
     assert painel.config("meu_pais") == "BR"
     assert _oculta_de(painel, busca, vaga) == "pais"  # o encaixe segue como estava
-    painel.post(APARENCIA, {"meu_pais": "PT", "moeda_exibicao": ""})  # sem falha: grava e recalcula
+    painel.post(GERAL, {"meu_pais": "PT", "moeda_exibicao": ""})  # sem falha: grava e recalcula
     assert painel.config("meu_pais") == "PT"
     assert _oculta_de(painel, busca, vaga) is None
 
@@ -619,9 +636,9 @@ def _opcoes(html: str, nome: str) -> list[tuple[str, str]]:
     return [(valor, html_lib.unescape(texto).strip()) for valor, texto in achadas]
 
 
-def test_aparencia_mostra_os_paises_na_lingua_da_tela(painel: Painel) -> None:
+def test_geral_mostra_os_paises_na_lingua_da_tela(painel: Painel) -> None:
     _gravar_pais(painel, "PT")
-    pt = painel.get(APARENCIA).text
+    pt = painel.get(GERAL).text
     paises = _opcoes(pt, "meu_pais")
     assert len(paises) == 55
     assert ("DE", "Alemanha") in paises
@@ -631,7 +648,7 @@ def test_aparencia_mostra_os_paises_na_lingua_da_tela(painel: Painel) -> None:
     assert len(moedas) == 12
     assert moedas[0] == ("", "A do meu país (EUR)")
     assert [valor for valor, _ in moedas[1:]][:2] == ["BRL", "AUD"]
-    en = painel.get(APARENCIA, headers={"Accept-Language": "en"}).text
+    en = painel.get(GERAL, headers={"Accept-Language": "en"}).text
     assert ("DE", "Germany") in _opcoes(en, "meu_pais")
     assert _opcoes(en, "moeda_exibicao")[0] == ("", "My country's (EUR)")
 
@@ -725,7 +742,7 @@ def test_salvo_em_ingles(painel: Painel) -> None:
 
 @pytest.mark.parametrize(
     "url",
-    [FONTES, FUNCOES_URL, SEGUNDO_PLANO, PRIVACIDADE, APARENCIA, "/configuracoes/servicos"],
+    [FONTES, FUNCOES_URL, SEGUNDO_PLANO, PRIVACIDADE, GERAL, "/configuracoes/servicos"],
 )
 def test_salvo_estatico_some_sozinho(painel: Painel, url: str) -> None:
     com = LexborHTMLParser(painel.get(url + SALVO).text).css_first(

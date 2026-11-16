@@ -51,7 +51,7 @@ def test_menu_leva_as_configuracoes_e_cada_aba_abre_o_seu_grupo(page: Page, pain
     for nome, caminho in (
         ("Funções", "funcoes"),
         ("Segundo plano", "segundo-plano"),
-        ("Aparência", "aparencia"),
+        ("Geral", "geral"),
         ("Privacidade", "privacidade"),
         ("Serviços", "servicos"),
     ):
@@ -132,14 +132,35 @@ def test_segundo_plano_recusado_mostra_o_motivo(
     expect(page.get_by_role("alert")).to_contain_text("o systemd do usuário não responde")
 
 
-def test_aparencia_troca_tema_e_idioma_e_fica_na_pagina(page: Page, painel: str) -> None:
-    page.goto(f"{painel}/configuracoes/aparencia")
-    page.locator("[data-preferencia=tema]").get_by_role("button", name="Escuro").click()
-    expect(page).to_have_url(f"{painel}/configuracoes/aparencia")
+def test_tema_e_idioma_pelo_menu_de_geral_ficam_depois_de_recarregar(
+    page: Page, painel: str
+) -> None:
+    page.goto(f"{painel}/configuracoes/geral")
+    with page.expect_navigation():
+        page.locator("[data-preferencia=tema]").get_by_role("combobox").select_option("escuro")
+    expect(page).to_have_url(f"{painel}/configuracoes/geral")
     expect(page.locator("html")).to_have_attribute("data-tema", "escuro")
-    page.locator("[data-preferencia=idioma]").get_by_role("button", name="English").click()
-    expect(page).to_have_url(f"{painel}/configuracoes/aparencia")
+    with page.expect_navigation():
+        page.locator("[data-preferencia=idioma]").get_by_role("combobox").select_option("en")
+    expect(page).to_have_url(f"{painel}/configuracoes/geral")
     expect(page.get_by_role("heading", name="Settings")).to_be_visible()
+    page.reload()
+    expect(page.locator("html")).to_have_attribute("data-tema", "escuro")
+    expect(page.locator("html")).to_have_attribute("lang", "en")
+    expect(page.locator("[data-preferencia=tema]").get_by_role("combobox")).to_have_value("escuro")
+
+
+@pytest.mark.parametrize(("valor", "px"), [("padrao", 13.0), ("grande", 15.0), ("maior", 17.0)])
+def test_tamanho_do_texto_no_corpo(page: Page, painel: str, valor: str, px: float) -> None:
+    page.goto(f"{painel}/configuracoes/geral")
+    if valor != "padrao":
+        with page.expect_navigation():
+            page.locator("[data-preferencia=texto]").get_by_role("combobox").select_option(valor)
+    expect(page.locator("html")).to_have_attribute("data-texto", valor)
+    page.reload()
+    expect(page.locator("html")).to_have_attribute("data-texto", valor)
+    tamanho = page.evaluate("parseFloat(getComputedStyle(document.body).fontSize)")
+    assert abs(tamanho - px) <= 0.1, (valor, tamanho)
 
 
 def test_fontes_desliga_uma_e_ela_volta_desmarcada(page: Page, painel: str) -> None:
@@ -163,15 +184,15 @@ def test_so_pelo_teclado_liga_e_desliga_a_chave(page: Page, painel: str) -> None
 
 
 @pytest.mark.parametrize("esquema", ["light", "dark"])
-def test_aparencia_troca_meu_pais_e_moeda(
+def test_geral_troca_meu_pais_e_moeda(
     page: Page, painel: str, esquema: Literal["light", "dark"]
 ) -> None:
     page.emulate_media(color_scheme=esquema)
-    page.goto(f"{painel}/configuracoes/aparencia")
+    page.goto(f"{painel}/configuracoes/geral")
     page.get_by_label("Meu país", exact=True).select_option(label="Portugal")
     page.get_by_role("button", name="Salvar").click()
     expect(page.get_by_role("status").filter(has_text="Salvo.")).to_be_visible()
-    page.goto(f"{painel}/configuracoes/aparencia")
+    page.goto(f"{painel}/configuracoes/geral")
     expect(page.get_by_label("Meu país", exact=True)).to_have_value("PT")
     expect(page.get_by_label("Meu país", exact=True).locator("option:checked")).to_have_text(
         "Portugal"

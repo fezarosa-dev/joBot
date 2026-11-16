@@ -1,6 +1,7 @@
 """Erros do servidor viram página amigável ou fragmento HTMX (D106; T150)."""
 
 import logging
+import re
 from contextlib import closing
 from pathlib import Path
 
@@ -207,6 +208,35 @@ def test_pagina_de_erro_sai_com_banco_ilegivel(tmp_path: Path) -> None:
     assert _texto("en", "erro.interno.texto", log=_log(tmp_path)) in quebra.text
     assert "database" not in quebra.text
     _confere_cabecalhos(quebra)
+
+
+def _data_texto(html: str) -> str | None:
+    achou = re.search(r"<html[^>]*\bdata-texto=\"([^\"]*)\"", html)
+    return achou.group(1) if achou else None
+
+
+def test_erro_leva_o_tamanho_do_texto(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    app = _app(tmp_path)
+    cliente = TestClient(app, base_url=BASE, raise_server_exceptions=False)
+    assert _data_texto(cliente.get("/nao-existe-mesmo").text) == "padrao"  # sem chave
+    with closing(abrir(tmp_path / "jobot.db")) as con:
+        con.execute("INSERT INTO config (chave, valor) VALUES ('tamanho_texto', '\"grande\"')")
+        con.commit()
+    assert _data_texto(cliente.get("/nao-existe-mesmo").text) == "grande"
+
+    # a página mínima (a casca falha) leva o mesmo tamanho
+    def quebra(*_: object) -> str:
+        raise RuntimeError(SEGREDO)
+
+    monkeypatch.setitem(seguranca.TEMPLATES.env.globals, "url_de_volta", quebra)
+    assert _data_texto(cliente.get("/nao-existe-mesmo").text) == "grande"
+
+
+def test_erro_com_banco_quebrado_traz_o_texto_padrao(tmp_path: Path) -> None:
+    cliente = TestClient(_app(tmp_path, banco_ok=False), base_url=BASE)
+    resposta = cliente.get("/nao-existe-mesmo")
+    assert resposta.status_code == 404
+    assert _data_texto(resposta.text) == "padrao"
 
 
 def test_casca_que_falha_usa_a_pagina_minima(

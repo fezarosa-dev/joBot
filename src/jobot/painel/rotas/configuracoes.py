@@ -1,8 +1,9 @@
 """Configurações e interruptores (desenho 13.2 e 13.7; plano T54; decisão 17 e DP8).
 
-Sete grupos em `/configuracoes/{grupo}`: fontes (uma chave por fonte, por leva), funções (as chaves
-da 13.7 e o N dos destaques), segundo plano, aparência (tema e idioma pelas rotas `/preferencias`;
-Meu país e moeda de exibição pelo próprio `/configuracoes/aparencia`), privacidade (onde ficam
+Os grupos em `/configuracoes/{grupo}`: geral (tema, idioma e tamanho do texto pelas rotas
+`/preferencias`; Meu país e moeda de exibição pelo próprio `/configuracoes/geral`; o
+`/configuracoes/aparencia` de antes só redireciona no GET), fontes (uma chave por fonte, por leva),
+funções (as chaves da 13.7 e o N dos destaques), segundo plano, privacidade (onde ficam
 os dados, a recomendação de disco cifrado e o aviso de versão), serviços (a chave do 2Captcha, que
 fica no cofre; o interruptor e o apagar moram em `servicos.py`, T184) e sites com login (T218: só
 existe com leitor registrado; o interruptor de cada site grava na hora e os horários são um campo
@@ -67,10 +68,10 @@ router = APIRouter(prefix="/configuracoes")
 _LOG = logging.getLogger(__name__)
 
 GRUPOS = (
+    "geral",
     "fontes",
     "funcoes",
     "segundo-plano",
-    "aparencia",
     "privacidade",
     "servicos",
     "sites-com-login",
@@ -90,10 +91,10 @@ FUNCOES = (
 _N_MAX = 100
 _N = re.compile(r"[0-9]{1,3}", re.ASCII)
 _PARCIAIS = {
+    "geral": "geral",
     "fontes": "fontes",
     "funcoes": "funcoes",
     "segundo-plano": "segundo_plano",
-    "aparencia": "aparencia",
     "privacidade": "privacidade",
     "servicos": "servicos",
     "sites-com-login": "sites_com_login",
@@ -149,7 +150,7 @@ async def _ctx_segundo_plano(request: Request, con: Con) -> dict[str, Any]:
     }
 
 
-async def _ctx_aparencia(request: Request, con: Con) -> dict[str, Any]:
+async def _ctx_geral(request: Request, con: Con) -> dict[str, Any]:
     pais = meu_pais(con)
     moeda = ler_config(con, "moeda_exibicao")
     return {
@@ -256,10 +257,10 @@ async def _contexto_ferramentas(request: Request, con: Con) -> dict[str, Any]:
 
 
 _CONTEXTOS: dict[str, Contexto] = {
+    "geral": _ctx_geral,
     "fontes": _ctx_fontes,
     "funcoes": _ctx_funcoes,
     "segundo-plano": _ctx_segundo_plano,
-    "aparencia": _ctx_aparencia,
     "privacidade": _ctx_privacidade,
     "servicos": contexto_captcha,
     "sites-com-login": contexto_sites_com_login,
@@ -367,7 +368,7 @@ async def _gravar_segundo_plano(request: Request, con: Con) -> Response:
     return _volta("segundo-plano", salvo=True)
 
 
-async def _gravar_aparencia(request: Request, con: Con) -> Response:
+async def _gravar_geral(request: Request, con: Con) -> Response:
     form = await request.form()
     pais, moeda = form.get("meu_pais"), form.get("moeda_exibicao")
     if not isinstance(pais, str) or pais not in codigos_de_pais():
@@ -385,7 +386,7 @@ async def _gravar_aparencia(request: Request, con: Con) -> Response:
         )
     gravar_config(con, "meu_pais", pais)
     gravar_config(con, "moeda_exibicao", moeda)
-    return _volta("aparencia", salvo=True)
+    return _volta("geral", salvo=True)
 
 
 async def _gravar_privacidade(request: Request, con: Con) -> Response:
@@ -430,10 +431,10 @@ async def _gravar_sites_com_login(request: Request, con: Con) -> Response:
 
 
 _GRAVADORES: dict[str, Callable[[Request, Con], Awaitable[Response]]] = {
+    "geral": _gravar_geral,
     "fontes": _gravar_fontes,
     "funcoes": _gravar_funcoes,
     "segundo-plano": _gravar_segundo_plano,
-    "aparencia": _gravar_aparencia,
     "privacidade": _gravar_privacidade,
     "servicos": _gravar_servicos,
     "sites-com-login": _gravar_sites_com_login,
@@ -446,6 +447,12 @@ _GRAVADORES: dict[str, Callable[[Request, Con], Awaitable[Response]]] = {
 @router.get("")
 async def raiz() -> RedirectResponse:
     return _volta(GRUPOS[0])
+
+
+@router.get("/aparencia")
+async def aparencia_de_antes() -> RedirectResponse:
+    """O endereço velho do grupo que virou Geral (só o GET; o POST não tem cópia, D139.25)."""
+    return _volta("geral")
 
 
 @router.get("/{grupo}")

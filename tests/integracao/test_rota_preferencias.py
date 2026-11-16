@@ -150,3 +150,48 @@ def test_globais_do_jinja_sem_importar_as_rotas() -> None:
     assert lido["rotas"] == []
     assert set(GLOBAIS) <= set(lido["globais"])
     assert "tema" not in lido["globais"]
+
+
+def _data_texto(cliente: TestClient) -> str | None:
+    achou = re.search(r"<html[^>]*\bdata-texto=\"([^\"]*)\"", cliente.get("/vagas").text)
+    return achou.group(1) if achou else None
+
+
+def test_texto_grava_e_vai_ao_html(cliente: TestClient) -> None:
+    assert _data_texto(cliente) == "padrao"  # sem chave, `padrao`
+    dados = {CAMPO_CSRF: _token(cliente), "tamanho": "maior", "voltar": "/vagas?aba=todas"}
+    resposta = cliente.post("/preferencias/texto", data=dados)
+    assert resposta.status_code == 303
+    assert resposta.headers["location"] == "/vagas?aba=todas"
+    assert _config(cliente, "tamanho_texto") == "maior"
+    assert _data_texto(cliente) == "maior"
+    cliente.post("/preferencias/texto", data=dados | {"tamanho": "grande"})  # mesma chave
+    assert _config(cliente, "tamanho_texto") == "grande"
+    assert _data_texto(cliente) == "grande"
+
+
+@pytest.mark.parametrize("valor", ["enorme", "", "Padrao", "padrão"])
+def test_texto_fora_da_lista_da_422(cliente: TestClient, valor: str) -> None:
+    dados = {CAMPO_CSRF: _token(cliente), "tamanho": valor}
+    resposta = cliente.post("/preferencias/texto", data=dados)
+    assert resposta.status_code == 422
+    assert _config(cliente, "tamanho_texto") is None
+    # controle: um valor da lista é aceito pela mesma rota
+    assert (
+        cliente.post("/preferencias/texto", data=dados | {"tamanho": "padrao"}).status_code == 303
+    )
+
+
+def test_preferencias_sem_js(cliente: TestClient) -> None:
+    resposta = cliente.get("/configuracoes/geral")
+    assert resposta.status_code == 200
+    for rota, nome in (("tema", "tema"), ("idioma", "idioma"), ("texto", "tamanho")):
+        forms = [
+            f
+            for f in re.findall(r"<form\b.*?</form>", resposta.text, re.DOTALL)
+            if f'action="/preferencias/{rota}"' in f and "data-preferencia" in f
+        ]
+        assert len(forms) == 1, rota
+        assert re.search(rf'<select\b[^>]*name="{nome}"', forms[0]), rota
+        noscript = re.search(r"<noscript>(.*?)</noscript>", forms[0], re.DOTALL)
+        assert noscript is not None and 'type="submit"' in noscript.group(1), rota

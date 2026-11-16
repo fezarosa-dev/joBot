@@ -18,7 +18,7 @@
   {%- if (caminho == area or caminho.startswith(area ~ "/")) and area|length > ns.atual|length %}{% set ns.atual = area %}{% endif -%}
 {%- endfor -%}
 <!doctype html>
-<html lang="{{ idioma }}" data-tema="{{ tema_atual }}">
+<html lang="{{ idioma }}" data-tema="{{ tema_atual }}" data-texto="{{ tamanho_texto }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
