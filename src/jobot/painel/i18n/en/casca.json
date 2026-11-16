@@ -43,5 +43,9 @@
   "casca.paleta.um": "1 command",
   "casca.paleta.varios": "{n} commands",
   "casca.ajuda": "Help",
-  "casca.ajuda.url": "https://github.com/fezarosa-dev/joBot/wiki/Home-en"
+  "casca.ajuda.url": "https://github.com/fezarosa-dev/joBot/wiki/Home-en",
+  "casca.aviso_contas.um": "Your {site} session ended. Sign in again so joBot can read jobs again.",
+  "casca.aviso_contas.varios": "Your session ended on {quantos} accounts. Sign in again in Settings › Accounts.",
+  "casca.aviso_contas.gmail": "Your Gmail session ended. Sign in again in Settings › Accounts.",
+  "casca.aviso_contas.entrar": "Sign in again"
 }

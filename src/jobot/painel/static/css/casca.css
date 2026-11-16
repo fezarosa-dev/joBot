@@ -47,7 +47,7 @@ body {
   grid-area: versao;
 }
 
-#faixa-contas {
+#aviso-contas {
   grid-area: contas;
 }
 
@@ -262,11 +262,13 @@ body {
 }
 
 /* faixas logo abaixo da barra; vazias, não ocupam altura */
-#aviso-versao {
+#aviso-versao,
+#aviso-contas {
   padding-inline: var(--espaco);
 }
 
-.aviso-versao {
+.aviso-versao,
+.aviso-contas {
   margin-block: 12px 0;
   margin-inline: 0;
   padding-block: 8px;
@@ -276,6 +278,10 @@ body {
   background-color: var(--superficie);
   color: var(--texto);
   font-size: 0.8125rem;
+}
+
+.aviso-contas {
+  border-color: var(--alerta);
 }
 
 #aviso-erro:not([hidden]) {
