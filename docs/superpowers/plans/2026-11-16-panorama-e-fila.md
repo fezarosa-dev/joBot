@@ -314,6 +314,8 @@ Mudar uma delas muda a tarefa responsável antes de ela começar.
 ### T283: consultas da busca e das contas fora das rotas, e o dia local nas datas
 `depende_de: T261, T276` · desenho 5.2 (A busca), 8, E4, E16
 
+**Nota da execução:** a E16 já tinha entrado pela T276. O `_ler_data` de `painel/formatos.py` já faz `.astimezone()` em instante com fuso, coberto por `test_instante_em_utc_mostra_o_dia_local`. Por isso `formatos.py` não mudou nesta tarefa. O `test_instante_vira_dia_local` entrou como guarda verde: caso de fronteira 01:30Z de 17/11 em pt e en, com o controle sem hora. O mutante sem `.astimezone()` reprova. O `test_proxima_igual_a_de_fontes` fica para a T288.
+
 **Arquivos:**
 - criar `src/jobot/painel/saude_das_fontes.py`, `tests/unidade/test_saude_das_fontes.py`;
 - modificar `src/jobot/painel/rotas/fontes.py`, `src/jobot/painel/rotas/aviso_contas.py` e `src/jobot/painel/consultas.py`;
@@ -331,18 +333,18 @@ Mudar uma delas muda a tarefa responsável antes de ela começar.
 - `contas_em_queda(con, leitores)` muda de `rotas/aviso_contas.py` para `painel/consultas.py`, com a assinatura de hoje, e `aviso_contas.py` importa de lá.
 - `painel/formatos.py` (E16): em `data_curta` e `data_completa`, um instante com fuso passa por `.astimezone()` antes do `strftime`, no ajudante `_ler_data` que as duas já usam. Data sem hora (prazo, início) não muda. As duas continuam recebendo texto; quem tem um `datetime` passa `.isoformat()`, como os templates de Sites e Sugeridas já fazem.
 
-- [ ] **Primeiro, valor errado:** `proxima_busca` existe no módulo novo e devolve `None` sempre; nada mudou de lugar ainda. Em `formatos.py`, nenhum: o código de hoje é o valor errado do teste de dia local.
-- [ ] **Testes que falham** em `tests/unidade/test_saude_das_fontes.py`, com o banco em memória pelo `migrar` e o relógio fixo:
+- [x] **Primeiro, valor errado:** `proxima_busca` existe no módulo novo e devolve `None` sempre; nada mudou de lugar ainda. Em `formatos.py`, nenhum: o código de hoje é o valor errado do teste de dia local.
+- [x] **Testes que falham** em `tests/unidade/test_saude_das_fontes.py`, com o banco em memória pelo `migrar` e o relógio fixo:
   - `test_proxima_busca_tres_horas_depois`: com uma busca completa às 9h, `proxima_busca` às 10h dá 12h.
   - `test_proxima_com_relogio_que_voltou`: o início depois de `agora` dá `None`. Controle: com `agora` depois do início, dá a hora.
   - `test_sem_busca_completa_none`: é guarda e nasce verde. Mutante: devolver `agora + INTERVALOS["busca"]` sem busca.
   - `test_definidos_uma_vez`: pelo AST, `cartoes`, `proxima_busca` e `contas_em_queda` são definidos uma vez só em `src/jobot/painel/`, fora de `rotas/`; nenhum arquivo de `rotas/` define `_cartoes`. Nasce vermelho, porque `_cartoes` ainda está em `rotas/fontes.py`.
   - `test_saude_nao_importa_rotas`: pelo AST, nenhum `import` de `jobot.painel.rotas` em `saude_das_fontes.py` nem em `consultas.py`. É guarda e nasce verde, porque o módulo novo do valor errado não importa `rotas/`. O `consultas.py` vem de um plano anterior e não foi conferido aqui: se ele importar `rotas/`, o teste nasce vermelho e a T283 corrige junto (R1). Mutante: um `from jobot.painel.rotas.vagas import relogio_do_painel` em `saude_das_fontes.py` faz o teste falhar. Ele cobre só esses dois módulos (o `painel/cliente.py` já importa de `rotas/vagas.py`).
-- [ ] **Teste que falha** em `tests/unidade/test_formatos.py` (E16), com o `TZ` fixado em `<-03>3` por `tzset` e desfeito no fim, como a fixture `fuso_local` de `tests/integracao/test_execucao.py` («Dia de calendário»):
+- [x] **Teste que falha** em `tests/unidade/test_formatos.py` (E16), com o `TZ` fixado em `<-03>3` por `tzset` e desfeito no fim, como a fixture `fuso_local` de `tests/integracao/test_execucao.py` («Dia de calendário»):
   - `test_instante_vira_dia_local`: `"2026-11-17T01:30:00+00:00"` dá `16/11` e `16/11/2026` em pt, e `11/16` em en. O vermelho é a asserção do dia: o código de hoje dá `17/11`. Controle na mesma montagem: `"2026-11-17"`, sem hora, continua `17/11`.
   - O caso `"2026-11-13T12:00:00+00:00"` do `test_datas` continua valendo.
-- [ ] **Ver falhar:** `uv run pytest tests/unidade/test_saude_das_fontes.py tests/unidade/test_formatos.py -q`.
-- [ ] **Implementar** os itens de Interfaces.
+- [x] **Ver falhar:** `uv run pytest tests/unidade/test_saude_das_fontes.py tests/unidade/test_formatos.py -q`.
+- [x] **Implementar** os itens de Interfaces.
 - [ ] **Ver passar:**
   - os mesmos arquivos, mais `tests/integracao/test_rota_fontes.py`, `tests/integracao/test_aviso_contas.py`, `tests/integracao/test_rota_preferencias.py` (registra os dois nomes como globais do Jinja), `tests/unidade/test_rotas_sem_copias.py`, `tests/unidade/test_consultas.py` e `tests/unidade/test_camadas.py`;
   - ruff;
