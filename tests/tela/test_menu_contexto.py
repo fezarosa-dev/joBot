@@ -184,7 +184,9 @@ def test_menu_sem_data_site_desabilita_abrir_no_site(
     """T305 (d): endereço que não é `http`/`https` não vira `data-site` na linha; o menu abre sem
     "Abrir no site da vaga" e sem "Copiar link" (a HIG esconde o que não vale) e nada navega."""
     with closing(abrir(tmp_path / "jobot.db")) as con:
-        inserir_vaga(con, titulo="Vaga Sem Site", url=url)
+        vaga_id = inserir_vaga(con, titulo="Vaga Sem Site")
+        # o modelo recusa esse endereço na coleta: simula dado antigo ou estragado no banco
+        con.execute("UPDATE vaga SET url = ? WHERE id = ?", (url, vaga_id))
         con.commit()
     page.goto(f"{painel}/vagas?aba=todas")
     endereco = page.url
