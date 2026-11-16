@@ -105,8 +105,11 @@ class Painel:
         linhas = self.sql("SELECT valor FROM config WHERE chave = 'login_horarios'")
         return json.loads(linhas[0][0]) if linhas else None
 
-    def post(self, url: str, dados: dict[str, Any] | None = None) -> Any:
-        return self.http.post(url, data={CAMPO_CSRF: self.token, **(dados or {})})
+    def post(self, url: str, dados: dict[str, Any] | None = None, htmx: bool = False) -> Any:
+        cabecalhos = {"HX-Request": "true"} if htmx else None
+        return self.http.post(
+            url, data={CAMPO_CSRF: self.token, **(dados or {})}, headers=cabecalhos
+        )
 
 
 @pytest.fixture
@@ -512,7 +515,7 @@ def test_esquecer_indicador_em_ingles(painel: Painel) -> None:
 def test_resposta_de_esquecer_nao_traz_o_componente(painel: Painel) -> None:
     """O componente mora na página; a resposta do POST só troca o texto do resultado (E15)."""
     _perfil(painel)
-    resposta = painel.post(CONFIRMAR)
+    resposta = painel.post(CONFIRMAR, htmx=True)
     assert resposta.status_code == 200
     assert "progressbar" not in resposta.text and "progresso" not in resposta.text
 
@@ -809,7 +812,7 @@ def test_esquecer_so_apaga_ao_confirmar_e_a_pergunta_antiga_saiu(
     assert painel.post(ESQUECER).status_code in (404, 405)  # a pergunta é o alerta da página
     assert perfil.exists() and (perfil / "Default" / "Cookies").exists()
 
-    resposta = painel.post(CONFIRMAR)
+    resposta = painel.post(CONFIRMAR, htmx=True)
     assert resposta.status_code == 200
     apagados = {"pt": "Logins apagados", "en": "Logins deleted"}[idioma]
     assert apagados in _texto(resposta.text)
@@ -853,25 +856,49 @@ def test_esquecer_logins_sem_js_vai_para_confirmar(painel: Painel, idioma: str) 
     assert "<dialog" not in sem_paleta and "autofocus" not in sem_paleta
 
 
-def test_esquecer_logins_post_direto_continua(painel: Painel) -> None:
-    """O POST de hoje (o do alerta e o do botão da página de confirmação) apaga como antes."""
+def test_esquecer_sem_htmx_redireciona(painel: Painel) -> None:
+    """T310 (D165): o POST da página de confirmação, sem JavaScript, apaga e volta ao grupo
+    com o aviso de salvo; o alerta (HTMX) segue recebendo o fragmento."""
     perfil = _perfil(painel)
-    resposta = painel.post(CONFIRMAR)
-    assert resposta.status_code == 200 and "Logins apagados" in _texto(resposta.text)
+    resposta = painel.http.post(CONFIRMAR, data={CAMPO_CSRF: painel.token}, follow_redirects=False)
+    assert resposta.status_code == 303
+    assert resposta.headers["location"] == f"{GRUPO}?salvo=1"
     assert not perfil.exists()
 
 
 def test_esquecer_com_leitura_rodando_nao_apaga(painel: Painel) -> None:
     perfil = _perfil(painel)
     trava = _trava_presa(painel)
-    resposta = painel.post(CONFIRMAR)
+    resposta = painel.post(CONFIRMAR, htmx=True)
     assert resposta.status_code == 200
     assert _EM_ANDAMENTO in _texto(resposta.text)
     assert (perfil / "Default" / "Cookies").exists()
     assert trava.locked()
     trava.release()  # controle: com a trava livre, apaga
-    assert "Logins apagados" in _texto(painel.post(CONFIRMAR).text)
+    assert "Logins apagados" in _texto(painel.post(CONFIRMAR, htmx=True).text)
     assert not perfil.exists()
+
+
+def test_esquecer_com_leitura_rodando_sem_htmx_redireciona_com_erro(painel: Painel) -> None:
+    perfil = _perfil(painel)
+    trava = _trava_presa(painel)
+    resposta = painel.post(CONFIRMAR)
+    assert resposta.status_code == 303
+    assert resposta.headers["location"] == f"{GRUPO}?erro=em_andamento"
+    assert (perfil / "Default" / "Cookies").exists()
+    assert trava.locked()
+
+
+def test_pagina_do_grupo_mostra_o_erro_conhecido_e_ignora_lixo(painel: Painel) -> None:
+    com_erro = painel.http.get(f"{GRUPO}?erro=em_andamento")
+    assert com_erro.status_code == 200
+    assert _EM_ANDAMENTO in _texto(com_erro.text) and 'role="alert"' in com_erro.text
+    erro_apagar = painel.http.get(f"{GRUPO}?erro=esquecer")
+    assert "Não consegui apagar os logins" in _texto(erro_apagar.text)
+    lixo = painel.http.get(f"{GRUPO}?erro=%3Cb%3Ex%3C/b%3E")
+    assert lixo.status_code == 200
+    assert "<b>x</b>" not in lixo.text and "Não consegui apagar" not in _texto(lixo.text)
+    assert _EM_ANDAMENTO not in _texto(lixo.text)
 
 
 def test_esquecer_com_navegador_symlink_nao_apaga_o_alvo(
@@ -881,7 +908,11 @@ def test_esquecer_com_navegador_symlink_nao_apaga_o_alvo(
     (fora / "Cookies").write_text("de outro lugar")
     link = painel.banco.parent / PASTA_NAVEGADOR
     link.symlink_to(fora, target_is_directory=True)
-    resposta = painel.post(CONFIRMAR)
+    semjs = painel.post(CONFIRMAR)
+    assert semjs.status_code == 303
+    assert semjs.headers["location"] == f"{GRUPO}?erro=esquecer"
+    assert (fora / "Cookies").read_text() == "de outro lugar" and link.is_symlink()
+    resposta = painel.post(CONFIRMAR, htmx=True)
     assert resposta.status_code == 200
     texto = _texto(resposta.text)
     assert "Não consegui apagar os logins" in texto

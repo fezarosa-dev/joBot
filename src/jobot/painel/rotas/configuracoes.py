@@ -291,9 +291,17 @@ def _grupo_valido(request: Request, grupo: str) -> str:
     return grupo
 
 
-def _volta(grupo: str, salvo: bool = False) -> RedirectResponse:
+def _volta(grupo: str, salvo: bool = False, erro: str | None = None) -> RedirectResponse:
     # `?salvo=1` só faz a página seguinte dizer "Salvo."; nada fica guardado no servidor
-    return RedirectResponse(f"/configuracoes/{grupo}" + ("?salvo=1" if salvo else ""), 303)
+    sufixo = "?salvo=1" if salvo else f"?erro={erro}" if erro else ""
+    return RedirectResponse(f"/configuracoes/{grupo}{sufixo}", 303)
+
+
+# `?erro=` de "Esquecer logins" sem JavaScript (T310): lista fechada, nada da URL vai à página
+_ERROS_DE_ESQUECER = {
+    "em_andamento": "configuracoes.sites_com_login.em_andamento",
+    "esquecer": "configuracoes.sites_com_login.esquecer.erro",
+}
 
 
 # --- gravações -----------------------------------------------------------------------------
@@ -458,7 +466,12 @@ async def mostrar(request: Request, con: Con, grupo: str) -> Response:
         # o navegador guarda o último grupo (T262): sem leitor ele sumiu, e a pessoa cai em Geral
         return _volta(GRUPOS[0])
     salvo = request.query_params.get("salvo") == "1"
-    return await _pagina(request, con, _grupo_valido(request, grupo), salvo=salvo)
+    ctx: dict[str, Any] = {"salvo": salvo}
+    if grupo == COM_LOGIN and (
+        chave := _ERROS_DE_ESQUECER.get(request.query_params.get("erro", ""))
+    ):
+        ctx["erro"] = chave
+    return await _pagina(request, con, _grupo_valido(request, grupo), **ctx)
 
 
 @router.post("/{grupo}")
@@ -593,17 +606,24 @@ async def esquecer_logins_confirmado(request: Request) -> Response:
     """Confirma o alerta: apaga a pasta do perfil, nunca com leitura ou login rodando (D132.22)."""
     _grupo_valido(request, COM_LOGIN)
     trava = _trava_de_login(request)
+    sem_js = request.headers.get("hx-request") != "true"  # T310, D165: volta à página do grupo
     if trava.locked():
+        if sem_js:
+            return _volta(COM_LOGIN, erro="em_andamento")
         return renderizar(request, "configuracoes/_esquecer.html", fase="em_andamento")
     await trava.acquire()  # livre: não suspende; segura enquanto apaga
     try:
         await run_in_threadpool(apagar_perfil, request.app.state.banco.parent)
     except OSError as erro:  # symlink recusado ou disco: o caminho fica só no log
         _LOG.warning("esquecer logins: não consegui apagar o perfil: %s", type(erro).__name__)
+        if sem_js:
+            return _volta(COM_LOGIN, erro="esquecer")
         return renderizar(request, "configuracoes/_esquecer.html", fase="erro")
     finally:
         trava.release()
     _estados_de_login(request).clear()  # o "Login feito" de antes não vale mais
+    if sem_js:
+        return _volta(COM_LOGIN, salvo=True)
     return renderizar(request, "configuracoes/_esquecer.html", fase="apagados")
 
 
