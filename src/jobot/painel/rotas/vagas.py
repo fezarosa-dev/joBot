@@ -27,7 +27,6 @@ from jobot.painel.consultas import (
     MAX_ID,
     busca_ativa,
     busca_efetiva,
-    config_ou_padrao,
     ids_destaques,
     inteiro_da_url,
     relogio_do_painel,
@@ -167,7 +166,7 @@ def _chip_valido(grupo: str, valor: str) -> bool:
 
 
 def ler_estado(params: QueryParams, con: sqlite3.Connection, ex: Exibicao) -> Estado:
-    ligados = bool(config_ou_padrao(con, "destaques_ligados", True))
+    ligados = bool(ler_config(con, "destaques_ligados"))
     validas = {*leitura.ABAS, *([ABA_DESTAQUES] if ligados else [])}
     pedida_aba = params.get("aba") or ""
     aba = pedida_aba if pedida_aba in validas else (ABA_DESTAQUES if ligados else "todas")
@@ -318,7 +317,9 @@ def _contexto_pagina(
         "empresa": estado.empresa,
         "sal_de": estado.sal_de,
         "sal_ate": estado.sal_ate,
-        "n_mais_filtros": sum(
+        # os chips ativos moram no "Mais filtros" (T301): contam junto com os campos
+        "n_mais_filtros": len(estado.chips)
+        + sum(
             1
             for v in (estado.excluir, estado.cidade, estado.empresa, estado.sal_de, estado.sal_ate)
             if v not in ("", None)
@@ -360,9 +361,9 @@ def com_vary(resposta: HTMLResponse) -> HTMLResponse:
 
 @router.get("/")
 async def raiz(con: Con) -> RedirectResponse:
-    if not config_ou_padrao(con, "primeira_execucao_concluida", False):
+    if not ler_config(con, "primeira_execucao_concluida", False):
         return RedirectResponse("/primeira-execucao/1", status_code=303)
-    aba = ABA_DESTAQUES if config_ou_padrao(con, "destaques_ligados", True) else "todas"
+    aba = ABA_DESTAQUES if ler_config(con, "destaques_ligados") else "todas"
     return RedirectResponse(f"/vagas?aba={aba}", status_code=303)
 
 

@@ -40,7 +40,10 @@
       exigir_csrf recusa; same-origin manda a origem certa ao próprio painel e nada para fora #}
   <meta name="referrer" content="same-origin">
   <meta name="csrf-token" content="{{ csrf_token }}">
-  <meta name="htmx-config" content='{"allowEval": false, "selfRequestsOnly": true, "includeIndicatorStyles": false}'>
+  {#- attributesToSettle sem "style" (T301): o painel não usa o atributo style (o CSP barra), mas um
+      style vazio deixado no nó velho por quem não é o painel (a foto do Playwright esconde o cursor
+      assim) era copiado pelo htmx com setAttribute e virava violação de style-src-attr na troca #}
+  <meta name="htmx-config" content='{"allowEval": false, "selfRequestsOnly": true, "includeIndicatorStyles": false, "attributesToSettle": ["class", "width", "height"]}'>
   <title>{% block titulo %}joBot{% endblock %}</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/static/css/base.css">
@@ -60,7 +63,7 @@
       <p class="menu-secao" id="secao-onde">{{ t("casca.lateral.onde_buscar") }}</p>
       <ul aria-labelledby="secao-onde">
         {%- for chave, href, area, icone, segundo in onde if not segundo or lado.sugeridas_pendentes %}
-        <li{% if segundo %} class="segundo-nivel"{% endif %}><a data-icone="{{ icone }}" href="{{ href }}"{% if area == ns.atual %} aria-current="{{ 'page' if caminho == href else 'true' }}"{% endif %}>{{ t("casca.menu." ~ chave) }}</a></li>
+        <li{% if segundo %} class="segundo-nivel"{% endif %}><a data-icone="{{ icone }}" href="{{ href }}"{% if area == ns.atual %} aria-current="{{ 'page' if caminho == href else 'true' }}"{% endif %}>{{ t("casca.menu." ~ chave) }}{% if chave == "sugeridas" %} <span class="contagem">{{ lado.sugeridas_pendentes }}</span>{% endif %}</a></li>
         {%- endfor %}
       </ul>
       <ul>
