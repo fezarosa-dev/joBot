@@ -2838,7 +2838,7 @@ Escolha da sessão (dono fora): a opção (a), para confirmar. Consequência: co
 
 **Contexto:** a T258 era o portão da branch longa `feat/visual-mac`: ela só entraria na `dev` depois do ok do dono, com o painel aberto na frente dele (D140.8, D143.54). O dono deu autonomia para seguir até a fase 9 e não estava para conferir. A sessão fez a conferência sozinha: a T258 virou 40 fotos do painel (fora do repositório), cobrindo os sete itens da T258 (três larguras, claro e escuro, vidro e caminho sólido, os três tamanhos de texto, contagens e busca escolhida, Desfazer, teclado e menu, "Buscar agora"). A branch visual entrou na `dev` sem esperar o ok. Os defeitos vistos nas fotos viram a T301 do plano visual (dez itens: filtros, sobreposto a 800px, lugar do "Mais filtros", topo a 600px, glifo do encaixe médio, primeira linha marcada, "Ver detalhes", texto Maior, Sugeridas e as violações de CSP na troca da lista); o defeito da página própria a 600px vai como item a mais na T264.
 
-Uma escolha de desenho da T301 vai junto, também para confirmar: o "Mais filtros" passa a vir fechado mesmo com filtro ativo e mostra no resumo quantos filtros valem (no formato de hoje, "Mais filtros (2)", agora contando também os chips), e os grupos de chips (Modalidade, Nível, Área e os outros) passam para dentro dele, para a lista começar na primeira dobra. Isso muda a barra da T254 (desenho 5.2), em que os chips ficam à mostra e o "Mais filtros" abre quando algum campo está preenchido. E outra, do item 6: some só a marca que aparece ao carregar a página; entrar na lista pelo teclado (Tab ou o link "Pular para a lista de vagas") marca a linha focada, porque a seleção segue o foco, como hoje.
+Uma escolha de desenho da T301 vai junto, também para confirmar: o "Mais filtros" passa a vir fechado ao carregar a página, mesmo com filtro ativo (se a pessoa o abre, ele continua aberto quando a lista é trocada: chip, envio, troca de busca; o `app.js` guarda isso em `htmx:beforeSwap` e `htmx:afterSwap`), e mostra no resumo quantos filtros valem (no formato de hoje, "Mais filtros (2)", agora contando também os chips), e os grupos de chips (Modalidade, Nível, Área e os outros) passam para dentro dele, para a lista começar na primeira dobra. Isso muda a barra da T254 (desenho 5.2), em que os chips ficam à mostra e o "Mais filtros" abre quando algum campo está preenchido. E outra, do item 6: some só a marca que aparece ao carregar a página; entrar na lista pelo teclado (Tab ou o link "Pular para a lista de vagas") marca a linha focada, porque a seleção segue o foco, como hoje.
 
 **Escolhas:**
 
@@ -2850,3 +2850,74 @@ Uma escolha de desenho da T301 vai junto, também para confirmar: o "Mais filtro
 **O que o dono faz:** abrir o painel e dizer o que trocar, inclusive se a barra de filtros da T301 (chips dentro do "Mais filtros", fechado com a contagem) fica assim. Cada pedido vira uma tarefa nova do plano visual.
 
 **Como desfazer:** reverter na `dev` os commits do visual (os das tarefas T248 a T257). A T301 e as tarefas que vierem depois saem junto.
+
+## D158. Pular da primeira execução desliga os sites com login (para confirmar)
+
+**Status:** para confirmar. Decidido pela sessão, com o dono fora.
+
+**Contexto:** na T263, o botão Pular (`POST /primeira-execucao/pular`, função `pular` em `src/jobot/painel/rotas/primeira_execucao.py:517`) conclui a primeira execução com os padrões e desliga todo site com login (`ligar_fonte(con, leitor.chave, False)` por leitor, linha 527). Uma versão intermediária tinha trocado para "não mexe no que a pessoa ligou"; voltou ao combinado porque o texto da T263, a D137.10, a ADR 0011 e a E10 da fase 2 dizem que Pular deixa os padrões, sem site com login.
+
+**Escolhas:**
+
+- **A (escolhida).** Manter: Pular desliga os sites com login e segue, como a D137.10 e a D143.18 mandam.
+- **B.** Pular não mexe no que a pessoa ligou antes no passo dos sites.
+
+**Recomendação:** A (manter, isto é, desligar). Quem pula quer os padrões; um site com login ligado sem a pessoa ter olhado o aviso do passo não deve ficar valendo.
+
+**O que o dono faz:** confirmar a A ou pedir a B.
+
+**Como desfazer:** a troca para B é uma linha em `pular()` (tirar o laço de `ligar_fonte`) e o teste que a prende em `tests/integracao/test_rota_primeira_execucao.py` (a família `test_pular_*`, a partir da linha 905). Nenhum esquema muda.
+
+**Ver também:** D137.10, D143.18.
+
+## D159. Sem JavaScript, Apagar uma busca não pede confirmação (para confirmar)
+
+**Status:** para confirmar. Decidido pela sessão, com o dono fora.
+
+**Contexto:** na T259, com JavaScript, "Apagar" na lista de Buscas abre um alerta (a macro `src/jobot/painel/templates/_alerta.html`, usada em `buscas/lista.html:65`) e o Return não age sobre ele (E13). Sem JavaScript o botão envia o `POST` direto, como o plano da T259 manda (`test_apagar_sem_js_continua`, `tests/integracao/test_rota_buscas.py:373`). O joBot não apaga dado de vaga: `apagar_busca` (`src/jobot/banco/buscas.py:181-185`) só tira a busca e o encaixe dela (`ON DELETE CASCADE`); a vaga não é tocada.
+
+**Escolhas:**
+
+- **A (escolhida).** Manter: sem JavaScript, o `POST` apaga sem pergunta.
+- **B.** Um passo de confirmação para quem está sem JavaScript: uma página intermediária ("Apagar a busca X?") atrás de um `<noscript>` ou de uma rota `GET`. Vira tarefa nova e mais uma tela para manter nas duas línguas.
+
+**Recomendação:** A. O painel é local, de uma pessoa só, quase todo mundo roda com JavaScript, e a busca se refaz em um minuto sem perder nenhuma vaga.
+
+**O que o dono faz:** confirmar a A ou pedir a B.
+
+**Como desfazer:** a B é uma `Tn` nova; a macro do alerta e a rota de hoje não mudam.
+
+## D160. Título em inglês da correção fora do Title Case (para confirmar)
+
+**Status:** para confirmar. Decidido pela sessão, com o dono fora.
+
+**Contexto:** na T264, `detalhe.correcao.titulo` em `src/jobot/painel/i18n/en/detalhe.json:32` é "Something wrong with this job?" (título do sheet e texto do link). A regra do plano visual pede Title Case em botão, item de menu, título e item da lateral no catálogo `en` (desenho 5.6). O texto aparece também em `README.en.md:221` e em `wiki/How-it-works.md:129`.
+
+**Escolhas:**
+
+- **A (escolhida).** Trocar para "Something Wrong with This Job?" no catálogo `en`, no `README.en.md` e em `wiki/How-it-works.md`, numa vez só, dentro da T268 (documentos de quem usa; item acrescentado lá).
+- **B.** Deixar a frase como pergunta em caixa de frase, como exceção à regra.
+
+**Recomendação:** A. A regra fica sem exceção e os três lugares nunca divergem.
+
+**O que o dono faz:** confirmar a A ou pedir a B.
+
+**Como desfazer:** voltar a frase nos três arquivos; nenhum teste de lógica muda (conferir `grep -rn "Something wrong" tests` antes de fechar a T268).
+
+## D161. Ícones do encaixe: o bom parece menos cheio que o médio (para confirmar)
+
+**Status:** para confirmar. Decidido pela sessão, com o dono fora.
+
+**Contexto:** a T301 (item 5) trocou o glifo "◐" pelos ícones Lucide de `src/jobot/painel/templates/_encaixe.html:5`: bom = `circle` (vazio), médio = `contrast` (meio cheio), fraco = `circle-dashed` (tracejado). Nas fotos o bom parece menos cheio que o médio, ao contrário do que o nome diz.
+
+**Escolhas:**
+
+- **A (escolhida).** Uma escala que cresce: fraco = `circle` (vazio), médio = `contrast` (meio cheio), bom = `circle-check` (cheio, com o visto). O `circle-check.svg` já está em `src/jobot/painel/static/icones/` e no `lucide.meta.json`, então não entra SVG novo; a regra CSS `[data-icone="circle-check"]` hoje mora em `static/css/execucao.css:218` e passa para `casca.css`, ao lado das de `circle` e `contrast` (linhas 171 e 172), para a lista de Vagas achar o ícone.
+- **B.** Manter os três de hoje e trocar só o bom para `circle-dot` (círculo com ponto).
+- **C.** Embutir um círculo cheio de verdade: o Lucide não tem; pede SVG nosso, fora da licença e do `lucide.meta.json`.
+
+**Recomendação:** A. Cresce da esquerda para a direita, usa só ícones já embutidos e o visto diz "bom encaixe" sem depender da cor. O `circle-dashed` continua nos ícones do progresso (`execucao/_progresso.html:54`).
+
+**O que o dono faz:** confirmar a A ou pedir outra. A troca vira o item (k) da T305.
+
+**Como desfazer:** voltar o dicionário de `_encaixe.html:5` e os dois testes que o prendem (`tests/integracao/test_rota_vagas.py:1765`, `tests/tela/test_vagas.py:968`).
