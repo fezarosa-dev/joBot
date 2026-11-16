@@ -13,7 +13,7 @@ from typing import Any
 from urllib.parse import urlsplit
 
 import pytest
-from playwright.async_api import BrowserContext, Route, async_playwright
+from playwright.async_api import BrowserContext, Playwright, Route
 
 from apoio.cofre_falso import CofreFalso
 from apoio.site_falso import LOCAIS, LeitorFalso, SiteFalso
@@ -51,7 +51,7 @@ class Montagem:
 
 
 @pytest.fixture
-async def montagem(tmp_path: Path) -> AsyncIterator[Montagem]:
+async def montagem(tmp_path: Path, playwright_da_sessao: Playwright) -> AsyncIterator[Montagem]:
     recusados: list[str] = []
 
     async def filtrar(route: Route) -> None:
@@ -61,23 +61,21 @@ async def montagem(tmp_path: Path) -> AsyncIterator[Montagem]:
             recusados.append(route.request.url)
             await route.abort()
 
-    async with async_playwright() as playwright:
+    async def lancar(**argumentos: Any) -> BrowserContext:
+        argumentos.pop("channel", None)  # sempre o Chromium do Playwright, igual no CI
+        contexto = await playwright_da_sessao.chromium.launch_persistent_context(
+            **argumentos, headless=True
+        )
+        await contexto.route("**/*", filtrar)
+        m.contextos.append(contexto)
+        return contexto
 
-        async def lancar(**argumentos: Any) -> BrowserContext:
-            argumentos.pop("channel", None)  # sempre o Chromium do Playwright, igual no CI
-            contexto = await playwright.chromium.launch_persistent_context(
-                **argumentos, headless=True
-            )
-            await contexto.route("**/*", filtrar)
-            m.contextos.append(contexto)
-            return contexto
-
-        m = Montagem(tmp_path, lancar)
-        try:
-            yield m
-        finally:
-            for contexto in m.contextos:
-                await contexto.close()
+    m = Montagem(tmp_path, lancar)
+    try:
+        yield m
+    finally:
+        for contexto in m.contextos:
+            await contexto.close()
     assert recusados == [], f"pedido para fora do loopback: {recusados}"
 
 

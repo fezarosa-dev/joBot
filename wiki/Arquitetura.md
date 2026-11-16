@@ -88,11 +88,13 @@ erDiagram
     execucao ||--o| andamento : "execucao_id"
     execucao ||--o{ andamento_fonte : "execucao_id"
     fonte ||--o{ andamento_fonte : "fonte"
+    fonte ||--o| sessao_site : "fonte"
     vaga ||--o{ local_vaga : "vaga_id"
     vaga ||--o{ ocorrencia : "vaga_id"
     vaga ||--o{ encaixe : "vaga_id"
     vaga ||--o{ correcao : "vaga_id"
     vaga ||--o{ evento : "vaga_id"
+    vaga ||--o| candidatura : "vaga_id"
     vaga ||--o| vaga_fts : "rowid = id"
     busca ||--o{ encaixe : "busca_id"
     pagina_acompanhada ||--o{ mudanca_pagina : "pagina_id"
@@ -150,6 +152,22 @@ erDiagram
         INTEGER total
         TEXT espera_ate
         TEXT espera_motivo
+    }
+    sessao_site {
+        TEXT fonte PK, FK
+        TEXT estado
+        TEXT motivo
+        TEXT conferido_em
+        TEXT entrou_em
+        TEXT avisado_em
+    }
+    sessao_conta {
+        TEXT conta PK
+        TEXT estado
+        TEXT motivo
+        TEXT conferido_em
+        TEXT entrou_em
+        TEXT avisado_em
     }
     saude {
         INTEGER execucao_id PK, FK
@@ -217,6 +235,11 @@ erDiagram
         TEXT para
         TEXT criado_em
     }
+    candidatura {
+        INTEGER vaga_id PK, FK
+        TEXT abriu_em
+        INTEGER perguntar
+    }
     cotacao {
         TEXT moeda PK
         TEXT data PK
@@ -259,7 +282,7 @@ erDiagram
     }
 ```
 
-**Nada é apagado.** O gatilho `vaga_sem_delete` recusa qualquer `DELETE` em `vaga`: a vaga que some da fonte só ganha `fechada_em`. A tabela `evento` (o histórico do que você fez no painel) só recebe acréscimo: `evento_sem_update` e `evento_sem_delete` recusam mudar ou apagar uma linha. A gravação usa sempre `INSERT ... ON CONFLICT DO UPDATE`, nunca `INSERT OR REPLACE`. As tabelas `cotacao`, `cache_http`, `enriquecimento` e `config` não têm chave estrangeira: `enriquecimento` liga à vaga só pelo valor de `url_hash`.
+**Nada é apagado.** O gatilho `vaga_sem_delete` recusa qualquer `DELETE` em `vaga`: a vaga que some da fonte só ganha `fechada_em`. A tabela `evento` (o histórico do que você fez no painel) só recebe acréscimo: `evento_sem_update` e `evento_sem_delete` recusam mudar ou apagar uma linha. A tabela `candidatura` (quando você abriu a candidatura de cada vaga) é atualizada no lugar, e `candidatura_sem_delete` recusa apagar uma linha. A gravação usa sempre `INSERT ... ON CONFLICT DO UPDATE`, nunca `INSERT OR REPLACE`. As tabelas `cotacao`, `cache_http`, `enriquecimento` e `config` não têm chave estrangeira: `enriquecimento` liga à vaga só pelo valor de `url_hash`.
 
 ## 🔎 Uma busca, passo a passo
 

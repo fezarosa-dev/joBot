@@ -7,8 +7,7 @@ import html as html_lib
 import json
 import re
 import sqlite3
-import time
-from collections.abc import Iterator, Sequence
+from collections.abc import Sequence
 from contextlib import closing
 from datetime import UTC, date, datetime
 from pathlib import Path
@@ -117,15 +116,6 @@ class Painel:
 @pytest.fixture
 def painel(tmp_path: Path) -> Painel:
     return Painel(tmp_path)
-
-
-@pytest.fixture
-def fuso_sao_paulo(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    monkeypatch.setenv("TZ", "America/Sao_Paulo")
-    time.tzset()
-    yield
-    monkeypatch.undo()  # volta o TZ antes do tzset: sem isso o fuso vaza para os outros testes
-    time.tzset()
 
 
 def _interruptor(html: str, nome: str) -> tuple[bool, bool]:
@@ -283,7 +273,9 @@ def test_conversao_desligada_tira_o_real_da_vaga_estrangeira_e_mantem_o_da_vaga_
     assert (painel.brl("usd"), painel.brl("brl")) == (28250, 8000)
 
 
-def test_conversao_com_cotacao_de_8_dias_nao_converte(painel: Painel, fuso_sao_paulo: None) -> None:
+def test_conversao_com_cotacao_de_8_dias_nao_converte(
+    painel: Painel, fuso_de_sao_paulo: None
+) -> None:
     # 13/11 12:00 UTC é 13/11 09:00 em São Paulo: a cotação vale 7 dias a partir do dia local
     painel.funcoes(conversao_moeda_ligada=False)
     painel.sql("UPDATE cotacao SET data = '2026-11-05'")  # 8 dias antes de 13/11
@@ -303,7 +295,7 @@ def test_conversao_com_cotacao_de_8_dias_nao_converte(painel: Painel, fuso_sao_p
     ],
 )
 def test_conversao_e_encaixe_usam_o_dia_local(
-    painel: Painel, fuso_sao_paulo: None, cotacao: str, converte: bool, oculta: str | None
+    painel: Painel, fuso_de_sao_paulo: None, cotacao: str, converte: bool, oculta: str | None
 ) -> None:
     # 14/11 02:00 UTC ainda é 13/11 23:00 em São Paulo; 06/11 está a 8 dias do dia UTC
     painel.app.state.relogio = RelogioFalso(datetime(2026, 11, 14, 2, 0, tzinfo=UTC))

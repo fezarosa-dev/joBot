@@ -10,7 +10,7 @@ import logging
 import socket
 import sqlite3
 from collections.abc import AsyncIterator, Callable, Iterator, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -18,7 +18,7 @@ from urllib.parse import urlsplit
 
 import httpx
 import pytest
-from playwright.async_api import BrowserContext, Route, async_playwright
+from playwright.async_api import BrowserContext, Playwright, Route
 
 from apoio.cofre_falso import CofreFalso
 from apoio.relogio import RelogioFalso
@@ -30,6 +30,7 @@ from jobot.banco.execucoes import abrir_execucao, fechar_execucao
 from jobot.banco.gravacao import ValidadoresDoBanco
 from jobot.banco.gravacao import gravar_escopo as gravar_escopo_do_banco
 from jobot.banco.migrar import migrar
+from jobot.banco.sessoes import gravar_sessao, ler_sessao
 from jobot.navegador import execucao, limites
 from jobot.navegador.abrir import Lancar
 from jobot.navegador.execucao import Dependencias, dependencias_de_producao, executar_login
@@ -96,40 +97,39 @@ class Montagem:
 
 
 @pytest.fixture
-async def montagem(tmp_path: Path) -> AsyncIterator[Montagem]:
+async def montagem(tmp_path: Path, playwright_da_sessao: Playwright) -> AsyncIterator[Montagem]:
     recusados: list[str] = []
     tarefas: list[asyncio.Task[None]] = []
-    async with async_playwright() as playwright:
 
-        async def lancar(**argumentos: Any) -> BrowserContext:
-            argumentos.pop("channel", None)  # sempre o Chromium do Playwright, igual no CI
-            contexto = await playwright.chromium.launch_persistent_context(
-                **argumentos, headless=True
-            )
-            await contexto.route("**/*", filtrar)
-            m.contextos.append(contexto)
-            return contexto
+    async def lancar(**argumentos: Any) -> BrowserContext:
+        argumentos.pop("channel", None)  # sempre o Chromium do Playwright, igual no CI
+        contexto = await playwright_da_sessao.chromium.launch_persistent_context(
+            **argumentos, headless=True
+        )
+        await contexto.route("**/*", filtrar)
+        m.contextos.append(contexto)
+        return contexto
 
-        m = Montagem(tmp_path, lancar)
+    m = Montagem(tmp_path, lancar)
 
-        async def filtrar(route: Route) -> None:
-            partes = urlsplit(route.request.url)
-            if partes.hostname not in LOCAIS:
-                recusados.append(route.request.url)
-                await route.abort()
-                return
-            if partes.path in m.fechar_em:
-                tarefas.append(asyncio.get_running_loop().create_task(m.contextos[-1].close()))
-            with contextlib.suppress(Exception):  # o contexto pode já estar fechando
-                await route.continue_()
+    async def filtrar(route: Route) -> None:
+        partes = urlsplit(route.request.url)
+        if partes.hostname not in LOCAIS:
+            recusados.append(route.request.url)
+            await route.abort()
+            return
+        if partes.path in m.fechar_em:
+            tarefas.append(asyncio.get_running_loop().create_task(m.contextos[-1].close()))
+        with contextlib.suppress(Exception):  # o contexto pode já estar fechando
+            await route.continue_()
 
-        try:
-            yield m
-        finally:
-            for tarefa in tarefas:
-                await tarefa
-            for contexto in m.contextos:
-                await contexto.close()
+    try:
+        yield m
+    finally:
+        for tarefa in tarefas:
+            await tarefa
+        for contexto in m.contextos:
+            await contexto.close()
     assert recusados == [], f"pedido para fora do loopback: {recusados}"
 
 
@@ -391,19 +391,24 @@ async def test_429_repetido_para_o_site_sem_gravar_os_seguintes(
 
 
 async def test_teto_de_10_paginas_de_lista_por_site(
-    site: SiteFalso, montagem: Montagem, con: sqlite3.Connection
+    site: SiteFalso,
+    montagem: Montagem,
+    con: sqlite3.Connection,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    escopos = [(e, f"/quatro?q={e}") for e in "abcd"]
+    # teto menor, a mesma regra: cada página custa ~0,6 s reais (o 10 se prende em
+    # tests/unidade/test_navegador_abrir.py)
+    monkeypatch.setattr(limites, "MAX_LISTA", 6)
+    escopos = [(e, f"/quatro?q={e}") for e in "abc"]
     leitor = _leitor(site, *escopos)
     _ligar(con, leitor)
     execucao_id = await _rodar(con, [leitor], montagem.deps())
     assert execucao_id is not None
     # a entrada conta como uma das páginas de lista (E16)
-    assert site.visitas["/logado"] + site.visitas["/quatro"] == limites.MAX_LISTA == 10
+    assert site.visitas["/logado"] + site.visitas["/quatro"] == 6  # o teto
     assert _saude(con, execucao_id) == {
         ("falso_logado", "a"): ("ok", None),
-        ("falso_logado", "b"): ("ok", None),
-        ("falso_logado", "c"): ("parcial", "saude.listagem_incompleta"),
+        ("falso_logado", "b"): ("parcial", "saude.listagem_incompleta"),
     }
 
 
@@ -783,3 +788,98 @@ async def test_dependencias_de_producao_fecham_o_playwright(
         assert limites.ESPERA_MIN_S <= deps.sortear() <= limites.ESPERA_MAX_S
         assert not deps.politica(leitor)(site.url("/lista-html"))  # http e host local
     assert falso.saidas == 1
+
+
+# o estado do login na entrada de cada leitura (T272; desenho 5.1 e 5.6)
+
+
+def _sessao(con: sqlite3.Connection, chave: str) -> tuple[str, str | None, bool] | None:
+    """Estado, motivo e se `entrou_em` está preenchido."""
+    sessao = ler_sessao(con, "site", chave)
+    return None if sessao is None else (sessao.estado, sessao.motivo, sessao.entrou_em is not None)
+
+
+async def test_entrada_sem_sessao_grava_precisa_entrar(
+    site: SiteFalso, montagem: Montagem, con: sqlite3.Connection
+) -> None:
+    leitor = _leitor(site, ("a", "/paginada"), url_entrada=site.url("/entrar/sem-senha"))
+    _ligar(con, leitor)
+    execucao_id = await _rodar(con, [leitor], montagem.deps())
+    assert execucao_id is not None
+    assert _sessao(con, leitor.chave) == ("precisa_entrar", None, False)
+    assert _saude(con, execucao_id) == {("falso_logado", ""): ("falhou", "saude.precisa_login")}
+
+
+async def test_leitura_logada_grava_conectado(
+    site: SiteFalso, montagem: Montagem, con: sqlite3.Connection
+) -> None:
+    leitor = _leitor(site, ("a", "/lista-html?q=a"))
+    _ligar(con, leitor)
+    execucao_id = await _rodar(con, [leitor], montagem.deps())
+    assert execucao_id is not None
+    assert _sessao(con, leitor.chave) == ("conectado", None, True)
+    assert _saude(con, execucao_id) == {("falso_logado", "a"): ("ok", None)}
+
+
+async def test_queda_avisa_pela_leitura(
+    site: SiteFalso, montagem: Montagem, con: sqlite3.Connection
+) -> None:
+    leitor = _leitor(site, ("a", "/paginada"), url_entrada=site.url("/entrar/sem-senha"))
+    _ligar(con, leitor)
+    gravar_sessao(con, "site", leitor.chave, "conectado", None, ANTES)
+    avisos: list[tuple[str, str]] = []
+    deps = replace(montagem.deps(), avisar=lambda titulo, frase: avisos.append((titulo, frase)))
+    assert await _rodar(con, [leitor], deps) is not None
+    frase = (
+        "Sua sessão no Site falso caiu. Abra o joBot e entre de novo em Configurações › Sites"
+        " com login."
+    )
+    assert avisos == [("joBot", frase)]
+    assert _sessao(con, leitor.chave) == ("precisa_entrar", None, True)
+
+
+async def test_erro_de_rede_na_entrada_grava_sem_rede(
+    site: SiteFalso,
+    montagem: Montagem,
+    con: sqlite3.Connection,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(limites, "ESPERA_FECHAR_S", 0.05)
+    with socket.socket() as livre:
+        livre.bind(("127.0.0.1", 0))
+        porta = livre.getsockname()[1]  # fechada: o `goto` recebe conexão recusada
+    leitor = _leitor(site, ("a", "/paginada"), url_entrada=f"http://127.0.0.1:{porta}/entrar")
+    _ligar(con, leitor)
+    execucao_id = await _rodar(con, [leitor], montagem.deps())
+    assert execucao_id is not None
+    assert _sessao(con, leitor.chave) == ("nao_conferiu", "sem_rede", False)
+    # a saúde continua como antes: a gravação do estado é a mais
+    assert _saude(con, execucao_id) == {("falso_logado", ""): ("falhou", "saude.excecao:Error")}
+
+
+async def test_fechar_na_entrada_nao_grava(
+    site: SiteFalso, montagem: Montagem, con: sqlite3.Connection
+) -> None:
+    leitor = _leitor(site, ("a", "/paginada"))
+    _ligar(con, leitor)
+    # a linha de antes fica igual: gravar o fechamento a trocaria por `nao_conferiu`/`erro`
+    gravar_sessao(con, "site", leitor.chave, "conectado", None, ANTES)
+    antes = ler_sessao(con, "site", leitor.chave)
+    montagem.fechar_em.add("/logado")
+    execucao_id = await _rodar(con, [leitor], montagem.deps())
+    assert execucao_id is not None
+    assert _execucao(con, execucao_id) == ("login", "interrompida", "fechado")
+    assert ler_sessao(con, "site", leitor.chave) == antes
+
+
+async def test_sem_tela_grava_sem_tela(
+    site: SiteFalso, con: sqlite3.Connection, tmp_path: Path
+) -> None:
+    um = _leitor(site, ("a", "/paginada"))
+    dois = _leitor(site, ("b", "/paginada"), chave="outro_logado")
+    _ligar(con, um, dois)
+    lancados: list[dict[str, Any]] = []
+    execucao_id = await _rodar(con, [um, dois], _deps_sem_navegador(tmp_path, {}, lancados))
+    assert execucao_id is not None
+    assert lancados == []
+    assert _sessao(con, um.chave) == _sessao(con, dois.chave) == ("nao_conferiu", "sem_tela", False)

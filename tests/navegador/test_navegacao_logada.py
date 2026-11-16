@@ -1,7 +1,9 @@
 """Uma navegação com as checagens, contra o site falso (T212; desenho A7 e seção 8)."""
 
 import logging
+import re
 from collections.abc import Iterator, Sequence
+from typing import Any, cast
 from urllib.parse import urlsplit
 
 import pytest
@@ -282,6 +284,51 @@ async def test_cloudflare_que_leva_a_url_com_fragmento_segue(
     visita = await visitar(page, url, leitor, politica_local, RelogioDoNavegador())
     assert isinstance(visita, Captura)
     assert visita.status == 200  # a resposta de /lista, não o 403 do desafio
+
+
+class _ChecagemLenta:
+    """A página como numa máquina lenta: a primeira olhada do Cloudflare (`title`) só acontece
+    depois que o desafio já saiu sozinho. Torna fixa a corrida que falhou no CI (T292)."""
+
+    def __init__(self, page: Page, destino: re.Pattern[str]) -> None:
+        self._page = page
+        self._destino = destino
+        self._esperou = False
+
+    def __getattr__(self, nome: str) -> Any:
+        return getattr(self._page, nome)
+
+    async def title(self) -> str:
+        if not self._esperou:
+            self._esperou = True
+            await self._page.wait_for_url(self._destino)  # espera também o `load`
+        return await self._page.title()
+
+
+@pytest.mark.parametrize(
+    ("caminho", "destino", "esperado"),
+    [
+        ("/cloudflare-fragmento", r".*/lista#topo", Captura),
+        ("/cloudflare-login", r".*/login", "precisa_login"),
+    ],
+)
+async def test_cloudflare_que_sai_antes_da_primeira_olhada_vale_a_pagina_nova(
+    site: SiteFalso,
+    contexto_de_teste: BrowserContext,
+    politica_local: Politica,
+    caminho: str,
+    destino: str,
+    esperado: type | str,
+) -> None:
+    page = cast(Page, _ChecagemLenta(await _pagina(contexto_de_teste), re.compile(destino)))
+    visita = await visitar(
+        page, site.url(caminho), LeitorFalso.para(site), politica_local, RelogioDoNavegador()
+    )
+    if esperado is Captura:
+        assert isinstance(visita, Captura), visita
+        assert visita.status == 200  # o status da página nova, não o 403 do desafio
+    else:
+        assert visita == esperado
 
 
 async def test_429_depois_do_cloudflare_le_o_retry_after_novo(

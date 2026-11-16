@@ -2711,6 +2711,76 @@ Escolha da sessão (dono fora): a opção (a), para confirmar. Consequência: co
 
 **Como desfazer:** apagar a variável do workflow e voltar a um job só devolve a rodada longa; o hook do `conftest.py` não faz nada sem `JOBOT_PARTE`. Mudar o número de partes é mudar a lista `parte` da matriz no `ci.yml`.
 
+## D150. Pendências do visual e de Contas (para confirmar)
+
+**Status:** para confirmar. Decidido pela recomendação de cada item, com o dono fora.
+
+**Contexto:** a T251 (lateral e barra do visual novo) e a T273 (Contas, "Conferir agora") deixaram escolhas pequenas que o desenho não fechava. Cada uma segue a recomendação até o dono dizer outra coisa.
+
+**Escolhas:**
+
+1. (D150.1, T251) **Dois `aria-current="page"` em `/vagas`.** A lateral e a `nav.abas` marcam a página atual ao mesmo tempo. Alternativa: deixar os dois até a tarefa que tira as abas. Recomendo que a tarefa que tira as abas (T254) remova a `nav.abas` ou troque o atributo dela por `aria-selected`.
+2. (D150.2, T251) **Rótulo do `nav` lateral.** Segue "Principal" em português e "Main" em inglês. Alternativa: um nome mais específico. Recomendo manter.
+3. (D150.3, T251) **Altura da barra.** A barra usa `min-block-size` de 52px, não altura fixa, para crescer com texto maior. Alternativa: altura fixa de 52px. Recomendo manter, com o teste de 52px a 1200px só no CI.
+4. (D150.4, T251) **Title Case no inglês dos itens da lateral.** Os itens em inglês ainda não seguem a capitalização da HIG. Alternativa: ajustar já. Recomendo deixar para a T254, que mexe nos rótulos.
+5. (D150.5, T273) **`abrir_contexto` fora do prazo do "Conferir agora".** O prazo `PRAZO_CONFERIR_S` (60 s) cobre só `new_page` e `visitar`, não a abertura do contexto do Chromium. Cancelar o launch no meio deixaria o perfil travado (`SingletonLock`); a espera na abertura passa a depender do prazo próprio do launch do Playwright. Alternativa: pôr a abertura dentro dos 60 s, o que pode deixar um Chromium órfão e o perfil preso. Recomendo manter.
+
+**O que o dono faz:** nada para funcionar. Fica com ele confirmar os itens ou mandar trocar algum.
+
+**Como desfazer:** cada item é uma `Tn` pequena: o 1 e o 4 entram na T254, o 3 troca uma linha de CSS e o 5 move a abertura do contexto para dentro do prazo.
+
+## D151. Último evento de status do Desfazer pela ordem de gravação (para confirmar)
+
+**Status:** para confirmar. Decidido pela recomendação, com o dono fora.
+
+**Contexto:** `desfazer_candidatura` (T281, E18) acha o último evento de status da vaga. Ordenar por `julianday(criado_em) DESC, id DESC` erra se o relógio voltar: o Sim às T+5h, uma mudança para `entrevista` às T+1h e o Desfazer do status às T+2h deixam a vaga em `candidatei`, mas o Sim, de instante maior, ainda parece o último evento. A função devolveria `True` e levaria a vaga a `salva`, um status que ela não tem a ver com a última ação. Como `evento` só recebe acréscimo, o `id` é a ordem real de gravação.
+
+**Escolhas:**
+
+1. **Opção A (escolhida).** Ordenar só por `id DESC`. Cobre o relógio que volta. Prende com o teste `test_desfazer_com_relogio_que_volta`.
+2. **Opção B.** Manter `julianday(criado_em) DESC, id DESC` e aceitar o caso. Menos mudança, mas o Desfazer pode levar a vaga a um status que ela não devia ter.
+
+**Recomendação:** A.
+
+**O que o dono faz:** nada.
+
+**Como desfazer:** voltar a ordenação para `julianday(criado_em) DESC, id DESC` e apagar o teste.
+
+## D152. Linha azul na lista estreita com a vaga aberta (para confirmar)
+
+**Status:** para confirmar. Decidido pela recomendação, com o dono fora.
+
+**Contexto:** a T255 abre o detalhe da vaga ao lado da lista. Abaixo de 640px, com `?vaga=` na URL, a linha da vaga aberta pode ficar azul de seleção. A regra de "sem foco" mora dentro do `@container` da coluna e não vale fora dele. O caso é raro: pede janela estreita e link direto com `?vaga=`.
+
+**Escolhas:**
+
+1. **Opção A (escolhida).** Deixar como está.
+2. **Opção B.** Repetir a regra de "sem foco" fora do `@container`. A linha deixa de ficar azul em janela estreita, ao custo de uma regra duplicada que precisa andar junto com a original.
+
+**Recomendação:** A, porque o caso é raro e o efeito é só visual.
+
+**O que o dono faz:** nada.
+
+**Como desfazer:** acrescentar uma regra de CSS em `vagas.css`.
+
+## D153. Itens da lateral levam só aba e busca (para confirmar)
+
+**Status:** para confirmar. Decidido pela recomendação, com o dono fora.
+
+**Contexto:** na T254, ao trocar de aba pela lateral, os filtros escolhidos (chips) se perdem. Só a aba e a busca escolhida vão no link do item.
+
+**Escolhas:**
+
+1. **Opção A (escolhida).** Aceitar. É como no Mail do Mac, onde trocar de caixa limpa o filtro.
+2. **Opção B.** Levar os filtros no link de cada item. A pessoa não perde o filtro ao trocar de aba, mas o link da lateral fica maior e cada item precisa conhecer os parâmetros de filtro.
+3. **Dois itens pequenos na mesma D.** Chips em inglês em sentence case (como "Work mode") ficam para a T268 (revisão de textos). A aba Programas continua em cartões e vira `Tn` nova do plano visual quando o lote voltar à `dev`.
+
+**Recomendação:** A para a escolha 1 e as duas sugestões do item 3.
+
+**O que o dono faz:** nada.
+
+**Como desfazer:** o link da lateral passa a copiar os parâmetros de filtro.
+
 ## D154. A faixa de desfazer e a troca de aba pela lateral (T256)
 
 **Status:** para confirmar. O agente da T256 propôs a opção 1; a sessão ainda confirma ou ajusta, com o dono fora.
@@ -2742,3 +2812,23 @@ Escolha da sessão (dono fora): a opção (a), para confirmar. Consequência: co
 **O que o dono faz:** confirmar a A ou pedir a B.
 
 **Como desfazer:** tirar o campo `antes` do formulário da faixa (`_faixa_desfazer.html`) devolve o comportamento da D12 (o Desfazer zera). Trocar para B é uma `Tn` nova.
+
+## D156. Molde de site novo: como acrescentar uma plataforma (para confirmar)
+
+**Status:** para confirmar.
+
+**Contexto:** o dono pediu que acrescentar uma plataforma nova seja simples: um molde pronto, um guia e os passos de captura. Nenhum site entra agora. Gupy continua só pública e o LinkedIn continua o único site com login. Hoje o caminho existe só no plano da fase 1 ('Molde do coletor') e na Parte B do desenho da fase 2. Quem chega de fora não sabe que a chave precisa estar em fontes.json antes do import, que cinco testes têm a lista de fontes escrita à mão, nem que o exemplo de um leitor com login não passa por nenhuma conferência. Desenho: docs/superpowers/specs/2026-11-16-molde-de-site-design.md. Plano: T296 a T300.
+
+**Escolhas:**
+1. Molde = arquivos de exemplo testados em tests/apoio/ (um coletor por termo em JSON paginado e um leitor HTML com login), copiados à mão; sem gerador scripts/novo_site.py (M1 a M4).
+2. Guarda nova no CI, tests/unidade/test_site_novo.py: todo site registrado tem teste próprio, o exemplo do leitor é válido e o nome está nos catálogos pt e en; as listas fixas de fontes continuam (M5, M6).
+3. Captura com os scripts de hoje, sem modo novo (M7).
+4. Guia bilíngue docs/site-novo.md e .en.md, ligado do CONTRIBUTING, da wiki e do formulário de fonte, sem página nova na wiki; o guia de conserto passa a dizer fase 9, como o CONTRIBUTING (M8 a M10).
+5. Site com termos restritivos: issue primeiro e entrada em FONTES_FORA; ligar ou não por padrão fica com o dono (M11). Uma linha no CHANGELOG (M12).
+
+**Recomendação:** as cinco escolhas como estão.
+
+**O que o dono faz:** lê a seção 11 do desenho e confirma ou troca alguma escolha. Nada a fazer na máquina.
+
+**Como desfazer:** antes de construir, trocar a escolha no desenho e no plano. Depois de construir, apagar tests/apoio/molde_*.py, os testes e as fixtures dos moldes, test_site_novo.py e docs/site-novo*.md, e tirar os links do CONTRIBUTING, da wiki, do fonte.yml e do CHANGELOG. Nenhum dado nem esquema muda.
+

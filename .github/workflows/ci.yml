@@ -67,7 +67,19 @@ jobs:
         with:
           enable-cache: true
       - run: uv sync --locked
-      - run: uv run playwright install --with-deps chromium
+      # Chromium em cache pela versão do playwright no uv.lock; sem segredo, o cache de PR fica isolado no próprio ref.
+      - id: playwright
+        run: |
+          v=$(grep -A1 '^name = "playwright"$' uv.lock | sed -n 's/^version = "\(.*\)"$/\1/p')
+          test -n "$v"
+          echo "versao=$v" >> "$GITHUB_OUTPUT"
+      - id: cache-chromium
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: chromium-${{ runner.os }}-${{ steps.playwright.outputs.versao }}
+      - if: steps.cache-chromium.outputs.cache-hit != 'true'
+        run: uv run playwright install --with-deps chromium
       - run: uv run pytest -m tela --durations=5
 
   ok:
