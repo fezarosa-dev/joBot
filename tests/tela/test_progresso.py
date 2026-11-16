@@ -80,7 +80,6 @@ def _esperar_valor_novo(page: Page, antes: str) -> dict[str, Any]:
           return m && m.valor !== null && m.valor !== {antes!r} ? m : null;
         }}""",
         polling="raf",
-        timeout=5_000,
     )
     return achado.json_value()  # type: ignore[no-any-return]
 
@@ -109,11 +108,28 @@ def _carregar(page: Page, painel: str) -> None:
     expect(page.locator("#andamento").get_by_role("progressbar")).to_be_visible()
 
 
+def _terminar_animacoes(page: Page) -> None:
+    """Põe a animação da largura no fim: ela anda no relógio do navegador, que `page.clock` não
+    move. A indeterminada (infinita) fica de fora."""
+    page.evaluate(
+        """() => document.getElementById("andamento-preenchimento")
+          ?.getAnimations().filter((a) => a.effect.getComputedTiming().endTime !== Infinity)
+          .forEach((a) => a.finish())"""
+    )
+
+
+def _proxima_pergunta(page: Page) -> None:
+    """Adianta o relógio da página até a pergunta de 2 em 2 s do andamento
+    (`hx-trigger="every 2s"`), sem esperar os 2 s de verdade. Cada teste instala o relógio
+    (`page.clock.install()`) antes do `goto`."""
+    page.clock.fast_forward(2000)
+
+
 def _assentar(page: Page) -> dict[str, Any]:
-    """Espera a largura chegar ao aria-valuenow (a entrada anda de 0 até ele em 2 s)."""
+    """Leva a largura ao aria-valuenow (a animação de entrada, de até 2 s, termina na hora)."""
+    _terminar_animacoes(page)
     page.wait_for_function(
-        f"() => {{ const m = ({LARGURA})(); return m && Math.abs(m.largura - m.valor) < 0.5; }}",
-        timeout=5_000,
+        f"() => {{ const m = ({LARGURA})(); return m && Math.abs(m.largura - m.valor) < 0.5; }}"
     )
     return _medir(page)
 
@@ -122,30 +138,37 @@ def test_largura_anda_entre_perguntas(page: Page, painel: str, app_painel: FastA
     banco = app_painel.state.banco
     id_ = _busca(banco, {"gupy": 10})
     _etapa(banco, id_, "coleta", 1, 10)
+    page.clock.install()
     _carregar(page, painel)
     antes = _assentar(page)
     _etapa(banco, id_, "coleta", 9, 10)
+    _proxima_pergunta(page)
     depois = _esperar_valor_novo(page, antes["valor"])
     alvo = float(depois["valor"])
     assert alvo > float(antes["valor"]) + 10
     # logo depois da troca, a largura ainda está no caminho: a transição de 2 s anda
     assert float(antes["valor"]) - 1 <= depois["largura"] < alvo - 2, (antes, depois)
-    page.wait_for_function(f"() => Math.abs(({LARGURA})().largura - {alvo}) < 0.5", timeout=5_000)
+    _terminar_animacoes(page)  # o fim da animação, sem esperar os 2 s dela
+    assert abs(_medir(page)["largura"] - alvo) < 0.5
 
 
 def test_barra_continua_entre_perguntas(page: Page, painel: str, app_painel: FastAPI) -> None:
     banco = app_painel.state.banco
     id_ = _busca(banco, {"gupy": 10})
     _etapa(banco, id_, "coleta", 4, 10)
+    page.clock.install()
     _carregar(page, painel)
     antes = _assentar(page)
     _amostrar(page)
     _etapa(banco, id_, "coleta", 6, 10)
+    _proxima_pergunta(page)
     novo = _esperar_valor_novo(page, antes["valor"])
-    # amostra até a transição de 2 s chegar ao valor novo (espera por estado, não por tempo)
+    # amostras de quadros já com o valor novo, com a animação ainda andando (espera por estado)
     page.wait_for_function(
-        f"() => Math.abs(({LARGURA})().largura - {float(novo['valor'])}) < 0.5", timeout=5_000
+        "(v) => window.__amostras.filter((a) => a && a.valor === v).length >= 3", arg=novo["valor"]
     )
+    _terminar_animacoes(page)
+    assert abs(_medir(page)["largura"] - float(novo["valor"])) < 0.5
     amostras = _parar(page)
     # a barra nunca some nem volta a zero na troca da pergunta
     assert amostras and all(a is not None for a in amostras)
@@ -156,12 +179,14 @@ def test_regiao_viva_e_o_mesmo_no(page: Page, painel: str, app_painel: FastAPI) 
     banco = app_painel.state.banco
     id_ = _busca(banco, {"gupy": 4})
     _etapa(banco, id_, "coleta", 1, 4)
+    page.clock.install()
     _carregar(page, painel)
     viva = page.locator("#andamento-etapa")
     expect(viva).to_have_text("Lendo as fontes")
     page.evaluate('() => { window.__no = document.getElementById("andamento-etapa"); }')
     _etapa(banco, id_, "detalhes", 0, 3)
-    expect(viva).to_have_text("Completando os detalhes das vagas", timeout=5_000)
+    _proxima_pergunta(page)
+    expect(viva).to_have_text("Completando os detalhes das vagas")
     assert page.evaluate('() => document.getElementById("andamento-etapa") === window.__no')
     expect(viva).to_have_attribute("role", "status")
     expect(viva).to_have_attribute("aria-live", "polite")
@@ -224,7 +249,7 @@ def test_espera_curta_nao_mostra(
     page.get_by_role("banner").get_by_role("button", name="Buscar agora").click()
     regiao = page.locator("#andamento")
     expect(regiao.locator(".progresso-linha")).to_have_text(
-        re.compile(r"Pronto\. Vagas novas: \d+\."), timeout=5_000
+        re.compile(r"Pronto\. Vagas novas: \d+\.")
     )
     expect(regiao.locator(".progresso-linha")).to_be_visible()
     vistos = page.evaluate("() => { window.__parar = true; return window.__viu; }")
@@ -235,6 +260,7 @@ def test_movimento_reduzido_sem_transicao(page: Page, painel: str, app_painel: F
     page.emulate_media(reduced_motion="reduce")
     banco = app_painel.state.banco
     id_ = _busca(banco)  # sem total: indeterminada
+    page.clock.install()
     _carregar(page, painel)
     preenchimento = page.locator("#andamento-preenchimento")
     expect(preenchimento).to_have_class("progresso-preenchimento indeterminado")
@@ -256,6 +282,7 @@ def test_movimento_reduzido_sem_transicao(page: Page, painel: str, app_painel: F
     with closing(abrir(banco)) as con:
         planejar(con, id_, {"gupy": 10}, AGORA)
     _etapa(banco, id_, "coleta", 5, 10)
+    _proxima_pergunta(page)
     depois = _esperar_valor_novo(page, "")
     # sem transição: a largura já chega no valor no primeiro quadro
     assert abs(depois["largura"] - float(depois["valor"])) < 0.5, depois
@@ -268,6 +295,7 @@ def test_um_clique_acompanha_ate_o_fim(
     página. Dois cliques escondem o caminho, porque a resposta do segundo troca o envoltório."""
     banco = app_painel.state.banco
     liberar = threading.Event()
+    fechou = threading.Event()
     ids: list[int] = []
 
     async def lenta(con: Any, cliente: Any, relogio: Any, motivo: str, **kw: Any) -> int:
@@ -278,24 +306,28 @@ def test_um_clique_acompanha_ate_o_fim(
             await asyncio.sleep(0.02)
         with closing(abrir(banco)) as con_:
             fechar_execucao(con_, id_, AGORA + timedelta(minutes=1))
+        fechou.set()
         return id_
 
     monkeypatch.setattr(rota, "executar_busca", lenta)
     erros: list[str] = []
     page.on("console", lambda m: erros.append(m.text) if m.type == "error" else None)
     page.on("pageerror", lambda e: erros.append(str(e)))
+    page.clock.install()
     page.goto(f"{painel}/vagas?aba=todas")
     page.get_by_role("banner").get_by_role("button", name="Buscar agora").click()
     barra = page.locator("#andamento").get_by_role("progressbar")
-    expect(barra).to_have_attribute("aria-valuenow", re.compile(r"\d"), timeout=5_000)
+    expect(barra).to_have_attribute("aria-valuenow", re.compile(r"\d"))
     antes = barra.get_attribute("aria-valuenow")
     assert ids
     _etapa(banco, ids[0], "coleta", 9, 10)
-    # só a pergunta de 2 s traz o valor novo
-    expect(barra).not_to_have_attribute("aria-valuenow", antes or "", timeout=5_000)
+    _proxima_pergunta(page)  # só a pergunta de 2 s traz o valor novo
+    expect(barra).not_to_have_attribute("aria-valuenow", antes or "")
     liberar.set()
+    assert fechou.wait(5)
+    _proxima_pergunta(page)
     expect(page.locator("#andamento .progresso-linha")).to_have_text(
-        re.compile(r"Pronto\. Vagas novas: \d+\."), timeout=5_000
+        re.compile(r"Pronto\. Vagas novas: \d+\.")
     )
     assert erros == []
 
