@@ -210,7 +210,10 @@ Também na fase 1:
 <a id="o-painel"></a>
 ## 📋 O painel
 
-O painel abre no seu navegador, em `http://127.0.0.1:47615`. O menu tem Vagas, Buscas, Fontes, Empresas, Sugeridas, Sites e Configurações.
+O painel roda em `http://127.0.0.1:47615`. Quando o joBot acha o Chrome, o Edge ou o Chromium no seu computador, ele abre numa **janela própria**, sem abas nem barra de endereço, como um aplicativo; sem nenhum deles, usa o Chromium que ele instalou, e só então uma aba comum do navegador.
+
+- **Barra lateral:** à esquerda, a seção Vagas (Destaques de hoje e as abas, cada uma com a contagem) e a seção Onde buscar (Buscas, Empresas, Sugeridas, Fontes e Sites), mais Configurações. Dá para recolhê-la e arrastar a borda para mudar a largura.
+- **Lista com detalhe:** a lista de vagas fica de um lado e o detalhe da vaga escolhida, do outro. Em janela estreita o detalhe sobe por cima da lista.
 
 - **Abas:** Destaques de hoje (as melhores novas, uma por empresa), Todas, Novas, Fecham logo, Salvas, Candidatei, Programas e Ocultas.
 - **Filtros** em "chips" (botõezinhos) com contagem: país e há quantos dias a vaga foi publicada ficam à vista; salário, cidade, empresa e palavras que a vaga não pode ter ficam em "Mais filtros". O filtro atual fica no endereço da página, então dá para salvar o link. Busca rápida com a tecla `/`.
@@ -219,7 +222,11 @@ O painel abre no seu navegador, em `http://127.0.0.1:47615`. O menu tem Vagas, B
 - **Calendário de 12 meses** em cada vaga, para ver prazos de relance.
 - **Vagas ocultas** por regra podem voltar. O painel mostra quantas foram escondidas por cada motivo.
 - **"Algo errado nesta vaga?"**: um botão para corrigir um rótulo ou dado.
-- **Visual inspirado no estilo da Apple:** translucidez, animações suaves, modo claro e escuro seguindo o sistema. Fonte SF no Mac e Inter nos outros sistemas. Ícones do [Lucide](https://lucide.dev) (licença ISC, em `src/jobot/painel/static/icones/LICENSE`).
+- **Desfazer:** ocultar uma vaga, descartar uma sugestão ou remover uma empresa acontece na hora, e uma faixa com o botão **Desfazer** fica na tela até você fechá-la. O que apaga de verdade (como apagar uma busca) pede confirmação antes.
+- **Teclado e paleta de comandos:** `⌘K` (`Ctrl+K` fora do Mac) abre a paleta, que leva a qualquer tela e muda tema, idioma e tamanho do texto; há também um botão para ela na barra. Veja todos os atalhos em [Atalhos de teclado](https://github.com/fezarosa-dev/joBot/wiki/Atalhos-de-teclado).
+- **Tamanho do texto:** Padrão, Grande ou Maior, em Configurações, Geral.
+- **Andamento da busca:** ao apertar "Buscar agora", o topo mostra uma barra de progresso e a etapa em que o joBot está (por exemplo, "Lendo Greenhouse · 13 de 20 consultas"), inclusive quando ele espera uma fonte liberar mais pedidos. "Ver detalhes" abre o resumo.
+- **Visual de aplicativo do Mac:** translucidez, animações suaves, modo claro e escuro seguindo o sistema, e movimento reduzido para quem pede. Fonte SF no Mac e Inter nos outros sistemas. Ícones do [Lucide](https://lucide.dev) (licença ISC, em `src/jobot/painel/static/icones/LICENSE`).
 - **Idiomas:** português e inglês.
 
 <a id="inteligencia-artificial"></a>
@@ -366,7 +373,7 @@ uv sync --locked
 uv run jobot
 ```
 
-O último comando sobe o joBot e abre o painel no seu navegador, em `http://127.0.0.1:47615`. Sem nada depois de `jobot`, vale o comando `abrir`.
+O último comando sobe o joBot e abre o painel em `http://127.0.0.1:47615`. Se o computador tem Chrome, Edge ou Chromium, o painel abre numa janela própria, sem abas nem barra de endereço; sem eles, usa o Chromium que o joBot instalou, e só então uma aba do seu navegador. Sem nada depois de `jobot`, vale o comando `abrir`.
 Se outro programa já usa a porta 47615, o joBot avisa e não abre nada. Defina `JOBOT_PORTA` com outra porta e rode de novo.
 
 ### Comandos

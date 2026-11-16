@@ -543,7 +543,7 @@ Não é código. A branch `feat/visual-mac` só entra na `dev` depois do ok do d
 
 **Interfaces:**
 - Fontes: lista agrupada; estado com ícone e texto; caixa de marcar (14px, raio 4px, visto branco sobre `--destaque`, bloco `forced-colors`) para ligar.
-- Sites: lista agrupada; "Remover" abre o alerta da T259 ("Remover o site «{nome}»?"/"Remove the Site \"{nome}\"?", "As vagas que ele trouxe continuam."/"Jobs it brought in stay."); desativar continua sem pergunta; menu de contexto com as ações da linha.
+- Sites: lista agrupada; "Remover" abre o alerta da T259 ("Remover o site «{nome}»?"/"Remove the Site \"{nome}\"?", "O texto guardado e as mudanças dele serão apagados."/"Its saved text and changes will be deleted."); desativar continua sem pergunta; menu de contexto com as ações da linha.
 
 - [ ] **Testes que falham**: em `test_rota_fontes.py`, `test_fonte_liga_por_caixa_de_marcar` (um `input type="checkbox"` por fonte, com o rótulo ligado); em `test_rota_sites.py`, `test_remover_tem_alerta`.
 - [ ] **Testes de tela** (CI): `test_remover_site_abre_o_alerta_e_cancelar_nao_remove`; `test_caixa_de_marcar_pelo_teclado`.
@@ -683,10 +683,10 @@ Não é código. A branch `feat/visual-mac` só entra na `dev` depois do ok do d
 - Wiki: o par novo em `PARES` e nas duas listas do `_Sidebar.md`, com a tabela do desenho 5.5 em palavras nossas; `Home` e `Home-en` ligam a página; `Como-funciona` e `How-it-works` descrevem o painel novo.
 - Título em inglês da correção (D160): "Something wrong with this job?" vira "Something Wrong with This Job?" em `src/jobot/painel/i18n/en/detalhe.json` (`detalhe.correcao.titulo`), em `README.en.md` e em `wiki/How-it-works.md`, numa vez só (Title Case, desenho 5.6). Antes de fechar: `rtk grep -rn "Something wrong" . --include="*.md" --include="*.json" --include="*.py"` sem sobra, e conferir em `tests/` se algum teste de tela cita a frase velha.
 
-- [ ] **Testes que falham**: em `tests/unidade/test_wiki.py`, o par novo em `PARES` (falha até as páginas existirem); em `tests/unidade/test_documentos.py`, as seções iguais nas duas línguas continuam passando.
-- [ ] **Ver falhar:** `uv run pytest tests/unidade/test_wiki.py -q`.
-- [ ] **Implementar** os itens de Interfaces.
-- [ ] **Ver passar:** `uv run pytest tests/unidade/test_documentos.py tests/unidade/test_wiki.py -q`; ruff.
+- [x] **Testes que falham**: em `tests/unidade/test_wiki.py`, o par novo em `PARES` (falha até as páginas existirem); em `tests/unidade/test_documentos.py`, as seções iguais nas duas línguas continuam passando. (par `Atalhos-de-teclado`/`Keyboard-shortcuts` em `PARES`; `test_documentos.py` segue passando)
+- [x] **Ver falhar:** `uv run pytest tests/unidade/test_wiki.py -q`. (`test_paginas_sao_exatamente_os_pares` falhou por asserção: páginas ausentes)
+- [x] **Implementar** os itens de Interfaces. (READMEs, CHANGELOGs, as duas páginas novas, `_Sidebar`, `Home`, `Home-en`, `Como-funciona`, `How-it-works` e o D160; a tabela segue o `app.js` e o `_paleta.html`; o grupo do CHANGELOG é "Alterado"/"Changed", que é o título que o arquivo usa)
+- [x] **Ver passar:** `uv run pytest tests/unidade/test_documentos.py tests/unidade/test_wiki.py -q`; ruff. (documentos, wiki e i18n; ruff)
 
 ### T301: acertos da conferência visual
 `depende_de: T258` (a T264 corre em paralelo) · D157, E17, RF6, desenho 5.2, 5.5 e 5.8

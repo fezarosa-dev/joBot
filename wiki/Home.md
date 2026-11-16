@@ -70,6 +70,7 @@ Serve para todo tipo de vaga e toda área: CLT, PJ, estágio, trainee, temporár
 |---|---|
 | 💡 [A ideia e a história](A-ideia-e-a-historia) | Por que o joBot existe, o que ele faz, o que não faz e os princípios. |
 | ⚙️ [Como funciona](Como-funciona) | O caminho de uma vaga, da fonte até o painel, e as duas versões. |
+| ⌨️ [Atalhos de teclado](Atalhos-de-teclado) | As teclas do painel: paleta de comandos, lista de vagas, Desfazer e ajuda. |
 | 🧰 [Tecnologias](Tecnologias) | As ferramentas usadas e o porquê de cada uma. |
 | 📚 [Decisões](Decisoes) | Todas as decisões do projeto, cada uma em uma linha. |
 | 🗺️ [Roteiro](Roteiro) | As 9 fases e em qual estamos. |

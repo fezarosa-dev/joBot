@@ -12,6 +12,7 @@ PARES = {
     "Home": "Home-en",
     "A-ideia-e-a-historia": "The-idea-and-the-story",
     "Como-funciona": "How-it-works",
+    "Atalhos-de-teclado": "Keyboard-shortcuts",
     "Arquitetura": "Architecture",
     "Tecnologias": "Technologies",
     "Decisoes": "Decisions",

@@ -372,7 +372,7 @@ Textos novos (proposta; chaves em `casca.lateral.*`, `casca.desfazer.*`, `casca.
 | Sistema · Claro · Escuro | System · Light · Dark |
 | Padrão · Grande · Maior | Default · Large · Larger |
 | Apagar a busca «{nome}»? · As vagas que ela trouxe continuam. | Delete the Search "{nome}"? · Jobs it brought in stay. |
-| Remover o site «{nome}»? · As vagas que ele trouxe continuam. | Remove the Site "{nome}"? · Jobs it brought in stay. |
+| Remover o site «{nome}»? · O texto guardado e as mudanças dele serão apagados. | Remove the Site "{nome}"? · Its saved text and changes will be deleted. |
 | Apagar · Remover · Esquecer · Cancelar | Delete · Remove · Forget · Cancel |
 | Pular | Skip |
 
