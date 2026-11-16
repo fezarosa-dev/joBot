@@ -48,7 +48,7 @@ Between phase 2 and phase 3 comes version 0.3.0, with the "Overview" screen (an 
 <summary><strong>⚪ Phase 2, Browser with login</strong></summary>
 
 - The login happens in a regular browser window, with no automation: you sign in however you like (Google, email and password) and close the window. joBot checks the session by itself and never types the password.
-- Site mapping order: LinkedIn, Gupy, Vagas.com, Catho, Indeed and, last, the technology-only sites.
+- Planned site mapping order: LinkedIn, Vagas.com, Catho, Indeed and, last, the technology-only sites. Today only LinkedIn has login; Gupy is public only, and the others are left for the future.
 - Logins join the first-run assistant.
 </details>
 

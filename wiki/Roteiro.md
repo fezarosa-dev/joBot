@@ -48,7 +48,7 @@ Entre a fase 2 e a fase 3 sai a versão 0.3.0, com a tela "Panorama" (visão ger
 <summary><strong>⚪ Fase 2, Navegador com login</strong></summary>
 
 - O login é numa janela comum do navegador, sem automação: você entra como quiser (Google, e-mail e senha) e fecha a janela. O joBot confere a sessão sozinho e nunca digita a senha.
-- Ordem de mapeamento dos sites: LinkedIn, Gupy, Vagas.com, Catho, Indeed e, por último, os sites só de tecnologia.
+- Ordem prevista de mapeamento dos sites: LinkedIn, Vagas.com, Catho, Indeed e, por último, os sites só de tecnologia. Hoje só o LinkedIn tem login; a Gupy é só pública, e os outros ficam para o futuro.
 - Os logins entram no assistente da primeira execução.
 </details>
 

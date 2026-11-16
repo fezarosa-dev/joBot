@@ -113,7 +113,7 @@ O joBot não faz, e foi planejado para nunca fazer:
 flowchart LR
     subgraph Fontes["Fontes de vagas"]
         P["Fontes públicas<br/>(APIs, quadros de vagas, GitHub)"]
-        L["Sites com login<br/>(LinkedIn, Indeed...)"]
+        L["Sites com login<br/>(LinkedIn)"]
         G["Gmail<br/>(opcional)"]
     end
 
@@ -187,9 +187,10 @@ Três portais brasileiros pedem cuidado, por causa dos termos de uso deles: Eure
 | Portais brasileiros | Gupy, CIEE, Sólides, IEL, Super Estágios, Cia de Talentos, Eureca, Abler |
 | Carreiras de grandes empresas | Google, Amazon, Microsoft, NVIDIA |
 | Murais de estágio | Murais públicos, como o da USP |
-| 🔐 Sites com login (fase 2, primeiro, nesta ordem) | LinkedIn, Gupy (com login), Vagas.com, Catho, Indeed |
-| 🔐 Sites com login (fase 2, depois, um de cada vez) | InfoJobs, Glassdoor, Remotar, Trampos |
-| 🔐 Sites com login só de tecnologia (fase 2, por último, um de cada vez) | Programathor, GeekHunter, Revelo, Coodesh |
+| 🔐 Site com login (fase 2, o único por enquanto) | LinkedIn |
+| 🔐 Sites com login (ideias para o futuro, ainda sem data) | Vagas.com, Catho, Indeed |
+| 🔐 Sites com login (ideias para o futuro, um de cada vez) | InfoJobs, Glassdoor, Remotar, Trampos |
+| 🔐 Sites com login só de tecnologia (ideias para o futuro, por último, um de cada vez) | Programathor, GeekHunter, Revelo, Coodesh |
 
 Também na fase 1:
 
@@ -202,7 +203,7 @@ Também na fase 1:
 **Saúde de cada fonte.** A cada busca, cada fonte fica marcada como ok, parcial ou falhou. Você vê isso no painel.
 
 > [!WARNING]
-> **Sites com login têm risco.** LinkedIn, Indeed e outros podem restringir contas que acessam de forma automática, e isso pode ir contra os termos de uso deles.
+> **Sites com login têm risco.** O LinkedIn e outros sites com login que venham a entrar podem restringir contas que acessam de forma automática, e isso pode ir contra os termos de uso deles.
 > O joBot reduz o risco: você entra numa janela comum do navegador, com as próprias mãos; depois ele só lê (não clica em "candidatar", não manda mensagem), visita poucas vezes e devagar.
 > Mesmo assim, o risco existe. **Você decide se liga cada site.**
 
