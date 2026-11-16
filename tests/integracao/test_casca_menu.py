@@ -283,7 +283,7 @@ def test_faixas_na_ordem_logo_abaixo_da_barra(cliente: TestClient) -> None:
         for marca in (
             'id="aviso-erro"',
             'id="aviso-versao"',
-            'id="faixa-contas"',
+            'id="aviso-contas"',
             'id="faixa-desfazer"',
         )
     ]

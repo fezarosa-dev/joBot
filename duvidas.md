@@ -3022,3 +3022,24 @@ Do item 2 (T305 h), aceito e documentado. Sem JavaScript, o detalhe sobreposto f
 **Como desfazer:** tirar o `disabled` e o `aria-describedby` de `_cartao_site_login.html` e a frase nova do assistente, e inverter `test_sem_navegador_o_botao_de_login_fica_desligado` e `test_passo_sites_sem_navegador_desliga_o_login`. Nenhum dado muda.
 
 **Ver também:** T275, T277, D137.8.
+
+## D167. A faixa de queda vale para o Gmail mesmo sem leitor de site (para confirmar)
+
+**Status:** para confirmar. Decidido pela sessão, com o dono fora.
+
+**Contexto:** o plano da T276 dizia que, sem leitor registrado, a rota `GET /aviso-contas` devolve fragmento vazio. Isso contradiz E11 e E13: o Gmail não depende de leitor de site, a aba Contas mostra o cartão dele sem leitor, e a queda dele conta na faixa.
+
+**Escolhas:**
+
+- **A.** Sem leitor, faixa sempre vazia, como o plano dizia. A pessoa com o Gmail caído e nenhum site com login não vê aviso no topo; só vê o cartão ao abrir a aba Contas.
+- **B (recomendada).** Sem leitor, o site nunca aparece, mas a queda do Gmail abre a faixa ("Sua sessão no Gmail caiu. Entre de novo em Configurações › Contas.").
+
+**Escolha do redator (T276, para confirmar):** B. `contas_em_queda` roda sempre; sem leitor a lista só pode ter o Gmail. O teste `test_sem_leitor_so_o_gmail_da_faixa` prende os dois lados (sem queda do Gmail, vazio; com queda, a faixa).
+
+**Recomendação:** B. Queda sem aviso vira leitura parada sem a pessoa saber; o cartão do Gmail já aparece sem leitor, então a faixa deve acompanhá-lo.
+
+**O que o dono faz:** confirmar a B ou escolher outra. Nada a fazer na máquina.
+
+**Como desfazer:** voltar o `if leitores else []` na rota e trocar `test_sem_leitor_so_o_gmail_da_faixa` por "fragmento vazio". Nenhum dado muda.
+
+**Ver também:** T276, E11, E13, E14.

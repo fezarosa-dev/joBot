@@ -283,7 +283,7 @@ def test_lateral_e_barra_com_vidro(page: Page, painel: str) -> None:
     ordem = page.evaluate(
         "() => [...document.body.children].map(el => el.id || el.tagName.toLowerCase())"
     )
-    esperado = ["lateral", "header", "aviso-erro", "aviso-versao", "faixa-contas"]
+    esperado = ["lateral", "header", "aviso-erro", "aviso-versao", "aviso-contas"]
     assert [x for x in ordem if x in {*esperado, "faixa-desfazer"}] == [
         *esperado,
         "faixa-desfazer",
