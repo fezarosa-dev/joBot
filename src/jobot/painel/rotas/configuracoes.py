@@ -474,6 +474,9 @@ async def aparencia_de_antes() -> RedirectResponse:
 
 @router.get("/{grupo}")
 async def mostrar(request: Request, con: Con, grupo: str) -> Response:
+    if grupo in _SO_COM_LEITOR and grupo not in grupos_visiveis(leitores_do_painel(request)):
+        # o navegador guarda o último grupo (T262): sem leitor ele sumiu, e a pessoa cai em Geral
+        return _volta(GRUPOS[0])
     salvo = request.query_params.get("salvo") == "1"
     return await _pagina(request, con, _grupo_valido(request, grupo), salvo=salvo)
 
