@@ -7,7 +7,7 @@
 <h1 class="titulo-pagina">{{ t("sites.titulo") }}</h1>
 <p class="situacao">{{ t("sites.intro") }}</p>
 {% if linhas %}
-<ul class="lista-sites" id="lista-sites">
+<ul class="lista-agrupada" id="lista-sites">
   {%- for r in linhas %}
   {%- set p = r.p %}
   <li class="linha-site{% if not p.ativa %} linha-desligada{% endif %}" id="site-{{ p.id }}" tabindex="-1" data-menu="menu-site" data-id="{{ p.id }}"{% if p.ativa %} data-ativa{% endif %}>
