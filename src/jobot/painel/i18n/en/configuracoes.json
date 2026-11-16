@@ -147,5 +147,10 @@
   "configuracoes.contas.motivo.erro": "Something went wrong. Details are in the log.",
   "configuracoes.contas.captcha.salva": "2Captcha: key saved",
   "configuracoes.contas.captcha.sem_chave": "2Captcha: no key",
-  "configuracoes.contas.captcha.mudar": "Change in Services"
+  "configuracoes.contas.captcha.mudar": "Change in Services",
+  "configuracoes.contas.conferir": "Check now",
+  "configuracoes.contas.conferindo": "Checking…",
+  "configuracoes.contas.ocupado": "Something is already using the browser; try again in a moment.",
+  "configuracoes.contas.conferir_espera": "Checked a moment ago. You can check again in a few minutes.",
+  "configuracoes.contas.conferido_resultado": "{site}: {estado}."
 }

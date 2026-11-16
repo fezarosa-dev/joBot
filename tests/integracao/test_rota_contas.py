@@ -12,8 +12,9 @@ import threading
 import time
 from collections.abc import AsyncIterator, Callable, Mapping
 from contextlib import asynccontextmanager, closing
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -30,6 +31,7 @@ from jobot.banco.execucoes import EstadoSaude, abrir_execucao, fechar_execucao, 
 from jobot.banco.migrar import migrar
 from jobot.banco.sessoes import gravar_sessao, ler_sessao
 from jobot.navegador import abrir as abrir_navegador
+from jobot.navegador.conferir import Conferencia
 from jobot.nucleo.captcha import mascarar
 from jobot.nucleo.contas import EstadoSessao, MotivoSessao, NaTela
 from jobot.nucleo.leitores.base import LeitorComLogin
@@ -45,6 +47,7 @@ GRUPO = "/configuracoes/contas"
 CHAVE = "falso_logado"
 INTERRUPTOR = f"{GRUPO}/{CHAVE}/interruptor"
 LOGIN = f"{GRUPO}/{CHAVE}/login"
+CONFERIR = f"{GRUPO}/{CHAVE}/conferir"
 ESQUECER = f"{GRUPO}/esquecer"
 CONFIRMAR = f"{ESQUECER}/confirmar"
 AGORA = datetime(2026, 11, 15, 12, 0, tzinfo=UTC)
@@ -1246,3 +1249,370 @@ def test_sem_navegador_o_botao_de_login_fica_desligado(painel: Painel, achado: s
         assert frase is not None and "Nenhum navegador encontrado" in _texto(frase)
     else:
         assert frase is None
+
+
+# ------------------------------------------------------------------ T277: conferir agora
+
+
+class ConferirFalso:
+    """Troca o `conferir_sessao` e as dependências: conta as chamadas e só termina quando o teste
+    solta o `Event` (o teto de 5 s só impede que um teste errado pendure o fim do lifespan)."""
+
+    def __init__(self) -> None:
+        self.chamadas: list[str] = []
+        self.avisos: list[tuple[str, str]] = []
+        self.liberar = asyncio.Event()
+        self.resultado: Conferencia | None = Conferencia("conectado", None)
+        self.erro: Exception | None = None
+
+    async def __call__(self, leitor: LeitorComLogin, deps: Any, relogio: Any) -> Conferencia | None:
+        self.chamadas.append(leitor.chave)
+        async with asyncio.timeout(5):
+            await self.liberar.wait()
+        if self.erro is not None:
+            raise self.erro
+        return self.resultado
+
+    @asynccontextmanager
+    async def dependencias(self, dados: Path, env: Mapping[str, str]) -> AsyncIterator[object]:
+        yield SimpleNamespace(avisar=lambda titulo, frase: self.avisos.append((titulo, frase)))
+
+
+@pytest.fixture
+def conferir_falso(monkeypatch: pytest.MonkeyPatch) -> ConferirFalso:
+    falso = ConferirFalso()
+    monkeypatch.setattr(configuracoes, "conferir_sessao", falso)
+    monkeypatch.setattr(configuracoes, "dependencias_de_producao", falso.dependencias)
+    return falso
+
+
+_OCUPADO = "Já tem algo usando o navegador; tente daqui a pouco."
+_ESPERA = "Conferido há pouco. Dá para conferir de novo em alguns minutos."
+
+
+def _cliente(painel: Painel) -> TestClient:
+    return TestClient(painel.app, base_url=f"http://127.0.0.1:{PORTA}")
+
+
+def _conferido_ha(painel: Painel, segundos: int, estado: EstadoSessao = "conectado") -> None:
+    with closing(abrir(painel.banco)) as con:
+        gravar_sessao(con, "site", CHAVE, estado, None, AGORA - timedelta(seconds=segundos))
+
+
+def _conferir(painel: Painel, http: TestClient) -> Any:
+    return http.post(CONFERIR, data={CAMPO_CSRF: painel.token})
+
+
+def _fim_da_conferencia(painel: Painel, http: TestClient) -> None:
+    """Espera a tarefa acabar: o GET deixa de dar 204 e a trava solta."""
+    trava = getattr(painel.app.state, "travas", {}).get("login", asyncio.Lock())
+    assert _esperar(lambda: http.get(CONFERIR).status_code != 204 and not trava.locked())
+
+
+def _soltar(http: TestClient, falso: ConferirFalso) -> None:
+    assert http.portal is not None
+    http.portal.call(falso.liberar.set)  # o Event vive no laço do app
+
+
+def _botao_conferir(html: str) -> str | None:
+    botao = re.search(rf'<button\b[^>]*hx-post="{CONFERIR}"[^>]*>', html)
+    return None if botao is None else botao[0]
+
+
+def _desabilitado(botao: str) -> bool:
+    return bool(re.search(r"\sdisabled[\s>]", botao))
+
+
+def _anuncio(html: str) -> tuple[str, str] | None:
+    """(tag do filho, texto) da mensagem que vai à região fixa `#status-sites` por OOB."""
+    achado = re.search(
+        r'<p\b[^>]*hx-swap-oob="innerHTML:#status-sites"[^>]*>\s*(<span\b[^>]*>)(.*?)</span>',
+        html,
+        re.S,
+    )
+    return None if achado is None else (achado[1], _texto(achado[2]).strip())
+
+
+def _raiz_do_cartao(html: str) -> str:
+    raiz = re.search(rf'<div\b[^>]*\bid="conta-{CHAVE}"[^>]*>', html)
+    assert raiz is not None, "sem o cartão #conta-<chave>"
+    return raiz[0]
+
+
+def test_conferir_chave_desconhecida_404(painel: Painel, conferir_falso: ConferirFalso) -> None:
+    for chave, esperado in (("remotive", 404), ("nao_existe", 404), (CHAVE, 200)):
+        rota = f"{GRUPO}/{chave}/conferir"
+        assert painel.post(rota).status_code == esperado, chave
+        assert painel.http.get(rota).status_code == esperado, chave
+    assert conferir_falso.chamadas == []
+
+
+def test_conferir_desligado_nao_abre(painel: Painel, conferir_falso: ConferirFalso) -> None:
+    conferir_falso.liberar.set()
+    _conferido_ha(painel, 700)
+    with _cliente(painel) as http:
+        resposta = _conferir(painel, http)
+        assert resposta.status_code == 200
+        assert f'id="conta-{CHAVE}"' in resposta.text and "Desligado" in _texto(resposta.text)
+        assert conferir_falso.chamadas == []
+        assert not getattr(painel.app.state, "conferencias", {})
+        # controle na mesma montagem: ligado o site, o mesmo POST confere
+        painel.post(INTERRUPTOR, {"ligada": "on"})
+        assert _conferir(painel, http).status_code == 200
+        _fim_da_conferencia(painel, http)
+    assert conferir_falso.chamadas == [CHAVE]
+
+
+def test_conferir_no_intervalo_devolve_cartao(
+    painel: Painel, conferir_falso: ConferirFalso
+) -> None:
+    conferir_falso.liberar.set()
+    painel.post(INTERRUPTOR, {"ligada": "on"})
+    _conferido_ha(painel, 599)
+    trava = _trava_presa(painel)
+    with _cliente(painel) as http:
+        resposta = _conferir(painel, http)
+        assert resposta.status_code == 200
+        assert f'id="conta-{CHAVE}"' in resposta.text
+        assert _OCUPADO not in _texto(resposta.text)  # o intervalo vem antes da trava
+        assert trava.locked()
+        trava.release()
+        assert f'id="conta-{CHAVE}"' in _conferir(painel, http).text
+        assert not trava.locked()  # recusou sem pegar a trava
+        assert conferir_falso.chamadas == []
+        # controle: 1 s depois o intervalo passou e o mesmo POST confere
+        painel.app.state.relogio = RelogioFalso(AGORA + timedelta(seconds=1))
+        _conferir(painel, http)
+        _fim_da_conferencia(painel, http)
+    assert conferir_falso.chamadas == [CHAVE]
+
+
+def test_conferir_na_borda_roda(painel: Painel, conferir_falso: ConferirFalso) -> None:
+    conferir_falso.liberar.set()
+    painel.post(INTERRUPTOR, {"ligada": "on"})
+    _conferido_ha(painel, 600)
+    with _cliente(painel) as http:
+        _conferir(painel, http)
+        _fim_da_conferencia(painel, http)
+    assert conferir_falso.chamadas == [CHAVE]
+
+
+def test_conferir_sem_linha_e_esquecido_rodam(
+    painel: Painel, conferir_falso: ConferirFalso
+) -> None:
+    conferir_falso.liberar.set()
+    conferir_falso.resultado = None  # nada gravado: a linha fica como o teste a pôs
+    painel.post(INTERRUPTOR, {"ligada": "on"})
+    with _cliente(painel) as http:
+        _conferir(painel, http)  # sem linha (Nunca entrou): a rota não recusa
+        _fim_da_conferencia(painel, http)
+        with closing(abrir(painel.banco)) as con:  # esquecido agora mesmo: não é conferência
+            gravar_sessao(con, "site", CHAVE, "precisa_entrar", "esquecido", AGORA)
+        _conferir(painel, http)
+        _fim_da_conferencia(painel, http)
+    assert conferir_falso.chamadas == [CHAVE, CHAVE]
+
+
+def test_conferir_trava_ocupada_responde_ocupado(
+    painel: Painel, conferir_falso: ConferirFalso
+) -> None:
+    painel.post(INTERRUPTOR, {"ligada": "on"})
+    _conferido_ha(painel, 700)
+    trava = _trava_presa(painel)
+    resposta = painel.post(CONFERIR, htmx=True)
+    assert resposta.status_code == 200
+    assert _OCUPADO in _texto(resposta.text)
+    assert f'id="conta-{CHAVE}"' in resposta.text and "<html" not in resposta.text
+    anuncio = _anuncio(resposta.text)
+    assert anuncio is not None and anuncio[1] == _OCUPADO
+    assert "data-some-sozinho" in anuncio[0]  # some como as outras mensagens da região fixa
+    assert conferir_falso.chamadas == []
+    assert not getattr(painel.app.state, "conferencias", {})
+    assert trava.locked()  # a trava continua de quem a pegou
+
+
+def test_conferir_204_e_cartao_no_fim(painel: Painel, conferir_falso: ConferirFalso) -> None:
+    painel.post(INTERRUPTOR, {"ligada": "on"})
+    _conferido_ha(painel, 700, "precisa_entrar")
+    with _cliente(painel) as http:
+        resposta = _conferir(painel, http)
+        assert resposta.status_code == 200
+        raiz = re.search(rf'<div\b[^>]*\bid="conta-{CHAVE}"[^>]*>', resposta.text)
+        assert raiz is not None and 'aria-busy="true"' in raiz[0]
+        assert "Conferindo…" in _texto(resposta.text)
+        assert 'role="progressbar"' in resposta.text
+        espera = re.search(r'<[a-z]+\b[^>]*hx-trigger="every 2s"[^>]*>', resposta.text)
+        assert espera is not None
+        assert f'hx-get="{CONFERIR}"' in espera[0]
+        assert f'hx-target="#conta-{CHAVE}"' in espera[0] and 'hx-swap="outerHTML"' in espera[0]
+        trava = painel.app.state.travas["login"]
+        assert trava.locked()  # pega antes de responder: um segundo clique já vê presa
+        assert painel.app.state.conferencias == {CHAVE: "rodando"}
+        assert _esperar(lambda: conferir_falso.chamadas == [CHAVE])
+        # recarregar a aba no meio mostra a espera, e a pergunta segue
+        pagina = http.get(GRUPO).text
+        assert 'aria-busy="true"' in _raiz_do_cartao(pagina)
+        assert 'hx-trigger="every 2s"' in _cartao(pagina) and f'hx-get="{CONFERIR}"' in pagina
+        espera_get = http.get(CONFERIR)
+        assert espera_get.status_code == 204 and "hx-trigger" not in espera_get.headers
+        _soltar(http, conferir_falso)
+        assert _esperar(lambda: not trava.locked())
+        final = http.get(CONFERIR)
+    assert final.status_code == 200
+    assert final.headers.get("hx-trigger") == "contas-mudou"
+    assert _selo(_cartao(final.text)) == ("conectado", "Conectado")
+    assert "every 2s" not in final.text and "aria-busy" not in final.text
+    assert painel.app.state.conferencias == {}
+
+
+def test_conferir_grava_estado(painel: Painel, conferir_falso: ConferirFalso) -> None:
+    conferir_falso.resultado = Conferencia("precisa_entrar", None)
+    conferir_falso.liberar.set()
+    painel.post(INTERRUPTOR, {"ligada": "on"})
+    _conferido_ha(painel, 700)  # conectado: a queda abre com esta conferência
+    with _cliente(painel) as http:
+        _conferir(painel, http)
+        _fim_da_conferencia(painel, http)
+    sessao = _lida(painel)
+    assert sessao is not None
+    assert (sessao.estado, sessao.motivo) == ("precisa_entrar", None)
+    assert sessao.conferido_em == AGORA.isoformat()
+    assert sessao.avisado_em == AGORA.isoformat()  # a queda abriu
+    assert conferir_falso.avisos == []  # só a leitura agendada avisa no computador
+
+
+def test_conferir_fechou_nao_grava(painel: Painel, conferir_falso: ConferirFalso) -> None:
+    conferir_falso.resultado = None  # a pessoa fechou a janela no meio (E5)
+    conferir_falso.liberar.set()
+    painel.post(INTERRUPTOR, {"ligada": "on"})
+    _conferido_ha(painel, 601)
+    antes = _lida(painel)
+    with _cliente(painel) as http:
+        _conferir(painel, http)
+        _fim_da_conferencia(painel, http)
+        assert conferir_falso.chamadas == [CHAVE]
+        assert _lida(painel) == antes
+        # controle na mesma montagem: a hora não mudou, então o intervalo ainda libera
+        conferir_falso.resultado = Conferencia("nao_conferiu", "sem_rede")
+        _conferir(painel, http)
+        _fim_da_conferencia(painel, http)
+    sessao = _lida(painel)
+    assert sessao is not None and (sessao.estado, sessao.motivo) == ("nao_conferiu", "sem_rede")
+
+
+def test_botao_some_em_nunca_entrou_e_desligado(painel: Painel) -> None:
+    painel.app.state.navegador_instalado = "chrome"
+    _conferido_ha(painel, 700)
+    assert _botao_conferir(painel.http.get(GRUPO).text) is None  # desligado
+    painel.post(INTERRUPTOR, {"ligada": "on"})
+    assert _botao_conferir(painel.http.get(GRUPO).text) is not None  # controle: conectado
+    with closing(abrir(painel.banco)) as con:
+        gravar_sessao(con, "site", CHAVE, "precisa_entrar", "esquecido", AGORA)
+    assert _botao_conferir(painel.http.get(GRUPO).text) is None  # nunca entrou
+
+
+@pytest.mark.usefixtures("fuso_de_sao_paulo")
+def test_botao_desabilitado_no_intervalo_com_frase(painel: Painel) -> None:
+    painel.app.state.navegador_instalado = "chrome"
+    painel.post(INTERRUPTOR, {"ligada": "on"})
+    _conferido_ha(painel, 599)
+    html = painel.http.get(GRUPO).text
+    botao = _botao_conferir(html)
+    assert botao is not None and _desabilitado(botao)
+    descrito = re.search(r'aria-describedby="([^"]+)"', botao)
+    assert descrito is not None
+    frase = _elemento_por_id(html, descrito[1])
+    assert frase is not None and _ESPERA in _texto(frase)
+    assert "conferido hoje às" in _texto(_cartao(html))  # a hora à vista
+    # passado o intervalo, o botão volta
+    painel.app.state.relogio = RelogioFalso(AGORA + timedelta(seconds=1))
+    html = painel.http.get(GRUPO).text
+    botao = _botao_conferir(html)
+    assert botao is not None and not _desabilitado(botao) and "aria-describedby" not in botao
+    assert _ESPERA not in _texto(html)
+
+
+@pytest.mark.parametrize("segundos", [700, 60])
+def test_conferir_desligado_sem_navegador(painel: Painel, segundos: int) -> None:
+    """D166: sem navegador, "Conferir agora" sai desabilitado e descrito pela frase da aba, também
+    dentro do intervalo; vale na página e no cartão do GET final."""
+    painel.post(INTERRUPTOR, {"ligada": "on"})
+    _conferido_ha(painel, segundos)
+    for achado in (None, "chromium"):
+        painel.app.state.navegador_instalado = achado
+        pagina = painel.http.get(GRUPO).text
+        final = painel.http.get(CONFERIR).text
+        for html in (pagina, final):
+            botao = _botao_conferir(html)
+            assert botao is not None
+            if achado is None:
+                assert _desabilitado(botao)
+                assert 'aria-describedby="contas-sem-navegador"' in botao
+            else:  # controle: com navegador, só o intervalo desabilita
+                assert 'aria-describedby="contas-sem-navegador"' not in botao
+                assert _desabilitado(botao) == (segundos < 600)
+
+
+def test_segundo_conferir_segue_na_espera(painel: Painel, conferir_falso: ConferirFalso) -> None:
+    """Dois cliques seguidos no mesmo site: o segundo devolve a espera, não a frase de ocupado."""
+    painel.post(INTERRUPTOR, {"ligada": "on"})
+    _conferido_ha(painel, 700)
+    with _cliente(painel) as http:
+        assert _conferir(painel, http).status_code == 200
+        assert _esperar(lambda: conferir_falso.chamadas == [CHAVE])
+        segundo = _conferir(painel, http).text
+        assert _OCUPADO not in _texto(segundo)
+        assert 'aria-busy="true"' in _raiz_do_cartao(segundo)
+        assert 'hx-trigger="every 2s"' in segundo
+        _soltar(http, conferir_falso)
+        _fim_da_conferencia(painel, http)
+    assert conferir_falso.chamadas == [CHAVE]  # o segundo clique não abriu outra janela
+
+
+_ERRO = "Algo deu errado. Os detalhes estão no registro."
+
+
+def test_conferir_excecao_solta_trava(painel: Painel, conferir_falso: ConferirFalso) -> None:
+    """Exceção fora do `conferir_sessao`: a trava solta, a pergunta para, nada é gravado e o GET
+    final anuncia o erro uma vez (como o `login_manual`), nunca o estado velho como resultado."""
+    conferir_falso.erro = RuntimeError("quebrou")
+    conferir_falso.liberar.set()
+    painel.post(INTERRUPTOR, {"ligada": "on"})
+    _conferido_ha(painel, 700)
+    antes = _lida(painel)
+    with _cliente(painel) as http:
+        _conferir(painel, http)
+        trava = painel.app.state.travas["login"]
+        assert _esperar(lambda: conferir_falso.chamadas == [CHAVE] and not trava.locked())
+        final = http.get(CONFERIR)
+        assert final.status_code == 200 and final.headers.get("hx-trigger") == "contas-mudou"
+        assert painel.app.state.conferencias == {}
+        assert _lida(painel) == antes
+        anuncio = _anuncio(final.text)
+        assert anuncio is not None and anuncio[1] == _ERRO
+        assert "Conectado" not in anuncio[1]
+        depois = _anuncio(http.get(CONFERIR).text)  # o erro sai na primeira leitura só
+        assert depois is not None and _ERRO not in depois[1]
+        # controle na mesma montagem: o falso devolve uma conferência e ela grava
+        conferir_falso.erro = None
+        conferir_falso.resultado = Conferencia("nao_conferiu", "sem_rede")
+        _conferir(painel, http)
+        _fim_da_conferencia(painel, http)
+    sessao = _lida(painel)
+    assert sessao is not None and (sessao.estado, sessao.motivo) == ("nao_conferiu", "sem_rede")
+
+
+@pytest.mark.parametrize(
+    ("idioma", "esperado"),
+    [
+        ("pt", "Site falso: Não deu para conferir. Sem internet ou o site não respondeu."),
+        ("en", "Site falso: Could not check. No internet, or the site did not answer."),
+    ],
+)
+def test_anuncio_do_resultado_com_motivo(painel: Painel, idioma: str, esperado: str) -> None:
+    painel.idioma(idioma)
+    painel.post(INTERRUPTOR, {"ligada": "on"})
+    with closing(abrir(painel.banco)) as con:
+        gravar_sessao(con, "site", CHAVE, "nao_conferiu", "sem_rede", AGORA)
+    anuncio = _anuncio(painel.http.get(CONFERIR).text)
+    assert anuncio is not None and anuncio[1] == esperado
