@@ -1,18 +1,21 @@
 """O que as rotas do painel leem do sistema: ambiente, executor de comando e plataforma.
 
-O teste troca os seis em `app.state` (`ambiente`, `rodar_comando`, `plataforma`, `cofre`,
-`abrir_processo` e `ler_navegador`); sem troca, vale o real.
+O teste troca os sete em `app.state` (`ambiente`, `rodar_comando`, `plataforma`, `cofre`,
+`abrir_processo`, `ler_navegador` e `leitores`); sem troca, vale o real. Os grupos de
+Configurações moram aqui, abaixo das rotas, porque a lateral também os lê (T265).
 """
 
 import os
 import sys
-from collections.abc import Awaitable, Callable, Mapping
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from typing import Literal
 
 from fastapi import Request
 
 from jobot.navegador import abrir, instalador
 from jobot.navegador.janela_comum import AbrirJanela
+from jobot.nucleo.leitores.base import LeitorComLogin
+from jobot.nucleo.leitores.registro import leitores
 from jobot.sistema import segundo_plano_linux
 from jobot.sistema.cofre import Cofre
 from jobot.sistema.segundo_plano_linux import Rodar
@@ -50,3 +53,30 @@ def ler_navegador_do_painel(request: Request) -> LerNavegador:
     """Quem lê do disco qual navegador as janelas usam (sobe o driver do Playwright)."""
     ler: LerNavegador | None = getattr(request.app.state, "ler_navegador", None)
     return abrir.navegador_instalado if ler is None else ler
+
+
+GRUPOS = (
+    "geral",
+    "fontes",
+    "funcoes",
+    "segundo-plano",
+    "privacidade",
+    "servicos",
+    "sites-com-login",
+    "ferramentas",
+)
+COM_LOGIN = "sites-com-login"
+FERRAMENTAS = "ferramentas"
+SO_COM_LEITOR = (COM_LOGIN, FERRAMENTAS)  # hoje a única ferramenta é o navegador do login
+
+
+def grupos_visiveis(leitores: Sequence[LeitorComLogin]) -> tuple[str, ...]:
+    """Os grupos da página: "Sites com login" e "Ferramentas" só existem com leitor registrado
+    (D132.23, D137.12)."""
+    return GRUPOS if leitores else tuple(g for g in GRUPOS if g not in SO_COM_LEITOR)
+
+
+def leitores_do_painel(request: Request) -> Sequence[LeitorComLogin]:
+    # o teste põe os leitores em `app.state` (E2); sem eles vale o registro
+    registrados: Sequence[LeitorComLogin] = getattr(request.app.state, "leitores", leitores())
+    return registrados

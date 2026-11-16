@@ -21,7 +21,7 @@ import asyncio
 import logging
 import re
 import sqlite3
-from collections.abc import Awaitable, Callable, Mapping, Sequence
+from collections.abc import Awaitable, Callable, Mapping
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -45,12 +45,17 @@ from jobot.nucleo.cambio import MOEDAS_EXIBICAO, moeda_do_pais
 from jobot.nucleo.captcha import validar_chave
 from jobot.nucleo.horarios import horarios_validos
 from jobot.nucleo.leitores.base import LeitorComLogin
-from jobot.nucleo.leitores.registro import leitores
 from jobot.nucleo.tratamento.locais import codigos_de_pais
 from jobot.painel.ambiente import (
+    COM_LOGIN,
+    FERRAMENTAS,
+    GRUPOS,
+    SO_COM_LEITOR,
     abrir_instalador_do_painel,
     ambiente_do_painel,
     cofre_do_painel,
+    grupos_visiveis,
+    leitores_do_painel,
     ler_navegador_do_painel,
     no_linux,
     rodar_do_painel,
@@ -67,16 +72,6 @@ from jobot.sistema.segundo_plano_linux import Recusa
 router = APIRouter(prefix="/configuracoes")
 _LOG = logging.getLogger(__name__)
 
-GRUPOS = (
-    "geral",
-    "fontes",
-    "funcoes",
-    "segundo-plano",
-    "privacidade",
-    "servicos",
-    "sites-com-login",
-    "ferramentas",
-)
 # um ícone Lucide por grupo (T262), na ordem de GRUPOS; o desenho é a máscara em configuracoes.css
 _ICONES = dict(
     zip(
@@ -94,9 +89,6 @@ _ICONES = dict(
         strict=True,
     )
 )
-_COM_LOGIN = "sites-com-login"
-_FERRAMENTAS = "ferramentas"
-_SO_COM_LEITOR = (_COM_LOGIN, _FERRAMENTAS)  # hoje a única ferramenta é o navegador do login
 FUNCOES = (
     "descoberta_cc_ligada",
     "paginas_ligadas",
@@ -117,18 +109,6 @@ _PARCIAIS = {
     "sites-com-login": "sites_com_login",
     "ferramentas": "ferramentas",
 }
-
-
-def grupos_visiveis(leitores: Sequence[LeitorComLogin]) -> tuple[str, ...]:
-    """Os grupos da página: "Sites com login" e "Ferramentas" só existem com leitor registrado
-    (D132.23, D137.12)."""
-    return GRUPOS if leitores else tuple(g for g in GRUPOS if g not in _SO_COM_LEITOR)
-
-
-def leitores_do_painel(request: Request) -> Sequence[LeitorComLogin]:
-    # o teste põe os leitores em `app.state` (E2); sem eles vale o registro
-    registrados: Sequence[LeitorComLogin] = getattr(request.app.state, "leitores", leitores())
-    return registrados
 
 
 def _hoje(request: Request) -> date:
@@ -441,10 +421,10 @@ async def _gravar_sites_com_login(request: Request, con: Con) -> Response:
         horarios = horarios_validos([parte.strip() for parte in texto.split(",")])
     except ValueError as erro:  # a chave do erro vem de `horarios_validos`; nada é gravado
         return await _pagina(
-            request, con, _COM_LOGIN, 422, horarios_texto=texto, erro=str(erro.args[0])
+            request, con, COM_LOGIN, 422, horarios_texto=texto, erro=str(erro.args[0])
         )
     gravar_config(con, "login_horarios", [h.strftime("%H:%M") for h in horarios])
-    return _volta(_COM_LOGIN, salvo=True)
+    return _volta(COM_LOGIN, salvo=True)
 
 
 _GRAVADORES: dict[str, Callable[[Request, Con], Awaitable[Response]]] = {
@@ -474,7 +454,7 @@ async def aparencia_de_antes() -> RedirectResponse:
 
 @router.get("/{grupo}")
 async def mostrar(request: Request, con: Con, grupo: str) -> Response:
-    if grupo in _SO_COM_LEITOR and grupo not in grupos_visiveis(leitores_do_painel(request)):
+    if grupo in SO_COM_LEITOR and grupo not in grupos_visiveis(leitores_do_painel(request)):
         # o navegador guarda o último grupo (T262): sem leitor ele sumiu, e a pessoa cai em Geral
         return _volta(GRUPOS[0])
     salvo = request.query_params.get("salvo") == "1"
@@ -489,10 +469,10 @@ async def gravar(request: Request, con: Con, grupo: str) -> Response:
     return await gravador(request, con)
 
 
-@router.post(f"/{_COM_LOGIN}/{{chave}}/interruptor")
+@router.post(f"/{COM_LOGIN}/{{chave}}/interruptor")
 async def interruptor_do_site(request: Request, con: Con, chave: str) -> Response:
     """Liga ou desliga um site na hora (D132.8); só chave de leitor, nunca de fonte pública."""
-    _grupo_valido(request, _COM_LOGIN)
+    _grupo_valido(request, COM_LOGIN)
     if chave not in {leitor.chave for leitor in leitores_do_painel(request)}:
         raise HTTPException(404)
     ligar = "ligada" in await request.form()
@@ -515,7 +495,7 @@ def _minutos_de_login() -> int:
 
 def _leitor(request: Request, chave: str) -> LeitorComLogin:
     """Só chave de leitor registrado; sem leitor o grupo nem existe (404)."""
-    _grupo_valido(request, _COM_LOGIN)
+    _grupo_valido(request, COM_LOGIN)
     for leitor in leitores_do_painel(request):
         if leitor.chave == chave:
             return leitor
@@ -553,7 +533,7 @@ def _fragmento_de_login(request: Request, chave: str, estado: str) -> Response:
     )
 
 
-@router.post(f"/{_COM_LOGIN}/{{chave}}/login")
+@router.post(f"/{COM_LOGIN}/{{chave}}/login")
 async def fazer_login_agora(request: Request, chave: str) -> Response:
     """Abre a janela comum na página de login do site e espera a pessoa entrar (D136.1)."""
     leitor = _leitor(request, chave)
@@ -581,7 +561,7 @@ async def fazer_login_agora(request: Request, chave: str) -> Response:
     return _fragmento_de_login(request, chave, "aguardando")
 
 
-@router.get(f"/{_COM_LOGIN}/{{chave}}/login")
+@router.get(f"/{COM_LOGIN}/{{chave}}/login")
 async def estado_do_login(request: Request, chave: str) -> Response:
     """O HTMX pergunta a cada 5 s; enquanto espera, 204 (nada troca na tela)."""
     _leitor(request, chave)
@@ -593,25 +573,25 @@ async def estado_do_login(request: Request, chave: str) -> Response:
     return _fragmento_de_login(request, chave, estado)
 
 
-@router.get(f"/{_COM_LOGIN}/esquecer/confirmar")
+@router.get(f"/{COM_LOGIN}/esquecer/confirmar")
 async def esquecer_logins_pergunta(request: Request) -> Response:
     """Sem JavaScript: a pergunta do alerta numa página; o GET não apaga nada (T307)."""
-    _grupo_valido(request, _COM_LOGIN)
+    _grupo_valido(request, COM_LOGIN)
     return renderizar(
         request,
         "confirmar.html",
         titulo=("configuracoes.sites_com_login.esquecer.pergunta", {}),
         texto="configuracoes.sites_com_login.esquecer.explicacao",
         rotulo="comum.esquecer",
-        acao=f"/configuracoes/{_COM_LOGIN}/esquecer/confirmar",
-        voltar=f"/configuracoes/{_COM_LOGIN}",
+        acao=f"/configuracoes/{COM_LOGIN}/esquecer/confirmar",
+        voltar=f"/configuracoes/{COM_LOGIN}",
     )
 
 
-@router.post(f"/{_COM_LOGIN}/esquecer/confirmar")
+@router.post(f"/{COM_LOGIN}/esquecer/confirmar")
 async def esquecer_logins_confirmado(request: Request) -> Response:
     """Confirma o alerta: apaga a pasta do perfil, nunca com leitura ou login rodando (D132.22)."""
-    _grupo_valido(request, _COM_LOGIN)
+    _grupo_valido(request, COM_LOGIN)
     trava = _trava_de_login(request)
     if trava.locked():
         return renderizar(request, "configuracoes/_esquecer.html", fase="em_andamento")
@@ -643,7 +623,7 @@ def _fragmento_do_navegador(request: Request, **ctx: Any) -> Response:
 @router.get(_NAVEGADOR)
 async def estado_do_navegador(request: Request) -> Response:
     """O HTMX pergunta a cada 5 s; enquanto baixa ou remove, 204 (nada troca na tela)."""
-    _grupo_valido(request, _FERRAMENTAS)
+    _grupo_valido(request, FERRAMENTAS)
     if _ferramentas(request).get("navegador") in _RODANDO:
         return Response(status_code=204)
     return _fragmento_do_navegador(request)
@@ -652,7 +632,7 @@ async def estado_do_navegador(request: Request) -> Response:
 @router.post(_NAVEGADOR + "/baixar")
 async def baixar_navegador(request: Request) -> Response:
     """Baixa o Chromium do Playwright em segundo plano; um download por vez (D137.4)."""
-    _grupo_valido(request, _FERRAMENTAS)
+    _grupo_valido(request, FERRAMENTAS)
     trava = _trava(request, "navegador")
     if getattr(request.app.state, "navegador_instalado", None) or trava.locked():
         return _fragmento_do_navegador(request)
@@ -682,7 +662,7 @@ async def baixar_navegador(request: Request) -> Response:
 @router.post(_NAVEGADOR + "/remover")
 async def remover_navegador(request: Request) -> Response:
     """Remove o Chromium do Playwright, nunca com o navegador aberto num site (D137.13)."""
-    _grupo_valido(request, _FERRAMENTAS)
+    _grupo_valido(request, FERRAMENTAS)
     trava = _trava(request, "navegador")
     login = _trava_de_login(request)
     if getattr(request.app.state, "navegador_instalado", None) != "chromium" or trava.locked():

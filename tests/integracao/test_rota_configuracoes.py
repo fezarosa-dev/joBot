@@ -25,8 +25,8 @@ from jobot.banco import buscas, cadastros
 from jobot.banco.conexao import abrir
 from jobot.banco.migrar import migrar
 from jobot.nucleo.leitores.base import LeitorComLogin
+from jobot.painel.ambiente import GRUPOS
 from jobot.painel.app import criar_app
-from jobot.painel.rotas.configuracoes import GRUPOS
 from jobot.painel.seguranca import CAMPO_CSRF
 from jobot.sistema.segundo_plano_linux import Resultado
 
