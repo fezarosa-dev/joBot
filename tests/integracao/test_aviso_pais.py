@@ -33,7 +33,9 @@ def _montar(tmp_path: Path, idioma: str, paises: list[str]) -> tuple[TestClient,
 
 
 def _selos(html: str) -> str:
-    return " ".join(re.findall(r'<li class="selo">(.*?)</li>', html, re.S))
+    # a lista usa <span> com ícone dentro; o detalhe, <li>: tira o ícone e aceita os dois
+    html = re.sub(r'<span class="icone"[^>]*></span>', "", html)
+    return " ".join(m[1] for m in re.findall(r'<(li|span) class="selo">(.*?)</\1>', html, re.S))
 
 
 @pytest.mark.parametrize(

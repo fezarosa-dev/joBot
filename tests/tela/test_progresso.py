@@ -80,7 +80,7 @@ def _esperar_valor_novo(page: Page, antes: str) -> dict[str, Any]:
           return m && m.valor !== null && m.valor !== {antes!r} ? m : null;
         }}""",
         polling="raf",
-        timeout=10_000,
+        timeout=5_000,
     )
     return achado.json_value()  # type: ignore[no-any-return]
 
@@ -141,8 +141,11 @@ def test_barra_continua_entre_perguntas(page: Page, painel: str, app_painel: Fas
     antes = _assentar(page)
     _amostrar(page)
     _etapa(banco, id_, "coleta", 6, 10)
-    _esperar_valor_novo(page, antes["valor"])
-    page.wait_for_timeout(500)
+    novo = _esperar_valor_novo(page, antes["valor"])
+    # amostra até a transição de 2 s chegar ao valor novo (espera por estado, não por tempo)
+    page.wait_for_function(
+        f"() => Math.abs(({LARGURA})().largura - {float(novo['valor'])}) < 0.5", timeout=5_000
+    )
     amostras = _parar(page)
     # a barra nunca some nem volta a zero na troca da pergunta
     assert amostras and all(a is not None for a in amostras)
@@ -158,7 +161,7 @@ def test_regiao_viva_e_o_mesmo_no(page: Page, painel: str, app_painel: FastAPI) 
     expect(viva).to_have_text("Lendo as fontes")
     page.evaluate('() => { window.__no = document.getElementById("andamento-etapa"); }')
     _etapa(banco, id_, "detalhes", 0, 3)
-    expect(viva).to_have_text("Completando os detalhes das vagas", timeout=10_000)
+    expect(viva).to_have_text("Completando os detalhes das vagas", timeout=5_000)
     assert page.evaluate('() => document.getElementById("andamento-etapa") === window.__no')
     expect(viva).to_have_attribute("role", "status")
     expect(viva).to_have_attribute("aria-live", "polite")
@@ -289,9 +292,9 @@ def test_um_clique_acompanha_ate_o_fim(
     assert ids
     _etapa(banco, ids[0], "coleta", 9, 10)
     # só a pergunta de 2 s traz o valor novo
-    expect(barra).not_to_have_attribute("aria-valuenow", antes or "", timeout=6_000)
+    expect(barra).not_to_have_attribute("aria-valuenow", antes or "", timeout=5_000)
     liberar.set()
     expect(page.locator("#andamento .progresso-linha")).to_have_text(
-        re.compile(r"Pronto\. Vagas novas: \d+\."), timeout=6_000
+        re.compile(r"Pronto\. Vagas novas: \d+\."), timeout=5_000
     )
     assert erros == []
