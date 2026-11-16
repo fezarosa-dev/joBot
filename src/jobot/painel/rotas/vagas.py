@@ -32,6 +32,7 @@ from jobot.painel.consultas import (
     inteiro_da_url,
     relogio_do_painel,
 )
+from jobot.painel.detalhe_vaga import contexto_do_detalhe
 from jobot.painel.lateral import ler_lateral
 from jobot.painel.moeda import Exibicao, FiltroSalario, exibicao_do_painel, filtro_salario
 from jobot.painel.seguranca import Con, de_volta, renderizar
@@ -58,7 +59,8 @@ _ROTULO_CHIP = {
 _TETO_SALARIO = 10**12
 _MAX_TEXTO = 100
 # o INTEGER do SQLite é de 64 bits com sinal: id maior estoura em OverflowError (500)
-VagaId = Annotated[int, Path(ge=1, le=2**63 - 1)]
+_MAX_VAGA = 2**63 - 1  # o maior INTEGER do SQLite
+VagaId = Annotated[int, Path(ge=1, le=_MAX_VAGA)]
 _MAX_PAGINA = 10_000
 
 
@@ -338,6 +340,7 @@ def _contexto_pagina(
         "busca_na_url": estado.busca_url,
         "retorno": estado.url(),
         "marcar_foco": False,
+        "url_vaga": estado.url(extras=[("vaga", "")]),  # a linha completa com o seu id
     }
 
 
@@ -351,7 +354,7 @@ def _lateral_oob(
 
 
 def com_vary(resposta: HTMLResponse) -> HTMLResponse:
-    resposta.headers["Vary"] = "HX-Request, HX-History-Restore-Request"
+    resposta.headers["Vary"] = "HX-Request, HX-History-Restore-Request, HX-Target"
     return resposta
 
 
@@ -395,9 +398,21 @@ async def vagas(request: Request, con: Con) -> HTMLResponse:
                 marcar_foco=True,
                 retorno=estado.url(),
                 busca_id=estado.busca_id,
+                url_vaga=estado.url(extras=[("vaga", "")]),
             )
         )
+    # o detalhe ao lado (T255): id torto ou de vaga que não existe abre só a lista
+    vaga_id = inteiro_da_url(request.query_params.get("vaga"), _MAX_VAGA)
+    vaga = None if vaga_id is None else leitura.detalhe(con, vaga_id, estado.busca_id, agora)
+    detalhe: dict[str, Any] | None = None
+    if vaga is not None:
+        retorno = estado.url(extras=[("vaga", str(vaga.id))])
+        detalhe = contexto_do_detalhe(con, vaga, agora.astimezone().date(), retorno)
+    if parcial and cabecalho.get("hx-target") == "detalhe-vaga":
+        # o clique na linha troca só o detalhe: sem refazer a lista, os Destaques e a lateral
+        return com_vary(renderizar(request, "vagas/detalhe_lado.html", detalhe=detalhe))
     contexto = _contexto_pagina(con, estado, agora, ex)
+    contexto["detalhe"] = detalhe
     if parcial:
         contexto["lateral_oob"] = _lateral_oob(con, agora, estado.busca_id, "/vagas", estado.aba)
     modelo = "vagas/miolo.html" if parcial else "vagas/pagina.html"

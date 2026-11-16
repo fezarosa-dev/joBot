@@ -227,6 +227,61 @@
     if (destino) escolher(lista, destino, true);
   });
 
+  // detalhe ao lado da lista (T255): a linha pede o detalhe por htmx (hx-get no <a>) e o
+  // <dialog id="detalhe-vaga"> recebe. O CSS diz o modo em --detalhe-modo, pela largura do miolo:
+  // "coluna", "sobreposto" ou "pagina" (abaixo de 640px a linha segue o href, como sem JS).
+  const lado = () => document.getElementById("detalhe-vaga");
+  const modo = () => {
+    const no = lado();
+    return no ? getComputedStyle(no).getPropertyValue("--detalhe-modo").trim() : "pagina";
+  };
+  // clique com tecla (nova aba, nova janela) e o modo página ficam com o navegador: a captura no
+  // document para o clique antes do ouvinte do htmx no <a>, sem impedir o link
+  document.addEventListener(
+    "click",
+    (evento) => {
+      const opcao = evento.target.closest?.('[role="option"][hx-get]');
+      if (!opcao) return;
+      const comTecla = evento.ctrlKey || evento.metaKey || evento.shiftKey || evento.altKey;
+      if (comTecla || evento.button !== 0 || modo() === "pagina") evento.stopPropagation();
+    },
+    true,
+  );
+  // a linha aberta fica marcada pela resposta, não pelo foco: Safari e Firefox do Mac não focam o
+  // <a> clicado, e o focusin não chega
+  document.addEventListener("htmx:afterSettle", (evento) => {
+    if (!evento.target.matches?.("#detalhe-vaga")) return;
+    const linha = document.getElementById(`vaga-${lado()?.dataset.vaga}`);
+    const lista = linha?.parentElement;
+    if (lista?.getAttribute("role") === "listbox") escolher(lista, linha, false);
+  });
+  const fecharLado = () => {
+    const no = lado();
+    if (!no?.open) return;
+    const id = no.dataset.vaga;
+    no.close();
+    delete no.dataset.vaga;
+    const url = new URL(location.href);
+    url.searchParams.delete("vaga");
+    history.replaceState(history.state, "", url);
+    document.getElementById(`vaga-${id}`)?.focus();
+  };
+  document.addEventListener("keydown", (evento) => {
+    // a lateral sobreposta fecha primeiro (o ouvinte dela vem depois e não marca o evento)
+    if (evento.key !== "Escape" || evento.defaultPrevented) return;
+    if (document.documentElement.dataset.lateral === "sobreposta") return;
+    if (!lado()?.open || modo() !== "sobreposto") return;
+    evento.preventDefault();
+    fecharLado();
+  });
+  document.addEventListener("click", (evento) => {
+    // clique na lista, fora de uma linha (a linha troca o detalhe), fecha o sobreposto
+    if (!lado()?.open || modo() !== "sobreposto") return;
+    if (evento.target.closest('.coluna-lista') && !evento.target.closest('[role="option"]')) {
+      fecharLado();
+    }
+  });
+
   // barra lateral (T251; desenho 5.2). O estado fica no <html data-lateral>, que a troca do body pelo
   // histórico não apaga: "aberta" (padrão), "recolhida" (janela larga, a pessoa escondeu) e
   // "sobreposta" (janela média, aberta por cima do conteúdo). Abaixo de 640px a lateral vira uma

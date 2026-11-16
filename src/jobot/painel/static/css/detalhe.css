@@ -37,7 +37,14 @@ a.primario {
   text-decoration: none;
 }
 
-.bloco h2 {
+a.secundario {
+  display: inline-flex;
+  align-items: center;
+  color: var(--texto);
+  text-decoration: none;
+}
+
+.bloco :is(h2, h3) {
   margin: 0 0 0.5rem;
   font-size: 1.125rem;
   font-weight: 600;

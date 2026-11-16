@@ -9,6 +9,8 @@
   "detalhe.sem_descricao": "This job came without a description.",
   "detalhe.candidatar": "Apply",
   "detalhe.candidatar_nova_aba": "Apply (opens in a new tab)",
+  "detalhe.abrir_no_site": "Open on Site",
+  "detalhe.abrir_no_site_nova_aba": "Open on Site (opens in a new tab)",
   "detalhe.encaixe.nota": "{nota} out of 100",
   "detalhe.encaixe.sem_nota": "No fit score for this search.",
   "detalhe.estagio.curso": "Course",

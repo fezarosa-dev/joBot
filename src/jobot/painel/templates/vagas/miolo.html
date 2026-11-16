@@ -86,6 +86,8 @@
   {%- endif %}
 </div>
 {% endif %}
+<div class="vagas-colunas">
+<div class="coluna-lista">
 {% if itens %}
 <div id="lista-vagas" class="lista-linhas" role="listbox" aria-label="{{ t('vagas.lista') }}" tabindex="-1">
   {%- include "vagas/lista.html" %}
@@ -104,6 +106,9 @@
   </form>
 </div>
 {% endif %}
+</div>
+{% include "vagas/detalhe_lado.html" %}
+</div>
 {% if paginas_programas %}
 <section class="painel" aria-labelledby="programas-paginas">
   <h2 id="programas-paginas">{{ t("vagas.programas.titulo") }}</h2>

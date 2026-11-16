@@ -1,10 +1,11 @@
 {#- a linha da vaga (T254; desenho 5.8, D143.53 e D143.59): o próprio link para a página da vaga
     (E10), com três linhas só de texto. Fontes, motivo do encaixe e botões ficam no detalhe e no
-    menu. Dentro só vão <span> e <time>: o listbox da lista não tem outro elemento. -#}
+    menu. Dentro só vão <span> e <time>: o listbox da lista não tem outro elemento. Com JS, a linha
+    abre o detalhe ao lado (T255): o `hx-target` vem escrito porque o htmx 2 herda o do miolo. -#}
 {%- set salario = salario_texto(item) -%}
 {%- set onde = [item.empresa, locais_texto(item.locais)] | select | join(" · ") -%}
 {%- set quando = item.publicada_em or item.primeira_vista_em -%}
-<a role="option" id="vaga-{{ item.id }}" class="linha{% if item.oculta_motivo %} linha-oculta{% endif %}" href="/vagas/{{ item.id }}" aria-selected="false"{% if foco_titulo %} data-foco{% endif %}>
+<a role="option" id="vaga-{{ item.id }}" class="linha{% if item.oculta_motivo %} linha-oculta{% endif %}" href="/vagas/{{ item.id }}"{% if url_vaga %} hx-get="{{ url_vaga }}{{ item.id }}" hx-target="#detalhe-vaga" hx-select="#detalhe-vaga" hx-swap="outerHTML" hx-push-url="true"{% endif %} aria-selected="{{ 'true' if detalhe and detalhe.vaga.id == item.id else 'false' }}"{% if foco_titulo %} data-foco{% endif %}>
   <span class="linha-1">
     {%- if item.encaixe %}<span class="linha-encaixe" aria-hidden="true">{{ {"bom": "●", "medio": "◐", "fraco": "○"}.get(item.encaixe, "") }}</span>{% endif -%}
     <span class="linha-titulo" title="{{ item.titulo }}">{{ item.titulo }}</span>

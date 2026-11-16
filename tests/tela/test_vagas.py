@@ -223,27 +223,32 @@ def test_carregar_mais(page: Page, painel: str, banco: Path) -> None:
     assert len(set(titulos)) == len(titulos)
 
 
+LADO = "#detalhe-vaga"
+
+
 def _abrir_pelo_teclado(page: Page, titulo: str) -> None:
-    """Foca a linha da vaga e abre com Return: o `<a>` segue o link (T254)."""
+    """Foca a linha da vaga e abre com Return: na janela larga do teste, o detalhe abre ao lado da
+    lista (T255), com o título em h2 (o h1 é o da página)."""
     _cartao(page, titulo).focus()
     page.keyboard.press("Enter")
-    expect(page.get_by_role("heading", level=1, name=titulo)).to_be_visible()
+    expect(page.locator(LADO).get_by_role("heading", level=2, name=titulo)).to_be_visible()
 
 
 def test_salvar_mudar_a_situacao_ocultar_e_trazer_de_volta(page: Page, painel: str) -> None:
     """As ações saíram da linha (D143.53): moram no detalhe, que se abre com Return."""
     page.goto(f"{painel}/vagas?aba=todas")
     _abrir_pelo_teclado(page, NOVA)
-    situacao = page.locator(".situacao")
+    lado = page.locator(LADO)
+    situacao = lado.locator(".situacao")
     expect(situacao).to_have_text("Situação: Nova")
 
-    page.get_by_role("button", name="Salvar", exact=True).focus()
+    lado.get_by_role("button", name="Salvar", exact=True).focus()
     page.keyboard.press("Enter")
     expect(situacao).to_have_text("Situação: Salva")
-    page.get_by_role("button", name="Me candidatei", exact=True).focus()
+    lado.get_by_role("button", name="Me candidatei", exact=True).focus()
     page.keyboard.press("Enter")
     expect(situacao).to_have_text("Situação: Candidatei")
-    page.get_by_role("button", name=re.compile("^Desfazer")).focus()
+    lado.get_by_role("button", name=re.compile("^Desfazer")).focus()
     page.keyboard.press("Enter")
     expect(situacao).to_have_text("Situação: Salva")
 
@@ -252,9 +257,9 @@ def test_salvar_mudar_a_situacao_ocultar_e_trazer_de_volta(page: Page, painel: s
 
     page.goto(f"{painel}/vagas?aba=todas")
     _abrir_pelo_teclado(page, NOVA)
-    page.get_by_role("button", name="Ocultar", exact=True).focus()
+    lado.get_by_role("button", name="Ocultar", exact=True).focus()
     page.keyboard.press("Enter")
-    expect(page.get_by_text("Oculta por você")).to_be_visible()
+    expect(lado.get_by_text("Oculta por você")).to_be_visible()
     page.goto(f"{painel}/vagas?aba=todas")
     assert NOVA not in _titulos(page)
     page.goto(f"{painel}/vagas?aba=ocultas")
@@ -262,9 +267,10 @@ def test_salvar_mudar_a_situacao_ocultar_e_trazer_de_volta(page: Page, painel: s
     expect(_cartao(page, NOVA).get_by_text("Oculta por você")).to_be_visible()
 
     _abrir_pelo_teclado(page, NOVA)
-    page.get_by_role("button", name="Trazer de volta", exact=True).focus()
+    lado.get_by_role("button", name="Trazer de volta", exact=True).focus()
     page.keyboard.press("Enter")
-    expect(page.get_by_text("Oculta por você")).to_have_count(0)
+    expect(lado.get_by_role("heading", level=2, name=NOVA)).to_be_visible()
+    expect(lado.get_by_text("Oculta por você")).to_have_count(0)
     page.goto(f"{painel}/vagas?aba=todas")
     assert NOVA in _titulos(page)
 
@@ -286,9 +292,9 @@ def test_tab_real_chega_a_lista_e_return_abre_a_vaga(page: Page, painel: str) ->
     page.keyboard.press("Shift+Tab")
     expect(primeira).to_be_focused()
     titulo = primeira.locator(".linha-titulo").inner_text()
-    page.keyboard.press("Enter")
-    expect(page).to_have_url(re.compile(r"/vagas/\d+$"))
-    expect(page.get_by_role("heading", level=1, name=titulo)).to_be_visible()
+    page.keyboard.press("Enter")  # T255: o detalhe abre ao lado e a URL guarda a vaga
+    expect(page).to_have_url(re.compile(r"/vagas\?aba=todas&vaga=\d+$"))
+    expect(page.locator(LADO).get_by_role("heading", level=2, name=titulo)).to_be_visible()
 
 
 def test_setas_j_k_home_end_movem_o_foco_na_lista(page: Page, painel: str) -> None:
@@ -318,10 +324,15 @@ def test_setas_j_k_home_end_movem_o_foco_na_lista(page: Page, painel: str) -> No
         expect(page.locator('#lista-vagas [aria-selected="true"]')).to_have_count(1)
     page.keyboard.press("j")
     expect(linhas.nth(1)).to_be_focused()
-    page.keyboard.press("Enter")  # Return abre a vaga escolhida
-    expect(page).to_have_url(re.compile(r"/vagas/\d+$"))
+    page.keyboard.press("Enter")  # Return abre a vaga escolhida ao lado (T255)
+    expect(page).to_have_url(re.compile(r"[?&]vaga=\d+$"))
+    expect(page.locator(LADO)).to_be_visible()
+    expect(linhas.nth(1)).to_be_focused()  # o teclado da lista segue com o detalhe aberto
+    page.keyboard.press("ArrowDown")
+    expect(linhas.nth(2)).to_be_focused()
+    expect(linhas.nth(2)).to_have_attribute("aria-selected", "true")
     page.go_back()
-    expect(page).to_have_url(re.compile(r"aba=todas"))
+    expect(page).to_have_url(re.compile(r"aba=todas$"))
 
 
 def test_teclado_da_lista_nao_age_em_campo_de_texto(page: Page, painel: str) -> None:
@@ -543,3 +554,154 @@ def test_linha_escolhida_pinta_todo_o_texto_com_a_cor_da_selecao(page: Page, pai
     assert esperada != page.evaluate(COR_TEXTO_2)
     for parte in linha.locator("span, time").all():
         assert parte.evaluate(cor) == esperada
+
+
+# --- T255: o detalhe ao lado da lista ---
+
+MODO = "el => getComputedStyle(el).getPropertyValue('--detalhe-modo').trim()"
+FUNDO_DE = """(cor) => {
+  const e = document.createElement('i');
+  e.style.backgroundColor = cor;
+  document.body.append(e);
+  const fundo = getComputedStyle(e).backgroundColor;
+  e.remove();
+  return fundo;
+}"""
+
+
+def _abrir_ao_lado(page: Page, titulo: str) -> None:
+    _cartao(page, titulo).click()
+    expect(page.locator(LADO).get_by_role("heading", level=2, name=titulo)).to_be_visible()
+
+
+def _largura_do_miolo(page: Page) -> float:
+    return float(page.locator("#vagas-miolo").evaluate("el => el.getBoundingClientRect().width"))
+
+
+def test_coluna_larga_abre_ao_lado(page: Page, painel: str) -> None:
+    page.set_viewport_size({"width": 1400, "height": 900})
+    page.goto(f"{painel}/vagas?aba=todas&ordem=recentes")
+    assert _largura_do_miolo(page) >= 860
+    expect(page.locator(LADO)).to_be_hidden()  # sem vaga na URL, nada ao lado
+    _abrir_ao_lado(page, NOVA)
+    # a URL guarda a vista (aba e ordem) e a vaga; a página não troca
+    expect(page).to_have_url(re.compile(r"/vagas\?aba=todas&ordem=recentes&vaga=\d+$"))
+    expect(page.get_by_role("heading", level=1, name="Vagas")).to_be_visible()
+    assert page.locator(LADO).evaluate(MODO) == "coluna"
+    lista = page.locator("#lista-vagas").bounding_box()
+    lado = page.locator(LADO).bounding_box()
+    assert lista and lado
+    assert lado["x"] >= lista["x"] + lista["width"]  # ao lado, sem cobrir a lista
+    assert 320 <= lado["width"] <= 380
+    expect(_cartao(page, NOVA)).to_have_attribute("aria-selected", "true")
+    assert not page.locator(LADO).evaluate("el => el.matches(':modal')")
+    # fontes, motivo do encaixe e os botões que saíram da linha
+    lado_loc = page.locator(LADO)
+    expect(lado_loc.get_by_role("link", name=re.compile("^via "))).not_to_have_count(0)
+    expect(lado_loc.get_by_role("heading", level=3, name="Encaixe com a sua busca")).to_be_visible()
+    for nome in ("Salvar", "Ocultar"):
+        expect(lado_loc.get_by_role("button", name=nome, exact=True)).to_be_visible()
+    expect(lado_loc.get_by_role("link", name=re.compile("^Abrir no site"))).to_be_visible()
+
+
+def test_coluna_entre_640_e_860_abre_sobreposto(page: Page, painel: str) -> None:
+    page.set_viewport_size({"width": 1000, "height": 800})
+    page.goto(f"{painel}/vagas?aba=todas")
+    assert 640 <= _largura_do_miolo(page) < 860
+    _abrir_ao_lado(page, NOVA)
+    assert page.locator(LADO).evaluate(MODO) == "sobreposto"
+    assert not page.locator(LADO).evaluate("el => el.matches(':modal')")  # a lista segue usável
+    lista = page.locator("#lista-vagas").bounding_box()
+    lado = page.locator(LADO).bounding_box()
+    assert lista and lado
+    assert lado["x"] < lista["x"] + lista["width"]  # por cima da lista, encostado à direita
+    assert abs((lado["x"] + lado["width"]) - (lista["x"] + lista["width"])) <= 2
+    assert lado["width"] <= min(420, 0.6 * _largura_do_miolo(page)) + 1
+    # clicar na lista, fora de uma linha, fecha o sobreposto; fora da lista, não
+    page.locator(".barra-lista").dispatch_event("click")
+    expect(page.locator(LADO)).to_be_visible()
+    page.locator(".coluna-lista").dispatch_event("click")
+    expect(page.locator(LADO)).to_be_hidden()
+    expect(page).to_have_url(re.compile(r"/vagas\?aba=todas$"))
+
+
+def test_recarregar_abre_a_mesma_vaga(page: Page, painel: str) -> None:
+    page.set_viewport_size({"width": 1400, "height": 900})
+    page.goto(f"{painel}/vagas?aba=todas")
+    _abrir_ao_lado(page, NOVA)
+    url = page.url
+    page.reload()
+    expect(page).to_have_url(url)
+    expect(page.locator(LADO).get_by_role("heading", level=2, name=NOVA)).to_be_visible()
+    expect(_cartao(page, NOVA)).to_have_attribute("aria-selected", "true")
+    expect(page.locator('#lista-vagas [aria-selected="true"]')).to_have_count(1)
+
+
+def test_esc_fecha_o_sobreposto(page: Page, painel: str) -> None:
+    page.set_viewport_size({"width": 1000, "height": 800})
+    page.goto(f"{painel}/vagas?aba=todas")
+    _cartao(page, NOVA).focus()
+    page.keyboard.press("Enter")
+    expect(page.locator(LADO).get_by_role("heading", level=2, name=NOVA)).to_be_visible()
+    assert page.locator(LADO).evaluate(MODO) == "sobreposto"
+    page.keyboard.press("Escape")
+    expect(page.locator(LADO)).to_be_hidden()
+    expect(page).to_have_url(re.compile(r"/vagas\?aba=todas$"))
+    expect(_cartao(page, NOVA)).to_be_focused()  # o foco volta à linha
+    seguinte = _cartao(page, NOVA).locator("xpath=following-sibling::*[@role='option'][1]")
+    page.keyboard.press("ArrowDown")  # e o teclado da lista segue valendo, a partir da linha
+    expect(seguinte).to_be_focused()
+    expect(seguinte).to_have_attribute("aria-selected", "true")
+
+
+def test_janela_inativa_selecao_cinza(page: Page, painel: str) -> None:
+    page.set_viewport_size({"width": 1400, "height": 900})
+    page.goto(f"{painel}/vagas?aba=todas")
+    _abrir_ao_lado(page, NOVA)
+    linha = _cartao(page, NOVA)
+    linha.focus()
+    expect(linha).to_be_focused()
+    expect(linha).to_have_attribute("aria-selected", "true")
+    fundo = "el => getComputedStyle(el).backgroundColor"
+    destaque = page.evaluate(FUNDO_DE, "var(--destaque)")
+    inativa = page.evaluate(FUNDO_DE, "var(--selecao-inativa)")
+    assert destaque != inativa
+    assert linha.evaluate(fundo) == destaque  # janela ativa, foco na lista: azul
+    page.evaluate("() => { document.documentElement.dataset.janela = 'inativa'; }")
+    expect(linha).to_be_focused()
+    assert linha.evaluate(fundo) == inativa  # janela inativa: cinza, mesmo com o foco na lista
+    # o foco no detalhe (a outra coluna) também deixa a linha cinza
+    page.evaluate("() => { delete document.documentElement.dataset.janela; }")
+    page.locator(LADO).get_by_role("button", name="Salvar", exact=True).focus()
+    assert linha.evaluate(fundo) == inativa
+
+
+def test_clique_sem_foco_marca_a_linha_aberta(page: Page, painel: str) -> None:
+    """Safari e Firefox do Mac não focam o <a> clicado: a marca vem da resposta, não do foco."""
+    page.set_viewport_size({"width": 1400, "height": 900})
+    page.goto(f"{painel}/vagas?aba=todas")
+    _abrir_ao_lado(page, NOVA)
+    outra = _linhas(page).filter(has_not_text=NOVA).first
+    titulo = outra.locator(".linha-titulo").inner_text()
+    with page.expect_response(lambda r: "vaga=" in r.url):
+        outra.evaluate("el => el.click()")  # clique que não leva o foco, como no Safari
+    expect(page.locator(LADO).get_by_role("heading", level=2, name=titulo)).to_be_visible()
+    expect(outra).not_to_be_focused()
+    expect(outra).to_have_attribute("aria-selected", "true")
+    expect(page.locator('#lista-vagas [aria-selected="true"]')).to_have_count(1)
+
+
+def test_sem_foco_a_linha_aberta_fica_azul(page: Page, painel: str) -> None:
+    """Desenho 5.2: sem foco em coluna nenhuma (aqui, depois de recarregar), a lista conta como
+    ativa; com a janela inativa, a linha volta ao cinza."""
+    page.set_viewport_size({"width": 1400, "height": 900})
+    page.goto(f"{painel}/vagas?aba=todas")
+    _abrir_ao_lado(page, NOVA)
+    page.reload()
+    linha = _cartao(page, NOVA)
+    expect(linha).to_have_attribute("aria-selected", "true")
+    assert page.evaluate("() => !document.querySelector(':focus')")
+    fundo = "el => getComputedStyle(el).backgroundColor"
+    assert linha.evaluate(fundo) == page.evaluate(FUNDO_DE, "var(--destaque)")
+    page.evaluate("() => { document.documentElement.dataset.janela = 'inativa'; }")
+    assert linha.evaluate(fundo) == page.evaluate(FUNDO_DE, "var(--selecao-inativa)")

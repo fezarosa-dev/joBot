@@ -464,19 +464,133 @@ small.convertido {
   background-color: var(--selecao-inativa);
 }
 
-.lista-linhas:focus-within .linha[aria-selected="true"] {
+/* sem foco em coluna nenhuma (recarregar, voltar, abrir o link), a lista conta como ativa (5.2).
+   Só com o detalhe aberto: sem ele, a linha marcada é só a parada do Tab (T254), não uma escolha */
+.lista-linhas:focus-within .linha[aria-selected="true"],
+:root:not(:has(:focus))
+  .vagas-colunas:has(> .detalhe-lado[open])
+  .linha[aria-selected="true"] {
   background-color: var(--destaque);
   color: var(--sobre-destaque);
 }
 
 /* todo descendente, não só os `> span`: `.nao-informado` tem cor própria e furaria o branco */
-.lista-linhas:focus-within .linha[aria-selected="true"] :is(span, time) {
+.lista-linhas:focus-within .linha[aria-selected="true"] :is(span, time),
+:root:not(:has(:focus))
+  .vagas-colunas:has(> .detalhe-lado[open])
+  .linha[aria-selected="true"] :is(span, time) {
   color: inherit;
 }
 
 .linha:focus-visible {
   outline: 3px solid var(--foco);
   outline-offset: -3px;
+}
+
+/* janela inativa (desenho 7): a linha escolhida fica cinza mesmo com o foco na lista, e os textos
+   voltam aos tons de antes. Fora das cores forçadas, que usam a seleção do sistema. */
+@media (forced-colors: none) {
+  :root[data-janela="inativa"] .lista-linhas:focus-within .linha[aria-selected="true"],
+  :root[data-janela="inativa"]:not(:has(:focus))
+    .vagas-colunas:has(> .detalhe-lado[open])
+    .linha[aria-selected="true"] {
+    background-color: var(--selecao-inativa);
+    color: var(--texto);
+  }
+
+  :root[data-janela="inativa"]
+    .lista-linhas:focus-within
+    .linha[aria-selected="true"]
+    :is(.linha-2, .linha-3, .nao-informado),
+  :root[data-janela="inativa"]:not(:has(:focus))
+    .vagas-colunas:has(> .detalhe-lado[open])
+    .linha[aria-selected="true"]
+    :is(.linha-2, .linha-3, .nao-informado) {
+    color: var(--texto-2);
+  }
+}
+
+/*
+ * Detalhe ao lado da lista (T255; desenho 5.8). O modo segue a largura do miolo, não a da janela:
+ * coluna à direita de 860px para cima; de 640 a 860, sobreposto à direita da lista, sem ser modal;
+ * abaixo de 640 some, e a linha leva à página da vaga. O app.js lê o modo em --detalhe-modo.
+ */
+#vagas-miolo {
+  container: conteudo / inline-size;
+}
+
+.vagas-colunas {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+}
+
+.coluna-lista {
+  grid-area: 1 / 1;
+  min-inline-size: 0;
+}
+
+.detalhe-lado {
+  --detalhe-modo: pagina;
+  display: none;
+}
+
+@container conteudo (min-width: 640px) {
+  .detalhe-lado {
+    --detalhe-modo: sobreposto;
+  }
+
+  .detalhe-lado[open] {
+    display: block;
+    position: sticky;
+    inset-block-start: 0.5rem;
+    z-index: 1;
+    grid-area: 1 / 1;
+    justify-self: end;
+    box-sizing: border-box;
+    inline-size: min(420px, 60%);
+    /* shortcut: altura da janela menos a barra e uma folga fixa; se a barra quebrar linha, o fim
+       do detalhe rola junto com a lista. Trocar pela altura real da coluna se incomodar. */
+    max-block-size: calc(100dvh - var(--barra-altura) - 1rem);
+    overflow: auto;
+    margin: 0;
+    padding: 1rem;
+    border: 1px solid var(--borda-elevada);
+    border-radius: var(--raio-grande);
+    background-color: var(--solido-elevado);
+    color: var(--texto);
+    box-shadow: var(--sombra-sheet);
+  }
+}
+
+@container conteudo (min-width: 860px) {
+  .vagas-colunas:has(> .detalhe-lado[open]) {
+    grid-template-columns: minmax(0, 1fr) clamp(320px, 35cqi, 380px);
+    column-gap: 1rem;
+  }
+
+  .detalhe-lado {
+    --detalhe-modo: coluna;
+  }
+
+  .detalhe-lado[open] {
+    grid-area: 1 / 2;
+    justify-self: stretch;
+    inline-size: auto;
+    border: 0;
+    border-inline-start: 1px solid var(--separador);
+    border-radius: 0;
+    background-color: transparent;
+    box-shadow: none;
+  }
+}
+
+.detalhe-lado .detalhe {
+  max-width: none;
+}
+
+.detalhe-lado .titulo-pagina {
+  font: var(--t-title3);
 }
 
 /* estado vazio (desenho 5.8): ícone, título, uma frase e o botão, no meio da área */
@@ -513,7 +627,10 @@ small.convertido {
 /* cores forçadas: a linha escolhida usa as cores de seleção do sistema */
 @media (forced-colors: active) {
   .linha[aria-selected="true"],
-  .lista-linhas:focus-within .linha[aria-selected="true"] {
+  .lista-linhas:focus-within .linha[aria-selected="true"],
+  :root:not(:has(:focus))
+    .vagas-colunas:has(> .detalhe-lado[open])
+    .linha[aria-selected="true"] {
     forced-color-adjust: none;
     background-color: Highlight;
     color: HighlightText;
