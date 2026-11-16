@@ -1,5 +1,6 @@
 """Leitura e busca do painel (desenho 13.3 e 13.4; plano T20)."""
 
+import ast
 import sqlite3
 import time
 from collections.abc import Iterator
@@ -11,6 +12,7 @@ from typing import Any
 import pytest
 
 from apoio.semear import AGORA, inserir_vaga, semear
+from jobot.banco import acoes
 from jobot.banco import migrar as modulo_migrar
 from jobot.banco.conexao import abrir
 from jobot.banco.leitura import (
@@ -21,6 +23,7 @@ from jobot.banco.leitura import (
     contar_fora_do_salario,
     detalhe,
     listar,
+    tem_vaga,
 )
 from jobot.banco.migrar import migrar
 
@@ -734,3 +737,34 @@ def test_contar_fora_do_salario_na_moeda_nao_conta_o_sem_valor(con: sqlite3.Conn
 def test_sem_salario_so_pela_ausencia_de_minimo_e_maximo(con: sqlite3.Connection) -> None:
     inserir_vaga(con, sal_moeda="USD", sal_periodo="mes")  # moeda sem valor nenhum
     assert contar_fora_do_salario(con, Filtros(sal_de_brl=1), AGORA) == (1, 0)
+
+
+def test_status_em_na_listagem(con: sqlite3.Connection) -> None:
+    vaga = inserir_vaga(con, status="nova")
+    quando = datetime(2026, 11, 13, 10, 30, tzinfo=UTC)
+    acoes.mudar_status(con, vaga, "salva", quando)
+    item = next(i for i in _pagina(con, aba="salvas").itens if i.id == vaga)
+    assert item.status_em == quando.isoformat()
+    d = detalhe(con, vaga, None, AGORA)
+    assert d is not None and d.status_em == quando.isoformat()
+
+
+def test_tem_vaga(con: sqlite3.Connection) -> None:
+    assert tem_vaga(con) is False  # guarda: o banco vazio nasce verde
+    inserir_vaga(con, oculta_manual=1, fechada_em="2026-11-01T00:00:00+00:00")
+    assert tem_vaga(con) is True
+
+
+def test_degrau_definido_uma_vez() -> None:
+    pasta = Path(__file__).parents[2] / "src" / "jobot" / "banco"
+    definem: list[str] = []
+    for arquivo in sorted(pasta.glob("*.py")):
+        for no in ast.walk(ast.parse(arquivo.read_text(encoding="utf-8"))):
+            alvos = no.targets if isinstance(no, ast.Assign) else []
+            if isinstance(no, ast.AnnAssign):
+                alvos = [no.target]
+            nomes = [a.id for a in alvos if isinstance(a, ast.Name)]
+            assert "_DEGRAU" not in nomes, f"{arquivo.name} define _DEGRAU"
+            if "DEGRAU" in nomes:
+                definem.append(arquivo.name)
+    assert len(definem) == 1, definem
