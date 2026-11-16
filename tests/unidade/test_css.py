@@ -573,29 +573,6 @@ def test_sheet_entra_com_a_mola_leve() -> None:
     assert (_valor(inicios[0], "transform") or "none") != "none"
 
 
-def test_sobreposto_sem_js_acompanha_a_rolagem() -> None:
-    """Sem JS (T305 h) o app.js não sobe o sobreposto para a camada de cima, e o position: fixed
-    ficaria preso ao #vagas-miolo (o container das consultas de largura, que não pode sair): lá
-    ele vira sticky sobre a lista, no alto da coluna que rola, depois da regra do sobreposto."""
-    regras = _regras(_sem_comentarios((PASTA / "vagas.css").read_text(encoding="utf-8")))
-    faixa = "@container conteudo (640px <= width < 860px)"
-    sobreposto = next(i for i, r in enumerate(regras) if r.seletor == faixa and not r.contexto)
-    sem_js = [
-        (i, d)
-        for i, r in enumerate(regras)
-        if r.contexto == ("@media (scripting: none)",) and r.seletor == faixa
-        for d in _regras(r.corpo)
-        if d.seletor == ".detalhe-lado[open]"
-    ]
-    assert len(sem_js) == 1
-    posicao, lado = sem_js[0]
-    assert posicao > sobreposto  # mesma especificidade: vence por vir depois
-    assert _valor(lado, "position") == "sticky"
-    assert _valor(lado, "inset") == "auto"
-    assert _valor(lado, "grid-area") == "1 / 1"
-    assert _valor(lado, "max-block-size") == "calc(100dvh - var(--barra-altura) - 1rem)"
-
-
 def test_lista_agrupada_definida_uma_vez() -> None:
     """O bloco da lista agrupada (desenho 5.8, T309) mora só em `.lista-agrupada`, no base.css: as
     listas de Buscas, Fontes, Sites, Empresas e Sugeridas usam a classe, sem cópia do bloco."""

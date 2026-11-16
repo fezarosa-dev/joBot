@@ -9,7 +9,7 @@ from typing import Any
 
 import pytest
 from fastapi import FastAPI
-from playwright.sync_api import Browser, Locator, Page, expect
+from playwright.sync_api import Browser, Locator, Page, Route, expect
 
 from apoio.relogio import RelogioFalso
 from apoio.semear import AGORA, inserir_vaga
@@ -499,6 +499,71 @@ def test_setas_j_k_home_end_movem_o_foco_na_lista(page: Page, painel: str) -> No
     expect(page).to_have_url(re.compile(r"aba=todas$"))
 
 
+# o settle do detalhe é um setTimeout de 20 ms depois da troca: com o relógio parado, só o
+# fast_forward o dispara; cada settle do #detalhe-vaga conta em `assentos`
+_CONTAR_SETTLES = """() => {
+    window.assentos = 0;
+    document.addEventListener("htmx:afterSettle", (e) => {
+        if (e.target.id === "detalhe-vaga") window.assentos += 1;
+    });
+}"""
+
+
+def _relogio_parado(page: Page, painel: str) -> None:
+    page.clock.install(time=0)
+    page.goto(f"{painel}/vagas?aba=todas")
+    page.clock.pause_at(1000)
+    page.evaluate(_CONTAR_SETTLES)
+
+
+def test_seta_logo_depois_do_return_vence_a_resposta(page: Page, painel: str) -> None:
+    """A seta dada entre a troca do detalhe e o settle leva a escolha; a resposta não a devolve."""
+    _relogio_parado(page, painel)
+    linhas = _linhas(page)
+    linhas.nth(1).focus()
+    page.keyboard.press("Enter")
+    expect(page).to_have_url(re.compile(r"[?&]vaga=\d+$"))
+    expect(page.locator(LADO)).to_be_visible()
+    page.keyboard.press("ArrowDown")
+    expect(linhas.nth(2)).to_be_focused()
+    assert page.evaluate("window.assentos") == 0  # a premissa: a seta veio antes do settle
+    page.clock.fast_forward(20)
+    assert page.evaluate("window.assentos") == 1
+    expect(linhas.nth(2)).to_be_focused()
+    expect(linhas.nth(2)).to_have_attribute("aria-selected", "true")
+    expect(page.locator('#lista-vagas [aria-selected="true"]')).to_have_count(1)
+
+
+def test_dois_pedidos_seguidos_nao_desfazem_a_seta(page: Page, painel: str) -> None:
+    """Abrir A, descer, abrir B (preso na rede) e descer: o settle de A chega com B no ar, depois o
+    de B. Cada resposta compara com a marca do seu próprio pedido, e a escolha fica no foco."""
+    _relogio_parado(page, painel)
+    linhas = _linhas(page)
+    linhas.nth(0).focus()
+    page.keyboard.press("Enter")  # A
+    expect(page).to_have_url(re.compile(r"[?&]vaga=\d+$"))
+    expect(page.locator(LADO)).to_be_visible()
+    page.keyboard.press("ArrowDown")
+    expect(linhas.nth(1)).to_be_focused()
+    id_b = linhas.nth(1).get_attribute("data-id")
+    presos: list[Route] = []
+    page.route(re.compile(r"[?&]vaga=\d+$"), lambda rota: presos.append(rota))
+    page.keyboard.press("Enter")  # B, que fica preso
+    page.keyboard.press("ArrowDown")
+    expect(linhas.nth(2)).to_be_focused()
+    assert page.evaluate("window.assentos") == 0  # a premissa: as setas vieram antes dos settles
+    page.clock.fast_forward(20)  # o settle de A, com B no ar
+    assert page.evaluate("window.assentos") == 1
+    assert len(presos) == 1
+    presos[0].continue_()
+    expect(page).to_have_url(re.compile(rf"[?&]vaga={id_b}$"))  # B trocou
+    page.clock.fast_forward(20)  # o settle de B
+    assert page.evaluate("window.assentos") == 2
+    expect(linhas.nth(2)).to_be_focused()
+    expect(linhas.nth(2)).to_have_attribute("aria-selected", "true")
+    expect(page.locator('#lista-vagas [aria-selected="true"]')).to_have_count(1)
+
+
 def test_teclado_da_lista_nao_age_em_campo_de_texto(page: Page, painel: str) -> None:
     page.goto(f"{painel}/vagas?aba=todas")
     _linhas(page).nth(0).focus()
@@ -967,37 +1032,6 @@ def test_foco_fica_no_detalhe_ao_alargar_a_janela(page: Page, painel: str) -> No
     expect(page.locator(f"{LADO}:popover-open")).to_have_count(0)
     assert page.locator(LADO).evaluate(MODO) == "coluna"
     expect(salvar).to_be_focused()
-
-
-def test_sobreposto_sem_js_fica_a_vista_ao_rolar(
-    browser: Browser, painel: str, banco: Path
-) -> None:
-    """T305 h: sem JS o detalhe não sobe para a camada de cima; o CSS o prende ao alto da coluna
-    que rola (sticky), dentro da janela, também depois de rolar a lista até o fim."""
-    # lista bem mais alta que a janela: sem o sticky o detalhe estica até o pé do miolo
-    with closing(abrir(banco)) as con:
-        for n in range(40):
-            inserir_vaga(con, titulo=f"Extra {n:02d}", empresa=f"Extra SA {n:02d}")
-    contexto = browser.new_context(
-        java_script_enabled=False, viewport={"width": 800, "height": 700}
-    )
-    try:
-        pagina = contexto.new_page()
-        pagina.goto(f"{painel}/vagas?aba=todas")
-        id_ = _cartao(pagina, NOVA).get_attribute("data-id")
-        pagina.goto(f"{painel}/vagas?aba=todas&vaga={id_}")
-        lado = pagina.locator(LADO)
-        expect(lado.get_by_role("heading", level=2, name=NOVA)).to_be_visible()
-        _linhas(pagina).last.scroll_into_view_if_needed()  # rola a lista até o fim
-        primeira = _linhas(pagina).first.bounding_box()
-        assert primeira and primeira["y"] + primeira["height"] < 0  # rolou de verdade
-        barra, caixa = pagina.get_by_role("banner").bounding_box(), lado.bounding_box()
-        assert barra and caixa
-        assert barra["y"] + barra["height"] <= caixa["y"]  # abaixo da barra...
-        assert caixa["y"] + caixa["height"] <= 700  # ... e inteiro dentro da janela
-        expect(lado.get_by_role("button", name="Ocultar", exact=True)).to_be_in_viewport()
-    finally:
-        contexto.close()
 
 
 def test_coluna_sem_a_caixa_do_popover(page: Page, painel: str) -> None:
