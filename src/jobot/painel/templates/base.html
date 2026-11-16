@@ -11,7 +11,7 @@
     aria-current="page" só quando a página aberta é a dele; numa página filha (detalhe da vaga,
     outro grupo de Configurações), "true": marca a área sem dizer que é aquela página -#}
 {%- set ns = namespace(area="", titulo="", atual="") -%}
-{%- for chave, _, area, _, _ in (("vagas", "", "/vagas", "", false),) + onde + (config,) -%}
+{%- for chave, _, area, _, _ in (("panorama", "", "/panorama", "", false), ("vagas", "", "/vagas", "", false)) + onde + (config,) -%}
   {%- if (caminho == area or caminho.startswith(area ~ "/")) and area|length > ns.area|length -%}
     {%- set ns.area = area %}{% set ns.titulo = chave -%}
     {%- if chave != "sugeridas" or (lado and lado.sugeridas_pendentes) %}{% set ns.atual = area %}{% endif -%}
@@ -50,6 +50,9 @@
   <aside id="lateral" class="lateral vidro">
     <a class="marca" href="/">joBot</a>
     <nav class="menu" aria-label="{{ t('casca.menu') }}">
+      <ul>
+        <li><a data-icone="layout-dashboard" href="/panorama"{% if caminho == "/panorama" %} aria-current="page"{% endif %}>{{ t("casca.lateral.panorama") }}</a></li>
+      </ul>
       <p class="menu-secao" id="secao-vagas">{{ t("casca.lateral.vagas") }}</p>
       {%- include "lateral_vagas.html" %}
       <p class="menu-secao" id="secao-onde">{{ t("casca.lateral.onde_buscar") }}</p>

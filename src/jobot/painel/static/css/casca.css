@@ -184,6 +184,7 @@ body {
 [data-icone="bookmark"] { --icone: url("/static/icones/bookmark.svg"); }
 [data-icone="send"] { --icone: url("/static/icones/send.svg"); }
 [data-icone="circle-help"] { --icone: url("/static/icones/circle-help.svg"); }
+[data-icone="layout-dashboard"] { --icone: url("/static/icones/layout-dashboard.svg"); }
 [data-icone="graduation-cap"] { --icone: url("/static/icones/graduation-cap.svg"); }
 [data-icone="eye-off"] { --icone: url("/static/icones/eye-off.svg"); }
 [data-icone="search"] { --icone: url("/static/icones/search.svg"); }

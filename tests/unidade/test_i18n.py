@@ -542,3 +542,8 @@ def test_panorama_tem_texto(idioma: str) -> None:
         "en": ("Overview", "Next automatic search on {dia}, around {hora}."),
     }[idioma]
     assert (catalogo["panorama.titulo"], catalogo["panorama.busca.proxima_dia"]) == esperado
+
+
+@pytest.mark.parametrize(("idioma", "texto"), [("pt", "Panorama"), ("en", "Overview")])
+def test_lateral_nomeia_o_panorama(idioma: str, texto: str) -> None:
+    assert i18n.carregar()[idioma]["casca.lateral.panorama"] == texto

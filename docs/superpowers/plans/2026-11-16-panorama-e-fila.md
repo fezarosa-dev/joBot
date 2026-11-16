@@ -645,16 +645,16 @@ Mudar uma delas muda a tarefa responsável antes de ela começar.
 - **`/`.** Continua em Vagas (P3 (a)).
 - **i18n.** `casca.lateral.panorama`: "Panorama" em pt, "Overview" em en.
 
-- [ ] **Primeiro, valor errado:** a chave i18n existe, mas a lateral ainda não tem o item.
-- [ ] **Testes que falham** em `tests/integracao/test_casca_menu.py`:
+- [x] **Primeiro, valor errado:** a chave i18n existe, mas a lateral ainda não tem o item.
+- [x] **Testes que falham** em `tests/integracao/test_casca_menu.py`:
   - `test_lateral_tem_panorama_com_aria_current`: em `/panorama`, o item é o primeiro da lateral e tem `aria-current="page"`; em `/vagas`, não tem.
   - `test_paleta_tem_os_comandos`, atualizado com "Panorama".
   - `test_menu_tem_os_itens_da_lateral_pt_e_en`, com o item novo.
   - `test_raiz_continua_em_vagas`: é guarda e nasce verde. Mutante: `raiz` levar a `/panorama`.
-- [ ] **Teste que falha** em `tests/unidade/test_estaticos.py`: os dois ícones novos no `lucide.meta.json` e os arquivos no lugar.
-- [ ] **Testes de tela** (CI) em `tests/tela/test_casca_menu.py`: o item pelo teclado e a paleta abrindo o Panorama.
-- [ ] **Ver falhar:** `uv run pytest tests/integracao/test_casca_menu.py tests/unidade/test_estaticos.py tests/unidade/test_i18n.py -q`.
-- [ ] **Implementar** os itens de Interfaces.
+- [x] **Teste que falha** em `tests/unidade/test_estaticos.py`: os dois ícones novos no `lucide.meta.json` e os arquivos no lugar.
+- [x] **Testes de tela** (CI) em `tests/tela/test_casca_menu.py`: o item pelo teclado e a paleta abrindo o Panorama.
+- [x] **Ver falhar:** `uv run pytest tests/integracao/test_casca_menu.py tests/unidade/test_estaticos.py tests/unidade/test_i18n.py -q`.
+- [x] **Implementar** os itens de Interfaces.
 - [ ] **Ver passar:** os mesmos arquivos e `tests/unidade/test_camadas.py`; ruff; a suíte inteira, `-m tela` e mypy no CI do `lote/panorama-tela`.
 
 ### T290: documentos de quem usa
