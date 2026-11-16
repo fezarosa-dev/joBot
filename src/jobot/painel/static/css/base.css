@@ -62,19 +62,20 @@
   --sombra-sheet: 0 12px 40px var(--sombra-cor-forte);
   --sombra-alerta: 0 20px 60px var(--sombra-cor-forte);
 
-  /* escala do Mac, peso tamanho/entrelinha (13px = 0.8125rem sobre 16px); o `font` abreviado zera
-     a família: quem usa o token em `font` fecha com font-family: inherit */
-  --t-large: 700 1.625rem/2rem;
-  --t-title1: 700 1.375rem/1.625rem;
-  --t-title2: 600 1.0625rem/1.375rem;
-  --t-title3: 600 0.9375rem/1.25rem;
-  --t-headline: 700 0.8125rem/1rem;
-  --t-body: 400 0.8125rem/1rem;
-  --t-callout: 400 0.75rem/0.9375rem;
-  --t-sub: 400 0.6875rem/0.875rem;
-  --t-foot: 400 0.625rem/0.8125rem;
-  --t-cap1: 400 0.625rem/0.8125rem;
-  --t-cap2: 500 0.625rem/0.8125rem;
+  /* escala do Mac, peso tamanho/entrelinha (13px = 0.8125rem sobre 16px) e a família no fim: o
+     `font` abreviado exige a família, e sem ela vira `unset` (corpo em 16px) */
+  --familia: -apple-system, BlinkMacSystemFont, "Inter", system-ui, sans-serif;
+  --t-large: 700 1.625rem/2rem var(--familia);
+  --t-title1: 700 1.375rem/1.625rem var(--familia);
+  --t-title2: 600 1.0625rem/1.375rem var(--familia);
+  --t-title3: 600 0.9375rem/1.25rem var(--familia);
+  --t-headline: 700 0.8125rem/1rem var(--familia);
+  --t-body: 400 0.8125rem/1rem var(--familia);
+  --t-callout: 400 0.75rem/0.9375rem var(--familia);
+  --t-sub: 400 0.6875rem/0.875rem var(--familia);
+  --t-foot: 400 0.625rem/0.8125rem var(--familia);
+  --t-cap1: 400 0.625rem/0.8125rem var(--familia);
+  --t-cap2: 500 0.625rem/0.8125rem var(--familia);
 
   /* vidro: só as classes .vidro e .vidro-grande usam estes números */
   --vidro-blur: 24px;
@@ -139,9 +140,7 @@ body {
   min-height: 100vh;
   background-color: var(--fundo);
   color: var(--texto);
-  /* o `font` abreviado zera a família: a pilha vem depois */
   font: var(--t-body);
-  font-family: -apple-system, BlinkMacSystemFont, "Inter", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -277,7 +276,6 @@ main:focus:not(:focus-visible) {
 .marca {
   color: var(--texto);
   font: var(--t-title2);
-  font-family: inherit;
   text-decoration: none;
 }
 
@@ -516,7 +514,6 @@ main {
   padding: 0 var(--espaco) var(--espaco);
   color: var(--texto-2);
   font: var(--t-callout);
-  font-family: inherit;
   text-align: center;
 }
 
