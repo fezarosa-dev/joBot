@@ -236,7 +236,7 @@ def test_assistente_sem_lateral(cliente: TestClient) -> None:
     resposta = cliente.get("/primeira-execucao/1")
     assert resposta.status_code == 200
     assert "<aside" not in resposta.text
-    assert "<header" in resposta.text  # a barra continua: Buscar agora e Sair valem no assistente
+    assert "<header" in resposta.text  # a barra do topo continua
 
 
 @pytest.mark.parametrize(

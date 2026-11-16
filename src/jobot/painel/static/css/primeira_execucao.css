@@ -1,4 +1,4 @@
-/* Assistente de primeira execução (plano T53): só as cores e medidas da base.css, nenhuma cor nova. */
+/* Assistente de primeira execução (plano T53, T263): só as cores e medidas da base.css, nenhuma cor nova. */
 
 .assistente {
   max-width: 40rem;
@@ -167,4 +167,86 @@
 
 .assistente-resumo dd {
   margin: 0;
+}
+
+/* "Pular" e "Voltar" usam o `.botao-simples` do base.css (texto/fundo já na lista de contraste) */
+
+/*
+ * Pé de ações preso (E17): a coluna da janela deixa de rolar e o que rola é só o corpo do passo, de
+ * modo que Continuar, Pular e Voltar nunca saem da tela, com tudo marcado, texto Maior ou janela
+ * baixa. Sem altura fixa: a grade dá ao corpo o que sobra (`minmax(0, 1fr)`) e ele rola dentro.
+ */
+.coluna:has(.assistente-fixo) {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.coluna:has(.assistente-fixo) > #conteudo {
+  box-sizing: border-box;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  inline-size: 100%;
+  min-block-size: 0;
+}
+
+.assistente-fixo {
+  display: grid;
+  flex: 1 1 auto;
+  grid-template-rows: minmax(0, 1fr) auto;
+  inline-size: min(100%, 40rem);
+  min-block-size: 0;
+}
+
+.assistente-corpo {
+  min-block-size: 0;
+  overflow-y: auto;
+  padding-inline: 0.25rem; /* o anel de foco dos campos não é cortado pela rolagem */
+  margin-inline: -0.25rem;
+}
+
+/* o botão principal fica à direita, o Voltar à esquerda; a ordem do DOM (Enter aciona o primeiro) fica */
+.assistente-pe {
+  display: flex;
+  flex-direction: row-reverse;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  padding-block-start: 0.75rem;
+  border-block-start: 1px solid var(--separador);
+}
+
+.assistente-voltar {
+  margin-inline-end: auto;
+}
+
+/* janela estreita: o corpo da página volta a rolar (casca.css) e o pé gruda no fim da tela */
+@media (max-width: 639.98px) {
+  .coluna:has(.assistente-fixo) {
+    display: block;
+    overflow: visible;
+  }
+
+  .assistente-fixo {
+    display: block;
+  }
+
+  .assistente-pe {
+    position: sticky;
+    inset-block-end: 0;
+    padding-block: 0.75rem;
+    background-color: var(--fundo);
+  }
+}
+
+/* cores forçadas: o fundo do botão principal e o do Pular somem, então o contorno os mostra */
+@media (forced-colors: active) {
+  .botao {
+    border: 1px solid ButtonText;
+  }
+
+  .assistente-pe {
+    border-block-start-color: CanvasText;
+  }
 }

@@ -6,7 +6,7 @@
   <p>{{ t(erro) }}</p>
 </div>
 {% endif %}
-<form method="post" action="/primeira-execucao/1" class="assistente-form">
+<form id="assistente-form" method="post" action="/primeira-execucao/1" class="assistente-form">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   {% if busca_id %}<input type="hidden" name="busca" value="{{ busca_id }}">{% endif %}
   <div class="campo">
@@ -69,8 +69,4 @@
       {% endfor %}
     </div>
   </fieldset>
-  <div class="acoes">
-    <button type="submit" class="botao botao-primario">{{ t("primeira_execucao.p1.continuar") }}</button>
-    <button type="submit" name="pular" value="1" class="botao botao-secundario" formnovalidate>{{ t("primeira_execucao.p1.pular") }}</button>
-  </div>
 </form>

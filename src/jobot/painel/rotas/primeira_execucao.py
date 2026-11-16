@@ -6,16 +6,22 @@ oferece "buscar agora" (o botão só aponta para `POST /buscar-agora`, que é da
 sistema passa pelo executor de `app.state.rodar_comando`, o ambiente de `app.state.ambiente` e a
 plataforma de `app.state.plataforma`: o teste põe os falsos, o padrão é o sistema de verdade.
 
-Escolhas do redator: sem nenhum critério (ou "pular") o passo 1 não cria busca, e o painel mostra o
+Escolhas do redator: sem nenhum critério o passo 1 não cria busca, e o painel mostra o
 aviso de "diga o que você procura"; o país vem marcado pelo `Accept-Language` (ou pelo já gravado),
-"pular" grava o marcado se ainda não há Meu país; o resumo vai na URL do passo 2 (`?busca=<id>`),
-para recarregar a página não criar outra busca. O "voltar" leva esse `?busca=<id>` ao passo 1, que
-abre preenchido e edita a mesma busca (nome, `ativa`, regras e `criada_em` ficam); formulário
-esvaziado de critérios com busca já gravada não mexe nela e segue ao passo 2.
+o `POST /pular` grava o marcado se ainda não há Meu país; o resumo vai na URL do passo 2
+(`?busca=<id>`), para recarregar a página não criar outra busca. O "voltar" leva esse
+`?busca=<id>` ao passo 1, que abre preenchido e edita a mesma busca (nome, `ativa`, regras e
+`criada_em` ficam); formulário esvaziado de critérios com busca já gravada não mexe nela e segue
+ao passo 2.
 
 O passo opcional "Sites com login" (T241, ADR 0011) fica entre a busca e o segundo plano e só
 existe com leitor registrado: sem leitor o assistente tem os dois passos de sempre. O
 `/primeira-execucao/2` continua sendo o segundo plano, para não quebrar endereço guardado.
+
+"Pular" (T263, desenho 5.4) existe em todo passo e vai para `POST /primeira-execucao/pular`: grava
+os padrões (Meu país, segundo plano desligado, atalho do menu, primeira execução concluída) e manda
+para `/vagas`, sem busca e com os sites com login desligados (D137.10). A rota fica antes de
+`/{passo}`.
 
 Ligar recusado fica no passo 2 com o motivo em texto fixo (a saída do systemctl vai só para o
 log, nunca para a tela). Desligar nunca prende (D49 b, T152): se desligar ou criar o atalho falha,
@@ -39,6 +45,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse, Response
 from starlette.concurrency import run_in_threadpool
+from starlette.datastructures import FormData
 
 from jobot.banco import buscas
 from jobot.banco.cadastros import gravar_config, ler_config, ligar_fonte, meu_pais
@@ -60,6 +67,7 @@ from jobot.sistema.segundo_plano_linux import Recusa
 
 router = APIRouter(prefix="/primeira-execucao")
 
+_PASSO_1 = "/primeira-execucao/1"
 _PASSO_2 = "/primeira-execucao/2"
 _SITES = "/primeira-execucao/sites"
 _MAX_CARGOS = 20
@@ -250,6 +258,9 @@ def _pagina(request: Request, passo: str, status: int = 200, **ctx: Any) -> Resp
         "aviso_motivo": None,
         "resumo": None,
         "busca_id": None,
+        "voltar_url": None,  # só o passo 1 não tem o que voltar
+        "voltar_n": None,
+        "voltar_busca": None,
         "linux": True,
         "container": None,
     } | ctx
@@ -259,7 +270,7 @@ def _pagina(request: Request, passo: str, status: int = 200, **ctx: Any) -> Resp
 
 
 def _pais_pre_escolhido(request: Request, con: Con) -> str:
-    """O Meu país já gravado; sem ele, o do `Accept-Language` (que o "pular" também grava)."""
+    """O Meu país já gravado; sem ele, o do `Accept-Language` (que o `POST /pular` também grava)."""
     gravado = ler_config(con, "meu_pais", None)
     if isinstance(gravado, str) and gravado in codigos_de_pais():
         return gravado
@@ -273,6 +284,21 @@ def _gravar_pais(request: Request, con: Con, pais: str) -> None:
         regras = bool(ler_config(con, "regras_ocultar_ligadas"))
         buscas.recalcular_encaixe(con, None, regras, hoje=_dia_local(agora), pais_padrao=pais)
     gravar_config(con, "meu_pais", pais)
+
+
+def _pais_do_formulario(form: FormData) -> str | None:
+    """O `meu_pais` do formulário, `None` se não veio; fora da lista é 422 e nada se grava."""
+    pais = form.get("meu_pais")
+    if pais is not None and (not isinstance(pais, str) or pais not in codigos_de_pais()):
+        raise HTTPException(422)
+    return pais
+
+
+def _gravar_pais_se_falta(request: Request, con: Con, pais: str | None) -> None:
+    """Pular: o Meu país escolhido, ou o do `Accept-Language`; o já gravado nunca é trocado."""
+    if ler_config(con, "meu_pais", None) is None:
+        pais = pais or pais_do_accept_language(request.headers.get("accept-language"))
+        _gravar_pais(request, con, pais)
 
 
 def _formulario_1(
@@ -324,7 +350,8 @@ def _formulario_2(
         "2",
         status,
         voltar_n=numeros_dos_passos(com_sites)["2"] - 1,
-        voltar_url=_SITES if com_sites else "/primeira-execucao/1",
+        voltar_url=_SITES if com_sites else _PASSO_1,
+        voltar_busca=achada.id if achada else None,
         motivo=motivo,
         erro=erro,
         resumo=_resumo(achada, idioma_do_pedido(request)),
@@ -337,7 +364,15 @@ def _formulario_2(
 async def _formulario_sites(request: Request, con: Con, busca_id: int | None) -> Response:
     # o mesmo fragmento da tela "Ferramentas" (D137.15); o do navegador vale sobre o dos sites
     contexto = await contexto_sites_com_login(request, con) | contexto_ferramenta_navegador(request)
-    return _pagina(request, "sites", busca_id=busca_id, **contexto)
+    return _pagina(
+        request,
+        "sites",
+        busca_id=busca_id,
+        voltar_n=1,
+        voltar_url=_PASSO_1,
+        voltar_busca=busca_id,
+        **contexto,
+    )
 
 
 def _busca_da_url(con: Con, texto: object) -> int | None:
@@ -381,17 +416,7 @@ async def _gravar_passo_1(request: Request, con: Con) -> Response:
     form = await request.form()
     pedido = _id_valido(str(form.get("busca", "")))  # o "voltar" do passo 2 edita a mesma busca
     existente = _gravada(con, pedido)
-    pais = form.get("meu_pais")
-    if pais is not None and (not isinstance(pais, str) or pais not in codigos_de_pais()):
-        raise HTTPException(422)
-    if "pular" in form:
-        if ler_config(con, "meu_pais", None) is None:
-            _gravar_pais(
-                request,
-                con,
-                pais or pais_do_accept_language(request.headers.get("accept-language")),
-            )
-        return RedirectResponse(_depois_do_passo_1(request, existente), status_code=303)
+    pais = _pais_do_formulario(form)
     entrada = await _ler_entrada(request)
     idioma = idioma_do_pedido(request)
     if pedido is not None and existente is None:
@@ -483,13 +508,26 @@ async def _gravar_passo_2(request: Request, con: Con) -> Response:
 
 
 async def _gravar_sites(request: Request, con: Con) -> Response:
-    """Continuar segue com o que a pessoa ligou; Pular desliga os sites com login (D137.10)."""
+    """Continuar segue com o que a pessoa ligou; o Pular é o `POST /pular` (desliga os sites)."""
     form = await request.form()
-    if "pular" in form:
-        for leitor in leitores_do_painel(request):
-            with suppress(LookupError):  # o leitor sem linha na tabela de fontes
-                ligar_fonte(con, leitor.chave, False)
     return RedirectResponse(_com_busca(_PASSO_2, _busca_da_url(con, form.get("busca"))), 303)
+
+
+@router.post("/pular")
+async def pular(request: Request, con: Con) -> Response:
+    """Pular em qualquer passo: os padrões de quem não quer escolher agora, e Vagas (D143.18)."""
+    pais = _pais_do_formulario(await request.form())
+    _gravar_pais_se_falta(request, con, pais)
+    if no_linux(request):  # o atalho do menu sai como no "Não ligar agora"; falha só vai ao log
+        await _desligar_sem_prender(request)
+    for leitor in leitores_do_painel(
+        request
+    ):  # D137.10: Pular deixa os padrões, sem site com login
+        with suppress(LookupError):
+            ligar_fonte(con, leitor.chave, False)
+    gravar_config(con, "segundo_plano", False)
+    gravar_config(con, "primeira_execucao_concluida", True)
+    return RedirectResponse("/vagas", status_code=303)
 
 
 @router.post("/{passo}")
