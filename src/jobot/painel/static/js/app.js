@@ -269,6 +269,7 @@
   document.addEventListener("keydown", (evento) => {
     // a lateral sobreposta fecha primeiro (o ouvinte dela vem depois e não marca o evento)
     if (evento.key !== "Escape" || evento.defaultPrevented) return;
+    if (document.querySelector("dialog.sheet[open]")) return; // o sheet modal fecha com o próprio Esc
     if (document.documentElement.dataset.lateral === "sobreposta") return;
     if (!lado()?.open || modo() !== "sobreposto") return;
     evento.preventDefault();
@@ -280,6 +281,54 @@
     if (evento.target.closest('.coluna-lista') && !evento.target.closest('[role="option"]')) {
       fecharLado();
     }
+  });
+
+  // sheet da correção (T264): o htmx põe o <dialog class="sheet"> no .correcao-slot e aqui ele abre
+  // como modal (o resto da página fica inerte, o Esc fecha, o foco fica preso nele). Ao fechar, o
+  // <dialog> sai do DOM e o foco volta ao link que o abriu. Sem JavaScript o link leva à página.
+  let abriuSheet = null;
+  document.addEventListener("htmx:beforeRequest", (evento) => {
+    if (evento.target.matches?.("[data-correcao]")) abriuSheet = evento.target;
+  });
+  document.addEventListener("htmx:afterSwap", (evento) => {
+    const alvo = evento.detail.target;
+    if (!alvo?.matches?.(".correcao-slot")) return;
+    alvo.querySelector("dialog.sheet")?.showModal();
+  });
+  // o evento `close` não borbulha: a captura no document o pega
+  document.addEventListener(
+    "close",
+    (evento) => {
+      if (!evento.target.matches?.("dialog.sheet")) return;
+      evento.target.remove();
+      if (abriuSheet?.isConnected) abriuSheet.focus();
+      abriuSheet = null;
+    },
+    true,
+  );
+  // Ctrl/Cmd/Shift + clique no link da correção é "abrir em outra aba": o htmx não vê o clique
+  // e o navegador segue o href
+  document.addEventListener(
+    "click",
+    (evento) => {
+      const modificado = evento.ctrlKey || evento.metaKey || evento.shiftKey;
+      if (modificado && evento.target.closest?.("[data-correcao]")) evento.stopImmediatePropagation();
+    },
+    true,
+  );
+  // o fundo só fecha se o botão desceu e subiu nele: selecionar texto num campo e soltar fora
+  // gera um clique no <dialog> e não pode fechar o sheet nem perder o que foi digitado
+  let desceuNoFundo = false;
+  document.addEventListener("mousedown", (evento) => {
+    const sheet = evento.target.closest?.("dialog.sheet");
+    desceuNoFundo = evento.target === sheet;
+  });
+  document.addEventListener("click", (evento) => {
+    const sheet = evento.target.closest?.("dialog.sheet");
+    // o botão Fechar do pé; ou o fundo (o clique cai no próprio <dialog>, que não tem margem)
+    if (evento.target.closest("[data-fechar-sheet]")) sheet?.close();
+    else if (evento.target === sheet && desceuNoFundo) sheet.close();
+    desceuNoFundo = false;
   });
 
   // faixa de desfazer (T256; desenho 5.4). Ocultar e Desfazer/Refazer respondem com a faixa nova

@@ -1,9 +1,12 @@
-{#- página de erro (D106, T150): o que aconteceu, o que fazer e o caminho de volta ao início -#}
+{#- página de erro (D106, T150; T264): estado vazio, com o que aconteceu, o que fazer e o caminho de volta -#}
 {% extends "base.html" %}
 {% block titulo %}{{ titulo }} · joBot{% endblock %}
-{% block estilos %}<link rel="stylesheet" href="/static/css/vagas.css">{% endblock %}
+{% block estilos %}<link rel="stylesheet" href="/static/css/vagas.css"><link rel="stylesheet" href="/static/css/detalhe.css">{% endblock %}
 {% block conteudo %}
-<h1 class="titulo-pagina">{{ titulo }}</h1>
-<p>{{ texto }}</p>
-<p><a href="/">{{ t("erro.inicio") }}</a></p>
+<div class="vazio">
+  <span class="icone" data-icone="triangle-alert" aria-hidden="true"></span>
+  <h1>{{ titulo }}</h1>
+  <p>{{ texto }}</p>
+  <a class="primario" href="/">{{ t("erro.inicio") }}</a>
+</div>
 {% endblock %}

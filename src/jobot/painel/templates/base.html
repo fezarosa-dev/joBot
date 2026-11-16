@@ -28,7 +28,8 @@
 {%- if ns.titulo == "sugeridas" and ns.atual != "/empresas/sugeridas" %}{% set ns.atual = "/empresas" %}{% endif -%}
 {%- if lado and ns.area == "/vagas" -%}
   {%- set aba_pedida = request.query_params.get("aba") -%}
-  {%- set aba_atual = aba_pedida if aba_pedida in lado.abas else lado.abas[0] -%}
+  {#- na lista sem aba válida vale a primeira; no detalhe da vaga, só a aba de origem na URL, senão nenhuma -#}
+  {%- set aba_atual = aba_pedida if aba_pedida in lado.abas else (lado.abas[0] if caminho == "/vagas" else "") -%}
 {%- endif -%}
 <!doctype html>
 <html lang="{{ idioma }}" data-tema="{{ tema_atual }}" data-texto="{{ tamanho_texto }}"{% if com_lateral %} data-lateral="aberta"{% endif %}>

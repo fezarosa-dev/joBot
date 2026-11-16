@@ -4,7 +4,7 @@ import re
 
 import pytest
 from fastapi import FastAPI
-from playwright.sync_api import Dialog, Page, expect
+from playwright.sync_api import Dialog, FloatRect, Page, expect
 
 from apoio.relogio import RelogioFalso
 from tela.test_casca_menu import CONTRASTE
@@ -62,12 +62,162 @@ def test_links_de_fora_abrem_em_outra_aba_sem_dar_acesso(page: Page, painel: str
 def test_corrigir_o_salario_mostra_o_valor_novo_na_hora(page: Page, painel: str) -> None:
     page.goto(f"{painel}/vagas/{USD}")
     page.get_by_role("link", name="Algo errado nesta vaga?").click()
-    expect(page).to_have_url(f"{painel}/vagas/{USD}/correcao")
-    page.get_by_role("textbox", name="Salário").fill("USD 6.000 per month")
-    page.get_by_role("button", name="Salvar a correção de Salário").click()
+    sheet = page.locator("dialog.sheet")
+    expect(sheet).to_be_visible()  # com JavaScript a correção abre no sheet, sem sair da página
     expect(page).to_have_url(f"{painel}/vagas/{USD}")
+    sheet.get_by_role("textbox", name="Salário").fill("USD 6.000 per month")
+    sheet.get_by_role("button", name="Salvar a correção de Salário").click()
+    expect(page).to_have_url(f"{painel}/vagas/{USD}")
+    expect(page.locator("dialog.sheet")).to_have_count(0)
     expect(page.get_by_text("US$ 6.000/mês")).to_be_visible()
     expect(page.get_by_text("≈ R$ 33.900/mês · US$ 1 = R$ 5,65 (PTAX de 13/11)")).to_be_visible()
+
+
+def test_correcao_abre_e_esc_fecha(page: Page, painel: str) -> None:
+    page.goto(f"{painel}/vagas/{USD}")
+    link = page.get_by_role("link", name="Algo errado nesta vaga?")
+    link.click()
+    sheet = page.locator("dialog.sheet")
+    expect(sheet).to_be_visible()
+    assert sheet.evaluate("el => el.matches(':modal')")  # modal: o resto da página fica inerte
+    caixa = sheet.bounding_box()
+    assert caixa is not None and caixa["width"] <= 520 + 1
+    page.keyboard.press("Escape")
+    expect(sheet).to_be_hidden()
+    expect(link).to_be_focused()  # o foco volta ao link que abriu
+    page.get_by_role("link", name="Algo errado nesta vaga?").click()
+    expect(page.locator("dialog.sheet")).to_be_visible()
+    page.locator("dialog.sheet").get_by_role("button", name="Fechar").click()
+    expect(page.locator("dialog.sheet")).to_be_hidden()
+
+
+def test_sheet_fica_no_alto_com_os_campos_estilizados(page: Page, painel: str) -> None:
+    page.goto(f"{painel}/vagas/{USD}")
+    page.get_by_role("link", name="Algo errado nesta vaga?").click()
+    sheet = page.locator("dialog.sheet")
+    expect(sheet).to_be_visible()
+    caixa = sheet.bounding_box()
+    assert caixa is not None and caixa["y"] <= 64  # no alto da janela, não centrado
+    # não os 3px do <dialog>
+    assert sheet.evaluate("el => getComputedStyle(el).borderTopWidth") == "1px"
+    campo = sheet.locator("textarea").first
+    borda, raio, largura = campo.evaluate(
+        "el => { const c = getComputedStyle(el);"
+        " return [c.borderTopWidth, parseFloat(c.borderTopLeftRadius),"
+        " el.getBoundingClientRect().width]; }"
+    )
+    assert borda == "1px"  # a página hospedeira não carrega o buscas.css
+    assert raio > 0
+    assert largura >= 300  # ocupa a largura do corpo, não o tamanho padrão do navegador
+
+
+def test_sheet_fecha_pelo_fundo_mas_nao_ao_soltar_a_selecao_fora(page: Page, painel: str) -> None:
+    page.goto(f"{painel}/vagas/{USD}")
+    link = page.get_by_role("link", name="Algo errado nesta vaga?")
+    link.click()
+    sheet = page.locator("dialog.sheet")
+    expect(sheet).to_be_visible()
+    campo = sheet.locator("textarea").first
+    campo.fill("texto digitado")
+    caixa = campo.bounding_box()
+    assert caixa is not None
+    # arrasta de dentro do campo até o fundo e solta: o clique cai no <dialog>, mas não fecha
+    page.mouse.move(caixa["x"] + 10, caixa["y"] + 10)
+    page.mouse.down()
+    page.mouse.move(5, 5)
+    page.mouse.up()
+    expect(sheet).to_be_visible()
+    expect(campo).to_have_value("texto digitado")
+    page.mouse.click(5, 5)  # um clique inteiro no fundo fecha
+    expect(sheet).to_be_hidden()
+
+
+def test_ctrl_clique_no_link_da_correcao_abre_a_pagina_em_outra_aba(
+    page: Page, painel: str
+) -> None:
+    page.goto(f"{painel}/vagas/{USD}")
+    link = page.get_by_role("link", name="Algo errado nesta vaga?")
+    with page.context.expect_page() as nova:
+        link.click(modifiers=["Control"])
+    nova.value.wait_for_url(re.compile(rf"/vagas/{USD}/correcao$"))  # no evento a URL é about:blank
+    expect(page.locator("dialog.sheet")).to_have_count(0)  # o sheet não abriu nesta aba
+
+
+def test_sheet_correcao_botoes_visiveis(page: Page, painel: str) -> None:
+    """E17: janela baixa, o pé do sheet com o botão fica inteiro na janela e só o corpo rola."""
+    page.set_viewport_size({"width": 1024, "height": 560})
+    page.goto(f"{painel}/vagas/{USD}")
+    page.get_by_role("link", name="Algo errado nesta vaga?").click()
+    sheet = page.locator("dialog.sheet")
+    expect(sheet).to_be_visible()
+
+    def dentro_da_janela(caixa: FloatRect | None) -> bool:
+        return (
+            caixa is not None
+            and caixa["x"] >= 0
+            and caixa["y"] >= 0
+            and caixa["x"] + caixa["width"] <= 1024
+            and caixa["y"] + caixa["height"] <= 560
+        )
+
+    assert dentro_da_janela(sheet.bounding_box())
+    fechar = sheet.get_by_role("button", name="Fechar")
+    assert dentro_da_janela(fechar.bounding_box())
+    corpo = sheet.locator(".sheet-corpo")
+    rola = corpo.evaluate(
+        "el => [el.scrollHeight > el.clientHeight + 1, getComputedStyle(el).overflowY]"
+    )
+    assert rola[0], "o corpo do sheet precisa rolar com a janela baixa"
+    assert rola[1] in ("auto", "scroll")
+    antes = fechar.bounding_box()
+    corpo.evaluate("el => { el.scrollTop = el.scrollHeight }")
+    assert fechar.bounding_box() == antes  # o pé não anda com a rolagem
+    assert dentro_da_janela(fechar.bounding_box())
+
+
+def test_pagina_estreita_nao_cola_voltar_no_titulo(page: Page, painel: str) -> None:
+    page.set_viewport_size({"width": 600, "height": 900})
+    page.goto(f"{painel}/vagas/{USD}")
+    voltar = page.locator(".voltar")
+    titulo = page.get_by_role("heading", level=1, name="Desenvolvedor Python")
+    empresa = page.locator(".detalhe .cartao-empresa")
+    v, h, e = voltar.bounding_box(), titulo.bounding_box(), empresa.bounding_box()
+    assert v is not None and h is not None and e is not None
+    assert h["y"] - (v["y"] + v["height"]) >= 8  # respiro entre o "Voltar" e o título
+    assert e["y"] >= h["y"] + h["height"] - 0.5  # a empresa começa onde o título termina
+    # o título tem entrelinha própria: com a herdada do corpo (16px) as letras passavam da caixa
+    linha, corpo = titulo.evaluate(
+        "el => { const c = getComputedStyle(el);"
+        " return [parseFloat(c.lineHeight), parseFloat(c.fontSize)]; }"
+    )
+    assert linha >= corpo * 1.1
+    assert h["height"] >= corpo * 1.1
+
+
+def test_salvar_e_ocultar_ficam_na_mesma_linha_a_600px(page: Page, painel: str) -> None:
+    page.set_viewport_size({"width": 600, "height": 900})
+    page.goto(f"{painel}/vagas/{USD}")
+    salvar = page.locator(".acoes-estado").get_by_role("button", name="Salvar", exact=True)
+    ocultar = page.locator(".acoes-estado").get_by_role("button", name="Ocultar", exact=True)
+    s, o = salvar.bounding_box(), ocultar.bounding_box()
+    assert s is not None and o is not None
+    assert abs(s["y"] - o["y"]) < 2  # o Ocultar não vai sozinho para a linha de baixo
+    assert o["height"] < 2 * 16  # e o rótulo não quebra de linha
+    assert o["x"] + o["width"] <= 600
+    folga = page.evaluate(
+        "document.documentElement.scrollWidth - document.documentElement.clientWidth"
+    )
+    assert folga <= 0
+
+
+def test_detalhe_a_600px_nao_marca_destaques_sem_aba_na_url(page: Page, painel: str) -> None:
+    page.set_viewport_size({"width": 600, "height": 900})
+    page.goto(f"{painel}/vagas/{USD}")
+    expect(page.locator("#lateral-vagas [aria-current]")).to_have_count(0)
+    page.goto(f"{painel}/vagas/{USD}?aba=salvas")
+    marcada = page.locator("#lateral-vagas [aria-current]")
+    expect(marcada).to_have_count(1)
+    expect(marcada).to_contain_text("Salvas")
 
 
 def test_correcao_invalida_volta_com_o_texto_e_a_mensagem(page: Page, painel: str) -> None:
@@ -123,7 +273,7 @@ def test_teclado_chega_ao_link_de_correcao_e_o_foco_aparece(page: Page, painel: 
     assert estilo[0] != "none"
     assert estilo[1] >= 2
     page.keyboard.press("Enter")
-    expect(page).to_have_url(f"{painel}/vagas/{USD}/correcao")
+    expect(page.locator("dialog.sheet")).to_be_visible()  # Enter abre o sheet da correção
 
 
 # cor que `var(--alerta)` resolve na página; sem o token o `color` herda e iguala o do corpo

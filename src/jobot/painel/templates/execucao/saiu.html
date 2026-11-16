@@ -1,7 +1,11 @@
+{#- a despedida do Sair (T264): estado vazio, sem lateral e sem botões -#}
 {% extends "base.html" %}
 {% block titulo %}{{ t("execucao.saiu_titulo") }} · joBot{% endblock %}
-{% block estilos %}<link rel="stylesheet" href="/static/css/vagas.css">{% endblock %}
+{% block estilos %}<link rel="stylesheet" href="/static/css/vagas.css"><link rel="stylesheet" href="/static/css/detalhe.css">{% endblock %}
 {% block conteudo %}
-<h1 class="titulo-pagina">{{ t("execucao.saiu_titulo") }}</h1>
-<p>{{ t("execucao.saiu") }}</p>
+<div class="vazio">
+  <span class="icone" data-icone="log-out" aria-hidden="true"></span>
+  <h1>{{ t("execucao.saiu_titulo") }}</h1>
+  <p>{{ t("execucao.saiu") }}</p>
+</div>
 {% endblock %}

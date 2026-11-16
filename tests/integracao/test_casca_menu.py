@@ -155,8 +155,11 @@ def test_sem_destaques_a_lateral_tira_o_item(cliente: TestClient, banco: Path) -
         ("/vagas", DESTAQUE_HREF, "page"),
         ("/vagas?aba=salvas", "/vagas?aba=salvas", "page"),
         ("/vagas?aba=xyz", DESTAQUE_HREF, "page"),
-        # página filha (detalhe): o item marca a área, mas não é a página aberta
-        ("/vagas/1/x", DESTAQUE_HREF, "true"),
+        # página filha (detalhe): sem aba na URL nenhuma aba é a da vaga; com a de origem, ela marca
+        # a área sem ser a página aberta (T264)
+        ("/vagas/1/x", None, None),
+        ("/vagas/1/x?aba=salvas", "/vagas?aba=salvas", "true"),
+        ("/vagas/1/x?aba=xyz", None, None),
         ("/buscas", "/buscas", "page"),
         ("/empresas", "/empresas", "page"),
         ("/empresas/sugeridas", "/empresas", "true"),  # sem pendente o item some; a área é Empresas
