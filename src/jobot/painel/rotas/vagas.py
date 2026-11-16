@@ -61,6 +61,8 @@ _MAX_TEXTO = 100
 _MAX_VAGA = 2**63 - 1  # o maior INTEGER do SQLite
 VagaId = Annotated[int, Path(ge=1, le=_MAX_VAGA)]
 _MAX_PAGINA = 10_000
+# o Desfazer recarrega até 20 páginas de uma vez (T311): 10 mil vagas levavam ~4 s e 7,6 MB
+_MAX_RECARGA = 20
 
 
 def _texto(texto: str | None) -> str | None:
@@ -275,9 +277,9 @@ def _paginas_programas(con: sqlite3.Connection) -> list[dict[str, Any]]:
 
 
 def _contexto_pagina(
-    con: sqlite3.Connection, estado: Estado, agora: datetime, ex: Exibicao, paginas: int = 1
+    con: sqlite3.Connection, estado: Estado, agora: datetime, ex: Exibicao, ate_pagina: int = 1
 ) -> dict[str, Any]:
-    """`paginas`: quantas páginas da lista vêm juntas (o Desfazer recarrega até a que o
+    """`ate_pagina`: quantas páginas da lista vêm juntas (o Desfazer recarrega até a que o
     "Carregar mais" já trouxe, T305)."""
     ids_de_destaque = ids_destaques(con, estado.busca_id, agora) if estado.destaques_ligados else []
     itens: Sequence[Item]
@@ -286,21 +288,21 @@ def _contexto_pagina(
     if estado.e_destaques:
         achados = [leitura.detalhe(con, i, estado.busca_id, agora) for i in ids_de_destaque]
         itens = [d for d in achados if d is not None]
-        paginas = 1
+        ate_pagina = 1
     else:
         juntos: list[Item] = []
         tem_mais, n = True, 0
-        while tem_mais and n < paginas:
+        while tem_mais and n < ate_pagina:
             n += 1
             pagina = leitura.listar(con, estado.filtros(n), agora)
             juntos += pagina.itens
             tem_mais = pagina.tem_mais
-        itens, paginas = juntos, n
+        itens, ate_pagina = juntos, n
         fora_sem_salario, fora_sem_valor = leitura.contar_fora_do_salario(
             con, estado.filtros(), agora
         )
         if tem_mais:
-            mais_url = estado.url(extras=[("pagina", str(paginas + 1))])
+            mais_url = estado.url(extras=[("pagina", str(ate_pagina + 1))])
     return {
         "paginas_programas": _paginas_programas(con) if estado.aba == "programas" else [],
         "seletor": _seletor(con, estado),
@@ -309,7 +311,7 @@ def _contexto_pagina(
         "chips_url": None if estado.e_destaques else estado.url(caminho="/vagas/chips"),
         "itens": itens,
         "mais_url": mais_url,
-        "proxima": paginas + 1,
+        "proxima": ate_pagina + 1,
         "ordens": list(leitura.ORDENS),
         "ordem": estado.ordem,
         "q": estado.q,
@@ -416,7 +418,9 @@ async def vagas(request: Request, con: Con) -> HTMLResponse:
     if parcial and cabecalho.get("hx-target") == "detalhe-vaga":
         # o clique na linha troca só o detalhe: sem refazer a lista, os Destaques e a lateral
         return com_vary(renderizar(request, "vagas/detalhe_lado.html", detalhe=detalhe))
-    contexto = _contexto_pagina(con, estado, agora, ex, pagina if miolo_ate else 1)
+    contexto = _contexto_pagina(
+        con, estado, agora, ex, min(pagina, _MAX_RECARGA) if miolo_ate else 1
+    )
     contexto["detalhe"] = detalhe
     if parcial:
         contexto["lateral_oob"] = _lateral_oob(con, agora, estado.busca_id, "/vagas", estado.aba)

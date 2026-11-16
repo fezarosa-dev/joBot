@@ -239,6 +239,22 @@ def test_letra_pula_para_o_item(page: Page, painel: str) -> None:
     expect(page.locator(MENU)).to_be_visible()
 
 
+def test_letra_repetida_depressa_cicla_como_no_finder(page: Page, painel: str) -> None:
+    """T311 (b): a mesma letra repetida dentro de 500 ms cicla entre os itens que começam por
+    ela (não vira "aa", que não casa com nada); o relógio do navegador fica parado."""
+    page.goto(f"{painel}/vagas?aba=todas")
+    page.clock.install(time=0)
+    page.clock.pause_at(1000)
+    _abrir_pelo_teclado(page, NOVA)
+    expect(_item(page, "Abrir")).to_be_focused()
+    page.keyboard.press("a")
+    expect(_item(page, "Abrir no site da vaga")).to_be_focused()
+    page.keyboard.press("a")  # sem fast_forward: ainda na janela de 500 ms
+    expect(_item(page, "Abrir")).to_be_focused()
+    page.keyboard.press("a")
+    expect(_item(page, "Abrir no site da vaga")).to_be_focused()
+
+
 def test_copiar_link_negado_mostra_nao_copiou(page: Page, painel: str) -> None:
     """T305 (f): a cópia recusada (ou sem `clipboard`) cai no `catch` do `copiarLink` e a região
     viva do menu diz que não copiou, sem erro no console."""
