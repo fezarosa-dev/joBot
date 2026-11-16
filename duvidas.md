@@ -2780,3 +2780,22 @@ Escolha da sessão (dono fora): a opção (a), para confirmar. Consequência: co
 **O que o dono faz:** nada.
 
 **Como desfazer:** o link da lateral passa a copiar os parâmetros de filtro.
+
+## D156. Molde de site novo: como acrescentar uma plataforma (para confirmar)
+
+**Status:** para confirmar.
+
+**Contexto:** o dono pediu que acrescentar uma plataforma nova seja simples: um molde pronto, um guia e os passos de captura. Nenhum site entra agora. Gupy continua só pública e o LinkedIn continua o único site com login. Hoje o caminho existe só no plano da fase 1 ('Molde do coletor') e na Parte B do desenho da fase 2. Quem chega de fora não sabe que a chave precisa estar em fontes.json antes do import, que cinco testes têm a lista de fontes escrita à mão, nem que o exemplo de um leitor com login não passa por nenhuma conferência. Desenho: docs/superpowers/specs/2026-11-16-molde-de-site-design.md. Plano: T296 a T300.
+
+**Escolhas:**
+1. Molde = arquivos de exemplo testados em tests/apoio/ (um coletor por termo em JSON paginado e um leitor HTML com login), copiados à mão; sem gerador scripts/novo_site.py (M1 a M4).
+2. Guarda nova no CI, tests/unidade/test_site_novo.py: todo site registrado tem teste próprio, o exemplo do leitor é válido e o nome está nos catálogos pt e en; as listas fixas de fontes continuam (M5, M6).
+3. Captura com os scripts de hoje, sem modo novo (M7).
+4. Guia bilíngue docs/site-novo.md e .en.md, ligado do CONTRIBUTING, da wiki e do formulário de fonte, sem página nova na wiki; o guia de conserto passa a dizer fase 9, como o CONTRIBUTING (M8 a M10).
+5. Site com termos restritivos: issue primeiro e entrada em FONTES_FORA; ligar ou não por padrão fica com o dono (M11). Uma linha no CHANGELOG (M12).
+
+**Recomendação:** as cinco escolhas como estão.
+
+**O que o dono faz:** lê a seção 11 do desenho e confirma ou troca alguma escolha. Nada a fazer na máquina.
+
+**Como desfazer:** antes de construir, trocar a escolha no desenho e no plano. Depois de construir, apagar tests/apoio/molde_*.py, os testes e as fixtures dos moldes, test_site_novo.py e docs/site-novo*.md, e tirar os links do CONTRIBUTING, da wiki, do fonte.yml e do CHANGELOG. Nenhum dado nem esquema muda.
