@@ -20,8 +20,8 @@ from jobot.banco.migrar import migrar
 from jobot.banco.sugeridas import gravar_sugestoes
 from jobot.nucleo.coletores.descoberta_cc import Sugestao
 from jobot.nucleo.leitores.registro import leitores
+from jobot.painel.ambiente import grupos_visiveis
 from jobot.painel.app import criar_app
-from jobot.painel.rotas.configuracoes import grupos_visiveis
 from jobot.painel.seguranca import renderizar
 
 PORTA = 47619

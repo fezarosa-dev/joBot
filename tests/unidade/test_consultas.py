@@ -5,7 +5,15 @@ from pathlib import Path
 
 PAINEL = Path(__file__).resolve().parents[2] / "src/jobot/painel"
 DE_CIMA = ("jobot.painel.rotas", "jobot.painel.seguranca", "jobot.painel.globais")
-MOVIDOS = {"relogio_do_painel", "busca_efetiva", "utc_do_banco", "ids_destaques", "_ids_destaques"}
+MOVIDOS = {
+    "relogio_do_painel",
+    "busca_efetiva",
+    "utc_do_banco",
+    "ids_destaques",
+    "_ids_destaques",
+    "grupos_visiveis",
+    "leitores_do_painel",
+}
 
 
 def _modulos_importados(caminho: Path) -> set[str]:
@@ -56,4 +64,6 @@ def test_nomes_movidos_sem_copia() -> None:
         "busca_efetiva": ["consultas.py"],
         "utc_do_banco": ["consultas.py"],
         "ids_destaques": ["consultas.py"],
+        "grupos_visiveis": ["ambiente.py"],
+        "leitores_do_painel": ["ambiente.py"],
     }
