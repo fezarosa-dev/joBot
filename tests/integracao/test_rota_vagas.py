@@ -2,6 +2,8 @@
 
 import json
 import re
+import time
+from collections.abc import Iterator
 from contextlib import closing
 from datetime import timedelta
 from html import unescape
@@ -1849,3 +1851,48 @@ def test_escala_do_encaixe_cresce() -> None:
         assert achado, nivel
         icones.append(achado.group(1))
     assert icones == ["circle", "contrast", "circle-check"]
+
+
+@pytest.fixture
+def fuso_menos_tres(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """TZ `<-03>3`: o dia mostrado é o local (E16); o fuso volta antes do último `tzset`."""
+    monkeypatch.setenv("TZ", "<-03>3")
+    time.tzset()
+    yield
+    monkeypatch.undo()
+    time.tzset()
+
+
+def _linha_da_vaga(html: str, vaga: int) -> str:
+    achou = re.search(rf'<a\b[^>]*\bid="vaga-{vaga}".*?</a>', html, re.S)
+    assert achou, f"sem linha da vaga {vaga}"
+    return unescape(re.sub(r"<[^>]+>", " ", achou.group(0)))
+
+
+@pytest.mark.parametrize(
+    ("idioma", "frase"), [("pt", "Candidatei desde 16/11"), ("en", "Applied since 11/16")]
+)
+def test_candidatei_mostra_desde(
+    painel: Painel, fuso_menos_tres: None, idioma: str, frase: str
+) -> None:
+    """T287: 01:30 UTC de 17/11 é 22:30 de 16/11 no fuso local (E16)."""
+    vaga = painel.semear_mais(status="candidatei", status_em="2026-11-17T01:30:00+00:00")
+    html = painel.get("/vagas?aba=candidatei", headers={"Accept-Language": idioma}).text
+    assert frase in " ".join(_linha_da_vaga(html, vaga).split())
+
+
+def test_status_em_nulo_sem_desde(painel: Painel, fuso_menos_tres: None) -> None:
+    antiga = painel.semear_mais(status="candidatei", status_em=None)
+    nova = painel.semear_mais(status="candidatei", status_em="2026-11-17T01:30:00+00:00")
+    html = painel.get("/vagas?aba=candidatei").text
+    assert "desde" in _linha_da_vaga(html, nova)  # controle
+    texto = " ".join(_linha_da_vaga(html, antiga).split())
+    assert "desde" not in texto and "Candidatei" in texto
+
+
+def test_outras_abas_sem_desde(painel: Painel, fuso_menos_tres: None) -> None:
+    """Guarda: só a aba Candidatei tem o "desde"."""
+    vaga = painel.semear_mais(status="candidatei", status_em="2026-11-17T01:30:00+00:00")
+    html = painel.get("/vagas?aba=todas").text
+    assert vaga in _cartoes(html)
+    assert "desde" not in _linha_da_vaga(html, vaga)

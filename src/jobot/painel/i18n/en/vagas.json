@@ -51,6 +51,7 @@
   "vagas.motivo.salario": "salary",
   "vagas.motivo.idioma": "language",
   "vagas.motivo.pais": "country",
+  "vagas.linha.desde": "{status} since {data}",
   "vagas.status.nova": "New",
   "vagas.status.salva": "Saved",
   "vagas.status.candidatei": "Applied",

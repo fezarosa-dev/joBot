@@ -20,6 +20,10 @@
     {%- else %}
     <span class="linha-salario nao-informado" title="{{ t('vagas.salario_nao_informado') }}">{{ t("vagas.salario_nao_informado") }}</span>
     {%- endif %}
+    {%- if aba_da_busca == "candidatei" %}
+    {%- set status = rotulo("vagas.status." ~ item.status, item.status) %}
+    <span class="selo"><span class="icone" data-icone="send" aria-hidden="true"></span>{{ t("vagas.linha.desde", status=status, data=data_curta(item.status_em, idioma)) if item.status_em else status }}</span>
+    {%- endif %}
     {%- if item.nova %}
     <span class="selo"><span class="icone" data-icone="circle-dot" aria-hidden="true"></span>{{ t("vagas.selo.nova") }}</span>
     {%- endif %}
