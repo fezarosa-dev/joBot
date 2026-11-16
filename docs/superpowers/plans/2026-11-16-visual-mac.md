@@ -317,16 +317,16 @@ A T250 vem antes da T251 porque a casca nova tira tema e idioma da barra, e os t
 - Páginas sem lateral: a despedida do Sair (o `sem_barra` de hoje) e as do assistente (`sem_lateral`).
 - i18n (`casca.lateral.*`, pt e en): `vagas` "Vagas"/"Jobs"; `onde_buscar` "Onde buscar"/"Where to Look"; `destaques` "Destaques de hoje"/"Today's Highlights"; `recolher` "Recolher barra lateral"/"Hide Sidebar"; `mostrar` "Mostrar barra lateral"/"Show Sidebar"; `divisor` "Largura da barra lateral"/"Sidebar Width". `casca.busca.campo` "Buscar em Vagas"/"Search Jobs" e `casca.busca.dica` "Focar a busca (/)"/"Focus Search (/)" (proposta, desenho 5.6). Os nomes das abas e das áreas reaproveitam as chaves de hoje. `casca.preferencias` sai dos dois catálogos.
 
-- [ ] **Primeiro, valor errado:** `lateral` devolve `Lateral(False, 0, None, {})` sempre; `consultas.py` nasce com os nomes movidos, e `test_consultas_nao_importa_o_painel_de_cima` é guarda (mutante: `from jobot.painel.rotas import vagas` em `consultas.py`).
-- [ ] **Testes** em `tests/unidade/test_consultas.py`: `test_consultas_nao_importa_o_painel_de_cima` (pelo AST, nenhum `import` de `jobot.painel.rotas`, `jobot.painel.seguranca` ou `jobot.painel.globais`); `test_lateral_nao_importa_rotas` (o mesmo para `lateral.py`); `test_nomes_movidos_sem_copia` (nenhum arquivo de `painel/` define `relogio_do_painel`, `busca_efetiva`, `utc_do_banco`, `ids_destaques` ou `_ids_destaques` fora de `consultas.py`).
-- [ ] **Teste que falha** em `tests/unidade/test_i18n.py`: `test_preferencias_da_barra_saiu` (`casca.preferencias` não existe em pt nem em en).
-- [ ] **Teste que falha** em `tests/integracao/test_casca_menu.py`: `test_busca_na_barra_so_em_vagas` (`/vagas` traz `input[form="busca"]` no `header` e um `form#busca`; `/buscas` não traz o campo).
-- [ ] **Testes que falham** em `tests/integracao/test_casca_menu.py`: `test_menu_tem_os_itens_da_lateral_pt_e_en` (no lugar do `test_menu_tem_sete_links_pt_e_en`: os itens da 5.2, texto direto no `<a>`; com Destaques ligados, 8 de Vagas; Sugeridas só com sugestão pendente); `test_aria_current_so_no_item_da_area` (em Vagas, no item da aba); `test_lateral_antes_do_banner` (o `aside` vem antes do `header`, e o `header` é filho do `body`); `test_sem_tema_nem_idioma_na_barra`; `test_assistente_sem_lateral`.
-- [ ] **Testes que falham** em `tests/integracao/test_erros.py` e `tests/integracao/test_rota_aviso_erro.py`: as páginas de erro com a lateral; o `#aviso-erro` logo depois do `header`, fora do rodapé, com `role='alert'` em aspas simples.
-- [ ] **Testes de tela** (`tela`, CI): em `test_casca.py`, `test_tema_e_idioma_ficam_depois_de_recarregar` e `test_nenhum_pedido_sai_de_127` trocam o tema em Configurações > Geral; `test_lateral_e_barra_com_vidro`; `test_360px_sem_rolagem_lateral` (também com `data-texto="maior"`); `test_abaixo_de_900_a_lateral_recolhe`; `test_janela_inativa_tira_o_vidro`; `test_divisor_pelo_teclado` (setas mudam `aria-valuenow` em 10, Home e End vão a 180 e 320). Em `test_casca_menu.py`, a ordem de Tab (pular, marca, itens) e o contraste de cada item sobre a lateral. Em `test_buscar_agora.py`, "Buscar agora" e "Sair" continuam no `role=banner`. Em `test_aviso_versao.py`, o `#aviso-versao` aparece logo abaixo da barra, com `role="status"`. Em `test_vagas.py`, digitar na busca da barra e apertar Return filtra a lista como hoje.
-- [ ] **Ver falhar:** `uv run pytest tests/unidade/test_consultas.py tests/unidade/test_i18n.py tests/integracao/test_casca_menu.py tests/integracao/test_erros.py tests/integracao/test_rota_aviso_erro.py -q`.
-- [ ] **Implementar** os itens de Interfaces e o ajuste mínimo das telas de hoje (Vagas, Buscas, Empresas, Sugeridas, Fontes, Sites, Configurações, Detalhe, Erro, Saiu, assistente) para funcionarem dentro da coluna de conteúdo, sem redesenho.
-- [ ] **Ver passar:** os mesmos arquivos, `tests/unidade/test_rotas_sem_copias.py`, `tests/unidade/test_sugeridas_nomes.py`, `tests/unidade/test_camadas.py`, `tests/unidade/test_css.py` e `tests/unidade/test_contraste.py`; ruff; a suíte inteira, `-m tela` e mypy no CI do `lote/visual-base`.
+- [x] **Primeiro, valor errado:** `lateral` devolve `Lateral(False, 0, None, {})` sempre; `consultas.py` nasce com os nomes movidos, e `test_consultas_nao_importa_o_painel_de_cima` é guarda (mutante: `from jobot.painel.rotas import vagas` em `consultas.py`).
+- [x] **Testes** em `tests/unidade/test_consultas.py`: `test_consultas_nao_importa_o_painel_de_cima` (pelo AST, nenhum `import` de `jobot.painel.rotas`, `jobot.painel.seguranca` ou `jobot.painel.globais`); `test_lateral_nao_importa_rotas` (o mesmo para `lateral.py`); `test_nomes_movidos_sem_copia` (nenhum arquivo de `painel/` define `relogio_do_painel`, `busca_efetiva`, `utc_do_banco`, `ids_destaques` ou `_ids_destaques` fora de `consultas.py`).
+- [x] **Teste que falha** em `tests/unidade/test_i18n.py`: `test_preferencias_da_barra_saiu` (`casca.preferencias` não existe em pt nem em en).
+- [x] **Teste que falha** em `tests/integracao/test_casca_menu.py`: `test_busca_na_barra_so_em_vagas` (`/vagas` traz `input[form="busca"]` no `header` e um `form#busca`; `/buscas` não traz o campo).
+- [x] **Testes que falham** em `tests/integracao/test_casca_menu.py`: `test_menu_tem_os_itens_da_lateral_pt_e_en` (no lugar do `test_menu_tem_sete_links_pt_e_en`: os itens da 5.2, texto direto no `<a>`; com Destaques ligados, 8 de Vagas; Sugeridas só com sugestão pendente); `test_aria_current_so_no_item_da_area` (em Vagas, no item da aba); `test_lateral_antes_do_banner` (o `aside` vem antes do `header`, e o `header` é filho do `body`); `test_sem_tema_nem_idioma_na_barra`; `test_assistente_sem_lateral`.
+- [x] **Testes que falham** em `tests/integracao/test_erros.py` e `tests/integracao/test_rota_aviso_erro.py`: as páginas de erro com a lateral; o `#aviso-erro` logo depois do `header`, fora do rodapé, com `role='alert'` em aspas simples.
+- [x] **Testes de tela** (`tela`, CI): em `test_casca.py`, `test_tema_e_idioma_ficam_depois_de_recarregar` e `test_nenhum_pedido_sai_de_127` trocam o tema em Configurações > Geral; `test_lateral_e_barra_com_vidro`; `test_360px_sem_rolagem_lateral` (também com `data-texto="maior"`); `test_abaixo_de_900_a_lateral_recolhe`; `test_janela_inativa_tira_o_vidro`; `test_divisor_pelo_teclado` (setas mudam `aria-valuenow` em 10, Home e End vão a 180 e 320). Em `test_casca_menu.py`, a ordem de Tab (pular, marca, itens) e o contraste de cada item sobre a lateral. Em `test_buscar_agora.py`, "Buscar agora" e "Sair" continuam no `role=banner`. Em `test_aviso_versao.py`, o `#aviso-versao` aparece logo abaixo da barra, com `role="status"`. Em `test_vagas.py`, digitar na busca da barra e apertar Return filtra a lista como hoje.
+- [x] **Ver falhar:** `uv run pytest tests/unidade/test_consultas.py tests/unidade/test_i18n.py tests/integracao/test_casca_menu.py tests/integracao/test_erros.py tests/integracao/test_rota_aviso_erro.py -q`.
+- [x] **Implementar** os itens de Interfaces e o ajuste mínimo das telas de hoje (Vagas, Buscas, Empresas, Sugeridas, Fontes, Sites, Configurações, Detalhe, Erro, Saiu, assistente) para funcionarem dentro da coluna de conteúdo, sem redesenho.
+- [x] **Ver passar:** os mesmos arquivos, `tests/unidade/test_rotas_sem_copias.py`, `tests/unidade/test_sugeridas_nomes.py`, `tests/unidade/test_camadas.py`, `tests/unidade/test_css.py` e `tests/unidade/test_contraste.py`; ruff; a suíte inteira, `-m tela` e mypy no CI do `lote/visual-base`.
 
 ### T252: componente de progresso
 `depende_de: T247, T249, T251` · desenho 5.9, 5.3 (Progresso), D143.55 a D143.70
@@ -345,8 +345,8 @@ A T250 vem antes da T251 porque a casca nova tira tema e idioma da barra, e os t
 - "Ver detalhes": o componente na barra é um botão ("Ver detalhes do andamento") que abre um elemento `popover` `.vidro` com uma linha por fonte (nome, ícone e texto do estado, feitas de total, motivo `saude.*` em "Falhou"); Esc e clique fora fecham, e o foco volta ao botão.
 - i18n `execucao.etapa.*`, pt e en: os textos da tabela do desenho 5.9, com a chave no singular para o total 1 (`coleta_um`, `detalhes_um`), até 2 nomes e "mais {n}" (`sites_mais`), espera acima de 60s em minutos (`minutos` "{n} min"), estados `fila`, `lendo`, `pronto`, `falhou`, `esperando`, e `ver_detalhes`/`ocultar_detalhes`. `execucao.terminou` passa a "Pronto. Vagas novas: {n}."/"Done. New jobs: {n}."; as chaves `execucao.parada.*` ficam.
 
-- [ ] **Primeiro, valor errado:** `montar_progresso` devolve sempre indeterminado.
-- [ ] **Testes que falham** em `tests/integracao/test_rota_execucao.py` (relógio do painel injetado; os `test_execucao_atual_*` de hoje mudam como a tabela do desenho 7 diz):
+- [x] **Primeiro, valor errado:** `montar_progresso` devolve sempre indeterminado.
+- [x] **Testes que falham** em `tests/integracao/test_rota_execucao.py` (relógio do painel injetado; os `test_execucao_atual_*` de hoje mudam como a tabela do desenho 7 diz):
   - `test_execucao_sem_andamento_fica_indeterminada`: execução `rodando` sem linha de `andamento` → `role="progressbar"` sem `aria-valuenow` e "Preparando as consultas", status 200.
   - `test_com_total_mostra_a_curva`: `planejar` 40, 12 consultas prontas → `aria-valuenow` igual a `round(100 * valor_mostrado(...), 1)`, a largura igual no `style` e "12 de 40 consultas".
   - `test_total_um_no_singular`: "1 de 1 consulta".
@@ -361,11 +361,11 @@ A T250 vem antes da T251 porque a casca nova tira tema e idioma da barra, e os t
   - `test_entrada_so_na_resposta_do_clique`: o `POST /buscar-agora` traz a classe de entrada; a pergunta de 2s não.
   - `test_fim_diz_pronto`: "Pronto. Vagas novas: {n}." e os motivos de parada de hoje.
   - `test_casca_tem_buscar_agora_sair_e_regiao_aria_live` passa a pedir a região viva só no `#andamento-etapa`.
-- [ ] **Teste de tela, antes do resto** (`tests/tela/test_progresso.py`, CI): `test_largura_anda_entre_perguntas`: entre duas respostas, a largura do preenchimento passa por um valor intermediário (o assentamento do HTMX copia o `style` pelo `id`). Se o CI mostrar que não, quem implementa aplica a largura no `htmx:afterSettle` a partir de um `data-valor` (R3) e anota no resumo.
-- [ ] **Testes de tela** (CI): `test_regiao_viva_e_o_mesmo_no`: marca o nó `#andamento-etapa` por `page.evaluate` (`window.__no = document.getElementById("andamento-etapa")`), deixa a etapa mudar e confere que `document.getElementById("andamento-etapa") === window.__no`, com `role="status"` e o texto novo; `test_ver_detalhes_abre_e_esc_fecha` (foco volta ao botão; estado com ícone e texto); `test_espera_curta_nao_mostra`; `test_barra_continua_entre_perguntas`; `test_movimento_reduzido_sem_transicao`. Em `test_buscar_agora.py`, a barra e a linha aparecem e terminam em "Pronto".
-- [ ] **Ver falhar:** `uv run pytest tests/integracao/test_rota_execucao.py -q`.
-- [ ] **Implementar** os itens de Interfaces. Procurar em `tests/` "consultas prontas", "Busca concluída" e "ainda rodando".
-- [ ] **Ver passar:** o mesmo arquivo, `tests/unidade/test_i18n.py`, `tests/unidade/test_contraste.py` e `tests/unidade/test_camadas.py`; ruff; `-m tela` e mypy no CI.
+- [x] **Teste de tela, antes do resto** (`tests/tela/test_progresso.py`, CI): `test_largura_anda_entre_perguntas`: entre duas respostas, a largura do preenchimento passa por um valor intermediário (o assentamento do HTMX copia o `style` pelo `id`). Se o CI mostrar que não, quem implementa aplica a largura no `htmx:afterSettle` a partir de um `data-valor` (R3) e anota no resumo.
+- [x] **Testes de tela** (CI): `test_regiao_viva_e_o_mesmo_no`: marca o nó `#andamento-etapa` por `page.evaluate` (`window.__no = document.getElementById("andamento-etapa")`), deixa a etapa mudar e confere que `document.getElementById("andamento-etapa") === window.__no`, com `role="status"` e o texto novo; `test_ver_detalhes_abre_e_esc_fecha` (foco volta ao botão; estado com ícone e texto); `test_espera_curta_nao_mostra`; `test_barra_continua_entre_perguntas`; `test_movimento_reduzido_sem_transicao`. Em `test_buscar_agora.py`, a barra e a linha aparecem e terminam em "Pronto".
+- [x] **Ver falhar:** `uv run pytest tests/integracao/test_rota_execucao.py -q`.
+- [x] **Implementar** os itens de Interfaces. Procurar em `tests/` "consultas prontas", "Busca concluída" e "ainda rodando".
+- [x] **Ver passar:** o mesmo arquivo, `tests/unidade/test_i18n.py`, `tests/unidade/test_contraste.py` e `tests/unidade/test_camadas.py`; ruff; `-m tela` e mypy no CI.
 
 ### T253: contagens da lateral e busca escolhida
 `depende_de: T251` · desenho 5.2 (Barra lateral, Busca escolhida), D143.50, E4
@@ -507,11 +507,11 @@ Não é código. A branch `feat/visual-mac` só entra na `dev` depois do ok do d
 - Alerta: `<dialog>` modal de 260px, `.vidro .vidro-grande`, raio 18px, véu `--veu`; título 13px peso 600 terminado em "?", texto 11px `--texto-2`; botões em pilha, a ação em cima e "Cancelar" embaixo, nenhum padrão, a ação sem estilo destrutivo; ao abrir, o foco fica no próprio `<dialog>` (`autofocus` nele, `tabindex="-1"`), nunca num botão, e Return logo depois de abrir não faz nada (E13); Esc e ⌘. cancelam; clique no véu não fecha; foco preso dentro e de volta ao botão que abriu. Entra com fade e `scale(.96)` em 200ms; com movimento reduzido, só o fade. Botões presos no pé (E17). Sem JavaScript, o botão "Apagar" da linha envia o formulário de hoje.
 - i18n: `buscas.apagar_titulo` "Apagar a busca «{nome}»?"/"Delete the Search \"{nome}\"?"; `buscas.apagar_texto` "As vagas que ela trouxe continuam."/"Jobs it brought in stay."; `comum.apagar` "Apagar"/"Delete"; `comum.remover` "Remover"/"Remove"; `comum.esquecer` "Esquecer"/"Forget"; `comum.cancelar` "Cancelar"/"Cancel".
 
-- [ ] **Testes que falham** em `tests/integracao/test_rota_buscas.py`: `test_apagar_tem_alerta` (o `<dialog>` com o título com o nome escapado, o formulário para `/buscas/{id}/apagar` com `csrf_token`, o `autofocus` no `<dialog>`, nenhum botão com `autofocus` e o "Cancelar" com `type="button"`); `test_apagar_sem_js_continua` (o `POST` de hoje apaga como antes).
-- [ ] **Testes de tela** (CI): `test_apagar_abre_o_alerta_e_cancelar_nao_apaga`; `test_return_ao_abrir_nao_apaga` (abre o alerta, aperta Return, o alerta continua aberto e a busca continua na lista depois de recarregar); `test_esc_cancela`; `test_interruptor_mini_pelo_teclado`.
-- [ ] **Ver falhar:** `uv run pytest tests/integracao/test_rota_buscas.py -q`.
-- [ ] **Implementar** os itens de Interfaces.
-- [ ] **Ver passar:** o mesmo arquivo, `tests/unidade/test_i18n.py` e `tests/unidade/test_css.py`; ruff; `-m tela` no CI.
+- [x] **Testes que falham** em `tests/integracao/test_rota_buscas.py`: `test_apagar_tem_alerta` (o `<dialog>` com o título com o nome escapado, o formulário para `/buscas/{id}/apagar` com `csrf_token`, o `autofocus` no `<dialog>`, nenhum botão com `autofocus` e o "Cancelar" com `type="button"`); `test_apagar_sem_js_continua` (o `POST` de hoje apaga como antes).
+- [x] **Testes de tela** (CI): `test_apagar_abre_o_alerta_e_cancelar_nao_apaga`; `test_return_ao_abrir_nao_apaga` (abre o alerta, aperta Return, o alerta continua aberto e a busca continua na lista depois de recarregar); `test_esc_cancela`; `test_interruptor_mini_pelo_teclado`.
+- [x] **Ver falhar:** `uv run pytest tests/integracao/test_rota_buscas.py -q`.
+- [x] **Implementar** os itens de Interfaces.
+- [x] **Ver passar:** o mesmo arquivo, `tests/unidade/test_i18n.py` e `tests/unidade/test_css.py`; ruff; `-m tela` no CI.
 
 ### T260: Empresas e Sugeridas, com Desfazer
 `depende_de: T259` · desenho 5.4 (Desfazer), 5.8 (Empresas e Sugeridas), D143.16
@@ -564,11 +564,11 @@ Não é código. A branch `feat/visual-mac` só entra na `dev` depois do ok do d
 - O item Configurações da lateral e o ⌘, (Ctrl+, fora do Mac) abrem o último grupo visto, guardado em `localStorage` com `try/catch`; sem registro ou sem JavaScript, `/configuracoes/geral`.
 - "Esquecer logins": o fragmento de dois cliques de hoje (no grupo onde ele estiver na base) vira o alerta da T259, com "Esquecer" e "Cancelar"; a rota de confirmar não muda.
 
-- [ ] **Testes que falham** em `tests/integracao/test_rota_configuracoes.py`: `test_grupos_com_icone_e_aria_current` (cada link de grupo com o `data-icone` do seu nome, e o arquivo em `static/icones/`); `test_opcoes_por_caixa_de_marcar` (as opções de Funções como `checkbox`). Em `test_rota_sites_com_login.py`: `test_esquecer_tem_alerta`.
-- [ ] **Testes de tela** (CI): `test_item_configuracoes_abre_o_ultimo_grupo`; `test_esquecer_abre_o_alerta_e_cancelar_nao_apaga`; em `test_configuracoes.py`, a caixa de marcar pelo teclado onde o interruptor saiu.
-- [ ] **Ver falhar:** `uv run pytest tests/integracao/test_rota_configuracoes.py tests/integracao/test_rota_sites_com_login.py -q`.
-- [ ] **Implementar** os itens de Interfaces.
-- [ ] **Ver passar:** os mesmos arquivos; ruff; `-m tela` no CI.
+- [x] **Testes que falham** em `tests/integracao/test_rota_configuracoes.py`: `test_grupos_com_icone_e_aria_current` (cada link de grupo com o `data-icone` do seu nome, e o arquivo em `static/icones/`); `test_opcoes_por_caixa_de_marcar` (as opções de Funções como `checkbox`). Em `test_rota_sites_com_login.py`: `test_esquecer_tem_alerta`.
+- [x] **Testes de tela** (CI): `test_item_configuracoes_abre_o_ultimo_grupo`; `test_esquecer_abre_o_alerta_e_cancelar_nao_apaga`; em `test_configuracoes.py`, a caixa de marcar pelo teclado onde o interruptor saiu.
+- [x] **Ver falhar:** `uv run pytest tests/integracao/test_rota_configuracoes.py tests/integracao/test_rota_sites_com_login.py -q`.
+- [x] **Implementar** os itens de Interfaces.
+- [x] **Ver passar:** os mesmos arquivos; ruff; `-m tela` no CI.
 
 ### T263: primeira execução em três passos, com Pular
 `depende_de: T258, T241` · desenho 5.4 (Primeira execução), D143.18, D143.40, D143.69
@@ -582,11 +582,11 @@ Não é código. A branch `feat/visual-mac` só entra na `dev` depois do ok do d
 - "Pular" (botão simples) em todos os passos; "Continuar" e, no último, "Concluir", presos no pé; só o conteúdo rola (E17). O assistente sem lateral nem botões da barra; "Tudo pronto" mostra "Buscar agora" e o componente da T252 na barra.
 - i18n: `primeira_execucao.pular` "Pular"/"Skip"; `primeira_execucao.continuar` "Continuar"/"Continue"; `primeira_execucao.concluir` "Concluir"/"Finish".
 
-- [ ] **Testes que falham** em `tests/integracao/test_rota_primeira_execucao.py`: `test_pular_grava_os_padroes` (`meu_pais`, `segundo_plano` falso, `primeira_execucao_concluida`; destino `/vagas`); `test_pular_responde_em_qualquer_passo` (não cai no 404 de `/{passo}`); `test_pular_com_atalho_que_falha_segue` (o criador do atalho injetado levanta; destino `/vagas`); `test_pular_nao_liga_site_com_login`; `test_pular_em_todo_passo` (o botão aparece nos três).
-- [ ] **Testes de tela** (CI): em `test_primeira_execucao.py`, o fluxo com "Continuar" e "Concluir"; "Pular" em qualquer passo cai em Vagas; `test_botoes_visiveis_com_janela_baixa`: janela de 1024×560, texto Maior, passo com mais conteúdo; o botão Continuar está inteiro dentro da janela (`bounding_box` dentro do viewport) e o conteúdo rola (E17).
-- [ ] **Ver falhar:** `uv run pytest tests/integracao/test_rota_primeira_execucao.py -q`.
-- [ ] **Implementar** os itens de Interfaces.
-- [ ] **Ver passar:** o mesmo arquivo, `tests/integracao/test_passo2_nao_prende.py` e `tests/unidade/test_i18n.py`; ruff; `-m tela` e mypy no CI.
+- [x] **Testes que falham** em `tests/integracao/test_rota_primeira_execucao.py`: `test_pular_grava_os_padroes` (`meu_pais`, `segundo_plano` falso, `primeira_execucao_concluida`; destino `/vagas`); `test_pular_responde_em_qualquer_passo` (não cai no 404 de `/{passo}`); `test_pular_com_atalho_que_falha_segue` (o criador do atalho injetado levanta; destino `/vagas`); `test_pular_nao_liga_site_com_login`; `test_pular_em_todo_passo` (o botão aparece nos três).
+- [x] **Testes de tela** (CI): em `test_primeira_execucao.py`, o fluxo com "Continuar" e "Concluir"; "Pular" em qualquer passo cai em Vagas; `test_botoes_visiveis_com_janela_baixa`: janela de 1024×560, texto Maior, passo com mais conteúdo; o botão Continuar está inteiro dentro da janela (`bounding_box` dentro do viewport) e o conteúdo rola (E17).
+- [x] **Ver falhar:** `uv run pytest tests/integracao/test_rota_primeira_execucao.py -q`.
+- [x] **Implementar** os itens de Interfaces.
+- [x] **Ver passar:** o mesmo arquivo, `tests/integracao/test_passo2_nao_prende.py` e `tests/unidade/test_i18n.py`; ruff; `-m tela` e mypy no CI.
 
 ### T264: detalhe em página, correção, erro e Saiu
 `depende_de: T258` · desenho 5.8 (Detalhe e correção, Erro e Saiu)
