@@ -1355,11 +1355,14 @@ def test_acao_na_pagina_da_vaga_marca_a_lateral_como_area(painel: Painel) -> Non
 
 LISTBOX = re.compile(r'(<div\b[^>]*\brole="listbox"[^>]*>)(.*?)</div>', re.S)
 OPCAO = re.compile(r'(<a\b[^>]*\brole="option"[^>]*>)(.*?)</a>', re.S)
+SEM_PALETA = re.compile(
+    r'<dialog\b[^>]*\bid="paleta".*?</dialog>', re.S
+)  # a paleta (T265) é outra listbox
 
 
 def _listbox(html: str) -> tuple[str, str]:
     """A abertura e o miolo do `role="listbox"` (as linhas só têm `<span>` e `<time>` dentro)."""
-    achados = LISTBOX.findall(html)
+    achados = LISTBOX.findall(SEM_PALETA.sub("", html))
     assert len(achados) == 1, f"esperava 1 listbox, achou {len(achados)}"
     abertura, miolo = achados[0]
     return str(abertura), str(miolo)
@@ -1501,7 +1504,7 @@ def test_vazio_tem_buscar_vagas(
     assert form and 'hx-target="#andamento"' in form.group(0)
     assert f">{botao}</button>" in form.group(1)
     assert f'name="{CAMPO_CSRF}"' in form.group(1)
-    assert 'role="listbox"' not in html
+    assert 'role="listbox"' not in SEM_PALETA.sub("", html)
 
 
 @pytest.mark.usefixtures("fuso_de_sao_paulo")

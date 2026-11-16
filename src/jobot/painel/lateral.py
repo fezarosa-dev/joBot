@@ -56,3 +56,14 @@ def lateral(request: Request) -> Lateral:
     pedida = inteiro_da_url(request.query_params.get("busca"), MAX_ID)
     with closing(abrir(banco)) as con:
         return ler_lateral(con, relogio_do_painel(request).agora(), pedida)
+
+
+def grupos_configuracoes(request: Request) -> tuple[tuple[str, str], ...]:
+    """Os grupos de Configurações da página, (slug, chave do nome), para a paleta (T265)."""
+    # import tardio: rotas.configuracoes importa a seguranca, que importa os globais e esta
+    from jobot.painel.rotas.configuracoes import grupos_visiveis, leitores_do_painel
+
+    return tuple(
+        (g, "configuracoes.grupo." + g.replace("-", "_"))
+        for g in grupos_visiveis(leitores_do_painel(request))
+    )

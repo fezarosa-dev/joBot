@@ -19,7 +19,9 @@ from jobot.banco.conexao import abrir
 from jobot.banco.migrar import migrar
 from jobot.banco.sugeridas import gravar_sugestoes
 from jobot.nucleo.coletores.descoberta_cc import Sugestao
+from jobot.nucleo.leitores.registro import leitores
 from jobot.painel.app import criar_app
+from jobot.painel.rotas.configuracoes import grupos_visiveis
 from jobot.painel.seguranca import renderizar
 
 PORTA = 47619
@@ -228,8 +230,9 @@ def test_campo_da_busca_tem_rotulo_e_dica(cliente: TestClient, idioma: str) -> N
 def test_sem_tema_nem_idioma_na_barra(cliente: TestClient) -> None:
     html = cliente.get("/vagas").text
     header = html[html.index("<header") : html.index("</header>")]
-    assert 'name="tema"' not in html
-    assert 'name="idioma"' not in html
+    fora = re.sub(r"<dialog\b.*?</dialog>", "", html, flags=re.S)  # a paleta (T265) tem os seus
+    assert 'name="tema"' not in fora
+    assert 'name="idioma"' not in fora
     assert "/preferencias/" not in header
     assert "Preferências" not in html
 
@@ -375,3 +378,91 @@ def test_sugeridas_mostra_a_contagem_de_pendentes(
     assert len(links) == 1
     assert '<span class="contagem">1</span>' in links[0]
     assert _contagens(html, idioma)["/empresas/sugeridas"] == 1
+
+
+# --- paleta de comandos (T265) ---------------------------------------------------------------
+WIKI = "https://github.com/fezarosa-dev/joBot/wiki/"
+OPCAO = re.compile(r'<(a|button)\b([^>]*\brole="option"[^>]*)>(.*?)</\1>', re.S)
+FORM = re.compile(r"<form\b([^>]*)>(.*?)</form>", re.S)
+KBD = re.compile(r'<kbd data-sistema="(mac|outro)">([^<]*)</kbd>')
+ROTULO_GRUPO = {"pt": "Geral", "en": "General"}
+TITULO_PALETA = {"pt": ("Comandos", "Buscar comando"), "en": ("Commands", "Search Commands")}
+
+
+def _paleta(html: str) -> str:
+    achado = re.search(r'<dialog\b[^>]*\bid="paleta".*?</dialog>', html, re.S)
+    assert achado, "falta o <dialog id=paleta> na casca"
+    return achado.group(0)
+
+
+def _opcoes(paleta: str) -> list[tuple[str, str, str, str]]:
+    """Por opção: (rótulo sem o atalho, href, atributos, miolo)."""
+    achadas = []
+    for _, atributos, miolo in OPCAO.findall(paleta):
+        href = re.search(r'href="([^"]*)"', atributos)
+        rotulo = html_.unescape(re.sub(r"<[^>]+>", "", KBD.sub("", miolo))).strip()
+        achadas.append((rotulo, html_.unescape(href.group(1)) if href else "", atributos, miolo))
+    return achadas
+
+
+@pytest.mark.parametrize("idioma", ["pt", "en"])
+def test_paleta_tem_os_comandos(cliente: TestClient, banco: Path, idioma: str) -> None:
+    _sugerir(banco)
+    html = cliente.get("/vagas", headers={"Accept-Language": idioma}).text
+    paleta = _paleta(html)
+    titulo, buscar = TITULO_PALETA[idioma]
+    assert 'role="listbox"' in paleta
+    assert f'aria-label="{titulo}"' in html  # o botão da barra
+    assert f'aria-label="{buscar}"' in paleta  # o campo
+    opcoes = _opcoes(paleta)
+    # um item por link da lateral (as mesmas rotas e os mesmos nomes)
+    pares = {(rotulo, href) for rotulo, href, _, _ in opcoes}
+    esperado = _esperado(idioma, destaques=True, sugeridas=True)
+    assert [p for p in esperado if p not in pares] == []
+    # e um por grupo de Configurações
+    hrefs = [href for _, href, _, _ in opcoes]
+    grupos = grupos_visiveis(leitores())  # o `cliente` não põe leitores no app.state
+    assert [g for g in grupos if f"/configuracoes/{g}" not in hrefs] == []
+    geral = [r for r, h, _, _ in opcoes if h == "/configuracoes/geral"]
+    assert any(r.endswith(ROTULO_GRUPO[idioma]) for r in geral)
+    # os formulários que já existem, cada um com o csrf_token da página
+    token = re.search(r'<meta name="csrf-token" content="([^"]+)"', html)
+    assert token
+    for acao in (
+        "/buscar-agora",
+        "/sair",
+        "/preferencias/tema",
+        "/preferencias/idioma",
+        "/preferencias/texto",
+    ):
+        forms = [m for m in FORM.findall(paleta) if f'action="{acao}"' in m[0]]
+        assert forms, f"falta o formulário de {acao} na paleta"
+        for _, miolo in forms:
+            assert f'name="csrf_token" value="{token.group(1)}"' in miolo
+            assert 'role="option"' in miolo
+    # a paleta não inventa ação: toda opção é um link ou o botão de um formulário
+    for rotulo, href, atributos, _ in opcoes:
+        assert href or 'type="submit"' in atributos, rotulo
+    assert 'name="tema" value="escuro"' in paleta or 'name="tema" value="claro"' in paleta
+
+
+@pytest.mark.parametrize(("idioma", "pagina"), [("pt", "Home"), ("en", "Home-en")])
+def test_atalho_de_ajuda_abre_a_wiki(cliente: TestClient, idioma: str, pagina: str) -> None:
+    paleta = _paleta(cliente.get("/vagas", headers={"Accept-Language": idioma}).text)
+    ajuda = [a for _, h, a, _ in _opcoes(paleta) if "data-ajuda" in a]
+    assert len(ajuda) == 1
+    assert f'href="{WIKI}{pagina}"' in ajuda[0]
+    assert 'target="_blank"' in ajuda[0]
+    assert re.search(r'rel="[^"]*\bnoopener\b', ajuda[0])
+
+
+def test_paleta_tem_as_duas_formas_do_atalho(cliente: TestClient) -> None:
+    paleta = _paleta(cliente.get("/vagas").text)
+    atalhos = KBD.findall(paleta)
+    assert {t for s, t in atalhos if s == "mac"} >= {"⌘,", "⌘?"}
+    assert {t for s, t in atalhos if s == "outro"} >= {"Ctrl+,", "Ctrl+?"}
+    for rotulo, _, _, miolo in _opcoes(paleta):
+        formas = [s for s, _ in KBD.findall(miolo)]
+        assert formas.count("mac") == formas.count("outro") <= 1, rotulo
+        if rotulo == "Buscar agora":
+            assert formas == []  # comando sem atalho não mostra kbd
