@@ -272,3 +272,40 @@ Sem JavaScript (sem `HX-Request`), Apagar busca, Remover site e Esquecer logins 
 - [x] **Ver falhar:** `uv run pytest tests/unidade/test_css.py -q -k "agrupada or icone"`; o vermelho é a asserção, não erro de coleta. Feito: saiu 1, 2 falhas por asserção (`('buscas.css', '.lista-buscas') != ('base.css', '.lista-agrupada')`; `repetidos` com `circle-check`, `circle-x` e `clock`). O caminho dos templates foi provado por mutação numa cópia (a `<ul>` de Sugeridas de volta a `lista-buscas` falha).
 - [x] **Implementar** a junção, a remoção das cópias e a do parâmetro `valor` da macro `caixa()`. Feito: `.lista-agrupada` no `base.css` (depois do `.painel`), as cinco `<ul>` usam a classe e mantêm o `id`; `.lista-buscas`, `.lista-fontes` e `.lista-sites` saíram; as regras de ícone de `fontes.css` e `execucao.css` saíram e o `clock` entrou no `casca.css`, ao lado do `circle-x`; a macro `caixa()` perdeu `valor`. Os quatro testes de integração que liam a classe antiga da `<ul>` passaram a ler `lista-agrupada`.
 - [x] **Ver passar:** `uv run pytest tests/unidade/test_css.py -q` e `uv run ruff check && uv run ruff format --check`; as telas de Buscas, Fontes, Sites e Empresas rodam no CI para conferir que nada mudou no visual. Feito: `test_css.py` 43 passaram; `test_rota_{fontes,empresas,sites,sugeridas,configuracoes,buscas}.py` 407 passaram; ruff limpo. As telas rodam no CI.
+
+### T310: Esquecer logins sem JavaScript volta para a página (D165, para confirmar)
+`depende_de: T307` · D165
+
+Na rota `POST` de esquecer, sem `HX-Request` responder 303 para `/configuracoes/sites-com-login` com o aviso de salvo; com `HX-Request`, o fragmento de hoje.
+
+**Arquivos:**
+- modificar `src/jobot/painel/rotas/configuracoes.py`;
+- modificar `tests/integracao/test_rota_sites_com_login.py`.
+
+**Interfaces:**
+- Só muda a resposta sem `HX-Request`; o caminho com HTMX continua devolvendo o fragmento `_esquecer.html`.
+
+- [ ] **Testes que falham** em `tests/integracao/test_rota_sites_com_login.py`: um novo, `test_esquecer_sem_htmx_redireciona` (o `POST` sem `HX-Request` espera 303 e `Location` certo); `test_esquecer_so_apaga_ao_confirmar` e `test_resposta_de_esquecer_nao_traz_o_componente` passam a mandar `HX-Request`.
+- [ ] **Ver falhar:** `uv run pytest tests/integracao/test_rota_sites_com_login.py -q -k esquecer`; o vermelho é a asserção (hoje responde 200 com o fragmento), não erro de import.
+- [ ] **Implementar** o 303 sem `HX-Request`.
+- [ ] **Ver passar:** o mesmo arquivo de teste e `uv run ruff check && uv run ruff format --check`.
+
+### T311: pequenos acertos que sobraram da onda C
+`depende_de: T305`
+
+Itens pequenos e independentes entre si.
+
+**Arquivos:**
+- modificar `src/jobot/painel/rotas/vagas.py`, `src/jobot/painel/static/js/app.js`, `tests/unidade/test_css.py` e o template ou CSS da barra de progresso das esperas.
+
+**Interfaces:**
+- Nenhum contrato muda.
+
+- [ ] (a) em `src/jobot/painel/rotas/vagas.py` o parâmetro `paginas` da rota esconde a função importada `paginas`: renomear o parâmetro.
+- [ ] (b) a busca por letra na lista (typeahead em `app.js`) acumula a letra repetida em vez de ciclar entre as linhas que começam com ela, como no Finder: ciclar quando a mesma letra se repete.
+- [ ] (c) a barra de progresso das esperas repete no `aria-label` o texto que já está visível: tirar a duplicação.
+- [ ] (d) o recarregar da lista pede até `_MAX_PAGINA=10000` linhas: medir e baixar o teto se custar caro.
+- [ ] (e) a guarda de CSS de `test_css.py` para ícones só pega a assinatura exata: aceitar variações de espaço.
+- [ ] (f) um comentário em `app.js` passa de 100 colunas: quebrar.
+- [ ] **Ver falhar:** para cada item que muda código, o teste do item com a asserção dele; itens só de texto ou comentário conferem por `rtk grep` e anotam a conclusão aqui.
+- [ ] **Ver passar:** os arquivos de teste mexidos e `uv run ruff check && uv run ruff format --check`; a tela roda no CI.
