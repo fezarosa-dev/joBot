@@ -1,4 +1,4 @@
-"""Grupo "Sites com login" em Configurações (plano T218; D132.8, D132.23, D132.41, D132.48).
+"""Grupo "Contas" em Configurações (plano T218 e T275; D132.8, D132.23, D132.41, D132.48).
 
 O painel lê o que o `serve` deixa em `app.state`; "Fazer login agora" e "Esquecer logins" usam
 o `jobot.navegador` (T219).
@@ -19,23 +19,29 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
+from apoio.cofre_falso import CofreFalso
 from apoio.relogio import RelogioFalso
 from apoio.semear import inserir_vaga
 from apoio.site_falso import LeitorFalso
 from jobot.banco import cadastros
+from jobot.banco.captcha import NOME_NO_COFRE
 from jobot.banco.conexao import abrir
 from jobot.banco.execucoes import EstadoSaude, abrir_execucao, fechar_execucao, gravar_saude
 from jobot.banco.migrar import migrar
+from jobot.banco.sessoes import gravar_sessao, ler_sessao
 from jobot.navegador import abrir as abrir_navegador
+from jobot.nucleo.captcha import mascarar
+from jobot.nucleo.contas import EstadoSessao, MotivoSessao, NaTela
 from jobot.nucleo.leitores.base import LeitorComLogin
 from jobot.painel import i18n
 from jobot.painel.app import criar_app
 from jobot.painel.rotas import configuracoes
 from jobot.painel.seguranca import CAMPO_CSRF
+from jobot.sistema.cofre import Cofre
 from jobot.sistema.pastas import PASTA_NAVEGADOR
 
 PORTA = 47619
-GRUPO = "/configuracoes/sites-com-login"
+GRUPO = "/configuracoes/contas"
 CHAVE = "falso_logado"
 INTERRUPTOR = f"{GRUPO}/{CHAVE}/interruptor"
 LOGIN = f"{GRUPO}/{CHAVE}/login"
@@ -105,8 +111,11 @@ class Painel:
         linhas = self.sql("SELECT valor FROM config WHERE chave = 'login_horarios'")
         return json.loads(linhas[0][0]) if linhas else None
 
-    def post(self, url: str, dados: dict[str, Any] | None = None) -> Any:
-        return self.http.post(url, data={CAMPO_CSRF: self.token, **(dados or {})})
+    def post(self, url: str, dados: dict[str, Any] | None = None, htmx: bool = False) -> Any:
+        cabecalhos = {"HX-Request": "true"} if htmx else None
+        return self.http.post(
+            url, data={CAMPO_CSRF: self.token, **(dados or {})}, headers=cabecalhos
+        )
 
 
 @pytest.fixture
@@ -179,7 +188,7 @@ def test_sem_leitor_o_interruptor_da_404(sem_leitor: Painel) -> None:
 
 
 def test_o_grupo_e_o_penultimo_das_abas(painel: Painel) -> None:
-    """Ferramentas (T240) entra por último; Sites com login vem logo antes."""
+    """Ferramentas (T240) entra por último; Contas vem logo antes."""
     abas = _abas(painel.http.get("/configuracoes/fontes").text)
     assert abas[-2:] == [GRUPO, "/configuracoes/ferramentas"]
 
@@ -437,7 +446,8 @@ def test_textos_do_grupo_em_pt_e_en(painel: Painel, idioma: str) -> None:
     for trecho in esperados["risco"]:  # a frase de risco inteira (D132.8), não só um trecho
         assert trecho in texto
     assert esperados["esquecer"] in texto
-    assert ("Sites com login" if idioma == "pt" else "Sites with login") in texto
+    assert ("Contas" if idioma == "pt" else "Accounts") in texto
+    assert "Sites com login" not in texto and "Sites with login" not in texto
 
 
 @pytest.mark.parametrize("pagina", ["get", "interruptor"])
@@ -527,7 +537,7 @@ def test_esquecer_indicador_em_ingles(painel: Painel) -> None:
 def test_resposta_de_esquecer_nao_traz_o_componente(painel: Painel) -> None:
     """O componente mora na página; a resposta do POST só troca o texto do resultado (E15)."""
     _perfil(painel)
-    resposta = painel.post(CONFIRMAR)
+    resposta = painel.post(CONFIRMAR, htmx=True)
     assert resposta.status_code == 200
     assert "progressbar" not in resposta.text and "progresso" not in resposta.text
 
@@ -555,7 +565,7 @@ def test_grupos_do_login_e_das_ferramentas_tem_icone(painel: Painel) -> None:
     icones = dict(
         re.findall(r'<a href="/configuracoes/([^"]+)" data-icone="([^"]+)"', nav.group(0))
     )
-    assert icones["sites-com-login"] == "key-round"
+    assert icones["contas"] == "key-round"
     assert icones["ferramentas"] == "globe"
 
 
@@ -824,7 +834,7 @@ def test_esquecer_so_apaga_ao_confirmar_e_a_pergunta_antiga_saiu(
     assert painel.post(ESQUECER).status_code in (404, 405)  # a pergunta é o alerta da página
     assert perfil.exists() and (perfil / "Default" / "Cookies").exists()
 
-    resposta = painel.post(CONFIRMAR)
+    resposta = painel.post(CONFIRMAR, htmx=True)
     assert resposta.status_code == 200
     apagados = {"pt": "Logins apagados", "en": "Logins deleted"}[idioma]
     assert apagados in _texto(resposta.text)
@@ -868,25 +878,49 @@ def test_esquecer_logins_sem_js_vai_para_confirmar(painel: Painel, idioma: str) 
     assert "<dialog" not in sem_paleta and "autofocus" not in sem_paleta
 
 
-def test_esquecer_logins_post_direto_continua(painel: Painel) -> None:
-    """O POST de hoje (o do alerta e o do botão da página de confirmação) apaga como antes."""
+def test_esquecer_sem_htmx_redireciona(painel: Painel) -> None:
+    """T310 (D165): o POST da página de confirmação, sem JavaScript, apaga e volta ao grupo
+    com o aviso de salvo; o alerta (HTMX) segue recebendo o fragmento."""
     perfil = _perfil(painel)
-    resposta = painel.post(CONFIRMAR)
-    assert resposta.status_code == 200 and "Logins apagados" in _texto(resposta.text)
+    resposta = painel.http.post(CONFIRMAR, data={CAMPO_CSRF: painel.token}, follow_redirects=False)
+    assert resposta.status_code == 303
+    assert resposta.headers["location"] == f"{GRUPO}?salvo=1"
     assert not perfil.exists()
 
 
 def test_esquecer_com_leitura_rodando_nao_apaga(painel: Painel) -> None:
     perfil = _perfil(painel)
     trava = _trava_presa(painel)
-    resposta = painel.post(CONFIRMAR)
+    resposta = painel.post(CONFIRMAR, htmx=True)
     assert resposta.status_code == 200
     assert _EM_ANDAMENTO in _texto(resposta.text)
     assert (perfil / "Default" / "Cookies").exists()
     assert trava.locked()
     trava.release()  # controle: com a trava livre, apaga
-    assert "Logins apagados" in _texto(painel.post(CONFIRMAR).text)
+    assert "Logins apagados" in _texto(painel.post(CONFIRMAR, htmx=True).text)
     assert not perfil.exists()
+
+
+def test_esquecer_com_leitura_rodando_sem_htmx_redireciona_com_erro(painel: Painel) -> None:
+    perfil = _perfil(painel)
+    trava = _trava_presa(painel)
+    resposta = painel.post(CONFIRMAR)
+    assert resposta.status_code == 303
+    assert resposta.headers["location"] == f"{GRUPO}?erro=em_andamento"
+    assert (perfil / "Default" / "Cookies").exists()
+    assert trava.locked()
+
+
+def test_pagina_do_grupo_mostra_o_erro_conhecido_e_ignora_lixo(painel: Painel) -> None:
+    com_erro = painel.http.get(f"{GRUPO}?erro=em_andamento")
+    assert com_erro.status_code == 200
+    assert _EM_ANDAMENTO in _texto(com_erro.text) and 'role="alert"' in com_erro.text
+    erro_apagar = painel.http.get(f"{GRUPO}?erro=esquecer")
+    assert "Não consegui apagar os logins" in _texto(erro_apagar.text)
+    lixo = painel.http.get(f"{GRUPO}?erro=%3Cb%3Ex%3C/b%3E")
+    assert lixo.status_code == 200
+    assert "<b>x</b>" not in lixo.text and "Não consegui apagar" not in _texto(lixo.text)
+    assert _EM_ANDAMENTO not in _texto(lixo.text)
 
 
 def test_esquecer_com_navegador_symlink_nao_apaga_o_alvo(
@@ -896,7 +930,11 @@ def test_esquecer_com_navegador_symlink_nao_apaga_o_alvo(
     (fora / "Cookies").write_text("de outro lugar")
     link = painel.banco.parent / PASTA_NAVEGADOR
     link.symlink_to(fora, target_is_directory=True)
-    resposta = painel.post(CONFIRMAR)
+    semjs = painel.post(CONFIRMAR)
+    assert semjs.status_code == 303
+    assert semjs.headers["location"] == f"{GRUPO}?erro=esquecer"
+    assert (fora / "Cookies").read_text() == "de outro lugar" and link.is_symlink()
+    resposta = painel.post(CONFIRMAR, htmx=True)
     assert resposta.status_code == 200
     texto = _texto(resposta.text)
     assert "Não consegui apagar os logins" in texto
@@ -905,3 +943,306 @@ def test_esquecer_com_navegador_symlink_nao_apaga_o_alvo(
     assert link.is_symlink()
     assert str(fora) not in resposta.text  # o caminho fica só no log
     assert not painel.app.state.travas["login"].locked()  # a trava volta mesmo com o erro
+
+
+# ------------------------------------------------------------------ T275: a aba Contas
+
+CONFERIDO = datetime(2026, 11, 15, 12, 2, tzinfo=UTC)  # 09:02 em São Paulo
+SELOS = {
+    "pt": {
+        "conectado": "Conectado",
+        "precisa_entrar": "Precisa entrar de novo",
+        "nunca_entrou": "Nunca entrou",
+        "nao_conferiu": "Não deu para conferir",
+        "desligado": "Desligado",
+    },
+    "en": {
+        "conectado": "Signed in",
+        "precisa_entrar": "Needs to sign in again",
+        "nunca_entrou": "Never signed in",
+        "nao_conferiu": "Could not check",
+        "desligado": "Off",
+    },
+}
+SEM_REDE = "Sem internet ou o site não respondeu."
+CHAVE_CAPTCHA = "AbCd1234EfGh5678IjKl9012MnOp3456"
+
+
+def _sessao(
+    painel: Painel,
+    estado: EstadoSessao,
+    motivo: MotivoSessao | None = None,
+    tipo: Any = "site",
+    chave: str = CHAVE,
+) -> None:
+    with closing(abrir(painel.banco)) as con:
+        gravar_sessao(con, tipo, chave, estado, motivo, CONFERIDO)
+
+
+def _lida(painel: Painel, tipo: Any = "site", chave: str = CHAVE) -> Any:
+    with closing(abrir(painel.banco)) as con:
+        return ler_sessao(con, tipo, chave)
+
+
+def _cartao(html: str) -> str:
+    dentro = _elemento_por_id(html, f"conta-{CHAVE}")
+    assert dentro is not None, "sem o cartão #conta-<chave>"
+    return dentro
+
+
+def _selo(html: str) -> tuple[str, str] | None:
+    achado = re.search(r'<span class="selo selo-([a-z_]+)">\s*([^<]*?)\s*</span>', html)
+    return None if achado is None else (achado[1], achado[2])
+
+
+def test_rota_velha_303(painel: Painel) -> None:
+    resposta = painel.http.get("/configuracoes/sites-com-login")
+    assert resposta.status_code == 303
+    assert resposta.headers["location"] == "/configuracoes/contas"
+
+
+def test_acoes_no_caminho_novo(painel: Painel) -> None:
+    assert (
+        painel.post(f"/configuracoes/contas/{CHAVE}/interruptor", {"ligada": "on"}).status_code
+        == 200
+    )
+    velho = painel.post(f"/configuracoes/sites-com-login/{CHAVE}/interruptor", {"ligada": "on"})
+    assert velho.status_code == 404
+
+
+def test_cartao_com_id_conta(painel: Painel) -> None:
+    html = painel.http.get(GRUPO).text
+    assert f'id="conta-{CHAVE}"' in html
+    assert "cartao-site-" not in html
+    assert f'hx-target="#conta-{CHAVE}"' in _cartao(html)  # o interruptor troca o cartão
+
+
+@pytest.mark.parametrize("idioma", ["pt", "en"])
+@pytest.mark.parametrize("estado", list(SELOS["pt"]))
+def test_selo_por_estado(painel: Painel, idioma: str, estado: NaTela) -> None:
+    painel.idioma(idioma)
+    if estado != "desligado":
+        painel.post(INTERRUPTOR, {"ligada": "on"})
+    if estado == "precisa_entrar":
+        _sessao(painel, "conectado")  # caiu depois de ter entrado: não é "Nunca entrou"
+        _sessao(painel, "precisa_entrar")
+    elif estado == "nao_conferiu":
+        _sessao(painel, "nao_conferiu", "sem_rede")
+    elif estado in ("conectado", "desligado"):
+        _sessao(painel, "conectado")
+    assert _selo(_cartao(painel.http.get(GRUPO).text)) == (estado, SELOS[idioma][estado])
+
+
+@pytest.mark.usefixtures("fuso_de_sao_paulo")
+def test_hora_no_cartao(painel: Painel) -> None:
+    painel.post(INTERRUPTOR, {"ligada": "on"})
+    assert "conferido" not in _texto(_cartao(painel.http.get(GRUPO).text))  # sem linha
+    _sessao(painel, "conectado")
+    assert "conferido hoje às 09:02" in _texto(_cartao(painel.http.get(GRUPO).text))
+    painel.post(INTERRUPTOR)  # Desligado com linha: a última hora gravada
+    cartao = _texto(_cartao(painel.http.get(GRUPO).text))
+    assert "Desligado" in cartao and "conferido hoje às 09:02" in cartao
+    painel.post(INTERRUPTOR, {"ligada": "on"})
+    _sessao(painel, "precisa_entrar", "esquecido")  # esquecer não é conferência
+    cartao = _texto(_cartao(painel.http.get(GRUPO).text))
+    assert "Nunca entrou" in cartao and "conferido" not in cartao
+
+
+def test_motivo_em_nao_conferiu(painel: Painel) -> None:
+    painel.post(INTERRUPTOR, {"ligada": "on"})
+    _sessao(painel, "conectado")
+    assert SEM_REDE not in _texto(painel.http.get(GRUPO).text)  # controle
+    _sessao(painel, "nao_conferiu", "sem_rede")
+    assert SEM_REDE in _texto(_cartao(painel.http.get(GRUPO).text))
+    painel.post(INTERRUPTOR)  # desligado: o selo é Desligado e o motivo some
+    assert SEM_REDE not in _texto(painel.http.get(GRUPO).text)
+
+
+def _login_e_espera(painel: Painel, http: TestClient) -> None:
+    assert http.post(LOGIN, data={CAMPO_CSRF: painel.token}).status_code == 200
+    trava = painel.app.state.travas["login"]
+    assert _esperar(lambda: not trava.locked())
+
+
+@pytest.mark.parametrize(
+    ("resultado", "estado", "entrou"),
+    [("pronto", "conectado", True), ("nao_entrou", "precisa_entrar", False)],
+)
+def test_login_grava_estado(
+    painel: Painel, login_falso: LoginFalso, resultado: str, estado: str, entrou: bool
+) -> None:
+    login_falso.resultado = resultado
+    login_falso.liberar.set()
+    with TestClient(painel.app, base_url=f"http://127.0.0.1:{PORTA}") as http:
+        _login_e_espera(painel, http)
+    sessao = _lida(painel)
+    assert sessao is not None
+    assert (sessao.estado, sessao.motivo) == (estado, None)
+    assert (sessao.entrou_em is not None) == entrou
+    assert sessao.conferido_em == AGORA.isoformat()  # a hora do relógio injetado
+
+
+def test_login_com_erro_nao_grava(painel: Painel, login_falso: LoginFalso) -> None:
+    login_falso.erro = RuntimeError("quebrou")
+    login_falso.liberar.set()
+    with TestClient(painel.app, base_url=f"http://127.0.0.1:{PORTA}") as http:
+        _login_e_espera(painel, http)
+        assert painel.app.state.login_manual == {CHAVE: "erro"}
+        assert _lida(painel) is None  # E20: exceção não é resultado
+        login_falso.erro = None  # controle na mesma montagem: o login que dá certo grava
+        _login_e_espera(painel, http)
+    sessao = _lida(painel)
+    assert sessao is not None and sessao.estado == "conectado"
+
+
+@pytest.mark.parametrize("estado", ["pronto", "erro", None])
+def test_login_final_com_gatilho(painel: Painel, estado: str | None) -> None:
+    painel.app.state.login_manual = {} if estado is None else {CHAVE: estado}
+    resposta = painel.http.get(LOGIN)
+    assert resposta.status_code == 200
+    assert resposta.headers.get("hx-trigger") == "contas-mudou"
+    assert f'id="conta-{CHAVE}"' in resposta.text  # o cartão inteiro, com o selo
+    assert _selo(resposta.text) is not None
+    assert "<html" not in resposta.text
+    if estado == "pronto":
+        assert "Login feito" in _texto(resposta.text)
+    painel.app.state.login_manual = {CHAVE: "aguardando"}  # controle: a espera não troca nada
+    espera = painel.http.get(LOGIN)
+    assert espera.status_code == 204 and "hx-trigger" not in espera.headers
+
+
+def test_espera_do_login_troca_o_cartao(painel: Painel) -> None:
+    painel.app.state.login_manual = {CHAVE: "aguardando"}
+    html = painel.http.get(GRUPO).text
+    espera = re.search(r'<p\b[^>]*hx-trigger="every 5s"[^>]*>', html)
+    assert espera is not None
+    assert f'hx-get="{LOGIN}"' in espera[0]
+    assert f'hx-target="#conta-{CHAVE}"' in espera[0] and 'hx-swap="outerHTML"' in espera[0]
+
+
+def test_interruptor_com_gatilho(painel: Painel) -> None:
+    resposta = painel.post(INTERRUPTOR, {"ligada": "on"})
+    assert resposta.status_code == 200
+    assert resposta.headers.get("hx-trigger") == "contas-mudou"
+    assert f'id="conta-{CHAVE}"' in resposta.text
+
+
+@pytest.mark.usefixtures("fuso_de_sao_paulo")
+def test_esquecer_grava_esquecido_e_devolve_cartoes(painel: Painel) -> None:
+    painel.post(INTERRUPTOR, {"ligada": "on"})
+    _sessao(painel, "conectado")
+    _perfil(painel)
+    resposta = painel.post(CONFIRMAR, htmx=True)
+    assert resposta.status_code == 200
+    sessao = _lida(painel)
+    assert sessao is not None and (sessao.estado, sessao.motivo) == ("precisa_entrar", "esquecido")
+    assert resposta.headers.get("hx-trigger") == "contas-mudou"
+    oob = re.search(r'<div\b[^>]*\bid="contas-sites"[^>]*>', resposta.text)
+    assert oob is not None and 'hx-swap-oob="outerHTML:#contas-sites"' in oob[0]
+    texto = _texto(resposta.text)
+    assert "Logins apagados" in texto  # o alerta de antes continua
+    assert "Nunca entrou" in texto and "conferido" not in texto
+
+
+def test_esquecer_sem_htmx_tambem_grava(painel: Painel) -> None:
+    _sessao(painel, "conectado")
+    assert painel.post(CONFIRMAR).status_code == 303
+    sessao = _lida(painel)
+    assert sessao is not None and sessao.motivo == "esquecido"
+
+
+def test_esquecer_nao_mexe_no_gmail(painel: Painel) -> None:
+    _sessao(painel, "conectado", tipo="conta", chave="gmail")
+    _sessao(painel, "conectado")
+    gmail = _lida(painel, "conta", "gmail")
+    assert painel.post(CONFIRMAR, htmx=True).status_code == 200
+    assert _lida(painel, "conta", "gmail") == gmail  # E12: o Gmail não é sessão de navegador
+    site = _lida(painel)
+    assert site is not None and site.motivo == "esquecido"  # controle: o site mudou
+
+
+@pytest.mark.parametrize("erro", ["esquecer", "em_andamento"])
+@pytest.mark.parametrize("grupo", ["geral", "fontes"])
+def test_erro_de_esquecer_so_na_aba_contas(painel: Painel, grupo: str, erro: str) -> None:
+    assert 'role="alert"' in painel.http.get(f"{GRUPO}?erro={erro}").text  # controle
+    outro = painel.http.get(f"/configuracoes/{grupo}?erro={erro}")
+    assert outro.status_code == 200
+    assert 'role="alert"' not in outro.text
+    texto = _texto(outro.text)
+    assert "Não consegui apagar os logins" not in texto and _EM_ANDAMENTO not in texto
+
+
+@pytest.mark.parametrize("idioma", ["pt", "en"])
+def test_linha_do_captcha_sem_vazar_chave(painel: Painel, tmp_path: Path, idioma: str) -> None:
+    painel.idioma(idioma)
+    cofre = Cofre(tmp_path, CofreFalso())
+    painel.app.state.cofre = cofre
+    sem, salva, mudar = {
+        "pt": ("2Captcha: sem chave", "2Captcha: chave salva", "Mudar em Serviços"),
+        "en": ("2Captcha: no key", "2Captcha: key saved", "Change in Services"),
+    }[idioma]
+    html = painel.http.get(GRUPO).text
+    assert sem in _texto(html) and salva not in _texto(html)
+    assert "resultado-captcha-contas" not in html  # sem chave não há o que testar
+    assert re.search(rf'<a\b[^>]*href="/configuracoes/servicos"[^>]*>\s*{mudar}\s*</a>', html)
+
+    cofre.gravar(NOME_NO_COFRE, CHAVE_CAPTCHA)
+    html = painel.http.get(GRUPO).text
+    assert salva in _texto(html) and sem not in _texto(html)
+    assert mascarar(CHAVE_CAPTCHA) not in html
+    pedacos = {CHAVE_CAPTCHA[i : i + 6] for i in range(len(CHAVE_CAPTCHA) - 5)}
+    assert not [p for p in pedacos if p in html]  # nem a chave nem um trecho dela
+    botao = re.search(r'<button\b[^>]*hx-post="/configuracoes/servicos/captcha/testar"[^>]*>', html)
+    assert botao is not None
+    assert 'hx-target="#resultado-captcha-contas"' in botao[0] and "hx-include" not in botao[0]
+    assert 'id="resultado-captcha-contas"' in html
+
+
+def test_login_final_anuncia_e_poe_o_foco_no_cartao(painel: Painel) -> None:
+    """O `outerHTML` troca a região viva do cartão: o resultado vai à região fixa `#status-sites`
+    (marcador num filho, que o OOB `innerHTML` descarta o elemento de fora) e o foco ao cartão."""
+    painel.app.state.login_manual = {CHAVE: "pronto"}
+    html = painel.http.get(LOGIN).text
+    oob = re.search(r'<p\b[^>]*hx-swap-oob="innerHTML:#status-sites"[^>]*>(.*?)</p>', html, re.S)
+    assert oob is not None, "sem o anúncio em #status-sites"
+    assert "data-some-sozinho" not in oob[0].split(">", 1)[0]  # o marcador fica no filho
+    assert re.search(r"<span\b[^>]*data-some-sozinho[^>]*>\s*Login feito", oob[1])
+    raiz = re.search(rf'<div\b[^>]*\bid="conta-{CHAVE}"[^>]*>', html)
+    # o login pode levar minutos: o foco só vem se estiver livre (no body ou no cartão velho)
+    assert raiz is not None and re.search(r"\sdata-foco-se-livre[\s>]", raiz[0])
+    assert not re.search(r"\sdata-foco[\s>=]", raiz[0])
+    # controle: a página e o interruptor não anunciam login nem põem o foco no cartão
+    pagina = painel.http.get(GRUPO).text
+    raiz = re.search(rf'<div\b[^>]*\bid="conta-{CHAVE}"[^>]*>', pagina)
+    assert raiz is not None and "data-foco" not in raiz[0]
+    assert "Login feito" not in _texto(_elemento_por_id(pagina, "status-sites") or "")
+
+
+def _botao_de_login(html: str) -> str:
+    botao = re.search(rf'<button\b[^>]*hx-post="{LOGIN}"[^>]*>', html)
+    assert botao is not None, "sem o botão Fazer login agora"
+    return botao[0]
+
+
+@pytest.mark.parametrize("achado", [None, "chrome", "chromium"])
+def test_sem_navegador_o_botao_de_login_fica_desligado(painel: Painel, achado: str | None) -> None:
+    """Desenho 5.7 (D166): sem navegador, "Fazer login agora" sai desabilitado e descrito pela
+    frase que explica a falta; vale para a aba, o GET final do login e o OOB do esquecer."""
+    painel.app.state.navegador_instalado = achado
+    painel.app.state.login_manual = {CHAVE: "erro"}
+    pagina = painel.http.get(GRUPO).text
+    final = painel.http.get(LOGIN).text
+    esquecer = painel.post(CONFIRMAR, htmx=True).text
+    for html in (pagina, final, esquecer):
+        botao = _botao_de_login(html)
+        if achado is None:
+            assert re.search(r"\sdisabled[\s>]", botao)
+            assert 'aria-describedby="contas-sem-navegador"' in botao
+        else:
+            assert "disabled" not in botao.replace("hx-disabled-elt", "")
+            assert "aria-describedby" not in botao
+    frase = _elemento_por_id(pagina, "contas-sem-navegador")
+    if achado is None:
+        assert frase is not None and "Nenhum navegador encontrado" in _texto(frase)
+    else:
+        assert frase is None

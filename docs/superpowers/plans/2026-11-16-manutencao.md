@@ -285,10 +285,11 @@ Na rota `POST` de esquecer, sem `HX-Request` responder 303 para `/configuracoes/
 **Interfaces:**
 - Só muda a resposta sem `HX-Request`; o caminho com HTMX continua devolvendo o fragmento `_esquecer.html`.
 
-- [ ] **Testes que falham** em `tests/integracao/test_rota_sites_com_login.py`: um novo, `test_esquecer_sem_htmx_redireciona` (o `POST` sem `HX-Request` espera 303 e `Location` certo); `test_esquecer_so_apaga_ao_confirmar` e `test_resposta_de_esquecer_nao_traz_o_componente` passam a mandar `HX-Request`.
-- [ ] **Ver falhar:** `uv run pytest tests/integracao/test_rota_sites_com_login.py -q -k esquecer`; o vermelho é a asserção (hoje responde 200 com o fragmento), não erro de import.
-- [ ] **Implementar** o 303 sem `HX-Request`.
-- [ ] **Ver passar:** o mesmo arquivo de teste e `uv run ruff check && uv run ruff format --check`.
+- [x] **Testes que falham** em `tests/integracao/test_rota_sites_com_login.py`: um novo, `test_esquecer_sem_htmx_redireciona` (o `POST` sem `HX-Request` espera 303 e `Location` certo); `test_esquecer_so_apaga_ao_confirmar` e `test_resposta_de_esquecer_nao_traz_o_componente` passam a mandar `HX-Request`.
+- [x] **Ver falhar:** `uv run pytest tests/integracao/test_rota_sites_com_login.py -q -k esquecer`; o vermelho é a asserção (hoje responde 200 com o fragmento), não erro de import.
+- [x] **Implementar** o 303 sem `HX-Request`.
+- [x] **Ver passar:** o mesmo arquivo de teste e `uv run ruff check && uv run ruff format --check`.
+- Escolha do redator (para confirmar, D165): sem JavaScript, o sucesso volta para o grupo com `?salvo=1` e a falha (leitura em andamento ou erro ao apagar) com `?erro=em_andamento` ou `?erro=esquecer`; a página do grupo mostra o aviso com os textos que já existiam e ignora `?erro=` desconhecido.
 
 ### T311: pequenos acertos que sobraram da onda C
 `depende_de: T305`

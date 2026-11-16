@@ -629,3 +629,25 @@ def test_regra_de_icone_uma_vez() -> None:
     assert repetidos == {}
     for nome in ("circle", "contrast", "circle-check", "circle-x", "clock"):
         assert lugares[nome] == {"casca.css"}, nome
+
+
+def test_selos_das_contas_tem_forma_propria() -> None:
+    """E15: o selo da conta nunca difere só pela cor. "Conectado" e "Precisa entrar" são os dois
+    com cor de estado: o segundo tem contorno de 2px, o primeiro de 1px."""
+    corpos = {
+        s: r.corpo
+        for nome, r in _todas()
+        if nome == "configuracoes.css" and not r.contexto
+        for s in _seletores(r)
+    }
+
+    def borda(estado: str) -> str:
+        proprio = corpos.get(f".cartao-site .selo-{estado}", "")
+        achado = re.search(r"border(?:-width)?\s*:\s*([0-9.]+px)", proprio)
+        if achado is None:
+            achado = re.search(r"border(?:-width)?\s*:\s*([0-9.]+px)", corpos[".cartao-site .selo"])
+        assert achado is not None
+        return achado[1]
+
+    assert borda("conectado") == "1px"
+    assert borda("precisa_entrar") == "2px"

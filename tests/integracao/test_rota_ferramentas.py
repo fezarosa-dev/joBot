@@ -432,3 +432,61 @@ def test_estados_em_pt_e_en(painel: Painel, idioma: str) -> None:
             painel.app.state.ferramentas = {"navegador": aviso}
             texto = _texto(painel.http.get(NAVEGADOR).text)
         assert catalogo[_PREFIXO + "aviso." + aviso] in texto, aviso
+
+
+# o passo dos sites do assistente mostra o navegador e os cartões juntos (D166): quando o
+# navegador muda, a resposta final leva os cartões em OOB, com o "Fazer login agora" atualizado
+ASSISTENTE = {"HX-Request": "true", "HX-Current-URL": f"{BASE}/primeira-execucao/sites?busca=1"}
+NA_ABA = {"HX-Request": "true", "HX-Current-URL": f"{BASE}{GRUPO}"}
+LOGIN_DO_SITE = "/configuracoes/contas/falso_logado/login"
+
+
+def _cartoes_oob(html: str) -> str | None:
+    achado = re.search(r'<div\b[^>]*\bid="contas-sites"[^>]*>', html)
+    if achado is None:
+        return None
+    assert 'hx-swap-oob="outerHTML:#contas-sites"' in achado[0]
+    return html[achado.start() :]
+
+
+def _botao_de_login(html: str) -> str:
+    botao = re.search(rf'<button\b[^>]*hx-post="{LOGIN_DO_SITE}"[^>]*>', html)
+    assert botao is not None, "sem o botão Fazer login agora"
+    return botao[0]
+
+
+def test_baixar_no_assistente_liga_o_login_dos_cartoes(painel: Painel) -> None:
+    painel.navegador(None)
+    with TestClient(painel.app, base_url=BASE) as http:
+        painel.post(BAIXAR, http)
+        assert _esperar(lambda: len(painel.abertos) == 1)
+        painel.no_disco = "chromium"
+        painel.processo.liberar.set()
+        assert _esperar(lambda: painel.resultado() == "pronto")
+        final = http.get(NAVEGADOR, headers=ASSISTENTE)
+        assert final.status_code == 200
+        oob = _cartoes_oob(final.text)
+        assert oob is not None, "a resposta final não trouxe os cartões"
+        botao = _botao_de_login(oob)
+        assert "disabled" not in botao.replace("hx-disabled-elt", "")
+        assert "aria-describedby" not in botao
+        assert 'id="contas-sem-navegador"' not in oob
+        # controle: na aba Ferramentas não há cartões para trocar
+        assert _cartoes_oob(http.get(NAVEGADOR, headers=NA_ABA).text) is None
+
+
+def test_remover_no_assistente_desliga_o_login_dos_cartoes(painel: Painel) -> None:
+    painel.navegador("chromium")
+    with TestClient(painel.app, base_url=BASE) as http:
+        painel.post(REMOVER, http)
+        assert _esperar(lambda: len(painel.abertos) == 1)
+        painel.no_disco = None
+        painel.processo.liberar.set()
+        assert _esperar(lambda: painel.resultado() == "removido")
+        oob = _cartoes_oob(http.get(NAVEGADOR, headers=ASSISTENTE).text)
+        assert oob is not None, "a resposta final não trouxe os cartões"
+        botao = _botao_de_login(oob)
+        assert re.search(r"\sdisabled[\s>]", botao)
+        assert 'aria-describedby="contas-sem-navegador"' in botao
+        frase = re.search(r'<p\b[^>]*\bid="contas-sem-navegador"[^>]*>([^<]*)</p>', oob)
+        assert frase is not None and "baixe o navegador acima" in frase[1]

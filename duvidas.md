@@ -2992,6 +2992,8 @@ Do item 2 (T305 h), aceito e documentado. Sem JavaScript, o detalhe sobreposto f
 - **B (recomendada).** Sem o cabeçalho `HX-Request`, responder 303 para `/configuracoes/sites-com-login` com um aviso do tipo "salvo", como os outros formulários do painel.
 - **C.** Sem `HX-Request`, renderizar a página inteira do grupo já com o resultado.
 
+**Escolha do redator (T310, para confirmar):** sem JavaScript, o sucesso volta para `/configuracoes/sites-com-login?salvo=1` e a falha volta com `?erro=em_andamento` ou `?erro=esquecer`, como a tela de serviços faz com `?erro=cofre`. Com HTMX o fragmento segue igual.
+
 **Recomendação:** B, numa tarefa própria (T310): segue o padrão dos outros formulários e só muda a resposta sem `HX-Request`; com HTMX continua o fragmento.
 
 **O que o dono faz:** confirmar a B ou escolher outra. Nada a fazer na máquina.
@@ -2999,3 +3001,24 @@ Do item 2 (T305 h), aceito e documentado. Sem JavaScript, o detalhe sobreposto f
 **Como desfazer:** antes de construir, trocar a escolha aqui e na T310. Depois, voltar a resposta sem `HX-Request` para o fragmento e os dois testes para 200. Nenhum dado muda.
 
 **Ver também:** D163, T307, T310.
+
+## D166. Sem navegador, os botões que abrem o navegador ficam desabilitados (para confirmar)
+
+**Status:** para confirmar. Decidido pela sessão, com o dono fora.
+
+**Contexto:** o desenho 5.7 pede que, sem navegador (nem o Google Chrome nem o Chromium do Playwright), os botões que abrem o navegador fiquem desabilitados. A lista da T275 no plano não trazia esse item, e a revisão da T275 o achou faltando. Antes, "Fazer login agora" ficava ativo e só depois de clicado dizia "Nenhum navegador encontrado".
+
+**Escolhas:**
+
+- **A.** Deixar o botão ativo e explicar a falta só depois do clique, como antes.
+- **B (recomendada).** Desabilitar o botão quando não há navegador, com `aria-describedby` na frase que explica a falta.
+
+**Escolha do redator (T275, para confirmar):** B. Na aba Contas, o botão aponta para a frase de sempre, "Nenhum navegador encontrado. Instale o Google Chrome ou baixe o navegador em Ferramentas.", que ganha o `id` `contas-sem-navegador`. No passo dos sites do assistente, que não leva a Ferramentas, uma frase nova com o mesmo `id`: "Sem navegador, o botão Fazer login agora fica desligado: baixe o navegador acima ou instale o Google Chrome." O cartão sabe do navegador por conta própria, então a regra vale na página, no fim do login e nos cartões que o "Esquecer logins" devolve. O "Conferir agora" da T277 segue a mesma regra.
+
+**Recomendação:** B. Um botão que não pode funcionar não deve parecer que funciona, e a frase diz o que fazer.
+
+**O que o dono faz:** confirmar a B ou escolher outra. Nada a fazer na máquina.
+
+**Como desfazer:** tirar o `disabled` e o `aria-describedby` de `_cartao_site_login.html` e a frase nova do assistente, e inverter `test_sem_navegador_o_botao_de_login_fica_desligado` e `test_passo_sites_sem_navegador_desliga_o_login`. Nenhum dado muda.
+
+**Ver também:** T275, T277, D137.8.

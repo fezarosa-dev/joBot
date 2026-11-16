@@ -61,7 +61,7 @@ class Escopo:
 class Cartao:
     chave: str
     ligada: bool
-    com_login: bool  # liga e desliga só em Configurações > Sites com login (aviso de risco)
+    com_login: bool  # liga e desliga só em Configurações > Contas (aviso de risco)
     estado: str
     motivo: str | None
     tem_execucao: bool
@@ -252,7 +252,7 @@ async def listar(request: Request, con: Con) -> HTMLResponse:
 
 def _ligar(con: sqlite3.Connection, chave: str, ligada: bool) -> RedirectResponse:
     if any(f.chave == chave and f.com_login for f in fontes(con)):
-        raise HTTPException(422, "site com login liga em Configurações > Sites com login")
+        raise HTTPException(422, "site com login liga em Configurações > Contas")
     try:
         ligar_fonte(con, chave, ligada)
     except LookupError as erro:
