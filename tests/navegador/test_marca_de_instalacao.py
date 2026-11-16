@@ -7,13 +7,12 @@ o `caminho_do_navegador` procura a marca.
 from pathlib import Path
 
 import pytest
-from playwright.async_api import async_playwright
+from playwright.async_api import Playwright
 
 pytestmark = [pytest.mark.tela, pytest.mark.anyio]
 
 
-async def test_chromium_do_playwright_tem_a_marca() -> None:
-    async with async_playwright() as playwright:
-        executavel = Path(playwright.chromium.executable_path)
+async def test_chromium_do_playwright_tem_a_marca(playwright_da_sessao: Playwright) -> None:
+    executavel = Path(playwright_da_sessao.chromium.executable_path)
     assert executavel.exists()
     assert (executavel.parents[1] / "INSTALLATION_COMPLETE").exists()
