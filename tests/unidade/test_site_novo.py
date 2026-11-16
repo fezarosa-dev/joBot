@@ -3,6 +3,7 @@
 import hashlib
 import importlib.util
 import json
+import re
 from collections.abc import Iterable
 from pathlib import Path
 from types import ModuleType
@@ -12,6 +13,7 @@ from jobot.nucleo.leitores.registro import leitores
 
 RAIZ = Path(__file__).resolve().parents[2]
 GUIA = "docs/site-novo.md"
+_ANCORA = re.compile(r"\.md#([a-z0-9-]+)")
 
 
 def _carregar() -> ModuleType:
@@ -126,6 +128,26 @@ def test_faltas_acha_site_sem_nome_no_catalogo(tmp_path: Path) -> None:
     assert "fonte.site_x" in sem_en and "en/comum.json" in sem_en, achadas
     assert "fonte.site_y_logado" in sem_pt and "pt/comum.json" in sem_pt, achadas
     assert all(f"{GUIA}#copiar" in a for a in achadas), achadas
+
+
+def test_ancoras_citadas_pelas_faltas_existem_no_guia(tmp_path: Path) -> None:
+    """A falta manda o leitor para uma seção do guia: a seção tem de existir, nas duas línguas."""
+    _arvore(tmp_path)
+    (tmp_path / "tests/unidade/coletores/test_site_x.py").unlink()
+    (tmp_path / "tests/unidade/test_leitor_site_y.py").unlink()
+    for lingua in ("pt", "en"):
+        (tmp_path / f"src/jobot/painel/i18n/{lingua}/comum.json").write_text("{}", "utf-8")
+    citadas = {
+        a
+        for falta in faltas(tmp_path, ["site_x"], ["site_y_logado"])
+        for a in _ANCORA.findall(falta)
+    }
+    assert citadas == {"copiar", "login"}, citadas
+    for caminho in (GUIA, GUIA.replace(".md", ".en.md")):
+        arquivo = RAIZ / caminho
+        assert arquivo.is_file(), f"{caminho} não existe"
+        ancoras = set(re.findall(r'<a id="([a-z0-9-]+)"></a>', arquivo.read_text("utf-8")))
+        assert citadas <= ancoras, f"{caminho}: faltam as âncoras {sorted(citadas - ancoras)}"
 
 
 def test_moldes_ficam_fora_do_registro() -> None:

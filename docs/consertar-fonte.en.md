@@ -5,7 +5,9 @@
 A source is a job site that joBot reads. Each source has a **collector**: a code file that knows how to ask the site for jobs and understand the answer. When the site changes its format without warning, the collector stops understanding it and the source "breaks". This guide shows, step by step, how to find what changed and fix it. The example is Greenhouse, the project's first collector (`src/jobot/nucleo/coletores/plataformas/greenhouse.py`).
 
 > [!IMPORTANT]
-> joBot is still in development. To work on the code, clone the repository and run `uv sync` inside it ([`uv`](https://docs.astral.sh/uv/) installs Python 3.14 and the dependencies). Code pull requests are only accepted after the release (phase 8), and the workflow in section 7 applies from then on; see the [contributing guide](../.github/CONTRIBUTING.en.md). Until then, a fix can become an issue with what you found.
+> joBot is still in development. To work on the code, clone the repository and run `uv sync` inside it ([`uv`](https://docs.astral.sh/uv/) installs Python 3.14 and the dependencies). Code pull requests are only accepted after the release (phase 9), and the workflow in section 7 applies from then on; see the [contributing guide](../.github/CONTRIBUTING.en.md). Until then, a fix can become an issue with what you found.
+
+Want to add a site joBot does not read yet? See [How to add a new site](site-novo.en.md).
 
 <a id="saber-qual"></a>
 ## 1. How to tell which source broke
