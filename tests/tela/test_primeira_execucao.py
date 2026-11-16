@@ -74,12 +74,71 @@ def test_fluxo_completo_vai_do_passo_1_ao_fim_e_para_nos_destaques(
     assert erros == []
 
 
-def test_pular_o_passo_1_segue_sem_resumo(page: Page, painel: str) -> None:
+def test_pular_o_passo_1_vai_direto_as_vagas(page: Page, painel: str) -> None:
     page.goto(f"{painel}/primeira-execucao/1")
     page.get_by_role("button", name="Pular").click()
-    expect(page).to_have_url(f"{painel}/primeira-execucao/2")
-    expect(page.get_by_role("heading", name="Segundo plano")).to_be_visible()
-    expect(page.locator("[data-resumo]")).to_have_count(0)
+    expect(page).to_have_url(re.compile(r"/vagas(\?.*)?$"))
+    page.goto(f"{painel}/")  # concluído: a raiz não volta ao assistente
+    expect(page).to_have_url(re.compile(r"/vagas(\?.*)?$"))
+
+
+def test_pular_no_passo_2_vai_as_vagas_sem_ligar_o_segundo_plano(
+    page: Page, painel: str, sistema: FalsoSistema
+) -> None:
+    page.goto(f"{painel}/primeira-execucao/1")
+    _passo_1(page)
+    expect(page).to_have_url(re.compile(r"/primeira-execucao/2\?busca=\d+$"))
+    page.get_by_role("button", name="Pular").click()
+    expect(page).to_have_url(re.compile(r"/vagas(\?.*)?$"))
+    assert all(c[0] != "enable" for c in sistema.systemctl())
+
+
+def test_voltar_do_passo_2_leva_ao_passo_1(page: Page, painel: str) -> None:
+    page.goto(f"{painel}/primeira-execucao/1")
+    _passo_1(page)
+    page.get_by_role("link", name="Voltar ao passo 1").click()
+    expect(page).to_have_url(re.compile(r"/primeira-execucao/1(\?.*)?$"))
+
+
+def _pe_dentro_da_janela(page: Page, nomes: tuple[str, ...]) -> None:
+    for nome in nomes:
+        botao = page.get_by_role("button", name=nome).or_(page.get_by_role("link", name=nome))
+        expect(botao).to_be_in_viewport()
+        caixa = botao.bounding_box()
+        assert caixa is not None and caixa["y"] + caixa["height"] <= 560
+    assert page.evaluate("document.documentElement.scrollHeight <= window.innerHeight")
+
+
+@pytest.mark.parametrize("texto", ["16px", "24px"])
+@pytest.mark.parametrize("passo", ["1", "sites", "2"])
+def test_botoes_visiveis_com_janela_baixa(
+    page: Page, painel: str, app_painel: FastAPI, tmp_path: Path, texto: str, passo: str
+) -> None:
+    """Janela de 560px e texto maior, com tudo marcado: o pé (Continuar, Pular, Voltar) fica na
+    janela e só o corpo do passo rola."""
+    leitor = LeitorFalso(base="http://127.0.0.1:9")
+    with closing(abrir(tmp_path / "jobot.db")) as con:
+        cadastros.semear_leitores(con, [leitor])
+    app_painel.state.leitores = (leitor,)
+    app_painel.state.navegador_instalado = "chrome"
+    page.set_viewport_size({"width": 1024, "height": 560})
+    page.goto(f"{painel}/primeira-execucao/{passo}")
+    page.evaluate(f"document.documentElement.style.fontSize = '{texto}'")
+    caixas = page.locator("#assistente-form input[type=checkbox]")
+    for i in range(caixas.count()):
+        caixas.nth(i).check()
+    nomes = {"1": ("Continuar", "Pular"), "sites": ("Continuar", "Pular", "Voltar")}.get(
+        passo, ("Concluir", "Pular", "Voltar")
+    )
+    _pe_dentro_da_janela(page, nomes)
+    corpo = page.locator(".assistente-corpo")
+    if texto == "24px":  # o corpo rola e o pé continua à vista
+        if (
+            passo == "1"
+        ):  # só o passo mais longo tem conteúdo de sobra; nos outros o corpo pode caber
+            assert corpo.evaluate("el => el.scrollHeight > el.clientHeight")
+        corpo.evaluate("el => { el.scrollTop = el.scrollHeight; }")
+        _pe_dentro_da_janela(page, nomes)
 
 
 def test_salario_invalido_mostra_o_aviso_e_guarda_o_que_foi_digitado(
