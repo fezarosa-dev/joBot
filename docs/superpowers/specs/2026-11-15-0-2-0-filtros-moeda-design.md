@@ -20,7 +20,7 @@ O que o dono decidiu (D107):
 - a moeda do valor convertido escolhida entre 11: BRL, USD, EUR, GBP, CAD, AUD, CHF, JPY, SEK, NOK, DKK (o real e as 10 que o Banco Central já fornece; sem fonte nova);
 - "Meu país" em Configurações define o país padrão das buscas sem cidade e a moeda padrão; o idioma do painel continua à parte.
 
-"Por competência" hoje é a área e as palavras. Competências por IA e mudança nas regras de rótulo ficam para a fase 3 (D108).
+"Por competência" hoje é a área e as palavras. Competências por IA e mudança nas regras de rótulo ficam para a fase 3 (D108). (Numeração antiga das fases; a atual está na [ADR 0017](../../decisions/0017-fases.md).)
 
 ## 2. Objetivos, não objetivos e anti-objetivos
 
@@ -38,7 +38,7 @@ Não objetivos (ficam como estão)
 - A descoberta automática de quadros continua pelo critério do Brasil: `_no_brasil_ou_remota` aceita a vaga remota ou com local no Brasil (`nucleo/coletores/descoberta_cc.py:228-230`). Com Meu país diferente de BR ela sugere quadros pelo critério do Brasil. Fica para depois: o construtor registra uma D no `duvidas.md` ("descoberta pelo Meu país"), sem código na 0.2.0.
 - O país de reserva dos coletores quando nenhuma busca ativa manda país (o "testar" do painel) continua o deles: `_PADRAO` do Workday, do Oracle e do Eightfold (`nucleo/coletores/plataformas/workday.py:41`, `oracle_hcm.py:46`, `eightfold.py:64`) e o `ctx.paises` vazio do Amazon, que vira `["BR"]` (`nucleo/coletores/carreiras/amazon.py:168`). Com busca ativa eles já recebem o `ctx.paises`, que passa a vir do Meu país (parte G).
 - O formulário de buscas e a primeira execução continuam oferecendo BRL e as 10 do PTAX (`painel/rotas/buscas.py:36`, `painel/rotas/primeira_execucao.py:223`).
-- Moeda fora das 11, outra fonte de câmbio, filtro por competência com IA (fase 3, D108).
+- Moeda fora das 11, outra fonte de câmbio, filtro por competência com IA (fase 3, D108). (Numeração antiga das fases; a atual está na [ADR 0017](../../decisions/0017-fases.md).)
 - Sem chips novos para cidade e empresa (são caixas de texto).
 
 Anti-objetivos (o que a 0.2.0 não pode fazer)
