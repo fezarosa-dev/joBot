@@ -168,7 +168,8 @@
   "configuracoes.contas.gmail.erro.endereco": "Enter an email address, like name@gmail.com.",
   "configuracoes.contas.gmail.erro.senha": "An app password has 16 letters. Copy it again from the Google page.",
   "configuracoes.contas.gmail.erro.recusada": "Google refused the password. Check the address or create a new app password.",
-  "configuracoes.contas.gmail.erro.cofre": "The system password vault did not respond. The password was not saved.",
+  "configuracoes.contas.gmail.erro.cofre": "The system password vault did not respond.",
+  "configuracoes.contas.gmail.erro.nao_apagou": "The password was not removed. Try again.",
   "configuracoes.contas.gmail.nao_guardou": "The password was not saved.",
   "configuracoes.contas.gmail.no_arquivo": "No system password vault: the password is in a file only your user can read."
 }
