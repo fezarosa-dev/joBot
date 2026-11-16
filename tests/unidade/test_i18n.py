@@ -243,3 +243,31 @@ def test_menu_e_interruptor_da_lista_de_buscas(idioma: str) -> None:
     assert "{nome}" in rotulo
     # nome do interruptor identifica o item; o estado vem do checked (nada de verbo fixo)
     assert not rotulo.startswith(("Ligar", "Turn", "Desligar"))
+
+
+@pytest.mark.parametrize("idioma", ["pt", "en"])
+def test_alerta_de_remover_site_e_fontes_em_caixa_de_marcar(idioma: str) -> None:
+    """T261: o alerta do site usa o molde da T259 e o rótulo comum; a pergunta em dois cliques e
+    o botão solto "Remover" da Sites saíram. A caixa de marcar das Fontes tem rótulo sem verbo
+    (o estado vem do `checked`), e em inglês botão, menu e título vão em Title Case."""
+    catalogo = i18n.carregar()[idioma]
+    for velha in ("sites.remover", "sites.remover_aviso", "sites.remover_confirmar"):
+        assert velha not in catalogo
+    esperado = {
+        "pt": {
+            "sites.remover_titulo": "Remover o site «{nome}»?",
+            "sites.remover_texto": "O texto guardado e as mudanças dele serão apagados.",
+            "sites.menu.remover": "Remover…",
+            "fontes.liga_rotulo": "Ligada",
+        },
+        "en": {
+            "sites.remover_titulo": 'Remove the Site "{nome}"?',
+            "sites.remover_texto": "Its saved text and changes will be deleted.",
+            "sites.menu.remover": "Remove…",
+            "fontes.liga_rotulo": "On",
+        },
+    }[idioma]
+    assert {chave: catalogo.get(chave) for chave in esperado} == esperado
+    assert catalogo["sites.remover_titulo"].endswith("?")
+    assert catalogo["sites.menu.rotulo"].strip()
+    assert catalogo["fontes.ligar"] and catalogo["fontes.desligar"]  # o <noscript> ainda usa

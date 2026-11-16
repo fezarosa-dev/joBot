@@ -21,6 +21,7 @@
   "fontes.escopos": "Escopos ({n})",
   "fontes.ligar": "Ligar",
   "fontes.desligar": "Desligar",
+  "fontes.liga_rotulo": "Ligada",
   "fontes.ligar_em_sites_com_login": "Ligue e desligue em Configurações › Sites com login",
   "fontes.reportar": "Reportar problema",
   "fontes.reportar_aviso": "Ao clicar, o GitHub abre com a fonte ({fonte}) e o motivo ({motivo}) já preenchidos."
