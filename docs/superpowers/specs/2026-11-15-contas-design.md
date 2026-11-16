@@ -1,6 +1,6 @@
 # Contas, o estado do login de cada site: desenho
 
-Data: 2026-11-15. Decisões de origem: ADR 0005 (sites com login), ADR 0013 (avisos), ADR 0022 (CAPTCHA pelo serviço da pessoa), ADR 0023 (tudo pelo painel), o desenho da fase 2 (`docs/superpowers/specs/2026-11-15-fase-2-design.md`, D132), o login pela janela comum (D136) e as respostas do dono de 2026-11-15. As decisões novas ficam em `duvidas.md` como D139.
+Data: 2026-11-15. Decisões de origem: ADR 0005 (sites com login), ADR 0013 (avisos), ADR 0024 (Gmail por senha de app), ADR 0022 (CAPTCHA pelo serviço da pessoa), ADR 0023 (tudo pelo painel), o desenho da fase 2 (`docs/superpowers/specs/2026-11-15-fase-2-design.md`, D132), o login pela janela comum (D136) e as respostas do dono de 2026-11-15. As decisões novas ficam em `duvidas.md` como D139.
 
 Este documento é a especificação para planejar e construir o lote "Contas" sem voltar ao dono. Todo fato sobre o código vem com `arquivo:linha`, conferido na árvore da `dev` em 2026-11-15. As linhas podem andar: quando a linha não bater, procure pelo nome. As lições de `registros/padroes.md` são citadas pelo rótulo, como `padroes.md («Esquema»)`.
 
@@ -26,7 +26,7 @@ Objetivos
 
 Não objetivos
 
-- Gmail na aba Contas: chega na fase 6, com o OAuth (ADR 0013).
+- Leitura dos e-mails do Gmail: fica na fase 6. O cartão do Gmail na aba Contas, sem a leitura, entra neste lote, com senha de app e IMAP (R2 do dono, ADR 0024, D145).
 - Claude Code e Codex na aba Contas: chegam na fase 4, com o estado vindo da própria ferramenta (ADR 0010 e D125).
 - Outros sites com login além do LinkedIn: cada um entra pela Parte B da fase 2 (D132). O desenho serve para qualquer leitor de `LEITORES` sem mudança.
 - Visitas para manter a sessão viva (D139.7). O perfil persistente guarda a sessão; se ela cai, o aviso da D139.5 dispara.
@@ -276,6 +276,19 @@ Fora da aba
 
 - `fontes/pagina.html:73`: o link vai para `/configuracoes/contas`, e o texto de `fontes.ligar_em_sites_com_login` passa a "Ligue e desligue em Configurações › Contas" / "Turn on and off in Settings › Accounts" (D139.28).
 - O passo `/primeira-execucao/sites` da T241 mantém o título "Sites com login (opcional)" e os mesmos cartões, agora com o estado (D139.27). O assistente fala de sites; a aba fala de contas porque vai juntar outras coisas.
+
+### 5.7.1 Cartão do Gmail
+
+Entra na aba Contas junto com os cartões dos sites (ADR 0024, D145). É uma decisão do dono (R2); os nomes e os estados abaixo são escolhas da sessão, na D145.
+
+- Campos: o endereço do Gmail e a senha de app. A senha é campo de senha e nunca é mostrada de volta: depois de salva, o cartão diz só que há uma senha guardada. Os dois valores vão para o cofre (`gmail_conta` e `gmail_senha_de_app`). O joBot tira os espaços da senha colada.
+- "Conferir agora": entra por IMAP em `imap.gmail.com`, porta 993, SSL, com a biblioteca padrão, e abre a caixa de entrada só para leitura. Não lê nem grava mensagem. O intervalo mínimo de 10 minutos entre conferências (D139) vale também aqui.
+- Estados, os mesmos dos sites com login (D139): "Conectado", "Precisa entrar de novo", "Nunca entrou" e "Não deu para conferir". Login recusado pelo Google (`AUTHENTICATIONFAILED`) é "Precisa entrar de novo", o que também acontece quando a pessoa troca a senha da conta Google e o Google revoga as senhas de app. Falha de rede é "Não deu para conferir".
+- (decisão da sessão) O Gmail segue as mesmas regras de faixa do topo e de aviso `notify-send` dos sites (seções 5.1 e 5.6): só abrem depois de uma conferência que deu certo (`entrou_em` preenchido).
+- (decisão da sessão) Ao salvar, o painel testa o login antes de guardar: senha recusada não é guardada, o cartão fica em "Nunca entrou" e a mensagem aparece embaixo do campo.
+- O cartão linka para o tutorial da wiki (`Gmail-senha-de-app` e `Gmail-app-password`), com os links oficiais do Google e o aviso de quem não consegue senha de app (conta de trabalho ou escola, Proteção Avançada, verificação em duas etapas só com chaves de segurança).
+- Só contas Google (R3). A leitura dos e-mails continua na fase 6; este lote só confere o login.
+- Texto novo nos catálogos `pt` e `en`, como o resto da aba.
 
 ### 5.8 Textos (i18n)
 

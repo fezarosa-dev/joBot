@@ -18,7 +18,7 @@ Estas decisões vieram de 9 rodadas de perguntas e respostas feitas em 2026-11-1
 | 0010 | [Usar o Claude Code que a pessoa já tem (sem login dentro do joBot)](0010-claude-code-da-pessoa.md) | aceita |
 | 0011 | [Perfil, currículo, primeira execução e áudio](0011-perfil-e-primeira-execucao.md) | aceita |
 | 0012 | [Extensão do navegador](0012-extensao-do-navegador.md) | aceita |
-| 0013 | [Gmail e avisos](0013-gmail-e-avisos.md) | aceita |
+| 0013 | [Gmail e avisos](0013-gmail-e-avisos.md) | aceita (acesso ao Gmail substituído pela 0024) |
 | 0014 | [Segurança e privacidade](0014-seguranca-e-privacidade.md) | aceita |
 | 0015 | [Treino de modelos (fase 7)](0015-treino.md) | aceita |
 | 0016 | [Licença, sala limpa e processo de trabalho](0016-licenca-clean-room-e-processo.md) | aceita |
@@ -29,11 +29,12 @@ Estas decisões vieram de 9 rodadas de perguntas e respostas feitas em 2026-11-1
 | 0021 | [Sem Dependabot: atualização de dependência à mão](0021-sem-dependabot.md) | aceita |
 | 0022 | [CAPTCHA resolvido pelo serviço que a pessoa liga](0022-captcha-pelo-servico-da-pessoa.md) | aceita |
 | 0023 | [Tudo pelo painel](0023-tudo-pelo-painel.md) | aceita |
+| 0024 | [Gmail por senha de app](0024-gmail-por-senha-de-app.md) | aceita |
 
 ## Como registrar uma nova decisão
 
 1. Copie o formato de uma ADR existente.
-2. Use o próximo número livre, com quatro dígitos, e um nome de arquivo curto (por exemplo, `0023-assunto.md`).
+2. Use o próximo número livre, com quatro dígitos, e um nome de arquivo curto (por exemplo, `0025-assunto.md`).
 3. Comece com o status `proposta`. Quando a decisão for confirmada, mude para `aceita`. Se outra decisão a trocar, mude para `substituída por NNNN`, com o número da nova.
 4. Acrescente a linha na tabela acima.
 
