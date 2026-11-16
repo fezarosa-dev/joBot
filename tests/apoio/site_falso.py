@@ -22,7 +22,7 @@ from typing import Any
 from urllib.parse import parse_qs, urljoin, urlsplit
 
 import pytest
-from playwright.async_api import BrowserContext, Route, async_playwright
+from playwright.async_api import BrowserContext, Playwright, Route
 from selectolax.lexbor import LexborHTMLParser
 
 from apoio.relogio import RelogioFalso
@@ -243,7 +243,8 @@ class SiteFalso:
         for classe, host in ((ThreadingHTTPServer, "127.0.0.1"), (Servidor6, "::1")):
             servidor = classe((host, 0), Tratador)
             servidor.daemon_threads = True
-            linha = threading.Thread(target=servidor.serve_forever, daemon=True)
+            # volta curta: o `shutdown` espera uma volta inteira (0,5 s no padrão) por servidor
+            linha = threading.Thread(target=servidor.serve_forever, args=(0.02,), daemon=True)
             linha.start()
             self._servidores.append(servidor)
             self._linhas.append(linha)
@@ -343,8 +344,8 @@ class SiteFalso:
                 return _Resposta(corpo=_pagina("Vagas", corpo))
             case "/lista-html":
                 return _Resposta(corpo=_pagina("Vagas", _lista_html([1, 2])))
-            case "/lista-25":  # 25 vagas numa página só (teto de páginas de vaga, T214)
-                return _Resposta(corpo=_pagina("Vagas", _lista_html(list(range(1, 26)))))
+            case "/lista-5":  # 5 vagas numa página só (teto de páginas de vaga, T214)
+                return _Resposta(corpo=_pagina("Vagas", _lista_html(list(range(1, 6)))))
             case "/paginada":
                 proxima = "/paginada?p=2" if pagina == 1 else None
                 ids = [1, 2] if pagina == 1 else [3, 4]
@@ -651,7 +652,9 @@ def politica_local() -> Politica:
 
 
 @pytest.fixture
-async def contexto_de_teste(tmp_path: Path) -> AsyncIterator[BrowserContext]:
+async def contexto_de_teste(
+    tmp_path: Path, playwright_da_sessao: Playwright
+) -> AsyncIterator[BrowserContext]:
     """Navegador sem tela pelo `lancar` injetado, com a rota que recusa tudo fora do loopback."""
     recusados: list[str] = []
 
@@ -662,16 +665,15 @@ async def contexto_de_teste(tmp_path: Path) -> AsyncIterator[BrowserContext]:
             recusados.append(route.request.url)
             await route.abort()
 
-    async with async_playwright() as playwright:
+    async def lancar(**argumentos: Any) -> BrowserContext:
+        argumentos.pop("channel", None)  # sempre o Chromium do Playwright, igual no CI
+        chromium = playwright_da_sessao.chromium
+        return await chromium.launch_persistent_context(**argumentos, headless=True)
 
-        async def lancar(**argumentos: Any) -> BrowserContext:
-            argumentos.pop("channel", None)  # sempre o Chromium do Playwright, igual no CI
-            return await playwright.chromium.launch_persistent_context(**argumentos, headless=True)
-
-        contexto = await abrir_contexto(tmp_path, {"DISPLAY": ":0"}, lancar)
-        await contexto.route("**/*", filtrar)
-        try:
-            yield contexto
-        finally:
-            await contexto.close()
+    contexto = await abrir_contexto(tmp_path, {"DISPLAY": ":0"}, lancar)
+    await contexto.route("**/*", filtrar)
+    try:
+        yield contexto
+    finally:
+        await contexto.close()
     assert recusados == [], f"pedido para fora do loopback: {recusados}"

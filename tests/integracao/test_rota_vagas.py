@@ -2,8 +2,6 @@
 
 import json
 import re
-import time
-from collections.abc import Iterator
 from contextlib import closing
 from datetime import timedelta
 from html import unescape
@@ -1455,16 +1453,7 @@ def test_vazio_tem_buscar_vagas(
     assert 'role="listbox"' not in html
 
 
-@pytest.fixture
-def fuso_sao_paulo(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    monkeypatch.setenv("TZ", "America/Sao_Paulo")
-    time.tzset()
-    yield
-    monkeypatch.undo()  # volta o TZ antes do tzset: sem isso o fuso vaza para os outros testes
-    time.tzset()
-
-
-@pytest.mark.usefixtures("fuso_sao_paulo")
+@pytest.mark.usefixtures("fuso_de_sao_paulo")
 def test_data_de_coleta_na_linha_e_o_dia_local(painel: Painel) -> None:
     """Vista às 01:00Z de 16/11 = 22:00 de 15/11 em Brasília: a linha mostra 15/11."""
     vaga = painel.semear_mais(publicada_em=None, primeira_vista_em="2026-11-16T01:00:00+00:00")

@@ -77,7 +77,7 @@ Anti-objetivos
   - de Nova para Salva grava `salvou`;
   - o resto grava `mudou_status`;
   - status igual não grava nada.
-- `_trocar_status` atualiza `status` e `status_em` e grava o evento com `de` e `para` (`acoes.py:73-79`). Os degraus estão em `_DEGRAU` (`acoes.py:20`).
+- `_trocar_status` atualiza `status` e `status_em` e grava o evento com `de` e `para` (`acoes.py:73-79`). Os degraus estão em `DEGRAU` (`acoes.py:20`).
 - A rota `POST /vagas/{vaga_id}/status` chama a ação (`vagas.py:521-531`). O detalhe e a linha da lista montam os botões de próximo passo e de desfazer pelo mapa `proximos` e `anterior` (`detalhe/pagina.html:7-8,55-65`, `vagas/corpo.html:7-8,68-77`).
 
 **Candidatar-se.**
@@ -166,7 +166,7 @@ Anti-objetivos
 
 - Sem esquema novo. Uma função nova em `banco/leitura.py`, `datas_dos_passos(con, vaga_id) -> Mapping[str, str]`, lê o histórico da vaga em `evento` (D147.12).
 - Regra: para cada passo (`salva`, `candidatei`, `entrevista`, `oferta`, `recusada`), vale o `criado_em` do último evento com `para` igual ao passo e `acao IN ('salvou','mudou_status')`.
-- Só entram os passos até o status atual pelo caminho Nova, Salva, Candidatei, Entrevista e depois Oferta ou Recusada (`_DEGRAU`, `acoes.py:20`).
+- Só entram os passos até o status atual pelo caminho Nova, Salva, Candidatei, Entrevista e depois Oferta ou Recusada (`DEGRAU`, `acoes.py:20`).
 - Oferta e Recusada valem o mesmo degrau, e `mudar_status` vai de uma para a outra com `mudou_status` (`acoes.py:82-100`). Do par, só o passo atual entra no caminho: com status Recusada, uma Oferta anterior não aparece, e vice-versa. O histórico completo continua em `evento`.
 - Passo pulado (de Nova direto para Candidatei, por exemplo) não tem data e não aparece.
 - Passo desfeito e não refeito fica fora, porque está acima do status atual.

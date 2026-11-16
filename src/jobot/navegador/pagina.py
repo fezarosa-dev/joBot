@@ -47,7 +47,9 @@ class Ouvidas(list[RespostaCapturada]):
         self.ultimas: dict[str, Response] = {}  # última resposta por URL, de qualquer host
         # shortcut: não separa documento de XHR; um fetch à mesma URL depois do documento troca o
         # status lido. Separar por `request.resource_type` se um site real fizer isso (o
-        # test_navegador_ast recusa `request` e `resource_type` hoje).
+        # test_navegador_ast recusa `request` e `resource_type` hoje). O limite vale também no
+        # caminho comum de visitar: a releitura da T292 usa `ultimas[url atual]`; separar documento
+        # de XHR é decisão R4 se um site real fizer fetch à própria URL.
         self.pedidos = 0
         self.respondidos = 0
         self._lendo: set[asyncio.Task[None]] = set()
@@ -252,13 +254,16 @@ async def _uma_vez(
     status = resposta.status if resposta is not None else 0
     if parada := await _fora_ou_login(page, leitor, politica, status):
         return _parou(parada, page.url)
-    if await _e_cloudflare(page):
+    desafio = await _e_cloudflare(page)
+    if desafio:
         for _ in range(limites.ESPERA_CLOUDFLARE_S):
             await relogio.dormir(1)
             if not await _e_cloudflare(page):
                 break
         else:
             return _parou("captcha", page.url)  # não saiu sozinho: sem 2Captcha (A8)
+    # o desafio pode sair sozinho antes da primeira olhada: vale também o documento que trocou
+    if desafio or ouvidas.ultimas.get(urldefrag(page.url).url, resposta) is not resposta:
         await page.wait_for_load_state("load")
         # o status e o Retry-After da nova; page.url traz o #, a resposta não
         resposta = ouvidas.ultimas.get(urldefrag(page.url).url, resposta)

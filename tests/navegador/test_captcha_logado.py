@@ -17,7 +17,7 @@ from urllib.parse import urlsplit
 
 import httpx
 import pytest
-from playwright.async_api import BrowserContext, Page, Route, async_playwright
+from playwright.async_api import BrowserContext, Page, Playwright, Route
 from playwright.async_api import Error as ErroDoPlaywright
 from playwright.async_api import TimeoutError as EstouroDoPlaywright
 
@@ -155,7 +155,7 @@ class LeitorFixo(LeitorFalso):
 
 
 @pytest.fixture
-async def lancar() -> AsyncIterator[Lancar]:
+async def lancar(playwright_da_sessao: Playwright) -> AsyncIterator[Lancar]:
     """Navegador sem tela, com a rota que recusa (e conta) tudo fora do loopback."""
     recusados: list[str] = []
     contextos: list[BrowserContext] = []
@@ -167,22 +167,20 @@ async def lancar() -> AsyncIterator[Lancar]:
             recusados.append(route.request.url)
             await route.abort()
 
-    async with async_playwright() as playwright:
+    async def lancar_sem_tela(**argumentos: Any) -> BrowserContext:
+        argumentos.pop("channel", None)  # sempre o Chromium do Playwright, igual no CI
+        contexto = await playwright_da_sessao.chromium.launch_persistent_context(
+            **argumentos, headless=True
+        )
+        await contexto.route("**/*", filtrar)
+        contextos.append(contexto)
+        return contexto
 
-        async def lancar_sem_tela(**argumentos: Any) -> BrowserContext:
-            argumentos.pop("channel", None)  # sempre o Chromium do Playwright, igual no CI
-            contexto = await playwright.chromium.launch_persistent_context(
-                **argumentos, headless=True
-            )
-            await contexto.route("**/*", filtrar)
-            contextos.append(contexto)
-            return contexto
-
-        try:
-            yield lancar_sem_tela
-        finally:
-            for contexto in contextos:
-                await contexto.close()
+    try:
+        yield lancar_sem_tela
+    finally:
+        for contexto in contextos:
+            await contexto.close()
     assert recusados == [], f"pedido para fora do loopback: {recusados}"
 
 

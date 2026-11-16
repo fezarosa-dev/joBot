@@ -3,8 +3,6 @@
 import html as html_lib
 import importlib
 import re
-import time
-from collections.abc import Iterator
 from contextlib import closing
 from datetime import UTC, datetime
 from pathlib import Path
@@ -70,15 +68,6 @@ class Painel:
 @pytest.fixture
 def painel(tmp_path: Path) -> Painel:
     return Painel(tmp_path)
-
-
-@pytest.fixture
-def fuso_sao_paulo(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    monkeypatch.setenv("TZ", "America/Sao_Paulo")
-    time.tzset()
-    yield
-    monkeypatch.undo()  # volta o TZ antes do tzset: sem isso o fuso vaza para os outros testes
-    time.tzset()
 
 
 FAIXA = r'<section class="[^"]*\bfaixa\b[^"]*".*?</section>'
@@ -364,7 +353,7 @@ def test_correcao_vaga_inexistente_404_valor_invalido_422(painel: Painel) -> Non
     assert painel.sql("SELECT COUNT(*) FROM correcao") == [(0,)]
 
 
-def test_correcao_passa_o_dia_local_como_hoje(painel: Painel, fuso_sao_paulo: None) -> None:
+def test_correcao_passa_o_dia_local_como_hoje(painel: Painel, fuso_de_sao_paulo: None) -> None:
     # 14/11 02:00 UTC é 13/11 23:00 em São Paulo: a cotação vale 7 dias a partir do dia LOCAL
     painel.app.state.relogio = RelogioFalso(datetime(2026, 11, 14, 2, 0, tzinfo=UTC))
     painel.sql("UPDATE cotacao SET data = '2026-11-06', venda = '5.50'")  # 7 dias antes de 13/11

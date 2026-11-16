@@ -39,3 +39,8 @@ PRAZO_CORPOS_S: Final = 10.0
 # Instalador do navegador (T240): o processo do Playwright que baixa ou remove o Chromium.
 PRAZO_BAIXAR_S: Final = 1800  # download do Chromium; 210 MB cabem a 1 Mbit/s (D137.3)
 PRAZO_REMOVER_S: Final = 300  # o uninstall só apaga pastas locais (D137.13)
+# "Conferir agora" (T273, desenho 5.4).
+# shortcut: 429 e Cloudflare longos estouram o prazo e viram sem_rede; rever se a pessoa
+# precisar do motivo certo
+PRAZO_CONFERIR_S: Final = 60
+INTERVALO_CONFERIR_S: Final = 600  # entre dois "Conferir agora" do mesmo site (desenho 5.4)

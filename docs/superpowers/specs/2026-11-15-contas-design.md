@@ -130,7 +130,7 @@ Leitura agendada, a partir do que `site.ir(leitor.url_entrada)` devolve (D139.18
 | `NavegadorFechado` ou `sqlite3.Error` | nada é gravado | — |
 | Sem tela ou sem navegador (`executar_login`, antes de abrir página) | `nao_conferiu` | `sem_tela` ou `sem_navegador` |
 
-(decisão da sessão) O erro do Playwright não é classificado pela mensagem: nada de ler `net::ERR_*`. Todo `ErroDoPlaywright` da entrada que não seja o fechamento da janela (o mesmo teste `_fechou` de `_ler_site`, `src/jobot/navegador/execucao.py:402`) grava `sem_rede`. Qualquer outra exceção grava `erro` e vai para o log com `exc_info` (seção 5.8). `NavegadorFechado` e `sqlite3.Error` seguem o caminho de hoje e não gravam estado. A saúde da leitura continua como hoje (`saude.excecao:<nome>`): a gravação do estado é a mais, não troca a saúde.
+(decisão da sessão) O erro do Playwright não é classificado pela mensagem: nada de ler `net::ERR_*`. Todo `ErroDoPlaywright` da entrada que não seja o fechamento da janela (o mesmo teste `fechou` de `src/jobot/navegador/execucao.py`) grava `sem_rede`. Qualquer outra exceção grava `erro` e vai para o log com `exc_info` (seção 5.8). `NavegadorFechado` e `sqlite3.Error` seguem o caminho de hoje e não gravam estado. A saúde da leitura continua como hoje (`saude.excecao:<nome>`): a gravação do estado é a mais, não troca a saúde.
 
 Na leitura agendada, a entrada passa pela cola do 2Captcha, como hoje (`_Site.ir`). Um CAPTCHA resolvido segue a leitura normal e dá `conectado`.
 
@@ -239,7 +239,7 @@ Espera na tela
 ### 5.6 Aviso no computador, uma vez por queda
 
 - O aviso sai quando a gravação passa o site para "Precisa entrar de novo" (com `entrou_em` preenchido: site que nunca entrou não avisa) e `avisado_em` está nulo. Na mesma instrução, `avisado_em` vira a hora de agora (D139.22).
-- Quem avisa (D139.22): só a leitura (`executar_login`), por `deps.avisar` em `asyncio.to_thread`, como `_Janela.parar` faz hoje (`src/jobot/navegador/execucao.py:267-269`). Título `_TITULO_AVISO` ("joBot"). Frase nova ao lado de `_FRASES_AVISO`, em pt e en, no idioma de `_idioma(con)` (`:117`), com o `{site}` vindo de `leitor.nome`:
+- Quem avisa (D139.22): só a leitura (`executar_login`), por `deps.avisar` em `asyncio.to_thread`, como `_Janela.parar` faz hoje (`src/jobot/navegador/execucao.py:267-269`). Título `TITULO_AVISO` (em `src/jobot/navegador/sessao.py`) ("joBot"). Frase nova ao lado de `_FRASES_AVISO`, em pt e en, no idioma de `_idioma(con)` (`:117`), com o `{site}` vindo de `leitor.nome`:
   - pt: "Sua sessão no {site} caiu. Abra o joBot e entre de novo em Configurações › Contas."
   - en: "Your {site} session ended. Open joBot and sign in again in Settings › Accounts."
 - (decisão da sessão) O "Buscar agora" também roda `executar_login`, com o motivo `agora` (`src/jobot/painel/rotas/execucao.py:128-145`). A leitura avisa seja qual for o motivo: continua uma vez por queda, e o código não precisa saber quem disparou.

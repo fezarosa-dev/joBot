@@ -6,6 +6,7 @@ O fixture `laco_versao_parado` (T85, T104) é pedido só pelas suítes que sobem
 import asyncio
 import os
 import socket
+import time
 from collections.abc import Iterator
 from typing import Any
 
@@ -78,3 +79,13 @@ def laco_versao_parado(monkeypatch: pytest.MonkeyPatch) -> None:
         await asyncio.Event().wait()
 
     monkeypatch.setattr(servir, "laco_versao", parado)
+
+
+@pytest.fixture
+def fuso_de_sao_paulo(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """Roda o teste com TZ=America/Sao_Paulo (dia local, DP8) e devolve o fuso depois."""
+    monkeypatch.setenv("TZ", "America/Sao_Paulo")
+    time.tzset()
+    yield
+    monkeypatch.undo()  # volta o TZ antes do tzset: sem isso o fuso vaza para os outros testes
+    time.tzset()
