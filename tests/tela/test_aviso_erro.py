@@ -372,7 +372,7 @@ def test_carga_e_polling_avisam_mas_nao_insistem_depois_de_fechado(page: Page, p
           htmx.process(main);
         }"""
     )
-    page.wait_for_function("window.pedidos >= 1")
+    page.wait_for_function("() => window.pedidos >= 1")
     expect(regiao).to_contain_text(GENERICO_REDE)  # o pedido de carga avisou
     _fechar(page)
     visto = page.evaluate("window.pedidos")
