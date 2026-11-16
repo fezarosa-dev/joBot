@@ -112,3 +112,15 @@ def test_menu_leva_para_a_tela_e_marca_so_ela(page: Page, painel: str) -> None:
     menu = page.get_by_role("navigation", name="Principal")
     expect(menu.locator("[aria-current=page]")).to_have_count(1)
     expect(menu.get_by_role("link", name="Sugeridas")).to_have_attribute("aria-current", "page")
+
+
+def test_sugeridas_apoio_longe_do_cartao(page: Page, painel: str) -> None:
+    """T301 item 9: o texto de apoio não encosta no primeiro cartão (pelo menos 12px)."""
+    page.set_viewport_size({"width": 1280, "height": 800})
+    page.goto(f"{painel}/empresas/sugeridas")
+    apoio = page.locator(".apoio-titulo")
+    cartao = page.locator("#lista-sugeridas li.cartao").first
+    expect(cartao).to_be_visible()
+    pe = apoio.evaluate("el => el.getBoundingClientRect().bottom")
+    topo = cartao.evaluate("el => el.getBoundingClientRect().top")
+    assert topo - pe >= 12

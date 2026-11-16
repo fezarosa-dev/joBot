@@ -306,7 +306,11 @@ def test_360px_sem_rolagem_lateral(page: Page, painel: str, texto: str) -> None:
     # abaixo de 640px a navegação é uma faixa no topo, visível, e o body volta a rolar
     menu = page.get_by_role("navigation", name="Principal")
     expect(menu).to_be_visible()
-    expect(menu.get_by_role("link", name="Buscas")).to_be_in_viewport()
+    # a faixa rola de lado sozinha (T301): o item fora da vista chega rolando a faixa, não a página
+    buscas = menu.get_by_role("link", name="Buscas")
+    buscas.scroll_into_view_if_needed()
+    expect(buscas).to_be_in_viewport()
+    assert not page.evaluate(ROLA_DE_LADO)
 
 
 def test_abaixo_de_900_a_lateral_recolhe(page: Page, painel: str) -> None:
@@ -433,3 +437,69 @@ def test_conteudo_rola_no_proprio_conteiner(page: Page, painel: str) -> None:
     page.wait_for_function("() => document.querySelector('.coluna').scrollTop > 0")
     assert page.evaluate("document.scrollingElement.scrollTop") == 0
     expect(page.locator("header.topo")).to_be_in_viewport()
+
+
+# T301: acertos da conferência visual
+CAIXA = "el => { const r = el.getBoundingClientRect(); return [r.x, r.y, r.right, r.bottom]; }"
+
+
+def _meio(local: Locator) -> float:
+    _, topo, _, base = local.evaluate(CAIXA)
+    return float(topo + base) / 2
+
+
+def test_topo_a_600px_numa_linha(page: Page, painel: str) -> None:
+    page.set_viewport_size({"width": 600, "height": 900})
+    page.goto(painel + "/vagas")
+    menu = page.get_by_role("navigation", name="Principal")
+    expect(menu).to_be_visible()
+    altura, largura_rolada, largura = menu.evaluate(
+        "el => [el.getBoundingClientRect().height, el.scrollWidth, el.clientWidth]"
+    )
+    item = menu.get_by_role("link").first.evaluate("el => el.getBoundingClientRect().height")
+    assert altura < 2 * item  # uma linha de itens
+    assert largura_rolada > largura  # o resto rola dentro da faixa
+    assert page.evaluate("() => document.documentElement.scrollWidth") <= 600
+    meio = _meio(page.locator(".topo-busca"))
+    for seletor in (".botao-buscar", ".botao-sair"):
+        assert abs(_meio(page.locator(seletor)) - meio) <= 4, seletor
+
+
+PLACEHOLDER = """el => {
+  const s = getComputedStyle(el);
+  const ctx = document.createElement('canvas').getContext('2d');
+  ctx.font = s.font;
+  return [el.clientWidth - parseFloat(s.paddingInlineStart) - parseFloat(s.paddingInlineEnd),
+          ctx.measureText(el.placeholder).width];
+}"""
+
+
+def test_texto_maior_sem_corte(page: Page, painel: str) -> None:
+    page.set_viewport_size({"width": 1280, "height": 800})
+    page.goto(painel + "/vagas?aba=todas")
+    page.evaluate("() => { document.documentElement.dataset.texto = 'maior'; }")
+    conteudo, placeholder = page.locator(".topo-busca").evaluate(PLACEHOLDER)
+    assert conteudo >= placeholder
+    # detalhe em coluna: botões da mesma altura, e o vão entre fileiras igual ao vão entre botões
+    page.locator('#lista-vagas > [role="option"]').first.click()
+    acoes = page.locator("#detalhe-vaga .acoes").locator("a, button")
+    expect(acoes.first).to_be_visible()
+    assert (
+        page.locator("#detalhe-vaga").evaluate(
+            "el => getComputedStyle(el).getPropertyValue('--detalhe-modo').trim()"
+        )
+        == "coluna"
+    )
+    caixas = sorted(acoes.evaluate_all(f"es => es.map({CAIXA})"), key=lambda c: (c[1], c[0]))
+    alturas = {round(c[3] - c[1]) for c in caixas}
+    assert len(alturas) == 1, alturas
+    fileiras: dict[int, list[list[float]]] = {}
+    for c in caixas:
+        fileiras.setdefault(round(c[1]), []).append(c)
+    topos = sorted(fileiras)
+    assert len(topos) > 1, "as ações cabem numa fileira; o teste não mede o vão entre fileiras"
+    vaos_v = [topos[i + 1] - fileiras[topos[i]][0][3] for i in range(len(topos) - 1)]
+    vaos_h = [f[i + 1][0] - f[i][2] for f in fileiras.values() for i in range(len(f) - 1)]
+    assert vaos_h, "nenhuma fileira com dois botões"
+    for vao in vaos_v + vaos_h:
+        assert abs(vao - vaos_v[0]) <= 1, (vaos_v, vaos_h)

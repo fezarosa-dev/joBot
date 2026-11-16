@@ -57,15 +57,34 @@ select {
   font-size: 0.9375rem;
 }
 
-/* "Mais filtros": fica numa linha só dele, aberto quando algum campo está preenchido */
+/* "Mais filtros" (T301): o resumo é o último item da linha da barra; vem fechado mesmo com filtro
+   ativo (o resumo diz quantos valem). Aberto, os chips e os campos descem para uma linha própria, na
+   largura toda da barra. O <details> não faz caixa: o resumo e o conteúdo entram direto na barra. */
 .mais-filtros {
-  flex: 1 1 100%;
+  display: contents;
 }
 
 .mais-filtros summary {
   width: fit-content;
   color: var(--link);
+  white-space: nowrap;
   cursor: default;
+}
+
+.mais-filtros[open]::details-content {
+  display: grid;
+  flex: 1 1 100%;
+  gap: 0.75rem;
+  min-inline-size: 0;
+}
+
+.mais-filtros:not([open])::details-content {
+  display: none;
+}
+
+/* navegador sem ::details-content: os filhos do <details> são os itens da barra */
+.mais-filtros > :not(summary) {
+  flex: 1 1 100%;
 }
 
 .mais-filtros-campos {
@@ -73,7 +92,10 @@ select {
   flex-wrap: wrap;
   align-items: flex-end;
   gap: 0.75rem 1rem;
-  margin-top: 0.5rem;
+}
+
+.mais-filtros .filtros {
+  margin: 0;
 }
 
 .campo-salario,
@@ -348,7 +370,8 @@ small.convertido {
   border-style: dashed;
 }
 
-/* barra da lista (T254; desenho 5.2): busca escolhida, ordem, chips e "Mais filtros" numa faixa só */
+/* barra da lista (T254, T301; desenho 5.2): busca escolhida, ordem e "Mais filtros" numa linha só;
+   o form#busca não faz caixa, para o resumo do "Mais filtros" entrar na mesma linha */
 .barra-lista {
   display: flex;
   flex-wrap: wrap;
@@ -361,8 +384,8 @@ small.convertido {
   margin: 0;
 }
 
-.barra-lista .filtros {
-  flex: 1 1 auto;
+.barra-lista > .busca {
+  display: contents;
 }
 
 .rotulo-ordem {
@@ -426,10 +449,6 @@ small.convertido {
 
 .linha-2 {
   display: block;
-}
-
-.linha-encaixe {
-  flex: none;
 }
 
 .linha-3 .selo {
@@ -575,24 +594,60 @@ small.convertido {
 
   .detalhe-lado[open] {
     display: block;
-    position: sticky;
-    inset-block-start: 0.5rem;
     z-index: 1;
-    grid-area: 1 / 1;
-    justify-self: end;
     box-sizing: border-box;
-    inline-size: min(420px, 60%);
-    /* shortcut: altura da janela menos a barra e uma folga fixa; se a barra quebrar linha, o fim
-       do detalhe rola junto com a lista. Trocar pela altura real da coluna se incomodar. */
-    max-block-size: calc(100dvh - var(--barra-altura) - 1rem);
-    overflow: auto;
     margin: 0;
-    padding: 1rem;
+    color: var(--texto);
+  }
+}
+
+/*
+ * Sobreposto (de 640 a 860, T301): preso à janela, do pé da barra de ferramentas ao pé da janela,
+ * e não ao topo da lista. O app.js o sobe para a camada de cima (popover manual): dentro do
+ * #vagas-miolo, que é container, o fixed rolaria com a coluna. A borda direita segue a da lista pela
+ * âncora (sem suporte, a margem da página). As ações ficam presas no pé (order + sticky) e só o
+ * conteúdo rola (E17: sem altura fixa, min-block-size 0); a ordem do foco segue a do HTML. A largura
+ * usa cqi porque, preso à janela, o % passaria a valer sobre a janela, não sobre o miolo. O
+ * block-size auto desfaz o fit-content do popover, para os dois insets darem a altura.
+ */
+@container conteudo (640px <= width < 860px) {
+  .coluna-lista {
+    anchor-name: --coluna-lista;
+  }
+
+  .detalhe-lado[open] {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    inset-block: calc(var(--barra-altura) + 0.5rem) 0.5rem;
+    inset-block-start: calc(anchor(--topo bottom, var(--barra-altura)) + 0.5rem);
+    inset-inline-start: auto;
+    inset-inline-end: var(--espaco);
+    inset-inline-end: anchor(--coluna-lista end, var(--espaco));
+    inline-size: min(420px, 60cqi);
+    block-size: auto;
+    overflow: hidden;
+    padding: 0;
     border: 1px solid var(--borda-elevada);
     border-radius: var(--raio-grande);
     background-color: var(--solido-elevado);
-    color: var(--texto);
     box-shadow: var(--sombra-sheet);
+  }
+
+  .detalhe-lado[open] > .detalhe {
+    flex: 1 1 auto;
+    min-block-size: 0;
+    overflow: auto;
+    padding: 1rem 1rem 0;
+    overscroll-behavior: contain;
+  }
+
+  .detalhe-lado[open] .acoes {
+    order: 1;
+    position: sticky;
+    inset-block-end: 0;
+    padding-block: 0.75rem;
+    background-color: var(--solido-elevado);
   }
 }
 
@@ -606,10 +661,22 @@ small.convertido {
     --detalhe-modo: coluna;
   }
 
+  /* coluna: acompanha a rolagem da lista e rola sozinha quando passa da altura da janela. O
+     popover="manual" traz as regras de UA de [popover] em todo estado (inset 0, fit-content, borda,
+     fundo Canvas): aqui o detalhe volta a ser a trilha da grade, sem fundo nem caixa */
   .detalhe-lado[open] {
+    position: sticky;
+    inset: auto;
+    inset-block-start: 0.5rem;
     grid-area: 1 / 2;
     justify-self: stretch;
     inline-size: auto;
+    block-size: auto;
+    /* shortcut: altura da janela menos a barra e uma folga fixa; se a barra quebrar linha, o fim
+       do detalhe rola junto com a lista. Trocar pela altura real da coluna se incomodar. */
+    max-block-size: calc(100dvh - var(--barra-altura) - 1rem);
+    overflow: auto;
+    padding: 1rem;
     border: 0;
     border-inline-start: 1px solid var(--separador);
     border-radius: 0;

@@ -4,10 +4,8 @@ Mora fora de `rotas/` porque a lateral é um global do Jinja: `globais` não pod
 `rotas/vagas.py`, que importa `seguranca`, que importa `globais`.
 """
 
-import json
 import sqlite3
 from datetime import UTC, datetime
-from typing import Any
 
 from starlette.requests import Request
 
@@ -25,11 +23,6 @@ _ANTES_DESTAQUES = "julianday(v.primeira_vista_em) >= julianday(:agora) - 2"
 def relogio_do_painel(request: Request) -> Relogio:
     relogio: Relogio = getattr(request.app.state, "relogio", None) or RelogioReal()
     return relogio
-
-
-def config_ou_padrao(con: sqlite3.Connection, chave: str, padrao: Any) -> Any:
-    linha = con.execute("SELECT valor FROM config WHERE chave = ?", (chave,)).fetchone()
-    return padrao if linha is None else json.loads(linha[0])
 
 
 def inteiro_da_url(texto: str | None, maximo: int) -> int | None:

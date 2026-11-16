@@ -1,5 +1,6 @@
 {#- O corpo do detalhe da vaga (T255): a página `/vagas/{id}` usa com `n=1`; o detalhe ao lado da
     lista, com `n=2` e `prefixo` nos ids, porque a página da lista já tem o seu h1. -#}
+{%- from "_encaixe.html" import icone_encaixe -%}
 {%- set n = n | default(1) -%}
 {%- set prefixo = prefixo | default("") -%}
 {%- set salario = salario_texto(vaga) -%}
@@ -93,7 +94,7 @@
   <section class="bloco" aria-labelledby="{{ prefixo }}det-encaixe">
     <h{{ n + 1 }} id="{{ prefixo }}det-encaixe">{{ t("detalhe.secao.encaixe") }}</h{{ n + 1 }}>
     {%- if vaga.encaixe %}
-    <p class="encaixe"><span aria-hidden="true">{{ {"bom": "●", "medio": "◐", "fraco": "○"}.get(vaga.encaixe, "") }}</span> {{ t("vagas.encaixe_cartao", nivel=rotulo("vagas.encaixe." ~ vaga.encaixe, vaga.encaixe)) }} <span class="motivo">{{ t("detalhe.encaixe.nota", nota=vaga.nota) }}</span></p>
+    <p class="encaixe">{{ icone_encaixe(vaga.encaixe) }} {{ t("vagas.encaixe_cartao", nivel=rotulo("vagas.encaixe." ~ vaga.encaixe, vaga.encaixe)) }} <span class="motivo">{{ t("detalhe.encaixe.nota", nota=vaga.nota) }}</span></p>
     <ul class="motivos">
       {%- for m in vaga.motivos %}
       {%- set texto = motivo(m) %}

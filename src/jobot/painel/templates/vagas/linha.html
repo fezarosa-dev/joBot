@@ -3,12 +3,13 @@
     menu. Os `data-*` dizem ao menu de contexto (T257) o que esta linha oferece.
     Dentro só vão <span> e <time>: o listbox da lista não tem outro elemento. Com JS, a linha
     abre o detalhe ao lado (T255): o `hx-target` vem escrito porque o htmx 2 herda o do miolo. -#}
+{%- from "_encaixe.html" import icone_encaixe -%}
 {%- set salario = salario_texto(item) -%}
 {%- set onde = [item.empresa, locais_texto(item.locais)] | select | join(" · ") -%}
 {%- set quando = item.publicada_em or item.primeira_vista_em -%}
 <a role="option" id="vaga-{{ item.id }}" class="linha{% if item.oculta_motivo %} linha-oculta{% endif %}" href="/vagas/{{ item.id }}"{% if url_vaga %} hx-get="{{ url_vaga }}{{ item.id }}" hx-target="#detalhe-vaga" hx-select="#detalhe-vaga" hx-swap="outerHTML" hx-push-url="true"{% endif %} aria-selected="{{ 'true' if detalhe and detalhe.vaga.id == item.id else 'false' }}" data-menu="menu-vaga" data-id="{{ item.id }}"{% if item.url and item.url.lower().startswith(("http://", "https://")) %} data-site="{{ item.url }}"{% endif %}{% if item.status == "nova" %} data-salvar{% endif %}{% if not item.oculta_motivo %} data-ocultar{% endif %}{% if foco_titulo %} data-foco{% endif %}>
   <span class="linha-1">
-    {%- if item.encaixe %}<span class="linha-encaixe" aria-hidden="true">{{ {"bom": "●", "medio": "◐", "fraco": "○"}.get(item.encaixe, "") }}</span>{% endif -%}
+    {{- icone_encaixe(item.encaixe) -}}
     <span class="linha-titulo" title="{{ item.titulo }}">{{ item.titulo }}</span>
     {%- if item.encaixe %}<span class="so-leitor">, {{ t("vagas.encaixe_cartao", nivel=rotulo("vagas.encaixe." ~ item.encaixe, item.encaixe)) }}</span>{% endif -%}
   </span>

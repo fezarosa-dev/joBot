@@ -44,7 +44,7 @@ def test_destaques_ligados_estragado_volta_ao_padrao(tmp_path: Path) -> None:
 
 
 def test_destaques_n_estragado_nao_derruba_a_lateral(tmp_path: Path) -> None:
-    """Guarda (mutante: `ids_destaques` ler `destaques_n` com `config_ou_padrao`, sem `try`)."""
+    """Guarda (mutante: `ids_destaques` ler `destaques_n` com `json.loads`, sem `try`)."""
     banco = tmp_path / "jobot.db"
     with closing(abrir(banco)) as con:
         migrar(con, banco)

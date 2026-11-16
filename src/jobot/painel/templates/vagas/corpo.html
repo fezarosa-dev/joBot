@@ -1,3 +1,4 @@
+{%- from "_encaixe.html" import icone_encaixe -%}
 {%- set salario = salario_texto(item) -%}
 {%- set locais = locais_texto(item.locais) -%}
 {%- set achado = namespace(motivo="") -%}
@@ -48,7 +49,7 @@
 <p class="salario nao-informado">{{ t("vagas.salario_nao_informado") }}</p>
 {%- endif %}
 {%- if item.encaixe %}
-<p class="encaixe"><span aria-hidden="true">{{ {"bom": "●", "medio": "◐", "fraco": "○"}.get(item.encaixe, "") }}</span> {{ t("vagas.encaixe_cartao", nivel=rotulo("vagas.encaixe." ~ item.encaixe, item.encaixe)) }}
+<p class="encaixe">{{ icone_encaixe(item.encaixe) }} {{ t("vagas.encaixe_cartao", nivel=rotulo("vagas.encaixe." ~ item.encaixe, item.encaixe)) }}
   {%- if achado.motivo %} <span class="motivo">{{ achado.motivo }}</span>{% endif %}</p>
 {%- endif %}
 {%- set vindas = fontes.get(item.id, []) %}
