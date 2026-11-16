@@ -52,6 +52,11 @@ def _data_hora(valor: object) -> datetime | None:
     return lida if lida is not None and lida.utcoffset() is not None else None
 
 
+def _id(valor: object) -> str | None:
+    """O id como texto; `bool` é subclasse de `int` e não é id."""
+    return str(valor) if isinstance(valor, int | str) and not isinstance(valor, bool) else None
+
+
 def _vaga(escopo: str, item: object) -> VagaColetada | None:
     """Uma vaga da lista, ou `None` se faltar título, empresa ou URL http(s)."""
     if not isinstance(item, dict):
@@ -68,7 +73,7 @@ def _vaga(escopo: str, item: object) -> VagaColetada | None:
             empresa=empresa,
             descricao_formato="html",  # MUDE: "texto" se a descrição vier sem HTML
             descricao=_texto(item.get("descricao")),
-            id_externo=str(item["id"]) if isinstance(item.get("id"), int | str) else None,
+            id_externo=_id(item.get("id")),
             locais=tuple(filter(None, [_texto(item.get("local"))])),
             publicada_em=_data_hora(item.get("publicada_em")),
         )
@@ -115,6 +120,9 @@ class Molde:
             nonlocal pulados, parada
             for n in range(1, _MAX_PAGINAS + 1):
                 params = {"q": escopo, "pagina": str(n), "por_pagina": str(_POR_PAGINA)}
+                # Toda página vai condicional (como amazon e himalayas): um 304 no meio da
+                # lista dá "parcial" e o executor refaz sem condicional (DR-12). Para só a
+                # página 1 (como gupy e quickin), troque por `condicional=n == 1`.
                 resposta = await http.pedir("GET", _API, params=params, condicional=True)
                 if resposta.status == 304:
                     yield SEM_MUDANCA  # o próprio objeto: `juntar_paginas` compara por identidade

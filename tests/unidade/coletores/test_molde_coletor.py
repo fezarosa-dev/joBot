@@ -133,6 +133,15 @@ async def test_normal() -> None:
     assert primeira.publicada_em is not None and primeira.publicada_em.utcoffset() is not None
 
 
+async def test_id_que_nao_e_texto_nem_inteiro_fica_sem_id() -> None:
+    # bool é subclasse de int: `True` não pode virar o id "True"
+    base_vaga = {"titulo": "Dev", "empresa": "Exemplo", "url": "https://vagas.exemplo.invalid/v/1"}
+    ids = {"inteiro": 7, "texto": "abc", "bool": True, "lista": [1]}
+    corpo = {"vagas": [base_vaga | {"id": i} for i in ids.values()], "proxima": False}
+    resultado, _ = await _coletar(httpx.Response(200, json=corpo))
+    assert [v.id_externo for v in _vagas(resultado)] == ["7", "abc", None, None]
+
+
 async def test_vazio() -> None:
     resultado, pedidos = await _coletar(_json("vazio"))
     assert (resultado.vagas, resultado.estado, resultado.motivo) == ((), "ok", None)
@@ -224,6 +233,21 @@ async def test_endereco_e_parametros() -> None:
         "pagina": "1",
         "por_pagina": str(fonte._POR_PAGINA),
     }
+
+
+async def test_detalhar_devolve_none() -> None:
+    relogio: Relogio = RelogioFalso()
+
+    def recusa(pedido: httpx.Request) -> httpx.Response:
+        raise AssertionError(f"detalhar não faz pedido: {pedido.url}")
+
+    cli = ClienteEducado(httpx.MockTransport(recusa), relogio, LeitorFixo(), "0.1.0", _sem_dns)
+    try:
+        resultado, _ = await _coletar(_json("normal"), _pagina_2())
+        item = _vagas(resultado)[0]
+        assert await fonte.COLETOR.detalhar(item, cli.escopo()) is None
+    finally:
+        await cli.fechar()
 
 
 async def test_resolver_recusa() -> None:
