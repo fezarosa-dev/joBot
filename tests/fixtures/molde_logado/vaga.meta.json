@@ -1,0 +1,13 @@
+{
+  "url": "https://vagas.exemplo.invalid/vagas/101",
+  "data": "2026-11-16T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "text/html; charset=utf-8"
+  },
+  "tipo": "text/html",
+  "sha256": "eea22f9995ca7f0ccb920211368e5a16687e5de1c71c48fd1698b85f18eee847",
+  "versao": "0.2.1",
+  "metodo": "GET",
+  "montado_a_mao": "montado à mão para o molde (host .invalid, empresas e títulos inventados, conta 'Conta de exemplo'): a página de uma vaga, com a descrição"
+}

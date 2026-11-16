@@ -1,0 +1,13 @@
+{
+  "url": "https://vagas.exemplo.invalid/busca?q=dev",
+  "data": "2026-11-16T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "text/html; charset=utf-8"
+  },
+  "tipo": "text/html",
+  "sha256": "d12fcb3068df66f34a4927da928afe966a37fb767ec636e7dc752be6a84f6079",
+  "versao": "0.2.1",
+  "metodo": "GET",
+  "montado_a_mao": "montado à mão para o molde (host .invalid, empresas e títulos inventados, conta 'Conta de exemplo'): uma lista com uma vaga legível e quatro tortas (sem título, sem empresa, http, outro host)"
+}
