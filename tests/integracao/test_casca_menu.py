@@ -30,6 +30,7 @@ NOMES_ABAS = {
     "pt": ("Todas", "Novas", "Fecham logo", "Salvas", "Candidatei", "Programas", "Ocultas"),
     "en": ("All", "New", "Closing Soon", "Saved", "Applied", "Programs", "Hidden"),
 }
+PANORAMA = {"pt": ("Panorama", "/panorama"), "en": ("Overview", "/panorama")}
 DESTAQUES = {"pt": "Destaques de hoje", "en": "Today's Highlights"}
 ONDE = {
     "pt": [
@@ -62,6 +63,7 @@ def banco(tmp_path: Path) -> Path:
     caminho = tmp_path / "jobot.db"
     with closing(abrir(caminho)) as con:
         migrar(con, caminho)
+        gravar_config(con, "primeira_execucao_concluida", True)  # `/panorama` não redireciona
     return caminho
 
 
@@ -119,7 +121,7 @@ def _esperado(idioma: str, *, destaques: bool, sugeridas: bool) -> list[tuple[st
     onde = list(ONDE[idioma])
     if sugeridas:
         onde.insert(2, SUGERIDAS[idioma])  # segundo nível, logo abaixo de Empresas
-    return [*vagas, *onde, CONFIG[idioma]]
+    return [PANORAMA[idioma], *vagas, *onde, CONFIG[idioma]]
 
 
 @pytest.mark.parametrize("idioma", ["pt", "en"])
@@ -154,6 +156,7 @@ def test_sem_destaques_a_lateral_tira_o_item(cliente: TestClient, banco: Path) -
     ("caminho", "href", "valor"),
     [
         ("/", DESTAQUE_HREF, "page"),
+        ("/panorama", "/panorama", "page"),
         ("/vagas", DESTAQUE_HREF, "page"),
         ("/vagas?aba=salvas", "/vagas?aba=salvas", "page"),
         ("/vagas?aba=xyz", DESTAQUE_HREF, "page"),
@@ -177,6 +180,42 @@ def test_aria_current_so_no_item_da_area(
     assert resposta.status_code == 200
     marcados = [(h, atual) for _, h, atual in _menu(resposta.text, idioma) if atual]
     assert marcados == ([] if href is None else [(href, valor)])
+
+
+@pytest.mark.parametrize("idioma", ["pt", "en"])
+def test_lateral_tem_panorama_com_aria_current(cliente: TestClient, idioma: str) -> None:
+    rotulo, href = PANORAMA[idioma]
+    em_panorama = _menu(cliente.get("/panorama", headers={"Accept-Language": idioma}).text, idioma)
+    assert em_panorama[0] == (rotulo, href, "page")  # o primeiro item da lateral
+    assert [i for i in em_panorama if i[1] == href] == [em_panorama[0]]
+    em_vagas = _menu(cliente.get("/vagas", headers={"Accept-Language": idioma}).text, idioma)
+    assert em_vagas[0] == (rotulo, href, "")  # controle: o item existe e não está marcado
+    assert [h for _, h, atual in em_vagas if atual] == [DESTAQUE_HREF]
+
+
+@pytest.mark.parametrize("idioma", ["pt", "en"])
+def test_topo_do_panorama_tem_titulo(cliente: TestClient, idioma: str) -> None:
+    rotulo, _ = PANORAMA[idioma]
+    html = cliente.get("/panorama", headers={"Accept-Language": idioma}).text
+    assert f'<p class="topo-titulo">{rotulo}</p>' in html
+
+
+def test_panorama_fica_numa_secao_sem_titulo_acima_de_vagas(cliente: TestClient) -> None:
+    html = cliente.get("/vagas").text
+    nav = html[html.index('<nav class="menu"') : html.index("</nav>")]
+    primeira = nav.index('href="/panorama"')
+    assert primeira < nav.index('id="secao-vagas"')
+    assert 'class="menu-secao"' not in nav[:primeira]  # sem título acima do Panorama
+    assert re.search(r'<a data-icone="layout-dashboard" href="/panorama"', nav)
+
+
+def test_raiz_continua_em_vagas(banco: Path) -> None:
+    """Guarda, nasce verde. Mutante (em cópia): `raiz` levar a `/panorama`."""
+    app = criar_app(banco.parent, PORTA)
+    real = TestClient(app, base_url=f"http://127.0.0.1:{PORTA}", follow_redirects=False)
+    resposta = real.get("/")
+    assert resposta.status_code == 303
+    assert resposta.headers["location"] == DESTAQUE_HREF
 
 
 def test_aria_current_em_sugeridas_com_pendente(cliente: TestClient, banco: Path) -> None:
@@ -419,6 +458,7 @@ def test_paleta_tem_os_comandos(cliente: TestClient, banco: Path, idioma: str) -
     pares = {(rotulo, href) for rotulo, href, _, _ in opcoes}
     esperado = _esperado(idioma, destaques=True, sugeridas=True)
     assert [p for p in esperado if p not in pares] == []
+    assert PANORAMA[idioma] in pares
     # e um por grupo de Configurações
     hrefs = [href for _, href, _, _ in opcoes]
     grupos = grupos_visiveis(leitores())  # o `cliente` não põe leitores no app.state
