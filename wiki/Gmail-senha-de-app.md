@@ -7,7 +7,7 @@
 ---
 
 > [!NOTE]
-> O cartão do Gmail, em Configurações, Contas, chega numa versão próxima. A leitura dos e-mails de alerta e das respostas de recrutadores vem na fase 6. Você já pode deixar a senha de app pronta.
+> O cartão do Gmail está em Configurações, Contas. A leitura dos e-mails de alerta e das respostas de recrutadores continua na fase 6; por enquanto o cartão só confere o login.
 
 ## 🤔 O que é e por que o joBot usa
 

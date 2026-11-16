@@ -7,7 +7,7 @@
 ---
 
 > [!NOTE]
-> The Gmail card, in Settings, Accounts, arrives in an upcoming version. Reading the alert emails and the recruiters' replies comes in phase 6. You can already have the app password ready.
+> The Gmail card is in Settings, Accounts. Reading the alert emails and the recruiters' replies stays in phase 6; for now the card only checks the sign-in.
 
 ## 🤔 What it is and why joBot uses it
 

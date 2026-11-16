@@ -68,7 +68,7 @@ The other sources continue normally. joBot never tries to get past the CAPTCHA o
 
 With a Google app password, which you create in your account and paste into joBot. You do not need to create a Google Cloud project.
 It works with personal Google accounts. It does not work with work or school accounts, with Advanced Protection, or with 2-Step Verification that uses only security keys.
-The Gmail card, in Settings, Accounts, arrives in an upcoming version, and reading the emails comes in phase 6. See the [step-by-step guide](Gmail-app-password) and [ADR 0024](https://github.com/fezarosa-dev/joBot/blob/main/docs/decisions/0024-gmail-por-senha-de-app.md) (Portuguese).
+The Gmail card is in Settings, Accounts, and reading the emails stays in phase 6. See the [step-by-step guide](Gmail-app-password) and [ADR 0024](https://github.com/fezarosa-dev/joBot/blob/main/docs/decisions/0024-gmail-por-senha-de-app.md) (Portuguese).
 </details>
 
 <details>
