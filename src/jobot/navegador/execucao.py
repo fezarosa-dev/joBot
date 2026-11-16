@@ -48,8 +48,15 @@ from jobot.navegador.abrir import (
 from jobot.navegador.captcha import ChaveDoCofre, Cola, Widget, achar_widget
 from jobot.navegador.pagina import Recusada, visitar
 from jobot.navegador.politica import Politica, politica_de_producao
+from jobot.navegador.sessao import (
+    TITULO_AVISO,
+    estado_da_falha,
+    estado_da_visita,
+    registrar_sessao,
+)
 from jobot.nucleo.coletores.base import ContextoColeta, Estado, ResultadoEscopo
 from jobot.nucleo.coletores.executor import SaidaEscopo, motivo_do_escopo
+from jobot.nucleo.contas import MotivoSessao
 from jobot.nucleo.http import ClienteEducado
 from jobot.nucleo.leitores.base import Captura, EscopoLogado, LeitorComLogin, Leitura, ParadaLogin
 from jobot.nucleo.leitores.estado import estado_do_escopo
@@ -64,7 +71,6 @@ from jobot.sistema.tela import ambiente_da_tela
 log = logging.getLogger(__name__)
 
 _SEM_DATA = datetime.min.replace(tzinfo=UTC)  # escopo nunca lido vai primeiro no rodízio
-_TITULO_AVISO = "joBot"
 _FRASES_AVISO: Final = {
     "pt": "Um site com login parou num desafio. Termine na janela do navegador em até {} minutos.",
     "en": "A site with login stopped at a challenge. Finish it in the browser window within {}"
@@ -152,8 +158,18 @@ async def executar_login(
             contexto = await abrir_contexto(deps.dados, deps.ambiente(), deps.lancar)
         except (SemTela, SemNavegador) as erro:
             motivo_saude = "saude.sem_tela" if isinstance(erro, SemTela) else "saude.sem_navegador"
+            sessao: MotivoSessao = "sem_tela" if isinstance(erro, SemTela) else "sem_navegador"
             for leitor in ligados:
                 gravar_saude(con, execucao_id, leitor.chave, "", "falhou", motivo=motivo_saude)
+                await registrar_sessao(
+                    con,
+                    leitor,
+                    "nao_conferiu",
+                    sessao,
+                    relogio,
+                    avisar=deps.avisar,
+                    idioma=_idioma(con),
+                )
         else:
             fechado = asyncio.Event()
             contexto.on("close", lambda _: fechado.set())
@@ -189,7 +205,7 @@ async def executar_login(
     return execucao_id
 
 
-async def _fechou(fechado: asyncio.Event, erro: Exception) -> bool:
+async def fechou(fechado: asyncio.Event, erro: Exception) -> bool:
     """O erro veio do navegador fechado? Espera um pouco pelo `close`, só com erro do Playwright."""
     if isinstance(erro, ErroDoPlaywright):
         return await _fechando(fechado)
@@ -266,7 +282,7 @@ class _Janela:
             self._avisou = True
             frase = _FRASES_AVISO[self._idioma].format(limites.JANELA_PARADA_S // 60)
             # o `notify-send` roda fora do laço: o painel não para enquanto ele responde
-            await asyncio.to_thread(self._avisar, _TITULO_AVISO, frase)
+            await asyncio.to_thread(self._avisar, TITULO_AVISO, frase)
         tarefa = asyncio.current_task()
         assert tarefa is not None
         saiu: asyncio.Future[bool] = asyncio.get_running_loop().create_future()
@@ -346,6 +362,7 @@ class _Site:
     cola: Cola  # o 2Captcha desta aba (A8)
     janela: _Janela
     usadas: int = 0  # navegações do site, entrada inclusive (teto `MAX_LISTA`)
+    entrada_lida: bool = False  # a falha depois da entrada não é estado do login (E4)
 
     async def ir(self, url: str) -> Captura | ParadaLogin | Recusada:
         """Espera o sorteio antes de toda navegação menos a primeira; recusada não navega."""
@@ -390,6 +407,7 @@ async def _ler_site(
     """Um site inteiro; um erro aqui grava `falhou` no site e não para os outros."""
     fechado = janela.fechado
     page: Page | None = None
+    site: _Site | None = None
     try:
         page = await contexto.new_page()
         cola = Cola(page, con=con, cliente=cliente, relogio=relogio, chave=chave)
@@ -399,7 +417,7 @@ async def _ler_site(
     except sqlite3.Error:
         raise  # banco quebrado não é falha do site: a execução para com `banco`
     except Exception as erro:
-        if await _fechou(fechado, erro):
+        if await fechou(fechado, erro):
             raise NavegadorFechado from erro
         if con.in_transaction:
             con.rollback()
@@ -407,6 +425,15 @@ async def _ler_site(
             log.warning("leitura do site %s quebrou: %s", leitor.chave, type(erro).__name__)
         else:
             log.exception("leitura do site %s quebrou", leitor.chave)
+        if site is not None and not site.entrada_lida:
+            await registrar_sessao(
+                con,
+                leitor,
+                *estado_da_falha(erro),
+                relogio,
+                avisar=deps.avisar,
+                idioma=_idioma(con),
+            )
         gravar_saude(con, execucao_id, leitor.chave, "", "falhou", motivo=motivo_do_escopo(erro))
     finally:
         if page is not None and not fechado.is_set():
@@ -422,6 +449,15 @@ async def _ler_paginas(site: _Site) -> None:
     leitor = site.leitor
     inicio = site.relogio.agora()
     entrada = await site.ir(leitor.url_entrada)
+    site.entrada_lida = True
+    await registrar_sessao(
+        site.con,
+        leitor,
+        *estado_da_visita(entrada, leitor),
+        site.relogio,
+        avisar=site.deps.avisar,
+        idioma=_idioma(site.con),
+    )
     parada: ParadaLogin | None = None
     if isinstance(entrada, Captura):
         if not leitor.pagina_logada(entrada.html, entrada.url):
