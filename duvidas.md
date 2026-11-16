@@ -2921,3 +2921,59 @@ Uma escolha de desenho da T301 vai junto, também para confirmar: o "Mais filtro
 **O que o dono faz:** confirmar a A ou pedir outra. A troca vira o item (k) da T305.
 
 **Como desfazer:** voltar o dicionário de `_encaixe.html:5` e os dois testes que o prendem (`tests/integracao/test_rota_vagas.py:1765`, `tests/tela/test_vagas.py:968`).
+
+## D162. O alerta de Remover site diz o que se perde (para confirmar)
+
+**Status:** para confirmar. Decidido pela sessão, com o dono fora.
+
+**Contexto:** o plano visual (T261) mandava o texto "As vagas que ele trouxe continuam.". Mas nenhuma vaga nasce de uma página acompanhada (`src/jobot/banco/migracoes/0001_inicial.sql:197-208` não liga `vaga` a `pagina_acompanhada`), e `remover_pagina` apaga de verdade a página e as mudanças dela (`src/jobot/banco/paginas.py:183`, `DELETE` em cascata), a única remoção real do banco. A frase do plano diria o oposto do que acontece. Também mudou o nome acessível da caixa de ligar cada fonte: agora inclui o nome da fonte (antes era só "Ligada").
+
+**Escolhas:**
+
+- **A.** Manter o texto do plano ("As vagas que ele trouxe continuam.").
+- **B.** As duas frases: o que continua e o que se perde.
+- **C (escolhida).** Só o que se perde: pt "O texto guardado e as mudanças dele serão apagados." / en "Its saved text and changes will be deleted."
+
+**Recomendação:** C. É curta, é verdadeira e é o que a pessoa precisa saber antes de confirmar.
+
+**O que o dono faz:** confirmar a C ou pedir a A ou a B.
+
+**Como desfazer:** trocar `sites.remover_texto` em `src/jobot/painel/i18n/pt/sites.json` e `src/jobot/painel/i18n/en/sites.json` e as asserções em `tests/integracao/test_rota_sites.py` e `tests/tela/test_sites.py`.
+
+## D163. Sem JavaScript, as ações que apagam não pedem confirmação (para confirmar)
+
+**Status:** para confirmar. Decidido pela sessão, com o dono fora. Junta a D159.
+
+**Contexto:** com o alerta da T259 (macro `_alerta.html`), o envio do formulário de hoje continua valendo sem JavaScript. O resultado é que, sem JavaScript, três ações agem direto, sem pergunta: Apagar uma busca (D159), Remover site (apaga a página e as mudanças dela, D162) e Esquecer logins (apaga a pasta do perfil do navegador: `src/jobot/painel/templates/configuracoes/sites_com_login.html:15-23`, `src/jobot/painel/rotas/configuracoes.py:593-610`). Antes, Remover site tinha dois cliques (o `details` "Remover mesmo"). O painel é local e usa JavaScript em tudo; sem JavaScript é caminho raro.
+
+**Escolhas:**
+
+- **A (escolhida).** Aceitar por ora e fazer a T307 (página de confirmação sem JavaScript para as três ações).
+- **B.** Aceitar de vez, como a D159 fez só para as buscas.
+
+**Recomendação:** A. A T307 fecha o buraco para as três ações com uma página só, sem mudar o caminho com JavaScript.
+
+**O que o dono faz:** confirmar a A ou pedir a B.
+
+**Como desfazer:** a T307 cobre o assunto; nada a desfazer agora.
+
+**Ver também:** D159, D162, T307.
+
+## D164. Configurações lembra o último grupo visto (para confirmar)
+
+**Status:** para confirmar. Decidido pela sessão, com o dono fora.
+
+**Contexto:** a T262 guarda o último grupo de Configurações em `localStorage` (com `try/catch`). O item Configurações da lateral e o atalho ⌘, (Ctrl+, fora do Mac) abrem esse grupo; sem registro ou sem JavaScript, abrem `/configuracoes/geral`. Grupos que só existem com um leitor (`sites-com-login`, `ferramentas`) podem sumir, e o link guardado daria 404. Também: o estilo comum da caixa de marcar e o interruptor `.chave` e `.chave-mini` foram para `base.css`, valendo para todos os formulários (Buscas, primeira execução, Fontes).
+
+**Escolhas:**
+
+- **A (escolhida).** Manter o último grupo guardado; o 404 do grupo que sumiu vira a T308.
+- **B.** Não guardar nada: a lateral e o atalho abrem sempre `/configuracoes/geral`.
+
+**Recomendação:** A. Voltar onde a pessoa estava é o comportamento de um app de Mac, e a T308 tira o único defeito.
+
+**O que o dono faz:** confirmar a A ou pedir a B.
+
+**Como desfazer:** tirar o trecho do `localStorage` em `src/jobot/painel/static/js/app.js` (procure `itemConfiguracoes`); o item volta a abrir `/configuracoes/geral`.
+
+**Ver também:** T308.
