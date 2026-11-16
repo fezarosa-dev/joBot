@@ -9,7 +9,8 @@ import sqlite3
 from datetime import date
 from typing import Any
 
-from jobot.banco.leitura import Detalhe
+from jobot.banco.leitura import Detalhe, abertura_da_candidatura, datas_dos_passos
+from jobot.nucleo.candidatura import email_de_candidatura
 from jobot.painel.consultas import utc_do_banco
 from jobot.painel.moeda import exibicao_do_painel
 
@@ -71,6 +72,15 @@ def _http(url: str | None) -> bool:
     return url is not None and url.lower().startswith(("http://", "https://"))
 
 
+def _passos(con: sqlite3.Connection, vaga: Detalhe) -> list[tuple[str, str]]:
+    """A Linha do tempo (desenho 5.4): vista, a abertura da candidatura e cada passo com data."""
+    passos = [("vista", vaga.primeira_vista_em)]
+    abriu = abertura_da_candidatura(con, vaga.id)
+    if abriu is not None:
+        passos.append(("abriu", abriu))
+    return passos + list(datas_dos_passos(con, vaga.id).items())
+
+
 def contexto_do_detalhe(
     con: sqlite3.Connection, vaga: Detalhe, hoje: date, retorno: str
 ) -> dict[str, Any]:
@@ -81,6 +91,9 @@ def contexto_do_detalhe(
         unicas.setdefault((f.fonte, f.url), f)
     site = next((f.url for f in vaga.fontes if _http(f.url)), None)
     candidatura = next((f.url_candidatura for f in vaga.fontes if _http(f.url_candidatura)), None)
+    # o endereço não é guardado: sai da descrição na hora de mostrar (desenho 5.7)
+    email = email_de_candidatura(vaga.descricao_texto)
+    principal = "http" if candidatura else "email" if email else "fonte"
     return {
         "vaga": vaga,
         "exibicao": exibicao_do_painel(con, hoje),
@@ -92,4 +105,8 @@ def contexto_do_detalhe(
         "estagio": _estagio(vaga),
         "retorno": retorno,
         "http": _http,
+        "passos": _passos(con, vaga),
+        "email": email,
+        # o botão principal: link próprio de candidatura, senão o e-mail, senão a vaga na fonte
+        "principal": principal,
     }

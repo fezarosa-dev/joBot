@@ -3,16 +3,21 @@
 import html as html_lib
 import importlib
 import re
+import time
+from collections.abc import Iterator
 from contextlib import closing
 from datetime import UTC, datetime
+from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
+from urllib.parse import parse_qs, urlsplit
 
 import pytest
 from fastapi.testclient import TestClient
 
 from apoio.relogio import RelogioFalso
 from apoio.semear import semear
+from jobot.banco import acoes
 from jobot.banco.conexao import abrir
 from jobot.banco.migrar import migrar
 from jobot.painel import seguranca
@@ -573,3 +578,208 @@ def test_link_da_correcao_abre_o_sheet_e_sem_js_leva_a_pagina(painel: Painel) ->
     assert f'hx-get="/vagas/{vaga}/correcao"' in link  # com JavaScript abre o sheet
     assert "data-correcao" in link
     assert 'class="correcao-slot"' in html  # onde o sheet entra
+
+
+# ---------------------------------------------------------------- T286: linha do tempo e e-mail
+
+
+@pytest.fixture
+def fuso_menos_tres(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """TZ `<-03>3`: o dia mostrado é o local (E16); o fuso volta antes do último `tzset`."""
+    monkeypatch.setenv("TZ", "<-03>3")
+    time.tzset()
+    yield
+    monkeypatch.undo()
+    time.tzset()
+
+
+COM_EMAIL = "Envie o currículo para rh@example.com."
+
+
+def _descricao(painel: Painel, nome: str, texto: str) -> None:
+    painel.sql("UPDATE vaga SET descricao_texto = ? WHERE id = ?", texto, painel.ids[nome])
+
+
+def _href(ancora: str) -> str:
+    achou = re.search(r'href="([^"]*)"', ancora)
+    assert achou, ancora
+    return html_lib.unescape(achou.group(1))
+
+
+def _mailtos(html: str) -> list[str]:
+    return [m for m in re.findall(r"<a\b[^>]*>", html) if 'href="mailto:' in m]
+
+
+def _mailto(html: str) -> str:
+    """O único link de e-mail da página."""
+    achados = _mailtos(html)
+    assert len(achados) == 1, achados
+    return achados[0]
+
+
+def test_linha_do_tempo(painel: Painel, fuso_menos_tres: None) -> None:
+    vaga = painel.ids["usd"]
+    painel.sql("UPDATE vaga SET primeira_vista_em = '2026-11-03T12:00:00+00:00' WHERE id = ?", vaga)
+    with closing(abrir(painel.banco)) as con:
+        acoes.mudar_status(con, vaga, "salva", datetime(2026, 11, 10, 12, 0, tzinfo=UTC))
+        assert acoes.abriu_candidatura(con, vaga, datetime(2026, 11, 14, 12, 0, tzinfo=UTC))
+        # 01:30 UTC de 17/11 ainda é 16/11 no fuso -03 (E16)
+        sim = datetime(2026, 11, 17, 1, 30, tzinfo=UTC)
+        assert acoes.responder_candidatura(con, vaga, True, sim) == "salva"
+    achou = re.search(r'<section class="bloco passos".*?</section>', painel.detalhe("usd"), re.S)
+    assert achou is not None
+    assert "Linha do tempo" in _texto(achou.group(0))
+    itens = [_texto(li).strip() for li in re.findall(r"<li>(.*?)</li>", achou.group(0), re.S)]
+    assert itens == [
+        "Vista em 03/11",
+        "Abriu a candidatura em 14/11",
+        "Salva em 10/11",
+        "Candidatei em 16/11",
+    ]
+
+
+def test_email_vira_secundario_com_link_http(painel: Painel) -> None:
+    _descricao(painel, "himalayas", COM_EMAIL)
+    html = painel.detalhe("himalayas")
+    assert _href(_ancora(html, 'class="primario"')) == (
+        "https://himalayas.app/companies/beta/jobs/42/apply"
+    )
+    email = _mailto(html)
+    assert 'class="secundario"' in email
+    assert _href(email) == "mailto:rh@example.com?subject=Backend%20Engineer"
+
+
+def test_email_vira_principal_sem_link_http(painel: Painel) -> None:
+    _descricao(painel, "usd", COM_EMAIL)
+    html = painel.detalhe("usd")
+    vaga = painel.ids["usd"]
+    principal = _ancora(html, 'class="primario"')
+    assert _href(principal) == "mailto:rh@example.com?subject=Desenvolvedor%20Python"
+    assert "Candidatar-se por e-mail" in _texto(html)
+    assert len(_mailtos(html)) == 1  # sem o secundário repetido
+    # a vaga na fonte continua no "Abrir no site" e na lista de fontes
+    assert _href(_ancora(html, 'class="secundario"')) == f"https://exemplo.test/vagas/{vaga}"
+    assert "via Remotive" in _texto(html)
+
+
+def test_mailto_com_assunto_codificado(painel: Painel) -> None:
+    _descricao(painel, "usd", COM_EMAIL)
+    painel.sql("UPDATE vaga SET titulo = 'Dev & Ops São Paulo' WHERE id = ?", painel.ids["usd"])
+    email = _mailto(painel.detalhe("usd"))
+    partes = urlsplit(_href(email))
+    assert partes.query == "subject=Dev%20%26%20Ops%20S%C3%A3o%20Paulo"
+    assert parse_qs(partes.query) == {"subject": ["Dev & Ops São Paulo"]}
+
+
+@pytest.mark.parametrize(
+    "texto",
+    [
+        "Envie o currículo para rh@example.com?cc=outro@example.org",
+        "Envie o currículo para rh@example.com&bcc=outro@example.org",
+        "Envie o currículo para rh@example.com%0A",
+        "Envie o currículo para rh%0A@example.com",
+    ],
+)
+def test_mailto_sem_parametro_injetado(painel: Painel, texto: str) -> None:
+    _descricao(painel, "usd", texto)
+    assert "mailto:" not in painel.detalhe("usd")
+    # controle na mesma montagem: endereço válido com gatilho vira mailto só com o subject
+    _descricao(painel, "usd", COM_EMAIL)
+    email = _mailto(painel.detalhe("usd"))
+    partes = urlsplit(_href(email))
+    assert (partes.scheme, partes.path) == ("mailto", "rh@example.com")
+    assert set(parse_qs(partes.query)) == {"subject"}
+
+
+def test_sem_email_fica_como_hoje(painel: Painel) -> None:
+    """Guarda: sem endereço na descrição, nada de e-mail; o principal abre a vaga na fonte."""
+    html = painel.detalhe("usd")
+    assert "mailto:" not in html
+    assert "data-copiar" not in html
+    assert "email-candidatura" not in html
+    vaga = painel.ids["usd"]
+    assert _href(_ancora(html, 'class="primario"')) == f"https://exemplo.test/vagas/{vaga}"
+
+
+def test_copiar_vem_hidden(painel: Painel) -> None:
+    _descricao(painel, "usd", COM_EMAIL)
+    html = painel.detalhe("usd")
+    botao = re.search(r"<button\b[^>]*data-copiar[^>]*>([^<]*)</button>", html)
+    assert botao is not None
+    tag = botao.group(0)
+    assert re.search(r"\shidden[\s>]", tag)
+    assert 'type="button"' in tag
+    assert 'data-copiar="rh@example.com"' in tag
+    assert 'data-copiado="Endereço copiado."' in tag
+    assert 'data-nao-copiou="Não deu para copiar. Selecione o endereço e copie."' in tag
+    assert botao.group(1) == "Copiar endereço"
+    # sem JavaScript o endereço continua à vista, com a região viva e o aviso ao lado
+    texto = _texto(html)
+    assert "Endereço para candidatura: rh@example.com" in texto
+    assert "O joBot não envia nada: o e-mail sai do seu programa de e-mail." in texto
+    assert re.search(r'data-copiar[^>]*>[^<]*</button>\s*<span role="status"></span>', html)
+
+
+def test_email_tem_data_candidatura(painel: Painel) -> None:
+    for nome in ("usd", "himalayas"):  # principal e secundário
+        _descricao(painel, nome, COM_EMAIL)
+        email = _mailto(painel.detalhe(nome))
+        assert f'data-candidatura="/vagas/{painel.ids[nome]}/candidatura"' in email
+        assert "target=" not in email  # o mailto abre o programa de e-mail, não uma aba
+        assert 'aria-label="Candidatar-se por e-mail (abre o seu programa de e-mail)"' in email
+
+
+class _Bloco(HTMLParser):
+    """As tags de abertura dentro do elemento com `id` (ele incluído), contando os `div`."""
+
+    def __init__(self, id_: str) -> None:
+        super().__init__()
+        self.id_ = id_
+        self.tags: list[tuple[str, dict[str, str | None]]] = []
+        self.fundo = 0  # divs abertos dentro do bloco; 0 fora dele
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        dados = dict(attrs)
+        if self.fundo == 0 and dados.get("id") == self.id_ and not self.tags:
+            self.fundo = 1
+            self.tags.append((tag, dados))
+        elif self.fundo:
+            self.tags.append((tag, dados))
+            self.fundo += tag == "div"
+
+    def handle_endtag(self, tag: str) -> None:
+        if self.fundo and tag == "div":
+            self.fundo -= 1
+
+
+def _bloco(html: str, id_: str) -> list[tuple[str, dict[str, str | None]]]:
+    leitor = _Bloco(id_)
+    leitor.feed(html)
+    assert leitor.tags, f"sem #{id_}"
+    return leitor.tags
+
+
+@pytest.mark.parametrize("onde", ["pagina", "lado"])
+def test_detalhe_estado_escuta_a_vaga(painel: Painel, onde: str) -> None:
+    vaga, busca = painel.ids["usd"], painel.ids["busca"]
+    url = (
+        f"/vagas/{vaga}?busca={busca}" if onde == "pagina" else f"/vagas?busca={busca}&vaga={vaga}"
+    )
+    html = painel.get(url).text
+    assert html.count('id="estado-da-vaga"') == 1
+    (_, raiz), *dentro = _bloco(html, "estado-da-vaga")
+    voltar = {d.get("value") for t, d in dentro if t == "input" and d.get("name") == "voltar"}
+    assert len(voltar) == 1  # o retorno da página, o mesmo nos forms
+    assert raiz.get("hx-get") is not None
+    assert {raiz.get("hx-get")} == voltar
+    assert raiz.get("hx-trigger") == f"vaga-mudou-{vaga} from:body"
+    assert raiz.get("hx-select") == "#estado-da-vaga"
+    assert raiz.get("hx-swap") == "outerHTML"
+    classes = {c for _, d in dentro for c in (d.get("class") or "").split()}
+    assert {"situacao", "passos"} <= classes
+    acoes_ = {d.get("action") for t, d in dentro if t == "form"}
+    assert f"/vagas/{vaga}/status" in acoes_
+    # o hx-select é herdado: filho com hx-* (o Ocultar do detalhe ao lado) o desliga
+    for _, d in dentro:
+        if any(k in d for k in ("hx-get", "hx-post")):
+            assert d.get("hx-select") == "unset", d

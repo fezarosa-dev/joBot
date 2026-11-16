@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from jobot.banco.leitura import PASSOS
 from jobot.banco.paginas import MOTIVOS as MOTIVOS_DA_PAGINA
 from jobot.nucleo import encaixe
 from jobot.nucleo.contas import MOTIVOS as MOTIVOS_DE_SESSAO
@@ -437,3 +438,56 @@ def test_gmail_tem_texto(idioma: str) -> None:
         chave[len(prefixo) :]: v for chave, v in catalogo.items() if chave.startswith(prefixo)
     }
     assert achadas == GMAIL[idioma]
+
+
+@pytest.mark.parametrize("idioma", ["pt", "en"])
+def test_detalhe_passos_e_email_tem_texto(idioma: str) -> None:
+    """T286: a Linha do tempo (um texto por passo de `PASSOS`, mais vista e abriu) e o e-mail de
+    candidatura, com o texto e os parâmetros do desenho 5.8."""
+    esperado = {
+        "pt": {
+            "detalhe.passos.titulo": "Linha do tempo",
+            "detalhe.passos.vista": "Vista em {data}",
+            "detalhe.passos.abriu": "Abriu a candidatura em {data}",
+            "detalhe.passos.salva": "Salva em {data}",
+            "detalhe.passos.candidatei": "Candidatei em {data}",
+            "detalhe.passos.entrevista": "Entrevista em {data}",
+            "detalhe.passos.oferta": "Oferta em {data}",
+            "detalhe.passos.recusada": "Recusada em {data}",
+            "detalhe.candidatar_email": "Candidatar-se por e-mail",
+            "detalhe.candidatar_email_rotulo": (
+                "Candidatar-se por e-mail (abre o seu programa de e-mail)"
+            ),
+            "detalhe.email.endereco": "Endereço para candidatura: {email}",
+            "detalhe.email.copiar": "Copiar endereço",
+            "detalhe.email.copiado": "Endereço copiado.",
+            "detalhe.email.nao_copiou": "Não deu para copiar. Selecione o endereço e copie.",
+            "detalhe.email.aviso": (
+                "O joBot não envia nada: o e-mail sai do seu programa de e-mail."
+            ),
+        },
+        "en": {
+            "detalhe.passos.titulo": "Timeline",
+            "detalhe.passos.vista": "Found {data}",
+            "detalhe.passos.abriu": "Opened the application {data}",
+            "detalhe.passos.salva": "Saved {data}",
+            "detalhe.passos.candidatei": "Applied {data}",
+            "detalhe.passos.entrevista": "Interview {data}",
+            "detalhe.passos.oferta": "Offer {data}",
+            "detalhe.passos.recusada": "Rejected {data}",
+            "detalhe.candidatar_email": "Apply by Email",
+            "detalhe.candidatar_email_rotulo": "Apply by email (opens your email app)",
+            "detalhe.email.endereco": "Application address: {email}",
+            "detalhe.email.copiar": "Copy Address",
+            "detalhe.email.copiado": "Address copied.",
+            "detalhe.email.nao_copiou": "Couldn't copy. Select the address and copy it.",
+            "detalhe.email.aviso": (
+                "joBot doesn't send anything: the email goes out from your email app."
+            ),
+        },
+    }[idioma]
+    catalogo = i18n.carregar()[idioma]
+    assert {chave: catalogo.get(chave) for chave in esperado} == esperado
+    # o template monta a chave por `t("detalhe.passos." ~ chave)`: todo passo tem texto
+    for passo in ("vista", "abriu", *PASSOS):
+        assert "{data}" in catalogo.get(f"detalhe.passos.{passo}", ""), passo

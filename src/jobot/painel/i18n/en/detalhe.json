@@ -64,5 +64,20 @@
   "detalhe.mes.10": "Oct",
   "detalhe.mes.11": "Nov",
   "detalhe.mes.12": "Dec",
-  "detalhe.correcao.salvar_campo": "Save the correction of {campo}"
+  "detalhe.correcao.salvar_campo": "Save the correction of {campo}",
+  "detalhe.passos.titulo": "Timeline",
+  "detalhe.passos.vista": "Found {data}",
+  "detalhe.passos.abriu": "Opened the application {data}",
+  "detalhe.passos.salva": "Saved {data}",
+  "detalhe.passos.candidatei": "Applied {data}",
+  "detalhe.passos.entrevista": "Interview {data}",
+  "detalhe.passos.oferta": "Offer {data}",
+  "detalhe.passos.recusada": "Rejected {data}",
+  "detalhe.candidatar_email": "Apply by Email",
+  "detalhe.candidatar_email_rotulo": "Apply by email (opens your email app)",
+  "detalhe.email.endereco": "Application address: {email}",
+  "detalhe.email.copiar": "Copy Address",
+  "detalhe.email.copiado": "Address copied.",
+  "detalhe.email.nao_copiou": "Couldn't copy. Select the address and copy it.",
+  "detalhe.email.aviso": "joBot doesn't send anything: the email goes out from your email app."
 }

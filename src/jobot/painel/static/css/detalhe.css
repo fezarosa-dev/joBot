@@ -77,6 +77,33 @@
   white-space: nowrap;
 }
 
+/* T286: o bloco que se pede de novo depois da faixa (ações, e-mail e Linha do tempo) segue o
+   espaço do .detalhe */
+#estado-da-vaga {
+  display: grid;
+  gap: 0.75rem;
+}
+
+#estado-da-vaga > *,
+.email-candidatura p {
+  margin: 0;
+}
+
+.email-candidatura {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.email-candidatura .aviso-email {
+  color: var(--texto-2);
+  font-size: 0.8125rem;
+}
+
+.passos ol {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
 .detalhe .cartao-empresa {
   line-height: 1.25rem;
 }
