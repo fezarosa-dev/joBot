@@ -188,7 +188,10 @@ def test_so_pelo_teclado_liga_e_desliga_a_caixa_de_marcar(page: Page, painel: st
     expect(caixa).to_be_checked()
 
 
-def test_o_interruptor_fica_onde_a_opcao_comanda_um_grupo(page: Page, painel: str) -> None:
+def test_o_interruptor_fica_onde_a_opcao_comanda_um_grupo(
+    page: Page, painel: str, sistema: FalsoSistema
+) -> None:
+    sistema.habilitado = False  # o falso começa habilitado; o teste parte do interruptor desligado
     page.goto(f"{painel}/configuracoes/segundo-plano")
     chave = page.get_by_role("switch")
     expect(chave).to_have_count(1)
@@ -212,6 +215,8 @@ def test_item_configuracoes_abre_o_ultimo_grupo(page: Page, painel: str) -> None
     page.goto(f"{painel}/vagas")  # o atalho vai ao mesmo lugar
     page.keyboard.press("ControlOrMeta+,")
     expect(page).to_have_url(f"{painel}/configuracoes/privacidade")
+    # o app.js (defer) grava o grupo na carga: sem esperá-la, o clear corre contra essa gravação
+    page.wait_for_load_state("load")
 
     page.evaluate("localStorage.clear()")  # sem registro de novo
     page.goto(f"{painel}/vagas")
