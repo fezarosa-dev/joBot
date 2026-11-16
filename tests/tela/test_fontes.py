@@ -38,21 +38,51 @@ def _cartao(page: Page, chave: str) -> Locator:
     return page.locator(f"#fonte-{chave}")
 
 
+def _caixa(page: Page, chave: str) -> Locator:
+    titulo = _cartao(page, chave).locator(".cartao-titulo").inner_text()
+    return _cartao(page, chave).get_by_role("checkbox", name=f"{titulo} Ligada", exact=True)
+
+
 def test_desligar_e_ligar_muda_o_estado_na_tela(page: Page, painel: str) -> None:
     erros: list[str] = []  # violação do CSP aparece como erro no console
     page.on("console", lambda m: erros.append(m.text) if m.type == "error" else None)
     page.on("pageerror", lambda e: erros.append(str(e)))
     page.goto(f"{painel}/fontes")
-    cartao = _cartao(page, "remotive")
-    expect(cartao).to_be_visible()
+    expect(_cartao(page, "remotive")).to_be_visible()
+    expect(_caixa(page, "remotive")).to_be_checked()
+    # com JavaScript o botão do <noscript> não existe: a caixa é o único controle
+    expect(_cartao(page, "remotive").get_by_role("button", name="Desligar")).to_have_count(0)
 
-    cartao.get_by_role("button", name="Desligar").click()
+    with page.expect_navigation():
+        _caixa(page, "remotive").click()  # `uncheck()` confere o estado e a página já está trocando
     expect(_cartao(page, "remotive").locator(".selo")).to_have_text("Desligada")
-    expect(_cartao(page, "remotive").get_by_role("button", name="Ligar")).to_be_visible()
+    expect(_caixa(page, "remotive")).not_to_be_checked()
 
-    _cartao(page, "remotive").get_by_role("button", name="Ligar").click()
-    expect(_cartao(page, "remotive").get_by_role("button", name="Desligar")).to_be_visible()
+    with page.expect_navigation():
+        _caixa(page, "remotive").click()
+    expect(_caixa(page, "remotive")).to_be_checked()
+    expect(_cartao(page, "remotive").locator(".selo")).not_to_have_text("Desligada")
     assert erros == []
+
+
+def test_caixa_de_marcar_pelo_teclado(page: Page, painel: str) -> None:
+    """Tab chega na caixa, o foco aparece e a barra de espaço marca ou desmarca, como no Mac."""
+    page.goto(f"{painel}/fontes")
+    caixa = _caixa(page, "remotive")
+    caixa.focus()
+    page.keyboard.press("Shift+Tab")
+    page.keyboard.press("Tab")  # volta pelo teclado: só assim o :focus-visible vale
+    expect(caixa).to_be_focused()
+    assert caixa.evaluate("e => getComputedStyle(e).outlineStyle") != "none"  # o foco aparece
+    with page.expect_navigation():
+        page.keyboard.press("Space")
+    expect(_caixa(page, "remotive")).not_to_be_checked()
+    expect(_cartao(page, "remotive").locator(".selo")).to_have_text("Desligada")
+
+    _caixa(page, "remotive").focus()
+    with page.expect_navigation():
+        page.keyboard.press("Space")
+    expect(_caixa(page, "remotive")).to_be_checked()
 
 
 def test_tela_cabe_no_celular_sem_rolagem_lateral(page: Page, painel: str) -> None:

@@ -1,5 +1,71 @@
-/* Tela de sites (plano T75): só as cores e medidas da base.css; cartões e formulário vêm do
-   vagas.css, buscas.css e empresas.css, carregados junto. */
+/* Tela de sites (plano T75, T261): só as cores e medidas da base.css; título, selo e meta vêm do
+   vagas.css e o formulário do buscas.css, carregados junto. */
+
+/* lista agrupada (desenho 5.8): um bloco opaco sobre --superficie, linhas separadas por filete */
+.lista-sites {
+  margin: 0 0 1rem;
+  padding: 0;
+  border-radius: var(--raio);
+  background-color: var(--superficie);
+  box-shadow: inset 0 0 0 0.5px var(--separador);
+  list-style: none;
+  overflow: hidden;
+}
+
+.linha-site {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  color: var(--texto);
+}
+
+.linha-site + .linha-site {
+  border-block-start: 1px solid var(--separador);
+}
+
+.linha-site:focus-visible {
+  outline: 2px solid var(--foco);
+  outline-offset: -2px;
+}
+
+.linha-desligada .cartao-titulo {
+  color: var(--texto-2);
+}
+
+.linha-site-topo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+}
+
+.linha-site-texto {
+  flex: 1 1 18rem;
+  min-inline-size: 0;
+}
+
+.linha-site-texto .meta {
+  margin: 0.25rem 0 0;
+  overflow-wrap: anywhere;
+}
+
+.linha-site-acoes {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+}
+
+.linha-site-acoes form {
+  margin: 0;
+}
+
+.ver-mudancas summary {
+  cursor: default;
+  color: var(--link);
+}
 
 .diferenca {
   margin: 0.5rem 0 0;
