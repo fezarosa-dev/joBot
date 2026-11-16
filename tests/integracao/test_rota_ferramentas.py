@@ -156,7 +156,11 @@ def _trava_presa(painel: Painel, nome: str = "login") -> asyncio.Lock:
 
 
 def test_ferramentas_some_sem_leitor(painel: Painel, sem_leitor: Painel) -> None:
-    assert sem_leitor.http.get(GRUPO).status_code == 404
+    resposta = sem_leitor.http.get(GRUPO)  # grupo guardado que sumiu: Geral (T308)
+    assert (resposta.status_code, resposta.headers.get("location")) == (
+        303,
+        "/configuracoes/geral",
+    )
     assert f'href="{GRUPO}"' not in sem_leitor.http.get("/configuracoes/fontes").text
     assert f'href="{GRUPO}"' in painel.http.get("/configuracoes/fontes").text
     assert painel.http.get(GRUPO).status_code == 200
