@@ -194,6 +194,15 @@ def test_oculta_manual_valores(con: sqlite3.Connection) -> None:
     assert [e[0] for e in _eventos(con)] == ["ocultou", "desfez", "mostrou", "ocultou", "desfez"]
 
 
+def test_trazer_de_volta_recusa_oculta_invalida(con: sqlite3.Connection) -> None:
+    t = relogio.agora()
+    acoes.ocultar(con, 1, t)
+    with pytest.raises(ValueError):
+        acoes.trazer_de_volta(con, 1, t, oculta=5)
+    assert _vaga(con)[2] == 1
+    assert [e[0] for e in _eventos(con)] == ["ocultou"]
+
+
 def test_estado_lido_dentro_da_transacao(con: sqlite3.Connection) -> None:
     caminho = Path(con.execute("PRAGMA database_list").fetchone()[2])
     outra = abrir(caminho)

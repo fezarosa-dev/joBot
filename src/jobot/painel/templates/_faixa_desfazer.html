@@ -1,0 +1,23 @@
+{#- A faixa de desfazer (T256). Fica dentro de `#faixa-desfazer` (base.html), que é a região viva:
+    a resposta HTMX troca só o miolo (hx-swap-oob="innerHTML"), então o nó anunciado é sempre o mesmo
+    e há uma faixa por vez. `texto` e `acao` são chaves de `casca.desfazer.*`; `rota` traz `{id}`,
+    trocado pelo `id`. O botão é um formulário de verdade: sem JS, o POST normal volta para a página
+    de onde veio a ação (`voltar` e `busca`; com JS, o app.js troca pelos de agora). `antes` ("-1")
+    faz o Desfazer voltar ao "mostrar mesmo assim" que havia antes do Ocultar.
+    Importe `with context` (usa `t` e `csrf_token`). -#}
+{%- macro faixa_desfazer(texto, acao, rota, id, voltar="/", busca="", antes="") -%}
+{%- set destino = rota | replace("{id}", id | string) -%}
+<div class="faixa" data-faixa="{{ acao }}">
+  <p>{{ t("casca.desfazer." ~ texto) }}</p>
+  <form method="post" action="{{ destino }}" hx-post="{{ destino }}" hx-target="this" hx-swap="none">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="voltar" value="{{ voltar }}">
+    <input type="hidden" name="busca" value="{{ busca }}">
+    {%- if antes %}
+    <input type="hidden" name="antes" value="{{ antes }}">
+    {%- endif %}
+    <button type="submit">{{ t("casca.desfazer." ~ acao) }}</button>
+  </form>
+  <button type="button" data-faixa-fechar aria-label="{{ t('casca.desfazer.fechar') }}"><span aria-hidden="true">&times;</span></button>
+</div>
+{%- endmacro %}

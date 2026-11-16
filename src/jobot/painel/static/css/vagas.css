@@ -472,6 +472,7 @@ small.convertido {
   .linha[aria-selected="true"] {
   background-color: var(--destaque);
   color: var(--sobre-destaque);
+  --realce: color-mix(in srgb, var(--sobre-destaque) 35%, transparent);
 }
 
 /* todo descendente, não só os `> span`: `.nao-informado` tem cor própria e furaria o branco */
@@ -485,6 +486,38 @@ small.convertido {
 .linha:focus-visible {
   outline: 3px solid var(--foco);
   outline-offset: -3px;
+}
+
+/* a linha que voltou com Desfazer (T256): realce de 1 s que esmaece, para a pessoa ver onde ela
+   está. O app.js põe e tira a classe e escolhe a linha. A sombra interna pinta por cima do fundo,
+   então o realce aparece também na linha escolhida (lá, mais claro: o `--realce` do azul acima).
+   Com movimento reduzido o base.css corta a animação; aí o realce fica parado o mesmo 1 s. Nas
+   cores forçadas, um contorno no lugar da sombra. */
+.linha {
+  --realce: color-mix(in srgb, var(--destaque) 24%, transparent);
+}
+
+.linha.linha-volta {
+  animation: linha-volta 1s ease-out;
+}
+
+@keyframes linha-volta {
+  from {
+    box-shadow: inset 0 0 0 100vmax var(--realce);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .linha.linha-volta {
+    box-shadow: inset 0 0 0 100vmax var(--realce);
+  }
+}
+
+@media (forced-colors: active) {
+  .linha.linha-volta {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
 }
 
 /* janela inativa (desenho 7): a linha escolhida fica cinza mesmo com o foco na lista, e os textos

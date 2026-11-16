@@ -255,7 +255,7 @@
     const lista = linha?.parentElement;
     if (lista?.getAttribute("role") === "listbox") escolher(lista, linha, false);
   });
-  const fecharLado = () => {
+  const fecharLado = (devolverFoco = true) => {
     const no = lado();
     if (!no?.open) return;
     const id = no.dataset.vaga;
@@ -264,7 +264,7 @@
     const url = new URL(location.href);
     url.searchParams.delete("vaga");
     history.replaceState(history.state, "", url);
-    document.getElementById(`vaga-${id}`)?.focus();
+    if (devolverFoco) document.getElementById(`vaga-${id}`)?.focus();
   };
   document.addEventListener("keydown", (evento) => {
     // a lateral sobreposta fecha primeiro (o ouvinte dela vem depois e não marca o evento)
@@ -280,6 +280,116 @@
     if (evento.target.closest('.coluna-lista') && !evento.target.closest('[role="option"]')) {
       fecharLado();
     }
+  });
+
+  // faixa de desfazer (T256; desenho 5.4). Ocultar e Desfazer/Refazer respondem com a faixa nova
+  // (OOB, no mesmo nó da região viva) e um HX-Trigger-After-Settle: o aviso chega com a faixa já
+  // processada (antes do settle, um ⌘Z faria POST nativo). Mostrar recarrega a lista no endereço de
+  // agora (aba, busca e ordem ficam) em vez de achar a posição da linha à mão.
+  const faixa = () => document.getElementById("faixa-desfazer");
+  const botaoDaFaixa = () => faixa()?.querySelector('button[type="submit"]');
+  const linhaEscolhida = () =>
+    document.querySelector('[role="listbox"] > [role="option"][aria-selected="true"]');
+  // onde estava o foco antes da ação: na faixa (o botão dela é trocado), na lista ou no detalhe
+  // (a linha ou o detalhe somem) ou em nenhum lugar; em outro ponto ele fica onde está
+  const ondeEstava = (no) => {
+    if (no?.closest?.("#faixa-desfazer")) return "faixa";
+    if (!no || no === document.body || no.closest?.('#detalhe-vaga, [role="listbox"]')) return "lista";
+    return "";
+  };
+  // o aviso vem depois do settle, quando o botão da faixa que foi apertado já saiu da página (foco
+  // no body): onde estava o foco é lido antes da troca
+  let ondeAntes = "";
+  document.addEventListener("htmx:beforeSwap", (evento) => {
+    if (evento.detail.xhr?.getResponseHeader("HX-Trigger-After-Settle")) {
+      ondeAntes = ondeEstava(document.activeElement);
+    }
+  });
+  const devolverFoco = (onde, linha) => {
+    if (onde === "faixa") botaoDaFaixa()?.focus();
+    else if (onde === "lista") (linha ?? document.getElementById("conteudo"))?.focus();
+  };
+  // a faixa manda a página de agora como `voltar` (a lateral marca a aba certa) e a busca dela
+  document.addEventListener("htmx:configRequest", (evento) => {
+    if (!evento.detail.elt?.closest?.("#faixa-desfazer")) return;
+    evento.detail.parameters.voltar = location.pathname + location.search;
+    evento.detail.parameters.busca = new URLSearchParams(location.search).get("busca") ?? "";
+  });
+  // shortcut: recarrega só a página 1 do endereço de agora; o que veio por "Carregar mais" some e
+  // uma linha de lá não volta à vista. Recarregar até a página já carregada se alguém reclamar.
+  const recarregarLista = () =>
+    document.getElementById("vagas-miolo")
+      ? htmx.ajax("GET", location.pathname + location.search, { target: "#vagas-miolo", swap: "innerHTML" })
+      : null;
+  document.addEventListener("vaga-ocultada", (evento) => {
+    const id = Number(evento.detail.vaga);
+    const onde = ondeAntes;
+    if (new URLSearchParams(location.search).get("aba") === "ocultas") {
+      // Refazer na aba Ocultas: a linha entra na lista, não sai
+      recarregarLista()?.then(() => devolverFoco(onde, null));
+      return;
+    }
+    if (lado()?.dataset.vaga === String(id)) fecharLado(false);
+    const linha = document.getElementById(`vaga-${id}`);
+    const lista = linha?.parentElement;
+    let vizinha = null;
+    if (linha && lista?.getAttribute("role") === "listbox") {
+      const opcoes = opcoesDe(lista);
+      const i = opcoes.indexOf(linha);
+      vizinha = opcoes[i + 1] ?? opcoes[i - 1] ?? null;
+      // o Tab continua numa linha que existe: a seguinte ou, na ponta, a anterior
+      if (linha.ariaSelected === "true" && vizinha) escolher(lista, vizinha, false);
+    }
+    linha?.remove();
+    devolverFoco(onde, onde === "lista" ? (linhaEscolhida() ?? vizinha) : null);
+  });
+  document.addEventListener("vaga-mostrada", (evento) => {
+    const id = Number(evento.detail.vaga);
+    const onde = ondeAntes;
+    recarregarLista()?.then(() => {
+      const linha = document.getElementById(`vaga-${id}`);
+      const lista = linha?.parentElement;
+      if (linha && lista?.getAttribute("role") === "listbox") {
+        escolher(lista, linha, false);
+        // o realce de 1 s mostra onde a linha voltou; o CSS cuida do movimento reduzido
+        linha.classList.add("linha-volta");
+        setTimeout(() => linha.classList.remove("linha-volta"), 1000);
+      }
+      devolverFoco(onde, linha);
+    });
+  });
+  document.addEventListener("click", (evento) => {
+    if (!evento.target.closest("[data-faixa-fechar]")) return;
+    faixa()?.replaceChildren();
+    devolverFoco("lista", linhaEscolhida());
+  });
+  // a faixa não entra na foto do histórico (voltaria velha), mas fica na tela: tiro antes da foto e
+  // devolvo logo depois, no nó que estiver na página (o mesmo, ou o novo de uma volta no histórico)
+  document.addEventListener("htmx:beforeHistorySave", () => {
+    const nos = [...(faixa()?.childNodes ?? [])];
+    if (!nos.length) return;
+    faixa().replaceChildren();
+    queueMicrotask(() => faixa()?.replaceChildren(...nos));
+  });
+  // ⌘Z desfaz e ⇧⌘Z refaz (Ctrl fora do Mac), só com a faixa na tela e fora de campo de texto
+  // (select, caixa de marcar e botão não têm desfazer próprio: neles o atalho vai para a faixa)
+  const campoDeTexto =
+    'textarea, input:not([type="checkbox"], [type="radio"], [type="button"], [type="submit"], [type="reset"], [type="range"], [type="color"], [type="file"])';
+  const plataforma = navigator.userAgentData?.platform ?? navigator.platform ?? "";
+  const noMac = /mac|iphone|ipad/i.test(plataforma);
+  document.addEventListener("keydown", (evento) => {
+    if (evento.key?.toLowerCase() !== "z" || evento.altKey) return;
+    if (noMac ? !evento.metaKey || evento.ctrlKey : !evento.ctrlKey || evento.metaKey) return;
+    const ativo = document.activeElement;
+    if (ativo && (ativo.isContentEditable || ativo.matches(campoDeTexto))) return;
+    const acao = evento.shiftKey ? "refazer" : "desfazer";
+    const botao = faixa()?.querySelector(`[data-faixa="${acao}"] button[type="submit"]`);
+    if (!botao) return;
+    evento.preventDefault();
+    // a faixa recém-chegada só ganha os hx-* no settle; processar antes (o htmx ignora o que já
+    // processou) evita que o ⌘Z dessa janela vire POST nativo
+    htmx.process(botao.form);
+    botao.click();
   });
 
   // barra lateral (T251; desenho 5.2). O estado fica no <html data-lateral>, que a troca do body pelo

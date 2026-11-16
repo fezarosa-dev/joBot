@@ -289,6 +289,47 @@ body {
   background-color: var(--hover);
 }
 
+/* faixa de desfazer (T256): a mesma régua do aviso de erro, sem a cor de alerta. O botão da ação
+   leva o nome por extenso; o de fechar é o × do aviso. Vazia, a faixa não ocupa altura. */
+#faixa-desfazer .faixa {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-block: 8px;
+  padding-inline: var(--espaco);
+  border-block-end: 1px solid var(--separador);
+  background-color: var(--superficie);
+  color: var(--texto);
+  font-size: 0.8125rem;
+}
+
+#faixa-desfazer p {
+  flex: 1;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+#faixa-desfazer form {
+  display: contents;
+}
+
+#faixa-desfazer [data-faixa-fechar] {
+  flex: none;
+  min-inline-size: 28px;
+  padding-block: 0;
+  padding-inline: 8px;
+  border: 0;
+  border-radius: 999px;
+  background-color: transparent;
+  color: var(--texto);
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+#faixa-desfazer [data-faixa-fechar]:hover {
+  background-color: var(--hover);
+}
+
 /*
  * Janela média (640 a 900px), com JavaScript: a lateral fica recolhida e abre por cima do
  * conteúdo (sobreposta), abaixo da barra: nunca vidro sobre vidro, e o botão de recolher fica à
@@ -391,7 +432,8 @@ body {
     color: HighlightText;
   }
 
-  #aviso-erro:not([hidden]) {
+  #aviso-erro:not([hidden]),
+  #faixa-desfazer .faixa {
     border-block-end-color: CanvasText;
   }
 }

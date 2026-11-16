@@ -66,7 +66,10 @@
       {%- endif %}
     </form>
     {%- set destino_visibilidade = "mostrar" if vaga.oculta_motivo else "ocultar" %}
-    <form method="post" action="{{ acao_vaga }}/{{ destino_visibilidade }}">
+    {#- T256: no detalhe ao lado, Ocultar vai por HTMX e traz a faixa de desfazer (a linha sai e o
+        detalhe fecha pelo app.js). Trazer de volta e "mostrar mesmo assim" seguem POST normal: a
+        faixa de Refazer ocultaria à mão uma vaga que a regra tinha ocultado. -#}
+    <form method="post" action="{{ acao_vaga }}/{{ destino_visibilidade }}"{% if prefixo and not vaga.oculta_motivo %} hx-post="{{ acao_vaga }}/ocultar" hx-target="this" hx-swap="none"{% endif %}>
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <input type="hidden" name="voltar" value="{{ retorno }}">
       <button type="submit" class="secundario">{{ t("vagas.acao.ocultar" if not vaga.oculta_motivo else ("vagas.acao.trazer" if vaga.oculta_motivo == "manual" else "vagas.acao.mostrar")) }}</button>
