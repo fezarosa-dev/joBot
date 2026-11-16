@@ -64,6 +64,14 @@ As outras fontes continuam normalmente. O joBot nunca tenta passar pelo CAPTCHA 
 </details>
 
 <details>
+<summary><strong>Como deixo o joBot ler o meu Gmail?</strong></summary>
+
+Com uma senha de app do Google, que você cria na sua conta e cola no joBot. Não precisa criar projeto no Google Cloud.
+Funciona com contas Google pessoais. Não funciona com contas de trabalho ou escola, com a Proteção Avançada nem com a verificação em duas etapas só por chaves de segurança.
+O cartão do Gmail, em Configurações, Contas, chega numa versão próxima, e a leitura dos e-mails vem na fase 6. Veja o [passo a passo](Gmail-senha-de-app) e a [ADR 0024](https://github.com/fezarosa-dev/joBot/blob/main/docs/decisions/0024-gmail-por-senha-de-app.md).
+</details>
+
+<details>
 <summary><strong>Meus dados vão para algum servidor?</strong></summary>
 
 Não existe servidor do joBot. Seus dados ficam no seu computador.

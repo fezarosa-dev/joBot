@@ -18,6 +18,7 @@ PARES = {
     "Roteiro": "Roadmap",
     "Apoie": "Support-the-project",
     "Perguntas-frequentes": "Frequently-asked-questions",
+    "Gmail-senha-de-app": "Gmail-app-password",
     "Tirar-duvida": "Ask-a-question",
 }
 PAR_DE = PARES | {en: pt for pt, en in PARES.items()}

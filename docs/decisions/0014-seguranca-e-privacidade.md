@@ -2,7 +2,7 @@
 
 - **Status:** aceita
 - **Data:** 2026-11-13
-- **Atualizada:** 2026-11-15 (mais serviços de IA, o aviso de versão ligado por padrão e o 2Captcha, ver [0022](0022-captcha-pelo-servico-da-pessoa.md))
+- **Atualizada:** 2026-11-16 (senha de app do Gmail, ver [0024](0024-gmail-por-senha-de-app.md))
 
 ## Contexto
 
@@ -10,7 +10,7 @@ O joBot guarda dados sensíveis (CPF, data de nascimento, currículo) e segredos
 
 ## Decisão
 
-- Segredos (token do Gmail, chave da API da Anthropic, token do bot do Telegram) ficam no cofre de senhas do sistema, pela biblioteca keyring (licença MIT). Sem cofre disponível: arquivo legível só pelo usuário e aviso no painel.
+- Segredos (senha de app do Gmail, chave da API da Anthropic, token do bot do Telegram) ficam no cofre de senhas do sistema, pela biblioteca keyring (licença MIT). Sem cofre disponível: arquivo legível só pelo usuário e aviso no painel.
 - CPF e data de nascimento ficam no SQLite (banco de dados em arquivo), numa pasta de dados do usuário do sistema, que não é sincronizada com nuvem e que só o usuário acessa. O painel recomenda ligar a criptografia de disco (LUKS, BitLocker ou FileVault).
 - Exportar o perfil não leva documentos pessoais (como o CPF), a menos que a pessoa marque a opção.
 - Sem telemetria: o joBot não manda dados de uso para ninguém.
@@ -30,3 +30,4 @@ O joBot guarda dados sensíveis (CPF, data de nascimento, currículo) e segredos
 - [0012. Extensão do navegador](0012-extensao-do-navegador.md)
 - [0013. Gmail e avisos](0013-gmail-e-avisos.md)
 - [0022. CAPTCHA resolvido pelo serviço que a pessoa liga](0022-captcha-pelo-servico-da-pessoa.md)
+- [0024. Gmail por senha de app](0024-gmail-por-senha-de-app.md)

@@ -9,6 +9,7 @@
 - 🗺️ [Roteiro](Roteiro)
 - 💛 [Apoie](Apoie)
 - ❓ [Perguntas frequentes](Perguntas-frequentes)
+- 🔑 [Gmail com senha de app](Gmail-senha-de-app)
 - 🙋 [Tirar dúvida](Tirar-duvida)
 
 ### 🌎 English
@@ -22,6 +23,7 @@
 - 🗺️ [Roadmap](Roadmap)
 - 💛 [Support the project](Support-the-project)
 - ❓ [Frequently asked questions](Frequently-asked-questions)
+- 🔑 [Gmail with an app password](Gmail-app-password)
 - 🙋 [Ask a question](Ask-a-question)
 
 ---

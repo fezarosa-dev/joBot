@@ -2331,7 +2331,7 @@ Escolha da sessão (dono fora): a opção (a), para confirmar. Consequência: co
 8. (Q8, dono) Uma aba única, "Contas", em Configurações, troca a "Sites com login".
    - LinkedIn e os próximos sites: agora.
    - Claude Code e Codex: fase 4, com o estado vindo da própria ferramenta.
-   - Gmail: fase 6 (OAuth).
+   - Gmail: fase 6 (OAuth) (superado pela D145: o cartão do Gmail entra no lote de Contas, por senha de app; a leitura dos e-mails fica na fase 6).
    - 2Captcha: mostra "chave salva", testada só no clique.
 9. (Q9, dono) Lote pequeno agora, ainda na fase 2, antes do Panorama (0.3.0). Só o LinkedIn por enquanto.
 10. (Q10, dono) O Canvas ganha a parte de IA agora. O instalador real sai na fase 3 sem ela e ganha o grupo de IA na fase 4. A D138.6 continua valendo: a lista do instalador mostra só o que a versão usa.
@@ -2569,3 +2569,29 @@ Escolha da sessão (dono fora): a opção (a), para confirmar. Consequência: co
 18. **Nomes propostos.** Ícones que o mapa do desenho não cobre (grupos de Configurações, estado vazio e Saiu) e os textos novos marcados "proposta" no plano. Teste: `test_icones_do_mapa_existem`.
 
 **Como desfazer:** até o lote ser construído só existe texto; voltar atrás é editar o plano e esta D. Depois, cada escolha tem o seu teste: mudar a escolha é mudar o teste e o código da tarefa responsável por ela.
+
+## D145. Gmail por senha de app
+
+**Status:** os itens do dono (Q1 a Q4 e R1 a R3) foram decididos em 2026-11-16. As escolhas da sessão estão em "Para confirmar" e valem para construir.
+
+**Contexto:** a ADR [0013](docs/decisions/0013-gmail-e-avisos.md) pedia que cada pessoa criasse o próprio projeto no Google Cloud para o joBot ler o Gmail por OAuth. É trabalhoso, e muita gente não consegue. O registro da troca é a ADR [0024](docs/decisions/0024-gmail-por-senha-de-app.md).
+
+**Decisões do dono:**
+
+- Q1. IMAP com senha de app substitui o projeto no Google Cloud por pessoa da ADR 0013.
+- Q2. Guardar no cofre local a senha de app colada pela pessoa é permitido. O joBot continua sem digitar a senha da conta Google.
+- Q3. O projeto por pessoa fica só como tarefa futura, para quem não consegue senha de app.
+- Q4. O cliente OAuth único e verificado fica descartado por ora: a revisão de escopo restrito leva semanas e pede avaliação de segurança anual (CASA); não confirmamos se um app que só guarda os dados no aparelho fica isento. Um cliente não verificado tem teto de 100 usuários no total.
+- R1. O tutorial é uma página da wiki, em português e em inglês, com os dois links oficiais do Google, no `_Sidebar` e no FAQ. O painel linka para ela.
+- R2. O cartão do Gmail entra na aba Contas já no lote de Contas: endereço e senha de app, "Conferir agora" com login só de leitura, estados "Conectado" e "Precisa entrar de novo". A leitura dos e-mails continua na fase 6.
+- R3. Só contas Google (Gmail).
+
+**Para confirmar com o dono:**
+
+1. Os nomes `gmail_conta` e `gmail_senha_de_app` no cofre.
+2. O tutorial sem imagens por ora, só texto e links. As imagens dos passos ficam para uma tarefa futura, porque exigiriam capturar telas da conta Google.
+3. Os estados do cartão são os dos sites com login da D139: "Conectado", "Precisa entrar de novo", "Nunca entrou" e "Não deu para conferir". Recusa de login (`AUTHENTICATIONFAILED`) vira "Precisa entrar de novo"; falha de rede vira "Não deu para conferir".
+4. O mínimo de 10 minutos do "Conferir agora" (D139) vale também para o Gmail.
+5. (decisão da sessão) O Gmail segue as mesmas regras de faixa do topo e de aviso `notify-send` dos sites (seções 5.1 e 5.6 do desenho de Contas): só abrem depois de uma conferência que deu certo (`entrou_em` preenchido). Ao salvar, o painel testa o login antes de guardar: senha recusada não é guardada, o cartão fica em "Nunca entrou" e a mensagem aparece embaixo do campo.
+
+**Como desfazer:** o dono manda trocar qualquer item. Voltar à ADR 0013 é tirar o cartão do Gmail e a nota da ADR 0013, e apagar a senha de app na conta Google.
