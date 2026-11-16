@@ -32,7 +32,7 @@ It gathers, filters and organizes jobs from many sites into a nice dashboard tha
 
 > [!IMPORTANT]
 > **joBot phase 1 (the foundation) is done: version 0.2.1.** It searches public sources for jobs, keeps everything on your computer and shows it in a dashboard. You can already [install and use it](#requirements-and-installation).
-> LinkedIn is the site with login today (others can come through the [new site template](docs/site-novo.en.md)); it arrives in the next version and comes off. The Gmail card arrives with the Accounts tab; reading the emails, audio and the rest (the other sites with login, AI and browser extension) are still a plan. See the [roadmap](#roadmap). Before you turn on the sources, read the [usage and terms notices](#license-and-notices).
+> LinkedIn is the site with login today (others can come through the [new site template](docs/site-novo.en.md)); it arrives in the next version and comes off. The Gmail card is already in Settings, Accounts; reading the emails, audio and the rest (the other sites with login, AI and browser extension) are still a plan. See the [roadmap](#roadmap). Before you turn on the sources, read the [usage and terms notices](#license-and-notices).
 
 ## 📑 Contents
 
@@ -142,7 +142,7 @@ flowchart LR
 
 One search cycle, step by step:
 
-1. **At the scheduled time**, joBot wakes up. Public sources: every 3 hours. Or when you press "Search now". (Sites with login arrive in phase 2, with two searches a day.)
+1. **At the scheduled time**, joBot wakes up. Public sources: every 3 hours. Or when you press "Search now". (Sites with login, in Settings, Accounts, are read twice a day.)
 2. **Each collector** visits its source calmly and brings the jobs in a single format.
 3. **The core** merges duplicate jobs, understands the salary, adds labels and marks as closed the jobs that disappeared.
 4. **Everything goes to the SQLite database**, a file that stays on your computer.
@@ -176,7 +176,7 @@ It never uses logins or secrets.
 <a id="job-sources"></a>
 ## 🌎 Job sources
 
-Each source has an on/off switch, in Settings, Sources. In phase 1 the public sources work; sites with login arrive in phase 2.
+Each source has an on/off switch, in Settings, Sources. In phase 1 the public sources work. Sites with login (for now, LinkedIn) live in Settings, Accounts, which shows whether joBot is still signed in to each one.
 Three Brazilian portals call for care, because of their terms of use: Eureca, Abler and Gupy. Read the notice in [License and notices](#license-and-notices).
 
 | Group | Examples |
@@ -335,7 +335,7 @@ Details in [ADR 0010](docs/decisions/0010-claude-code-da-pessoa.md) (in Portugue
 <a id="privacy-and-security"></a>
 ## 🔒 Privacy and security
 
-> These rules apply to phase 1. The ones that talk about AI, Gmail, extension, audio and the password vault describe the next phases.
+> These rules apply to phase 1 and to what phase 2 has already brought. The ones that talk about AI, Telegram, extension and audio describe the next phases. For Gmail, the card in Settings, Accounts already applies: it keeps the app password in the system password vault and only opens the inbox read-only, to check the sign-in; reading emails comes in phase 6.
 
 - **There is no joBot server.** Your data stays on your computer.
 - **No telemetry.** No usage data is sent.

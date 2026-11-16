@@ -10,13 +10,15 @@ O formato segue o [Keep a Changelog 1.1.0](https://keepachangelog.com/pt-BR/1.1.
 
 ### Adicionado
 
-- LinkedIn, o primeiro site com login. O leitor vem desligado: você liga em Configurações, Sites com login. Ele busca por cada cargo das suas buscas, com a cidade e o remoto, e lê só a última semana, ordenada por relevância. Como a lista não é completa, uma vaga do LinkedIn só fecha depois de 30 dias sem ser vista, e reabre se voltar.
+- LinkedIn, o primeiro site com login. O leitor vem desligado: você liga em Configurações, Contas. Ele busca por cada cargo das suas buscas, com a cidade e o remoto, e lê só a última semana, ordenada por relevância. Como a lista não é completa, uma vaga do LinkedIn só fecha depois de 30 dias sem ser vista, e reabre se voltar.
+- A aba Contas mostra se o joBot ainda está conectado em cada site, confere na hora e avisa quando a sessão cai.
+- Cartão do Gmail na aba Contas: cole a senha de app, e o joBot confere o login só para leitura. A leitura dos e-mails vem na fase 6.
 - A tela Ferramentas em Configurações, para baixar e remover o navegador dos sites com login (uns 210 MB), sem terminal.
 - O passo opcional "Sites com login" no assistente de primeira execução: ligar os sites, ver o navegador e baixá-lo, tudo antes de ver as vagas.
 - Login numa janela comum do navegador, sem automação: você entra como quiser (Google, e-mail e senha) e fecha a janela. O joBot confere a sessão sozinho e nunca digita a senha.
 - ADR 0023: tudo pelo painel. Ferramentas externas, atualização e encerramento passam a ter botão, sem terminal.
 - Guia "Como acrescentar um site novo" (`docs/site-novo.md`), com um molde de coletor para site público e um de leitor para site com login, e uma guarda no CI que confere o teste, o exemplo e o nome de cada site.
-- ADR 0024: o Gmail será lido por IMAP com uma senha de app colada no painel (o cartão vem com a aba Contas; a leitura dos e-mails, na fase 6). A wiki ganha o passo a passo.
+- ADR 0024: o Gmail será lido por IMAP com uma senha de app colada no painel (o cartão está em Configurações, Contas; a leitura dos e-mails, na fase 6). A wiki ganha o passo a passo.
 - Uma janela própria para o painel: se o computador tem Chrome, Edge ou Chromium, o `jobot` abre o painel sem abas nem barra de endereço, como um aplicativo; sem eles, abre numa aba.
 - Desfazer e Refazer: ocultar uma vaga, descartar uma sugestão e remover uma empresa acontecem na hora, com uma faixa de Desfazer (`⌘Z`, `Ctrl+Z` fora do Mac) e de Refazer. Apagar uma busca, remover um site e esquecer logins pedem confirmação num alerta.
 - Paleta de comandos (`⌘K`, `Ctrl+K` fora do Mac): vai a qualquer tela e troca tema, idioma e tamanho do texto, sem mouse.

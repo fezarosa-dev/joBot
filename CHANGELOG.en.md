@@ -10,13 +10,15 @@ The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/
 
 ### Added
 
-- LinkedIn, the first site with login. The reader comes off: you turn it on in Settings, Sites with login. It searches for each job title in your searches, with the city and remote, and reads only the last week, sorted by relevance. Because the list is not complete, a LinkedIn job only closes after 30 days without being seen, and reopens if it comes back.
+- LinkedIn, the first site with login. The reader comes off: you turn it on in Settings, Accounts. It searches for each job title in your searches, with the city and remote, and reads only the last week, sorted by relevance. Because the list is not complete, a LinkedIn job only closes after 30 days without being seen, and reopens if it comes back.
+- The Accounts tab shows whether joBot is still signed in to each site, checks on demand and warns when the session ends.
+- Gmail card in the Accounts tab: paste an app password, and joBot checks the sign-in read-only. Reading emails comes in phase 6.
 - The Tools screen in Settings, to download and remove the browser for sites with login (about 210 MB), with no terminal.
 - The optional "Sites with login" step in the first-run assistant: turn on the sites, check the browser and download it, before you see the jobs.
 - Login in a regular browser window, with no automation: you sign in however you like (Google, email and password) and close the window. joBot checks the session by itself and never types the password.
 - ADR 0023: everything through the dashboard. External tools, updating and quitting get a button, no terminal needed.
 - Guide "How to add a new site" (`docs/site-novo.en.md`), with a collector template for a public site and a reader template for a site with login, and a CI guard that checks each site's test, example and name.
-- ADR 0024: Gmail will be read over IMAP with an app password pasted into the dashboard (the card comes with the Accounts tab; reading the emails, in phase 6). The wiki gets the step-by-step guide.
+- ADR 0024: Gmail will be read over IMAP with an app password pasted into the dashboard (the card is in Settings, Accounts; reading the emails, in phase 6). The wiki gets the step-by-step guide.
 - A window of its own for the dashboard: if the computer has Chrome, Edge or Chromium, `jobot` opens the dashboard with no tabs or address bar, like an app; without them, it opens in a tab.
 - Undo and Redo: hiding a job, discarding a suggestion and removing a company happen right away, with an Undo bar (`⌘Z`, `Ctrl+Z` outside the Mac) and a Redo. Deleting a search, removing a site and forgetting logins ask for confirmation in an alert.
 - Command palette (`⌘K`, `Ctrl+K` outside the Mac): goes to any screen and changes theme, language and text size, with no mouse.

@@ -636,3 +636,21 @@ def test_changelogs_com_a_mesma_data_da_0_1_0() -> None:
     }
     assert all(datas.values()), datas
     assert len({m.group(1) for m in datas.values() if m}) == 1
+
+
+# a aba de Configurações com o estado de cada login: nome de hoje e nome velho, por língua
+ABA_CONTAS = {"pt": "Configurações, Contas", "en": "Settings, Accounts"}
+ABA_VELHA = {"pt": r"Configurações\W+Sites com login", "en": r"Settings\W+Sites with login"}
+CITA_CONTAS = {"pt": "Cartão do Gmail na aba Contas", "en": "Gmail card in the Accounts tab"}
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_changelog_cita_a_aba_contas(lingua: str) -> None:
+    """Em "Não lançado" a aba é "Contas" e traz o cartão do Gmail; o nome velho não aparece."""
+    conteudo = texto(CHANGELOG[lingua])
+    assert NAO_LANCADO[lingua] in conteudo, CHANGELOG[lingua]
+    inicio = conteudo.index(NAO_LANCADO[lingua])
+    secao_nova = conteudo[inicio : conteudo.index("\n## [", inicio + 1)]
+    assert ABA_CONTAS[lingua] in secao_nova, CHANGELOG[lingua]
+    assert CITA_CONTAS[lingua] in secao_nova, CHANGELOG[lingua]
+    assert not re.search(ABA_VELHA[lingua], conteudo), CHANGELOG[lingua]
