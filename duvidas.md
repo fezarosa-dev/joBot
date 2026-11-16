@@ -2710,3 +2710,21 @@ Escolha da sessão (dono fora): a opção (a), para confirmar. Consequência: co
 **O que o dono faz:** nada para funcionar. Fica com ele: confirmar o número de partes (item 2) e, quando for ligar a proteção de checks na `main`, escolher o `ok`.
 
 **Como desfazer:** apagar a variável do workflow e voltar a um job só devolve a rodada longa; o hook do `conftest.py` não faz nada sem `JOBOT_PARTE`. Mudar o número de partes é mudar a lista `parte` da matriz no `ci.yml`.
+
+## D150. Pendências do visual e de Contas (para confirmar)
+
+**Status:** para confirmar. Decidido pela recomendação de cada item, com o dono fora.
+
+**Contexto:** a T251 (lateral e barra do visual novo) e a T273 (Contas, "Conferir agora") deixaram escolhas pequenas que o desenho não fechava. Cada uma segue a recomendação até o dono dizer outra coisa.
+
+**Escolhas:**
+
+1. (D150.1, T251) **Dois `aria-current="page"` em `/vagas`.** A lateral e a `nav.abas` marcam a página atual ao mesmo tempo. Alternativa: deixar os dois até a tarefa que tira as abas. Recomendo que a tarefa que tira as abas (T254) remova a `nav.abas` ou troque o atributo dela por `aria-selected`.
+2. (D150.2, T251) **Rótulo do `nav` lateral.** Segue "Principal" em português e "Main" em inglês. Alternativa: um nome mais específico. Recomendo manter.
+3. (D150.3, T251) **Altura da barra.** A barra usa `min-block-size` de 52px, não altura fixa, para crescer com texto maior. Alternativa: altura fixa de 52px. Recomendo manter, com o teste de 52px a 1200px só no CI.
+4. (D150.4, T251) **Title Case no inglês dos itens da lateral.** Os itens em inglês ainda não seguem a capitalização da HIG. Alternativa: ajustar já. Recomendo deixar para a T254, que mexe nos rótulos.
+5. (D150.5, T273) **`abrir_contexto` fora do prazo do "Conferir agora".** O prazo `PRAZO_CONFERIR_S` (60 s) cobre só `new_page` e `visitar`, não a abertura do contexto do Chromium. Cancelar o launch no meio deixaria o perfil travado (`SingletonLock`); a espera na abertura passa a depender do prazo próprio do launch do Playwright. Alternativa: pôr a abertura dentro dos 60 s, o que pode deixar um Chromium órfão e o perfil preso. Recomendo manter.
+
+**O que o dono faz:** nada para funcionar. Fica com ele confirmar os itens ou mandar trocar algum.
+
+**Como desfazer:** cada item é uma `Tn` pequena: o 1 e o 4 entram na T254, o 3 troca uma linha de CSS e o 5 move a abertura do contexto para dentro do prazo.
