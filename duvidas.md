@@ -2728,3 +2728,20 @@ Escolha da sessão (dono fora): a opção (a), para confirmar. Consequência: co
 **O que o dono faz:** nada para funcionar. Fica com ele confirmar os itens ou mandar trocar algum.
 
 **Como desfazer:** cada item é uma `Tn` pequena: o 1 e o 4 entram na T254, o 3 troca uma linha de CSS e o 5 move a abertura do contexto para dentro do prazo.
+
+## D151. Último evento de status do Desfazer pela ordem de gravação (para confirmar)
+
+**Status:** para confirmar. Decidido pela recomendação, com o dono fora.
+
+**Contexto:** `desfazer_candidatura` (T281, E18) acha o último evento de status da vaga. Ordenar por `julianday(criado_em) DESC, id DESC` erra se o relógio voltar: o Sim às T+5h, uma mudança para `entrevista` às T+1h e o Desfazer do status às T+2h deixam a vaga em `candidatei`, mas o Sim, de instante maior, ainda parece o último evento. A função devolveria `True` e levaria a vaga a `salva`, um status que ela não tem a ver com a última ação. Como `evento` só recebe acréscimo, o `id` é a ordem real de gravação.
+
+**Escolhas:**
+
+1. **Opção A (escolhida).** Ordenar só por `id DESC`. Cobre o relógio que volta. Prende com o teste `test_desfazer_com_relogio_que_volta`.
+2. **Opção B.** Manter `julianday(criado_em) DESC, id DESC` e aceitar o caso. Menos mudança, mas o Desfazer pode levar a vaga a um status que ela não devia ter.
+
+**Recomendação:** A.
+
+**O que o dono faz:** nada.
+
+**Como desfazer:** voltar a ordenação para `julianday(criado_em) DESC, id DESC` e apagar o teste.
