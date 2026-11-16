@@ -215,9 +215,6 @@
 }
 
 [data-icone="book-open"] { --icone: url("/static/icones/book-open.svg"); }
-[data-icone="circle-check"] { --icone: url("/static/icones/circle-check.svg"); }
-[data-icone="circle-x"] { --icone: url("/static/icones/circle-x.svg"); }
-[data-icone="clock"] { --icone: url("/static/icones/clock.svg"); }
 
 @media (prefers-contrast: more) {
   .progresso-trilho {

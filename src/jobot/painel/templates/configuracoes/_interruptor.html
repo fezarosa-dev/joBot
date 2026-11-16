@@ -14,10 +14,10 @@
 {% endmacro %}
 
 {#- Uma caixa de marcar: o checkbox do sistema, com o estilo do base.css, na frente do rótulo. -#}
-{% macro caixa(nome, marcado, rotulo, ajuda="", valor=None) %}
+{% macro caixa(nome, marcado, rotulo, ajuda="") %}
 <div class="interruptor">
   <label class="interruptor-linha interruptor-caixa">
-    <input type="checkbox" name="{{ nome }}"{% if valor is not none %} value="{{ valor }}"{% endif %}{% if marcado %} checked{% endif %}{% if ajuda %} aria-describedby="ajuda-{{ nome }}"{% endif %}>
+    <input type="checkbox" name="{{ nome }}"{% if marcado %} checked{% endif %}{% if ajuda %} aria-describedby="ajuda-{{ nome }}"{% endif %}>
     <span class="interruptor-texto">{{ rotulo }}</span>
   </label>
   {% if ajuda %}<small id="ajuda-{{ nome }}">{{ ajuda }}</small>{% endif %}
