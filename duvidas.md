@@ -2840,6 +2840,8 @@ Escolha da sessão (dono fora): a opção (a), para confirmar. Consequência: co
 
 Uma escolha de desenho da T301 vai junto, também para confirmar: o "Mais filtros" passa a vir fechado ao carregar a página, mesmo com filtro ativo (se a pessoa o abre, ele continua aberto quando a lista é trocada: chip, envio, troca de busca; o `app.js` guarda isso em `htmx:beforeSwap` e `htmx:afterSwap`), e mostra no resumo quantos filtros valem (no formato de hoje, "Mais filtros (2)", agora contando também os chips), e os grupos de chips (Modalidade, Nível, Área e os outros) passam para dentro dele, para a lista começar na primeira dobra. Isso muda a barra da T254 (desenho 5.2), em que os chips ficam à mostra e o "Mais filtros" abre quando algum campo está preenchido. E outra, do item 6: some só a marca que aparece ao carregar a página; entrar na lista pelo teclado (Tab ou o link "Pular para a lista de vagas") marca a linha focada, porque a seleção segue o foco, como hoje.
 
+Do item 2 (T305 h), aceito e documentado. Sem JavaScript, o detalhe sobreposto fica preso ao `#vagas-miolo` (a contenção do container prende o fixed): cobre a lista na altura toda do miolo e as ações ficam no pé dele. Só chega aí quem abre `?vaga=` direto; sem JavaScript o clique na linha abre a página própria (E10).
+
 **Escolhas:**
 
 - **A (escolhida).** Conferir por fotos, juntar a branch visual na `dev` e corrigir o que as fotos mostram numa tarefa própria (T301), sem parar o resto das ondas 7 e 8.

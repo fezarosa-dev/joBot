@@ -269,17 +269,27 @@
     true,
   );
   // a linha aberta fica marcada pela resposta, não pelo foco: Safari e Firefox do Mac não focam o
-  // <a> clicado, e o focusin não chega
+  // <a> clicado, e o focusin não chega. O settle vem 20 ms depois da troca: se a escolha andou nesse
+  // meio-tempo (seta logo depois do Return), ela vale e a resposta não a desfaz. A marca do pedido
+  // vai no próprio detail: o htmx passa o mesmo objeto ao beforeRequest e ao afterSettle do pedido,
+  // então dois pedidos seguidos não se pisam
+  const marcadaAgora = () => document.querySelector(`${LISTAS} > [role="option"][aria-selected="true"]`)?.id ?? null;
+  document.addEventListener("htmx:beforeRequest", (evento) => {
+    if (evento.detail.target?.matches?.("#detalhe-vaga")) evento.detail.marcadaNoPedido = marcadaAgora();
+  });
   document.addEventListener("htmx:afterSettle", (evento) => {
     if (!evento.target.matches?.("#detalhe-vaga")) return;
+    const { marcadaNoPedido } = evento.detail;
+    if (marcadaNoPedido !== undefined && marcadaAgora() !== marcadaNoPedido) return; // a escolha andou
     const linha = document.getElementById(`vaga-${lado()?.dataset.vaga}`);
     const lista = linha?.parentElement;
     if (lista?.getAttribute("role") === "listbox") escolher(lista, linha, false);
   });
   // sobreposto preso à janela (T301): o #vagas-miolo é container (contenção de layout) e prende o
   // position: fixed à rolagem da coluna; na camada de cima (popover manual, sem modal) o <dialog>
-  // fica preso à janela. Em coluna ele volta ao fluxo da grade. Sem JS, o vagas.css o prende ao
-  // alto da coluna (sticky).
+  // fica preso à janela. Em coluna ele volta ao fluxo da grade. Sem JS (T305 h, aceito) o sobreposto
+  // fica preso ao #vagas-miolo: cobre a lista na altura toda do miolo, com as ações no pé dele. Só
+  // chega aí quem abre ?vaga= direto; sem JS o clique na linha abre a página própria (E10).
   const acertarCamada = () => {
     const no = lado();
     if (!no?.showPopover) return;
