@@ -2,7 +2,7 @@
 
 - **Status:** aceita
 - **Data:** 2026-11-13
-- **Atualizada:** 2026-11-15 (o Ollama volta como opção pelo backend compatível com OpenAI)
+- **Atualizada:** 2026-11-15 (o Ollama volta como opção pelo backend compatível com OpenAI; Tauri na fase 3, D142)
 
 ## Contexto
 
@@ -33,6 +33,12 @@ O público é leigo e usa computadores médios. O app precisa abrir um Chrome vi
 - Microfone, início com o sistema e atalho são coisas do sistema operacional.
 - O login do Claude Code teria de ser feito de novo dentro do container (no macOS ele fica no Keychain, que o container não enxerga).
 
+## Tauri na fase 3 (2026-11-15)
+
+- Na fase 3 entra o Tauri (Rust e HTML) como casca do app de desktop e como tela do instalador (D138, decisão 16; D142). A casca dá ao joBot ícone e janela própria em volta do mesmo painel, que continua em 127.0.0.1 e não é reescrito. A janela usa o navegador embutido do sistema (WebKitGTK, WebView2 ou WKWebView).
+- O joBot em si continua instalado pelo `uv tool install`, chamado pelo instalador. A lista de tecnologias acima não muda: o Rust fica só na casca, num projeto à parte.
+- Como toda dependência, o Tauri entra com a licença conferida (regra acima).
+
 ## Consequências
 
 - Cada sistema operacional precisa ser testado na fase 3.
@@ -44,3 +50,4 @@ O público é leigo e usa computadores médios. O app precisa abrir um Chrome vi
 - [0009. Inteligência artificial: opções, modelos e pacote offline](0009-ia-backends-e-modelos.md)
 - [0010. Usar o Claude Code que a pessoa já tem (sem login dentro do joBot)](0010-claude-code-da-pessoa.md)
 - [0016. Licença, sala limpa e processo de trabalho](0016-licenca-clean-room-e-processo.md)
+- [duvidas.md: D138 (instalador) e D142 (app de desktop)](../../duvidas.md)

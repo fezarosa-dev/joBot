@@ -2,7 +2,7 @@
 
 - **Status:** aceita
 - **Data:** 2026-11-13
-- **Atualizada:** 2026-11-15 (versões 0.1.1, 0.2.0 e 0.2.1 entre a fase 1 e a fase 2; fase 3 vira o Instalador, as seguintes andam um número, e a versão 0.3.0 traz o Panorama e a fila, D138)
+- **Atualizada:** 2026-11-15 (versões 0.1.1, 0.2.0 e 0.2.1 entre a fase 1 e a fase 2; fase 3 vira o Instalador, as seguintes andam um número, e a versão 0.3.0 traz o Panorama e a fila, D138; fase 3 com o app de desktop, D142, e o ajuste do Laya antes da fase 4, D141)
 
 ## Contexto
 
@@ -22,6 +22,12 @@ O projeto é grande. Ir por fases deixa cada entrega testada antes da próxima. 
 - Fase 8, Versão GitHub Pages. Status: planejada.
 - Fase 9, Publicação: README com selos e revisão de segurança (os instaladores saíram desta fase e foram para a fase 3). Status: planejada.
 
+## App de desktop na fase 3 e Laya antes da fase 4 (2026-11-15)
+
+- A fase 3 inclui, além do instalador, o app de desktop: uma casca Tauri com ícone e janela própria em volta do mesmo painel, que continua em 127.0.0.1. O mesmo projeto Tauri gera o instalador (D142). O visual de app do Mac vem da D140.
+- O ajuste fino do Laya (ADR 0015) acontece antes da fase 4, e o Laya ajustado entra no encaixe junto com o Qwen local (D141). Os outros treinos seguem na fase 7.
+- Nenhuma fase muda de número nem de nome.
+
 ## Consequências
 
 - Cada fase só começa depois que a anterior passa nos testes.
@@ -33,3 +39,4 @@ O projeto é grande. Ir por fases deixa cada entrega testada antes da próxima. 
 - [0016. Licença, sala limpa e processo de trabalho](0016-licenca-clean-room-e-processo.md)
 - [0018. Manutenção pela comunidade e CI aberto a todo PR](0018-manutencao-pela-comunidade.md)
 - [0023. Tudo pelo painel](0023-tudo-pelo-painel.md)
+- [duvidas.md: D141 (Laya antes da fase 4) e D142 (app de desktop)](../../duvidas.md)

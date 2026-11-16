@@ -2,7 +2,7 @@
 
 - **Status:** aceita
 - **Data:** 2026-11-13
-- **Atualizada:** 2026-11-15 (seção do modelo leve na máquina da pessoa, D122); antes, em 2026-11-13
+- **Atualizada:** 2026-11-15 (seção do modelo leve na máquina da pessoa, D122; seção do Laya antes da fase 4, D141); antes, em 2026-11-13
 
 ## Contexto
 
@@ -51,6 +51,13 @@ Nunca entra dado pessoal: currículo real e ações da pessoa no painel ficam fo
 - O modelo roda só na máquina da pessoa. O GitHub Actions nunca recebe currículo nem as vagas da pessoa: só confere que o modelo carrega e acerta um teste pequeno, com exemplos públicos. Vale a regra da [0014](0014-seguranca-e-privacidade.md): os dados só saem do computador para os serviços que a pessoa ligar, e o modelo leve não precisa de nenhum.
 - O treino continua no RunPod. Esta seção não muda o status da ADR, que segue aceita (D122).
 
+## Laya antes da fase 4 (2026-11-15)
+
+- Exceção ao título e ao resto desta ADR: o ajuste fino do Laya sai da fase 7 e acontece antes da fase 4 (D141). Os outros treinos (LoRA do Qwen, classificador pessoal) continuam na fase 7.
+- O Laya ajustado entra no encaixe junto com o Qwen local e reconhece palavras diferentes que querem dizer a mesma competência. Isso fecha o descompasso: o encaixe pelo sentido (D122) dependia do Laya ajustado, que só ficaria pronto na fase 7.
+- O resto vale como está: o modelo ajustado só substitui o original se ganhar no gabarito, o gabarito nunca entra no treino, e o treino roda no RunPod.
+- O ponto em aberto abaixo (termos das fontes) passa a valer antes deste treino do Laya, não antes da fase 7.
+
 ## Consequências
 
 - Um modelo ajustado que não ganha do original no gabarito não é usado.
@@ -67,3 +74,4 @@ Nunca entra dado pessoal: currículo real e ações da pessoa no painel ficam fo
 - [0007. Tratamento das vagas: duplicadas, ciclo de vida, salário e rótulos](0007-tratamento-dos-dados.md)
 - [0009. Inteligência artificial: opções, modelos e pacote offline](0009-ia-backends-e-modelos.md)
 - [0014. Segurança e privacidade](0014-seguranca-e-privacidade.md)
+- [duvidas.md: D141 (Laya antes da fase 4)](../../duvidas.md)
