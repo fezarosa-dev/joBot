@@ -20,21 +20,21 @@ Outro caso, em 2026-11-16: `tests/navegador/test_navegacao_logada.py::test_cloud
 - modificar `.github/workflows/ci.yml` só para medir (`--durations=25`, depois volta ao valor de hoje);
 - modificar `registros/padroes.md` (ou `registros/padroes-tela.md`) com a lição, se sair uma.
 
-- [ ] **Medir antes:** numa branch `lote/manutencao`, rodar `uv run pytest -m tela --durations=25` em cada parte (`JOBOT_PARTE=i/16`) e anotar, no fim desta tarefa, os 25 mais lentos de cada parte (setup, chamada e fim separados), o tempo de cada job `tela` e as falhas da rodada.
-- [ ] **Achar a causa** de cada lento: fixture que sobe servidor ou banco a cada teste sem precisar, espera fixa (`time.sleep`, `wait_for_timeout`), `expect` sem condição clara, semeadura repetida, pedido que espera o tempo limite. Uma linha por causa, com `arquivo:linha`.
-- [ ] **Teste que falha antes:** para cada causa que dá para provar sem relógio, um teste em `tests/unidade/` ou `tests/tela/` que falha numa asserção (por exemplo, a fixture não pode esperar mais do que o necessário depois de `started`; nenhum teste de tela chama `wait_for_timeout` nem `time.sleep`, conferido por varredura do texto). Causa que só aparece na máquina do CI fica com a medição como prova: o tempo antes e depois.
-- [ ] **Ver falhar:** `uv run pytest tests/unidade/<arquivo>.py -q` (e o teste de tela da causa, no CI).
-- [ ] **Corrigir a causa**, sem tocar no que não foi medido: fixture por escopo certo, espera por condição (`expect`, `wait_for`) no lugar de tempo, semente menor. Sem plugin de repetição e sem dependência nova.
-- [ ] **Ver passar:** o arquivo do teste novo e `uv run ruff check && uv run ruff format --check` aqui; `-m tela` no CI.
-- [ ] **Critério de pronto:** 3 rodadas seguidas do CI verdes, sem nenhuma falha de tela, na mesma branch. Anotar no fim desta tarefa os tempos antes e depois (por parte e total da rodada).
+- [x] **Medir antes:** numa branch `lote/manutencao`, rodar `uv run pytest -m tela --durations=25` em cada parte (`JOBOT_PARTE=i/16`) e anotar, no fim desta tarefa, os 25 mais lentos de cada parte (setup, chamada e fim separados), o tempo de cada job `tela` e as falhas da rodada.
+- [x] **Achar a causa** de cada lento: fixture que sobe servidor ou banco a cada teste sem precisar, espera fixa (`time.sleep`, `wait_for_timeout`), `expect` sem condição clara, semeadura repetida, pedido que espera o tempo limite. Uma linha por causa, com `arquivo:linha`.
+- [x] **Teste que falha antes:** para cada causa que dá para provar sem relógio, um teste em `tests/unidade/` ou `tests/tela/` que falha numa asserção (por exemplo, a fixture não pode esperar mais do que o necessário depois de `started`; nenhum teste de tela chama `wait_for_timeout` nem `time.sleep`, conferido por varredura do texto). Causa que só aparece na máquina do CI fica com a medição como prova: o tempo antes e depois.
+- [x] **Ver falhar:** `uv run pytest tests/unidade/<arquivo>.py -q` (e o teste de tela da causa, no CI).
+- [x] **Corrigir a causa**, sem tocar no que não foi medido: fixture por escopo certo, espera por condição (`expect`, `wait_for`) no lugar de tempo, semente menor. Sem plugin de repetição e sem dependência nova.
+- [x] **Ver passar:** o arquivo do teste novo e `uv run ruff check && uv run ruff format --check` aqui; `-m tela` no CI.
+- [x] **Critério de pronto:** 3 rodadas seguidas do CI verdes, sem nenhuma falha de tela, na mesma branch. Anotar no fim desta tarefa os tempos antes e depois (por parte e total da rodada).
 
 **Tempos (preencher ao fechar):**
 
 | Medida | Antes | Depois |
 |---|---|---|
-| Job `tela` mais lento | 86 a 98 s nas 6 rodadas verdes (passo do pytest até 64 s, sempre na parte com `test_teto_de_20_vagas...`) | |
-| Rodada inteira | 93 a 104 s (do primeiro job ao último) | |
-| Falhas de tela em 3 rodadas | 0 nas 6 verdes; no histórico, 1 instável (`test_cloudflare_que_leva_a_url_com_fragmento_segue`, rodada 43822440143) | |
+| Job `tela` mais lento | 86 a 98 s nas 6 rodadas verdes (passo do pytest até 64 s, sempre na parte com `test_teto_de_20_vagas...`) | 79 a 106 s nas 3 rodadas verdes (43842794080, 43843129743, 43843400492) |
+| Rodada inteira | 93 a 104 s (do primeiro job ao último) | 89 a 116 s (da criação da rodada ao fim, com a fila) |
+| Falhas de tela em 3 rodadas | 0 nas 6 verdes; no histórico, 1 instável (`test_cloudflare_que_leva_a_url_com_fragmento_segue`, rodada 43822440143) | 0 nas 3 rodadas seguidas |
 
 **Medição antes** (2026-11-16, rodadas 43839282579, 43834463738, 43834328032, 43832531326, 43831596113, 43829811010 e a que falhou, 43829257858). Medida com `--durations=5`, não 25: só os 5 mais lentos de cada parte.
 
