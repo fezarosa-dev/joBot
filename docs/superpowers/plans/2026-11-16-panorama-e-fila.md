@@ -504,8 +504,8 @@ Mudar uma delas muda a tarefa responsável antes de ela começar.
 - **Notas do desenho 5.7.** O `href` é montado só com o endereço validado e o título codificado. Nenhum outro texto da descrição vira link, e nenhum outro esquema é aceito.
 - **i18n (pt e en).** As chaves `detalhe.passos.*`, `detalhe.candidatar_email`, `detalhe.candidatar_email_rotulo` e `detalhe.email.*` do desenho 5.8.
 
-- [ ] **Primeiro, valor errado:** o contexto traz `passos = []`, `email = None` e `principal = "http"` sempre, e o `#estado-da-vaga` vem sem os atributos `hx-*`.
-- [ ] **Testes que falham** em `tests/integracao/test_rota_detalhe.py`:
+- [x] **Primeiro, valor errado:** o contexto traz `passos = []`, `email = None` e `principal = "http"` sempre, e o `#estado-da-vaga` vem sem os atributos `hx-*`.
+- [x] **Testes que falham** em `tests/integracao/test_rota_detalhe.py`:
   - `test_linha_do_tempo`: vista, abriu, salva e candidatei, nessa ordem, com as datas curtas. Com o `TZ` em `<-03>3`, o Sim gravado às 01:30 UTC de 17/11 aparece como 16/11 (E16).
   - `test_email_vira_secundario_com_link_http`: o principal é o link http, e há o `mailto:` secundário.
   - `test_email_vira_principal_sem_link_http`.
@@ -515,13 +515,13 @@ Mudar uma delas muda a tarefa responsável antes de ela começar.
   - `test_copiar_vem_hidden`.
   - `test_email_tem_data_candidatura`.
   - `test_detalhe_estado_escuta_a_vaga` (E20): o `#estado-da-vaga` tem `hx-get` igual ao `retorno` da página, `hx-trigger="vaga-mudou-{id} from:body"`, `hx-select="#estado-da-vaga"` e `hx-swap="outerHTML"`, e contém a `.situacao`, os forms de status e a Linha do tempo. Controle: o `id` aparece uma vez só na página.
-- [ ] **Teste que falha** em `tests/unidade/test_i18n.py`: `test_detalhe_passos_e_email_tem_texto`, com as chaves em pt e en e `{data}` e `{email}` onde o desenho põe.
-- [ ] **Testes de tela** (CI) em `tests/tela/test_tela_copiar_email.py`:
+- [x] **Teste que falha** em `tests/unidade/test_i18n.py`: `test_detalhe_passos_e_email_tem_texto`, com as chaves em pt e en e `{data}` e `{email}` onde o desenho põe.
+- [x] **Testes de tela** (CI) em `tests/tela/test_tela_copiar_email.py`:
   - `test_copiar_aparece_com_js_e_copia`: com a permissão de área de transferência concedida ao contexto, o botão aparece e a região diz "Endereço copiado.".
   - `test_copiar_que_falha_avisa`: sem a permissão, a região diz "Não deu para copiar. Selecione o endereço e copie.".
-- [ ] **Teste de tela** (CI) em `tests/tela/test_tela_pergunta_candidatura.py`: `test_tela_detalhe_atualiza_depois_da_faixa` (E20). No detalhe de uma vaga Salva com a pergunta pendente, "Sim, me candidatei" na faixa e a espera pelo `GET /vagas/{id}` (`page.expect_response`). A `.situacao` diz Candidatei, o botão de status com `value="nova"` some e aparece o de `value="entrevista"`; a Linha do tempo tem Candidatei. Depois, "Desfazer" na faixa volta a `.situacao` a Salva, e o botão com `value="nova"` volta.
-- [ ] **Ver falhar:** `uv run pytest tests/integracao/test_rota_detalhe.py tests/unidade/test_i18n.py -q`.
-- [ ] **Implementar** os itens de Interfaces.
+- [x] **Teste de tela** (CI) em `tests/tela/test_tela_pergunta_candidatura.py`: `test_tela_detalhe_atualiza_depois_da_faixa` (E20). No detalhe de uma vaga Salva com a pergunta pendente, "Sim, me candidatei" na faixa e a espera pelo `GET /vagas/{id}` (`page.expect_response`). A `.situacao` diz Candidatei, o botão de status com `value="nova"` some e aparece o de `value="entrevista"`; a Linha do tempo tem Candidatei. Depois, "Desfazer" na faixa volta a `.situacao` a Salva, e o botão com `value="nova"` volta.
+- [x] **Ver falhar:** `uv run pytest tests/integracao/test_rota_detalhe.py tests/unidade/test_i18n.py -q`.
+- [x] **Implementar** os itens de Interfaces.
 - [ ] **Ver passar:** os mesmos arquivos e `tests/unidade/test_camadas.py`; ruff; `-m tela` e mypy no CI do `lote/panorama-tela`.
 
 ### T287: "desde" na aba Candidatei

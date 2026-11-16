@@ -1238,4 +1238,27 @@
       headers: { "X-CSRF-Token": token },
     }).catch(() => {});
   });
+
+  // "Copiar endereço" do e-mail de candidatura (desenho 5.7): vem hidden e só aparece com
+  // JavaScript (sem ele o endereço continua à vista). A troca do #estado-da-vaga traz o botão de
+  // novo hidden: o afterSettle o mostra outra vez
+  const mostrarCopiar = () => {
+    for (const botao of document.querySelectorAll("button[data-copiar][hidden]")) botao.hidden = false;
+  };
+  mostrarCopiar();
+  document.addEventListener("htmx:afterSettle", mostrarCopiar);
+  document.addEventListener("click", async (evento) => {
+    const botao = evento.target.closest?.("button[data-copiar]");
+    if (!botao) return;
+    let copiou = false;
+    try {
+      // sem permissão (ou sem clipboard) cai no catch
+      await navigator.clipboard.writeText(botao.dataset.copiar);
+      copiou = true;
+    } catch {
+      copiou = false;
+    }
+    const regiao = botao.parentElement.querySelector('[role="status"]');
+    if (regiao) regiao.textContent = copiou ? botao.dataset.copiado : botao.dataset.naoCopiou;
+  });
 })();

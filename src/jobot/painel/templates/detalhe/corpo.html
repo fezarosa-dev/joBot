@@ -48,10 +48,21 @@
   {%- else %}
   <p class="salario nao-informado">{{ t("vagas.salario_nao_informado") }}</p>
   {%- endif %}
+  {#- T286 (E20): depois de "Sim" ou "Desfazer" na faixa, o bloco pede de novo a própria página e
+      fica só com ele mesmo. O hx-select é herdado: filho com hx-* leva hx-select="unset" -#}
+  <div id="estado-da-vaga" hx-get="{{ retorno }}" hx-trigger="vaga-mudou-{{ vaga.id }} from:body" hx-select="#estado-da-vaga" hx-swap="outerHTML">
   <div class="acoes" role="group" aria-label="{{ t('vagas.acoes', titulo=vaga.titulo) }}">
     <p class="situacao">{{ t("vagas.status_atual", status=rotulo("vagas.status." ~ vaga.status, vaga.status)) }}</p>
-    {%- if candidatura %}
+    {#- desenho 5.7: o href do e-mail é montado só com o endereço que passou pela lista fechada e
+        o título codificado; nenhum outro texto da descrição vira link -#}
+    {%- set mailto = "mailto:" ~ email ~ "?subject=" ~ (vaga.titulo | urlencode) if email else "" %}
+    {%- if principal == "email" %}
+    <a class="primario" href="{{ mailto }}" data-candidatura="/vagas/{{ vaga.id }}/candidatura" aria-label="{{ t('detalhe.candidatar_email_rotulo') }}">{{ t("detalhe.candidatar_email") }}</a>
+    {%- elif candidatura %}
     <a class="primario" href="{{ candidatura }}" data-candidatura="/vagas/{{ vaga.id }}/candidatura" target="_blank" rel="noopener noreferrer" aria-label="{{ t('detalhe.candidatar_nova_aba') }}">{{ t("detalhe.candidatar") }}</a>
+    {%- endif %}
+    {%- if email and principal == "http" %}
+    <a class="secundario" href="{{ mailto }}" data-candidatura="/vagas/{{ vaga.id }}/candidatura" aria-label="{{ t('detalhe.candidatar_email_rotulo') }}">{{ t("detalhe.candidatar_email") }}</a>
     {%- endif %}
     {%- if site %}
     <a class="secundario" href="{{ site }}" target="_blank" rel="noopener noreferrer" aria-label="{{ t('detalhe.abrir_no_site_nova_aba') }}">{{ t("detalhe.abrir_no_site") }}</a>
@@ -73,12 +84,28 @@
     {#- T256: no detalhe ao lado, Ocultar vai por HTMX e traz a faixa de desfazer (a linha sai e o
         detalhe fecha pelo app.js). Trazer de volta e "mostrar mesmo assim" seguem POST normal: a
         faixa de Refazer ocultaria à mão uma vaga que a regra tinha ocultado. -#}
-    <form method="post" action="{{ acao_vaga }}/{{ destino_visibilidade }}"{% if prefixo and not vaga.oculta_motivo %} hx-post="{{ acao_vaga }}/ocultar" hx-target="this" hx-swap="none"{% endif %}>
+    <form method="post" action="{{ acao_vaga }}/{{ destino_visibilidade }}"{% if prefixo and not vaga.oculta_motivo %} hx-post="{{ acao_vaga }}/ocultar" hx-target="this" hx-swap="none" hx-select="unset"{% endif %}>
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <input type="hidden" name="voltar" value="{{ retorno }}">
       <button type="submit" class="secundario">{{ t("vagas.acao.ocultar" if not vaga.oculta_motivo else ("vagas.acao.trazer" if vaga.oculta_motivo == "manual" else "vagas.acao.mostrar")) }}</button>
     </form>
     </div>
+  </div>
+  {%- if email %}
+  <div class="email-candidatura">
+    <p>{{ t("detalhe.email.endereco", email=email) }}</p>
+    <p><button type="button" class="secundario" hidden data-copiar="{{ email }}" data-copiado="{{ t('detalhe.email.copiado') }}" data-nao-copiou="{{ t('detalhe.email.nao_copiou') }}">{{ t("detalhe.email.copiar") }}</button> <span role="status"></span></p>
+    <p class="aviso-email">{{ t("detalhe.email.aviso") }}</p>
+  </div>
+  {%- endif %}
+  <section class="bloco passos" aria-labelledby="{{ prefixo }}det-passos">
+    <h{{ n + 1 }} id="{{ prefixo }}det-passos">{{ t("detalhe.passos.titulo") }}</h{{ n + 1 }}>
+    <ol>
+      {%- for chave, data in passos %}
+      <li>{{ t("detalhe.passos." ~ chave, data=data_curta(data, idioma)) }}</li>
+      {%- endfor %}
+    </ol>
+  </section>
   </div>
   {%- if fontes %}
   <section class="bloco" aria-labelledby="{{ prefixo }}det-fontes">

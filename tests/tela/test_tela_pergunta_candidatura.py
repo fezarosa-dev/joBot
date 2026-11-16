@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 from fastapi import FastAPI
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Page, Response, expect
 
 from apoio.relogio import RelogioFalso
 from apoio.site_falso import SiteFalso
@@ -170,3 +170,33 @@ def test_tela_pelo_teclado(page: Page, painel: str, tmp_path: Path) -> None:
         page.keyboard.press("Enter")
     expect(faixa.get_by_role("button")).to_have_count(0)
     assert _status(banco, USD) == "nova"
+
+
+def test_tela_detalhe_atualiza_depois_da_faixa(page: Page, painel: str, tmp_path: Path) -> None:
+    """E20 (T286): depois de "Sim" e de "Desfazer" na faixa, o #estado-da-vaga do detalhe pede de
+    novo o próprio `GET /vagas/{id}` e mostra o status, os botões e a Linha do tempo de agora."""
+    banco = tmp_path / "jobot.db"
+    with closing(abrir(banco)) as con:
+        acoes.mudar_status(con, HIMALAYAS, "salva", RelogioFalso().agora())
+    _abrir_candidatura(banco, HIMALAYAS)
+    _abrir_pagina(page, f"{painel}/vagas/{HIMALAYAS}")
+    faixa = page.locator(FAIXA)
+    estado = page.locator("#estado-da-vaga")
+    expect(estado.locator(".situacao")).to_have_text("Situação: Salva")
+    expect(estado.locator('button[value="nova"]')).to_have_count(1)
+
+    def detalhe_de_novo(resposta: Response) -> bool:
+        pedido = resposta.request
+        return pedido.method == "GET" and resposta.url == f"{painel}/vagas/{HIMALAYAS}"
+
+    with page.expect_response(detalhe_de_novo):
+        faixa.get_by_role("button", name="Sim, me candidatei", exact=True).click()
+    expect(estado.locator(".situacao")).to_have_text("Situação: Candidatei")
+    expect(estado.locator('button[value="nova"]')).to_have_count(0)
+    expect(estado.locator('button[value="entrevista"]')).to_have_count(1)
+    expect(estado.locator(".passos")).to_contain_text("Candidatei em")
+    with page.expect_response(detalhe_de_novo):
+        faixa.get_by_role("button", name="Desfazer", exact=True).click()
+    expect(estado.locator(".situacao")).to_have_text("Situação: Salva")
+    expect(estado.locator('button[value="nova"]')).to_have_count(1)
+    expect(estado.locator(".passos")).not_to_contain_text("Candidatei em")
