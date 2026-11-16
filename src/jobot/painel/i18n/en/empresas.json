@@ -8,17 +8,17 @@
   "empresas.dica.endereco": "Paste the address of the company's jobs page, or just its identifier.",
   "empresas.testar": "Test",
   "empresas.adicionar": "Add",
-  "empresas.ligar": "Turn on",
-  "empresas.desligar": "Turn off",
+  "empresas.ligar": "Turn On",
+  "empresas.desligar": "Turn Off",
   "empresas.desligada": "Turned off",
   "empresas.banco_de_talentos": "Talent pool",
   "empresas.remover": "Remove",
-  "empresas.remover_aviso": "Remove the company \"{nome}\"? Its jobs stay in the list.",
-  "empresas.remover_confirmar": "Remove anyway",
   "empresas.teste.vagas_n": "Jobs found: {n}",
   "empresas.teste.zero": "No jobs found. The identifier may be wrong: check the job board address.",
   "empresas.erro.endereco": "That address does not look like a {fonte} job board.",
   "empresas.erro.nome": "The name is over 100 characters.",
   "empresas.erro.valor": "Those values could not be saved.",
-  "empresas.erro.fonte_fora": "Could not reach the source right now."
+  "empresas.erro.fonte_fora": "Could not reach the source right now.",
+  "empresas.menu.rotulo": "Company Actions",
+  "empresas.chave_rotulo": "Company \"{nome}\""
 }

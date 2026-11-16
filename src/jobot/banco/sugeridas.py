@@ -130,3 +130,15 @@ def descartar(con: sqlite3.Connection, id: int) -> None:
         )
         if cur.rowcount == 0:
             raise LookupError(f"sugestão pendente inexistente: {id}")
+
+
+def restaurar(con: sqlite3.Connection, id: int) -> None:
+    """Desfaz o descartar: a sugestão volta a `pendente`, na mesma linha. Aprovada não volta."""
+    with con:
+        cur = con.execute(
+            "UPDATE empresa_sugerida SET estado = 'pendente'"
+            " WHERE id = ? AND estado IN ('descartada', 'pendente')",
+            (id,),
+        )
+        if cur.rowcount == 0:
+            raise LookupError(f"sugestão descartada inexistente: {id}")

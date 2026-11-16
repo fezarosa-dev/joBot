@@ -33,5 +33,7 @@
   "casca.desfazer.refazer": "Refazer",
   "casca.desfazer.fechar": "Fechar",
   "casca.desfazer.descartada": "Sugestão descartada",
-  "casca.desfazer.removida": "Empresa removida"
+  "casca.desfazer.removida": "Empresa removida",
+  "casca.desfazer.restaurada": "Sugestão restaurada",
+  "casca.desfazer.empresa_restaurada": "Empresa restaurada"
 }

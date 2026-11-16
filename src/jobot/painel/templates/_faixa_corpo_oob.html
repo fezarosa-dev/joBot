@@ -1,0 +1,18 @@
+{#- resposta HTMX de Descartar/Remover e de Desfazer/Refazer (T260): a faixa de desfazer (a de
+    `_faixa_desfazer.html`) e a lista nova, cada uma por hx-swap-oob no nó que a tela já tem. A
+    lista troca por dentro, então o menu de contexto, que mora fora dela, não se duplica. `corpo` é
+    o parcial da lista; `volta` é o id da linha que voltou, que leva o realce de 1 s. Com `lado`
+    (Sugeridas, onde a contagem da lateral muda), os itens de "Onde buscar" voltam por OOB também. -#}
+{%- from "_faixa_desfazer.html" import faixa_desfazer with context %}
+<div id="faixa-desfazer" role="status" hx-swap-oob="innerHTML">
+{{ faixa_desfazer(texto, acao, rota, id, voltar) }}
+</div>
+{%- if lado %}
+{%- set onde_atual = "/empresas/sugeridas" if lado.sugeridas_pendentes else "/empresas" %}
+{%- with oob = true, caminho = "/empresas/sugeridas" %}
+{%- include "lateral_onde.html" %}
+{%- endwith %}
+{%- endif %}
+<div id="{{ corpo_id }}" hx-swap-oob="innerHTML">
+{%- include corpo %}
+</div>

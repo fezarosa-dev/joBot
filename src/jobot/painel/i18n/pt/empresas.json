@@ -13,12 +13,12 @@
   "empresas.desligada": "Desligada",
   "empresas.banco_de_talentos": "Banco de talentos",
   "empresas.remover": "Remover",
-  "empresas.remover_aviso": "Remover a empresa \"{nome}\"? As vagas dela continuam na lista.",
-  "empresas.remover_confirmar": "Remover mesmo",
   "empresas.teste.vagas_n": "Vagas encontradas: {n}",
   "empresas.teste.zero": "Nenhuma vaga encontrada. O identificador pode estar errado: confira o endereço do quadro de vagas.",
   "empresas.erro.endereco": "Esse endereço não parece ser de um quadro de vagas do {fonte}.",
   "empresas.erro.nome": "O nome passou de 100 caracteres.",
   "empresas.erro.valor": "Esses dados não puderam ser salvos.",
-  "empresas.erro.fonte_fora": "Não deu para falar com a fonte agora."
+  "empresas.erro.fonte_fora": "Não deu para falar com a fonte agora.",
+  "empresas.menu.rotulo": "Ações da empresa",
+  "empresas.chave_rotulo": "Empresa «{nome}»"
 }
