@@ -5,10 +5,11 @@ Os grupos em `/configuracoes/{grupo}`: geral (tema, idioma e tamanho do texto pe
 `/configuracoes/aparencia` de antes só redireciona no GET), fontes (uma chave por fonte, por leva),
 funções (as chaves da 13.7 e o N dos destaques), segundo plano, privacidade (onde ficam
 os dados, a recomendação de disco cifrado e o aviso de versão), serviços (a chave do 2Captcha, que
-fica no cofre; o interruptor e o apagar moram em `servicos.py`, T184) e sites com login (T218: só
-existe com leitor registrado; o interruptor de cada site grava na hora e os horários são um campo
-só). "Fazer login agora" e "Esquecer logins" (T219) usam o `jobot.navegador` e a trava `login` do
-`serve`: nunca abrem o navegador nem apagam o perfil enquanto uma leitura com login roda.
+fica no cofre; o interruptor e o apagar moram em `servicos.py`, T184) e contas (T218 e T275: só
+existe com leitor registrado; o interruptor de cada site grava na hora, o cartão mostra o estado da
+sessão e os horários são um campo só). "Fazer login agora" e "Esquecer logins" (T219) usam o
+`jobot.navegador` e a trava `login` do `serve`: nunca abrem o navegador nem apagam o perfil enquanto
+uma leitura com login roda.
 
 Checkbox sem marca é chave desligada: o formulário de cada grupo manda o estado inteiro. Ligar ou
 desligar a conversão de moeda chama `aplicar_cotacoes` e, com ela ou com as regras de ocultar
@@ -22,9 +23,11 @@ import logging
 import re
 import sqlite3
 from collections.abc import Awaitable, Callable, Mapping
+from contextlib import closing
 from datetime import date
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse, Response
@@ -34,15 +37,18 @@ from jobot.agenda.versao import aviso_ligado
 from jobot.banco import buscas, cadastros, cotacoes
 from jobot.banco.cadastros import PADROES, gravar_config, ler_config, ligar_fonte, meu_pais
 from jobot.banco.captcha import NOME_NO_COFRE
+from jobot.banco.conexao import abrir
 from jobot.banco.execucoes import LinhaSaude, leitura_login_rodando, ultimas_que_rodaram
+from jobot.banco.sessoes import gravar_sessao, ler_sessoes
 from jobot.navegador import limites
 from jobot.navegador.execucao import dependencias_de_producao
 from jobot.navegador.instalador import baixar_chromium, remover_chromium
 from jobot.navegador.janela_comum import janela_de_producao
-from jobot.navegador.login_manual import fazer_login
+from jobot.navegador.login_manual import fazer_login, sessao_do_login
 from jobot.navegador.perfil import apagar_perfil
 from jobot.nucleo.cambio import MOEDAS_EXIBICAO, moeda_do_pais
 from jobot.nucleo.captcha import validar_chave
+from jobot.nucleo.contas import estado_na_tela, hora_visivel
 from jobot.nucleo.horarios import horarios_validos
 from jobot.nucleo.leitores.base import LeitorComLogin
 from jobot.nucleo.tratamento.locais import codigos_de_pais
@@ -61,7 +67,7 @@ from jobot.painel.ambiente import (
     rodar_do_painel,
 )
 from jobot.painel.consultas import relogio_do_painel
-from jobot.painel.formatos import opcoes_de_pais
+from jobot.painel.formatos import conferido_texto, opcoes_de_pais
 from jobot.painel.rotas.execucao import criar_tarefa
 from jobot.painel.rotas.fontes import estado_dos_escopos, motivo_mais_grave
 from jobot.painel.rotas.servicos import contexto_captcha, no_cofre
@@ -106,7 +112,7 @@ _PARCIAIS = {
     "segundo-plano": "segundo_plano",
     "privacidade": "privacidade",
     "servicos": "servicos",
-    "sites-com-login": "sites_com_login",
+    "contas": "contas",
     "ferramentas": "ferramentas",
 }
 
@@ -188,32 +194,56 @@ def _cartoes_de_sites(request: Request, con: sqlite3.Connection) -> list[dict[st
     ligadas = {f.chave: f.ligada for f in cadastros.fontes(con) if f.com_login}
     saude = ultimas_que_rodaram(con)
     lendo = leitura_login_rodando(con)
+    sessoes = ler_sessoes(con, "site")
+    agora, idioma = relogio_do_painel(request).agora(), idioma_do_pedido(request)
+    navegador = _navegador(request)
     cartoes: list[dict[str, Any]] = []
     for leitor in leitores_do_painel(request):
         ligada = ligadas.get(leitor.chave, False)
         ultima = _ultima_leitura(saude.get(leitor.chave, {}))
+        sessao = sessoes.get(leitor.chave)
+        na_tela = estado_na_tela(ligada, sessao)
         cartoes.append(
             {
                 "chave": leitor.chave,
                 "nome": leitor.nome,
                 "ligada": ligada,
-                "estado": ultima[0] if ultima else None,
-                "motivo": ultima[1] if ultima else None,
+                "leitura": ultima[0] if ultima else None,
+                "leitura_motivo": ultima[1] if ultima else None,
+                "na_tela": na_tela,  # o selo (E15)
+                "hora": (
+                    conferido_texto(sessao.conferido_em, agora, idioma)
+                    if sessao is not None and hora_visivel(na_tela, sessao)
+                    else None
+                ),
+                "motivo": sessao.motivo
+                if sessao is not None and na_tela == "nao_conferiu"
+                else None,
                 "rodando": lendo and ligada,  # a leitura com login lê só os sites ligados
                 "login": _estados_de_login(request).get(leitor.chave),
                 "minutos": _minutos_de_login(),
+                "navegador": navegador,  # sem navegador, o login sai desabilitado (desenho 5.7)
             }
         )
     return cartoes
 
 
-async def contexto_sites_com_login(request: Request, con: Con) -> dict[str, Any]:
+def _navegador(request: Request) -> str:
     achado = getattr(request.app.state, "navegador_instalado", None)  # nunca sobe o driver (E8)
+    return achado if achado in ("chrome", "chromium") else "nenhum"
+
+
+async def contexto_sites_com_login(request: Request, con: Con) -> dict[str, Any]:
     return {
-        "navegador": achado if achado in ("chrome", "chromium") else "nenhum",
+        "navegador": _navegador(request),
         "cartoes": _cartoes_de_sites(request, con),
         "horarios_texto": _horarios_em_texto(con),
     }
+
+
+async def _ctx_contas(request: Request, con: Con) -> dict[str, Any]:
+    # a linha do 2Captcha no fim da aba (D139.26): só a máscara entra no contexto, nunca a chave
+    return await contexto_sites_com_login(request, con) | await contexto_captcha(request, con)
 
 
 def _ferramentas(request: Request) -> dict[str, str]:
@@ -260,7 +290,7 @@ _CONTEXTOS: dict[str, Contexto] = {
     "segundo-plano": _ctx_segundo_plano,
     "privacidade": _ctx_privacidade,
     "servicos": contexto_captcha,
-    "sites-com-login": contexto_sites_com_login,
+    COM_LOGIN: _ctx_contas,
     "ferramentas": _contexto_ferramentas,
 }
 
@@ -442,7 +472,7 @@ _GRAVADORES: dict[str, Callable[[Request, Con], Awaitable[Response]]] = {
     "segundo-plano": _gravar_segundo_plano,
     "privacidade": _gravar_privacidade,
     "servicos": _gravar_servicos,
-    "sites-com-login": _gravar_sites_com_login,
+    COM_LOGIN: _gravar_sites_com_login,
 }
 
 
@@ -458,6 +488,12 @@ async def raiz() -> RedirectResponse:
 async def aparencia_de_antes() -> RedirectResponse:
     """O endereço velho do grupo que virou Geral (só o GET; o POST não tem cópia, D139.25)."""
     return _volta("geral")
+
+
+@router.get("/sites-com-login")
+async def sites_com_login_de_antes() -> RedirectResponse:
+    """O endereço velho da aba que virou Contas (T275; só o GET, as ações não têm cópia)."""
+    return _volta(COM_LOGIN)
 
 
 @router.get("/{grupo}")
@@ -493,10 +529,18 @@ async def interruptor_do_site(request: Request, con: Con, chave: str) -> Respons
         ligar_fonte(con, chave, ligar)
     except LookupError:
         raise HTTPException(404) from None
+    resposta = _cartao_do_site(request, con, chave, foco=True, cartao_salvo=True)
+    resposta.headers["HX-Trigger"] = _MUDOU
+    return resposta
+
+
+# o evento que a faixa do topo e outras partes da tela ouvem quando o estado de uma conta muda (E17)
+_MUDOU = "contas-mudou"
+
+
+def _cartao_do_site(request: Request, con: sqlite3.Connection, chave: str, **ctx: Any) -> Response:
     cartao = next(c for c in _cartoes_de_sites(request, con) if c["chave"] == chave)
-    return renderizar(
-        request, "configuracoes/_cartao_site_login.html", c=cartao, foco=True, cartao_salvo=True
-    )
+    return renderizar(request, "configuracoes/_cartao_site_login.html", c=cartao, **ctx)
 
 
 # --- fazer login agora e esquecer logins (T219; D132.18, D132.21, D132.22, D132.52) ----------
@@ -557,15 +601,21 @@ async def fazer_login_agora(request: Request, chave: str) -> Response:
         estado = "aguardando" if estados.get(chave) == "aguardando" else "em_andamento"
         return _fragmento_de_login(request, chave, estado)
     # tudo que pode falhar vem antes do acquire: depois dele, só o que não solta exceção
-    dados: Path = request.app.state.banco.parent
+    banco: Path = request.app.state.banco
     env = ambiente_do_painel(request)
+    relogio = relogio_do_painel(request)
     await trava.acquire()  # livre: não suspende, então a checagem acima vale (como no laço)
     estados[chave] = "aguardando"
 
     async def login() -> None:
         try:
-            async with dependencias_de_producao(dados, env) as deps:
-                estados[chave] = await fazer_login(leitor, deps, janela_de_producao())
+            async with dependencias_de_producao(banco.parent, env) as deps:
+                resultado = await fazer_login(leitor, deps, janela_de_producao())
+            # conexão própria: a do pedido já fechou (E20: só resultado grava, exceção não)
+            with closing(abrir(banco)) as con:
+                estado, motivo = sessao_do_login(resultado)
+                gravar_sessao(con, "site", chave, estado, motivo, relogio.agora())
+            estados[chave] = resultado
         except Exception:
             estados[chave] = "erro"
             raise  # o `rodar` registra no log e solta a trava
@@ -575,15 +625,18 @@ async def fazer_login_agora(request: Request, chave: str) -> Response:
 
 
 @router.get(f"/{COM_LOGIN}/{{chave}}/login")
-async def estado_do_login(request: Request, chave: str) -> Response:
-    """O HTMX pergunta a cada 5 s; enquanto espera, 204 (nada troca na tela)."""
+async def estado_do_login(request: Request, con: Con, chave: str) -> Response:
+    """O HTMX pergunta a cada 5 s; enquanto espera, 204 (nada troca na tela). Depois, o cartão
+    inteiro, com o selo novo e o resultado do login (E17); sem estado (os logins foram
+    esquecidos no meio), o cartão como está, para o `outerHTML` nunca apagá-lo."""
     _leitor(request, chave)
-    estado = _estados_de_login(request).get(chave)
-    if estado == "aguardando":
+    if _estados_de_login(request).get(chave) == "aguardando":
         return Response(status_code=204)
-    if estado is None:
-        return Response()  # nunca pediu login: nada a mostrar
-    return _fragmento_de_login(request, chave, estado)
+    # o `outerHTML` troca a região viva do cartão: o resultado é anunciado em `#status-sites`
+    # e o foco vai ao cartão novo
+    resposta = _cartao_do_site(request, con, chave, foco_cartao=True, anunciar_login=True)
+    resposta.headers["HX-Trigger"] = _MUDOU
+    return resposta
 
 
 @router.get(f"/{COM_LOGIN}/esquecer/confirmar")
@@ -602,7 +655,7 @@ async def esquecer_logins_pergunta(request: Request) -> Response:
 
 
 @router.post(f"/{COM_LOGIN}/esquecer/confirmar")
-async def esquecer_logins_confirmado(request: Request) -> Response:
+async def esquecer_logins_confirmado(request: Request, con: Con) -> Response:
     """Confirma o alerta: apaga a pasta do perfil, nunca com leitura ou login rodando (D132.22)."""
     _grupo_valido(request, COM_LOGIN)
     trava = _trava_de_login(request)
@@ -614,6 +667,13 @@ async def esquecer_logins_confirmado(request: Request) -> Response:
     await trava.acquire()  # livre: não suspende; segura enquanto apaga
     try:
         await run_in_threadpool(apagar_perfil, request.app.state.banco.parent)
+        # ainda com a trava: cada site volta a "Nunca entrou"; o Gmail não é sessão do navegador
+        # (E12). Só leitor com fonte semeada: a linha da sessão pede a fonte (chave estrangeira)
+        agora = relogio_do_painel(request).agora()
+        com_fonte = {f.chave for f in cadastros.fontes(con) if f.com_login}
+        for leitor in leitores_do_painel(request):
+            if leitor.chave in com_fonte:
+                gravar_sessao(con, "site", leitor.chave, "precisa_entrar", "esquecido", agora)
     except OSError as erro:  # symlink recusado ou disco: o caminho fica só no log
         _LOG.warning("esquecer logins: não consegui apagar o perfil: %s", type(erro).__name__)
         if sem_js:
@@ -624,7 +684,14 @@ async def esquecer_logins_confirmado(request: Request) -> Response:
     _estados_de_login(request).clear()  # o "Login feito" de antes não vale mais
     if sem_js:
         return _volta(COM_LOGIN, salvo=True)
-    return renderizar(request, "configuracoes/_esquecer.html", fase="apagados")
+    resposta = renderizar(
+        request,
+        "configuracoes/_esquecer.html",
+        fase="apagados",
+        cartoes=_cartoes_de_sites(request, con),  # os cartões vão juntos, fora do alvo (OOB)
+    )
+    resposta.headers["HX-Trigger"] = _MUDOU
+    return resposta
 
 
 # --- ferramentas: o navegador dos sites com login (T240; D137.1 a D137.8, D137.12 a D137.14) ---
@@ -640,12 +707,18 @@ def _fragmento_do_navegador(request: Request, **ctx: Any) -> Response:
     )
 
 
+_PASSO_SITES = "/primeira-execucao/sites"  # o passo do assistente que mostra este fragmento
+
+
 @router.get(_NAVEGADOR)
-async def estado_do_navegador(request: Request) -> Response:
+async def estado_do_navegador(request: Request, con: Con) -> Response:
     """O HTMX pergunta a cada 5 s; enquanto baixa ou remove, 204 (nada troca na tela)."""
     _grupo_valido(request, FERRAMENTAS)
     if _ferramentas(request).get("navegador") in _RODANDO:
         return Response(status_code=204)
+    if urlsplit(request.headers.get("HX-Current-URL", "")).path == _PASSO_SITES:
+        # no assistente os cartões e a frase dependem do navegador (D166): trocam junto, em OOB
+        return _fragmento_do_navegador(request, cartoes_oob=_cartoes_de_sites(request, con))
     return _fragmento_do_navegador(request)
 
 

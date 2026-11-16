@@ -1,19 +1,24 @@
 {% from "configuracoes/_interruptor.html" import interruptor %}
 {% from "_motivo.html" import motivo_texto with context %}
-<div id="cartao-site-{{ c.chave }}" class="cartao-site">
+<div id="conta-{{ c.chave }}" class="cartao-site"{% if foco_cartao %} data-foco-se-livre{% endif %}>
   <div class="interruptores">
-    {{ interruptor("ligada", c.ligada, c.nome, "", False, "/configuracoes/sites-com-login/" ~ c.chave ~ "/interruptor", foco, "#cartao-site-" ~ c.chave) }}
+    {{ interruptor("ligada", c.ligada, c.nome, "", False, "/configuracoes/contas/" ~ c.chave ~ "/interruptor", foco, "#conta-" ~ c.chave) }}
   </div>
+  {#- o estado com texto e forma, nunca só a cor (E15) -#}
+  <p class="config-texto conta-estado"><span class="selo selo-{{ c.na_tela }}">{{ t("configuracoes.contas.estado." ~ c.na_tela) }}</span>{% if c.hora %} <span class="conta-hora">{{ c.hora }}</span>{% endif %}</p>
+  {% if c.motivo %}<p class="config-texto">{{ t("configuracoes.contas.motivo." ~ c.motivo) }}</p>{% endif %}
   <p class="config-texto">
-    {%- if c.estado %}{{ t("configuracoes.sites_com_login.ultima", estado=t("fontes.estado." ~ c.estado)) }}{% else %}{{ t("configuracoes.sites_com_login.ainda_nao_leu") }}{% endif -%}
+    {%- if c.leitura %}{{ t("configuracoes.sites_com_login.ultima", estado=t("fontes.estado." ~ c.leitura)) }}{% else %}{{ t("configuracoes.sites_com_login.ainda_nao_leu") }}{% endif -%}
   </p>
-  {% if c.motivo %}<p class="config-texto">{{ motivo_texto(c.motivo) }}</p>{% endif %}
+  {% if c.leitura_motivo %}<p class="config-texto">{{ motivo_texto(c.leitura_motivo) }}</p>{% endif %}
   {% if c.rodando %}<p class="config-texto">{{ t("configuracoes.sites_com_login.rodando") }}</p>{% endif %}
   <div class="acoes">
-    <button type="button" class="botao botao-secundario" hx-post="/configuracoes/sites-com-login/{{ c.chave }}/login" hx-target="#login-site-{{ c.chave }}" hx-disabled-elt="this">{{ t("configuracoes.sites_com_login.fazer_login") }}</button>
+    <button type="button" class="botao botao-secundario" hx-post="/configuracoes/contas/{{ c.chave }}/login" hx-target="#login-site-{{ c.chave }}" hx-disabled-elt="this"{% if c.navegador == "nenhum" %} disabled aria-describedby="contas-sem-navegador"{% endif %}>{{ t("configuracoes.sites_com_login.fazer_login") }}</button>
   </div>
   <div id="login-site-{{ c.chave }}" aria-live="polite">
     {%- if c.login %}{% with chave=c.chave, estado=c.login, minutos=c.minutos %}{% include "configuracoes/_login_site.html" %}{% endwith %}{% endif -%}
   </div>
 </div>
 {% if cartao_salvo %}<p hx-swap-oob="innerHTML:#status-sites"><span data-some-sozinho>{{ t("configuracoes.salvo") }}</span></p>{% endif %}
+{#- o resultado do login na região fixa: a do cartão foi trocada junto com ele e não é anunciada -#}
+{% if anunciar_login and c.login %}<p hx-swap-oob="innerHTML:#status-sites"><span data-some-sozinho>{{ t("configuracoes.sites_com_login.login." ~ c.login, minutos=c.minutos) }}</span></p>{% endif %}

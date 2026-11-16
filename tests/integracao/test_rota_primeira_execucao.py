@@ -39,7 +39,7 @@ PASSO_1 = "/primeira-execucao/1"
 PASSO_2 = "/primeira-execucao/2"
 PULAR = "/primeira-execucao/pular"
 SITES = "/primeira-execucao/sites"
-INTERRUPTOR = "/configuracoes/sites-com-login/falso_logado/interruptor"
+INTERRUPTOR = "/configuracoes/contas/falso_logado/interruptor"
 ALERTA = 'role="alert"'
 
 
@@ -828,6 +828,29 @@ def test_passo_sites_mostra_o_cartao(cenario: Cenario) -> None:
     assert 'id="status-sites"' in html
     assert "/static/css/configuracoes.css" in html
     assert "horarios" not in html  # os horários ficam em Configurações (D137.10)
+    # T275 (D139.27): o mesmo cartão da aba Contas, com o selo, e o título de sempre
+    assert re.search(r'<span class="selo selo-desligado">\s*Desligado\s*</span>', html)
+    assert "Sites com login (opcional)" in html
+
+
+@pytest.mark.parametrize("achado", [None, "chromium"])
+def test_passo_sites_sem_navegador_desliga_o_login(cenario: Cenario, achado: str | None) -> None:
+    """Desenho 5.7 (D166): sem navegador, o "Fazer login agora" do cartão sai desabilitado e
+    descrito por uma frase do próprio passo, sem link para Ferramentas (o baixar está acima)."""
+    cenario.com_leitor()
+    cenario.app.state.navegador_instalado = achado
+    html = cenario.get(SITES).text
+    botao = re.search(
+        r'<button\b[^>]*hx-post="/configuracoes/contas/falso_logado/login"[^>]*>', html
+    )
+    assert botao is not None
+    frase = re.search(r'<p\b[^>]*\bid="contas-sem-navegador"[^>]*>([^<]*)</p>', html)
+    if achado is None:
+        assert re.search(r"\sdisabled[\s>]", botao[0])
+        assert 'aria-describedby="contas-sem-navegador"' in botao[0]
+        assert frase is not None and "baixe o navegador acima" in frase[1]
+    else:
+        assert "aria-describedby" not in botao[0] and frase is None
 
 
 def test_continuar_segue_ao_segundo_plano(cenario: Cenario) -> None:

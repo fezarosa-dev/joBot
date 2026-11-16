@@ -567,12 +567,12 @@ def test_cartao_de_site_com_login_tem_nome_e_link_sem_caixa_de_marcar(painel: Pa
     assert '<h2 class="cartao-titulo" id="fonte-titulo-linkedin_logado">LinkedIn</h2>' in linkedin
     assert 'action="/fontes/linkedin_logado/' not in linkedin
     assert 'type="checkbox"' not in linkedin
-    link = re.findall(r'<a [^>]*href="/configuracoes/sites-com-login"[^>]*>([^<]*)</a>', linkedin)
-    assert link == ["Ligue e desligue em Configurações › Sites com login"]
+    link = re.findall(r'<a [^>]*href="/configuracoes/contas"[^>]*>([^<]*)</a>', linkedin)
+    assert link == ["Ligue e desligue em Configurações › Contas"]
     # controle: a fonte pública tem a caixa de marcar e não o link
     remotive = painel.cartao("remotive")
     assert 'action="/fontes/remotive/desligar"' in remotive
-    assert "/configuracoes/sites-com-login" not in remotive
+    assert "/configuracoes/contas" not in remotive
 
 
 @pytest.mark.parametrize("acao", ["ligar", "desligar"])

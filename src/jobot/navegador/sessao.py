@@ -20,9 +20,8 @@ from jobot.nucleo.relogio import Relogio
 
 TITULO_AVISO: Final = "joBot"
 FRASES_QUEDA: Final = {
-    "pt": "Sua sessão no {site} caiu. Abra o joBot e entre de novo em Configurações › Sites com"
-    " login.",
-    "en": "Your {site} session ended. Open joBot and sign in again in Settings › Sites with login.",
+    "pt": "Sua sessão no {site} caiu. Abra o joBot e entre de novo em Configurações › Contas.",
+    "en": "Your {site} session ended. Open joBot and sign in again in Settings › Accounts.",
 }
 
 

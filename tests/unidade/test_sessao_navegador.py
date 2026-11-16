@@ -17,7 +17,12 @@ from jobot.banco.migrar import migrar
 from jobot.banco.sessoes import ler_sessao
 from jobot.navegador.captcha import Widget
 from jobot.navegador.pagina import Recusada, Visita
-from jobot.navegador.sessao import estado_da_falha, estado_da_visita, registrar_sessao
+from jobot.navegador.sessao import (
+    FRASES_QUEDA,
+    estado_da_falha,
+    estado_da_visita,
+    registrar_sessao,
+)
 from jobot.nucleo.contas import EstadoSessao, MotivoSessao
 from jobot.nucleo.leitores.base import Captura
 
@@ -25,13 +30,8 @@ pytestmark = pytest.mark.anyio
 
 EXECUCAO = Path(__file__).resolve().parents[2] / "src" / "jobot" / "navegador" / "execucao.py"
 LEITOR = LeitorFalso(base="https://site.test")  # `pagina_logada` procura `id="conta"` no HTML
-FRASE_PT = (
-    "Sua sessão no Site falso caiu. Abra o joBot e entre de novo em Configurações › Sites com"
-    " login."
-)
-FRASE_EN = (
-    "Your Site falso session ended. Open joBot and sign in again in Settings › Sites with login."
-)
+FRASE_PT = "Sua sessão no Site falso caiu. Abra o joBot e entre de novo em Configurações › Contas."
+FRASE_EN = "Your Site falso session ended. Open joBot and sign in again in Settings › Accounts."
 
 
 def _captura(html: str) -> Captura:
@@ -153,3 +153,11 @@ def test_titulo_so_em_sessao() -> None:
         if isinstance(alvo, ast.Name)
     }
     assert nomes & {"_TITULO_AVISO", "TITULO_AVISO"} == set()
+
+
+def test_frase_da_queda_cita_contas() -> None:
+    """A aba virou Contas (T275, E16): o aviso leva a pessoa ao nome novo, nos dois idiomas."""
+    assert "Configurações › Contas" in FRASES_QUEDA["pt"]
+    assert "Settings › Accounts" in FRASES_QUEDA["en"]
+    for frase in FRASES_QUEDA.values():
+        assert "Sites com login" not in frase and "Sites with login" not in frase

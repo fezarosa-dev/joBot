@@ -203,7 +203,7 @@ def test_passo_dos_sites_liga_o_site_e_segue(
     expect(page).to_have_url(re.compile(r"/primeira-execucao/sites\?busca=\d+$"))
     expect(page.get_by_text("Passo 2 de 3")).to_be_visible()
 
-    with page.expect_response("**/configuracoes/sites-com-login/falso_logado/interruptor"):
+    with page.expect_response("**/configuracoes/contas/falso_logado/interruptor"):
         page.get_by_role("switch", name="Site falso").click()
     expect(page.locator("#status-sites")).to_contain_text("Salvo")
     page.get_by_role("button", name="Continuar").click()
