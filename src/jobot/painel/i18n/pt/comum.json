@@ -92,5 +92,9 @@
   "saude.precisa_login": "Precisa entrar de novo no site: use Fazer login agora",
   "saude.captcha": "O site pediu um CAPTCHA que não foi resolvido",
   "saude.sem_tela": "Sem tela para abrir o navegador",
-  "saude.sem_navegador": "Nenhum navegador pôde abrir: instale o Chrome ou as bibliotecas do sistema"
+  "saude.sem_navegador": "Nenhum navegador pôde abrir: instale o Chrome ou as bibliotecas do sistema",
+  "comum.apagar": "Apagar",
+  "comum.remover": "Remover",
+  "comum.esquecer": "Esquecer",
+  "comum.cancelar": "Cancelar"
 }
