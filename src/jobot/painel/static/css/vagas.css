@@ -31,34 +31,6 @@
   margin: 0;
 }
 
-/* abas: uma linha que rola de lado no celular */
-.abas ul {
-  display: flex;
-  gap: 0.5rem;
-  margin: 0 0 1rem;
-  padding: 0 0 0.25rem;
-  overflow-x: auto;
-  list-style: none;
-}
-
-.abas a {
-  display: inline-block;
-  padding: 0.4rem 0.9rem;
-  border-radius: 999px;
-  background-color: var(--trilho);
-  color: var(--texto);
-  font-size: 0.9375rem;
-  font-weight: 500;
-  text-decoration: none;
-  white-space: nowrap;
-  transition: background-color var(--duracao) var(--mola);
-}
-
-.abas a[aria-current="page"] {
-  background-color: var(--destaque);
-  color: var(--sobre-destaque);
-}
-
 .busca {
   display: flex;
   flex-wrap: wrap;
@@ -200,14 +172,6 @@ select {
   color: var(--sobre-destaque);
 }
 
-/* seletor de busca: links com cara de chip */
-.seletor-busca {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  margin: 0 0 1rem;
-}
-
 a.chip {
   text-decoration: none;
 }
@@ -239,14 +203,10 @@ a.chip {
   list-style: none;
 }
 
-.lista:focus:not(:focus-visible),
-.vazio:focus:not(:focus-visible) {
+.lista:focus:not(:focus-visible) {
   outline: none;
 }
 
-.vazio {
-  color: var(--texto-2);
-}
 
 .cartao {
   display: grid;
@@ -386,4 +346,180 @@ small.convertido {
 
 .cartao-oculta {
   border-style: dashed;
+}
+
+/* barra da lista (T254; desenho 5.2): busca escolhida, ordem, chips e "Mais filtros" numa faixa só */
+.barra-lista {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin: 0 0 0.75rem;
+}
+
+.barra-lista > form {
+  margin: 0;
+}
+
+.barra-lista .filtros {
+  flex: 1 1 auto;
+}
+
+.rotulo-ordem {
+  color: var(--texto-2);
+  font: var(--t-callout);
+}
+
+/* a lista em linhas (T254; desenho 5.8): três linhas de texto, sem cartão, com separador fino */
+.lista-linhas {
+  display: flex;
+  flex-direction: column;
+  margin: 0 0 1rem;
+}
+
+.lista-linhas:focus:not(:focus-visible) {
+  outline: none;
+}
+
+.linha {
+  display: grid;
+  gap: 0.125rem;
+  min-block-size: 4rem;
+  padding: 0.5rem 0.75rem;
+  border-block-end: 1px solid var(--separador);
+  border-radius: var(--raio-controle);
+  color: var(--texto);
+  text-decoration: none;
+  cursor: default;
+}
+
+.linha:hover {
+  background-color: var(--hover);
+}
+
+.linha > span {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-inline-size: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.linha-1 {
+  font: var(--t-body);
+  font-weight: 500;
+}
+
+.linha-2,
+.linha-3 {
+  color: var(--texto-2);
+  font: var(--t-callout);
+}
+
+.linha-2,
+.linha-titulo,
+.linha-salario {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.linha-2 {
+  display: block;
+}
+
+.linha-encaixe {
+  flex: none;
+}
+
+.linha-3 .selo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex: none;
+  padding: 0;
+  background-color: transparent;
+  color: inherit;
+  font: var(--t-callout);
+}
+
+.linha-3 .selo .icone {
+  inline-size: 12px;
+  block-size: 12px;
+}
+
+.linha-3 time {
+  flex: none;
+  margin-inline-start: auto;
+  font: var(--t-sub);
+  font-variant-numeric: tabular-nums;
+}
+
+.linha-oculta {
+  opacity: 0.7;
+}
+
+/* a linha escolhida: azul enquanto a lista tem o foco, cinza quando o foco está fora (como no Mac) */
+.linha[aria-selected="true"] {
+  background-color: var(--selecao-inativa);
+}
+
+.lista-linhas:focus-within .linha[aria-selected="true"] {
+  background-color: var(--destaque);
+  color: var(--sobre-destaque);
+}
+
+/* todo descendente, não só os `> span`: `.nao-informado` tem cor própria e furaria o branco */
+.lista-linhas:focus-within .linha[aria-selected="true"] :is(span, time) {
+  color: inherit;
+}
+
+.linha:focus-visible {
+  outline: 3px solid var(--foco);
+  outline-offset: -3px;
+}
+
+/* estado vazio (desenho 5.8): ícone, título, uma frase e o botão, no meio da área */
+.vazio {
+  display: grid;
+  justify-items: center;
+  gap: 0.5rem;
+  padding: 3rem 1rem;
+  color: var(--texto-2);
+  text-align: center;
+}
+
+.vazio > * {
+  margin: 0;
+}
+
+.vazio h2 {
+  color: var(--texto);
+}
+
+.vazio .icone {
+  inline-size: 20px;
+  block-size: 20px;
+}
+
+.vazio form {
+  margin-block-start: 0.5rem;
+}
+
+.vazio:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* cores forçadas: a linha escolhida usa as cores de seleção do sistema */
+@media (forced-colors: active) {
+  .linha[aria-selected="true"],
+  .lista-linhas:focus-within .linha[aria-selected="true"] {
+    forced-color-adjust: none;
+    background-color: Highlight;
+    color: HighlightText;
+  }
+
+  .linha[aria-selected="true"] .icone {
+    background-color: HighlightText;
+  }
 }

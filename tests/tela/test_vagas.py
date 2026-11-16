@@ -1,4 +1,4 @@
-"""Tela de vagas no navegador: abas, URL, tecla /, ordens, mais, ações e teclado (T45)."""
+"""Tela de vagas no navegador: abas, URL, tecla /, ordens, mais, ações e teclado (T45, T254)."""
 
 import json
 import re
@@ -9,7 +9,7 @@ from typing import Any
 
 import pytest
 from fastapi import FastAPI
-from playwright.sync_api import Locator, Page, expect
+from playwright.sync_api import Browser, Locator, Page, expect
 
 from apoio.relogio import RelogioFalso
 from apoio.semear import AGORA, inserir_vaga
@@ -49,12 +49,21 @@ def _config(banco: Path, chave: str, valor: object) -> None:
     )
 
 
+def _linhas(page: Page) -> Locator:
+    """As linhas da lista: `<a role="option">` filhas diretas do listbox (T254)."""
+    return page.locator('#lista-vagas > [role="option"]')
+
+
 def _cartao(page: Page, titulo: str) -> Locator:
-    return page.locator("article", has_text=titulo)
+    return _linhas(page).filter(has_text=titulo)
 
 
 def _titulos(page: Page) -> list[str]:
-    return page.locator("main h3.cartao-titulo").all_inner_texts()
+    return page.locator("#lista-vagas .linha-titulo").all_inner_texts()
+
+
+def _sem_contagem(texto: str) -> str:
+    return re.sub(r"\s+\d+$", "", texto.strip())
 
 
 def _aguardar_lista(page: Page) -> None:
@@ -66,9 +75,12 @@ def test_abas_marcam_a_atual_e_a_url_reabre_a_tela(page: Page, painel: str) -> N
     page.on("console", lambda m: erros.append(m.text) if m.type == "error" else None)
     page.on("pageerror", lambda e: erros.append(str(e)))
     page.goto(f"{painel}/vagas?aba=todas")
-    nomes = page.locator("nav.abas a").all_inner_texts()
-    assert [n.rsplit(" ", 1)[0] for n in nomes] == [
-        "Destaques",
+    # as abas moram só na lateral (T254, D150 item 1): a tela não repete a fileira
+    expect(page.locator("main nav.abas")).to_have_count(0)
+    lateral = page.locator("#lateral-vagas")
+    nomes = [_sem_contagem(n) for n in lateral.locator("a").all_inner_texts()]
+    assert nomes == [
+        "Destaques de hoje",
         "Todas",
         "Novas",
         "Fecham logo",
@@ -77,23 +89,20 @@ def test_abas_marcam_a_atual_e_a_url_reabre_a_tela(page: Page, painel: str) -> N
         "Programas",
         "Ocultas",
     ]
-    expect(page.locator("nav.abas [aria-current]")).to_have_count(1)
-    expect(page.locator("#aba-todas")).to_have_attribute("aria-current", "page")
-
-    lateral = page.locator("aside.lateral")
-    expect(lateral.locator('[href="/vagas?aba=todas"]')).to_have_attribute("aria-current", "page")
-    page.locator("#aba-novas").click()
-    expect(page.locator("#aba-novas")).to_have_attribute("aria-current", "page")
-    expect(page.locator("#aba-todas")).not_to_have_attribute("aria-current", "page")
+    expect(page.locator('[aria-current="page"]')).to_have_count(1)
+    todas = lateral.locator('[href^="/vagas?aba=todas"]')
+    novas = lateral.locator('[href^="/vagas?aba=novas"]')
+    expect(todas).to_have_attribute("aria-current", "page")
+    novas.click()
     expect(page).to_have_url(re.compile(r"[?&]aba=novas"))
-    # a aba da tela troca só o miolo: a lateral acompanha e marca o mesmo item (T251)
     expect(lateral.locator("[aria-current]")).to_have_count(1)
-    expect(lateral.locator('[href="/vagas?aba=novas"]')).to_have_attribute("aria-current", "page")
+    expect(novas).to_have_attribute("aria-current", "page")
+    expect(todas).not_to_have_attribute("aria-current", "page")
 
     page.reload()
-    expect(page.locator("#aba-novas")).to_have_attribute("aria-current", "page")
+    expect(novas).to_have_attribute("aria-current", "page")
     page.go_back()
-    expect(page.locator("#aba-todas")).to_have_attribute("aria-current", "page")
+    expect(todas).to_have_attribute("aria-current", "page")
     assert erros == []
 
 
@@ -101,7 +110,8 @@ def test_raiz_abre_nos_destaques(page: Page, painel: str, banco: Path) -> None:
     _config(banco, "primeira_execucao_concluida", True)
     page.goto(painel + "/")
     expect(page).to_have_url(re.compile(r"/vagas\?aba=destaques"))
-    expect(page.locator("#aba-destaques")).to_have_attribute("aria-current", "page")
+    destaques = page.locator('#lateral-vagas [href^="/vagas?aba=destaques"]')
+    expect(destaques).to_have_attribute("aria-current", "page")
 
 
 def test_chip_vai_para_a_url_e_a_url_reabre_o_filtro(page: Page, painel: str) -> None:
@@ -187,10 +197,10 @@ def test_cinco_ordens(page: Page, painel: str, ordem: str, primeira: str) -> Non
     seletor.select_option(ordem)
     expect(page).to_have_url(re.compile(rf"ordem={ordem}"))
     expect(page.locator("#ordem")).to_have_value(ordem)
-    expect(page.locator("#lista-vagas h3").first).to_have_text(primeira)
+    expect(page.locator("#lista-vagas .linha-titulo").first).to_have_text(primeira)
     page.reload()
     expect(page.locator("#ordem")).to_have_value(ordem)
-    expect(page.locator("#lista-vagas h3").first).to_have_text(primeira)
+    expect(page.locator("#lista-vagas .linha-titulo").first).to_have_text(primeira)
 
 
 def test_carregar_mais(page: Page, painel: str, banco: Path) -> None:
@@ -202,87 +212,189 @@ def test_carregar_mais(page: Page, painel: str, banco: Path) -> None:
     mais = page.get_by_role("button", name="Carregar mais vagas")
     mais.focus()
     page.keyboard.press("Enter")
-    expect(page.locator("main article")).to_have_count(62)
-    expect(page.locator("a[data-foco]")).to_be_focused()  # o foco vai para a 1ª vaga nova
+    expect(_linhas(page)).to_have_count(62)
+    # o foco vai para a 1ª vaga nova, que vira a escolhida (a marca data-foco vale uma vez)
+    expect(_linhas(page).nth(50)).to_be_focused()
+    expect(_linhas(page).nth(50)).to_have_attribute("aria-selected", "true")
+    expect(page.locator("#lista-vagas [data-foco]")).to_have_count(0)
+    expect(page.locator('#lista-vagas > [role="option"][tabindex="0"]')).to_have_count(1)
     expect(page.get_by_role("button", name="Carregar mais vagas")).to_have_count(0)
     titulos = _titulos(page)
     assert len(set(titulos)) == len(titulos)
 
 
+def _abrir_pelo_teclado(page: Page, titulo: str) -> None:
+    """Foca a linha da vaga e abre com Return: o `<a>` segue o link (T254)."""
+    _cartao(page, titulo).focus()
+    page.keyboard.press("Enter")
+    expect(page.get_by_role("heading", level=1, name=titulo)).to_be_visible()
+
+
 def test_salvar_mudar_a_situacao_ocultar_e_trazer_de_volta(page: Page, painel: str) -> None:
+    """As ações saíram da linha (D143.53): moram no detalhe, que se abre com Return."""
     page.goto(f"{painel}/vagas?aba=todas")
-    cartao = _cartao(page, NOVA)
-    expect(cartao.locator(".situacao")).to_have_text("Situação: Nova")
+    _abrir_pelo_teclado(page, NOVA)
+    situacao = page.locator(".situacao")
+    expect(situacao).to_have_text("Situação: Nova")
 
-    cartao.get_by_role("button", name="Salvar", exact=True).focus()
+    page.get_by_role("button", name="Salvar", exact=True).focus()
     page.keyboard.press("Enter")
-    expect(cartao.locator(".situacao")).to_have_text("Situação: Salva")
-    expect(cartao.locator(".situacao")).to_be_focused()  # o foco não se perde com a troca
-    # foco sempre visível (13.12): o alvo de foco programático não esconde o contorno
-    estilo = cartao.locator(".situacao").evaluate(
-        "el => [getComputedStyle(el).outlineStyle, getComputedStyle(el).outlineWidth]"
-    )
-    assert estilo[0] != "none" and estilo[1] != "0px"
-    cartao.get_by_role("button", name="Me candidatei", exact=True).focus()
+    expect(situacao).to_have_text("Situação: Salva")
+    page.get_by_role("button", name="Me candidatei", exact=True).focus()
     page.keyboard.press("Enter")
-    expect(cartao.locator(".situacao")).to_have_text("Situação: Candidatei")
-    cartao.get_by_role("button", name=re.compile("^Desfazer")).focus()
+    expect(situacao).to_have_text("Situação: Candidatei")
+    page.get_by_role("button", name=re.compile("^Desfazer")).focus()
     page.keyboard.press("Enter")
-    expect(cartao.locator(".situacao")).to_have_text("Situação: Salva")
+    expect(situacao).to_have_text("Situação: Salva")
 
-    page.reload()  # o que mudou está no banco, não só na tela
-    expect(_cartao(page, NOVA).locator(".situacao")).to_have_text("Situação: Salva")
-    page.locator("#aba-salvas").click()
+    page.goto(f"{painel}/vagas?aba=salvas")  # o que mudou está no banco, não só na tela
     expect(_cartao(page, NOVA)).to_be_visible()
 
     page.goto(f"{painel}/vagas?aba=todas")
-    _cartao(page, NOVA).get_by_role("button", name="Ocultar", exact=True).focus()
+    _abrir_pelo_teclado(page, NOVA)
+    page.get_by_role("button", name="Ocultar", exact=True).focus()
     page.keyboard.press("Enter")
-    expect(_cartao(page, NOVA).get_by_text("Oculta por você")).to_be_visible()
+    expect(page.get_by_text("Oculta por você")).to_be_visible()
     page.goto(f"{painel}/vagas?aba=todas")
     assert NOVA not in _titulos(page)
-    page.locator("#aba-ocultas").click()
+    page.goto(f"{painel}/vagas?aba=ocultas")
     expect(_cartao(page, NOVA)).to_be_visible()
+    expect(_cartao(page, NOVA).get_by_text("Oculta por você")).to_be_visible()
 
-    _cartao(page, NOVA).get_by_role("button", name="Trazer de volta", exact=True).focus()
+    _abrir_pelo_teclado(page, NOVA)
+    page.get_by_role("button", name="Trazer de volta", exact=True).focus()
     page.keyboard.press("Enter")
-    expect(_cartao(page, NOVA).get_by_text("Oculta por você")).to_have_count(0)
+    expect(page.get_by_text("Oculta por você")).to_have_count(0)
     page.goto(f"{painel}/vagas?aba=todas")
     assert NOVA in _titulos(page)
 
 
-def test_tab_real_chega_ao_cartao_e_aciona_com_enter(page: Page, painel: str) -> None:
-    """Tab pressionado de verdade (sem `focus()`) percorre a página até o botão do cartão."""
+def test_tab_real_chega_a_lista_e_return_abre_a_vaga(page: Page, painel: str) -> None:
+    """Tab pressionado de verdade (sem `focus()`) chega à lista numa parada só (tabindex móvel)."""
     page.goto(f"{painel}/vagas?aba=todas")
-    cartao = _cartao(page, NOVA)
-    salvar = cartao.get_by_role("button", name="Salvar", exact=True)
-    expect(salvar).to_be_visible()
-    for _ in range(150):  # teto: a ordem do Tab não pode ficar presa nem passar do botão
+    primeira = _linhas(page).first
+    expect(primeira).to_be_visible()
+    for _ in range(150):  # teto: a ordem do Tab não pode ficar presa nem passar da lista
         page.keyboard.press("Tab")
-        if salvar.evaluate("el => el === document.activeElement"):
+        if primeira.evaluate("el => el === document.activeElement"):
             break
     else:
-        pytest.fail("o Tab não chegou ao botão Salvar do cartão")
-    expect(salvar).to_be_focused()
+        pytest.fail("o Tab não chegou à lista de vagas")
+    page.keyboard.press("Tab")  # uma parada só: o próximo Tab sai da lista
+    focada = page.evaluate("() => document.activeElement.getAttribute('role')")
+    assert focada != "option"
+    page.keyboard.press("Shift+Tab")
+    expect(primeira).to_be_focused()
+    titulo = primeira.locator(".linha-titulo").inner_text()
     page.keyboard.press("Enter")
-    expect(cartao.locator(".situacao")).to_have_text("Situação: Salva")
-    expect(cartao.locator(".situacao")).to_be_focused()
+    expect(page).to_have_url(re.compile(r"/vagas/\d+$"))
+    expect(page.get_by_role("heading", level=1, name=titulo)).to_be_visible()
 
 
-def test_via_fonte_e_link_para_a_vaga_original(page: Page, painel: str) -> None:
+def test_setas_j_k_home_end_movem_o_foco_na_lista(page: Page, painel: str) -> None:
     page.goto(f"{painel}/vagas?aba=todas")
-    link = _cartao(page, HIMALAYAS).get_by_role("link", name=re.compile(r"^via Himalayas"))
-    expect(link).to_have_text("via Himalayas")
-    expect(link).to_have_attribute("href", "https://himalayas.app/companies/beta/jobs/42")
-    expect(link).to_have_attribute("target", "_blank")
-    expect(link).to_have_attribute("rel", re.compile("noopener"))
+    linhas = _linhas(page)
+    n = linhas.count()
+    assert n >= 3
+    expect(page.locator('#lista-vagas > [role="option"][tabindex="0"]')).to_have_count(1)
+    linhas.nth(0).focus()
+
+    passos = [
+        ("ArrowDown", 1),
+        ("j", 2),
+        ("k", 1),
+        ("ArrowUp", 0),
+        ("ArrowUp", 0),  # na ponta, fica onde está
+        ("End", n - 1),
+        ("ArrowDown", n - 1),
+        ("Home", 0),
+    ]
+    for tecla, esperada in passos:
+        page.keyboard.press(tecla)
+        expect(linhas.nth(esperada)).to_be_focused()
+        # a seleção segue o foco, e só a escolhida fica no Tab
+        expect(linhas.nth(esperada)).to_have_attribute("aria-selected", "true")
+        expect(linhas.nth(esperada)).to_have_attribute("tabindex", "0")
+        expect(page.locator('#lista-vagas [aria-selected="true"]')).to_have_count(1)
+    page.keyboard.press("j")
+    expect(linhas.nth(1)).to_be_focused()
+    page.keyboard.press("Enter")  # Return abre a vaga escolhida
+    expect(page).to_have_url(re.compile(r"/vagas/\d+$"))
+    page.go_back()
+    expect(page).to_have_url(re.compile(r"aba=todas"))
+
+
+def test_teclado_da_lista_nao_age_em_campo_de_texto(page: Page, painel: str) -> None:
+    page.goto(f"{painel}/vagas?aba=todas")
+    _linhas(page).nth(0).focus()
+    page.keyboard.press("/")  # da lista, a barra leva para a busca
+    busca = page.locator("[data-busca]")
+    expect(busca).to_be_focused()
+    page.keyboard.type("jk")
+    page.keyboard.press("Home")
+    page.keyboard.press("End")
+    expect(busca).to_have_value("jk")  # as letras entram no campo; nada se move na lista
+    expect(busca).to_be_focused()
+    page.keyboard.press("Escape")  # Esc limpa o campo (desenho 5.5)
+    expect(busca).to_have_value("")
+
+
+def test_sem_js_a_linha_e_um_link_comum(browser: Browser, painel: str) -> None:
+    contexto = browser.new_context(java_script_enabled=False)
+    try:
+        pagina = contexto.new_page()
+        pagina.goto(f"{painel}/vagas?aba=todas")
+        linha = pagina.locator('#lista-vagas > [role="option"]', has_text=NOVA)
+        assert linha.get_attribute("tabindex") is None  # sem JS, cada linha é um link no Tab
+        linha.click()
+        expect(pagina).to_have_url(re.compile(r"/vagas/\d+$"))
+        expect(pagina.get_by_role("heading", level=1, name=NOVA)).to_be_visible()
+    finally:
+        contexto.close()
+
+
+def test_barra_da_lista_tem_a_busca_e_troca_a_busca_escolhida(
+    page: Page, painel: str, banco: Path
+) -> None:
+    page.goto(f"{painel}/vagas?aba=todas")
+    barra = page.locator(".barra-lista")
+    expect(barra.locator("form#busca")).to_have_count(1)  # o form da busca mora na barra
+    expect(barra.locator("#ordem")).to_have_attribute("form", "busca")
+    expect(barra.locator("#busca-escolhida")).to_have_count(0)  # uma busca só: sem menu
+
+    _sql(
+        banco,
+        "INSERT INTO busca (nome, cargos, modalidades, ativa, criada_em)"
+        " VALUES ('Segunda', '[\"cobol\"]', '[]', 1, ?)",
+        AGORA.isoformat(),
+    )
+    page.goto(f"{painel}/vagas?aba=novas")
+    seletor = page.locator(".barra-lista #busca-escolhida")
+    expect(seletor.locator("option")).to_have_count(2)
+    segunda = seletor.locator("option", has_text="Segunda").get_attribute("value")
+    assert segunda
+    seletor.select_option(segunda)
+    expect(page).to_have_url(re.compile(rf"[?&]busca={segunda}\b"))
+    expect(page).to_have_url(re.compile(r"[?&]aba=novas"))  # a aba fica
+    expect(page.locator("#busca-escolhida")).to_have_value(segunda)
+    page.reload()
+    expect(page.locator("#busca-escolhida")).to_have_value(segunda)
+
+
+def test_lista_vazia_oferece_buscar_vagas(page: Page, painel: str) -> None:
+    page.goto(f"{painel}/vagas?aba=todas&q=zzzznadaachado")
+    vazio = page.locator("#lista-vagas.vazio")
+    expect(vazio.get_by_role("heading", name="Nenhuma vaga")).to_be_visible()
+    expect(vazio.get_by_role("button", name="Buscar vagas")).to_be_visible()
+    expect(page.get_by_role("listbox")).to_have_count(0)
 
 
 def test_pular_para_a_lista_leva_o_foco_para_ela(page: Page, painel: str) -> None:
     page.goto(f"{painel}/vagas?aba=todas")
     page.get_by_role("link", name="Pular para a lista de vagas").focus()
     page.keyboard.press("Enter")
-    expect(page.locator("#lista-vagas")).to_be_focused()
+    # o listbox recebe o foco e o passa para a linha escolhida (T254)
+    expect(_linhas(page).first).to_be_focused()
 
 
 def test_links_de_pular_ficam_invisiveis_ate_receber_foco(page: Page, painel: str) -> None:
@@ -381,7 +493,7 @@ def test_mais_filtros_preenche_manda_e_mostra_na_url(
         campo.press("Enter")
     expect(page).to_have_url(re.compile(r"cidade=sao"))
     expect(page).to_have_url(re.compile(r"sal_de=7000"))
-    expect(page.locator("main h3.cartao-titulo")).to_have_count(1)
+    expect(page.locator("#lista-vagas .linha-titulo")).to_have_count(1)
     assert _titulos(page) == ["Vaga em São Paulo"]
 
 
@@ -396,17 +508,38 @@ COR_TEXTO_2 = """() => {
 
 
 @pytest.mark.parametrize("esquema", ["light", "dark"])
-def test_bloco_de_salario_no_claro_e_no_escuro(page: Page, painel: str, esquema: str) -> None:
+def test_linha_em_tres_linhas_no_claro_e_no_escuro(page: Page, painel: str, esquema: str) -> None:
+    """Desenho 5.8: título, empresa e local, salário e data, cada um numa linha que não quebra."""
     page.emulate_media(color_scheme="light" if esquema == "light" else "dark")
     page.goto(f"{painel}/vagas?aba=todas")
-    salario = _cartao(page, "Desenvolvedor Python").locator("p.salario")
-    forte = salario.locator("strong")
-    convertido = salario.locator("small.convertido")
-    expect(convertido).to_contain_text("≈ R$ 28.250/mês · US$ 1 = R$ 5,65 (PTAX de 13/11)")
-    forte_caixa = forte.bounding_box()
-    convertido_caixa = convertido.bounding_box()
-    assert forte_caixa is not None and convertido_caixa is not None
-    assert convertido_caixa["y"] >= forte_caixa["y"] + forte_caixa["height"]  # linha de baixo
+    linha = _cartao(page, "Desenvolvedor Python")
+    caixas = [linha.locator(f".linha-{n}").bounding_box() for n in (1, 2, 3)]
+    assert all(c is not None for c in caixas)
+    um, dois, tres = caixas
+    assert um and dois and tres
+    assert dois["y"] >= um["y"] + um["height"] - 1
+    assert tres["y"] >= dois["y"] + dois["height"] - 1
+    salario = linha.locator(".linha-salario")
+    expect(salario).to_have_text("≈ R$ 28.250/mês")
+    expect(salario).to_have_attribute("title", re.compile(r"^US\$ 5\.000/mês · "))
     tamanho = "el => parseFloat(getComputedStyle(el).fontSize)"
-    assert convertido.evaluate(tamanho) < forte.evaluate(tamanho)
-    assert convertido.evaluate("el => getComputedStyle(el).color") == page.evaluate(COR_TEXTO_2)
+    assert linha.locator(".linha-2").evaluate(tamanho) < linha.locator(".linha-1").evaluate(tamanho)
+    cor = "el => getComputedStyle(el).color"
+    assert linha.locator(".linha-2").evaluate(cor) == page.evaluate(COR_TEXTO_2)
+    for n in (1, 2, 3):  # texto longo corta com reticências, sem quebrar a linha
+        assert linha.locator(f".linha-{n}").evaluate("el => getComputedStyle(el).whiteSpace") == (
+            "nowrap"
+        )
+
+
+def test_linha_escolhida_pinta_todo_o_texto_com_a_cor_da_selecao(page: Page, painel: str) -> None:
+    """Com o foco na lista, nem o "Salário não informado" (neto da linha) fica cinza no azul."""
+    page.goto(f"{painel}/vagas?aba=todas")
+    linha = _linhas(page).filter(has=page.locator(".nao-informado")).first
+    linha.focus()
+    expect(linha).to_have_attribute("aria-selected", "true")
+    cor = "el => getComputedStyle(el).color"
+    esperada = linha.evaluate(cor)
+    assert esperada != page.evaluate(COR_TEXTO_2)
+    for parte in linha.locator("span, time").all():
+        assert parte.evaluate(cor) == esperada

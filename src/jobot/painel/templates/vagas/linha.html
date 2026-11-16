@@ -1,0 +1,38 @@
+{#- a linha da vaga (T254; desenho 5.8, D143.53 e D143.59): o próprio link para a página da vaga
+    (E10), com três linhas só de texto. Fontes, motivo do encaixe e botões ficam no detalhe e no
+    menu. Dentro só vão <span> e <time>: o listbox da lista não tem outro elemento. -#}
+{%- set salario = salario_texto(item) -%}
+{%- set onde = [item.empresa, locais_texto(item.locais)] | select | join(" · ") -%}
+{%- set quando = item.publicada_em or item.primeira_vista_em -%}
+<a role="option" id="vaga-{{ item.id }}" class="linha{% if item.oculta_motivo %} linha-oculta{% endif %}" href="/vagas/{{ item.id }}" aria-selected="false"{% if foco_titulo %} data-foco{% endif %}>
+  <span class="linha-1">
+    {%- if item.encaixe %}<span class="linha-encaixe" aria-hidden="true">{{ {"bom": "●", "medio": "◐", "fraco": "○"}.get(item.encaixe, "") }}</span>{% endif -%}
+    <span class="linha-titulo" title="{{ item.titulo }}">{{ item.titulo }}</span>
+    {%- if item.encaixe %}<span class="so-leitor">, {{ t("vagas.encaixe_cartao", nivel=rotulo("vagas.encaixe." ~ item.encaixe, item.encaixe)) }}</span>{% endif -%}
+  </span>
+  <span class="linha-2" title="{{ onde }}">{{ onde }}</span>
+  <span class="linha-3">
+    {%- if salario %}
+    <span class="linha-salario" title="{{ [salario.original, salario.convertido, salario.cotacao] | select | join(' · ') }}">{{ salario.convertido or salario.original }}</span>
+    {%- else %}
+    <span class="linha-salario nao-informado" title="{{ t('vagas.salario_nao_informado') }}">{{ t("vagas.salario_nao_informado") }}</span>
+    {%- endif %}
+    {%- if item.nova %}
+    <span class="selo"><span class="icone" data-icone="circle-dot" aria-hidden="true"></span>{{ t("vagas.selo.nova") }}</span>
+    {%- endif %}
+    {%- if item.fechada %}
+    <span class="selo"><span class="icone" data-icone="circle-x" aria-hidden="true"></span>{{ t("vagas.selo.fechada") }}</span>
+    {%- elif item.fecha_logo %}
+    <span class="selo"><span class="icone" data-icone="hourglass" aria-hidden="true"></span>{{ t("vagas.selo.fecha_logo") }}</span>
+    {%- endif %}
+    {%- for aviso in item.avisos %}
+    <span class="selo"><span class="icone" data-icone="triangle-alert" aria-hidden="true"></span>{{ aviso_texto(aviso, item.locais) }}</span>
+    {%- endfor %}
+    {%- if item.oculta_motivo %}
+    <span class="selo"><span class="icone" data-icone="eye-off" aria-hidden="true"></span>{{ t("vagas.oculta.manual") if item.oculta_motivo == "manual" else t("vagas.oculta.regra", regra=rotulo("vagas.motivo." ~ item.oculta_motivo, item.oculta_motivo)) }}</span>
+    {%- endif %}
+    {%- if quando %}
+    <time datetime="{{ quando }}" title="{{ data_completa(quando, idioma) }}">{{ data_curta(quando, idioma) }}</time>
+    {%- endif %}
+  </span>
+</a>

@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 from html import unescape
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlencode
 
 import pytest
 from fastapi import FastAPI
@@ -406,18 +407,25 @@ def test_criar_e_editar_busca_passam_o_dia_local(
 
 
 def _seletor(html: str) -> list[tuple[str, bool]]:
-    """Os links do seletor de busca: (endereço, é a busca atual)."""
-    bloco = re.search(r'<nav class="seletor-busca".*?</nav>', html, re.S)
+    """As opções do seletor de busca (T254: um `<select>` num form GET): (endereço que o form
+    monta ao escolher a opção, é a busca atual)."""
+    bloco = re.search(r'<form class="seletor-busca".*?</form>', html, re.S)
     if bloco is None:
         return []
+    ocultos = [
+        (unescape(n), unescape(v))
+        for n, v in re.findall(
+            r'<input type="hidden" name="([^"]+)" value="([^"]*)">', bloco.group(0)
+        )
+    ]
     return [
-        (unescape(m.group(1)), 'aria-current="true"' in m.group(0))
-        for m in re.finditer(r'<a [^>]*href="([^"]+)"[^>]*>', bloco.group(0))
+        ("/vagas?" + urlencode([*ocultos, ("busca", m.group(1))]), "selected" in m.group(0))
+        for m in re.finditer(r'<option value="([^"]+)"[^>]*>', bloco.group(0))
     ]
 
 
 def _titulos(html: str) -> list[str]:
-    return re.findall(r'<h3 class="cartao-titulo"><a [^>]*>([^<]*)</a>', html)
+    return re.findall(r'<span class="linha-titulo" title="[^"]*">([^<]*)</span>', html)
 
 
 def test_seletor_so_aparece_com_duas_buscas_ativas(painel: Painel) -> None:

@@ -1,5 +1,6 @@
-{% if mais_url -%}
-<div class="mais" id="mais-caixa-{{ proxima }}">
-  <button type="button" id="mais-{{ proxima }}" class="secundario" hx-get="{{ mais_url }}" hx-target="#mais-caixa-{{ proxima }}" hx-swap="innerHTML" hx-push-url="false">{{ t("vagas.mais") }}</button>
+{#- a caixa do "carregar mais": fica abaixo do listbox; as linhas novas entram no fim dele -#}
+<div class="mais" id="mais-caixa"{% if oob %} hx-swap-oob="true"{% endif %}>
+  {%- if mais_url %}
+  <button type="button" id="mais-{{ proxima }}" class="secundario" hx-get="{{ mais_url }}" hx-target="#lista-vagas" hx-swap="beforeend" hx-push-url="false">{{ t("vagas.mais") }}</button>
+  {%- endif %}
 </div>
-{%- endif %}

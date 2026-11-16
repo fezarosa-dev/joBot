@@ -1,5 +1,5 @@
 {#- resposta HTMX de uma ação da vaga: o corpo novo do cartão e, por hx-swap-oob, a seção Vagas da
-    lateral com a contagem nova (T253). O cartão da lista inclui só o `corpo.html`. -#}
+    lateral com a contagem nova (T253). A lista (linhas da T254) não usa mais o `corpo.html`. -#}
 {%- include "vagas/corpo.html" %}
 {%- with oob = true, lado = lateral_oob.lado, caminho = lateral_oob.caminho, aba_atual = lateral_oob.aba %}
 {%- include "lateral_vagas.html" %}

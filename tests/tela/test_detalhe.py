@@ -1,5 +1,7 @@
 """Detalhe da vaga e correção no navegador: abrir, texto da descrição, corrigir, celular (T46)."""
 
+import re
+
 import pytest
 from fastapi import FastAPI
 from playwright.sync_api import Dialog, Page, expect
@@ -26,7 +28,8 @@ def app_painel(app_painel: FastAPI) -> FastAPI:
 
 def test_abre_o_detalhe_pelo_titulo_do_cartao(page: Page, painel: str) -> None:
     page.goto(painel + "/vagas?aba=todas")
-    page.get_by_role("link", name="Desenvolvedor Python").click()
+    # a linha da lista é um `<a role="option">` (T254): o nome começa pelo título
+    page.get_by_role("option", name=re.compile(r"^Desenvolvedor Python")).click()
     expect(page).to_have_url(f"{painel}/vagas/{USD}")
     expect(page.get_by_role("heading", level=1, name="Desenvolvedor Python")).to_be_visible()
     expect(page.get_by_text("US$ 5.000/mês")).to_be_visible()

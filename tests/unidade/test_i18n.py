@@ -177,3 +177,19 @@ def test_andamento_velho_saiu(idioma: str) -> None:
             "en": "Done. New jobs: {n}.",
         }[idioma]
     )
+
+
+@pytest.mark.parametrize("idioma", ["pt", "en"])
+def test_abas_do_topo_sairam_e_a_lista_tem_rotulo(idioma: str) -> None:
+    """T254: a `nav.abas` sai (a lateral faz o papel dela); o listbox e o estado vazio entram."""
+    catalogo = i18n.carregar()[idioma]
+    assert "vagas.abas" not in catalogo
+    esperado = {
+        "pt": ("Vagas", "Nenhuma vaga", "Buscar vagas"),
+        "en": ("Jobs", "No Jobs", "Search for Jobs"),
+    }[idioma]
+    assert (
+        catalogo["vagas.lista"],
+        catalogo["vagas.vazio.titulo"],
+        catalogo["vagas.vazio.buscar"],
+    ) == esperado

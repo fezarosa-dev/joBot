@@ -1,5 +1,7 @@
 """Textos de salário, data e local do cartão da vaga (desenho 13.4; plano T45)."""
 
+import time
+from collections.abc import Iterator
 from datetime import date
 from decimal import Decimal
 from typing import Any
@@ -102,6 +104,24 @@ def test_taxa_de_cambio(venda: str, idioma: str, esperado: str) -> None:
 def test_datas(data: str, idioma: str, curta: str, completa: str) -> None:
     assert formatos.data_curta(data, idioma) == curta
     assert formatos.data_completa(data, idioma) == completa
+
+
+@pytest.fixture
+def fuso_sao_paulo(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    monkeypatch.setenv("TZ", "America/Sao_Paulo")
+    time.tzset()
+    yield
+    monkeypatch.undo()  # volta o TZ antes do tzset: sem isso o fuso vaza para os outros testes
+    time.tzset()
+
+
+@pytest.mark.usefixtures("fuso_sao_paulo")
+def test_instante_em_utc_mostra_o_dia_local() -> None:
+    """01:00Z de 16/11 ainda é 15/11 em Brasília; data sem hora não muda."""
+    instante = "2026-11-16T01:00:00+00:00"
+    assert formatos.data_curta(instante, "pt") == "15/11"
+    assert formatos.data_completa(instante, "en") == "11/15/2026"
+    assert formatos.data_curta("2026-11-16", "pt") == "16/11"
 
 
 def test_data_ilegivel_volta_como_veio() -> None:

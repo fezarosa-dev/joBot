@@ -2,6 +2,8 @@
 
 import json
 import re
+import time
+from collections.abc import Iterator
 from contextlib import closing
 from datetime import timedelta
 from html import unescape
@@ -95,8 +97,8 @@ def _chips(painel: Painel, url: str, **kw: Any) -> str:
 
 
 def _atual(html: str) -> list[str]:
-    """As abas marcadas com aria-current (só o `<nav class="abas">`, não o menu da casca)."""
-    abas = re.search(r'<nav class="abas".*?</nav>', html, re.S)
+    """As abas marcadas com aria-current: as abas moram só na lateral (T254, D150 item 1)."""
+    abas = re.search(r'<ul id="lateral-vagas".*?</ul>', html, re.S)
     assert abas is not None
     return re.findall(r'<a\b[^>]*aria-current="page"[^>]*>', abas.group(0))
 
@@ -134,11 +136,8 @@ def test_destaques_desligado_some_a_aba_e_abre_em_todas(painel: Painel) -> None:
 
 
 def test_abas_trazem_a_contagem(painel: Painel) -> None:
-    html = painel.get("/vagas?aba=todas").text
-    # a aba da tela (id="aba-todas"); a lateral também leva para ela (a contagem dela é da T253)
-    todas = re.search(r'<a\b[^>]*id="aba-todas"[^>]*>(.*?)</a>', html, re.S)
-    assert todas
-    assert "7" in todas.group(1)
+    # a contagem mora na lateral (T253); a tela não repete as abas (T254)
+    assert _contagem_da_aba(painel.get("/vagas?aba=todas").text, "todas") == 7
 
 
 def test_chips_com_contagem_e_aria_pressed(painel: Painel) -> None:
@@ -288,9 +287,11 @@ def test_carregar_mais(painel: Painel) -> None:
     assert 'id="mais-3"' not in segunda.text
 
 
-def test_cartao_com_botao_de_salvar_so_pelo_teclado(painel: Painel) -> None:
-    html = painel.get("/vagas?aba=todas").text
+def test_salvar_pelo_teclado_fica_no_detalhe(painel: Painel) -> None:
+    """T254: a linha da lista é só o link; salvar e ocultar moram na página da vaga (E10)."""
     vaga = painel.ids["nova"]
+    assert "/status" not in _cartao_html(painel.get("/vagas?aba=todas").text, vaga)
+    html = painel.get(f"/vagas/{vaga}").text
     form = re.search(rf'<form\b[^>]*action="/vagas/{vaga}/status"[^>]*>(.*?)</form>', html, re.S)
     assert form
     assert 'name="status" value="salva"' in form.group(1)
@@ -311,10 +312,11 @@ def test_via_fonte_com_link_em_toda_fonte_sem_olhar_credito(painel: Painel) -> N
         AGORA.isoformat(),
         AGORA.isoformat(),
     )
-    html = painel.get("/vagas?aba=todas").text
-    cartao = html.split(f'id="vaga-{vaga}"')[1].split("</article>")[0]
+    # T254: as fontes saem da linha (D143.53) e ficam no detalhe
+    assert "via " not in _cartao_html(painel.get("/vagas?aba=todas").text, vaga)
+    cartao = painel.get(f"/vagas/{vaga}").text
     links = re.findall(r"<a\b[^>]*>", cartao)
-    fontes = [x for x in links if "exemplo.test" in x or "github.test" in x]
+    fontes = [x for x in links if 'aria-label="via ' in x]
     assert len(fontes) == 2
     for tag in fontes:
         assert 'rel="noopener noreferrer"' in tag
@@ -331,6 +333,7 @@ def test_link_de_fonte_que_nao_e_http_nao_vira_href(painel: Painel) -> None:
         vaga,
     )
     assert "javascript:" not in painel.get("/vagas?aba=todas").text
+    assert "javascript:" not in painel.get(f"/vagas/{vaga}").text
 
 
 def test_texto_de_vaga_sai_escapado(painel: Painel) -> None:
@@ -350,11 +353,19 @@ def test_salario_em_dolar_mostra_cotacao_e_reais(painel: Painel) -> None:
 
 
 def _cartao_html(html: str, vaga: int) -> str:
-    achou = re.search(rf'id="vaga-{vaga}".*?</article>', html, re.S)
-    assert achou, f"sem cartão da vaga {vaga}"
+    """A linha da vaga na lista (T254: o cartão virou `<a role="option">`)."""
+    achou = re.search(rf'<a\b[^>]*\bid="vaga-{vaga}".*?</a>', html, re.S)
+    assert achou, f"sem a linha da vaga {vaga}"
     return achou.group(0)
 
 
+# a linha mostra o convertido e leva o original e a cotação no title (D143.53)
+CONVERTIDO_EUR_LINHA = (
+    r'<span class="linha-salario" title="US\$ 5\.000/mês · ≈ € 4\.520/mês · '
+    r'US\$ 1 = € 0,904 \(PTAX de 12/11\)">≈ € 4\.520/mês</span>'
+)
+
+# o cartão devolvido pelas ações (corpo.html) segue com o valor em linha própria
 CONVERTIDO_EUR = (
     r"<strong>US\$ 5\.000/mês</strong>\s*"
     r'<small class="convertido">≈ € 4\.520/mês · US\$ 1 = € 0,904 \(PTAX de 12/11\)</small>'
@@ -371,10 +382,10 @@ def _em_euro(painel: Painel) -> None:
     )
 
 
-def test_valor_convertido_fica_em_linha_propria_no_cartao(painel: Painel) -> None:
+def test_valor_convertido_vai_na_linha_com_o_original_no_title(painel: Painel) -> None:
     _em_euro(painel)
     cartao = _cartao_html(painel.get("/vagas?aba=todas").text, painel.ids["usd"])
-    assert re.search(CONVERTIDO_EUR, cartao)
+    assert re.search(CONVERTIDO_EUR_LINHA, cartao)
     assert "em-reais" not in cartao
 
 
@@ -394,7 +405,7 @@ def test_valor_convertido_vale_no_carregar_mais(painel: Painel) -> None:
         )
     primeira = painel.get("/vagas?aba=todas").text
     segunda = painel.get(_hx_get(primeira, "mais-2"), headers=HX).text
-    assert re.search(CONVERTIDO_EUR, segunda)
+    assert re.search(CONVERTIDO_EUR_LINHA, segunda)
     assert "≈ R$" not in segunda
 
 
@@ -416,7 +427,9 @@ def test_vaga_sem_salario_diz_nao_informado(painel: Painel) -> None:
         titulo="Salário absurdo", sal_moeda="BRL", sal_min=99999900, sal_plausivel=0
     )
     html = painel.get("/vagas?aba=todas&ordem=recentes").text
-    marca = '<p class="salario nao-informado">Salário não informado</p>'
+    marca = (
+        'class="linha-salario nao-informado" title="Salário não informado">Salário não informado<'
+    )
     assert marca in _cartao_html(html, sem)
     assert marca in _cartao_html(html, implausivel)
     assert marca not in _cartao_html(html, painel.ids["brl"])
@@ -666,10 +679,13 @@ def test_mostrar_mesmo_assim_numa_vaga_oculta_por_regra(painel: Painel) -> None:
     assert vaga not in _cartoes(painel.get("/vagas?aba=ocultas").text)
 
 
-def test_cartao_de_vaga_oculta_oferece_trazer_de_volta(painel: Painel) -> None:
+def test_vaga_oculta_oferece_trazer_de_volta(painel: Painel) -> None:
+    """T254: a linha diz por que está oculta; o botão de trazer de volta fica no detalhe."""
     html = painel.get("/vagas?aba=ocultas").text
-    assert f'action="/vagas/{painel.ids["oculta_manual"]}/mostrar"' in html
-    assert f'action="/vagas/{painel.ids["oculta_regra"]}/mostrar"' in html
+    for chave in ("oculta_manual", "oculta_regra"):
+        vaga = painel.ids[chave]
+        assert 'data-icone="eye-off"' in _cartao_html(html, vaga)
+        assert f'action="/vagas/{vaga}/mostrar"' in painel.get(f"/vagas/{vaga}").text
 
 
 def test_motivo_do_encaixe_aparece_com_texto_para_leitor_de_tela(painel: Painel) -> None:
@@ -678,10 +694,13 @@ def test_motivo_do_encaixe_aparece_com_texto_para_leitor_de_tela(painel: Painel)
         json.dumps([{"chave": "encaixe.cargo_titulo", "params": {"palavra": "python"}}]),
         painel.ids["usd"],
     )
-    html = painel.get("/vagas?aba=todas").text
-    cartao = html.split(f'id="vaga-{painel.ids["usd"]}"')[1].split("</article>")[0]
-    assert "Cargo no título: python" in cartao
-    assert "Bom" in cartao
+    # T254: na linha, o nível vai para o leitor de tela; o motivo fica no detalhe (D143.53)
+    linha = _cartao_html(painel.get("/vagas?aba=todas").text, painel.ids["usd"])
+    assert '<span class="so-leitor">, Encaixe: Bom</span>' in linha
+    assert "Cargo no título" not in linha
+    detalhe = painel.get(f"/vagas/{painel.ids['usd']}").text
+    assert "Cargo no título: python" in detalhe
+    assert "Bom" in detalhe
 
 
 def test_motivo_com_chave_desconhecida_ou_parametro_faltando_nao_derruba(painel: Painel) -> None:
@@ -766,18 +785,21 @@ def test_clicar_num_chip_mantem_os_campos_de_mais_filtros(painel: Painel) -> Non
     assert "cidade=sao" in url
 
 
-def test_url_das_abas_mantem_os_campos_novos(painel: Painel) -> None:
+def test_trocar_de_busca_mantem_os_campos_da_vista(painel: Painel) -> None:
+    """T254: o seletor de busca da barra leva a aba e os filtros; só a busca muda."""
+    _nova_busca(painel, "Segunda")
     html = painel.get(
-        "/vagas?aba=todas&sal_de=7000&cidade=sao&excluir=cobol&modalidade=remoto"
+        "/vagas?aba=novas&sal_de=7000&cidade=sao&excluir=cobol&modalidade=remoto"
     ).text
-    abas = re.search(r'<nav class="abas".*?</nav>', html, re.S)
-    assert abas
-    links = re.findall(r'<a\b[^>]*\bhref="([^"]+)"', abas.group(0))
-    assert len(links) == 8
-    for link in links:
-        for parte in ("sal_de=7000", "cidade=sao", "excluir=cobol"):
-            assert parte in link, (link, parte)
-        assert "modalidade" not in link
+    form = re.search(r'<form class="seletor-busca".*?</form>', html, re.S)
+    assert form
+    ocultos = dict(
+        re.findall(r'<input type="hidden" name="([^"]+)" value="([^"]*)">', form.group(0))
+    )
+    assert ocultos["aba"] == "novas"
+    assert (ocultos["sal_de"], ocultos["cidade"], ocultos["excluir"]) == ("7000", "sao", "cobol")
+    assert ocultos["modalidade"] == "remoto"
+    assert "busca" not in ocultos  # vem do <select>
 
 
 def test_sem_salario_vai_nos_campos_ocultos(painel: Painel) -> None:
@@ -1027,6 +1049,13 @@ def _contagem_da_aba(html: str, aba: str) -> int:
     return int(achou.group(1) or 0)
 
 
+def _busca_marcada(html: str) -> list[str]:
+    """O nome da busca marcada no seletor da barra da lista (T254: um `<select>`)."""
+    seletor = re.search(r'<select id="busca-escolhida".*?</select>', html, re.S)
+    assert seletor is not None
+    return re.findall(r"<option\b[^>]*\bselected[^>]*>([^<]*)</option>", seletor.group(0))
+
+
 def test_busca_escolhida_vale_sem_busca_na_url(painel: Painel) -> None:
     primeira = painel.ids["busca"]
     segunda = _nova_busca(painel, "Segunda")
@@ -1039,11 +1068,7 @@ def test_busca_escolhida_vale_sem_busca_na_url(painel: Painel) -> None:
     # outra página, sem busca na URL: a lateral leva a escolhida
     assert _ids_da_lateral(painel.get("/fontes").text) == {str(segunda)}
     # e Vagas usa a escolhida: o seletor marca a segunda
-    html = painel.get("/vagas?aba=novas").text
-    seletor = re.search(r'<nav class="seletor-busca".*?</nav>', html, re.S)
-    assert seletor is not None
-    marcada = re.findall(r'<a\b[^>]*aria-current="true"[^>]*>([^<]*)</a>', seletor.group(0))
-    assert marcada == ["Segunda"]
+    assert _busca_marcada(painel.get("/vagas?aba=novas").text) == ["Segunda"]
 
 
 def test_busca_escolhida_apagada_cai_na_primeira_ativa(painel: Painel) -> None:
@@ -1080,10 +1105,7 @@ def test_busca_desligada_na_url_continua_valendo(painel: Painel) -> None:
     desligada = _nova_busca(painel, "Desligada", ativa=0)
     antes = _config_toda(painel)
     html = painel.get(f"/vagas?aba=todas&busca={desligada}").text
-    seletor = re.search(r'<nav class="seletor-busca".*?</nav>', html, re.S)
-    assert seletor is not None
-    marcada = re.findall(r'<a\b[^>]*aria-current="true"[^>]*>([^<]*)</a>', seletor.group(0))
-    assert marcada == ["Desligada"]
+    assert _busca_marcada(html) == ["Desligada"]
     assert _config_toda(painel) == antes
 
 
@@ -1133,3 +1155,183 @@ def test_acao_na_pagina_da_vaga_marca_a_lateral_como_area(painel: Painel) -> Non
     marcados = re.findall(r'<a\b[^>]*aria-current="([a-z]+)"[^>]*>', oob.group(0))
     assert marcados == ["true"]
     assert _contagem_da_aba(oob.group(0), "salvas") == 2
+
+
+# --- T254: a lista em linhas (listbox), a barra da lista e o estado vazio ---
+
+LISTBOX = re.compile(r'(<div\b[^>]*\brole="listbox"[^>]*>)(.*?)</div>', re.S)
+OPCAO = re.compile(r'(<a\b[^>]*\brole="option"[^>]*>)(.*?)</a>', re.S)
+
+
+def _listbox(html: str) -> tuple[str, str]:
+    """A abertura e o miolo do `role="listbox"` (as linhas só têm `<span>` e `<time>` dentro)."""
+    achados = LISTBOX.findall(html)
+    assert len(achados) == 1, f"esperava 1 listbox, achou {len(achados)}"
+    abertura, miolo = achados[0]
+    return str(abertura), str(miolo)
+
+
+def _opcoes(html: str) -> list[tuple[str, str]]:
+    return OPCAO.findall(_listbox(html)[1])
+
+
+def _linha(html: str, vaga: int) -> tuple[str, str]:
+    achadas = [(a, d) for a, d in _opcoes(html) if f'id="vaga-{vaga}"' in a]
+    assert len(achadas) == 1, f"sem a linha da vaga {vaga}"
+    return achadas[0]
+
+
+def test_lista_e_listbox_com_options(painel: Painel) -> None:
+    html = painel.get("/vagas?aba=todas").text
+    abertura, miolo = _listbox(html)
+    assert 'id="lista-vagas"' in abertura
+    assert f'aria-label="{t("pt", "vagas.lista")}"' in abertura
+    opcoes = _opcoes(html)
+    assert len(opcoes) == len(_cartoes(html)) == 7
+    for abertura_opcao, dentro in opcoes:
+        assert 'aria-selected="false"' in abertura_opcao
+        assert "<a" not in dentro and "<button" not in dentro and "<form" not in dentro
+    # nada fora das options dentro do listbox (sem <li>, sem <ul>)
+    assert re.sub(OPCAO, "", miolo).strip() == ""
+
+
+def test_linha_tem_tres_linhas(painel: Painel) -> None:
+    """Título com o encaixe; empresa e local; salário, selos e data: nessa ordem, com `title`."""
+    vaga = painel.ids["usd"]
+    _, dentro = _linha(painel.get("/vagas?aba=todas").text, vaga)
+    partes = re.findall(r'class="linha-(\d)"', dentro)
+    assert partes == ["1", "2", "3"]
+    titulo = re.search(r'<span class="linha-titulo" title="([^"]*)">([^<]*)</span>', dentro)
+    assert titulo and titulo.groups() == ("Desenvolvedor Python", "Desenvolvedor Python")
+    empresa = re.search(r'<span class="linha-2" title="([^"]*)">', dentro)
+    assert empresa and empresa.group(1).startswith("Zeta Corp")
+    salario = re.search(r'<span class="linha-salario" title="([^"]*)">([^<]*)</span>', dentro)
+    assert salario
+    assert salario.group(1) == "US$ 5.000/mês · ≈ R$ 28.250/mês · US$ 1 = R$ 5,65 (PTAX de 13/11)"
+    assert salario.group(2) == "≈ R$ 28.250/mês"
+    data = re.search(r'<time datetime="([^"]+)" title="([^"]+)">([^<]+)</time>', dentro)
+    assert data, "sem a data na linha 3"
+    marcas = ('class="linha-titulo"', 'class="linha-2"', "linha-salario", "<time")
+    ordem = [dentro.index(m) for m in marcas]
+    assert ordem == sorted(ordem)
+    # fontes, motivo do encaixe e botões saem da linha (detalhe e menu)
+    assert "via " not in dentro and 'class="motivo"' not in dentro
+
+
+def test_linha_e_link_sem_js(painel: Painel) -> None:
+    html = painel.get("/vagas?aba=todas").text
+    ids = _cartoes(html)
+    opcoes = _opcoes(html)
+    assert [re.findall(r'id="vaga-(\d+)"', a) for a, _ in opcoes] == [[str(i)] for i in ids]
+    for abertura, dentro in opcoes:
+        vaga = re.findall(r'id="vaga-(\d+)"', abertura)[0]
+        assert f'href="/vagas/{vaga}"' in abertura
+        assert "hx-" not in abertura and "tabindex" not in abertura  # sem JS, todo link no Tab
+        assert "<a" not in dentro and "<button" not in dentro
+    vaga = painel.ids["usd"]
+    assert painel.get(f"/vagas/{vaga}").status_code == 200
+
+
+def test_abas_saem_do_topo(painel: Painel) -> None:
+    _nova_busca(painel, "Segunda")
+    html = painel.get("/vagas?aba=todas").text
+    assert 'class="abas"' not in html and 'id="aba-todas"' not in html
+    seletor = re.search(r'<select\b[^>]*\bname="busca"[^>]*>(.*?)</select>', html, re.S)
+    assert seletor, "o seletor de busca não é um <select>"
+    assert len(re.findall(r"<option\b", seletor.group(1))) == 2
+    assert len(re.findall(r"<option\b[^>]*\bselected\b", seletor.group(1))) == 1
+    ordem = re.search(r'<select\b[^>]*\bid="ordem"[^>]*>', html)
+    assert ordem and 'form="busca"' in ordem.group(0)
+    barra = re.search(r'<div class="barra-lista"[^>]*>.*?<form id="busca"', html, re.S)
+    assert barra, "o form#busca não está na barra da lista"
+
+
+def test_seletor_de_busca_so_com_duas_buscas(painel: Painel) -> None:
+    html = painel.get("/vagas?aba=todas").text
+    assert not re.search(r'<select\b[^>]*\bname="busca"', html)
+
+
+def test_vagas_tem_um_so_aria_current_page(painel: Painel) -> None:
+    """D150.1: sem a `nav.abas`, só o item da lateral marca a página aberta."""
+    for url in ("/vagas", "/vagas?aba=salvas"):
+        assert painel.get(url).text.count('aria-current="page"') == 1
+
+
+def test_programas_fora_do_listbox(painel: Painel) -> None:
+    from jobot.banco.paginas import adicionar_pagina
+
+    with closing(abrir(painel.banco)) as con:
+        adicionar_pagina(con, "https://alfa.exemplo.test/trainee", "Trainee Alfa")
+        con.commit()
+    vaga = painel.semear_mais(titulo="Trainee 2027", contrato="trainee")
+    html = painel.get("/vagas?aba=programas").text
+    abertura, miolo = _listbox(html)
+    assert f'id="vaga-{vaga}"' in miolo
+    assert "lista-programas-paginas" not in miolo and "Trainee Alfa" not in miolo
+    secao = html.index('id="lista-programas-paginas"')
+    assert html.index(abertura) < secao
+    assert "Trainee Alfa" in html[secao:]
+    assert 'href="/sites#site-' in html[secao:]
+
+
+@pytest.mark.parametrize(
+    ("idioma", "titulo", "botao"),
+    [("pt", "Nenhuma vaga", "Buscar vagas"), ("en", "No Jobs", "Search for Jobs")],
+)
+@pytest.mark.parametrize(
+    ("aba", "frase"), [("todas", "vagas.vazio"), ("destaques", "vagas.vazio_destaques")]
+)
+def test_vazio_tem_buscar_vagas(
+    painel: Painel, idioma: str, titulo: str, botao: str, aba: str, frase: str
+) -> None:
+    cab = {"Accept-Language": idioma}
+    # destaques não usam a busca: ficam vazios quando nada foi visto nas últimas 24 h
+    painel.sql("UPDATE vaga SET primeira_vista_em = ?", (AGORA - timedelta(days=30)).isoformat())
+    html = painel.get(f"/vagas?aba={aba}&q=zzzznadaachado", headers=cab).text
+    vazio = re.search(r'<div id="lista-vagas" class="vazio"[^>]*>(.*?)</div>', html, re.S)
+    assert vazio, "sem o estado vazio"
+    corpo = vazio.group(1)
+    assert 'data-icone="search-x"' in corpo
+    assert f">{titulo}</h2>" in corpo
+    assert f"<p>{t(idioma, frase)}</p>" in corpo
+    form = re.search(r'<form\b[^>]*action="/buscar-agora"[^>]*>(.*?)</form>', corpo, re.S)
+    assert form and 'hx-target="#andamento"' in form.group(0)
+    assert f">{botao}</button>" in form.group(1)
+    assert f'name="{CAMPO_CSRF}"' in form.group(1)
+    assert 'role="listbox"' not in html
+
+
+@pytest.fixture
+def fuso_sao_paulo(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    monkeypatch.setenv("TZ", "America/Sao_Paulo")
+    time.tzset()
+    yield
+    monkeypatch.undo()  # volta o TZ antes do tzset: sem isso o fuso vaza para os outros testes
+    time.tzset()
+
+
+@pytest.mark.usefixtures("fuso_sao_paulo")
+def test_data_de_coleta_na_linha_e_o_dia_local(painel: Painel) -> None:
+    """Vista às 01:00Z de 16/11 = 22:00 de 15/11 em Brasília: a linha mostra 15/11."""
+    vaga = painel.semear_mais(publicada_em=None, primeira_vista_em="2026-11-16T01:00:00+00:00")
+    _, dentro = _linha(painel.get("/vagas?aba=todas").text, vaga)
+    data = re.search(r'<time datetime="[^"]+" title="([^"]+)">([^<]+)</time>', dentro)
+    assert data and data.groups() == ("15/11/2026", "15/11")
+
+
+def test_ordem_e_mais_filtros_em_title_case_no_en(painel: Painel) -> None:
+    """Restrições globais: item de menu e botão em inglês seguem o Title Case da HIG."""
+    html = painel.get("/vagas?aba=todas", headers={"Accept-Language": "en"}).text
+    ordem = re.search(r'<select\b[^>]*\bid="ordem"[^>]*>(.*?)</select>', html, re.S)
+    assert ordem
+    opcoes = [unescape(o) for o in re.findall(r"<option\b[^>]*>([^<]+)</option>", ordem.group(1))]
+    assert opcoes == [
+        "Best Fit",
+        "Most Recent",
+        "Closest Deadline",
+        "Highest Salary",
+        "Company (A to Z)",
+    ]
+    assert "<summary>More Filters</summary>" in html
+    assert t("en", "vagas.mais_filtros_n", n=2) == "More Filters (2)"
+    assert t("en", "vagas.mais") == "Load More Jobs"
