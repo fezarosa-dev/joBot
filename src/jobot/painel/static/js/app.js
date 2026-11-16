@@ -172,4 +172,14 @@
     const botao = evento.submitter;
     if (botao && botao.name === "tema") document.documentElement.dataset.tema = botao.value;
   });
+
+  // menus de Configurações > Geral: salvam ao mudar; o botão do <noscript> cobre quem não tem JS
+  document.addEventListener("change", (evento) => {
+    const menu = evento.target;
+    const formulario = menu.closest && menu.closest("form[data-preferencia]");
+    if (!formulario) return;
+    if (menu.name === "tema") document.documentElement.dataset.tema = menu.value;
+    if (menu.name === "tamanho") document.documentElement.dataset.texto = menu.value;
+    formulario.requestSubmit();
+  });
 })();

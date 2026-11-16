@@ -53,6 +53,16 @@ def test_mesmas_chaves_em_pt_e_en() -> None:
     assert catalogo["pt"]
 
 
+@pytest.mark.parametrize("idioma", ["pt", "en"])
+def test_grupo_aparencia_saiu(idioma: str) -> None:
+    catalogo = i18n.carregar()[idioma]
+    assert "configuracoes.grupo.aparencia" not in catalogo
+    assert catalogo["configuracoes.grupo.geral"]  # o grupo que o substitui
+    for opcao in ("padrao", "grande", "maior"):  # `t("...texto." ~ opcao)` percorre o conjunto
+        assert catalogo[f"configuracoes.geral.texto.{opcao}"]
+    assert catalogo["casca.tema"] == {"pt": "Tema", "en": "Appearance"}[idioma]
+
+
 def test_chave_repetida_em_dois_arquivos_falha(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
