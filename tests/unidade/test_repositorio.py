@@ -80,8 +80,8 @@ def test_nenhum_teste_le_yaml() -> None:
 
 def test_tabela_de_comandos() -> None:
     assert dict(cli.COMANDOS) == {
-        "abrir": "jobot.sistema.abrir",
-        "sair": "jobot.sistema.abrir",
+        "abrir": "jobot.cli.abrir",
+        "sair": "jobot.cli.abrir",
         "segundo-plano": "jobot.sistema.segundo_plano_linux",
         "serve": "jobot.cli.servir",
         "buscar": "jobot.cli.buscar",
@@ -109,7 +109,7 @@ def _falso(monkeypatch: pytest.MonkeyPatch, nome: str) -> list[argparse.Namespac
 
 
 def test_sem_comando_equivale_a_abrir(monkeypatch: pytest.MonkeyPatch) -> None:
-    chamadas = _falso(monkeypatch, "jobot.sistema.abrir")
+    chamadas = _falso(monkeypatch, "jobot.cli.abrir")
     assert cli.main([]) == 7
     assert cli.main(["abrir"]) == 7
     assert len(chamadas) == 2

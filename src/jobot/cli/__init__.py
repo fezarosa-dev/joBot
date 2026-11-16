@@ -13,8 +13,8 @@ from jobot.banco.migrar import BancoMaisNovo
 from jobot.sistema.pastas import configurar_log, pasta_de_dados
 
 COMANDOS: Mapping[str, str] = {
-    "abrir": "jobot.sistema.abrir",
-    "sair": "jobot.sistema.abrir",
+    "abrir": "jobot.cli.abrir",
+    "sair": "jobot.cli.abrir",
     "segundo-plano": "jobot.sistema.segundo_plano_linux",
     "serve": "jobot.cli.servir",
     "buscar": "jobot.cli.buscar",
