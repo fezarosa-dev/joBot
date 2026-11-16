@@ -680,6 +680,7 @@ Não é código. A branch `feat/visual-mac` só entra na `dev` depois do ok do d
 - README pt e en, seção "O painel": a janela do modo app, a barra lateral, a lista com detalhe, o Desfazer, o tamanho do texto em Configurações > Geral e o link para a página de atalhos; seção de instalação: o `jobot` abre uma janela própria quando acha Chrome, Edge ou Chromium.
 - CHANGELOG pt e en, em "Não lançado"/"Unreleased": "Mudado"/"Changed" (o visual novo) e "Adicionado"/"Added" (atalhos, Desfazer, paleta, tamanho do texto, progresso com etapas, modo app). Sem número de dúvida.
 - Wiki: o par novo em `PARES` e nas duas listas do `_Sidebar.md`, com a tabela do desenho 5.5 em palavras nossas; `Home` e `Home-en` ligam a página; `Como-funciona` e `How-it-works` descrevem o painel novo.
+- Título em inglês da correção (D160): "Something wrong with this job?" vira "Something Wrong with This Job?" em `src/jobot/painel/i18n/en/detalhe.json` (`detalhe.correcao.titulo`), em `README.en.md` e em `wiki/How-it-works.md`, numa vez só (Title Case, desenho 5.6). Antes de fechar: `rtk grep -rn "Something wrong" . --include="*.md" --include="*.json" --include="*.py"` sem sobra, e conferir em `tests/` se algum teste de tela cita a frase velha.
 
 - [ ] **Testes que falham**: em `tests/unidade/test_wiki.py`, o par novo em `PARES` (falha até as páginas existirem); em `tests/unidade/test_documentos.py`, as seções iguais nas duas línguas continuam passando.
 - [ ] **Ver falhar:** `uv run pytest tests/unidade/test_wiki.py -q`.

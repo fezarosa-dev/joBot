@@ -134,3 +134,86 @@ Só o Playwright de sessão, sem a volta curta do `SiteFalso`, tirava uns 0,15 s
 | 1 (push; branch nova, sem o cache do Chromium) | 51 / 62 / 90 s | 102 s |
 | 2 | 34 / 43 / 49 s | 71 s |
 | 3 | 35 / 46 / 61 s | 67 s |
+
+### T303: guarda do molde, `prefixos_login` com host e caminho
+`depende_de: T298, T302` (T298 cria `tests/unidade/test_site_novo.py`; a T302 corrigiu o `LinkedIn`) · lição da T302
+
+O navegador casa `prefixos_login` com `host + caminho` da URL (`casa_login`, `src/jobot/navegador/politica.py:50-53`: `(partes[1] + partes[2]).startswith(tuple(prefixos))`, com o host em minúsculas). O bug do `LinkedIn` era um prefixo só de caminho (`/login`), que nunca casava. O molde (`tests/apoio/molde_leitor.py:26`, `PREFIXOS_LOGIN`) e o `LinkedIn` (`src/jobot/nucleo/leitores/linkedin.py:132-135`) já seguem a regra; falta uma guarda para o próximo leitor.
+
+**Arquivos:**
+- modificar `tests/unidade/test_site_novo.py` (junto das outras guardas de site, perto de `test_todo_site_registrado_esta_completo`);
+- modificar `docs/site-novo.md` e `docs/site-novo.en.md`, seção `#login` (uma linha: cada prefixo em `prefixos_login` é `host` + `caminho`, sem esquema, com o host em minúsculas e igual a um dos `hosts` do leitor), com o par bilíngue igual (`tests/unidade/test_documentos.py`).
+
+**Interfaces:**
+- `prefixos_fora_do_host(leitores: Iterable[LeitorComLogin]) -> list[str]` no próprio `test_site_novo.py`, no molde de `faltas`: uma linha por problema, com a chave do leitor e o prefixo, apontando para `{GUIA}#login`. Um prefixo está torto se: tem `://`; não tem `/` (falta o caminho); o trecho antes da primeira `/` não está em minúsculas ou não é igual a um dos `hosts` do leitor em minúsculas; ou `casa_login(f"https://{prefixo}?x=1", leitor.prefixos_login)` é falso (o contrato real, com a query ignorada). Leitor sem nenhum prefixo também é problema: o navegador nunca acharia a tela de login.
+
+- [ ] **Testes que falham** em `tests/unidade/test_site_novo.py`:
+  - `test_todo_prefixo_de_login_comeca_pelo_host`: `prefixos_fora_do_host(leitores()) == []` (o `LinkedIn` passa) e, com o molde (`MoldeLogado` de `tests/apoio/molde_leitor.py`), também `[]`.
+  - `test_prefixo_so_de_caminho_reprova` (prova por mutação): uma cópia do leitor, `class SoCaminho(LinkedIn): prefixos_login = ("/login", "/checkpoint/")`, dá dois achados, cada um com `linkedin_logado` e o prefixo; a asserção é `len(achados) == 2`, não só "não vazio".
+  - `test_prefixo_com_esquema_ou_host_de_outro_site_reprova`: `("https://www.linkedin.com/login",)` e `("www.outro.invalid/login",)` dão um achado cada; `("WWW.linkedin.com/login",)` (host em maiúsculas) também.
+  - `test_ancora_da_guarda_de_prefixo_existe_no_guia`: a seção `#login` de `docs/site-novo.md` e de `docs/site-novo.en.md` existe e cita `prefixos_login` (a falta aponta para ela).
+- [ ] **Ver falhar:** `uv run pytest tests/unidade/test_site_novo.py -q -k prefixo`; o vermelho é a asserção (a função recebe um stub que devolve `[]` para a mutação não ser pega), não erro de import.
+- [ ] **Implementar** a função e a linha do guia nas duas línguas.
+- [ ] **Ver passar:** `uv run pytest tests/unidade/test_site_novo.py tests/unidade/test_documentos.py -q`, `uv run ruff check && uv run ruff format --check`.
+
+### T304: testes de tela do progresso sem esperar a pergunta de 2 s
+`depende_de: T295`
+
+`tests/tela/test_progresso.py` espera a pergunta de 2 em 2 s do painel em tempo real: `timeout=5_000` em `wait_for_function` e `expect` (linhas 83, 116, 133, 147, 164, 227, 290, 295 e 298), nos testes `test_largura_anda_entre_perguntas`, `test_barra_continua_entre_perguntas`, `test_regiao_viva_e_o_mesmo_no`, `test_espera_curta_nao_mostra` e `test_um_clique_acompanha_ate_o_fim`, dois deles dentro dos ajudantes `_esperar_valor_novo` (linha 75) e `_assentar` (linha 110, que espera a largura de entrada, "de 0 até o valor em 2 s", uma transição CSS). A T295 tirou o mesmo problema de `test_buscar_agora.py` (`_proxima_pergunta`, linha 72, com `page.clock.install()` e `fast_forward`); o guarda `test_tela_nao_espera_tempo_real` (`tests/unidade/test_testes_sem_espera.py:32`) deixa passar `timeout=5_000` porque só recusa o que passa de 5 s.
+
+**Arquivos:**
+- modificar `tests/tela/test_progresso.py`;
+- modificar `tests/unidade/test_testes_sem_espera.py` e `registros/padroes-tela.md` (a lição, se sair uma).
+
+**Interfaces:**
+- Cada teste instala `page.clock.install()` antes do `goto` (o tempo corre, para os timers do HTMX), muda o estado no banco e chama `page.clock.fast_forward(2000)` para disparar a pergunta (`hx-trigger="every 2s"`, agendada com `setTimeout`), como em `test_buscar_agora.py`. Uma função `_proxima_pergunta(page)` no arquivo, sem `timeout=` maior que o padrão do `expect`.
+- A transição CSS não obedece ao relógio da página: o teste espera o estado do DOM (atributo `aria-valuenow`, texto da região viva), nunca o fim da animação (lição `padroes-tela`). `test_largura_anda_entre_perguntas` mede a largura, que depende da transição: medir o alvo (`style`/valor final) com `prefers-reduced-motion` ligado ou esperar `transitionend` em vez de largura intermediária.
+
+- [ ] **Teste que falha:** em `tests/unidade/test_testes_sem_espera.py`, `test_tela_nao_espera_a_pergunta_do_progresso`: nenhuma chamada de `tests/tela/test_progresso.py` tem `timeout=` com valor numérico (a asserção lista `arquivo:linha`); falha hoje com as nove linhas acima.
+- [ ] **Ver falhar:** `uv run pytest tests/unidade/test_testes_sem_espera.py -q -k progresso`.
+- [ ] **Implementar** a troca nos cinco testes e nos ajudantes.
+- [ ] **Ver passar:** o teste acima e `uv run ruff check && uv run ruff format --check`; a tela roda no CI (`lote/<nome>`), com `--durations` antes e depois (a parte do `test_progresso.py` perde os 2 a 5 s por teste).
+
+### T305: acertos baixos do visual
+`depende_de: T301, T264` · D157, D161
+
+Resto das fotos da T258 e das revisões da T301 e da T264. Cada item vira um teste que falha antes (ou, onde é só decisão, uma linha no plano ou na D).
+
+**Arquivos:**
+- modificar `src/jobot/painel/static/js/app.js`, `src/jobot/painel/static/css/casca.css`, `src/jobot/painel/static/css/execucao.css`, `src/jobot/painel/templates/_encaixe.html`, `src/jobot/painel/templates/vagas/miolo.html`, `src/jobot/painel/templates/vagas/corpo.html`, `src/jobot/painel/templates/vagas/corpo_oob.html`, `src/jobot/painel/rotas/vagas.py`;
+- modificar `tests/tela/test_vagas.py`, `tests/tela/test_menu_contexto.py`, `tests/integracao/test_rota_vagas.py`.
+
+**Itens:**
+- [ ] **(a) Recarregar a lista inteira.** `recarregarLista` (`app.js:417`) pede só o endereço de agora (a página 1): o que veio por "Carregar mais" some e uma linha de lá não volta à vista (o comentário do código já diz). Recarregar até a página já carregada (pedir `pagina` com o número de páginas que o `#vagas-miolo` já mostra; o servidor limita em `_MAX_PAGINA`, `rotas/vagas.py:386`). Teste de tela `test_desfazer_depois_de_carregar_mais_mantem_as_linhas`: carrega a 2ª página, oculta e desfaz uma vaga da 2ª página; a linha volta e a lista continua com as duas páginas.
+- [ ] **(b) O outro filtro de texto do `app.js` (perto da linha 165).** Conferir o que é: a região ao redor é o atalho `/` (`app.js:175-182`, foca `[data-busca]`) e o Esc que limpa a busca (`app.js:189`); procurar se há um segundo tratador de entrada de texto que repete essa lógica (`rtk grep -n 'data-busca\|campo.matches' src/jobot/painel/static/js/app.js`). Se duplica, juntar num só; se não, riscar o item com a linha da conferência. Teste de tela do que sobrar (Esc limpa a busca uma vez só).
+- [ ] **(c) `vagas/corpo.html` e `vagas/corpo_oob.html`.** Conferido com `rtk grep`: ainda são renderizados por `_resposta` (`rotas/vagas.py:433-446`), que `mudar_status` (`rotas/vagas.py:506-515`, `POST /vagas/{id}/status`) devolve. Achar quem consome essa resposta no painel novo (o formulário do menu, `vagas/pagina.html:17`, e o `detalhe/corpo.html`, que já trazem o corpo do detalhe): se nenhum `hx-target` a usa, trocar a resposta por `204`/redirecionamento e apagar os dois templates, com `test_corpo_antigo_nao_existe` (arquivos ausentes e `grep` sem `vagas/corpo` em `src/`). Se algum a usa, riscar o item e dizer qual.
+- [ ] **(d) "Abrir no site" só abre `http`/`https`.** O item do menu (`vagas/pagina.html:14`, `data-modelo-href="{site}"`, `data-requer="site"`) lê `data-site` da linha, que `vagas/linha.html:10` só emite quando `item.url` começa por `http://` ou `https://`; `tests/integracao/test_rota_vagas.py:350-354` prova que `javascript:` não aparece na lista nem no detalhe. Falta o teste do menu: `test_menu_sem_data_site_desabilita_abrir_no_site` (tela, `tests/tela/test_menu_contexto.py`): vaga com URL `javascript:alert(1)` ou `ftp://x` abre o menu com o item "Abrir no Site" desabilitado e sem navegar.
+- [ ] **(e) Menu de contexto sem typeahead.** Letra digitada não pula para o item que começa por ela (padrão do menu nativo do macOS; `app.js:530-690`). Implementar (a tecla é a 1ª letra do `textContent`, acumulando por 500 ms no relógio do navegador, com teste `test_letra_pula_para_o_item` em `tests/tela/test_menu_contexto.py`) ou registrar como fora de escopo numa linha do desenho (5.5), com o motivo.
+- [ ] **(f) Cópia negada.** `copiarLink` (`app.js:645-660`) tem o ramo `catch` (`navigator.clipboard.writeText` recusado, ou sem `clipboard`) sem teste. `test_copiar_link_negado_mostra_nao_copiou` (tela): no `page.add_init_script`, `navigator.clipboard.writeText = () => Promise.reject(new Error("negado"))`; escolher "Copiar link" e esperar o texto de `data-nao-copiou` (`vagas.menu.nao_copiou`) na região viva, sem erro no console.
+- [ ] **(g) Foco depois de `hidePopover()`.** `acertarCamada` (`app.js:280-287`) chama `no.hidePopover()` quando o detalhe passa de sobreposto para coluna; o navegador devolve o foco ao elemento anterior ao `showPopover`. O foco tem de ficar no detalhe. `test_foco_fica_no_detalhe_ao_alargar_a_janela` (tela): abrir o detalhe a 800 px, focar um controle dele, alargar para 1280 px; `document.activeElement` continua dentro de `#detalhe-vaga`.
+- [ ] **(h) Detalhe sobreposto sem JavaScript.** Sem JS, o detalhe sobreposto fica preso ao `#vagas-miolo` (contenção do container; a camada `position: fixed` não escapa dele). Decidir: aceitar e documentar (uma linha na D157 e no plano da T301, item 2) ou corrigir (tirar a contenção do container no caminho sem `popover`). Teste de tela com `java_script_enabled=False` se corrigir.
+- [ ] **(i) Teste de CSP sem vermelho no CI.** O teste das violações de CSP da T301 (item 10) só teve o vermelho aqui, não no CI. Aceito: registrar a linha no `registros/padroes-tela.md` ("violação de CSP aparece no console do Chromium da máquina; o CI pode não repetir; o teste prende a causa, `attributesToSettle` do `htmx-config`").
+- [ ] **(j) Animação de entrada do sheet (T264).** Conferir no desenho 5.4 e 5.8 se o sheet de correção entra com animação: se pedir, 280 a 300 ms com `prefers-reduced-motion` respeitado e `test_sheet_sem_movimento_reduzido_nao_anima`; se não pedir, riscar o item com a linha do desenho que diz isso.
+- [ ] **(k) Ícones do encaixe (D161).** `_encaixe.html:5` passa de `{"bom": "circle", "medio": "contrast", "fraco": "circle-dashed"}` para `{"bom": "circle-check", "medio": "contrast", "fraco": "circle"}`; a regra `[data-icone="circle-check"]` sai de `execucao.css:218` para `casca.css`, ao lado das de `circle` e `contrast` (linhas 171 e 172); nenhum SVG novo. Testes que mudam: `tests/integracao/test_rota_vagas.py:1765` (`esperado`) e `tests/tela/test_vagas.py:968` (a lista de ícones), com um teste novo `test_escala_do_encaixe_cresce` que lê o dicionário e exige a ordem fraco, médio, bom. Falha antes por asserção (o bom é `circle`). Se o dono escolher outra opção da D161, troca-se aqui.
+- [ ] **(l) Programas em linhas, e o texto da T251 sobre `inteiro_da_url`.** Dois pontos achados com `rtk grep`: (1) o desenho (`docs/superpowers/specs/2026-11-15-visual-mac-design.md:202`) manda as páginas acompanhadas da aba Programas "com o mesmo estilo de linha" das vagas, e `vagas/miolo.html:117-135` ainda as mostra como `section.painel` com `ul.lista` (estilo de cartão antigo): trazer para o estilo de linha da lista, fora do `listbox` (`test_programas_fora_do_listbox`, `test_rota_vagas.py:1463`, continua valendo; novo `test_programas_com_estilo_de_linha` confere a classe da linha). (2) O texto da T251 (`docs/superpowers/plans/2026-11-16-visual-mac.md:308`) diz que "`inteiro_da_url` fica em `rotas/vagas.py`", mas ela mora em `painel/consultas.py:28` e `rotas/vagas.py:31` e `rotas/detalhe.py:29` a importam de lá: corrigir a frase na T251 e na T252. O que as fotos mostraram da aba Programas além disso: a localizar (procurei nos planos, no desenho e em `duvidas.md`; não há linha própria).
+
+- [ ] **Ver falhar:** o arquivo de teste de cada item que muda código, com a asserção do item; itens de documento (c quando só risca, h, i, j) conferem por `rtk grep` e anotam a conclusão aqui.
+- [ ] **Ver passar:** os arquivos de teste mexidos e `uv run ruff check && uv run ruff format --check`; a tela roda no CI.
+
+### T306: guarda do sono sem `from time import sleep`, e fixture sombra no teste do Eureca
+`depende_de: T295`
+
+Dois buracos pequenos que a T295 deixou.
+
+**Arquivos:**
+- modificar `tests/unidade/test_testes_sem_espera.py` (`_nome`, linhas 22-26, e `test_tela_nao_espera_tempo_real`, linhas 32-51);
+- modificar `tests/unidade/coletores/test_eureca.py` (linhas 33-39).
+
+**Interfaces:**
+- O guarda reconhece `time.sleep` e `asyncio.sleep` só pelo nome pontuado: `from time import sleep` e depois `sleep(5)` vira nome `sleep` e passa batido (idem `from asyncio import sleep` e `anyio.sleep`). Pegar também `sleep`, `anyio.sleep` e o apelido (`from time import sleep as dormir`: ler os `ImportFrom` do arquivo por AST e juntar os apelidos de `time.sleep`, `asyncio.sleep` e `anyio.sleep`).
+- A fixture `fuso_de_sao_paulo` do `test_eureca.py` (linha 33, `autouse=True`) tem o mesmo nome da de `tests/conftest.py:84` (sem `autouse`, com a mesma tarefa de `monkeypatch.setenv("TZ", ...)` e `time.tzset()`): uma sombreia a outra e quem ler o arquivo não sabe qual vale. Remover a local e marcar o módulo com `pytestmark = pytest.mark.usefixtures("fuso_de_sao_paulo")`, ou renomear a local (`fuso_do_eureca`); a escolha é a que mantém o teste do Eureca com o fuso fixo em todos os seus testes.
+
+- [ ] **Testes que falham** em `tests/unidade/test_testes_sem_espera.py`: `test_guarda_pega_sleep_importado` (um arquivo de tela sintético em `tmp_path` com `from time import sleep` e `sleep(5)`, passado à função de varredura, dá um achado `sleep`; a varredura vira função que recebe a lista de arquivos, para o teste real e o sintético usarem a mesma) e `test_guarda_pega_sleep_com_apelido`; `test_sem_fixture_sombra`: nenhum arquivo de `tests/unidade/coletores/` define fixture com o nome de uma fixture de `tests/conftest.py` (varredura por AST dos `FunctionDef` com `@pytest.fixture`).
+- [ ] **Ver falhar:** `uv run pytest tests/unidade/test_testes_sem_espera.py -q -k "sleep or sombra"`; o vermelho é a asserção (achado ausente, ou `fuso_de_sao_paulo` duplicada).
+- [ ] **Implementar** os dois ajustes.
+- [ ] **Ver passar:** `uv run pytest tests/unidade/test_testes_sem_espera.py tests/unidade/coletores/test_eureca.py -q` e `uv run ruff check && uv run ruff format --check`.
