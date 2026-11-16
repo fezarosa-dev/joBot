@@ -32,10 +32,10 @@
 input[type="text"],
 textarea {
   width: 100%;
-  min-height: 2.5rem;
+  min-block-size: 1.75rem;
   padding: 0.4rem 0.75rem;
   border: 1px solid var(--borda);
-  border-radius: 10px;
+  border-radius: var(--raio-controle);
   background-color: var(--superficie);
   color: var(--texto);
   font: inherit;
@@ -95,7 +95,7 @@ textarea {
 }
 
 .apagar summary {
-  cursor: pointer;
+  cursor: default;
   color: var(--link);
 }
 

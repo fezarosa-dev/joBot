@@ -4,7 +4,6 @@
   margin: 0 0 1rem;
   font-size: 2rem;
   font-weight: 700;
-  letter-spacing: -0.025em;
 }
 
 /* texto só para leitor de tela */
@@ -76,10 +75,10 @@ input[type="search"],
 input[type="text"],
 input[type="number"],
 select {
-  min-height: 2.5rem;
+  min-block-size: 1.75rem;
   padding: 0.4rem 0.75rem;
   border: 1px solid var(--borda);
-  border-radius: 10px;
+  border-radius: var(--raio-controle);
   background-color: var(--superficie);
   color: var(--texto);
   font: inherit;
@@ -94,7 +93,7 @@ select {
 .mais-filtros summary {
   width: fit-content;
   color: var(--link);
-  cursor: pointer;
+  cursor: default;
 }
 
 .mais-filtros-campos {
@@ -145,17 +144,15 @@ select {
   font: inherit;
   font-size: 0.9375rem;
   font-weight: 500;
-  cursor: pointer;
-  transition:
-    background-color var(--duracao) var(--mola),
-    transform var(--duracao) var(--mola);
+  cursor: default;
+  transition: background-color 120ms ease-out;
 }
 
 .primario,
 .secundario {
-  min-height: 2.5rem;
+  min-block-size: 1.75rem;
   padding: 0.4rem 1rem;
-  border-radius: 10px;
+  border-radius: var(--raio-controle);
 }
 
 .primario {
@@ -166,12 +163,6 @@ select {
 .secundario {
   background-color: var(--trilho);
   color: var(--texto);
-}
-
-.primario:active,
-.secundario:active,
-.chip:active {
-  transform: scale(0.96);
 }
 
 /* chips: um grupo por linha, cada chip é um botão que liga e desliga */
@@ -282,7 +273,6 @@ a.chip {
   margin: 0;
   font-size: 1.1875rem;
   font-weight: 600;
-  letter-spacing: -0.015em;
 }
 
 .cartao-titulo a {

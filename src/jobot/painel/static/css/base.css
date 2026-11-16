@@ -1,4 +1,4 @@
-/* Casca do painel: fonte, cores dos dois temas, barra do topo e movimento (desenho 13.11). */
+/* Casca do painel: fonte, tokens (cor, tipo, raio, vidro, movimento), controles e movimento reduzido (desenho 5.1 e 5.3). */
 
 @font-face {
   font-family: "Inter";
@@ -19,33 +19,90 @@
 /*
  * Cores num lugar só: cada uma é light-dark(<claro>, <escuro>) e o color-scheme escolhe.
  * Sem data-tema manual, segue o prefers-color-scheme do sistema.
- * O teste do contraste (critério 29) lê a lista abaixo: cada par é <texto>/<fundo>.
- * Par novo de texto sobre fundo entra nesta lista, com as duas cores em hex de 6 dígitos.
+ * O teste do contraste (critério 29) lê as duas listas abaixo, cada par é <frente>/<fundo>:
+ * a de texto confere 4,5:1; a de objeto gráfico (barra sobre o trilho), 3:1.
+ * Par novo sobre fundo entra numa delas, com as duas cores em hex de 6 dígitos.
+ * Se um par de texto reprovar, o tom do texto muda, nunca o fundo; se o par do progresso reprovar,
+ * muda só o --trilho-progresso. Tokens com alfa (rgb com barra) ficam fora das listas.
  */
-/* contraste: texto/fundo texto-2/fundo texto/superficie texto-2/superficie link/fundo link/superficie sobre-destaque/destaque texto/trilho texto/segmento alerta/superficie alerta/fundo sucesso/superficie sucesso/fundo */
+/* contraste: texto/fundo texto-2/fundo texto-2/sob-pagina texto/superficie texto-2/superficie texto/solido-barra texto-2/solido-barra texto/solido-elevado texto-2/solido-elevado link/fundo link/superficie sobre-destaque/destaque texto/trilho texto/segmento alerta/superficie alerta/fundo sucesso/superficie sucesso/fundo */
+/* contraste-grafico: destaque/trilho-progresso */
 :root {
   color-scheme: light dark;
-  --fundo: light-dark(#f5f5f7, #000000);
-  --superficie: light-dark(#ffffff, #1c1c1e);
+  --fundo: light-dark(#ececec, #1e1e1e);
+  --superficie: light-dark(#ffffff, #1e1e1e);
+  --sob-pagina: light-dark(#e5e5e5, #282828);
+  --solido-barra: light-dark(#f6f6f6, #282828);
+  --solido-elevado: light-dark(#ffffff, #2c2c2e);
   --texto: light-dark(#1d1d1f, #f5f5f7);
-  --texto-2: light-dark(#6e6e73, #a1a1a6);
+  --texto-2: light-dark(#636366, #a1a1a6);
+  --texto-3: light-dark(#aeaeb2, #636366); /* só texto desativado: fora da lista */
   --link: light-dark(#0066cc, #2997ff);
   --destaque: light-dark(#0071e3, #0071e3);
   --sobre-destaque: light-dark(#ffffff, #ffffff);
   --trilho: light-dark(#e8e8ed, #2c2c2e);
-  --segmento: light-dark(#ffffff, #48484a);
+  --trilho-progresso: light-dark(#e8e8ed, #1e1e1e);
+  --segmento: light-dark(#ffffff, #5a5a5e);
   --alerta: light-dark(#d70015, #ff453a);
   --sucesso: light-dark(#1e7b34, #30d158);
   --foco: light-dark(#0071e3, #2997ff);
+  --separador: light-dark(rgb(0 0 0 / 0.1), rgb(255 255 255 / 0.1));
+  --hover: light-dark(rgb(0 0 0 / 0.06), rgb(255 255 255 / 0.08));
+  --pressionado: light-dark(rgb(0 0 0 / 0.13), rgb(255 255 255 / 0.16));
+  --selecao-inativa: light-dark(rgb(0 0 0 / 0.08), rgb(255 255 255 / 0.14));
+  --veu: light-dark(rgb(0 0 0 / 0.25), rgb(0 0 0 / 0.5));
+  --fundo-controle: light-dark(rgb(255 255 255 / 0.7), rgb(255 255 255 / 0.12));
+  --borda-controle: light-dark(rgb(0 0 0 / 0.15), rgb(255 255 255 / 0.15));
   --borda: light-dark(rgb(0 0 0 / 0.08), rgb(255 255 255 / 0.12));
-  --barra: light-dark(rgb(245 245 247 / 0.72), rgb(22 22 23 / 0.72));
   --sombra: light-dark(rgb(0 0 0 / 0.12), rgb(0 0 0 / 0.5));
+  --sombra-cor: light-dark(rgb(0 0 0 / 0.25), rgb(0 0 0 / 0.55));
+  --sombra-cor-forte: light-dark(rgb(0 0 0 / 0.3), rgb(0 0 0 / 0.6));
+  --borda-elevada: light-dark(transparent, rgb(255 255 255 / 0.12));
+  --sombra-menu: 0 8px 30px var(--sombra-cor);
+  --sombra-sheet: 0 12px 40px var(--sombra-cor-forte);
+  --sombra-alerta: 0 20px 60px var(--sombra-cor-forte);
 
-  /* mola feita em CSS: passa um pouco do ponto e assenta */
-  --mola: linear(0, 0.25 6%, 0.66 13%, 0.98 21%, 1.08 28%, 1.07 35%, 1.01 46%, 0.99 58%, 1);
-  --duracao: 420ms;
-  --raio: 14px;
+  /* escala do Mac, peso tamanho/entrelinha (13px = 0.8125rem sobre 16px); o `font` abreviado zera
+     a família: quem usa o token em `font` fecha com font-family: inherit */
+  --t-large: 700 1.625rem/2rem;
+  --t-title1: 700 1.375rem/1.625rem;
+  --t-title2: 600 1.0625rem/1.375rem;
+  --t-title3: 600 0.9375rem/1.25rem;
+  --t-headline: 700 0.8125rem/1rem;
+  --t-body: 400 0.8125rem/1rem;
+  --t-callout: 400 0.75rem/0.9375rem;
+  --t-sub: 400 0.6875rem/0.875rem;
+  --t-foot: 400 0.625rem/0.8125rem;
+  --t-cap1: 400 0.625rem/0.8125rem;
+  --t-cap2: 500 0.625rem/0.8125rem;
+
+  /* vidro: só as classes .vidro e .vidro-grande usam estes números */
+  --vidro-blur: 24px;
+  --vidro-blur-grande: 40px;
+  --vidro-sat: 1.4;
+  --vidro-fundo: color-mix(in srgb, var(--solido-barra) 72%, transparent);
+  --vidro-fundo-grande: color-mix(in srgb, var(--solido-barra) 85%, transparent);
+  --vidro-borda: light-dark(rgb(255 255 255 / 0.45), rgb(255 255 255 / 0.12));
+
+  /* molas em linear(): suave sem rebote (padrão), leve com rebote de 0,5% (sheet e detalhe) */
+  --mola-suave: linear(0, 0.059 4.3%, 0.185 8.7%, 0.328 13%, 0.464 17.4%, 0.582 21.7%, 0.68 26.1%, 0.758 30.4%, 0.82 34.8%, 0.866 39.1%, 0.902 43.5%, 0.928 47.8%, 0.948 52.2%, 0.962 56.5%, 0.973 60.9%, 0.981 65.2%, 0.986 69.6%, 0.99 73.9%, 0.993 78.3%, 0.995 82.6%, 0.996 87%, 0.998 91.3%, 0.998 95.7%, 1);
+  --mola-leve: linear(0, 0.061 4.3%, 0.196 8.7%, 0.353 13%, 0.504 17.4%, 0.636 21.7%, 0.743 26.1%, 0.826 30.4%, 0.888 34.8%, 0.931 39.1%, 0.961 43.5%, 0.981 47.8%, 0.993 52.2%, 1 56.5%, 1.003 60.9%, 1.005 65.2%, 1.005 68.4%, 1.005 69.6%, 1.005 73.9%, 1.004 78.3%, 1.003 82.6%, 1.002 87%, 1.002 91.3%, 1.001 95.7%, 1);
+  --mola-reserva: cubic-bezier(0.22, 1, 0.36, 1);
+  --mola: var(--mola-suave);
+  --duracao: 190ms;
+  --raio-controle: 6px;
+  --raio-grande: 10px;
+  --raio: 10px;
+  --raio-sheet: 18px;
   --espaco: clamp(1rem, 3vw, 2rem);
+}
+
+/* navegador sem linear() no easing: a curva de reserva */
+@supports not (transition-timing-function: linear(0, 1)) {
+  :root {
+    --mola-suave: var(--mola-reserva);
+    --mola-leve: var(--mola-reserva);
+  }
 }
 
 :root[data-tema="claro"] {
@@ -63,6 +120,7 @@
 }
 
 html {
+  font-size: 100%;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
 }
@@ -72,10 +130,9 @@ body {
   min-height: 100vh;
   background-color: var(--fundo);
   color: var(--texto);
+  /* o `font` abreviado zera a família: a pilha vem depois */
+  font: var(--t-body);
   font-family: -apple-system, BlinkMacSystemFont, "Inter", system-ui, sans-serif;
-  font-size: 1.0625rem;
-  line-height: 1.47;
-  letter-spacing: -0.01em;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -83,6 +140,10 @@ body {
 a {
   color: var(--link);
   text-underline-offset: 0.15em;
+}
+
+a[href] {
+  cursor: pointer;
 }
 
 :focus-visible {
@@ -98,8 +159,8 @@ main:focus:not(:focus-visible) {
 /* link de pular: fora da tela até receber o foco */
 .pular {
   position: absolute;
-  top: 0.75rem;
-  left: var(--espaco);
+  inset-block-start: 0.75rem;
+  inset-inline-start: var(--espaco);
   z-index: 20;
   padding: 0.5rem 1rem;
   border-radius: 999px;
@@ -108,7 +169,7 @@ main:focus:not(:focus-visible) {
   font-weight: 600;
   text-decoration: none;
   transform: translateY(-300%);
-  /* o do miolo cai atrás da barra do topo (translúcida): fora da tela não basta, some até o foco */
+  /* o do miolo cai atrás da barra do topo (vidro): fora da tela não basta, some até o foco */
   opacity: 0;
   transition:
     transform var(--duracao) var(--mola),
@@ -124,10 +185,10 @@ main:focus:not(:focus-visible) {
   opacity: 1;
 }
 
-/* barra do topo translúcida */
+/* barra do topo: o material (vidro) vem da classe .vidro no template; a borda separa do conteúdo */
 .topo {
   position: sticky;
-  top: 0;
+  inset-block-start: 0;
   z-index: 10;
   display: flex;
   flex-wrap: wrap;
@@ -135,17 +196,83 @@ main:focus:not(:focus-visible) {
   justify-content: space-between;
   gap: 0.75rem;
   padding: 0.75rem var(--espaco);
-  background-color: var(--barra);
-  border-bottom: 1px solid var(--borda);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
-  backdrop-filter: saturate(180%) blur(20px);
+  border-block-end: 1px solid var(--separador);
+}
+
+/*
+ * Vidro (desenho 5.1): o único lugar com backdrop-filter. Nunca vidro sobre vidro, nunca animar o
+ * filtro. Menu, paleta, alerta e sheet somam .vidro-elevado para o caminho sólido usar o tom deles.
+ */
+.vidro,
+.vidro-grande {
+  --fundo-solido: var(--solido-barra);
+  box-shadow: inset 0 1px 0 var(--vidro-borda);
+}
+
+.vidro {
+  background-color: var(--vidro-fundo);
+  -webkit-backdrop-filter: saturate(var(--vidro-sat)) blur(var(--vidro-blur));
+  backdrop-filter: saturate(var(--vidro-sat)) blur(var(--vidro-blur));
+}
+
+.vidro-grande {
+  background-color: var(--vidro-fundo-grande);
+  -webkit-backdrop-filter: saturate(var(--vidro-sat)) blur(var(--vidro-blur-grande));
+  backdrop-filter: saturate(var(--vidro-sat)) blur(var(--vidro-blur-grande));
+}
+
+.vidro-elevado {
+  --fundo-solido: var(--solido-elevado);
+}
+
+/* caminho sólido: sem filtro, fundo opaco e borda de 1px (com mais contraste, a cor do texto) */
+@media (prefers-reduced-transparency: reduce) {
+  .vidro,
+  .vidro-grande {
+    background-color: var(--fundo-solido);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    border: 1px solid var(--separador);
+    box-shadow: none;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .vidro,
+  .vidro-grande {
+    background-color: var(--fundo-solido);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    border: 1px solid var(--texto);
+    box-shadow: none;
+  }
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .vidro,
+  .vidro-grande {
+    background-color: var(--fundo-solido);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    border: 1px solid var(--separador);
+    box-shadow: none;
+  }
+}
+
+/* janela inativa (o app.js põe data-janela no <html>): sem vidro, com o sólido */
+:root[data-janela="inativa"] .vidro,
+:root[data-janela="inativa"] .vidro-grande {
+  background-color: var(--fundo-solido);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  border: 1px solid var(--separador);
+  box-shadow: none;
 }
 
 .marca {
   color: var(--texto);
-  font-size: 1.3rem;
-  font-weight: 700;
-  letter-spacing: -0.025em;
+  font: var(--t-title2);
+  font-family: inherit;
   text-decoration: none;
 }
 
@@ -158,19 +285,19 @@ main:focus:not(:focus-visible) {
 }
 
 .menu a {
-  padding: 0.3rem 0.8rem;
-  border-radius: 8px;
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--raio-controle);
   color: var(--texto);
-  font-size: 0.9375rem;
+  font-size: 0.8125rem;
   font-weight: 500;
   text-decoration: none;
   transition:
-    background-color var(--duracao) var(--mola),
-    box-shadow var(--duracao) var(--mola);
+    background-color 120ms ease-out,
+    box-shadow 120ms ease-out;
 }
 
 .menu a:hover {
-  background-color: var(--trilho);
+  background-color: var(--hover);
 }
 
 /* área aberta: mesmo tom do segmento escolhido (pares texto/segmento e texto/trilho da lista) */
@@ -193,31 +320,25 @@ main:focus:not(:focus-visible) {
   gap: 0.5rem;
 }
 
-/* controle segmentado: um formulário, um botão por opção */
+/* controle segmentado: um formulário, um botão por opção (28px no total: 2 + 24 + 2) */
 .segmentos {
   display: inline-flex;
   margin: 0;
   padding: 2px;
-  border-radius: 10px;
+  border-radius: 8px;
   background-color: var(--trilho);
 }
 
 .segmentos button {
-  appearance: none;
+  min-block-size: 1.5rem;
+  padding-inline: 0.75rem;
   border: 0;
-  margin: 0;
-  padding: 0.3rem 0.8rem;
-  border-radius: 8px;
+  border-radius: var(--raio-controle);
   background-color: transparent;
-  color: var(--texto);
-  font: inherit;
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
+  font-size: 0.8125rem;
   transition:
-    background-color var(--duracao) var(--mola),
-    box-shadow var(--duracao) var(--mola),
-    transform var(--duracao) var(--mola);
+    background-color 120ms ease-out,
+    box-shadow 120ms ease-out;
 }
 
 .segmentos button[aria-pressed="true"] {
@@ -225,8 +346,95 @@ main:focus:not(:focus-visible) {
   box-shadow: 0 1px 3px var(--sombra);
 }
 
-.segmentos button:active {
-  transform: scale(0.96);
+/*
+ * Controles (desenho 5.3): 28px de altura, cursor de seta (a mão só em link) e sem escala ao
+ * pressionar. Variantes: principal, comum (o próprio button), simples e destrutivo. O :where baixa a
+ * especificidade do hover para as classes de cada tela continuarem mandando no próprio fundo.
+ */
+button {
+  appearance: none;
+  min-block-size: 1.75rem;
+  margin: 0;
+  padding-block: 0;
+  padding-inline: 0.75rem;
+  border: 0.5px solid var(--borda-controle);
+  border-radius: var(--raio-controle);
+  background-color: var(--fundo-controle);
+  color: var(--texto);
+  font: inherit;
+  font-weight: 500;
+  cursor: default;
+  transition:
+    background-color 120ms ease-out,
+    color 120ms ease-out,
+    opacity 120ms ease-out;
+}
+
+:where(button:not(:disabled)):hover {
+  background-color: color-mix(in srgb, var(--fundo-controle), var(--hover));
+}
+
+:where(button:not(:disabled)):active {
+  background-color: color-mix(in srgb, var(--fundo-controle), var(--pressionado));
+}
+
+/* desativado: opacidade e o motivo escrito ao lado (a tela diz o porquê) */
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.botao-principal {
+  border-color: transparent;
+  background-color: var(--destaque);
+  color: var(--sobre-destaque);
+  font-weight: 600;
+}
+
+.botao-principal:hover:not(:disabled) {
+  background-color: color-mix(in srgb, var(--destaque), black 12%);
+}
+
+.botao-principal:active:not(:disabled) {
+  background-color: color-mix(in srgb, var(--destaque), black 22%);
+}
+
+.botao-simples {
+  border-color: transparent;
+  background-color: transparent;
+}
+
+.botao-simples:hover:not(:disabled) {
+  background-color: var(--hover);
+}
+
+.botao-simples:active:not(:disabled) {
+  background-color: var(--pressionado);
+}
+
+.botao-destrutivo {
+  color: var(--alerta);
+}
+
+input[type="text"],
+input[type="search"],
+input[type="number"],
+input[type="email"],
+input[type="url"],
+input[type="password"] {
+  min-block-size: 1.75rem;
+  padding-block: 0;
+  padding-inline: 0.5rem;
+  border: 1px solid var(--borda-controle);
+  border-radius: var(--raio-controle);
+  background-color: var(--superficie);
+  color: var(--texto);
+  font: inherit;
+}
+
+::placeholder {
+  color: var(--texto-2);
+  opacity: 1;
 }
 
 main {
@@ -251,15 +459,14 @@ main {
   border-radius: var(--raio);
   background-color: var(--superficie);
   color: var(--texto);
-  font-size: 0.9375rem;
+  font-size: 0.8125rem;
 }
 
 /* aviso de erro de clique (T151): fixo embaixo, abaixo da barra do topo e do link de pular; some com [hidden] */
 #aviso-erro:not([hidden]) {
   position: fixed;
-  right: var(--espaco);
-  bottom: var(--espaco);
-  left: var(--espaco);
+  inset-inline: var(--espaco);
+  inset-block-end: var(--espaco);
   z-index: 15;
   display: flex;
   align-items: flex-start;
@@ -271,8 +478,8 @@ main {
   border-radius: var(--raio);
   background-color: var(--superficie);
   color: var(--texto);
-  font-size: 0.9375rem;
-  box-shadow: 0 8px 24px var(--sombra);
+  font-size: 0.8125rem;
+  box-shadow: var(--sombra-menu);
 }
 
 #aviso-erro p {
@@ -283,21 +490,18 @@ main {
 
 #aviso-erro button {
   flex: none;
-  min-width: 2rem;
-  min-height: 2rem;
+  min-inline-size: 1.75rem;
   padding: 0 0.5rem;
   border: 0;
   border-radius: 999px;
   background-color: transparent;
   color: var(--texto);
-  font: inherit;
   font-size: 1.25rem;
   line-height: 1;
-  cursor: pointer;
 }
 
 #aviso-erro button:hover {
-  background-color: var(--trilho);
+  background-color: var(--hover);
 }
 
 /* rodapé: link discreto "Apoie o projeto" (T87), texto-2 sobre o fundo (par da lista) */
@@ -306,7 +510,8 @@ main {
   margin: 0 auto;
   padding: 0 var(--espaco) var(--espaco);
   color: var(--texto-2);
-  font-size: 0.875rem;
+  font: var(--t-callout);
+  font-family: inherit;
   text-align: center;
 }
 
@@ -318,16 +523,12 @@ main {
   color: var(--texto);
 }
 
-/* painel: superfície com cantos arredondados, para as telas usarem */
+/* painel: cartão de conteúdo, opaco (vidro só na camada funcional: barra, lateral, menus) */
 .painel {
   padding: var(--espaco);
-  border: 1px solid var(--borda);
-  border-radius: var(--raio);
-  /* translúcido sobre o --fundo: a cor que aparece fica entre --fundo e --superficie,
-     e os dois pares do contraste já cobrem esse intervalo */
-  background-color: color-mix(in srgb, var(--superficie) 72%, transparent);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
-  backdrop-filter: saturate(180%) blur(20px);
+  border: 1px solid var(--separador);
+  border-radius: var(--raio-grande);
+  background-color: var(--superficie);
 }
 
 @keyframes surgir {
@@ -337,15 +538,41 @@ main {
   }
 }
 
-/* com movimento reduzido, nada se mexe */
+/* cores forçadas: o navegador troca as cores; o que só o fundo dizia ganha contorno */
+@media (forced-colors: active) {
+  button,
+  input[type="text"],
+  input[type="search"],
+  input[type="number"],
+  input[type="email"],
+  input[type="url"],
+  input[type="password"] {
+    border: 1px solid ButtonText;
+  }
+
+  .segmentos button[aria-pressed="true"],
+  .menu a[aria-current="page"] {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+
+  .vidro,
+  .vidro-grande {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    border: 1px solid CanvasText;
+  }
+}
+
+/* movimento reduzido, sempre por último: sem transform nem laço; só cor, fundo e opacidade, em 120ms */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
-    animation-duration: 0s !important;
-    animation-delay: 0s !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0s !important;
+    animation: none !important;
+    transform: none !important;
+    transition-property: opacity, color, background-color, border-color, box-shadow !important;
+    transition-duration: 120ms !important;
     transition-delay: 0s !important;
     scroll-behavior: auto !important;
   }

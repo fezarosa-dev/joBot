@@ -15,7 +15,6 @@
   margin: 0 0 0.75rem;
   font-size: 2rem;
   font-weight: 700;
-  letter-spacing: -0.025em;
 }
 
 .assistente-texto {
@@ -51,10 +50,10 @@
 .campo textarea {
   box-sizing: border-box;
   width: 100%;
-  min-height: 2.5rem;
+  min-block-size: 1.75rem;
   padding: 0.4rem 0.75rem;
   border: 1px solid var(--borda);
-  border-radius: 10px;
+  border-radius: var(--raio-controle);
   background-color: var(--superficie);
   color: var(--texto);
   font: inherit;
@@ -106,21 +105,17 @@
   display: inline-flex;
   align-items: center;
   box-sizing: border-box;
-  min-height: 2.5rem;
+  min-block-size: 1.75rem;
   margin: 0;
   padding: 0.4rem 1rem;
   border: 0;
-  border-radius: 10px;
+  border-radius: var(--raio-controle);
   font: inherit;
   font-size: 0.9375rem;
   font-weight: 500;
   text-decoration: none;
-  cursor: pointer;
-  transition: transform var(--duracao) var(--mola);
-}
-
-.botao:active {
-  transform: scale(0.96);
+  cursor: default;
+  transition: background-color 120ms ease-out;
 }
 
 .botao-primario {
