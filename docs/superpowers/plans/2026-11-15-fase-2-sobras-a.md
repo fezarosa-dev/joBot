@@ -1,6 +1,6 @@
 # Fase 2, sobras da Parte A (T222 a T231): plano de implementação
 
-> Cada tarefa roda num worktree próprio, tirado da `dev`, e passa por um revisor diferente de quem implementou. TDD com vermelho válido: o teste-alvo falha numa asserção do comportamento pedido. Erro de import, de coleta ou zero testes não vale como vermelho. Nome novo que o teste importa nasce como stub: aceita o parâmetro novo e o ignora, ou devolve o valor velho. Teste que nasce verde (guarda) só vale com o mutante descrito na tarefa, rodado numa cópia (`registros/padroes.md:27`).
+> Cada tarefa roda num worktree próprio, tirado da `dev`, e passa por um revisor diferente de quem implementou. TDD com vermelho válido: o teste-alvo falha numa asserção do comportamento pedido. Erro de import, de coleta ou zero testes não vale como vermelho. Nome novo que o teste importa nasce como stub: aceita o parâmetro novo e o ignora, ou devolve o valor velho. Teste que nasce verde (guarda) só vale com o mutante descrito na tarefa, rodado numa cópia (`registros/padroes.md` («Teste que nasce verde»)).
 
 **Objetivo:** fechar as dez tarefas que a execução da Parte A deixou na D134, sem mexer no que a pessoa já vê, antes do plano da Parte B. São três provas e correções na janela parada (T222, T224, T225), o falso negativo do `achar_widget` (T223), o cofre (T226), a mensagem do `serve` (T227), os limites espalhados (T228), o aviso no idioma da pessoa (T229) e o contexto do navegador (T230, T231).
 
@@ -12,16 +12,16 @@
 
 ## Restrições globais
 
-- Ler `registros/padroes.md` antes de cada tarefa. Valem principalmente as linhas 18, 24, 27, 31, 40, 41 e 43.
+- Ler `registros/padroes.md` antes de cada tarefa. Valem principalmente as lições «Registro e plano», «Antes do push», «Teste que nasce verde», «Espera de rede tem prazo», «Navegador», «Desafio e URL» e «Teste de navegador».
 - Camadas: `navegador` importa `nucleo`, `banco` e `sistema`, nunca `painel`, `agenda` ou `cli`. O `painel` já importa `jobot.navegador.limites` (`painel/rotas/configuracoes.py:37`).
-- Limites e prazos, inclusive os técnicos, moram em `navegador/limites.py` e se leem como `limites.X`. O `monkeypatch` vai no módulo `limites` (`registros/padroes.md:40`).
+- Limites e prazos, inclusive os técnicos, moram em `navegador/limites.py` e se leem como `limites.X`. O `monkeypatch` vai no módulo `limites` (`registros/padroes.md` («Navegador»)).
 - Lista permitida do Playwright (`tests/unidade/test_navegador_ast.py:28-53`): fora de `js.py`, só as chamadas de `PERMITIDOS` e os eventos `response`, `request` e `close`. `is_closed` e `clear` não estão na lista. A aba fechada se descobre pelo evento `close`.
-- Fechar o contexto se prova pelo evento `close`, nunca por `pages == []` (`registros/padroes.md:43`).
-- Comportamento trocado atualiza a D de origem na mesma entrega (`registros/padroes.md:18`). A tarefa acrescenta "(trocada pela Tn, D135.m)" ao item da D134 que ela troca, e corrige a lição de `registros/padroes.md` que deixou de valer.
+- Fechar o contexto se prova pelo evento `close`, nunca por `pages == []` (`registros/padroes.md` («Teste de navegador»)).
+- Comportamento trocado atualiza a D de origem na mesma entrega (`registros/padroes.md` («Registro e plano»)). A tarefa acrescenta "(trocada pela Tn, D135.m)" ao item da D134 que ela troca, e corrige a lição de `registros/padroes.md` que deixou de valer.
 - Texto novo para quem usa sai em `pt` e `en`. A frase do aviso não leva endereço, chave nem token.
 - Nenhum teste espera tempo real: o relógio vem injetado (`RelogioDoNavegador`, `tests/apoio/site_falso.py:591`) e a janela usa `limites.JANELA_PARADA_S = 60` nos testes.
 - Sem dependência nova, sem migração. Playwright continua `==1.65.1`.
-- Nesta máquina rodam só o arquivo de teste da tarefa e `uv run ruff check && uv run ruff format --check`. A suíte inteira, o `-m tela` e o `uv run mypy` rodam no CI da branch `lote/<nome>`. Antes do push: mypy nos `.py` mexidos e `uv run pytest tests/unidade` (`registros/padroes.md:25`).
+- Nesta máquina rodam só o arquivo de teste da tarefa e `uv run ruff check && uv run ruff format --check`. A suíte inteira, o `-m tela` e o `uv run mypy` rodam no CI da branch `lote/<nome>`. Antes do push: mypy nos `.py` mexidos e `uv run pytest tests/unidade` (`registros/padroes.md` («Antes do push»)).
 - Desvios: R1 a R3, quem implementa resolve e lista. R4 (arquitetura, dependência, esquema, contrato público) vai ao `duvidas.md` com opções e recomendação, e o resto da tarefa segue.
 
 ## Escolhas deste plano (D135, para confirmar)
@@ -34,7 +34,7 @@
 | E4 | `PRAZO_COFRE_S` fica só em `navegador/limites.py`; `painel/rotas/servicos.py` lê `limites.PRAZO_COFRE_S` na hora da chamada. | `test_prazo_do_cofre_definido_uma_vez` |
 | E5 | A chave do 2Captcha é lida do cofre uma vez por execução (`ChaveDoCofre`), e todas as abas usam essa leitura. O prazo estourado também fica guardado, então custa um prazo por execução. | `test_chave_lida_do_cofre_uma_vez_por_execucao`, `test_cofre_que_nao_responde_custa_um_prazo_por_execucao`, `test_duas_leituras_ao_mesmo_tempo_leem_o_cofre_uma_vez` |
 | E6 | `serve` com captura no ar imprime o `AVISO_CAPTURA` que já existe (`sistema/instancia.py:97-100`). É só em português, como as outras mensagens do terminal. | `test_serve_com_captura_no_ar_diz_qual_e` |
-| E7 | Três nomes novos em `limites`: `ESPERA_ASSENTAR_MS = 10_000`, `PASSOS_DEPOIS_DE_ROLAR = 5` (público, porque `pagina.py` o lê de outro módulo e o `test_nomes_publicos` recusa nome com `_` importado de outro módulo, `registros/padroes.md:25`) e `ESPERA_429_S = ESPERAS_LIMITE[0]` (um número só, o de `nucleo/http.py:21`). | `test_limites_da_pagina_moram_em_limites`, `test_429_sem_retry_after_espera_o_padrao`, `test_passos_depois_de_rolar_vem_de_limites` |
+| E7 | Três nomes novos em `limites`: `ESPERA_ASSENTAR_MS = 10_000`, `PASSOS_DEPOIS_DE_ROLAR = 5` (público, porque `pagina.py` o lê de outro módulo e o `test_nomes_publicos` recusa nome com `_` importado de outro módulo, `registros/padroes.md` («Antes do push»)) e `ESPERA_429_S = ESPERAS_LIMITE[0]` (um número só, o de `nucleo/http.py:21`). | `test_limites_da_pagina_moram_em_limites`, `test_429_sem_retry_after_espera_o_padrao`, `test_passos_depois_de_rolar_vem_de_limites` |
 | E8 | O idioma do aviso vem da config `idioma` no banco, lida no começo da execução, e não por `Dependencias` (troca a forma da D134.37). Sem idioma salvo ou com valor estranho, sai em `pt`. As duas frases ficam em `navegador/execucao.py`, porque `navegador` não importa `painel`. | `test_aviso_sai_no_idioma_da_pessoa` |
 | E9 | `accept_downloads=False` e `service_workers="block"` vão nas duas chamadas de `abrir_contexto`. Assim o site falso também roda com eles e prova que as respostas continuam sendo lidas. | `test_contexto_sem_downloads_nem_service_workers` |
 | E10 | O `env` do Chrome leva só `PATH`, `HOME`, `USER`, `LOGNAME`, `LANG`, `LC_ALL`, `LANGUAGE`, `TMPDIR`, `XDG_CONFIG_HOME`, `XDG_CACHE_HOME`, `XDG_DATA_HOME`, `XDG_DATA_DIRS`, `XDG_CURRENT_DESKTOP`, `XDG_SESSION_TYPE` e `DBUS_SESSION_BUS_ADDRESS` do `os.environ`, mais o ambiente da tela já validado (`DISPLAY`, `WAYLAND_DISPLAY`, `XAUTHORITY`, `XDG_RUNTIME_DIR`, de `sistema/tela.py:13`). Nenhuma delas carrega segredo, e as `XDG_*`, `TMPDIR`, `USER` e `LOGNAME` são as que o Chrome costuma ler para pastas, área de trabalho e usuário. A abertura com tela se confere à mão (T231). | `test_lancador_de_producao_passa_so_o_ambiente_do_navegador` e a verificação manual da T231 |
@@ -62,7 +62,7 @@
 | 4 | T226, T230 | T226 depois da T223 (`captcha.py`) e da T225 (`execucao.py`, `test_janela_parada.py`); T230 depois da T228 (`test_navegador_abrir.py`) |
 | 5 | T229, T231 | T229 depois da T226 (`execucao.py`); T231 depois da T230 (`abrir.py`, `test_navegador_abrir.py`) |
 
-Em cada onda as duas tarefas não dividem arquivo, fora o `duvidas.md`, que cada tarefa edita em linha própria da D132 ou da D134 (T224 e T228 na onda 2, T225 e T227 na onda 3); quem junta resolve o conflito de borda. `execucao.py` passa por T224, T225, T226 e T229 em sequência: as tarefas citam o símbolo (`_Janela.parar`, `_ler_site`, `executar_login`), não a linha, e quem implementa confere o lugar pelo símbolo (`registros/padroes.md:18`). Junte a onda na `dev` antes de abrir a seguinte. As tarefas que acrescentam teste no fim do mesmo arquivo dariam conflito certo (`registros/padroes.md:23`).
+Em cada onda as duas tarefas não dividem arquivo, fora o `duvidas.md`, que cada tarefa edita em linha própria da D132 ou da D134 (T224 e T228 na onda 2, T225 e T227 na onda 3); quem junta resolve o conflito de borda. `execucao.py` passa por T224, T225, T226 e T229 em sequência: as tarefas citam o símbolo (`_Janela.parar`, `_ler_site`, `executar_login`), não a linha, e quem implementa confere o lugar pelo símbolo (`registros/padroes.md` («Registro e plano»)). Junte a onda na `dev` antes de abrir a seguinte. As tarefas que acrescentam teste no fim do mesmo arquivo dariam conflito certo (`registros/padroes.md` («Junção do lote»)).
 
 ---
 
@@ -81,7 +81,7 @@ Em cada onda as duas tarefas não dividem arquivo, fora o `duvidas.md`, que cada
 ### T223: estouro do `get_attribute` não passa como página limpa
 `depende_de: —` · D134 (tarefa nova 2), D135.1
 
-**Arquivos:** modificar `src/jobot/navegador/captcha.py`, `tests/navegador/test_captcha_logado.py` e `registros/padroes.md:41` (a frase "devolve `None` também por timeout" deixa de valer).
+**Arquivos:** modificar `src/jobot/navegador/captcha.py`, `tests/navegador/test_captcha_logado.py` e `registros/padroes.md` («Desafio e URL») (a frase "devolve `None` também por timeout" deixa de valer).
 
 **Interfaces:** `achar_widget(page) -> Widget | None` (`captcha.py:67-85`) ganha `except EstouroDoPlaywright: return Widget("nao_aceito", "", False, None, None)` antes do `except ErroDoPlaywright: return None` (`:83`). O import é `from playwright.async_api import TimeoutError as EstouroDoPlaywright`, o mesmo alias de `pagina.py:17`. O `_atributo` (`:55-56`) não muda.
 
@@ -178,7 +178,7 @@ Em cada onda as duas tarefas não dividem arquivo, fora o `duvidas.md`, que cada
   - `test_cofre_que_nao_responde_custa_um_prazo_por_execucao`. Monte o mesmo contador sobre `CofreFalso(trava=threading.Event())`, `monkeypatch.setattr(limites, "PRAZO_COFRE_S", 0.05)`, `monkeypatch.setattr(limites, "JANELA_PARADA_S", 60)` e dois sites em caminhos diferentes com widget aceito, `/recaptcha-v2` e `/turnstile`:
     - `assert lidos == [NOME_NO_COFRE]`. Com o stub dá duas leituras.
     - as duas saúdes ficam `captcha`
-    - o `trava.set()` vai no `finally` (`registros/padroes.md:31`).
+    - o `trava.set()` vai no `finally` (`registros/padroes.md` («Cofre com reserva em arquivo»)).
   - `test_duas_leituras_ao_mesmo_tempo_leem_o_cofre_uma_vez` em `test_captcha_logado.py`, para o `asyncio.Lock`. O cofre é um contador definido no próprio teste, no molde do `CofreContado` de `:551`. O `ler` dele grava o nome em `lidos` e conta as entradas simultâneas (`dentro` e `maximo`, sob um `threading.Lock`).
     - `chave = ChaveDoCofre(cofre)` e `a, b = await asyncio.gather(chave.ler(), chave.ler())`.
     - `assert lidos == [NOME_NO_COFRE]`, `assert a == b` e `assert maximo == 1`. Com o stub dá duas leituras.
@@ -235,7 +235,7 @@ Os dois nomes vêm de `jobot.sistema.instancia` (`:97-106`), como em `sistema/ab
 - `_FRASE_AVISO` (no topo de `execucao.py`) vira `_FRASES_AVISO: Final = {"pt": ..., "en": ...}`. O pt é o de hoje. O en é "A site with login stopped at a challenge. Finish it in the browser window within {} minutes.". O `_TITULO_AVISO = "joBot"` serve aos dois.
 - `def _idioma(con: sqlite3.Connection) -> Literal["pt", "en"]` devolve `"en"` se `ler_config(con, "idioma", "pt") == "en"`, senão `"pt"`. É a mesma leitura e a mesma validação de `painel/seguranca.py:68-82`, sem o `Accept-Language`, que a execução não tem.
 - `_Janela.__init__(relogio, avisar, fechado, idioma)`. O `executar_login` passa `_idioma(con)` ao criar a `_Janela`, e o `_Janela.parar` usa `_FRASES_AVISO[self._idioma]`.
-- `Dependencias` não muda, para não mexer nas cinco montagens (`registros/padroes.md:43`).
+- `Dependencias` não muda, para não mexer nas cinco montagens (`registros/padroes.md` («Teste de navegador»)).
 
 - [ ] **Teste que falha:** `test_aviso_sai_no_idioma_da_pessoa`, parametrizado com `(None, "Um site com login parou")`, `("en", "A site with login stopped")` e `("xx", "Um site com login parou")`. Grave `idioma` quando não for `None`, com uma parada em `/recaptcha-v2` sem 2Captcha e `monkeypatch.setattr(limites, "JANELA_PARADA_S", 60)`.
   - `assert montagem.avisos[0][1].startswith(esperado)`
@@ -263,7 +263,7 @@ Os dois nomes vêm de `jobot.sistema.instancia` (`:97-106`), como em `sistema/ab
 ### T231: só o ambiente que o navegador precisa
 `depende_de: T230` · D134.48 (parte), D135.10
 
-**Arquivos:** modificar `src/jobot/navegador/abrir.py`, `tests/unidade/test_navegador_abrir.py`, `duvidas.md` (sufixo no item 48 da D134 e, se a verificação manual não for feita, o registro na D135) e `registros/padroes.md:40` (a frase "junte com `os.environ`" vira "a lista de `abrir.VARIAVEIS_DO_NAVEGADOR` mais o ambiente da tela").
+**Arquivos:** modificar `src/jobot/navegador/abrir.py`, `tests/unidade/test_navegador_abrir.py`, `duvidas.md` (sufixo no item 48 da D134 e, se a verificação manual não for feita, o registro na D135) e `registros/padroes.md` («Navegador») (a frase "junte com `os.environ`" vira "a lista de `abrir.VARIAVEIS_DO_NAVEGADOR` mais o ambiente da tela").
 
 **Interfaces:**
 - `abrir.py` ganha `VARIAVEIS_DO_NAVEGADOR: Final = ("PATH", "HOME", "USER", "LOGNAME", "LANG", "LC_ALL", "LANGUAGE", "TMPDIR", "XDG_CONFIG_HOME", "XDG_CACHE_HOME", "XDG_DATA_HOME", "XDG_DATA_DIRS", "XDG_CURRENT_DESKTOP", "XDG_SESSION_TYPE", "DBUS_SESSION_BUS_ADDRESS")`. As `XDG_*`, `TMPDIR`, `USER` e `LOGNAME` entram porque o Chrome costuma lê-las para pastas, área de trabalho e usuário e nenhuma carrega segredo; deixá-las de fora arrisca um `SemNavegador` que nenhum teste acusaria (D135.10).

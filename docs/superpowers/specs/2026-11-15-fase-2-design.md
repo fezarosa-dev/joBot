@@ -59,7 +59,7 @@ Anti-objetivos (o que isto não pode fazer)
 - Gravação: `INSERT ... ON CONFLICT DO UPDATE`, nada apagado; `vaga` tem gatilho que recusa `DELETE` (`src/jobot/banco/migracoes/0001_inicial.sql:97-100`). Migração aplicada nunca é editada (`0001_inicial.sql:1`).
 - Duplicata: a única chave é o hash da URL canônica (`0001_inicial.sql:63`; ADR 0007).
 - Painel só em `127.0.0.1`, sem recurso externo, CSP sem script inline, texto novo em `i18n/pt` e `i18n/en` (desenho do 2Captcha, seção 3).
-- Chave `saude.*` nova é R4 (`registros/padroes.md:32`): só as que este desenho lista (D132.7), e o que der reaproveita as que existem.
+- Chave `saude.*` nova é R4 (`registros/padroes.md` («i18n»)): só as que este desenho lista (D132.7), e o que der reaproveita as que existem.
 - Rede nova muda juntos o README em pt e en e o texto `configuracoes.privacidade.telemetria` em pt e en, com o teste `test_privacidade_cita_todos_os_pedidos` (desenho do 2Captcha, seção 3, `2026-11-15-captcha-design.md:64`).
 - Testes sem rede (`tests/conftest.py` só deixa `127.0.0.1` e `::1`) e com relógio injetado. Atenção: a guarda do `conftest.py` age no Python; o navegador é outro processo e não passa por ela (seção 8).
 - Sala limpa (ADR 0016, `docs/decisions/0016-licenca-clean-room-e-processo.md:20-22`): fixtures capturadas por nós; nada copiado de outro projeto.
@@ -124,9 +124,9 @@ Coletores, fontes, saúde e ciclo de vida
 - A busca pública só roda fontes que têm coletor registrado e grava "desligada", escopo `''`, para as desligadas (`src/jobot/agenda/execucao.py:168-171`).
 - Depois de coletar, a busca chama `fechar_escopos_extintos` por fonte, e pula a fonte cujo `escopos()` quebrou (`src/jobot/agenda/execucao.py:212-217`).
 - A tela de andamento considera que a coleta acabou quando toda fonte ligada tem linha em `execucao_fonte` (`src/jobot/banco/execucoes.py:254-260`). Uma fonte com login ligada, que a busca pública não roda, faria `coleta_acabou` nunca virar verdade.
-- A saúde aceita os estados `ok`, `sem_mudanca`, `parcial`, `falhou`, `desligada`, `no_limite` (`0001_inicial.sql:53`), com `motivo` em chave de i18n (`:57`). Gravar a saúde avulsa é `gravar_saude(...)` com `ON CONFLICT DO UPDATE` (`src/jobot/banco/execucoes.py:166-194`). Linha da fonte inteira tem escopo `''` (`registros/padroes.md:57`).
+- A saúde aceita os estados `ok`, `sem_mudanca`, `parcial`, `falhou`, `desligada`, `no_limite` (`0001_inicial.sql:53`), com `motivo` em chave de i18n (`:57`). Gravar a saúde avulsa é `gravar_saude(...)` com `ON CONFLICT DO UPDATE` (`src/jobot/banco/execucoes.py:166-194`). Linha da fonte inteira tem escopo `''` (`registros/padroes.md` («Saúde»)).
 - O catálogo dos motivos `saude.*` fica em `src/jobot/painel/i18n/pt/comum.json:75-90` (e o par em inglês). Já existem `saude.formato_mudou` (`:75`), `saude.zero_inesperado` (`:76`), `saude.bloqueio` ("A fonte bloqueou o acesso", `:80`), `saude.parou_429` (`:84`) e `saude.listagem_incompleta` (`:90`). Nenhum fala de login nem de CAPTCHA.
-- Padrões da fase 1 para leitura (`registros/padroes.md`): lista não vazia sem vaga legível é `falhou` com `saude.formato_mudou`, lista vazia é `ok` (`:52`); entrada sem o campo esperado é `parcial` com `saude.formato_mudou` e nenhuma legível é `falhou` (`:64`); lista paginada que pode ter vindo incompleta nunca é `ok` (`:61`).
+- Padrões da fase 1 para leitura (`registros/padroes.md`): lista não vazia sem vaga legível é `falhou` com `saude.formato_mudou`, lista vazia é `ok` («Ciclo de vida»); entrada sem o campo esperado é `parcial` com `saude.formato_mudou` e nenhuma legível é `falhou` («ATS e sitemap»); lista paginada que pode ter vindo incompleta nunca é `ok` («Coletor paginado»).
 - "Zero inesperado": escopo `ok` sem nenhum item, quando as três últimas execuções `ok` dele trouxeram vagas (`tres_ultimas_ok_trouxeram_vagas`), vira `parcial` com `saude.zero_inesperado` (`src/jobot/nucleo/coletores/executor.py:357-363`, DR-10).
 - Ciclo de vida: escopo `ok` fecha o que não foi visto; `parcial` só fecha o que não é visto há mais de 30 dias (`JANELA_PARCIAL`, `src/jobot/nucleo/tratamento/ciclo_de_vida.py:7`, `:37-38`); `falhou`, `desligada` e `no_limite` não mudam nada (`:34-35`).
 - Cada escopo é gravado por `gravar_escopo` depois de `tratar` (`src/jobot/agenda/execucao.py:179-182`).
@@ -149,7 +149,7 @@ Captura de fixtures
 - Na `fedora-dev` do dono não há Chrome (seção 4), e o Chrome do sistema de fora não serve: o transporte por pipe exige que o processo do navegador seja filho do Playwright, e isso não passa pelo `distrobox-host-exec`. Então, no caso do dono, o caminho real é o Chromium do Playwright dentro do container (D132.24; ver a seção 10).
 - Na Parte A, o joBot não baixa navegador (D132.24). Ele usa o Chromium que o Playwright já tem instalado, o mesmo de `uv run playwright install chromium` na máquina de quem desenvolve e no CI (`.github/workflows/ci.yml:35`). Sem Chrome e sem Chromium, cada site ligado fica com `saude.sem_navegador`.
 - O botão "Baixar o navegador" (download do Chromium pelo joBot) entra só na Parte B, no lote do primeiro site, junto com o texto de privacidade que cita esse caminho de rede (seção 6).
-- Biblioteca de sistema faltando (comum em container): a falha ao abrir o navegador também vira `saude.sem_navegador`. O painel mostra uma frase fixa e a sugestão de instalar as bibliotecas pelo gerenciador de pacotes do sistema; a mensagem do Playwright vai só ao log (D132.55; `registros/padroes.md:46`).
+- Biblioteca de sistema faltando (comum em container): a falha ao abrir o navegador também vira `saude.sem_navegador`. O painel mostra uma frase fixa e a sugestão de instalar as bibliotecas pelo gerenciador de pacotes do sistema; a mensagem do Playwright vai só ao log (D132.55; `registros/padroes.md` («Falha de sistema na tela»)).
 
 ### A2. Camadas e pacote novo
 
@@ -161,7 +161,7 @@ Captura de fixtures
   - Passam da agenda para `banco` (por exemplo `banco/execucoes.py`), e a agenda importa de lá:
     - os ajudantes de execução que só mexem no banco: `parada_de`, `interromper` e o batimento assíncrono (`src/jobot/agenda/execucao.py:112-157`). O batimento ganha outro nome, porque `banco/execucoes.py` já tem o `bater` síncrono (`:104-110`);
     - a consulta das candidatas a detalhe (`src/jobot/agenda/execucao.py:270-291`), que passa a servir às duas leituras (seção A7).
-  - O construtor procura todos os chamadores antes de mover (`registros/padroes.md:19`).
+  - O construtor procura todos os chamadores antes de mover (`registros/padroes.md` («Junção do lote»)).
   - A agenda não chama o navegador: o `cli/servir.py` monta a tarefa `login` (uma função que abre a sua conexão e chama o orquestrador do `navegador`) e a põe no mapa `tarefas` que entrega ao laço, como já faz com busca, descoberta e páginas (`src/jobot/cli/servir.py:149-156`).
 - Regras novas em `tests/unidade/test_camadas.py` (D132.4):
   1. `PROIBIDOS_NO_NUCLEO` (`test_camadas.py:7-16`) ganha `playwright` e `jobot.navegador`.
@@ -175,7 +175,7 @@ Captura de fixtures
 
 - Pasta própria `<pasta de dados>/navegador/`, criada com 0700, e um contexto persistente só, para todos os sites (D132.3). Nunca o perfil do Chrome do dia a dia.
 - `preparar_pasta` (`src/jobot/sistema/pastas.py:36-38`) para de descer em `navegador/`: fecha a pasta em 0700 e não percorre o que está dentro, porque o Chrome cria os arquivos com as permissões dele (D132.3). Teste: um arquivo 0644 dentro de `navegador/` continua 0644 depois de `preparar_pasta`, e a pasta continua 0700.
-- Antes de cada abertura, o joBot grava no arquivo de preferências do perfil (`Default/Preferences`, JSON) `credentials_enable_service = false`, `profile.password_manager_enabled = false` e `autofill.profile_enabled = false`, mantendo o resto do arquivo (D132.43). É arquivo de configuração, não argumento de linha de comando (que A7 proíbe). Arquivo torto: o joBot o reescreve só com essas três chaves e loga o fato, sem o conteúdo. Gravação em `.tmp` no mesmo diretório e `os.replace` (`registros/padroes.md:31`). Teste: perfil vazio, perfil com outras chaves (preservadas) e arquivo torto.
+- Antes de cada abertura, o joBot grava no arquivo de preferências do perfil (`Default/Preferences`, JSON) `credentials_enable_service = false`, `profile.password_manager_enabled = false` e `autofill.profile_enabled = false`, mantendo o resto do arquivo (D132.43). É arquivo de configuração, não argumento de linha de comando (que A7 proíbe). Arquivo torto: o joBot o reescreve só com essas três chaves e loga o fato, sem o conteúdo. Gravação em `.tmp` no mesmo diretório e `os.replace` (`registros/padroes.md` («Arquivo com segredo ou dado vital»)). Teste: perfil vazio, perfil com outras chaves (preservadas) e arquivo torto.
 - O perfil é dado sensível (D132.22): nenhum caminho de dentro dele, cookie ou cabeçalho vai ao log; nenhuma exportação ou cópia do joBot o leva (a cópia antes de migrar, DR-06, copia só o banco); o painel nunca o serve.
 - "Esquecer logins" apaga a pasta inteira (D132.21; seção A9). É o único jeito de sair; as vagas no banco não mudam.
 
@@ -196,12 +196,12 @@ Protocolo novo `LeitorComLogin`, separado do `Coletor` (D132.5). Assinaturas (os
 - `pagina_bloqueada(html: str, url: str) -> bool`: página de bloqueio ou de "atividade incomum" própria do site (D132.30).
 - `proxima(captura: Captura) -> str | None`: endereço da próxima página da lista, se houver (D132.34).
 - `rolar: bool`: a lista carrega mais itens ao rolar (D132.16).
-- `ler(captura: Captura, escopo: EscopoLogado) -> Leitura`, puro, com `Leitura(vagas: tuple[VagaColetada, ...], pulados: int, formato_mudou: bool)` (D132.36). Cada vaga sai com `escopo = escopo.id` (`src/jobot/nucleo/modelo.py:135`). Segue os padrões da fase 1 (`registros/padroes.md:52`, `:61`, `:64`):
+- `ler(captura: Captura, escopo: EscopoLogado) -> Leitura`, puro, com `Leitura(vagas: tuple[VagaColetada, ...], pulados: int, formato_mudou: bool)` (D132.36). Cada vaga sai com `escopo = escopo.id` (`src/jobot/nucleo/modelo.py:135`). Segue os padrões da fase 1 (`registros/padroes.md`: «Ciclo de vida», «Coletor paginado» e «ATS e sitemap»):
   - lista não achada na página (nem vazia legível): `formato_mudou = True`;
   - lista com itens e nenhum legível: `formato_mudou = True`;
   - item fora do formato no meio de itens bons: pulado e contado em `pulados`;
   - lista achada e vazia: `Leitura((), 0, False)`.
-  - O resultado em vez de exceção segue o `ResultadoEscopo` dos coletores (`src/jobot/nucleo/coletores/base.py:65-70`); o `_FormatoMudou` citado em `registros/padroes.md:35` é privado de um coletor de XML, não contrato.
+  - O resultado em vez de exceção segue o `ResultadoEscopo` dos coletores (`src/jobot/nucleo/coletores/base.py:65-70`); o `_FormatoMudou` citado em `registros/padroes.md` («JSON e XML externos») é privado de um coletor de XML, não contrato.
 - `lista_tem_descricao: bool`: a lista já traz a descrição inteira de cada vaga (D132.32).
 - `detalhar(captura: Captura, vaga: VagaColetada) -> VagaColetada | None`, opcional, puro: lê a página da própria vaga e devolve a vaga com a descrição. Só é chamado quando `lista_tem_descricao` é falso (D132.32).
 
@@ -216,10 +216,10 @@ Precedência, de cima para baixo; a primeira que casa decide:
 
 1. `parada`, na ordem `precisa_login` > `bloqueio` > `captcha` > `no_limite`: `precisa_login`, `bloqueio` e `captcha` dão `falhou` com `saude.precisa_login`, `saude.bloqueio` ou `saude.captcha`; `no_limite` dá `no_limite` com `saude.parou_429`. Nada fecha (`src/jobot/nucleo/tratamento/ciclo_de_vida.py:34-35`). As vagas das páginas lidas antes da parada são gravadas, a não ser que alguma página do escopo tenha `formato_mudou`: aí o estado continua o da parada, mas nenhuma vaga do escopo é gravada.
 2. Alguma página com `formato_mudou`: `falhou` com `saude.formato_mudou`. As vagas das outras páginas do mesmo escopo não são gravadas, e nada fecha.
-3. `cortada`: com pelo menos uma página do escopo lida, `parcial` com `saude.listagem_incompleta` (`registros/padroes.md:61`); sem nenhuma página lida (a URL inicial do escopo recusada pela política), `falhou` com `saude.listagem_incompleta`, e nada fecha.
-4. Algum item pulado (`pulados > 0`): `parcial` com `saude.formato_mudou` (`registros/padroes.md:64`).
+3. `cortada`: com pelo menos uma página do escopo lida, `parcial` com `saude.listagem_incompleta` (`registros/padroes.md` («Coletor paginado»)); sem nenhuma página lida (a URL inicial do escopo recusada pela política), `falhou` com `saude.listagem_incompleta`, e nada fecha.
+4. Algum item pulado (`pulados > 0`): `parcial` com `saude.formato_mudou` (`registros/padroes.md` («ATS e sitemap»)).
 5. Lista lida até o fim, sem item e sem pulado, com `tres_ok_com_vagas`: `parcial` com `saude.zero_inesperado`, a mesma regra e a mesma chave da fase 1 (`src/jobot/nucleo/coletores/executor.py:357-363`; `comum.json:76`).
-6. O resto: `ok` (lista vazia inclusive, `registros/padroes.md:52`).
+6. O resto: `ok` (lista vazia inclusive, `registros/padroes.md` («Ciclo de vida»)).
 
 Um teste por caso (seção 8).
 
@@ -243,11 +243,11 @@ Testes: cada leitor com fixtures capturadas por nós (Parte B); o protocolo, a p
   - ordem fixa: criar `execucao_nova` com o `CHECK` novo e todas as colunas atuais, inclusive `parada` com o `CHECK` de `0004_motivo_da_parada.sql:4-5`; copiar as linhas; `DROP TABLE execucao`; `ALTER TABLE execucao_nova RENAME TO execucao`; recriar o índice `execucao_uma_por_tipo` (`0001_inicial.sql:47`). Nunca renomear a velha primeiro: o SQLite reescreveria as chaves estrangeiras de `saude` e `execucao_fonte` para o nome velho;
   - `saude` (`0001_inicial.sql:50`) e `execucao_fonte` (`0003_execucao_fonte.sql:3`) apontam para `execucao` com `ON DELETE CASCADE`; o `DROP` só não as apaga porque `migrar._aplicar` desliga `foreign_keys` e confere `foreign_key_check` no fim (`src/jobot/banco/migrar.py:66-88`);
   - `Tipo` em `src/jobot/banco/execucoes.py:25` e `TIPOS` em `src/jobot/cli/servir.py:49` acompanham;
-  - testes (lendo só o arquivo da migração, `registros/padroes.md:6`): banco com execuções antigas migra sem perder linha; `saude` e `execucao_fonte` têm o mesmo número de linhas antes e depois; `tipo='login'` passa a ser aceito; o `CHECK` de `parada` continua valendo; o índice único continua valendo.
+  - testes (lendo só o arquivo da migração, `registros/padroes.md` («Teste de migração»)): banco com execuções antigas migra sem perder linha; `saude` e `execucao_fonte` têm o mesmo número de linhas antes e depois; `tipo='login'` passa a ser aceito; o `CHECK` de `parada` continua valendo; o índice único continua valendo.
 - Motivos da saúde da leitura com login (D132.7, D132.45): as quatro chaves novas são todas `falhou`; as reaproveitadas seguem a precedência da seção A4 (`no_limite` para `parou_429`; `parcial` para `listagem_incompleta`, `zero_inesperado` e `formato_mudou` com itens pulados; `falhou` para `bloqueio`, para `formato_mudou` quando uma página perdeu o formato e para `listagem_incompleta` quando nenhuma página do escopo foi lida).
-  - novas (chave nova é R4, `registros/padroes.md:32`, por isso listadas na D132): `saude.precisa_login`, `saude.captcha`, `saude.sem_tela`, `saude.sem_navegador`. Textos em pt e en; o teste que percorre o conjunto de motivos nos dois idiomas acompanha;
+  - novas (chave nova é R4, `registros/padroes.md` («i18n»), por isso listadas na D132): `saude.precisa_login`, `saude.captcha`, `saude.sem_tela`, `saude.sem_navegador`. Textos em pt e en; o teste que percorre o conjunto de motivos nos dois idiomas acompanha;
   - reaproveitadas: `saude.bloqueio` ("A fonte bloqueou o acesso", `comum.json:80`) para bloqueio do site, `saude.formato_mudou` (`:75`), `saude.zero_inesperado` (`:76`), `saude.parou_429` (`:84`) e `saude.listagem_incompleta` (`:90`).
-- Falha do site inteiro (`precisa_login`, `sem_tela`, `sem_navegador`, `bloqueio` na entrada) grava uma linha de saúde com escopo `''` (`registros/padroes.md:57`). Site com login desligado grava `desligada` com escopo `''`, como as fontes públicas (`src/jobot/agenda/execucao.py:170-171`) (D132.51).
+- Falha do site inteiro (`precisa_login`, `sem_tela`, `sem_navegador`, `bloqueio` na entrada) grava uma linha de saúde com escopo `''` (`registros/padroes.md` («Saúde»)). Site com login desligado grava `desligada` com escopo `''`, como as fontes públicas (`src/jobot/agenda/execucao.py:170-171`) (D132.51).
 
 ### A6. Agenda: horários de parede
 
@@ -271,7 +271,7 @@ Testes: cada leitor com fixtures capturadas por nós (Parte B); o protocolo, a p
   - se sim e `travas["login"]` está livre, pega a trava e dispara a tarefa `login` com motivo `agora` em `app.state.tarefas`, como `_disparar` faz com a busca (`:100-113`), sem esperar;
   - a tela de andamento e `execucao_atual` continuam mostrando só a busca (`:75-76`); o estado da leitura com login aparece no grupo "Sites com login";
   - testes de cada ramo: sem site ligado, menos de 4 h, trava presa, dispara.
-- Hora local: compara com o horário local do fuso da máquina (`agora.astimezone()`), como o resto do projeto (`src/jobot/nucleo/captcha.py:329`; `src/jobot/cli/servir.py:78`; `registros/padroes.md:13`). Testes com relógio injetado e fuso fixo, inclusive um caso fora de UTC.
+- Hora local: compara com o horário local do fuso da máquina (`agora.astimezone()`), como o resto do projeto (`src/jobot/nucleo/captcha.py:329`; `src/jobot/cli/servir.py:78`; `registros/padroes.md` («Dia de calendário»)). Testes com relógio injetado e fuso fixo, inclusive um caso fora de UTC.
 - A agenda continua parada antes da primeira execução concluída (`src/jobot/cli/servir.py:95-101`).
 
 ### A7. O navegador (camada `navegador`)
@@ -285,7 +285,7 @@ Abrir
 Tela
 
 - Antes de abrir, o navegador confere `DISPLAY` ou `WAYLAND_DISPLAY` (D132.9). O serviço do systemd pode subir antes de a sessão gráfica exportar essas variáveis. Então, sem elas no ambiente do processo, o joBot lê `systemctl --user show-environment` (pelo `distrobox-host-exec` dentro do container, `src/jobot/sistema/caso.py:12-13`) e usa de lá só `DISPLAY`, `WAYLAND_DISPLAY`, `XAUTHORITY` e `XDG_RUNTIME_DIR`, só para o processo do navegador (D132.50).
-- Validação (D132.50): `DISPLAY` no formato `[host]:n[.n]`; `WAYLAND_DISPLAY` um nome sem `/` ou um caminho absoluto; `XAUTHORITY` e `XDG_RUNTIME_DIR` caminhos absolutos que existem. Valor fora disso é ignorado. A saída crua do comando nunca vai ao log; o log leva só quais variáveis foram aceitas (`registros/padroes.md:46`). Teste com um SEGREDO na saída do executor falso: ele não aparece no `caplog` nem no ambiente do navegador.
+- Validação (D132.50): `DISPLAY` no formato `[host]:n[.n]`; `WAYLAND_DISPLAY` um nome sem `/` ou um caminho absoluto; `XAUTHORITY` e `XDG_RUNTIME_DIR` caminhos absolutos que existem. Valor fora disso é ignorado. A saída crua do comando nunca vai ao log; o log leva só quais variáveis foram aceitas (`registros/padroes.md` («Falha de sistema na tela»)). Teste com um SEGREDO na saída do executor falso: ele não aparece no `caplog` nem no ambiente do navegador.
 - Ainda sem tela: `saude.sem_tela` em cada site ligado, sem modo escondido.
 - O comando passa pelo executor injetado, como no segundo plano (`src/jobot/sistema/segundo_plano_linux.py:31`, `:64-79`). Isso mora em `sistema`, e o navegador recebe o ambiente pronto.
 - O teste em máquina real (Wayland do Silverblue, dentro da `fedora-dev`, com o serviço do systemd) é do dono (D132.9).
@@ -549,7 +549,7 @@ Painel (integração e tela)
 ## 9. O que fica para o construtor
 
 - Nomes finais de módulos, funções, classes CSS e chaves de i18n, seguindo os que existem.
-- O SQL das migrações 0007 (reconstrução de `execucao`) e 0008 (coluna `com_login`), com os nomes de arquivo finais, conferindo as colunas atuais de `execucao` (`0001_inicial.sql:36-44` e `0004_motivo_da_parada.sql:4-5`) e as lições de `registros/padroes.md:5-6`.
+- O SQL das migrações 0007 (reconstrução de `execucao`) e 0008 (coluna `com_login`), com os nomes de arquivo finais, conferindo as colunas atuais de `execucao` (`0001_inicial.sql:36-44` e `0004_motivo_da_parada.sql:4-5`) e as lições de `registros/padroes.md` («Esquema» e «Teste de migração»).
 - Como o registro de leitores semeia a tabela `fonte` (este desenho não leu `nucleo/coletores/registro.py` nem `carregar_fontes`).
 - O novo nome do batimento assíncrono ao mover para `banco`, e todos os chamadores de `parada_de`, `interromper` e `bater` (descoberta e páginas inclusive).
 - O nome da função extraída da consulta das candidatas a detalhe (`src/jobot/agenda/execucao.py:270-291`).
@@ -580,7 +580,7 @@ Painel (integração e tela)
 - D132.31 e o reCAPTCHA v3: a fase 2 não usa o v3 (seção 2), embora a ADR 0022 (`:24`) e o cliente (`src/jobot/nucleo/captcha.py:231-235`) o aceitem.
 - D132.44 e a ADR 0022: a ADR aceita o Turnstile (`:24`); a fase 2 só resolve o avulso. O `turnstile.render` de `2026-11-15-captcha-design.md:210` fica descartado; o desafio gerenciado do Cloudflare não passa pelo 2Captcha (`src/jobot/nucleo/captcha.py:81-89` não tem `cData` nem `chlPageData`). Pergunta ao dono, com reparo na ADR se confirmar.
 - D132.16 e a injeção do token: a exceção estreita está escrita nos anti-objetivos (seção 2).
-- D132.45 e os motivos: o primeiro desenho criava `saude.bloqueio_site`; fica `saude.bloqueio`, que já existe (`comum.json:80`), porque chave nova é R4 (`registros/padroes.md:32`).
+- D132.45 e os motivos: o primeiro desenho criava `saude.bloqueio_site`; fica `saude.bloqueio`, que já existe (`comum.json:80`), porque chave nova é R4 (`registros/padroes.md` («i18n»)).
 - D132.12 e os scripts: `limpar_pessoais` e `achar_pessoais` são funções de `scripts/capturar.py` (`:224`, `:247`), não scripts próprios; a docstring de `scripts/capturar.py:1` deixa de valer com o `capturar_logado.py`.
 - D132.15 com a regra de coleta educada do `CLAUDE.md` do projeto ("user agent fixo do joBot"): na navegação com login vale o user agent do próprio Chrome. Só muda com o ok do dono (seção 11).
 - D132.35 e as cidades: a revisão pediu escopos de termos × cidades, mas o `ContextoColeta` não tem cidade (`src/jobot/nucleo/coletores/base.py:31-35`); as cidades da busca (`0001_inicial.sql:130`) só viram países (`src/jobot/banco/buscas.py:217-224`). O desenho usa termos × países.
