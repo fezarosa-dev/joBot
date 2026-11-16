@@ -10,7 +10,7 @@ import logging
 import socket
 import sqlite3
 from collections.abc import AsyncIterator, Callable, Iterator, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -30,6 +30,7 @@ from jobot.banco.execucoes import abrir_execucao, fechar_execucao
 from jobot.banco.gravacao import ValidadoresDoBanco
 from jobot.banco.gravacao import gravar_escopo as gravar_escopo_do_banco
 from jobot.banco.migrar import migrar
+from jobot.banco.sessoes import gravar_sessao, ler_sessao
 from jobot.navegador import execucao, limites
 from jobot.navegador.abrir import Lancar
 from jobot.navegador.execucao import Dependencias, dependencias_de_producao, executar_login
@@ -783,3 +784,98 @@ async def test_dependencias_de_producao_fecham_o_playwright(
         assert limites.ESPERA_MIN_S <= deps.sortear() <= limites.ESPERA_MAX_S
         assert not deps.politica(leitor)(site.url("/lista-html"))  # http e host local
     assert falso.saidas == 1
+
+
+# o estado do login na entrada de cada leitura (T272; desenho 5.1 e 5.6)
+
+
+def _sessao(con: sqlite3.Connection, chave: str) -> tuple[str, str | None, bool] | None:
+    """Estado, motivo e se `entrou_em` está preenchido."""
+    sessao = ler_sessao(con, "site", chave)
+    return None if sessao is None else (sessao.estado, sessao.motivo, sessao.entrou_em is not None)
+
+
+async def test_entrada_sem_sessao_grava_precisa_entrar(
+    site: SiteFalso, montagem: Montagem, con: sqlite3.Connection
+) -> None:
+    leitor = _leitor(site, ("a", "/paginada"), url_entrada=site.url("/entrar/sem-senha"))
+    _ligar(con, leitor)
+    execucao_id = await _rodar(con, [leitor], montagem.deps())
+    assert execucao_id is not None
+    assert _sessao(con, leitor.chave) == ("precisa_entrar", None, False)
+    assert _saude(con, execucao_id) == {("falso_logado", ""): ("falhou", "saude.precisa_login")}
+
+
+async def test_leitura_logada_grava_conectado(
+    site: SiteFalso, montagem: Montagem, con: sqlite3.Connection
+) -> None:
+    leitor = _leitor(site, ("a", "/lista-html?q=a"))
+    _ligar(con, leitor)
+    execucao_id = await _rodar(con, [leitor], montagem.deps())
+    assert execucao_id is not None
+    assert _sessao(con, leitor.chave) == ("conectado", None, True)
+    assert _saude(con, execucao_id) == {("falso_logado", "a"): ("ok", None)}
+
+
+async def test_queda_avisa_pela_leitura(
+    site: SiteFalso, montagem: Montagem, con: sqlite3.Connection
+) -> None:
+    leitor = _leitor(site, ("a", "/paginada"), url_entrada=site.url("/entrar/sem-senha"))
+    _ligar(con, leitor)
+    gravar_sessao(con, "site", leitor.chave, "conectado", None, ANTES)
+    avisos: list[tuple[str, str]] = []
+    deps = replace(montagem.deps(), avisar=lambda titulo, frase: avisos.append((titulo, frase)))
+    assert await _rodar(con, [leitor], deps) is not None
+    frase = (
+        "Sua sessão no Site falso caiu. Abra o joBot e entre de novo em Configurações › Sites"
+        " com login."
+    )
+    assert avisos == [("joBot", frase)]
+    assert _sessao(con, leitor.chave) == ("precisa_entrar", None, True)
+
+
+async def test_erro_de_rede_na_entrada_grava_sem_rede(
+    site: SiteFalso,
+    montagem: Montagem,
+    con: sqlite3.Connection,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(limites, "ESPERA_FECHAR_S", 0.05)
+    with socket.socket() as livre:
+        livre.bind(("127.0.0.1", 0))
+        porta = livre.getsockname()[1]  # fechada: o `goto` recebe conexão recusada
+    leitor = _leitor(site, ("a", "/paginada"), url_entrada=f"http://127.0.0.1:{porta}/entrar")
+    _ligar(con, leitor)
+    execucao_id = await _rodar(con, [leitor], montagem.deps())
+    assert execucao_id is not None
+    assert _sessao(con, leitor.chave) == ("nao_conferiu", "sem_rede", False)
+    # a saúde continua como antes: a gravação do estado é a mais
+    assert _saude(con, execucao_id) == {("falso_logado", ""): ("falhou", "saude.excecao:Error")}
+
+
+async def test_fechar_na_entrada_nao_grava(
+    site: SiteFalso, montagem: Montagem, con: sqlite3.Connection
+) -> None:
+    leitor = _leitor(site, ("a", "/paginada"))
+    _ligar(con, leitor)
+    # a linha de antes fica igual: gravar o fechamento a trocaria por `nao_conferiu`/`erro`
+    gravar_sessao(con, "site", leitor.chave, "conectado", None, ANTES)
+    antes = ler_sessao(con, "site", leitor.chave)
+    montagem.fechar_em.add("/logado")
+    execucao_id = await _rodar(con, [leitor], montagem.deps())
+    assert execucao_id is not None
+    assert _execucao(con, execucao_id) == ("login", "interrompida", "fechado")
+    assert ler_sessao(con, "site", leitor.chave) == antes
+
+
+async def test_sem_tela_grava_sem_tela(
+    site: SiteFalso, con: sqlite3.Connection, tmp_path: Path
+) -> None:
+    um = _leitor(site, ("a", "/paginada"))
+    dois = _leitor(site, ("b", "/paginada"), chave="outro_logado")
+    _ligar(con, um, dois)
+    lancados: list[dict[str, Any]] = []
+    execucao_id = await _rodar(con, [um, dois], _deps_sem_navegador(tmp_path, {}, lancados))
+    assert execucao_id is not None
+    assert lancados == []
+    assert _sessao(con, um.chave) == _sessao(con, dois.chave) == ("nao_conferiu", "sem_tela", False)
