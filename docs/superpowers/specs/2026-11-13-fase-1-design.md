@@ -1,5 +1,7 @@
 # Desenho da fase 1 (Base) do joBot
 
+(Este desenho usa a numeração antiga das fases; a atual está na [ADR 0017](../../decisions/0017-fases.md).)
+
 - **Data:** 2026-11-13
 - **Status:** proposta revisada com os fatos conferidos ao vivo em 2026-11-13. A Q6 (termos de uso) foi decidida pelo dono em 2026-11-13. Nada espera resposta dele.
 - **Base:** ADRs 0001 a 0017, `duvidas.md`, as respostas do dono nesta sessão (Q1 a Q7 da primeira rodada; Q1 a Q6 da rodada de revisão, resumidas na seção 20.1) e as decisões de 2026-11-13 tomadas depois da revisão (seção 20.2)
@@ -36,7 +38,7 @@ A fase 1 constrói a base sobre a qual todas as outras fases vão rodar (ADR 001
 
 Por que começar por aqui:
 
-- Sem vagas limpas no banco, nenhuma outra função tem com o que trabalhar. A IA (fase 3), a extensão (fase 4) e o Gmail (fase 5) dependem disso.
+- Sem vagas limpas no banco, nenhuma outra função tem com o que trabalhar. A IA (fase 3), a extensão (fase 4) e o Gmail (fase 5) dependem disso. (Numeração antiga das fases; a atual está na [ADR 0017](../../decisions/0017-fases.md).)
 - O núcleo precisa nascer separado do painel, porque a versão GitHub Pages (fase 7) reaproveita o núcleo sem o painel (ADR 0002).
 - O dono quer testar algo útil já no fim da fase 1: abrir o painel e ver vagas reais, organizadas (Q1).
 
@@ -74,6 +76,8 @@ No fim da fase 1, no computador do dono (Fedora Silverblue, com o joBot rodando 
 | Versão GitHub Pages, regras rodando em JavaScript, teste em JavaScript dos casos de regras, exportar e importar perfil | 7 | ADR 0002, 0007 |
 | Navegador sem janela para ler fonte pública: nenhuma fonte conferida precisa de JavaScript (seção 8.5) | só se uma fonte nova exigir | DR-16 |
 | Segundo plano no Windows e no macOS, instaladores, revisão de segurança final | 8 | ADR 0003, 0017 |
+
+(Numeração antiga das fases; a atual está na [ADR 0017](../../decisions/0017-fases.md).)
 
 Nesta fase também **não** entram: notificação push, ntfy, Telegram, digitar senha e contornar CAPTCHA (restrições do pedido e ADR 0013 e 0014).
 

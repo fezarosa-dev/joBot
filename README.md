@@ -262,7 +262,7 @@ O app usa só dois modelos: Haiku 5.5 (`claude-haiku-5-5`), mais rápido e barat
 
 ### Pacote offline
 
-Na instalação, o joBot vai perguntar uma vez se você quer o pacote offline. Ele permite usar IA sem internet e sem pagar nada.
+O instalador ainda vai chegar (fase 3) e o pacote offline é da fase 4. Quando o instalador chegar, ele vai mostrar uma lista de ferramentas para você marcar, e o pacote offline vai aparecer nela. Ele vai permitir usar IA sem internet e sem pagar nada. O que você não marcar, dá para baixar depois no painel, em Configurações, na tela Ferramentas. Lá você também pode mudar a sua escolha.
 
 | Item | Tamanho | Observação |
 |---|---|---|

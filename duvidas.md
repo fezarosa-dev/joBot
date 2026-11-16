@@ -1733,13 +1733,13 @@ A meta de 90% só foi batida em UF. Ela não trava a fase 1.
 
 **Status:** resolvida em 2026-11-15: escolha da sessão, para confirmar com o dono
 
-**Contexto:** na configuração da IA, o dono pediu, por voz, rodar pela sessão do Claude Code e, se der, pela sessão do Codex da OpenAI, com um botão de download ao lado que baixa ou leva à página de download. A fase 3 (IA, ADR 0017) é quem constrói; agora só se registra.
+**Contexto:** na configuração da IA, o dono pediu, por voz, rodar pela sessão do Claude Code e, se der, pela sessão do Codex da OpenAI, com um botão de download ao lado que baixa ou leva à página de download. A fase 3 (IA, ADR 0017) é quem constrói; agora só se registra. (Numeração antiga das fases; a atual está na [ADR 0017](docs/decisions/0017-fases.md).)
 
 **Decisão da sessão, para confirmar:**
 
 - Nada é construído agora; só o registro, na ADR 0009 e no desenho `docs/superpowers/specs/2026-11-15-captcha-design.md` (parte F).
 - A sessão do Claude Code já está decidida (ADR 0010). Entra também a sessão do Codex CLI da pessoa (comando `codex exec`), com teste ao ligar no molde da 0009. Antes de construir, conferir nos termos da OpenAI se o uso do plano do ChatGPT em automação pessoal é permitido; a documentação pública recomenda chave de API e não autoriza nem proíbe o plano, e os Termos de Uso vigentes não foram lidos. Se não for permitido, o Codex entra só com chave de API (o backend OpenAI que já existe).
-- Ao lado de cada backend de sessão, um botão "Baixar" que abre a página oficial de instalação no navegador da pessoa (Claude Code: <https://code.claude.com/docs/en/setup>; Codex: a página oficial do Codex CLI, endereço conferido na fase 3). O joBot não baixa nem roda instalador: a página oficial escolhe o sistema certo, e o painel não carrega recurso externo. O botão aparece quando o programa não é achado no `PATH`.
+- Ao lado de cada backend de sessão, um botão "Baixar" que abre a página oficial de instalação no navegador da pessoa (Claude Code: <https://code.claude.com/docs/en/setup>; Codex: a página oficial do Codex CLI, endereço conferido na fase 3). O joBot não baixa nem roda instalador: a página oficial escolhe o sistema certo, e o painel não carrega recurso externo. O botão aparece quando o programa não é achado no `PATH`. (Numeração antiga das fases; a atual está na [ADR 0017](docs/decisions/0017-fases.md). Atualização: o botão agora instala pelo instalador oficial do programa, e o joBot nunca remove o que instalou; ver [ADR 0023](docs/decisions/0023-tudo-pelo-painel.md).)
 - "Codex" é marca da OpenAI; o joBot não é afiliado à OpenAI (mesma linha que já existe para o Claude).
 
 **Como desfazer:** tirar o backend do Codex e o botão da ADR 0009; nada de código a desfazer.
@@ -2694,3 +2694,19 @@ Escolha da sessão (dono fora): a opção (a), para confirmar. Consequência: co
 **O que o dono faz:** nada para construir e testar, e nenhum acesso: os testes rodam com a rede bloqueada, o link de candidatura dos testes aponta para um servidor local, o CI roda no Actions do repositório público, e o PR da `dev` para a `main` já foi autorizado em 2026-11-15. Fica com ele: (a) confirmar estas escolhas, com atenção a E4, E10, E13, E14, E16, E17, E19 e E20; (b) os itens da D147 e as perguntas P1 a P5 do desenho, que o plano segue pela recomendação; (c) o ok do portão T258 do visual, que libera as telas; (d) dizer quando a fase 2 está concluída, ou mandar mudar a ADR 0017, para a 0.3.0 sair, e dar o ok dos itens 1, 2, 4, 6 e 7 de "Espera o dono" do plano do primeiro site (`CLAUDE.md`, ADRs 0006, 0022 e 0017) e da frase nova do Contexto da ADR 0017 (E14); (e) opcional, com o lote na `dev`: clicar em "Candidatar-se" numa vaga real, voltar ao painel e responder.
 
 **Como desfazer:** até a tarefa começar, basta editar o plano e esta D. Depois, cada escolha tem o seu teste; trocar uma é uma `Tn` nova. Tirar a E4 é desfazer a mudança de lugar da T283 (os nomes voltam para as rotas, e o Panorama perde A busca).
+
+## D149. CI em paralelo
+
+**Status:** para confirmar. O dono pediu em 2026-11-16 uma CI em paralelo, quebrada no máximo e a mais rápida possível; a sessão decidiu pela recomendação, com o dono fora.
+
+**Contexto:** o CI rodava a bateria inteira num job só e levava cerca de 10 minutos por rodada. Agora `.github/workflows/ci.yml` divide a bateria em jobs paralelos. Cada job recebe a variável `JOBOT_PARTE=i/n`; o hook `pytest_collection_modifyitems` (`trylast`, depois do filtro `-m`) de `tests/conftest.py` mantém só a fatia `i` de `n` da coleta, pela função `parte_dos_itens` de `tests/apoio/partes.py` (o item de índice `k` fica na parte `i` quando `k % n == i - 1`). Sem a variável, nada muda, e é assim que a bateria roda na máquina de quem mantém.
+
+**Escolhas:**
+
+1. **Jobs.** `lint` (ruff e mypy), `comuns` em 2 partes (`-m 'not tela'`), `tela` em 16 partes (`-m tela`, com o Chromium) e o `ok`, que junta os três e falha se algum não deu `success`. Uma rodada tem 20 jobs, o teto de jobs ao mesmo tempo do plano grátis do GitHub, então nenhum fica na fila. A rodada caiu de cerca de 10 minutos para cerca de 2,5. Teste: `tests/unidade/test_partes.py`, `test_as_partes_juntas_dao_a_lista_inteira` e `test_gancho_roda_depois_do_filtro_de_marcadores`.
+2. **Número de partes (para confirmar).** 2 para os testes comuns e 16 para os de tela. Os de tela são os lentos (cada um sobe o painel e abre o navegador); os comuns acabam logo e mais partes só somariam o custo de preparar cada job. Alternativa: mais partes nos comuns, o que estoura o teto de 20 jobs, ou menos nas de tela, o que alonga a rodada. Recomendo 2 e 16.
+3. **Check obrigatório (para confirmar).** O `ok` é o nome estável do check: olhar ou exigir só ele, e não cada parte, que muda de nome se o número de partes mudar. A proteção da `main` hoje não exige checks; se passar a exigir, o certo é exigir o `ok` (mudar a estrutura de jobs muda o nome do check exigido). Alternativa: não exigir nada, como hoje. Recomendo o `ok` se algum dia exigir.
+
+**O que o dono faz:** nada para funcionar. Fica com ele: confirmar o número de partes (item 2) e, quando for ligar a proteção de checks na `main`, escolher o `ok`.
+
+**Como desfazer:** apagar a variável do workflow e voltar a um job só devolve a rodada longa; o hook do `conftest.py` não faz nada sem `JOBOT_PARTE`. Mudar o número de partes é mudar a lista `parte` da matriz no `ci.yml`.
