@@ -830,10 +830,7 @@ async def test_queda_avisa_pela_leitura(
     avisos: list[tuple[str, str]] = []
     deps = replace(montagem.deps(), avisar=lambda titulo, frase: avisos.append((titulo, frase)))
     assert await _rodar(con, [leitor], deps) is not None
-    frase = (
-        "Sua sessão no Site falso caiu. Abra o joBot e entre de novo"
-        " em Configurações › Contas."
-    )
+    frase = "Sua sessão no Site falso caiu. Abra o joBot e entre de novo em Configurações › Contas."
     assert avisos == [("joBot", frase)]
     assert _sessao(con, leitor.chave) == ("precisa_entrar", None, True)
 
