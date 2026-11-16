@@ -68,7 +68,6 @@ body {
   padding-block: 16px 8px;
   padding-inline: 16px;
   font: var(--t-headline);
-  font-family: inherit;
 }
 
 /* o menu rola sozinho; o divisor fica fora dele para não ser cortado */
@@ -189,13 +188,11 @@ body {
 
 .topo .marca {
   font: var(--t-headline);
-  font-family: inherit;
 }
 
 .topo-titulo {
   margin: 0;
   font: var(--t-headline);
-  font-family: inherit;
 }
 
 .botao-barra {
