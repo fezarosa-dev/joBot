@@ -332,4 +332,56 @@
     if (menu.name === "tamanho") document.documentElement.dataset.texto = menu.value;
     formulario.requestSubmit();
   });
+
+  // componente de progresso (T252; desenho 5.9). O CSP barra o atributo style, então a largura vem
+  // de data-valor e anda numa animação linear de 2 s a partir da largura que estava na tela antes
+  // da troca (a animação não escreve no style). A pergunta de 2 s recria o "Ver detalhes": aberto
+  // antes da troca, reabre depois. O texto de "Ver detalhes"/"Ocultar detalhes" segue o popover.
+  const movimentoReduzido = window.matchMedia("(prefers-reduced-motion: reduce)");
+  const larguras = new Map();
+  const animados = new WeakSet();
+  let detalhesAbertos = null;
+  document.addEventListener("htmx:beforeSwap", () => {
+    larguras.clear();
+    for (const p of document.querySelectorAll(".progresso-preenchimento[id]")) {
+      const trilho = p.parentElement.getBoundingClientRect().width;
+      const largura = p.classList.contains("indeterminado") ? 0 : p.getBoundingClientRect().width;
+      if (trilho > 0) larguras.set(p.id, (largura / trilho) * 100);
+    }
+    detalhesAbertos = document.querySelector(".progresso-detalhes:popover-open")?.id ?? null;
+  });
+  const aplicarLarguras = () => {
+    for (const p of document.querySelectorAll(".progresso-preenchimento[data-valor]")) {
+      if (animados.has(p)) continue;
+      animados.add(p);
+      const ate = `${p.dataset.valor}%`;
+      const de = larguras.has(p.id) ? `${larguras.get(p.id)}%` : ate;
+      const duration = movimentoReduzido.matches || de === ate ? 0 : 2000;
+      p.animate([{ width: de }, { width: ate }], { duration, easing: "linear", fill: "forwards" });
+    }
+  };
+  // a página que volta do histórico traz o data-valor sem a animação que punha a largura
+  document.addEventListener("htmx:historyRestore", () => {
+    larguras.clear();
+    aplicarLarguras();
+  });
+  document.addEventListener("htmx:afterSwap", () => {
+    aplicarLarguras();
+    const detalhes = detalhesAbertos && document.getElementById(detalhesAbertos);
+    detalhesAbertos = null;
+    if (detalhes && !detalhes.matches(":popover-open")) {
+      detalhes.showPopover({ source: document.querySelector(`[popovertarget="${detalhes.id}"]`) });
+    }
+  });
+  document.addEventListener(
+    "toggle",
+    (evento) => {
+      const detalhes = evento.target;
+      if (!detalhes.matches?.(".progresso-detalhes")) return;
+      const botao = document.querySelector(`[popovertarget="${detalhes.id}"][data-ver]`);
+      if (!botao) return;
+      botao.textContent = evento.newState === "open" ? botao.dataset.ocultar : botao.dataset.ver;
+    },
+    true, // toggle não sobe: só a captura o vê no document
+  );
 })();

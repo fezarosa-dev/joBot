@@ -69,19 +69,27 @@ def test_buscar_agora_mostra_o_andamento_e_as_vagas_novas(
     page.on("console", lambda m: erros.append(m.text) if m.type == "error" else None)
     page.on("pageerror", lambda e: erros.append(str(e)))
     page.goto(f"{painel}/vagas?aba=todas")
-    regiao = page.get_by_role("status", name="Andamento da busca")
-    expect(regiao).to_have_attribute("aria-live", "polite")
+    viva = page.locator("#andamento-etapa")  # a região viva fixa, fora do #andamento (T252)
+    expect(viva).to_have_attribute("role", "status")
+    expect(viva).to_have_attribute("aria-live", "polite")
+    regiao = page.locator("#andamento")
 
     botao = page.get_by_role("banner").get_by_role("button", name="Buscar agora")
     botao.click()
-    expect(regiao).to_contain_text("Buscando vagas")
+    barra = regiao.get_by_role("progressbar", name="Andamento da busca")
+    expect(barra).to_be_visible()  # passou o limiar de 1 s
+    expect(regiao.locator(".progresso-linha")).to_have_text("Preparando as consultas")
+    expect(viva).to_have_text("Preparando as consultas")
     # outro clique com a busca rodando não dispara outra: avisa e mostra a que roda
     botao.click()
     expect(regiao).to_contain_text("Uma busca já está rodando")
+    expect(barra).to_be_visible()  # a que já rodava não some pelo limiar
     assert chamadas == ["agora"]
 
     liberar.set()  # a pergunta de 2 em 2 s traz o fim sem outro clique
-    expect(regiao).to_contain_text("Busca concluída. Vagas novas: 2.", timeout=10_000)
+    expect(regiao).to_contain_text("Pronto. Vagas novas: 2.", timeout=10_000)
+    expect(viva).to_have_text("Pronto. Vagas novas: 2.")
+    expect(barra).to_have_attribute("aria-valuenow", "100.0")
     expect(regiao.locator("[hx-trigger]")).to_have_count(0)  # parou de perguntar
     assert chamadas == ["agora"]
     assert erros == []
@@ -114,8 +122,8 @@ def test_form_sem_htmx_chega_numa_pagina_que_ja_mostra_o_andamento(
               form.submit();
             }"""
         )
-    regiao = page.get_by_role("status", name="Andamento da busca")
-    expect(regiao).to_contain_text("Buscando vagas")
+    regiao = page.locator("#andamento")
+    expect(regiao.locator(".progresso-linha")).to_have_text("Preparando as consultas")
     liberar.set()
-    expect(regiao).to_contain_text("Busca concluída. Vagas novas: 2.", timeout=10_000)
+    expect(regiao).to_contain_text("Pronto. Vagas novas: 2.", timeout=10_000)
     assert chamadas == ["agora"]

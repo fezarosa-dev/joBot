@@ -160,3 +160,20 @@ def test_todo_motivo_tem_texto_nas_duas_linguas(lingua: str) -> None:
 )
 def test_pais_do_accept_language(cabecalho: str | None, esperado: str) -> None:
     assert i18n.pais_do_accept_language(cabecalho) == esperado
+
+
+@pytest.mark.parametrize("idioma", ["pt", "en"])
+def test_andamento_velho_saiu(idioma: str) -> None:
+    """A linha da etapa (T252) substitui o ponto, "consultas prontas" e "ainda rodando"."""
+    catalogo = i18n.carregar()[idioma]
+    for chave in ("rodando", "prontas", "ainda_rodando", "detalhes"):
+        assert f"execucao.{chave}" not in catalogo
+    for chave in ("preparando", "coleta", "coleta_um", "detalhes", "detalhes_um", "sites_mais"):
+        assert catalogo[f"execucao.etapa.{chave}"]
+    assert (
+        catalogo["execucao.terminou"]
+        == {
+            "pt": "Pronto. Vagas novas: {n}.",
+            "en": "Done. New jobs: {n}.",
+        }[idioma]
+    )

@@ -7,6 +7,7 @@ menos no teste do dia local, que roda `executar_busca` inteira sem coletor nenhu
 import argparse
 import asyncio
 import os
+import re
 import threading
 import time
 from collections.abc import Callable, Iterator, Mapping
@@ -25,19 +26,20 @@ from fastapi.testclient import TestClient
 from apoio.relogio import RelogioFalso
 from apoio.semear import inserir_vaga
 from jobot.agenda import execucao as agenda_execucao
+from jobot.agenda.andamento import Marcas
 from jobot.agenda.login import INTERVALO_MINIMO
+from jobot.banco.andamento import abrir_andamento, marcar_fonte, mudar_etapa, planejar
 from jobot.banco.cadastros import ligar_fonte, semear, semear_leitores
 from jobot.banco.conexao import abrir
 from jobot.banco.execucoes import (
     abrir_execucao,
-    comecar_fonte,
     fechar_execucao,
     gravar_saude,
     interromper_execucao,
-    terminar_fonte,
 )
 from jobot.banco.migrar import migrar
 from jobot.cli import servir
+from jobot.nucleo.andamento import fracao, pesos_da_execucao, valor_mostrado
 from jobot.nucleo.http import ClienteEducado
 from jobot.nucleo.leitores import registro
 from jobot.nucleo.leitores.base import LeitorComLogin
@@ -184,12 +186,13 @@ def test_buscar_agora_nao_bloqueia_o_pedido(
         resposta = http.post("/buscar-agora", headers=painel.htmx())
         assert resposta.status_code == 200  # voltou com a busca ainda rodando
         assert POLL in resposta.text
-        assert _texto("execucao.rodando") in unescape(resposta.text)
+        assert _texto("execucao.etapa.preparando") in unescape(resposta.text)
         assert _esperar(lambda: bool(comecou))
         assert painel.trava.locked()
         # a segunda busca avisa que já roda e não começa outra
         resposta = http.post("/buscar-agora", headers=painel.htmx())
         assert _texto("execucao.ja_roda") in unescape(resposta.text)
+        assert "andamento-entrada" not in resposta.text  # a que já rodava já estava na tela
         assert len(comecou) == 1
         liberar.set()
         assert _esperar(lambda: not painel.trava.locked())
@@ -266,182 +269,470 @@ def test_buscar_agora_sem_csrf_recusa(tmp_path: Path, monkeypatch: pytest.Monkey
     assert chamadas == []
 
 
-def test_execucao_atual_mostra_o_andamento_e_pergunta_a_cada_2s(tmp_path: Path) -> None:
+ETAPAS = ("coleta", "detalhes", "cotacoes", "encaixe")
+OOB = 'hx-swap-oob="innerHTML:#andamento-etapa"'
+
+
+def _busca_com_andamento(painel: Painel, totais: Mapping[str, int] | None = None) -> int:
+    """Busca rodando com o andamento aberto em `preparando` e, com `totais`, já planejada."""
+    with closing(abrir(painel.banco)) as con:
+        id_ = abrir_execucao(con, "busca", "agenda", AGORA)
+        assert id_ is not None
+        abrir_andamento(con, id_, ETAPAS, AGORA)
+        if totais is not None:
+            planejar(con, id_, totais, AGORA)
+    return id_
+
+
+def _valor(texto: str) -> float | None:
+    achado = re.search(r'aria-valuenow="([\d.]+)"', texto)
+    return None if achado is None else float(achado.group(1))
+
+
+def _marca(texto: str) -> str:
+    achado = re.search(r'hx-get="/execucao/atual\?visto=([^"]*)"', texto)
+    assert achado, "a resposta não pergunta de novo com o que mostra"
+    return achado.group(1)
+
+
+def _linha(texto: str) -> str:
+    """O texto da linha da etapa (sem a lista de "Ver detalhes")."""
+    achado = re.search(r'<p class="progresso-linha"[^>]*>(.*?)</p>', texto, re.S)
+    assert achado, "sem a linha da etapa"
+    return unescape(achado.group(1)).strip()
+
+
+def _avancar(painel: Painel, s: float) -> None:
+    asyncio.run(painel.app.state.relogio.dormir(s))
+
+
+def _esperado(
+    etapa: str, feitas: int | None, total: int | None, partida: float, parado: float
+) -> float:
+    p, fim = fracao(pesos_da_execucao(ETAPAS), etapa, feitas, total)
+    return round(100 * valor_mostrado(p, fim, partida, parado, fechada=False), 1)
+
+
+def test_execucao_sem_andamento_fica_indeterminada(tmp_path: Path) -> None:
+    painel = Painel(tmp_path)
+    with closing(abrir(painel.banco)) as con:
+        assert abrir_execucao(con, "busca", "agenda", AGORA) is not None
+    with painel.cliente() as http:
+        resposta = http.get("/execucao/atual", headers=HTMX)
+    assert resposta.status_code == 200
+    assert 'role="progressbar"' in resposta.text
+    assert "aria-valuenow" not in resposta.text  # indeterminada
+    assert _linha(resposta.text) == _texto("execucao.etapa.preparando")
+
+
+def test_com_total_mostra_a_curva(tmp_path: Path) -> None:
+    painel = Painel(tmp_path)
+    id_ = _busca_com_andamento(painel, {"gupy": 40})
+    with closing(abrir(painel.banco)) as con:
+        mudar_etapa(con, id_, "coleta", 12, 40, 0.0, AGORA)
+    with painel.cliente() as http:
+        texto = http.get("/execucao/atual", headers=HTMX).text
+    esperado = _esperado("coleta", 12, 40, 0.0, 0.0)
+    assert esperado > 0
+    assert _valor(texto) == esperado
+    # a largura vai em data-valor e o app.js a aplica: o CSP (style-src 'self') barra o style
+    preenchimento = 'id="andamento-preenchimento" class="progresso-preenchimento"'
+    assert f'{preenchimento} data-valor="{esperado}"' in texto
+    assert "style=" not in texto
+    contagem = _texto("execucao.etapa.coleta", feitas=12, total=40)
+    assert contagem == "12 de 40 consultas"
+    assert f'aria-valuetext="{contagem}"' in unescape(texto)
+    assert contagem in _linha(texto)
+
+
+def test_total_um_no_singular(tmp_path: Path) -> None:
+    painel = Painel(tmp_path)
+    id_ = _busca_com_andamento(painel, {"gupy": 1})
+    with closing(abrir(painel.banco)) as con:
+        mudar_etapa(con, id_, "coleta", 1, 1, 0.0, AGORA)
+    with painel.cliente() as http:
+        linha = _linha(http.get("/execucao/atual", headers=HTMX).text)
+    assert "1 de 1 consulta" in linha
+    assert "1 de 1 consultas" not in linha
+
+
+def test_ate_dois_nomes_e_mais(tmp_path: Path) -> None:
+    painel = Painel(tmp_path)
+    chaves = ["gupy", "workday", "lever", "greenhouse", "ashby"]
+    id_ = _busca_com_andamento(painel, dict.fromkeys(chaves, 2))
+    with closing(abrir(painel.banco)) as con:
+        for chave in chaves:
+            marcar_fonte(con, id_, chave, "lendo")
+    with painel.cliente() as http:
+        pt = _linha(http.get("/execucao/atual", headers=HTMX).text)
+        en = _linha(http.get("/execucao/atual", headers=HTMX | {"Accept-Language": "en"}).text)
+    # os dois primeiros por nome; o resto contado e por inteiro em "Ver detalhes"
+    sites = _texto("execucao.etapa.sites_mais", nomes="Ashby, Greenhouse", n=3)
+    assert sites == "Ashby, Greenhouse e mais 3"
+    assert _texto("execucao.etapa.lendo_sites", sites=sites) in pt
+    assert "Gupy" not in pt
+    assert "Ashby, Greenhouse, and 3 more" in en
+
+
+@pytest.mark.parametrize(
+    ("chaves", "sites"),
+    [(["gupy"], "Gupy"), (["gupy", "lever"], "Gupy e Lever"), (["gupy", "lever", "ashby"], None)],
+)
+def test_execucao_atual_mostra_ate_2_nomes_e_conta_o_resto(
+    tmp_path: Path, chaves: list[str], sites: str | None
+) -> None:
+    painel = Painel(tmp_path)
+    id_ = _busca_com_andamento(painel, dict.fromkeys(chaves, 2))
+    with closing(abrir(painel.banco)) as con:
+        for chave in chaves:
+            marcar_fonte(con, id_, chave, "lendo")
+    with painel.cliente() as http:
+        linha = _linha(http.get("/execucao/atual", headers=HTMX).text)
+    esperado = sites or _texto("execucao.etapa.sites_mais", nomes="Ashby, Gupy", n=1)
+    assert linha.startswith(_texto("execucao.etapa.lendo_sites", sites=esperado) + " · ")
+
+
+def test_so_espera_mostra_contagem(tmp_path: Path) -> None:
+    painel = Painel(tmp_path)
+    id_ = _busca_com_andamento(painel, {"gupy": 4, "lever": 4})
+    sete = _texto("execucao.etapa.segundos", n=7)
+    with painel.cliente() as http:
+        with closing(abrir(painel.banco)) as con:
+            marcar_fonte(
+                con,
+                id_,
+                "gupy",
+                "esperando",
+                espera_ate=AGORA + timedelta(seconds=7),
+                espera_motivo="limite",
+            )
+        limite = _linha(http.get("/execucao/atual", headers=HTMX).text)
+        with closing(abrir(painel.banco)) as con:
+            marcar_fonte(
+                con,
+                id_,
+                "gupy",
+                "esperando",
+                espera_ate=AGORA + timedelta(seconds=7),
+                espera_motivo="erro",
+            )
+        erro = _linha(http.get("/execucao/atual", headers=HTMX).text)
+        with closing(abrir(painel.banco)) as con:
+            marcar_fonte(con, id_, "lever", "lendo")
+        com_outra = http.get("/execucao/atual", headers=HTMX).text
+    assert limite.startswith(_texto("execucao.etapa.espera", site="Gupy", tempo=sete))
+    assert limite == "Esperando o Gupy liberar, 7 s · 0 de 8 consultas"
+    assert erro.startswith(_texto("execucao.etapa.nova_tentativa", site="Gupy", tempo=sete))
+    # com outro site lendo, a espera só aparece em "Ver detalhes", no estado "Esperando"
+    assert "Gupy" not in _linha(com_outra)
+    assert _texto("execucao.etapa.lendo_sites", sites="Lever") in _linha(com_outra)
+    assert _texto("execucao.etapa.esperando", tempo=sete) in unescape(com_outra)
+
+
+def test_espera_longa_vira_minutos(tmp_path: Path) -> None:
+    painel = Painel(tmp_path)
+    id_ = _busca_com_andamento(painel, {"gupy": 4})
+    with closing(abrir(painel.banco)) as con:
+        marcar_fonte(
+            con,
+            id_,
+            "gupy",
+            "esperando",
+            espera_ate=AGORA + timedelta(seconds=600),
+            espera_motivo="limite",
+        )
+    with painel.cliente() as http:
+        linha = _linha(http.get("/execucao/atual", headers=HTMX).text)
+    assert _texto("execucao.etapa.minutos", n=10) == "10 min"
+    assert linha.startswith(_texto("execucao.etapa.espera", site="Gupy", tempo="10 min"))
+
+
+def test_espera_vencida_mostra_lendo(tmp_path: Path) -> None:
+    painel = Painel(tmp_path)
+    id_ = _busca_com_andamento(painel, {"gupy": 4})
+    with closing(abrir(painel.banco)) as con:
+        marcar_fonte(
+            con,
+            id_,
+            "gupy",
+            "esperando",
+            espera_ate=AGORA - timedelta(seconds=1),
+            espera_motivo="limite",
+        )
+    with painel.cliente() as http:
+        texto = http.get("/execucao/atual", headers=HTMX).text
+    # E8: a espera que já acabou volta a ser leitura, sem contagem negativa
+    assert _linha(texto).startswith(_texto("execucao.etapa.lendo_sites", sites="Gupy"))
+    assert "Esperando" not in unescape(texto)
+
+
+def test_duas_paginas_no_mesmo_instante_mesmo_valor(tmp_path: Path) -> None:
+    painel = Painel(tmp_path)
+    id_ = _busca_com_andamento(painel, {"gupy": 40})
+    with closing(abrir(painel.banco)) as con:
+        mudar_etapa(con, id_, "coleta", 12, 40, 0.1, AGORA)
+    _avancar(painel, 9)  # parada há 9 s: o avanço lento conta
+    with painel.cliente() as http:
+        valores = []
+        for pagina in ("/vagas", "/buscas"):
+            assert 'hx-get="/execucao/atual?so_rodando=1"' in http.get(pagina).text
+            casca = http.get(
+                "/execucao/atual?so_rodando=1", headers=HTMX | {"HX-Current-URL": BASE + pagina}
+            )
+            valores.append(_valor(casca.text))
+    assert valores[0] == valores[1] == _esperado("coleta", 12, 40, 0.1, 9)
+
+
+def test_valor_da_pergunta_nunca_desce(tmp_path: Path) -> None:
     painel = Painel(tmp_path)
     with closing(abrir(painel.banco)) as con:
         id_ = abrir_execucao(con, "busca", "agenda", AGORA)
         assert id_ is not None
-        gravar_saude(con, id_, "remotive", "", "ok")
-        gravar_saude(con, id_, "jobicy", "", "ok")
+        marcas = Marcas(con, id_, painel.app.state.relogio)
+        asyncio.run(marcas.comecar(ETAPAS))
+        asyncio.run(marcas.planejado({"gupy": 6}))
+        valores: list[float] = []
+        visto = ""
+        with painel.cliente() as http:
+            # perguntas a cada 2 s: consultas com pausas longas no meio e a troca de etapa
+            for passo in range(24):
+                if passo in (2, 3, 10, 18, 19, 20):
+                    asyncio.run(marcas.consulta_pronta("gupy"))
+                if passo == 21:
+                    asyncio.run(marcas.etapa("detalhes", 0, 4))
+                resposta = http.get(f"/execucao/atual?visto={visto}", headers=HTMX)
+                if resposta.status_code == 200:
+                    valor = _valor(resposta.text)
+                    assert valor is not None
+                    valores.append(valor)
+                    visto = _marca(resposta.text)
+                _avancar(painel, 2)
+    assert len(valores) > 10
+    assert valores == sorted(valores), valores
+    assert valores[-1] > valores[0]
+
+
+def test_regiao_viva_so_com_etapa_nova(tmp_path: Path) -> None:
+    painel = Painel(tmp_path)
+    id_ = _busca_com_andamento(painel, {"gupy": 4})
+    with painel.cliente() as http:
+        primeira = http.get("/execucao/atual", headers=HTMX).text
+        with closing(abrir(painel.banco)) as con:
+            marcar_fonte(con, id_, "gupy", "lendo", feitas=1)
+            mudar_etapa(con, id_, "coleta", 1, 4, 0.0, AGORA)
+        mesma = http.get(f"/execucao/atual?visto={_marca(primeira)}", headers=HTMX)
+        with closing(abrir(painel.banco)) as con:
+            mudar_etapa(con, id_, "detalhes", 0, 3, 0.8, AGORA)
+        nova = http.get(f"/execucao/atual?visto={_marca(mesma.text)}", headers=HTMX)
+    assert mesma.status_code == 200
+    assert OOB not in mesma.text  # mesma etapa: o leitor de tela não ouve de novo
+    assert nova.status_code == 200
+    achado = re.search(rf"<span {OOB}>\s*<span>([^<]*)</span>\s*</span>", nova.text)
+    assert achado, "sem o elemento OOB com o texto num filho"
+    assert unescape(achado.group(1)) == _texto("execucao.etapa.detalhes")
+    # a primeira carga também dá nome à etapa
+    assert OOB in primeira
+
+
+def test_204_quando_nada_muda(tmp_path: Path) -> None:
+    painel = Painel(tmp_path)
+    id_ = _busca_com_andamento(painel, {"gupy": 40})
+    with closing(abrir(painel.banco)) as con:
+        mudar_etapa(con, id_, "coleta", 12, 40, 0.0, AGORA)
+    with painel.cliente() as http:
+        primeira = http.get("/execucao/atual", headers=HTMX)
+        marca = _marca(primeira.text)
+        igual = http.get(f"/execucao/atual?visto={marca}", headers=HTMX)
+        _avancar(painel, 10)  # nada mudou no banco, mas o avanço lento andou a barra
+        andou = http.get(f"/execucao/atual?visto={marca}", headers=HTMX)
+    assert igual.status_code == 204
+    assert igual.text == ""
+    assert andou.status_code == 200
+    assert _valor(andou.text) > _valor(primeira.text)  # type: ignore[operator]
+
+
+def test_entrada_so_na_resposta_do_clique(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    painel = Painel(tmp_path)
+    liberar = threading.Event()
+
+    async def lenta(*args: Any, **kw: Any) -> int:
+        while not liberar.is_set():
+            await asyncio.sleep(0.01)
+        return 1
+
+    monkeypatch.setattr(rota, "executar_busca", lenta)
+    with painel.cliente() as http:
+        clique = http.post("/buscar-agora", headers=painel.htmx())
+        pergunta = http.get("/execucao/atual", headers=HTMX)
+        liberar.set()
+        assert _esperar(lambda: not painel.trava.locked())
+    assert re.search(r'<div class="andamento-entrada"[ >]', clique.text)
+    # a entrada pergunta uma vez antes do limiar de 1 s: busca curta mostra só o fim
+    assert 'hx-trigger="load delay:800ms"' in clique.text
+    assert POLL in clique.text
+    assert "andamento-entrada" not in pergunta.text
+    assert POLL in pergunta.text
+    # htmx 2 herda hx-target: sem alvo próprio, o filho que pergunta herdaria o "find .andamento"
+    # do envoltório, procuraria entre os próprios filhos e o pedido nem sairia (htmx:targetError)
+    filho = re.search(r'<div class="andamento"[ >][^>]*>', clique.text)
+    assert filho and 'hx-target="this"' in filho.group(0), filho
+
+
+def test_fim_diz_pronto(tmp_path: Path) -> None:
+    painel = Painel(tmp_path)
+    with closing(abrir(painel.banco)) as con:
+        id_ = abrir_execucao(con, "busca", "agora", AGORA)
+        assert id_ is not None
+        fechar_execucao(con, id_, AGORA + timedelta(minutes=5))
+        inserir_vaga(con, primeira_vista_em=(AGORA + timedelta(minutes=1)).isoformat())
+    with painel.cliente() as http:
+        pt = http.get("/execucao/atual", headers=HTMX).text
+        en = http.get("/execucao/atual", headers=HTMX | {"Accept-Language": "en"}).text
+    assert "Pronto. Vagas novas: 1." in unescape(pt)
+    assert "Done. New jobs: 1." in unescape(en)
+    assert _valor(pt) == 100.0  # a barra chega ao fim quando a execução fecha
+    assert OOB in pt  # o fim é anunciado
+    with closing(abrir(painel.banco)) as con:
+        id_ = abrir_execucao(con, "busca", "agora", AGORA + timedelta(hours=1))
+        assert id_ is not None
+        interromper_execucao(con, id_, AGORA + timedelta(hours=1, minutes=2), parada="erro")
+    with painel.cliente() as http:
+        parada = unescape(http.get("/execucao/atual", headers=HTMX).text)
+    assert _texto("execucao.parada.erro") in parada  # os motivos de parada de hoje
+    assert "Pronto" not in parada
+    assert "aria-valuenow" not in parada
+
+
+def test_execucao_atual_mostra_o_andamento_e_pergunta_a_cada_2s(tmp_path: Path) -> None:
+    painel = Painel(tmp_path)
+    id_ = _busca_com_andamento(painel, {"remotive": 1, "jobicy": 1})
+    with closing(abrir(painel.banco)) as con:
+        mudar_etapa(con, id_, "coleta", 2, 2, 0.0, AGORA)
     with painel.cliente() as http:
         resposta = http.get("/execucao/atual", headers=HTMX)
     assert resposta.status_code == 200
     assert POLL in resposta.text
-    # a próxima pergunta diz o que já mostra: sem mudança, nada é trocado na região viva
-    assert 'hx-get="/execucao/atual?visto=2%3A"' in resposta.text
-    assert _texto("execucao.prontas", n=2) in unescape(resposta.text)
-
-
-def _rodando_a_e_b(painel: Painel) -> int:
-    """Busca rodando: `gupy` começou e terminou, `workday` começou e não terminou."""
-    with closing(abrir(painel.banco)) as con:
-        id_ = abrir_execucao(con, "busca", "agenda", AGORA)
-        assert id_ is not None
-        comecar_fonte(con, id_, "gupy", AGORA)
-        comecar_fonte(con, id_, "workday", AGORA)
-        terminar_fonte(con, id_, "gupy", AGORA)
-    return id_
+    # a próxima pergunta diz o que já mostra: sem mudança, nada é trocado
+    assert 'hx-get="/execucao/atual?visto=coleta.' in resposta.text
+    assert _texto("execucao.etapa.coleta", feitas=2, total=2) in _linha(resposta.text)
 
 
 def test_execucao_atual_lista_as_fontes_que_ainda_rodam(tmp_path: Path) -> None:
     painel = Painel(tmp_path)
-    _rodando_a_e_b(painel)
+    id_ = _busca_com_andamento(painel, {"gupy": 1, "workday": 1})
+    with closing(abrir(painel.banco)) as con:
+        marcar_fonte(con, id_, "gupy", "pronto", feitas=1)
+        marcar_fonte(con, id_, "workday", "lendo")
     with painel.cliente() as http:
-        resposta = http.get("/execucao/atual", headers=HTMX)
-    texto = unescape(resposta.text)
-    assert _texto("execucao.ainda_rodando", fontes="Workday") in texto
-    assert "Gupy" not in texto
-    with painel.cliente() as http:
-        en = http.get("/execucao/atual", headers=HTMX | {"Accept-Language": "en"})
-    assert t("en", "execucao.ainda_rodando", fontes="Workday") in unescape(en.text)
+        pt = _linha(http.get("/execucao/atual", headers=HTMX).text)
+        en = _linha(http.get("/execucao/atual", headers=HTMX | {"Accept-Language": "en"}).text)
+    assert pt.startswith(_texto("execucao.etapa.lendo_sites", sites="Workday") + " · ")
+    assert "Gupy" not in pt
+    assert en.startswith(t("en", "execucao.etapa.lendo_sites", sites="Workday"))
 
 
 def test_execucao_atual_marca_muda_quando_a_fonte_pendente_termina(tmp_path: Path) -> None:
     painel = Painel(tmp_path)
-    id_ = _rodando_a_e_b(painel)
+    id_ = _busca_com_andamento(painel, {"gupy": 1, "workday": 1})
+    with closing(abrir(painel.banco)) as con:
+        marcar_fonte(con, id_, "workday", "lendo")
     with painel.cliente() as http:
         primeira = http.get("/execucao/atual", headers=HTMX)
-        marca = primeira.text.split('hx-get="/execucao/atual?visto=')[1].split('"')[0]
+        marca = _marca(primeira.text)
         igual = http.get(f"/execucao/atual?visto={marca}", headers=HTMX)
         with closing(abrir(painel.banco)) as con:
-            terminar_fonte(con, id_, "workday", AGORA)
+            marcar_fonte(con, id_, "workday", "pronto", feitas=1)
         mudou = http.get(f"/execucao/atual?visto={marca}", headers=HTMX)
     assert igual.status_code == 204
     assert mudou.status_code == 200
-    assert "Workday" not in unescape(mudou.text)
+    assert "Workday" not in _linha(mudou.text)
 
 
-def _fontes_ligadas(painel: Painel) -> list[str]:
-    with closing(abrir(painel.banco)) as con:
-        return [
-            c for (c,) in con.execute("SELECT chave FROM fonte WHERE ligada = 1 ORDER BY rowid")
-        ]
-
-
-def test_execucao_atual_diz_que_completa_detalhes_quando_toda_fonte_terminou(
-    tmp_path: Path,
-) -> None:
+def test_detalhes_mostram_estado_icone_contagem_e_motivo(tmp_path: Path) -> None:
     painel = Painel(tmp_path)
-    ligadas = _fontes_ligadas(painel)
-    assert len(ligadas) > 1
+    id_ = _busca_com_andamento(painel, {"gupy": 3, "lever": 2, "ashby": 1, "workday": 1})
     with closing(abrir(painel.banco)) as con:
-        id_ = abrir_execucao(con, "busca", "agenda", AGORA)
-        assert id_ is not None
-        for fonte in ligadas:
-            comecar_fonte(con, id_, fonte, AGORA)
-            terminar_fonte(con, id_, fonte, AGORA)
+        marcar_fonte(con, id_, "gupy", "pronto", feitas=3)
+        marcar_fonte(con, id_, "lever", "lendo", feitas=1)
+        marcar_fonte(con, id_, "ashby", "falhou")
+        gravar_saude(con, id_, "ashby", "", "falhou", motivo="saude.bloqueio")
     with painel.cliente() as http:
-        pt = http.get("/execucao/atual", headers=HTMX)
+        texto = unescape(http.get("/execucao/atual", headers=HTMX).text)
+    assert 'popovertarget="andamento-detalhes"' in texto
+    assert f'aria-label="{_texto("execucao.etapa.ver_detalhes_andamento")}"' in texto
+    detalhes = texto.split('id="andamento-detalhes"')[1]
+    # lendo primeiro, depois na fila, falhou e pronto
+    ordem = [detalhes.index(n) for n in ("Lever", "Workday", "Ashby", "Gupy")]
+    assert ordem == sorted(ordem)
+    assert 'data-icone="book-open"' in detalhes and 'data-icone="circle-x"' in detalhes
+    assert _texto("execucao.etapa.falhou") in detalhes
+    assert _texto("saude.bloqueio") in detalhes
+    assert _texto("execucao.etapa.contagem", feitas=1, total=2) in detalhes
+
+
+def test_execucao_atual_diz_que_completa_detalhes(tmp_path: Path) -> None:
+    painel = Painel(tmp_path)
+    id_ = _busca_com_andamento(painel, {"gupy": 2})
+    with closing(abrir(painel.banco)) as con:
+        mudar_etapa(con, id_, "coleta", 2, 2, 0.0, AGORA)
+    with painel.cliente() as http:
+        coleta = http.get("/execucao/atual", headers=HTMX)
+        with closing(abrir(painel.banco)) as con:
+            mudar_etapa(con, id_, "detalhes", 3, 10, 0.75, AGORA)
+        pt = http.get(f"/execucao/atual?visto={_marca(coleta.text)}", headers=HTMX)
         en = http.get("/execucao/atual", headers=HTMX | {"Accept-Language": "en"})
-        marca = pt.text.split('hx-get="/execucao/atual?visto=')[1].split('"')[0]
-        igual = http.get(f"/execucao/atual?visto={marca}", headers=HTMX)
-    assert _texto("execucao.detalhes") in unescape(pt.text)
-    assert t("en", "execucao.detalhes") in unescape(en.text)
+        igual = http.get(f"/execucao/atual?visto={_marca(pt.text)}", headers=HTMX)
+    assert _texto("execucao.etapa.detalhes") not in _linha(coleta.text)
+    assert pt.status_code == 200
+    contagem = _texto("execucao.etapa.contagem", feitas=3, total=10)
+    assert _linha(pt.text) == f"{_texto('execucao.etapa.detalhes')} · {contagem}"
+    assert _linha(en.text) == "Completing job details · 3 of 10"
+    # o leitor de tela ouve a contagem, não só a porcentagem (desenho 5.9)
+    assert f'aria-valuetext="{contagem}"' in unescape(pt.text)
+    assert 'aria-valuetext="3 of 10"' in unescape(en.text)
     assert igual.status_code == 204
-
-
-def test_execucao_atual_marca_muda_quando_a_coleta_acaba(tmp_path: Path) -> None:
-    painel = Painel(tmp_path)
-    ligadas = _fontes_ligadas(painel)
-    with closing(abrir(painel.banco)) as con:
-        id_ = abrir_execucao(con, "busca", "agenda", AGORA)
-        assert id_ is not None
-        for fonte in ligadas:
-            comecar_fonte(con, id_, fonte, AGORA)
-            terminar_fonte(con, id_, fonte, AGORA)
-        con.execute("UPDATE execucao_fonte SET terminou_em = NULL WHERE fonte = ?", (ligadas[0],))
-        con.commit()
-    with painel.cliente() as http:
-        primeira = http.get("/execucao/atual", headers=HTMX)
-        marca = primeira.text.split('hx-get="/execucao/atual?visto=')[1].split('"')[0]
-        with closing(abrir(painel.banco)) as con:
-            terminar_fonte(con, id_, ligadas[0], AGORA)
-        mudou = http.get(f"/execucao/atual?visto={marca}", headers=HTMX)
-    assert _texto("execucao.detalhes") not in unescape(primeira.text)
-    assert mudou.status_code == 200
-    assert _texto("execucao.detalhes") in unescape(mudou.text)
-
-
-def test_execucao_atual_nao_diz_detalhes_sem_fonte_ou_com_fonte_por_comecar(
-    tmp_path: Path,
-) -> None:
-    painel = Painel(tmp_path)
-    ligadas = _fontes_ligadas(painel)
-    with closing(abrir(painel.banco)) as con:
-        id_ = abrir_execucao(con, "busca", "agenda", AGORA)
-        assert id_ is not None
-    with painel.cliente() as http:  # recém-aberta: lista de fontes vazia, a coleta nem começou
-        vazia = http.get("/execucao/atual", headers=HTMX)
-    with closing(abrir(painel.banco)) as con:  # a fila do semáforo: uma terminou, as outras não
-        comecar_fonte(con, id_, ligadas[0], AGORA)
-        terminar_fonte(con, id_, ligadas[0], AGORA)
-    with painel.cliente() as http:
-        fila = http.get("/execucao/atual", headers=HTMX)
-    assert _texto("execucao.detalhes") not in unescape(vazia.text)
-    assert _texto("execucao.detalhes") not in unescape(fila.text)
 
 
 @pytest.mark.parametrize(
-    ("n", "fontes"),
-    [
-        (5, "Gupy, Workday, Lever, Greenhouse, Ashby"),
-        (6, "Gupy, Workday, Lever, Greenhouse, Ashby +1"),
-        (7, "Gupy, Workday, Lever, Greenhouse, Ashby +2"),
-    ],
+    ("etapa", "chave"),
+    [("regras", "regras"), ("cotacoes", "cotacoes"), ("encaixe", "encaixe")],
 )
-def test_execucao_atual_mostra_ate_5_nomes_e_conta_o_resto(
-    tmp_path: Path, n: int, fontes: str
-) -> None:
+def test_etapas_sem_contagem_dizem_o_passo(tmp_path: Path, etapa: str, chave: str) -> None:
     painel = Painel(tmp_path)
-    chaves = ["gupy", "workday", "lever", "greenhouse", "ashby", "remotive", "jobicy"]
+    id_ = _busca_com_andamento(painel, {"gupy": 2})
     with closing(abrir(painel.banco)) as con:
-        id_ = abrir_execucao(con, "busca", "agenda", AGORA)
-        assert id_ is not None
-        for k, chave in enumerate(chaves[:n]):
-            comecar_fonte(con, id_, chave, AGORA + timedelta(seconds=k))
+        mudar_etapa(con, id_, etapa, None, None, 0.9, AGORA)
     with painel.cliente() as http:
-        texto = unescape(http.get("/execucao/atual", headers=HTMX).text)
-    assert f"<p>{_texto('execucao.ainda_rodando', fontes=fontes)}</p>" in texto
-    assert ("Remotive" in texto) is False and ("Jobicy" in texto) is False
+        texto = http.get("/execucao/atual", headers=HTMX).text
+    assert _linha(texto) == _texto(f"execucao.etapa.{chave}")
+    assert _valor(texto) is not None  # com total planejado, a barra nunca volta a indeterminada
 
 
-def test_execucao_atual_sem_fonte_pendente_nao_mostra_a_lista(tmp_path: Path) -> None:
+def test_execucao_atual_sem_fonte_lendo_nao_lista_nomes(tmp_path: Path) -> None:
     painel = Painel(tmp_path)
+    id_ = _busca_com_andamento(painel, {"gupy": 1, "lever": 1})
     with closing(abrir(painel.banco)) as con:
-        id_ = abrir_execucao(con, "busca", "agenda", AGORA)
-        assert id_ is not None
-        comecar_fonte(con, id_, "gupy", AGORA)
-        terminar_fonte(con, id_, "gupy", AGORA)
+        marcar_fonte(con, id_, "gupy", "pronto", feitas=1)
+        mudar_etapa(con, id_, "coleta", 1, 2, 0.0, AGORA)
     with painel.cliente() as http:
-        texto = unescape(http.get("/execucao/atual", headers=HTMX).text)
-    assert "ainda rodando" not in texto
+        linha = _linha(http.get("/execucao/atual", headers=HTMX).text)
+    assert linha == f"{_texto('execucao.etapa.lendo_fontes')} · 1 de 2 consultas"
 
 
 def test_execucao_atual_sem_mudanca_nao_troca_a_regiao(tmp_path: Path) -> None:
     painel = Painel(tmp_path)
-    with closing(abrir(painel.banco)) as con:
-        id_ = abrir_execucao(con, "busca", "agenda", AGORA)
-        assert id_ is not None
-        gravar_saude(con, id_, "remotive", "", "ok")
-        gravar_saude(con, id_, "jobicy", "", "ok")
+    id_ = _busca_com_andamento(painel, {"gupy": 4})
     with painel.cliente() as http:
-        igual = http.get("/execucao/atual?visto=2%3A", headers=HTMX)
-        mudou = http.get("/execucao/atual?visto=1%3A", headers=HTMX)
-    # 204: o HTMX não troca nada e segue perguntando (o leitor de tela não repete o anúncio)
+        marca = _marca(http.get("/execucao/atual", headers=HTMX).text)
+        igual = http.get(f"/execucao/atual?visto={marca}", headers=HTMX)
+        with closing(abrir(painel.banco)) as con:
+            mudar_etapa(con, id_, "coleta", 2, 4, 0.0, AGORA)
+        mudou = http.get(f"/execucao/atual?visto={marca}", headers=HTMX)
+    # 204: o HTMX não troca nada e segue perguntando
     assert igual.status_code == 204
     assert igual.text == ""
     assert mudou.status_code == 200
-    assert _texto("execucao.prontas", n=2) in unescape(mudou.text)
+    assert _texto("execucao.etapa.coleta", feitas=2, total=4) in _linha(mudou.text)
 
 
 def test_execucao_atual_visto_com_a_busca_acabada_mostra_o_fim(tmp_path: Path) -> None:
@@ -554,7 +845,10 @@ def test_casca_tem_buscar_agora_sair_e_regiao_aria_live(tmp_path: Path) -> None:
     with painel.cliente() as http:
         pagina = http.get("/fontes").text
     assert 'id="andamento"' in pagina
-    assert 'aria-live="polite"' in pagina
+    # a região viva guarda só o nome da etapa, num nó fixo fora do #andamento (E12)
+    assert '<span id="andamento-etapa" role="status" aria-live="polite"' in pagina
+    regiao = re.search(r'<div id="andamento"[^>]*>', pagina)
+    assert regiao and "role=" not in regiao.group(0) and "aria-live" not in regiao.group(0)
     # a página que chega depois do redirect (form sem HTMX) já mostra a busca que roda
     assert 'hx-get="/execucao/atual?so_rodando=1" hx-trigger="load"' in pagina
     assert 'hx-post="/buscar-agora"' in pagina
