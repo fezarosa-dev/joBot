@@ -2395,7 +2395,7 @@ Escolha da sessão (dono fora): a opção (a), para confirmar. Consequência: co
 
 ## D140. Visual de app do Mac
 
-**Status:** decidida pelo dono em 2026-11-15. Todos os itens são do dono; não há escolha da sessão.
+**Status:** decidida pelo dono em 2026-11-15. Todos os itens são do dono; não há escolha da sessão. As regras de cada item, a segunda rodada de respostas do dono e as escolhas da sessão estão na D143.
 
 **Contexto:** o dono pediu, em 2026-11-15, que o joBot pareça um app da Apple para Mac, seguindo as Human Interface Guidelines (developer.apple.com/design). A ADR [0008](docs/decisions/0008-painel-e-visual.md) dizia só "estilo Apple".
 
@@ -2447,3 +2447,125 @@ Escolha da sessão (dono fora): a opção (a), para confirmar. Consequência: co
 5. Até a fase 3, a janela do modo app (D140) usa a moldura do sistema.
 
 **Como desfazer:** o dono manda trocar qualquer item. Até a fase 3 só existe texto (esta D e as notas das ADRs 0003, 0008 e 0017); voltar atrás é editá-los. Se o Tauri sair, a tela do instalador volta ao item 2 da D138.
+
+## D143. Regras do visual de app do Mac
+
+**Status:** os itens 12 a 20 foram decididos pelo dono em 2026-11-15, na segunda rodada, e os itens 55 a 60 em 2026-11-16, na terceira. Os itens 1 a 11 são os da D140 e da D142, com a mesma numeração do desenho. Os itens 21 a 54 e 61 a 71 são escolhas da sessão, para confirmar com o dono, menos o 32, confirmado pelo dono no item 58, e a parte do 48 aceita no item 60. Nenhuma pergunta aberta trava o plano: o "Para confirmar" abaixo lista só escolhas da sessão, que valem para construir.
+
+**Contexto:** depois da D140 e da D142, a sessão levantou as regras das Human Interface Guidelines que valem para o painel (tipo, cor, vidro, janela, controles, teclado, escrita e acessibilidade) e levou ao dono, em 2026-11-15, as que mudam o que ele vê. O dono respondeu "sim" a quase tudo e recusou uma: tirar o seletor de tema. O desenho com todos os valores está em `docs/superpowers/specs/2026-11-15-visual-mac-design.md`, e a numeração abaixo é a da seção 11 dele (D143.1 a D143.71). Em 2026-11-16, numa terceira rodada, o dono respondeu como a barra de progresso anda, onde ela aparece e o que a linha da etapa diz, e escolheu a barra lateral e a linha de vaga.
+
+**Decisões do dono (primeira rodada):** os itens 1 a 11 repetem a D140 (itens 1 a 9) e a D142 no desenho, sem mudança. O item 4 (Configurações com a lista de grupos à esquerda, cada grupo no seu endereço) é desvio consciente da HIG, que no Mac põe os ajustes numa janela com barra de painéis.
+
+**Decisões do dono (segunda rodada):**
+
+12. Texto de 13px em controles e listas, de 14 a 15px na descrição da vaga, e uma opção de tamanho do texto em Configurações.
+13. Tema: o dono não quer tirar o seletor. A pessoa escolhe se o joBot fica claro, escuro ou igual ao sistema, como a ADR [0008](docs/decisions/0008-painel-e-visual.md) já diz ("chave manual"). A HIG recomenda seguir só o sistema; é um desvio consciente, registrado no desenho.
+14. O seletor de idioma sai da barra e vai para Configurações > Geral.
+15. Paleta de comandos no ⌘K (Ctrl+K fora do Mac) e menu de contexto no botão direito. Sem barra de menus falsa.
+16. Descartar e arquivar sem pergunta de confirmação, com Desfazer.
+17. O Desfazer aparece numa faixa que fica até a pessoa fechar; não some sozinho. As duas exceções (outra ação desfazível toma o lugar dela, e uma página nova carregada inteira a tira) são escolha da sessão, no item 36.
+18. Primeira execução com três passos e "Pular" sempre visível; quem pula cai em Vagas com os padrões.
+19. Mesmo visual no Windows e no Linux; só a fonte muda (a Inter).
+20. As abas de Vagas viram itens da barra lateral; sem controle segmentado no lugar delas.
+
+**Escolhas da sessão (para confirmar):**
+
+21. O seletor de tema fica em Configurações > Geral, junto do idioma e do tamanho do texto, com padrão Sistema, e na paleta de comandos; sai da barra de cima e não fica na barra de ferramentas, porque o tema se escolhe uma vez e a barra fica com as ações do dia a dia. Já foi anunciado ao dono.
+22. O grupo Geral fica em primeiro na lista e reúne o que hoje está em Aparência: tema, idioma, tamanho do texto, país e moeda. O grupo se chama `geral`, e `GET /configuracoes/aparencia` manda para `/configuracoes/geral` (303), como na D139, para o link velho continuar funcionando. O 303 vale só para o GET; o formulário de país e moeda passa a gravar em `/configuracoes/geral`.
+23. Tamanho do texto: Padrão (13px), Grande (15px) e Maior (17px, o de hoje), gravado na chave `tamanho_texto` pela rota nova `/preferencias/texto`, igual à do tema.
+24. Cor de destaque fixa em #0071e3: o azul do sistema não chega a 4,5:1 com texto branco.
+25. Vidro só na barra lateral, na barra de cima e nas camadas que flutuam (menu, paleta, alerta, folha). O conteúdo fica opaco, e as faixas de aviso também; os cartões de hoje perdem o vidro. A lista e o detalhe rolam no próprio espaço, sem nada passar por baixo do vidro. Fundo sólido com "Reduzir transparência", "Aumentar contraste", navegador sem suporte ou janela fora de foco.
+26. Movimento sem rebote no app todo; um rebote mínimo só na folha que desce e no detalhe sobreposto. A mola de hoje sai. Com movimento reduzido, só esmaecer.
+27. Atalhos: ⌘, (Configurações), ⌘K, ⌘Z (desfazer), ⇧⌘Z (refazer), ⌘?, Esc e ⌘., / (busca), setas, Home, End, J, K e Return na lista. ⌘Z e ⇧⌘Z só fora de campo de texto; dentro dele ficam com o navegador. ⌘F e ⌘A ficam com o navegador: a lista é de seleção única e não há ação em lote, então o ⌘A levado ao dono sai. Sem ⌘R, ⌘N e ⌘W. O ⌘K conflita com a busca do Firefox e do Chrome fora do Mac; por isso a paleta também tem um botão na barra.
+28. Caixa de marcar na maior parte de Configurações; interruptor só onde a opção comanda um grupo.
+29. Um tamanho de barra lateral; contagem em texto simples, sem pílula.
+30. Escrita: só a primeira letra maiúscula em português; Title Case em inglês em botão, menu e título; botão no infinitivo; "você"; erro sem humor.
+31. Os valores sem medição (cores novas, vidro, raios, sombras, tempos e medidas) valem como proposta e são conferidos depois num Mac com o Medidor de Cores Digital. A lista está no fim do desenho.
+32. Sugeridas como segundo nível sob Empresas, Sites depois de Fontes e Configurações por último. O dono confirmou em 2026-11-16 (item 58).
+33. Barra lateral com as seções "Vagas" e "Onde buscar"; as contagens aparecem em toda página, por um ajudante único que junta a contagem das abas e a de Destaques de hoje (que hoje é calculada à parte, só em Vagas); os links levam a busca escolhida (item 50).
+34. O seletor de busca e a ordem de Vagas viram menus na barra da lista. O de busca lista só as buscas, com 2 ou mais, como hoje; não há "Todas as buscas", porque encaixe, nota e Destaques são calculados por busca.
+35. A barra lateral recolhe pela largura da janela (abaixo de 900px); a lista e o detalhe seguem a largura da coluna de conteúdo: detalhe à direita com 860px ou mais, sobreposto de 640 a 860px e em página própria abaixo de 640px.
+36. O Desfazer de Ocultar usa a rota `/mostrar`, que já existe. ⌘Z aciona a faixa visível. Depois do Desfazer, a faixa oferece "Refazer", pela rota `/ocultar`, que já existe, e ⇧⌘Z o aciona. Um nível só, sem histórico de várias ações: desvio consciente da HIG, que pede vários desfazer, porque o painel mostra uma faixa por vez. A faixa sai quando a pessoa fecha, quando outra ação desfazível toma o lugar dela ou quando uma página nova é carregada inteira; as trocas por HTMX dentro de Vagas (aba, busca, ordem, filtro) não a tiram. Descartar uma empresa sugerida e remover uma empresa também rodam sem pergunta, com a faixa de Desfazer, por duas rotas novas: `POST /empresas/sugeridas/{id}/restaurar` volta a sugestão a `pendente`, e `POST /empresas/{id}/restaurar` limpa `removida_em`. Nada é apagado; Refazer usa o `/descartar` e o `/remover` de hoje.
+37. Apagar uma busca, remover um site acompanhado e "Esquecer logins" não voltam; os três pedem confirmação num alerta (a pergunta de hoje do "Esquecer logins" vira o alerta). O botão da ação não leva o estilo destrutivo, porque a pessoa escolheu a ação; nenhum botão é o padrão, e "Cancelar" nunca é.
+38. Paleta com os comandos que já existem (ir para cada tela, cada grupo de Configurações, "Buscar agora", "Sair", tema, idioma e tamanho do texto), nos dois idiomas, com um botão na barra.
+39. Menu de contexto da vaga: Abrir, Abrir no site da vaga, Salvar, Ocultar e Copiar link. Tudo também está no detalhe.
+40. Primeira execução: "O que você procura?", "Sites com login (opcional)" e "Segundo plano"; a tela nova entra depois da T241, já com os três passos; "Tudo pronto" não conta como passo. "Pular" grava o país, o segundo plano desligado e a conclusão, cria o atalho do menu no Linux como o "desligar" do passo 2 (DR-37), sem prender em falha, e leva a Vagas; a rota nova é registrada antes da rota genérica dos passos. O assistente não mostra a barra lateral.
+41. Janela do modo app: primeiro o Chrome, o Edge ou o Chromium instalados; depois o Chromium do joBot, com um perfil próprio que nunca é o perfil do login (D132); por fim uma aba comum. O Chromium do joBot só é procurado quando o primeiro passo não acha navegador, para o driver do Playwright não subir a cada abertura.
+42. Faixas de aviso abaixo da barra de cima, na ordem erro, versão, contas e Desfazer (contas logo depois da versão, como na D139, decisão 23). Erro, versão e Desfazer têm botão de fechar; a de contas não tem (D139, decisão 13). O aviso de erro sai do rodapé.
+43. O item Configurações da barra lateral e o ⌘, abrem o último grupo visto, como a HIG pede; sem registro, e sem JavaScript, abrem o grupo Geral.
+44. Os ícones entram pelo CSS, e o link da barra lateral fica só com o texto.
+45. A cor do trilho dos controles continua num valor fixo, porque entra na conta de contraste.
+46. "Descartar" uma vaga é o Ocultar de hoje; "arquivar" não existe no joBot e não entra.
+47. Sem espaçamento fixo entre letras; a fonte do sistema ajusta sozinha.
+48. O que fica fora do escopo está na seção abaixo.
+49. A ADR 0008 não muda: ela já diz "chave manual" para o tema e não diz onde ficam os seletores.
+50. A busca escolhida em Vagas fica gravada nas preferências (`busca_escolhida`). A da URL vence; sem ela, vale a gravada; se ela sumiu ou foi desligada, a primeira ativa. Assim as contagens e os links da barra lateral não mudam ao sair de Vagas.
+51. Escolher uma vaga põe `vaga=<id>` no endereço de `/vagas`; recarregar ou voltar no navegador abre a mesma vista, com a vaga no detalhe. `/vagas/{id}` continua sendo o link direto.
+52. A busca continua por Enter. O formulário da busca fica na barra da lista, e o campo da barra de cima e a ordem entram nele pelo atributo `form`, que funciona sem JavaScript. "Mais filtros" abre abaixo da barra da lista; os avisos de filtro ficam ali, sem botão de fechar; na aba Programas, as páginas acompanhadas ficam numa seção própria abaixo das vagas.
+53. A linha de vaga só tem texto, sem botões, porque é um item de lista para o leitor de tela; as ações ficam no detalhe e no menu de contexto. O que a linha mostra é o item 59.
+54. A base e a tela de Vagas ficam numa branch longa, que passa pelo CI, e só entram na `dev` com o ok do dono; as outras telas esperam o ok. A base traz o ajuste mínimo das telas de hoje para elas funcionarem na casca nova. A janela do modo app não muda nenhuma tela e entra na `dev` sozinha.
+
+**Decisões do dono (terceira rodada, 2026-11-16):**
+
+55. Ritmo da barra: ela segue o andamento real, com uma curva que segura o começo e acelera no fim, como no estudo de Harrison, Amento, Kuznetsov e Bell, "Rethinking the progress bar" (UIST 2007). O tempo total é o real. A barra nunca volta, nunca chega a 100% antes do fim, nunca fica parada sem explicação e nunca mostra mais do que a etapa seguinte permite. É a barra lisa do Mac. A curva exata é proposta da sessão (item 62).
+56. Onde: toda espera de mais de 1 s usa o mesmo componente: "Buscar agora", a primeira busca da primeira execução, "Conferir agora" de Contas, "Esquecer logins" e o instalador (no Canvas agora, em Tauri na fase 3). Espera curta não mostra nada. Sem total, a barra é indeterminada e passa a determinada quando o total aparece.
+57. Linha da etapa: uma linha com a etapa e a contagem, a espera de cada site com contagem regressiva e "Ver detalhes" com a lista por site. O lado de trás guarda o total planejado, a etapa atual e o estado de cada site.
+58. Barra lateral: Sugeridas sob Empresas, só quando há sugestão esperando; Sites depois de Fontes; Configurações por último.
+59. Linha de vaga: três linhas de texto, cerca de 64px: título com o encaixe; empresa e local; salário, selos de estado e data. Os botões ficam no detalhe e no menu de contexto.
+60. Notificações do navegador e "desconectar um site só" ficam fora deste lote. O dono viu e aceitou.
+
+**Escolhas da sessão, terceira rodada (para confirmar):**
+
+61. A barra é um trilho com `role="progressbar"` e um preenchimento com a largura em `style`, de 6px de altura, sem indicador giratório; a barra indeterminada cobre o começo. O `<progress>` nativo fica de fora porque o CSS não anima o `value` dele, e a barra precisa andar entre uma pergunta e outra. A barra na barra de ferramentas é desvio consciente da HIG, que ali prefere o indicador giratório; o dono pediu o mesmo componente em toda espera. Um token novo, `--trilho-progresso`, deixa o trilho mais escuro no tema escuro, porque o de hoje não chega a 3:1 com o azul de destaque.
+62. A curva é `f(p) = p^1,25`, uma função pura testada sozinha. Ela é desvio consciente da HIG, que sugere ritmo uniforme: o dono pediu a curva, que é leve e fica sempre abaixo do andamento real. O valor mostrado sai só do servidor, do andamento, do valor de partida e do tempo desde a última mudança do andamento; por isso é o mesmo em toda página e em toda aba, e nunca volta. Fica em 99% no máximo até a busca fechar; nunca passa de `f` aplicada ao começo da etapa seguinte; parada por 3 s, avança um décimo do que falta até esse limite a cada 2 s. Entre uma pergunta e outra, ela anda numa transição de 2 s.
+63. Peso de cada etapa na barra: coleta 80%, detalhes 12%, cotações 3% e encaixe 5%. A etapa que não roda sai, e as outras crescem na mesma proporção. O passo que trata de novo as vagas quando as regras mudam conta dentro da etapa seguinte, sem peso próprio, e tem texto próprio na linha.
+64. O componente só aparece depois de 1 s, contado do clique; antes disso, só o resultado, como hoje. O atraso vale só na primeira resposta depois do clique, nunca nas perguntas de 2 s, para a barra não piscar.
+65. Os textos da tabela do desenho (seção 5.9), nos catálogos `pt` e `en`, com até dois nomes de site na linha. Três exemplos do dono mudam de forma: "Juntando vagas repetidas" não vira etapa, porque as repetidas se juntam dentro da gravação de cada consulta; "seu perfil" vira "suas buscas", o termo do joBot; "Pronto: 18 vagas novas" vira "Pronto. Vagas novas: {n}.", que não depende de plural.
+66. "Ver detalhes" abre uma camada presa ao componente, com uma linha por fonte: nome, estado com ícone e texto, consultas feitas sobre o total e, quando falhou, o motivo. Esc ou clique fora fecha.
+67. O leitor de tela anuncia só a troca de etapa e o fim, nunca cada consulta nem cada segundo da espera.
+68. O lado de trás guarda o total planejado, a etapa atual com a contagem, o instante da última mudança do andamento e o estado de cada fonte com o fim da espera. O total é a soma das consultas de cada fonte ligada, mais 1 para cada fonte cuja lista de consultas falha; hoje ele não existe, porque cada fonte monta a sua lista só quando começa (`executor.py:269-296`), e o executor muda para montar todas antes. As feitas deixam de contar as linhas "desligada". O cliente HTTP avisa toda espera: a pedida pelo site (429 e 503, com ou sem `Retry-After`) e a nova tentativa depois de erro. O núcleo avisa por funções passadas a ele, sem importar o banco; a gravação é de melhor esforço, por `INSERT ... ON CONFLICT DO UPDATE`, sem apagar nada. O plano decide a migração.
+69. A tela "Tudo pronto" da primeira execução mostra "Buscar agora" e o andamento na barra, exceção ao assistente sem barra.
+70. O lado de trás do progresso pode entrar na `dev` sozinho, antes da casca nova; o componente visual entra na base.
+71. Parar uma busca no meio pelo progresso fica fora deste lote: pede desenho próprio, e o dono não pediu.
+
+**Para confirmar com o dono** (nada aqui trava o plano; tudo vale para construir):
+
+1. As escolhas da sessão que respondem às perguntas P1, P3 e P5 do desenho: o grupo `geral` com o 303 do endereço velho (item 22, era a P1), as rotas de restaurar empresa (item 36, era a P3) e o tema só em Configurações > Geral e na paleta (item 21, era a P5).
+2. Os valores marcados como proposta no desenho (item 31), agora também os do progresso: pesos, curva, teto, tempos, medidas e textos.
+3. As escolhas do progresso, itens 61 a 71. As que mais mudam o que o dono vê: os três exemplos de texto que mudaram de forma (item 65) e deixar o "Parar" de fora (item 71).
+
+**Fora do escopo:** cor de destaque escolhida pela pessoa; barra lateral pequena e grande e reordenar itens; barra de menus; seleção de várias vagas e ações em lote; botões da janela e casca Tauri, que ficam para a fase 3 (D142). O aviso pela API de notificações do navegador e "desconectar um site só" também ficam de fora, com o aceite do dono em 2026-11-16 (item 60). Parar uma busca no meio também fica (item 71).
+
+
+**Desenho:** `docs/superpowers/specs/2026-11-15-visual-mac-design.md`.
+
+**Como desfazer:** o dono manda trocar qualquer item. Até o lote ser construído só existe texto (esta D e o desenho); voltar atrás é editá-los. Depois, o visual novo nasce numa branch; enquanto o dono não dá o ok da tela de Vagas, descartar a branch desfaz tudo.
+
+## D144. Escolhas do plano do visual de app do Mac
+
+**Status:** decidido pela sessão, para confirmar com o dono. Nenhuma escolha trava o plano: todas valem para construir, e cada uma tem um teste que a prende.
+
+**Contexto:** o plano `docs/superpowers/plans/2026-11-16-visual-mac.md` (T244 a T268) implementa o desenho `docs/superpowers/specs/2026-11-15-visual-mac-design.md`. Onde o desenho deixa uma escolha aberta, ou onde a base de hoje obriga a um caminho, o plano decidiu. A numeração abaixo é a da tabela "Escolhas deste plano" do plano; quem muda uma escolha muda os dois lugares.
+
+**Escolhas:**
+
+1. **E1, curva do progresso.** A curva e os pesos ficam em `nucleo/andamento.py`, puros; a partida nova é calculada por quem grava, no instante da mudança. Com a etapa parada, o valor chega ao limite da etapa e para nele: depois de uns 690 s o arredondamento do `float` o iguala ao limite. Por isso o teste pede "nunca passa do limite" em toda a faixa e "fica abaixo do limite", estritamente, só até 600 s, o maior `Retry-After` aceito. Teste: `test_avanco_lento_nunca_passa_do_limite`.
+2. **E2, esquema do progresso.** Duas tabelas novas, `andamento` e `andamento_fonte`; as de hoje não mudam. Teste: `test_migracao_andamento_*`.
+3. **E3, número da migração.** A migração do progresso usa o primeiro número livre na base da T246. Se a `0009_sessao_site.sql` do lote Contas ainda não estiver na `dev`, a do progresso fica com o 0009 e o lote Contas passa ao número seguinte; quem junta depois renomeia o arquivo `.sql` e o `test_migracao_NNNN.py`. O desenho de Contas leva uma nota igual. Teste: `test_migracoes.py`.
+4. **E4, ajudantes do painel num módulo de baixo.** A lateral é um global do Jinja e não pode importar `rotas/vagas.py` (que importa `seguranca`, que importa `globais`: import circular). Por isso `relogio_do_painel`, `busca_efetiva`, `utc_do_banco`, `ids_destaques` (era `_ids_destaques`), `config_ou_padrao` (era `_config`) e as duas constantes dos destaques vão para `painel/consultas.py`, que não importa `rotas`, `seguranca` nem `globais`. Quem os importa hoje passa a importar de lá, sem cópia. Testes: `test_consultas_nao_importa_o_painel_de_cima`, `test_rotas_sem_copia_de_relogio`.
+5. **E5, paleta depois do ok.** A paleta de comandos entra com as outras telas, depois do ok do dono; o desenho a punha antes.
+6. **E6, ajuda.** O ⌘? abre a página inicial da wiki, numa aba nova. Teste: `test_atalho_de_ajuda_abre_a_wiki`.
+7. **E7, o que conta como espera.** Só 429, 503 e as novas tentativas; o intervalo normal entre pedidos não. Teste: `test_espera_avisada_*`.
+8. **E8, espera vencida.** Fonte "esperando" com o fim já passado aparece como "Lendo". Teste: `test_espera_vencida_mostra_lendo`.
+9. **E9, lançador da janela.** O `_rodar` de hoje espera o processo sair e o mataria em 10 s; a janela do modo app abre por um lançador que não espera (`start_new_session`, saídas descartadas), como o `subir_servidor`. O comando `abrir` vai para `cli/abrir.py`, que monta o abridor. Teste: `test_lancador_nao_espera_o_navegador`.
+10. **E10, linha de vaga.** Cada linha é o próprio link, `<a role="option" href="/vagas/{id}">`, sem controle dentro: sem JavaScript, o clique abre a página própria. Teste: `test_linha_e_link_sem_js`.
+11. **E11, contraste de objeto gráfico.** O par `destaque/trilho-progresso` vai num segundo comentário, `contraste-grafico`, conferido a 3:1; os de texto continuam a 4,5:1. Se o par gráfico reprovar, o trilho muda e o destaque não. Testes: `test_contraste_grafico_minimo`, `test_pares_novos_presentes`.
+12. **E12, região viva.** O nó com `role="status"` fica fixo na casca e só o conteúdo dele muda (`innerHTML`), para o leitor de tela anunciar a etapa nova. Testes: `test_regiao_viva_so_com_etapa_nova`, `test_regiao_viva_e_o_mesmo_no`.
+13. **E13, foco do alerta.** O alerta abre com o foco no próprio diálogo, nunca num botão; Return logo depois de abrir não apaga nada. Testes: `test_apagar_tem_alerta`, `test_return_ao_abrir_nao_apaga`.
+14. **E14, atalho escrito.** O servidor não sabe o sistema de quem vê; manda as duas formas (⌘K e Ctrl+K), e o `app.js` mostra a que vale. Teste: `test_paleta_tem_as_duas_formas_do_atalho`.
+15. **E15, progresso do "Esquecer logins".** O componente já vem na página do grupo, como indicador do formulário, e só aparece durante o pedido, depois de 1 s. Teste: `test_esquecer_mostra_o_componente_indeterminado`.
+16. **E16, busca escolhida.** Só um id válido de uma busca ativa grava a escolha; a busca da URL continua valendo na página só por existir, como hoje. Testes: `test_busca_invalida_nao_grava`, `test_busca_desligada_na_url_continua_valendo`.
+17. **E17, botões de ação sempre visíveis.** A fileira de botões do assistente, do sheet de correção e do alerta fica presa no pé e só o conteúdo rola. Veio do Canvas do instalador, onde a barra sumia com tudo marcado. Testes: `test_botoes_visiveis_com_janela_baixa` (primeira execução) e `test_sheet_correcao_botoes_visiveis`.
+18. **Nomes propostos.** Ícones que o mapa do desenho não cobre (grupos de Configurações, estado vazio e Saiu) e os textos novos marcados "proposta" no plano. Teste: `test_icones_do_mapa_existem`.
+
+**Como desfazer:** até o lote ser construído só existe texto; voltar atrás é editar o plano e esta D. Depois, cada escolha tem o seu teste: mudar a escolha é mudar o teste e o código da tarefa responsável por ela.

@@ -156,6 +156,8 @@ Interruptor: desligar o site não mexe na linha. A tela mostra "Desligado", e a 
 
 Migração `src/jobot/banco/migracoes/0009_sessao_site.sql` (D139.16):
 
+> Número a confirmar na junção (D144, item 3). O lote do visual de app do Mac também cria uma migração (`NNNN_andamento.sql`). Quem chega à `dev` primeiro fica com o 0009; quem constrói Contas usa o primeiro número livre na base e renomeia, juntos, o arquivo `.sql` e o `test_migracao_NNNN.py`. O conteúdo da migração não muda.
+
 ```sql
 -- Estado da conta de cada site com login (D139.16): uma linha por site, atualizada no lugar.
 CREATE TABLE sessao_site (
