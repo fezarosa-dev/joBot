@@ -107,9 +107,10 @@ Each source has an on/off switch.
 | Brazilian portals | Gupy, CIEE, Sólides, IEL, Super Estágios, Cia de Talentos, Eureca, Abler |
 | Careers at big companies | Google, Amazon, Microsoft, NVIDIA |
 | Internship boards | Public boards, such as the one at USP |
-| 🔐 Sites with login (first, in this order) | LinkedIn, Gupy (with login), Vagas.com, Catho, Indeed |
-| 🔐 Sites with login (later, one at a time) | InfoJobs, Glassdoor, Remotar, Trampos |
-| 🔐 Technology-only sites with login (last, one at a time) | Programathor, GeekHunter, Revelo, Coodesh |
+| 🔐 Site with login (the only one for now) | LinkedIn |
+| 🔐 Sites with login (ideas for the future, no date yet) | Vagas.com, Catho, Indeed |
+| 🔐 Sites with login (ideas for the future, one at a time) | InfoJobs, Glassdoor, Remotar, Trampos |
+| 🔐 Technology-only sites with login (ideas for the future, last, one at a time) | Programathor, GeekHunter, Revelo, Coodesh |
 
 - 🤝 **Polite collection.** The robot identifies itself, waits between one request and the next and waits longer when the site asks for calm.
 - 🩺 **Health of each source.** On every search, each source is marked as ok, partial or failed, and you see this in the dashboard.

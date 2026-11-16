@@ -107,9 +107,10 @@ Cada fonte tem uma chave liga/desliga.
 | Portais brasileiros | Gupy, CIEE, Sólides, IEL, Super Estágios, Cia de Talentos, Eureca, Abler |
 | Carreiras de grandes empresas | Google, Amazon, Microsoft, NVIDIA |
 | Murais de estágio | Murais públicos, como o da USP |
-| 🔐 Sites com login (primeiro, nesta ordem) | LinkedIn, Gupy (com login), Vagas.com, Catho, Indeed |
-| 🔐 Sites com login (depois, um de cada vez) | InfoJobs, Glassdoor, Remotar, Trampos |
-| 🔐 Sites com login só de tecnologia (por último, um de cada vez) | Programathor, GeekHunter, Revelo, Coodesh |
+| 🔐 Site com login (o único por enquanto) | LinkedIn |
+| 🔐 Sites com login (ideias para o futuro, ainda sem data) | Vagas.com, Catho, Indeed |
+| 🔐 Sites com login (ideias para o futuro, um de cada vez) | InfoJobs, Glassdoor, Remotar, Trampos |
+| 🔐 Sites com login só de tecnologia (ideias para o futuro, por último, um de cada vez) | Programathor, GeekHunter, Revelo, Coodesh |
 
 - 🤝 **Coleta educada.** O robô se identifica, espera entre um pedido e outro e espera mais quando o site pede calma.
 - 🩺 **Saúde de cada fonte.** A cada busca, cada fonte fica marcada como ok, parcial ou falhou, e você vê isso no painel.
