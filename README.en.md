@@ -218,7 +218,7 @@ The dashboard opens in your browser, at `http://127.0.0.1:47615`. The menu has J
 - **12-month calendar** on each job, to see deadlines at a glance.
 - **Jobs hidden** by a rule can come back. The dashboard shows how many were hidden for each reason.
 - **"Something wrong with this job?"**: a button to fix a label or a piece of data.
-- **Look inspired by Apple's style:** translucency, smooth animations, light and dark mode following the system. SF font on Mac and Inter on other systems.
+- **Look inspired by Apple's style:** translucency, smooth animations, light and dark mode following the system. SF font on Mac and Inter on other systems. Icons from [Lucide](https://lucide.dev) (ISC license, in `src/jobot/painel/static/icones/LICENSE`).
 - **Languages:** Portuguese and English.
 
 <a id="artificial-intelligence"></a>
