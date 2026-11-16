@@ -29,7 +29,7 @@ from jobot.agenda import execucao as agenda_execucao
 from jobot.agenda.andamento import Marcas
 from jobot.agenda.login import INTERVALO_MINIMO
 from jobot.banco.andamento import abrir_andamento, marcar_fonte, mudar_etapa, planejar
-from jobot.banco.cadastros import ligar_fonte, semear, semear_leitores
+from jobot.banco.cadastros import gravar_config, ligar_fonte, semear, semear_leitores
 from jobot.banco.conexao import abrir
 from jobot.banco.execucoes import (
     abrir_execucao,
@@ -1041,12 +1041,16 @@ def test_buscar_agora_sem_htmx_com_busca_rodando_avisa_na_pagina_do_redirect(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     painel = Painel(tmp_path)
+    # o "Tudo pronto" só aparece com a primeira execução concluída: o "/" leva às Vagas, que têm a
+    # barra (os passos do assistente não têm, T263)
+    with closing(abrir(painel.banco)) as con:
+        gravar_config(con, "primeira_execucao_concluida", True)
     chamadas: list[dict[str, Any]] = []
     _espiar_busca(monkeypatch, chamadas)
     asyncio.run(painel.trava.acquire())  # livre: não prende o Lock a outro laço de eventos
     aviso = _texto("execucao.ja_roda")
     with TestClient(painel.app, base_url=BASE) as http:
-        # o form do pronto.html (primeira execução) não manda `voltar` nem HX-Request
+        # form sem `voltar` nem HX-Request: o redirect passa pelo "/"
         resposta = http.post("/buscar-agora", data={"csrf_token": painel.token})
         assert resposta.status_code == 200
         assert resposta.history and resposta.history[0].status_code == 303

@@ -64,12 +64,13 @@
   order: -1;
 }
 
-/* situação, Salvar e Ocultar quebram de linha juntos: o botão nunca fica sozinho na de baixo */
+/* Salvar e Ocultar quebram de linha juntos (o botão nunca fica sozinho na de baixo), com o mesmo
+   espaço da fileira (T301) nas duas direções */
 .acoes-estado {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem 1rem;
+  gap: 0.5rem;
 }
 
 .acoes-estado button {

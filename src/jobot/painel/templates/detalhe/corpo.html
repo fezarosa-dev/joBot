@@ -49,14 +49,16 @@
   <p class="salario nao-informado">{{ t("vagas.salario_nao_informado") }}</p>
   {%- endif %}
   <div class="acoes" role="group" aria-label="{{ t('vagas.acoes', titulo=vaga.titulo) }}">
+    <p class="situacao">{{ t("vagas.status_atual", status=rotulo("vagas.status." ~ vaga.status, vaga.status)) }}</p>
     {%- if candidatura %}
     <a class="primario" href="{{ candidatura }}" target="_blank" rel="noopener noreferrer" aria-label="{{ t('detalhe.candidatar_nova_aba') }}">{{ t("detalhe.candidatar") }}</a>
     {%- endif %}
     {%- if site %}
     <a class="secundario" href="{{ site }}" target="_blank" rel="noopener noreferrer" aria-label="{{ t('detalhe.abrir_no_site_nova_aba') }}">{{ t("detalhe.abrir_no_site") }}</a>
     {%- endif %}
+    {#- T264 + T301: Salvar e Ocultar quebram de linha juntos (o botão nunca fica sozinho na de
+        baixo); a situação fica fora do grupo, numa linha própria acima de toda a fileira -#}
     <div class="acoes-estado">
-    <p class="situacao">{{ t("vagas.status_atual", status=rotulo("vagas.status." ~ vaga.status, vaga.status)) }}</p>
     <form method="post" action="{{ acao_vaga }}/status">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <input type="hidden" name="voltar" value="{{ retorno }}">

@@ -262,18 +262,21 @@ def test_pagina_propria_embrulha_o_detalhe_para_a_leitura(painel: Painel) -> Non
 
 
 def test_acoes_de_estado_ficam_num_grupo_so(painel: Painel) -> None:
-    """Situação, Salvar e Ocultar formam um grupo: quebra de linha inteiro, nunca um botão só."""
+    """Salvar e Ocultar formam um grupo: quebra de linha inteiro, nunca um botão só. A situação
+    fica fora dele, antes de toda a fileira (T301 item 8: numa linha própria, acima)."""
     html = painel.detalhe("usd")
     achou = re.search(r'<div class="acoes-estado">(.*?)</div>\s*</div>\s*<section', html, re.S)
     assert achou is not None
     grupo = achou.group(1)
     vaga = painel.ids["usd"]
-    assert 'class="situacao"' in grupo
+    assert 'class="situacao"' not in grupo
     assert f'action="/vagas/{vaga}/status"' in grupo
     assert f'action="/vagas/{vaga}/ocultar"' in grupo
     grupo_acoes = re.search(r'<div class="acoes".*?<div class="acoes-estado">', html, re.S)
     assert grupo_acoes is not None
-    assert 'class="primario"' in grupo_acoes.group(0)  # os links de fora ficam antes do grupo
+    antes = grupo_acoes.group(0)
+    assert 'class="primario"' in antes  # os links de fora ficam antes do grupo
+    assert antes.index('class="situacao"') < antes.index('class="primario"')
 
 
 def _aba_marcada(html: str) -> list[str]:
