@@ -32,6 +32,22 @@ Outro caso, em 2026-11-16: `tests/navegador/test_navegacao_logada.py::test_cloud
 
 | Medida | Antes | Depois |
 |---|---|---|
-| Job `tela` mais lento | | |
-| Rodada inteira | | |
-| Falhas de tela em 3 rodadas | | |
+| Job `tela` mais lento | 86 a 98 s nas 6 rodadas verdes (passo do pytest até 64 s, sempre na parte com `test_teto_de_20_vagas...`) | |
+| Rodada inteira | 93 a 104 s (do primeiro job ao último) | |
+| Falhas de tela em 3 rodadas | 0 nas 6 verdes; no histórico, 1 instável (`test_cloudflare_que_leva_a_url_com_fragmento_segue`, rodada 43822440143) | |
+
+**Medição antes** (2026-11-16, rodadas 43839282579, 43834463738, 43834328032, 43832531326, 43831596113, 43829811010 e a que falhou, 43829257858). Medida com `--durations=5`, não 25: só os 5 mais lentos de cada parte.
+
+- Cada parte roda 17 ou 18 testes; o passo do pytest leva de 29 a 64 s (mediana 38 s), dos quais 5 a 9 s são a coleta dos 5714 testes. O passo `playwright install --with-deps chromium` leva 18 s na mediana e até 66 s: é o resto do job.
+- Os mais lentos (chamada): `test_detalhe_logado.py::test_teto_de_20_vagas_e_o_resto_volta_depois` 16,5 s; `test_janela_parada.py::test_duas_abas_dividem_os_15_minutos` 12 s; `test_detalhe_logado.py::test_site_que_parou_no_meio_nao_abre_vaga` e `::test_lista_com_descricao_nao_abre_vaga` 6,3 a 6,8 s; `test_navegacao_logada.py::test_navegacao_nao_faz_post` 6,3 a 6,7 s; `test_execucao_logada.py::test_teto_de_10_paginas_de_lista_por_site` 5,7 a 6 s; `test_captcha_logado.py::test_login_com_captcha_nao_chama_resolver` 2,9 a 6,3 s. Em `tests/tela`, nenhum passa de 5,3 s.
+- Preparação de 1,3 a 7,6 s só aparece no primeiro teste de cada parte (`test_captcha_logado.py` na pasta `navegador`, `test_apoie.py` na `tela`): é a subida do Playwright e do Chromium.
+- As 3 falhas da 43829257858 (`test_configuracoes.py` duas vezes, `test_casca.py` com o CSP) eram regressões do lote, fixas, corrigidas na rodada seguinte. Nas 40 últimas rodadas que falharam, nenhuma traz `test_form_sem_htmx_chega_numa_pagina_que_ja_mostra_o_andamento`.
+
+**Causas achadas:**
+
+- `src/jobot/navegador/pagina.py:255` (instável): o status só era relido quando a primeira olhada (`_e_cloudflare`) ainda via o desafio. Na máquina lenta, o desafio do site falso sai em 50 ms, antes dessa olhada; a página já era `/lista`, mas o status seguia o 403 do desafio e a visita voltava `bloqueio`. Correção: o status e as checagens de host e login são refeitos também quando o documento trocou sozinho (a última resposta da URL atual não é a do `goto`). Prova sem relógio: `test_navegacao_logada.py::test_cloudflare_que_sai_antes_da_primeira_olhada_vale_a_pagina_nova`, que segura a primeira olhada até a página nova carregar.
+- `tests/navegador/test_detalhe_logado.py:181` (lento): 27 navegações reais, e cada uma custa uns 0,6 s (o `networkidle` de `_assentar` espera 500 ms de rede parada). Correção: `MAX_VAGA` 3 e lista de 5 vagas (`/lista-5`); o 20 já se prende em `tests/unidade/test_navegador_abrir.py`.
+- `tests/navegador/test_janela_parada.py:324` (lento): a janela de 900 s são 180 olhadas, cada uma com 0,05 s reais do `RelogioDoNavegador`. Correção: `JANELA_PARADA_S` 60, como os outros testes do arquivo.
+- `tests/navegador/test_detalhe_logado.py:236` e `:272` (lentos): o controle lia `/quatro?q=a`, 4 páginas de lista e 4 de vaga. Correção: `/quatro?q=a&p=4`, uma lista e uma vaga.
+- `tests/navegador/test_execucao_logada.py:394` (lento): 10 páginas de lista. Correção: `MAX_LISTA` 6 com três escopos; o 10 se prende em `tests/unidade/test_navegador_abrir.py`.
+- Não corrigidas: `test_navegacao_nao_faz_post` visita todas as páginas do site falso de propósito; `test_login_com_captcha_nao_chama_resolver` abre o Chromium duas vezes. As fixtures `montagem`, `lancar` e `contexto_de_teste` sobem o Playwright a cada teste (0,5 a 0,9 s só na saída); dividi-las por sessão pede fixture assíncrona de sessão no anyio (fica para outra `Tn`). Os testes de `test_buscar_agora.py` esperam a pergunta de 2 em 2 s do painel (cerca de 2,5 s cada).

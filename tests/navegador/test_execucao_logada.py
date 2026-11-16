@@ -392,19 +392,24 @@ async def test_429_repetido_para_o_site_sem_gravar_os_seguintes(
 
 
 async def test_teto_de_10_paginas_de_lista_por_site(
-    site: SiteFalso, montagem: Montagem, con: sqlite3.Connection
+    site: SiteFalso,
+    montagem: Montagem,
+    con: sqlite3.Connection,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    escopos = [(e, f"/quatro?q={e}") for e in "abcd"]
+    # teto menor, a mesma regra: cada página custa ~0,6 s reais (o 10 se prende em
+    # tests/unidade/test_navegador_abrir.py)
+    monkeypatch.setattr(limites, "MAX_LISTA", 6)
+    escopos = [(e, f"/quatro?q={e}") for e in "abc"]
     leitor = _leitor(site, *escopos)
     _ligar(con, leitor)
     execucao_id = await _rodar(con, [leitor], montagem.deps())
     assert execucao_id is not None
     # a entrada conta como uma das páginas de lista (E16)
-    assert site.visitas["/logado"] + site.visitas["/quatro"] == limites.MAX_LISTA == 10
+    assert site.visitas["/logado"] + site.visitas["/quatro"] == 6  # o teto
     assert _saude(con, execucao_id) == {
         ("falso_logado", "a"): ("ok", None),
-        ("falso_logado", "b"): ("ok", None),
-        ("falso_logado", "c"): ("parcial", "saude.listagem_incompleta"),
+        ("falso_logado", "b"): ("parcial", "saude.listagem_incompleta"),
     }
 
 

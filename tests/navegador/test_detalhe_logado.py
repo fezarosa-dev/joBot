@@ -179,20 +179,26 @@ async def test_cada_pagina_aberta_grava_enriquecimento(
 
 
 async def test_teto_de_20_vagas_e_o_resto_volta_depois(
-    site: SiteFalso, montagem: Montagem, con: sqlite3.Connection
+    site: SiteFalso,
+    montagem: Montagem,
+    con: sqlite3.Connection,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    leitor = _leitor(site, ("x", "/lista-25"))
+    # teto menor, a mesma regra: cada página aberta custa ~0,6 s reais (o valor 20 se prende
+    # em tests/unidade/test_navegador_abrir.py)
+    monkeypatch.setattr(limites, "MAX_VAGA", 3)
+    leitor = _leitor(site, ("x", "/lista-5"))
     _ligar(con, leitor)
     assert await _rodar(con, [leitor], montagem.deps()) is not None
-    assert len(leitor.abertas) == limites.MAX_VAGA == 20
-    assert len(_conteudos(con)) == 20
+    assert len(leitor.abertas) == 3  # o teto
+    assert len(_conteudos(con)) == 3
     primeiras = set(leitor.abertas)
     relogio = RelogioDoNavegador(INICIO + timedelta(hours=4))
     assert await _rodar(con, [leitor], montagem.deps(), relogio) is not None
-    segundas = leitor.abertas[20:]
-    assert len(segundas) == 5
+    segundas = leitor.abertas[3:]
+    assert len(segundas) == 2
     assert not primeiras & set(segundas)
-    assert len(_conteudos(con)) == 25
+    assert len(_conteudos(con)) == 5
 
 
 async def test_espera_antes_das_paginas_de_vaga(
@@ -227,10 +233,10 @@ async def test_lista_com_descricao_nao_abre_vaga(
     site: SiteFalso, montagem: Montagem, con: sqlite3.Connection
 ) -> None:
     com_descricao = _leitor(site, ("x", "/lista-html"), lista_tem_descricao=True)
-    controle = _leitor(site, ("y", "/quatro?q=a"), chave="outro_logado")  # as vagas 10 a 40
+    controle = _leitor(site, ("y", "/quatro?q=a&p=4"), chave="outro_logado")  # só a vaga 40
     _ligar(con, com_descricao, controle)
     assert await _rodar(con, [com_descricao, controle], montagem.deps()) is not None
-    assert controle.abertas == ["/vaga/10", "/vaga/20", "/vaga/30", "/vaga/40"]
+    assert controle.abertas == ["/vaga/40"]
     assert com_descricao.abertas == []
     assert site.visitas["/vaga/1"] == site.visitas["/vaga/2"] == 0
 
@@ -263,9 +269,9 @@ async def test_site_que_parou_no_meio_nao_abre_vaga(
     site: SiteFalso, montagem: Montagem, con: sqlite3.Connection
 ) -> None:
     parado = _leitor(site, ("a", "/lista-e-login"))  # a segunda página é a de login
-    controle = _leitor(site, ("b", "/quatro?q=a"), chave="outro_logado")
+    controle = _leitor(site, ("b", "/quatro?q=a&p=4"), chave="outro_logado")  # só a vaga 40
     _ligar(con, parado, controle)
     assert await _rodar(con, [parado, controle], montagem.deps()) is not None
     assert parado.abertas == []
     assert site.visitas["/vaga/1"] == site.visitas["/vaga/2"] == 0
-    assert controle.abertas == ["/vaga/10", "/vaga/20", "/vaga/30", "/vaga/40"]
+    assert controle.abertas == ["/vaga/40"]
