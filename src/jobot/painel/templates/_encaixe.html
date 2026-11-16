@@ -1,7 +1,8 @@
 {#- o ícone do encaixe (T301 item 5): o mesmo na linha, no cartão e no detalhe. A caixa tem 1em e
     existe também sem encaixe (vazia), para os títulos da lista começarem no mesmo x. O nível vai
-    em texto ao lado, para leitor de tela; o ícone é só desenho. -#}
+    em texto ao lado, para leitor de tela; o ícone é só desenho. A escala enche do fraco ao bom (D161):
+    vazio, metade, com o visto. -#}
 {%- macro icone_encaixe(encaixe) -%}
-{%- set icone = {"bom": "circle", "medio": "contrast", "fraco": "circle-dashed"}.get(encaixe) -%}
+{%- set icone = {"bom": "circle-check", "medio": "contrast", "fraco": "circle"}.get(encaixe) -%}
 <span class="icone-encaixe{% if icone %} icone{% endif %}"{% if icone %} data-icone="{{ icone }}"{% endif %} aria-hidden="true"></span>
 {%- endmacro -%}

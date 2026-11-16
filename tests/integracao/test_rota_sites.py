@@ -402,7 +402,7 @@ def test_lista_e_agrupada_e_a_linha_leva_o_menu_de_contexto(painel: Painel) -> N
     parada = painel.semear("https://outro.exemplo.test/estagio", "Estágio Beta")
     painel.post(f"/sites/{parada}/desativar")
     html = painel.http.get("/sites").text
-    assert '<ul class="lista-sites" id="lista-sites">' in html
+    assert '<ul class="lista-agrupada" id="lista-sites">' in html
     assert '<li class="cartao' not in html
     linha_ativa = re.search(rf'<li[^>]*id="site-{ativa}"[^>]*>', html)
     linha_parada = re.search(rf'<li[^>]*id="site-{parada}"[^>]*>', html)

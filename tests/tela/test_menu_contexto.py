@@ -1,11 +1,17 @@
-"""Menu de contexto da vaga no navegador (T257; desenho 5.4): botão direito, Shift+F10, Esc e
-Ocultar pelo menu com a faixa de desfazer."""
+"""Menu de contexto da vaga no navegador (T257; desenho 5.4): botão direito, Shift+F10, Esc,
+Ocultar pelo menu com a faixa de desfazer, busca por letra e Copiar link (T305)."""
+
+from contextlib import closing
+from pathlib import Path
 
 import pytest
 from fastapi import FastAPI
 from playwright.sync_api import Locator, Page, expect
 
 from apoio.relogio import RelogioFalso
+from apoio.semear import inserir_vaga
+from jobot.banco.conexao import abrir
+from jobot.painel.i18n import t
 
 pytestmark = pytest.mark.tela
 
@@ -169,3 +175,80 @@ def test_ocultar_pelo_menu_traz_a_faixa(page: Page, painel: str) -> None:
     expect(_linha(page, NOVA)).to_have_count(0)
     # o foco fica numa linha que existe, como no Ocultar do detalhe ao lado
     expect(page.locator('#lista-vagas > [role="option"]:focus')).to_have_count(1)
+
+
+@pytest.mark.parametrize("url", ["javascript:alert(1)", "ftp://x.test/vaga"])
+def test_menu_sem_data_site_desabilita_abrir_no_site(
+    page: Page, painel: str, tmp_path: Path, url: str
+) -> None:
+    """T305 (d): endereço que não é `http`/`https` não vira `data-site` na linha; o menu abre sem
+    "Abrir no site da vaga" e sem "Copiar link" (a HIG esconde o que não vale) e nada navega."""
+    with closing(abrir(tmp_path / "jobot.db")) as con:
+        inserir_vaga(con, titulo="Vaga Sem Site", url=url)
+        con.commit()
+    page.goto(f"{painel}/vagas?aba=todas")
+    endereco = page.url
+    linha = _abrir_pelo_teclado(page, "Vaga Sem Site")
+    assert linha.get_attribute("data-site") is None
+    expect(page.get_by_role("menuitem")).to_have_text(["Abrir", "Salvar", "Ocultar"])
+    menu = page.locator(MENU)
+    expect(menu.locator('a[data-requer="site"]')).to_be_hidden()
+    expect(menu.locator('[href^="javascript"], [href^="ftp"]')).to_have_count(0)
+    # as setas e as letras só andam pelos itens que valem: o link escondido nunca é escolhido
+    page.keyboard.press("End")
+    expect(_item(page, "Ocultar")).to_be_focused()
+    page.keyboard.press("ArrowDown")
+    expect(_item(page, "Abrir")).to_be_focused()
+    page.keyboard.press("Escape")
+    expect(menu).to_be_hidden()
+    assert page.url == endereco
+
+
+def test_letra_pula_para_o_item(page: Page, painel: str) -> None:
+    """T305 (e): como no menu do Mac, a letra leva ao item que começa por ela; letras digitadas
+    em até 500 ms se juntam (relógio do navegador, parado aqui e movido só pelo fast_forward)."""
+    page.goto(f"{painel}/vagas?aba=todas")
+    page.clock.install(time=0)
+    page.clock.pause_at(1000)
+    _abrir_pelo_teclado(page, NOVA)
+    expect(_item(page, "Abrir")).to_be_focused()
+    page.keyboard.press("s")
+    expect(_item(page, "Salvar")).to_be_focused()
+    page.clock.fast_forward(600)
+    page.keyboard.press("c")
+    expect(_item(page, "Copiar link")).to_be_focused()
+    # "co" junto segue no Copiar link; sozinho, o "o" iria ao Ocultar
+    page.keyboard.press("o")
+    expect(_item(page, "Copiar link")).to_be_focused()
+    page.clock.fast_forward(600)
+    page.keyboard.press("o")
+    expect(_item(page, "Ocultar")).to_be_focused()
+    # a mesma letra de novo percorre os itens que começam por ela, dando a volta
+    page.clock.fast_forward(600)
+    page.keyboard.press("a")
+    expect(_item(page, "Abrir")).to_be_focused()
+    page.clock.fast_forward(600)
+    page.keyboard.press("A")
+    expect(_item(page, "Abrir no site da vaga")).to_be_focused()
+    # letra sem item que case deixa o realce onde está
+    page.clock.fast_forward(600)
+    page.keyboard.press("z")
+    expect(_item(page, "Abrir no site da vaga")).to_be_focused()
+    expect(page.locator(MENU)).to_be_visible()
+
+
+def test_copiar_link_negado_mostra_nao_copiou(page: Page, painel: str) -> None:
+    """T305 (f): a cópia recusada (ou sem `clipboard`) cai no `catch` do `copiarLink` e a região
+    viva do menu diz que não copiou, sem erro no console."""
+    erros: list[str] = []
+    page.on("console", lambda m: erros.append(m.text) if m.type == "error" else None)
+    page.on("pageerror", lambda e: erros.append(str(e)))
+    page.add_init_script(
+        "navigator.clipboard.writeText = () => Promise.reject(new Error('negado'))"
+    )
+    page.goto(f"{painel}/vagas?aba=todas")
+    _abrir_pelo_teclado(page, NOVA)
+    _item(page, "Copiar link").click()
+    expect(page.locator(MENU)).to_be_hidden()
+    expect(page.locator(f"{MENU}-aviso")).to_have_text(t("pt", "vagas.menu.nao_copiou"))
+    assert erros == []

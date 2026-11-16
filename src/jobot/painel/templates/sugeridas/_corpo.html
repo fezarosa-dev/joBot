@@ -1,5 +1,5 @@
 {%- if linhas %}
-<ul class="lista-buscas" id="lista-sugeridas">
+<ul class="lista-agrupada" id="lista-sugeridas">
   {%- for r in linhas %}
   {%- set s = r.s %}
   <li class="linha-busca{% if s.id == volta %} linha-volta{% endif %}" id="sugerida-{{ s.id }}" tabindex="-1" data-menu="menu-sugerida" data-id="{{ s.id }}"{% if r.link %} data-site="{{ s.url_exemplo }}"{% endif %}>

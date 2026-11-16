@@ -1,8 +1,8 @@
 """Tela de vagas: abas, filtros, ordem, destaques e ações da vaga (desenho 13.3 a 13.5; plano T45).
 
 Todo parâmetro de URL é lido à mão: link velho ou torto cai no padrão, nunca em 422 (RF2).
-Ação que muda dados é um `<form>` de verdade: sem JavaScript volta por 303 (`voltar`), com HTMX
-troca só o corpo do cartão.
+Ação que muda dados é um `<form>` de verdade: sem JavaScript volta por 303 (`voltar`); o Ocultar
+e o Desfazer, com HTMX, trazem a faixa de desfazer e a lateral por OOB.
 """
 
 import json
@@ -20,7 +20,7 @@ from starlette.datastructures import QueryParams
 
 from jobot.banco import acoes, leitura
 from jobot.banco.cadastros import gravar_config, ler_config
-from jobot.banco.leitura import Filtros, Fonte, Item
+from jobot.banco.leitura import Filtros, Item
 from jobot.banco.paginas import paginas, ultimas_diferencas
 from jobot.nucleo.tratamento.locais import codigos_de_pais, nome_do_pais, nome_em_ingles
 from jobot.painel.consultas import (
@@ -200,14 +200,6 @@ def ler_estado(params: QueryParams, con: sqlite3.Connection, ex: Exibicao) -> Es
     )
 
 
-def _unicas(fontes: Sequence[Fonte]) -> list[Fonte]:
-    """Uma fonte por nome: a mesma fonte em dois escopos aparece uma vez."""
-    vistas: dict[str, Fonte] = {}
-    for f in fontes:
-        vistas.setdefault(f.fonte, f)
-    return list(vistas.values())
-
-
 def _id_html(valor: str) -> str:
     """Id de HTML que não se repete: todo caractere fora de `[A-Za-z0-9-]` (o `_` também) vira
     `_<hex>_`; como o hex não tem `_`, dois valores diferentes nunca dão o mesmo id."""
@@ -283,8 +275,10 @@ def _paginas_programas(con: sqlite3.Connection) -> list[dict[str, Any]]:
 
 
 def _contexto_pagina(
-    con: sqlite3.Connection, estado: Estado, agora: datetime, ex: Exibicao
+    con: sqlite3.Connection, estado: Estado, agora: datetime, ex: Exibicao, paginas: int = 1
 ) -> dict[str, Any]:
+    """`paginas`: quantas páginas da lista vêm juntas (o Desfazer recarrega até a que o
+    "Carregar mais" já trouxe, T305)."""
     ids_de_destaque = ids_destaques(con, estado.busca_id, agora) if estado.destaques_ligados else []
     itens: Sequence[Item]
     mais_url = None
@@ -292,14 +286,21 @@ def _contexto_pagina(
     if estado.e_destaques:
         achados = [leitura.detalhe(con, i, estado.busca_id, agora) for i in ids_de_destaque]
         itens = [d for d in achados if d is not None]
+        paginas = 1
     else:
-        pagina = leitura.listar(con, estado.filtros(), agora)
-        itens = pagina.itens
+        juntos: list[Item] = []
+        tem_mais, n = True, 0
+        while tem_mais and n < paginas:
+            n += 1
+            pagina = leitura.listar(con, estado.filtros(n), agora)
+            juntos += pagina.itens
+            tem_mais = pagina.tem_mais
+        itens, paginas = juntos, n
         fora_sem_salario, fora_sem_valor = leitura.contar_fora_do_salario(
             con, estado.filtros(), agora
         )
-        if pagina.tem_mais:
-            mais_url = estado.url(extras=[("pagina", "2")])
+        if tem_mais:
+            mais_url = estado.url(extras=[("pagina", str(paginas + 1))])
     return {
         "paginas_programas": _paginas_programas(con) if estado.aba == "programas" else [],
         "seletor": _seletor(con, estado),
@@ -308,7 +309,7 @@ def _contexto_pagina(
         "chips_url": None if estado.e_destaques else estado.url(caminho="/vagas/chips"),
         "itens": itens,
         "mais_url": mais_url,
-        "proxima": 2,
+        "proxima": paginas + 1,
         "ordens": list(leitura.ORDENS),
         "ordem": estado.ordem,
         "q": estado.q,
@@ -384,7 +385,10 @@ async def vagas(request: Request, con: Con) -> HTMLResponse:
     restaurando = cabecalho.get("hx-history-restore-request") == "true"
     parcial = cabecalho.get("hx-request") == "true" and not restaurando
     pagina = inteiro_da_url(request.query_params.get("pagina"), _MAX_PAGINA) or 1
-    if parcial and pagina > 1 and not estado.e_destaques:
+    # o Desfazer recarrega o miolo inteiro até a página já carregada (T305); o "carregar mais"
+    # mira o #lista-vagas
+    miolo_ate = parcial and cabecalho.get("hx-target") == "vagas-miolo"
+    if parcial and pagina > 1 and not estado.e_destaques and not miolo_ate:
         # "carregar mais": só as linhas novas e o botão da página seguinte
         lista = leitura.listar(con, estado.filtros(pagina), agora)
         seguinte = estado.url(extras=[("pagina", str(pagina + 1))])
@@ -412,7 +416,7 @@ async def vagas(request: Request, con: Con) -> HTMLResponse:
     if parcial and cabecalho.get("hx-target") == "detalhe-vaga":
         # o clique na linha troca só o detalhe: sem refazer a lista, os Destaques e a lateral
         return com_vary(renderizar(request, "vagas/detalhe_lado.html", detalhe=detalhe))
-    contexto = _contexto_pagina(con, estado, agora, ex)
+    contexto = _contexto_pagina(con, estado, agora, ex, pagina if miolo_ate else 1)
     contexto["detalhe"] = detalhe
     if parcial:
         contexto["lateral_oob"] = _lateral_oob(con, agora, estado.busca_id, "/vagas", estado.aba)
@@ -428,30 +432,6 @@ def _aplicar(request: Request, acao: Callable[[datetime], None]) -> None:
         raise HTTPException(404, "vaga não existe") from erro
     except ValueError as erro:
         raise HTTPException(422) from erro  # o texto da tela sai do status (T150)
-
-
-def _resposta(
-    request: Request, con: sqlite3.Connection, vaga_id: int, voltar: str, busca: str
-) -> Response:
-    """HTMX recebe o corpo novo do cartão; sem HTMX, a pessoa volta para a página de onde veio."""
-    if request.headers.get("hx-request") != "true":
-        return de_volta(voltar)
-    busca_id = busca_efetiva(con, inteiro_da_url(busca, MAX_ID))
-    agora = relogio_do_painel(request).agora()
-    vaga = leitura.detalhe(con, vaga_id, busca_id, agora)
-    if vaga is None:
-        raise HTTPException(404, "vaga não existe")
-    return renderizar(
-        request,
-        "vagas/corpo_oob.html",
-        exibicao=exibicao_do_painel(con, agora.astimezone().date()),
-        item=vaga,
-        fontes={vaga.id: _unicas(vaga.fontes)},
-        retorno=voltar,
-        busca_id=busca_id,
-        foco=True,
-        lateral_oob=_lateral_de_volta(con, agora, busca_id, voltar),
-    )
 
 
 def _lateral_de_volta(
@@ -509,10 +489,11 @@ async def mudar_status(
     vaga_id: VagaId,
     status: Annotated[str, Form()],
     voltar: Annotated[str, Form()] = "/",
-    busca: Annotated[str, Form()] = "",
 ) -> Response:
+    """Salvar e os passos seguintes. Quem pede é o menu de contexto e o detalhe, por POST sem
+    HTMX: a resposta volta para a página de onde a pessoa veio (o corpo do cartão saiu, T305)."""
     _aplicar(request, lambda agora: acoes.mudar_status(con, vaga_id, status, agora))
-    return _resposta(request, con, vaga_id, voltar, busca)
+    return de_volta(voltar)
 
 
 @router.post("/vagas/{vaga_id}/ocultar")

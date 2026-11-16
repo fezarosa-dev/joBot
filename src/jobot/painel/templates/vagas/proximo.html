@@ -1,5 +1,6 @@
-{#- a caixa do "carregar mais": fica abaixo do listbox; as linhas novas entram no fim dele -#}
-<div class="mais" id="mais-caixa"{% if oob %} hx-swap-oob="true"{% endif %}>
+{#- a caixa do "carregar mais": fica abaixo do listbox; as linhas novas entram no fim dele.
+    `data-paginas` diz quantas páginas estão na tela: o Desfazer do app.js recarrega até ela -#}
+<div class="mais" id="mais-caixa" data-paginas="{{ proxima - 1 }}"{% if oob %} hx-swap-oob="true"{% endif %}>
   {%- if mais_url %}
   <button type="button" id="mais-{{ proxima }}" class="secundario" hx-get="{{ mais_url }}" hx-target="#lista-vagas" hx-swap="beforeend" hx-push-url="false">{{ t("vagas.mais") }}</button>
   {%- endif %}

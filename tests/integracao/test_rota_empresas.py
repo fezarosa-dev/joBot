@@ -580,7 +580,7 @@ def test_lista_agrupada_com_o_alvo_do_menu_e_remover_por_htmx(painel: Painel) ->
     id_ = _id_da(painel, "vitta")
     html = painel.get("/empresas").text
 
-    assert 'class="lista-buscas" id="lista-empresas"' in html and 'id="corpo-empresas"' in html
+    assert 'class="lista-agrupada" id="lista-empresas"' in html and 'id="corpo-empresas"' in html
     linha = re.search(rf'<li\b[^>]*id="empresa-{id_}"[^>]*>', html)
     assert linha and 'class="linha-busca"' in linha.group(0)
     assert 'data-menu="menu-empresa"' in linha.group(0) and f'data-id="{id_}"' in linha.group(0)

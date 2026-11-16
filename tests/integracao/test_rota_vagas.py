@@ -305,6 +305,27 @@ def test_carregar_mais(painel: Painel) -> None:
     assert 'id="mais-3"' not in segunda.text
 
 
+def test_lista_recarregada_traz_as_paginas_ja_carregadas(painel: Painel) -> None:
+    """T305 (a): o Desfazer recarrega o `#vagas-miolo` até a página que o "Carregar mais" já
+    trouxe (`pagina=N` com `HX-Target: vagas-miolo`); a caixa do botão diz quantas páginas estão
+    na tela (`data-paginas`), para o app.js saber o N."""
+    for n in range(60):
+        painel.semear_mais(titulo=f"Extra {n}", empresa=f"Extra SA {n}")
+    primeira = painel.get("/vagas?aba=todas").text
+    assert 'data-paginas="1"' in _tag(primeira, "mais-caixa")
+    segunda = painel.get(_hx_get(primeira, "mais-2"), headers=HX).text
+    assert 'data-paginas="2"' in _tag(segunda, "mais-caixa")
+    miolo = painel.get("/vagas?aba=todas&pagina=2", headers=HX | {"HX-Target": "vagas-miolo"})
+    assert len(_cartoes(miolo.text)) == 67
+    assert 'id="lista-vagas"' in miolo.text
+    assert 'data-paginas="2"' in _tag(miolo.text, "mais-caixa")
+    assert 'id="mais-3"' not in miolo.text
+    # com mais páginas que as pedidas, o botão segue para a seguinte
+    um = painel.get("/vagas?aba=todas&pagina=1", headers=HX | {"HX-Target": "vagas-miolo"})
+    assert len(_cartoes(um.text)) == 50
+    assert "pagina=2" in _hx_get(um.text, "mais-2")
+
+
 def test_salvar_pelo_teclado_fica_no_detalhe(painel: Painel) -> None:
     """T254: a linha da lista é só o link; salvar e ocultar moram na página da vaga (E10)."""
     vaga = painel.ids["nova"]
@@ -383,12 +404,6 @@ CONVERTIDO_EUR_LINHA = (
     r'US\$ 1 = € 0,904 \(PTAX de 12/11\)">≈ € 4\.520/mês</span>'
 )
 
-# o cartão devolvido pelas ações (corpo.html) segue com o valor em linha própria
-CONVERTIDO_EUR = (
-    r"<strong>US\$ 5\.000/mês</strong>\s*"
-    r'<small class="convertido">≈ € 4\.520/mês · US\$ 1 = € 0,904 \(PTAX de 12/11\)</small>'
-)
-
 
 def _em_euro(painel: Painel) -> None:
     """Moeda de exibição EUR, com a cotação de 12/11 (a do USD é de 13/11)."""
@@ -427,15 +442,20 @@ def test_valor_convertido_vale_no_carregar_mais(painel: Painel) -> None:
     assert "≈ R$" not in segunda
 
 
-def test_valor_convertido_vale_no_cartao_devolvido_pela_acao(painel: Painel) -> None:
-    _em_euro(painel)
-    resposta = painel.http.post(
-        f"/vagas/{painel.ids['usd']}/status",
-        data={CAMPO_CSRF: painel.token, "status": "salva", "voltar": "/vagas"},
-        headers=HX,
-    )
-    assert resposta.status_code == 200
-    assert re.search(CONVERTIDO_EUR, resposta.text)
+def test_corpo_antigo_nao_existe() -> None:
+    """T305 (c): nenhum `hx-target` do painel usa mais o corpo do cartão (o menu e o detalhe
+    mandam o `POST .../status` sem HTMX): os dois templates saíram e nada os cita."""
+    src = Path(__file__).resolve().parents[2] / "src"
+    modelos = src / "jobot" / "painel" / "templates" / "vagas"
+    assert not (modelos / "corpo.html").exists()
+    assert not (modelos / "corpo_oob.html").exists()
+    citam = [
+        str(arquivo)
+        for arquivo in src.rglob("*")
+        if arquivo.suffix in {".py", ".html", ".js"}
+        and "vagas/corpo" in arquivo.read_text(encoding="utf-8")
+    ]
+    assert citam == []
 
 
 def test_vaga_sem_salario_diz_nao_informado(painel: Painel) -> None:
@@ -634,17 +654,15 @@ def test_status_invalido_ou_ausente_422_e_nada_grava(painel: Painel) -> None:
     assert painel.sql("SELECT COUNT(*) FROM evento") == [(0,)]
 
 
-def test_salvar_e_mudar_status_no_cartao(painel: Painel) -> None:
+def test_salvar_e_mudar_status(painel: Painel) -> None:
     vaga = painel.ids["nova"]
     resposta = painel.http.post(
         f"/vagas/{vaga}/status",
         data={CAMPO_CSRF: painel.token, "status": "salva", "voltar": "/vagas?aba=novas"},
         headers=HX,
     )
-    assert resposta.status_code == 200
-    assert "<html" not in resposta.text
-    assert "Salva" in resposta.text
-    assert 'name="status" value="candidatei"' in resposta.text
+    # T305 (c): com ou sem HTMX, a ação volta para a página de onde veio
+    assert (resposta.status_code, resposta.headers.get("location")) == (303, "/vagas?aba=novas")
     assert painel.sql("SELECT status FROM vaga WHERE id = ?", vaga) == [("salva",)]
     painel.post(f"/vagas/{vaga}/status", status="candidatei")
     desfazer = painel.post(f"/vagas/{vaga}/status", status="salva")
@@ -1340,15 +1358,15 @@ def test_acao_na_pagina_da_vaga_marca_a_lateral_como_area(painel: Painel) -> Non
     """Guarda: de uma página filha (detalhe), o item fica `aria-current="true"`, como na casca."""
     vaga = painel.ids["nova"]
     resposta = painel.http.post(
-        f"/vagas/{vaga}/status",
-        data={CAMPO_CSRF: painel.token, "status": "salva", "voltar": f"/vagas/{vaga}"},
+        f"/vagas/{vaga}/ocultar",
+        data={CAMPO_CSRF: painel.token, "voltar": f"/vagas/{vaga}"},
         headers=HX,
     )
     oob = re.search(r'<ul\b[^>]*hx-swap-oob="true"[^>]*>.*?</ul>', resposta.text, re.S)
     assert oob is not None
     marcados = re.findall(r'<a\b[^>]*aria-current="([a-z]+)"[^>]*>', oob.group(0))
     assert marcados == ["true"]
-    assert _contagem_da_aba(oob.group(0), "salvas") == 2
+    assert _contagem_da_aba(oob.group(0), "ocultas") == 3
 
 
 # --- T254: a lista em linhas (listbox), a barra da lista e o estado vazio ---
@@ -1478,6 +1496,28 @@ def test_programas_fora_do_listbox(painel: Painel) -> None:
     assert html.index(abertura) < secao
     assert "Trainee Alfa" in html[secao:]
     assert 'href="/sites#site-' in html[secao:]
+
+
+def test_programas_com_estilo_de_linha(painel: Painel) -> None:
+    """Desenho 5.2: as páginas acompanhadas usam a linha das vagas, sem cartão e fora do listbox,
+    cada uma um link para Sites."""
+    from jobot.banco.paginas import adicionar_pagina
+
+    with closing(abrir(painel.banco)) as con:
+        id_ = adicionar_pagina(con, "https://alfa.exemplo.test/trainee", "Trainee Alfa")
+        con.commit()
+    html = painel.get("/vagas?aba=programas").text
+    assert not re.search(
+        r'<section\b[^>]*class="painel"[^>]*aria-labelledby="programas-paginas"', html
+    )
+    lista = re.search(r'<ul\b([^>]*)\bid="lista-programas-paginas"[^>]*>(.*?)</ul>', html, re.S)
+    assert lista
+    assert "lista-linhas" in lista.group(1).split('"')[1].split()
+    assert "cartao" not in lista.group(2) and 'role="option"' not in lista.group(2)
+    linha = re.search(rf'<a class="linha" href="/sites#site-{id_}">(.*?)</a>', lista.group(2), re.S)
+    assert linha
+    assert re.search(r'<span class="linha-1">.*Trainee Alfa', linha.group(1), re.S)
+    assert '<span class="linha-2"' in linha.group(1)
 
 
 @pytest.mark.parametrize(
@@ -1765,7 +1805,7 @@ def test_encaixe_da_linha_e_icone(painel: Painel) -> None:
     """T301 item 5: ícone Lucide numa caixa fixa, presente também sem encaixe; sem os glifos."""
     sem = painel.semear_mais(titulo="Vaga sem encaixe")
     html = painel.get("/vagas?aba=todas").text
-    esperado = {"usd": "circle", "brl": "contrast", "trainee": "circle-dashed"}
+    esperado = {"usd": "circle-check", "brl": "contrast", "trainee": "circle"}
     for nome, icone in esperado.items():
         abertura, miolo = _linha(html, painel.ids[nome])
         caixas = ENCAIXE.findall(miolo)
@@ -1781,3 +1821,16 @@ def test_encaixe_da_linha_e_icone(painel: Painel) -> None:
     assert "data-icone" not in caixas[0][1]
     for glifo in "●◐○":
         assert glifo not in _listbox(html)[1]
+
+
+def test_escala_do_encaixe_cresce() -> None:
+    """D161: do fraco ao bom o círculo enche (vazio, metade, com o visto), sem SVG novo."""
+    from jobot.painel.seguranca import TEMPLATES
+
+    macro = TEMPLATES.env.get_template("_encaixe.html").module.icone_encaixe  # type: ignore[attr-defined]
+    icones = []
+    for nivel in ("fraco", "medio", "bom"):
+        achado = re.search(r'data-icone="([^"]+)"', str(macro(nivel)))
+        assert achado, nivel
+        icones.append(achado.group(1))
+    assert icones == ["circle", "contrast", "circle-check"]
