@@ -47,5 +47,11 @@
   "casca.aviso_contas.um": "Your {site} session ended. Sign in again so joBot can read jobs again.",
   "casca.aviso_contas.varios": "Your session ended on {quantos} accounts. Sign in again in Settings › Accounts.",
   "casca.aviso_contas.gmail": "Your Gmail session ended. Sign in again in Settings › Accounts.",
-  "casca.aviso_contas.entrar": "Sign in again"
+  "casca.aviso_contas.entrar": "Sign in again",
+  "casca.aviso_candidatura.pergunta": "Did you apply to {titulo} ({empresa})?",
+  "casca.aviso_candidatura.quando": "You opened the application {quando}.",
+  "casca.aviso_candidatura.sim": "Yes, I Applied",
+  "casca.aviso_candidatura.ainda_nao": "Not Yet",
+  "casca.aviso_candidatura.mais": "and {n} more to answer",
+  "casca.aviso_candidatura.marcada": "{titulo} marked as Applied."
 }

@@ -93,6 +93,10 @@
   <div id="aviso-versao" role="status" hx-get="/aviso-versao" hx-trigger="load" hx-swap="innerHTML"></div>
   {#- faixa de queda de sessão (T276); a de Desfazer vem da tarefa dela -#}
   <div id="aviso-contas" role="status" hx-get="/aviso-contas" hx-trigger="load, contas-mudou from:body" hx-swap="innerHTML"></div>
+  {#- "Você se candidatou?" (T285; desenho 5.6): pergunta de novo ao voltar à janela; a chave
+      `mostrando` faz a rota responder 204 quando nada mudou. Não escuta candidatura-mudou: o
+      HX-Trigger sai antes da troca e levaria a chave velha -#}
+  <div id="aviso-candidatura" role="status" hx-get="/aviso-candidatura" hx-trigger="load, focus from:window" hx-include="find input[name=mostrando]" hx-swap="innerHTML"></div>
   <div id="faixa-desfazer" role="status"></div>
   {#- a coluna do conteúdo rola sozinha: o body nunca rola por baixo do vidro -#}
   <div class="coluna">

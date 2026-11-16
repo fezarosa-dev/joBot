@@ -3044,3 +3044,21 @@ Do item 2 (T305 h), aceito e documentado. Sem JavaScript, o detalhe sobreposto f
 **Como desfazer:** voltar o `if leitores else []` na rota e trocar `test_sem_leitor_so_o_gmail_da_faixa` por "fragmento vazio". Nenhum dado muda.
 
 **Ver também:** T276, E11, E13, E14.
+
+## D170. A lista depois da faixa "Você se candidatou?" (para confirmar)
+
+**Status:** para confirmar. Decidido pela sessão, com o dono fora.
+
+**Contexto:** a E20 do plano do panorama mandava o cartão da lista (`<article id="vaga-{id}">` de `vagas/cartao.html`) pedir `GET /vagas/{id}/cartao` quando a faixa responde, com o `_resposta` ganhando `foco`. A T305 tirou esse cartão: a linha da lista agora é `<a role="option" id="vaga-{id}">` em `vagas/linha.html`, já usa o `hx-get` para abrir o detalhe e não mostra o status (fora da aba Candidatei, onde a T287 pôs o "desde"). O `_resposta` também não existe mais. Sem mudança, depois do "Sim" a linha fica na aba Salvas até a lista ser recarregada, e o "Salvar" do menu dela continua com o estado antigo.
+
+**Escolhas:**
+
+- **A (recomendada, a de agora):** não mexer na lista. O detalhe ao lado (`#estado-da-vaga`, T286) se atualiza pelo `vaga-mudou-{id}`; a lista fica certa no próximo carregamento. Sem rota, sem JS novo.
+- B: um ouvinte de `candidatura-mudou` no `app.js` chama o `recarregarLista` que já existe. Pouco código, mas a lista recarrega enquanto a pessoa está na faixa: pede teste de tela de foco e de rolagem.
+- C: rota nova que devolve a linha por `hx-swap-oob`. Mais código e contexto da lista dentro da rota da faixa.
+
+**O que o dono faz:** confirmar a A ou pedir a B. Nada a fazer na máquina.
+
+**Como desfazer:** para a B, um `addEventListener("candidatura-mudou", ...)` no `app.js` com `recarregarLista` e um teste de tela. Nenhum dado muda.
+
+**Ver também:** E20 do plano `2026-11-16-panorama-e-fila.md`, T285, T286, T287, T305.

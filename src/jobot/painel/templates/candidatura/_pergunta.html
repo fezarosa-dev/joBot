@@ -1,0 +1,26 @@
+{#- A pergunta "Você se candidatou?" (T285; desenho 5.6, E8), que a faixa e o "Para responder" do
+    Panorama compartilham. `prefixo` (`faixa` ou `responder`) separa os ids quando as duas estão na
+    mesma página. Os botões miram sempre a faixa (`#aviso-candidatura`): a confirmação com Desfazer
+    aparece no mesmo lugar. Sem JS, os forms fazem POST normal e voltam pelo `voltar` do contexto.
+    Importe `with context` (usa `t`, `idioma`, `csrf_token` e `voltar`). -#}
+{%- macro pergunta(p, prefixo, total) -%}
+{%- set rotulo = prefixo ~ "-pergunta-" ~ p.vaga_id -%}
+{%- set destino = "/vagas/" ~ p.vaga_id ~ "/candidatura/resposta" -%}
+<div class="pergunta" role="group" aria-labelledby="{{ rotulo }}">
+  <div class="pergunta-texto">
+    <p id="{{ rotulo }}">{{ t("casca.aviso_candidatura.pergunta", titulo=p.titulo, empresa=p.empresa) }}</p>
+    <p class="pergunta-quando">{{ t("casca.aviso_candidatura.quando", quando=data_completa(p.abriu_em, idioma)) }}</p>
+    {%- if total > 1 %}
+    <a href="/panorama#para-responder">{{ t("casca.aviso_candidatura.mais", n=total - 1) }}</a>
+    {%- endif %}
+  </div>
+  {%- for resposta in ("sim", "ainda_nao") %}
+  <form method="post" action="{{ destino }}" hx-post="{{ destino }}" hx-target="#aviso-candidatura">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="voltar" value="{{ voltar }}">
+    <input type="hidden" name="resposta" value="{{ resposta }}">
+    <button type="submit">{{ t("casca.aviso_candidatura." ~ resposta) }}</button>
+  </form>
+  {%- endfor %}
+</div>
+{%- endmacro %}
