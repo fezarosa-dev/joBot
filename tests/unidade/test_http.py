@@ -1,7 +1,7 @@
 import socket
 from collections.abc import Callable
 from contextlib import aclosing
-from datetime import timedelta
+from datetime import datetime, timedelta
 from email.utils import format_datetime
 
 import httpx
@@ -16,6 +16,7 @@ from jobot.nucleo.http import (
     HttpDoEscopo,
     HttpEducado,
     LimiteAtingido,
+    MotivoEspera,
     OrcamentoGasto,
     Parou429,
     Resolvedor,
@@ -853,3 +854,60 @@ async def test_seguir_saltos_e_o_padrao() -> None:
     resposta = await cli.escopo().pedir("POST", "https://a.example/x", corpo_json={"k": 1})
     assert resposta.texto == "ok"
     assert [str(p.url) for p in srv.pedidos] == ["https://a.example/x", "https://b.example/fim"]
+
+
+# --- aviso de espera (E7) --------------------------------------------------------------------
+
+
+class Avisos:
+    """`ao_esperar` falso: guarda (segundos até o fim, motivo, dormidas já feitas) por aviso."""
+
+    def __init__(self, rel: RelogioFalso) -> None:
+        self.rel = rel
+        self.lista: list[tuple[float, MotivoEspera, tuple[float, ...]]] = []
+
+    async def __call__(self, fim: datetime, motivo: MotivoEspera) -> None:
+        segundos = (fim - self.rel.agora()).total_seconds()
+        self.lista.append((segundos, motivo, tuple(self.rel.dormidas)))
+
+
+async def test_espera_avisada_no_429_com_retry_after() -> None:
+    rel = RelogioFalso()
+    avisos = Avisos(rel)
+    srv = Servidor(httpx.Response(429, headers={"Retry-After": "7"}), httpx.Response(200))
+    cli, _ = _cliente(srv, rel)
+    await cli.escopo(ao_esperar=avisos).pedir("GET", "https://a.example/")
+    assert avisos.lista == [(7.0, "limite", ())]  # avisado antes do dormir(7)
+    assert rel.dormidas == [7]
+
+
+async def test_espera_avisada_no_503_sem_retry_after() -> None:
+    rel = RelogioFalso()
+    avisos = Avisos(rel)
+    srv = Servidor(httpx.Response(503), httpx.Response(503), httpx.Response(200))
+    cli, _ = _cliente(srv, rel)
+    await cli.escopo(ao_esperar=avisos).pedir("GET", "https://a.example/")
+    assert avisos.lista == [(30.0, "limite", ()), (60.0, "limite", (30,))]
+
+
+async def test_espera_avisada_na_nova_tentativa() -> None:
+    def cai(pedido: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("caiu", request=pedido)
+
+    rel = RelogioFalso()
+    avisos = Avisos(rel)
+    srv = Servidor(cai, httpx.Response(502), httpx.Response(200))
+    cli, _ = _cliente(srv, rel)
+    await cli.escopo(ao_esperar=avisos).pedir("GET", "https://a.example/")
+    assert avisos.lista == [(2.0, "erro", ()), (4.0, "erro", (2,))]
+
+
+async def test_sem_espera_sem_aviso() -> None:
+    rel = RelogioFalso()
+    avisos = Avisos(rel)
+    cli, _ = _cliente(Servidor(), rel)
+    http = cli.escopo(ao_esperar=avisos)
+    await http.pedir("GET", "https://a.example/1")
+    await http.pedir("GET", "https://a.example/2")  # o intervalo normal entre pedidos
+    assert sum(rel.dormidas) >= 1.0
+    assert avisos.lista == []

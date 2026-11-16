@@ -22,6 +22,7 @@ texto da exceção (o Retry-After está nele); o motivo da saúde só guarda a c
 """
 
 import asyncio
+import functools
 import logging
 from collections.abc import AsyncGenerator, Awaitable, Callable, Mapping, Sequence, Set
 from dataclasses import dataclass, replace
@@ -37,11 +38,13 @@ from jobot.nucleo.coletores.base import (
     UrlListada,
 )
 from jobot.nucleo.http import (
+    AoEsperar,
     Bloqueio,
     ClienteEducado,
     ErroDeRede,
     HttpDoEscopo,
     LimiteAtingido,
+    MotivoEspera,
     OrcamentoGasto,
     Parou429,
     Resposta,
@@ -93,6 +96,14 @@ async def _nada(fonte: str) -> None:
     """Padrão dos avisos de começo e fim de fonte: quem chama sem eles não muda."""
 
 
+async def _nada_planejado(totais: Mapping[str, int]) -> None:
+    """Padrão do aviso do total planejado."""
+
+
+async def _nada_esperado(fonte: str, fim: datetime, motivo: MotivoEspera) -> None:
+    """Padrão do aviso de espera da fonte."""
+
+
 async def rodar(
     coletores: Mapping[str, Coletor],
     ctx: ContextoColeta,
@@ -104,31 +115,51 @@ async def rodar(
     ao_terminar_escopo: Callable[[SaidaEscopo], Awaitable[None]],
     ao_comecar_fonte: Callable[[str], Awaitable[None]] = _nada,
     ao_terminar_fonte: Callable[[str], Awaitable[None]] = _nada,
+    ao_planejar: Callable[[Mapping[str, int]], Awaitable[None]] = _nada_planejado,
+    ao_esperar: Callable[[str, datetime, MotivoEspera], Awaitable[None]] = _nada_esperado,
     max_detalhes_por_fonte: int = 50,
 ) -> None:
     """Roda as fontes ligadas. `ao_comecar_fonte` e `ao_terminar_fonte` recebem a chave da fonte.
+
+    Antes da primeira consulta, `ao_planejar` recebe uma vez `{chave: escopos}` das fontes ligadas
+    (1 para a fonte cujo `escopos()` falhou, que vira uma linha de escopo vazio). `ao_esperar`
+    recebe a chave, o fim e o motivo de cada espera de 429/503 ou de nova tentativa da fonte.
 
     O fim vem sempre que o começo veio, também quando a fonte levanta ou é cancelada. Os avisos
     não devem levantar: o que levantar sobe como erro do banco (o fim, no `finally`, troca até o
     cancelamento por ele); quem chama trata o seu erro e segue.
     """
+    planos: dict[str, list[str] | Exception] = {}
+    for chave, coletor in coletores.items():
+        if chave in ligadas:
+            empresas = tuple(e for e in ctx.empresas if e.fonte == chave)
+            try:
+                planos[chave] = list(coletor.escopos(replace(ctx, empresas=empresas)))
+            except Exception as erro:
+                planos[chave] = erro
+    await ao_planejar({c: 1 if isinstance(p, Exception) else len(p) for c, p in planos.items()})
     vagas = asyncio.Semaphore(MAX_FONTES_JUNTAS)
 
-    async def uma(coletor: Coletor) -> None:
+    async def uma(coletor: Coletor, plano: list[str] | Exception) -> None:
         async with vagas:
             await ao_comecar_fonte(coletor.chave)
             try:
                 await _Fonte(
-                    coletor, cliente, historico, relogio, ao_terminar_escopo, max_detalhes_por_fonte
-                ).rodar(ctx)
+                    coletor,
+                    cliente,
+                    historico,
+                    relogio,
+                    ao_terminar_escopo,
+                    max_detalhes_por_fonte,
+                    functools.partial(ao_esperar, coletor.chave),
+                ).rodar(plano)
             finally:
                 await ao_terminar_fonte(coletor.chave)
 
     # TaskGroup: cancelar `rodar` ou um erro do ao_terminar_escopo cancela e espera todas.
     async with asyncio.TaskGroup() as grupo:
-        for chave, coletor in coletores.items():
-            if chave in ligadas:
-                grupo.create_task(uma(coletor))
+        for chave, plano in planos.items():
+            grupo.create_task(uma(coletores[chave], plano))
 
 
 def estado_da_fonte(estados: Sequence[str]) -> str:
@@ -254,8 +285,10 @@ class _Fonte:
         relogio: Relogio,
         ao_terminar: Callable[[SaidaEscopo], Awaitable[None]],
         max_detalhes: int,
+        ao_esperar: AoEsperar | None = None,
     ) -> None:
         self.c = coletor
+        self.ao_esperar = ao_esperar
         self.cliente = cliente
         self.historico = historico
         self.relogio = relogio
@@ -266,12 +299,11 @@ class _Fonte:
     async def _parado(self, escopo: str, resultado: ResultadoEscopo) -> None:
         await self.ao_terminar(SaidaEscopo(self.c.chave, escopo, resultado, 0, {}))
 
-    async def rodar(self, ctx: ContextoColeta) -> None:
+    async def rodar(self, escopos: list[str] | Exception) -> None:
+        """`escopos`: a lista do `escopos()` do coletor, ou o erro que ele levantou."""
         chave = self.c.chave
-        empresas = tuple(e for e in ctx.empresas if e.fonte == chave)
-        try:
-            escopos = list(self.c.escopos(replace(ctx, empresas=empresas)))
-        except Exception as erro:
+        if isinstance(escopos, Exception):
+            erro = escopos
             _registrar_parada(chave, "(escopos)", erro)
             falhou = ResultadoEscopo((), "falhou", motivo_do_escopo(erro), 0)
             await self._parado("", falhou)
@@ -304,6 +336,7 @@ class _Fonte:
                 condicional=condicional,
                 max_pedidos=livres,
                 para_no_429=limite.para_no_429,
+                ao_esperar=self.ao_esperar,
             )
         )
 
