@@ -436,7 +436,7 @@ Integração do painel (`tests/integracao/`):
 - `test_rota_aviso_candidatura.py`:
   - `test_sem_pendente_fragmento_vazio`, `test_mostra_a_mais_recente`, `test_e_mais_n_leva_ao_panorama`;
   - `test_resposta_sim_troca_status_e_dispara_evento` (os nomes do `HX-Trigger`, separados por vírgula, são exatamente `candidatura-mudou` e `vaga-mudou-{id}`), `test_resposta_invalida_422`, `test_resposta_sem_js_303`;
-  - `test_voltar_sai_do_hx_current_url` (com `HX-Current-URL` de `/vagas/{id}?busca=…`, o campo `voltar` do fragmento é esse caminho com a consulta; com host de fora, `//`, `\` ou sem o cabeçalho, é `/`);
+  - `test_voltar_sai_do_hx_current_url` (com `HX-Current-URL` de `/vagas/{id}?busca=…`, o campo `voltar` do fragmento é esse caminho com a consulta; com `//`, `\` ou sem o cabeçalho, é `/`; o host do `HX-Current-URL` é descartado, não comparado, porque o resultado é sempre um caminho local);
   - `test_desfazer_volta_ao_status_anterior_sem_reabrir`, `test_post_sem_csrf_recusado`;
   - `test_desfazer_devolve_fragmento_da_faixa` (com `HX-Request`, `POST /vagas/{id}/candidatura/desfazer` devolve o fragmento da faixa, não `vagas/corpo.html`, com `HX-Trigger` de nomes exatamente `candidatura-mudou` e `vaga-mudou-{id}`), `test_desfazer_ignora_campo_para` (um `para=salva` mandado à mão numa vaga que veio de Nova volta a Nova), `test_desfazer_sem_js_303`;
   - `test_mesmo_estado_responde_204` (com `mostrando` igual à pergunta do topo e o mesmo total), `test_confirmacao_fica_com_mesmo_total_204`, `test_pendente_nova_troca_a_faixa`.
