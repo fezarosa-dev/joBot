@@ -1,4 +1,5 @@
 {#- componente de progresso (desenho 5.9; plano T252): trilho, linha da etapa e "Ver detalhes".
+    `texto` troca a linha e `nome` o rótulo do trilho (a espera de "Esquecer logins", T266).
     Na barra do topo (240px) com base "andamento"; no corpo de uma tela (320px) com corpo=True e
     outra base, para os ids não se repetirem. A largura vem de data-valor pelo app.js: o CSP
     barra o atributo style -#}
@@ -49,11 +50,11 @@
   {%- else %}{{ t("execucao.etapa.preparando") }}{% endif -%}
 {%- endmacro -%}
 
-{%- macro progresso(p, restam={}, motivos={}, corpo=False, base="andamento", texto=None) -%}
+{%- macro progresso(p, restam={}, motivos={}, corpo=False, base="andamento", texto=None, nome=None) -%}
 {%- set visivel = texto if texto is not none else linha(p) -%}
 {%- set icones = {"fila": "circle-dashed", "lendo": "book-open", "pronto": "circle-check", "falhou": "circle-x", "esperando": "clock"} -%}
 <div class="progresso{{ ' progresso-corpo' if corpo else ' progresso-barra' }}">
-  <div class="progresso-trilho" role="progressbar" aria-label="{{ t('execucao.andamento') }}" aria-valuemin="0" aria-valuemax="100"
+  <div class="progresso-trilho" role="progressbar" aria-label="{{ nome or t('execucao.andamento') }}" aria-valuemin="0" aria-valuemax="100"
     {%- if not p.indeterminado %} aria-valuenow="{{ p.valor }}"{% if p.etapa == "coleta" and p.total %} aria-valuetext="{{ contagem(p) }}"{% elif p.etapa == "detalhes" and p.total is not none %} aria-valuetext="{{ t('execucao.etapa.contagem', feitas=p.feitas, total=p.total) }}"{% endif %}{% endif %}>
     <div id="{{ base }}-preenchimento" class="progresso-preenchimento{{ ' indeterminado' if p.indeterminado }}"{% if not p.indeterminado %} data-valor="{{ p.valor }}"{% endif %}></div>
   </div>

@@ -357,6 +357,20 @@ def test_ancora_do_progresso_fica_no_proprio_componente() -> None:
     assert _valor(progresso, "anchor-scope") == "--andamento"
 
 
+def test_espera_escondida_usa_o_limiar_de_1s_da_entrada() -> None:
+    """O componente das outras esperas (T266) nasce escondido e usa a MESMA animação de 1 s do
+    envoltório de entrada do andamento (`andamento-entrar`), também em movimento reduzido."""
+    css = _sem_comentarios((PASTA / "execucao.css").read_text(encoding="utf-8"))
+    regras = _regras(css)
+    espera = ".progresso-espera.htmx-request"
+    base = next(r for r in regras if r.seletor == ".progresso-espera" and not r.contexto)
+    assert _valor(base, "display") == "none"
+    for contexto, atraso in (((), "200ms ease-out 1s backwards"), ((REDUZIDO,), "1ms linear 1s")):
+        regra = next(r for r in regras if r.contexto == contexto and espera in _seletores(r))
+        assert ".andamento-entrada" in _seletores(regra)  # um só mecanismo, não uma cópia
+        assert (_valor(regra, "animation") or "").startswith(f"andamento-entrar {atraso}")
+
+
 def test_linha_escolhida_passa_a_cor_a_todo_descendente() -> None:
     """Texto branco da linha escolhida chega aos netos (`.nao-informado`), não só aos `> span`."""
     escolhida = '.lista-linhas:focus-within .linha[aria-selected="true"]'

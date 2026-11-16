@@ -747,6 +747,51 @@ main {
   white-space: nowrap;
 }
 
+/*
+ * Confirmação em página (T307): o que o alerta vira sem JavaScript (confirmar.html). Reaproveita o
+ * corpo e as ações do alerta; a página é um cartão de 260px, o texto é --texto e --texto-2 sobre
+ * --superficie (pares já conferidos), o Cancelar é um link com a cara do botão comum.
+ */
+.confirmar {
+  inline-size: 16.25rem;
+  max-inline-size: 100%;
+  margin: 2rem auto;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-sheet);
+  background-color: var(--superficie);
+  overflow: hidden;
+}
+
+.confirmar form {
+  margin: 0;
+}
+
+.confirmar-cancelar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-block-size: 1.75rem;
+  padding-inline: 0.75rem;
+  border: 0.5px solid var(--borda-controle);
+  border-radius: var(--raio-controle);
+  background-color: var(--fundo-controle);
+  color: var(--texto);
+  font-weight: 500;
+  text-decoration: none;
+  transition:
+    background-color 120ms ease-out,
+    color 120ms ease-out;
+}
+
+.confirmar-cancelar:hover {
+  background-color: color-mix(in srgb, var(--fundo-controle), var(--hover));
+}
+
+.confirmar-cancelar:active {
+  background-color: color-mix(in srgb, var(--fundo-controle), var(--pressionado));
+}
+
 /* A chave (desenho 5.3): um checkbox sem a aparência do sistema, 38x22px (a .chave-mini, 30x18px),
    com a bolinha que corre. Ao apertar, a bolinha estica; ligada, ela cresce para a esquerda (a
    borda direita fica no lugar). A bolinha anda por inset-inline-start, sem transform, para o
@@ -884,6 +929,11 @@ input[type="checkbox"]:not(.chave):disabled {
   input[type="email"],
   input[type="url"],
   input[type="password"] {
+    border: 1px solid ButtonText;
+  }
+
+  .confirmar,
+  .confirmar-cancelar {
     border: 1px solid ButtonText;
   }
 
