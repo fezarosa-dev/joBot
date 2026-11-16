@@ -38,7 +38,7 @@ from jobot.nucleo.http import (
 )
 from jobot.nucleo.modelo import Empresa
 from jobot.painel.cliente import cliente_do_painel
-from jobot.painel.rotas.vagas import relogio_do_painel
+from jobot.painel.consultas import relogio_do_painel
 from jobot.painel.seguranca import Con, renderizar
 
 router = APIRouter(prefix="/empresas")

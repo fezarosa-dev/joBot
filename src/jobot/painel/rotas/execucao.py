@@ -28,7 +28,7 @@ from jobot.banco.conexao import abrir
 from jobot.banco.execucoes import execucao_atual, inicio_da_ultima_leitura_login
 from jobot.nucleo.http import ClienteEducado
 from jobot.nucleo.leitores.registro import leitores
-from jobot.painel.rotas.vagas import relogio_do_painel
+from jobot.painel.consultas import relogio_do_painel
 from jobot.painel.seguranca import Con, de_volta, renderizar
 
 router = APIRouter()

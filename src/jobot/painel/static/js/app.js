@@ -167,10 +167,160 @@
     busca.focus();
   });
 
-  // chave de tema: troca na hora, sem esperar a volta do servidor
-  document.addEventListener("submit", (evento) => {
-    const botao = evento.submitter;
-    if (botao && botao.name === "tema") document.documentElement.dataset.tema = botao.value;
+  // barra lateral (T251; desenho 5.2). O estado fica no <html data-lateral>, que a troca do body pelo
+  // histórico não apaga: "aberta" (padrão), "recolhida" (janela larga, a pessoa escondeu) e
+  // "sobreposta" (janela média, aberta por cima do conteúdo). Abaixo de 640px a lateral vira uma
+  // faixa no topo e o CSS a mostra sempre, sem JS. Tudo por delegação: o histórico recria os nós.
+  const raiz = document.documentElement;
+  raiz.dataset.js = ""; // com JavaScript, a janela média recolhe a lateral (casca.css)
+  const MIN = 180;
+  const MAX = 320;
+  const PADRAO = 240;
+  const larga = matchMedia("(min-width: 900px)");
+  const estreita = matchMedia("(max-width: 639.98px)");
+  const lerGuardado = (chave) => {
+    try {
+      return localStorage.getItem(chave);
+    } catch {
+      return null; // janela privada ou armazenamento bloqueado: fica o padrão
+    }
+  };
+  const guardar = (chave, valor) => {
+    try {
+      localStorage.setItem(chave, valor);
+    } catch {
+      // sem armazenamento a escolha vale só nesta página
+    }
+  };
+  const lateralVisivel = () =>
+    estreita.matches ||
+    (larga.matches ? raiz.dataset.lateral !== "recolhida" : raiz.dataset.lateral === "sobreposta");
+  const sincronizar = () => {
+    if (!raiz.dataset.lateral) return; // página sem lateral (assistente, Sair)
+    const botao = document.querySelector("[data-recolher]");
+    if (botao) {
+      const visivel = lateralVisivel();
+      botao.setAttribute("aria-expanded", String(visivel));
+      botao.setAttribute("aria-label", visivel ? botao.dataset.recolherRotulo : botao.dataset.mostrar);
+    }
+    const largura = Number.parseInt(getComputedStyle(raiz).getPropertyValue("--lateral-largura"), 10);
+    document.querySelector("[data-divisor]")?.setAttribute("aria-valuenow", String(largura || PADRAO));
+  };
+  const mudarLargura = (px) => {
+    const largura = Math.min(MAX, Math.max(MIN, Math.round(px)));
+    raiz.style.setProperty("--lateral-largura", `${largura}px`); // CSSOM: o CSP não barra
+    guardar("jobot.lateral.largura", String(largura));
+    sincronizar();
+  };
+  const larguraAtual = () =>
+    Number.parseInt(getComputedStyle(raiz).getPropertyValue("--lateral-largura"), 10) || PADRAO;
+  const mudarEstado = (estado) => {
+    raiz.dataset.lateral = estado;
+    if (larga.matches) guardar("jobot.lateral.recolhida", estado === "recolhida" ? "1" : "0");
+    sincronizar();
+  };
+  const fecharSobreposta = (devolverFoco) => {
+    if (raiz.dataset.lateral !== "sobreposta") return;
+    mudarEstado("aberta");
+    if (devolverFoco) document.querySelector("[data-recolher]")?.focus();
+  };
+  if (raiz.dataset.lateral) {
+    const guardada = Number.parseInt(lerGuardado("jobot.lateral.largura") ?? "", 10);
+    if (guardada) raiz.style.setProperty("--lateral-largura", `${Math.min(MAX, Math.max(MIN, guardada))}px`);
+    if (larga.matches && lerGuardado("jobot.lateral.recolhida") === "1") raiz.dataset.lateral = "recolhida";
+    sincronizar();
+  }
+  // a janela mudou de faixa: a sobreposta não sobra aberta numa janela larga
+  const aoMudarJanela = () => {
+    if (larga.matches && raiz.dataset.lateral === "sobreposta") raiz.dataset.lateral = "aberta";
+    sincronizar();
+  };
+  larga.addEventListener("change", aoMudarJanela);
+  estreita.addEventListener("change", aoMudarJanela);
+  document.addEventListener("htmx:historyRestore", sincronizar);
+  // as abas da tela de Vagas trocam só o miolo: a lateral passa a marcar a aba do novo endereço
+  // (sem ?aba, a primeira, como faz o servidor)
+  document.addEventListener("htmx:pushedIntoHistory", () => {
+    const lateral = document.getElementById("lateral");
+    if (!lateral || !/^\/(vagas)?$/.test(location.pathname)) return;
+    const pedida = new URLSearchParams(location.search).get("aba");
+    const abas = [...lateral.querySelectorAll('a[href^="/vagas?aba="]')];
+    const atual = abas.find((a) => new URL(a.href).searchParams.get("aba") === pedida) ?? abas[0];
+    if (!atual) return;
+    for (const marcado of lateral.querySelectorAll("[aria-current]")) marcado.removeAttribute("aria-current");
+    atual.setAttribute("aria-current", "page");
+  });
+
+  document.addEventListener("click", (evento) => {
+    if (evento.target.closest("[data-recolher]")) {
+      if (larga.matches) {
+        mudarEstado(lateralVisivel() ? "recolhida" : "aberta");
+      } else if (lateralVisivel()) {
+        fecharSobreposta(false);
+      } else {
+        mudarEstado("sobreposta");
+        const lateral = document.getElementById("lateral");
+        (lateral?.querySelector("[aria-current]") ?? lateral?.querySelector("a[href]"))?.focus();
+      }
+      return;
+    }
+    // sobreposta: escolher um item ou clicar fora fecha
+    if (raiz.dataset.lateral !== "sobreposta") return;
+    const naLateral = evento.target.closest("#lateral");
+    if (!naLateral || evento.target.closest("a[href]")) fecharSobreposta(false);
+  });
+  document.addEventListener("keydown", (evento) => {
+    if (evento.key === "Escape" && raiz.dataset.lateral === "sobreposta") {
+      fecharSobreposta(true);
+      return;
+    }
+    if (!evento.target.matches?.("[data-divisor]")) return;
+    // na escrita da direita para a esquerda, a seta para a esquerda alarga
+    const sinal = getComputedStyle(raiz).direction === "rtl" ? -1 : 1;
+    const passos = { ArrowLeft: -10 * sinal, ArrowRight: 10 * sinal, ArrowDown: -10, ArrowUp: 10 };
+    if (evento.key in passos) {
+      mudarLargura(larguraAtual() + passos[evento.key]);
+    } else if (evento.key === "Home") {
+      mudarLargura(MIN);
+    } else if (evento.key === "End") {
+      mudarLargura(MAX);
+    } else if (evento.key === "Enter") {
+      mudarEstado(larga.matches ? "recolhida" : "aberta");
+      document.querySelector("[data-recolher]")?.focus(); // o divisor sumiu com a lateral
+    } else {
+      return;
+    }
+    evento.preventDefault();
+  });
+  document.addEventListener("dblclick", (evento) => {
+    if (evento.target.closest?.("[data-divisor]")) mudarLargura(PADRAO);
+  });
+  // arrastar: o divisor segue o ponteiro 1:1 a partir de onde foi pego
+  document.addEventListener("pointerdown", (evento) => {
+    const divisor = evento.target.closest?.("[data-divisor]");
+    if (!divisor || evento.button !== 0) return;
+    const inicio = evento.clientX;
+    const largura = larguraAtual();
+    const sinal = getComputedStyle(raiz).direction === "rtl" ? -1 : 1;
+    divisor.setPointerCapture(evento.pointerId);
+    const mover = (e) => mudarLargura(largura + (e.clientX - inicio) * sinal);
+    const soltar = () => {
+      divisor.removeEventListener("pointermove", mover);
+      divisor.removeEventListener("pointerup", soltar);
+      divisor.removeEventListener("pointercancel", soltar);
+    };
+    divisor.addEventListener("pointermove", mover);
+    divisor.addEventListener("pointerup", soltar);
+    divisor.addEventListener("pointercancel", soltar);
+    evento.preventDefault();
+  });
+
+  // janela sem foco: a lateral e a barra perdem a cor de destaque, como num app do Mac
+  window.addEventListener("blur", () => {
+    raiz.dataset.janela = "inativa";
+  });
+  window.addEventListener("focus", () => {
+    delete raiz.dataset.janela;
   });
 
   // menus de Configurações > Geral: salvam ao mudar; o botão do <noscript> cobre quem não tem JS

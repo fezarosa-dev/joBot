@@ -22,8 +22,8 @@ from jobot.banco.cadastros import ler_config
 from jobot.nucleo.cambio import MOEDAS
 from jobot.nucleo.modelo import Busca, Idioma, Local, Modalidade, Nivel
 from jobot.nucleo.tratamento.locais import ler_locais, nome_em_ingles
+from jobot.painel.consultas import relogio_do_painel
 from jobot.painel.formulario import campo_unico
-from jobot.painel.rotas.vagas import relogio_do_painel
 from jobot.painel.seguranca import Con, renderizar
 
 router = APIRouter(prefix="/buscas")

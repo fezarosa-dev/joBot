@@ -95,6 +95,7 @@
   --raio: 10px;
   --raio-sheet: 18px;
   --espaco: clamp(1rem, 3vw, 2rem);
+  --barra-altura: 52px; /* barra de ferramentas (T251); a lateral sobreposta começa abaixo dela */
 }
 
 /* navegador sem linear() no easing: a curva de reserva */
@@ -170,7 +171,8 @@ main:focus:not(:focus-visible) {
   position: absolute;
   inset-block-start: 0.75rem;
   inset-inline-start: var(--espaco);
-  z-index: 20;
+  /* acima de toda barra (a .topo chega a 31 na janela média): o primeiro foco nunca fica coberto */
+  z-index: 40;
   padding: 0.5rem 1rem;
   border-radius: 999px;
   background-color: var(--destaque);
@@ -190,17 +192,17 @@ main:focus:not(:focus-visible) {
   opacity: 1;
 }
 
-/* barra do topo: o material (vidro) vem da classe .vidro no template; a borda separa do conteúdo */
+/* barra de ferramentas (T251): 52px, o material (vidro) vem da classe .vidro no template e a borda
+   separa do conteúdo; o arranjo na grade da casca fica no casca.css */
 .topo {
-  position: sticky;
-  inset-block-start: 0;
-  z-index: 10;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.75rem var(--espaco);
+  gap: 8px;
+  min-block-size: var(--barra-altura);
+  padding-block: 8px;
+  padding-inline: var(--espaco);
   border-block-end: 1px solid var(--separador);
 }
 
@@ -279,76 +281,6 @@ main:focus:not(:focus-visible) {
   font: var(--t-title2);
   font-family: inherit;
   text-decoration: none;
-}
-
-/* menu principal: quebra de linha em tela estreita ou com zoom, sem rolagem nem JavaScript */
-.menu {
-  display: flex;
-  flex: 1 1 auto;
-  flex-wrap: wrap;
-  gap: 0.25rem;
-}
-
-.menu a {
-  padding: 0.25rem 0.75rem;
-  border-radius: var(--raio-controle);
-  color: var(--texto);
-  font-size: 0.8125rem;
-  font-weight: 500;
-  text-decoration: none;
-  transition:
-    background-color 120ms ease-out,
-    box-shadow 120ms ease-out;
-}
-
-.menu a:hover {
-  background-color: var(--hover);
-}
-
-/* área aberta: mesmo tom do segmento escolhido (pares texto/segmento e texto/trilho da lista) */
-.menu a[aria-current="page"] {
-  background-color: var(--segmento);
-  box-shadow: 0 1px 3px var(--sombra);
-  font-weight: 600;
-}
-
-/* barra alta demais cobriria o conteúdo com zoom de 200%: em tela estreita ela rola junto */
-@media (max-width: 40rem) {
-  .topo {
-    position: static;
-  }
-}
-
-.preferencias {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-/* controle segmentado: um formulário, um botão por opção (28px no total: 2 + 24 + 2) */
-.segmentos {
-  display: inline-flex;
-  margin: 0;
-  padding: 2px;
-  border-radius: 8px;
-  background-color: var(--trilho);
-}
-
-.segmentos button {
-  min-block-size: 1.5rem;
-  padding-inline: 0.75rem;
-  border: 0;
-  border-radius: var(--raio-controle);
-  background-color: transparent;
-  font-size: 0.8125rem;
-  transition:
-    background-color 120ms ease-out,
-    box-shadow 120ms ease-out;
-}
-
-.segmentos button[aria-pressed="true"] {
-  background-color: var(--segmento);
-  box-shadow: 0 1px 3px var(--sombra);
 }
 
 /*
@@ -450,65 +382,6 @@ main {
   animation: surgir var(--duracao) var(--mola) both;
 }
 
-/* aviso de versão nova (T85): a div é fixa e some sem altura; só o parágrafo tem caixa */
-#aviso-versao {
-  max-width: 72rem;
-  margin: 0 auto;
-  padding: 0 var(--espaco);
-}
-
-.aviso-versao {
-  margin: 0.75rem 0 0;
-  padding: 0.6rem 1rem;
-  border: 1px solid var(--borda);
-  border-radius: var(--raio);
-  background-color: var(--superficie);
-  color: var(--texto);
-  font-size: 0.8125rem;
-}
-
-/* aviso de erro de clique (T151): fixo embaixo, abaixo da barra do topo e do link de pular; some com [hidden] */
-#aviso-erro:not([hidden]) {
-  position: fixed;
-  inset-inline: var(--espaco);
-  inset-block-end: var(--espaco);
-  z-index: 15;
-  display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-  max-width: 36rem;
-  margin: 0 auto;
-  padding: 0.75rem 1rem;
-  border: 1px solid var(--alerta);
-  border-radius: var(--raio);
-  background-color: var(--superficie);
-  color: var(--texto);
-  font-size: 0.8125rem;
-  box-shadow: var(--sombra-menu);
-}
-
-#aviso-erro p {
-  flex: 1;
-  margin: 0;
-  overflow-wrap: anywhere;
-}
-
-#aviso-erro button {
-  flex: none;
-  min-inline-size: 1.75rem;
-  padding: 0 0.5rem;
-  border: 0;
-  border-radius: 999px;
-  background-color: transparent;
-  color: var(--texto);
-  font-size: 1.25rem;
-  line-height: 1;
-}
-
-#aviso-erro button:hover {
-  background-color: var(--hover);
-}
-
 /* rodapé: link discreto "Apoie o projeto" (T87), texto-2 sobre o fundo (par da lista) */
 .rodape {
   max-width: 72rem;
@@ -555,8 +428,7 @@ main {
     border: 1px solid ButtonText;
   }
 
-  .segmentos button[aria-pressed="true"],
-  .menu a[aria-current="page"] {
+  .menu a[aria-current] {
     outline: 2px solid Highlight;
     outline-offset: -2px;
   }

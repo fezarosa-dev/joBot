@@ -292,3 +292,38 @@ def test_movimento_reduzido_por_ultimo_e_sem_transform() -> None:
     duracao = re.search(r"transition-duration\s*:\s*(\d+)ms", bloco)
     assert duracao and int(duracao.group(1)) <= 150
     assert "transform" not in re.search(r"transition-property\s*:([^;]+);", bloco).group(1)  # type: ignore[union-attr]
+
+
+def test_lateral_sobreposta_comeca_abaixo_da_barra() -> None:
+    """Janela média (T251): a lateral aberta por cima do conteúdo começa abaixo da barra, que fica
+    por cima dela; nunca vidro sobre vidro, e o botão de recolher continua clicável. A lateral fica
+    na grade, nas linhas abaixo da barra, e não num offset fixo: se a barra quebrar linha, ela segue
+    a altura real."""
+    css = _sem_comentarios((PASTA / "casca.css").read_text(encoding="utf-8"))
+    media = {r.seletor: r for r in _regras(css) if any("899.98px" in c for c in r.contexto)}
+    lateral = media[":root[data-js] .lateral"]
+    assert _valor(lateral, "grid-row") == "2 / -1"
+    assert _valor(lateral, "grid-column") == "1 / -1"
+    assert _valor(lateral, "position") != "fixed"
+    assert not re.search(r"(?:^|[;\s])inset", lateral.corpo)
+    assert int(_valor(media[":root[data-js] .topo"], "z-index") or 0) > int(
+        _valor(lateral, "z-index") or 0
+    )
+    raiz = next(r for r in _regras(_base()) if r.seletor == ":root" and not r.contexto)
+    assert _valor(raiz, "--barra-altura") == "52px"
+    topo = next(r for r in _regras(_base()) if r.seletor == ".topo" and not r.contexto)
+    assert _valor(topo, "min-block-size") == "var(--barra-altura)"
+
+
+def test_link_de_pular_fica_acima_da_barra() -> None:
+    """O link de pular é o primeiro foco da página: nenhuma barra pode cobri-lo (WCAG 2.4.11),
+    em nenhuma faixa de largura."""
+    pular = next(r for r in _regras(_base()) if r.seletor == ".pular" and not r.contexto)
+    barras = [
+        int(z)
+        for _, r in _todas()
+        if any(re.search(r"\.topo(?![\w-])", s) for s in _seletores(r))
+        and (z := _valor(r, "z-index")) is not None
+    ]
+    assert barras
+    assert int(_valor(pular, "z-index") or 0) > max(barras)

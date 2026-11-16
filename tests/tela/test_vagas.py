@@ -80,10 +80,15 @@ def test_abas_marcam_a_atual_e_a_url_reabre_a_tela(page: Page, painel: str) -> N
     expect(page.locator("nav.abas [aria-current]")).to_have_count(1)
     expect(page.locator("#aba-todas")).to_have_attribute("aria-current", "page")
 
+    lateral = page.locator("aside.lateral")
+    expect(lateral.locator('[href="/vagas?aba=todas"]')).to_have_attribute("aria-current", "page")
     page.locator("#aba-novas").click()
     expect(page.locator("#aba-novas")).to_have_attribute("aria-current", "page")
     expect(page.locator("#aba-todas")).not_to_have_attribute("aria-current", "page")
     expect(page).to_have_url(re.compile(r"[?&]aba=novas"))
+    # a aba da tela troca só o miolo: a lateral acompanha e marca o mesmo item (T251)
+    expect(lateral.locator("[aria-current]")).to_have_count(1)
+    expect(lateral.locator('[href="/vagas?aba=novas"]')).to_have_attribute("aria-current", "page")
 
     page.reload()
     expect(page.locator("#aba-novas")).to_have_attribute("aria-current", "page")
@@ -149,7 +154,9 @@ def test_chips_que_falham_deixam_de_esperar(page: Page, painel: str, falha: str)
 
 def test_tecla_barra_foca_a_busca(page: Page, painel: str) -> None:
     page.goto(f"{painel}/vagas?aba=todas")
-    busca = page.locator("[data-busca]")
+    # a busca mora na barra de ferramentas (T251) e manda o formulário da tela (form="busca")
+    busca = page.get_by_role("banner").get_by_role("searchbox", name="Buscar em Vagas")
+    expect(busca).to_have_attribute("data-busca", "")
     expect(busca).not_to_be_focused()
     page.keyboard.press("/")
     expect(busca).to_be_focused()

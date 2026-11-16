@@ -25,16 +25,10 @@ from jobot.banco.gravacao import reprocessar_vaga
 from jobot.banco.leitura import Detalhe
 from jobot.nucleo.modelo import Area, Contrato, Modalidade, Nivel
 from jobot.nucleo.tratamento.salario import ler_salario
+from jobot.painel.consultas import busca_efetiva, relogio_do_painel, utc_do_banco
 from jobot.painel.formulario import campo_unico
 from jobot.painel.moeda import exibicao_do_painel
-from jobot.painel.rotas.vagas import (
-    MAX_ID,
-    VagaId,
-    busca_efetiva,
-    inteiro_da_url,
-    relogio_do_painel,
-    utc_do_banco,
-)
+from jobot.painel.rotas.vagas import MAX_ID, VagaId, inteiro_da_url
 from jobot.painel.seguranca import Con, renderizar
 
 router = APIRouter()

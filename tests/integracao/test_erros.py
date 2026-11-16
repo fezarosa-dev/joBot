@@ -239,6 +239,29 @@ def test_erro_com_banco_quebrado_traz_o_texto_padrao(tmp_path: Path) -> None:
     assert _data_texto(resposta.text) == "padrao"
 
 
+def test_tamanho_do_texto_estragado_traz_o_padrao(tmp_path: Path) -> None:
+    """Guarda (T250): idioma e tema válidos, `tamanho_texto` que não é JSON; a página sai com
+    `padrao` (mutante: ler `tamanho_texto` fora do `try` de `erros._aparencia`)."""
+    cliente = TestClient(_app(tmp_path), base_url=BASE, raise_server_exceptions=False)
+    with closing(abrir(tmp_path / "jobot.db")) as con:
+        con.executemany(
+            "INSERT INTO config (chave, valor) VALUES (?, ?)",
+            [("idioma", '"en"'), ("tema", '"escuro"'), ("tamanho_texto", "nao-json")],
+        )
+        con.commit()
+    resposta = cliente.get("/nao-existe-mesmo")
+    assert resposta.status_code == 404
+    assert _data_texto(resposta.text) == "padrao"
+
+
+def test_pagina_de_erro_traz_a_lateral(cliente: TestClient) -> None:
+    resposta = cliente.get("/nao-existe-mesmo", headers={"Accept-Language": "en"})
+    assert resposta.status_code == 404
+    assert re.search(r'<aside\b[^>]*class="lateral vidro"', resposta.text)
+    assert 'aria-label="Main"' in resposta.text
+    assert _texto("en", "erro.nao_existe.titulo") in resposta.text
+
+
 def test_casca_que_falha_usa_a_pagina_minima(
     cliente: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
