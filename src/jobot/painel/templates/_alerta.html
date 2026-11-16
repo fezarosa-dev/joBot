@@ -7,11 +7,12 @@
     - `id`: o mesmo do `data-alerta-abre`; o título e o texto levam `<id>-titulo` e `<id>-texto`;
     - `titulo`: pergunta terminada em "?", com o nome do que será afetado; `texto`: o que continua;
     - `rotulo_acao`: o verbo da ação (`comum.apagar`, `comum.remover`, `comum.esquecer`), em cima;
-    - `acao`: o `action` do POST; `campos`: dicionário de campos ocultos a mais (o csrf_token já vai).
+    - `acao`: o `action` do POST; `campos`: dicionário de campos ocultos a mais (o csrf_token já vai);
+    - `alvo_htmx`: seletor onde a resposta entra (HTMX, no lugar de abrir a página); sem ele, é um POST comum.
     O foco abre no próprio <dialog> (E13): Return logo depois de abrir não aperta nenhum botão. -#}
-{% macro alerta(id, titulo, texto, rotulo_acao, acao, campos=None) -%}
+{% macro alerta(id, titulo, texto, rotulo_acao, acao, campos=None, alvo_htmx=None) -%}
 <dialog id="{{ id }}" class="alerta vidro-grande vidro-elevado" role="alertdialog" aria-labelledby="{{ id }}-titulo" aria-describedby="{{ id }}-texto" tabindex="-1" autofocus data-alerta>
-  <form method="post" action="{{ acao }}">
+  <form method="post" action="{{ acao }}"{% if alvo_htmx %} hx-post="{{ acao }}" hx-target="{{ alvo_htmx }}"{% endif %}>
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     {%- for nome, valor in (campos or {}).items() %}
     <input type="hidden" name="{{ nome }}" value="{{ valor }}">

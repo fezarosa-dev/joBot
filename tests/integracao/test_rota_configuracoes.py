@@ -186,6 +186,50 @@ def test_cada_grupo_abre_com_a_aba_dele_marcada(painel: Painel, grupo: str) -> N
     assert "/configuracoes/fontes" in re.findall(r'href="(/configuracoes/[^"]+)"', resposta.text)
 
 
+ICONE_DO_GRUPO = {
+    "geral": "sliders-horizontal",
+    "fontes": "rss",
+    "funcoes": "toggle-right",
+    "segundo-plano": "timer",
+    "privacidade": "shield",
+    "servicos": "plug",
+    "sites-com-login": "key-round",
+    "ferramentas": "globe",
+}
+ESTATICOS = Path(__file__).resolve().parents[2] / "src" / "jobot" / "painel" / "static"
+
+
+def _links_dos_grupos(html: str) -> list[str]:
+    """As tags `<a>` do `nav.config-grupos`, na ordem da tela."""
+    nav = re.search(r'<nav class="config-grupos".*?</nav>', html, re.S)
+    assert nav is not None
+    return re.findall(r"<a\b[^>]*>", nav.group(0))
+
+
+def test_icones_dos_grupos_cobrem_todos_os_grupos() -> None:
+    assert tuple(ICONE_DO_GRUPO) == GRUPOS
+
+
+@pytest.mark.parametrize("grupo", ["geral", "fontes", "funcoes", "segundo-plano", "privacidade"])
+def test_grupos_com_icone_e_aria_current(painel: Painel, grupo: str) -> None:
+    html = painel.get(f"/configuracoes/{grupo}").text
+    links = _links_dos_grupos(html)
+    assert len(links) >= 5
+    estilos = "".join(
+        (ESTATICOS / "css" / nome).read_text(encoding="utf-8")
+        for nome in ("casca.css", "configuracoes.css")
+    )
+    for link in links:
+        destino = re.search(r'href="/configuracoes/([^"]+)"', link)
+        assert destino is not None, link
+        icone = ICONE_DO_GRUPO[destino.group(1)]
+        assert f'data-icone="{icone}"' in link, link
+        assert (ESTATICOS / "icones" / f"{icone}.svg").is_file(), icone
+        assert f'[data-icone="{icone}"]' in estilos, icone  # o desenho tem a máscara no CSS
+        # só o grupo aberto leva aria-current
+        assert ('aria-current="page"' in link) == (destino.group(1) == grupo), link
+
+
 def test_grupo_desconhecido_da_404(painel: Painel) -> None:
     assert painel.get("/configuracoes/nada").status_code == 404
     assert painel.post("/configuracoes/nada").status_code == 404
@@ -217,6 +261,15 @@ def test_cada_interruptor_grava_desligado_e_ligado(painel: Painel, chave: str) -
     painel.funcoes()
     assert painel.config(chave) is True
     assert _interruptor(painel.get(FUNCOES_URL).text, chave) == (True, True)
+
+
+def test_opcoes_por_caixa_de_marcar(painel: Painel) -> None:
+    """As opções de Funções são caixas de marcar: o interruptor fica para o que comanda um grupo."""
+    html = painel.get(FUNCOES_URL).text
+    caixas = [t for t in re.findall(r"<input\b[^>]*>", html) if 'type="checkbox"' in t]
+    assert [re.search(r'name="([^"]+)"', c).group(1) for c in caixas] == list(FUNCOES)  # type: ignore[union-attr]
+    for caixa in caixas:
+        assert "chave" not in caixa and "switch" not in caixa, caixa
 
 
 def test_destaques_n_grava_inteiro_e_volta_na_tela(painel: Painel) -> None:

@@ -106,8 +106,6 @@
   "configuracoes.sites_com_login.login.erro": "Algo deu errado ao abrir o navegador. Os detalhes ficaram no jobot.log.",
   "configuracoes.sites_com_login.esquecer.pergunta": "Apagar os logins de todos os sites?",
   "configuracoes.sites_com_login.esquecer.explicacao": "O joBot apaga a pasta do navegador dele, com as sessões de todos os sites. As vagas continuam. Para ler esses sites de novo, faça login outra vez.",
-  "configuracoes.sites_com_login.esquecer.apagar": "Apagar",
-  "configuracoes.sites_com_login.esquecer.cancelar": "Cancelar",
   "configuracoes.sites_com_login.esquecer.apagados": "Logins apagados.",
   "configuracoes.sites_com_login.esquecer.erro": "Não consegui apagar os logins. Os detalhes ficaram no jobot.log.",
   "configuracoes.grupo.ferramentas": "Ferramentas",
