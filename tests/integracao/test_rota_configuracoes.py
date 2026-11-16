@@ -193,7 +193,7 @@ ICONE_DO_GRUPO = {
     "segundo-plano": "timer",
     "privacidade": "shield",
     "servicos": "plug",
-    "sites-com-login": "key-round",
+    "contas": "key-round",
     "ferramentas": "globe",
 }
 ESTATICOS = Path(__file__).resolve().parents[2] / "src" / "jobot" / "painel" / "static"
@@ -235,7 +235,7 @@ def test_grupo_desconhecido_da_404(painel: Painel) -> None:
     assert painel.post("/configuracoes/nada").status_code == 404
 
 
-@pytest.mark.parametrize("grupo", ["sites-com-login", "ferramentas"])
+@pytest.mark.parametrize("grupo", ["contas", "ferramentas"])
 def test_grupo_sumido_vai_para_geral(painel: Painel, grupo: str) -> None:
     """Grupo guardado pelo navegador que sem leitor não existe mais cai em Geral, não em 404."""
     assert painel.get(f"/configuracoes/{grupo}").status_code == 200  # controle: com leitor existe

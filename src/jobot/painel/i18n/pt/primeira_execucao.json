@@ -37,6 +37,7 @@
   "primeira_execucao.resumo.vazio": "Você pulou esta parte: as vagas aparecem por data, sem nota de encaixe. Dá para dizer o que procura depois, em Buscas.",
   "primeira_execucao.sites.titulo": "Sites com login (opcional)",
   "primeira_execucao.sites.texto": "Se quiser, ligue aqui os sites em que você tem conta. Dá para fazer isso depois em Configurações.",
+  "primeira_execucao.sites.sem_navegador": "Sem navegador, o botão Fazer login agora fica desligado: baixe o navegador acima ou instale o Google Chrome.",
   "primeira_execucao.p2.titulo": "Segundo plano",
   "primeira_execucao.p2.explicacao": "Ligado, o joBot inicia sozinho quando você entra no computador e busca vagas a cada 3 horas, mesmo com o painel fechado. Desligado, ele só busca enquanto estiver aberto. Dá para mudar isso depois nas configurações.",
   "primeira_execucao.p2.container": "O joBot vai rodar no container {container} (distrobox).",

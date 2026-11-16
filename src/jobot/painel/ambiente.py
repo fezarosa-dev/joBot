@@ -62,16 +62,16 @@ GRUPOS = (
     "segundo-plano",
     "privacidade",
     "servicos",
-    "sites-com-login",
+    "contas",
     "ferramentas",
 )
-COM_LOGIN = "sites-com-login"
+COM_LOGIN = "contas"
 FERRAMENTAS = "ferramentas"
 SO_COM_LEITOR = (COM_LOGIN, FERRAMENTAS)  # hoje a única ferramenta é o navegador do login
 
 
 def grupos_visiveis(leitores: Sequence[LeitorComLogin]) -> tuple[str, ...]:
-    """Os grupos da página: "Sites com login" e "Ferramentas" só existem com leitor registrado
+    """Os grupos da página: "Contas" e "Ferramentas" só existem com leitor registrado
     (D132.23, D137.12)."""
     return GRUPOS if leitores else tuple(g for g in GRUPOS if g not in SO_COM_LEITOR)
 

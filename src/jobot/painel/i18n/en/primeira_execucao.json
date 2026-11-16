@@ -37,6 +37,7 @@
   "primeira_execucao.resumo.vazio": "You skipped this part: jobs show up by date, with no fit score. You can say what you are looking for later, under Searches.",
   "primeira_execucao.sites.titulo": "Sites with login (optional)",
   "primeira_execucao.sites.texto": "If you want, turn on the sites where you have an account. You can do this later in Settings.",
+  "primeira_execucao.sites.sem_navegador": "Without a browser, the Sign in now button is turned off: download the browser above or install Google Chrome.",
   "primeira_execucao.p2.titulo": "Background mode",
   "primeira_execucao.p2.explicacao": "When on, joBot starts by itself when you log in and looks for jobs every 3 hours, even with the panel closed. When off, it only searches while it is open. You can change this later in settings.",
   "primeira_execucao.p2.container": "joBot will run in the container {container} (distrobox).",

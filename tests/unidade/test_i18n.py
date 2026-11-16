@@ -6,6 +6,8 @@ import pytest
 
 from jobot.banco.paginas import MOTIVOS as MOTIVOS_DA_PAGINA
 from jobot.nucleo import encaixe
+from jobot.nucleo.contas import MOTIVOS as MOTIVOS_DE_SESSAO
+from jobot.nucleo.contas import NA_TELA
 from jobot.nucleo.modelo import Area, Aviso, Contrato, Modalidade, Nivel
 from jobot.painel import i18n
 
@@ -271,3 +273,22 @@ def test_alerta_de_remover_site_e_fontes_em_caixa_de_marcar(idioma: str) -> None
     assert catalogo["sites.remover_titulo"].endswith("?")
     assert catalogo["sites.menu.rotulo"].strip()
     assert catalogo["fontes.ligar"] and catalogo["fontes.desligar"]  # o <noscript> ainda usa
+
+
+@pytest.mark.parametrize("idioma", ["pt", "en"])
+def test_sem_grupo_sites_com_login(idioma: str) -> None:
+    """A aba virou Contas (T275): a chave velha do grupo sai dos dois catálogos."""
+    catalogo = i18n.carregar()[idioma]
+    assert "configuracoes.grupo.sites_com_login" not in catalogo
+    assert catalogo["configuracoes.grupo.contas"] == {"pt": "Contas", "en": "Accounts"}[idioma]
+
+
+@pytest.mark.parametrize("idioma", ["pt", "en"])
+def test_estados_e_motivos_tem_texto(idioma: str) -> None:
+    """Todo selo e todo motivo do cartão tem texto; `esquecido` não aparece (vira Nunca entrou)."""
+    catalogo = i18n.carregar()[idioma]
+    for estado in NA_TELA:
+        assert catalogo[f"configuracoes.contas.estado.{estado}"].strip(), estado
+    for motivo in set(MOTIVOS_DE_SESSAO) - {"esquecido"}:
+        assert catalogo[f"configuracoes.contas.motivo.{motivo}"].strip(), motivo
+    assert "configuracoes.contas.motivo.esquecido" not in catalogo

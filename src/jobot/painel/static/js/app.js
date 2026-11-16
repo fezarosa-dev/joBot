@@ -11,12 +11,20 @@
 
   // depois de uma troca, o foco vai para o [data-foco] do trecho novo, se ele tiver um;
   // trecho sem [data-foco] (ex.: andamento que atualiza sozinho) não rouba o foco.
-  // Com hx-swap="outerHTML" o alvo é o nó antigo, já fora do DOM: aí vale o nó do evento
+  // Com hx-swap="outerHTML" o alvo é o nó antigo, já fora do DOM: aí vale o nó do evento.
+  // [data-foco-se-livre] só puxa o foco se ele estava solto (body) ou dentro do trecho trocado:
+  // o fim de um login chega minutos depois, e a pessoa pode estar digitando em outro campo
+  let focoLivre = true;
+  document.addEventListener("htmx:beforeSwap", (evento) => {
+    const ativo = document.activeElement;
+    focoLivre = !ativo || ativo === document.body || !!evento.detail.target?.contains(ativo);
+  });
   document.addEventListener("htmx:afterSwap", (evento) => {
     const alvo = evento.detail.target;
     const raiz = alvo && alvo.isConnected ? alvo : evento.target;
     if (!raiz) return;
-    const foco = raiz.matches("[data-foco]") ? raiz : raiz.querySelector("[data-foco]");
+    const seletor = focoLivre ? "[data-foco], [data-foco-se-livre]" : "[data-foco]";
+    const foco = raiz.matches(seletor) ? raiz : raiz.querySelector(seletor);
     if (!foco) return;
     if (!foco.matches("a[href], button, input, select, textarea, [tabindex]")) {
       foco.setAttribute("tabindex", "-1");
@@ -24,6 +32,7 @@
     foco.focus();
     // a marca vale uma vez: no "carregar mais" seguinte, o alvo (a lista) ainda tem esta linha
     foco.removeAttribute("data-foco");
+    foco.removeAttribute("data-foco-se-livre");
   });
 
   // chips de filtro (T191): chegam num segundo pedido, depois da lista. O clique troca o miolo e o
