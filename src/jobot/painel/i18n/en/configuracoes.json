@@ -124,5 +124,8 @@
   "configuracoes.ferramentas.aviso.em_uso": "A site with login is open right now. Wait for the reading or the login to finish and try again.",
   "configuracoes.ferramentas.aviso.falhou_baixar": "Could not download the browser. Check your internet connection and free disk space and try again. The details are in joBot's log (jobot.log).",
   "configuracoes.ferramentas.aviso.falhou_remover": "Could not remove the browser. Try again. The details are in joBot's log (jobot.log).",
-  "configuracoes.sites_com_login.navegador.ir_ferramentas": "Open Tools"
+  "configuracoes.sites_com_login.navegador.ir_ferramentas": "Open Tools",
+  "configuracoes.contas.conferido.hoje": "checked today at {hora}",
+  "configuracoes.contas.conferido.ontem": "checked yesterday at {hora}",
+  "configuracoes.contas.conferido.data": "checked on {data} at {hora}"
 }

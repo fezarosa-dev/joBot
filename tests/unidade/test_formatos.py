@@ -1,6 +1,8 @@
 """Textos de salário, data e local do cartão da vaga (desenho 13.4; plano T45)."""
 
-from datetime import date
+import time
+from collections.abc import Iterator
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 
@@ -421,3 +423,39 @@ def test_paises_texto(paises: tuple[str, ...], idioma: str, esperado: str) -> No
 )
 def test_decimal_curto(valor: Decimal, idioma: str, esperado: str) -> None:
     assert formatos.decimal_curto(valor, idioma) == esperado
+
+
+@pytest.fixture
+def fuso_de_sao_paulo(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    monkeypatch.setenv("TZ", "America/Sao_Paulo")
+    time.tzset()
+    yield
+    monkeypatch.undo()  # volta o TZ de antes
+    time.tzset()
+
+
+def _conferido(conferido_em: str, agora: str, idioma: str = "pt") -> str:
+    return formatos.conferido_texto(conferido_em, datetime.fromisoformat(agora), idioma)
+
+
+@pytest.mark.usefixtures("fuso_de_sao_paulo")
+def test_conferido_hoje() -> None:
+    texto = _conferido("2026-11-16T09:02:00-03:00", "2026-11-16T15:00:00+00:00")
+    assert texto == "conferido hoje às 09:02"
+
+
+@pytest.mark.usefixtures("fuso_de_sao_paulo")
+def test_conferido_ontem() -> None:  # já é dia 16 em UTC, mas é dia 15 aqui
+    texto = _conferido("2026-11-15T23:30:00-03:00", "2026-11-16T12:00:00+00:00")
+    assert texto == "conferido ontem às 23:30"
+
+
+@pytest.mark.usefixtures("fuso_de_sao_paulo")
+def test_conferido_antes_em_ingles() -> None:
+    texto = _conferido("2026-11-13T09:02:00-03:00", "2026-11-16T12:00:00+00:00", "en")
+    assert texto == "checked on 11/13 at 09:02"
+
+
+@pytest.mark.usefixtures("fuso_de_sao_paulo")
+def test_conferido_ilegivel_vazio() -> None:
+    assert _conferido("ontem", "2026-11-16T12:00:00+00:00") == ""
