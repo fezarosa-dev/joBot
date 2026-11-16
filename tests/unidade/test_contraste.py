@@ -102,3 +102,15 @@ def test_sucesso_tem_par_com_superficie_e_com_fundo() -> None:
     css = BASE_CSS.read_text(encoding="utf-8")
     pares = {par for bloco in PARES.findall(css) for par in bloco.split()}
     assert {"sucesso/superficie", "sucesso/fundo"} <= pares
+
+
+def test_barra_do_panorama_usa_o_par_grafico() -> None:
+    """T288 (desenho 5.3): a barra do Panorama pinta `--destaque` sobre o trilho
+    `--trilho-progresso`, o par que o teste gráfico confere a 3:1 nos dois temas."""
+    css = (ESTATICOS / "css" / "panorama.css").read_text(encoding="utf-8")
+    assert "destaque/trilho-progresso" in _lista(PARES_GRAFICOS, BASE_CSS.read_text("utf-8"))
+    barra = re.search(r"\.barra\s*\{([^}]*)\}", css)
+    preenchimento = re.search(r"\.barra rect\s*\{([^}]*)\}", css)
+    assert barra and preenchimento
+    assert "background-color: var(--trilho-progresso)" in barra.group(1)
+    assert "fill: var(--destaque)" in preenchimento.group(1)
