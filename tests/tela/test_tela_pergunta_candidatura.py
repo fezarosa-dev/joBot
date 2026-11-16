@@ -1,12 +1,13 @@
 """Pergunta depois da candidatura: o clique registra a abertura (T284) e a faixa pergunta (T285)."""
 
+import re
 from contextlib import closing
 from datetime import timedelta
 from pathlib import Path
 
 import pytest
 from fastapi import FastAPI
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Locator, Page, expect
 
 from apoio.relogio import RelogioFalso
 from apoio.site_falso import SiteFalso
@@ -75,6 +76,12 @@ def _abrir_pagina(page: Page, url: str) -> None:
         page.goto(url)
 
 
+def _assentada(faixa: Locator) -> None:
+    """O nó trocado só ganha os `hx-*` no fim do settle: antes disso o clique ou a tecla mandam o
+    formulário sem o htmx («Tela com HTMX»). Chame depois de esperar o texto novo."""
+    expect(faixa).not_to_have_class(re.compile(r"htmx-(request|swapping|settling)"))
+
+
 def _voltar_a_janela(page: Page) -> None:
     """A pessoa volta à aba do painel. O Chromium sem tela pode não disparar `focus` no
     `bring_to_front`: o `focus` da janela, que o `hx-trigger` escuta, vai também à mão."""
@@ -118,9 +125,11 @@ def test_tela_sim_e_desfazer(page: Page, painel: str, tmp_path: Path) -> None:
     _abrir_pagina(page, f"{painel}/vagas/{HIMALAYAS}")
     faixa = page.locator(FAIXA)
     expect(faixa).to_contain_text(PERGUNTA_HIMALAYAS)
+    _assentada(faixa)
     with page.expect_response("**/candidatura/resposta"):
         faixa.get_by_role("button", name="Sim, me candidatei", exact=True).click()
     expect(faixa).to_contain_text("Backend Engineer marcada como Candidatei.")
+    _assentada(faixa)
     assert _status(banco, HIMALAYAS) == "candidatei"
     with page.expect_response("**/candidatura/desfazer"):
         faixa.get_by_role("button", name="Desfazer", exact=True).click()
@@ -133,6 +142,8 @@ def test_tela_desfazer_fica_com_a_rede_parada(page: Page, painel: str, tmp_path:
     _abrir_candidatura(banco, HIMALAYAS)
     _abrir_pagina(page, f"{painel}/vagas")
     faixa = page.locator(FAIXA)
+    expect(faixa).to_contain_text(PERGUNTA_HIMALAYAS)
+    _assentada(faixa)
     with page.expect_response("**/candidatura/resposta"):
         faixa.get_by_role("button", name="Sim, me candidatei", exact=True).click()
     desfazer = faixa.get_by_role("button", name="Desfazer", exact=True)
@@ -152,6 +163,7 @@ def test_tela_pelo_teclado(page: Page, painel: str, tmp_path: Path) -> None:
     faixa = page.locator(FAIXA)
     expect(faixa).to_contain_text(PERGUNTA_HIMALAYAS)
     expect(faixa.get_by_role("link", name="e mais 1 para responder")).to_be_visible()
+    _assentada(faixa)
     faixa.get_by_role("button", name="Sim, me candidatei", exact=True).focus()
     page.keyboard.press("Tab")
     ainda_nao = faixa.get_by_role("button", name="Ainda não", exact=True)
@@ -159,11 +171,13 @@ def test_tela_pelo_teclado(page: Page, painel: str, tmp_path: Path) -> None:
     with page.expect_response("**/candidatura/resposta"):
         page.keyboard.press("Enter")
     expect(faixa).to_contain_text("Você se candidatou a Desenvolvedor Python (Zeta Corp)?")
+    _assentada(faixa)
     assert _status(banco, HIMALAYAS) == "nova"
     faixa.get_by_role("button", name="Sim, me candidatei", exact=True).focus()
     with page.expect_response("**/candidatura/resposta"):
         page.keyboard.press("Space")
     expect(faixa).to_contain_text("Desenvolvedor Python marcada como Candidatei.")
+    _assentada(faixa)
     assert _status(banco, USD) == "candidatei"
     faixa.get_by_role("button", name="Desfazer", exact=True).focus()
     with page.expect_response("**/candidatura/desfazer"):
