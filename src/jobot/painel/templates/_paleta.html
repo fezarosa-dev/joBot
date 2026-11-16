@@ -22,6 +22,7 @@
 <dialog id="paleta" class="paleta vidro vidro-grande vidro-elevado" aria-label="{{ t('casca.paleta.titulo') }}" data-paleta>
   <input type="text" role="combobox" class="paleta-campo" aria-controls="paleta-lista" aria-expanded="true" aria-autocomplete="list" autocomplete="off" spellcheck="false" maxlength="100" placeholder="{{ t('casca.paleta.buscar') }}" aria-label="{{ t('casca.paleta.buscar') }}" data-paleta-campo>
   <div id="paleta-lista" class="paleta-lista" role="listbox" aria-label="{{ t('casca.paleta.titulo') }}" data-paleta-lista>
+    {{ link("/panorama", t("casca.lateral.panorama")) }}
     {%- for aba in lado.abas %}
     {{ link("/vagas?aba=" ~ aba ~ ("&busca=" ~ lado.busca_id if lado.busca_id else ""), t("casca.lateral.destaques") if aba == "destaques" else t("vagas.aba." ~ aba)) }}
     {%- endfor %}
