@@ -26,6 +26,7 @@ from jobot.banco import cadastros
 from jobot.banco.conexao import abrir
 from jobot.banco.migrar import migrar
 from jobot.banco.sessoes import gravar_sessao, ler_sessao
+from jobot.navegador import limites
 from jobot.nucleo import gmail as nucleo_gmail
 from jobot.painel.app import criar_app
 from jobot.painel.rotas import gmail
@@ -199,7 +200,12 @@ def test_salvar_endereco_torto_nao_chama_o_google(painel: Painel) -> None:
     assert painel.nomes() == (None, None)
 
 
-def test_senha_nunca_volta(painel: Painel, caplog: pytest.LogCaptureFixture) -> None:
+def test_senha_nunca_volta(
+    painel: Painel,
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     caplog.set_level(logging.DEBUG)
     respostas = [painel.salvar()]
     painel.relogio._agora += timedelta(seconds=601)  # fora do intervalo: o conferir roda
@@ -207,18 +213,38 @@ def test_senha_nunca_volta(painel: Painel, caplog: pytest.LogCaptureFixture) -> 
     respostas.append(painel.http.get(CONTAS))
     painel.imap.modo = "recusada"
     respostas.append(painel.salvar())
+    # os caminhos que logam: o prazo do Google estourado e o cofre que falha
+    monkeypatch.setattr(gmail, "PRAZO_GMAIL_S", 0.01)
+    painel.imap.modo = "ok"
+    painel.relogio._agora += timedelta(seconds=601)
+    painel.imap.espera = threading.Event()
+    try:
+        respostas.append(painel.post(CONFERIR))
+    finally:
+        painel.imap.espera.set()  # solta a thread presa do IMAP
+    quebrado = tmp_path / "quebrado"
+    quebrado.mkdir()
+    (quebrado / "gmail_senha_de_app.segredo").symlink_to(tmp_path / "fora.txt")
+    outro = Painel(quebrado, CofreFalso(falha=RuntimeError("cofre fora")))
+    respostas.append(outro.salvar())
     for resposta in respostas:
         assert resposta.status_code == 200
         assert LIMPA not in resposta.text
         assert SENHA not in resposta.text
     log = caplog.text
-    assert caplog.records  # o fluxo registrou algo
+    nomes = {registro.name for registro in caplog.records}
+    # o fluxo chegou aos loggers que veem a senha: o do núcleo (IMAP) e o da rota (prazo, cofre)
+    assert {"jobot.nucleo.gmail", "jobot.painel.rotas.gmail"} <= nomes
     for segredo in (LIMPA, SENHA, ENDERECO):
         assert segredo not in log
-    # controle positivo: o fluxo rodou de verdade, com a senha limpa
+    # controle positivo: o fluxo rodou de verdade, com a senha limpa, e os caminhos de falha
     assert "Conectado" in _texto(respostas[0].text)
     assert painel.imap.logins[0] == (ENDERECO, LIMPA)
-    assert len(painel.imap.logins) == 3
+    assert len(painel.imap.logins) == 4
+    assert "Sem internet ou o site não respondeu." in _texto(respostas[4].text)
+    # cofre fora de vez: o apagar também falha, e a frase é a do "não apagada" (R1)
+    assert "A senha não foi apagada." in _texto(respostas[5].text)
+    assert outro.imap.logins == [(ENDERECO, LIMPA)]
 
 
 def test_cofre_que_falha_nao_deixa_meia_credencial(tmp_path: Path) -> None:
@@ -236,6 +262,59 @@ def test_cofre_que_falha_nao_deixa_meia_credencial(tmp_path: Path) -> None:
     assert fora.read_text(encoding="utf-8") == "não mexa"
     assert painel.sessao() is None
     assert "O cofre do sistema não respondeu. A senha não foi guardada." in _texto(resposta.text)
+
+
+def _gravar_endereco_falha(painel: Painel, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A gravação do endereço (a segunda da troca) levanta; a da senha passa."""
+    original = painel.cofre.gravar
+
+    def gravar(nome: str, valor: str) -> Any:
+        if nome == nucleo_gmail.NOME_CONTA:
+            raise OSError("sem cofre")
+        return original(nome, valor)
+
+    monkeypatch.setattr(painel.cofre, "gravar", gravar)
+
+
+def test_troca_que_falha_e_nao_apaga_nao_diz_conectado(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    painel = Painel(tmp_path, CofreFalso(recusa_apagar=True))
+    painel.guardar()
+    painel.gravar_sessao("conectado", None, AGORA - timedelta(hours=1))
+    _gravar_endereco_falha(painel, monkeypatch)
+    resposta = painel.salvar("outra.pessoa@gmail.com", "zzzz yyyy xxxx wwww")
+    assert resposta.status_code == 200
+    assert painel.imap.logins == [("outra.pessoa@gmail.com", "zzzzyyyyxxxxwwww")]  # controle
+    sessao = painel.sessao()
+    assert sessao is not None
+    assert sessao.estado != "conectado"
+    texto = _texto(resposta.text)
+    assert "Conectado" not in texto
+    assert "não foi guardada" not in texto
+    assert "O cofre do sistema não respondeu. A senha não foi apagada. Tente de novo." in texto
+    assert 'data-alerta-abre="alerta-gmail-remover"' in resposta.text
+
+
+def test_troca_que_falha_e_apaga_fecha_a_queda(
+    painel: Painel, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    painel.guardar()
+    painel.gravar_sessao("conectado", None, AGORA - timedelta(hours=1))
+    painel.imap.modo = "recusada"
+    painel.relogio._agora += timedelta(seconds=601)
+    painel.post(CONFERIR)  # abre a queda, com aviso
+    assert "Gmail" in _texto(painel.http.get("/aviso-contas").text)  # controle
+    painel.imap.modo = "ok"
+    _gravar_endereco_falha(painel, monkeypatch)
+    resposta = painel.salvar()
+    assert resposta.status_code == 200
+    assert painel.nomes() == (None, None)
+    sessao = painel.sessao()
+    assert sessao is not None
+    assert (sessao.estado, sessao.motivo) == ("precisa_entrar", "esquecido")
+    assert "Gmail" not in _texto(painel.http.get("/aviso-contas").text)
+    assert "Nunca entrou" in _texto(resposta.text)
 
 
 # ------------------------------------------------------------------ Conferir agora
@@ -343,6 +422,196 @@ def test_remover_tem_alerta(painel: Painel) -> None:
     assert 'hx-post="/configuracoes/gmail/remover"' in dialogo.group(0)
     assert 'hx-swap="outerHTML"' in dialogo.group(0)
     assert "Remover a senha de app do Gmail?" in _texto(dialogo.group(0))
+    # o "Remover" não confere nada: sem o indicador do "Conferindo…" (C6)
+    assert "hx-indicator" not in dialogo.group(0)
+
+
+def test_remover_pela_metade_mantem_o_remover(tmp_path: Path) -> None:
+    painel = Painel(tmp_path, CofreFalso(recusa_apagar=True))
+    painel.cofre.gravar(nucleo_gmail.NOME_SENHA, LIMPA)  # no sistema, que não apaga
+    (tmp_path / "gmail_conta.segredo").write_text(ENDERECO, encoding="utf-8")  # no arquivo: sai
+    assert painel.nomes() == ((LIMPA, "sistema"), (ENDERECO, "arquivo"))
+    resposta = painel.post(REMOVER)
+    assert resposta.status_code == 200
+    assert painel.nomes() == ((LIMPA, "sistema"), None)  # a senha ficou
+    assert 'data-alerta-abre="alerta-gmail-remover"' in resposta.text
+    assert "Conferir agora" not in _texto(resposta.text)  # a credencial não está inteira
+    assert "A senha não foi apagada. Tente de novo." in _texto(resposta.text)
+    # recarregada, sem falha a mostrar, a página ainda deixa remover o que sobrou
+    recarregada = painel.http.get(CONTAS).text
+    assert 'data-alerta-abre="alerta-gmail-remover"' in recarregada
+    assert "Conferir agora" not in _texto(recarregada)
+
+
+def test_so_o_endereco_guardado_nao_e_credencial(painel: Painel) -> None:
+    painel.cofre.gravar(nucleo_gmail.NOME_CONTA, ENDERECO)
+    painel.gravar_sessao("conectado", None, AGORA - timedelta(hours=1))
+    html = painel.http.get(CONTAS).text
+    assert "Há uma senha de app guardada" not in _texto(html)
+    assert "Conferir agora" not in _texto(html)
+    assert 'data-alerta-abre="alerta-gmail-remover"' in html  # sobra algo a remover
+    painel.guardar()  # controle: inteira, a frase e o botão aparecem
+    inteira = _texto(painel.http.get(CONTAS).text)
+    assert "Há uma senha de app guardada" in inteira
+    assert "Conferir agora" in inteira
+
+
+def test_remover_cofre_falha_nao_grava(tmp_path: Path) -> None:
+    painel = Painel(tmp_path, CofreFalso(recusa_apagar=True))
+    painel.guardar()
+    resposta = painel.post(REMOVER)
+    assert resposta.status_code == 200
+    assert painel.sessao() is None
+    assert painel.nomes() == ((LIMPA, "sistema"), (ENDERECO, "sistema"))
+    assert "HX-Trigger" not in resposta.headers
+    texto = _texto(resposta.text)
+    assert "O cofre do sistema não respondeu. A senha não foi apagada. Tente de novo." in texto
+    assert "não foi guardada" not in texto
+
+
+def test_leitura_do_cofre_falhando_no_get(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(limites, "PRAZO_COFRE_S", 0.05)
+    trava = threading.Event()
+    painel = Painel(tmp_path, CofreFalso(trava=trava))
+    try:
+        html = painel.http.get(CONTAS).text
+    finally:
+        trava.set()  # solta as threads presas no cofre
+    cartao = re.search(r'<section id="conta-gmail".*?</section>', html, re.S)
+    assert cartao is not None
+    texto = _texto(cartao.group(0))
+    assert "O cofre do sistema não respondeu." in texto
+    assert "não foi guardada" not in texto
+    assert "não foi apagada" not in texto
+    # sem saber o que há no cofre, o "Remover" fica à mão
+    assert 'data-alerta-abre="alerta-gmail-remover"' in cartao.group(0)
+
+
+# ------------------------------------------------------------------ sem JavaScript (C4)
+
+
+def _sem_js(painel: Painel, url: str, dados: dict[str, str] | None = None) -> Any:
+    return painel.http.post(url, data={CAMPO_CSRF: painel.token, **(dados or {})})
+
+
+def test_sem_js_as_tres_rotas_voltam_a_contas(painel: Painel) -> None:
+    salvar = _sem_js(painel, SALVAR, {"endereco": ENDERECO, "senha": SENHA})
+    assert salvar.status_code == 303
+    assert salvar.headers["location"] == "/configuracoes/contas?salvo=1"
+    assert painel.nomes() == ((LIMPA, "sistema"), (ENDERECO, "sistema"))
+    painel.relogio._agora += timedelta(seconds=601)
+    conferir = _sem_js(painel, CONFERIR)
+    assert conferir.status_code == 303
+    assert conferir.headers["location"] == "/configuracoes/contas"
+    assert len(painel.imap.logins) == 2
+    remover = _sem_js(painel, REMOVER)
+    assert remover.status_code == 303
+    assert remover.headers["location"] == "/configuracoes/contas?salvo=1"
+    assert painel.nomes() == (None, None)
+    assert "Salvo." in _texto(painel.http.get(remover.headers["location"]).text)
+    # controle: com o HTMX, o cartão
+    assert painel.salvar().status_code == 200
+
+
+@pytest.mark.parametrize(
+    ("dados", "modo", "codigo", "frase"),
+    [
+        ({"endereco": "sem arroba"}, "ok", "gmail_endereco", "Digite um endereço de e-mail"),
+        ({"senha": "abcd"}, "ok", "gmail_senha", "A senha de app tem 16 letras."),
+        ({}, "recusada", "gmail_recusada", "O Google recusou a senha."),
+        (
+            {},
+            "sem_rede",
+            "gmail_sem_rede",
+            "Sem internet ou o site não respondeu. A senha não foi guardada.",
+        ),
+    ],
+)
+def test_sem_js_salvar_mostra_o_erro(
+    painel: Painel, dados: dict[str, str], modo: str, codigo: str, frase: str
+) -> None:
+    painel.imap.modo = modo
+    resposta = _sem_js(painel, SALVAR, {"endereco": ENDERECO, "senha": SENHA} | dados)
+    assert resposta.status_code == 303
+    assert resposta.headers["location"] == f"/configuracoes/contas?erro={codigo}"
+    assert frase in _texto(painel.http.get(resposta.headers["location"]).text)
+    assert painel.nomes() == (None, None)
+
+
+def test_sem_js_cofre_que_falha_no_remover(tmp_path: Path) -> None:
+    painel = Painel(tmp_path, CofreFalso(recusa_apagar=True))
+    painel.guardar()
+    resposta = _sem_js(painel, REMOVER)
+    assert resposta.status_code == 303
+    assert resposta.headers["location"] == "/configuracoes/contas?erro=gmail_cofre_remover"
+    texto = _texto(painel.http.get(resposta.headers["location"]).text)
+    assert "O cofre do sistema não respondeu. A senha não foi apagada. Tente de novo." in texto
+
+
+def test_erro_do_gmail_na_url_e_lista_fechada(painel: Painel) -> None:
+    frase = "A senha de app tem 16 letras."
+    assert frase in _texto(painel.http.get(CONTAS + "?erro=gmail_senha").text)  # controle
+    lixo = painel.http.get(CONTAS + "?erro=%3Cb%3Elixo%3C%2Fb%3E")
+    assert lixo.status_code == 200
+    assert frase not in _texto(lixo.text)
+    assert "<b>lixo" not in lixo.text  # nada da URL vira HTML (ela só volta codificada)
+    assert frase not in _texto(painel.http.get("/configuracoes/geral?erro=gmail_senha").text)
+
+
+def test_sem_js_conferir_recusada_nao_diz_salvo(painel: Painel) -> None:
+    painel.guardar()
+    painel.gravar_sessao("conectado", None, AGORA - timedelta(hours=1))
+    painel.imap.modo = "recusada"
+    resposta = _sem_js(painel, CONFERIR)
+    assert resposta.status_code == 303
+    assert resposta.headers["location"] == CONTAS
+    assert len(painel.imap.logins) == 1  # controle: o Google foi chamado
+    texto = _texto(painel.http.get(CONTAS).text)
+    assert "Precisa entrar de novo" in texto
+    assert "Salvo." not in texto
+
+
+def test_remover_sem_js_pergunta_numa_pagina(painel: Painel) -> None:
+    # sem leitor de site (o `Painel` não tem): o Gmail vale sem leitor (E13)
+    painel.guardar()
+    resposta = painel.http.get(REMOVER + "/confirmar")
+    assert resposta.status_code == 200
+    assert painel.nomes() == ((LIMPA, "sistema"), (ENDERECO, "sistema"))  # o GET não apaga
+    assert '<form method="post" action="/configuracoes/gmail/remover">' in resposta.text
+    assert 'href="/configuracoes/contas"' in resposta.text
+    assert "Remover a senha de app do Gmail?" in _texto(resposta.text)
+    # na aba, o botão é um GET para a confirmação; o POST mora só no <dialog>
+    html = re.sub(r"<dialog.*?</dialog>", "", painel.http.get(CONTAS).text, flags=re.S)
+    assert '<form method="get" action="/configuracoes/gmail/remover/confirmar">' in html
+    assert 'action="/configuracoes/gmail/remover"' not in html
+
+
+# ------------------------------------------------------------------ foco e anúncio (C3)
+
+
+def _abre(padrao: str, html: str) -> str:
+    achado = re.search(padrao, html, re.S)
+    assert achado is not None, padrao
+    return achado.group(0)
+
+
+def test_resposta_leva_o_foco_e_anuncia(painel: Painel) -> None:
+    senha = r'<input [^>]*name="senha"[^>]*>'
+    endereco = r'<input [^>]*name="endereco"[^>]*>'
+    secao = r'<section id="conta-gmail"[^>]*>'
+    torta = painel.salvar(senha="abcd").text
+    assert "data-foco" in _abre(senha, torta) and 'aria-invalid="true"' in _abre(senha, torta)
+    assert "data-foco" not in _abre(secao, torta)
+    assert "data-foco" in _abre(endereco, painel.salvar(endereco="sem arroba").text)
+    certa = painel.salvar().text
+    assert "data-foco-se-livre" in _abre(secao, certa)
+    assert 'tabindex="-1"' in _abre(secao, certa)
+    assert "data-foco" not in _abre(senha, certa)
+    anuncio = _abre(r'<p hx-swap-oob="innerHTML:#status-gmail">.*?</p>', certa)
+    assert "Gmail: Conectado." in _texto(anuncio)
+    pagina = painel.http.get(CONTAS).text
+    assert re.search(r'<p id="status-gmail" role="status" aria-live="polite"', pagina)
+    assert "data-foco" not in _abre(r'<section id="conta-gmail".*?</section>', pagina)
 
 
 # ------------------------------------------------------------------ rotas e cartão

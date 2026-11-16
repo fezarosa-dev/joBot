@@ -168,7 +168,8 @@
   "configuracoes.contas.gmail.erro.endereco": "Digite um endereço de e-mail, como nome@gmail.com.",
   "configuracoes.contas.gmail.erro.senha": "A senha de app tem 16 letras. Copie de novo da página do Google.",
   "configuracoes.contas.gmail.erro.recusada": "O Google recusou a senha. Confira o endereço ou crie outra senha de app.",
-  "configuracoes.contas.gmail.erro.cofre": "O cofre do sistema não respondeu. A senha não foi guardada.",
+  "configuracoes.contas.gmail.erro.cofre": "O cofre do sistema não respondeu.",
+  "configuracoes.contas.gmail.erro.nao_apagou": "A senha não foi apagada. Tente de novo.",
   "configuracoes.contas.gmail.nao_guardou": "A senha não foi guardada.",
   "configuracoes.contas.gmail.no_arquivo": "Sem cofre do sistema: a senha ficou num arquivo que só o seu usuário lê."
 }

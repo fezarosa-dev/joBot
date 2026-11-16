@@ -10,6 +10,9 @@
 {#- o Gmail depois dos sites; sem leitor, só ele (E13). A espera das ações do cartão fica fora
     dele, que a resposta troca, como a de "Esquecer logins" -#}
 {% include "configuracoes/_cartao_gmail.html" %}
+{#- o estado novo do Gmail é anunciado aqui (C3): fora do cartão, que a resposta troca, e com ou
+    sem leitor (o `#status-sites` só existe com os cartões dos sites) -#}
+<p id="status-gmail" role="status" aria-live="polite" class="config-salvo"></p>
 <div id="gmail-progresso" class="progresso-espera">
   {{- progresso({"indeterminado": True, "etapa": "conferir", "fontes": []}, corpo=True, base="gmail", texto=t("configuracoes.contas.conferindo"), nomeia=True) }}
 </div>

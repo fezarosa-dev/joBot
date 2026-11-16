@@ -101,9 +101,16 @@ def test_botoes_pelo_teclado(page: Page, painel: str, app_painel: FastAPI) -> No
     senha.fill(SENHA)
     senha.press("Enter")  # o Return no campo manda o formulário, como o botão
     expect(page.locator("#conta-gmail").get_by_text("Conectado", exact=True)).to_be_visible()
+    # a troca levou o campo focado: o foco vai ao cartão novo e o estado é anunciado (C3)
+    expect(page.locator("#conta-gmail")).to_be_focused()
+    expect(page.locator("#status-gmail")).to_contain_text("Gmail: Conectado.")
 
     remover = page.locator("#conta-gmail").get_by_role("button", name="Remover", exact=True)
-    remover.focus()
+    for _ in range(8):  # do cartão até o "Remover" só pelo Tab
+        if remover.evaluate("e => e === document.activeElement"):
+            break
+        page.keyboard.press("Tab")
+    expect(remover).to_be_focused()
     page.keyboard.press("Enter")
     alerta = page.get_by_role("alertdialog")
     expect(alerta).to_be_visible()
@@ -111,3 +118,12 @@ def test_botoes_pelo_teclado(page: Page, painel: str, app_painel: FastAPI) -> No
     expect(alerta).to_be_hidden()
     expect(remover).to_be_focused()
     assert _cofre(app_painel)[0] is not None
+
+    page.keyboard.press("Enter")
+    expect(alerta).to_be_visible()
+    page.keyboard.press("Tab")  # do <dialog> ao primeiro botão, o "Remover"
+    with page.expect_response(REMOVER):
+        page.keyboard.press("Enter")
+    expect(page.locator("#conta-gmail").get_by_text("Nunca entrou")).to_be_visible()
+    expect(page.locator("#conta-gmail")).to_be_focused()
+    assert _cofre(app_painel) == (None, None)
