@@ -6,7 +6,7 @@
 {% block conteudo %}
 <h1 class="titulo-pagina">{{ t("buscas.titulo") }}</h1>
 {% if buscas %}
-<ul class="lista-buscas" id="lista-buscas">
+<ul class="lista-agrupada" id="lista-buscas">
   {%- for r in buscas %}
   {%- set b = r.busca %}
   <li class="linha-busca{% if not b.ativa %} linha-desligada{% endif %}" id="busca-{{ b.id }}" tabindex="-1" data-menu="menu-busca" data-id="{{ b.id }}" data-{{ "ligada" if b.ativa else "desligada" }}>

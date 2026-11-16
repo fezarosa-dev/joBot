@@ -404,6 +404,18 @@ small.convertido {
   outline: none;
 }
 
+/* aba Programas (T305 l; desenho 5.2): as páginas acompanhadas na mesma linha, numa lista comum
+   abaixo da de vagas, fora do listbox; cada linha é um link para Sites */
+.programas > h2 {
+  margin: 1.5rem 0 0.5rem;
+  font: var(--t-title3);
+}
+
+.programas .lista-linhas {
+  padding: 0;
+  list-style: none;
+}
+
 .linha {
   display: grid;
   gap: 0.125rem;
@@ -648,6 +660,26 @@ small.convertido {
     inset-block-end: 0;
     padding-block: 0.75rem;
     background-color: var(--solido-elevado);
+  }
+}
+
+/*
+ * Sobreposto sem JS (T305 h): sem o app.js ele não sobe para a camada de cima, e o fixed ficaria
+ * preso ao #vagas-miolo, que é o container das consultas de largura (não dá para tirar a contenção
+ * sem perder o modo). Aí ele fica na grade, por cima da lista à direita, preso ao alto da coluna
+ * que rola (sticky), com a altura da janela: as ações seguem à vista.
+ */
+@media (scripting: none) {
+  @container conteudo (640px <= width < 860px) {
+    .detalhe-lado[open] {
+      position: sticky;
+      inset: auto;
+      inset-block-start: 0.5rem;
+      grid-area: 1 / 1;
+      justify-self: end;
+      align-self: start;
+      max-block-size: calc(100dvh - var(--barra-altura) - 1rem);
+    }
   }
 }
 

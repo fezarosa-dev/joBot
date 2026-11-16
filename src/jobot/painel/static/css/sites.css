@@ -1,17 +1,7 @@
 /* Tela de sites (plano T75, T261): só as cores e medidas da base.css; título, selo e meta vêm do
    vagas.css e o formulário do buscas.css, carregados junto. */
 
-/* lista agrupada (desenho 5.8): um bloco opaco sobre --superficie, linhas separadas por filete */
-.lista-sites {
-  margin: 0 0 1rem;
-  padding: 0;
-  border-radius: var(--raio);
-  background-color: var(--superficie);
-  box-shadow: inset 0 0 0 0.5px var(--separador);
-  list-style: none;
-  overflow: hidden;
-}
-
+/* linha da lista agrupada (.lista-agrupada, base.css) */
 .linha-site {
   display: grid;
   gap: 0.5rem;

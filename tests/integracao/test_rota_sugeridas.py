@@ -481,7 +481,7 @@ def test_lista_agrupada_com_o_alvo_do_menu_e_descartar_por_htmx(painel: Painel) 
     painel.sugerir("greenhouse", "ruim", "javascript:alert(1)")
     html = painel.http.get(ESTA_PAGINA).text
 
-    assert re.search(r'<ul class="lista-buscas" id="lista-sugeridas"', html)
+    assert re.search(r'<ul class="lista-agrupada" id="lista-sugeridas"', html)
     assert 'id="corpo-sugeridas"' in html
     linha = re.search(rf'<li\b[^>]*id="sugerida-{alfa}"[^>]*>', html)
     assert linha and 'class="linha-busca"' in linha.group(0)

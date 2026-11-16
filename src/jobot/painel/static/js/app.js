@@ -278,14 +278,22 @@
   });
   // sobreposto preso à janela (T301): o #vagas-miolo é container (contenção de layout) e prende o
   // position: fixed à rolagem da coluna; na camada de cima (popover manual, sem modal) o <dialog>
-  // fica preso à janela. Em coluna ele volta ao fluxo da grade. Sem JS, fica no fluxo do miolo.
+  // fica preso à janela. Em coluna ele volta ao fluxo da grade. Sem JS, o vagas.css o prende ao
+  // alto da coluna (sticky).
   const acertarCamada = () => {
     const no = lado();
     if (!no?.showPopover) return;
     const subir = no.open && modo() === "sobreposto";
     if (subir === no.matches(":popover-open")) return;
-    if (subir) no.showPopover();
-    else no.hidePopover();
+    if (subir) {
+      no.showPopover();
+      return;
+    }
+    // o hidePopover devolve o foco a quem o tinha antes do showPopover; em coluna o detalhe segue
+    // à vista, então o foco fica onde estava dentro dele (T305 g)
+    const focado = no.open && no.contains(document.activeElement) ? document.activeElement : null;
+    no.hidePopover();
+    focado?.focus({ preventScroll: true });
   };
   acertarCamada();
   // afterSwap também: na troca do #detalhe-vaga o nó novo sobe antes do settle, sem piscar no fluxo
@@ -417,12 +425,15 @@
     evento.detail.parameters.voltar = location.pathname + location.search;
     evento.detail.parameters.busca = new URLSearchParams(location.search).get("busca") ?? "";
   });
-  // shortcut: recarrega só a página 1 do endereço de agora; o que veio por "Carregar mais" some e
-  // uma linha de lá não volta à vista. Recarregar até a página já carregada se alguém reclamar.
-  const recarregarLista = () =>
-    document.getElementById("vagas-miolo")
-      ? htmx.ajax("GET", location.pathname + location.search, { target: "#vagas-miolo", swap: "innerHTML" })
-      : null;
+  // recarrega o endereço de agora até a página que o "Carregar mais" já trouxe (T305): a caixa do
+  // botão diz quantas estão na tela, e o servidor manda todas juntas para o #vagas-miolo
+  const recarregarLista = () => {
+    if (!document.getElementById("vagas-miolo")) return null;
+    const url = new URL(location.href);
+    const paginas = Number(document.getElementById("mais-caixa")?.dataset.paginas);
+    if (paginas > 1) url.searchParams.set("pagina", String(paginas));
+    return htmx.ajax("GET", url.pathname + url.search, { target: "#vagas-miolo", swap: "innerHTML" });
+  };
   document.addEventListener("vaga-ocultada", (evento) => {
     const id = Number(evento.detail.vaga);
     const onde = ondeAntes;
@@ -511,13 +522,16 @@
 
   // menu de contexto (T257; desenho 5.4): um <div popover role="menu"> por página
   // (_menu_contexto.html), preenchido com os data-* do alvo ao abrir. Botão direito abre no
-  // ponteiro; a tecla de menu e Shift+F10, no alvo focado. Setas movem, Esc e Tab fecham e o foco
+  // ponteiro; a tecla de menu e Shift+F10, no alvo focado. Setas e letras movem, Esc e Tab fecham e o foco
   // volta ao alvo; clique fora (o popover fecha sozinho), rolagem, janela nova ou troca do htmx
   // fecham também. O que cada item faz é o link ou o form dele: o menu não tem ação própria.
   let menuAberto = null;
   let alvoMenu = null;
   let abertoPeloTeclado = null;
   let ondeEstavaOAlvo = "";
+  // busca por letra (T305; como o menu do Mac): as letras digitadas em até 500 ms se juntam
+  let digitado = "";
+  let digitouEm = -Infinity;
   const posicaoDe = (no) => {
     const caixa = no.getBoundingClientRect();
     return `${caixa.left},${caixa.top}`;
@@ -529,6 +543,21 @@
     menuAberto = null;
     alvoMenu = null;
     abertoPeloTeclado = null;
+    digitouEm = -Infinity;
+  };
+  // uma letra anda para o próximo item que começa por ela (repetir a letra percorre os itens);
+  // mais letras refinam a partir do item de agora. Sem item que case, o realce fica onde está
+  const itemPelaLetra = (itens, i, tecla) => {
+    const agora = performance.now(); // o relógio do navegador (o page.clock dos testes o move)
+    const letra = tecla.toLocaleLowerCase();
+    digitado = agora - digitouEm > 500 ? letra : digitado + letra;
+    digitouEm = agora;
+    const inicio = digitado.length === 1 ? i + 1 : Math.max(i, 0);
+    for (let n = 0; n < itens.length; n++) {
+      const item = itens[(inicio + n) % itens.length];
+      if (item.textContent.trim().toLocaleLowerCase().startsWith(digitado)) return item;
+    }
+    return null;
   };
   const fecharMenu = (devolverFoco) => {
     const menu = menuAberto;
@@ -642,6 +671,7 @@
       // segue a ordem normal a partir dela
       else if (evento.key === "Escape" || evento.key === "Tab") fecharMenu(true);
       else if (evento.key === " " && ativo.matches("a[role='menuitem']")) ativo.click();
+      else if (evento.key.length === 1 && evento.key !== " ") destino = itemPelaLetra(itens, i, evento.key);
       else return;
       evento.preventDefault();
       evento.stopPropagation();

@@ -103,7 +103,6 @@
   "encaixe.idioma_fora": "Idioma fora do que você busca",
   "vagas.programas.titulo": "Páginas de programas acompanhadas",
   "vagas.programas.mudou_em": "mudou em {data}",
-  "vagas.programas.ver": "Ver em Sites",
   "vagas.programas.nova": "Ainda não lida.",
   "vagas.programas.sem_mudanca": "Lida, sem mudança até agora.",
   "vagas.programas.falhou": "Não deu para ler na última tentativa. {motivo}",
