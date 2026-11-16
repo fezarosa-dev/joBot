@@ -17,10 +17,17 @@ O formato segue o [Keep a Changelog 1.1.0](https://keepachangelog.com/pt-BR/1.1.
 - ADR 0023: tudo pelo painel. Ferramentas externas, atualização e encerramento passam a ter botão, sem terminal.
 - Guia "Como acrescentar um site novo" (`docs/site-novo.md`), com um molde de coletor para site público e um de leitor para site com login, e uma guarda no CI que confere o teste, o exemplo e o nome de cada site.
 - ADR 0024: o Gmail será lido por IMAP com uma senha de app colada no painel (o cartão vem com a aba Contas; a leitura dos e-mails, na fase 6). A wiki ganha o passo a passo.
+- Uma janela própria para o painel: se o computador tem Chrome, Edge ou Chromium, o `jobot` abre o painel sem abas nem barra de endereço, como um aplicativo; sem eles, abre numa aba.
+- Desfazer e Refazer: ocultar uma vaga, descartar uma sugestão e remover uma empresa acontecem na hora, com uma faixa de Desfazer (`⌘Z`, `Ctrl+Z` fora do Mac) e de Refazer. Apagar uma busca, remover um site e esquecer logins pedem confirmação num alerta.
+- Paleta de comandos (`⌘K`, `Ctrl+K` fora do Mac): vai a qualquer tela e troca tema, idioma e tamanho do texto, sem mouse.
+- Atalhos de teclado: `/` para a busca, setas, `J`, `K`, `Home` e `End` na lista, `⌘,` para Configurações, `⌘?` para a ajuda e a tecla de menu para o menu da vaga. A página "Atalhos de teclado" na wiki lista todos.
+- Tamanho do texto (Padrão, Grande ou Maior) em Configurações, Geral.
+- Progresso da busca com etapas: o topo mostra em que passo o joBot está (por exemplo, "Lendo Greenhouse · 13 de 20 consultas") e o "Ver detalhes".
 
 ### Alterado
 
 - Novo roteiro: depois da fase 2 sai a versão 0.3.0 (tela "Panorama" e fila de candidaturas completa); a fase 3 vira o Instalador e as seguintes andam um número, até a fase 9 (publicação).
+- Visual novo do painel, no estilo de um aplicativo do Mac: barra lateral com Vagas e Onde buscar, lista de vagas com o detalhe ao lado, janelas e alertas translúcidos, e o título em inglês da correção em Title Case ("Something Wrong with This Job?").
 
 ### Corrigido
 

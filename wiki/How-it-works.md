@@ -122,12 +122,20 @@ Each source has an on/off switch.
 
 ## 📋 The dashboard
 
-- **Tabs:** Today's highlights, All, New, Closing soon, Saved, Applied, Programs and Hidden.
+The dashboard runs on your computer, at `127.0.0.1`. If joBot finds Chrome, Edge or Chromium on the system, it opens in its own window, with no tabs or address bar; otherwise it uses the Chromium it installed, and only then a regular tab.
+
+- **Sidebar:** the Jobs section (Today's Highlights and the tabs, with the count of each), the Where to Look section (Searches, Companies, Suggested, Sources and Sites) and Settings. You can hide it and change its width.
+- **List with detail:** the job list on one side, the detail of the chosen job on the other; in a narrow window the detail slides over the list.
+- **Tabs:** Today's Highlights, All, New, Closing Soon, Saved, Applied, Programs and Hidden, all in the sidebar.
 - **Filters** as "chips" (little buttons) with counts: country and how many days ago the job was posted stay in view; salary, city, company and words the job must not have are under "More filters". The current filter stays in the page address, so you can save the link. Quick search with the `/` key.
 - **Status of each job:** new → saved → applied → interview → rejected or offer.
 - **12-month calendar** on each job, to see deadlines at a glance.
-- **"Something wrong with this job?"**: a button to fix a label or a piece of data.
-- **Look inspired by Apple's style:** translucency, smooth animations, light and dark mode following the system.
+- **"Something Wrong with This Job?"**: a button to fix a label or a piece of data.
+- **Undo:** hiding a job, discarding a suggestion or removing a company happens right away, with an **Undo** bar. What really deletes asks for confirmation first.
+- **Keyboard and command palette:** `⌘K` (`Ctrl+K` outside the Mac) takes you to any screen. See all of them in [Keyboard shortcuts](Keyboard-shortcuts).
+- **Text size:** Default, Large or Larger, in Settings, General.
+- **Search progress:** when you search now, the top shows the step joBot is on and how far it got.
+- **Mac app look:** translucency, smooth animations, light and dark mode following the system, and reduced motion for anyone who asks for it.
 - **Languages:** Portuguese and English.
 
 ## 🌙 Background

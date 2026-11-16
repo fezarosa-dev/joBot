@@ -210,16 +210,23 @@ Also in phase 1:
 <a id="dashboard"></a>
 ## 📋 The dashboard
 
-The dashboard opens in your browser, at `http://127.0.0.1:47615`. The menu has Jobs, Searches, Sources, Companies, Suggested, Sites and Settings.
+The dashboard runs at `http://127.0.0.1:47615`. When joBot finds Chrome, Edge or Chromium on your computer, it opens in **its own window**, with no tabs or address bar, like an app; with none of them, it uses the Chromium it installed, and only then a regular browser tab.
 
-- **Tabs:** Today's highlights (the best new ones, one per company), All, New, Closing soon, Saved, Applied, Programs and Hidden.
+- **Sidebar:** on the left, the Jobs section (Today's Highlights and the tabs, each with its count) and the Where to Look section (Searches, Companies, Suggested, Sources and Sites), plus Settings. You can hide it and drag its edge to change the width.
+- **List with detail:** the job list sits on one side and the detail of the chosen job on the other. In a narrow window the detail slides over the list.
+
+- **Tabs:** Today's Highlights (the best new ones, one per company), All, New, Closing Soon, Saved, Applied, Programs and Hidden.
 - **Filters** as "chips" (little buttons) with counts: country and how many days ago the job was posted stay in view; salary, city, company and words the job must not have are under "More filters". The current filter stays in the page address, so you can save the link. Quick search with the `/` key.
 - **Status of each job:** new → saved → applied → interview → rejected or offer.
 - **Match with your search:** ● good, ◐ medium, ○ weak, always with the reasons.
 - **12-month calendar** on each job, to see deadlines at a glance.
 - **Jobs hidden** by a rule can come back. The dashboard shows how many were hidden for each reason.
-- **"Something wrong with this job?"**: a button to fix a label or a piece of data.
-- **Look inspired by Apple's style:** translucency, smooth animations, light and dark mode following the system. SF font on Mac and Inter on other systems. Icons from [Lucide](https://lucide.dev) (ISC license, in `src/jobot/painel/static/icones/LICENSE`).
+- **"Something Wrong with This Job?"**: a button to fix a label or a piece of data.
+- **Undo:** hiding a job, discarding a suggestion or removing a company happens right away, and a bar with an **Undo** button stays on screen until you close it. What really deletes (such as deleting a search) asks for confirmation first.
+- **Keyboard and command palette:** `⌘K` (`Ctrl+K` outside the Mac) opens the palette, which takes you to any screen and changes theme, language and text size; there is also a button for it in the bar. See every shortcut in [Keyboard shortcuts](https://github.com/fezarosa-dev/joBot/wiki/Keyboard-shortcuts).
+- **Text size:** Default, Large or Larger, in Settings, General.
+- **Search progress:** when you press "Search now", the top shows a progress bar and the step joBot is on (for example, "Reading Greenhouse · 13 of 20 queries"), including when it waits for a source to allow more requests. "Show Details" opens the summary.
+- **Mac app look:** translucency, smooth animations, light and dark mode following the system, and reduced motion for anyone who asks for it. SF font on Mac and Inter on other systems. Icons from [Lucide](https://lucide.dev) (ISC license, in `src/jobot/painel/static/icones/LICENSE`).
 - **Languages:** Portuguese and English.
 
 <a id="artificial-intelligence"></a>
@@ -366,7 +373,7 @@ uv sync --locked
 uv run jobot
 ```
 
-The last command starts joBot and opens the dashboard in your browser, at `http://127.0.0.1:47615`. With nothing after `jobot`, the `abrir` command runs.
+The last command starts joBot and opens the dashboard at `http://127.0.0.1:47615`. If the computer has Chrome, Edge or Chromium, the dashboard opens in its own window, with no tabs or address bar; without them, it uses the Chromium joBot installed, and only then a tab of your browser. With nothing after `jobot`, the `abrir` command runs.
 If another program already uses port 47615, joBot warns you and opens nothing. Set `JOBOT_PORTA` to another port and run it again.
 
 ### Commands
