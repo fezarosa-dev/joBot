@@ -521,6 +521,11 @@ main {
   transition: none;
 }
 
+/* o item que não vale para o alvo ganha [hidden] (data-requer); o display acima o venceria */
+.menu-contexto [role="menuitem"][hidden] {
+  display: none;
+}
+
 .menu-contexto [role="menuitem"]:focus {
   outline: none;
   background-color: var(--destaque);
