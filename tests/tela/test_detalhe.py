@@ -175,6 +175,8 @@ def test_ctrl_clique_no_link_da_correcao_abre_a_pagina_em_outra_aba(
 
 def test_sheet_correcao_botoes_visiveis(page: Page, painel: str) -> None:
     """E17: janela baixa, o pé do sheet com o botão fica inteiro na janela e só o corpo rola."""
+    # teste de layout: sem a entrada do sheet (translateY de 280ms) a caixa medida não anda
+    page.emulate_media(reduced_motion="reduce")
     page.set_viewport_size({"width": 1024, "height": 560})
     page.goto(f"{painel}/vagas/{USD}")
     page.get_by_role("link", name="Algo errado nesta vaga?").click()
