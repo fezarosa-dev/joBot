@@ -217,3 +217,58 @@ Dois buracos pequenos que a T295 deixou.
 - [ ] **Ver falhar:** `uv run pytest tests/unidade/test_testes_sem_espera.py -q -k "sleep or sombra"`; o vermelho é a asserção (achado ausente, ou `fuso_de_sao_paulo` duplicada).
 - [ ] **Implementar** os dois ajustes.
 - [ ] **Ver passar:** `uv run pytest tests/unidade/test_testes_sem_espera.py tests/unidade/coletores/test_eureca.py -q` e `uv run ruff check && uv run ruff format --check`.
+
+### T307: confirmação sem JavaScript para as ações que apagam
+`depende_de: T259, T261, T262` · D159, D163
+
+Sem JavaScript (sem `HX-Request`), Apagar busca, Remover site e Esquecer logins agem direto, sem pergunta. Passam a levar a uma página de confirmação: `GET .../confirmar` com o mesmo texto do alerta, um botão que faz o `POST` de hoje e um Cancelar que volta. Com JavaScript nada muda: o alerta da T259 abre e o `POST` segue o mesmo caminho.
+
+**Arquivos:**
+- modificar `src/jobot/painel/templates/_alerta.html`, `src/jobot/painel/templates/buscas/lista.html`, `src/jobot/painel/templates/sites/lista.html`, `src/jobot/painel/templates/configuracoes/sites_com_login.html`;
+- modificar as rotas de buscas, de sites e de configurações em `src/jobot/painel/rotas/`; novo template da página de confirmação; textos nos catálogos `pt` e `en`;
+- modificar `tests/integracao/test_rota_buscas.py`, `tests/integracao/test_rota_sites.py`, `tests/integracao/test_rota_configuracoes.py`, `tests/tela/test_sites.py`.
+
+**Interfaces:**
+- O formulário de cada ação, lido sem JavaScript, aponta para a página de confirmação; o `POST` direto continua existindo e funcionando para o caminho com JavaScript (e para o botão da própria página de confirmação).
+- Ação com a mesma regra de leitor de hoje: Esquecer logins sem leitor continua dando 404 também na página de confirmação.
+
+- [ ] **Testes que falham**, em `tests/integracao`, um por ação: `test_apagar_busca_sem_js_vai_para_confirmar`, `test_remover_site_sem_js_vai_para_confirmar`, `test_esquecer_logins_sem_js_vai_para_confirmar` (o formulário sem JavaScript aponta para `.../confirmar`, a página mostra o texto do alerta, o botão e o Cancelar, e `GET` nada apaga) e, para cada uma, `test_<acao>_post_direto_continua` (o `POST` de hoje apaga como antes). Em `tests/tela`, `test_remover_site_sem_js_pede_confirmacao` com `java_script_enabled=False`: clicar em Remover abre a página de confirmação e só o botão dela remove. O teste `test_apagar_sem_js_continua` (`tests/integracao/test_rota_buscas.py:373`) passa a provar o novo caminho.
+- [ ] **Ver falhar:** `uv run pytest tests/integracao/test_rota_buscas.py tests/integracao/test_rota_sites.py tests/integracao/test_rota_configuracoes.py -q -k "confirmar or post_direto"`; o vermelho é a asserção (o formulário aponta para o `POST`), não erro de import.
+- [ ] **Implementar** as três páginas de confirmação (uma macro ou um template só), os textos nas duas línguas e a troca do destino do formulário sem JavaScript.
+- [ ] **Ver passar:** os mesmos arquivos de teste e `uv run ruff check && uv run ruff format --check`; a tela roda no CI.
+
+### T308: grupo de Configurações guardado que sumiu
+`depende_de: T262` · D164
+
+`GET /configuracoes/{grupo}` de um grupo conhecido que hoje não existe (`sites-com-login` ou `ferramentas` sem leitor) redireciona com 303 para `/configuracoes/geral`, em vez de dar 404; grupo desconhecido continua dando 404. O JavaScript não precisa mudar para isso. Também: `itemConfiguracoes` em `app.js` é buscado uma vez; depois de `htmx:historyRestore` o nó fica solto, então o nó passa a ser buscado na hora do atalho.
+
+**Arquivos:**
+- modificar `src/jobot/painel/rotas/configuracoes.py`, `src/jobot/painel/static/js/app.js`;
+- modificar `tests/integracao/test_rota_configuracoes.py`, `tests/tela/` (o arquivo do atalho de Configurações).
+
+**Interfaces:**
+- A rota distingue "grupo conhecido sem leitor" (303 para `/configuracoes/geral`) de "grupo desconhecido" (404), com a lista de grupos que já existe no código.
+
+- [ ] **Testes que falham:** em `tests/integracao/test_rota_configuracoes.py`, `test_grupo_sumido_vai_para_geral` (303 e `Location: /configuracoes/geral`) e `test_grupo_desconhecido_continua_404`; em `tests/tela`, `test_atalho_de_configuracoes_depois_de_voltar_no_historico` (abre Configurações, sai, volta pelo histórico e o atalho ainda leva ao grupo guardado).
+- [ ] **Ver falhar:** `uv run pytest tests/integracao/test_rota_configuracoes.py -q -k grupo`; o vermelho é a asserção (hoje o grupo sumido dá 404).
+- [ ] **Implementar** o redirecionamento e a busca do nó na hora do atalho.
+- [ ] **Ver passar:** os mesmos testes e `uv run ruff check && uv run ruff format --check`; a tela roda no CI.
+
+### T309: lista agrupada única e regras de ícone só no `casca.css`
+`depende_de: T260, T261, T262`
+
+`buscas.css` (`.lista-buscas`), `fontes.css` (`.lista-fontes`), `sites.css` (`.lista-sites`) e as listas de Empresas e Sugeridas repetem umas dez linhas da lista agrupada. Criar `.lista-agrupada` em `base.css`, usar nos templates e apagar as cópias. As regras `[data-icone="circle-check"]` e `[data-icone="clock"]` estão em `fontes.css` e em `execucao.css`: ficam só em `casca.css`, ao lado das de `circle` e `contrast` (junto com o item (k) da T305). Na macro `caixa()` de `configuracoes/_interruptor.html`, o parâmetro `valor` não tem chamador: remover.
+
+**Arquivos:**
+- modificar `src/jobot/painel/static/css/base.css`, `buscas.css`, `fontes.css`, `sites.css`, `execucao.css`, `casca.css`, e os templates que usam as listas (Buscas, Fontes, Sites, Empresas, Sugeridas);
+- modificar `src/jobot/painel/templates/configuracoes/_interruptor.html`;
+- modificar `tests/unidade/test_css.py`.
+
+**Interfaces:**
+- `.lista-agrupada` é a única definição do bloco repetido; cada lista só traz o que é próprio dela.
+- Cada valor de `data-icone` tem regra num arquivo só.
+
+- [ ] **Testes que falham** em `tests/unidade/test_css.py`: `test_lista_agrupada_definida_uma_vez` (o seletor da lista agrupada aparece num arquivo só) e `test_regra_de_icone_uma_vez` (cada `data-icone` tem regra num arquivo só; hoje `circle-check` e `clock` aparecem em dois).
+- [ ] **Ver falhar:** `uv run pytest tests/unidade/test_css.py -q -k "agrupada or icone"`; o vermelho é a asserção, não erro de coleta.
+- [ ] **Implementar** a junção, a remoção das cópias e a do parâmetro `valor` da macro `caixa()`.
+- [ ] **Ver passar:** `uv run pytest tests/unidade/test_css.py -q` e `uv run ruff check && uv run ruff format --check`; as telas de Buscas, Fontes, Sites e Empresas rodam no CI para conferir que nada mudou no visual.
