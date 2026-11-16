@@ -34,3 +34,8 @@ select {
   padding-left: 0.6rem;
   border-left: 3px solid var(--destaque);
 }
+
+/* texto de apoio do título (Sugeridas, T301): um espaço do token até o primeiro cartão */
+.apoio-titulo {
+  margin-block-end: var(--espaco);
+}

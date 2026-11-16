@@ -2408,7 +2408,7 @@ Escolha da sessão (dono fora): a opção (a), para confirmar. Consequência: co
 5. Janela até a fase 3: modo app do Chrome, Edge ou Chromium instalado; sem eles, o Chromium do Playwright que o joBot já baixa; sem ele, uma aba comum. A janela própria vem na fase 3 (D142).
 6. Fonte: a SF no Mac, pela fonte do sistema; a Inter, já embutida, nos outros sistemas. SF Pro e SF Symbols nunca entram no repositório: a licença só vale nas plataformas da Apple.
 7. Ícones: Lucide, copiados para o repositório com o arquivo de licença deles.
-8. Ordem: construído no painel de verdade, numa branch; a tela de vagas vai primeiro para o ok do dono, depois as outras telas.
+8. Ordem: construído no painel de verdade, numa branch; a tela de vagas vai primeiro para o ok do dono, depois as outras telas. Ver também: D157 (conferência por fotos, para confirmar).
 9. Contas: o lado de trás do lote Contas (D139) segue em paralelo; a aba Contas e a faixa do topo esperam a base visual nova.
 
 **Continuam valendo:** o painel só em 127.0.0.1, nenhum recurso externo, o contraste do critério 29, o movimento reduzido e os dois idiomas.
@@ -2503,7 +2503,7 @@ Escolha da sessão (dono fora): a opção (a), para confirmar. Consequência: co
 51. Escolher uma vaga põe `vaga=<id>` no endereço de `/vagas`; recarregar ou voltar no navegador abre a mesma vista, com a vaga no detalhe. `/vagas/{id}` continua sendo o link direto.
 52. A busca continua por Enter. O formulário da busca fica na barra da lista, e o campo da barra de cima e a ordem entram nele pelo atributo `form`, que funciona sem JavaScript. "Mais filtros" abre abaixo da barra da lista; os avisos de filtro ficam ali, sem botão de fechar; na aba Programas, as páginas acompanhadas ficam numa seção própria abaixo das vagas.
 53. A linha de vaga só tem texto, sem botões, porque é um item de lista para o leitor de tela; as ações ficam no detalhe e no menu de contexto. O que a linha mostra é o item 59.
-54. A base e a tela de Vagas ficam numa branch longa, que passa pelo CI, e só entram na `dev` com o ok do dono; as outras telas esperam o ok. A base traz o ajuste mínimo das telas de hoje para elas funcionarem na casca nova. A janela do modo app não muda nenhuma tela e entra na `dev` sozinha.
+54. A base e a tela de Vagas ficam numa branch longa, que passa pelo CI, e só entram na `dev` com o ok do dono; as outras telas esperam o ok. A base traz o ajuste mínimo das telas de hoje para elas funcionarem na casca nova. A janela do modo app não muda nenhuma tela e entra na `dev` sozinha. Ver também: D157 (conferência por fotos, para confirmar).
 
 **Decisões do dono (terceira rodada, 2026-11-16):**
 
@@ -2832,3 +2832,21 @@ Escolha da sessão (dono fora): a opção (a), para confirmar. Consequência: co
 
 **Como desfazer:** antes de construir, trocar a escolha no desenho e no plano. Depois de construir, apagar tests/apoio/molde_*.py, os testes e as fixtures dos moldes, test_site_novo.py e docs/site-novo*.md, e tirar os links do CONTRIBUTING, da wiki, do fonte.yml e do CHANGELOG. Nenhum dado nem esquema muda.
 
+## D157. Conferência visual por fotos, com o dono fora (para confirmar)
+
+**Status:** para confirmar. Decidido pela sessão, com o dono fora.
+
+**Contexto:** a T258 era o portão da branch longa `feat/visual-mac`: ela só entraria na `dev` depois do ok do dono, com o painel aberto na frente dele (D140.8, D143.54). O dono deu autonomia para seguir até a fase 9 e não estava para conferir. A sessão fez a conferência sozinha: a T258 virou 40 fotos do painel (fora do repositório), cobrindo os sete itens da T258 (três larguras, claro e escuro, vidro e caminho sólido, os três tamanhos de texto, contagens e busca escolhida, Desfazer, teclado e menu, "Buscar agora"). A branch visual entrou na `dev` sem esperar o ok. Os defeitos vistos nas fotos viram a T301 do plano visual (dez itens: filtros, sobreposto a 800px, lugar do "Mais filtros", topo a 600px, glifo do encaixe médio, primeira linha marcada, "Ver detalhes", texto Maior, Sugeridas e as violações de CSP na troca da lista); o defeito da página própria a 600px vai como item a mais na T264.
+
+Uma escolha de desenho da T301 vai junto, também para confirmar: o "Mais filtros" passa a vir fechado mesmo com filtro ativo e mostra no resumo quantos filtros valem (no formato de hoje, "Mais filtros (2)", agora contando também os chips), e os grupos de chips (Modalidade, Nível, Área e os outros) passam para dentro dele, para a lista começar na primeira dobra. Isso muda a barra da T254 (desenho 5.2), em que os chips ficam à mostra e o "Mais filtros" abre quando algum campo está preenchido. E outra, do item 6: some só a marca que aparece ao carregar a página; entrar na lista pelo teclado (Tab ou o link "Pular para a lista de vagas") marca a linha focada, porque a seleção segue o foco, como hoje.
+
+**Escolhas:**
+
+- **A (escolhida).** Conferir por fotos, juntar a branch visual na `dev` e corrigir o que as fotos mostram numa tarefa própria (T301), sem parar o resto das ondas 7 e 8.
+- **B.** Segurar a branch longa fora da `dev` até o dono conferir, como a T258 pedia. As ondas 7 e 8 (T259 a T268) esperariam.
+
+**Recomendação:** A. A conferência do dono continua valendo: ela só passa a ser feita sobre a `dev`, e cada pedido vira tarefa.
+
+**O que o dono faz:** abrir o painel e dizer o que trocar, inclusive se a barra de filtros da T301 (chips dentro do "Mais filtros", fechado com a contagem) fica assim. Cada pedido vira uma tarefa nova do plano visual.
+
+**Como desfazer:** reverter na `dev` os commits do visual (os das tarefas T248 a T257). A T301 e as tarefas que vierem depois saem junto.

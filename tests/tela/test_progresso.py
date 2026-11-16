@@ -298,3 +298,56 @@ def test_um_clique_acompanha_ate_o_fim(
         re.compile(r"Pronto\. Vagas novas: \d+\."), timeout=5_000
     )
     assert erros == []
+
+
+def test_ver_detalhes_dentro_da_janela(page: Page, painel: str, app_painel: FastAPI) -> None:
+    """T301 item 7: o popover inteiro à vista, a 8px da borda; estado e contagem numa linha cada;
+    o gatilho da etapa responde ao hover."""
+    page.set_viewport_size({"width": 1280, "height": 800})
+    banco = app_painel.state.banco
+    id_ = _busca(banco, {"gupy": 10, "lever": 6, "greenhouse": 4})
+    with closing(abrir(banco)) as con:
+        marcar_fonte(con, id_, "gupy", "pronto", feitas=10)
+        marcar_fonte(
+            con,
+            id_,
+            "lever",
+            "esperando",
+            feitas=2,
+            espera_ate=AGORA + timedelta(seconds=40),
+            espera_motivo="limite",
+        )
+        marcar_fonte(con, id_, "greenhouse", "lendo", feitas=1)
+    _etapa(banco, id_, "coleta", 13, 20)
+    _carregar(page, painel)
+    gatilho = page.get_by_role("button", name="Ver detalhes do andamento")
+    fundo = gatilho.evaluate("el => getComputedStyle(el).backgroundColor")
+    borda = gatilho.evaluate("el => getComputedStyle(el).borderTopStyle")
+    gatilho.hover()
+    page.wait_for_function(
+        "([f, b]) => { const s = getComputedStyle(document.querySelector('.progresso-ver'));"
+        " return s.backgroundColor !== f || s.borderTopStyle !== b; }",
+        arg=[fundo, borda],
+    )
+    gatilho.click()
+    detalhes = page.locator("#andamento-detalhes")
+    expect(detalhes).to_be_visible()
+    x, topo, direita, base = detalhes.evaluate(
+        "el => { const r = el.getBoundingClientRect(); return [r.x, r.y, r.right, r.bottom]; }"
+    )
+    assert x >= 0 and topo >= 0 and base <= 800
+    ancora_x, _, ancora_direita, _ = gatilho.evaluate(
+        "el => { const r = el.closest('.progresso').getBoundingClientRect();"
+        " return [r.x, r.y, r.right, r.bottom]; }"
+    )
+    # alinhado à esquerda do componente ele passaria da margem de 8px: o teste prova a virada
+    assert ancora_x + (direita - x) + 8 > 1280
+    assert abs(direita - ancora_direita) <= 1
+    assert direita <= 1280 - 8
+    linhas = detalhes.locator(".progresso-estado, .progresso-conta").evaluate_all(
+        "es => es.map(e => [e.getBoundingClientRect().height,"
+        " parseFloat(getComputedStyle(e).lineHeight)])"
+    )
+    assert len(linhas) >= 6
+    for altura, entrelinha in linhas:
+        assert altura <= 1.5 * entrelinha

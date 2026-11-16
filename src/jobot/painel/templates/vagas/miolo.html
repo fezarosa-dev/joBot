@@ -1,6 +1,7 @@
 <a class="pular" href="#lista-vagas">{{ t("vagas.pular_lista") }}</a>
-{#- barra da lista (T254; desenho 5.2, D143.52): busca escolhida, ordem, chips e "Mais filtros".
-    O form#busca fica nela; o campo da barra de ferramentas e a ordem entram por form="busca". -#}
+{#- barra da lista (T254, T301; desenho 5.2, D143.52): busca escolhida, ordem e "Mais filtros",
+    numa linha; os chips e os campos ficam dentro do "Mais filtros". O form#busca fica nela; o campo
+    da barra de ferramentas e a ordem entram por form="busca". -#}
 <div class="barra-lista">
   {%- if seletor %}
   <form class="seletor-busca" method="get" action="/vagas" hx-get="/vagas" hx-target="#vagas-miolo" hx-swap="innerHTML" hx-push-url="true" hx-trigger="change">
@@ -24,11 +25,6 @@
     {%- endfor %}
   </select>
   {%- endif %}
-  {%- if chips_url %}
-  <div id="filtros-chips" class="filtros" role="group" aria-label="{{ t('vagas.filtros') }}" aria-busy="true" hx-get="{{ chips_url }}" hx-trigger="load" hx-swap="outerHTML">
-    <span class="grupo-titulo" data-espera>{{ t("vagas.filtros_carregando") }}</span>
-  </div>
-  {%- endif %}
   <form id="busca" class="busca" role="search" method="get" action="/vagas" hx-get="/vagas" hx-target="#vagas-miolo" hx-swap="innerHTML" hx-push-url="true" hx-trigger="submit, change from:#ordem">
     <input type="hidden" name="aba" value="{{ aba_da_busca }}">
     {%- if busca_na_url %}
@@ -37,8 +33,17 @@
     {%- for grupo, valor in campos_ocultos %}
     <input type="hidden" name="{{ grupo }}" value="{{ valor }}">
     {%- endfor %}
-    <details class="mais-filtros"{% if n_mais_filtros %} open{% endif %}>
+    {#- T301: vem fechado mesmo com filtro ativo; o resumo conta os filtros que valem. O app.js
+        mantém aberto entre as trocas do miolo (clique num chip, envio, troca da busca). -#}
+    <details class="mais-filtros">
       <summary>{{ t("vagas.mais_filtros_n", n=n_mais_filtros) if n_mais_filtros else t("vagas.mais_filtros") }}</summary>
+      {%- if chips_url %}
+      {#- o form#busca passa hx-target e hx-push-url aos de dentro: o recipiente troca a si mesmo
+          e não mexe na URL. GET não leva os campos do form (htmx 2). -#}
+      <div id="filtros-chips" class="filtros" role="group" aria-label="{{ t('vagas.filtros') }}" aria-busy="true" hx-get="{{ chips_url }}" hx-trigger="load" hx-target="this" hx-swap="outerHTML" hx-push-url="false">
+        <span class="grupo-titulo" data-espera>{{ t("vagas.filtros_carregando") }}</span>
+      </div>
+      {%- endif %}
       <div class="mais-filtros-campos">
         <div class="campo-salario">
           <label for="filtro-sal-de">{{ t("vagas.filtro.sal_de") }}</label>

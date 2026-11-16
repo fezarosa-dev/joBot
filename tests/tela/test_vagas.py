@@ -70,6 +70,12 @@ def _aguardar_lista(page: Page) -> None:
     expect(page.locator("#lista-vagas")).to_be_visible()
 
 
+def _abrir_mais_filtros(page: Page) -> None:
+    resumo = page.locator("details.mais-filtros > summary")
+    resumo.click()
+    expect(page.locator("details.mais-filtros")).to_have_attribute("open", "")
+
+
 def test_abas_marcam_a_atual_e_a_url_reabre_a_tela(page: Page, painel: str) -> None:
     erros: list[str] = []  # violação do CSP aparece como erro no console
     page.on("console", lambda m: erros.append(m.text) if m.type == "error" else None)
@@ -117,6 +123,7 @@ def test_raiz_abre_nos_destaques(page: Page, painel: str, banco: Path) -> None:
 def test_chip_vai_para_a_url_e_a_url_reabre_o_filtro(page: Page, painel: str) -> None:
     page.goto(f"{painel}/vagas?aba=todas")
     todos = len(_titulos(page))
+    _abrir_mais_filtros(page)  # T301: os chips moram no "Mais filtros", que vem fechado
     chip = page.locator("button.chip", has_text="Presencial")
     # os chips chegam depois da lista (T191): o expect espera por eles
     expect(chip).to_have_attribute("aria-pressed", "false")
@@ -135,6 +142,10 @@ def test_chip_vai_para_a_url_e_a_url_reabre_o_filtro(page: Page, painel: str) ->
     expect(page.locator("button.chip", has_text="Presencial")).to_be_focused()
 
     page.reload()
+    # fechado mesmo com filtro ativo (T301); o resumo conta o chip
+    expect(page.locator("details.mais-filtros")).not_to_have_attribute("open", re.compile(".*"))
+    expect(page.locator("details.mais-filtros > summary")).to_have_text("Mais filtros (1)")
+    _abrir_mais_filtros(page)
     expect(page.locator("button.chip", has_text="Presencial")).to_have_attribute(
         "aria-pressed", "true"
     )
@@ -156,6 +167,7 @@ def test_chips_que_falham_deixam_de_esperar(page: Page, painel: str, falha: str)
         page.route("**/vagas/chips*", lambda rota: rota.fulfill(status=500, body="erro"))
     page.goto(f"{painel}/vagas?aba=todas")
     expect(page.locator("#lista-vagas")).to_be_visible()
+    _abrir_mais_filtros(page)  # aberto, o texto de espera estaria à vista se ficasse
     espera = page.locator("#filtros-chips")
     expect(espera).not_to_have_attribute("aria-busy", "true")
     expect(espera.locator("[data-espera]")).to_be_hidden()
@@ -834,3 +846,209 @@ def test_sem_foco_a_linha_aberta_fica_azul(page: Page, painel: str) -> None:
     assert linha.evaluate(fundo) == page.evaluate(FUNDO_DE, "var(--destaque)")
     page.evaluate("() => { document.documentElement.dataset.janela = 'inativa'; }")
     assert linha.evaluate(fundo) == page.evaluate(FUNDO_DE, "var(--selecao-inativa)")
+
+
+# T301: acertos da conferência visual
+CAIXA = "el => { const r = el.getBoundingClientRect(); return [r.x, r.y, r.right, r.bottom]; }"
+
+
+def _caixa(local: Locator) -> list[float]:
+    return local.evaluate(CAIXA)  # type: ignore[no-any-return]
+
+
+def _meio(local: Locator) -> float:
+    _, topo, _, base = _caixa(local)
+    return (topo + base) / 2
+
+
+def test_lista_na_primeira_dobra(page: Page, painel: str) -> None:
+    page.set_viewport_size({"width": 1280, "height": 800})
+    page.goto(f"{painel}/vagas?aba=todas")
+    assert _caixa(_linhas(page).first)[1] < 320
+    # uma linha de controles: a barra mal passa da altura do "Ordenar por"
+    ordem = page.locator(".barra-lista #ordem")
+    _, topo, _, base = _caixa(page.locator(".barra-lista"))
+    _, o_topo, _, o_base = _caixa(ordem)
+    assert base - topo < 2 * (o_base - o_topo)
+
+
+@pytest.mark.parametrize("largura", [1280, 800, 600])
+def test_mais_filtros_no_mesmo_lugar(page: Page, painel: str, largura: int) -> None:
+    """O resumo é o último item da linha, logo depois de "Ordenar por", em toda largura."""
+    page.set_viewport_size({"width": largura, "height": 800})
+    page.goto(f"{painel}/vagas?aba=todas")
+    resumo = page.locator("details.mais-filtros > summary")
+    ordem = page.locator(".barra-lista #ordem")
+    assert abs(_meio(resumo) - _meio(ordem)) <= 4
+    assert _caixa(resumo)[0] >= _caixa(ordem)[2]
+
+
+def test_sobreposto_preso_a_janela(page: Page, painel: str) -> None:
+    page.set_viewport_size({"width": 800, "height": 700})
+    page.goto(f"{painel}/vagas?aba=todas")
+    assert 640 <= _largura_do_miolo(page) < 860
+    _linhas(page).nth(1).click()
+    lado = page.locator(LADO)
+    expect(lado.get_by_role("heading", level=2)).to_be_visible()
+    assert lado.evaluate(MODO) == "sobreposto"
+    assert not lado.evaluate("el => el.matches(':modal')")
+    pe_da_barra = _caixa(page.get_by_role("banner"))[3]
+    x, topo, direita, base = _caixa(lado)
+    assert pe_da_barra <= topo <= pe_da_barra + 16  # do pé da barra de ferramentas...
+    assert base <= 700  # ... até dentro da janela
+    for nome in ("Salvar", "Ocultar"):  # as ações presas no pé, inteiras à vista (E17)
+        b_x, b_topo, b_direita, b_base = _caixa(lado.get_by_role("button", name=nome, exact=True))
+        assert 0 <= b_x and b_direita <= 800 and 0 <= b_topo and b_base <= 700, nome
+    corpo = page.locator(f"{LADO} > .detalhe")
+    assert corpo.evaluate("el => el.scrollHeight > el.clientHeight")  # só o corpo rola
+    # preso à janela: rolar a lista não leva o sobreposto junto
+    page.locator(".coluna").evaluate("el => el.scrollBy(0, 300)")
+    page.wait_for_function("() => document.querySelector('.coluna').scrollTop > 0")
+    depois = _caixa(lado)
+    assert all(abs(a - b) <= 0.5 for a, b in zip(depois, [x, topo, direita, base], strict=True))
+
+
+EM_CIMA = "() => document.querySelector('#detalhe-vaga')?.matches(':popover-open')"
+NO_FLUXO = "() => !document.querySelector('#detalhe-vaga')?.matches(':popover-open')"
+
+
+def test_coluna_sem_a_caixa_do_popover(page: Page, painel: str) -> None:
+    """O popover="manual" do sobreposto traz as regras de UA de [popover] (fundo Canvas, largura
+    fit-content, borda, inset 0) em todo estado: em coluna o detalhe segue sem fundo, só com o
+    separador à esquerda, na largura da trilha da grade."""
+    page.set_viewport_size({"width": 1400, "height": 900})
+    page.goto(f"{painel}/vagas?aba=todas")
+    _abrir_ao_lado(page, NOVA)
+    lado = page.locator(LADO)
+    assert lado.evaluate(MODO) == "coluna"
+    page.wait_for_function(NO_FLUXO)
+    estilo = lado.evaluate(
+        "el => { const s = getComputedStyle(el); return [s.backgroundColor, s.borderTopStyle,"
+        " s.borderLeftStyle, s.borderTopLeftRadius, s.boxShadow, s.bottom]; }"
+    )
+    assert estilo == ["rgba(0, 0, 0, 0)", "none", "solid", "0px", "none", "auto"]
+    trilha = page.locator(".vagas-colunas").evaluate(
+        "el => parseFloat(getComputedStyle(el).gridTemplateColumns.split(' ').at(-1))"
+    )
+    caixa = lado.bounding_box()
+    assert caixa
+    assert abs(caixa["width"] - trilha) <= 1
+
+
+def test_camada_do_detalhe_depois_de_voltar(page: Page, painel: str) -> None:
+    """Voltar troca o body (historyRestore): a troca de camada segue a largura do miolo depois
+    disso, sem o observador preso à .coluna velha."""
+    page.set_viewport_size({"width": 1400, "height": 900})
+    page.goto(f"{painel}/vagas?aba=todas&ordem=recentes")
+    _abrir_ao_lado(page, NOVA)
+    page.evaluate("() => { window.__mesmaPagina = true; }")
+    # a ordem troca o miolo com hx-push-url (a aba da lateral é página inteira e não serve)
+    page.locator("#ordem").select_option("empresa")
+    expect(page).to_have_url(re.compile(r"[?&]ordem=empresa"))
+    page.go_back()
+    expect(page).to_have_url(re.compile(r"[?&]ordem=recentes"))
+    expect(page.locator(LADO).get_by_role("heading", level=2, name=NOVA)).to_be_visible()
+    assert page.evaluate("() => window.__mesmaPagina") is True  # restaurada pelo htmx, sem recarga
+    page.wait_for_function(NO_FLUXO)
+    page.set_viewport_size({"width": 800, "height": 700})
+    page.wait_for_function(EM_CIMA)
+    assert page.locator(LADO).evaluate(MODO) == "sobreposto"
+    page.set_viewport_size({"width": 1400, "height": 900})
+    page.wait_for_function(NO_FLUXO)
+
+
+def test_titulos_da_lista_alinhados(page: Page, painel: str, banco: Path) -> None:
+    """Com encaixe bom, médio, fraco ou nenhum, os títulos começam no mesmo x (a caixa do ícone
+    existe vazia)."""
+    with closing(abrir(banco)) as con:
+        inserir_vaga(con, titulo="Vaga Sem Encaixe")
+        con.commit()
+    page.set_viewport_size({"width": 1280, "height": 800})
+    page.goto(f"{painel}/vagas?aba=todas")
+    for icone in ("circle", "contrast", "circle-dashed"):
+        expect(
+            page.locator(f'#lista-vagas .icone-encaixe[data-icone="{icone}"]').first
+        ).to_be_attached()
+    expect(page.locator("#lista-vagas .icone-encaixe:not([data-icone])").first).to_be_attached()
+    xs = page.locator("#lista-vagas .linha-titulo").evaluate_all(
+        "es => es.map(e => e.getBoundingClientRect().x)"
+    )
+    assert len(xs) > 4
+    assert max(xs) - min(xs) <= 1
+
+
+def _com_contorno(local: Locator) -> bool:
+    return local.evaluate(  # type: ignore[no-any-return]
+        "el => { const s = getComputedStyle(el);"
+        " return s.outlineStyle !== 'none' && parseFloat(s.outlineWidth) > 0; }"
+    )
+
+
+def test_primeira_linha_sem_marca(page: Page, painel: str) -> None:
+    """Na carga nenhuma linha vem marcada; a primeira só fica no Tab (T301 item 6)."""
+    page.set_viewport_size({"width": 1280, "height": 800})
+    page.goto(f"{painel}/vagas")
+    _aguardar_lista(page)
+    marcadas = page.locator('#lista-vagas [aria-selected="true"]')
+    expect(marcadas).to_have_count(0)
+    primeira = _linhas(page).first
+    expect(primeira).to_have_attribute("tabindex", "0")
+    # pelo link de pular: o foco, com contorno
+    page.get_by_role("link", name="Pular para a lista de vagas").focus()
+    page.keyboard.press("Enter")
+    expect(primeira).to_be_focused()
+    assert _com_contorno(primeira)
+    # pelo Tab de verdade: o mesmo
+    page.goto(f"{painel}/vagas")
+    _aguardar_lista(page)
+    for _ in range(150):
+        page.keyboard.press("Tab")
+        if primeira.evaluate("el => el === document.activeElement"):
+            break
+    else:
+        pytest.fail("o Tab não chegou à lista de vagas")
+    assert _com_contorno(primeira)
+    # a seta escolhe: uma linha, e só uma, fica marcada
+    page.keyboard.press("ArrowDown")
+    expect(marcadas).to_have_count(1)
+    expect(_linhas(page).nth(1)).to_have_attribute("aria-selected", "true")
+
+
+VIOLACOES = """
+window.__violacoes = [];
+document.addEventListener('securitypolicyviolation', (e) => {
+  window.__violacoes.push(e.violatedDirective);
+});
+"""
+
+
+def test_troca_da_lista_sem_violacao_de_csp(page: Page, painel: str, banco: Path) -> None:
+    """A captura de tela do Playwright deixa style="" nos campos; o htmx copiava esse style para
+    os campos novos na troca e o CSP barrava (style-src-attr). Item 10 da T301."""
+    _sql(
+        banco,
+        "INSERT INTO busca (nome, cargos, modalidades, ativa, criada_em)"
+        " VALUES ('Segunda', '[\"cobol\"]', '[]', 1, ?)",
+        AGORA.isoformat(),
+    )
+    page.add_init_script(VIOLACOES)
+    page.set_viewport_size({"width": 1280, "height": 800})
+    page.goto(f"{painel}/vagas?aba=todas")
+    _aguardar_lista(page)
+    page.screenshot()  # antes das trocas, como numa conferência visual
+    # o que a foto faz, sem depender dela: style vazio nos campos, posto pelo CSSOM (o CSP deixa)
+    marcados = page.locator('[id^="filtro-"]').evaluate_all(
+        "es => es.map(e => { e.style.caretColor = 'transparent'; e.style.caretColor = '';"
+        " return e.hasAttribute('style'); })"
+    )
+    assert marcados and all(marcados)
+    _ocultar_pelo_detalhe(page, NOVA)
+    page.locator(FAIXA).get_by_role("button", name="Desfazer").click()
+    expect(_cartao(page, NOVA)).to_have_count(1)
+    seletor = page.locator(".barra-lista #busca-escolhida")
+    segunda = seletor.locator("option", has_text="Segunda").get_attribute("value")
+    assert segunda
+    seletor.select_option(segunda)
+    expect(page).to_have_url(re.compile(rf"[?&]busca={segunda}\b"))
+    expect(page.locator("#busca-escolhida")).to_have_value(segunda)
+    assert page.evaluate("() => window.__violacoes") == []

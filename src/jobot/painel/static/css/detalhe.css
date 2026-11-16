@@ -42,8 +42,26 @@
   line-height: 1.375rem;
 }
 
+/* ações (T301): uma fileira que quebra, com o mesmo espaço nas duas direções; os forms saem da
+   caixa (display: contents não mexe no envio) para todos os botões dividirem a fileira, sem quebra
+   de texto por dentro e com a mesma altura. "Situação" fica numa linha própria, acima. */
 .detalhe .acoes {
   align-items: center;
+  gap: 0.5rem;
+}
+
+.detalhe .acoes form {
+  display: contents;
+}
+
+.detalhe .acoes :is(a, button) {
+  line-height: 1.25rem;
+  white-space: nowrap;
+}
+
+.detalhe .acoes .situacao {
+  flex: 1 1 100%;
+  order: -1;
 }
 
 /* situação, Salvar e Ocultar quebram de linha juntos: o botão nunca fica sozinho na de baixo */

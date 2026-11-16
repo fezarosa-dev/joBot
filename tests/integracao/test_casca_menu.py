@@ -360,3 +360,18 @@ def test_rotulos_en_da_lateral_em_title_case(cliente: TestClient, banco: Path) -
     assert len(rotulos) >= 15
     fora = [r for r in rotulos if not _title_case(r)]
     assert fora == []
+
+
+@pytest.mark.parametrize("idioma", ["pt", "en"])
+def test_sugeridas_mostra_a_contagem_de_pendentes(
+    cliente: TestClient, banco: Path, idioma: str
+) -> None:
+    """T301 item 9: o item Sugeridas traz a contagem de pendentes, como as contagens da T253."""
+    _sugerir(banco)
+    html = cliente.get("/vagas", headers={"Accept-Language": idioma}).text
+    navs = [n for n in NAV.findall(html) if f'aria-label="{MENU[idioma]}"' in n]
+    assert len(navs) == 1
+    links = [t for a, t in LINK.findall(navs[0]) if 'href="/empresas/sugeridas"' in a]
+    assert len(links) == 1
+    assert '<span class="contagem">1</span>' in links[0]
+    assert _contagens(html, idioma)["/empresas/sugeridas"] == 1
