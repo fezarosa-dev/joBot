@@ -101,7 +101,7 @@ Três causas que a T292 deixou de fora.
 - [x] **(c) Corrida de porta (hipótese, não provada):** a falha antiga de "setup lento" do `test_form_sem_htmx_chega_numa_pagina_que_ja_mostra_o_andamento` pode ser a fixture `porta` de `tests/tela/conftest.py`, que fecha o socket antes de o uvicorn ligar (outro processo pode pegar a porta). Provar com teste ou descartar com medição; descartada, anotar aqui a medição.
 - [x] **Ver falhar:** o que der para provar sem relógio, em `tests/unidade/` ou na própria tela (por exemplo, nenhum teste de `tests/tela` espera tempo real; conferido por varredura do texto). O resto fica com a medição do CI.
 - [x] **Ver passar:** o arquivo de cada teste mexido e `uv run ruff check && uv run ruff format --check` aqui; o resto no CI.
-- [ ] **Critério:** tempos antes e depois, por parte, no CI (`--durations`), e 3 rodadas verdes seguidas.
+- [x] **Critério:** tempos antes e depois, por parte, no CI (`--durations`), e 3 rodadas verdes seguidas.
 
 **O que foi feito (2026-11-16):**
 
@@ -125,3 +125,12 @@ Três causas que a T292 deixou de fora.
 | `tela/test_buscar_agora.py` (3) | 6,5 s (chamada 5,3 s) | 2,0 s (chamada 0,8 s) |
 
 Só o Playwright de sessão, sem a volta curta do `SiteFalso`, tirava uns 0,15 s de preparação por teste (`test_captcha_logado.py`: 46,2 s para 45,0 s).
+
+**No CI (`lote/testes-rapidos`, 16 partes de tela), 3 rodadas verdes seguidas:**
+
+| Rodada | Tela: mínima / mediana / máxima por parte | Total da rodada |
+|---|---|---|
+| Antes (T292) | 79 a 106 s | 89 a 116 s |
+| 1 (push; branch nova, sem o cache do Chromium) | 51 / 62 / 90 s | 102 s |
+| 2 | 34 / 43 / 49 s | 71 s |
+| 3 | 35 / 46 / 61 s | 67 s |
