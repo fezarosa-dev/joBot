@@ -71,7 +71,7 @@ Navegador e Playwright
 - O Playwright 1.65.1 e o `pytest-playwright` 0.10.0 estão só no grupo `dev` (`pyproject.toml:27-30`); as dependências de execução não o têm (`pyproject.toml:13-21`).
 - O desenho da fase 1 diz que o Playwright só viraria dependência de execução se uma fonte pública exigisse JavaScript (`2026-11-13-fase-1-design.md:1491`; DR-16, `:1548`), e que o Chromium dele passa de 100 MB (`:1498`).
 - A `fedora-dev` não tem Chrome nem navegador: os testes de tela usam o Chromium baixado pelo Playwright (`2026-11-13-fase-1-design.md:1436`), e o painel abre no navegador do sistema de fora por `distrobox-host-exec xdg-open` (`:161`, `:1213`).
-- O CI instala o Chromium com `uv run playwright install --with-deps chromium` (`.github/workflows/ci.yml:35`) e roda `pytest -m tela` sem tela (`:36`).
+- O CI instala o Chromium com `uv run playwright install --with-deps chromium` (job `tela` do `ci.yml`) e roda `pytest -m tela` sem tela.
 - Não há pacote `jobot/navegador` nem código que abra navegador para ler site.
 
 2Captcha (pronto na 0.2.0)
@@ -147,7 +147,7 @@ Captura de fixtures
 - O Playwright 1.65.1 passa do grupo `dev` para as dependências de execução, com a mesma versão e `==` (D132.1). O `pytest-playwright` fica no `dev`. Não é pacote novo; a licença (Apache-2.0) já foi conferida (`2026-11-13-fase-1-design.md:1498`). O pacote Python é pequeno; o Chromium, à parte, passa de 100 MB (`:1498`).
 - O pacote Python do Playwright não traz navegador. O joBot usa o Chrome instalado (`channel="chrome"`); sem ele, o Chromium do Playwright (D132.2).
 - Na `fedora-dev` do dono não há Chrome (seção 4), e o Chrome do sistema de fora não serve: o transporte por pipe exige que o processo do navegador seja filho do Playwright, e isso não passa pelo `distrobox-host-exec`. Então, no caso do dono, o caminho real é o Chromium do Playwright dentro do container (D132.24; ver a seção 10).
-- Na Parte A, o joBot não baixa navegador (D132.24). Ele usa o Chromium que o Playwright já tem instalado, o mesmo de `uv run playwright install chromium` na máquina de quem desenvolve e no CI (`.github/workflows/ci.yml:35`). Sem Chrome e sem Chromium, cada site ligado fica com `saude.sem_navegador`.
+- Na Parte A, o joBot não baixa navegador (D132.24). Ele usa o Chromium que o Playwright já tem instalado, o mesmo de `uv run playwright install chromium` na máquina de quem desenvolve e no CI (job `tela` do `ci.yml`). Sem Chrome e sem Chromium, cada site ligado fica com `saude.sem_navegador`.
 - O botão "Baixar o navegador" (download do Chromium pelo joBot) entra só na Parte B, no lote do primeiro site, junto com o texto de privacidade que cita esse caminho de rede (seção 6).
 - Biblioteca de sistema faltando (comum em container): a falha ao abrir o navegador também vira `saude.sem_navegador`. O painel mostra uma frase fixa e a sugestão de instalar as bibliotecas pelo gerenciador de pacotes do sistema; a mensagem do Playwright vai só ao log (D132.55; `registros/padroes.md` («Falha de sistema na tela»)).
 
