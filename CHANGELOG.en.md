@@ -17,10 +17,17 @@ The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/
 - ADR 0023: everything through the dashboard. External tools, updating and quitting get a button, no terminal needed.
 - Guide "How to add a new site" (`docs/site-novo.en.md`), with a collector template for a public site and a reader template for a site with login, and a CI guard that checks each site's test, example and name.
 - ADR 0024: Gmail will be read over IMAP with an app password pasted into the dashboard (the card comes with the Accounts tab; reading the emails, in phase 6). The wiki gets the step-by-step guide.
+- A window of its own for the dashboard: if the computer has Chrome, Edge or Chromium, `jobot` opens the dashboard with no tabs or address bar, like an app; without them, it opens in a tab.
+- Undo and Redo: hiding a job, discarding a suggestion and removing a company happen right away, with an Undo bar (`⌘Z`, `Ctrl+Z` outside the Mac) and a Redo. Deleting a search, removing a site and forgetting logins ask for confirmation in an alert.
+- Command palette (`⌘K`, `Ctrl+K` outside the Mac): goes to any screen and changes theme, language and text size, with no mouse.
+- Keyboard shortcuts: `/` for search, arrows, `J`, `K`, `Home` and `End` in the list, `⌘,` for Settings, `⌘?` for help and the menu key for the job menu. The "Keyboard shortcuts" wiki page lists them all.
+- Text size (Default, Large or Larger) in Settings, General.
+- Search progress with steps: the top shows which step joBot is on (for example, "Reading Greenhouse · 13 of 20 queries") and "Show Details".
 
 ### Changed
 
 - New roadmap: after phase 2 comes version 0.3.0 ("Overview" screen and complete application queue); phase 3 becomes the Installer and the later phases move up one number, up to phase 9 (release).
+- New look for the dashboard, in the style of a Mac app: sidebar with Jobs and Where to Look, job list with the detail beside it, translucent windows and alerts, and the English title of the correction in Title Case ("Something Wrong with This Job?").
 
 ### Fixed
 

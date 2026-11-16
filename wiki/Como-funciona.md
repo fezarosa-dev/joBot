@@ -122,12 +122,20 @@ Cada fonte tem uma chave liga/desliga.
 
 ## 📋 O painel
 
-- **Abas:** Destaques de hoje, Todas, Novas, Fecham logo, Salvas, Candidatei, Programas e Ocultas.
+O painel roda no seu computador, em `127.0.0.1`. Se o joBot acha o Chrome, o Edge ou o Chromium no sistema, ele abre numa janela própria, sem abas nem barra de endereço; senão usa o Chromium que ele instalou, e só então uma aba comum.
+
+- **Barra lateral:** a seção Vagas (Destaques de hoje e as abas, com a contagem de cada uma), a seção Onde buscar (Buscas, Empresas, Sugeridas, Fontes e Sites) e Configurações. Dá para recolhê-la e mudar a largura.
+- **Lista com detalhe:** a lista de vagas de um lado, o detalhe da vaga escolhida do outro; em janela estreita o detalhe sobe por cima da lista.
+- **Abas:** Destaques de hoje, Todas, Novas, Fecham logo, Salvas, Candidatei, Programas e Ocultas, todas na barra lateral.
 - **Filtros** em "chips" (botõezinhos) com contagem: país e há quantos dias a vaga foi publicada ficam à vista; salário, cidade, empresa e palavras que a vaga não pode ter ficam em "Mais filtros". O filtro atual fica no endereço da página, então dá para salvar o link. Busca rápida com a tecla `/`.
 - **Status de cada vaga:** nova → salva → candidatei → entrevista → recusada ou oferta.
 - **Calendário de 12 meses** em cada vaga, para ver prazos de relance.
 - **"Algo errado nesta vaga?"**: um botão para corrigir um rótulo ou dado.
-- **Visual inspirado no estilo da Apple:** translucidez, animações suaves, modo claro e escuro seguindo o sistema.
+- **Desfazer:** ocultar uma vaga, descartar uma sugestão ou remover uma empresa acontece na hora, com uma faixa de **Desfazer**. O que apaga de verdade pede confirmação antes.
+- **Teclado e paleta de comandos:** `⌘K` (`Ctrl+K` fora do Mac) leva a qualquer tela. Veja todos em [Atalhos de teclado](Atalhos-de-teclado).
+- **Tamanho do texto:** Padrão, Grande ou Maior, em Configurações, Geral.
+- **Andamento da busca:** ao buscar agora, o topo mostra a etapa em que o joBot está e quanto já foi.
+- **Visual de aplicativo do Mac:** translucidez, animações suaves, modo claro e escuro seguindo o sistema, e movimento reduzido para quem pede.
 - **Idiomas:** português e inglês.
 
 ## 🌙 Segundo plano
