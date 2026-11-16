@@ -5,13 +5,17 @@ Mora fora de `rotas/` porque a lateral é um global do Jinja: `globais` não pod
 """
 
 import sqlite3
+from collections.abc import Sequence
 from datetime import UTC, datetime
 
 from starlette.requests import Request
 
-from jobot.banco import leitura
+from jobot.banco import cadastros, leitura
 from jobot.banco.cadastros import ler_config
+from jobot.banco.sessoes import ler_sessao, ler_sessoes
+from jobot.nucleo import gmail
 from jobot.nucleo.destaques import Candidata, destaques
+from jobot.nucleo.leitores.base import LeitorComLogin
 from jobot.nucleo.relogio import Relogio, RelogioReal
 
 MAX_ID = 2**31
@@ -92,3 +96,22 @@ def ids_destaques(con: sqlite3.Connection, busca_id: int | None, agora: datetime
             )
             candidatas.append(candidata)
     return [c.vaga_id for c in destaques(candidatas, agora, quantas)]
+
+
+def contas_em_queda(
+    con: sqlite3.Connection, leitores: Sequence[LeitorComLogin]
+) -> list[tuple[str, str]]:
+    """Chave e nome das contas em queda: os sites na ordem dos leitores, o Gmail por último."""
+    ligadas = {f.chave: f.ligada for f in cadastros.fontes(con)}
+    sessoes = ler_sessoes(con, "site")
+    quedas = [
+        (leitor.chave, leitor.nome)
+        for leitor in leitores
+        if ligadas.get(leitor.chave, False)
+        and (sessao := sessoes.get(leitor.chave)) is not None
+        and sessao.queda_aberta
+    ]
+    do_gmail = ler_sessao(con, "conta", gmail.CONTA)
+    if do_gmail is not None and do_gmail.queda_aberta:
+        quedas.append((gmail.CONTA, "Gmail"))
+    return quedas

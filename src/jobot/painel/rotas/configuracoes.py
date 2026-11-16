@@ -70,8 +70,8 @@ from jobot.painel.ambiente import (
 from jobot.painel.consultas import relogio_do_painel
 from jobot.painel.formatos import conferido_texto, opcoes_de_pais
 from jobot.painel.rotas.execucao import criar_tarefa
-from jobot.painel.rotas.fontes import estado_dos_escopos, motivo_mais_grave
 from jobot.painel.rotas.servicos import contexto_captcha, no_cofre
+from jobot.painel.saude_das_fontes import estado_dos_escopos, motivo_mais_grave
 from jobot.painel.seguranca import Con, idioma_do_pedido, renderizar
 from jobot.sistema import caso, segundo_plano_linux
 from jobot.sistema.segundo_plano_linux import Recusa
