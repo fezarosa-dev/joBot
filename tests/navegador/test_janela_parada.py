@@ -17,7 +17,7 @@ from urllib.parse import urlsplit
 
 import httpx
 import pytest
-from playwright.async_api import BrowserContext, Page, Route, async_playwright
+from playwright.async_api import BrowserContext, Page, Playwright, Route
 from playwright.async_api import Error as ErroDoPlaywright
 
 from apoio.cofre_falso import CofreFalso
@@ -115,7 +115,7 @@ class Montagem:
 
 
 @pytest.fixture
-async def montagem() -> AsyncIterator[Montagem]:
+async def montagem(playwright_da_sessao: Playwright) -> AsyncIterator[Montagem]:
     recusados: list[str] = []
 
     async def filtrar(route: Route) -> None:
@@ -128,25 +128,23 @@ async def montagem() -> AsyncIterator[Montagem]:
     def ao_abrir(page: Page) -> None:
         page.on("close", lambda p: m.fechadas.append((urlsplit(p.url).path, m.relogio.agora())))
 
-    async with async_playwright() as playwright:
+    async def lancar(**argumentos: Any) -> BrowserContext:
+        argumentos.pop("channel", None)  # sempre o Chromium do Playwright, igual no CI
+        contexto = await playwright_da_sessao.chromium.launch_persistent_context(
+            **argumentos, headless=True
+        )
+        await contexto.route("**/*", filtrar)
+        contexto.on("page", ao_abrir)
+        contexto.on("close", lambda _: m.fechamentos.append(m.relogio.agora()))
+        m.contextos.append(contexto)
+        return contexto
 
-        async def lancar(**argumentos: Any) -> BrowserContext:
-            argumentos.pop("channel", None)  # sempre o Chromium do Playwright, igual no CI
-            contexto = await playwright.chromium.launch_persistent_context(
-                **argumentos, headless=True
-            )
-            await contexto.route("**/*", filtrar)
-            contexto.on("page", ao_abrir)
-            contexto.on("close", lambda _: m.fechamentos.append(m.relogio.agora()))
-            m.contextos.append(contexto)
-            return contexto
-
-        m = Montagem(RelogioDoNavegador(), lancar)
-        try:
-            yield m
-        finally:
-            for contexto in m.contextos:
-                await contexto.close()
+    m = Montagem(RelogioDoNavegador(), lancar)
+    try:
+        yield m
+    finally:
+        for contexto in m.contextos:
+            await contexto.close()
     assert recusados == [], f"pedido para fora do loopback: {recusados}"
 
 

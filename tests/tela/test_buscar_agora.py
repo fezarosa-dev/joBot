@@ -26,6 +26,11 @@ def liberar() -> threading.Event:
 
 
 @pytest.fixture
+def terminou() -> threading.Event:
+    return threading.Event()
+
+
+@pytest.fixture
 def chamadas() -> list[str]:
     return []
 
@@ -35,6 +40,7 @@ def app_painel(
     app_painel: FastAPI,
     monkeypatch: pytest.MonkeyPatch,
     liberar: threading.Event,
+    terminou: threading.Event,
     chamadas: list[str],
 ) -> FastAPI:
     # o que o lifespan do `serve` põe em app.state (D55, D58); aqui o lifespan fica desligado
@@ -56,18 +62,32 @@ def app_painel(
             inserir_vaga(propria, primeira_vista_em=agora)
             propria.commit()
             fechar_execucao(propria, id_, datetime.now(UTC))
+        terminou.set()
         return id_
 
     monkeypatch.setattr(rota, "executar_busca", falsa)
     return app_painel
 
 
+def _proxima_pergunta(page: Page, liberar: threading.Event, terminou: threading.Event) -> None:
+    """Solta a busca, espera ela fechar no banco e adianta o relógio da página até a pergunta
+    de 2 em 2 s do andamento (`hx-trigger="every 2s"`), sem esperar os 2 s de verdade."""
+    liberar.set()
+    assert terminou.wait(5)
+    page.clock.fast_forward(2000)
+
+
 def test_buscar_agora_mostra_o_andamento_e_as_vagas_novas(
-    page: Page, painel: str, liberar: threading.Event, chamadas: list[str]
+    page: Page,
+    painel: str,
+    liberar: threading.Event,
+    terminou: threading.Event,
+    chamadas: list[str],
 ) -> None:
     erros: list[str] = []  # violação do CSP aparece como erro no console
     page.on("console", lambda m: erros.append(m.text) if m.type == "error" else None)
     page.on("pageerror", lambda e: erros.append(str(e)))
+    page.clock.install()  # o tempo corre; só o fast_forward pula a espera da pergunta
     page.goto(f"{painel}/vagas?aba=todas")
     regiao = page.get_by_role("status", name="Andamento da busca")
     expect(regiao).to_have_attribute("aria-live", "polite")
@@ -80,8 +100,8 @@ def test_buscar_agora_mostra_o_andamento_e_as_vagas_novas(
     expect(regiao).to_contain_text("Uma busca já está rodando")
     assert chamadas == ["agora"]
 
-    liberar.set()  # a pergunta de 2 em 2 s traz o fim sem outro clique
-    expect(regiao).to_contain_text("Busca concluída. Vagas novas: 2.", timeout=10_000)
+    _proxima_pergunta(page, liberar, terminou)  # a pergunta traz o fim sem outro clique
+    expect(regiao).to_contain_text("Busca concluída. Vagas novas: 2.")
     expect(regiao.locator("[hx-trigger]")).to_have_count(0)  # parou de perguntar
     assert chamadas == ["agora"]
     assert erros == []
@@ -95,8 +115,13 @@ def test_sair_encerra_o_servidor(page: Page, painel: str, app_painel: FastAPI) -
 
 
 def test_form_sem_htmx_chega_numa_pagina_que_ja_mostra_o_andamento(
-    page: Page, painel: str, liberar: threading.Event, chamadas: list[str]
+    page: Page,
+    painel: str,
+    liberar: threading.Event,
+    terminou: threading.Event,
+    chamadas: list[str],
 ) -> None:
+    page.clock.install()
     page.goto(f"{painel}/vagas?aba=todas")
     # form comum, sem hx-post (montado por JS): volta por redirect
     with page.expect_navigation():
@@ -116,6 +141,6 @@ def test_form_sem_htmx_chega_numa_pagina_que_ja_mostra_o_andamento(
         )
     regiao = page.get_by_role("status", name="Andamento da busca")
     expect(regiao).to_contain_text("Buscando vagas")
-    liberar.set()
-    expect(regiao).to_contain_text("Busca concluída. Vagas novas: 2.", timeout=10_000)
+    _proxima_pergunta(page, liberar, terminou)
+    expect(regiao).to_contain_text("Busca concluída. Vagas novas: 2.")
     assert chamadas == ["agora"]

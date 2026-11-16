@@ -96,9 +96,32 @@ Três causas que a T292 deixou de fora.
 - modificar `tests/tela/test_buscar_agora.py` e `tests/tela/conftest.py`;
 - modificar `registros/padroes.md` com a lição, se sair uma.
 
-- [ ] **(a) Playwright por sessão:** `async_playwright` sobe a cada teste em `tests/navegador` (`test_execucao_logada.py:100`, `test_captcha_logado.py:158`, `apoio/site_falso.py:654`), com 0,5 a 0,9 s só na desmontagem. Trocar por fixture de sessão por parte (`anyio_backend` de escopo de sessão), mantendo o contexto de cada teste isolado.
-- [ ] **(b) Relógio do navegador:** `tests/tela/test_buscar_agora.py:83` e `:119` esperam a pergunta de 2 em 2 s do painel. Usar `page.clock` (`install` e `fast_forward`) no lugar da espera real.
-- [ ] **(c) Corrida de porta (hipótese, não provada):** a falha antiga de "setup lento" do `test_form_sem_htmx_chega_numa_pagina_que_ja_mostra_o_andamento` pode ser a fixture `porta` de `tests/tela/conftest.py`, que fecha o socket antes de o uvicorn ligar (outro processo pode pegar a porta). Provar com teste ou descartar com medição; descartada, anotar aqui a medição.
-- [ ] **Ver falhar:** o que der para provar sem relógio, em `tests/unidade/` ou na própria tela (por exemplo, nenhum teste de `tests/tela` espera tempo real; conferido por varredura do texto). O resto fica com a medição do CI.
-- [ ] **Ver passar:** o arquivo de cada teste mexido e `uv run ruff check && uv run ruff format --check` aqui; o resto no CI.
+- [x] **(a) Playwright por sessão:** `async_playwright` sobe a cada teste em `tests/navegador` (`test_execucao_logada.py:100`, `test_captcha_logado.py:158`, `apoio/site_falso.py:654`), com 0,5 a 0,9 s só na desmontagem. Trocar por fixture de sessão por parte (`anyio_backend` de escopo de sessão), mantendo o contexto de cada teste isolado.
+- [x] **(b) Relógio do navegador:** `tests/tela/test_buscar_agora.py:83` e `:119` esperam a pergunta de 2 em 2 s do painel. Usar `page.clock` (`install` e `fast_forward`) no lugar da espera real.
+- [x] **(c) Corrida de porta (hipótese, não provada):** a falha antiga de "setup lento" do `test_form_sem_htmx_chega_numa_pagina_que_ja_mostra_o_andamento` pode ser a fixture `porta` de `tests/tela/conftest.py`, que fecha o socket antes de o uvicorn ligar (outro processo pode pegar a porta). Provar com teste ou descartar com medição; descartada, anotar aqui a medição.
+- [x] **Ver falhar:** o que der para provar sem relógio, em `tests/unidade/` ou na própria tela (por exemplo, nenhum teste de `tests/tela` espera tempo real; conferido por varredura do texto). O resto fica com a medição do CI.
+- [x] **Ver passar:** o arquivo de cada teste mexido e `uv run ruff check && uv run ruff format --check` aqui; o resto no CI.
 - [ ] **Critério:** tempos antes e depois, por parte, no CI (`--durations`), e 3 rodadas verdes seguidas.
+
+**O que foi feito (2026-11-16):**
+
+- (a) `tests/navegador/conftest.py` ganhou `anyio_backend` de sessão e a fixture `playwright_da_sessao` (um driver por processo, isto é, por parte no CI). `contexto_de_teste`, as `montagem` de `test_execucao_logada`, `test_janela_parada` e `test_login_manual`, o `lancar` de `test_captcha_logado` e `test_marca_de_instalacao` a recebem; cada teste segue com o seu navegador e o seu contexto. Fica de fora `test_capturar_logado_site.py`: é síncrono e o script roda o próprio laço. Os testes que trocam `execucao.async_playwright` ficam como estavam.
+- A causa maior da desmontagem lenta não era o driver: era o `SiteFalso` (`tests/apoio/site_falso.py`), cujos dois servidores rodavam `serve_forever` na volta padrão de 0,5 s, e o `shutdown` espera uma volta inteira por servidor (0 a 1 s por teste). Volta de 0,02 s.
+- (b) `test_buscar_agora.py`: `page.clock.install()` antes do `goto` (o tempo corre, para os timers do HTMX); depois de soltar a busca, o teste espera ela fechar no banco (`threading.Event`) e faz `page.clock.fast_forward(2000)`, que dispara a pergunta do `hx-trigger="every 2s"` (o HTMX agenda com `setTimeout`). Sem `timeout=10_000`.
+- Guarda: `tests/unidade/test_testes_sem_espera.py` varre o texto de `tests/tela` (sem `wait_for_timeout`, dormida acima de 0,1 s nem `timeout=` acima dos 5 s do `expect`), de `tests/navegador` (só o `conftest.py` abre `async_playwright`) e prende a volta curta do `SiteFalso`.
+- (c) **Descartada.** Medição nesta máquina (Linux 7.2, faixa 32768 a 60999): 3000 vezes `bind(0)`, fechar, 5 ms e o `bind` de novo com `SO_REUSEADDR` (como o `create_server` do asyncio), com 4 threads abrindo conexões sem parar (215 925 `connect()`): 0 falhas. O kernel escolhe porta ímpar no `bind(0)` (100% nas 3000) e par no `connect()` (95%; só passa às ímpares quando as pares se esgotam em `TIME_WAIT`), então porta de saída e porta da fixture não se cruzam com a carga do CI. E o sintoma não bate: porta tomada faz o uvicorn 0.54 dar `sys.exit` na thread (`server.py`, `except OSError`), e o `painel` falha na hora com "o painel não subiu" (`linha.is_alive()`), não por setup lento. Sem mudança em `tests/tela/conftest.py`.
+
+**Tempos nesta máquina (um arquivo por vez, `--durations=0`, total do pytest):**
+
+| Arquivo | Antes | Depois |
+|---|---|---|
+| `navegador/test_execucao_logada.py` (37) | 76,3 s (desmontagem 22,9 s) | 47,6 s (0,9 s) |
+| `navegador/test_janela_parada.py` (25) | 50,2 s (11,0 s) | 34,4 s (0,7 s) |
+| `navegador/test_captcha_logado.py` (29) | 46,2 s (18,3 s) | 23,9 s (1,0 s) |
+| `navegador/test_detalhe_logado.py` (12) | 45,2 s (8,9 s) | 34,1 s (0,3 s) |
+| `navegador/test_navegacao_logada.py` (26) | 40,5 s (14,6 s) | 20,4 s (0,9 s) |
+| `navegador/test_login_manual.py` (5) | 8,7 s | 4,5 s |
+| `navegador/test_capturar_logado_site.py` (4) | 6,1 s | 3,9 s |
+| `tela/test_buscar_agora.py` (3) | 6,5 s (chamada 5,3 s) | 2,0 s (chamada 0,8 s) |
+
+Só o Playwright de sessão, sem a volta curta do `SiteFalso`, tirava uns 0,15 s de preparação por teste (`test_captcha_logado.py`: 46,2 s para 45,0 s).

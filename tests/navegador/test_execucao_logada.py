@@ -18,7 +18,7 @@ from urllib.parse import urlsplit
 
 import httpx
 import pytest
-from playwright.async_api import BrowserContext, Route, async_playwright
+from playwright.async_api import BrowserContext, Playwright, Route
 
 from apoio.cofre_falso import CofreFalso
 from apoio.relogio import RelogioFalso
@@ -97,40 +97,39 @@ class Montagem:
 
 
 @pytest.fixture
-async def montagem(tmp_path: Path) -> AsyncIterator[Montagem]:
+async def montagem(tmp_path: Path, playwright_da_sessao: Playwright) -> AsyncIterator[Montagem]:
     recusados: list[str] = []
     tarefas: list[asyncio.Task[None]] = []
-    async with async_playwright() as playwright:
 
-        async def lancar(**argumentos: Any) -> BrowserContext:
-            argumentos.pop("channel", None)  # sempre o Chromium do Playwright, igual no CI
-            contexto = await playwright.chromium.launch_persistent_context(
-                **argumentos, headless=True
-            )
-            await contexto.route("**/*", filtrar)
-            m.contextos.append(contexto)
-            return contexto
+    async def lancar(**argumentos: Any) -> BrowserContext:
+        argumentos.pop("channel", None)  # sempre o Chromium do Playwright, igual no CI
+        contexto = await playwright_da_sessao.chromium.launch_persistent_context(
+            **argumentos, headless=True
+        )
+        await contexto.route("**/*", filtrar)
+        m.contextos.append(contexto)
+        return contexto
 
-        m = Montagem(tmp_path, lancar)
+    m = Montagem(tmp_path, lancar)
 
-        async def filtrar(route: Route) -> None:
-            partes = urlsplit(route.request.url)
-            if partes.hostname not in LOCAIS:
-                recusados.append(route.request.url)
-                await route.abort()
-                return
-            if partes.path in m.fechar_em:
-                tarefas.append(asyncio.get_running_loop().create_task(m.contextos[-1].close()))
-            with contextlib.suppress(Exception):  # o contexto pode já estar fechando
-                await route.continue_()
+    async def filtrar(route: Route) -> None:
+        partes = urlsplit(route.request.url)
+        if partes.hostname not in LOCAIS:
+            recusados.append(route.request.url)
+            await route.abort()
+            return
+        if partes.path in m.fechar_em:
+            tarefas.append(asyncio.get_running_loop().create_task(m.contextos[-1].close()))
+        with contextlib.suppress(Exception):  # o contexto pode já estar fechando
+            await route.continue_()
 
-        try:
-            yield m
-        finally:
-            for tarefa in tarefas:
-                await tarefa
-            for contexto in m.contextos:
-                await contexto.close()
+    try:
+        yield m
+    finally:
+        for tarefa in tarefas:
+            await tarefa
+        for contexto in m.contextos:
+            await contexto.close()
     assert recusados == [], f"pedido para fora do loopback: {recusados}"
 
 
