@@ -99,6 +99,11 @@ async def caminho_do_navegador() -> Path | None:
     # nessa troca
     if CAMINHO_CHROME.exists():
         return CAMINHO_CHROME
+    return await chromium_do_jobot()
+
+
+async def chromium_do_jobot() -> Path | None:
+    """Só o Chromium do Playwright (sobe o driver), se o arquivo existe; não olha o Chrome."""
     async with async_playwright() as playwright:
         chromium = Path(playwright.chromium.executable_path)
     # o Playwright grava a marca no fim do download: sem ela o Chromium está pela metade

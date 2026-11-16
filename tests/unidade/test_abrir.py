@@ -3,10 +3,7 @@ import os
 import signal
 import socket
 import subprocess
-import sys
 import threading
-import webbrowser
-from argparse import Namespace
 from collections.abc import Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -15,16 +12,20 @@ from typing import Any
 
 import pytest
 
+from apoio.filho_com_trava import filho_com_trava
 from jobot.sistema import abrir as modulo_abrir
 from jobot.sistema import instancia
 from jobot.sistema.abrir import (
+    _lancar,
+    abrir_janela,
     abrir_navegador,
     abrir_painel,
     e_o_jobot,
-    executar,
+    existe_do_sistema,
     sair_do_servidor,
 )
 from jobot.sistema.instancia import Trava
+from jobot.sistema.pastas import PASTA_NAVEGADOR
 
 JOBOT = json.dumps({"app": "jobot", "versao": "0.1.0"}).encode()
 
@@ -263,51 +264,6 @@ def test_abrir_le_a_trava_uma_so_vez(tmp_path: Path, monkeypatch: pytest.MonkeyP
     assert len(aberturas) == 1
 
 
-def test_executar_abrir_com_porta_alheia_nao_sobe_nem_abre(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    subidas: list[int] = []
-    navegadores: list[str] = []
-
-    # o default de abrir_painel guarda abrir_navegador: o ponto de corte é o webbrowser
-    def subir() -> None:
-        subidas.append(1)
-
-    def abre(url: str, *args: object, **kwargs: object) -> bool:
-        navegadores.append(url)
-        return True
-
-    monkeypatch.setattr(modulo_abrir, "subir_servidor", subir)
-    monkeypatch.setattr(webbrowser, "open", abre)
-    with _servidor(b"outro") as porta:
-        monkeypatch.setenv("JOBOT_DADOS", str(tmp_path))
-        monkeypatch.setenv("JOBOT_PORTA", str(porta))
-        monkeypatch.delenv("CONTAINER_ID", raising=False)
-        assert executar(Namespace(comando="abrir")) != 0
-    assert subidas == []
-    assert navegadores == []
-
-
-def test_executar_abrir_que_nao_consegue_subir_diz_numa_linha_e_sai_com_1(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
-    monkeypatch.setenv("JOBOT_DADOS", str(tmp_path))
-    monkeypatch.setenv("JOBOT_PORTA", str(_porta_livre()))
-    monkeypatch.delenv("CONTAINER_ID", raising=False)
-    monkeypatch.setattr(sys, "executable", "/nao/existe/python-do-jobot")
-    erro: OSError | None = None
-    codigo = None
-    try:
-        codigo = executar(Namespace(comando="abrir"))
-    except OSError as exc:
-        erro = exc
-    assert erro is None, f"OSError vazou: {erro!r}"
-    assert codigo == 1
-    linhas = capsys.readouterr().err.strip().splitlines()
-    assert len(linhas) == 1
-    assert "Traceback" not in linhas[0]
-
-
 # --- abrir_navegador ---
 
 
@@ -347,40 +303,239 @@ def test_fora_do_distrobox_usa_webbrowser() -> None:
     assert abrir_navegador("http://127.0.0.1:1", {}, rodar=rodar, web=lambda e: False) is False
 
 
+# --- janela do modo app (T267) ---
+
+ENDERECO = "http://127.0.0.1:47615"
+ARG_APP = f"--app={ENDERECO}"
+SEM_BOAS_VINDAS = ["--no-first-run", "--no-default-browser-check"]
+
+
+class _Lancador:
+    def __init__(self, resultado: bool = True) -> None:
+        self.comandos: list[list[str]] = []
+        self.resultado = resultado
+
+    def __call__(self, comando: Sequence[str]) -> bool:
+        self.comandos.append(list(comando))
+        return self.resultado
+
+
+class _Cenario:
+    """Abre a janela com `existe`, `chromium` e o lançador injetados; guarda o que foi chamado."""
+
+    def __init__(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        *,
+        presentes: Sequence[str] = (),
+        chromium: Path | None = None,
+        lancar_ok: bool = True,
+    ) -> None:
+        self.lancador = _Lancador(lancar_ok)
+        self.presentes = set(presentes)
+        self.chromium_pedido = 0
+        self._chromium = chromium
+        self.abas: list[str] = []
+
+        def aba(endereco: str, env: Mapping[str, str]) -> bool:
+            self.abas.append(endereco)
+            return True
+
+        monkeypatch.setattr(modulo_abrir, "abrir_navegador", aba)
+
+    def _chromium_do_jobot(self) -> Path | None:
+        self.chromium_pedido += 1
+        return self._chromium
+
+    def abrir(
+        self,
+        *,
+        env: Mapping[str, str] | None = None,
+        sistema: str = "linux",
+        pasta: Path = Path("/dados"),
+    ) -> bool:
+        return abrir_janela(
+            ENDERECO,
+            env or {},
+            sistema=sistema,
+            existe=self.presentes.__contains__,
+            chromium=self._chromium_do_jobot,
+            pasta_dados=pasta,
+            lancar=self.lancador,
+        )
+
+
+def test_chrome_do_sistema_abre_com_app(monkeypatch: pytest.MonkeyPatch) -> None:
+    c = _Cenario(monkeypatch, presentes=["google-chrome"])
+    assert c.abrir() is True
+    assert c.lancador.comandos == [["google-chrome", ARG_APP, *SEM_BOAS_VINDAS]]
+    assert c.abas == []
+
+
+def test_ordem_do_linux(monkeypatch: pytest.MonkeyPatch) -> None:
+    c = _Cenario(monkeypatch, presentes=["chromium", "microsoft-edge", "google-chrome-stable"])
+    assert c.abrir() is True
+    assert c.lancador.comandos == [["google-chrome-stable", ARG_APP, *SEM_BOAS_VINDAS]]
+
+
+def test_so_chromium_do_jobot_usa_perfil_da_janela(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    exe = tmp_path / "chromium"
+    c = _Cenario(monkeypatch, chromium=exe)
+    assert c.abrir(pasta=tmp_path) is True
+    assert len(c.lancador.comandos) == 1
+    comando = c.lancador.comandos[0]
+    assert comando[0] == str(exe)
+    assert ARG_APP in comando
+    assert all(a in comando for a in SEM_BOAS_VINDAS)
+    perfil = [a for a in comando if a.startswith("--user-data-dir=")]
+    assert perfil == [f"--user-data-dir={tmp_path / 'janela'}"]
+    assert perfil[0] != f"--user-data-dir={tmp_path / PASTA_NAVEGADOR}"
+    assert c.abas == []
+
+
+def test_nada_achado_cai_na_aba(monkeypatch: pytest.MonkeyPatch) -> None:
+    c = _Cenario(monkeypatch)
+    assert c.abrir() is True
+    assert c.lancador.comandos == []
+    assert c.abas == [ENDERECO]
+
+
+def test_chromium_nao_e_chamado_quando_o_sistema_tem_navegador(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    c = _Cenario(monkeypatch, presentes=["chromium"], chromium=tmp_path / "chromium")
+    assert c.abrir() is True
+    assert c.chromium_pedido == 0
+
+
+def test_lancador_que_falha_cai_na_aba(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    c = _Cenario(monkeypatch, presentes=["chromium"], lancar_ok=False)
+    assert c.abrir() is True
+    assert c.abas == [ENDERECO]
+
+
+def test_chromium_que_explode_cai_na_aba(monkeypatch: pytest.MonkeyPatch) -> None:
+    c = _Cenario(monkeypatch)
+
+    def explode() -> Path | None:
+        raise RuntimeError("driver do Playwright não subiu")
+
+    monkeypatch.setattr(c, "_chromium_do_jobot", explode)
+    assert c.abrir() is True
+    assert c.abas == [ENDERECO]
+
+
+def test_mac_usa_open_na(monkeypatch: pytest.MonkeyPatch) -> None:
+    c = _Cenario(monkeypatch, presentes=["/Applications/Microsoft Edge.app"])
+    assert c.abrir(sistema="darwin") is True
+    assert c.lancador.comandos == [
+        ["open", "-na", "Microsoft Edge", "--args", ARG_APP, *SEM_BOAS_VINDAS]
+    ]
+
+
+def test_windows_acha_chrome_e_depois_edge(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ProgramFiles", r"C:\Programas")
+    monkeypatch.delenv("ProgramFiles(x86)", raising=False)
+    monkeypatch.delenv("LOCALAPPDATA", raising=False)
+    edge = r"C:\Programas\Microsoft\Edge\Application\msedge.exe"
+    c = _Cenario(monkeypatch, presentes=[edge])
+    assert c.abrir(sistema="win32") is True
+    assert c.lancador.comandos == [[edge, ARG_APP, *SEM_BOAS_VINDAS]]
+    chrome = r"C:\Programas\Google\Chrome\Application\chrome.exe"
+    c = _Cenario(monkeypatch, presentes=[edge, chrome])
+    assert c.abrir(sistema="win32") is True
+    assert c.lancador.comandos == [[chrome, ARG_APP, *SEM_BOAS_VINDAS]]
+
+
+def test_distrobox_usa_o_prefixo(monkeypatch: pytest.MonkeyPatch) -> None:
+    c = _Cenario(monkeypatch, presentes=["chromium"])
+    assert c.abrir(env={"CONTAINER_ID": "fedora-dev"}) is True
+    assert c.lancador.comandos == [["distrobox-host-exec", "chromium", ARG_APP, *SEM_BOAS_VINDAS]]
+
+
+def test_existe_sem_prefixo_usa_o_path() -> None:
+    def rodar(comando: Sequence[str]) -> bool:
+        raise AssertionError("sem prefixo não roda `which`")
+
+    existe = existe_do_sistema((), rodar=rodar, procurar=lambda nome: "/usr/bin/x")
+    assert existe("chromium") is True
+    assert existe_do_sistema((), rodar=rodar, procurar=lambda nome: None)("chromium") is False
+
+
+def test_existe_com_prefixo_pergunta_ao_host() -> None:
+    perguntas: list[Sequence[str]] = []
+
+    def rodar(comando: Sequence[str]) -> bool:
+        perguntas.append(comando)
+        return comando[-1] == "chromium"
+
+    def procurar(nome: str) -> str | None:
+        raise AssertionError("com prefixo quem procura é o host")
+
+    existe = existe_do_sistema(("distrobox-host-exec",), rodar=rodar, procurar=procurar)
+    assert existe("chromium") is True
+    assert existe("google-chrome") is False
+    assert perguntas[0] == ("distrobox-host-exec", "which", "chromium")
+
+
+def test_existe_com_caminho_olha_o_arquivo(tmp_path: Path) -> None:
+    arquivo = tmp_path / "chrome.exe"
+    arquivo.touch()
+    existe = existe_do_sistema((), procurar=lambda nome: None)
+    assert existe(str(arquivo)) is True
+    assert existe(str(tmp_path / "outro.exe")) is False
+
+
+def test_lancador_nao_espera_o_navegador(monkeypatch: pytest.MonkeyPatch) -> None:
+    class Falso:
+        criados: list[tuple[Sequence[str], dict[str, Any]]] = []
+        esperou = False
+        falha: OSError | None = None
+
+        def __init__(self, comando: Sequence[str], **kwargs: Any) -> None:
+            self.args = comando
+            if Falso.falha is not None:
+                raise Falso.falha
+            Falso.criados.append((comando, kwargs))
+
+        def __enter__(self) -> Falso:
+            return self
+
+        def __exit__(self, *saida: object) -> None:
+            return None
+
+        def wait(self, *args: Any, **kwargs: Any) -> int:
+            Falso.esperou = True
+            return 0
+
+        def communicate(self, *args: Any, **kwargs: Any) -> tuple[None, None]:
+            Falso.esperou = True
+            return None, None
+
+        def poll(self) -> int:
+            return 0
+
+    monkeypatch.setattr(subprocess, "Popen", Falso)
+    assert _lancar(["chrome"]) is True
+    assert Falso.esperou is False
+    assert len(Falso.criados) == 1
+    comando, kwargs = Falso.criados[0]
+    assert list(comando) == ["chrome"]
+    assert kwargs["start_new_session"] is True
+    for saida in ("stdin", "stdout", "stderr"):
+        assert kwargs[saida] == subprocess.DEVNULL
+    Falso.falha = OSError("não existe")
+    assert _lancar(["chrome"]) is False
+
+
 # --- sair ---
-
-_FILHO = (
-    "import signal, sys, time\n"
-    "from pathlib import Path\n"
-    "from jobot.sistema.instancia import Trava\n"
-    "if sys.argv[2] == 'ignora':\n"
-    "    signal.signal(signal.SIGTERM, signal.SIG_IGN)\n"
-    "assert Trava(Path(sys.argv[1]), 1234).pegar()\n"
-    "print('pronto', flush=True)\n"
-    "time.sleep(60)\n"
-)
-
-
-@contextmanager
-def _filho_com_trava(dados: Path, modo: str = "morre") -> Iterator[subprocess.Popen[str]]:
-    filho = subprocess.Popen(
-        [sys.executable, "-c", _FILHO, str(dados), modo],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.DEVNULL,
-        text=True,
-    )
-    try:
-        assert filho.stdout is not None
-        assert filho.stdout.readline().strip() == "pronto"
-        yield filho
-    finally:
-        filho.kill()
-        filho.wait()
 
 
 def test_sair_manda_sigterm_ao_pid_da_trava(tmp_path: Path) -> None:
     saida = _Saida()
-    with _filho_com_trava(tmp_path) as filho:
+    with filho_com_trava(tmp_path) as filho:
         assert sair_do_servidor(tmp_path, saida=saida, esperar_s=5) == 0
         assert filho.wait(timeout=5) == -signal.SIGTERM
     assert saida.linhas
@@ -388,7 +543,7 @@ def test_sair_manda_sigterm_ao_pid_da_trava(tmp_path: Path) -> None:
 
 def test_sair_avisa_quando_o_servidor_nao_encerra(tmp_path: Path) -> None:
     saida = _Saida()
-    with _filho_com_trava(tmp_path, "ignora") as filho:
+    with filho_com_trava(tmp_path, "ignora") as filho:
         assert sair_do_servidor(tmp_path, saida=saida, esperar_s=0.5) != 0
         assert filho.poll() is None
     assert saida.linhas
@@ -410,15 +565,6 @@ def test_sair_nao_sinaliza_pid_velho_sem_trava_presa(tmp_path: Path) -> None:
     finally:
         inocente.kill()
         inocente.wait()
-
-
-def test_executar_sair_usa_a_pasta_de_dados_do_ambiente(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setenv("JOBOT_DADOS", str(tmp_path))
-    with _filho_com_trava(tmp_path) as filho:
-        assert executar(Namespace(comando="sair")) == 0
-        assert filho.wait(timeout=5) == -signal.SIGTERM
 
 
 # --- captura de exemplos com login: trava presa sem porta (T220) ---
