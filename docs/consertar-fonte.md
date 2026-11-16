@@ -5,7 +5,9 @@
 Uma fonte é um site de vagas que o joBot lê. Cada fonte tem um **coletor**: um arquivo de código que sabe pedir as vagas ao site e entender a resposta. Quando o site muda o formato sem avisar, o coletor deixa de entender e a fonte "quebra". Este guia mostra, passo a passo, como achar o que mudou e consertar. O exemplo é o Greenhouse, o primeiro coletor do projeto (`src/jobot/nucleo/coletores/plataformas/greenhouse.py`).
 
 > [!IMPORTANT]
-> O joBot ainda está em desenvolvimento. Para mexer no código, clone o repositório e rode `uv sync` dentro dele (o [`uv`](https://docs.astral.sh/uv/) instala o Python 3.14 e as dependências). Pull requests de código só são aceitos depois da publicação (fase 8), e o fluxo da seção 7 vale a partir daí; veja o [guia de contribuição](../.github/CONTRIBUTING.md). Até lá, um conserto pode virar uma issue com o que você achou.
+> O joBot ainda está em desenvolvimento. Para mexer no código, clone o repositório e rode `uv sync` dentro dele (o [`uv`](https://docs.astral.sh/uv/) instala o Python 3.14 e as dependências). Pull requests de código só são aceitos depois da publicação (fase 9), e o fluxo da seção 7 vale a partir daí; veja o [guia de contribuição](../.github/CONTRIBUTING.md). Até lá, um conserto pode virar uma issue com o que você achou.
+
+Quer acrescentar um site que o joBot ainda não lê? Veja [Como acrescentar um site novo](site-novo.md).
 
 <a id="saber-qual"></a>
 ## 1. Como saber qual fonte quebrou

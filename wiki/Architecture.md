@@ -371,7 +371,7 @@ flowchart LR
     contribui --> consertar
 ```
 
-The steps for fixing a source are in the [guide to fix a source](https://github.com/fezarosa-dev/joBot/blob/main/docs/consertar-fonte.en.md).
+The steps for fixing a source are in the [guide to fix a source](https://github.com/fezarosa-dev/joBot/blob/main/docs/consertar-fonte.en.md). To add a new site, there is the [new site guide](https://github.com/fezarosa-dev/joBot/blob/main/docs/site-novo.en.md).
 
 ## 🧩 Main types of the core
 
