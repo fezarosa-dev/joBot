@@ -11,8 +11,6 @@
   "buscas.desligar": "Desligar",
   "buscas.desligada": "Desligada",
   "buscas.apagar": "Apagar",
-  "buscas.apagar_aviso": "Apagar a busca \"{nome}\"? As vagas continuam; só o encaixe dela some.",
-  "buscas.apagar_confirmar": "Apagar mesmo",
   "buscas.regras_desligadas": "Regras desligadas",
   "buscas.campo.nome": "Nome",
   "buscas.campo.cargos": "Cargos e palavras-chave",
@@ -40,5 +38,10 @@
   "buscas.erro.cidades_n": "Use até 20 cidades.",
   "buscas.erro.cidade": "Não entendi a cidade \"{linha}\". Escreva com estado ou país: Curitiba, PR.",
   "buscas.erro.salario": "Salário inválido. Use só números, com ponto no milhar e vírgula nos centavos: 5.000,50.",
-  "buscas.erro.valor": "Esse valor está fora do que o painel aceita. Confira os números."
+  "buscas.erro.valor": "Esse valor está fora do que o painel aceita. Confira os números.",
+  "buscas.apagar_titulo": "Apagar a busca «{nome}»?",
+  "buscas.apagar_texto": "As vagas que ela trouxe continuam.",
+  "buscas.menu.rotulo": "Ações da busca",
+  "buscas.menu.apagar": "Apagar…",
+  "buscas.chave_rotulo": "Busca «{nome}»"
 }

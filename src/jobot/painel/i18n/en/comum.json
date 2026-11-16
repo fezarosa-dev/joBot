@@ -92,5 +92,9 @@
   "saude.precisa_login": "You need to sign in to the site again: use Sign in now",
   "saude.captcha": "The site asked for a CAPTCHA that was not solved",
   "saude.sem_tela": "No display to open the browser",
-  "saude.sem_navegador": "No browser could open: install Chrome or the system libraries"
+  "saude.sem_navegador": "No browser could open: install Chrome or the system libraries",
+  "comum.apagar": "Delete",
+  "comum.remover": "Remove",
+  "comum.esquecer": "Forget",
+  "comum.cancelar": "Cancel"
 }
