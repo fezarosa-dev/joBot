@@ -46,9 +46,11 @@ def _minima(
         '<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
         f'<title>{escape(titulo)} · joBot</title><link rel="icon" href="data:,">'
         '<link rel="stylesheet" href="/static/css/base.css">'
-        '<link rel="stylesheet" href="/static/css/vagas.css"></head><body>'
-        f'<main id="conteudo"><h1 class="titulo-pagina">{escape(titulo)}</h1>'
-        f'<p>{escape(texto)}</p><p><a href="/">{escape(inicio)}</a></p></main></body></html>'
+        '<link rel="stylesheet" href="/static/css/vagas.css">'
+        '<link rel="stylesheet" href="/static/css/detalhe.css"></head><body>'
+        f'<main id="conteudo"><div class="vazio"><h1>{escape(titulo)}</h1>'
+        f'<p>{escape(texto)}</p><a class="primario" href="/">{escape(inicio)}</a>'
+        "</div></main></body></html>"
     )
 
 

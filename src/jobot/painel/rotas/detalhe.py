@@ -31,7 +31,7 @@ from jobot.painel.consultas import (
 )
 from jobot.painel.detalhe_vaga import contexto_do_detalhe
 from jobot.painel.formulario import campo_unico
-from jobot.painel.rotas.vagas import VagaId
+from jobot.painel.rotas.vagas import VagaId, com_vary
 from jobot.painel.seguranca import Con, renderizar
 
 router = APIRouter()
@@ -103,9 +103,15 @@ def _formulario(
             "comentario": campo_unico(form, "comentario"),
             "valores": {c: campo_unico(form, f"valor_{c}") for c in CAMPOS},
         }
-    return renderizar(
+    # com HTMX (o link do detalhe) volta só o sheet; sem ele, a página de sempre, que também
+    # recebe o 422 do POST e quem não tem JavaScript. Voltar no navegador (restauração do
+    # histórico) também pede a página inteira, como a lista de vagas
+    cabecalho = request.headers
+    restaurando = cabecalho.get("hx-history-restore-request") == "true"
+    sheet = form is None and cabecalho.get("hx-request") == "true" and not restaurando
+    resposta = renderizar(
         request,
-        "detalhe/correcao.html",
+        "detalhe/correcao_sheet.html" if sheet else "detalhe/correcao.html",
         vaga=vaga,
         campos=CAMPOS,
         listas=_LISTAS,
@@ -113,6 +119,7 @@ def _formulario(
         f=f,
         erro=erro,
     )
+    return com_vary(resposta)  # o mesmo endereço tem duas respostas: o cache precisa saber
 
 
 @router.get("/vagas/{vaga_id}/correcao")

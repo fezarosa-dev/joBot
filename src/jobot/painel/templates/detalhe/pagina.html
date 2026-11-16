@@ -2,6 +2,8 @@
 {% block titulo %}{{ t("detalhe.titulo_pagina", titulo=vaga.titulo) }}{% endblock %}
 {% block estilos %}<link rel="stylesheet" href="/static/css/vagas.css"><link rel="stylesheet" href="/static/css/detalhe.css">{% endblock %}
 {% block conteudo %}
-<p class="voltar"><a href="/vagas">{{ t("detalhe.voltar") }}</a></p>
-{% include "detalhe/corpo.html" %}
+<div class="detalhe-pagina">
+  <p class="voltar"><a href="/vagas">{{ t("detalhe.voltar") }}</a></p>
+  {% include "detalhe/corpo.html" %}
+</div>
 {% endblock %}
