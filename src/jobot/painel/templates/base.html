@@ -77,6 +77,9 @@
       {%- if tem_busca %}
       <input class="topo-busca" type="search" form="busca" name="q" value="{{ q }}" maxlength="100" autocomplete="off" placeholder="{{ t('casca.busca.campo') }}" aria-label="{{ t('casca.busca.campo') }}" title="{{ t('casca.busca.dica') }}" data-busca>
       {%- endif %}
+      {%- if com_lateral %}
+      <button type="button" class="botao-paleta" aria-haspopup="dialog" aria-controls="paleta" aria-label="{{ t('casca.paleta.titulo') }}" title="{{ t('casca.paleta.titulo') }}" data-paleta-abre><span class="icone" data-icone="command" aria-hidden="true"></span></button>
+      {%- endif %}
       {% include "execucao/barra.html" %}
     </div>
   </header>
@@ -100,5 +103,9 @@
       <a href="{{ t('apoie.url') }}" target="_blank" rel="noopener noreferrer">{{ t("apoie.texto") }}</a>
     </footer>
   </div>
+  {#- a paleta fica fora do que o HTMX troca e depois das faixas (as faixas ficam logo abaixo da barra) -#}
+  {%- if com_lateral %}
+  {% include "_paleta.html" %}
+  {%- endif %}
 </body>
 </html>

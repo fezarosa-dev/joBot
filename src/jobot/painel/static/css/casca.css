@@ -184,6 +184,7 @@ body {
 [data-icone="lightbulb"] { --icone: url("/static/icones/lightbulb.svg"); }
 [data-icone="rss"] { --icone: url("/static/icones/rss.svg"); }
 [data-icone="globe"] { --icone: url("/static/icones/globe.svg"); }
+[data-icone="command"] { --icone: url("/static/icones/command.svg"); }
 [data-icone="settings"] { --icone: url("/static/icones/settings.svg"); }
 [data-icone="panel-left"] { --icone: url("/static/icones/panel-left.svg"); }
 [data-icone="search-x"] { --icone: url("/static/icones/search-x.svg"); }
@@ -225,8 +226,10 @@ body {
   font: var(--t-headline);
 }
 
-.botao-barra {
+.botao-barra,
+.botao-paleta {
   display: inline-grid;
+  flex: none;
   place-items: center;
   inline-size: 28px;
   block-size: 28px;
@@ -237,7 +240,8 @@ body {
   color: var(--texto-2);
 }
 
-.botao-barra:hover {
+.botao-barra:hover,
+.botao-paleta:hover {
   background-color: var(--hover);
 }
 

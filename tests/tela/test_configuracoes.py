@@ -1,5 +1,6 @@
 """Configurações no navegador: abas, interruptores, aparência e privacidade (plano T54)."""
 
+import re
 from pathlib import Path
 from typing import Literal
 
@@ -223,6 +224,21 @@ def test_item_configuracoes_abre_o_ultimo_grupo(page: Page, painel: str) -> None
     expect(item).to_have_attribute("href", "/configuracoes/geral")
     page.keyboard.press("ControlOrMeta+,")
     expect(page).to_have_url(f"{painel}/configuracoes/geral")
+
+
+def test_atalho_de_configuracoes_depois_de_voltar_no_historico(page: Page, painel: str) -> None:
+    """Voltar troca o body (historyRestore): o atalho acha o item novo, não o nó solto de antes."""
+    page.goto(f"{painel}/configuracoes/privacidade")  # guarda o grupo
+    page.goto(f"{painel}/vagas?aba=todas&ordem=recentes")
+    page.evaluate("() => { window.__mesmaPagina = true; }")
+    # a ordem troca o miolo com hx-push-url (o item da lateral é página inteira e não serve)
+    page.locator("#ordem").select_option("empresa")
+    expect(page).to_have_url(re.compile(r"[?&]ordem=empresa"))
+    page.go_back()
+    expect(page).to_have_url(re.compile(r"[?&]ordem=recentes"))
+    assert page.evaluate("() => window.__mesmaPagina") is True  # restaurada pelo htmx, sem recarga
+    page.keyboard.press("ControlOrMeta+,")
+    expect(page).to_have_url(f"{painel}/configuracoes/privacidade")
 
 
 def test_ultimo_grupo_sem_armazenamento_cai_em_geral(page: Page, painel: str) -> None:

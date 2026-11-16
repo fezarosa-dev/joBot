@@ -622,11 +622,12 @@ Não é código. A branch `feat/visual-mac` só entra na `dev` depois do ok do d
 - ⌘? (Ctrl+? fora do Mac) abre a wiki (E6) numa aba nova, com `rel="noopener"`. Esc e ⌘. fecham menu, paleta, sheet e alerta.
 - i18n `casca.paleta.*`: `titulo` "Comandos"/"Commands"; `buscar` "Buscar comando"/"Search Commands"; `casca.ajuda.url` com a página da wiki em cada idioma.
 
-- [ ] **Testes que falham** em `tests/integracao/test_casca_menu.py`: `test_paleta_tem_os_comandos` (um item por link da lateral e por grupo de Configurações, e os formulários de "Buscar agora", "Sair", tema, idioma e tamanho com `csrf_token`); `test_atalho_de_ajuda_abre_a_wiki` (o link de ajuda aponta para `Home` em pt e `Home-en` em en); `test_paleta_tem_as_duas_formas_do_atalho` (cada atalho escrito com um `kbd[data-sistema="mac"]` e um `kbd[data-sistema="outro"]`).
-- [ ] **Testes de tela** (CI): `test_cmd_k_e_ctrl_k_abrem`; `test_esc_fecha`; `test_return_executa`; `test_filtra_enquanto_digita`; `test_so_uma_forma_do_atalho_visivel` (com o `<html>` em `data-sistema="outro"`, o `kbd` do Mac não é visível).
-- [ ] **Ver falhar:** `uv run pytest tests/integracao/test_casca_menu.py -q`.
-- [ ] **Implementar** os itens de Interfaces.
-- [ ] **Ver passar:** o mesmo arquivo e `tests/unidade/test_i18n.py`; ruff; `-m tela` no CI.
+- [x] **Testes que falham** em `tests/integracao/test_casca_menu.py`: `test_paleta_tem_os_comandos` (um item por link da lateral e por grupo de Configurações, e os formulários de "Buscar agora", "Sair", tema, idioma e tamanho com `csrf_token`); `test_atalho_de_ajuda_abre_a_wiki` (o link de ajuda aponta para `Home` em pt e `Home-en` em en); `test_paleta_tem_as_duas_formas_do_atalho` (cada atalho escrito com um `kbd[data-sistema="mac"]` e um `kbd[data-sistema="outro"]`).
+- [x] **Testes de tela** (CI): `test_cmd_k_e_ctrl_k_abrem`; `test_esc_fecha`; `test_return_executa`; `test_filtra_enquanto_digita`; `test_so_uma_forma_do_atalho_visivel` (com o `<html>` em `data-sistema="outro"`, o `kbd` do Mac não é visível).
+- [x] **Ver falhar:** `uv run pytest tests/integracao/test_casca_menu.py -q`.
+- [x] **Implementar** os itens de Interfaces.
+- [x] **Ver passar:** o mesmo arquivo e `tests/unidade/test_i18n.py`; ruff; `-m tela` no CI.
+- Feita: paleta (`_paleta.html`, `app.js`, `base.css`, i18n pt/en), `grupos_configuracoes` em `lateral.py` e 3 testes de integração; `tests/tela/test_paleta.py` escrito, roda só no CI. Testes antigos que contavam `listbox`, `<dialog` e links de Ferramentas passaram a ignorar a paleta.
 
 ### T266: progresso nas outras esperas
 `depende_de: T262, T263` · desenho 5.9 (Um componente só), D143.56, D143.69

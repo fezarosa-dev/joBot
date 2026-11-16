@@ -9,7 +9,7 @@ from jinja2.runtime import Context
 from jobot.banco.leitura import Item
 from jobot.nucleo.modelo import Local, Motivo
 from jobot.painel import formatos
-from jobot.painel.lateral import lateral
+from jobot.painel.lateral import grupos_configuracoes, lateral
 
 
 @pass_context
@@ -54,4 +54,5 @@ def registrar(env: jinja2.Environment) -> None:
         "aviso_texto": _aviso,
         "motivo": _motivo,
         "lateral": lateral,
+        "grupos_configuracoes": grupos_configuracoes,
     }
