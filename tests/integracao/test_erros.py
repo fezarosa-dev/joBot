@@ -287,3 +287,55 @@ def test_saude_local_continua_json(cliente: TestClient) -> None:
     resposta = cliente.get("/saude-local")
     assert resposta.status_code == 200
     assert resposta.json()["app"] == "jobot"
+
+
+def _vazio(html: str) -> str:
+    achou = re.search(r'<div class="vazio"[^>]*>(.*?)</div>', html, re.S)
+    assert achou is not None, "sem o estado vazio"
+    return achou.group(1)
+
+
+@pytest.mark.parametrize("idioma", ["pt", "en"])
+def test_erro_diz_o_que_fazer(cliente: TestClient, idioma: str) -> None:
+    """Estado vazio (desenho 5.8): ícone, título curto, uma linha e o caminho de volta."""
+    resposta = cliente.get("/nao-existe-mesmo", headers={"Accept-Language": idioma})
+    assert resposta.status_code == 404
+    vazio = _vazio(resposta.text)
+    assert '<span class="icone" data-icone="triangle-alert" aria-hidden="true"></span>' in vazio
+    titulo = re.search(r"<h1>(.*?)</h1>", vazio)
+    assert titulo is not None
+    assert titulo.group(1) == _texto(idioma, "erro.nao_existe.titulo")
+    assert len(titulo.group(1)) <= 40
+    assert re.findall(r"<p>(.*?)</p>", vazio) == [_texto(idioma, "erro.nao_existe.texto")]
+    volta = re.search(r'<a\b[^>]*class="primario"[^>]*href="/"[^>]*>(.*?)</a>', vazio)
+    assert volta is not None
+    assert volta.group(1) == _texto(idioma, "erro.inicio")
+
+
+def test_titulo_do_erro_em_ingles_vai_em_title_case() -> None:
+    for chave in ("nao_existe", "desatualizada", "invalido", "outro", "indisponivel", "interno"):
+        titulo = t("en", f"erro.{chave}.titulo")
+        for palavra in titulo.split():
+            assert palavra[0].isupper() or palavra == "joBot" or palavra in {"of", "to", "the"}, (
+                titulo
+            )
+    assert t("en", "erro.inicio") == "Back to the Start"
+    assert t("en", "execucao.saiu_titulo") == "joBot Closed"
+
+
+def test_saiu_e_estado_vazio_sem_lateral_e_sem_botoes(tmp_path: Path) -> None:
+    app = _app(tmp_path)
+    app.state.servidor = type("Servidor", (), {"should_exit": False})()
+    with TestClient(app, base_url=BASE, raise_server_exceptions=False) as http:
+        resposta = http.post("/sair", data={"csrf_token": app.state.csrf})
+    assert resposta.status_code == 200
+    vazio = _vazio(resposta.text)
+    assert '<span class="icone" data-icone="log-out" aria-hidden="true"></span>' in vazio
+    assert re.search(r"<h1>joBot encerrado</h1>", vazio)
+    assert re.findall(r"<p>(.*?)</p>", vazio) == [_texto("pt", "execucao.saiu")]
+    principal = re.search(r"<main\b[^>]*>(.*?)</main>", resposta.text, re.S)
+    assert principal is not None
+    # o aviso escondido da casca tem o seu botão, mas fora do <main>
+    assert "<button" not in principal.group(1)
+    assert "<aside" not in resposta.text
+    assert "<a " not in vazio

@@ -1,14 +1,14 @@
 {
-  "erro.inicio": "Back to the start",
-  "erro.nao_existe.titulo": "Not found",
+  "erro.inicio": "Back to the Start",
+  "erro.nao_existe.titulo": "Not Found",
   "erro.nao_existe.texto": "The page or item does not exist (it may have been removed). Go back to the start.",
-  "erro.desatualizada.titulo": "Page out of date",
-  "erro.invalido.titulo": "Invalid value",
+  "erro.desatualizada.titulo": "Page Out of Date",
+  "erro.invalido.titulo": "Invalid Value",
   "erro.invalido.texto": "A value you sent is not valid. Go back and check the fields.",
-  "erro.outro.titulo": "That did not work",
+  "erro.outro.titulo": "That Did Not Work",
   "erro.outro.texto": "That could not be done. Reload the page and try again.",
-  "erro.indisponivel.titulo": "joBot is not ready",
+  "erro.indisponivel.titulo": "joBot Is Not Ready",
   "erro.indisponivel.texto": "joBot is not ready for this right now. Close it and open it again with jobot abrir.",
-  "erro.interno.titulo": "Something went wrong",
+  "erro.interno.titulo": "Something Went Wrong",
   "erro.interno.texto": "Something went wrong on joBot's side. The error was written to {log}. Try again and, if it happens again, open an issue with that file."
 }
