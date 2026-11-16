@@ -35,5 +35,13 @@
   "casca.desfazer.descartada": "Sugestão descartada",
   "casca.desfazer.removida": "Empresa removida",
   "casca.desfazer.restaurada": "Sugestão restaurada",
-  "casca.desfazer.empresa_restaurada": "Empresa restaurada"
+  "casca.desfazer.empresa_restaurada": "Empresa restaurada",
+  "casca.paleta.titulo": "Comandos",
+  "casca.paleta.buscar": "Buscar comando",
+  "casca.paleta.par": "{grupo}: {valor}",
+  "casca.paleta.zero": "Nenhum comando",
+  "casca.paleta.um": "1 comando",
+  "casca.paleta.varios": "{n} comandos",
+  "casca.ajuda": "Ajuda",
+  "casca.ajuda.url": "https://github.com/fezarosa-dev/joBot/wiki/Home"
 }

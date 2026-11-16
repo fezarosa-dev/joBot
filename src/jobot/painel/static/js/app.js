@@ -203,8 +203,10 @@
     }
     if (focar) opcao.focus();
   };
+  // a paleta (T265) tem a sua própria lista: o foco fica no campo, não nas opções
+  const LISTAS = '[role="listbox"]:not([data-paleta-lista])';
   const prepararListas = () => {
-    for (const lista of document.querySelectorAll('[role="listbox"]')) {
+    for (const lista of document.querySelectorAll(LISTAS)) {
       const opcoes = opcoesDe(lista);
       const atual = opcoes.find((o) => o.ariaSelected === "true");
       if (atual) escolher(lista, atual, false);
@@ -216,7 +218,7 @@
   document.addEventListener("htmx:historyRestore", prepararListas);
   document.addEventListener("focusin", (evento) => {
     const no = evento.target;
-    const lista = no.closest?.('[role="listbox"]');
+    const lista = no.closest?.(LISTAS);
     if (!lista) return;
     if (no === lista) {
       // o "pular para a lista" foca o listbox: o foco desce para a linha escolhida ou, sem escolha,
@@ -234,7 +236,7 @@
     if (evento.ctrlKey || evento.metaKey || evento.altKey || evento.shiftKey) return;
     const opcao = evento.target.closest?.('[role="option"]');
     const lista = opcao?.parentElement;
-    if (!opcao || lista?.getAttribute("role") !== "listbox") return;
+    if (!opcao || !lista?.matches(LISTAS)) return;
     const opcoes = opcoesDe(lista);
     const i = opcoes.indexOf(opcao);
     let destino = null;
@@ -385,14 +387,14 @@
   const botaoDaFaixa = () => faixa()?.querySelector('button[type="submit"]');
   // sem escolha (T301), a linha que está no Tab, como no "pular para a lista"
   const linhaEscolhida = () =>
-    document.querySelector('[role="listbox"] > [role="option"][aria-selected="true"]') ??
-    document.querySelector('[role="listbox"] > [role="option"][tabindex="0"]');
+    document.querySelector(`${LISTAS} > [role="option"][aria-selected="true"]`) ??
+    document.querySelector(`${LISTAS} > [role="option"][tabindex="0"]`);
   // onde estava o foco antes da ação: na faixa (o botão dela é trocado), na lista ou no detalhe
   // (a linha ou o detalhe somem) ou em nenhum lugar; em outro ponto ele fica onde está
   const ondeEstava = (no) => {
     if (no?.closest?.("#faixa-desfazer")) return "faixa";
     // o botão do menu de contexto (popover fora da lista) conta como a lista, se a página tem uma
-    const naLista = '#detalhe-vaga, [role="listbox"], [data-lista-desfazer]';
+    const naLista = `#detalhe-vaga, ${LISTAS}, [data-lista-desfazer]`;
     if (no?.closest?.("[data-menu-contexto]") && document.querySelector("[data-lista-desfazer]")) return "lista";
     if (!no || no === document.body || no.closest?.(naLista)) return "lista";
     return "";
@@ -489,6 +491,7 @@
     'textarea, input:not([type="checkbox"], [type="radio"], [type="button"], [type="submit"], [type="reset"], [type="range"], [type="color"], [type="file"])';
   const plataforma = navigator.userAgentData?.platform ?? navigator.platform ?? "";
   const noMac = /mac|iphone|ipad/i.test(plataforma);
+  document.documentElement.dataset.sistema = noMac ? "mac" : "outro"; // o CSS esconde a forma do atalho que não vale (E14)
   document.addEventListener("keydown", (evento) => {
     if (evento.key?.toLowerCase() !== "z" || evento.altKey) return;
     if (noMac ? !evento.metaKey || evento.ctrlKey : !evento.ctrlKey || evento.metaKey) return;
@@ -938,6 +941,145 @@
     true, // close não sobe: só a captura o vê no document
   );
 
+  // paleta de comandos (T265; desenho 5.4): o <dialog id="paleta"> de _paleta.html. Os comandos são
+  // links e formulários que já existem; aqui só abre (botão, ⌘K / Ctrl+K), filtra, move a marca
+  // (aria-selected + aria-activedescendant: o foco fica no campo) e executa (clica a opção). Tudo
+  // consulta o DOM na hora: o htmx troca nós e o histórico os restaura. O Esc e o ⌘. vêm em captura
+  // com stopPropagation, como no alerta, para os outros ouvintes de Esc não tratarem o mesmo toque.
+  // ⌘? (Ctrl+? fora do Mac) clica o link de ajuda da paleta: a wiki numa aba nova (E6).
+  const paleta = () => document.getElementById("paleta");
+  const paletaAberta = () => paleta()?.open === true;
+  const opcoesDaPaleta = () => [...(paleta()?.querySelectorAll('[data-paleta-lista] [role="option"]') ?? [])];
+  const caixaDaOpcao = (opcao) => (opcao.parentElement.matches("form") ? opcao.parentElement : opcao);
+  const visiveis = () => opcoesDaPaleta().filter((opcao) => !caixaDaOpcao(opcao).hidden);
+  const semAcento = (texto) => texto.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+  let abridorDaPaleta = null;
+  const marcar = (opcao) => {
+    const campo = paleta().querySelector("[data-paleta-campo]");
+    opcoesDaPaleta().forEach((outra, i) => {
+      if (!outra.id) outra.id = `paleta-op-${i}`;
+      outra.setAttribute("aria-selected", outra === opcao ? "true" : "false");
+    });
+    if (opcao) {
+      campo.setAttribute("aria-activedescendant", opcao.id);
+      opcao.scrollIntoView({ block: "nearest" });
+    } else {
+      campo.removeAttribute("aria-activedescendant");
+    }
+  };
+  const filtrarPaleta = () => {
+    const dialogo = paleta();
+    const consulta = semAcento(dialogo.querySelector("[data-paleta-campo]").value.trim());
+    for (const opcao of opcoesDaPaleta()) {
+      caixaDaOpcao(opcao).hidden = !semAcento(opcao.querySelector(".paleta-rotulo").textContent).includes(consulta);
+    }
+    const achadas = visiveis();
+    marcar(achadas[0] ?? null);
+    const estado = dialogo.querySelector("[data-paleta-estado]");
+    estado.textContent =
+      achadas.length === 0
+        ? estado.dataset.zero
+        : achadas.length === 1
+          ? estado.dataset.um
+          : estado.dataset.varios.replace("{n}", achadas.length);
+    dialogo.querySelector(".paleta-vazio").hidden = achadas.length > 0;
+  };
+  const abrirPaleta = () => {
+    const dialogo = paleta();
+    // com outro modal aberto (alerta, sheet) a página está inerte: a paleta não abre por cima
+    if (!dialogo?.showModal || dialogo.open || alertaAberto() || document.querySelector("dialog:modal")) return;
+    fecharMenu(false);
+    abridorDaPaleta = document.activeElement;
+    const campo = dialogo.querySelector("[data-paleta-campo]");
+    campo.value = "";
+    filtrarPaleta();
+    dialogo.showModal();
+    campo.focus();
+  };
+  const fecharPaleta = () => paleta()?.close();
+  const teclaComPrimario = (evento) => (noMac ? evento.metaKey && !evento.ctrlKey : evento.ctrlKey && !evento.metaKey) && !evento.altKey;
+  document.addEventListener(
+    "keydown",
+    (evento) => {
+      const aberta = paletaAberta();
+      if (teclaComPrimario(evento)) {
+        if (evento.key?.toLowerCase() === "k" && !evento.shiftKey) {
+          evento.preventDefault();
+          evento.stopPropagation();
+          if (aberta) fecharPaleta();
+          else abrirPaleta();
+          return;
+        }
+        if (evento.key === "?" && !alertaAberto()) {
+          const ajuda = paleta()?.querySelector("a[data-ajuda]");
+          if (!ajuda) return;
+          evento.preventDefault();
+          evento.stopPropagation();
+          if (aberta) fecharPaleta();
+          ajuda.click();
+          return;
+        }
+        // ⌘. fecha o que estiver aberto, como o Esc: o alerta já trata o dele (captura, antes deste)
+        if (evento.key === "." && !alertaAberto()) {
+          const sheet = document.querySelector("dialog.sheet[open]");
+          if (!aberta && !menuAberto && !sheet) return;
+          evento.preventDefault();
+          evento.stopPropagation();
+          if (aberta) fecharPaleta();
+          else if (menuAberto) fecharMenu(true);
+          else sheet.close();
+          return;
+        }
+      }
+      if (!aberta) return;
+      if (evento.key === "Escape") {
+        evento.preventDefault();
+        evento.stopPropagation();
+        fecharPaleta();
+      } else if (evento.key === "ArrowDown" || evento.key === "ArrowUp") {
+        evento.preventDefault();
+        const achadas = visiveis();
+        if (!achadas.length) return;
+        const i = achadas.findIndex((o) => o.getAttribute("aria-selected") === "true");
+        const passo = evento.key === "ArrowDown" ? 1 : -1;
+        marcar(achadas[(i + passo + achadas.length) % achadas.length]);
+      } else if (evento.key === "Enter") {
+        const marcada = visiveis().find((o) => o.getAttribute("aria-selected") === "true");
+        evento.preventDefault();
+        marcada?.click();
+      } else if (evento.key === "Tab") {
+        evento.preventDefault(); // o campo é o único foco da paleta
+      }
+    },
+    true,
+  );
+  document.addEventListener("input", (evento) => {
+    if (evento.target.matches?.("[data-paleta-campo]")) filtrarPaleta();
+  });
+  document.addEventListener("click", (evento) => {
+    if (evento.target.closest?.("[data-paleta-abre]")) {
+      abrirPaleta();
+    } else if (evento.target === paleta()) {
+      fecharPaleta(); // o véu (o próprio <dialog> fora da caixa) fecha
+    } else if (evento.target.closest?.('[data-paleta-lista] [role="option"]')) {
+      fecharPaleta(); // o link ou o submit da opção segue; só a paleta sai da frente
+    }
+  });
+  document.addEventListener("mousemove", (evento) => {
+    const opcao = evento.target.closest?.('[data-paleta-lista] [role="option"]');
+    if (opcao && opcao.getAttribute("aria-selected") !== "true") marcar(opcao);
+  });
+  document.addEventListener(
+    "close",
+    (evento) => {
+      if (!evento.target.matches?.("dialog[data-paleta]")) return;
+      const abridor = abridorDaPaleta;
+      abridorDaPaleta = null;
+      if (abridor?.isConnected) abridor.focus({ preventScroll: true });
+    },
+    true, // close não sobe: só a captura o vê no document
+  );
+
   // último grupo de Configurações (T262): ao abrir um grupo, o slug fica guardado; o item da lateral
   // e ⌘, (Ctrl+, fora do Mac) levam a ele. Sem registro, sem armazenamento ou sem JavaScript, o
   // href do HTML (/configuracoes/geral) vale.
@@ -946,15 +1088,18 @@
   const grupoAberto = document.querySelector('.config-grupos a[aria-current="page"]');
   const slugAberto = grupoAberto?.getAttribute("href")?.split("/").pop();
   if (slugValido(slugAberto)) guardar(GRUPO_GUARDADO, slugAberto);
-  const itemConfiguracoes = document.querySelector("a[data-abre-configuracoes]");
+  // o nó é buscado na hora: o htmx:historyRestore troca o body e deixa o nó antigo solto
+  const itemConfiguracoes = () => document.querySelector("a[data-abre-configuracoes]");
   const ultimoGrupo = lerGuardado(GRUPO_GUARDADO);
-  if (itemConfiguracoes && slugValido(ultimoGrupo)) itemConfiguracoes.href = `/configuracoes/${ultimoGrupo}`;
+  const itemDeAgora = itemConfiguracoes();
+  if (itemDeAgora && slugValido(ultimoGrupo)) itemDeAgora.href = `/configuracoes/${ultimoGrupo}`;
   document.addEventListener("keydown", (evento) => {
     if (evento.key !== "," || evento.altKey || evento.shiftKey) return;
     if (noMac ? !evento.metaKey || evento.ctrlKey : !evento.ctrlKey || evento.metaKey) return;
-    if (!itemConfiguracoes || alertaAberto()) return;
+    const item = itemConfiguracoes();
+    if (!item || alertaAberto() || paletaAberta()) return;
     evento.preventDefault();
-    itemConfiguracoes.click();
+    item.click();
   });
 
   // componente de progresso (T252; desenho 5.9). O CSP barra o atributo style, então a largura vem
