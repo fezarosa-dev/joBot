@@ -4,6 +4,7 @@ import json
 import re
 from contextlib import closing
 from datetime import timedelta
+from html import unescape
 from pathlib import Path
 from typing import Any
 
@@ -989,3 +990,146 @@ def test_campos_de_texto_novos_saem_escapados(painel: Painel) -> None:
     painel.semear_mais(titulo="Vaga AB", empresa='a"b', modalidade="remoto", **_SAL_SP)
     fragmento = painel.get("/vagas/chips", params=consulta).text
     assert "empresa=a%22b" in _hx_get(fragmento, "chip-modalidade-remoto")
+
+
+# ---- contagens da lateral e busca escolhida (T253; D143.50, E16) ----
+
+
+def _nova_busca(painel: Painel, nome: str, *, ativa: int = 1) -> int:
+    linhas = painel.sql(
+        "INSERT INTO busca (nome, cargos, modalidades, ativa, criada_em)"
+        " VALUES (?, '[\"python\"]', '[]', ?, ?) RETURNING id",
+        nome,
+        ativa,
+        AGORA.isoformat(),
+    )
+    return int(linhas[0][0])
+
+
+def _config_toda(painel: Painel) -> list[tuple[Any, ...]]:
+    return painel.sql("SELECT chave, valor FROM config ORDER BY chave")
+
+
+def _ids_da_lateral(html: str) -> set[str]:
+    """Os `busca=` dos links de Vagas da lateral."""
+    ul = re.search(r'<ul\b[^>]*id="lateral-vagas".*?</ul>', html, re.S)
+    assert ul is not None, "sem a seção Vagas da lateral"
+    return set(re.findall(r"busca=(\d+)", unescape(ul.group(0))))
+
+
+def _contagem_da_aba(html: str, aba: str) -> int:
+    achou = re.search(
+        rf'<a\b[^>]*href="/vagas\?aba={aba}[^"]*"[^>]*>[^<]*'
+        r'(?:<span class="contagem">(\d+)</span>)?',
+        html,
+    )
+    assert achou, f"sem o link da aba {aba} na lateral"
+    return int(achou.group(1) or 0)
+
+
+def test_busca_escolhida_vale_sem_busca_na_url(painel: Painel) -> None:
+    primeira = painel.ids["busca"]
+    segunda = _nova_busca(painel, "Segunda")
+    # sem escolha, a lateral usa a primeira ativa
+    assert _ids_da_lateral(painel.get("/fontes").text) == {str(primeira)}
+    painel.get(f"/vagas?aba=todas&busca={segunda}")
+    assert painel.sql("SELECT valor FROM config WHERE chave = 'busca_escolhida'") == [
+        (str(segunda),)
+    ]
+    # outra página, sem busca na URL: a lateral leva a escolhida
+    assert _ids_da_lateral(painel.get("/fontes").text) == {str(segunda)}
+    # e Vagas usa a escolhida: o seletor marca a segunda
+    html = painel.get("/vagas?aba=novas").text
+    seletor = re.search(r'<nav class="seletor-busca".*?</nav>', html, re.S)
+    assert seletor is not None
+    marcada = re.findall(r'<a\b[^>]*aria-current="true"[^>]*>([^<]*)</a>', seletor.group(0))
+    assert marcada == ["Segunda"]
+
+
+def test_busca_escolhida_apagada_cai_na_primeira_ativa(painel: Painel) -> None:
+    primeira = painel.ids["busca"]
+    segunda = _nova_busca(painel, "Segunda")
+    painel.get(f"/vagas?aba=todas&busca={segunda}")
+    assert _ids_da_lateral(painel.get("/fontes").text) == {str(segunda)}
+    painel.sql("UPDATE busca SET ativa = 0 WHERE id = ?", segunda)  # desligada
+    assert _ids_da_lateral(painel.get("/fontes").text) == {str(primeira)}
+    painel.sql("UPDATE busca SET ativa = 1 WHERE id = ?", segunda)
+    assert _ids_da_lateral(painel.get("/fontes").text) == {str(segunda)}
+    painel.sql("DELETE FROM busca WHERE id = ?", segunda)  # apagada
+    assert _ids_da_lateral(painel.get("/fontes").text) == {str(primeira)}
+    assert "aba=novas" in painel.get("/vagas?aba=novas").text  # a tela não quebra
+
+
+def test_busca_invalida_nao_grava(painel: Painel) -> None:
+    desligada = _nova_busca(painel, "Desligada", ativa=0)
+    ativa = _nova_busca(painel, "Ativa")
+    antes = _config_toda(painel)
+    for pedida in ("abc", "999999", "0", "-1", str(desligada)):
+        assert painel.get(f"/vagas?aba=todas&busca={pedida}").status_code == 200
+        assert _config_toda(painel) == antes, f"busca={pedida} gravou"
+    # controle positivo: com o id de uma busca ativa, a escolha muda
+    painel.get(f"/vagas?aba=todas&busca={ativa}")
+    depois = _config_toda(painel)
+    assert depois != antes
+    assert ("busca_escolhida", str(ativa)) in depois
+
+
+def test_busca_desligada_na_url_continua_valendo(painel: Painel) -> None:
+    """Guarda (mutante: `busca_efetiva` aceitar só busca ativa)."""
+    _nova_busca(painel, "Ativa")
+    desligada = _nova_busca(painel, "Desligada", ativa=0)
+    antes = _config_toda(painel)
+    html = painel.get(f"/vagas?aba=todas&busca={desligada}").text
+    seletor = re.search(r'<nav class="seletor-busca".*?</nav>', html, re.S)
+    assert seletor is not None
+    marcada = re.findall(r'<a\b[^>]*aria-current="true"[^>]*>([^<]*)</a>', seletor.group(0))
+    assert marcada == ["Desligada"]
+    assert _config_toda(painel) == antes
+
+
+def test_ocultar_atualiza_a_contagem_por_oob(painel: Painel) -> None:
+    antes = _contagem_da_aba(painel.get("/vagas?aba=todas").text, "ocultas")
+    assert antes == 2
+    vaga = painel.ids["nova"]
+    resposta = painel.http.post(
+        f"/vagas/{vaga}/ocultar",
+        data={CAMPO_CSRF: painel.token, "voltar": "/vagas?aba=salvas"},
+        headers=HX,
+    )
+    assert resposta.status_code == 200
+    html = resposta.text
+    oob = re.search(r'<ul\b[^>]*hx-swap-oob="true"[^>]*>.*?</ul>', html, re.S)
+    assert oob is not None, "a seção Vagas da lateral não veio por hx-swap-oob"
+    assert 'id="lateral-vagas"' in oob.group(0)
+    assert _contagem_da_aba(oob.group(0), "ocultas") == antes + 1
+    # o item marcado é o da aba de onde a pessoa veio
+    marcados = re.findall(r'<a\b[^>]*aria-current="page"[^>]*>', oob.group(0))
+    assert len(marcados) == 1 and "aba=salvas" in marcados[0]
+
+
+def test_aba_por_htmx_traz_a_lateral_por_oob_uma_vez(painel: Painel) -> None:
+    """Guarda: a troca de aba troca a seção Vagas da lateral (uma só, não uma por cartão); a
+    página inteira traz o id uma vez e sem `hx-swap-oob`."""
+    inteira = painel.get("/vagas?aba=salvas").text
+    assert inteira.count('id="lateral-vagas"') == 1 and "hx-swap-oob" not in inteira
+    parcial = painel.get("/vagas?aba=salvas", headers=HX).text
+    assert parcial.count('id="lateral-vagas"') == 1
+    oob = re.search(r'<ul\b[^>]*hx-swap-oob="true"[^>]*>.*?</ul>', parcial, re.S)
+    assert oob is not None
+    marcados = re.findall(r'<a\b[^>]*aria-current="page"[^>]*>', oob.group(0))
+    assert len(marcados) == 1 and "aba=salvas" in marcados[0]
+
+
+def test_acao_na_pagina_da_vaga_marca_a_lateral_como_area(painel: Painel) -> None:
+    """Guarda: de uma página filha (detalhe), o item fica `aria-current="true"`, como na casca."""
+    vaga = painel.ids["nova"]
+    resposta = painel.http.post(
+        f"/vagas/{vaga}/status",
+        data={CAMPO_CSRF: painel.token, "status": "salva", "voltar": f"/vagas/{vaga}"},
+        headers=HX,
+    )
+    oob = re.search(r'<ul\b[^>]*hx-swap-oob="true"[^>]*>.*?</ul>', resposta.text, re.S)
+    assert oob is not None
+    marcados = re.findall(r'<a\b[^>]*aria-current="([a-z]+)"[^>]*>', oob.group(0))
+    assert marcados == ["true"]
+    assert _contagem_da_aba(oob.group(0), "salvas") == 2

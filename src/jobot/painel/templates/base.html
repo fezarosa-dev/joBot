@@ -14,10 +14,6 @@
   ("sites", "/sites", "/sites", "globe", false),
 ) -%}
 {%- set config = ("configuracoes", "/configuracoes/geral", "/configuracoes", "settings", false) -%}
-{%- set icones = {
-  "destaques": "sparkles", "todas": "inbox", "novas": "circle-dot", "fecham_logo": "hourglass",
-  "salvas": "bookmark", "candidatei": "send", "programas": "graduation-cap", "ocultas": "eye-off",
-} -%}
 {#- a área do título é a de caminho mais longo entre todas; a marcada, entre as que aparecem:
     sem sugestão pendente, "/empresas/sugeridas" marca Empresas. O item marcado leva
     aria-current="page" só quando a página aberta é a dele; numa página filha (detalhe da vaga,
@@ -59,11 +55,7 @@
     <a class="marca" href="/">joBot</a>
     <nav class="menu" aria-label="{{ t('casca.menu') }}">
       <p class="menu-secao" id="secao-vagas">{{ t("casca.lateral.vagas") }}</p>
-      <ul aria-labelledby="secao-vagas">
-        {%- for aba in lado.abas %}
-        <li><a data-icone="{{ icones[aba] }}" href="/vagas?aba={{ aba }}"{% if aba == aba_atual %} aria-current="{{ 'page' if caminho == '/vagas' else 'true' }}"{% endif %}>{{ t("casca.lateral.destaques") if aba == "destaques" else t("vagas.aba." ~ aba) }}</a></li>
-        {%- endfor %}
-      </ul>
+      {%- include "lateral_vagas.html" %}
       <p class="menu-secao" id="secao-onde">{{ t("casca.lateral.onde_buscar") }}</p>
       <ul aria-labelledby="secao-onde">
         {%- for chave, href, area, icone, segundo in onde if not segundo or lado.sugeridas_pendentes %}

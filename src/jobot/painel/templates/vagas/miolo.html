@@ -120,3 +120,9 @@
 </section>
 {% endif %}
 {% include "vagas/proximo.html" %}
+{#- só nas respostas HTMX: a lateral da casca troca a seção Vagas no lugar, com a contagem nova -#}
+{%- if lateral_oob %}
+{%- with oob = true, lado = lateral_oob.lado, caminho = lateral_oob.caminho, aba_atual = lateral_oob.aba %}
+{%- include "lateral_vagas.html" %}
+{%- endwith %}
+{%- endif %}
