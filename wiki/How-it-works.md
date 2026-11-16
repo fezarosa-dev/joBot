@@ -130,6 +130,7 @@ The dashboard runs on your computer, at `127.0.0.1`. If joBot finds Chrome, Edge
 - **Filters** as "chips" (little buttons) with counts: country and how many days ago the job was posted stay in view; salary, city, company and words the job must not have are under "More filters". The current filter stays in the page address, so you can save the link. Quick search with the `/` key.
 - **Status of each job:** new → saved → applied → interview → rejected or offer.
 - **12-month calendar** on each job, to see deadlines at a glance.
+- **Overview and application queue:** the Overview, in the sidebar, gathers the day: what closes soon, the applications and the search. When you open a job's application link, the dashboard asks "Did you apply?" ("Yes, I Applied" or "Not Yet", with Undo); the job's timeline shows the date of each step and the Applied tab shows the "since". If the description has an application email, the "Apply by Email" button only opens your email app: joBot sends nothing.
 - **"Something Wrong with This Job?"**: a button to fix a label or a piece of data.
 - **Undo:** hiding a job, discarding a suggestion or removing a company happens right away, with an **Undo** bar. What really deletes asks for confirmation first.
 - **Keyboard and command palette:** `⌘K` (`Ctrl+K` outside the Mac) takes you to any screen. See all of them in [Keyboard shortcuts](Keyboard-shortcuts).
@@ -137,6 +138,7 @@ The dashboard runs on your computer, at `127.0.0.1`. If joBot finds Chrome, Edge
 - **Search progress:** when you search now, the top shows the step joBot is on and how far it got.
 - **Mac app look:** translucency, smooth animations, light and dark mode following the system, and reduced motion for anyone who asks for it.
 - **Languages:** Portuguese and English.
+- **Local record of opening:** joBot keeps, only on your computer, when you opened the application for each job.
 
 ## 🌙 Background
 

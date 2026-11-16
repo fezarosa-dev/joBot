@@ -1417,6 +1417,7 @@ Permissions-Policy: camera=(), microphone=(), geolocation=()
 - HTML e Markdown viram **texto puro** no núcleo (`texto.py`, com `html.parser` da biblioteca padrão): parágrafos e listas viram quebras de linha; scripts, estilos e atributos somem. O painel mostra só esse texto, com o autoescape do Jinja2 (DR-47).
 - Links dentro da descrição não viram links clicáveis. Só os links "ver na fonte", "via <fonte>" e o de candidatura são clicáveis, e só se forem `http` ou `https`, com `rel="noopener noreferrer"` e `target="_blank"`. Nunca `nofollow` (a RemoteOK exige link sem ele).
 - Autoescape do Jinja2 ligado em todos os templates. Um teste falha se `|safe` aparecer fora de uma lista curta e revisada.
+- Nota (2026-11-16): o botão de e-mail da vaga é a única exceção à regra dos links. Só `mailto:`, só um endereço que passou pela lista fechada de caracteres, montado pelo joBot, com o título como único parâmetro. Link da descrição continua não clicável (ADR 0014).
 
 ### 14.4 Outras regras
 

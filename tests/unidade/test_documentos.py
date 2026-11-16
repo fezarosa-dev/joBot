@@ -654,3 +654,32 @@ def test_changelog_cita_a_aba_contas(lingua: str) -> None:
     assert ABA_CONTAS[lingua] in secao_nova, CHANGELOG[lingua]
     assert CITA_CONTAS[lingua] in secao_nova, CHANGELOG[lingua]
     assert not re.search(ABA_VELHA[lingua], conteudo), CHANGELOG[lingua]
+
+
+# o Panorama e a fila de candidaturas em "Não lançado": o nome da tela e a pergunta, por língua
+CITA_PANORAMA = {"pt": ("Panorama", "Você se candidatou?"), "en": ("Overview", "Did you apply")}
+# a linha de privacidade sobre a abertura da candidatura, por língua
+CITA_ABERTURA = {"pt": "quando você abriu a candidatura", "en": "when you opened the application"}
+PRIVACIDADE = {"pt": "## 🔒 Privacidade e segurança", "en": "## 🔒 Privacy and security"}
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_changelog_cita_o_panorama(lingua: str) -> None:
+    """Em "Não lançado" o CHANGELOG traz o Panorama e a pergunta da fila de candidaturas."""
+    conteudo = texto(CHANGELOG[lingua])
+    assert NAO_LANCADO[lingua] in conteudo, CHANGELOG[lingua]
+    inicio = conteudo.index(NAO_LANCADO[lingua])
+    secao_nova = conteudo[inicio : conteudo.index("\n## [", inicio + 1)]
+    for marcador in CITA_PANORAMA[lingua]:
+        assert marcador in secao_nova, (CHANGELOG[lingua], marcador)
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_privacidade_cita_a_abertura(lingua: str) -> None:
+    """Na seção de privacidade do README: o registro local de quando a candidatura foi aberta."""
+    conteudo = texto(README[lingua])
+    assert PRIVACIDADE[lingua] in conteudo, README[lingua]
+    inicio = conteudo.index(PRIVACIDADE[lingua])
+    fim = conteudo.find("\n## ", inicio + 1)
+    secao = conteudo[inicio : fim if fim != -1 else len(conteudo)]
+    assert CITA_ABERTURA[lingua] in secao, README[lingua]

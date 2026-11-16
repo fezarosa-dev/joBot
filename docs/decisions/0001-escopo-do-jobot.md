@@ -23,6 +23,11 @@ Procurar vaga hoje exige abrir muitos sites, repetir filtros e perder prazos. O 
 - Sem envio automático, cai o risco de spam e de bloqueio de conta.
 - Como tudo é desligável, cada função precisa de uma chave nas configurações.
 
+## Nota (2026-11-16): abertura da candidatura
+
+- O registro de quando a pessoa abriu a candidatura de cada vaga fica só no computador dela, no banco local. Nada disso é enviado.
+- O botão de candidatura por e-mail só abre o programa de e-mail da pessoa; o joBot não envia nada e continua sem enviar candidatura nenhuma.
+
 ## Ver também
 
 - [0002. Duas versões, um núcleo](0002-duas-versoes-um-nucleo.md)

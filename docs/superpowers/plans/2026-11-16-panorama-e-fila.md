@@ -681,13 +681,13 @@ Mudar uma delas muda a tarefa responsável antes de ela começar.
   - 0014 e regra 14.3 da fase 1: uma nota com a exceção do botão de e-mail (desenho 5.7). Só `mailto:`, só um endereço que passou pela lista fechada, montado pelo joBot, com o título como único parâmetro. Link da descrição continua não clicável.
 - **Sem mudança.** O Roteiro não muda (já promete os dois). Nenhuma rede nova, então os textos de telemetria e privacidade de rede não mudam («Painel e ADRs»).
 
-- [ ] **Primeiro, valor errado:** nenhum; o teste nasce vermelho porque o texto ainda não existe.
-- [ ] **Testes que falham** em `tests/unidade/test_documentos.py`:
+- [x] **Primeiro, valor errado:** nenhum; o teste nasce vermelho porque o texto ainda não existe.
+- [x] **Testes que falham** em `tests/unidade/test_documentos.py`:
   - `test_changelog_cita_o_panorama`: pt e en, na seção "Não lançado" / "Unreleased", citam "Panorama"/"Overview" e "Você se candidatou?"/"Did you apply". Antes do `.index()`, o teste confere `assert marcador in conteudo` («Troca de versão»).
   - `test_privacidade_cita_a_abertura`: os dois README citam o registro local da abertura na seção de privacidade.
-- [ ] **Ver falhar:** `uv run pytest tests/unidade/test_documentos.py -q`.
-- [ ] **Implementar** os itens de Interfaces.
-- [ ] **Ver passar:** `tests/unidade/test_documentos.py` e `tests/unidade/test_wiki.py`; ruff.
+- [x] **Ver falhar:** `uv run pytest tests/unidade/test_documentos.py -q`.
+- [x] **Implementar** os itens de Interfaces.
+- [x] **Ver passar:** `tests/unidade/test_documentos.py` e `tests/unidade/test_wiki.py`; ruff.
 
 ### T291: versão 0.3.0
 `depende_de: T290, T279, T268`, o resto do lote do primeiro site, que `2026-11-15-fase-2-login-linkedin.md` ("Fora deste plano") põe como condição da 0.3.0: T240, T241 e os itens 1, 2 (`CLAUDE.md` do projeto), 4 (ADR 0006), 6 (ADR 0022) e 7 (ADR 0017) de "Espera o dono" de `2026-11-15-fase-2-primeiro-site-resto.md`, cada item com o ok do dono; e a fase 2 concluída na `dev` (E14) · ADR 0017, «Troca de versão»
