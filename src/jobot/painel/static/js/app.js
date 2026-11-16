@@ -1226,4 +1226,16 @@
     },
     true, // toggle não sobe: só a captura o vê no document
   );
+
+  // abrir a candidatura registra a abertura (desenho 5.5): o link segue normal, o registro é melhor
+  // esforço. No document, nunca no nó: o hx-push-url troca o body
+  document.addEventListener("click", (evento) => {
+    const link = evento.target.closest?.("a[data-candidatura]");
+    if (!link) return;
+    fetch(link.dataset.candidatura, {
+      method: "POST",
+      keepalive: true,
+      headers: { "X-CSRF-Token": token },
+    }).catch(() => {});
+  });
 })();
