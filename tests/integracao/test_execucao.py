@@ -6,6 +6,7 @@ Datas em UTC com fuso (`astimezone(UTC).isoformat()`), como a T22.
 """
 
 import asyncio
+import inspect
 import json
 import sqlite3
 import time
@@ -22,13 +23,14 @@ import pytest
 from apoio.relogio import RelogioFalso
 from jobot.agenda import execucao
 from jobot.agenda.execucao import executar_busca, reprocessar_se_regras_mudaram
-from jobot.banco import execucoes
+from jobot.banco import andamento, execucoes
 from jobot.banco.buscas import criar_busca
 from jobot.banco.cadastros import gravar_config
 from jobot.banco.conexao import abrir
 from jobot.banco.cotacoes import gravar_cotacao
 from jobot.banco.execucoes import abrir_execucao, fechar_execucao, gravar_saude
 from jobot.banco.migrar import migrar
+from jobot.nucleo.andamento import fracao, pesos_da_execucao, valor_mostrado
 from jobot.nucleo.cambio import Cotacao
 from jobot.nucleo.coletores.base import (
     ContextoColeta,
@@ -1010,3 +1012,274 @@ async def test_reprocessar_se_regras_mudaram(con: sqlite3.Connection) -> None:
     assert reprocessar_se_regras_mudaram(con) == 1
     assert _um(con, "SELECT versao_regras FROM vaga") == VERSAO_REGRAS
     assert reprocessar_se_regras_mudaram(con) == 0
+
+
+# ---------------------------------------------------------------- progresso (T247)
+
+
+def _gravacoes(monkeypatch: pytest.MonkeyPatch) -> list[tuple[str, dict[str, Any]]]:
+    """Embrulha as gravações de `banco.andamento`: anota o nome e os argumentos e repassa."""
+    anotadas: list[tuple[str, dict[str, Any]]] = []
+    for nome in ("abrir_andamento", "planejar", "mudar_etapa", "marcar_fonte"):
+        original = getattr(andamento, nome)
+
+        def embrulho(*args: Any, _nome: str = nome, _orig: Any = original, **kwargs: Any) -> Any:
+            argumentos = inspect.signature(_orig).bind(*args, **kwargs).arguments
+            anotadas.append((_nome, dict(argumentos)))
+            return _orig(*args, **kwargs)
+
+        monkeypatch.setattr(andamento, nome, embrulho)
+    return anotadas
+
+
+def _etapas_gravadas(anotadas: list[tuple[str, dict[str, Any]]]) -> list[str]:
+    """A etapa de cada gravação, sem repetições seguidas."""
+    de: dict[str, Callable[[dict[str, Any]], str]] = {
+        "abrir_andamento": lambda a: "preparando",
+        "planejar": lambda a: "coleta",
+        "mudar_etapa": lambda a: str(a["etapa"]),
+    }
+    seq = [de[nome](args) for nome, args in anotadas if nome in de]
+    return [e for i, e in enumerate(seq) if i == 0 or seq[i - 1] != e]
+
+
+async def test_busca_grava_etapas_na_ordem(
+    con: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    gravar_config(con, "enriquecimento_ligado", True)
+    gravar_config(con, "conversao_moeda_ligada", True)
+    anotadas = _gravacoes(monkeypatch)
+    falso = Falso(lista={"": (_vaga(1, descricao=""),)}, detalhe=_detalhe_completo)
+
+    await _executar(con, [falso])
+
+    assert _etapas_gravadas(anotadas) == [
+        "preparando",
+        "coleta",
+        "detalhes",
+        "cotacoes",
+        "encaixe",
+        "fim",
+    ]
+
+
+@pytest.mark.parametrize("trocadas", [True, False])
+async def test_regras_mudadas_marcam_regras_antes_de_cotacoes(
+    con: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch, trocadas: bool
+) -> None:
+    # a vaga da "outra" fica aberta: a segunda busca não roda essa fonte
+    _fonte(con, "outra")
+    outra = Falso(chave="outra", lista={"": (_vaga(2, fonte="outra"),)})
+    await _executar(con, [outra], relogio=RelogioParado(AGORA - timedelta(hours=1)))
+    if trocadas:
+        con.execute("UPDATE vaga SET versao_regras = 'velha'")
+        con.commit()
+    gravar_config(con, "conversao_moeda_ligada", True)
+    anotadas = _gravacoes(monkeypatch)
+
+    await _executar(con, [Falso(lista={"": (_vaga(1),)})])
+
+    seq = _etapas_gravadas(anotadas)
+    if trocadas:
+        assert seq[2:5] == ["detalhes", "regras", "cotacoes"]
+        assert _um(con, "SELECT count(*) FROM vaga WHERE versao_regras = 'velha'") == 0
+    else:
+        assert "regras" not in seq
+        assert seq[2:4] == ["detalhes", "cotacoes"]
+
+
+@pytest.mark.parametrize(
+    ("ligado", "etapas"),
+    [
+        (False, ("coleta", "cotacoes", "encaixe")),
+        (True, ("coleta", "detalhes", "cotacoes", "encaixe")),
+    ],
+)
+async def test_sem_enriquecimento_sem_etapa_de_detalhes(
+    con: sqlite3.Connection, ligado: bool, etapas: tuple[str, ...]
+) -> None:
+    gravar_config(con, "enriquecimento_ligado", ligado)
+    gravar_config(con, "conversao_moeda_ligada", True)
+
+    execucao_id = await _executar(con, [Falso(lista={"": (_vaga(1),)})])
+
+    assert execucao_id is not None
+    etapa, _ = andamento.ler_andamento(con, execucao_id)
+    assert etapa is not None
+    assert (etapa.etapas, etapa.etapa) == (etapas, "fim")
+
+
+async def test_feitas_batem_com_o_total(
+    con: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _fonte(con, "quebrada")
+    falso = Falso(lista={"a": (_vaga(1, escopo="a"),), "b": (_vaga(2, escopo="b"),)})
+    quebrada = Falso(chave="quebrada", erro_escopos=True)
+    anotadas = _gravacoes(monkeypatch)
+
+    execucao_id = await _executar(con, [falso, quebrada])
+
+    assert execucao_id is not None
+    etapa, fontes_ = andamento.ler_andamento(con, execucao_id)
+    assert etapa is not None
+    assert etapa.total_planejado == 3
+    coleta = [a for nome, a in anotadas if nome == "mudar_etapa" and a["etapa"] == "coleta"]
+    assert coleta, "a coleta não gravou o andamento"
+    assert (coleta[-1]["feitas"], coleta[-1]["total"]) == (3, 3)
+    assert {(f.fonte, f.estado, f.feitas, f.total) for f in fontes_} == {
+        (FONTE, "pronto", 2, 2),
+        ("quebrada", "falhou", 1, 1),
+    }
+
+
+class Servidor429(Servidor):
+    """O primeiro pedido à fonte leva 429 com `Retry-After: 5`; o segundo, 200."""
+
+    def __call__(self, pedido: httpx.Request) -> httpx.Response:
+        if pedido.url.host != f"{FONTE}.exemplo.test":
+            return super().__call__(pedido)
+        self.pedidos.append(pedido)
+        if len(self.pedidos) == 1:
+            return httpx.Response(429, headers={"Retry-After": "5"})
+        return httpx.Response(200, text="ok")
+
+
+@dataclass
+class ComPedido(Falso):
+    depois_do_pedido: Callable[[], None] | None = None
+
+    async def coletar(self, escopo: str, http: HttpEducado) -> ResultadoEscopo:
+        await http.pedir("GET", f"https://{self.chave}.exemplo.test/lista")
+        if self.depois_do_pedido is not None:
+            self.depois_do_pedido()
+        return await super().coletar(escopo, http)
+
+
+async def test_espera_marca_a_fonte(con: sqlite3.Connection) -> None:
+    vistas: list[tuple[andamento.FonteAndamento, ...]] = []
+
+    def ver() -> None:
+        rodando = _um(con, "SELECT id FROM execucao WHERE estado = 'rodando'")
+        vistas.append(andamento.ler_andamento(con, rodando)[1])
+
+    falso = ComPedido(lista={"": (_vaga(1),)}, depois_do_pedido=ver)
+
+    execucao_id = await _executar(con, [falso], servidor=Servidor429())
+
+    assert execucao_id is not None
+    assert [(f.fonte, f.estado, f.espera_ate, f.espera_motivo) for f in vistas[0]] == [
+        (FONTE, "esperando", AGORA + timedelta(seconds=5), "limite")
+    ]
+    # a consulta pronta e o fim da fonte limpam a espera (E8)
+    _, fim = andamento.ler_andamento(con, execucao_id)
+    assert [(f.estado, f.espera_ate) for f in fim] == [("pronto", None)]
+
+
+class RelogioQueAnda(RelogioParado):
+    """Cada leitura da hora anda 10 s: a barra avança devagar entre as marcas."""
+
+    def agora(self) -> datetime:
+        self._agora += timedelta(seconds=10)
+        return self._agora
+
+
+async def test_partida_nunca_desce(
+    con: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    gravar_config(con, "conversao_moeda_ligada", True)
+    original = andamento.mudar_etapa
+    partidas: list[float] = []
+    abaixo: list[tuple[str, float, float]] = []
+
+    def espia(
+        con_: sqlite3.Connection,
+        execucao_id: int,
+        etapa: str,
+        feitas: int | None,
+        total: int | None,
+        partida: float,
+        agora: datetime,
+    ) -> None:
+        antes, _ = andamento.ler_andamento(con_, execucao_id)
+        assert antes is not None
+        p, fim = fracao(pesos_da_execucao(antes.etapas), antes.etapa, antes.feitas, antes.total)
+        parado = (agora - antes.mudou_em).total_seconds()
+        mostrado = valor_mostrado(p, fim, antes.partida, parado, fechada=False)
+        if partida < mostrado:
+            abaixo.append((etapa, partida, mostrado))
+        partidas.append(partida)
+        original(con_, execucao_id, etapa, feitas, total, partida, agora)
+
+    monkeypatch.setattr(andamento, "mudar_etapa", espia)
+    falso = Falso(lista={e: (_vaga(e, escopo=e),) for e in "abcd"}, detalhe=_detalhe_completo)
+
+    execucao_id = await _executar(con, [falso], relogio=RelogioQueAnda(AGORA))
+
+    assert execucao_id is not None
+    assert len(partidas) >= 6, partidas
+    assert partidas == sorted(partidas)
+    assert abaixo == [], "a partida nova ficou abaixo do valor que a barra mostrava"
+    assert partidas[-1] == 1.0
+
+
+@pytest.mark.parametrize(
+    "quebra", ["abrir_andamento", "planejar", "mudar_etapa", "marcar_fonte", "ler_andamento"]
+)
+async def test_marca_que_falha_nao_derruba_a_busca(
+    con: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch, quebra: str
+) -> None:
+    chamadas: list[str] = []
+
+    def trava(*args: object, **kwargs: object) -> None:
+        chamadas.append(quebra)
+        raise sqlite3.OperationalError("database is locked")
+
+    monkeypatch.setattr(andamento, quebra, trava)
+    falso = Falso(lista={"": (_vaga(1),)}, detalhe=_detalhe_completo)
+
+    execucao_id = await _executar(con, [falso])
+
+    assert chamadas, f"{quebra} não foi chamada"
+    assert execucao_id is not None
+    assert _um(con, "SELECT estado FROM execucao WHERE id = ?", execucao_id) == "concluida"
+    assert _um(con, "SELECT count(*) FROM vaga") == 1
+
+
+async def test_cotacoes_ja_do_dia_chegam_ao_total(
+    con: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Moeda já cotada no dia pula o pedido, mas a contagem da etapa ainda chega ao total."""
+    gravar_config(con, "conversao_moeda_ligada", True)
+    gravar_config(con, "moeda_exibicao", "EUR")
+    for moeda in ("EUR", "USD"):
+        gravar_cotacao(con, Cotacao(moeda=moeda, data=HOJE, venda=Decimal("5.65")), AGORA)
+    anotadas = _gravacoes(monkeypatch)
+    usd = _vaga(1, salario_texto="US$ 5,000/month")
+
+    await _executar(con, [Falso(lista={"": (usd,)})])
+
+    marcas = [
+        (a["feitas"], a["total"])
+        for n, a in anotadas
+        if n == "mudar_etapa" and a["etapa"] == "cotacoes"
+    ]
+    assert marcas[-1] == (2, 2)
+
+
+async def test_leitura_da_marca_de_regras_que_falha_nao_derruba_a_busca(
+    con: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`tem_para_reprocessar` só serve à marca do progresso: é de melhor esforço."""
+    chamadas: list[str] = []
+
+    def trava(*args: object, **kwargs: object) -> bool:
+        chamadas.append("tem_para_reprocessar")
+        raise sqlite3.OperationalError("database is locked")
+
+    monkeypatch.setattr(execucao, "tem_para_reprocessar", trava)
+
+    execucao_id = await _executar(con, [Falso(lista={"": (_vaga(1),)})])
+
+    assert chamadas
+    assert execucao_id is not None
+    assert _um(con, "SELECT estado FROM execucao WHERE id = ?", execucao_id) == "concluida"
