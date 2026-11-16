@@ -11,6 +11,8 @@ from typing import Any
 
 import pytest
 
+from apoio.partes import parte_dos_itens
+
 # antes de qualquer import do jobot: os testes nunca tocam o cofre de senhas real (T180)
 os.environ["PYTHON_KEYRING_BACKEND"] = "keyring.backends.fail.Keyring"
 
@@ -21,6 +23,23 @@ def _confere(endereco: Any) -> None:
     host = endereco[0] if isinstance(endereco, tuple) else endereco
     if host not in _LOCAIS:
         raise RuntimeError(f"rede bloqueada nos testes: {endereco!r}")
+
+
+@pytest.hookimpl(trylast=True)  # depois do filtro `-m`: divide só o que sobrou
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    """`JOBOT_PARTE=i/n` mantém só a parte i dos n pedaços da coleta (o CI roda um job por parte).
+    Sem a variável, nada muda."""
+    parte = os.environ.get("JOBOT_PARTE")
+    if parte is None:
+        return
+    try:
+        fica = parte_dos_itens(items, parte)
+    except ValueError as erro:
+        raise pytest.UsageError(str(erro)) from erro
+    fica_ids = {id(item) for item in fica}
+    saem = [item for item in items if id(item) not in fica_ids]
+    config.hook.pytest_deselected(items=saem)
+    items[:] = fica
 
 
 @pytest.fixture(autouse=True)
