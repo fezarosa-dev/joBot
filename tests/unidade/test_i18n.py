@@ -64,6 +64,16 @@ def test_grupo_aparencia_saiu(idioma: str) -> None:
 
 
 @pytest.mark.parametrize("idioma", ["pt", "en"])
+def test_botoes_velhos_do_assistente_sairam(idioma: str) -> None:
+    """Continuar, Pular e Voltar passaram ao pé fixo (T263): as chaves de cada passo não voltam."""
+    catalogo = i18n.carregar()[idioma]
+    for resto in ("p1.continuar", "p1.pular", "sites.continuar", "sites.pular", "sites.voltar"):
+        assert f"primeira_execucao.{resto}" not in catalogo
+    assert "primeira_execucao.p2.concluir" not in catalogo
+    assert catalogo["primeira_execucao.continuar"]  # controle: as do pé existem
+
+
+@pytest.mark.parametrize("idioma", ["pt", "en"])
 def test_preferencias_da_barra_saiu(idioma: str) -> None:
     """Tema, idioma e a busca da tela saíram (T251); as chaves de tema e idioma ficam para
     Configurações > Geral, e a busca da barra usa `casca.busca.*`."""

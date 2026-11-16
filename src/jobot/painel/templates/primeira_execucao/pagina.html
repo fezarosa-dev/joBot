@@ -1,15 +1,30 @@
 {% extends "base.html" %}
-{#- o assistente é um caminho só: sem a barra lateral (T251) -#}
+{#- o assistente é um caminho só: sem a barra lateral (T251) e, nos passos, sem os botões da barra
+    (T263); "Tudo pronto" mostra o Buscar agora e o andamento, para a primeira busca usar o mesmo
+    componente de todas as outras -#}
 {% set sem_lateral = true %}
+{% set sem_barra = etapa != "pronto" %}
 {% block titulo %}{{ t("primeira_execucao.titulo") }} · joBot{% endblock %}
 {% block estilos %}<link rel="stylesheet" href="/static/css/primeira_execucao.css">{% if passo == "sites" %}<link rel="stylesheet" href="/static/css/configuracoes.css">{% endif %}{% endblock %}
 {% block conteudo %}
+{% if etapa == "pronto" %}
 <section class="assistente">
-  {% if etapa == "pronto" %}
   {% include "primeira_execucao/pronto.html" %}
-  {% else %}
-  <p class="assistente-passo">{{ t("primeira_execucao.passo", n=n, total=total) }}</p>
-  {% if passo == "1" %}{% include "primeira_execucao/passo1.html" %}{% elif passo == "sites" %}{% include "primeira_execucao/sites.html" %}{% else %}{% include "primeira_execucao/passo2.html" %}{% endif %}
-  {% endif %}
 </section>
+{% else %}
+{#- só o corpo rola; o pé fica preso embaixo, fora do <form>: os botões o apontam por `form=` (E17).
+    A ordem do DOM é a de sempre (o primeiro botão de envio do formulário é o Continuar/Concluir,
+    o que o Enter aciona); o CSS põe o Voltar à esquerda e o botão principal à direita. -#}
+<section class="assistente assistente-fixo">
+  <div class="assistente-corpo">
+    <p class="assistente-passo">{{ t("primeira_execucao.passo", n=n, total=total) }}</p>
+    {% if passo == "1" %}{% include "primeira_execucao/passo1.html" %}{% elif passo == "sites" %}{% include "primeira_execucao/sites.html" %}{% else %}{% include "primeira_execucao/passo2.html" %}{% endif %}
+  </div>
+  <div class="assistente-pe">
+    <button type="submit" form="assistente-form" class="botao botao-primario">{{ t("primeira_execucao.concluir" if passo == "2" else "primeira_execucao.continuar") }}</button>
+    <button type="submit" form="assistente-form" formaction="/primeira-execucao/pular" formnovalidate class="botao botao-simples">{{ t("primeira_execucao.pular") }}</button>
+    {% if voltar_url %}<a class="botao botao-simples assistente-voltar" href="{{ voltar_url }}{% if voltar_busca %}?busca={{ voltar_busca }}{% endif %}">{{ t("primeira_execucao.p2.voltar", n=voltar_n) }}</a>{% endif %}
+  </div>
+</section>
+{% endif %}
 {% endblock %}
