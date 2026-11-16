@@ -595,6 +595,26 @@ def test_lista_agrupada_definida_uma_vez() -> None:
         assert f'<ul class="lista-agrupada" id="{lista}">' in html, modelo
 
 
+def _nome_do_icone(seletor: str) -> str | None:
+    """O nome de `[data-icone="x"]`, com espaço à vontade e aspas simples ou duplas."""
+    achado = re.fullmatch(r"""\[\s*data-icone\s*=\s*["']([\w-]+)["']\s*\]""", seletor)
+    return achado.group(1) if achado else None
+
+
+def test_guarda_de_icone_aceita_variacoes_de_espaco() -> None:
+    """T311 (e): a guarda não pode deixar escapar o seletor só por causa do espaço ou das aspas."""
+    for seletor in (
+        '[data-icone="x-y"]',
+        '[data-icone = "x-y"]',
+        '[ data-icone="x-y" ]',
+        "[data-icone='x-y']",
+        '[data-icone  =  "x-y"  ]',
+    ):
+        assert _nome_do_icone(seletor) == "x-y", seletor
+    assert _nome_do_icone('[data-icone="x"] .y') is None
+    assert _nome_do_icone('[data-icones="x"]') is None
+
+
 def test_regra_de_icone_uma_vez() -> None:
     """Cada `data-icone` tem a regra do `--icone` num arquivo só (T309); os ícones de mais de uma
     tela (encaixe, estado da fonte e do progresso) ficam no casca.css, que toda página carrega."""
@@ -603,8 +623,8 @@ def test_regra_de_icone_uma_vez() -> None:
         if _valor(r, "--icone") is None:
             continue
         for seletor in _seletores(r):
-            if achado := re.fullmatch(r'\[data-icone="([\w-]+)"\]', seletor):
-                lugares.setdefault(achado.group(1), set()).add(arquivo)
+            if nome := _nome_do_icone(seletor):
+                lugares.setdefault(nome, set()).add(arquivo)
     repetidos = {nome: sorted(onde) for nome, onde in lugares.items() if len(onde) > 1}
     assert repetidos == {}
     for nome in ("circle", "contrast", "circle-check", "circle-x", "clock"):
