@@ -124,5 +124,8 @@
   "configuracoes.ferramentas.aviso.em_uso": "Um site com login está aberto agora. Espere a leitura ou o login terminar e tente de novo.",
   "configuracoes.ferramentas.aviso.falhou_baixar": "Não deu para baixar o navegador. Confira a internet e o espaço livre no disco e tente de novo. Os detalhes ficam no registro do joBot (jobot.log).",
   "configuracoes.ferramentas.aviso.falhou_remover": "Não deu para remover o navegador. Tente de novo. Os detalhes ficam no registro do joBot (jobot.log).",
-  "configuracoes.sites_com_login.navegador.ir_ferramentas": "Abrir Ferramentas"
+  "configuracoes.sites_com_login.navegador.ir_ferramentas": "Abrir Ferramentas",
+  "configuracoes.contas.conferido.hoje": "conferido hoje às {hora}",
+  "configuracoes.contas.conferido.ontem": "conferido ontem às {hora}",
+  "configuracoes.contas.conferido.data": "conferido em {data} às {hora}"
 }
