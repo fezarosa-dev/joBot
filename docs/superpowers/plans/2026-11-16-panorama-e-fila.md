@@ -364,18 +364,18 @@ Mudar uma delas muda a tarefa responsável antes de ela começar.
 - O link de candidatura do detalhe ganha `data-candidatura="/vagas/{{ vaga.id }}/candidatura"` e continua um link normal, com `target="_blank"` e `rel="noopener noreferrer"`.
 - `app.js`: um ouvinte de `click` por delegação no `document`. Em `event.target.closest("a[data-candidatura]")`, chama `fetch(url, {method: "POST", keepalive: true, headers: {"X-CSRF-Token": token}})`, com o token da `meta` que o `app.js` já lê. Não chama `preventDefault`, e erro do `fetch` é engolido com `.catch(() => {})`: o registro é melhor esforço. O ouvinte fica no `document`, nunca no nó, porque o `hx-push-url` troca o `body` («JS do painel»).
 
-- [ ] **Primeiro, valor errado:** a rota responde 204 sem chamar `abriu_candidatura`, e o template ainda não tem `data-candidatura`.
-- [ ] **Testes que falham** em `tests/integracao/test_rota_candidatura.py`:
+- [x] **Primeiro, valor errado:** a rota responde 204 sem chamar `abriu_candidatura`, e o template ainda não tem `data-candidatura`.
+- [x] **Testes que falham** em `tests/integracao/test_rota_candidatura.py`:
   - `test_post_204`: responde 204, sem corpo, e `abertura_da_candidatura` traz a hora do relógio injetado.
   - `test_post_com_candidatei_204_sem_gravar`: 204 e nenhuma linha. Controle: uma `salva` grava.
   - `test_post_vaga_inexistente_404`.
   - `test_post_sem_csrf_recusado`: o mesmo POST sem o cabeçalho é recusado e nada é gravado. Controle: com o cabeçalho, grava.
   - `test_rotas_de_candidatura_casam_antes_do_detalhe` (E7): para cada rota de `candidatura.router`, a primeira rota de `criar_app(...).routes` cujo `matches` dá `Match.FULL` para o caminho e o método dela é a própria rota.
-- [ ] **Teste que falha** em `tests/integracao/test_rota_detalhe.py`: `test_link_de_candidatura_tem_data_candidatura`.
-- [ ] **Teste de tela** (CI) em `tests/tela/test_tela_pergunta_candidatura.py`: `test_tela_clique_registra`. A vaga semeada aponta para um servidor local de teste; clicar em "Candidatar-se" abre a aba nova (`context.expect_page`), e o teste espera a resposta 204 do `POST` (`page.expect_response`, nunca `sleep`). Depois a linha existe no banco.
-- [ ] **Ver falhar:** `uv run pytest tests/integracao/test_rota_candidatura.py tests/integracao/test_rota_detalhe.py -q`.
-- [ ] **Implementar** os itens de Interfaces.
-- [ ] **Ver passar:** os mesmos arquivos, `tests/unidade/test_rotas_sem_copias.py`, `tests/unidade/test_estaticos.py` e `tests/unidade/test_camadas.py`; ruff; `-m tela` e mypy no CI do `lote/panorama-tela`.
+- [x] **Teste que falha** em `tests/integracao/test_rota_detalhe.py`: `test_link_de_candidatura_tem_data_candidatura`.
+- [x] **Teste de tela** (CI) em `tests/tela/test_tela_pergunta_candidatura.py`: `test_tela_clique_registra`. A vaga semeada aponta para um servidor local de teste; clicar em "Candidatar-se" abre a aba nova (`context.expect_page`), e o teste espera a resposta 204 do `POST` (`page.expect_response`, nunca `sleep`). Depois a linha existe no banco.
+- [x] **Ver falhar:** `uv run pytest tests/integracao/test_rota_candidatura.py tests/integracao/test_rota_detalhe.py -q`.
+- [x] **Implementar** os itens de Interfaces.
+- [x] **Ver passar:** os mesmos arquivos, `tests/unidade/test_rotas_sem_copias.py`, `tests/unidade/test_estaticos.py` e `tests/unidade/test_camadas.py`; ruff; `-m tela` e mypy no CI do `lote/panorama-tela`.
 
 ### T285: a faixa "Você se candidatou?"
 `depende_de: T284, T256, T276` · desenho 5.6, E6, E8, E9, E15, E16, E18, E20, E21
