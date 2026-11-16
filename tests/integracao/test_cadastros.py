@@ -27,11 +27,14 @@ from jobot.banco.cadastros import (
     meu_pais,
     moeda_efetiva,
     remover_empresa,
+    restaurar_empresa,
     semear,
     semear_leitores,
 )
 from jobot.banco.conexao import abrir
 from jobot.banco.migrar import migrar
+from jobot.banco.sugeridas import descartar, gravar_sugestoes, restaurar
+from jobot.nucleo.coletores.descoberta_cc import Sugestao
 from jobot.nucleo.coletores.registro import carregar_fontes
 from jobot.nucleo.leitores.base import LeitorComLogin
 from jobot.nucleo.modelo import Empresa
@@ -328,6 +331,54 @@ def test_remover_exige_fuso_e_empresa_existente(con: sqlite3.Connection) -> None
     with pytest.raises(LookupError):
         remover_empresa(con, 99999, AGORA)
     assert _linha(con, "greenhouse", "c6bank") == (c6, 1, 0)
+
+
+def test_restaurar_empresa_limpa_removida_em(con: sqlite3.Connection) -> None:
+    """Desfazer do remover (T260): a mesma linha volta à tela; nada nasce nem some."""
+    semear(con)
+    c6 = _linha(con, "greenhouse", "c6bank")[0]
+    con.execute("UPDATE empresa SET ativa = 0 WHERE id = ?", (c6,))
+    con.commit()
+    remover_empresa(con, c6, AGORA)
+    assert c6 not in {e.id for e in empresas(con)}
+
+    restaurar_empresa(con, c6)
+
+    assert _linha(con, "greenhouse", "c6bank") == (c6, 0, 0)  # `ativa` não muda
+    assert c6 in {e.id for e in empresas(con)}
+    assert _total(con, "empresa") == TOTAL
+    restaurar_empresa(con, c6)  # empresa que não está removida: nada muda
+    assert _linha(con, "greenhouse", "c6bank") == (c6, 0, 0)
+    with pytest.raises(LookupError):
+        restaurar_empresa(con, 99999)
+    assert _total(con, "empresa") == TOTAL
+
+
+def _sugerir_vitta(con: sqlite3.Connection) -> int:
+    """Uma sugestão pendente do Greenhouse; devolve o `id`."""
+    con.execute("INSERT INTO fonte (chave, leva) VALUES ('greenhouse', 'A')")
+    gravar_sugestoes(con, [Sugestao("greenhouse", "vitta", "https://x.test/vitta")], AGORA)
+    return int(con.execute("SELECT id FROM empresa_sugerida").fetchone()[0])
+
+
+def test_restaurar_sugerida_volta_a_pendente(con: sqlite3.Connection) -> None:
+    """Desfazer do descartar (T260): `UPDATE` da mesma linha, sem mudar o número de linhas."""
+    id_ = _sugerir_vitta(con)
+    descartar(con, id_)
+    assert con.execute("SELECT estado FROM empresa_sugerida").fetchall() == [("descartada",)]
+
+    restaurar(con, id_)
+
+    assert con.execute("SELECT id, estado FROM empresa_sugerida").fetchall() == [(id_, "pendente")]
+    restaurar(con, id_)  # já pendente: nada muda (o Desfazer apertado duas vezes)
+    assert con.execute("SELECT id, estado FROM empresa_sugerida").fetchall() == [(id_, "pendente")]
+    # sugestão aprovada já virou empresa: o Desfazer do descartar não a alcança
+    con.execute("UPDATE empresa_sugerida SET estado = 'aprovada' WHERE id = ?", (id_,))
+    con.commit()
+    for alvo in (99999, id_):
+        with pytest.raises(LookupError):
+            restaurar(con, alvo)
+    assert con.execute("SELECT estado FROM empresa_sugerida").fetchall() == [("aprovada",)]
 
 
 def test_semear_pula_removida_sem_criar_linha(con: sqlite3.Connection) -> None:

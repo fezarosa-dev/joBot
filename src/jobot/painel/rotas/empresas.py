@@ -18,12 +18,18 @@ import sqlite3
 from collections.abc import Mapping
 from dataclasses import dataclass
 from functools import cache
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, HTTPException, Path, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
-from jobot.banco.cadastros import adicionar_empresa, ativar_empresa, empresas, remover_empresa
+from jobot.banco.cadastros import (
+    adicionar_empresa,
+    ativar_empresa,
+    empresas,
+    remover_empresa,
+    restaurar_empresa,
+)
 from jobot.nucleo.coletores.base import Coletor, ContextoColeta
 from jobot.nucleo.coletores.registro import descobrir
 from jobot.nucleo.http import (
@@ -210,6 +216,44 @@ def _gravado(con: sqlite3.Connection, fonte: str, identificador: str) -> tuple[s
     return ("", {}) if linha is None else (linha[0], dict(json.loads(linha[1])))
 
 
+def _linhas(con: sqlite3.Connection) -> list[dict[str, Any]]:
+    todos = _coletores()
+    return [
+        {
+            "e": e,
+            "fonte_nome": todos[e.fonte].nome if e.fonte in todos else e.fonte,
+            "talentos": e.nome in ETIQUETA_BANCO_DE_TALENTOS,
+        }
+        for e in empresas(con)
+    ]
+
+
+def _resposta_faixa(
+    request: Request, con: sqlite3.Connection, empresa_id: int, removeu: bool
+) -> Response:
+    """Remover e Restaurar (T260). Sem HTMX, volta para a lista. Com HTMX, a faixa de desfazer e a
+    lista nova por OOB; a empresa que voltou leva o realce. O Refazer é a rota de hoje."""
+    if request.headers.get("hx-request") != "true":
+        return RedirectResponse("/empresas", status_code=303)
+    resposta = renderizar(
+        request,
+        "_faixa_corpo_oob.html",
+        texto="removida" if removeu else "empresa_restaurada",
+        acao="desfazer" if removeu else "refazer",
+        rota="/empresas/{id}/restaurar" if removeu else "/empresas/{id}/remover",
+        id=empresa_id,
+        voltar="/empresas",
+        corpo_id="corpo-empresas",
+        corpo="empresas/_corpo.html",
+        linhas=_linhas(con),
+        volta=None if removeu else empresa_id,
+    )
+    # depois do settle, a faixa nova já está processada; o app.js devolve o foco (T260)
+    aviso = {"linha": "" if removeu else f"empresa-{empresa_id}"}
+    resposta.headers["HX-Trigger-After-Settle"] = json.dumps({"lista-mudou": aviso})
+    return resposta
+
+
 def _pagina(
     request: Request,
     con: sqlite3.Connection,
@@ -218,17 +262,15 @@ def _pagina(
     erro: _Erro | None = None,
     teste: Teste | None = None,
 ) -> HTMLResponse:
-    todos = _coletores()
-    linhas = [
-        {
-            "e": e,
-            "fonte_nome": todos[e.fonte].nome if e.fonte in todos else e.fonte,
-            "talentos": e.nome in ETIQUETA_BANCO_DE_TALENTOS,
-        }
-        for e in empresas(con)
-    ]
     resposta = renderizar(
-        request, "empresas/lista.html", linhas=linhas, fontes=_fontes(), f=f, erro=erro, teste=teste
+        request,
+        "empresas/lista.html",
+        linhas=_linhas(con),
+        volta=None,
+        fontes=_fontes(),
+        f=f,
+        erro=erro,
+        teste=teste,
     )
     resposta.status_code = erro.status if erro else 200
     return resposta
@@ -311,4 +353,13 @@ async def remover(request: Request, con: Con, empresa_id: EmpresaId) -> Response
         remover_empresa(con, empresa_id, relogio_do_painel(request).agora())
     except LookupError as erro:
         raise HTTPException(404) from erro
-    return RedirectResponse("/empresas", status_code=303)
+    return _resposta_faixa(request, con, empresa_id, removeu=True)
+
+
+@router.post("/{empresa_id}/restaurar")
+async def restaurar(request: Request, con: Con, empresa_id: EmpresaId) -> Response:
+    try:
+        restaurar_empresa(con, empresa_id)
+    except LookupError as erro:
+        raise HTTPException(404) from erro
+    return _resposta_faixa(request, con, empresa_id, removeu=False)
