@@ -249,10 +249,10 @@ Sem JavaScript (sem `HX-Request`), Apagar busca, Remover site e Esquecer logins 
 **Interfaces:**
 - A rota distingue "grupo conhecido sem leitor" (303 para `/configuracoes/geral`) de "grupo desconhecido" (404), com a lista de grupos que já existe no código.
 
-- [ ] **Testes que falham:** em `tests/integracao/test_rota_configuracoes.py`, `test_grupo_sumido_vai_para_geral` (303 e `Location: /configuracoes/geral`) e `test_grupo_desconhecido_continua_404`; em `tests/tela`, `test_atalho_de_configuracoes_depois_de_voltar_no_historico` (abre Configurações, sai, volta pelo histórico e o atalho ainda leva ao grupo guardado).
-- [ ] **Ver falhar:** `uv run pytest tests/integracao/test_rota_configuracoes.py -q -k grupo`; o vermelho é a asserção (hoje o grupo sumido dá 404).
-- [ ] **Implementar** o redirecionamento e a busca do nó na hora do atalho.
-- [ ] **Ver passar:** os mesmos testes e `uv run ruff check && uv run ruff format --check`; a tela roda no CI.
+- [x] **Testes que falham:** em `tests/integracao/test_rota_configuracoes.py`, `test_grupo_sumido_vai_para_geral` (303 e `Location: /configuracoes/geral`) e `test_grupo_desconhecido_continua_404`; em `tests/tela`, `test_atalho_de_configuracoes_depois_de_voltar_no_historico` (abre Configurações, sai, volta pelo histórico e o atalho ainda leva ao grupo guardado).
+- [x] **Ver falhar:** `uv run pytest tests/integracao/test_rota_configuracoes.py -q -k grupo`; o vermelho é a asserção (hoje o grupo sumido dá 404).
+- [x] **Implementar** o redirecionamento e a busca do nó na hora do atalho.
+- [x] **Ver passar:** os mesmos testes e `uv run ruff check && uv run ruff format --check`; a tela roda no CI.
 
 ### T309: lista agrupada única e regras de ícone só no `casca.css`
 `depende_de: T260, T261, T262`

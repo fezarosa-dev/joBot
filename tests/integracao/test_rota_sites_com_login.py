@@ -156,15 +156,21 @@ def test_sem_leitor_a_aba_nao_aparece(painel: Painel, sem_leitor: Painel) -> Non
     assert GRUPO not in _abas(sem_leitor.http.get("/configuracoes/fontes").text)
 
 
-@pytest.mark.parametrize("metodo", ["GET", "POST"])
-def test_sem_leitor_rota_da_404(sem_leitor: Painel, painel: Painel, metodo: str) -> None:
-    def chamar(p: Painel) -> int:
-        if metodo == "GET":
-            return int(p.http.get(GRUPO).status_code)
+def test_sem_leitor_rota_da_404(sem_leitor: Painel, painel: Painel) -> None:
+    def gravar(p: Painel) -> int:
         return int(p.post(GRUPO, {"horarios": "09:00, 18:00"}).status_code)
 
-    assert chamar(painel) in (200, 303)  # controle: com leitor a rota existe
-    assert chamar(sem_leitor) == 404
+    assert gravar(painel) in (200, 303)  # controle: com leitor a rota existe
+    assert gravar(sem_leitor) == 404
+
+
+def test_sem_leitor_o_get_vai_para_geral(sem_leitor: Painel) -> None:
+    # o navegador pode ter guardado o grupo (T262, T308): cai em Geral em vez de 404
+    resposta = sem_leitor.http.get(GRUPO)
+    assert (resposta.status_code, resposta.headers.get("location")) == (
+        303,
+        "/configuracoes/geral",
+    )
 
 
 def test_sem_leitor_o_interruptor_da_404(sem_leitor: Painel) -> None:
@@ -377,13 +383,18 @@ def test_sem_calculo_do_serve_o_navegador_conta_como_nenhum(painel: Painel) -> N
     assert TEXTOS["pt"]["nenhum"] in _texto(painel.http.get(GRUPO).text)
 
 
+def _sem_paleta(html: str) -> str:
+    """A paleta (T265) repete os links de Configurações; aqui só conta a aba."""
+    return re.sub(r'<dialog\b[^>]*\bid="paleta".*?</dialog>', "", html, flags=re.S)
+
+
 @pytest.mark.parametrize("idioma", ["pt", "en"])
 def test_sites_com_login_aponta_ferramentas(painel: Painel, idioma: str) -> None:
     """Sem navegador, a aba diz onde baixar e leva a Ferramentas (T240; D137.8)."""
     painel.idioma(idioma)
     painel.app.state.navegador_instalado = None
     link = 'href="/configuracoes/ferramentas"'  # a aba já tem um; o atalho é o segundo
-    html = painel.http.get(GRUPO).text
+    html = _sem_paleta(painel.http.get(GRUPO).text)
     assert html.count(link) == 2
     em_ferramentas = {
         "pt": "baixe o navegador em Ferramentas",
@@ -391,7 +402,7 @@ def test_sites_com_login_aponta_ferramentas(painel: Painel, idioma: str) -> None
     }
     assert em_ferramentas[idioma] in _texto(html)
     painel.app.state.navegador_instalado = "chrome"  # controle: com navegador, sem o atalho
-    assert painel.http.get(GRUPO).text.count(link) == 1
+    assert _sem_paleta(painel.http.get(GRUPO).text).count(link) == 1
 
 
 def test_aba_nao_sobe_o_driver(painel: Painel, monkeypatch: pytest.MonkeyPatch) -> None:

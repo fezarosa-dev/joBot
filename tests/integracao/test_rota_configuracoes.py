@@ -235,6 +235,26 @@ def test_grupo_desconhecido_da_404(painel: Painel) -> None:
     assert painel.post("/configuracoes/nada").status_code == 404
 
 
+@pytest.mark.parametrize("grupo", ["sites-com-login", "ferramentas"])
+def test_grupo_sumido_vai_para_geral(painel: Painel, grupo: str) -> None:
+    """Grupo guardado pelo navegador que sem leitor não existe mais cai em Geral, não em 404."""
+    assert painel.get(f"/configuracoes/{grupo}").status_code == 200  # controle: com leitor existe
+    painel.app.state.leitores = ()
+    resposta = painel.get(f"/configuracoes/{grupo}")
+    assert (resposta.status_code, resposta.headers.get("location")) == (303, GERAL)
+    assert painel.get(GERAL).status_code == 200
+    # só o GET redireciona: gravar num grupo que não existe continua 404
+    assert painel.post(f"/configuracoes/{grupo}").status_code == 404
+
+
+@pytest.mark.parametrize("leitores", [None, ()])
+def test_grupo_desconhecido_continua_404(painel: Painel, leitores: tuple[()] | None) -> None:
+    if leitores is not None:
+        painel.app.state.leitores = leitores
+    for grupo in ("nada", "sites-com-logins", "Geral"):
+        assert painel.get(f"/configuracoes/{grupo}").status_code == 404, grupo
+
+
 def test_post_sem_token_da_403(painel: Painel) -> None:
     assert painel.http.post(FUNCOES_URL, data={"paginas_ligadas": "on"}).status_code == 403
     assert painel.config("paginas_ligadas") is None
