@@ -203,6 +203,24 @@ def test_aviso_contas_tem_texto(idioma: str) -> None:
 
 
 @pytest.mark.parametrize("idioma", ["pt", "en"])
+def test_aviso_candidatura_tem_texto(idioma: str) -> None:
+    """T285: as seis chaves da faixa "Você se candidatou?", com os parâmetros do desenho 5.8."""
+    catalogo = i18n.carregar()[idioma]
+    params = {
+        "pergunta": {"titulo", "empresa"},
+        "quando": {"quando"},
+        "sim": set(),
+        "ainda_nao": set(),
+        "mais": {"n"},
+        "marcada": {"titulo"},
+    }
+    for chave, esperados in params.items():
+        texto = catalogo.get(f"casca.aviso_candidatura.{chave}", "")
+        assert texto, chave
+        assert set(re.findall(r"\{(\w+)\}", texto)) == esperados, chave
+
+
+@pytest.mark.parametrize("idioma", ["pt", "en"])
 def test_abas_do_topo_sairam_e_a_lista_tem_rotulo(idioma: str) -> None:
     """T254: a `nav.abas` sai (a lateral faz o papel dela); o listbox e o estado vazio entram."""
     catalogo = i18n.carregar()[idioma]

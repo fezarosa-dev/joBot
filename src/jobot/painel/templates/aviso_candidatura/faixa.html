@@ -1,0 +1,21 @@
+{#- Conteúdo de `#aviso-candidatura` (T285; desenho 5.6). `mostrando` é a chave do que fica à
+    vista; o `hx-include` da casca a manda no próximo GET, e a rota responde 204 quando nada mudou.
+    Sem pergunta nem confirmação, só o campo escondido: a faixa não ocupa altura. -#}
+{%- from "candidatura/_pergunta.html" import pergunta with context -%}
+<input type="hidden" name="mostrando" value="{{ mostrando }}">
+{%- if confirmada %}
+<div class="aviso-candidatura">
+  <p>{{ t("casca.aviso_candidatura.marcada", titulo=confirmada.titulo) }}</p>
+  {%- set destino = "/vagas/" ~ confirmada.vaga_id ~ "/candidatura/desfazer" %}
+  <form method="post" action="{{ destino }}" hx-post="{{ destino }}" hx-target="#aviso-candidatura">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="voltar" value="{{ voltar }}">
+    <button type="submit">{{ t("vagas.acao.desfazer") }}</button>
+  </form>
+</div>
+{%- elif p %}
+<div class="aviso-candidatura">
+  <span class="icone" data-icone="circle-help" aria-hidden="true"></span>
+  {{- pergunta(p, "faixa", total) -}}
+</div>
+{%- endif -%}
