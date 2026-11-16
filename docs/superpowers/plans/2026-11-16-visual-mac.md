@@ -66,8 +66,8 @@
 | 3 | T267 | da `dev`, em qualquer momento | modo app: não muda tela, entra na `dev` sozinho (D143.54 e desenho 8, item 6) |
 | 4 | T248, T249, T250, T251, T252 | branch longa `feat/visual-mac`, tirada da `dev` com a onda 2 | Base: tokens, ícones, Geral, casca e o componente de progresso; CI por `lote/visual-base` |
 | 5 | T253, T254, T255, T256, T257 | `feat/visual-mac` | Vagas; CI por `lote/visual-vagas` |
-| 6 | T258 | — | portão: a branch longa não entra na `dev` antes do ok do dono (D140.8, D143.54) |
-| 7 | T259 a T266 | da `dev`, depois de juntar a branch longa | as outras telas; a T263 também depois da T241 |
+| 6 | T258 | — | era o portão (a branch longa só entraria na `dev` com o ok do dono, D140.8, D143.54); a conferência foi feita por fotos, com o dono fora, e a branch entrou na `dev` (D157, para confirmar); o ok do dono passa a ser dado sobre a `dev` |
+| 7 | T259 a T266, T301 | da `dev`, depois de juntar a branch longa | as outras telas; a T263 também depois da T241; a T301 (acertos das fotos) em paralelo, sobretudo com a T264 |
 | 8 | T268 | da `dev`, por último | documentos de quem usa, quando o visual chega |
 
 A T250 vem antes da T251 porque a casca nova tira tema e idioma da barra, e os testes de hoje (`test_casca.py`) precisam do grupo Geral para trocar o tema.
@@ -492,6 +492,7 @@ Não é código. A branch `feat/visual-mac` só entra na `dev` depois do ok do d
   7. "Buscar agora": a barra indeterminada, depois determinada, a linha da etapa, uma espera de site e "Ver detalhes".
 - [ ] **Registrar** a resposta no `duvidas.md` como decisão nova, com cada pedido de mudança; cada pedido vira tarefa na branch longa antes de juntar.
 - [ ] **Com o ok:** juntar a `feat/visual-mac` na `dev` do jeito de sempre e seguir para a onda 7.
+- Feita por fotos, com o dono fora (D157, para confirmar): a branch entrou na `dev` sem o ok; os defeitos vistos viraram a T301 e o item a mais da T264.
 
 ### T259: Buscas, com o alerta
 `depende_de: T258` · desenho 5.3, 5.4 (Alerta, Menu de contexto), 5.8 (Buscas), D143.37
@@ -591,16 +592,17 @@ Não é código. A branch `feat/visual-mac` só entra na `dev` depois do ok do d
 `depende_de: T258` · desenho 5.8 (Detalhe e correção, Erro e Saiu)
 
 **Arquivos:**
-- modificar `src/jobot/painel/templates/detalhe/*.html`, `src/jobot/painel/templates/erro/pagina.html`, `src/jobot/painel/templates/execucao/saiu.html`, `src/jobot/painel/static/css/detalhe.css`, `src/jobot/painel/static/js/app.js`;
+- modificar `src/jobot/painel/templates/detalhe/*.html`, `src/jobot/painel/templates/base.html` (a aba marcada na página própria), `src/jobot/painel/templates/erro/pagina.html`, `src/jobot/painel/templates/execucao/saiu.html`, `src/jobot/painel/static/css/detalhe.css`, `src/jobot/painel/static/js/app.js`;
 - modificar `tests/integracao/test_rota_detalhe.py`, `tests/integracao/test_erros.py`, `tests/tela/test_detalhe.py`.
 
 **Interfaces:**
 - A página própria `/vagas/{id}` com o mesmo trecho do detalhe da T255, texto de leitura até 680px.
 - A correção abre num sheet: `<dialog>` modal de 520px no alto, raio 18px, `.vidro .vidro-grande`, Esc fecha; sem JavaScript, o formulário de hoje na página.
 - Erro e Saiu: estado vazio com ícone de 20px (`triangle-alert` no Erro, `log-out` no Saiu, da T249), título curto e o que fazer; Saiu sem lateral e sem botões.
+- Item a mais, da conferência por fotos (T258, D157): a página própria a 600px. "Voltar para as vagas" encosta no título, o nome da empresa sobrepõe a base do `h1`, "Ocultar" quebra para uma linha só dele, e a faixa de navegação marca "Destaques de hoje" sem a vaga estar nessa aba. Pedido: espaço entre o link de volta e o título, e entre o `h1` e a empresa (o `line-height` do título não corta a linha de baixo); as ações quebram juntas, como na T301 (item 8); a faixa marca a aba de origem quando ela vem na URL (`?aba=`) e nenhuma quando não vem. Hoje `base.html` cai em `lado.abas[0]` quando a aba não vem; na página própria esse padrão não vale (o padrão continua na lista de Vagas).
 
-- [ ] **Testes que falham**: em `test_rota_detalhe.py`, `test_correcao_em_dialog_com_formulario_de_hoje`; em `test_erros.py`, `test_erro_diz_o_que_fazer` (título, uma linha e o link de volta).
-- [ ] **Testes de tela** (CI): `test_correcao_abre_e_esc_fecha`; `test_sheet_correcao_botoes_visiveis`: janela de 1024×560, sheet de correção aberto; os botões do sheet estão inteiros dentro da janela e o corpo do sheet rola (E17).
+- [ ] **Testes que falham**: em `test_rota_detalhe.py`, `test_correcao_em_dialog_com_formulario_de_hoje`; `test_pagina_propria_sem_aba_nao_marca_nenhuma` (sem `?aba`, nenhum link de `#lateral-vagas` tem `aria-current`; com `?aba=salvas`, só o de Salvas); em `test_erros.py`, `test_erro_diz_o_que_fazer` (título, uma linha e o link de volta).
+- [ ] **Testes de tela** (CI): `test_correcao_abre_e_esc_fecha`; `test_sheet_correcao_botoes_visiveis`: janela de 1024×560, sheet de correção aberto; os botões do sheet estão inteiros dentro da janela e o corpo do sheet rola (E17); `test_pagina_propria_a_600px`: janela de 600×900, `/vagas/{id}`; a caixa do link de volta termina acima da caixa do `h1`, a caixa do `h1` termina acima da linha da empresa (sem sobrepor), e os botões de ação não quebram texto por dentro.
 - [ ] **Ver falhar:** `uv run pytest tests/integracao/test_rota_detalhe.py tests/integracao/test_erros.py -q`.
 - [ ] **Implementar** os itens de Interfaces.
 - [ ] **Ver passar:** os mesmos arquivos; ruff; `-m tela` no CI.
@@ -684,9 +686,48 @@ Não é código. A branch `feat/visual-mac` só entra na `dev` depois do ok do d
 - [ ] **Implementar** os itens de Interfaces.
 - [ ] **Ver passar:** `uv run pytest tests/unidade/test_documentos.py tests/unidade/test_wiki.py -q`; ruff.
 
+### T301: acertos da conferência visual
+`depende_de: T258` (a T264 corre em paralelo) · D157, E17, RF6, desenho 5.2, 5.5 e 5.8
+
+A conferência da T258 foi feita por fotos, com o dono fora (D157). Os dez itens abaixo são o que as fotos mostraram; o da página própria a 600px está na T264. Larguras de janela das fotos: 1280×800, 800×700 e 600×900.
+
+**Arquivos:**
+- modificar `src/jobot/painel/templates/vagas/miolo.html` (barra da lista e "Mais filtros"), `src/jobot/painel/templates/vagas/linha.html`, `src/jobot/painel/templates/detalhe/corpo.html`, `src/jobot/painel/templates/vagas/corpo.html` (o mesmo glifo do encaixe), `src/jobot/painel/templates/base.html` (topo, item Sugeridas), `src/jobot/painel/templates/execucao/_progresso.html`, `src/jobot/painel/templates/sugeridas/lista.html`; `src/jobot/painel/rotas/vagas.py` (`n_mais_filtros` conta também os chips);
+- modificar `src/jobot/painel/static/css/vagas.css`, `src/jobot/painel/static/css/casca.css`, `src/jobot/painel/static/css/detalhe.css`, `src/jobot/painel/static/css/execucao.css`, `src/jobot/painel/static/css/empresas.css`, `src/jobot/painel/static/js/app.js`, `src/jobot/painel/i18n/{pt,en}/vagas.json`; se o ícone do encaixe pedir SVG novo, `src/jobot/painel/static/icones/` e o `lucide.meta.json`, no molde da T249;
+- modificar `tests/integracao/test_rota_vagas.py`, `tests/integracao/test_casca_menu.py`, `tests/tela/test_vagas.py`, `tests/tela/test_casca.py`, `tests/tela/test_progresso.py`, `tests/tela/test_sugeridas.py`.
+
+**Interfaces:**
+1. **Barra de filtros compacta.** A 1280px a barra é uma linha só: busca escolhida, "Ordenar por" e "Mais filtros". Os grupos de chips (Modalidade, Nível, Área, Contrato, Estado, Fonte, Encaixe, País, Publicada há) e os campos de hoje vão para dentro do "Mais filtros". O `<details>` vem fechado mesmo com filtro ativo; o resumo diz quantos filtros valem, para ninguém perder um filtro escondido. A contagem já existe e é reaproveitada: `n_mais_filtros` (`painel/rotas/vagas.py`, hoje conta só excluir, cidade, empresa, sal_de e sal_ate) passa a contar também os chips ativos que entram no "Mais filtros", e o resumo segue com `vagas.mais_filtros_n` no formato atual, "Mais filtros (2)" / "More Filters (2)" (`vagas/miolo.html`); nada de chave nova. O que sai do `miolo.html` é só o `open` condicionado a `n_mais_filtros`. O comentário de `vagas.css` sobre "aberto quando algum campo está preenchido" muda junto. A lista começa na primeira dobra.
+2. **Sobreposto a 800px.** O detalhe sobreposto fica preso à janela (`position: fixed`), do pé da barra de ferramentas ao pé da janela, e não ancorado no topo da lista. As ações (Candidatar-se, Abrir no site, Salvar, Ocultar) ficam presas no pé do sobreposto e só o conteúdo rola (`overflow: auto`, `min-height: 0`, sem altura fixa, E17).
+3. **"Mais filtros" no mesmo lugar.** Em toda largura o resumo é o último item da linha da barra, logo depois de "Ordenar por", alinhado à esquerda do que vem antes; nunca solto à direita no meio dos chips.
+4. **Topo a 600px.** A faixa de navegação é uma linha só que rola na horizontal dentro dela (`overflow-x: auto`), sem rolagem lateral da página (RF6). O título, a busca do topo, "Buscar agora" e "Sair" ficam na mesma linha; a busca encolhe primeiro.
+5. **Encaixe na linha.** Os glifos "●", "◐" e "○" saem; entram ícones Lucide da T249 numa caixa de largura fixa (`1em`), presente também quando a vaga não tem encaixe (vazia), para todos os títulos começarem no mesmo x. Nomes propostos: `circle` (bom), `contrast` (médio), `circle-dashed` (fraco); quem constrói confere se existem na versão do Lucide embutida e, se faltar algum, embute o SVG com a licença e o `lucide.meta.json`, como a T249. O mesmo macro serve à linha, ao detalhe e ao cartão, para os três não divergirem. O texto para leitor de tela da linha continua.
+6. **Primeira linha sem marca.** Ao carregar a lista, nenhuma linha fica com `aria-selected="true"` até a pessoa escolher (clique, setas, J, K, Home, End). O `prepararListas` do `app.js` só põe `tabIndex = 0` na primeira linha, sem marcá-la; o anel de foco do teclado continua visível quando o foco entra na lista. Entrar numa linha pelo teclado continua marcando a linha focada, como hoje (a seleção segue o foco, no `focusin` de `[role="option"]`); o que some é só a marca no carregamento. Dois pontos que chamam o código mexido mudam junto: (a) o ramo `no === lista` do `focusin`, o caminho do link "Pular para a lista de vagas", hoje só desce o foco para a linha com `aria-selected="true"`; sem escolha, ele desce para a linha com `tabindex="0"`, e o `test_pular_para_a_lista_leva_o_foco_para_ela` de `tests/tela/test_vagas.py` continua valendo sem mudança; (b) o `linhaEscolhida()`, que o `devolverFoco` usa depois de ocultar e de fechar a faixa, cai, sem escolha, na linha com `tabindex="0"`, como o `focusin`, para o foco não se perder. Os atalhos de teclado não dependem da seleção: o `keydown` age na linha focada (`evento.target`).
+7. **"Ver detalhes" do progresso.** O popover tem largura mínima (bastante para "Esperando, 40 s" e "10 de 10" sem quebra), números em `font-variant-numeric: tabular-nums` e `white-space: nowrap` no estado e na contagem, e fica inteiro dentro da janela (nunca colado à borda direita: margem de 8px). A etapa ("Lendo Greenhouse · 13 de 20 consultas") tem aparência de botão: fundo de controle no hover e no foco, raio dos tokens, e a borda no `forced-colors`.
+8. **Texto Maior.** A busca do topo tem largura mínima que cabe o placeholder inteiro (`casca.busca.campo`, em pt e en) no tamanho Maior. No detalhe, as ações ficam numa fileira com `flex-wrap` e o mesmo `gap` nas duas direções, botões sem quebra de texto por dentro; "Situação" fica numa linha própria, acima da fileira.
+9. **Sugeridas.** O item Sugeridas da lateral mostra a contagem de pendentes (`lado.sugeridas_pendentes`) num `<span class="contagem">`, como as contagens da T253. Em Sugeridas, o texto de apoio do título tem espaço até o cartão (um token de espaço, não número solto).
+10. **CSP na troca da lista.** Hoje cada troca da lista pelo HTMX (depois de Desfazer, ao trocar a busca escolhida) gera 5 violações `style-src-attr`, de `static/vendor/htmx.min.js` fazendo `setAttribute('style', '')` em `#filtro-sal-de`, `#filtro-sal-ate`, `#filtro-cidade`, `#filtro-empresa` e `#filtro-excluir`. Pista: no assentamento, o htmx copia os atributos de `attributesToSettle` (entre eles `style`) do nó velho de mesmo id para o novo; algo dá um atributo `style` (mesmo vazio) aos campos velhos. Achar quem dá e tirar a causa. Se a causa for só o assentamento, acrescentar ao `htmx-config` de `base.html` (que hoje só tem `allowEval`, `selfRequestsOnly` e `includeIndicatorStyles`) a lista inteira `"attributesToSettle": ["class", "width", "height"]` (o padrão do htmx sem `style`) também serve. A CSP não muda: nada de `'unsafe-inline'` nem `style-src-attr` mais frouxo.
+
+- [ ] **Primeiro, valor errado:** a contagem de Sugeridas nasce com o número errado (por exemplo, sempre 0 no `span`), para o teste falhar por asserção.
+- [ ] **Testes que falham** em `tests/integracao/test_rota_vagas.py`: `test_barra_da_lista_numa_linha_com_filtros_no_mais` (os grupos de chips estão dentro do `details.mais-filtros`, e o `details` vem sem `open` com um chip ativo); `test_mais_filtros_conta_os_ativos` (com dois chips na URL, por exemplo `modalidade` e `nivel`, e nenhum campo, o resumo traz "Mais filtros (2)" em pt e "More Filters (2)" em en; com chips, e não com campos, ele falha por asserção contra o código de hoje, que só conta os campos). Teste que muda: `test_mais_filtros_fechado_sem_filtro_e_aberto_com_contador` (`tests/integracao/test_rota_vagas.py`) prende o `open` com filtro ativo; passa a exigir `<details class="mais-filtros">` sem `open` com cidade e sal_de, mantendo "Mais filtros (2)" no resumo (e muda de nome para `test_mais_filtros_fechado_com_contador`); `test_encaixe_da_linha_e_icone` (a linha tem a caixa do encaixe com `data-icone` e nenhum dos glifos "●◐○", com e sem encaixe); em `tests/integracao/test_casca_menu.py`: `test_sugeridas_mostra_a_contagem_de_pendentes` (com uma sugestão pendente, o link de Sugeridas traz `<span class="contagem">1</span>`).
+- [ ] **Testes de tela** (CI):
+  - `test_lista_na_primeira_dobra` (1280×800): o topo da primeira `.linha` fica acima de 320px; a barra da lista tem a altura de uma linha de controles.
+  - `test_mais_filtros_no_mesmo_lugar` (1280, 800 e 600 de largura): o resumo de "Mais filtros" tem o centro vertical do select de ordem (±4px) e fica à direita dele.
+  - `test_sobreposto_preso_a_janela` (800×700): abre a segunda linha; a caixa do sobreposto começa no pé da barra de ferramentas e termina dentro da janela; Salvar e Ocultar estão inteiros na viewport; o corpo rola (E17).
+  - `test_topo_a_600px_numa_linha` (600×900): a faixa de navegação tem a altura de uma linha e `scrollWidth` maior que `clientWidth` dentro dela; `document.documentElement.scrollWidth` ≤ 600; a busca do topo, "Buscar agora" e "Sair" têm o mesmo centro vertical (±4px).
+  - `test_titulos_da_lista_alinhados` (1280×800, vagas bom, médio, fraco e sem encaixe): o x de todo `.linha-titulo` é o mesmo (±1px).
+  - `test_primeira_linha_sem_marca` (1280×800, `/vagas` sem vaga aberta): nenhuma linha com `aria-selected="true"`; pelo link "Pular para a lista de vagas" e Enter, a primeira linha tem o foco e um `outline` visível; depois de Tab até a lista, o mesmo; depois de uma seta para baixo, uma linha (e só uma) fica marcada.
+  - `test_ver_detalhes_dentro_da_janela` (1280×800, com uma fonte esperando): o popover fica inteiro na viewport, com 8px até a borda direita; cada estado e cada contagem ocupam uma linha (altura ≤ 1,5 × `line-height`); o gatilho da etapa tem fundo ou borda no hover.
+  - `test_texto_maior_sem_corte` (1280×800, tamanho Maior, detalhe em coluna): a largura de conteúdo da busca do topo (`clientWidth` menos o padding) é ≥ a largura do placeholder medida por `canvas.measureText` com a fonte calculada do campo; os botões de ação do detalhe têm a mesma altura e o espaço entre fileiras é o mesmo entre botões (±1px).
+  - `test_sugeridas_apoio_longe_do_cartao` (1280×800): entre o pé do texto de apoio e o topo do primeiro cartão há pelo menos 12px.
+  - `test_troca_da_lista_sem_violacao_de_csp`: `add_init_script` conta os `securitypolicyviolation` do `document`; ocultar uma vaga, Desfazer, e trocar a busca escolhida; a conta é 0.
+- [ ] **Ver falhar:** `uv run pytest tests/integracao/test_rota_vagas.py tests/integracao/test_casca_menu.py -q`. E o vermelho do `test_troca_da_lista_sem_violacao_de_csp` no CI do lote, antes da correção, com a contagem de violações maior que 0 no log: a causa ainda não foi achada, e um teste que não reproduz o atributo `style` no nó velho nasce verde e não prova nada.
+- [ ] **Implementar** os itens de Interfaces, com as Restrições globais (tokens com `light-dark`, contraste comentado, `forced-colors`, movimento reduzido, CSP sem estilo inline, texto novo em pt e en).
+- [ ] **Ver passar:** os mesmos arquivos e `tests/unidade/test_i18n.py`, `tests/unidade/test_css.py`; ruff; `-m tela` e mypy no CI.
+
 ## Espera o dono
 
-1. **O portão da T258.** A branch longa só entra na `dev` com o ok; os pedidos de mudança viram tarefas antes de juntar.
+1. **A conferência da T258.** Foi feita por fotos, com o dono fora, e a branch longa já está na `dev` (D157, para confirmar). O ok do dono passa a ser dado sobre a `dev`: cada pedido de mudança vira tarefa nova, como a T301; a barra de filtros da T301 (item 1) também espera esse ok.
 2. **As escolhas E1 a E16** (D144), em especial E3 (número da migração e o lote Contas), E4 (`painel/consultas.py`) e E5 (paleta depois do ok), e os nomes propostos de ícones e de textos marcados "proposta".
 3. **As decisões da sessão marcadas "para confirmar" no desenho:** um nível só de Desfazer (D143.36), Geral como primeiro grupo (era a P1), Desfazer em Sugeridas e Empresas sem pergunta (era a P3), os pesos e o expoente da curva (proposta).
 
@@ -719,6 +760,7 @@ Não é código. A branch `feat/visual-mac` só entra na `dev` depois do ok do d
 | T266 | baixa | reaproveita o componente |
 | T267 | média | caminhos por sistema, o lançador que não espera, o `executar` que muda para o `cli` e a fronteira entre `sistema` e `navegador` |
 | T268 | baixa | texto, com os testes de documento |
+| T301 | média | dez acertos pequenos de layout, mas medidos por testes de tela com caixa e viewport, e a causa das violações de CSP no assentamento do HTMX |
 
 ## Fora deste plano
 
