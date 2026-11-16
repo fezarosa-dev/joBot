@@ -13,6 +13,7 @@ from jobot.navegador.abrir import (
     SemTela,
     abrir_contexto,
     caminho_do_navegador,
+    chromium_do_jobot,
     lancador_de_producao,
     navegador_instalado,
 )
@@ -229,6 +230,37 @@ async def test_caminho_do_navegador_prefere_o_chrome(
     monkeypatch.setattr(abrir, "CAMINHO_CHROME", arquivo_existente)
     monkeypatch.setattr(abrir, "async_playwright", explode)
     assert await caminho_do_navegador() == arquivo_existente
+
+
+def _com_chromium(monkeypatch: pytest.MonkeyPatch, chromium: Path) -> None:
+    class _Gerenciador:
+        async def __aenter__(self) -> _Playwright:
+            return _Playwright(str(chromium))
+
+        async def __aexit__(self, *saida: object) -> None:
+            return None
+
+    monkeypatch.setattr(abrir, "async_playwright", _Gerenciador)
+
+
+async def test_chromium_do_jobot_sem_arquivo_da_none(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _com_chromium(monkeypatch, tmp_path / "chromium")
+    assert await chromium_do_jobot() is None
+
+
+async def test_chromium_do_jobot_ignora_o_chrome_do_sistema(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    chrome = tmp_path / "chrome"
+    chrome.touch()
+    chromium = tmp_path / "chromium"
+    monkeypatch.setattr(abrir, "CAMINHO_CHROME", chrome)
+    _com_chromium(monkeypatch, chromium)
+    assert await chromium_do_jobot() is None
+    chromium.touch()
+    assert await chromium_do_jobot() == chromium
 
 
 def _core_bundle() -> Path:
