@@ -64,5 +64,20 @@
   "detalhe.mes.10": "out",
   "detalhe.mes.11": "nov",
   "detalhe.mes.12": "dez",
-  "detalhe.correcao.salvar_campo": "Salvar a correção de {campo}"
+  "detalhe.correcao.salvar_campo": "Salvar a correção de {campo}",
+  "detalhe.passos.titulo": "Linha do tempo",
+  "detalhe.passos.vista": "Vista em {data}",
+  "detalhe.passos.abriu": "Abriu a candidatura em {data}",
+  "detalhe.passos.salva": "Salva em {data}",
+  "detalhe.passos.candidatei": "Candidatei em {data}",
+  "detalhe.passos.entrevista": "Entrevista em {data}",
+  "detalhe.passos.oferta": "Oferta em {data}",
+  "detalhe.passos.recusada": "Recusada em {data}",
+  "detalhe.candidatar_email": "Candidatar-se por e-mail",
+  "detalhe.candidatar_email_rotulo": "Candidatar-se por e-mail (abre o seu programa de e-mail)",
+  "detalhe.email.endereco": "Endereço para candidatura: {email}",
+  "detalhe.email.copiar": "Copiar endereço",
+  "detalhe.email.copiado": "Endereço copiado.",
+  "detalhe.email.nao_copiou": "Não deu para copiar. Selecione o endereço e copie.",
+  "detalhe.email.aviso": "O joBot não envia nada: o e-mail sai do seu programa de e-mail."
 }

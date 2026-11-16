@@ -5,7 +5,7 @@
     camada de cima (T301); fechado ou em coluna, o dialog aberto segue visível no fluxo. -#}
 <dialog id="detalhe-vaga" class="detalhe-lado" popover="manual"{% if detalhe %} open data-vaga="{{ detalhe.vaga.id }}" aria-labelledby="lado-titulo"{% endif %}>
   {%- if detalhe %}
-  {%- with vaga=detalhe.vaga, fontes=detalhe.fontes, candidatura=detalhe.candidatura, site=detalhe.site, faixa=detalhe.faixa, estagio=detalhe.estagio, retorno=detalhe.retorno, http=detalhe.http, exibicao=detalhe.exibicao, n=2, prefixo="lado-" %}
+  {%- with vaga=detalhe.vaga, fontes=detalhe.fontes, candidatura=detalhe.candidatura, site=detalhe.site, faixa=detalhe.faixa, estagio=detalhe.estagio, retorno=detalhe.retorno, http=detalhe.http, exibicao=detalhe.exibicao, passos=detalhe.passos, email=detalhe.email, principal=detalhe.principal, n=2, prefixo="lado-" %}
   {% include "detalhe/corpo.html" %}
   {%- endwith %}
   {%- endif %}
