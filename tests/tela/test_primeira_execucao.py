@@ -114,7 +114,7 @@ def test_regiao_do_andamento_vazia_nao_ocupa_linha(page: Page, painel: str) -> N
     page.get_by_label("Não ligar agora").check()
     page.get_by_role("button", name="Concluir").click()
     expect(page.get_by_role("heading", name="Tudo pronto")).to_be_visible()
-    regiao = page.get_by_role("status", name="Andamento da busca")
+    regiao = page.locator("#andamento")  # a região viva é o #andamento-etapa (T252)
     expect(regiao).to_be_empty()
     caixa = regiao.bounding_box()
     barra = page.locator(".execucao").bounding_box()

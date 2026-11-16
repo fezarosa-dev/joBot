@@ -1,4 +1,4 @@
-/* Buscar agora, Sair e o andamento da busca, na barra do topo (T49) */
+/* Buscar agora, Sair e o andamento da busca, na barra do topo (T49, T252) */
 .execucao {
   display: flex;
   flex-wrap: wrap;
@@ -34,16 +34,24 @@
   color: var(--texto);
 }
 
-/* a região fica sempre na página (o leitor de tela só anuncia mudança em região que já existe) */
+/* a região do andamento fica sempre na página; o nome da etapa vai para #andamento-etapa */
 .andamento-regiao {
-  flex-basis: 100%;
+  flex: 0 1 auto;
+  min-inline-size: 0;
   font-size: 0.875rem;
   color: var(--texto);
 }
 
-/* vazia, a região não abre uma linha de gap na barra (T107); com texto volta a ocupar a largura */
-.andamento-regiao:empty {
-  flex-basis: 0;
+/* a região viva só fala: texto fora da tela, o nó nunca é trocado (T252) */
+#andamento-etapa {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .andamento p {
@@ -54,18 +62,172 @@
   font-weight: 600;
 }
 
-.andamento-ponto {
-  display: inline-block;
-  width: 0.5rem;
-  height: 0.5rem;
-  margin-right: 0.4rem;
-  border-radius: 50%;
-  background-color: var(--destaque);
-  animation: pulsar 1.2s ease-in-out infinite alternate;
+/* limiar de 1 s: só a resposta do clique traz o envoltório; busca curta não pisca a barra */
+.andamento-entrada {
+  animation: andamento-entrar 200ms ease-out 1s backwards;
 }
 
-@keyframes pulsar {
+@keyframes andamento-entrar {
   from {
-    opacity: 0.3;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+}
+
+/* o componente: trilho de 6px em pílula, a linha da etapa embaixo (desenho 5.9) */
+.progresso {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  max-inline-size: 100%;
+  anchor-name: --andamento;
+  /* o nome de âncora é global: cada popover se ancora no seu componente */
+  anchor-scope: --andamento;
+}
+
+.progresso-barra {
+  inline-size: 240px;
+}
+
+.progresso-corpo {
+  inline-size: 320px;
+}
+
+.progresso-trilho {
+  position: relative;
+  overflow: hidden;
+  block-size: 6px;
+  border-radius: 999px;
+  background-color: var(--trilho-progresso);
+}
+
+/* a largura vem de data-valor pelo app.js, numa animação linear de 2 s */
+.progresso-preenchimento {
+  block-size: 100%;
+  inline-size: 0;
+  border-radius: inherit;
+  background-color: var(--destaque);
+}
+
+.progresso-preenchimento.indeterminado {
+  inline-size: 30%;
+  animation: progresso-vai 1.5s linear infinite;
+}
+
+@keyframes progresso-vai {
+  from {
+    transform: translateX(-100%);
+  }
+
+  to {
+    transform: translateX(340%);
+  }
+}
+
+.progresso-linha {
+  overflow: hidden;
+  margin: 0;
+  font: var(--t-callout);
+  color: var(--texto-2);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* "Ver detalhes do andamento": o componente inteiro é o alvo do clique */
+.progresso-ver {
+  position: absolute;
+  inset: 0;
+  min-block-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--raio-controle);
+  background: transparent;
+}
+
+.progresso-ver-texto {
+  align-self: flex-start;
+}
+
+.progresso-detalhes {
+  position-anchor: --andamento;
+  inset: auto;
+  top: anchor(bottom);
+  left: anchor(left);
+  margin: 0.375rem 0 0;
+  padding: 0.5rem 0.75rem;
+  border: 0;
+  border-radius: var(--raio-grande);
+  color: var(--texto);
+  font: var(--t-body);
+}
+
+.progresso-fontes {
+  display: grid;
+  grid-template-columns: auto auto auto;
+  gap: 0.25rem 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.progresso-fontes li {
+  display: contents;
+}
+
+.progresso-estado {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  color: var(--texto-2);
+}
+
+.progresso-conta {
+  color: var(--texto-2);
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+
+.progresso-motivo {
+  grid-column: 1 / -1;
+  color: var(--texto-2);
+  font: var(--t-callout);
+}
+
+[data-icone="circle-dashed"] { --icone: url("/static/icones/circle-dashed.svg"); }
+[data-icone="book-open"] { --icone: url("/static/icones/book-open.svg"); }
+[data-icone="circle-check"] { --icone: url("/static/icones/circle-check.svg"); }
+[data-icone="circle-x"] { --icone: url("/static/icones/circle-x.svg"); }
+[data-icone="clock"] { --icone: url("/static/icones/clock.svg"); }
+
+@media (prefers-contrast: more) {
+  .progresso-trilho {
+    border: 1px solid var(--texto);
+  }
+}
+
+@media (forced-colors: active) {
+  .progresso-trilho {
+    border: 1px solid CanvasText;
+  }
+
+  .progresso-preenchimento {
+    forced-color-adjust: none;
+    background-color: Highlight;
+  }
+}
+
+/* movimento reduzido: a indeterminada para com o trilho cheio a 40%; o limiar de 1 s fica,
+   só sem o esmaecer (o bloco de base.css zera as animações com seletor universal) */
+@media (prefers-reduced-motion: reduce) {
+  .progresso-preenchimento.indeterminado {
+    inline-size: 100%;
+    opacity: 0.4;
+  }
+
+  .andamento-entrada {
+    animation: andamento-entrar 1ms linear 1s backwards !important;
   }
 }

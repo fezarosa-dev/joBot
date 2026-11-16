@@ -346,3 +346,12 @@ def test_link_de_pular_fica_acima_da_barra() -> None:
     ]
     assert barras
     assert int(_valor(pular, "z-index") or 0) > max(barras)
+
+
+def test_ancora_do_progresso_fica_no_proprio_componente() -> None:
+    """O nome de âncora é global: com a barra do topo e o componente do corpo na mesma página, o
+    popover de um se ancoraria no último .progresso do DOM. anchor-scope o prende ao seu (T252)."""
+    css = _sem_comentarios((PASTA / "execucao.css").read_text(encoding="utf-8"))
+    progresso = next(r for r in _regras(css) if r.seletor == ".progresso" and not r.contexto)
+    assert _valor(progresso, "anchor-name") == "--andamento"
+    assert _valor(progresso, "anchor-scope") == "--andamento"
