@@ -108,7 +108,12 @@ class MoldeLogado:
         partes = (
             _no_site(captura.url, link.attributes.get("href") or "") if link is not None else None
         )
-        return urlunsplit(partes._replace(fragment="")) if partes is not None else None
+        if partes is None:
+            return None
+        proxima = urlunsplit(partes._replace(fragment=""))
+        # o laço do executor não guarda URLs vistas: o link para a própria página giraria
+        propria = urlunsplit(urlsplit(captura.url)._replace(fragment=""))
+        return None if proxima == propria else proxima
 
     def ler(self, captura: Captura, escopo: EscopoLogado) -> Leitura:
         arvore = LexborHTMLParser(captura.html)

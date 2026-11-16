@@ -127,6 +127,15 @@ def test_proxima_fora_do_host_e_none() -> None:
     assert LEITOR.proxima(_com_proxima(certa)) == certa
 
 
+def test_proxima_para_a_propria_pagina_e_none() -> None:
+    # o laço do executor não guarda URLs vistas: o link para si mesmo giraria até o teto
+    assert LEITOR.proxima(_com_proxima(BUSCA)) is None
+    assert LEITOR.proxima(_com_proxima(f"{BUSCA}#topo")) is None
+    assert LEITOR.proxima(_com_proxima("?q=dev")) is None
+    # controle: outra página do mesmo host segue
+    assert LEITOR.proxima(_com_proxima(f"{BUSCA}&pagina=2")) == f"{BUSCA}&pagina=2"
+
+
 def test_ler_lista() -> None:
     leitura = LEITOR.ler(_captura("lista"), ESCOPO)
     assert (leitura.pulados, leitura.formato_mudou) == (0, False)
