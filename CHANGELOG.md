@@ -18,6 +18,10 @@ O formato segue o [Keep a Changelog 1.1.0](https://keepachangelog.com/pt-BR/1.1.
 - Login numa janela comum do navegador, sem automação: você entra como quiser (Google, e-mail e senha) e fecha a janela. O joBot confere a sessão sozinho e nunca digita a senha.
 - ADR 0023: tudo pelo painel. Ferramentas externas, atualização e encerramento passam a ter botão, sem terminal.
 - Guia "Como acrescentar um site novo" (`docs/site-novo.md`), com um molde de coletor para site público e um de leitor para site com login, e uma guarda no CI que confere o teste, o exemplo e o nome de cada site.
+- O Panorama, um item novo na barra lateral: o dia numa tela, com o que fecha logo, as candidaturas e a busca, com atalhos para as vagas e as fontes.
+- A linha do tempo da vaga, com a data de cada passo (vista, salva, candidatura aberta, candidatei), e o "desde" na aba Candidatei.
+- A pergunta "Você se candidatou?" depois que você abre o link de candidatura de uma vaga, com "Sim, me candidatei", "Ainda não" e Desfazer.
+- Candidatura por e-mail: quando a descrição traz um endereço, o botão "Candidatar-se por e-mail" abre o seu programa de e-mail com o título da vaga. O joBot não envia nada.
 - ADR 0024: o Gmail será lido por IMAP com uma senha de app colada no painel (o cartão está em Configurações, Contas; a leitura dos e-mails, na fase 6). A wiki ganha o passo a passo.
 - Uma janela própria para o painel: se o computador tem Chrome, Edge ou Chromium, o `jobot` abre o painel sem abas nem barra de endereço, como um aplicativo; sem eles, abre numa aba.
 - Desfazer e Refazer: ocultar uma vaga, descartar uma sugestão e remover uma empresa acontecem na hora, com uma faixa de Desfazer (`⌘Z`, `Ctrl+Z` fora do Mac) e de Refazer. Apagar uma busca, remover um site e esquecer logins pedem confirmação num alerta.

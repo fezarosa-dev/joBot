@@ -23,6 +23,12 @@ O joBot guarda dados sensíveis (CPF, data de nascimento, currículo) e segredos
 
 - Os dados só saem do computador para os serviços que a pessoa ligar: Anthropic, OpenAI, Google (Gmail e Gemini), Telegram e o serviço que a pessoa configurar no backend compatível com OpenAI (ver [0009](0009-ia-backends-e-modelos.md)), e também o Jev (classificação de e-mail, ver [0009](0009-ia-backends-e-modelos.md)), o 2Captcha (só na navegação com login e só com a chave posta e o interruptor ligado; vão o endereço da página, a `sitekey` e o user agent do navegador, e nada de dado pessoal; a chave vai ao serviço para resolver e para o botão de teste) e o RunPod (só no treino da fase 7). Na IA manual, os dados vão para a IA de chat onde a pessoa colar. Pedidos sem dado pessoal que o joBot faz por padrão: às fontes públicas de vagas, ao Banco Central (cotação) e ao GitHub (aviso de versão, uma vez por dia; desliga em Configurações, Privacidade).
 
+## Nota (2026-11-16): botão de e-mail na vaga
+
+- Exceção à regra 14.3 da fase 1: o botão de candidatura por e-mail é um link `mailto:`. Só `mailto:`, só com um endereço que passou pela lista fechada de caracteres, montado pelo joBot, com o título da vaga como único parâmetro.
+- O endereço não é guardado. Link dentro da descrição continua não clicável, e nenhum outro esquema vale.
+- Nenhuma rede nova: o `mailto:` é navegação da pessoa, não um pedido do painel.
+
 ## Ver também
 
 - [0008. Painel e visual](0008-painel-e-visual.md)

@@ -40,6 +40,10 @@ As abas e o visual abaixo valem até a nota de 2026-11-15 (barra lateral e visua
 - A ideia de que o estilo Apple é inspiração, não cópia continua valendo no sentido de nenhum arquivo, texto ou recurso da Apple no repositório (sala limpa, ADR 0016). O que muda é o alvo: parecer nativo.
 - Na fase 3 a janela vira a do app de desktop: no Mac, os botões do sistema; no Windows e no Linux, três círculos desenhados por nós em CSS ou SVG (D142). Até lá, vale o modo app do navegador, com a moldura do sistema (D140).
 
+## Panorama na lateral (2026-11-16)
+
+- A barra lateral ganha o item Panorama, a tela que junta o dia: o que fecha logo, as candidaturas e a busca. É o primeiro item, numa seção sem título acima de Vagas, sem contagem; o resto da lateral não muda.
+
 ## Consequências
 
 - O estilo Apple é inspiração, não cópia: nenhum texto ou recurso da Apple entra no repositório.

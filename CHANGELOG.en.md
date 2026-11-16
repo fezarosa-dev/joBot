@@ -18,6 +18,10 @@ The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/
 - Login in a regular browser window, with no automation: you sign in however you like (Google, email and password) and close the window. joBot checks the session by itself and never types the password.
 - ADR 0023: everything through the dashboard. External tools, updating and quitting get a button, no terminal needed.
 - Guide "How to add a new site" (`docs/site-novo.en.md`), with a collector template for a public site and a reader template for a site with login, and a CI guard that checks each site's test, example and name.
+- The Overview, a new item in the sidebar: the day on one screen, with what closes soon, the applications and the search, with shortcuts to the jobs and the sources.
+- The job timeline, with the date of each step (found, saved, application opened, applied), and the "since" in the Applied tab.
+- The "Did you apply?" question after you open a job's application link, with "Yes, I Applied", "Not Yet" and Undo.
+- Application by email: when the description has an address, the "Apply by Email" button opens your email app with the job title. joBot sends nothing.
 - ADR 0024: Gmail will be read over IMAP with an app password pasted into the dashboard (the card is in Settings, Accounts; reading the emails, in phase 6). The wiki gets the step-by-step guide.
 - A window of its own for the dashboard: if the computer has Chrome, Edge or Chromium, `jobot` opens the dashboard with no tabs or address bar, like an app; without them, it opens in a tab.
 - Undo and Redo: hiding a job, discarding a suggestion and removing a company happen right away, with an Undo bar (`⌘Z`, `Ctrl+Z` outside the Mac) and a Redo. Deleting a search, removing a site and forgetting logins ask for confirmation in an alert.

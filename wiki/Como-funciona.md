@@ -130,6 +130,7 @@ O painel roda no seu computador, em `127.0.0.1`. Se o joBot acha o Chrome, o Edg
 - **Filtros** em "chips" (botõezinhos) com contagem: país e há quantos dias a vaga foi publicada ficam à vista; salário, cidade, empresa e palavras que a vaga não pode ter ficam em "Mais filtros". O filtro atual fica no endereço da página, então dá para salvar o link. Busca rápida com a tecla `/`.
 - **Status de cada vaga:** nova → salva → candidatei → entrevista → recusada ou oferta.
 - **Calendário de 12 meses** em cada vaga, para ver prazos de relance.
+- **Panorama e fila de candidaturas:** o Panorama, na barra lateral, junta o dia: o que fecha logo, as candidaturas e a busca. Quando você abre o link de candidatura de uma vaga, o painel pergunta "Você se candidatou?" ("Sim, me candidatei" ou "Ainda não", com Desfazer); a linha do tempo da vaga mostra a data de cada passo e a aba Candidatei mostra o "desde". Se a descrição traz um e-mail de candidatura, o botão "Candidatar-se por e-mail" só abre o seu programa de e-mail: o joBot não envia nada.
 - **"Algo errado nesta vaga?"**: um botão para corrigir um rótulo ou dado.
 - **Desfazer:** ocultar uma vaga, descartar uma sugestão ou remover uma empresa acontece na hora, com uma faixa de **Desfazer**. O que apaga de verdade pede confirmação antes.
 - **Teclado e paleta de comandos:** `⌘K` (`Ctrl+K` fora do Mac) leva a qualquer tela. Veja todos em [Atalhos de teclado](Atalhos-de-teclado).
@@ -137,6 +138,7 @@ O painel roda no seu computador, em `127.0.0.1`. Se o joBot acha o Chrome, o Edg
 - **Andamento da busca:** ao buscar agora, o topo mostra a etapa em que o joBot está e quanto já foi.
 - **Visual de aplicativo do Mac:** translucidez, animações suaves, modo claro e escuro seguindo o sistema, e movimento reduzido para quem pede.
 - **Idiomas:** português e inglês.
+- **Registro local da abertura:** o joBot guarda, só no seu computador, quando você abriu a candidatura de cada vaga.
 
 ## 🌙 Segundo plano
 
