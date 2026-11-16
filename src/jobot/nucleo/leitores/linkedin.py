@@ -128,12 +128,10 @@ class LinkedIn:
     hosts: tuple[str, ...] = (_HOST,)
     url_login = "https://www.linkedin.com/login"
     url_entrada = "https://www.linkedin.com/jobs/"
-    prefixos_login: tuple[str, ...] = (
-        "/login",
-        "/checkpoint/",
-        "/authwall",
-        "/uas/login",
-        "/signup",
+    # `host + caminho`, como o navegador casa (`casa_login`)
+    prefixos_login: tuple[str, ...] = tuple(
+        _HOST + caminho
+        for caminho in ("/login", "/checkpoint/", "/authwall", "/uas/login", "/signup")
     )
     respostas: tuple[str, ...] = ()
     campos_conta: tuple[str, ...] = ()
@@ -155,7 +153,8 @@ class LinkedIn:
         ]
 
     def _no_login(self, url: str) -> bool:
-        return urlsplit(url).path.startswith(self.prefixos_login)
+        partes = urlsplit(url)
+        return ((partes.hostname or "") + partes.path).startswith(self.prefixos_login)
 
     def e_login(self, captura: Captura) -> bool:
         return self._no_login(captura.url)

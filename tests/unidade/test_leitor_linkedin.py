@@ -9,6 +9,7 @@ import pytest
 from selectolax.lexbor import LexborHTMLParser
 
 from apoio.relogio import RelogioFalso
+from jobot.navegador.politica import casa_login
 from jobot.nucleo.coletores.base import ContextoColeta
 from jobot.nucleo.leitores.base import Captura, EscopoLogado, LeitorComLogin, Leitura
 from jobot.nucleo.leitores.linkedin import LinkedIn, _data_relativa
@@ -76,7 +77,13 @@ def test_atributos_do_leitor() -> None:
     assert leitor.hosts == ("www.linkedin.com",)
     assert leitor.url_login == "https://www.linkedin.com/login"
     assert leitor.url_entrada == "https://www.linkedin.com/jobs/"
-    assert leitor.prefixos_login == ("/login", "/checkpoint/", "/authwall", "/uas/login", "/signup")
+    assert leitor.prefixos_login == (
+        "www.linkedin.com/login",
+        "www.linkedin.com/checkpoint/",
+        "www.linkedin.com/authwall",
+        "www.linkedin.com/uas/login",
+        "www.linkedin.com/signup",
+    )
     assert (leitor.respostas, leitor.campos_conta) == ((), ())
     assert leitor.rolar is True
     assert leitor.lista_tem_descricao is False
@@ -491,3 +498,24 @@ def test_pagina_logada_pela_marca(link: str, esperado: bool) -> None:
 def test_e_login_pelo_prefixo(caminho: str, esperado: bool) -> None:
     captura = _captura("<html></html>", f"https://www.linkedin.com{caminho}")
     assert _leitor().e_login(captura) is esperado
+
+
+@pytest.mark.parametrize(
+    ("url", "esperado"),
+    [
+        ("https://www.linkedin.com/login", True),
+        ("https://www.linkedin.com/checkpoint/challenge/x", True),
+        ("https://www.linkedin.com/authwall?trk=x", True),
+        ("https://www.linkedin.com/uas/login?session_redirect=x", True),
+        ("https://www.linkedin.com/signup/cold-join", True),
+        ("https://www.linkedin.com/jobs/", False),
+        ("https://outro.com/login", False),
+        ("https://www.linkedin.com.mal.io/login", False),
+    ],
+)
+def test_prefixos_login_casam_por_host_e_caminho(url: str, esperado: bool) -> None:
+    """O navegador casa `prefixos_login` com `host + caminho` (`casa_login`): sessão vencida
+    numa página recusada pela política vira `precisa_login`, não `bloqueio`."""
+    leitor = _leitor()
+    assert casa_login(url, leitor.prefixos_login) is esperado
+    assert leitor.e_login(_captura("<html></html>", url)) is esperado
