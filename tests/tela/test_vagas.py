@@ -235,6 +235,29 @@ def test_carregar_mais(page: Page, painel: str, banco: Path) -> None:
     assert len(set(titulos)) == len(titulos)
 
 
+def test_desfazer_depois_de_carregar_mais_mantem_as_linhas(
+    page: Page, painel: str, banco: Path
+) -> None:
+    """T305 (a): o Desfazer recarrega a lista com as páginas que já estavam na tela, não só a 1ª
+    (antes as linhas do "carregar mais" sumiam, e a vaga que voltou também, se era de lá)."""
+    with closing(abrir(banco)) as con:
+        for n in range(55):
+            inserir_vaga(con, titulo=f"Extra {n:02d}", empresa=f"Extra SA {n:02d}")
+    page.goto(f"{painel}/vagas?aba=todas")
+    page.get_by_role("button", name="Carregar mais vagas").click()
+    expect(_linhas(page)).to_have_count(62)
+    titulo = _linhas(page).nth(55).locator(".linha-titulo").inner_text()
+    _ocultar_pelo_detalhe(page, titulo)
+    expect(_linhas(page)).to_have_count(61)
+    page.locator(FAIXA).get_by_role("button", name="Desfazer").click()
+    expect(page.locator(FAIXA)).to_contain_text("Vaga mostrada de novo")
+    expect(_linhas(page)).to_have_count(62)
+    expect(_cartao(page, titulo)).to_be_visible()
+    expect(page.get_by_role("button", name="Carregar mais vagas")).to_have_count(0)
+    titulos = _titulos(page)
+    assert len(set(titulos)) == len(titulos)
+
+
 LADO = "#detalhe-vaga"
 
 
@@ -795,6 +818,25 @@ def test_esc_fecha_o_sobreposto(page: Page, painel: str) -> None:
     expect(seguinte).to_have_attribute("aria-selected", "true")
 
 
+def test_esc_limpa_a_busca_uma_vez_so(page: Page, painel: str) -> None:
+    """T305 (b): com o detalhe sobreposto aberto, o 1º Esc no campo da busca só limpa o texto; o
+    detalhe fica. Com o campo vazio, o Esc segue e fecha o detalhe."""
+    page.set_viewport_size({"width": 1000, "height": 800})
+    page.goto(f"{painel}/vagas?aba=todas")
+    _cartao(page, NOVA).focus()
+    page.keyboard.press("Enter")
+    expect(page.locator(LADO).get_by_role("heading", level=2, name=NOVA)).to_be_visible()
+    assert page.locator(LADO).evaluate(MODO) == "sobreposto"
+    busca = page.locator("[data-busca]")
+    busca.focus()
+    page.keyboard.type("python")
+    page.keyboard.press("Escape")
+    expect(busca).to_have_value("")
+    expect(page.locator(LADO)).to_be_visible()
+    page.keyboard.press("Escape")
+    expect(page.locator(LADO)).to_be_hidden()
+
+
 def test_janela_inativa_selecao_cinza(page: Page, painel: str) -> None:
     page.set_viewport_size({"width": 1400, "height": 900})
     page.goto(f"{painel}/vagas?aba=todas")
@@ -912,6 +954,52 @@ EM_CIMA = "() => document.querySelector('#detalhe-vaga')?.matches(':popover-open
 NO_FLUXO = "() => !document.querySelector('#detalhe-vaga')?.matches(':popover-open')"
 
 
+def test_foco_fica_no_detalhe_ao_alargar_a_janela(page: Page, painel: str) -> None:
+    """T305 g: ao passar de sobreposto para coluna o app.js tira o detalhe da camada de cima
+    (hidePopover), que devolveria o foco à linha; o detalhe segue à vista e o foco fica nele."""
+    page.set_viewport_size({"width": 800, "height": 700})
+    page.goto(f"{painel}/vagas?aba=todas")
+    _abrir_ao_lado(page, NOVA)
+    expect(page.locator(f"{LADO}:popover-open")).to_have_count(1)
+    salvar = page.locator(LADO).get_by_role("button", name="Salvar", exact=True)
+    salvar.focus()
+    page.set_viewport_size({"width": 1280, "height": 800})
+    expect(page.locator(f"{LADO}:popover-open")).to_have_count(0)
+    assert page.locator(LADO).evaluate(MODO) == "coluna"
+    expect(salvar).to_be_focused()
+
+
+def test_sobreposto_sem_js_fica_a_vista_ao_rolar(
+    browser: Browser, painel: str, banco: Path
+) -> None:
+    """T305 h: sem JS o detalhe não sobe para a camada de cima; o CSS o prende ao alto da coluna
+    que rola (sticky), dentro da janela, também depois de rolar a lista até o fim."""
+    # lista bem mais alta que a janela: sem o sticky o detalhe estica até o pé do miolo
+    with closing(abrir(banco)) as con:
+        for n in range(40):
+            inserir_vaga(con, titulo=f"Extra {n:02d}", empresa=f"Extra SA {n:02d}")
+    contexto = browser.new_context(
+        java_script_enabled=False, viewport={"width": 800, "height": 700}
+    )
+    try:
+        pagina = contexto.new_page()
+        pagina.goto(f"{painel}/vagas?aba=todas")
+        id_ = _cartao(pagina, NOVA).get_attribute("data-id")
+        pagina.goto(f"{painel}/vagas?aba=todas&vaga={id_}")
+        lado = pagina.locator(LADO)
+        expect(lado.get_by_role("heading", level=2, name=NOVA)).to_be_visible()
+        _linhas(pagina).last.scroll_into_view_if_needed()  # rola a lista até o fim
+        primeira = _linhas(pagina).first.bounding_box()
+        assert primeira and primeira["y"] + primeira["height"] < 0  # rolou de verdade
+        barra, caixa = pagina.get_by_role("banner").bounding_box(), lado.bounding_box()
+        assert barra and caixa
+        assert barra["y"] + barra["height"] <= caixa["y"]  # abaixo da barra...
+        assert caixa["y"] + caixa["height"] <= 700  # ... e inteiro dentro da janela
+        expect(lado.get_by_role("button", name="Ocultar", exact=True)).to_be_in_viewport()
+    finally:
+        contexto.close()
+
+
 def test_coluna_sem_a_caixa_do_popover(page: Page, painel: str) -> None:
     """O popover="manual" do sobreposto traz as regras de UA de [popover] (fundo Canvas, largura
     fit-content, borda, inset 0) em todo estado: em coluna o detalhe segue sem fundo, só com o
@@ -965,7 +1053,7 @@ def test_titulos_da_lista_alinhados(page: Page, painel: str, banco: Path) -> Non
         con.commit()
     page.set_viewport_size({"width": 1280, "height": 800})
     page.goto(f"{painel}/vagas?aba=todas")
-    for icone in ("circle", "contrast", "circle-dashed"):
+    for icone in ("circle-check", "contrast", "circle"):
         expect(
             page.locator(f'#lista-vagas .icone-encaixe[data-icone="{icone}"]').first
         ).to_be_attached()

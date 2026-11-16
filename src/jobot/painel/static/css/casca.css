@@ -170,6 +170,7 @@ body {
 
 [data-icone="circle"] { --icone: url("/static/icones/circle.svg"); }
 [data-icone="contrast"] { --icone: url("/static/icones/contrast.svg"); }
+[data-icone="circle-check"] { --icone: url("/static/icones/circle-check.svg"); }
 [data-icone="circle-dashed"] { --icone: url("/static/icones/circle-dashed.svg"); }
 [data-icone="sparkles"] { --icone: url("/static/icones/sparkles.svg"); }
 [data-icone="inbox"] { --icone: url("/static/icones/inbox.svg"); }
@@ -188,6 +189,7 @@ body {
 [data-icone="panel-left"] { --icone: url("/static/icones/panel-left.svg"); }
 [data-icone="search-x"] { --icone: url("/static/icones/search-x.svg"); }
 [data-icone="circle-x"] { --icone: url("/static/icones/circle-x.svg"); }
+[data-icone="clock"] { --icone: url("/static/icones/clock.svg"); }
 [data-icone="triangle-alert"] { --icone: url("/static/icones/triangle-alert.svg"); }
 [data-icone="log-out"] { --icone: url("/static/icones/log-out.svg"); }
 

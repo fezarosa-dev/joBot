@@ -150,17 +150,18 @@ def test_aba_programas_mostra_mudou_em_e_leva_para_sites(page: Page, painel: str
     page.goto(f"{painel}/vagas?aba=programas")
 
     secao = page.locator("#lista-programas-paginas")
-    expect(secao.locator("li.cartao")).to_have_count(2)  # as duas ativas aparecem
-    alfa = secao.locator("li.cartao").filter(has_text="Trainee Alfa")
-    expect(alfa).to_contain_text("mudou em 13/11/2026")
+    expect(secao.locator("> li")).to_have_count(2)  # as duas ativas aparecem
+    alfa = secao.locator("> li").filter(has_text="Trainee Alfa")
+    expect(alfa.locator("a.linha")).to_contain_text("mudou em 13/11/2026")  # a linha das vagas
     alfa.locator("summary").click()
     expect(alfa).to_contain_text("+inscrições encerradas")
     # o CSS de sites.css chega na tela de vagas: linha longa quebra em vez de estourar a largura
     expect(alfa.locator("pre.diferenca")).to_have_css("white-space", "pre-wrap")
-    beta = secao.locator("li.cartao").filter(has_text="Estágio Beta")
+    beta = secao.locator("> li").filter(has_text="Estágio Beta")
     expect(beta).not_to_contain_text("mudou em")
     expect(beta).to_contain_text("sem mudança")
-    alfa.get_by_role("link", name="Ver em Sites").click()
+    expect(secao.locator("li.cartao, [role=option]")).to_have_count(0)
+    alfa.get_by_role("link", name=re.compile(r"^Trainee Alfa")).click()
     expect(page).to_have_url(re.compile(r"/sites#site-\d+$"))
 
 

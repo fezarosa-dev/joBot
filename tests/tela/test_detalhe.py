@@ -91,6 +91,36 @@ def test_correcao_abre_e_esc_fecha(page: Page, painel: str) -> None:
     expect(page.locator("dialog.sheet")).to_be_hidden()
 
 
+# reabre o sheet e lê, na hora, as transições que o @starting-style dispara. O getComputedStyle
+# entre os dois faz o navegador ver o sheet fechado; o app.js o tira do DOM no `close`, depois
+TRANSICOES_DO_SHEET = """el => {
+  el.close();
+  getComputedStyle(el).display;
+  el.showModal();
+  return el.getAnimations().map(a => [a.transitionProperty, a.effect.getTiming().duration]);
+}"""
+
+
+def test_sheet_sem_movimento_reduzido_nao_anima(page: Page, painel: str) -> None:
+    """Desenho 5.1 (T305 j): o sheet entra descendo em 280 a 300ms (opacidade e transform); com
+    movimento reduzido, nada se desloca: só o fundido, em até 120ms."""
+    page.goto(f"{painel}/vagas/{USD}")
+    page.get_by_role("link", name="Algo errado nesta vaga?").click()
+    sheet = page.locator("dialog.sheet")
+    expect(sheet).to_be_visible()
+    entrada = dict(sheet.evaluate(TRANSICOES_DO_SHEET))
+    assert set(entrada) == {"opacity", "transform"}
+    assert all(280 <= d <= 300 for d in entrada.values())
+    expect(sheet).to_have_count(0)  # o `close` do evaluate tirou o sheet
+    page.emulate_media(reduced_motion="reduce")
+    page.get_by_role("link", name="Algo errado nesta vaga?").click()
+    expect(sheet).to_be_visible()
+    assert sheet.evaluate("el => getComputedStyle(el).transform") == "none"
+    reduzida = dict(sheet.evaluate(TRANSICOES_DO_SHEET))
+    assert "transform" not in reduzida
+    assert all(d <= 120 for d in reduzida.values())
+
+
 def test_sheet_fica_no_alto_com_os_campos_estilizados(page: Page, painel: str) -> None:
     page.goto(f"{painel}/vagas/{USD}")
     page.get_by_role("link", name="Algo errado nesta vaga?").click()

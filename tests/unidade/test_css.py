@@ -534,3 +534,87 @@ def test_classe_chave_so_em_caixa_de_marcar() -> None:
     assert not re.search(
         r"(^|[\s,}])\.chave\b", _sem_comentarios((PASTA / "fontes.css").read_text("utf-8"))
     )
+
+
+def test_sheet_entra_com_a_mola_leve() -> None:
+    """Desenho 5.1 (T305 j): o sheet entra em 280 a 300ms com a mola leve, só opacidade e
+    transform, a partir do @starting-style. O bloco de movimento reduzido do base.css tira o
+    transform e deixa o fundido de 120ms."""
+    regras = _regras(_sem_comentarios((PASTA / "detalhe.css").read_text(encoding="utf-8")))
+    aberto = next(r for r in regras if r.seletor == ".sheet[open]" and not r.contexto)
+    transicao = [p.split() for p in (_valor(aberto, "transition") or "").split(",") if p.strip()]
+    assert sorted(p[0] for p in transicao) == ["opacity", "transform"]
+    for propriedade, duracao, curva in transicao:
+        assert 280 <= int(duracao.removesuffix("ms")) <= 300, propriedade
+        assert curva == "var(--mola-leve)", propriedade
+    inicios = [
+        d
+        for r in regras
+        if r.seletor == "@starting-style"
+        for d in _regras(r.corpo)
+        if d.seletor == ".sheet[open]"
+    ]
+    assert len(inicios) == 1
+    assert _valor(inicios[0], "opacity") == "0"
+    assert (_valor(inicios[0], "transform") or "none") != "none"
+
+
+def test_sobreposto_sem_js_acompanha_a_rolagem() -> None:
+    """Sem JS (T305 h) o app.js não sobe o sobreposto para a camada de cima, e o position: fixed
+    ficaria preso ao #vagas-miolo (o container das consultas de largura, que não pode sair): lá
+    ele vira sticky sobre a lista, no alto da coluna que rola, depois da regra do sobreposto."""
+    regras = _regras(_sem_comentarios((PASTA / "vagas.css").read_text(encoding="utf-8")))
+    faixa = "@container conteudo (640px <= width < 860px)"
+    sobreposto = next(i for i, r in enumerate(regras) if r.seletor == faixa and not r.contexto)
+    sem_js = [
+        (i, d)
+        for i, r in enumerate(regras)
+        if r.contexto == ("@media (scripting: none)",) and r.seletor == faixa
+        for d in _regras(r.corpo)
+        if d.seletor == ".detalhe-lado[open]"
+    ]
+    assert len(sem_js) == 1
+    posicao, lado = sem_js[0]
+    assert posicao > sobreposto  # mesma especificidade: vence por vir depois
+    assert _valor(lado, "position") == "sticky"
+    assert _valor(lado, "inset") == "auto"
+    assert _valor(lado, "grid-area") == "1 / 1"
+    assert _valor(lado, "max-block-size") == "calc(100dvh - var(--barra-altura) - 1rem)"
+
+
+def test_lista_agrupada_definida_uma_vez() -> None:
+    """O bloco da lista agrupada (desenho 5.8, T309) mora só em `.lista-agrupada`, no base.css: as
+    listas de Buscas, Fontes, Sites, Empresas e Sugeridas usam a classe, sem cópia do bloco."""
+    blocos = [
+        (arquivo, r.seletor)
+        for arquivo, r in _todas()
+        if _valor(r, "box-shadow") == "inset 0 0 0 0.5px var(--separador)"
+        and _valor(r, "list-style") == "none"
+    ]
+    assert blocos == [("base.css", ".lista-agrupada")]
+    modelos = ESTATICOS.parent / "templates"
+    for modelo, lista in (
+        ("buscas/lista.html", "lista-buscas"),
+        ("fontes/pagina.html", "lista-fontes"),
+        ("sites/lista.html", "lista-sites"),
+        ("empresas/_corpo.html", "lista-empresas"),
+        ("sugeridas/_corpo.html", "lista-sugeridas"),
+    ):
+        html = (modelos / modelo).read_text(encoding="utf-8")
+        assert f'<ul class="lista-agrupada" id="{lista}">' in html, modelo
+
+
+def test_regra_de_icone_uma_vez() -> None:
+    """Cada `data-icone` tem a regra do `--icone` num arquivo só (T309); os ícones de mais de uma
+    tela (encaixe, estado da fonte e do progresso) ficam no casca.css, que toda página carrega."""
+    lugares: dict[str, set[str]] = {}
+    for arquivo, r in _todas():
+        if _valor(r, "--icone") is None:
+            continue
+        for seletor in _seletores(r):
+            if achado := re.fullmatch(r'\[data-icone="([\w-]+)"\]', seletor):
+                lugares.setdefault(achado.group(1), set()).add(arquivo)
+    repetidos = {nome: sorted(onde) for nome, onde in lugares.items() if len(onde) > 1}
+    assert repetidos == {}
+    for nome in ("circle", "contrast", "circle-check", "circle-x", "clock"):
+        assert lugares[nome] == {"casca.css"}, nome

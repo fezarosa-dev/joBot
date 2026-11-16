@@ -263,9 +263,23 @@ a.secundario {
   }
 }
 
+/* entra descendo do alto em 280ms com a mola leve (desenho 5.1, T305 j); o bloco de movimento
+   reduzido do base.css tira o transform e deixa só o fundido de 120ms */
 .sheet[open] {
   display: flex;
   flex-direction: column;
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 280ms var(--mola-leve),
+    transform 280ms var(--mola-leve);
+}
+
+@starting-style {
+  .sheet[open] {
+    opacity: 0;
+    transform: translateY(-1rem);
+  }
 }
 
 .sheet::backdrop {
