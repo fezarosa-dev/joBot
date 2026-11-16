@@ -340,21 +340,52 @@ def test_remover_tem_alerta(painel: Painel) -> None:
     assert re.search(r">\s*Remover\s*</button>", dialogo)
 
 
-def test_remover_sem_js_continua_e_nao_ha_mais_details(painel: Painel) -> None:
-    """O botão Remover da linha é o submit do form de hoje (sem JavaScript o POST remove); a
-    pergunta em dois cliques (`<details>` e "Remover mesmo") saiu."""
-    id_ = painel.semear()
+def test_remover_site_sem_js_vai_para_confirmar(painel: Painel) -> None:
+    """T307: o botão Remover da linha, lido sem JavaScript, leva à página de confirmação (GET que
+    não muda nada); o texto é o do alerta, o botão faz o POST de hoje e o Cancelar volta. A
+    pergunta em dois cliques (`<details>` e "Remover mesmo") continua fora."""
+    id_ = painel.semear(nome='Dados <b>&"x"')
     html = painel.http.get("/sites").text
     fora = re.sub(r"<dialog\b.*?</dialog>", "", html, flags=re.DOTALL)
-    forms = re.findall(
-        rf'<form[^>]*action="/sites/{id_}/remover"[^>]*>(.*?)</form>', fora, re.DOTALL
+    (form,) = re.findall(
+        rf'<form[^>]*action="/sites/{id_}/remover/confirmar"[^>]*>.*?</form>', fora, re.DOTALL
     )
-    assert len(forms) == 1
-    assert re.search(
-        rf'<button[^>]*type="submit"[^>]*data-alerta-abre="alerta-site-{id_}"', forms[0]
+    assert 'method="get"' in form and CAMPO_CSRF not in form
+    assert re.search(rf'<button[^>]*type="submit"[^>]*data-alerta-abre="alerta-site-{id_}"', form)
+    assert f'action="/sites/{id_}/remover"' not in fora
+    assert "Remover mesmo" not in html and 'class="apagar"' not in html
+
+    for _ in range(2):  # GET repetido: nada muda
+        r = painel.http.get(f"/sites/{id_}/remover/confirmar")
+        assert r.status_code == 200
+        assert painel.sql("SELECT count(*) FROM pagina_acompanhada") == [(1,)]
+    pagina = r.text
+    assert "<b>" not in pagina
+    titulo = re.search(r'<h1[^>]*class="alerta-titulo"[^>]*>(.*?)</h1>', pagina, re.DOTALL)
+    assert titulo and unescape(titulo.group(1)).strip() == 'Remover o site «Dados <b>&"x"»?'
+    assert "O texto guardado e as mudanças dele serão apagados." in pagina
+    (post,) = re.findall(
+        rf'<form[^>]*action="/sites/{id_}/remover"[^>]*>(.*?)</form>', pagina, re.DOTALL
     )
-    assert "Remover mesmo" not in html
-    assert 'class="apagar"' not in html
+    assert f'name="{CAMPO_CSRF}" value="{painel.token}"' in post
+    assert re.search(r'<button[^>]*type="submit"[^>]*>\s*Remover\s*</button>', post)
+    assert re.search(r'<a\b[^>]*href="/sites"[^>]*>\s*Cancelar\s*</a>', pagina)
+    assert "<dialog" not in pagina and "autofocus" not in pagina
+
+
+@pytest.mark.parametrize(("id_", "status"), [("999", 404), (str(2**63 - 1), 404), ("0", 422)])
+def test_remover_site_confirmar_de_pagina_que_nao_existe(
+    painel: Painel, id_: str, status: int
+) -> None:
+    assert painel.http.get(f"/sites/{id_}/remover/confirmar").status_code == status
+
+
+def test_remover_site_post_direto_continua(painel: Painel) -> None:
+    """O POST de hoje (o do alerta e o do botão da página de confirmação) remove como antes."""
+    id_ = painel.semear()
+    r = painel.post(f"/sites/{id_}/remover")
+    assert (r.status_code, r.headers["location"]) == (303, "/sites")
+    assert painel.sql("SELECT count(*) FROM pagina_acompanhada") == [(0,)]
 
 
 def test_desativar_continua_sem_pergunta(painel: Painel) -> None:

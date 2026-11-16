@@ -112,6 +112,23 @@ async def desativar(con: Con, pagina_id: PaginaId) -> Response:
     return RedirectResponse("/sites", status_code=303)
 
 
+@router.get("/{pagina_id}/remover/confirmar")
+async def remover_confirmar(request: Request, con: Con, pagina_id: PaginaId) -> Response:
+    """Sem JavaScript: a pergunta do alerta numa página; o GET não muda nada (T307)."""
+    achada = next((p for p in paginas(con) if p.id == pagina_id), None)
+    if achada is None:
+        raise HTTPException(404)
+    return renderizar(
+        request,
+        "confirmar.html",
+        titulo=("sites.remover_titulo", {"nome": achada.nome}),
+        texto="sites.remover_texto",
+        rotulo="comum.remover",
+        acao=f"/sites/{pagina_id}/remover",
+        voltar="/sites",
+    )
+
+
 @router.post("/{pagina_id}/remover")
 async def remover(con: Con, pagina_id: PaginaId) -> Response:
     try:

@@ -473,6 +473,50 @@ def test_esquecer_tem_alerta(painel: Painel) -> None:
     assert "hx-confirm" not in html and "confirm(" not in html  # nada de diálogo do navegador
 
 
+def _elemento_por_id(html: str, id_: str) -> str | None:
+    """O HTML de dentro do elemento com esse `id` (conta a abertura e o fecho da mesma tag)."""
+    inicio = re.search(rf'<(\w+)\b[^>]*\bid="{id_}"[^>]*>', html)
+    if inicio is None:
+        return None
+    tag, fundo = inicio[1], 1
+    for achado in re.finditer(rf"<(/?){tag}\b[^>]*>", html[inicio.end() :]):
+        fundo += -1 if achado[1] else 1
+        if fundo == 0:
+            return html[inicio.end() : inicio.end() + achado.start()]
+    return None
+
+
+def test_esquecer_mostra_o_componente_indeterminado(painel: Painel) -> None:
+    """O componente da T252 já vem no HTML do GET, escondido, como `hx-indicator` do envio (E15)."""
+    html = painel.http.get(GRUPO).text
+    alerta = re.search(r'<dialog id="alerta-esquecer".*?</dialog>', html, re.S)
+    assert alerta is not None
+    formulario = re.search(r"<form\b[^>]*>", alerta.group(0))
+    assert formulario is not None and f'hx-post="{CONFIRMAR}"' in formulario[0]
+    indicador = re.search(r'hx-indicator="#([\w-]+)"', formulario[0])
+    assert indicador is not None, formulario[0]
+    espera = _elemento_por_id(html, indicador[1])
+    assert espera is not None, "o indicador não existe na página"
+    assert len(re.findall(r'role="progressbar"', espera)) == 1
+    assert "aria-valuenow" not in espera  # indeterminado: sem valor
+    assert 'class="progresso-preenchimento indeterminado"' in espera
+    assert "Apagando os logins guardados" in _texto(espera)
+    assert html.count('role="progressbar"') == 1  # um só componente na página
+
+
+def test_esquecer_indicador_em_ingles(painel: Painel) -> None:
+    painel.idioma("en")
+    assert "Deleting saved sign-ins" in _texto(painel.http.get(GRUPO).text)
+
+
+def test_resposta_de_esquecer_nao_traz_o_componente(painel: Painel) -> None:
+    """O componente mora na página; a resposta do POST só troca o texto do resultado (E15)."""
+    _perfil(painel)
+    resposta = painel.post(CONFIRMAR)
+    assert resposta.status_code == 200
+    assert "progressbar" not in resposta.text and "progresso" not in resposta.text
+
+
 @pytest.mark.parametrize("idioma", ["pt", "en"])
 def test_alerta_de_esquecer_em_pt_e_en(painel: Painel, idioma: str) -> None:
     painel.idioma(idioma)
@@ -587,7 +631,7 @@ _EM_ANDAMENTO = "Uma leitura está em andamento; tente de novo quando terminar."
 
 @pytest.mark.parametrize(
     ("metodo", "rota"),
-    [("POST", LOGIN), ("GET", LOGIN), ("POST", CONFIRMAR)],
+    [("POST", LOGIN), ("GET", LOGIN), ("POST", CONFIRMAR), ("GET", CONFIRMAR)],
 )
 def test_sem_leitor_rotas_de_login_e_esquecer_dao_404(
     sem_leitor: Painel, painel: Painel, login_falso: LoginFalso, metodo: str, rota: str
@@ -772,6 +816,48 @@ def test_esquecer_so_apaga_ao_confirmar_e_a_pergunta_antiga_saiu(
     assert not perfil.exists()
     assert _contagem(painel) == antes  # vagas e ocorrências intactas
     assert painel.http.get(GRUPO).status_code == 200
+
+
+@pytest.mark.parametrize("idioma", ["pt", "en"])
+def test_esquecer_logins_sem_js_vai_para_confirmar(painel: Painel, idioma: str) -> None:
+    """T307: o botão Esquecer logins, lido sem JavaScript, leva à página de confirmação (GET que
+    não apaga nada); o texto é o do alerta, o botão faz o POST de hoje e o Cancelar volta."""
+    painel.idioma(idioma)
+    perfil = _perfil(painel)
+    html = painel.http.get(GRUPO).text
+    fora = re.sub(r"<dialog\b.*?</dialog>", "", html, flags=re.S)
+    (form,) = re.findall(rf'<form[^>]*action="{CONFIRMAR}"[^>]*>.*?</form>', fora, re.S)
+    assert 'method="get"' in form and CAMPO_CSRF not in form
+    assert 'data-alerta-abre="alerta-esquecer"' in form
+
+    for _ in range(2):  # GET repetido: nada muda
+        resposta = painel.http.get(CONFIRMAR)
+        assert resposta.status_code == 200
+        assert (perfil / "Default" / "Cookies").exists()
+    pagina = resposta.text
+    pergunta, rotulo, cancelar = {
+        "pt": ("Apagar os logins de todos os sites?", "Esquecer", "Cancelar"),
+        "en": ("Delete the logins for all sites?", "Forget", "Cancel"),
+    }[idioma]
+    assert pergunta in _texto(pagina)
+    explicacao = i18n.carregar()[idioma]["configuracoes.sites_com_login.esquecer.explicacao"]
+    assert _texto(explicacao) in _texto(pagina)
+    ((abertura, post),) = re.findall(
+        rf'(<form[^>]*action="{CONFIRMAR}"[^>]*>)(.*?)</form>', pagina, re.S
+    )
+    assert 'method="post"' in abertura
+    assert f'name="{CAMPO_CSRF}" value="{painel.token}"' in post
+    assert re.search(rf"<button[^>]*type=\"submit\"[^>]*>\s*{rotulo}\s*</button>", post)
+    assert re.search(rf'<a\b[^>]*href="{GRUPO}"[^>]*>\s*{cancelar}\s*</a>', pagina)
+    assert "<dialog" not in pagina and "autofocus" not in pagina
+
+
+def test_esquecer_logins_post_direto_continua(painel: Painel) -> None:
+    """O POST de hoje (o do alerta e o do botão da página de confirmação) apaga como antes."""
+    perfil = _perfil(painel)
+    resposta = painel.post(CONFIRMAR)
+    assert resposta.status_code == 200 and "Logins apagados" in _texto(resposta.text)
+    assert not perfil.exists()
 
 
 def test_esquecer_com_leitura_rodando_nao_apaga(painel: Painel) -> None:

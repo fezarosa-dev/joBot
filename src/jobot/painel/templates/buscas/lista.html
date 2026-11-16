@@ -48,8 +48,7 @@
     <div class="linha-busca-acoes">
       <a href="/vagas?aba=todas&amp;busca={{ b.id }}">{{ t("buscas.ver_vagas") }}</a>
       <a href="/buscas/{{ b.id }}">{{ t("buscas.editar") }}</a>
-      <form method="post" action="/buscas/{{ b.id }}/apagar">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <form method="get" action="/buscas/{{ b.id }}/apagar/confirmar">
         <button type="submit" class="botao-simples" data-alerta-abre="alerta-busca-{{ b.id }}">{{ t("comum.apagar") }}</button>
       </form>
       <form method="post" action="/buscas/{{ b.id }}/{{ 'desligar' if b.ativa else 'ligar' }}" data-envia-ao-mudar>

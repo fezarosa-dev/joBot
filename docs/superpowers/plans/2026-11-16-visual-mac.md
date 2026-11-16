@@ -640,11 +640,11 @@ Não é código. A branch `feat/visual-mac` só entra na `dev` depois do ok do d
 - "Esquecer logins" (E15): o componente da T252, indeterminado, com "Apagando os logins guardados"/"Deleting saved sign-ins" (`execucao.etapa.esquecer`), já vem no HTML do `GET` do grupo, como `hx-indicator` do formulário de esquecer. O CSS o deixa invisível e só o mostra com `.htmx-request`, com atraso de 1s (o mesmo limiar); a resposta do `POST` não traz o componente.
 - "Tudo pronto": a primeira busca usa o componente da barra, sem cópia na página.
 
-- [ ] **Testes que falham**: em `test_rota_sites_com_login.py`, `test_esquecer_mostra_o_componente_indeterminado` (no HTML do `GET` do grupo, o formulário de esquecer tem `hx-indicator` apontando para um elemento `role="progressbar"` sem `aria-valuenow` e com o texto da etapa); em `test_rota_primeira_execucao.py`, `test_pronto_usa_o_componente_da_barra` (um só `role="progressbar"` na página).
-- [ ] **Teste de tela** (CI, em `tests/tela/test_configuracoes.py`): `test_esquecer_mostra_o_progresso_depois_de_1s`: `page.route` segura o `POST` de esquecer; com `page.clock`, antes de 1s o componente não é visível; depois de `page.clock.fast_forward(1000)`, é; ao soltar a resposta, some.
-- [ ] **Ver falhar:** `uv run pytest tests/integracao/test_rota_sites_com_login.py tests/integracao/test_rota_primeira_execucao.py -q`.
-- [ ] **Implementar** os itens de Interfaces.
-- [ ] **Ver passar:** os mesmos arquivos e `tests/unidade/test_i18n.py`; ruff; mypy no CI.
+- [x] **Testes que falham**: em `test_rota_sites_com_login.py`, `test_esquecer_mostra_o_componente_indeterminado` (no HTML do `GET` do grupo, o formulário de esquecer tem `hx-indicator` apontando para um elemento `role="progressbar"` sem `aria-valuenow` e com o texto da etapa); em `test_rota_primeira_execucao.py`, `test_pronto_usa_o_componente_da_barra` (um só `role="progressbar"` na página).
+- [x] **Teste de tela** (CI, em `tests/tela/test_sites_com_login.py`, onde mora a fixture do leitor): `test_esquecer_mostra_o_progresso_depois_de_1s`: `page.route` segura o `POST` de esquecer; um `MutationObserver` pausa a animação do limiar quando ela nasce; `getAnimations`, `pause` e `currentTime` em 999 ms e 1001 ms (`page.clock` não move animação CSS): em 999 ms o componente fica oculto, em 1001 ms visível; ao soltar a resposta, some.
+- [x] **Ver falhar:** `uv run pytest tests/integracao/test_rota_sites_com_login.py tests/integracao/test_rota_primeira_execucao.py -q`.
+- [x] **Implementar** os itens de Interfaces.
+- [x] **Ver passar:** os mesmos arquivos e `tests/unidade/test_i18n.py`; ruff; mypy no CI.
 
 ### T267: janela do modo app
 `depende_de: —` · desenho 5.4 (Janela do modo app), D143.6, D143.11, D143.41

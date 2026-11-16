@@ -593,6 +593,21 @@ async def estado_do_login(request: Request, chave: str) -> Response:
     return _fragmento_de_login(request, chave, estado)
 
 
+@router.get(f"/{_COM_LOGIN}/esquecer/confirmar")
+async def esquecer_logins_pergunta(request: Request) -> Response:
+    """Sem JavaScript: a pergunta do alerta numa página; o GET não apaga nada (T307)."""
+    _grupo_valido(request, _COM_LOGIN)
+    return renderizar(
+        request,
+        "confirmar.html",
+        titulo=("configuracoes.sites_com_login.esquecer.pergunta", {}),
+        texto="configuracoes.sites_com_login.esquecer.explicacao",
+        rotulo="comum.esquecer",
+        acao=f"/configuracoes/{_COM_LOGIN}/esquecer/confirmar",
+        voltar=f"/configuracoes/{_COM_LOGIN}",
+    )
+
+
 @router.post(f"/{_COM_LOGIN}/esquecer/confirmar")
 async def esquecer_logins_confirmado(request: Request) -> Response:
     """Confirma o alerta: apaga a pasta do perfil, nunca com leitura ou login rodando (D132.22)."""

@@ -13,12 +13,18 @@
   </div>
 </form>
 {% from "_alerta.html" import alerta with context %}
+{% from "execucao/_progresso.html" import progresso with context %}
 <div id="esquecer-logins" aria-live="polite">
-  <form method="post" action="/configuracoes/sites-com-login/esquecer/confirmar">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <form method="get" action="/configuracoes/sites-com-login/esquecer/confirmar">
     <div class="acoes">
       <button type="submit" class="botao botao-secundario" data-alerta-abre="alerta-esquecer">{{ t("configuracoes.sites_com_login.esquecer") }}</button>
     </div>
   </form>
-  {{ alerta("alerta-esquecer", t("configuracoes.sites_com_login.esquecer.pergunta"), t("configuracoes.sites_com_login.esquecer.explicacao"), t("comum.esquecer"), "/configuracoes/sites-com-login/esquecer/confirmar", alvo_htmx="#esquecer-logins") }}
+  {{ alerta("alerta-esquecer", t("configuracoes.sites_com_login.esquecer.pergunta"), t("configuracoes.sites_com_login.esquecer.explicacao"), t("comum.esquecer"), "/configuracoes/sites-com-login/esquecer/confirmar", alvo_htmx="#esquecer-logins", indicador="#esquecer-progresso") }}
+</div>
+{#- a espera do "Esquecer logins": o componente da T252, indeterminado, escondido até o pedido
+    sair (o HTMX põe .htmx-request) e só visível depois de 1 s. Fora da região viva acima, que a
+    resposta troca: aqui ele só some, sem ser anunciado duas vezes (T266; E15) -#}
+<div id="esquecer-progresso" class="progresso-espera">
+  {{- progresso({"indeterminado": True, "etapa": "esquecer", "fontes": []}, corpo=True, base="esquecer", texto=t("execucao.etapa.esquecer"), nome=t("execucao.etapa.esquecer")) }}
 </div>
