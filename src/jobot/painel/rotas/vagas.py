@@ -12,22 +12,27 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from typing import Annotated, Any
-from urllib.parse import urlencode
+from urllib.parse import parse_qs, urlencode, urlsplit
 
 from fastapi import APIRouter, Form, HTTPException, Path, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from starlette.datastructures import QueryParams
 
 from jobot.banco import acoes, leitura
+from jobot.banco.cadastros import gravar_config, ler_config
 from jobot.banco.leitura import Filtros, Fonte, Item
 from jobot.banco.paginas import paginas, ultimas_diferencas
 from jobot.nucleo.tratamento.locais import codigos_de_pais, nome_do_pais, nome_em_ingles
 from jobot.painel.consultas import (
+    MAX_ID,
+    busca_ativa,
     busca_efetiva,
     config_ou_padrao,
     ids_destaques,
+    inteiro_da_url,
     relogio_do_painel,
 )
+from jobot.painel.lateral import ler_lateral
 from jobot.painel.moeda import Exibicao, FiltroSalario, exibicao_do_painel, filtro_salario
 from jobot.painel.seguranca import Con, de_volta, renderizar
 
@@ -52,19 +57,9 @@ _ROTULO_CHIP = {
 }
 _TETO_SALARIO = 10**12
 _MAX_TEXTO = 100
-MAX_ID = 2**31
 # o INTEGER do SQLite é de 64 bits com sinal: id maior estoura em OverflowError (500)
 VagaId = Annotated[int, Path(ge=1, le=2**63 - 1)]
 _MAX_PAGINA = 10_000
-
-
-def inteiro_da_url(texto: str | None, maximo: int) -> int | None:
-    """Número de 1 a `maximo`; qualquer outra coisa (letra, zero, negativo, enorme) é None."""
-    # o tamanho vem antes do `int()`: texto com mais de 4300 dígitos o faz levantar ValueError
-    if texto is None or not texto.isascii() or not texto.isdigit() or len(texto) > len(str(maximo)):
-        return None
-    numero = int(texto)
-    return numero if 1 <= numero <= maximo else None
 
 
 def _texto(texto: str | None) -> str | None:
@@ -385,6 +380,15 @@ def _contexto_pagina(
     }
 
 
+def _lateral_oob(
+    con: sqlite3.Connection, agora: datetime, busca_id: int | None, caminho: str, aba: str
+) -> dict[str, Any]:
+    """A seção "Vagas" da lateral para a resposta HTMX trocar no lugar: as contagens de agora e o
+    item marcado igual ao da casca (`caminho` e `aba` são os da página que a pessoa vê)."""
+    lado = ler_lateral(con, agora, busca_id)
+    return {"lado": lado, "caminho": caminho, "aba": aba if aba in lado.abas else lado.abas[0]}
+
+
 def com_vary(resposta: HTMLResponse) -> HTMLResponse:
     resposta.headers["Vary"] = "HX-Request, HX-History-Restore-Request"
     return resposta
@@ -398,11 +402,19 @@ async def raiz(con: Con) -> RedirectResponse:
     return RedirectResponse(f"/vagas?aba={aba}", status_code=303)
 
 
+def _gravar_escolha(con: sqlite3.Connection, pedida: int | None) -> None:
+    """Só o id de uma busca ligada vira a escolhida; o resto (texto, id que não existe, busca
+    desligada) não grava nada. A desligada continua valendo na página, mas só nela (E16)."""
+    if busca_ativa(con, pedida) and ler_config(con, "busca_escolhida", None) != pedida:
+        gravar_config(con, "busca_escolhida", pedida)
+
+
 @router.get("/vagas")
 async def vagas(request: Request, con: Con) -> HTMLResponse:
     agora = relogio_do_painel(request).agora()
     ex = exibicao_do_painel(con, agora.astimezone().date())
     estado = ler_estado(request.query_params, con, ex)
+    _gravar_escolha(con, inteiro_da_url(request.query_params.get("busca"), MAX_ID))
     cabecalho = request.headers
     restaurando = cabecalho.get("hx-history-restore-request") == "true"
     parcial = cabecalho.get("hx-request") == "true" and not restaurando
@@ -426,6 +438,8 @@ async def vagas(request: Request, con: Con) -> HTMLResponse:
             )
         )
     contexto = _contexto_pagina(con, estado, agora, ex)
+    if parcial:
+        contexto["lateral_oob"] = _lateral_oob(con, agora, estado.busca_id, "/vagas", estado.aba)
     modelo = "vagas/miolo.html" if parcial else "vagas/pagina.html"
     return com_vary(renderizar(request, modelo, **contexto))
 
@@ -451,15 +465,20 @@ def _resposta(
     vaga = leitura.detalhe(con, vaga_id, busca_id, agora)
     if vaga is None:
         raise HTTPException(404, "vaga não existe")
+    de = urlsplit(voltar)  # a página de onde veio: diz qual item da lateral fica marcado
+    aba = parse_qs(de.query).get("aba", [""])[0]
     return renderizar(
         request,
-        "vagas/corpo.html",
+        "vagas/corpo_oob.html",
         exibicao=exibicao_do_painel(con, agora.astimezone().date()),
         item=vaga,
         fontes={vaga.id: _unicas(vaga.fontes)},
         retorno=voltar,
         busca_id=busca_id,
         foco=True,
+        lateral_oob=_lateral_oob(
+            con, agora, busca_id, "/vagas" if de.path == "/" else de.path, aba
+        ),
     )
 
 

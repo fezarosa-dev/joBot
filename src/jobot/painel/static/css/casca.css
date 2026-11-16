@@ -132,6 +132,17 @@ body {
   color: var(--texto);
 }
 
+/* contagem à direita, em texto simples (sem pílula); no item aberto herda a cor do texto dele */
+.menu .contagem {
+  margin-inline-start: auto;
+  color: var(--texto-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.menu a[aria-current] .contagem {
+  color: inherit;
+}
+
 /* ícones: o <a> só tem texto; o desenho vem de uma máscara pintada na cor do texto */
 .menu a::before,
 .icone {

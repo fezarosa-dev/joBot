@@ -12,6 +12,8 @@ from fastapi.responses import HTMLResponse
 from fastapi.testclient import TestClient
 from starlette.routing import Route
 
+from apoio.relogio import RelogioFalso
+from apoio.semear import semear
 from jobot.banco.cadastros import gravar_config
 from jobot.banco.conexao import abrir
 from jobot.banco.migrar import migrar
@@ -48,7 +50,8 @@ CONFIG = {
 }
 MENU = {"pt": "Principal", "en": "Main"}
 NAV = re.compile(r"<nav\b[^>]*>.*?</nav>", re.S)
-LINK = re.compile(r"<a\b([^>]*)>([^<]*)</a>")
+LINK = re.compile(r"<a\b([^>]*)>(.*?)</a>", re.S)
+CONTAGEM = re.compile(r'<span class="contagem">(\d+)</span>')
 DESTAQUE_HREF = "/vagas?aba=destaques"
 
 
@@ -90,8 +93,22 @@ def _menu(html: str, idioma: str) -> list[tuple[str, str, str]]:
         href = re.search(r'href="([^"]*)"', atributos)
         assert href is not None
         atual = re.search(r'aria-current="([^"]*)"', atributos)
-        itens.append((html_.unescape(texto), href.group(1), atual.group(1) if atual else ""))
+        nome = html_.unescape(CONTAGEM.sub("", texto)).strip()  # a contagem é do `_contagens`
+        itens.append((nome, href.group(1), atual.group(1) if atual else ""))
     return itens
+
+
+def _contagens(html: str, idioma: str = "pt") -> dict[str, int]:
+    """Por href (com `&amp;` desfeito), a contagem à direita de cada link do `<nav>` principal."""
+    navs = [n for n in NAV.findall(html) if f'aria-label="{MENU[idioma]}"' in n]
+    assert len(navs) == 1
+    achadas = {}
+    for atributos, texto in LINK.findall(navs[0]):
+        href = re.search(r'href="([^"]*)"', atributos)
+        numero = CONTAGEM.search(texto)
+        assert href is not None
+        achadas[html_.unescape(href.group(1))] = int(numero.group(1)) if numero else 0
+    return achadas
 
 
 def _esperado(idioma: str, *, destaques: bool, sugeridas: bool) -> list[tuple[str, str]]:
@@ -268,3 +285,50 @@ def test_faixas_na_ordem_logo_abaixo_da_barra(cliente: TestClient) -> None:
     assert posicoes[3] < corpo.index('<main id="conteudo"')
     desfazer = re.search(r'<div\b[^>]*id="faixa-desfazer"[^>]*>', corpo)
     assert desfazer is not None and 'role="status"' in desfazer.group(0)
+
+
+def _com_vagas(banco: Path) -> tuple[TestClient, int]:
+    """O app sobre um banco semeado, com o relógio parado em `AGORA`; devolve também a busca."""
+    with closing(abrir(banco)) as con:
+        busca = semear(con)["busca"]
+    app = criar_app(banco.parent, PORTA)
+    app.state.relogio = RelogioFalso()
+
+    async def pagina(request: Request) -> HTMLResponse:
+        return renderizar(request, "base.html")
+
+    app.router.routes.insert(0, Route("/buscas", pagina))
+    return TestClient(app, base_url=f"http://127.0.0.1:{PORTA}", follow_redirects=False), busca
+
+
+def test_lateral_conta_fora_de_vagas(banco: Path) -> None:
+    """Em `/buscas` a lateral traz a contagem de cada aba e a de Destaques; o zero some."""
+    cliente, busca = _com_vagas(banco)
+    html = cliente.get("/buscas").text
+    contagens = _contagens(html)
+    esperadas = {
+        "destaques": 1,
+        "todas": 7,
+        "novas": 1,
+        "fecham_logo": 1,
+        "salvas": 1,
+        "candidatei": 0,
+        "programas": 1,
+        "ocultas": 2,
+    }
+    assert {h: n for h, n in contagens.items() if h.startswith("/vagas")} == {
+        f"/vagas?aba={aba}&busca={busca}": n for aba, n in esperadas.items()
+    }
+    # o zero some: "Candidatei" não leva o span da contagem; os outros sete levam
+    assert html.count('class="contagem"') == 7
+    # as seções que não são de vagas ficam sem contagem
+    assert contagens["/buscas"] == contagens["/fontes"] == 0
+
+
+def test_sem_destaques_ligados_a_lateral_nao_conta_destaques(banco: Path) -> None:
+    """Guarda: Destaques desligado tira o item e a conta (mutante: contar sempre)."""
+    cliente, _ = _com_vagas(banco)
+    with closing(abrir(banco)) as con:
+        gravar_config(con, "destaques_ligados", False)
+    contagens = _contagens(cliente.get("/buscas").text)
+    assert not [h for h in contagens if "aba=destaques" in h]

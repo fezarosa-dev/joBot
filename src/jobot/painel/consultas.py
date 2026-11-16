@@ -12,9 +12,11 @@ from typing import Any
 from starlette.requests import Request
 
 from jobot.banco import leitura
+from jobot.banco.cadastros import ler_config
 from jobot.nucleo.destaques import Candidata, destaques
 from jobot.nucleo.relogio import Relogio, RelogioReal
 
+MAX_ID = 2**31
 _DESTAQUES_N = 10
 # janela larga para o SQL; a de 24 h é da função pura `destaques`
 _ANTES_DESTAQUES = "julianday(v.primeira_vista_em) >= julianday(:agora) - 2"
@@ -30,10 +32,32 @@ def config_ou_padrao(con: sqlite3.Connection, chave: str, padrao: Any) -> Any:
     return padrao if linha is None else json.loads(linha[0])
 
 
+def inteiro_da_url(texto: str | None, maximo: int) -> int | None:
+    """Número de 1 a `maximo`; qualquer outra coisa (letra, zero, negativo, enorme) é None."""
+    # o tamanho vem antes do `int()`: texto com mais de 4300 dígitos o faz levantar ValueError
+    if texto is None or not texto.isascii() or not texto.isdigit() or len(texto) > len(str(maximo)):
+        return None
+    numero = int(texto)
+    return numero if 1 <= numero <= maximo else None
+
+
+def busca_ativa(con: sqlite3.Connection, id_: object) -> bool:
+    """`id_` é o id de uma busca que existe e está ligada."""
+    if not isinstance(id_, int) or isinstance(id_, bool):
+        return False
+    return (
+        con.execute("SELECT 1 FROM busca WHERE id = ? AND ativa = 1", (id_,)).fetchone() is not None
+    )
+
+
 def busca_efetiva(con: sqlite3.Connection, pedida: int | None) -> int | None:
-    """A busca da URL, se existir; senão a primeira ativa; sem nenhuma, None."""
+    """A busca da URL, se existir (ligada ou não: link velho mostra a busca dele); senão a
+    gravada em `busca_escolhida`, se ainda existe e está ligada; senão a primeira ativa (E16)."""
     if pedida is not None and con.execute("SELECT 1 FROM busca WHERE id = ?", (pedida,)).fetchone():
         return pedida
+    gravada = ler_config(con, "busca_escolhida", None)
+    if busca_ativa(con, gravada):
+        return int(gravada)
     linha = con.execute("SELECT id FROM busca WHERE ativa = 1 ORDER BY id LIMIT 1").fetchone()
     return None if linha is None else int(linha[0])
 
@@ -48,7 +72,7 @@ def utc_do_banco(texto: str) -> datetime | None:
 
 def ids_destaques(con: sqlite3.Connection, busca_id: int | None, agora: datetime) -> list[int]:
     """As vagas da aba Destaques: só abertas, não ocultas e novas (a função pura faz o resto)."""
-    quantas = config_ou_padrao(con, "destaques_n", _DESTAQUES_N)
+    quantas = ler_config(con, "destaques_n", _DESTAQUES_N)
     if not isinstance(quantas, int) or isinstance(quantas, bool) or quantas < 1:
         quantas = _DESTAQUES_N
     linhas = con.execute(
