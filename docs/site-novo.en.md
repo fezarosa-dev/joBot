@@ -97,6 +97,7 @@ A site with login is a **reader**: it makes no request at all, it only reads wha
 5. Register an instance of the reader in `LEITORES`, in `src/jobot/nucleo/leitores/registro.py`.
 6. Give the source its name, `fonte.<site>_logado`, in both catalogs (`src/jobot/painel/i18n/pt/comum.json` and `src/jobot/painel/i18n/en/comum.json`).
 7. Update the fixed reader lists: the `FONTES` list in `tests/unidade/test_i18n.py`, the registry test in `tests/unidade/test_leitores_estado.py` and the `fonte` table count in `tests/integracao/test_cadastros.py`.
+8. Each prefix in `prefixos_login` is `host` + `path`, with no scheme, the host in lowercase and equal to one of the reader's `hosts` (for example `www.example.com/login`): the browser compares it with the URL's host and path, without the query, and a path-only prefix (`/login`) never matches.
 
 A site with login is born **off**: whoever uses it turns it on in Settings. The reader only says what it read; the scope state comes out of `estado_do_escopo`. Never put a password in the code, never try to get past a CAPTCHA, and never make the reader open another route when the site asks for a login: a PR that does this does not get in.
 

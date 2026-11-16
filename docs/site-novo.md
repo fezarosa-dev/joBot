@@ -97,6 +97,7 @@ O site com login é um **leitor**: ele não faz pedido nenhum, só lê o que o n
 5. Registre uma instância do leitor em `LEITORES`, em `src/jobot/nucleo/leitores/registro.py`.
 6. Dê o nome da fonte, `fonte.<site>_logado`, nos dois catálogos (`src/jobot/painel/i18n/pt/comum.json` e `src/jobot/painel/i18n/en/comum.json`).
 7. Atualize as listas fixas de leitor: a lista `FONTES` de `tests/unidade/test_i18n.py`, o teste do registro em `tests/unidade/test_leitores_estado.py` e a contagem da tabela `fonte` em `tests/integracao/test_cadastros.py`.
+8. Cada prefixo de `prefixos_login` é `host` + `caminho`, sem esquema, com o host em minúsculas e igual a um dos `hosts` do leitor (por exemplo `www.exemplo.com/entrar`): o navegador compara com o host e o caminho da URL, sem a query, e um prefixo só de caminho (`/entrar`) nunca casa.
 
 O site com login nasce **desligado**: quem usa liga em Configurações. O leitor só diz o que leu; o estado do escopo sai de `estado_do_escopo`. Nunca ponha senha no código, nunca tente passar de um CAPTCHA, e nunca faça o leitor abrir outra rota quando o site pedir login: o PR que fizer isso não entra.
 
