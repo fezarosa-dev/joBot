@@ -12,7 +12,7 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from typing import Annotated, Any
-from urllib.parse import parse_qs, urlencode, urlsplit
+from urllib.parse import parse_qs, parse_qsl, urlencode, urlsplit
 
 from fastapi import APIRouter, Form, HTTPException, Path, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
@@ -207,24 +207,6 @@ def _unicas(fontes: Sequence[Fonte]) -> list[Fonte]:
     return list(vistas.values())
 
 
-def _fontes(con: sqlite3.Connection, ids: Sequence[int]) -> dict[int, list[Fonte]]:
-    """As fontes das ocorrências abertas de cada vaga (todas, se a vaga fechou), como no detalhe."""
-    por_vaga: dict[int, list[Fonte]] = {i: [] for i in ids}
-    if not ids:
-        return por_vaga
-    marcas = ", ".join("?" * len(ids))  # só interrogações: os ids vão como parâmetros
-    cur = con.execute(
-        f"SELECT o.vaga_id, o.fonte, o.url FROM ocorrencia o WHERE o.vaga_id IN ({marcas})"
-        " AND (o.sumiu_em IS NULL OR NOT EXISTS (SELECT 1 FROM ocorrencia a"
-        " WHERE a.vaga_id = o.vaga_id AND a.sumiu_em IS NULL))"
-        " ORDER BY o.primeira_vista_em, o.id",
-        list(ids),
-    )
-    for vaga_id, fonte, url in cur:
-        por_vaga[vaga_id].append(Fonte(fonte=fonte, url=url, url_candidatura=None))
-    return {i: _unicas(fs) for i, fs in por_vaga.items()}
-
-
 def _id_html(valor: str) -> str:
     """Id de HTML que não se repete: todo caractere fora de `[A-Za-z0-9-]` (o `_` também) vira
     `_<hex>_`; como o hex não tem `_`, dois valores diferentes nunca dão o mesmo id."""
@@ -282,20 +264,13 @@ def grupos_dos_chips(
 
 
 def _seletor(con: sqlite3.Connection, estado: Estado) -> list[dict[str, Any]]:
-    """As buscas ativas (e a da URL, mesmo desligada), cada uma com a vista atual trocada nela."""
+    """As buscas ativas (e a da URL, mesmo desligada), para o menu pop-up da barra da lista."""
     linhas = con.execute(
         "SELECT id, nome FROM busca WHERE ativa = 1 OR id = ? ORDER BY id", (estado.busca_id,)
     ).fetchall()
     if len(linhas) < 2:
         return []
-    return [
-        {
-            "nome": nome,
-            "atual": id_ == estado.busca_id,
-            "url": replace(estado, busca_id=id_, busca_url=True).url(),
-        }
-        for id_, nome in linhas
-    ]
+    return [{"id": id_, "nome": nome, "atual": id_ == estado.busca_id} for id_, nome in linhas]
 
 
 def _paginas_programas(con: sqlite3.Connection) -> list[dict[str, Any]]:
@@ -310,29 +285,15 @@ def _contexto_pagina(
     con: sqlite3.Connection, estado: Estado, agora: datetime, ex: Exibicao
 ) -> dict[str, Any]:
     ids_de_destaque = ids_destaques(con, estado.busca_id, agora) if estado.destaques_ligados else []
-    contagens = leitura.contar_abas(con, estado.busca_id, agora)
-    chaves = [*([ABA_DESTAQUES] if estado.destaques_ligados else []), *leitura.ABAS]
-    abas = [
-        {
-            "chave": chave,
-            "n": len(ids_de_destaque) if chave == ABA_DESTAQUES else contagens[chave],
-            "atual": chave == estado.aba,
-            "url": estado.url(aba=chave, chips={}),
-        }
-        for chave in chaves
-    ]
     itens: Sequence[Item]
     mais_url = None
     fora_sem_salario = fora_sem_valor = 0
     if estado.e_destaques:
         achados = [leitura.detalhe(con, i, estado.busca_id, agora) for i in ids_de_destaque]
-        detalhes = [d for d in achados if d is not None]
-        itens = detalhes
-        fontes = {d.id: _unicas(d.fontes) for d in detalhes}
+        itens = [d for d in achados if d is not None]
     else:
         pagina = leitura.listar(con, estado.filtros(), agora)
         itens = pagina.itens
-        fontes = _fontes(con, [i.id for i in itens])
         fora_sem_salario, fora_sem_valor = leitura.contar_fora_do_salario(
             con, estado.filtros(), agora
         )
@@ -340,11 +301,11 @@ def _contexto_pagina(
             mais_url = estado.url(extras=[("pagina", "2")])
     return {
         "paginas_programas": _paginas_programas(con) if estado.aba == "programas" else [],
-        "abas": abas,
         "seletor": _seletor(con, estado),
+        # o menu de busca manda a vista de agora (aba, filtros, ordem) e só troca a `busca`
+        "campos_do_seletor": parse_qsl(urlsplit(replace(estado, busca_url=False).url()).query),
         "chips_url": None if estado.e_destaques else estado.url(caminho="/vagas/chips"),
         "itens": itens,
-        "fontes": fontes,
         "mais_url": mais_url,
         "proxima": 2,
         "ordens": list(leitura.ORDENS),
@@ -420,7 +381,7 @@ async def vagas(request: Request, con: Con) -> HTMLResponse:
     parcial = cabecalho.get("hx-request") == "true" and not restaurando
     pagina = inteiro_da_url(request.query_params.get("pagina"), _MAX_PAGINA) or 1
     if parcial and pagina > 1 and not estado.e_destaques:
-        # "carregar mais": só os cartões novos e o botão da página seguinte
+        # "carregar mais": só as linhas novas e o botão da página seguinte
         lista = leitura.listar(con, estado.filtros(pagina), agora)
         seguinte = estado.url(extras=[("pagina", str(pagina + 1))])
         return com_vary(
@@ -429,7 +390,6 @@ async def vagas(request: Request, con: Con) -> HTMLResponse:
                 "vagas/mais.html",
                 exibicao=ex,
                 itens=lista.itens,
-                fontes=_fontes(con, [i.id for i in lista.itens]),
                 mais_url=seguinte if lista.tem_mais else None,
                 proxima=pagina + 1,
                 marcar_foco=True,

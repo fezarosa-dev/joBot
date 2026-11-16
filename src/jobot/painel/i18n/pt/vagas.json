@@ -1,7 +1,7 @@
 {
   "vagas.titulo": "Vagas",
   "vagas.pular_lista": "Pular para a lista de vagas",
-  "vagas.abas": "Abas das vagas",
+  "vagas.lista": "Vagas",
   "vagas.seletor": "Buscas salvas",
   "vagas.aba.destaques": "Destaques",
   "vagas.aba.todas": "Todas",
@@ -37,6 +37,8 @@
   "vagas.aviso.configurar": "Dizer o que procuro",
   "vagas.vazio": "Nenhuma vaga aqui com esses filtros.",
   "vagas.vazio_destaques": "Nenhum destaque nas últimas 24 horas.",
+  "vagas.vazio.titulo": "Nenhuma vaga",
+  "vagas.vazio.buscar": "Buscar vagas",
   "vagas.mais": "Carregar mais vagas",
   "vagas.selo.nova": "Nova",
   "vagas.selo.fecha_logo": "Fecha logo",

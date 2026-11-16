@@ -171,6 +171,9 @@ body {
 [data-icone="globe"] { --icone: url("/static/icones/globe.svg"); }
 [data-icone="settings"] { --icone: url("/static/icones/settings.svg"); }
 [data-icone="panel-left"] { --icone: url("/static/icones/panel-left.svg"); }
+[data-icone="search-x"] { --icone: url("/static/icones/search-x.svg"); }
+[data-icone="circle-x"] { --icone: url("/static/icones/circle-x.svg"); }
+[data-icone="triangle-alert"] { --icone: url("/static/icones/triangle-alert.svg"); }
 
 /* divisor: a linha é a borda da lateral; aqui só a área de pegar, 8px sobre ela */
 .divisor {

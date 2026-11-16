@@ -26,7 +26,7 @@ PORTA = 47619
 ABAS = ("todas", "novas", "fecham_logo", "salvas", "candidatei", "programas", "ocultas")
 NOMES_ABAS = {
     "pt": ("Todas", "Novas", "Fecham logo", "Salvas", "Candidatei", "Programas", "Ocultas"),
-    "en": ("All", "New", "Closing soon", "Saved", "Applied", "Programs", "Hidden"),
+    "en": ("All", "New", "Closing Soon", "Saved", "Applied", "Programs", "Hidden"),
 }
 DESTAQUES = {"pt": "Destaques de hoje", "en": "Today's Highlights"}
 ONDE = {
@@ -332,3 +332,28 @@ def test_sem_destaques_ligados_a_lateral_nao_conta_destaques(banco: Path) -> Non
         gravar_config(con, "destaques_ligados", False)
     contagens = _contagens(cliente.get("/buscas").text)
     assert not [h for h in contagens if "aba=destaques" in h]
+
+
+MIUDAS = {"a", "an", "and", "as", "at", "but", "by", "for", "in", "of", "on", "or", "the", "to"}
+
+
+def _title_case(texto: str) -> bool:
+    """Title Case da HIG: toda palavra com maiúscula, menos as miúdas no meio."""
+    palavras = texto.split()
+    return all(
+        p[0].isupper() or (0 < i < len(palavras) - 1 and p in MIUDAS)
+        for i, p in enumerate(palavras)
+    )
+
+
+def test_rotulos_en_da_lateral_em_title_case(cliente: TestClient, banco: Path) -> None:
+    """D150.4: itens e títulos de seção da lateral em inglês seguem o Title Case da HIG."""
+    _sugerir(banco)
+    html = cliente.get("/vagas", headers={"Accept-Language": "en"}).text
+    rotulos = [texto for texto, _, _ in _menu(html, "en")]
+    rotulos += [
+        html_.unescape(s) for s in re.findall(r'<p class="menu-secao"[^>]*>([^<]+)</p>', html)
+    ]
+    assert len(rotulos) >= 15
+    fora = [r for r in rotulos if not _title_case(r)]
+    assert fora == []

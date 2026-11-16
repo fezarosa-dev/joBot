@@ -75,10 +75,12 @@ def decimal_curto(valor: Decimal, idioma: str) -> str:
 
 
 def _ler_data(data: str) -> datetime | None:
+    """Instante com fuso (UTC do banco) vira hora local: o dia mostrado é o do calendário local."""
     try:
-        return datetime.fromisoformat(data)
+        lida = datetime.fromisoformat(data)
     except ValueError:
         return None
+    return lida.astimezone() if lida.tzinfo else lida
 
 
 def data_curta(data: str, idioma: str) -> str:

@@ -355,3 +355,16 @@ def test_ancora_do_progresso_fica_no_proprio_componente() -> None:
     progresso = next(r for r in _regras(css) if r.seletor == ".progresso" and not r.contexto)
     assert _valor(progresso, "anchor-name") == "--andamento"
     assert _valor(progresso, "anchor-scope") == "--andamento"
+
+
+def test_linha_escolhida_passa_a_cor_a_todo_descendente() -> None:
+    """Texto branco da linha escolhida chega aos netos (`.nao-informado`), não só aos `> span`."""
+    escolhida = '.lista-linhas:focus-within .linha[aria-selected="true"]'
+    herdam = [
+        s
+        for nome, r in _todas()
+        if nome == "vagas.css" and not r.contexto and _valor(r, "color") == "inherit"
+        for s in _seletores(r)
+        if s.startswith(escolhida + " ") and not s.removeprefix(escolhida).lstrip().startswith(">")
+    ]
+    assert herdam, "a cor da linha escolhida não desce para os descendentes"

@@ -22,6 +22,8 @@
       foco.setAttribute("tabindex", "-1");
     }
     foco.focus();
+    // a marca vale uma vez: no "carregar mais" seguinte, o alvo (a lista) ainda tem esta linha
+    foco.removeAttribute("data-foco");
   });
 
   // chips de filtro (T191): chegam num segundo pedido, depois da lista. O clique troca o miolo e o
@@ -165,6 +167,64 @@
     if (!busca) return;
     evento.preventDefault();
     busca.focus();
+  });
+
+  // Esc no campo da busca limpa o texto (desenho 5.5); o campo vazio deixa o Esc seguir
+  document.addEventListener("keydown", (evento) => {
+    const campo = evento.target;
+    if (evento.key !== "Escape" || !campo.matches?.("[data-busca]") || !campo.value) return;
+    evento.preventDefault();
+    campo.value = "";
+  });
+
+  // lista de vagas (T254; desenho 5.5): listbox de seleção única com tabindex móvel. O HTML chega
+  // sem tabindex nas linhas (sem JS, cada <a> é um link no Tab); aqui só uma fica no Tab, a
+  // escolhida. Setas, Home, End, J e K movem; Return segue o link (o <a> já faz).
+  const opcoesDe = (lista) => [...lista.querySelectorAll(':scope > [role="option"]')];
+  const escolher = (lista, opcao, focar) => {
+    for (const outra of opcoesDe(lista)) {
+      outra.tabIndex = outra === opcao ? 0 : -1;
+      outra.setAttribute("aria-selected", outra === opcao ? "true" : "false");
+    }
+    if (focar) opcao.focus();
+  };
+  const prepararListas = () => {
+    for (const lista of document.querySelectorAll('[role="listbox"]')) {
+      const opcoes = opcoesDe(lista);
+      const atual = opcoes.find((o) => o.ariaSelected === "true") ?? opcoes[0];
+      if (atual) escolher(lista, atual, false);
+    }
+  };
+  prepararListas();
+  document.addEventListener("htmx:afterSettle", prepararListas);
+  document.addEventListener("htmx:historyRestore", prepararListas);
+  document.addEventListener("focusin", (evento) => {
+    const no = evento.target;
+    const lista = no.closest?.('[role="listbox"]');
+    if (!lista) return;
+    if (no === lista) {
+      // o "pular para a lista" foca o listbox: o foco desce para a linha escolhida
+      const atual = opcoesDe(lista).find((o) => o.ariaSelected === "true");
+      if (atual) atual.focus();
+    } else if (no.matches('[role="option"]')) {
+      escolher(lista, no, false);
+    }
+  });
+  const MOVER = { ArrowDown: 1, j: 1, J: 1, ArrowUp: -1, k: -1, K: -1 }; // J e K também com Caps Lock
+  document.addEventListener("keydown", (evento) => {
+    if (evento.ctrlKey || evento.metaKey || evento.altKey || evento.shiftKey) return;
+    const opcao = evento.target.closest?.('[role="option"]');
+    const lista = opcao?.parentElement;
+    if (!opcao || lista?.getAttribute("role") !== "listbox") return;
+    const opcoes = opcoesDe(lista);
+    const i = opcoes.indexOf(opcao);
+    let destino = null;
+    if (evento.key in MOVER) destino = opcoes[i + MOVER[evento.key]];
+    else if (evento.key === "Home") destino = opcoes[0];
+    else if (evento.key === "End") destino = opcoes[opcoes.length - 1];
+    else return;
+    evento.preventDefault(); // a seta não rola a página; na ponta, fica onde está
+    if (destino) escolher(lista, destino, true);
   });
 
   // barra lateral (T251; desenho 5.2). O estado fica no <html data-lateral>, que a troca do body pelo

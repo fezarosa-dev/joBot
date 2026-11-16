@@ -248,12 +248,13 @@ def test_destaques_n_invalido_da_422_e_nao_grava_nada(painel: Painel, ruim: str)
 def test_destaques_desligados_tiram_a_aba_e_o_painel_abre_em_todas(painel: Painel) -> None:
     painel.sql("INSERT INTO config (chave, valor) VALUES ('primeira_execucao_concluida', 'true')")
     assert painel.get("/").headers.get("location") == "/vagas?aba=destaques"
-    assert 'id="aba-destaques"' in painel.get("/vagas?aba=destaques").text
+    # as abas moram na lateral (T254)
+    assert 'href="/vagas?aba=destaques' in painel.get("/vagas?aba=destaques").text
     painel.funcoes(destaques_ligados=False)
     assert painel.get("/").headers.get("location") == "/vagas?aba=todas"
     html = painel.get("/vagas?aba=destaques").text  # a aba pedida não existe mais: abre em Todas
-    assert 'id="aba-destaques"' not in html
-    assert re.search(r'id="aba-todas"[^>]*aria-current="page"', html)
+    assert 'href="/vagas?aba=destaques' not in html
+    assert re.search(r'href="/vagas\?aba=todas[^"]*" aria-current="page"', html)
 
 
 def test_regras_de_ocultar_desligadas_param_de_ocultar_e_ligadas_voltam(painel: Painel) -> None:

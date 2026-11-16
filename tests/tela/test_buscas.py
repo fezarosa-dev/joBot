@@ -105,22 +105,27 @@ def test_desligar_ligar_e_apagar(page: Page, painel: str) -> None:
 
 def test_seletor_da_lista_muda_a_url_e_a_lista(page: Page, painel: str) -> None:
     page.goto(f"{painel}/vagas?aba=todas")
-    expect(page.locator("nav.seletor-busca")).to_have_count(0)  # uma busca só: sem seletor
+    # o seletor é um menu na barra da lista (T254): só aparece com duas buscas ou mais
+    expect(page.locator("#busca-escolhida")).to_have_count(0)  # uma busca só: sem seletor
 
     _criar(page, painel, "Só remoto", remoto=True)
     page.goto(f"{painel}/vagas?aba=todas")
-    links = page.locator("nav.seletor-busca a")
-    expect(links).to_have_count(2)
-    expect(links.nth(0)).to_have_attribute("aria-current", "true")
-    titulos = page.locator("main h3.cartao-titulo", has_text=PRESENCIAL)
+    seletor = page.locator(".barra-lista #busca-escolhida")
+    opcoes = seletor.locator("option")
+    expect(opcoes).to_have_count(2)
+    primeira = opcoes.nth(0).get_attribute("value")
+    segunda = opcoes.nth(1).get_attribute("value")
+    assert primeira and segunda
+    expect(seletor).to_have_value(primeira)
+    titulos = page.locator("#lista-vagas .linha-titulo", has_text=PRESENCIAL)
     expect(titulos).to_have_count(1)
 
-    links.nth(1).click()
-    expect(page).to_have_url(re.compile(r"[?&]busca=\d+"))
-    expect(links.nth(1)).to_have_attribute("aria-current", "true")
-    expect(links.nth(0)).not_to_have_attribute("aria-current", "true")
+    seletor.select_option(segunda)  # o form muda sozinho no change (HTMX)
+    expect(page).to_have_url(re.compile(rf"[?&]busca={segunda}\b"))
+    expect(page).to_have_url(re.compile(r"[?&]aba=todas"))  # a aba fica
+    expect(page.locator("#busca-escolhida")).to_have_value(segunda)
     expect(titulos).to_have_count(0)
 
     page.reload()  # a URL reabre a mesma busca
-    expect(page.locator("nav.seletor-busca a").nth(1)).to_have_attribute("aria-current", "true")
-    expect(page.locator("main h3.cartao-titulo", has_text=PRESENCIAL)).to_have_count(0)
+    expect(page.locator("#busca-escolhida")).to_have_value(segunda)
+    expect(page.locator("#lista-vagas .linha-titulo", has_text=PRESENCIAL)).to_have_count(0)
