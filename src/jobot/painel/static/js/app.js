@@ -59,8 +59,8 @@
     if (mais) mais.open = true;
   });
 
-  // se o pedido dos chips falhar, o contêiner de espera não fica ocupado para sempre: o aviso global
-  // de erro (mais abaixo) já fala do erro; aqui só sai o aria-busy e o texto de espera
+  // se o pedido dos chips falhar, o contêiner de espera não fica ocupado para sempre: o aviso
+  // global de erro (mais abaixo) já fala do erro; aqui só sai o aria-busy e o texto de espera
   const chipsFalhou = (evento) => {
     const no = evento.detail.elt;
     if (no?.id !== "filtros-chips" || no.getAttribute("aria-busy") !== "true") return;
@@ -70,10 +70,10 @@
   document.addEventListener("htmx:responseError", chipsFalhou);
   document.addEventListener("htmx:sendError", chipsFalhou);
 
-  // mensagem passageira ("Salvo."): o [data-some-sozinho] que está na página ao carregar, que chegou
-  // numa troca ou numa troca fora de banda (OOB) some 5 s depois (tempo para o leitor de tela); o nó
-  // em volta continua no lugar. Mostrada a mensagem, o ?salvo= sai da URL (os outros parâmetros e o
-  // hash ficam), para recarregar ou voltar não repetir o "Salvo."
+  // mensagem passageira ("Salvo."): o [data-some-sozinho] que está na página ao carregar, que
+  // chegou numa troca ou numa troca fora de banda (OOB) some 5 s depois (tempo para o leitor de
+  // tela); o nó em volta continua no lugar. Mostrada a mensagem, o ?salvo= sai da URL (os outros
+  // parâmetros e o hash ficam), para recarregar ou voltar não repetir o "Salvo."
   const agendados = new WeakSet();
   const agendarSumico = () => {
     for (const no of document.querySelectorAll("[data-some-sozinho]:not([hidden])")) {
@@ -110,9 +110,10 @@
     olho.setAttribute("aria-pressed", String(mostrar));
   });
 
-  // botão com texto de espera (.botao-espera): enquanto o pedido corre, o rótulo sai do nome acessível
-  // e o leitor de tela só ouve a espera; no fim o rótulo volta e, se o foco estava no botão (que o
-  // HTMX desativa), ele volta para lá. queueMicrotask: o HTMX reabilita o botão no mesmo ciclo
+  // botão com texto de espera (.botao-espera): enquanto o pedido corre, o rótulo sai do nome
+  // acessível e o leitor de tela só ouve a espera; no fim o rótulo volta e, se o foco estava no
+  // botão (que o HTMX desativa), ele volta para lá. queueMicrotask: o HTMX reabilita o botão no
+  // mesmo ciclo
   const comEspera = (evento) => {
     const botao = evento.target;
     return botao instanceof HTMLElement && botao.querySelector(".botao-espera") ? botao : null;
@@ -136,10 +137,11 @@
   // mandou em <p data-aviso-erro> ou, sem ele, o genérico da faixa do status. Só textContent.
   // Voltar/avançar troca o conteúdo do body (push-url sem hx-history-elt): o nó é buscado na hora,
   // o botão fechar usa delegação e o aviso é escondido antes de o histórico guardar a página.
-  // Depois de fechado, o mesmo texto não reabre (polling e carga com o servidor fora do ar errariam a
-  // cada 2 s): `fechado` guarda o texto que a pessoa fechou; um aviso novo (texto diferente) ou um
-  // pedido que dá certo zera. Todo erro continua aparecendo; só não insiste depois de fechado.
-  // shortcut: guarda só um texto; dois erros diferentes que se alternam reabrem a cada ciclo, trocar por um conjunto se aparecer
+  // Depois de fechado, o mesmo texto não reabre (polling e carga com o servidor fora do ar errariam
+  // a cada 2 s): `fechado` guarda o texto que a pessoa fechou; um aviso novo (texto diferente) ou
+  // um pedido que dá certo zera. Todo erro continua aparecendo; só não insiste depois de fechado.
+  // shortcut: guarda só um texto; dois erros diferentes que se alternam reabrem a cada ciclo,
+  // trocar por um conjunto se aparecer
   let fechado = null;
   const textoDoAviso = (aviso) => aviso.querySelector("[data-aviso-texto]");
   const mostrarAviso = (chave, texto) => {
@@ -231,7 +233,8 @@
       escolher(lista, no, false);
     }
   });
-  const MOVER = { ArrowDown: 1, j: 1, J: 1, ArrowUp: -1, k: -1, K: -1 }; // J e K também com Caps Lock
+  // J e K também com Caps Lock
+  const MOVER = { ArrowDown: 1, j: 1, J: 1, ArrowUp: -1, k: -1, K: -1 };
   document.addEventListener("keydown", (evento) => {
     if (evento.ctrlKey || evento.metaKey || evento.altKey || evento.shiftKey) return;
     const opcao = evento.target.closest?.('[role="option"]');
@@ -269,10 +272,10 @@
     true,
   );
   // a linha aberta fica marcada pela resposta, não pelo foco: Safari e Firefox do Mac não focam o
-  // <a> clicado, e o focusin não chega. O settle vem 20 ms depois da troca: se a escolha andou nesse
-  // meio-tempo (seta logo depois do Return), ela vale e a resposta não a desfaz. A marca do pedido
-  // vai no próprio detail: o htmx passa o mesmo objeto ao beforeRequest e ao afterSettle do pedido,
-  // então dois pedidos seguidos não se pisam
+  // <a> clicado, e o focusin não chega. O settle vem 20 ms depois da troca: se a escolha andou
+  // nesse meio-tempo (seta logo depois do Return), ela vale e a resposta não a desfaz. A marca do
+  // pedido vai no próprio detail: o htmx passa o mesmo objeto ao beforeRequest e ao afterSettle do
+  // pedido, então dois pedidos seguidos não se pisam
   const marcadaAgora = () => document.querySelector(`${LISTAS} > [role="option"][aria-selected="true"]`)?.id ?? null;
   document.addEventListener("htmx:beforeRequest", (evento) => {
     if (evento.detail.target?.matches?.("#detalhe-vaga")) evento.detail.marcadaNoPedido = marcadaAgora();
@@ -280,16 +283,18 @@
   document.addEventListener("htmx:afterSettle", (evento) => {
     if (!evento.target.matches?.("#detalhe-vaga")) return;
     const { marcadaNoPedido } = evento.detail;
-    if (marcadaNoPedido !== undefined && marcadaAgora() !== marcadaNoPedido) return; // a escolha andou
+    // a escolha andou
+    if (marcadaNoPedido !== undefined && marcadaAgora() !== marcadaNoPedido) return;
     const linha = document.getElementById(`vaga-${lado()?.dataset.vaga}`);
     const lista = linha?.parentElement;
     if (lista?.getAttribute("role") === "listbox") escolher(lista, linha, false);
   });
   // sobreposto preso à janela (T301): o #vagas-miolo é container (contenção de layout) e prende o
   // position: fixed à rolagem da coluna; na camada de cima (popover manual, sem modal) o <dialog>
-  // fica preso à janela. Em coluna ele volta ao fluxo da grade. Sem JS (T305 h, aceito) o sobreposto
-  // fica preso ao #vagas-miolo: cobre a lista na altura toda do miolo, com as ações no pé dele. Só
-  // chega aí quem abre ?vaga= direto; sem JS o clique na linha abre a página própria (E10).
+  // fica preso à janela. Em coluna ele volta ao fluxo da grade. Sem JS (T305 h, aceito) o
+  // sobreposto fica preso ao #vagas-miolo: cobre a lista na altura toda do miolo, com as ações no
+  // pé dele. Só chega aí quem abre ?vaga= direto; sem JS o clique na linha abre a página própria
+  // (E10).
   const acertarCamada = () => {
     const no = lado();
     if (!no?.showPopover) return;
@@ -335,7 +340,8 @@
   document.addEventListener("keydown", (evento) => {
     // a lateral sobreposta fecha primeiro (o ouvinte dela vem depois e não marca o evento)
     if (evento.key !== "Escape" || evento.defaultPrevented) return;
-    if (document.querySelector("dialog.sheet[open]")) return; // o sheet modal fecha com o próprio Esc
+    // o sheet modal fecha com o próprio Esc
+    if (document.querySelector("dialog.sheet[open]")) return;
     if (document.documentElement.dataset.lateral === "sobreposta") return;
     if (!lado()?.open || modo() !== "sobreposto") return;
     evento.preventDefault();
@@ -488,7 +494,8 @@
     const onde = ondeAntes;
     const lista = document.querySelector("[data-lista-desfazer]");
     const linha = document.getElementById(evento.detail.linha) ?? lista?.querySelector("li[tabindex]");
-    // o realce de 1 s vem pronto do servidor; sem tirar a classe ele ficaria parado em movimento reduzido
+    // o realce de 1 s vem pronto do servidor; sem tirar a classe ele ficaria parado em movimento
+    // reduzido
     const volta = lista?.querySelector(".linha-volta");
     if (volta) setTimeout(() => volta.classList.remove("linha-volta"), 1000);
     devolverFoco(onde, linha);
@@ -512,7 +519,8 @@
     'textarea, input:not([type="checkbox"], [type="radio"], [type="button"], [type="submit"], [type="reset"], [type="range"], [type="color"], [type="file"])';
   const plataforma = navigator.userAgentData?.platform ?? navigator.platform ?? "";
   const noMac = /mac|iphone|ipad/i.test(plataforma);
-  document.documentElement.dataset.sistema = noMac ? "mac" : "outro"; // o CSS esconde a forma do atalho que não vale (E14)
+  // o CSS esconde a forma do atalho que não vale (E14)
+  document.documentElement.dataset.sistema = noMac ? "mac" : "outro";
   document.addEventListener("keydown", (evento) => {
     if (evento.key?.toLowerCase() !== "z" || evento.altKey) return;
     if (noMac ? !evento.metaKey || evento.ctrlKey : !evento.ctrlKey || evento.metaKey) return;
@@ -532,14 +540,15 @@
 
   // menu de contexto (T257; desenho 5.4): um <div popover role="menu"> por página
   // (_menu_contexto.html), preenchido com os data-* do alvo ao abrir. Botão direito abre no
-  // ponteiro; a tecla de menu e Shift+F10, no alvo focado. Setas e letras movem, Esc e Tab fecham e o foco
-  // volta ao alvo; clique fora (o popover fecha sozinho), rolagem, janela nova ou troca do htmx
-  // fecham também. O que cada item faz é o link ou o form dele: o menu não tem ação própria.
+  // ponteiro; a tecla de menu e Shift+F10, no alvo focado. Setas e letras movem, Esc e Tab fecham e
+  // o foco volta ao alvo; clique fora (o popover fecha sozinho), rolagem, janela nova ou troca do
+  // htmx fecham também. O que cada item faz é o link ou o form dele: o menu não tem ação própria.
   let menuAberto = null;
   let alvoMenu = null;
   let abertoPeloTeclado = null;
   let ondeEstavaOAlvo = "";
-  // busca por letra (T305; como o menu do Mac): as letras digitadas em até 500 ms se juntam
+  // busca por letra (T305; como o menu do Mac): as letras digitadas em até 500 ms se juntam,
+  // salvo a mesma letra repetida, que cicla (T311)
   let digitado = "";
   let digitouEm = -Infinity;
   const posicaoDe = (no) => {
@@ -560,7 +569,10 @@
   const itemPelaLetra = (itens, i, tecla) => {
     const agora = performance.now(); // o relógio do navegador (o page.clock dos testes o move)
     const letra = tecla.toLocaleLowerCase();
-    digitado = agora - digitouEm > 500 ? letra : digitado + letra;
+    const recente = agora - digitouEm <= 500;
+    // a mesma letra repetida cicla (como no Finder): o buffer segue com uma só, nunca "aa"
+    const repetida = recente && digitado !== "" && digitado === letra.repeat(digitado.length);
+    digitado = recente && !repetida ? digitado + letra : letra;
     digitouEm = agora;
     const inicio = digitado.length === 1 ? i + 1 : Math.max(i, 0);
     for (let n = 0; n < itens.length; n++) {
@@ -663,7 +675,8 @@
     const caixa = alvo.getBoundingClientRect();
     if (abrirMenu(alvo, caixa.left, caixa.bottom, caixa.top, true)) evento.preventDefault();
   });
-  // dentro do menu, na captura: o Esc não chega ao detalhe nem à lateral, as setas não rolam a página
+  // dentro do menu, na captura: o Esc não chega ao detalhe nem à lateral, as setas não rolam a
+  // página
   document.addEventListener(
     "keydown",
     (evento) => {
@@ -703,7 +716,8 @@
   const copiarLink = async (menu, item, endereco) => {
     let copiou = false;
     try {
-      await navigator.clipboard.writeText(endereco); // sem clipboard (navegador antigo) cai no catch
+      // sem clipboard (navegador antigo) cai no catch
+      await navigator.clipboard.writeText(endereco);
       copiou = endereco !== "";
     } catch {
       copiou = false;
@@ -721,7 +735,8 @@
     if (!item || item.closest("[data-menu-contexto]") !== menuAberto) return;
     const menu = menuAberto;
     const alvo = alvoMenu;
-    // o alvo saiu da página por um caminho que o menu não viu: fecha sem agir (nem o form nem o link)
+    // o alvo saiu da página por um caminho que o menu não viu: fecha sem agir (nem o form nem o
+    // link)
     if (!alvo?.isConnected) {
       evento.preventDefault();
       fecharMenu(false);
@@ -756,8 +771,8 @@
   });
   document.addEventListener("htmx:beforeHistorySave", () => fecharMenu(false));
 
-  // barra lateral (T251; desenho 5.2). O estado fica no <html data-lateral>, que a troca do body pelo
-  // histórico não apaga: "aberta" (padrão), "recolhida" (janela larga, a pessoa escondeu) e
+  // barra lateral (T251; desenho 5.2). O estado fica no <html data-lateral>, que a troca do body
+  // pelo histórico não apaga: "aberta" (padrão), "recolhida" (janela larga, a pessoa escondeu) e
   // "sobreposta" (janela média, aberta por cima do conteúdo). Abaixo de 640px a lateral vira uma
   // faixa no topo e o CSS a mostra sempre, sem JS. Tudo por delegação: o histórico recria os nós.
   const raiz = document.documentElement;
@@ -924,16 +939,18 @@
   });
 
   // alerta (T259; desenho 5.4): o <dialog> de _alerta.html. O botão com data-alerta-abre leva à
-  // página de confirmação (T307, form GET); com <dialog> aberto por aqui ele vira "abrir o alerta". showModal() deixa o resto da
-  // página inerte e põe o foco no próprio <dialog> (autofocus: Return logo depois não aperta nada).
-  // Esc e ⌘. cancelam, o clique no véu não, o Tab não sai e o foco volta ao botão que abriu.
+  // página de confirmação (T307, form GET); com <dialog> aberto por aqui ele vira "abrir o alerta".
+  // showModal() deixa o resto da página inerte e põe o foco no próprio <dialog> (autofocus: Return
+  // logo depois não aperta nada). Esc e ⌘. cancelam, o clique no véu não, o Tab não sai e o foco
+  // volta ao botão que abriu.
   let abridorDoAlerta = null;
   const alertaAberto = () => document.querySelector("dialog[data-alerta][open]");
   document.addEventListener("click", (evento) => {
     const abre = evento.target.closest?.("[data-alerta-abre]");
     if (abre) {
       const alerta = document.getElementById(abre.dataset.alertaAbre);
-      if (!alerta?.showModal || alerta.open) return; // sem <dialog>, segue para a página de confirmação
+      // sem <dialog>, segue para a página de confirmação
+      if (!alerta?.showModal || alerta.open) return;
       evento.preventDefault();
       abridorDoAlerta = abre;
       alerta.showModal();
@@ -1065,7 +1082,8 @@
           ajuda.click();
           return;
         }
-        // ⌘. fecha o que estiver aberto, como o Esc: o alerta já trata o dele (captura, antes deste)
+        // ⌘. fecha o que estiver aberto, como o Esc: o alerta já trata o dele (captura, antes
+        // deste)
         if (evento.key === "." && !alertaAberto()) {
           const sheet = document.querySelector("dialog.sheet[open]");
           if (!aberta && !menuAberto && !sheet) return;
@@ -1126,9 +1144,9 @@
     true, // close não sobe: só a captura o vê no document
   );
 
-  // último grupo de Configurações (T262): ao abrir um grupo, o slug fica guardado; o item da lateral
-  // e ⌘, (Ctrl+, fora do Mac) levam a ele. Sem registro, sem armazenamento ou sem JavaScript, o
-  // href do HTML (/configuracoes/geral) vale.
+  // último grupo de Configurações (T262): ao abrir um grupo, o slug fica guardado; o item da
+  // lateral e ⌘, (Ctrl+, fora do Mac) levam a ele. Sem registro, sem armazenamento ou sem
+  // JavaScript, o href do HTML (/configuracoes/geral) vale.
   const GRUPO_GUARDADO = "jobot.configuracoes.grupo";
   const slugValido = (slug) => typeof slug === "string" && /^[a-z]+(-[a-z]+)*$/.test(slug);
   const grupoAberto = document.querySelector('.config-grupos a[aria-current="page"]');

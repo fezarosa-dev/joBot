@@ -301,11 +301,12 @@ Itens pequenos e independentes entre si.
 **Interfaces:**
 - Nenhum contrato muda.
 
-- [ ] (a) em `src/jobot/painel/rotas/vagas.py` o parâmetro `paginas` da rota esconde a função importada `paginas`: renomear o parâmetro.
-- [ ] (b) a busca por letra na lista (typeahead em `app.js`) acumula a letra repetida em vez de ciclar entre as linhas que começam com ela, como no Finder: ciclar quando a mesma letra se repete.
-- [ ] (c) a barra de progresso das esperas repete no `aria-label` o texto que já está visível: tirar a duplicação.
-- [ ] (d) o recarregar da lista pede até `_MAX_PAGINA=10000` linhas: medir e baixar o teto se custar caro.
-- [ ] (e) a guarda de CSS de `test_css.py` para ícones só pega a assinatura exata: aceitar variações de espaço.
-- [ ] (f) um comentário em `app.js` passa de 100 colunas: quebrar.
+- [x] (a) em `src/jobot/painel/rotas/vagas.py` o parâmetro `paginas` da rota esconde a função importada `paginas`: renomear o parâmetro.
+- [x] (b) a busca por letra na lista (typeahead em `app.js`) acumula a letra repetida em vez de ciclar entre as linhas que começam com ela, como no Finder: ciclar quando a mesma letra se repete.
+- [x] (c) a barra de progresso das esperas repete no `aria-label` o texto que já está visível: tirar a duplicação.
+- [x] (d) o recarregar da lista pede até `_MAX_PAGINA=10000` linhas: medir e baixar o teto se custar caro.
+  Feito: com 10 mil vagas, recarregar tudo (`pagina=200` com `HX-Target: vagas-miolo`) levou ~3,7 s e 7,6 MB (1 página: ~35 ms; 20 páginas: ~380 ms e 750 KB). Novo teto `_MAX_RECARGA = 20` só no recarregar do miolo; `_MAX_PAGINA` fica, porque baixá-lo quebraria o "Carregar mais" além da página 20.
+- [x] (e) a guarda de CSS de `test_css.py` para ícones só pega a assinatura exata: aceitar variações de espaço.
+- [x] (f) um comentário em `app.js` passa de 100 colunas: quebrar.
 - [ ] **Ver falhar:** para cada item que muda código, o teste do item com a asserção dele; itens só de texto ou comentário conferem por `rtk grep` e anotam a conclusão aqui.
 - [ ] **Ver passar:** os arquivos de teste mexidos e `uv run ruff check && uv run ruff format --check`; a tela roda no CI.
