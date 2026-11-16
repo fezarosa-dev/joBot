@@ -169,8 +169,8 @@ Mudar uma delas muda a tarefa responsável antes de ela começar.
   - texto vazio devolve `None`.
 - Fixtures e testes só com `example.com` e `example.org`, sem nome de pessoa («Fixtures»).
 
-- [ ] **Primeiro, valor errado:** `email_de_candidatura` devolve `None` sempre.
-- [ ] **Testes que falham** em `tests/unidade/test_email_de_candidatura.py`:
+- [x] **Primeiro, valor errado:** `email_de_candidatura` devolve `None` sempre.
+- [x] **Testes que falham** em `tests/unidade/test_email_de_candidatura.py`:
   - **Um teste por idioma:**
     - `test_acha_email_com_gatilho_pt`: "Envie seu currículo para rh@example.com." dá `"rh@example.com"`.
     - `test_acha_email_com_gatilho_en`: "Send your resume to jobs@Example.ORG" dá `"jobs@example.org"`.
@@ -186,9 +186,9 @@ Mudar uma delas muda a tarefa responsável antes de ela começar.
     - `test_tira_pontuacao_do_fim`: "... para rh@example.com." dá o endereço sem o ponto.
     - `test_segue_para_o_proximo`: o primeiro candidato recusado e o segundo válido na mesma frase de gatilho dão o segundo.
     - `test_texto_vazio_devolve_none`: é guarda e nasce verde, porque o valor errado já devolve `None`. Mutante: devolver `""`.
-- [ ] **Ver falhar:** `uv run pytest tests/unidade/test_email_de_candidatura.py -q`.
-- [ ] **Implementar** os itens de Interfaces.
-- [ ] **Ver passar:** o mesmo arquivo e `tests/unidade/test_camadas.py`; ruff; mypy no CI.
+- [x] **Ver falhar:** `uv run pytest tests/unidade/test_email_de_candidatura.py -q`.
+- [x] **Implementar** os itens de Interfaces.
+- [x] **Ver passar:** o mesmo arquivo e `tests/unidade/test_camadas.py`; ruff; mypy no CI.
 
 ### T281: migração 0011 e gravação da candidatura
 `depende_de: T270` · desenho 5.5, 5.6 (Respostas, Regras), P1 (a), E2, E3, E6
@@ -224,19 +224,19 @@ Mudar uma delas muda a tarefa responsável antes de ela começar.
   - `perguntas_pendentes(con, limite: int) -> tuple[list[Pergunta], int]`: junta `candidatura` e `vaga` com `perguntar = 1 AND v.status IN ('nova','salva') AND v.oculta_manual <> 1` (E17), ordenadas por `julianday(c.abriu_em) DESC, c.vaga_id DESC`, até `limite`. O segundo item é o total das pendentes.
   - `abertura_da_candidatura(con, vaga_id: int) -> str | None`: o `abriu_em` da linha, ou `None`.
 
-- [ ] **Primeiro, valor errado.** Pelo mutante do «Teste de migração», o vermelho sem a migração não vale. Por isso o primeiro passo cria as peças com defeito:
+- [x] **Primeiro, valor errado.** Pelo mutante do «Teste de migração», o vermelho sem a migração não vale. Por isso o primeiro passo cria as peças com defeito:
   - a `0011` sem o `CHECK` de `perguntar` e sem o gatilho;
   - `abriu_candidatura` devolve `False` sem gravar;
   - `responder_candidatura` devolve `None` sem gravar;
   - `desfazer_candidatura` devolve `False` sem gravar;
   - `perguntas_pendentes` devolve `([], 0)`;
   - `abertura_da_candidatura` devolve `None`.
-- [ ] **Testes que falham** em `tests/integracao/test_migracao_0011.py`, que lê só o arquivo `0011`:
+- [x] **Testes que falham** em `tests/integracao/test_migracao_0011.py`, que lê só o arquivo `0011`:
   - `test_candidatura_sem_delete`: pelo `_recusa`, o `DELETE` de uma linha dá `True`.
   - `test_perguntar_so_0_ou_1`: pelo `_recusa`, gravar `perguntar = 2` dá `True`; controle positivo: `0` e `1` passam.
   - `test_vaga_id_referencia_vaga`: com `foreign_keys` ligado, pelo `_recusa`, uma linha para uma vaga que não existe dá `True`. É guarda e nasce verde, porque o valor errado já tem a `REFERENCES`. Mutante: tirar a `REFERENCES`.
   - `test_antes_nada_se_perde`: as migrações `[:10]` num banco em `tmp_path`, com vagas e eventos gravados; depois de aplicar a `0011`, as linhas de `vaga` e `evento` são as mesmas e a versão é `ULTIMA`. É guarda; mutante: a `0011` com `UPDATE vaga SET status = 'nova'`.
-- [ ] **Testes que falham** em `tests/integracao/test_candidatura.py` (relógio fixo, `TZ` fixado como o «Dia de calendário» pede):
+- [x] **Testes que falham** em `tests/integracao/test_candidatura.py` (relógio fixo, `TZ` fixado como o «Dia de calendário» pede):
   - **Abertura:**
     - `test_abriu_grava_e_reabre_pergunta`: grava, `perguntar` vai a 0 por `responder_candidatura(..., sim=False, ...)`, e abrir de novo atualiza `abriu_em` e volta `perguntar` a 1.
     - `test_abriu_com_candidatei_nao_grava`: devolve `False` e nenhuma linha. Controle positivo na mesma montagem: com outra vaga `salva`, devolve `True`.
@@ -260,9 +260,9 @@ Mudar uma delas muda a tarefa responsável antes de ela começar.
     - `test_desfazer_com_relogio_que_volta` (E18, D151): uma `salva` aberta, Sim às T+5h (`mudou_status` de `salva` para `candidatei`), `mudar_status` para `entrevista` às T+1h e `desfazer_status` às T+2h, que volta a `candidatei` com `desfez`. `desfazer_candidatura` devolve `False`, o status continua `candidatei` e nenhum evento novo é gravado. Falha no vermelho pelo valor errado (`True`, e a vaga iria a `salva`). Mutante: voltar a ordenar por `julianday(criado_em) DESC, id DESC`.
     - `test_desfazer_ignora_desfez_da_ocultacao` (E18): uma `salva` aberta, Sim, `ocultar` e `trazer_de_volta` (que grava `desfez` com `de` e `para` nulos) e depois `desfazer_candidatura`. Devolve `True`, o status volta a `salva` e o último evento é um `desfez` de `candidatei` para `salva`. Falha no vermelho pelo valor errado (`False`). Mutante: tirar o `para IS NOT NULL`; com ele, o `desfez` da ocultação vira o último evento de status, e a função devolve `False` sem gravar.
     - `test_desfazer_nao_reabre_pergunta`: uma `salva` aberta, Sim e desfazer. A primeira asserção é a do status igual a `salva`, e é ela que falha no vermelho (o valor errado deixa a vaga em `candidatei`). Depois, `perguntas_pendentes(con, 10)` dá `([], 0)` e a linha de `candidatura` tem `perguntar = 0`; essa parte prende a regra, com o mutante "desfazer grava `perguntar = 1`".
-- [ ] **Ver falhar:** `uv run pytest tests/integracao/test_migracao_0011.py tests/integracao/test_candidatura.py -q`.
-- [ ] **Implementar** os itens de Interfaces e o `erDiagram` das duas páginas da wiki.
-- [ ] **Ver passar:** os mesmos arquivos, `tests/integracao/test_migracoes.py`, `tests/unidade/test_arquitetura.py` e `tests/unidade/test_camadas.py`; ruff; mypy no CI do `lote/panorama-dados`.
+- [x] **Ver falhar:** `uv run pytest tests/integracao/test_migracao_0011.py tests/integracao/test_candidatura.py -q`.
+- [x] **Implementar** os itens de Interfaces e o `erDiagram` das duas páginas da wiki.
+- [x] **Ver passar:** os mesmos arquivos, `tests/integracao/test_migracoes.py`, `tests/unidade/test_arquitetura.py` e `tests/unidade/test_camadas.py`; ruff; mypy no CI do `lote/panorama-dados`.
 
 ### T282: datas dos passos, salvas que fecham e `status_em` na lista
 `depende_de: —` · desenho 5.2 (Salvas que fecham, estado vazio), 5.4, E5
@@ -285,12 +285,12 @@ Mudar uma delas muda a tarefa responsável antes de ela começar.
 - `tem_vaga(con) -> bool`: `SELECT EXISTS(SELECT 1 FROM vaga)`.
 - `Item` ganha `status_em: str | None`, e `Detalhe` herda. `_COLUNAS` ganha `v.status_em`, e `_item` o preenche.
 
-- [ ] **Primeiro, valor errado:**
+- [x] **Primeiro, valor errado:**
   - `datas_dos_passos` devolve `{}`;
   - `salvas_que_fecham` devolve `[]`;
   - `tem_vaga` devolve `False`;
   - `_item` põe `status_em=None`, com a coluna já na consulta.
-- [ ] **Testes que falham** em `tests/integracao/test_datas_dos_passos.py`. Os eventos são gravados por `mudar_status` e `desfazer_status`, com o relógio avançando:
+- [x] **Testes que falham** em `tests/integracao/test_datas_dos_passos.py`. Os eventos são gravados por `mudar_status` e `desfazer_status`, com o relógio avançando:
   - `test_passos_em_ordem`: Salva, Candidatei e Entrevista com as três datas, nessa ordem.
   - `test_passo_pulado_sem_data`: de Nova direto para Candidatei, só `candidatei`.
   - `test_desfeito_fica_fora`: Candidatei desfeito volta a Salva, e só `salva` entra.
@@ -298,18 +298,18 @@ Mudar uma delas muda a tarefa responsável antes de ela começar.
   - `test_salva_por_salvou`: a data do evento `salvou`.
   - `test_oferta_e_recusada_depois_de_entrevista`: com status Oferta, entram os quatro passos até Oferta.
   - `test_oferta_depois_recusada`: de Oferta para Recusada, entra `recusada` com a sua data e não entra `oferta`.
-- [ ] **Testes que falham** em `tests/integracao/test_salvas_que_fecham.py` (`TZ` fixado em `America/Sao_Paulo`, «Dia de calendário»):
+- [x] **Testes que falham** em `tests/integracao/test_salvas_que_fecham.py` (`TZ` fixado em `America/Sao_Paulo`, «Dia de calendário»):
   - `test_prazo_hoje_ate_7_dias_dia_local`: `agora = 2026-11-16T23:30:00-03:00`. Entram os prazos `2026-11-16` e `2026-11-23`; ficam fora `2026-11-15` e `2026-11-24`.
   - `test_so_salvas`: uma `nova` com o mesmo prazo fica fora. Controle: a `salva` entra.
   - `test_limite_e_ordem`: sete salvas, `limite=5`, da que fecha primeiro.
   - `test_salva_fechada_na_fonte_fica_fora`: com `fechada_em` preenchido. Controle: a mesma vaga com `fechada_em` nulo entra.
-- [ ] **Testes que falham** em `tests/integracao/test_leitura.py`:
+- [x] **Testes que falham** em `tests/integracao/test_leitura.py`:
   - `test_status_em_na_listagem`: `listar` traz o `status_em` gravado por `mudar_status`.
   - `test_tem_vaga`: banco vazio dá falso; com uma vaga oculta e fechada, verdadeiro. A parte do vazio é guarda.
   - `test_degrau_definido_uma_vez`: pelo AST, `DEGRAU` é atribuído num módulo só de `banco/`, e nenhum define `_DEGRAU`.
-- [ ] **Ver falhar:** `uv run pytest tests/integracao/test_datas_dos_passos.py tests/integracao/test_salvas_que_fecham.py tests/integracao/test_leitura.py -q`.
-- [ ] **Implementar** os itens de Interfaces.
-- [ ] **Ver passar:** os mesmos arquivos, `tests/integracao/test_acoes.py` e `tests/unidade/test_camadas.py`; ruff; mypy no CI do `lote/panorama-dados`.
+- [x] **Ver falhar:** `uv run pytest tests/integracao/test_datas_dos_passos.py tests/integracao/test_salvas_que_fecham.py tests/integracao/test_leitura.py -q`.
+- [x] **Implementar** os itens de Interfaces.
+- [x] **Ver passar:** os mesmos arquivos, `tests/integracao/test_acoes.py` e `tests/unidade/test_camadas.py`; ruff; mypy no CI do `lote/panorama-dados`.
 
 ### T283: consultas da busca e das contas fora das rotas, e o dia local nas datas
 `depende_de: T261, T276` · desenho 5.2 (A busca), 8, E4, E16
