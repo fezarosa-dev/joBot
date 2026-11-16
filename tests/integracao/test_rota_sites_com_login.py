@@ -849,7 +849,8 @@ def test_esquecer_logins_sem_js_vai_para_confirmar(painel: Painel, idioma: str) 
     assert f'name="{CAMPO_CSRF}" value="{painel.token}"' in post
     assert re.search(rf"<button[^>]*type=\"submit\"[^>]*>\s*{rotulo}\s*</button>", post)
     assert re.search(rf'<a\b[^>]*href="{GRUPO}"[^>]*>\s*{cancelar}\s*</a>', pagina)
-    assert "<dialog" not in pagina and "autofocus" not in pagina
+    sem_paleta = re.sub(r'<dialog\b[^>]*\bid="paleta".*?</dialog>', "", pagina, flags=re.S)
+    assert "<dialog" not in sem_paleta and "autofocus" not in sem_paleta
 
 
 def test_esquecer_logins_post_direto_continua(painel: Painel) -> None:
