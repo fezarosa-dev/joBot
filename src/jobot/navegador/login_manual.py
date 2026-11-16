@@ -26,6 +26,7 @@ from jobot.navegador.janela_comum import (
     perfil_em_uso,
 )
 from jobot.navegador.perfil import pasta_do_perfil, preparar_preferencias
+from jobot.nucleo.contas import EstadoSessao, MotivoSessao
 from jobot.nucleo.leitores.base import LeitorComLogin
 
 log = logging.getLogger(__name__)
@@ -94,3 +95,14 @@ async def fazer_login(leitor: LeitorComLogin, deps: Dependencias, janela: Janela
                 resultado = "nao_entrou" if fim == "fechou" else "tempo_esgotado"
     log.info("login manual do site %s: %s", leitor.chave, resultado)
     return resultado
+
+
+def sessao_do_login(resultado: Resultado) -> tuple[EstadoSessao, MotivoSessao | None]:
+    """O estado do login que o fim do "Fazer login agora" grava (desenho 5.1)."""
+    match resultado:
+        case "pronto":
+            return ("conectado", None)
+        case "nao_entrou" | "tempo_esgotado":
+            return ("precisa_entrar", None)
+        case "sem_tela" | "sem_navegador" | "em_uso":
+            return ("nao_conferiu", resultado)
