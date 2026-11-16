@@ -24,6 +24,20 @@ MOVIMENTOS = """() => [...document.querySelectorAll('*')].flatMap(el => {
   return [...s.transitionDuration.split(','), ...s.animationDuration.split(',')];
 }).map(parseFloat).filter(d => d > 0).length"""
 
+# movimento reduzido: o que ainda anima no transform, em animação, ou em transição acima de 150ms
+TRANSICOES_DE_TRANSFORM = """() => [...document.querySelectorAll('*')].filter(el => {
+  const s = getComputedStyle(el);
+  const anima = s.transitionDuration.split(',').some(d => parseFloat(d) > 0);
+  const props = s.transitionProperty.split(',').map(p => p.trim());
+  return anima && props.some(p => p === 'transform' || p === 'all');
+}).length"""
+MOVIMENTOS_ACIMA_DE_150MS = """() => [...document.querySelectorAll('*')].flatMap(
+  el => getComputedStyle(el).transitionDuration.split(',')
+).map(parseFloat).filter(d => d > 0.15).length"""
+ANIMACOES = """() => [...document.querySelectorAll('*')].filter(
+  el => getComputedStyle(el).animationName !== 'none'
+).length"""
+
 
 @pytest.fixture
 def app_painel(app_painel: FastAPI) -> FastAPI:
@@ -123,24 +137,58 @@ def test_link_no_texto_tem_sublinhado(page: Page, painel: str) -> None:
     assert page.locator("a.marca").evaluate(decoracao) == "none"
 
 
+# a cor do vidro e o filtro de uma barra .vidro e de um .painel colocados no main
+ESTILO_VIDRO = """() => {
+  const main = document.querySelector('main');
+  const painel = Object.assign(document.createElement('div'), {className: 'painel'});
+  main.append(painel);
+  const lido = el => {
+    const s = getComputedStyle(el);
+    return {filtro: s.backdropFilter, fundo: s.backgroundColor};
+  };
+  return {topo: lido(document.querySelector('header.topo')), painel: lido(painel)};
+}"""
+
+
+def _opaco(fundo: str) -> bool:
+    """`rgb(r, g, b)` ou `rgba(..., 1)`; qualquer alfa (`/ a`) abaixo de 1 é translúcido."""
+    return "/" not in fundo and not (fundo.startswith("rgba(") and not fundo.endswith(", 1)"))
+
+
 def test_painel_e_translucido(page: Page, painel: str) -> None:
-    # desenho 13.11: translucidez com backdrop-filter na barra do topo e nos painéis
+    # desenho 5.1: vidro só na barra (.vidro); o .painel é conteúdo e fica opaco, sem filtro
     page.goto(painel + CASCA)
-    page.evaluate(
-        """() => {
-          const d = Object.assign(document.createElement('div'), {className: 'painel'});
-          document.querySelector('main').append(d);
-        }"""
+    estilo = page.evaluate(ESTILO_VIDRO)
+    assert "blur" in estilo["topo"]["filtro"]
+    assert not _opaco(estilo["topo"]["fundo"])
+    assert estilo["painel"]["filtro"] == "none"
+    assert _opaco(estilo["painel"]["fundo"])
+
+
+def test_sem_vidro_com_mais_contraste_ou_cores_forcadas(page: Page, painel: str) -> None:
+    page.goto(painel + CASCA)
+    for emulacao in ({"contrast": "more"}, {"forced_colors": "active"}):
+        page.emulate_media(**emulacao)
+        estilo = page.evaluate(ESTILO_VIDRO)
+        assert estilo["topo"]["filtro"] == "none", emulacao
+        assert estilo["painel"]["filtro"] == "none", emulacao
+        page.emulate_media(contrast="no-preference", forced_colors="none")
+        page.locator("main .painel").evaluate("el => el.remove()")
+
+
+def test_sem_vidro_com_menos_transparencia(page: Page, painel: str) -> None:
+    """O Playwright não emula `prefers-reduced-transparency`: vai pelo protocolo do Chromium."""
+    page.goto(painel + CASCA)
+    sessao = page.context.new_cdp_session(page)
+    sessao.send(
+        "Emulation.setEmulatedMedia",
+        {"features": [{"name": "prefers-reduced-transparency", "value": "reduce"}]},
     )
-    estilo = page.locator("main .painel").evaluate(
-        """el => {
-          const s = getComputedStyle(el);
-          return {filtro: s.backdropFilter, fundo: s.backgroundColor};
-        }"""
-    )
-    assert "blur" in estilo["filtro"]
-    # fundo com alfa: rgba(...) ou color(srgb ... / a), nunca opaco
-    assert "/" in estilo["fundo"] or estilo["fundo"].startswith("rgba(")
+    if not page.evaluate("matchMedia('(prefers-reduced-transparency: reduce)').matches"):
+        pytest.skip("este Chromium não emula prefers-reduced-transparency")
+    estilo = page.evaluate(ESTILO_VIDRO)
+    assert estilo["topo"]["filtro"] == "none"
+    assert _opaco(estilo["topo"]["fundo"])
 
 
 def test_htmx_configurado(page: Page, painel: str) -> None:
@@ -179,4 +227,7 @@ def test_reduced_motion_desliga_animacao(page: Page, painel: str) -> None:
     page.goto(painel + CASCA)
     assert page.evaluate(MOVIMENTOS) > 0
     page.emulate_media(reduced_motion="reduce")
-    assert page.evaluate(MOVIMENTOS) == 0
+    # nenhuma transição de transform e nenhuma animação; as outras com até 150ms (desenho 5.1)
+    assert page.evaluate(TRANSICOES_DE_TRANSFORM) == 0
+    assert page.evaluate(MOVIMENTOS_ACIMA_DE_150MS) == 0
+    assert page.evaluate(ANIMACOES) == 0

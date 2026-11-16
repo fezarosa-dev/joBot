@@ -9,7 +9,14 @@ BASE_CSS = ESTATICOS / "css" / "base.css"
 COR = re.compile(r"--([\w-]+):\s*light-dark\(\s*(#[0-9a-fA-F]{6})\s*,\s*(#[0-9a-fA-F]{6})\s*\)")
 # o base.css lista os pares de texto sobre fundo: /* contraste: texto/fundo link/fundo ... */
 PARES = re.compile(r"/\*\s*contraste:([^*]*)\*/")
+# par de objeto gráfico (a barra de progresso sobre o trilho), a 3:1: /* contraste-grafico: a/b */
+PARES_GRAFICOS = re.compile(r"/\*\s*contraste-grafico:([^*]*)\*/")
 MINIMO = 4.5
+MINIMO_GRAFICO = 3.0
+PARES_NOVOS = (
+    "texto-2/fundo texto-2/sob-pagina texto-2/superficie texto/solido-barra "
+    "texto-2/solido-barra texto/solido-elevado texto-2/solido-elevado texto/segmento"
+).split()
 
 
 def _luminancia(cor: str) -> float:
@@ -28,21 +35,59 @@ def test_formula_da_wcag() -> None:
     assert round(_razao("#777777", "#ffffff"), 2) == 4.48
 
 
-def test_contraste_minimo() -> None:
-    css = BASE_CSS.read_text(encoding="utf-8")
-    cores = {nome: (claro, escuro) for nome, claro, escuro in COR.findall(css)}
-    pares = [par.split("/") for bloco in PARES.findall(css) for par in bloco.split()]
-    assert pares, "base.css sem a lista /* contraste: ... */"
+def _cores(css: str) -> dict[str, tuple[str, str]]:
+    return {nome: (claro, escuro) for nome, claro, escuro in COR.findall(css)}
+
+
+def _falhas(pares: list[str], cores: dict[str, tuple[str, str]], minimo: float) -> list[str]:
     falhas = []
-    for frente, fundo in pares:
+    for par in pares:
+        frente, fundo = par.split("/")
         if frente not in cores or fundo not in cores:
-            falhas.append(f"{frente}/{fundo}: cor sem light-dark() no base.css")
+            falhas.append(f"{par}: cor sem light-dark() no base.css")
             continue
         for tema, i in (("claro", 0), ("escuro", 1)):
             razao = _razao(cores[frente][i], cores[fundo][i])
-            if razao < MINIMO:
-                falhas.append(f"{frente}/{fundo} no tema {tema}: {razao:.2f}")
-    assert falhas == []
+            if razao < minimo:
+                falhas.append(f"{par} no tema {tema}: {razao:.2f}")
+    return falhas
+
+
+def _lista(regex: re.Pattern[str], css: str) -> list[str]:
+    return [par for bloco in regex.findall(css) for par in bloco.split()]
+
+
+def test_contraste_minimo() -> None:
+    css = BASE_CSS.read_text(encoding="utf-8")
+    pares = _lista(PARES, css)
+    assert pares, "base.css sem a lista /* contraste: ... */"
+    assert _falhas(pares, _cores(css), MINIMO) == []
+
+
+def test_pares_novos_presentes() -> None:
+    css = BASE_CSS.read_text(encoding="utf-8")
+    texto = _lista(PARES, css)
+    assert set(PARES_NOVOS) <= set(texto), set(PARES_NOVOS) - set(texto)
+    assert len(texto) == len(set(texto)), "par repetido na lista de texto"
+    grafico = _lista(PARES_GRAFICOS, css)
+    assert grafico == ["destaque/trilho-progresso"]
+    # o comentário de objeto gráfico não entra na conta de texto (4,5:1)
+    assert "destaque/trilho-progresso" not in texto
+
+
+def test_contraste_grafico_minimo() -> None:
+    css = BASE_CSS.read_text(encoding="utf-8")
+    pares = _lista(PARES_GRAFICOS, css)
+    assert pares, "base.css sem a lista /* contraste-grafico: ... */"
+    assert _falhas(pares, _cores(css), MINIMO_GRAFICO) == []
+
+
+def test_contraste_grafico_reprova_trilho_igual_ao_destaque() -> None:
+    """Guarda: o mutante (trilho do progresso igual ao destaque) tem de aparecer como falha."""
+    css = BASE_CSS.read_text(encoding="utf-8")
+    cores = _cores(css)
+    cores["trilho-progresso"] = cores["destaque"]
+    assert len(_falhas(["destaque/trilho-progresso"], cores, MINIMO_GRAFICO)) == 2
 
 
 def test_alerta_tem_par_com_superficie_e_com_fundo() -> None:

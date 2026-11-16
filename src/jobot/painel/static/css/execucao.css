@@ -16,14 +16,12 @@
   border: 0;
   margin: 0;
   padding: 0.3rem 0.9rem;
-  border-radius: 10px;
+  border-radius: var(--raio-controle);
   font: inherit;
   font-size: 0.875rem;
   font-weight: 500;
-  cursor: pointer;
-  transition:
-    background-color var(--duracao) var(--mola),
-    transform var(--duracao) var(--mola);
+  cursor: default;
+  transition: background-color 120ms ease-out;
 }
 
 .botao-buscar {
@@ -34,11 +32,6 @@
 .botao-sair {
   background-color: var(--trilho);
   color: var(--texto);
-}
-
-.botao-buscar:active,
-.botao-sair:active {
-  transform: scale(0.96);
 }
 
 /* a região fica sempre na página (o leitor de tela só anuncia mudança em região que já existe) */

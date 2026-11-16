@@ -9,7 +9,6 @@
   margin: 0 0 1rem;
   font-size: 2rem;
   font-weight: 700;
-  letter-spacing: -0.025em;
 }
 
 .config-grupos ul {
@@ -136,33 +135,45 @@
   min-height: 2.25rem;
 }
 
-/* A chave: um checkbox sem a aparência do sistema, com a bolinha que corre. Ao apertar, a bolinha
-   estica para os lados; ligada, ela cresce para a esquerda (a borda direita fica no lugar). */
+/* A chave (desenho 5.3): um checkbox sem a aparência do sistema, 38x22px (a .chave-mini, 30x18px),
+   com a bolinha que corre. Ao apertar, a bolinha estica; ligada, ela cresce para a esquerda (a
+   borda direita fica no lugar). A bolinha anda por inset-inline-start, sem transform, para o
+   movimento reduzido (que zera o transform) mudar de posição sem animar. */
 .chave {
+  --larg: 2.375rem;
+  --alt: 1.375rem;
+  --bolinha: 1.125rem;
+  --folga: 0.125rem;
   appearance: none;
   position: relative;
   flex: none;
-  width: 2.75rem;
-  height: 1.625rem;
+  width: var(--larg);
+  height: var(--alt);
   margin: 0;
   border-radius: 999px;
   background-color: var(--trilho);
-  cursor: pointer;
+  cursor: default;
   transition: background-color var(--duracao) var(--mola);
+}
+
+.chave-mini {
+  --larg: 1.875rem;
+  --alt: 1.125rem;
+  --bolinha: 0.875rem;
 }
 
 .chave::after {
   content: "";
   position: absolute;
-  top: 0.125rem;
-  left: 0.125rem;
-  width: 1.375rem;
-  height: 1.375rem;
+  inset-block-start: var(--folga);
+  inset-inline-start: var(--folga);
+  width: var(--bolinha);
+  height: var(--bolinha);
   border-radius: 999px;
   background-color: var(--segmento);
   box-shadow: 0 1px 3px var(--sombra);
   transition:
-    transform var(--duracao) var(--mola),
+    inset-inline-start var(--duracao) var(--mola),
     width var(--duracao) var(--mola);
 }
 
@@ -171,16 +182,16 @@
 }
 
 .chave:checked::after {
-  transform: translateX(1.125rem);
+  inset-inline-start: calc(var(--larg) - var(--bolinha) - var(--folga));
   background-color: var(--sobre-destaque);
 }
 
 .chave:active:not(:disabled)::after {
-  width: 1.75rem;
+  width: calc(var(--bolinha) + 0.25rem);
 }
 
 .chave:checked:active:not(:disabled)::after {
-  transform: translateX(0.75rem);
+  inset-inline-start: calc(var(--larg) - var(--bolinha) - 0.25rem - var(--folga));
 }
 
 .chave:focus-visible {
@@ -206,10 +217,10 @@
 .config-form .campo input[type="number"] {
   box-sizing: border-box;
   width: 7rem;
-  min-height: 2.5rem;
+  min-block-size: 1.75rem;
   padding: 0.4rem 0.75rem;
   border: 1px solid var(--borda);
-  border-radius: 10px;
+  border-radius: var(--raio-controle);
   background-color: var(--superficie);
   color: var(--texto);
   font: inherit;
@@ -275,10 +286,10 @@
   box-sizing: border-box;
   width: 100%;
   max-width: 24rem;
-  min-height: 2.5rem;
+  min-block-size: 1.75rem;
   padding: 0.4rem 0.75rem;
   border: 1px solid var(--borda);
-  border-radius: 10px;
+  border-radius: var(--raio-controle);
   background-color: var(--superficie);
   color: var(--texto);
   font: inherit;
@@ -338,21 +349,17 @@
   display: inline-flex;
   align-items: center;
   box-sizing: border-box;
-  min-height: 2.5rem;
+  min-block-size: 1.75rem;
   margin: 0;
   padding: 0.4rem 1rem;
   border: 0;
-  border-radius: 10px;
+  border-radius: var(--raio-controle);
   font: inherit;
   font-size: 0.9375rem;
   font-weight: 500;
   text-decoration: none;
-  cursor: pointer;
-  transition: transform var(--duracao) var(--mola);
-}
-
-.config .botao:active:not(:disabled) {
-  transform: scale(0.96);
+  cursor: default;
+  transition: background-color 120ms ease-out;
 }
 
 .config .botao:disabled {
@@ -507,10 +514,10 @@
   }
 
   .chave::after {
-    top: 0;
-    left: 0;
-    width: calc(1.625rem - 4px);
-    height: calc(1.625rem - 4px);
+    inset-block-start: 0;
+    inset-inline-start: 0;
+    width: calc(var(--alt) - 4px);
+    height: calc(var(--alt) - 4px);
     background-color: ButtonText;
     box-shadow: none;
   }
@@ -520,6 +527,7 @@
   }
 
   .chave:checked::after {
+    inset-inline-start: calc(var(--larg) - var(--alt));
     background-color: HighlightText;
   }
 

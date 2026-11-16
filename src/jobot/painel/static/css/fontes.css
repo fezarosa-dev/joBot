@@ -95,7 +95,7 @@
 }
 
 .escopos summary {
-  cursor: pointer;
+  cursor: default;
   color: var(--link);
 }
 

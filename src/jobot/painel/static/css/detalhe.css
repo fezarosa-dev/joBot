@@ -40,7 +40,6 @@ a.primario {
   margin: 0 0 0.5rem;
   font-size: 1.125rem;
   font-weight: 600;
-  letter-spacing: -0.01em;
 }
 
 .motivos,
@@ -82,9 +81,11 @@ a.primario {
 }
 
 .descricao {
+  max-inline-size: 70ch;
+  font-size: 0.9375rem;
+  line-height: 1.5;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  line-height: 1.55;
 }
 
 /* faixa de 12 meses: só desenho, o texto ao lado diz o mesmo */
@@ -121,7 +122,6 @@ a.primario {
 
 .meses .marcas {
   min-height: 1em;
-  letter-spacing: 0.1em;
 }
 
 .corrigir {
