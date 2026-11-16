@@ -2,12 +2,8 @@
 <p class="assistente-texto">{{ t("primeira_execucao.sites.texto") }}</p>
 {% include "configuracoes/_ferramenta_navegador.html" %}
 {% include "configuracoes/_sites_cartoes.html" %}
-<form method="post" action="/primeira-execucao/sites" class="assistente-form">
+{#- sem campo visível: os botões do pé apontam para ele por `form=` (Continuar leva a busca) -#}
+<form id="assistente-form" method="post" action="/primeira-execucao/sites">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   {% if busca_id %}<input type="hidden" name="busca" value="{{ busca_id }}">{% endif %}
-  <div class="acoes">
-    <button type="submit" name="continuar" value="1" class="botao botao-primario">{{ t("primeira_execucao.sites.continuar") }}</button>
-    <button type="submit" name="pular" value="1" class="botao botao-secundario">{{ t("primeira_execucao.sites.pular") }}</button>
-    <a class="botao botao-secundario" href="/primeira-execucao/1{% if busca_id %}?busca={{ busca_id }}{% endif %}">{{ t("primeira_execucao.sites.voltar") }}</a>
-  </div>
 </form>
