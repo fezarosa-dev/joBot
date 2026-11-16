@@ -458,3 +458,13 @@ def test_conferido_antes_em_ingles() -> None:
 @pytest.mark.usefixtures("fuso_de_sao_paulo")
 def test_conferido_ilegivel_vazio() -> None:
     assert _conferido("ontem", "2026-11-16T12:00:00+00:00") == ""
+
+
+@pytest.mark.usefixtures("fuso_de_sao_paulo")
+def test_instante_vira_dia_local() -> None:
+    """01:30Z de 17/11 ainda é 16/11 em Brasília; o mesmo dia sem hora fica como está."""
+    instante = "2026-11-17T01:30:00+00:00"
+    assert formatos.data_curta(instante, "pt") == "16/11"
+    assert formatos.data_completa(instante, "pt") == "16/11/2026"
+    assert formatos.data_curta(instante, "en") == "11/16"
+    assert formatos.data_curta("2026-11-17", "pt") == "17/11"  # controle: sem hora, não muda
