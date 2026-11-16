@@ -32,7 +32,7 @@ It gathers, filters and organizes jobs from many sites into a nice dashboard tha
 
 > [!IMPORTANT]
 > **joBot phase 1 (the foundation) is done: version 0.2.1.** It searches public sources for jobs, keeps everything on your computer and shows it in a dashboard. You can already [install and use it](#requirements-and-installation).
-> LinkedIn, the first site with login, arrives in the next version and comes off. The Gmail card arrives with the Accounts tab; reading the emails, audio and the rest (the other sites with login, AI and browser extension) are still a plan. See the [roadmap](#roadmap). Before you turn on the sources, read the [usage and terms notices](#license-and-notices).
+> LinkedIn is the site with login today (others can come through the [new site template](docs/site-novo.en.md)); it arrives in the next version and comes off. The Gmail card arrives with the Accounts tab; reading the emails, audio and the rest (the other sites with login, AI and browser extension) are still a plan. See the [roadmap](#roadmap). Before you turn on the sources, read the [usage and terms notices](#license-and-notices).
 
 ## 📑 Contents
 
@@ -73,7 +73,7 @@ What it does today (phase 1):
 
 What comes in the next phases:
 
-- 🔐 **Sites that require login**: you sign in in a regular browser window, with no automation, and joBot reads the jobs (phase 2; LinkedIn comes first).
+- 🔐 **Sites that require login**: you sign in in a regular browser window, with no automation, and joBot reads the jobs (phase 2; LinkedIn is the site with login today; others can come through the template, in [`docs/site-novo.en.md`](docs/site-novo.en.md)).
 - ✍️ **Prepare the application**: cover letter, a résumé summary adjusted to the job and a list of what you have and what is missing, always in the job's language (phase 4, with optional AI).
 - 🧩 **Help with forms**: a browser extension suggests answers, and you confirm (phase 5).
 - 📬 **Read Gmail** (optional): brings in jobs from alert emails and suggests status changes when a recruiter replies (phase 6).
@@ -113,7 +113,7 @@ joBot does not do the following, and was planned never to:
 flowchart LR
     subgraph Fontes["Job sources"]
         P["Public sources<br/>(APIs, job boards, GitHub)"]
-        L["Sites with login<br/>(LinkedIn, Indeed...)"]
+        L["Sites with login<br/>(LinkedIn)"]
         G["Gmail<br/>(optional)"]
     end
 
@@ -187,9 +187,10 @@ Three Brazilian portals call for care, because of their terms of use: Eureca, Ab
 | Brazilian portals | Gupy, CIEE, Sólides, IEL, Super Estágios, Cia de Talentos, Eureca, Abler |
 | Careers at big companies | Google, Amazon, Microsoft, NVIDIA |
 | Internship boards | Public boards, such as the one at USP |
-| 🔐 Sites with login (phase 2, first, in this order) | LinkedIn, Gupy (with login), Vagas.com, Catho, Indeed |
-| 🔐 Sites with login (phase 2, later, one at a time) | InfoJobs, Glassdoor, Remotar, Trampos |
-| 🔐 Technology-only sites with login (phase 2, last, one at a time) | Programathor, GeekHunter, Revelo, Coodesh |
+| 🔐 Site with login (phase 2, the only one for now) | LinkedIn |
+| 🔐 Sites with login (ideas for the future, no date yet) | Vagas.com, Catho, Indeed |
+| 🔐 Sites with login (ideas for the future, one at a time) | InfoJobs, Glassdoor, Remotar, Trampos |
+| 🔐 Technology-only sites with login (ideas for the future, last, one at a time) | Programathor, GeekHunter, Revelo, Coodesh |
 
 Also in phase 1:
 
@@ -202,7 +203,7 @@ Also in phase 1:
 **Health of each source.** On every search, each source is marked as ok, partial or failed. You see this in the dashboard.
 
 > [!WARNING]
-> **Sites with login carry risk.** LinkedIn, Indeed and others may restrict accounts that access them automatically, and this may go against their terms of use.
+> **Sites with login carry risk.** LinkedIn and other sites with login that may join later may restrict accounts that access them automatically, and this may go against their terms of use.
 > joBot reduces the risk: you sign in in a regular browser window, with your own hands; after that it only reads (it does not click "apply", it does not send messages), and it visits rarely and slowly.
 > Even so, the risk exists. **You decide whether to turn on each site.**
 

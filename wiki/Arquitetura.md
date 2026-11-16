@@ -371,7 +371,7 @@ flowchart LR
     contribui --> consertar
 ```
 
-O passo a passo de quem conserta uma fonte está no [guia para consertar uma fonte](https://github.com/fezarosa-dev/joBot/blob/main/docs/consertar-fonte.md).
+O passo a passo de quem conserta uma fonte está no [guia para consertar uma fonte](https://github.com/fezarosa-dev/joBot/blob/main/docs/consertar-fonte.md). Para acrescentar um site novo, há o [guia de site novo](https://github.com/fezarosa-dev/joBot/blob/main/docs/site-novo.md).
 
 ## 🧩 Tipos principais do núcleo
 

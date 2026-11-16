@@ -15,6 +15,7 @@ The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/
 - The optional "Sites with login" step in the first-run assistant: turn on the sites, check the browser and download it, before you see the jobs.
 - Login in a regular browser window, with no automation: you sign in however you like (Google, email and password) and close the window. joBot checks the session by itself and never types the password.
 - ADR 0023: everything through the dashboard. External tools, updating and quitting get a button, no terminal needed.
+- Guide "How to add a new site" (`docs/site-novo.en.md`), with a collector template for a public site and a reader template for a site with login, and a CI guard that checks each site's test, example and name.
 - ADR 0024: Gmail will be read over IMAP with an app password pasted into the dashboard (the card comes with the Accounts tab; reading the emails, in phase 6). The wiki gets the step-by-step guide.
 
 ### Changed

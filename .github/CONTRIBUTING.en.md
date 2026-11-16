@@ -12,6 +12,7 @@ Phase 1 (foundation) is complete: joBot 0.2.1 can already be installed and used 
 
 - **Suggestions and job sources** are welcome right away. Open an issue using the forms: Bug, Feature request or Job source.
 - **Did a job source break?** The guide [How to fix a source that broke](../docs/consertar-fonte.en.md) shows how to find what changed and fix it. For now it helps you understand the path and report what you found in an issue; the PR with the fix follows the rule below.
+- **Want to add a new job site?** The guide [How to add a new site](../docs/site-novo.en.md) takes you from the site to the PR, with a template that already runs for a public site and another for a site with login. For now it helps you get ready and open the "Job source" issue; the PR follows the rule below.
 - **Code pull requests** will only be accepted after the release (phase 9). Until then, the code is still changing a lot.
 - Issues and PRs can be written in **Portuguese or English**.
 - Found a security flaw? **Do not open a public issue.** See the [Security Policy](SECURITY.en.md).

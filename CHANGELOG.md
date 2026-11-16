@@ -15,6 +15,7 @@ O formato segue o [Keep a Changelog 1.1.0](https://keepachangelog.com/pt-BR/1.1.
 - O passo opcional "Sites com login" no assistente de primeira execução: ligar os sites, ver o navegador e baixá-lo, tudo antes de ver as vagas.
 - Login numa janela comum do navegador, sem automação: você entra como quiser (Google, e-mail e senha) e fecha a janela. O joBot confere a sessão sozinho e nunca digita a senha.
 - ADR 0023: tudo pelo painel. Ferramentas externas, atualização e encerramento passam a ter botão, sem terminal.
+- Guia "Como acrescentar um site novo" (`docs/site-novo.md`), com um molde de coletor para site público e um de leitor para site com login, e uma guarda no CI que confere o teste, o exemplo e o nome de cada site.
 - ADR 0024: o Gmail será lido por IMAP com uma senha de app colada no painel (o cartão vem com a aba Contas; a leitura dos e-mails, na fase 6). A wiki ganha o passo a passo.
 
 ### Alterado

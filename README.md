@@ -32,7 +32,7 @@ Ele junta, filtra e organiza vagas de muitos sites num painel bonito que roda no
 
 > [!IMPORTANT]
 > **A fase 1 do joBot (a base) está pronta: versão 0.2.1.** Ele busca vagas em fontes públicas, guarda tudo no seu computador e mostra num painel. Já dá para [instalar e usar](#requisitos-e-instalacao).
-> O LinkedIn, o primeiro site com login, chega na próxima versão e vem desligado. O cartão do Gmail chega com a aba Contas; a leitura dos e-mails, o áudio e o resto (os outros sites com login, IA e extensão do navegador) ainda são plano. Veja o [roteiro](#roteiro). Antes de ligar as fontes, leia os [avisos de uso e de termos](#licenca-e-avisos).
+> O LinkedIn é o site com login de hoje (outros podem vir pelo [molde de site novo](docs/site-novo.md)); chega na próxima versão e vem desligado. O cartão do Gmail chega com a aba Contas; a leitura dos e-mails, o áudio e o resto (os outros sites com login, IA e extensão do navegador) ainda são plano. Veja o [roteiro](#roteiro). Antes de ligar as fontes, leia os [avisos de uso e de termos](#licenca-e-avisos).
 
 ## 📑 Sumário
 
@@ -73,7 +73,7 @@ O que ele faz hoje (fase 1):
 
 O que vem nas próximas fases:
 
-- 🔐 **Sites que exigem login**: você entra numa janela comum do navegador, sem automação, e o joBot lê as vagas (fase 2; o LinkedIn vem primeiro).
+- 🔐 **Sites que exigem login**: você entra numa janela comum do navegador, sem automação, e o joBot lê as vagas (fase 2; o LinkedIn é o site com login de hoje; outros podem vir pelo molde, em [`docs/site-novo.md`](docs/site-novo.md)).
 - ✍️ **Preparar candidatura**: carta de apresentação, resumo do currículo ajustado à vaga e lista do que você tem e do que falta, sempre no idioma da vaga (fase 4, com IA opcional).
 - 🧩 **Ajudar nos formulários**: uma extensão do navegador sugere respostas, e você confirma (fase 5).
 - 📬 **Ler o Gmail** (opcional): traz vagas dos e-mails de alerta e sugere mudanças de status quando um recrutador responde (fase 6).
@@ -113,7 +113,7 @@ O joBot não faz, e foi planejado para nunca fazer:
 flowchart LR
     subgraph Fontes["Fontes de vagas"]
         P["Fontes públicas<br/>(APIs, quadros de vagas, GitHub)"]
-        L["Sites com login<br/>(LinkedIn, Indeed...)"]
+        L["Sites com login<br/>(LinkedIn)"]
         G["Gmail<br/>(opcional)"]
     end
 
@@ -187,9 +187,10 @@ Três portais brasileiros pedem cuidado, por causa dos termos de uso deles: Eure
 | Portais brasileiros | Gupy, CIEE, Sólides, IEL, Super Estágios, Cia de Talentos, Eureca, Abler |
 | Carreiras de grandes empresas | Google, Amazon, Microsoft, NVIDIA |
 | Murais de estágio | Murais públicos, como o da USP |
-| 🔐 Sites com login (fase 2, primeiro, nesta ordem) | LinkedIn, Gupy (com login), Vagas.com, Catho, Indeed |
-| 🔐 Sites com login (fase 2, depois, um de cada vez) | InfoJobs, Glassdoor, Remotar, Trampos |
-| 🔐 Sites com login só de tecnologia (fase 2, por último, um de cada vez) | Programathor, GeekHunter, Revelo, Coodesh |
+| 🔐 Site com login (fase 2, o único por enquanto) | LinkedIn |
+| 🔐 Sites com login (ideias para o futuro, ainda sem data) | Vagas.com, Catho, Indeed |
+| 🔐 Sites com login (ideias para o futuro, um de cada vez) | InfoJobs, Glassdoor, Remotar, Trampos |
+| 🔐 Sites com login só de tecnologia (ideias para o futuro, por último, um de cada vez) | Programathor, GeekHunter, Revelo, Coodesh |
 
 Também na fase 1:
 
@@ -202,7 +203,7 @@ Também na fase 1:
 **Saúde de cada fonte.** A cada busca, cada fonte fica marcada como ok, parcial ou falhou. Você vê isso no painel.
 
 > [!WARNING]
-> **Sites com login têm risco.** LinkedIn, Indeed e outros podem restringir contas que acessam de forma automática, e isso pode ir contra os termos de uso deles.
+> **Sites com login têm risco.** O LinkedIn e outros sites com login que venham a entrar podem restringir contas que acessam de forma automática, e isso pode ir contra os termos de uso deles.
 > O joBot reduz o risco: você entra numa janela comum do navegador, com as próprias mãos; depois ele só lê (não clica em "candidatar", não manda mensagem), visita poucas vezes e devagar.
 > Mesmo assim, o risco existe. **Você decide se liga cada site.**
 
