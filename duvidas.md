@@ -2745,3 +2745,38 @@ Escolha da sessão (dono fora): a opção (a), para confirmar. Consequência: co
 **O que o dono faz:** nada.
 
 **Como desfazer:** voltar a ordenação para `julianday(criado_em) DESC, id DESC` e apagar o teste.
+
+## D152. Linha azul na lista estreita com a vaga aberta (para confirmar)
+
+**Status:** para confirmar. Decidido pela recomendação, com o dono fora.
+
+**Contexto:** a T255 abre o detalhe da vaga ao lado da lista. Abaixo de 640px, com `?vaga=` na URL, a linha da vaga aberta pode ficar azul de seleção. A regra de "sem foco" mora dentro do `@container` da coluna e não vale fora dele. O caso é raro: pede janela estreita e link direto com `?vaga=`.
+
+**Escolhas:**
+
+1. **Opção A (escolhida).** Deixar como está.
+2. **Opção B.** Repetir a regra de "sem foco" fora do `@container`. A linha deixa de ficar azul em janela estreita, ao custo de uma regra duplicada que precisa andar junto com a original.
+
+**Recomendação:** A, porque o caso é raro e o efeito é só visual.
+
+**O que o dono faz:** nada.
+
+**Como desfazer:** acrescentar uma regra de CSS em `vagas.css`.
+
+## D153. Itens da lateral levam só aba e busca (para confirmar)
+
+**Status:** para confirmar. Decidido pela recomendação, com o dono fora.
+
+**Contexto:** na T254, ao trocar de aba pela lateral, os filtros escolhidos (chips) se perdem. Só a aba e a busca escolhida vão no link do item.
+
+**Escolhas:**
+
+1. **Opção A (escolhida).** Aceitar. É como no Mail do Mac, onde trocar de caixa limpa o filtro.
+2. **Opção B.** Levar os filtros no link de cada item. A pessoa não perde o filtro ao trocar de aba, mas o link da lateral fica maior e cada item precisa conhecer os parâmetros de filtro.
+3. **Dois itens pequenos na mesma D.** Chips em inglês em sentence case (como "Work mode") ficam para a T268 (revisão de textos). A aba Programas continua em cartões e vira `Tn` nova do plano visual quando o lote voltar à `dev`.
+
+**Recomendação:** A para a escolha 1 e as duas sugestões do item 3.
+
+**O que o dono faz:** nada.
+
+**Como desfazer:** o link da lateral passa a copiar os parâmetros de filtro.
