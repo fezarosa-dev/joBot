@@ -329,6 +329,113 @@ def test_apagar_leva_o_encaixe_e_deixa_a_vaga(painel: Painel) -> None:
     assert painel.total("vaga") == vagas
 
 
+def _dialogo(html: str, busca: int) -> str:
+    achado = re.search(rf'<dialog\b[^>]*id="alerta-busca-{busca}".*?</dialog>', html, re.DOTALL)
+    assert achado, "falta o <dialog> do alerta de apagar"
+    return achado.group(0)
+
+
+def _tag_de_abertura(html: str) -> str:
+    return html[: html.index(">") + 1]
+
+
+def test_apagar_tem_alerta(painel: Painel) -> None:
+    """T259: o alerta é um <dialog> com o nome escapado, o form de hoje, o foco no próprio dialog
+    (E13: nenhum botão com autofocus) e o Cancelar fora do envio."""
+    busca = painel.ids["busca"]
+    painel.sql("UPDATE busca SET nome = ? WHERE id = ?", 'Dados <b>&"x"', busca)
+    html = painel.get("/buscas").text
+    dialogo = _dialogo(html, busca)
+    abertura = _tag_de_abertura(dialogo)
+    assert 'role="alertdialog"' in abertura
+    assert re.search(r"\bautofocus\b", abertura)
+    assert 'tabindex="-1"' in abertura
+    assert "<b>" not in html  # o nome entrou escapado
+    achou = re.search(r'<h2[^>]*class="alerta-titulo"[^>]*>(.*?)</h2>', dialogo, re.DOTALL)
+    assert achou
+    titulo = unescape(achou.group(1))
+    assert titulo.strip() == 'Apagar a busca «Dados <b>&"x"»?'
+    assert re.search(r'aria-labelledby="alerta-busca-\d+-titulo"', abertura)
+    form = re.search(
+        r'<form[^>]*action="/buscas/(\d+)/apagar"[^>]*>(.*?)</form>', dialogo, re.DOTALL
+    )
+    assert form and int(form.group(1)) == busca
+    assert 'method="post"' in form.group(0)
+    assert f'name="{CAMPO_CSRF}" value="{painel.token}"' in form.group(2)
+    botoes = re.findall(r"<button\b[^>]*>", dialogo)
+    assert len(botoes) == 2
+    assert not any(re.search(r"\bautofocus\b", b) for b in botoes)
+    cancelar = [b for b in botoes if 'type="button"' in b]
+    assert len(cancelar) == 1 and "data-alerta-fecha" in cancelar[0]
+    assert "As vagas que ela trouxe continuam." in dialogo
+
+
+def test_apagar_sem_js_continua(painel: Painel) -> None:
+    """O botão Apagar da linha é o submit do form de hoje; sem JavaScript o POST apaga."""
+    busca = painel.ids["busca"]
+    html = painel.get("/buscas").text
+    fora = re.sub(r"<dialog\b.*?</dialog>", "", html, flags=re.DOTALL)
+    forms = re.findall(
+        rf'<form[^>]*action="/buscas/{busca}/apagar"[^>]*>(.*?)</form>', fora, re.DOTALL
+    )
+    assert len(forms) == 1
+    assert re.search(r'<button[^>]*type="submit"[^>]*data-alerta-abre="alerta-busca-\d+"', forms[0])
+    assert "<details" not in html
+    assert (painel.post(f"/buscas/{busca}/apagar").status_code, painel.total("busca")) == (303, 0)
+
+
+@pytest.mark.parametrize(("ativa", "acao"), [(1, "desligar"), (0, "ligar")])
+def test_linha_tem_interruptor_mini_e_menu(painel: Painel, ativa: int, acao: str) -> None:
+    """Cada linha: o interruptor (role switch) num form que liga ou desliga, e o alvo do menu."""
+    busca = painel.ids["busca"]
+    painel.sql("UPDATE busca SET ativa = ? WHERE id = ?", ativa, busca)
+    html = painel.get("/buscas").text
+    linha = re.search(
+        rf'<li\b[^>]*id="busca-{busca}".*?(?=<li\b[^>]*id="busca-|<dialog\b)', html, re.DOTALL
+    )
+    assert linha
+    abertura = _tag_de_abertura(linha.group(0))
+    assert 'data-menu="menu-busca"' in abertura and f'data-id="{busca}"' in abertura
+    assert (" data-ligada" in abertura) == bool(ativa)
+    assert (" data-desligada" in abertura) == (not ativa)
+    form = re.search(
+        rf'<form[^>]*action="/buscas/{busca}/{acao}"[^>]*>(.*?)</form>', linha.group(0), re.DOTALL
+    )
+    assert form and "data-envia-ao-mudar" in form.group(0)
+    caixa = re.search(r'<input[^>]*role="switch"[^>]*>', form.group(1))
+    assert caixa and 'class="chave chave-mini"' in caixa.group(0)
+    assert ("checked" in caixa.group(0)) == bool(ativa)
+    assert "aria-label=" in caixa.group(0)
+    assert f'name="{CAMPO_CSRF}"' in form.group(1)
+
+
+def test_menu_da_lista_tem_as_acoes_da_linha(painel: Painel) -> None:
+    html = painel.get("/buscas").text
+    menu = re.search(
+        r'<div id="menu-busca"[^>]*data-menu-contexto.*?</div>\s*<div id="menu-busca-aviso"',
+        html,
+        re.DOTALL,
+    )
+    assert menu
+    for modelo in (
+        "/vagas?aba=todas&amp;busca={id}",
+        "/buscas/{id}",
+        "/buscas/{id}/ligar",
+        "/buscas/{id}/desligar",
+    ):
+        assert modelo in menu.group(0), modelo
+    assert 'data-requer="ligada"' in menu.group(0) and 'data-requer="desligada"' in menu.group(0)
+    assert "data-acionar" in menu.group(0)
+    assert len(re.findall(r'role="group"', menu.group(0))) == 3
+
+
+@pytest.mark.parametrize("idioma", ["pt", "en"])
+def test_buscas_sem_o_apagar_em_dois_cliques(painel: Painel, idioma: str) -> None:
+    """O <details> de "Apagar mesmo" saiu: o texto antigo não aparece em nenhum idioma."""
+    r = painel.http.get("/buscas", headers={"Accept-Language": idioma})
+    assert "Apagar mesmo" not in r.text and "Delete it" not in r.text
+
+
 @pytest.mark.parametrize("acao", ["", "/ligar", "/desligar", "/apagar"])
 def test_busca_inexistente_e_404(painel: Painel, acao: str) -> None:
     assert painel.post(f"/buscas/999{acao}", _form()).status_code == 404

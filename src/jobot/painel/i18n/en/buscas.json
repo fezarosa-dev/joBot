@@ -11,8 +11,6 @@
   "buscas.desligar": "Turn off",
   "buscas.desligada": "Off",
   "buscas.apagar": "Delete",
-  "buscas.apagar_aviso": "Delete the search \"{nome}\"? The jobs stay; only its fit scores go away.",
-  "buscas.apagar_confirmar": "Delete it",
   "buscas.regras_desligadas": "Rules turned off",
   "buscas.campo.nome": "Name",
   "buscas.campo.cargos": "Job titles and keywords",
@@ -40,5 +38,10 @@
   "buscas.erro.cidades_n": "Use up to 20 cities.",
   "buscas.erro.cidade": "I did not understand the city \"{linha}\". Write it with a state or country: Curitiba, PR.",
   "buscas.erro.salario": "Invalid salary. Use digits only, with a dot for thousands and a comma for cents: 5.000,50.",
-  "buscas.erro.valor": "That value is outside what the panel accepts. Check the numbers."
+  "buscas.erro.valor": "That value is outside what the panel accepts. Check the numbers.",
+  "buscas.apagar_titulo": "Delete the Search \"{nome}\"?",
+  "buscas.apagar_texto": "Jobs it brought in stay.",
+  "buscas.menu.rotulo": "Search Actions",
+  "buscas.menu.apagar": "Delete…",
+  "buscas.chave_rotulo": "Search \"{nome}\""
 }
