@@ -38,6 +38,7 @@ _BASE: dict[str, Any] = {
     "prazo": None,
     "publicada_em": None,
     "primeira_vista_em": "2026-11-13T12:00:00+00:00",
+    "status_em": None,
     "fechada": False,
     "nova": True,
     "fecha_logo": False,
