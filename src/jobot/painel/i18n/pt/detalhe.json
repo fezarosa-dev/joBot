@@ -9,6 +9,8 @@
   "detalhe.sem_descricao": "Esta vaga não trouxe descrição.",
   "detalhe.candidatar": "Candidatar-se",
   "detalhe.candidatar_nova_aba": "Candidatar-se (abre em nova aba)",
+  "detalhe.abrir_no_site": "Abrir no site",
+  "detalhe.abrir_no_site_nova_aba": "Abrir no site (abre em nova aba)",
   "detalhe.encaixe.nota": "{nota} de 100",
   "detalhe.encaixe.sem_nota": "Sem nota de encaixe para esta busca.",
   "detalhe.estagio.curso": "Curso",

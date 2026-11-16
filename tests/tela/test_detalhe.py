@@ -27,6 +27,8 @@ def app_painel(app_painel: FastAPI) -> FastAPI:
 
 
 def test_abre_o_detalhe_pelo_titulo_do_cartao(page: Page, painel: str) -> None:
+    # abaixo de 640px de miolo a linha leva à página da vaga; mais largo, o detalhe abre ao lado
+    page.set_viewport_size({"width": 600, "height": 900})
     page.goto(painel + "/vagas?aba=todas")
     # a linha da lista é um `<a role="option">` (T254): o nome começa pelo título
     page.get_by_role("option", name=re.compile(r"^Desenvolvedor Python")).click()

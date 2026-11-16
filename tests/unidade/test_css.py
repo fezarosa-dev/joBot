@@ -368,3 +368,14 @@ def test_linha_escolhida_passa_a_cor_a_todo_descendente() -> None:
         if s.startswith(escolhida + " ") and not s.removeprefix(escolhida).lstrip().startswith(">")
     ]
     assert herdam, "a cor da linha escolhida não desce para os descendentes"
+
+
+def test_titulo_do_detalhe_ao_lado_em_titulo_3() -> None:
+    """Desenho 5.2 (Detalhe): o título vai em título 3; a coluna ao lado tem de 320 a 380px."""
+    regras = [
+        r
+        for nome, r in _todas()
+        if nome == "vagas.css" and ".detalhe-lado .titulo-pagina" in _seletores(r)
+    ]
+    assert regras
+    assert [_valor(r, "font") for r in regras] == ["var(--t-title3)"] * len(regras)

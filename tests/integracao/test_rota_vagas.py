@@ -1226,7 +1226,16 @@ def test_linha_e_link_sem_js(painel: Painel) -> None:
     for abertura, dentro in opcoes:
         vaga = re.findall(r'id="vaga-(\d+)"', abertura)[0]
         assert f'href="/vagas/{vaga}"' in abertura
-        assert "hx-" not in abertura and "tabindex" not in abertura  # sem JS, todo link no Tab
+        assert "tabindex" not in abertura  # sem JS, todo link no Tab
+        # T255: com JS a linha abre o detalhe ao lado; o htmx só age por cima do href
+        assert re.findall(r"\b(hx-[a-z-]+)=", abertura) == [
+            "hx-get",
+            "hx-target",
+            "hx-select",
+            "hx-swap",
+            "hx-push-url",
+        ]
+        assert 'hx-target="#detalhe-vaga"' in abertura
         assert "<a" not in dentro and "<button" not in dentro
     vaga = painel.ids["usd"]
     assert painel.get(f"/vagas/{vaga}").status_code == 200
@@ -1335,3 +1344,130 @@ def test_ordem_e_mais_filtros_em_title_case_no_en(painel: Painel) -> None:
     assert "<summary>More Filters</summary>" in html
     assert t("en", "vagas.mais_filtros_n", n=2) == "More Filters (2)"
     assert t("en", "vagas.mais") == "Load More Jobs"
+
+
+# --- T255: o detalhe ao lado da lista (`/vagas?vaga=<id>`) ---
+
+LADO = re.compile(r'(<dialog\b[^>]*\bid="detalhe-vaga"[^>]*>)(.*?)</dialog>', re.S)
+
+
+def _lado(html: str) -> tuple[str, str]:
+    """A abertura e o miolo do `<dialog>` do detalhe: ele existe sempre, aberto ou vazio."""
+    achados = LADO.findall(html)
+    assert len(achados) == 1, f"esperava 1 detalhe ao lado, achou {len(achados)}"
+    abertura, miolo = achados[0]
+    return str(abertura), str(miolo)
+
+
+def test_vaga_na_url_traz_o_detalhe(painel: Painel) -> None:
+    vaga = painel.ids["nova"]
+    url = f"/vagas?aba=todas&ordem=recentes&vaga={vaga}"
+    for resposta in (painel.get(url), painel.get(url, headers=HX)):
+        assert resposta.status_code == 200
+        abertura, miolo = _lado(resposta.text)
+        assert re.search(r"\sopen\b", abertura)
+        assert f'data-vaga="{vaga}"' in abertura
+        assert "Engenheira de Integração" in miolo
+        assert re.search(r"<h2\b[^>]*>Engenheira de Integração</h2>", miolo)  # h1 é o da página
+        linha, _ = _linha(resposta.text, vaga)
+        assert 'aria-selected="true"' in linha
+        outras = [a for a, _ in _opcoes(resposta.text) if f'id="vaga-{vaga}"' not in a]
+        assert outras and all('aria-selected="false"' in a for a in outras)
+    # a linha pede o detalhe por HTMX e guarda aba e ordem no endereço; sem JS, a página da vaga
+    linha, _ = _linha(painel.get("/vagas?aba=todas&ordem=recentes").text, vaga)
+    assert f'href="/vagas/{vaga}"' in linha
+    assert f'hx-get="/vagas?aba=todas&amp;ordem=recentes&amp;vaga={vaga}"' in linha
+    assert 'hx-target="#detalhe-vaga"' in linha
+    assert 'hx-push-url="true"' in linha
+
+
+@pytest.mark.parametrize("valor", ["abc", "999999", "9" * 5000, str(2**63), "0", "-3", ""])
+def test_vaga_invalida_na_url_sem_detalhe(painel: Painel, valor: str) -> None:
+    for cabecalhos in ({}, HX):
+        resposta = painel.get(f"/vagas?aba=todas&vaga={valor}", headers=cabecalhos)
+        assert resposta.status_code == 200
+        assert _cartoes(resposta.text)  # a lista vem inteira
+        abertura, miolo = _lado(resposta.text)
+        assert not re.search(r"\sopen\b", abertura)
+        assert "data-vaga" not in abertura
+        assert miolo.strip() == ""
+        assert 'aria-selected="true"' not in _listbox(resposta.text)[1]
+
+
+def test_detalhe_tem_os_botoes_da_linha(painel: Painel) -> None:
+    vaga = painel.ids["nova"]
+    lista = f"/vagas?aba=todas&vaga={vaga}"
+    _, miolo = _lado(painel.get(lista).text)
+    # Abrir no site: a página da vaga na fonte, em outra aba
+    site = re.search(r"<a\b([^>]*)>Abrir no site</a>", miolo)
+    assert site
+    assert f'href="https://exemplo.test/vagas/{vaga}"' in site.group(1)
+    assert 'target="_blank"' in site.group(1)
+    assert 'rel="noopener noreferrer"' in site.group(1)
+    # as fontes ("via …") e o motivo do encaixe
+    assert 'aria-label="via Remotive' in miolo
+    assert re.search(rf"<h3\b[^>]*>{t('pt', 'detalhe.secao.encaixe')}</h3>", miolo)
+    assert t("pt", "detalhe.encaixe.nota", nota=80) in miolo
+    # Salvar e Ocultar voltam para a mesma vista, com o detalhe aberto
+    status = re.search(rf'<form\b[^>]*action="/vagas/{vaga}/status"[^>]*>(.*?)</form>', miolo, re.S)
+    assert status
+    assert 'name="status" value="salva"' in status.group(1)
+    assert f'name="voltar" value="{escape(lista)}"' in status.group(1)
+    ocultar = re.search(
+        rf'<form\b[^>]*action="/vagas/{vaga}/ocultar"[^>]*>(.*?)</form>', miolo, re.S
+    )
+    assert ocultar
+    assert f'name="voltar" value="{escape(lista)}"' in ocultar.group(1)
+    # salva, o detalhe ao lado oferece o Candidatei
+    salvar = painel.post(f"/vagas/{vaga}/status", status="salva", voltar=lista)
+    assert (salvar.status_code, salvar.headers["location"]) == (303, lista)
+    _, miolo = _lado(painel.get(lista).text)
+    assert (
+        f'value="candidatei" class="secundario">{t("pt", "vagas.acao.para.candidatei")}<' in miolo
+    )
+
+
+def test_pedido_do_detalhe_traz_so_o_dialog(painel: Painel) -> None:
+    """A linha pede só o detalhe (`HX-Target: detalhe-vaga`): o servidor não refaz a lista, os
+    Destaques nem a lateral a cada clique."""
+    vaga = painel.ids["nova"]
+    url = f"/vagas?aba=todas&vaga={vaga}"
+    so_o_lado = {**HX, "HX-Target": "detalhe-vaga"}
+    resposta = painel.get(url, headers=so_o_lado)
+    assert resposta.status_code == 200
+    abertura, miolo = _lado(resposta.text)
+    assert f'data-vaga="{vaga}"' in abertura
+    assert re.search(r"<h2\b[^>]*>Engenheira de Integração</h2>", miolo)
+    assert 'id="lista-vagas"' not in resposta.text
+    assert "hx-swap-oob" not in resposta.text
+    # controle: o mesmo pedido de outro alvo traz o miolo inteiro
+    assert 'id="lista-vagas"' in painel.get(url, headers=HX).text
+    # vaga torta no pedido do detalhe: o dialog vazio, nunca 500
+    torta = painel.get("/vagas?aba=todas&vaga=abc", headers=so_o_lado)
+    assert torta.status_code == 200
+    abertura, miolo = _lado(torta.text)
+    assert "data-vaga" not in abertura
+    assert miolo.strip() == ""
+
+
+def test_detalhe_pelo_clique_usa_a_moeda_de_exibicao(painel: Painel) -> None:
+    """O detalhe pedido só (o clique na linha) converte na moeda escolhida, igual à página cheia."""
+    _em_euro(painel)
+    url = f"/vagas?aba=todas&vaga={painel.ids['usd']}"
+    convertido = r"≈ € 4\.520/mês · US\$ 1 = € 0,904 \(PTAX de 12/11\)"
+    for cabecalhos in ({}, {**HX, "HX-Target": "detalhe-vaga"}):
+        _, miolo = _lado(painel.get(url, headers=cabecalhos).text)
+        assert re.search(convertido, miolo)
+        assert "≈ R$" not in miolo
+
+
+def test_lista_vazia_com_vaga_na_url_traz_o_detalhe(painel: Painel) -> None:
+    """O dialog existe mesmo sem linhas: a vaga da URL abre, e o alvo do htmx não some."""
+    vaga = painel.ids["nova"]
+    for cabecalhos in ({}, HX):
+        resposta = painel.get(f"/vagas?aba=todas&q=zzqxnadaqui&vaga={vaga}", headers=cabecalhos)
+        assert resposta.status_code == 200
+        assert not _cartoes(resposta.text)
+        abertura, miolo = _lado(resposta.text)
+        assert f'data-vaga="{vaga}"' in abertura
+        assert "Engenheira de Integração" in miolo
