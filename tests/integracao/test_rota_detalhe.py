@@ -145,6 +145,18 @@ def test_botao_de_candidatura_usa_o_link_da_fonte_sem_mudar(painel: Painel) -> N
     assert "/apply" not in botao
 
 
+def test_link_de_candidatura_tem_data_candidatura(painel: Painel) -> None:
+    vaga = painel.ids["himalayas"]
+    ancora = _ancora(painel.detalhe("himalayas"), 'class="primario"')
+    assert f'data-candidatura="/vagas/{vaga}/candidatura"' in ancora
+    # continua um link normal
+    assert 'href="https://himalayas.app/companies/beta/jobs/42/apply"' in ancora
+    assert 'target="_blank"' in ancora
+    assert 'rel="noopener noreferrer"' in ancora
+    # o link "Abrir no site" não registra candidatura
+    assert "data-candidatura" not in _ancora(painel.detalhe("himalayas"), 'class="secundario"')
+
+
 def test_sem_nenhum_link_http_nao_ha_botao_de_candidatura(painel: Painel) -> None:
     painel.sql(
         "UPDATE ocorrencia SET url = 'ftp://exemplo.test/x' WHERE vaga_id = ?", painel.ids["usd"]
