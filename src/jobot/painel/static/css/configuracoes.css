@@ -551,3 +551,13 @@
 .cartao-site .conta-conferindo {
   margin-block-start: 0.5rem;
 }
+
+/* Gmail (T278): o campo recusado ganha a borda de alerta e a frase logo abaixo; a frase diz o erro,
+   a cor só reforça (E15) */
+.cartao-gmail .campo-texto[aria-invalid="true"] {
+  border-color: var(--alerta);
+}
+
+.cartao-gmail .campo-erro {
+  color: var(--alerta);
+}

@@ -1,7 +1,7 @@
 """O que as rotas do painel leem do sistema: ambiente, executor de comando e plataforma.
 
-O teste troca os sete em `app.state` (`ambiente`, `rodar_comando`, `plataforma`, `cofre`,
-`abrir_processo`, `ler_navegador` e `leitores`); sem troca, vale o real. Os grupos de
+O teste troca os oito em `app.state` (`ambiente`, `rodar_comando`, `plataforma`, `cofre`,
+`abrir_processo`, `ler_navegador`, `leitores` e `abrir_imap`); sem troca, vale o real. Os grupos de
 Configurações moram aqui, abaixo das rotas, porque a lateral também os lê (T265).
 """
 
@@ -14,6 +14,8 @@ from fastapi import Request
 
 from jobot.navegador import abrir, instalador
 from jobot.navegador.janela_comum import AbrirJanela
+from jobot.nucleo import gmail
+from jobot.nucleo.gmail import AbrirImap
 from jobot.nucleo.leitores.base import LeitorComLogin
 from jobot.nucleo.leitores.registro import leitores
 from jobot.sistema import segundo_plano_linux
@@ -38,6 +40,12 @@ def no_linux(request: Request) -> bool:
 def cofre_do_painel(request: Request) -> Cofre:
     cofre: Cofre | None = getattr(request.app.state, "cofre", None)
     return Cofre(request.app.state.banco.parent) if cofre is None else cofre
+
+
+def imap_do_painel(request: Request) -> AbrirImap:
+    """Quem abre a conexão IMAP do Gmail (T278); o teste põe um falso, a rede está fechada."""
+    abrir_imap: AbrirImap | None = getattr(request.app.state, "abrir_imap", None)
+    return gmail.abrir_imap_ssl if abrir_imap is None else abrir_imap
 
 
 def abrir_instalador_do_painel(request: Request) -> AbrirJanela:
@@ -67,12 +75,12 @@ GRUPOS = (
 )
 COM_LOGIN = "contas"
 FERRAMENTAS = "ferramentas"
-SO_COM_LEITOR = (COM_LOGIN, FERRAMENTAS)  # hoje a única ferramenta é o navegador do login
+SO_COM_LEITOR = (FERRAMENTAS,)  # hoje a única ferramenta é o navegador do login
 
 
 def grupos_visiveis(leitores: Sequence[LeitorComLogin]) -> tuple[str, ...]:
-    """Os grupos da página: "Contas" e "Ferramentas" só existem com leitor registrado
-    (D132.23, D137.12)."""
+    """Os grupos da página: "Ferramentas" só existe com leitor registrado (D137.12); "Contas"
+    sempre, porque o Gmail mora lá (E13), mas as ações dos sites pedem leitor (`_exige_leitor`)."""
     return GRUPOS if leitores else tuple(g for g in GRUPOS if g not in SO_COM_LEITOR)
 
 

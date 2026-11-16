@@ -3045,6 +3045,34 @@ Do item 2 (T305 h), aceito e documentado. Sem JavaScript, o detalhe sobreposto f
 
 **Ver também:** T276, E11, E13, E14.
 
+## D169. Cartão do Gmail: frase do cofre, Remover sem JavaScript e troca com o cofre falhando (para confirmar)
+
+**Status:** para confirmar. Decidido pela sessão, com o dono fora. (A D168 fica reservada para a T284.)
+
+**Contexto:** a revisão da T278 (cartão do Gmail na aba Contas) achou três pontos que o plano não fixava:
+
+1. A frase do cofre (`configuracoes.contas.gmail.erro.cofre`) era "O cofre do sistema não respondeu. A senha não foi guardada." e aparecia também quando a leitura falha (abrir a aba, "Conferir agora") e quando o "Remover" falha. Ali ela é falsa ou soa como sucesso.
+2. Sem JavaScript, o "Salvar e conferir" devolvia o pedaço do cartão como página solta, e o "Remover" não fazia nada (botão comum que só abre o alerta).
+3. "Salvar e conferir" com o cofre falhando na segunda gravação apaga as duas partes, e com elas a credencial antiga, que funcionava (E10).
+
+**Escolhas:**
+
+- **Frase do cofre.** A: uma frase só, a de antes, em todo caso. **B (recomendada):** a frase vira neutra ("O cofre do sistema não respondeu." / "The system password vault did not respond.") e o cartão completa conforme a origem: no salvar, "A senha não foi guardada."; no remover, "A senha não foi apagada. Tente de novo." / "The password was not removed. Try again."; na leitura, só a neutra.
+- **Sem JavaScript.** A: deixar como estava. **B (recomendada):** como o "Esquecer logins" (D165, T307, T310): sem `HX-Request` as três rotas respondem 303 para `/configuracoes/contas` com `?salvo=1` ou `?erro=<código>` de uma lista fechada (`_ERROS_DO_GMAIL` em `painel/rotas/gmail.py`), e o cartão mostra a mesma frase que mostraria com JavaScript. O "Remover" vira um formulário GET para `/configuracoes/gmail/remover/confirmar`, que mostra a pergunta em `confirmar.html`; o POST fica só no alerta e nessa página. O "Conferir agora" ganhou também um formulário POST, para funcionar sem JavaScript. O endereço digitado não volta no campo depois do 303 sem JavaScript.
+- **Troca da credencial com o cofre falhando.** **A (recomendada, a de agora):** apagar as duas partes, como a E10 manda: nunca sobra meia credencial, e a pessoa perde a antiga e precisa salvar de novo. B: apagar só quando o par ficou inconsistente (a senha nova gravou e o endereço não), mantendo a antiga quando a primeira gravação já falhou; mais ramos e mais testes, e o par antigo pode não combinar com o que a pessoa acabou de digitar.
+
+**Escolha do redator (T278, para confirmar):** B, B e A. O "Remover" aparece com qualquer pedaço da credencial no cofre ou com o cofre em falha, e só o "Conferir agora" pede a credencial inteira: um `apagar` que sai pela metade nunca deixa senha sem jeito de tirá-la.
+
+**Complemento (2ª revisão):** na troca com o cofre falhando, o `apagar` também pode falhar: ficam a senha nova e o endereço antigo, e o cartão não pode dizer "Conectado" nem "A senha não foi guardada". Nesse caso mostra o "não foi apagada" (código `gmail_cofre_troca`, o "Remover" segue à mão) e uma sessão `conectado` passa a `nao_conferiu` (`erro`). Se o `apagar` deu certo, a credencial sumiu e a sessão existente vira `precisa_entrar`/`esquecido`, como no "Remover", para a faixa do topo não sobrar com o cartão em "Nunca entrou". Sem JavaScript, só o "Salvar" e o "Remover" voltam com `?salvo=1`; o "Conferir agora" volta sem sufixo, para não dizer "Salvo." sobre uma queda.
+
+**Recomendação:** B, B e A. A frase diz só o que aconteceu; sem JavaScript as ações seguem o padrão do painel; e a regra da E10 continua simples.
+
+**O que o dono faz:** confirmar as três escolhas ou trocar alguma. Nada a fazer na máquina.
+
+**Como desfazer:** frase: voltar `erro.cofre` ao texto antigo, tirar `erro.nao_apagou` e o `falhou_cofre` por origem do `_cartao_gmail.html`, e ajustar `test_gmail_tem_texto`, `test_remover_cofre_falha_nao_grava` e `test_leitura_do_cofre_falhando_no_get`. Sem JavaScript: tirar o 303 de `_responder`, a rota `GET /remover/confirmar` e os formulários do cartão, e os testes `test_sem_js_*`, `test_erro_do_gmail_na_url_e_lista_fechada` e `test_remover_sem_js_pergunta_numa_pagina`. Troca com o cofre falhando (B): em `salvar`, apagar só se a senha nova gravou e o endereço não, com um teste por ramo. Nenhum dado muda.
+
+**Ver também:** T278, E10, E12, E13, D165, T307, T310.
+
 ## D170. A lista depois da faixa "Você se candidatou?" (para confirmar)
 
 **Status:** para confirmar. Decidido pela sessão, com o dono fora.

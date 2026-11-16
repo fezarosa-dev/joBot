@@ -235,9 +235,9 @@ def test_grupo_desconhecido_da_404(painel: Painel) -> None:
     assert painel.post("/configuracoes/nada").status_code == 404
 
 
-@pytest.mark.parametrize("grupo", ["contas", "ferramentas"])
-def test_grupo_sumido_vai_para_geral(painel: Painel, grupo: str) -> None:
+def test_grupo_sumido_vai_para_geral(painel: Painel) -> None:
     """Grupo guardado pelo navegador que sem leitor não existe mais cai em Geral, não em 404."""
+    grupo = "ferramentas"
     assert painel.get(f"/configuracoes/{grupo}").status_code == 200  # controle: com leitor existe
     painel.app.state.leitores = ()
     resposta = painel.get(f"/configuracoes/{grupo}")
@@ -245,6 +245,16 @@ def test_grupo_sumido_vai_para_geral(painel: Painel, grupo: str) -> None:
     assert painel.get(GERAL).status_code == 200
     # só o GET redireciona: gravar num grupo que não existe continua 404
     assert painel.post(f"/configuracoes/{grupo}").status_code == 404
+
+
+def test_contas_visivel_sem_leitor(painel: Painel) -> None:
+    """E13: "Contas" fica nas abas sem leitor (o Gmail mora lá); "Ferramentas" some."""
+    painel.app.state.leitores = ()
+    resposta = painel.get("/configuracoes/contas")
+    assert resposta.status_code == 200
+    abas = re.findall(r'href="(/configuracoes/[^"]+)"', painel.get(GERAL).text)
+    assert "/configuracoes/contas" in abas
+    assert "/configuracoes/ferramentas" not in abas
 
 
 @pytest.mark.parametrize("leitores", [None, ()])
