@@ -10,12 +10,13 @@
 body {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  grid-template-rows: auto auto auto auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto auto auto auto minmax(0, 1fr);
   grid-template-areas:
     "lateral topo"
     "lateral erro"
     "lateral versao"
     "lateral contas"
+    "lateral candidatura"
     "lateral desfazer"
     "lateral coluna";
   block-size: 100vh;
@@ -49,6 +50,10 @@ body {
 
 #aviso-contas {
   grid-area: contas;
+}
+
+#aviso-candidatura {
+  grid-area: candidatura;
 }
 
 #faixa-desfazer {
@@ -178,6 +183,7 @@ body {
 [data-icone="hourglass"] { --icone: url("/static/icones/hourglass.svg"); }
 [data-icone="bookmark"] { --icone: url("/static/icones/bookmark.svg"); }
 [data-icone="send"] { --icone: url("/static/icones/send.svg"); }
+[data-icone="circle-help"] { --icone: url("/static/icones/circle-help.svg"); }
 [data-icone="graduation-cap"] { --icone: url("/static/icones/graduation-cap.svg"); }
 [data-icone="eye-off"] { --icone: url("/static/icones/eye-off.svg"); }
 [data-icone="search"] { --icone: url("/static/icones/search.svg"); }
@@ -263,12 +269,14 @@ body {
 
 /* faixas logo abaixo da barra; vazias, não ocupam altura */
 #aviso-versao,
-#aviso-contas {
+#aviso-contas,
+#aviso-candidatura {
   padding-inline: var(--espaco);
 }
 
 .aviso-versao,
-.aviso-contas {
+.aviso-contas,
+.aviso-candidatura {
   margin-block: 12px 0;
   margin-inline: 0;
   padding-block: 8px;
@@ -282,6 +290,39 @@ body {
 
 .aviso-contas {
   border-color: var(--alerta);
+}
+
+/* faixa "Você se candidatou?" (T285): a mesma caixa das outras; o campo escondido `mostrando` fica
+   sempre lá, então a faixa vazia não tem altura por não ter caixa, não por `:empty` */
+.aviso-candidatura,
+.aviso-candidatura .pergunta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.aviso-candidatura .pergunta {
+  flex: 1;
+}
+
+.aviso-candidatura p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.aviso-candidatura > p,
+.aviso-candidatura .pergunta-texto {
+  flex: 1;
+  min-inline-size: 12em;
+}
+
+.aviso-candidatura .pergunta-quando {
+  color: var(--texto-2);
+}
+
+.aviso-candidatura form {
+  display: contents;
 }
 
 #aviso-erro:not([hidden]) {

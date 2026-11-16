@@ -124,16 +124,24 @@ async def exigir_csrf(request: Request) -> None:
         raise HTTPException(403, detail=t(idioma_do_pedido(request), "seguranca.recarregue"))
 
 
+def caminho_do_painel(voltar: str) -> str:
+    """Caminho e consulta de `voltar` se for caminho do próprio painel; senão, `/` (E21).
+
+    Sem esquema, sem host, começa com `/`, não com `//`, e sem `\\` (sem open redirect).
+    """
+    partes = urlsplit(voltar)  # o urlsplit já tira tab e quebra de linha, como o navegador
+    local = not partes.scheme and not partes.netloc and partes.path.startswith("/")
+    if not local or partes.path.startswith("//") or "\\" in partes.path:
+        return "/"
+    return urlunsplit(("", "", partes.path, partes.query, ""))
+
+
 def de_volta(voltar: str) -> RedirectResponse:
     """Volta para a página de onde veio, só se for caminho do próprio painel (sem open redirect).
 
     O `Referrer-Policy: no-referrer` tira o `Referer`, por isso a página manda `voltar`.
     """
-    partes = urlsplit(voltar)  # o urlsplit já tira tab e quebra de linha, como o navegador
-    local = not partes.scheme and not partes.netloc and partes.path.startswith("/")
-    if not local or partes.path.startswith("//") or "\\" in partes.path:
-        return RedirectResponse("/", status_code=303)
-    return RedirectResponse(urlunsplit(("", "", partes.path, partes.query, "")), status_code=303)
+    return RedirectResponse(caminho_do_painel(voltar), status_code=303)
 
 
 def renderizar(request: Request, modelo: str, **ctx: Any) -> HTMLResponse:

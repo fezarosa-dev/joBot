@@ -95,6 +95,8 @@ ICONES = (
     "search-x", "log-out",
     # encaixe da linha, do cartão e do detalhe (T301)
     "circle", "contrast",
+    # faixa "Você se candidatou?" (T285, E12)
+    "circle-help",
 )  # fmt: skip
 
 
@@ -120,7 +122,7 @@ def test_icones_tem_licenca() -> None:
 
 
 def test_icones_do_mapa_existem() -> None:
-    assert len(ICONES) == 37
+    assert len(ICONES) == 38
     faltam = [n for n in ICONES if not (ICONES_DIR / f"{n}.svg").is_file()]
     assert faltam == []
 
