@@ -1634,3 +1634,82 @@ def test_ocultar_repetido_nao_troca_a_faixa(painel: Painel) -> None:
         ("mostrou",),
         ("ocultou",),
     ]
+
+
+# --- T257: o menu de contexto da vaga (desenho 5.4, D143.39) ---
+
+MENU_ABERTURA = re.compile(r'<div\b[^>]*\bid="menu-vaga"[^>]*>')
+MENU_ITENS = {
+    "pt": ("Abrir", "Abrir no site da vaga", "Salvar", "Ocultar", "Copiar link"),
+    "en": ("Open", "Open on Job Site", "Save", "Hide", "Copy Link"),
+}
+
+
+def _menu(html: str) -> tuple[str, str]:
+    """A abertura do menu da vaga e o que vem até a região do aviso de "Copiar link"."""
+    achados = MENU_ABERTURA.findall(html)
+    assert len(achados) == 1, f"esperava 1 menu da vaga, achou {len(achados)}"
+    inicio = html.index(achados[0]) + len(achados[0])
+    return achados[0], html[inicio : html.index('id="menu-vaga-aviso"', inicio)]
+
+
+@pytest.mark.parametrize("idioma", ["pt", "en"])
+def test_menu_de_contexto_vem_renderizado(painel: Painel, idioma: str) -> None:
+    """Um menu só na página (não um por linha), escondido até abrir, com as cinco ações do
+    detalhe; cada linha leva o que o app.js põe no menu ao abrir."""
+    cab = {"Accept-Language": idioma}
+    html = painel.get("/vagas?aba=todas", headers=cab).text
+    abertura, corpo = _menu(html)
+    assert html.count('role="menu"') == 1 and len(_opcoes(html)) == 7
+    assert re.search(r'\spopover[\s>="]', abertura) and not re.search(r"\sopen\b", abertura)
+    assert 'role="menu"' in abertura and "data-menu-contexto" in abertura
+    assert f'aria-label="{t(idioma, "vagas.menu.rotulo")}"' in abertura
+    # as cinco ações, em três grupos, sem atalho escrito
+    textos = re.findall(r'role="menuitem"[^>]*>([^<]+)<', corpo)
+    assert textos == list(MENU_ITENS[idioma])
+    assert corpo.count('role="group"') == 3
+    assert "<kbd" not in corpo
+    # links: a vaga no painel e a vaga na fonte (outra aba)
+    assert re.search(r'<a\b[^>]*data-modelo-href="/vagas/\{id\}"[^>]*data-abrir', corpo)
+    site = re.search(r'<a\b([^>]*data-modelo-href="\{site\}"[^>]*)>', corpo)
+    assert site
+    assert 'data-requer="site"' in site.group(1)
+    assert 'target="_blank"' in site.group(1) and 'rel="noopener noreferrer"' in site.group(1)
+    # Salvar e Ocultar são os formulários do detalhe, com o token; o Ocultar vai por HTMX e traz
+    # a faixa de desfazer, como no detalhe ao lado (T256)
+    forms = dict(
+        (acao, (attrs, dentro))
+        for attrs, dentro in re.findall(r"<form\b([^>]*)>(.*?)</form>", corpo, re.S)
+        for acao in re.findall(r'data-modelo-acao="([^"]+)"', attrs)
+    )
+    assert set(forms) == {"/vagas/{id}/status", "/vagas/{id}/ocultar"}
+    for attrs, dentro in forms.values():
+        assert 'method="post"' in attrs
+        assert f'name="{CAMPO_CSRF}" value="{painel.token}"' in dentro
+        assert 'name="voltar"' in dentro and 'name="busca"' in dentro
+    status_attrs, status_dentro = forms["/vagas/{id}/status"]
+    assert 'data-requer="salvar"' in status_attrs and "hx-post" not in status_attrs
+    assert 'name="status" value="salva"' in status_dentro
+    ocultar_attrs, _ = forms["/vagas/{id}/ocultar"]
+    assert 'data-requer="ocultar"' in ocultar_attrs
+    assert 'hx-post="' in ocultar_attrs
+    assert 'hx-target="this"' in ocultar_attrs and 'hx-swap="none"' in ocultar_attrs
+    # Copiar link: o endereço na fonte, com o aviso curto numa região viva
+    copiar = re.search(r'<button\b([^>]*data-modelo-copiar="\{site\}"[^>]*)>', corpo)
+    assert copiar and 'data-requer="site"' in copiar.group(1)
+    assert f'data-copiado="{t(idioma, "vagas.menu.copiado")}"' in copiar.group(1)
+    assert f'data-nao-copiou="{t(idioma, "vagas.menu.nao_copiou")}"' in copiar.group(1)
+    assert re.search(r'<div\b[^>]*id="menu-vaga-aviso"[^>]*role="status"', html)
+    # a linha diz o que o menu oferece: Salvar só a nova, Ocultar só a visível, site só http
+    nova, _ = _linha(html, painel.ids["nova"])
+    assert 'data-menu="menu-vaga"' in nova and f'data-id="{painel.ids["nova"]}"' in nova
+    assert f'data-site="https://exemplo.test/vagas/{painel.ids["nova"]}"' in nova
+    assert "data-salvar" in nova and "data-ocultar" in nova
+    salvas = painel.get("/vagas?aba=salvas", headers=cab).text
+    salva, _ = _linha(salvas, painel.ids["fechada_salva"])
+    assert "data-salvar" not in salva and "data-ocultar" in salva
+    ocultas = painel.get("/vagas?aba=ocultas", headers=cab).text
+    oculta, _ = _linha(ocultas, painel.ids["oculta_manual"])
+    assert 'data-menu="menu-vaga"' in oculta and "data-ocultar" not in oculta
+    # a troca do miolo por HTMX não traz outro menu: ele mora fora do #vagas-miolo
+    assert 'role="menu"' not in painel.get("/vagas?aba=novas", headers={**cab, **HX}).text

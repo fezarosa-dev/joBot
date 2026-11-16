@@ -389,8 +389,214 @@
     // a faixa recém-chegada só ganha os hx-* no settle; processar antes (o htmx ignora o que já
     // processou) evita que o ⌘Z dessa janela vire POST nativo
     htmx.process(botao.form);
+    // com o menu aberto, ele fecha antes: Refazer pode tirar a linha dele sem `htmx:beforeSwap`
+    fecharMenu(false);
     botao.click();
   });
+
+  // menu de contexto (T257; desenho 5.4): um <div popover role="menu"> por página
+  // (_menu_contexto.html), preenchido com os data-* do alvo ao abrir. Botão direito abre no
+  // ponteiro; a tecla de menu e Shift+F10, no alvo focado. Setas movem, Esc e Tab fecham e o foco
+  // volta ao alvo; clique fora (o popover fecha sozinho), rolagem, janela nova ou troca do htmx
+  // fecham também. O que cada item faz é o link ou o form dele: o menu não tem ação própria.
+  let menuAberto = null;
+  let alvoMenu = null;
+  let abertoPeloTeclado = null;
+  let ondeEstavaOAlvo = "";
+  const posicaoDe = (no) => {
+    const caixa = no.getBoundingClientRect();
+    return `${caixa.left},${caixa.top}`;
+  };
+  const itensDoMenu = (no) =>
+    [...no.querySelectorAll('[role="menuitem"]')].filter((item) => !item.closest("[hidden]"));
+  const preencher = (modelo, alvo) => modelo.replace(/\{(\w+)\}/g, (_, campo) => alvo.dataset[campo] ?? "");
+  const esquecerMenu = () => {
+    menuAberto = null;
+    alvoMenu = null;
+    abertoPeloTeclado = null;
+  };
+  const fecharMenu = (devolverFoco) => {
+    const menu = menuAberto;
+    const alvo = alvoMenu;
+    if (!menu) return;
+    esquecerMenu();
+    if (menu.matches(":popover-open")) menu.hidePopover();
+    if (devolverFoco && alvo?.isConnected) alvo.focus({ preventScroll: true });
+  };
+  // o ponteiro dá a posição em coordenadas físicas; sem espaço à direita ou embaixo, o menu
+  // encosta na borda da janela ou abre para cima (acima de `yAcima`), como no Mac
+  const posicionar = (menu, x, y, yAcima) => {
+    menu.style.setProperty("--menu-x", `${x}px`); // CSSOM: o CSP não barra
+    menu.style.setProperty("--menu-y", `${y}px`);
+    const caixa = menu.getBoundingClientRect();
+    const { clientWidth: largura, clientHeight: altura } = document.documentElement;
+    if (caixa.right > largura) menu.style.setProperty("--menu-x", `${Math.max(0, largura - caixa.width)}px`);
+    if (caixa.bottom > altura) menu.style.setProperty("--menu-y", `${Math.max(0, yAcima - caixa.height)}px`);
+  };
+  const abrirMenu = (alvo, x, y, yAcima, peloTeclado) => {
+    const menu = document.getElementById(alvo.dataset.menu);
+    if (!menu?.matches("[data-menu-contexto]")) return false;
+    // a HIG esconde o item que não vale para este alvo (não o apaga); grupo vazio some junto
+    for (const no of menu.querySelectorAll("[data-requer]")) no.hidden = !(no.dataset.requer in alvo.dataset);
+    for (const grupo of menu.querySelectorAll('[role="group"]')) {
+      grupo.hidden = false;
+      grupo.hidden = itensDoMenu(grupo).length === 0;
+    }
+    for (const link of menu.querySelectorAll("[data-modelo-href]")) link.href = preencher(link.dataset.modeloHref, alvo);
+    for (const form of menu.querySelectorAll("form[data-modelo-acao]")) {
+      const acao = preencher(form.dataset.modeloAcao, alvo);
+      form.setAttribute("action", acao);
+      if (form.hasAttribute("hx-post")) form.setAttribute("hx-post", acao);
+      // como a faixa: a página de agora como `voltar` e a busca dela
+      const { voltar, busca } = form.elements;
+      if (voltar) voltar.value = location.pathname + location.search;
+      if (busca) busca.value = new URLSearchParams(location.search).get("busca") ?? "";
+    }
+    htmx.process(menu); // o htmx refaz o form cujo hx-post mudou
+    menuAberto = menu;
+    alvoMenu = alvo;
+    abertoPeloTeclado = peloTeclado ? alvo : null;
+    ondeEstavaOAlvo = posicaoDe(alvo);
+    if (!menu.matches(":popover-open")) menu.showPopover();
+    posicionar(menu, x, y, yAcima);
+    // pelo teclado, o primeiro item já vem realçado; pelo ponteiro, nenhum (como no Mac)
+    const primeiro = itensDoMenu(menu)[0];
+    (peloTeclado && primeiro ? primeiro : menu).focus({ preventScroll: true });
+    return true;
+  };
+  document.addEventListener(
+    "toggle",
+    (evento) => {
+      if (evento.target === menuAberto && evento.newState === "closed") esquecerMenu();
+    },
+    true,
+  );
+  // o botão direito do Mac escolhe a palavra no mousedown: o que estava escolhido é lido antes
+  let haviaSelecao = false;
+  document.addEventListener(
+    "pointerdown",
+    (evento) => {
+      const selecao = getSelection();
+      haviaSelecao = evento.button === 2 && !!selecao && !selecao.isCollapsed && selecao.toString().trim() !== "";
+    },
+    true,
+  );
+  document.addEventListener("contextmenu", (evento) => {
+    if (evento.target.closest?.("[data-menu-contexto]")) {
+      evento.preventDefault();
+      return;
+    }
+    const alvo = evento.target.closest?.("[data-menu]");
+    if (!alvo) return;
+    // a tecla de menu de alguns navegadores ainda manda um contextmenu: o menu já está aberto
+    if (abertoPeloTeclado === alvo && menuAberto) {
+      evento.preventDefault();
+      return;
+    }
+    // texto escolhido ou um link de dentro do alvo são outro objeto: o menu do navegador cuida
+    // (Copiar, Abrir link), como a HIG pede para o menu falar do que está sob o ponteiro
+    const selecao = getSelection();
+    if (haviaSelecao && selecao && !selecao.isCollapsed && selecao.containsNode(alvo, true)) return;
+    const link = evento.target.closest("a[href]");
+    if (link && link !== alvo) return;
+    if (abrirMenu(alvo, evento.clientX, evento.clientY, evento.clientY, false)) evento.preventDefault();
+  });
+  document.addEventListener("keydown", (evento) => {
+    const pediu = evento.key === "ContextMenu" || (evento.key === "F10" && evento.shiftKey);
+    if (!pediu || evento.ctrlKey || evento.metaKey || evento.altKey) return;
+    const alvo = evento.target;
+    if (!alvo.matches?.("[data-menu]")) return;
+    const caixa = alvo.getBoundingClientRect();
+    if (abrirMenu(alvo, caixa.left, caixa.bottom, caixa.top, true)) evento.preventDefault();
+  });
+  // dentro do menu, na captura: o Esc não chega ao detalhe nem à lateral, as setas não rolam a página
+  document.addEventListener(
+    "keydown",
+    (evento) => {
+      const menu = menuAberto;
+      const ativo = document.activeElement;
+      if (!menu || !menu.contains(ativo) || evento.ctrlKey || evento.metaKey || evento.altKey) return;
+      const itens = itensDoMenu(menu);
+      const i = itens.indexOf(ativo);
+      let destino = null;
+      if (evento.key === "ArrowDown") destino = itens[(i + 1) % itens.length];
+      else if (evento.key === "ArrowUp") destino = itens[(i <= 0 ? itens.length : i) - 1];
+      else if (evento.key === "Home") destino = itens[0];
+      else if (evento.key === "End") destino = itens[itens.length - 1];
+      // o Tab fecha o menu e volta à linha que o abriu (o desenho diz "o Tab sai"); o próximo Tab
+      // segue a ordem normal a partir dela
+      else if (evento.key === "Escape" || evento.key === "Tab") fecharMenu(true);
+      else if (evento.key === " " && ativo.matches("a[role='menuitem']")) ativo.click();
+      else return;
+      evento.preventDefault();
+      evento.stopPropagation();
+      destino?.focus({ preventScroll: true });
+    },
+    true,
+  );
+  // o ponteiro realça o item sob ele (o foco é o realce) e, ao sair, nenhum
+  document.addEventListener("pointerover", (evento) => {
+    const item = evento.target.closest?.('[data-menu-contexto] [role="menuitem"]');
+    if (item && item.closest("[data-menu-contexto]") === menuAberto) item.focus({ preventScroll: true });
+  });
+  document.addEventListener("pointerout", (evento) => {
+    const item = evento.target.closest?.('[data-menu-contexto] [role="menuitem"]');
+    if (item && document.activeElement === item && !item.contains(evento.relatedTarget)) {
+      menuAberto?.focus({ preventScroll: true });
+    }
+  });
+  const copiarLink = async (menu, item, endereco) => {
+    let copiou = false;
+    try {
+      await navigator.clipboard.writeText(endereco); // sem clipboard (navegador antigo) cai no catch
+      copiou = endereco !== "";
+    } catch {
+      copiou = false;
+    }
+    const aviso = document.getElementById(`${menu.id}-aviso`);
+    if (!aviso) return;
+    const texto = document.createElement("p");
+    texto.dataset.someSozinho = "";
+    texto.textContent = copiou ? item.dataset.copiado : item.dataset.naoCopiou;
+    aviso.replaceChildren(texto);
+    agendarSumico();
+  };
+  document.addEventListener("click", (evento) => {
+    const item = evento.target.closest?.('[data-menu-contexto] [role="menuitem"]');
+    if (!item || item.closest("[data-menu-contexto]") !== menuAberto) return;
+    const menu = menuAberto;
+    const alvo = alvoMenu;
+    // o alvo saiu da página por um caminho que o menu não viu: fecha sem agir (nem o form nem o link)
+    if (!alvo?.isConnected) {
+      evento.preventDefault();
+      fecharMenu(false);
+      return;
+    }
+    // o form e o link seguem sozinhos (o form ainda está na página depois de o menu fechar)
+    fecharMenu(true);
+    if (item.matches("[data-abrir]")) {
+      // Abrir é o clique na própria linha: detalhe ao lado ou página, quem decide é a linha
+      evento.preventDefault();
+      alvo?.click();
+    } else if (item.matches("[data-modelo-copiar]") && alvo) {
+      copiarLink(menu, item, preencher(item.dataset.modeloCopiar, alvo));
+    }
+  });
+  // rolar fecha o menu; o aviso de rolagem chega no quadro seguinte, então a rolagem que veio antes
+  // de abrir (o foco do mousedown traz a linha para a vista) não conta: só fecha se o alvo andou
+  document.addEventListener(
+    "scroll",
+    (evento) => {
+      if (!menuAberto || menuAberto.contains(evento.target)) return;
+      if (posicaoDe(alvoMenu) !== ondeEstavaOAlvo) fecharMenu(true);
+    },
+    true,
+  );
+  window.addEventListener("resize", () => fecharMenu(true));
+  document.addEventListener("htmx:beforeSwap", (evento) => {
+    if (alvoMenu && evento.detail.target?.contains(alvoMenu)) fecharMenu(false);
+  });
+  document.addEventListener("htmx:beforeHistorySave", () => fecharMenu(false));
 
   // barra lateral (T251; desenho 5.2). O estado fica no <html data-lateral>, que a troca do body pelo
   // histórico não apaga: "aberta" (padrão), "recolhida" (janela larga, a pessoa escondeu) e
