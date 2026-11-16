@@ -26,6 +26,7 @@ from apoio.semear import inserir_vaga
 from apoio.site_falso import LeitorFalso
 from jobot.banco import buscas, cadastros
 from jobot.banco.conexao import abrir
+from jobot.banco.execucoes import abrir_execucao
 from jobot.banco.migrar import migrar
 from jobot.nucleo.modelo import Busca, Local, Modalidade, Nivel
 from jobot.painel.app import criar_app
@@ -1012,6 +1013,20 @@ def test_assistente_sem_botoes_da_barra(cenario: Cenario, url: str) -> None:
     assert "<aside" not in html
     assert "/buscar-agora" not in html and 'action="/sair"' not in html
     assert 'id="andamento"' not in html
+
+
+def test_pronto_usa_o_componente_da_barra(cenario: Cenario) -> None:
+    """A primeira busca usa o componente da casca (T252), sem cópia na página (T266; D143.69)."""
+    cenario.post(PASSO_2, {"segundo_plano": "desligar"})
+    with closing(abrir(cenario.banco)) as con:
+        assert (
+            abrir_execucao(con, "busca", "agenda", datetime(2026, 11, 13, tzinfo=UTC)) is not None
+        )
+    html = cenario.get(f"{PASSO_2}?feito=1").text
+    assert html.count("progressbar") == 0  # sem barra própria: a da casca vem por HTMX
+    assert 'hx-get="/execucao/atual?so_rodando=1"' in html.split("</header>")[0]
+    fragmento = cenario.get("/execucao/atual?so_rodando=1", headers={"HX-Request": "true"}).text
+    assert fragmento.count('role="progressbar"') == 1  # um só componente na página
 
 
 def test_tudo_pronto_mostra_buscar_agora_na_barra(cenario: Cenario) -> None:

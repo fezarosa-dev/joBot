@@ -32,6 +32,7 @@
   "execucao.etapa.regras": "Atualizando as vagas com as regras novas",
   "execucao.etapa.cotacoes": "Convertendo os salários",
   "execucao.etapa.encaixe": "Comparando as vagas com as suas buscas",
+  "execucao.etapa.esquecer": "Apagando os logins guardados",
   "execucao.etapa.fila": "Na fila",
   "execucao.etapa.lendo": "Lendo",
   "execucao.etapa.pronto": "Pronto",

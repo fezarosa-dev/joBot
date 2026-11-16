@@ -4,12 +4,13 @@ logins" confirma na própria página (T219).
 Nenhum navegador de verdade abre aqui: o painel só lê o que o teste põe em `app.state`.
 """
 
+import re
 from contextlib import closing
 from pathlib import Path
 
 import pytest
 from fastapi import FastAPI
-from playwright.sync_api import Locator, Page, expect
+from playwright.sync_api import Locator, Page, Route, expect
 
 from apoio.site_falso import LeitorFalso
 from jobot.banco import cadastros
@@ -119,4 +120,65 @@ def test_esquecer_logins_confirma_pelo_alerta(page: Page, painel: str, tmp_path:
     assert resposta.value.status == 200
     expect(page.get_by_text("Logins apagados.")).to_be_visible()
     expect(page.get_by_role("alertdialog")).to_have_count(0)
+    assert not perfil.exists()
+
+
+# a animação do limiar de 1 s (`andamento-entrar`, a mesma do envoltório do andamento) anda no
+# relógio do navegador, que `page.clock` não move: o teste a põe parada em `ms` e devolve o nome e
+# o atraso de cada animação do componente
+POSICIONAR_ANIMACAO = """(ms) => [...document.querySelector("#esquecer-progresso").getAnimations()]
+  .map((a) => {
+    a.pause();
+    a.currentTime = ms;
+    return [a.animationName, a.effect.getTiming().delay];
+  })"""
+
+
+# congela a animação no instante em que ela nasce (a classe `htmx-request` entra no componente),
+# antes de qualquer passo do teste: sem isso, num runner lento o atraso de 1 s corre em tempo real
+# durante o clique e a espera por polling, e o `fill` só `backwards` a tira de `getAnimations()`
+CONGELAR_AO_NASCER = """() => {
+  const el = document.querySelector("#esquecer-progresso");
+  new MutationObserver(() => {
+    if (el.classList.contains("htmx-request")) el.getAnimations().forEach((a) => a.pause());
+  }).observe(el, {attributes: true, attributeFilter: ["class"]});
+}"""
+
+
+def test_esquecer_mostra_o_progresso_depois_de_1s(page: Page, painel: str, tmp_path: Path) -> None:
+    perfil = _perfil_com_login(tmp_path)
+    retidas: list[Route] = []
+
+    def segurar(rota: Route) -> None:  # a resposta só sai quando o teste soltar
+        retidas.append(rota)
+
+    page.route(CONFIRMAR, segurar)
+    page.goto(f"{painel}/configuracoes/sites-com-login")
+    espera = page.locator("#esquecer-progresso")
+    barra = espera.get_by_role("progressbar")
+    expect(espera).to_be_hidden()  # sem pedido, nada de barra na página
+    expect(barra).to_have_count(0)
+    page.evaluate(CONGELAR_AO_NASCER)
+
+    page.get_by_role("button", name="Esquecer logins").click()
+    with page.expect_request(CONFIRMAR):
+        page.get_by_role("alertdialog").get_by_role("button", name="Esquecer", exact=True).click()
+    expect(page.get_by_role("alertdialog")).to_be_hidden()  # o véu sai: a barra não fica atrás dele
+
+    # 999 ms depois do pedido: ainda escondido (o limiar é o de 1 s de sempre)
+    assert page.evaluate(POSICIONAR_ANIMACAO, 999) == [["andamento-entrar", 1000]]
+    expect(espera).to_be_hidden()
+    expect(barra).to_have_count(0)
+    # 1 s e um pouco: o componente aparece, indeterminado e com o nome da etapa
+    page.evaluate(POSICIONAR_ANIMACAO, 1001)
+    expect(barra).to_have_count(1)
+    expect(barra).to_be_visible()
+    expect(barra).not_to_have_attribute("aria-valuenow", re.compile(r".*"))
+    expect(espera.get_by_text("Apagando os logins guardados")).to_be_visible()
+    assert (perfil / "Default" / "Cookies").exists()  # a resposta ainda não saiu: nada apagado
+
+    retidas[0].continue_()  # solta a resposta: o texto do resultado entra e o componente some
+    expect(page.get_by_text("Logins apagados.")).to_be_visible()
+    expect(espera).to_be_hidden()
+    expect(barra).to_have_count(0)
     assert not perfil.exists()
