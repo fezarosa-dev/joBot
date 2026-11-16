@@ -492,6 +492,12 @@ def _gravar_detalhe(con: sqlite3.Connection, ocorrencia_id: int, v: VagaColetada
     _retratar(con, vaga_id, v)
 
 
+def tem_para_reprocessar(con: sqlite3.Connection, versao: str) -> bool:
+    """Há vaga aberta com regras de outra versão (o que o `reprocessar` trataria)?"""
+    sql = "SELECT 1 FROM vaga WHERE fechada_em IS NULL AND versao_regras <> ? LIMIT 1"
+    return con.execute(sql, (versao,)).fetchone() is not None
+
+
 def reprocessar(con: sqlite3.Connection, versao: str) -> int:
     """Trata de novo, a partir de `ocorrencia.coletada`, as vagas abertas com regras de outra
     versão. Não mexe nas `_brl`: o passo 5 da execução chama `aplicar_cotacoes` depois."""

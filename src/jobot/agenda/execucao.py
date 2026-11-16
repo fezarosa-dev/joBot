@@ -18,6 +18,7 @@ from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import Literal
 
+from jobot.agenda.andamento import Marcas
 from jobot.banco import execucoes
 from jobot.banco.buscas import paises_das_buscas, recalcular_encaixe, termos_das_buscas
 from jobot.banco.cadastros import empresas_da_coleta, fontes, ler_config, moeda_efetiva
@@ -36,10 +37,11 @@ from jobot.banco.gravacao import (
     gravar_cache_detalhe,
     gravar_escopo,
     reprocessar,
+    tem_para_reprocessar,
 )
 from jobot.nucleo.cambio import buscar_cotacao
 from jobot.nucleo.coletores.base import Coletor, ContextoColeta, LimiteEscopo
-from jobot.nucleo.coletores.executor import SaidaEscopo, rodar
+from jobot.nucleo.coletores.executor import SaidaEscopo, estado_da_fonte, rodar
 from jobot.nucleo.coletores.registro import descobrir
 from jobot.nucleo.http import Bloqueio, ClienteEducado, LimiteAtingido, OrcamentoGasto, Parou429
 from jobot.nucleo.modelo import VagaColetada
@@ -76,21 +78,30 @@ async def executar_busca(
     if execucao_id is None:
         return None
     batimento = asyncio.create_task(manter_batimento(con, execucao_id, relogio))
+    marcas = Marcas(con, execucao_id, relogio)
     try:
+        # lidos uma vez: as etapas fixadas no começo são as que rodam
+        enriquecer = bool(ler_config(con, "enriquecimento_ligado"))
+        converter = bool(ler_config(con, "conversao_moeda_ligada"))
+        pedidas = {"coleta": True, "detalhes": enriquecer, "cotacoes": converter, "encaixe": True}
+        await marcas.comecar([e for e, sim in pedidas.items() if sim])
         todos = descobrir() if coletores is None else coletores
-        saidas = await _coletar(con, execucao_id, cliente, relogio, todos)
-        if ler_config(con, "enriquecimento_ligado"):
-            await _enriquecer(con, cliente, relogio, todos, saidas, inicio)
+        saidas = await _coletar(con, execucao_id, cliente, relogio, todos, marcas)
+        if enriquecer:
+            await _enriquecer(con, cliente, relogio, todos, saidas, inicio, marcas)
+        if _ha_regras_a_reprocessar(con):
+            await marcas.etapa("regras", None, None)
         reprocessar_se_regras_mudaram(con)
         agora = relogio.agora()
         hoje = agora.astimezone().date()  # DP8: o dia é o local
-        await _cotacoes(con, cliente, agora)
-        aplicar_cotacoes(
-            con, conversao_ligada=bool(ler_config(con, "conversao_moeda_ligada")), hoje=hoje
-        )
+        if converter:
+            await _cotacoes(con, cliente, agora, marcas)
+        aplicar_cotacoes(con, conversao_ligada=converter, hoje=hoje)
+        await marcas.etapa("encaixe", None, None)
         # shortcut: recalcula todas as vagas das buscas ativas; trocar pelas mexidas nesta
         # execução se a base crescer a ponto de pesar.
         recalcular_encaixe(con, None, bool(ler_config(con, "regras_ocultar_ligadas")), hoje=hoje)
+        await marcas.etapa("fim", None, None)
     except BaseException as erro:
         interromper(con, execucao_id, erro, relogio.agora())
         raise
@@ -100,6 +111,15 @@ async def executar_busca(
             await batimento
     fechar_execucao(con, execucao_id, relogio.agora())
     return execucao_id
+
+
+def _ha_regras_a_reprocessar(con: sqlite3.Connection) -> bool:
+    """Só serve à marca do progresso: de melhor esforço, a falha vai ao log e segue sem a marca."""
+    try:
+        return tem_para_reprocessar(con, VERSAO_REGRAS)
+    except sqlite3.Error:
+        log.exception("leitura da marca de regras falhou")
+        return False
 
 
 def reprocessar_se_regras_mudaram(con: sqlite3.Connection) -> int:
@@ -113,6 +133,7 @@ async def _coletar(
     cliente: ClienteEducado,
     relogio: Relogio,
     coletores: Mapping[str, Coletor],
+    marcas: Marcas,
 ) -> list[SaidaEscopo]:
     """Passos 2 e 3: coleta, grava cada escopo e marca os escopos extintos."""
     cadastradas = {f.chave: f.ligada for f in fontes(con)}
@@ -130,6 +151,7 @@ async def _coletar(
         tratadas = [tratar(v) for v in saida.resultado.vagas if isinstance(v, VagaColetada)]
         gravar_escopo(con, execucao_id, saida, tratadas, relogio.agora())
         saidas.append(saida)
+        await marcas.consulta_pronta(saida.fonte)
 
     # marcas só da tela de andamento: de melhor esforço, como o batimento; banco travado não
     # derruba a busca (nem troca o CancelledError do `finally` do executor por um grupo de erros)
@@ -138,12 +160,15 @@ async def _coletar(
             execucoes.comecar_fonte(con, execucao_id, fonte, relogio.agora())
         except sqlite3.Error:
             log.exception("marca de começo da fonte %s falhou (execução %s)", fonte, execucao_id)
+        await marcas.fonte_comecou(fonte)
 
     async def ao_terminar_fonte(fonte: str) -> None:
         try:
             execucoes.terminar_fonte(con, execucao_id, fonte, relogio.agora())
         except sqlite3.Error:
             log.exception("marca de fim da fonte %s falhou (execução %s)", fonte, execucao_id)
+        estados = [s.resultado.estado for s in saidas if s.fonte == fonte]
+        await marcas.fonte_terminou(fonte, estado_da_fonte(estados) == "falhou")
 
     enriquecer = bool(ler_config(con, "enriquecimento_ligado"))
     await rodar(
@@ -156,6 +181,8 @@ async def _coletar(
         ao_terminar_escopo=ao_terminar,
         ao_comecar_fonte=ao_comecar,
         ao_terminar_fonte=ao_terminar_fonte,
+        ao_planejar=marcas.planejado,
+        ao_esperar=marcas.esperando,
         max_detalhes_por_fonte=MAX_DETALHES_POR_FONTE if enriquecer else 0,
     )
     agora = relogio.agora()
@@ -175,6 +202,7 @@ async def _enriquecer(
     coletores: Mapping[str, Coletor],
     saidas: list[SaidaEscopo],
     inicio: datetime,
+    marcas: Marcas,
 ) -> None:
     """Passo 4: `detalhar` das vagas ainda sem detalhe, dentro dos limites (DR-70).
 
@@ -189,6 +217,7 @@ async def _enriquecer(
     entre os escopos. 429 no detalhe para só aquele escopo; bloqueio, limite e orçamento param a
     fonte.
     """
+    await marcas.etapa("detalhes", None, None)
     fontes_paradas = {s.fonte for s in saidas if s.resultado.motivo in _PARADAS_DA_FONTE}
     rodaram = {
         (s.fonte, s.escopo)
@@ -221,6 +250,16 @@ async def _enriquecer(
     for c in candidatas_a_detalhe(con, nomes, inicio, relogio):
         if (c.fonte, c.escopo) in rodaram and canonica(c.vaga.url) not in ja_detalhadas:
             candidatas[c.fonte].append((c.ocorrencia_id, c.escopo, c.vaga))
+    # o total é o teto de tentativas: escopo parado ou fonte parada terminam antes dele
+    total = max(
+        0,
+        min(
+            livres_total,
+            sum(min(MAX_DETALHES_POR_FONTE - usados[f], len(c)) for f, c in candidatas.items()),
+        ),
+    )
+    feitas = 0
+    await marcas.etapa("detalhes", feitas, total)
     for fonte, da_fonte in candidatas.items():
         livres = min(MAX_DETALHES_POR_FONTE - usados[fonte], livres_total)
         fila = da_fonte[: max(livres, 0)]
@@ -255,21 +294,26 @@ async def _enriquecer(
                 continue
             finally:
                 gastos += http.pedidos
+                feitas += 1
+                await marcas.etapa("detalhes", feitas, total)
             gravar_cache_detalhe(con, oid, v.url, detalhe, relogio.agora())
 
 
-async def _cotacoes(con: sqlite3.Connection, cliente: ClienteEducado, agora: datetime) -> None:
-    """Passo 5, primeira metade: PTAX das moedas sem cotação do dia, só com a conversão ligada."""
-    if not ler_config(con, "conversao_moeda_ligada"):
-        return
+async def _cotacoes(
+    con: sqlite3.Connection, cliente: ClienteEducado, agora: datetime, marcas: Marcas
+) -> None:
+    """Passo 5, primeira metade: PTAX das moedas sem cotação do dia (quem chama confere se a
+    conversão está ligada)."""
     hoje = agora.astimezone().date()
     http = cliente.escopo(condicional=False)
     moedas = moedas_em_aberto(con)
     exibicao = moeda_efetiva(con)
     if exibicao != "BRL" and exibicao not in moedas:
         moedas = sorted([*moedas, exibicao])
-    for moeda in moedas:
+    await marcas.etapa("cotacoes", 0, len(moedas))
+    for feitas, moeda in enumerate(moedas, 1):
         if not falta_cotacao(con, moeda, agora.astimezone(UTC).date()):
+            await marcas.etapa("cotacoes", feitas, len(moedas))
             continue
         try:
             cotacao = await buscar_cotacao(http, moeda, hoje)
@@ -279,3 +323,5 @@ async def _cotacoes(con: sqlite3.Connection, cliente: ClienteEducado, agora: dat
             log.exception("cotação de %s falhou", moeda)
             if con.in_transaction:
                 con.rollback()
+        finally:
+            await marcas.etapa("cotacoes", feitas, len(moedas))

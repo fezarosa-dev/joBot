@@ -192,6 +192,17 @@ def test_execucao_atual_traz_a_que_roda(con: sqlite3.Connection) -> None:
     assert atual.batimento_em == AGORA + timedelta(minutes=1)
 
 
+def test_desligada_fora_das_prontas(con: sqlite3.Connection) -> None:
+    id_ = abrir_execucao(con, "busca", "agora", AGORA)
+    assert id_ is not None
+    gravar_saude(con, id_, "remotive", "", "ok", vagas=1, pedidos=1)
+    gravar_saude(con, id_, "gupy", "weg", "ok", vagas=1, pedidos=1)
+    gravar_saude(con, id_, "lever", "", "desligada")
+    atual = execucao_atual(con)
+    assert atual is not None
+    assert atual.escopos_prontos == 2
+
+
 def test_execucao_atual_traz_as_fontes_que_comecaram_e_nao_terminaram(
     con: sqlite3.Connection,
 ) -> None:
