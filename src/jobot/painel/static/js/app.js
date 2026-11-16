@@ -880,8 +880,8 @@
     formulario.requestSubmit();
   });
 
-  // alerta (T259; desenho 5.4): o <dialog> de _alerta.html. O botão com data-alerta-abre é o submit
-  // de hoje; com <dialog> aberto por aqui ele vira "abrir o alerta". showModal() deixa o resto da
+  // alerta (T259; desenho 5.4): o <dialog> de _alerta.html. O botão com data-alerta-abre leva à
+  // página de confirmação (T307, form GET); com <dialog> aberto por aqui ele vira "abrir o alerta". showModal() deixa o resto da
   // página inerte e põe o foco no próprio <dialog> (autofocus: Return logo depois não aperta nada).
   // Esc e ⌘. cancelam, o clique no véu não, o Tab não sai e o foco volta ao botão que abriu.
   let abridorDoAlerta = null;
@@ -890,7 +890,7 @@
     const abre = evento.target.closest?.("[data-alerta-abre]");
     if (abre) {
       const alerta = document.getElementById(abre.dataset.alertaAbre);
-      if (!alerta?.showModal || alerta.open) return; // sem <dialog>, o submit de hoje segue
+      if (!alerta?.showModal || alerta.open) return; // sem <dialog>, segue para a página de confirmação
       evento.preventDefault();
       abridorDoAlerta = abre;
       alerta.showModal();
@@ -926,6 +926,12 @@
     },
     true,
   );
+  // o pedido de um alerta com HTMX (Esquecer logins) acabou de sair: o alerta fecha, e o componente
+  // de progresso da página (T266) não fica atrás do véu enquanto a resposta não vem. `beforeSend`
+  // só dispara se nenhum outro tratador cancelou o pedido em `beforeRequest`
+  document.addEventListener("htmx:beforeSend", (evento) => {
+    evento.target.closest?.("dialog[data-alerta]")?.close();
+  });
   // o Esc nativo (cancel) também passa por aqui quando o navegador o trata antes do keydown
   document.addEventListener(
     "close",

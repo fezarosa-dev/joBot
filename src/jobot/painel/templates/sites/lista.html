@@ -37,8 +37,7 @@
           <button type="submit" class="botao-simples">{{ t("sites.desativar") }}</button>
         </form>
         {%- endif %}
-        <form method="post" action="/sites/{{ p.id }}/remover">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <form method="get" action="/sites/{{ p.id }}/remover/confirmar">
           <button type="submit" class="botao-simples" data-alerta-abre="alerta-site-{{ p.id }}">{{ t("comum.remover") }}</button>
         </form>
       </div>

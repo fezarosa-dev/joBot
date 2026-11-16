@@ -370,18 +370,65 @@ def test_apagar_tem_alerta(painel: Painel) -> None:
     assert "As vagas que ela trouxe continuam." in dialogo
 
 
-def test_apagar_sem_js_continua(painel: Painel) -> None:
-    """O botão Apagar da linha é o submit do form de hoje; sem JavaScript o POST apaga."""
+def _fora_do_dialogo(html: str) -> str:
+    return re.sub(r"<dialog\b.*?</dialog>", "", html, flags=re.DOTALL)
+
+
+def test_apagar_busca_sem_js_vai_para_confirmar(painel: Painel) -> None:
+    """T307: o botão Apagar da linha, lido sem JavaScript, leva à página de confirmação (GET que
+    não muda nada); o texto é o do alerta, o botão faz o POST de hoje e o Cancelar volta."""
     busca = painel.ids["busca"]
-    html = painel.get("/buscas").text
-    fora = re.sub(r"<dialog\b.*?</dialog>", "", html, flags=re.DOTALL)
-    forms = re.findall(
-        rf'<form[^>]*action="/buscas/{busca}/apagar"[^>]*>(.*?)</form>', fora, re.DOTALL
+    painel.sql("UPDATE busca SET nome = ? WHERE id = ?", 'Dados <b>&"x"', busca)
+    fora = _fora_do_dialogo(painel.get("/buscas").text)
+    (form,) = re.findall(
+        rf'<form[^>]*action="/buscas/{busca}/apagar/confirmar"[^>]*>.*?</form>', fora, re.DOTALL
     )
-    assert len(forms) == 1
-    assert re.search(r'<button[^>]*type="submit"[^>]*data-alerta-abre="alerta-busca-\d+"', forms[0])
-    assert "<details" not in html
-    assert (painel.post(f"/buscas/{busca}/apagar").status_code, painel.total("busca")) == (303, 0)
+    assert 'method="get"' in form
+    assert re.search(r'<button[^>]*type="submit"[^>]*data-alerta-abre="alerta-busca-\d+"', form)
+    assert CAMPO_CSRF not in form  # GET: nada de token na URL
+    assert f'action="/buscas/{busca}/apagar"' not in fora  # o POST direto só existe no alerta
+    assert "<details" not in fora
+
+    antes = painel.total("busca")
+    for _ in range(2):  # GET repetido: nada muda
+        r = painel.get(f"/buscas/{busca}/apagar/confirmar")
+        assert r.status_code == 200
+        assert painel.total("busca") == antes == 1
+    pagina = r.text
+    assert "<b>" not in pagina  # o nome entrou escapado
+    titulo = re.search(r'<h1[^>]*class="alerta-titulo"[^>]*>(.*?)</h1>', pagina, re.DOTALL)
+    assert titulo and unescape(titulo.group(1)).strip() == 'Apagar a busca «Dados <b>&"x"»?'
+    assert "As vagas que ela trouxe continuam." in pagina
+    (post,) = re.findall(
+        rf'<form[^>]*action="/buscas/{busca}/apagar"[^>]*>(.*?)</form>', pagina, re.DOTALL
+    )
+    assert f'name="{CAMPO_CSRF}" value="{painel.token}"' in post
+    assert re.search(r'<button[^>]*type="submit"[^>]*>\s*Apagar\s*</button>', post)
+    assert re.search(r'<a\b[^>]*href="/buscas"[^>]*>\s*Cancelar\s*</a>', pagina)
+    assert "<dialog" not in pagina and "autofocus" not in pagina
+
+
+def test_apagar_busca_confirmar_em_ingles(painel: Painel) -> None:
+    painel.sql(
+        "INSERT INTO config (chave, valor) VALUES ('idioma', '\"en\"')"
+        " ON CONFLICT (chave) DO UPDATE SET valor = excluded.valor"
+    )
+    pagina = painel.get(f"/buscas/{painel.ids['busca']}/apagar/confirmar").text
+    assert "Delete the Search" in pagina and re.search(r">\s*Cancel\s*</a>", pagina)
+
+
+@pytest.mark.parametrize(("busca", "status"), [("999", 404), (str(2**63 - 1), 404), ("0", 422)])
+def test_apagar_busca_confirmar_de_busca_que_nao_existe(
+    painel: Painel, busca: str, status: int
+) -> None:
+    assert painel.get(f"/buscas/{busca}/apagar/confirmar").status_code == status
+
+
+def test_apagar_busca_post_direto_continua(painel: Painel) -> None:
+    """O POST de hoje (o do alerta e o do botão da página de confirmação) apaga como antes."""
+    busca = painel.ids["busca"]
+    r = painel.post(f"/buscas/{busca}/apagar")
+    assert (r.status_code, r.headers["location"], painel.total("busca")) == (303, "/buscas", 0)
 
 
 @pytest.mark.parametrize(("ativa", "acao"), [(1, "desligar"), (0, "ligar")])

@@ -308,6 +308,21 @@ async def desligar(request: Request, con: Con, busca_id: BuscaId) -> Response:
     return await _ligar(request, con, busca_id, False)
 
 
+@router.get("/{busca_id}/apagar/confirmar")
+async def apagar_confirmar(request: Request, con: Con, busca_id: BuscaId) -> Response:
+    """Sem JavaScript: a pergunta do alerta numa página; o GET não muda nada (T307)."""
+    atual = _achar(con, busca_id)
+    return renderizar(
+        request,
+        "confirmar.html",
+        titulo=("buscas.apagar_titulo", {"nome": atual.nome}),
+        texto="buscas.apagar_texto",
+        rotulo="comum.apagar",
+        acao=f"/buscas/{busca_id}/apagar",
+        voltar="/buscas",
+    )
+
+
 @router.post("/{busca_id}/apagar")
 async def apagar(con: Con, busca_id: BuscaId) -> Response:
     try:
