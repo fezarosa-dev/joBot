@@ -136,6 +136,25 @@ def test_tokens_de_tipo_da_escala_do_mac() -> None:
     assert re.search(r"--t-headline\s*:\s*700\b", corpo)
 
 
+def test_tokens_de_tipo_trazem_a_familia() -> None:
+    """`font: var(--t-x)` só vale com a família no fim: sem ela o atalho é inválido na hora do
+    valor computado, vira `unset` e o corpo sai em 16px em vez de 13px (CI da tela de texto)."""
+    corpo = "".join(r.corpo for _, r in _todas() if r.seletor == ":root")
+    assert _valor(next(r for _, r in _todas() if r.seletor == ":root"), "--familia")
+    tokens = re.findall(r"(--t-[\w-]+)\s*:\s*([^;]+);", corpo)
+    assert len(tokens) == 11
+    sem_familia = [nome for nome, valor in tokens if not valor.strip().endswith("var(--familia)")]
+    assert sem_familia == []
+
+
+def test_font_com_token_de_tipo_nao_repete_a_familia() -> None:
+    """A regra que usa `font: var(--t-x)` não leva `font-family` (a família já vem no token)."""
+    usos = [(n, r) for n, r in _todas() if re.search(r"font\s*:\s*var\(--t-", r.corpo)]
+    assert len(usos) >= 3  # guarda: sem usos lidos, o teste passaria por vazio
+    com_familia = [f"{n}: {r.seletor}" for n, r in usos if "font-family" in r.corpo]
+    assert com_familia == []
+
+
 def test_html_respeita_o_tamanho_do_navegador() -> None:
     regra = next(r for _, r in _todas() if r.seletor == "html")
     assert _valor(regra, "font-size") == "100%"
@@ -145,8 +164,8 @@ def test_body_no_tamanho_do_corpo() -> None:
     regra = next(r for n, r in _todas() if n == "base.css" and r.seletor == "body")
     assert "var(--t-body)" in regra.corpo
     assert "1.0625rem" not in regra.corpo
-    # `font` abreviado zera a família: a pilha vem depois dele
-    assert regra.corpo.index("font:") < regra.corpo.index("font-family")
+    # a família vem no token (`--t-body` termina em `var(--familia)`), não em `font-family`
+    assert "font-family" not in regra.corpo
 
 
 def test_botoes_com_1_75rem() -> None:
