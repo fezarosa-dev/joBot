@@ -88,6 +88,7 @@ erDiagram
     execucao ||--o| andamento : "execucao_id"
     execucao ||--o{ andamento_fonte : "execucao_id"
     fonte ||--o{ andamento_fonte : "fonte"
+    fonte ||--o| sessao_site : "fonte"
     vaga ||--o{ local_vaga : "vaga_id"
     vaga ||--o{ ocorrencia : "vaga_id"
     vaga ||--o{ encaixe : "vaga_id"
@@ -150,6 +151,22 @@ erDiagram
         INTEGER total
         TEXT espera_ate
         TEXT espera_motivo
+    }
+    sessao_site {
+        TEXT fonte PK, FK
+        TEXT estado
+        TEXT motivo
+        TEXT conferido_em
+        TEXT entrou_em
+        TEXT avisado_em
+    }
+    sessao_conta {
+        TEXT conta PK
+        TEXT estado
+        TEXT motivo
+        TEXT conferido_em
+        TEXT entrou_em
+        TEXT avisado_em
     }
     saude {
         INTEGER execucao_id PK, FK

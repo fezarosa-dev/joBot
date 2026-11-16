@@ -34,6 +34,8 @@ TABELAS = {
     "config",
     "andamento",
     "andamento_fonte",
+    "sessao_site",
+    "sessao_conta",
 }
 INDICES = {
     "execucao_uma_por_tipo",
