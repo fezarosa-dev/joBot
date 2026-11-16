@@ -1,13 +1,15 @@
 """Aba "Contas" no navegador: o interruptor grava na hora (plano T218), "Esquecer logins" confirma
-na própria página (T219) e o cartão mostra o selo e a hora da sessão (T275).
+na própria página (T219), o cartão mostra o selo e a hora da sessão (T275) e "Conferir agora"
+espera e troca o cartão (T277).
 
 Nenhum navegador de verdade abre aqui: o painel só lê o que o teste põe em `app.state`.
 """
 
+import asyncio
 import re
 from collections.abc import AsyncIterator, Callable, Mapping
 from contextlib import asynccontextmanager, closing
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -20,6 +22,7 @@ from apoio.site_falso import LeitorFalso
 from jobot.banco import cadastros
 from jobot.banco.conexao import abrir
 from jobot.banco.sessoes import gravar_sessao
+from jobot.navegador.conferir import Conferencia
 from jobot.nucleo.leitores.base import LeitorComLogin
 from jobot.painel.rotas import configuracoes
 from jobot.sistema.pastas import PASTA_NAVEGADOR
@@ -312,3 +315,97 @@ def test_esquecer_volta_os_cartoes_a_nunca_entrou(page: Page, painel: str, tmp_p
     expect(page.get_by_text("Logins apagados.")).to_be_visible()
     expect(_cartao(page).locator(".selo")).to_have_text("Nunca entrou")
     expect(_cartao(page)).not_to_contain_text("conferido")
+
+
+# ------------------------------------------------------------------ T277: conferir agora
+
+
+class ConferirFalso:
+    """O `conferir_sessao` sem navegador: espera o teste soltar e devolve `conectado`. O `Event`
+    vive no laço do servidor, então o teste o solta por `call_soon_threadsafe`."""
+
+    def __init__(self) -> None:
+        self.liberar = asyncio.Event()
+        self.laco: asyncio.AbstractEventLoop | None = None
+
+    async def __call__(self, leitor: LeitorComLogin, deps: Any, relogio: Any) -> Conferencia:
+        self.laco = asyncio.get_running_loop()
+        async with asyncio.timeout(30):  # teto: um teste errado não pendura o servidor
+            await self.liberar.wait()
+        return Conferencia("conectado", None)
+
+    def soltar(self) -> None:
+        assert self.laco is not None, "a conferência não começou"
+        self.laco.call_soon_threadsafe(self.liberar.set)
+
+    @asynccontextmanager
+    async def dependencias(self, dados: Path, env: Mapping[str, str]) -> AsyncIterator[object]:
+        yield object()
+
+
+CONFERIR = f"/configuracoes/contas/{CHAVE}/conferir"
+
+
+def _conferido_ha(tmp_path: Path, segundos: int, estado: Any, motivo: Any = None) -> None:
+    with closing(abrir(tmp_path / "jobot.db")) as con:
+        cadastros.ligar_fonte(con, CHAVE, True)
+        gravar_sessao(con, "site", CHAVE, estado, motivo, AGORA - timedelta(seconds=segundos))
+
+
+def test_conferir_agora_mostra_conferindo_e_o_cartao_novo(
+    page: Page, painel: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    falso = ConferirFalso()
+    monkeypatch.setattr(configuracoes, "conferir_sessao", falso)
+    monkeypatch.setattr(configuracoes, "dependencias_de_producao", falso.dependencias)
+    _conferido_ha(tmp_path, 700, "nao_conferiu", "sem_rede")
+    page.clock.install()  # sem pause_at: o polling (every 2s) precisa dos timers andando
+    page.goto(f"{painel}/configuracoes/contas")
+    expect(_cartao(page).locator(".selo")).to_have_text("Não deu para conferir")
+
+    with page.expect_response(lambda r: r.url.endswith(CONFERIR) and r.request.method == "POST"):
+        _cartao(page).get_by_role("button", name="Conferir agora").click()
+    expect(_cartao(page)).to_have_attribute("aria-busy", "true")
+    expect(_cartao(page).get_by_role("progressbar", name="Conferindo…")).to_be_visible()
+    # a pergunta só sai depois que o htmx troca o HTML e arma o every 2s
+    expect(page.locator(f'#conta-{CHAVE} [hx-trigger="every 2s"]')).to_have_count(1)
+    expect(_cartao(page)).not_to_have_class(re.compile(r"htmx-settling"))
+    with page.expect_response(
+        lambda r: r.url.endswith(CONFERIR) and r.request.method == "GET"
+    ) as pergunta:
+        page.clock.fast_forward(2000)
+    assert pergunta.value.status == 204  # ainda conferindo: nada troca
+    expect(_cartao(page)).to_contain_text("Conferindo…")
+
+    falso.soltar()
+    for _ in range(5):  # a tarefa do servidor pode não ter acabado na pergunta seguinte
+        with page.expect_response(
+            lambda r: r.url.endswith(CONFERIR) and r.request.method == "GET"
+        ) as pergunta:
+            page.clock.fast_forward(2000)
+        if pergunta.value.status == 200:
+            break
+    assert pergunta.value.status == 200
+    expect(_cartao(page)).not_to_have_class(re.compile(r"htmx-settling"))
+    expect(_cartao(page).locator(".selo")).to_have_text("Conectado")
+    expect(_cartao(page)).not_to_have_attribute("aria-busy", "true")
+    expect(page.locator(f'#conta-{CHAVE} [hx-trigger="every 2s"]')).to_have_count(0)
+    # o outerHTML troca o cartão: o resultado é anunciado na região fixa e o foco vai ao cartão
+    expect(page.locator("#status-sites")).to_contain_text("Site falso: Conectado")
+    expect(_cartao(page)).to_be_focused()
+    # conferido agora mesmo: o botão volta desabilitado, dentro do intervalo
+    expect(_cartao(page).get_by_role("button", name="Conferir agora")).to_be_disabled()
+
+
+def test_conferir_desabilitado_no_intervalo_com_hora_e_frase(
+    page: Page, painel: str, tmp_path: Path
+) -> None:
+    _conferido_ha(tmp_path, 60, "conectado")
+    page.goto(f"{painel}/configuracoes/contas")
+    botao = _cartao(page).get_by_role("button", name="Conferir agora")
+    expect(botao).to_be_disabled()
+    expect(botao).to_have_accessible_description(
+        "Conferido há pouco. Dá para conferir de novo em alguns minutos."
+    )
+    expect(_cartao(page)).to_contain_text(re.compile(r"conferido hoje às \d\d:\d\d"))
+    expect(_cartao(page).get_by_text("Conferido há pouco.")).to_be_visible()

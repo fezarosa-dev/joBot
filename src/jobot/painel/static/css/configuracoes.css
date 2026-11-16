@@ -542,6 +542,12 @@
   color: var(--texto-2);
 }
 
-.cartao-site .conta-hora {
+.cartao-site .conta-hora,
+.cartao-site .conferir-espera {
   color: var(--texto-2);
+}
+
+/* "Conferir agora" rodando (T277): o componente indeterminado fica abaixo do nome do site */
+.cartao-site .conta-conferindo {
+  margin-block-start: 0.5rem;
 }

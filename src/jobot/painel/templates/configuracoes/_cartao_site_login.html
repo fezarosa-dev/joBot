@@ -1,5 +1,20 @@
 {% from "configuracoes/_interruptor.html" import interruptor %}
 {% from "_motivo.html" import motivo_texto with context %}
+{% from "execucao/_progresso.html" import progresso with context %}
+{%- if c.conferindo or espera %}
+{#- "Conferir agora" rodando (T277): o miolo vira o componente da T252, indeterminado, e a pergunta
+    a cada 2 s troca o cartão inteiro quando a conferência acaba (E17) -#}
+<div id="conta-{{ c.chave }}" class="cartao-site" aria-busy="true"{% if foco_cartao %} data-foco-se-livre{% endif %}>
+  <p class="config-texto">{{ c.nome }}</p>
+  <div class="conta-conferindo" hx-get="/configuracoes/contas/{{ c.chave }}/conferir" hx-trigger="every 2s" hx-target="#conta-{{ c.chave }}" hx-swap="outerHTML">
+    {{- progresso({"indeterminado": True, "etapa": "conferir", "fontes": []}, corpo=True, base="conferir-" ~ c.chave, texto=t("configuracoes.contas.conferindo"), nomeia=True) }}
+  </div>
+</div>
+{%- else %}
+{#- "Conferir agora" some em Desligado e Nunca entrou; sem navegador fica desabilitado com a frase da
+    aba (D166), e dentro do intervalo, com a hora à vista e a frase de espera (desenho 5.4) -#}
+{%- set conferir = c.na_tela not in ("desligado", "nunca_entrou") %}
+{%- set esperar = conferir and c.navegador != "nenhum" and not c.pode_conferir %}
 <div id="conta-{{ c.chave }}" class="cartao-site"{% if foco_cartao %} data-foco-se-livre{% endif %}>
   <div class="interruptores">
     {{ interruptor("ligada", c.ligada, c.nome, "", False, "/configuracoes/contas/" ~ c.chave ~ "/interruptor", foco, "#conta-" ~ c.chave) }}
@@ -12,13 +27,26 @@
   </p>
   {% if c.leitura_motivo %}<p class="config-texto">{{ motivo_texto(c.leitura_motivo) }}</p>{% endif %}
   {% if c.rodando %}<p class="config-texto">{{ t("configuracoes.sites_com_login.rodando") }}</p>{% endif %}
+  {% if esperar %}<p class="config-texto conferir-espera" id="conferir-espera-{{ c.chave }}">{{ t("configuracoes.contas.conferir_espera") }}</p>{% endif %}
   <div class="acoes">
+    {%- if conferir %}
+    <button type="button" class="botao botao-secundario" hx-post="/configuracoes/contas/{{ c.chave }}/conferir" hx-target="#conta-{{ c.chave }}" hx-swap="outerHTML" hx-disabled-elt="this"
+      {%- if c.navegador == "nenhum" %} disabled aria-describedby="contas-sem-navegador"{% elif esperar %} disabled aria-describedby="conferir-espera-{{ c.chave }}"{% endif %}>{{ t("configuracoes.contas.conferir") }}</button>
+    {%- endif %}
     <button type="button" class="botao botao-secundario" hx-post="/configuracoes/contas/{{ c.chave }}/login" hx-target="#login-site-{{ c.chave }}" hx-disabled-elt="this"{% if c.navegador == "nenhum" %} disabled aria-describedby="contas-sem-navegador"{% endif %}>{{ t("configuracoes.sites_com_login.fazer_login") }}</button>
   </div>
   <div id="login-site-{{ c.chave }}" aria-live="polite">
     {%- if c.login %}{% with chave=c.chave, estado=c.login, minutos=c.minutos %}{% include "configuracoes/_login_site.html" %}{% endwith %}{% endif -%}
   </div>
 </div>
+{%- endif %}
 {% if cartao_salvo %}<p hx-swap-oob="innerHTML:#status-sites"><span data-some-sozinho>{{ t("configuracoes.salvo") }}</span></p>{% endif %}
 {#- o resultado do login na região fixa: a do cartão foi trocada junto com ele e não é anunciada -#}
 {% if anunciar_login and c.login %}<p hx-swap-oob="innerHTML:#status-sites"><span data-some-sozinho>{{ t("configuracoes.sites_com_login.login." ~ c.login, minutos=c.minutos) }}</span></p>{% endif %}
+{#- "Conferir agora": a trava ocupada e o resultado vão à região fixa, como o do login -#}
+{% if ocupado %}<p hx-swap-oob="innerHTML:#status-sites"><span data-some-sozinho>{{ t("configuracoes.contas.ocupado") }}</span></p>{% endif %}
+{#- a tarefa que falhou anuncia o erro, nunca o estado velho como se fosse o resultado -#}
+{% if anunciar_conferencia %}<p hx-swap-oob="innerHTML:#status-sites"><span data-some-sozinho>
+  {%- if erro_conferencia %}{{ t("configuracoes.contas.motivo.erro") }}
+  {%- else %}{{ t("configuracoes.contas.conferido_resultado", site=c.nome, estado=t("configuracoes.contas.estado." ~ c.na_tela)) }}{% if c.motivo %} {{ t("configuracoes.contas.motivo." ~ c.motivo) }}{% endif %}{% endif -%}
+</span></p>{% endif %}

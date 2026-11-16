@@ -41,6 +41,7 @@ from jobot.banco.conexao import abrir
 from jobot.banco.execucoes import LinhaSaude, leitura_login_rodando, ultimas_que_rodaram
 from jobot.banco.sessoes import gravar_sessao, ler_sessoes
 from jobot.navegador import limites
+from jobot.navegador.conferir import conferir_sessao
 from jobot.navegador.execucao import dependencias_de_producao
 from jobot.navegador.instalador import baixar_chromium, remover_chromium
 from jobot.navegador.janela_comum import janela_de_producao
@@ -48,7 +49,7 @@ from jobot.navegador.login_manual import fazer_login, sessao_do_login
 from jobot.navegador.perfil import apagar_perfil
 from jobot.nucleo.cambio import MOEDAS_EXIBICAO, moeda_do_pais
 from jobot.nucleo.captcha import validar_chave
-from jobot.nucleo.contas import estado_na_tela, hora_visivel
+from jobot.nucleo.contas import estado_na_tela, hora_visivel, pode_conferir
 from jobot.nucleo.horarios import horarios_validos
 from jobot.nucleo.leitores.base import LeitorComLogin
 from jobot.nucleo.tratamento.locais import codigos_de_pais
@@ -223,6 +224,9 @@ def _cartoes_de_sites(request: Request, con: sqlite3.Connection) -> list[dict[st
                 "login": _estados_de_login(request).get(leitor.chave),
                 "minutos": _minutos_de_login(),
                 "navegador": navegador,  # sem navegador, o login sai desabilitado (desenho 5.7)
+                # intervalo do "Conferir agora" (5.4), lido na hora (monkeypatch em limites)
+                "pode_conferir": pode_conferir(sessao, agora, limites.INTERVALO_CONFERIR_S),
+                "conferindo": _conferencias(request).get(leitor.chave) == "rodando",
             }
         )
     return cartoes
@@ -538,8 +542,12 @@ async def interruptor_do_site(request: Request, con: Con, chave: str) -> Respons
 _MUDOU = "contas-mudou"
 
 
+def _dados_do_cartao(request: Request, con: sqlite3.Connection, chave: str) -> dict[str, Any]:
+    return next(c for c in _cartoes_de_sites(request, con) if c["chave"] == chave)
+
+
 def _cartao_do_site(request: Request, con: sqlite3.Connection, chave: str, **ctx: Any) -> Response:
-    cartao = next(c for c in _cartoes_de_sites(request, con) if c["chave"] == chave)
+    cartao = _dados_do_cartao(request, con, chave)
     return renderizar(request, "configuracoes/_cartao_site_login.html", c=cartao, **ctx)
 
 
@@ -635,6 +643,94 @@ async def estado_do_login(request: Request, con: Con, chave: str) -> Response:
     # o `outerHTML` troca a região viva do cartão: o resultado é anunciado em `#status-sites`
     # e o foco vai ao cartão novo
     resposta = _cartao_do_site(request, con, chave, foco_cartao=True, anunciar_login=True)
+    resposta.headers["HX-Trigger"] = _MUDOU
+    return resposta
+
+
+# --- conferir agora (T277; desenho 5.4, E17, D166) --------------------------------------------
+
+
+def _conferencias(request: Request) -> dict[str, str]:
+    """ "rodando" enquanto a tarefa roda; "erro" até o GET final anunciá-lo. O resultado fica no
+    banco."""
+    estado = request.app.state
+    if not hasattr(estado, "conferencias"):
+        estado.conferencias = {}
+    conferencias: dict[str, str] = estado.conferencias
+    return conferencias
+
+
+@router.post(f"/{COM_LOGIN}/{{chave}}/conferir")
+async def conferir_agora(request: Request, con: Con, chave: str) -> Response:
+    """Confere o login do site na hora, nesta ordem: chave (404), site desligado, intervalo e
+    trava. Recusado, o cartão como está; aceito, o cartão em espera, que pergunta a cada 2 s."""
+    leitor = _leitor(request, chave)
+    cartao = _dados_do_cartao(request, con, chave)
+
+    def responder(**ctx: Any) -> Response:  # o foco segue para o cartão novo: o botão sumiu
+        return renderizar(
+            request, "configuracoes/_cartao_site_login.html", c=cartao, foco_cartao=True, **ctx
+        )
+
+    if not cartao["ligada"] or not cartao["pode_conferir"]:
+        return responder()
+    conferencias = _conferencias(request)
+    if conferencias.get(chave) == "rodando":
+        # segundo clique no mesmo site: o cartão já vem em espera (conferindo)
+        return responder()
+    trava = _trava(request, "login")
+    if trava.locked():
+        return responder(ocupado=True)
+    # tudo que pode falhar vem antes do acquire: depois dele, só o que não solta exceção
+    banco: Path = request.app.state.banco
+    env = ambiente_do_painel(request)
+    relogio = relogio_do_painel(request)
+    resposta = responder(espera=True)
+    await trava.acquire()  # livre: não suspende, então a checagem acima vale (como no laço)
+    conferencias[chave] = "rodando"
+
+    async def conferir() -> None:
+        terminou = False
+        try:
+            async with dependencias_de_producao(banco.parent, env) as deps:
+                conferencia = await conferir_sessao(leitor, deps, relogio)
+            if conferencia is not None:  # None: a pessoa fechou a janela (E5), nada se sabe
+                # conexão própria: a do pedido já fechou. Sem aviso no computador: só a leitura
+                # agendada avisa (D139.22)
+                with closing(abrir(banco)) as con_da_tarefa:
+                    gravar_sessao(
+                        con_da_tarefa,
+                        "site",
+                        chave,
+                        conferencia.estado,
+                        conferencia.motivo,
+                        relogio.agora(),
+                    )
+            terminou = True
+        finally:
+            # exceção sobe ao `rodar`, que registra e solta a trava; o erro fica até o GET final
+            # anunciá-lo uma vez (molde do `login_manual`)
+            if terminou:
+                conferencias.pop(chave, None)
+            else:
+                conferencias[chave] = "erro"
+
+    criar_tarefa(request, "conferir conta", trava, conferir)
+    return resposta
+
+
+@router.get(f"/{COM_LOGIN}/{{chave}}/conferir")
+async def estado_da_conferencia(request: Request, con: Con, chave: str) -> Response:
+    """O HTMX pergunta a cada 2 s; enquanto a conferência roda, 204. Depois, o cartão inteiro com o
+    estado novo (E17), o resultado anunciado em `#status-sites` e o foco no cartão, se livre."""
+    _leitor(request, chave)
+    conferencias = _conferencias(request)
+    if conferencias.get(chave) == "rodando":
+        return Response(status_code=204)
+    erro = conferencias.pop(chave, None) == "erro"
+    resposta = _cartao_do_site(
+        request, con, chave, foco_cartao=True, anunciar_conferencia=True, erro_conferencia=erro
+    )
     resposta.headers["HX-Trigger"] = _MUDOU
     return resposta
 
