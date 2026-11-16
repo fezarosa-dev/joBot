@@ -147,5 +147,10 @@
   "configuracoes.contas.motivo.erro": "Algo deu errado. Os detalhes estão no registro.",
   "configuracoes.contas.captcha.salva": "2Captcha: chave salva",
   "configuracoes.contas.captcha.sem_chave": "2Captcha: sem chave",
-  "configuracoes.contas.captcha.mudar": "Mudar em Serviços"
+  "configuracoes.contas.captcha.mudar": "Mudar em Serviços",
+  "configuracoes.contas.conferir": "Conferir agora",
+  "configuracoes.contas.conferindo": "Conferindo…",
+  "configuracoes.contas.ocupado": "Já tem algo usando o navegador; tente daqui a pouco.",
+  "configuracoes.contas.conferir_espera": "Conferido há pouco. Dá para conferir de novo em alguns minutos.",
+  "configuracoes.contas.conferido_resultado": "{site}: {estado}."
 }
