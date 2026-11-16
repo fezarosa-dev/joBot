@@ -321,3 +321,5 @@ def test_casca_tem_o_aviso_candidatura(painel: Painel) -> None:
         assert atributo in div.group(0), atributo
     assert "candidatura-mudou" not in div.group(0)
     assert html.index('id="aviso-contas"') < div.start() < html.index('id="faixa-desfazer"')
+    # o hx-include do `load` precisa achar o campo já na casca, senão o htmx loga erro no console
+    assert html[div.end() :].startswith('<input type="hidden" name="mostrando" value=""></div>')
