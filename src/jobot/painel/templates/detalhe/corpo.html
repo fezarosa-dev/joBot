@@ -54,6 +54,7 @@
     {%- if site %}
     <a class="secundario" href="{{ site }}" target="_blank" rel="noopener noreferrer" aria-label="{{ t('detalhe.abrir_no_site_nova_aba') }}">{{ t("detalhe.abrir_no_site") }}</a>
     {%- endif %}
+    <div class="acoes-estado">
     <p class="situacao">{{ t("vagas.status_atual", status=rotulo("vagas.status." ~ vaga.status, vaga.status)) }}</p>
     <form method="post" action="{{ acao_vaga }}/status">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
@@ -74,6 +75,7 @@
       <input type="hidden" name="voltar" value="{{ retorno }}">
       <button type="submit" class="secundario">{{ t("vagas.acao.ocultar" if not vaga.oculta_motivo else ("vagas.acao.trazer" if vaga.oculta_motivo == "manual" else "vagas.acao.mostrar")) }}</button>
     </form>
+    </div>
   </div>
   {%- if fontes %}
   <section class="bloco" aria-labelledby="{{ prefixo }}det-fontes">
@@ -165,5 +167,8 @@
     <p class="vazio">{{ t("detalhe.sem_descricao") }}</p>
     {%- endif %}
   </section>
-  <p class="corrigir"><a href="{{ acao_vaga }}/correcao">{{ t("detalhe.correcao.titulo") }}</a></p>
+  {#- T264: com JavaScript o link abre o sheet da correção (o htmx põe no .correcao-slot, o app.js
+      abre como modal); sem JavaScript o href leva à página da correção, como antes -#}
+  <p class="corrigir"><a href="{{ acao_vaga }}/correcao" data-correcao hx-get="{{ acao_vaga }}/correcao" hx-target="next .correcao-slot" hx-swap="innerHTML" hx-push-url="false">{{ t("detalhe.correcao.titulo") }}</a></p>
+  <div class="correcao-slot"></div>
 </article>

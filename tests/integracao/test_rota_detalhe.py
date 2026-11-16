@@ -250,6 +250,68 @@ def test_detalhe_mostra_encaixe_e_ocultar_volta_para_o_detalhe(painel: Painel) -
     assert f'href="/vagas/{vaga}/correcao"' in html
 
 
+def test_pagina_propria_embrulha_o_detalhe_para_a_leitura(painel: Painel) -> None:
+    html = painel.detalhe("usd")
+    # T264: a página própria tem o seu invólucro (título e largura de leitura vêm dele)
+    assert re.search(
+        r'<div class="detalhe-pagina">\s*<p class="voltar"><a href="/vagas">[^<]+</a></p>\s*'
+        r'<article class="detalhe">',
+        html,
+    )
+    assert html.count('class="detalhe-pagina"') == 1
+
+
+def test_acoes_de_estado_ficam_num_grupo_so(painel: Painel) -> None:
+    """Situação, Salvar e Ocultar formam um grupo: quebra de linha inteiro, nunca um botão só."""
+    html = painel.detalhe("usd")
+    achou = re.search(r'<div class="acoes-estado">(.*?)</div>\s*</div>\s*<section', html, re.S)
+    assert achou is not None
+    grupo = achou.group(1)
+    vaga = painel.ids["usd"]
+    assert 'class="situacao"' in grupo
+    assert f'action="/vagas/{vaga}/status"' in grupo
+    assert f'action="/vagas/{vaga}/ocultar"' in grupo
+    grupo_acoes = re.search(r'<div class="acoes".*?<div class="acoes-estado">', html, re.S)
+    assert grupo_acoes is not None
+    assert 'class="primario"' in grupo_acoes.group(0)  # os links de fora ficam antes do grupo
+
+
+def _aba_marcada(html: str) -> list[str]:
+    """Os `href` dos itens da seção Vagas da lateral que levam `aria-current`."""
+    lista = re.search(r'<ul id="lateral-vagas".*?</ul>', html, re.S)
+    assert lista is not None
+    itens = re.findall(r"<a\b[^>]*>", lista.group(0))
+    assert itens
+    marcados = re.findall(r'href="([^"]*)"[^>]*aria-current', "".join(itens))
+    return [href.split("&amp;")[0] for href in marcados]  # sem o `&busca=` da busca escolhida
+
+
+def test_detalhe_sem_aba_na_url_nao_marca_aba_nenhuma(painel: Painel) -> None:
+    assert _aba_marcada(painel.detalhe("usd")) == []
+
+
+def test_detalhe_com_aba_na_url_marca_a_de_origem(painel: Painel) -> None:
+    resposta = painel.get(f"/vagas/{painel.ids['usd']}?aba=salvas")
+    assert resposta.status_code == 200
+    assert _aba_marcada(resposta.text) == ["/vagas?aba=salvas"]
+    assert 'aria-current="true"' in resposta.text  # área marcada, não a página dela
+
+
+def test_detalhe_com_aba_que_nao_existe_nao_marca_aba_nenhuma(painel: Painel) -> None:
+    resposta = painel.get(f"/vagas/{painel.ids['usd']}?aba=inventada")
+    assert resposta.status_code == 200
+    assert _aba_marcada(resposta.text) == []
+
+
+def test_lista_de_vagas_sem_aba_na_url_marca_a_primeira(painel: Painel) -> None:
+    """Guarda: só o detalhe perde a aba padrão; a lista segue marcando a primeira."""
+    resposta = painel.get("/vagas")
+    assert resposta.status_code == 200
+    marcadas = _aba_marcada(resposta.text)
+    assert len(marcadas) == 1
+    assert marcadas[0].startswith("/vagas?aba=")
+
+
 # ---------------------------------------------------------------- correção
 
 
@@ -398,3 +460,97 @@ def test_erro_depois_de_gravar_nao_vira_422(
     with pytest.raises(ValueError, match="reprocesso quebrou"):
         painel.corrigir("usd", "nivel", "junior")
     assert painel.sql("SELECT COUNT(*) FROM correcao") == [(1,)]  # a correção já estava guardada
+
+
+def test_correcao_em_dialog_com_formulario_de_hoje(painel: Painel) -> None:
+    vaga = painel.ids["usd"]
+    resposta = painel.http.get(f"/vagas/{vaga}/correcao", headers={"HX-Request": "true"})
+    assert resposta.status_code == 200
+    html = resposta.text
+    # só o sheet: sem a casca da página
+    assert "<html" not in html
+    assert "<aside" not in html
+    abre = re.search(r"<dialog\b[^>]*>", html)
+    assert abre is not None
+    tag = abre.group(0)
+    for classe in ("sheet", "vidro", "vidro-grande", "vidro-elevado"):
+        assert re.search(rf'class="[^"]*\b{classe}\b', tag), classe
+    assert 'aria-labelledby="correcao-titulo"' in tag
+    assert 'id="correcao-titulo"' in html
+    # o formulário de hoje: um por item, com os mesmos campos, ação e botão
+    assert html.count(f'action="/vagas/{vaga}/correcao"') == 8
+    for campo in ("area", "nivel", "modalidade", "contrato", "uf", "salario", "fechada", "outro"):
+        assert f'name="valor_{campo}"' in html
+        assert f'name="campo" value="{campo}"' in html
+    assert html.count('name="comentario"') == 8
+    # o pé do sheet: o botão de fechar, fora do corpo que rola
+    corpo = re.search(r'<div class="sheet-corpo">(.*?)</div>\s*<footer', html, re.S)
+    assert corpo is not None
+    assert "data-fechar-sheet" not in corpo.group(1)
+    pe = r"<footer\b[^>]*>\s*<button\b[^>]*data-fechar-sheet[^>]*>Fechar</button>"
+    assert re.search(pe, html)
+    assert "Vary" in resposta.headers and "HX-Request" in resposta.headers["Vary"]
+
+
+def test_correcao_sem_htmx_segue_a_pagina_de_hoje(painel: Painel) -> None:
+    resposta = painel.get(f"/vagas/{painel.ids['usd']}/correcao")
+    assert resposta.status_code == 200
+    assert "<html" in resposta.text
+    assert "<dialog" not in resposta.text
+    assert 'class="painel correcoes"' in resposta.text
+
+
+def test_restauracao_de_historico_do_htmx_recebe_a_pagina_inteira(painel: Painel) -> None:
+    """Voltar no navegador (HX-History-Restore-Request) precisa da página toda."""
+    cabecalhos = {"HX-Request": "true", "HX-History-Restore-Request": "true"}
+    resposta = painel.http.get(f"/vagas/{painel.ids['usd']}/correcao", headers=cabecalhos)
+    assert resposta.status_code == 200
+    assert "<html" in resposta.text
+    assert "<dialog" not in resposta.text
+    assert "HX-History-Restore-Request" in resposta.headers["Vary"]
+
+
+def _regra(css: str, seletor: str) -> str:
+    """O corpo da primeira regra cujo seletor é exatamente `seletor` (CSS plano, sem aninhar)."""
+    achou = re.search(rf"(?:^|[}}/])\s*{re.escape(seletor)}\s*{{([^}}]*)}}", css)
+    assert achou is not None, seletor
+    return achou.group(1)
+
+
+def test_sheet_estiliza_os_campos_que_a_pagina_hospedeira_nao_estiliza(painel: Painel) -> None:
+    """O sheet entra em páginas sem o buscas.css: o detalhe.css cobre textarea e texto."""
+    css = painel.http.get("/static/css/detalhe.css").text
+    for seletor in (".sheet-corpo textarea", '.sheet-corpo input[type="text"]'):
+        assert seletor in css, seletor
+    regra = _regra(css, '.sheet-corpo input[type="text"],\n.sheet-corpo textarea')
+    for declaracao in ("width: 100%", "border: 1px solid var(--borda)", "border-radius:"):
+        assert declaracao in regra, declaracao
+
+
+def test_sheet_fica_no_alto_e_nao_redefine_borda_nem_sombra_do_vidro(painel: Painel) -> None:
+    css = painel.http.get("/static/css/detalhe.css").text
+    regra = _regra(css, ".sheet")
+    # `margin: auto` centra o <dialog> na vertical; o desenho pede o sheet no alto
+    assert not re.search(r"margin:\s*auto\s*;", regra)
+    assert "margin-block" in regra
+    # borda e sombra do vidro são do base.css (inclusive o caminho sólido): a regra de base do
+    # sheet só põe o raio; o vidro o enfeita dentro da media do caminho com transparência
+    assert "border:" not in regra
+    assert "box-shadow" not in regra
+
+
+def test_sheet_tem_borda_base_sem_disputar_com_o_base_css(painel: Painel) -> None:
+    """`<dialog>` traz `border: 3px solid`; fora dos blocos de media (contraste menor, navegador sem
+    `prefers-reduced-transparency`) o sheet precisa de uma borda própria, de especificidade zero."""
+    css = painel.http.get("/static/css/detalhe.css").text
+    regra = _regra(css, ":where(.sheet)")
+    assert "border: 1px solid var(--separador)" in regra
+
+
+def test_link_da_correcao_abre_o_sheet_e_sem_js_leva_a_pagina(painel: Painel) -> None:
+    html = painel.detalhe("usd")
+    vaga = painel.ids["usd"]
+    link = _ancora(html, f'href="/vagas/{vaga}/correcao"')
+    assert f'hx-get="/vagas/{vaga}/correcao"' in link  # com JavaScript abre o sheet
+    assert "data-correcao" in link
+    assert 'class="correcao-slot"' in html  # onde o sheet entra
