@@ -332,3 +332,20 @@ def test_conferir_tem_texto(idioma: str) -> None:
         },
     }[idioma]
     assert {chave: catalogo.get(chave) for chave in esperado} == esperado
+
+
+GMAIL = (
+    "titulo explicacao acesso endereco senha senha_guardada salvar remover remover_pergunta "
+    "remover_explicacao tutorial tutorial_url erro.endereco erro.senha erro.recusada erro.cofre "
+    "nao_guardou no_arquivo"
+).split()
+
+
+@pytest.mark.parametrize("idioma", ["pt", "en"])
+def test_gmail_tem_texto(idioma: str) -> None:
+    """T278: as chaves do cartão do Gmail nos dois idiomas, com o tutorial na página do idioma."""
+    catalogo = i18n.carregar()[idioma]
+    for chave in GMAIL:
+        assert catalogo.get(f"configuracoes.contas.gmail.{chave}"), chave
+    pagina = {"pt": "Gmail-senha-de-app", "en": "Gmail-app-password"}[idioma]
+    assert catalogo["configuracoes.contas.gmail.tutorial_url"].endswith("/wiki/" + pagina)

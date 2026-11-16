@@ -163,26 +163,35 @@ def _cartao_com_leitura(
 # ------------------------------------------------------------------ só com leitor
 
 
-def test_sem_leitor_a_aba_nao_aparece(painel: Painel, sem_leitor: Painel) -> None:
-    assert GRUPO in _abas(painel.http.get("/configuracoes/fontes").text)  # controle
-    assert GRUPO not in _abas(sem_leitor.http.get("/configuracoes/fontes").text)
+def test_sem_leitor_aba_visivel_so_gmail(painel: Painel, sem_leitor: Painel) -> None:
+    """E13: sem leitor a aba existe só com o cartão do Gmail."""
+    resposta = sem_leitor.http.get(GRUPO)
+    assert resposta.status_code == 200
+    assert GRUPO in _abas(resposta.text)
+    html = resposta.text
+    assert 'id="conta-gmail"' in html
+    assert "cartao-site" in html
+    assert f'id="conta-{CHAVE}"' not in html
+    assert 'id="esquecer-logins"' not in html
+    assert 'name="horarios"' not in html
+    assert 'class="conta-captcha"' not in html
+    assert "Esquecer logins" not in _texto(html)
+    # controle: com leitor, a mesma página traz o cartão do site e o resto
+    com = painel.http.get(GRUPO).text
+    assert f'id="conta-{CHAVE}"' in com
+    assert 'id="conta-gmail"' in com
+    assert 'name="horarios"' in com
+    assert 'id="esquecer-logins"' in com
 
 
-def test_sem_leitor_rota_da_404(sem_leitor: Painel, painel: Painel) -> None:
+def test_sem_leitor_horarios_404(sem_leitor: Painel, painel: Painel) -> None:
     def gravar(p: Painel) -> int:
         return int(p.post(GRUPO, {"horarios": "09:00, 18:00"}).status_code)
 
-    assert gravar(painel) in (200, 303)  # controle: com leitor a rota existe
+    antes = sem_leitor.horarios()
     assert gravar(sem_leitor) == 404
-
-
-def test_sem_leitor_o_get_vai_para_geral(sem_leitor: Painel) -> None:
-    # o navegador pode ter guardado o grupo (T262, T308): cai em Geral em vez de 404
-    resposta = sem_leitor.http.get(GRUPO)
-    assert (resposta.status_code, resposta.headers.get("location")) == (
-        303,
-        "/configuracoes/geral",
-    )
+    assert sem_leitor.horarios() == antes
+    assert gravar(painel) == 303  # controle: com leitor, o `_volta` de quem grava os horários
 
 
 def test_sem_leitor_o_interruptor_da_404(sem_leitor: Painel) -> None:
@@ -514,7 +523,8 @@ def test_esquecer_mostra_o_componente_indeterminado(painel: Painel) -> None:
     assert "aria-valuenow" not in espera  # indeterminado: sem valor
     assert 'class="progresso-preenchimento indeterminado"' in espera
     assert "Apagando os logins guardados" in _texto(espera)
-    assert html.count('role="progressbar"') == 1  # um só componente na página
+    # um componente por espera: o do "Esquecer logins" e o do cartão do Gmail (T278)
+    assert html.count('role="progressbar"') == 2
 
 
 def test_barra_da_espera_nao_repete_o_texto_no_aria_label(painel: Painel) -> None:
