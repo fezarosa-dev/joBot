@@ -118,7 +118,7 @@ Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthr
 
 **Decisão:** `valor_antigo` fica NULL para uf, salário e outro até a lógica existir (T46/T24). `trazer_de_volta` zera `oculta_manual` sem restaurar um -1. `acoes.py` levanta `LookupError` e `ValueError`, que a T45 traduz em 404 e 422 e testa. `_transacao` recusa conexão que já está numa transação. O critério de 404 e 422 entrou no plano, na célula de testes da T45.
 
-**Ver também:** D40 (`POST /mostrar` em vaga que já está visível).
+**Ver também:** D40 (`POST /mostrar` em vaga que já está visível), D155 (o Desfazer da faixa volta a -1).
 
 ## D13. Cliente HTTP educado (T05)
 
@@ -2710,3 +2710,35 @@ Escolha da sessão (dono fora): a opção (a), para confirmar. Consequência: co
 **O que o dono faz:** nada para funcionar. Fica com ele: confirmar o número de partes (item 2) e, quando for ligar a proteção de checks na `main`, escolher o `ok`.
 
 **Como desfazer:** apagar a variável do workflow e voltar a um job só devolve a rodada longa; o hook do `conftest.py` não faz nada sem `JOBOT_PARTE`. Mudar o número de partes é mudar a lista `parte` da matriz no `ci.yml`.
+
+## D154. A faixa de desfazer e a troca de aba pela lateral (T256)
+
+**Status:** para confirmar. O agente da T256 propôs a opção 1; a sessão ainda confirma ou ajusta, com o dono fora.
+
+**Contexto:** o desenho (5.4) diz que a faixa de desfazer sobrevive às trocas HTMX dentro de Vagas e cita a aba entre elas. Só que as abas da lateral (`lateral_vagas.html`) são links comuns, sem `hx-get` nem `hx-boost`: trocar de aba carrega a página inteira, e a página nova não traz a faixa. As trocas do miolo (busca, ordem, chips, "carregar mais", busca escolhida) são HTMX e a mantêm.
+
+**Opções:**
+
+1. **Aceitar (recomendado).** Trocar de aba pela lateral conta como página nova e tira a faixa, como qualquer outra página inteira. Não mexe na lateral nem na navegação. Teste: `test_faixa_fica_ao_trocar_a_ordem` (a faixa fica na troca do miolo).
+2. **Abas de Vagas por HTMX.** As abas trocariam só o miolo, com `hx-get` e `hx-push-url`. É mudança de navegação (lateral, histórico, foco e região viva) e vira tarefa nova.
+
+**O que o dono faz:** confirmar a opção 1 ou pedir a 2.
+
+**Como desfazer:** a opção 2 é uma `Tn` nova; a faixa já sobrevive a qualquer troca HTMX, então não muda.
+
+## D155. O Desfazer da faixa volta ao "mostrar mesmo assim" (T256, muda a D12)
+
+**Status:** para confirmar. Decidido pela recomendação, com o dono fora.
+
+**Contexto:** a D12 decidiu que `trazer_de_volta` zera `oculta_manual` sem restaurar um -1. A T256 mantém isso no "Trazer de volta" da aba Ocultas. Mas o Desfazer da faixa de Ocultar, quando o Ocultar saiu de um "mostrar mesmo assim" (-1) numa vaga que a regra esconde, tem de levar a vaga de volta a -1; com 0, a vaga oculta por regra não voltaria à lista.
+
+**Escolhas:**
+
+- **A (escolhida).** `acoes.trazer_de_volta` ganha o parâmetro opcional `oculta` (0 por padrão; -1 só no Desfazer da faixa, que manda `antes=-1`). Uma transação e um evento `desfez`. Teste: `test_desfazer_volta_ao_mostrar_mesmo_assim`, `test_trazer_de_volta_recusa_oculta_invalida`.
+- **B.** A rota chama `trazer_de_volta` e depois `mostrar`: duas transações e dois eventos (`desfez` e `mostrou`) para um só clique, com a vaga passando por 0 no meio.
+
+**Recomendação:** A, que é atômica e deixa um evento só no histórico.
+
+**O que o dono faz:** confirmar a A ou pedir a B.
+
+**Como desfazer:** tirar o campo `antes` do formulário da faixa (`_faixa_desfazer.html`) devolve o comportamento da D12 (o Desfazer zera). Trocar para B é uma `Tn` nova.

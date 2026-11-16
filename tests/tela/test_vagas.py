@@ -228,10 +228,12 @@ LADO = "#detalhe-vaga"
 
 def _abrir_pelo_teclado(page: Page, titulo: str) -> None:
     """Foca a linha da vaga e abre com Return: na janela larga do teste, o detalhe abre ao lado da
-    lista (T255), com o título em h2 (o h1 é o da página)."""
+    lista (T255), com o título em h2 (o h1 é o da página). Espera o settle do htmx: antes dele, os
+    hx-* do detalhe novo ainda não valem e um Return no Ocultar faria o POST nativo."""
     _cartao(page, titulo).focus()
     page.keyboard.press("Enter")
     expect(page.locator(LADO).get_by_role("heading", level=2, name=titulo)).to_be_visible()
+    expect(page.locator(".htmx-settling")).to_have_count(0)
 
 
 def test_salvar_mudar_a_situacao_ocultar_e_trazer_de_volta(page: Page, painel: str) -> None:
@@ -259,7 +261,10 @@ def test_salvar_mudar_a_situacao_ocultar_e_trazer_de_volta(page: Page, painel: s
     _abrir_pelo_teclado(page, NOVA)
     lado.get_by_role("button", name="Ocultar", exact=True).focus()
     page.keyboard.press("Enter")
-    expect(lado.get_by_text("Oculta por você")).to_be_visible()
+    # T256: a linha sai, o detalhe dela fecha e a faixa oferece Desfazer
+    expect(page.locator(FAIXA)).to_contain_text("Vaga ocultada")
+    expect(lado).to_be_hidden()
+    expect(_cartao(page, NOVA)).to_have_count(0)
     page.goto(f"{painel}/vagas?aba=todas")
     assert NOVA not in _titulos(page)
     page.goto(f"{painel}/vagas?aba=ocultas")
@@ -272,6 +277,130 @@ def test_salvar_mudar_a_situacao_ocultar_e_trazer_de_volta(page: Page, painel: s
     expect(lado.get_by_role("heading", level=2, name=NOVA)).to_be_visible()
     expect(lado.get_by_text("Oculta por você")).to_have_count(0)
     page.goto(f"{painel}/vagas?aba=todas")
+    assert NOVA in _titulos(page)
+
+
+FAIXA = "#faixa-desfazer"
+
+
+def _ocultar_pelo_detalhe(page: Page, titulo: str) -> None:
+    """Abre a vaga ao lado e clica em Ocultar: a linha sai e a faixa de desfazer aparece (T256)."""
+    _abrir_pelo_teclado(page, titulo)
+    page.locator(LADO).get_by_role("button", name="Ocultar", exact=True).click()
+    expect(page.locator(FAIXA)).to_contain_text("Vaga ocultada")
+    expect(_cartao(page, titulo)).to_have_count(0)
+
+
+def _foco_numa_linha(page: Page) -> None:
+    expect(page.locator('#lista-vagas > [role="option"]:focus')).to_have_count(1)
+
+
+def test_cmd_z_desfaz_fora_do_campo(page: Page, painel: str) -> None:
+    page.goto(f"{painel}/vagas?aba=todas")
+    _ocultar_pelo_detalhe(page, NOVA)
+    faixa = page.locator(FAIXA)
+    expect(faixa).to_have_attribute("role", "status")
+    # o foco não salta para a faixa: fica numa linha que existe
+    _foco_numa_linha(page)
+    expect(faixa.get_by_role("button", name="Desfazer")).not_to_be_focused()
+    page.keyboard.press("ControlOrMeta+z")
+    expect(faixa).to_contain_text("Vaga mostrada de novo")
+    expect(faixa.get_by_role("button", name="Refazer")).to_be_visible()
+    linha = _cartao(page, NOVA)
+    expect(linha).to_be_visible()
+    expect(linha).to_have_class(re.compile(r"\blinha-volta\b"))  # o realce mostra onde voltou
+    page.goto(f"{painel}/vagas?aba=ocultas")  # voltou no banco, não só na tela
+    expect(_cartao(page, NOVA)).to_have_count(0)
+
+
+def test_cmd_z_logo_que_a_faixa_chega_vai_por_htmx(page: Page, painel: str) -> None:
+    """⌘Z antes do settle da faixa (os hx-* dela ainda inativos) não vira POST nativo."""
+    page.goto(f"{painel}/vagas?aba=todas")
+    _abrir_pelo_teclado(page, NOVA)
+    nativos: list[str] = []
+    page.on(
+        "request",
+        lambda r: (
+            nativos.append(r.url)
+            if r.method == "POST" and r.headers.get("hx-request") != "true"
+            else None
+        ),
+    )
+    page.locator(LADO).get_by_role("button", name="Ocultar", exact=True).click()
+    page.locator(FAIXA).get_by_text("Vaga ocultada").wait_for()
+    page.keyboard.press("ControlOrMeta+z")
+    expect(page.locator(FAIXA)).to_contain_text("Vaga mostrada de novo")
+    expect(_cartao(page, NOVA)).to_be_visible()
+    assert nativos == []
+
+
+def test_cmd_z_no_campo_nao_desfaz_a_faixa(page: Page, painel: str) -> None:
+    page.goto(f"{painel}/vagas?aba=todas")
+    _ocultar_pelo_detalhe(page, NOVA)
+    busca = page.locator("[data-busca]")
+    busca.focus()
+    page.keyboard.type("abc")
+    page.keyboard.press("ControlOrMeta+z")
+    # o ⌘Z ficou com o campo (desfez o texto digitado), não com a faixa
+    expect(busca).to_have_value("")
+    expect(page.locator(FAIXA)).to_contain_text("Vaga ocultada")
+    expect(page.locator(FAIXA).get_by_role("button", name="Desfazer")).to_be_visible()
+    expect(_cartao(page, NOVA)).to_have_count(0)
+
+
+def test_cmd_z_com_o_foco_na_ordem_desfaz(page: Page, painel: str) -> None:
+    """Só campo de texto fica com o ⌘Z: no seletor de ordem (um select), ele desfaz a faixa."""
+    page.goto(f"{painel}/vagas?aba=todas")
+    _ocultar_pelo_detalhe(page, NOVA)
+    page.locator("#ordem").focus()
+    page.keyboard.press("ControlOrMeta+z")
+    expect(page.locator(FAIXA)).to_contain_text("Vaga mostrada de novo")
+    expect(_cartao(page, NOVA)).to_be_visible()
+
+
+def test_shift_cmd_z_refaz(page: Page, painel: str) -> None:
+    page.goto(f"{painel}/vagas?aba=todas")
+    _ocultar_pelo_detalhe(page, NOVA)
+    faixa = page.locator(FAIXA)
+    page.keyboard.press("ControlOrMeta+Shift+z")  # sem Refazer na faixa, nada acontece
+    expect(faixa.get_by_role("button", name="Desfazer")).to_be_visible()
+    page.keyboard.press("ControlOrMeta+z")
+    expect(faixa.get_by_role("button", name="Refazer")).to_be_visible()
+    expect(_cartao(page, NOVA)).to_be_visible()
+    page.keyboard.press("ControlOrMeta+Shift+z")
+    expect(faixa).to_contain_text("Vaga ocultada")
+    expect(faixa.get_by_role("button", name="Desfazer")).to_be_visible()
+    expect(_cartao(page, NOVA)).to_have_count(0)
+    _foco_numa_linha(page)
+    # o botão Fechar tira a faixa; aí o ⌘Z não faz nada
+    faixa.get_by_role("button", name="Fechar").click()
+    expect(faixa).to_be_empty()
+    page.keyboard.press("ControlOrMeta+z")
+    expect(_cartao(page, NOVA)).to_have_count(0)
+
+
+def test_faixa_fica_ao_trocar_a_ordem(page: Page, painel: str) -> None:
+    """A faixa sobrevive às trocas HTMX do miolo de Vagas (aqui, a ordem). A troca de aba pela
+    lateral é página inteira e a leva, como outra página nova (D154)."""
+    page.goto(f"{painel}/vagas?aba=todas&ordem=recentes")
+    _ocultar_pelo_detalhe(page, NOVA)
+    faixa = page.locator(FAIXA)
+    page.locator("#ordem").select_option("empresa")
+    expect(page).to_have_url(re.compile(r"[?&]ordem=empresa"))
+    expect(page.locator("#lista-vagas .linha-titulo").first).to_have_text("Analista de Sistemas")
+    expect(page.locator(".htmx-settling")).to_have_count(0)
+    expect(faixa).to_contain_text("Vaga ocultada")  # a troca do miolo (HTMX) não a leva
+    faixa.get_by_role("button", name="Desfazer").click()
+    expect(faixa).to_contain_text("Vaga mostrada de novo")
+    # a lista recarregada mantém a ordem de agora, e a lateral marca a aba de agora
+    expect(page).to_have_url(re.compile(r"[?&]ordem=empresa"))
+    expect(page.locator("#ordem")).to_have_value("empresa")
+    todas = page.locator('#lateral-vagas [href^="/vagas?aba=todas"]')
+    expect(todas).to_have_attribute("aria-current", "page")
+    expect(_cartao(page, NOVA)).to_be_visible()
+    expect(faixa.get_by_role("button", name="Refazer")).to_be_focused()
+    page.goto(f"{painel}/vagas?aba=todas")  # página nova inteira: a faixa some
+    expect(faixa).to_be_empty()
     assert NOVA in _titulos(page)
 
 

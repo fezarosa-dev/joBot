@@ -440,8 +440,6 @@ def _resposta(
     vaga = leitura.detalhe(con, vaga_id, busca_id, agora)
     if vaga is None:
         raise HTTPException(404, "vaga não existe")
-    de = urlsplit(voltar)  # a página de onde veio: diz qual item da lateral fica marcado
-    aba = parse_qs(de.query).get("aba", [""])[0]
     return renderizar(
         request,
         "vagas/corpo_oob.html",
@@ -451,10 +449,56 @@ def _resposta(
         retorno=voltar,
         busca_id=busca_id,
         foco=True,
-        lateral_oob=_lateral_oob(
-            con, agora, busca_id, "/vagas" if de.path == "/" else de.path, aba
-        ),
+        lateral_oob=_lateral_de_volta(con, agora, busca_id, voltar),
     )
+
+
+def _lateral_de_volta(
+    con: sqlite3.Connection, agora: datetime, busca_id: int | None, voltar: str
+) -> dict[str, Any]:
+    """A lateral por OOB com o item marcado da página de onde a pessoa veio (`voltar`)."""
+    de = urlsplit(voltar)
+    aba = parse_qs(de.query).get("aba", [""])[0]
+    return _lateral_oob(con, agora, busca_id, "/vagas" if de.path == "/" else de.path, aba)
+
+
+def _resposta_faixa(
+    request: Request,
+    con: sqlite3.Connection,
+    vaga_id: int,
+    voltar: str,
+    busca: str,
+    ocultou: bool,
+    antes: str = "",
+    com_faixa: bool = True,
+) -> Response:
+    """Ocultar e Desfazer/Refazer (T256). Sem HTMX, volta para a página como antes. Com HTMX, a
+    faixa de desfazer e a lateral por OOB; o HX-Trigger-After-Settle avisa o app.js para tirar a
+    linha (e fechar o detalhe dela) ou para recarregar a lista com a linha de volta. O aviso sai
+    depois do settle: antes dele, os hx-* da faixa nova ainda não valem e um ⌘Z viraria POST
+    nativo. `antes` vai no form do Desfazer: "-1" quando a vaga estava em "mostrar mesmo assim",
+    para o Desfazer voltar a ela e não a 0. `com_faixa=False` (Ocultar repetido, vaga já oculta)
+    deixa a faixa da tela como está: a nova levaria `antes=""` e o Desfazer zeraria a vaga."""
+    if request.headers.get("hx-request") != "true":
+        return de_volta(voltar)
+    agora = relogio_do_painel(request).agora()
+    busca_id = busca_efetiva(con, inteiro_da_url(busca, MAX_ID))
+    resposta = renderizar(
+        request,
+        "vagas/faixa_oob.html",
+        texto="ocultada" if ocultou else "mostrada",
+        acao="desfazer" if ocultou else "refazer",
+        rota="/vagas/{id}/mostrar" if ocultou else "/vagas/{id}/ocultar",
+        vaga_id=vaga_id,
+        voltar=voltar,
+        busca=busca,
+        antes=antes,
+        com_faixa=com_faixa,
+        lateral_oob=_lateral_de_volta(con, agora, busca_id, voltar),
+    )
+    evento = "vaga-ocultada" if ocultou else "vaga-mostrada"
+    resposta.headers["HX-Trigger-After-Settle"] = json.dumps({evento: {"vaga": vaga_id}})
+    return resposta
 
 
 @router.post("/vagas/{vaga_id}/status")
@@ -478,8 +522,13 @@ async def ocultar(
     voltar: Annotated[str, Form()] = "/",
     busca: Annotated[str, Form()] = "",
 ) -> Response:
+    linha = con.execute("SELECT oculta_manual FROM vaga WHERE id = ?", (vaga_id,)).fetchone()
     _aplicar(request, lambda agora: acoes.ocultar(con, vaga_id, agora))
-    return _resposta(request, con, vaga_id, voltar, busca)
+    antes = "-1" if linha and linha[0] == -1 else ""
+    ja_oculta = bool(linha and linha[0] == 1)
+    return _resposta_faixa(
+        request, con, vaga_id, voltar, busca, ocultou=True, antes=antes, com_faixa=not ja_oculta
+    )
 
 
 @router.post("/vagas/{vaga_id}/mostrar")
@@ -489,11 +538,16 @@ async def mostrar(
     vaga_id: VagaId,
     voltar: Annotated[str, Form()] = "/",
     busca: Annotated[str, Form()] = "",
+    antes: Annotated[str, Form()] = "",
 ) -> Response:
-    """ "Trazer de volta" (ocultada à mão) ou "mostrar mesmo assim" (ocultada por regra)."""
+    """ "Trazer de volta" (ocultada à mão) ou "mostrar mesmo assim" (ocultada por regra). O
+    Desfazer da faixa manda `antes=-1` quando o Ocultar saiu de um "mostrar mesmo assim"."""
     linha = con.execute("SELECT oculta_manual FROM vaga WHERE id = ?", (vaga_id,)).fetchone()
     if linha is None:
         raise HTTPException(404, "vaga não existe")
-    acao = acoes.trazer_de_volta if linha[0] == 1 else acoes.mostrar
-    _aplicar(request, lambda agora: acao(con, vaga_id, agora))
-    return _resposta(request, con, vaga_id, voltar, busca)
+    if linha[0] == 1:
+        oculta = -1 if antes == "-1" else 0
+        _aplicar(request, lambda agora: acoes.trazer_de_volta(con, vaga_id, agora, oculta))
+    else:
+        _aplicar(request, lambda agora: acoes.mostrar(con, vaga_id, agora))
+    return _resposta_faixa(request, con, vaga_id, voltar, busca, ocultou=False)

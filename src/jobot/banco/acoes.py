@@ -7,7 +7,7 @@ Contrato de exceções com a T45 (as rotas traduzem em resposta HTTP, nunca em 5
 `LookupError` = vaga inexistente (404); `ValueError` = status, campo ou estado
 inválido (422) (`mostrar` em vaga ocultada à mão, `trazer_de_volta` em vaga não ocultada à mão,
 `desfazer_status` em "nova"). `trazer_de_volta` zera `oculta_manual` para 0 e não
-restaura um -1 anterior.
+restaura um -1 anterior; só o Desfazer da faixa (T256) pede `oculta=-1`, porque sabe que era -1.
 `RuntimeError` = conexão já em transação (erro de quem chama, não de entrada).
 """
 
@@ -130,13 +130,20 @@ def mostrar(con: sqlite3.Connection, vaga_id: int, agora: datetime) -> None:
         _evento(con, vaga_id, "mostrou", agora)
 
 
-def trazer_de_volta(con: sqlite3.Connection, vaga_id: int, agora: datetime) -> None:
-    """Traz de volta uma vaga ocultada à mão: as regras voltam a decidir (grava `desfez`)."""
+def trazer_de_volta(
+    con: sqlite3.Connection, vaga_id: int, agora: datetime, oculta: int = 0
+) -> None:
+    """Traz de volta uma vaga ocultada à mão: as regras voltam a decidir (grava `desfez`).
+
+    `oculta=-1` volta ao "mostrar mesmo assim" que havia antes do ocultar (Desfazer da faixa, T256).
+    """
+    if oculta not in (0, -1):
+        raise ValueError(f"oculta_manual inválido para trazer de volta: {oculta!r}")
     with _transacao(con):
-        _, oculta = _estado(con, vaga_id)
-        if oculta != 1:
+        _, atual = _estado(con, vaga_id)
+        if atual != 1:
             raise ValueError("vaga não estava ocultada à mão")
-        con.execute("UPDATE vaga SET oculta_manual=0 WHERE id=?", (vaga_id,))
+        con.execute("UPDATE vaga SET oculta_manual=? WHERE id=?", (oculta, vaga_id))
         _evento(con, vaga_id, "desfez", agora)
 
 

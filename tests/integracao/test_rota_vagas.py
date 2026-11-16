@@ -669,6 +669,151 @@ def test_ocultar_e_trazer_de_volta(painel: Painel) -> None:
     ]
 
 
+def _faixa(html: str) -> str:
+    """A faixa de desfazer que veio por OOB (T256): o nó de `base.html`, trocado por dentro."""
+    achou = re.search(r'<div\b[^>]*\bid="faixa-desfazer"[^>]*>.*?</div>\s*$', html, re.S | re.M)
+    assert achou, "sem a faixa de desfazer na resposta"
+    abertura = _tag(achou.group(0), "faixa-desfazer")
+    assert 'role="status"' in abertura
+    assert 'hx-swap-oob="innerHTML"' in abertura
+    return achou.group(0)
+
+
+def _ocultar_hx(painel: Painel, vaga: int) -> Any:
+    return painel.http.post(
+        f"/vagas/{vaga}/ocultar", data={CAMPO_CSRF: painel.token, "voltar": "/vagas"}, headers=HX
+    )
+
+
+def _mostrar_hx(painel: Painel, vaga: int) -> Any:
+    return painel.http.post(
+        f"/vagas/{vaga}/mostrar", data={CAMPO_CSRF: painel.token, "voltar": "/vagas"}, headers=HX
+    )
+
+
+def _form_da_faixa(faixa: str, destino: str) -> str:
+    achou = re.search(rf'<form\b[^>]*\baction="{re.escape(destino)}"[^>]*>.*?</form>', faixa, re.S)
+    assert achou, f"a faixa não traz o formulário para {destino}"
+    return achou.group(0)
+
+
+def test_ocultar_traz_a_faixa_com_mostrar(painel: Painel) -> None:
+    vaga = painel.ids["nova"]
+    # no detalhe ao lado, Ocultar vai por HTMX sem herdar o hx-target de ninguém
+    _, miolo = _lado(painel.get(f"/vagas?aba=todas&vaga={vaga}").text)
+    achou = re.search(rf'<form\b[^>]*action="/vagas/{vaga}/ocultar"[^>]*>', miolo)
+    assert achou and f'hx-post="/vagas/{vaga}/ocultar"' in achou.group(0)
+    assert 'hx-target="this"' in achou.group(0) and 'hx-swap="none"' in achou.group(0)
+    resposta = _ocultar_hx(painel, vaga)
+    assert resposta.status_code == 200
+    faixa = _faixa(resposta.text)
+    assert "Vaga ocultada" in faixa
+    form = _form_da_faixa(faixa, f"/vagas/{vaga}/mostrar")
+    assert 'method="post"' in form
+    assert f'name="{CAMPO_CSRF}" value="{painel.token}"' in form
+    assert ">Desfazer<" in form
+    # o botão da faixa não leva o hx-target herdado de quem o contém
+    assert 'hx-target="this"' in form and 'hx-swap="none"' in form
+    assert 'aria-label="Fechar"' in faixa
+    # quem pediu é avisado para tirar a linha (e fechar o detalhe, se for ela) só depois do settle,
+    # quando a faixa nova já tem os hx-* (antes, um ⌘Z viraria POST nativo)
+    assert "HX-Trigger" not in resposta.headers
+    assert json.loads(resposta.headers["HX-Trigger-After-Settle"]) == {
+        "vaga-ocultada": {"vaga": vaga}
+    }
+
+
+def test_desfazer_traz_a_faixa_com_ocultar(painel: Painel) -> None:
+    vaga = painel.ids["nova"]
+    _ocultar_hx(painel, vaga)
+    resposta = _mostrar_hx(painel, vaga)
+    assert resposta.status_code == 200
+    faixa = _faixa(resposta.text)
+    assert "Vaga mostrada de novo" in faixa
+    form = _form_da_faixa(faixa, f"/vagas/{vaga}/ocultar")
+    assert f'name="{CAMPO_CSRF}" value="{painel.token}"' in form
+    assert ">Refazer<" in form
+    assert f"/vagas/{vaga}/mostrar" not in faixa
+    assert "HX-Trigger" not in resposta.headers
+    assert json.loads(resposta.headers["HX-Trigger-After-Settle"]) == {
+        "vaga-mostrada": {"vaga": vaga}
+    }
+    assert painel.sql("SELECT oculta_manual FROM vaga WHERE id = ?", vaga) == [(0,)]
+
+
+def test_refazer_oculta_de_novo(painel: Painel) -> None:
+    vaga = painel.ids["nova"]
+    _ocultar_hx(painel, vaga)
+    _mostrar_hx(painel, vaga)
+    resposta = _ocultar_hx(painel, vaga)
+    assert resposta.status_code == 200
+    assert "Vaga ocultada" in _faixa(resposta.text)
+    assert painel.sql("SELECT oculta_manual FROM vaga WHERE id = ?", vaga) == [(1,)]
+    assert vaga in _cartoes(painel.get("/vagas?aba=ocultas").text)
+    # ocultar continua sendo acréscimo de evento: nada apagado
+    assert painel.sql("SELECT acao FROM evento WHERE vaga_id = ? ORDER BY id", vaga) == [
+        ("ocultou",),
+        ("desfez",),
+        ("ocultou",),
+    ]
+
+
+def test_form_da_faixa_leva_voltar_e_busca(painel: Painel) -> None:
+    """Sem o JS (POST nativo), o form da faixa volta para a página de onde veio a ação."""
+    vaga = painel.ids["nova"]
+    voltar = "/vagas?aba=salvas&q=dev"
+    resposta = painel.http.post(
+        f"/vagas/{vaga}/ocultar",
+        data={CAMPO_CSRF: painel.token, "voltar": voltar, "busca": "7"},
+        headers=HX,
+    )
+    form = _form_da_faixa(_faixa(resposta.text), f"/vagas/{vaga}/mostrar")
+    assert 'name="voltar" value="/vagas?aba=salvas&amp;q=dev"' in form
+    assert 'name="busca" value="7"' in form
+    resposta = painel.http.post(
+        f"/vagas/{vaga}/mostrar", data={CAMPO_CSRF: painel.token, "voltar": voltar}, headers=HX
+    )
+    form = _form_da_faixa(_faixa(resposta.text), f"/vagas/{vaga}/ocultar")
+    assert 'name="voltar" value="/vagas?aba=salvas&amp;q=dev"' in form
+    assert 'name="busca" value=""' in form
+
+
+def _enviar_form_da_faixa(painel: Painel, resposta: Any, destino: str) -> Any:
+    """Aperta o botão da faixa como o navegador: manda todos os campos hidden do formulário."""
+    form = _form_da_faixa(_faixa(resposta.text), destino)
+    campos = dict(re.findall(r'<input type="hidden" name="([^"]+)" value="([^"]*)"', form))
+    return painel.http.post(destino, data={k: unescape(v) for k, v in campos.items()}, headers=HX)
+
+
+def test_desfazer_volta_ao_mostrar_mesmo_assim(painel: Painel) -> None:
+    """O Desfazer é o inverso do Ocultar: quem tinha mandado "mostrar mesmo assim" (-1) numa vaga
+    que a regra oculta volta a -1, não a 0 (que a regra esconderia de novo). Vale no Refazer."""
+    vaga = painel.ids["oculta_regra"]
+    painel.post(f"/vagas/{vaga}/mostrar")
+    assert painel.sql("SELECT oculta_manual FROM vaga WHERE id = ?", vaga) == [(-1,)]
+    oculta = _ocultar_hx(painel, vaga)
+    volta = _enviar_form_da_faixa(painel, oculta, f"/vagas/{vaga}/mostrar")
+    assert volta.status_code == 200
+    assert painel.sql("SELECT oculta_manual FROM vaga WHERE id = ?", vaga) == [(-1,)]
+    assert vaga in _cartoes(painel.get("/vagas?aba=todas").text)
+    refeita = _enviar_form_da_faixa(painel, volta, f"/vagas/{vaga}/ocultar")
+    assert painel.sql("SELECT oculta_manual FROM vaga WHERE id = ?", vaga) == [(1,)]
+    _enviar_form_da_faixa(painel, refeita, f"/vagas/{vaga}/mostrar")
+    assert painel.sql("SELECT oculta_manual FROM vaga WHERE id = ?", vaga) == [(-1,)]
+    # só acréscimo: cada passo é um evento
+    assert painel.sql("SELECT acao FROM evento WHERE vaga_id = ? ORDER BY id", vaga) == [
+        ("mostrou",),
+        ("ocultou",),
+        ("desfez",),
+        ("ocultou",),
+        ("desfez",),
+    ]
+    # o "Trazer de volta" das Ocultas (sem o campo da faixa) segue zerando, como na decisão da T44
+    painel.post(f"/vagas/{vaga}/ocultar")
+    painel.post(f"/vagas/{vaga}/mostrar")
+    assert painel.sql("SELECT oculta_manual FROM vaga WHERE id = ?", vaga) == [(0,)]
+
+
 def test_mostrar_mesmo_assim_numa_vaga_oculta_por_regra(painel: Painel) -> None:
     vaga = painel.ids["oculta_regra"]
     assert vaga in _cartoes(painel.get("/vagas?aba=ocultas").text)
@@ -1471,3 +1616,21 @@ def test_lista_vazia_com_vaga_na_url_traz_o_detalhe(painel: Painel) -> None:
         abertura, miolo = _lado(resposta.text)
         assert f'data-vaga="{vaga}"' in abertura
         assert "Engenheira de Integração" in miolo
+
+
+def test_ocultar_repetido_nao_troca_a_faixa(painel: Painel) -> None:
+    """Duplo clique no Ocultar: o 2º POST acha a vaga já oculta e não troca a faixa, que guarda
+    o `antes=-1` do 1º. Senão o Desfazer zeraria a vaga e não voltaria ao "mostrar mesmo assim"."""
+    vaga = painel.ids["oculta_regra"]
+    painel.post(f"/vagas/{vaga}/mostrar")
+    primeira = _ocultar_hx(painel, vaga)
+    form = _form_da_faixa(_faixa(primeira.text), f"/vagas/{vaga}/mostrar")
+    assert 'name="antes" value="-1"' in form
+    segunda = _ocultar_hx(painel, vaga)
+    assert segunda.status_code == 200
+    assert 'id="faixa-desfazer"' not in segunda.text
+    assert painel.sql("SELECT oculta_manual FROM vaga WHERE id = ?", vaga) == [(1,)]
+    assert painel.sql("SELECT acao FROM evento WHERE vaga_id = ? ORDER BY id", vaga) == [
+        ("mostrou",),
+        ("ocultou",),
+    ]
