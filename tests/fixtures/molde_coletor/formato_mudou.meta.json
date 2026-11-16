@@ -1,0 +1,12 @@
+{
+  "url": "https://vagas.exemplo.invalid/api/vagas?q=dev&pagina=1&por_pagina=20",
+  "data": "2026-11-16T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "application/json"
+  },
+  "sha256": "3baefdedbf1d449f809b615cd1378cf7c35abea65d180f7c0270da0b60fd9afd",
+  "versao": "0.2.1",
+  "metodo": "GET",
+  "montado_a_mao": "montado à mão a partir de normal.json, reduzido: a segunda vaga troca titulo por nome e url por link (formato mudou)"
+}

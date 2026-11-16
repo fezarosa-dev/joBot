@@ -6,8 +6,8 @@ body:
   - type: markdown
     attributes:
       value: |
-        Conhece um bom lugar com vagas? Conte aqui.
-        Know a good place with jobs? Tell us here.
+        Conhece um bom lugar com vagas? Conte aqui. Quer programar a fonte? Veja o guia docs/site-novo.md.
+        Know a good place with jobs? Tell us here. Want to code the source? See the guide docs/site-novo.en.md.
   - type: input
     id: nome
     attributes:
