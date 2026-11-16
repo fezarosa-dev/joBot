@@ -50,4 +50,53 @@ Outro caso, em 2026-11-16: `tests/navegador/test_navegacao_logada.py::test_cloud
 - `tests/navegador/test_janela_parada.py:324` (lento): a janela de 900 s são 180 olhadas, cada uma com 0,05 s reais do `RelogioDoNavegador`. Correção: `JANELA_PARADA_S` 60, como os outros testes do arquivo.
 - `tests/navegador/test_detalhe_logado.py:236` e `:272` (lentos): o controle lia `/quatro?q=a`, 4 páginas de lista e 4 de vaga. Correção: `/quatro?q=a&p=4`, uma lista e uma vaga.
 - `tests/navegador/test_execucao_logada.py:394` (lento): 10 páginas de lista. Correção: `MAX_LISTA` 6 com três escopos; o 10 se prende em `tests/unidade/test_navegador_abrir.py`.
-- Não corrigidas: `test_navegacao_nao_faz_post` visita todas as páginas do site falso de propósito; `test_login_com_captcha_nao_chama_resolver` abre o Chromium duas vezes. As fixtures `montagem`, `lancar` e `contexto_de_teste` sobem o Playwright a cada teste (0,5 a 0,9 s só na saída); dividi-las por sessão pede fixture assíncrona de sessão no anyio (fica para outra `Tn`). Os testes de `test_buscar_agora.py` esperam a pergunta de 2 em 2 s do painel (cerca de 2,5 s cada).
+- Não corrigidas: `test_navegacao_nao_faz_post` visita todas as páginas do site falso de propósito; `test_login_com_captcha_nao_chama_resolver` abre o Chromium duas vezes. As fixtures `montagem`, `lancar` e `contexto_de_teste` sobem o Playwright a cada teste (0,5 a 0,9 s só na saída); dividi-las por sessão pede fixture assíncrona de sessão no anyio (fica para a T295). Os testes de `test_buscar_agora.py` esperam a pergunta de 2 em 2 s do painel (cerca de 2,5 s cada; T295). O passo `playwright install` do CI, de 18 s na mediana, fica para a T294.
+
+### T293: config estragada não derruba a lista de Vagas
+`depende_de: T254, T255, T256, T257` (o lote do visual que mexe em `src/jobot/painel/rotas/vagas.py` já na `dev`, para não dar conflito)
+
+Hoje `rotas/vagas.py` lê a config com `config_ou_padrao` (definida em `painel/consultas.py`) em três lugares: `ler_estado` (`destaques_ligados`) e `raiz` (`primeira_execucao_concluida` e `destaques_ligados`). Ela faz `json.loads` sem `try`: um valor estragado em `destaques_ligados` levanta `ValueError` e dá 500 em `/` e em `/vagas`. `banco.cadastros.ler_config` já devolve o padrão quando o valor não presta.
+
+**Arquivos:**
+- modificar `src/jobot/painel/rotas/vagas.py` (as três chamadas passam a `ler_config`);
+- modificar `src/jobot/painel/consultas.py` (apagar `config_ou_padrao` se ninguém mais usar; conferir com `rtk grep -rn config_ou_padrao src tests`);
+- modificar `tests/integracao/test_rota_vagas.py` e, se citar o nome apagado, o texto de `tests/unidade/test_lateral.py`.
+
+- [ ] **Teste que falha antes:** gravar `destaques_ligados` com JSON estragado (`INSERT` direto na tabela `config`, com `{`) e pedir `/` e `/vagas`; esperar 200 em `/vagas` e, em `/`, o redirecionamento para `/vagas?aba=destaques` (o padrão `True`). O teste afirma o valor de reserva (a aba de destaques ligada), não só o 200.
+- [ ] **Ver falhar:** `uv run pytest tests/integracao/test_rota_vagas.py -q -k estragad`; o vermelho é a asserção, não um erro de import.
+- [ ] **Corrigir:** trocar `config_ou_padrao(con, chave, padrao)` por `ler_config(con, chave, padrao)` nos três lugares e apagar a função e o import que sobrar.
+- [ ] **Ver passar:** o arquivo do teste e `uv run ruff check && uv run ruff format --check`.
+
+### T294: Chromium do Playwright em cache no CI
+`depende_de: —`
+
+O passo `uv run playwright install --with-deps chromium` leva 18 s na mediana e até 66 s no job `tela` (medição da T292), repetido nas 16 partes.
+
+**Arquivos:**
+- modificar `.github/workflows/ci.yml` (job `tela`; olhar também se o job `comuns` instala o Chromium).
+
+- [ ] **Cache:** guardar `~/.cache/ms-playwright` com a chave pela versão do `playwright` no `uv.lock` (hoje 1.65.1). Com cache encontrado, rodar só `uv run playwright install-deps chromium`; sem cache, o `install --with-deps` de hoje.
+- [ ] **Action fixada** pelo hash do commit, com a versão em comentário, do mesmo jeito que as outras do `ci.yml` (`actions/cache`).
+- [ ] **Sem dependência nova** e sem teste de unidade (é `ci.yml`).
+- [ ] **Prova:** tempo do passo antes e depois em 2 rodadas na branch `lote/manutencao` (a primeira enche o cache, a segunda o usa). Anotar na tabela abaixo.
+
+| Medida | Antes | Depois |
+|---|---|---|
+| Passo de instalação do Chromium (mediana, máximo) | 18 s, 66 s | |
+
+### T295: navegador e tela mais rápidos nos testes
+`depende_de: T292`
+
+Três causas que a T292 deixou de fora.
+
+**Arquivos:**
+- modificar `tests/navegador/test_execucao_logada.py`, `tests/navegador/test_captcha_logado.py`, `tests/navegador/apoio/site_falso.py` e o `conftest.py` da pasta, se houver;
+- modificar `tests/tela/test_buscar_agora.py` e `tests/tela/conftest.py`;
+- modificar `registros/padroes.md` com a lição, se sair uma.
+
+- [ ] **(a) Playwright por sessão:** `async_playwright` sobe a cada teste em `tests/navegador` (`test_execucao_logada.py:100`, `test_captcha_logado.py:158`, `apoio/site_falso.py:654`), com 0,5 a 0,9 s só na desmontagem. Trocar por fixture de sessão por parte (`anyio_backend` de escopo de sessão), mantendo o contexto de cada teste isolado.
+- [ ] **(b) Relógio do navegador:** `tests/tela/test_buscar_agora.py:83` e `:119` esperam a pergunta de 2 em 2 s do painel. Usar `page.clock` (`install` e `fast_forward`) no lugar da espera real.
+- [ ] **(c) Corrida de porta (hipótese, não provada):** a falha antiga de "setup lento" do `test_form_sem_htmx_chega_numa_pagina_que_ja_mostra_o_andamento` pode ser a fixture `porta` de `tests/tela/conftest.py`, que fecha o socket antes de o uvicorn ligar (outro processo pode pegar a porta). Provar com teste ou descartar com medição; descartada, anotar aqui a medição.
+- [ ] **Ver falhar:** o que der para provar sem relógio, em `tests/unidade/` ou na própria tela (por exemplo, nenhum teste de `tests/tela` espera tempo real; conferido por varredura do texto). O resto fica com a medição do CI.
+- [ ] **Ver passar:** o arquivo de cada teste mexido e `uv run ruff check && uv run ruff format --check` aqui; o resto no CI.
+- [ ] **Critério:** tempos antes e depois, por parte, no CI (`--durations`), e 3 rodadas verdes seguidas.

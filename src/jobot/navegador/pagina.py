@@ -47,7 +47,9 @@ class Ouvidas(list[RespostaCapturada]):
         self.ultimas: dict[str, Response] = {}  # última resposta por URL, de qualquer host
         # shortcut: não separa documento de XHR; um fetch à mesma URL depois do documento troca o
         # status lido. Separar por `request.resource_type` se um site real fizer isso (o
-        # test_navegador_ast recusa `request` e `resource_type` hoje).
+        # test_navegador_ast recusa `request` e `resource_type` hoje). O limite vale também no
+        # caminho comum de visitar: a releitura da T292 usa `ultimas[url atual]`; separar documento
+        # de XHR é decisão R4 se um site real fizer fetch à própria URL.
         self.pedidos = 0
         self.respondidos = 0
         self._lendo: set[asyncio.Task[None]] = set()
