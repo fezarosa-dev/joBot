@@ -192,6 +192,17 @@ def test_andamento_velho_saiu(idioma: str) -> None:
 
 
 @pytest.mark.parametrize("idioma", ["pt", "en"])
+def test_aviso_contas_tem_texto(idioma: str) -> None:
+    """T276: as quatro chaves da faixa de queda, com o parâmetro certo em cada uma."""
+    catalogo = i18n.carregar()[idioma]
+    for chave in ("um", "varios", "gmail", "entrar"):
+        assert catalogo.get(f"casca.aviso_contas.{chave}")
+    assert "{site}" in catalogo.get("casca.aviso_contas.um", "")
+    assert "{quantos}" in catalogo.get("casca.aviso_contas.varios", "")
+    assert "{site}" not in catalogo["casca.aviso_contas.gmail"]
+
+
+@pytest.mark.parametrize("idioma", ["pt", "en"])
 def test_abas_do_topo_sairam_e_a_lista_tem_rotulo(idioma: str) -> None:
     """T254: a `nav.abas` sai (a lateral faz o papel dela); o listbox e o estado vazio entram."""
     catalogo = i18n.carregar()[idioma]

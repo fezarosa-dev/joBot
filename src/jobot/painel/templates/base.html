@@ -91,8 +91,8 @@
     <button type="button" data-aviso-fechar aria-label="{{ t('casca.erro.fechar') }}"><span aria-hidden="true">&times;</span></button>
   </div>
   <div id="aviso-versao" role="status" hx-get="/aviso-versao" hx-trigger="load" hx-swap="innerHTML"></div>
-  {#- faixas de Contas e de Desfazer: aqui fica o lugar e a ordem; o conteúdo vem das tarefas delas -#}
-  <div id="faixa-contas"></div>
+  {#- faixa de queda de sessão (T276); a de Desfazer vem da tarefa dela -#}
+  <div id="aviso-contas" role="status" hx-get="/aviso-contas" hx-trigger="load, contas-mudou from:body" hx-swap="innerHTML"></div>
   <div id="faixa-desfazer" role="status"></div>
   {#- a coluna do conteúdo rola sozinha: o body nunca rola por baixo do vidro -#}
   <div class="coluna">

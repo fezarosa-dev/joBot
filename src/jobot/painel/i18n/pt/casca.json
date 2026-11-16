@@ -43,5 +43,9 @@
   "casca.paleta.um": "1 comando",
   "casca.paleta.varios": "{n} comandos",
   "casca.ajuda": "Ajuda",
-  "casca.ajuda.url": "https://github.com/fezarosa-dev/joBot/wiki/Home"
+  "casca.ajuda.url": "https://github.com/fezarosa-dev/joBot/wiki/Home",
+  "casca.aviso_contas.um": "Sua sessão no {site} caiu. Entre de novo para o joBot voltar a ler as vagas.",
+  "casca.aviso_contas.varios": "Sua sessão caiu em {quantos} contas. Entre de novo em Configurações › Contas.",
+  "casca.aviso_contas.gmail": "Sua sessão no Gmail caiu. Entre de novo em Configurações › Contas.",
+  "casca.aviso_contas.entrar": "Entrar de novo"
 }
