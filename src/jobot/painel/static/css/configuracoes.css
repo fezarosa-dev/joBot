@@ -495,7 +495,7 @@
   .chave,
   .chave::after,
   .config-form .campo input.campo-texto {
-    transition: none;
+    transition: none !important; /* vence o fundido de 120ms do base.css (!important, seletor menor) */
   }
 
   .config .botao.htmx-request::after,

@@ -156,7 +156,7 @@ main:focus:not(:focus-visible) {
   outline: none;
 }
 
-/* link de pular: fora da tela até receber o foco */
+/* link de pular: invisível até receber o foco */
 .pular {
   position: absolute;
   inset-block-start: 0.75rem;
@@ -168,12 +168,9 @@ main:focus:not(:focus-visible) {
   color: var(--sobre-destaque);
   font-weight: 600;
   text-decoration: none;
-  transform: translateY(-300%);
-  /* o do miolo cai atrás da barra do topo (vidro): fora da tela não basta, some até o foco */
+  /* some sem sair do lugar (T146): invisível e sem pegar o mouse até receber o foco */
   opacity: 0;
-  transition:
-    transform var(--duracao) var(--mola),
-    opacity var(--duracao) var(--mola);
+  transition: opacity var(--duracao) var(--mola);
 }
 
 .pular:not(:focus) {
@@ -181,7 +178,6 @@ main:focus:not(:focus-visible) {
 }
 
 .pular:focus {
-  transform: none;
   opacity: 1;
 }
 
