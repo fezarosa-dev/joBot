@@ -2268,7 +2268,7 @@ Escolha da sessão (dono fora): a opção (a), para confirmar. Consequência: co
 
 ## D138. Ideias do memo: painel, fila, instalador e ordem das fases
 
-**Status:** decidida pelo dono em 2026-11-15 (itens 1 a 14); itens 15 a 17 são escolhas da sessão, para confirmar
+**Status:** decidida pelo dono em 2026-11-15 (itens 1 a 14); itens 15 a 17 são escolhas da sessão, para confirmar; a tecnologia da tela do instalador (item 16) o dono respondeu em 2026-11-15: Tauri (D142)
 
 **Contexto:** o dono respondeu às perguntas do memo de ideias. As respostas mudam a ordem das fases (ADR [0017](docs/decisions/0017-fases.md)), criam a tela Ferramentas e o princípio "tudo pelo painel" (ADR [0023](docs/decisions/0023-tudo-pelo-painel.md)) e mexem na [0009](docs/decisions/0009-ia-backends-e-modelos.md) (Claude Code e Codex). Os números Q1 a Q13 são os das perguntas do memo.
 
@@ -2292,8 +2292,8 @@ Escolha da sessão (dono fora): a opção (a), para confirmar. Consequência: co
 **Escolhas da sessão (para confirmar):**
 
 15. (sessão) Quais são as essenciais travadas: o joBot e o Python que ele usa. O navegador para sites com login é opcional: vem marcado, mas dá para desmarcar.
-16. (sessão) A tecnologia da tela do instalador e a assinatura de código (que tem custo) não foram escolhidas. A pesquisa voltou; a sessão recomenda, para o dono decidir:
-   - Tela: Tauri. A tela é feita em HTML e CSS, no mesmo visual do painel, num projeto à parte (Rust e HTML); gera o instalador NSIS no Windows, AppImage e .deb no Linux e .dmg no Mac. O joBot em si continua instalado pelo `uv tool install`, chamado pela tela. Alternativas: Inno Setup com a página de componentes (só Windows, visual limitado) ou pywebview com PyInstaller (tudo em Python, visual menos polido).
+16. (sessão) A tecnologia da tela do instalador foi respondida pelo dono em 2026-11-15: Tauri (D142). A assinatura de código (que tem custo) não foi escolhida. A pesquisa voltou; a sessão recomenda o resto, para o dono decidir:
+   - Tela: Tauri (escolhida, D142). A tela é feita em HTML e CSS, no mesmo visual do painel, num projeto à parte (Rust e HTML); gera o instalador NSIS no Windows, AppImage e .deb no Linux e .dmg no Mac. O joBot em si continua instalado pelo `uv tool install`, chamado pela tela. Alternativas: Inno Setup com a página de componentes (só Windows, visual limitado) ou pywebview com PyInstaller (tudo em Python, visual menos polido).
    - Assinatura no Windows: SignPath Foundation, grátis para projeto de código aberto (exige o build no GitHub Actions, MFA e uma página com a política de assinatura). Sem assinatura, o SmartScreen pede "Executar assim mesmo"; mesmo assinado, ele avisa até o programa ganhar reputação. O Azure Artifact Signing (US$ 9,99 por mês) não atende o Brasil. Um certificado OV custa de US$ 129 a 434 por ano.
    - Mac: sem a conta de desenvolvedor da Apple (US$ 99 por ano) e a notarização, a pessoa precisa liberar o programa em Ajustes, em "Abrir Mesmo Assim". Recomendação: documentar esse passo até o Mac entrar (decisão 10).
 17. (sessão) Sem PR da `dev` para a `main` até a 0.3.0 (já na D134.6).
@@ -2301,9 +2301,149 @@ Escolha da sessão (dono fora): a opção (a), para confirmar. Consequência: co
 **Para confirmar com o dono:**
 
 1. (decisão 15) As essenciais travadas são só o joBot e o Python que ele usa. Se a pessoa desmarca o navegador, os sites com login ficam desligados até ela baixar pela tela Ferramentas.
-2. (decisão 16) A tecnologia da tela do instalador (recomendação: Tauri) e a assinatura de código (recomendação: SignPath Foundation no Windows, grátis; no Mac, documentar o "Abrir Mesmo Assim" até decidir sobre os US$ 99 por ano).
+2. (decisão 16) A tecnologia da tela do instalador (recomendação: Tauri) e a assinatura de código (recomendação: SignPath Foundation no Windows, grátis; no Mac, documentar o "Abrir Mesmo Assim" até decidir sobre os US$ 99 por ano). (Tecnologia respondida pelo dono em 2026-11-15: Tauri, D142. A assinatura continua aberta.)
 3. (decisão 17) Nenhum PR para a `main` até a 0.3.0.
 4. (decisão 7) O Claude Code e o Codex passam a ser baixados pelo joBot. Antes, a D125 só abria a página oficial. Falta conferir, na fase 4, o endereço e o jeito de cada instalador oficial, e se os termos de cada um permitem o joBot chamá-lo.
-5. (decisão 14) A "linguagem mais adequada" para a tela do instalador depende do item 2 acima.
+5. (decisão 14) A tela do instalador é feita em HTML e CSS dentro do Tauri (D142) e segue o visual de app do Mac (D140).
 
 **Como desfazer:** o dono manda trocar qualquer item. A ordem das fases fica na ADR 0017 e a regra "tudo pelo painel" na ADR 0023; trocar uma delas é editar a ADR e os documentos listados na decisão 9.
+
+## D139. Estado das contas no painel e IA no instalador
+
+**Status:** decidida pelo dono em 2026-11-15 (itens 1 a 11, 34 e 35); itens 12 a 33, 36 e 37 são escolhas da sessão, para confirmar, menos o 13 e o 401/403 do 18, que o dono confirmou em 2026-11-15
+
+**Contexto:** o dono respondeu, em 2026-11-15, a duas perguntas: como o painel mostra se a sessão de cada site com login ainda vale, e como a IA entra no instalador. Os números Q1 a Q11 são os das perguntas dessa rodada; Q12 e Q13 vieram depois do desenho (itens 34 e 35), e a resposta sobre 401 e 403 (item 18) também. O desenho do lote "Contas" está em `docs/superpowers/specs/2026-11-15-contas-design.md`; os números D139.n são os da seção 11 dele. A parte de IA mexe no que a D138.6, a ADR [0023](docs/decisions/0023-tudo-pelo-painel.md) (`:24`) e a ADR [0009](docs/decisions/0009-ia-backends-e-modelos.md) já dizem; a decisão 10 mantém as três como estão.
+
+**Decisões do dono:**
+
+1. (Q1, dono) O protótipo do instalador no Canvas ganha a parte de IA no mesmo protótipo.
+2. (Q2, dono) "Baixar Claude/Codex" quer dizer os programas de terminal Claude Code e Codex CLI.
+   - O login é pela assinatura: o instalador baixa cada um e abre o login dele no fim.
+   - A chave de API é a alternativa, em Configurações › Serviços.
+   - O Claude Code precisa de plano pago (Pro, Max ou acima).
+   - O Codex entra com "Sign in with ChatGPT" ou com chave de API. Os termos da OpenAI sobre automação são conferidos na fase 4 (D125); se proibirem, o Codex fica só com a chave de API.
+   - Os textos dizem "baixa o Claude Code se você marcar", nunca "vem com".
+3. (Q3, dono) Grupo novo no instalador, "Inteligência artificial (opcional)", com Claude Code, Codex e Modelo local, desmarcados por padrão. O instalador pode lembrar a última escolha.
+4. (Q4, dono) Cada site mostra um estado, com a hora da última conferência ("conferido hoje às 09:02"), guardados no banco. Os estados são: Conectado; Precisa entrar de novo; Nunca entrou; Não deu para conferir (sem internet, desafio, bloqueio).
+5. (Q5, dono) "Precisa entrar de novo" avisa em dois lugares: uma faixa no topo de toda tela do painel, com o botão "Entrar de novo", e um aviso no computador (`notify-send`), uma vez por queda.
+6. (Q6, dono) Botão "Conferir agora" por site: abre o site, confere a sessão e atualiza o estado, sem ler vagas. A conferência também é automática a cada leitura das 9h e das 18h.
+7. (Q7, dono) Sem visitas para manter a sessão viva. O perfil persistente guarda a sessão; se ela cai, o aviso da decisão 5 dispara.
+8. (Q8, dono) Uma aba única, "Contas", em Configurações, troca a "Sites com login".
+   - LinkedIn e os próximos sites: agora.
+   - Claude Code e Codex: fase 4, com o estado vindo da própria ferramenta.
+   - Gmail: fase 6 (OAuth).
+   - 2Captcha: mostra "chave salva", testada só no clique.
+9. (Q9, dono) Lote pequeno agora, ainda na fase 2, antes do Panorama (0.3.0). Só o LinkedIn por enquanto.
+10. (Q10, dono) O Canvas ganha a parte de IA agora. O instalador real sai na fase 3 sem ela e ganha o grupo de IA na fase 4. A D138.6 continua valendo: a lista do instalador mostra só o que a versão usa.
+11. (Q11, dono) O modelo local é escolhido pela RAM, e a pessoa pode trocar.
+   - Só o Qwen3.5 2B (1,28 GB) e o 4B (2,74 GB), com o tamanho à vista: 2B para 8 GB de RAM, 4B para 12 GB ou mais (ADR 0009).
+   - O 9B espera a medida de velocidade em CPU.
+   - O Whisper fica para a fase 6.
+
+**Escolhas da sessão (para confirmar):**
+
+12. (sessão) Estado "Desligado" para site com o interruptor desligado: sem conferência e sem aviso. Ele vem da `fonte.ligada` e não é gravado.
+13. (sessão, confirmado pelo dono em 2026-11-15) A faixa fica enquanto a queda estiver aberta, não só no estado "Precisa entrar de novo". Queda aberta é: site ligado, com leitor registrado, `entrou_em` e `avisado_em` preenchidos. A faixa some quando o site volta a "Conectado" (`avisado_em` vira nulo), é desligado ou passa pelo "Esquecer logins". Assim, "Precisa entrar de novo" que vira "Não deu para conferir" (sem rede, em uso, desafio) mantém a faixa, e o cartão continua mostrando "Não deu para conferir", com o motivo. "Nunca entrou" (`entrou_em` nulo) nunca mostra a faixa. Ela não tem botão de fechar.
+14. (sessão) Mudanças no Canvas:
+   - Painel › Ferramentas ganhou cartões de IA: Claude Code e Codex só com "Baixar" (nunca remover, D138.7); Modelo local com "Baixar", "Remover" e "Trocar modelo".
+   - A página "Pronto" ganhou os botões "Entrar no Claude Code" e "Entrar no Codex".
+15. (sessão) O lote Contas mexe em `configuracoes.py` como a T240 e a T241. Ele vem depois delas e usa os nomes delas (`_trava(request, nome)`, `leitores_do_painel`, `contexto_sites_com_login`, `_sites_cartoes.html`). Ordem com o visual (D140, decisão 9): o lado de trás (migração 0009, gravação, `conferir_sessao`, rotas, aviso no computador) vai em paralelo ao visual novo; a aba Contas e a faixa do topo esperam a base visual nova da D140. Rotas, ids, chaves i18n e textos não mudam com o visual.
+16. (sessão) Tabela `sessao_site` na migração `0009_sessao_site.sql`, uma linha por site: `fonte` (chave, ligada à `fonte`), `estado` (`conectado`, `precisa_entrar`, `nao_conferiu`), `motivo` (nulo ou conjunto fechado), `conferido_em`, `entrou_em` e `avisado_em`. O `entrou_em` vira agora em "Conectado" e fica como está em "Precisa entrar de novo" e "Não deu para conferir". Gravação numa instrução só, com `INSERT ... ON CONFLICT DO UPDATE`.
+17. (sessão) Nada vai para `evento`, que só aceita ações de vaga. Nenhum gatilho novo.
+18. (sessão) Na entrada de cada leitura: página logada dá "Conectado" (e `entrou_em` passa a ser agora); página de login dá "Precisa entrar de novo"; 401, 403, bloqueio, desafio, 429, erro de rede, falta de tela ou de navegador dão "Não deu para conferir", com o motivo. O 401 e o 403 ficam em "Não deu para conferir" porque o código já os trata como bloqueio (`src/jobot/navegador/pagina.py:285`) (confirmado pelo dono em 2026-11-15: só a tela de login leva a "Precisa entrar de novo").
+19. (sessão) "Nunca entrou" é "Precisa entrar de novo" com `entrou_em` nulo, ou site sem linha. "Esquecer logins" volta todos os sites a esse estado, sem apagar a linha.
+20. (sessão) "Fazer login agora": "pronto" dá "Conectado" (e `entrou_em` passa a ser agora); "nao_entrou" e "tempo_esgotado" dão "Precisa entrar de novo" (ou "Nunca entrou", se nunca entrou); "sem_tela", "sem_navegador" e "em_uso" dão "Não deu para conferir".
+21. (sessão) "Conferir agora" mora no `navegador`, abre só a página de entrada, usa a trava `login`, recusa se o perfil estiver em uso, não chama o 2Captcha e não grava `execucao` nem saúde. Quando dá "Conectado", grava `entrou_em` = agora, como a leitura agendada e o "Fazer login agora".
+22. (sessão) O aviso no computador sai só pela leitura agendada, na passagem para "Precisa entrar de novo" de um site em que a pessoa já entrou (`entrou_em` preenchido), e o `avisado_em` lembra que já avisou. "Conferir agora" e "Fazer login agora" marcam como avisado sem mandar o aviso, porque a pessoa está na tela. O `avisado_em` só volta a nulo em "Conectado" ou no "Esquecer logins".
+23. (sessão) A faixa fica em `base.html`, logo depois do aviso de versão, carregada pela rota `/aviso-contas`. O botão "Entrar de novo" leva ao cartão do site na aba Contas.
+24. (sessão) A hora aparece em hora local: "hoje às", "ontem às" ou a data, comparando com o dia local do relógio do painel.
+25. (sessão) O grupo passa a ser `contas`. O `GET /configuracoes/sites-com-login` responde 303 para `/configuracoes/contas`. As rotas de ação mudam de caminho, sem cópia nas velhas.
+26. (sessão) A aba Contas tem a linha do 2Captcha ("chave salva" ou "sem chave"), com o botão "Testar" da tela Serviços e um link para ela.
+27. (sessão) O passo do assistente mantém o título "Sites com login (opcional)".
+28. (sessão) O link de `/fontes` vai para a aba Contas, com o texto "Ligue e desligue em Configurações › Contas".
+29. (sessão) Chaves i18n novas em `configuracoes.contas.*` e `casca.aviso_contas.*`. As chaves `configuracoes.sites_com_login.*` que mantêm o sentido ficam com o nome atual; só a do nome da aba sai.
+30. (sessão) A conferência automática é a própria entrada da leitura agendada, sem visita a mais.
+31. (sessão) Site desligado não é conferido, nem pelo botão (que some) nem pela leitura.
+32. (sessão) Prazo do "Conferir agora": `limites.PRAZO_CONFERIR_S = 60`. Estourou, o estado fica "Não deu para conferir", com o motivo `sem_rede`.
+33. (sessão) A espera do "Conferir agora" pergunta ao painel a cada 2 s.
+
+**Respostas do dono depois do desenho (2026-11-15) e a escolha da sessão que veio com elas:**
+
+34. (Q12, dono) A faixa do topo segue a queda aberta, não só o estado "Precisa entrar de novo" (regra na decisão 13). Assim a faixa não some quando a leitura seguinte só não consegue conferir.
+35. (Q13, dono) "Conferir agora" tem intervalo mínimo de 10 minutos desde o último `conferido_em` do site, de qualquer origem (leitura agendada, "Buscar agora", "Conferir agora", "Fazer login agora").
+   - Constante nova `limites.INTERVALO_CONFERIR_S = 600`, em `src/jobot/navegador/limites.py`.
+   - Dentro do intervalo, o botão fica desabilitado e o cartão mostra a hora da última conferência.
+   - A rota recusa antes de pegar a trava e sem abrir o navegador, e devolve o cartão como está.
+   - A comparação usa o `relogio_do_painel`; a borda libera (exatamente 600 s passa).
+36. (sessão) Site sem linha e linha com o motivo `esquecido` ficam fora da conta do intervalo (esquecer não é conferência). O botão desabilitado traz a frase `configuracoes.contas.conferir_espera` ("Conferido há pouco. Dá para conferir de novo em alguns minutos."), sem número, para o texto não depender da constante.
+37. (sessão) O botão "Conferir agora" some quando o site está "Nunca entrou" (sem linha, ou `entrou_em` nulo), como já some em "Desligado". A rota não recusa esse caso: só o cartão esconde o botão.
+
+**Para confirmar com o dono:**
+
+1. (decisão 12) O estado "Desligado". A faixa sem botão de fechar (decisão 13) o dono já confirmou em 2026-11-15.
+2. (decisão 14) As mudanças no Canvas: os cartões de IA na tela Ferramentas e os botões de login na página Pronto.
+3. (decisão 18) Respondido pelo dono em 2026-11-15: 401 e 403 na entrada ficam em "Não deu para conferir", com o motivo `bloqueio`, como o código faz hoje. Só a tela de login leva a "Precisa entrar de novo".
+4. (decisão 22) As ações feitas na tela não mandam aviso no computador.
+5. (decisões 25 e 27) As rotas de ação mudam de caminho sem cópia, e o assistente mantém o título "Sites com login (opcional)".
+6. (decisão 15) A ordem: T240 e T241 primeiro, depois o lote Contas, e só então o Panorama.
+7. (decisão 22) O "Buscar agora" também lê os sites com login, então ele também pode mandar o aviso no computador, mesmo com a pessoa na tela. Continua uma vez por queda.
+8. (decisões 18 e 32) Qualquer erro do navegador ao abrir a página de entrada aparece como "Sem internet ou o site não respondeu". No "Conferir agora", um site que pede para esperar ou uma verificação anti-robô demorada estouram o prazo de 60 s e aparecem com esse mesmo motivo.
+9. (decisão 36) Site sem linha e linha "esquecido" ficam fora do intervalo de 10 minutos, e o botão desabilitado diz "Conferido há pouco. Dá para conferir de novo em alguns minutos.", sem número.
+10. (decisão 37) O botão "Conferir agora" some em "Nunca entrou" (como em "Desligado"): não há sessão para conferir, e quem nunca entrou usa "Fazer login agora".
+
+**Como desfazer:** o dono manda trocar qualquer item. O desenho do lote fica em `docs/superpowers/specs/2026-11-15-contas-design.md`; trocar um estado, a faixa, o intervalo ou o aviso é editar o desenho antes do plano. A parte de IA do instalador fica no protótipo do Canvas até a fase 4; voltar atrás é tirar o grupo do protótipo.
+
+## D140. Visual de app do Mac
+
+**Status:** decidida pelo dono em 2026-11-15. Todos os itens são do dono; não há escolha da sessão.
+
+**Contexto:** o dono pediu, em 2026-11-15, que o joBot pareça um app da Apple para Mac, seguindo as Human Interface Guidelines (developer.apple.com/design). A ADR [0008](docs/decisions/0008-painel-e-visual.md) dizia só "estilo Apple".
+
+**Decisões do dono:**
+
+1. Alcance: o painel inteiro, o assistente da primeira execução e o instalador (o protótipo agora; o instalador real na fase 3).
+2. Referência: as Human Interface Guidelines atuais para macOS (macOS 27). Ideias e fatos públicos podem ser usados; nenhum arquivo da Apple entra no repositório (sala limpa, ADR [0016](docs/decisions/0016-licenca-clean-room-e-processo.md)).
+3. Estrutura como a do Mail: barra lateral no lugar das abas de cima, com Destaques de hoje, Todas, Novas, Fecham logo, Salvas, Candidatei, Programas e Ocultas; depois Buscas, Empresas e Fontes. Barra de ferramentas com a busca, a lista no meio e o detalhe à direita. Configurações no jeito dos Ajustes do Sistema. Os endereços das páginas não mudam.
+4. Material: o Liquid Glass do macOS 27 (translucidez), com fundo sólido quando a pessoa liga "Reduzir transparência" ou "Aumentar contraste".
+5. Janela até a fase 3: modo app do Chrome, Edge ou Chromium instalado; sem eles, o Chromium do Playwright que o joBot já baixa; sem ele, uma aba comum. A janela própria vem na fase 3 (D142).
+6. Fonte: a SF no Mac, pela fonte do sistema; a Inter, já embutida, nos outros sistemas. SF Pro e SF Symbols nunca entram no repositório: a licença só vale nas plataformas da Apple.
+7. Ícones: Lucide, copiados para o repositório com o arquivo de licença deles.
+8. Ordem: construído no painel de verdade, numa branch; a tela de vagas vai primeiro para o ok do dono, depois as outras telas.
+9. Contas: o lado de trás do lote Contas (D139) segue em paralelo; a aba Contas e a faixa do topo esperam a base visual nova.
+
+**Continuam valendo:** o painel só em 127.0.0.1, nenhum recurso externo, o contraste do critério 29, o movimento reduzido e os dois idiomas.
+
+**Como desfazer:** o dono manda trocar qualquer item. O visual novo nasce numa branch; enquanto o dono não dá o ok, descartar a branch desfaz tudo. A ADR 0008 guarda uma nota sobre isto; voltar atrás é tirar a nota e voltar ao "estilo Apple".
+
+## D141. Laya antes da fase 4
+
+**Status:** decidida pelo dono em 2026-11-15. Todos os itens são do dono; não há escolha da sessão.
+
+**Contexto:** havia um descompasso. O encaixe pelo sentido (D122) dependia do Laya ajustado (ADR [0015](docs/decisions/0015-treino.md)), mas o treino ficava na fase 7 (ADR [0017](docs/decisions/0017-fases.md)). Até lá o encaixe compara a palavra exata (D109).
+
+**Decisões do dono:**
+
+1. O ajuste fino do Laya (ADR 0015) sai da fase 7 e acontece antes da fase 4.
+2. O Laya ajustado entra no encaixe junto com o Qwen local: ele reconhece palavras diferentes que querem dizer a mesma competência.
+3. Os outros treinos continuam na fase 7.
+4. Sem mudança no resto da D122: quantizar primeiro, destilar só se ficar lento, rodar só na máquina da pessoa, treino no RunPod.
+
+**O que acontece até o Laya entrar:** a dica de variações da D109 segue como está, na tela de buscas ("coloque variações, uma por linha"), porque o encaixe compara a palavra exata e sem sinônimos. Esta decisão não mexe nela. O texto da D109 ("só chega na fase 3") e o título da D122 ("fases 3 e 6") usam a numeração antiga das fases; vale a ordem da ADR 0017. O ponto em aberto da ADR 0015 (conferir nos termos de cada fonte se as vagas podem entrar em treino de modelo público) passa a valer antes deste treino, não antes da fase 7.
+
+**Como desfazer:** o dono manda trocar qualquer item. Voltar atrás é devolver o ajuste do Laya à fase 7 e tirar as notas das ADRs 0015 e 0017.
+
+## D142. App de desktop e botões da janela
+
+**Status:** decidida pelo dono em 2026-11-15. Todos os itens são do dono; não há escolha da sessão.
+
+**Contexto:** o dono decidiu como o joBot vira um app com janela própria. A D140 cobre o visual; a D138 (decisão 16 e item 2 do "Para confirmar") deixava a tecnologia da tela do instalador em aberto.
+
+**Decisões do dono:**
+
+1. Na fase 3 o joBot vira um app de desktop: uma casca Tauri com ícone e janela própria em volta do mesmo painel. O servidor continua em 127.0.0.1 e nada é reescrito. A janela usa o navegador embutido do sistema: WebKitGTK no Linux, WebView2 no Windows e WKWebView no Mac.
+2. O mesmo projeto Tauri gera o instalador (D138, decisão 16). Isso responde a parte da tecnologia do item 2 do "Para confirmar" da D138; a assinatura de código continua aberta.
+3. Botões da janela: no Mac, os botões do próprio sistema, com a barra de título sobreposta ao conteúdo. No Windows e no Linux, janela sem a moldura do sistema e três círculos (vermelho, amarelo e verde) à esquerda, desenhados por nós em CSS ou SVG, nunca imagem da Apple. Continuam funcionando: arrastar pela barra, clique duplo para maximizar, redimensionar pela borda, os atalhos de teclado do sistema e nomes acessíveis nos botões.
+4. Custos aceitos: no Windows 11 some o menu de encaixe que aparece ao passar o mouse no botão de maximizar; quem usa Windows está acostumado com os botões à direita; os gerenciadores de janela do Linux variam e serão conferidos na fase 3.
+5. Até a fase 3, a janela do modo app (D140) usa a moldura do sistema.
+
+**Como desfazer:** o dono manda trocar qualquer item. Até a fase 3 só existe texto (esta D e as notas das ADRs 0003, 0008 e 0017); voltar atrás é editá-los. Se o Tauri sair, a tela do instalador volta ao item 2 da D138.
