@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_menu_contexto.html" import menu_contexto with context %}
 {% block titulo %}{{ t("sugeridas.titulo") }} · joBot{% endblock %}
 {% block estilos %}<link rel="stylesheet" href="/static/css/vagas.css"><link rel="stylesheet" href="/static/css/buscas.css"><link rel="stylesheet" href="/static/css/empresas.css">{% endblock %}
 {% block conteudo %}
@@ -7,38 +8,23 @@
 {%- if erro %}
 <p class="erro" role="alert">{{ t(erro) }}</p>
 {%- endif %}
-{% if linhas %}
-<ul class="lista" id="lista-sugeridas">
-  {%- for r in linhas %}
-  {%- set s = r.s %}
-  <li class="cartao" id="sugerida-{{ s.id }}">
-    <div class="cartao-cabeca">
-      <h2 class="cartao-titulo">{{ s.identificador }}</h2>
-      <span class="selo">{{ rotulo("fonte." ~ s.fonte, s.fonte) }}</span>
-    </div>
-    <ul class="meta">
-      <li>{{ t("sugeridas.achada_em", data=data_completa(s.descoberta_em.isoformat(), idioma)) }}</li>
-      <li>{{ t("sugeridas.exemplo") }}
-        {%- if r.link %} <a href="{{ s.url_exemplo }}" target="_blank" rel="noopener noreferrer">{{ s.url_exemplo }}</a>
-        {%- else %} {{ s.url_exemplo }}{% endif %}</li>
-    </ul>
-    {%- if r.removida_em %}
-    <p class="aviso">{{ t("sugeridas.removida", data=data_completa(r.removida_em, idioma)) }}</p>
-    {%- endif %}
-    <div class="acoes">
-      <form method="post" action="/empresas/sugeridas/{{ s.id }}/aprovar">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <button type="submit">{{ t("sugeridas.aprovar") }}</button>
-      </form>
-      <form method="post" action="/empresas/sugeridas/{{ s.id }}/descartar">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <button type="submit" class="secundario">{{ t("sugeridas.descartar") }}</button>
-      </form>
-    </div>
-  </li>
-  {%- endfor %}
-</ul>
-{% else %}
-<p class="vazio">{{ t("sugeridas.vazio") }}</p>
-{% endif %}
+<div id="corpo-sugeridas" data-lista-desfazer>
+{%- include "sugeridas/_corpo.html" %}
+</div>
+{#- o menu mora fora da lista, como o da Vagas: a troca da lista não o duplica nem o apaga -#}
+{% call menu_contexto("menu-sugerida", t("sugeridas.menu.rotulo")) %}
+<div role="group">
+<form method="post" action="/empresas/sugeridas" data-modelo-acao="/empresas/sugeridas/{id}/aprovar">
+<input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<button type="submit" role="menuitem" tabindex="-1">{{ t("sugeridas.aprovar") }}</button>
+</form>
+<a role="menuitem" tabindex="-1" href="#" data-modelo-href="{site}" data-requer="site" target="_blank" rel="noopener noreferrer">{{ t("sugeridas.menu.abrir_no_site") }}</a>
+</div>
+<div role="group">
+<form method="post" action="/empresas/sugeridas" data-modelo-acao="/empresas/sugeridas/{id}/descartar" hx-post="/empresas/sugeridas" hx-target="this" hx-swap="none">
+<input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<button type="submit" role="menuitem" tabindex="-1">{{ t("sugeridas.descartar") }}</button>
+</form>
+</div>
+{% endcall %}
 {% endblock %}

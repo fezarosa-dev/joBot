@@ -18,6 +18,7 @@ from jobot.banco.conexao import abrir
 pytestmark = pytest.mark.tela
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
+FAIXA = "#faixa-desfazer"
 
 
 def _servidor() -> httpx.MockTransport:
@@ -40,7 +41,7 @@ def app_painel(app_painel: FastAPI, tmp_path: Path) -> FastAPI:
 
 
 def _cartao(page: Page, nome: str) -> Locator:
-    return page.locator("#lista-empresas li.cartao").filter(
+    return page.locator("#lista-empresas li.linha-busca").filter(
         has=page.get_by_role("heading", name=nome, exact=True)
     )
 
@@ -81,14 +82,77 @@ def test_desligar_ligar_e_remover(page: Page, painel: str) -> None:
     _preencher(page, "Vitta").get_by_role("button", name="Adicionar", exact=True).click()
     cartao = _cartao(page, "Vitta")
 
-    cartao.get_by_role("button", name="Desligar").click()
+    cartao.get_by_role("switch").click()  # a chave manda o formulário ao mudar
     expect(_cartao(page, "Vitta")).to_contain_text("Desligada")
-    _cartao(page, "Vitta").get_by_role("button", name="Ligar").click()
+    _cartao(page, "Vitta").get_by_role("switch").click()
     expect(_cartao(page, "Vitta")).not_to_contain_text("Desligada")
 
-    _cartao(page, "Vitta").get_by_text("Remover", exact=True).click()
-    _cartao(page, "Vitta").get_by_role("button", name="Remover mesmo").click()
+    _cartao(page, "Vitta").get_by_role("button", name="Remover").click()  # sem pergunta (T260)
     expect(page.locator(".vazio")).to_be_visible()
+    expect(page.locator(FAIXA)).to_contain_text("Empresa removida")
+
+
+def test_remover_desfazer_e_refazer_sem_recarregar(page: Page, painel: str) -> None:
+    page.goto(f"{painel}/empresas")
+    _preencher(page, "Vitta").get_by_role("button", name="Adicionar", exact=True).click()
+    _preencher(page, "Outra").get_by_role("button", name="Adicionar", exact=True).click()
+    marca = "marca-sem-recarregar"
+    page.evaluate(f"window.name = '{marca}'")
+    faixa = page.locator(FAIXA)
+
+    _cartao(page, "Vitta").get_by_role("button", name="Remover").click()
+    expect(_cartao(page, "Vitta")).to_have_count(0)
+    expect(faixa).to_contain_text("Empresa removida")
+    expect(faixa.get_by_role("button", name="Refazer")).to_have_count(0)
+
+    faixa.get_by_role("button", name="Desfazer").click()
+    expect(_cartao(page, "Vitta")).to_have_count(1)  # a mesma linha volta, no seu lugar
+    expect(_cartao(page, "Vitta")).to_have_class(re.compile(r"linha-volta"))
+    # o realce aparece (o `--realce` vale na linha da Empresas) e depois some, com a classe
+    assert page.evaluate(
+        "getComputedStyle(document.querySelector('#lista-empresas li.linha-volta')).boxShadow"
+    ) not in ("", "none")
+    expect(_cartao(page, "Vitta")).not_to_have_class(re.compile(r"linha-volta"), timeout=3000)
+    expect(faixa).to_contain_text("Empresa restaurada")
+
+    faixa.get_by_role("button", name="Refazer").click()
+    expect(_cartao(page, "Vitta")).to_have_count(0)
+    expect(faixa).to_contain_text("Empresa removida")
+    assert page.evaluate("window.name") == marca  # nada recarregou a página
+
+
+def test_remover_e_desfazer_devolvem_o_foco(page: Page, painel: str) -> None:
+    page.goto(f"{painel}/empresas")
+    _preencher(page, "Vitta").get_by_role("button", name="Adicionar", exact=True).click()
+    _preencher(page, "Outra").get_by_role("button", name="Adicionar", exact=True).click()
+    faixa = page.locator(FAIXA)
+
+    _cartao(page, "Vitta").get_by_role("button", name="Remover").click()
+    expect(_cartao(page, "Vitta")).to_have_count(0)
+    expect(page.locator("#lista-empresas li.linha-busca").first).to_be_focused()  # o botão saiu
+
+    faixa.get_by_role("button", name="Desfazer").click()
+    expect(
+        faixa.get_by_role("button", name="Refazer")
+    ).to_be_focused()  # o botão apertado foi trocado
+
+
+def test_menu_de_contexto_remove_com_a_faixa_de_desfazer(page: Page, painel: str) -> None:
+    page.goto(f"{painel}/empresas")
+    _preencher(page, "Vitta").get_by_role("button", name="Adicionar", exact=True).click()
+
+    _cartao(page, "Vitta").click(button="right", position={"x": 40, "y": 12})
+    expect(page.get_by_role("menuitem", name="Ligar", exact=True)).to_be_hidden()  # já está ligada
+    page.get_by_role("menuitem", name="Desligar", exact=True).click()
+    expect(_cartao(page, "Vitta")).to_contain_text("Desligada")
+
+    _cartao(page, "Vitta").click(button="right", position={"x": 40, "y": 12})
+    expect(page.get_by_role("menuitem", name="Desligar", exact=True)).to_be_hidden()
+    page.get_by_role("menuitem", name="Remover").click()
+    expect(_cartao(page, "Vitta")).to_have_count(0)
+    expect(page.locator("#conteudo")).to_be_focused()  # o botão do menu saiu: o foco não fica solto
+    page.locator(FAIXA).get_by_role("button", name="Desfazer").click()
+    expect(_cartao(page, "Vitta")).to_have_count(1)
 
 
 def test_endereco_vazio_nao_envia(page: Page, painel: str) -> None:
