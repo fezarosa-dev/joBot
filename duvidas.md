@@ -2992,6 +2992,8 @@ Do item 2 (T305 h), aceito e documentado. Sem JavaScript, o detalhe sobreposto f
 - **B (recomendada).** Sem o cabeçalho `HX-Request`, responder 303 para `/configuracoes/sites-com-login` com um aviso do tipo "salvo", como os outros formulários do painel.
 - **C.** Sem `HX-Request`, renderizar a página inteira do grupo já com o resultado.
 
+**Escolha do redator (T310, para confirmar):** sem JavaScript, o sucesso volta para `/configuracoes/sites-com-login?salvo=1` e a falha volta com `?erro=em_andamento` ou `?erro=esquecer`, como a tela de serviços faz com `?erro=cofre`. Com HTMX o fragmento segue igual.
+
 **Recomendação:** B, numa tarefa própria (T310): segue o padrão dos outros formulários e só muda a resposta sem `HX-Request`; com HTMX continua o fragmento.
 
 **O que o dono faz:** confirmar a B ou escolher outra. Nada a fazer na máquina.
