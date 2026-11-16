@@ -1,0 +1,19 @@
+{#- Menu de contexto (T257; desenho 5.4). Um por página, não um por linha: o app.js preenche o mesmo
+    menu com os dados da linha na hora de abrir (botão direito, tecla de menu ou Shift+F10). Sem JS
+    não há menu e o botão direito do navegador segue valendo. Para outra tela (Buscas, Empresas,
+    Sites) basta a mesma receita:
+    - o alvo leva `data-menu="<id do menu>"` e os dados em `data-*` (ex.: `data-id`, `data-site`);
+    - o item leva `role="menuitem"`; `data-modelo-href` (link) e `data-modelo-acao` (form, também no
+      `hx-post` se tiver) trocam `{campo}` pelo `data-campo` do alvo;
+    - `data-requer="campo"` esconde o item quando o alvo não tem `data-campo` (a HIG esconde, não
+      apaga), e o grupo (`role="group"`) que fica sem item visível some junto;
+    - `data-abrir` faz o item agir como o clique na própria linha (detalhe ao lado ou página);
+    - `data-modelo-copiar` copia o endereço e mostra `data-copiado` (ou `data-nao-copiou`) na região
+      `#<id>-aviso`; os campos `voltar` e `busca` dos forms recebem a página de agora.
+    Sem atalhos escritos e no máximo três grupos (HIG, context menus). -#}
+{% macro menu_contexto(id, rotulo) -%}
+<div id="{{ id }}" class="menu-contexto vidro vidro-elevado" popover role="menu" aria-label="{{ rotulo }}" tabindex="-1" data-menu-contexto>
+{{- caller() -}}
+</div>
+<div id="{{ id }}-aviso" class="menu-aviso" role="status"></div>
+{%- endmacro %}

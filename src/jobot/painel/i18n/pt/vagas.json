@@ -125,5 +125,11 @@
   "vagas.aviso.mostrar_tambem": "Mostrar também",
   "vagas.aviso.sem_convertido": "Vagas em outra moeda, sem valor convertido, que ficaram de fora: {n}. Ligue a conversão de moeda em Configurações ou espere a próxima busca.",
   "vagas.aviso.so_moeda": "Com a conversão desligada, o filtro de salário só olha vagas pagas em {moeda}.",
-  "vagas.aviso.sem_cotacao": "Ainda não temos a cotação de {moeda}; o filtro de salário fica desligado até a próxima busca."
+  "vagas.aviso.sem_cotacao": "Ainda não temos a cotação de {moeda}; o filtro de salário fica desligado até a próxima busca.",
+  "vagas.menu.rotulo": "Ações da vaga",
+  "vagas.menu.abrir": "Abrir",
+  "vagas.menu.abrir_no_site": "Abrir no site da vaga",
+  "vagas.menu.copiar_link": "Copiar link",
+  "vagas.menu.copiado": "Link copiado.",
+  "vagas.menu.nao_copiou": "Não deu para copiar o link. Abra a vaga no site e copie o endereço de lá."
 }

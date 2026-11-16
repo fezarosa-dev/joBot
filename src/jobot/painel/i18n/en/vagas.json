@@ -125,5 +125,11 @@
   "vagas.aviso.mostrar_tambem": "Show them too",
   "vagas.aviso.sem_convertido": "Jobs in another currency, with no converted amount, that were left out: {n}. Turn on currency conversion in Settings or wait for the next search.",
   "vagas.aviso.so_moeda": "With conversion off, the salary filter only looks at jobs paid in {moeda}.",
-  "vagas.aviso.sem_cotacao": "We do not have the {moeda} exchange rate yet; the salary filter stays off until the next search."
+  "vagas.aviso.sem_cotacao": "We do not have the {moeda} exchange rate yet; the salary filter stays off until the next search.",
+  "vagas.menu.rotulo": "Job Actions",
+  "vagas.menu.abrir": "Open",
+  "vagas.menu.abrir_no_site": "Open on Job Site",
+  "vagas.menu.copiar_link": "Copy Link",
+  "vagas.menu.copiado": "Link copied.",
+  "vagas.menu.nao_copiou": "Could not copy the link. Open the job on its site and copy the address from there."
 }
