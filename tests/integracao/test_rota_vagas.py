@@ -326,6 +326,21 @@ def test_lista_recarregada_traz_as_paginas_ja_carregadas(painel: Painel) -> None
     assert "pagina=2" in _hx_get(um.text, "mais-2")
 
 
+def test_recarga_do_miolo_tem_teto_de_paginas(painel: Painel) -> None:
+    """T311 (d): recarregar 10 mil vagas de uma vez leva ~4 s e 7,6 MB; o Desfazer junta no
+    máximo 20 páginas (1000 linhas) e o "Carregar mais" segue de lá; o `pagina=N` direto, do
+    "Carregar mais", não muda."""
+    with closing(abrir(painel.banco)) as con:
+        for n in range(1100):
+            inserir_vaga(con, titulo=f"Extra {n}", empresa=f"Extra SA {n}")
+    miolo = painel.get("/vagas?aba=todas&pagina=30", headers=HX | {"HX-Target": "vagas-miolo"})
+    assert len(_cartoes(miolo.text)) == 1000
+    assert 'data-paginas="20"' in _tag(miolo.text, "mais-caixa")
+    assert "pagina=21" in _hx_get(miolo.text, "mais-21")
+    direta = painel.get("/vagas?aba=todas&pagina=22", headers=HX)
+    assert len(_cartoes(direta.text)) == 50
+
+
 def test_salvar_pelo_teclado_fica_no_detalhe(painel: Painel) -> None:
     """T254: a linha da lista é só o link; salvar e ocultar moram na página da vaga (E10)."""
     vaga = painel.ids["nova"]

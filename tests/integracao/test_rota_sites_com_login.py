@@ -504,6 +504,21 @@ def test_esquecer_mostra_o_componente_indeterminado(painel: Painel) -> None:
     assert html.count('role="progressbar"') == 1  # um só componente na página
 
 
+def test_barra_da_espera_nao_repete_o_texto_no_aria_label(painel: Painel) -> None:
+    """T311 (c): o nome do trilho vem do texto visível (aria-labelledby), não de um aria-label
+    que repete esse texto."""
+    html = painel.http.get(GRUPO).text
+    espera = _elemento_por_id(html, "esquecer-progresso")
+    assert espera is not None
+    trilho = re.search(r'<div\b[^>]*role="progressbar"[^>]*>', espera)
+    assert trilho is not None
+    assert "aria-label=" not in trilho[0], trilho[0]
+    alvo = re.search(r'aria-labelledby="([\w-]+)"', trilho[0])
+    assert alvo is not None, trilho[0]
+    nomeado = _elemento_por_id(espera, alvo[1])
+    assert nomeado is not None and "Apagando os logins guardados" in _texto(nomeado)
+
+
 def test_esquecer_indicador_em_ingles(painel: Painel) -> None:
     painel.idioma("en")
     assert "Deleting saved sign-ins" in _texto(painel.http.get(GRUPO).text)
