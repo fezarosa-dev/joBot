@@ -202,7 +202,17 @@ def test_salvar_e_ocultar_ficam_na_mesma_linha_a_600px(page: Page, painel: str) 
     s, o = salvar.bounding_box(), ocultar.bounding_box()
     assert s is not None and o is not None
     assert abs(s["y"] - o["y"]) < 2  # o Ocultar não vai sozinho para a linha de baixo
-    assert o["height"] < 2 * 16  # e o rótulo não quebra de linha
+    # e o rótulo não quebra de linha: a altura do miolo (sem padding e borda) é a de uma linha
+    linhas = ocultar.evaluate(
+        """el => {
+          const s = getComputedStyle(el);
+          const miolo = el.getBoundingClientRect().height
+            - parseFloat(s.paddingTop) - parseFloat(s.paddingBottom)
+            - parseFloat(s.borderTopWidth) - parseFloat(s.borderBottomWidth);
+          return miolo / parseFloat(s.lineHeight);
+        }"""
+    )
+    assert linhas < 1.5, linhas
     assert o["x"] + o["width"] <= 600
     folga = page.evaluate(
         "document.documentElement.scrollWidth - document.documentElement.clientWidth"

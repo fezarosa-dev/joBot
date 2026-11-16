@@ -13,6 +13,7 @@ from playwright.sync_api import Page, expect
 
 from apoio.relogio import RelogioFalso
 from apoio.semear import inserir_vaga
+from jobot.banco.cadastros import gravar_config
 from jobot.banco.conexao import abrir
 from jobot.banco.execucoes import abrir_execucao, fechar_execucao
 from jobot.painel.rotas import execucao as rota
@@ -128,7 +129,12 @@ def test_form_sem_htmx_chega_numa_pagina_que_ja_mostra_o_andamento(
     liberar: threading.Event,
     terminou: threading.Event,
     chamadas: list[str],
+    app_painel: FastAPI,
 ) -> None:
+    # sem `voltar` o redirect passa pelo "/", que só leva às Vagas (com a barra) depois da
+    # primeira execução; antes dela vai ao passo 1 do assistente, que não tem barra (T263)
+    with closing(abrir(app_painel.state.banco)) as con:
+        gravar_config(con, "primeira_execucao_concluida", True)
     page.clock.install()
     page.goto(f"{painel}/vagas?aba=todas")
     # form comum, sem hx-post (montado por JS): volta por redirect

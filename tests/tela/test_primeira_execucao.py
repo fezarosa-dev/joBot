@@ -102,7 +102,10 @@ def test_voltar_do_passo_2_leva_ao_passo_1(page: Page, painel: str) -> None:
 
 def _pe_dentro_da_janela(page: Page, nomes: tuple[str, ...]) -> None:
     for nome in nomes:
-        botao = page.get_by_role("button", name=nome).or_(page.get_by_role("link", name=nome))
+        # nome exato: "Pular" por substring casa também o "Pular para o conteúdo" da casca
+        botao = page.get_by_role("button", name=nome, exact=True).or_(
+            page.get_by_role("link", name=nome, exact=True)
+        )
         expect(botao).to_be_in_viewport()
         caixa = botao.bounding_box()
         assert caixa is not None and caixa["y"] + caixa["height"] <= 560
@@ -127,9 +130,11 @@ def test_botoes_visiveis_com_janela_baixa(
     caixas = page.locator("#assistente-form input[type=checkbox]")
     for i in range(caixas.count()):
         caixas.nth(i).check()
-    nomes = {"1": ("Continuar", "Pular"), "sites": ("Continuar", "Pular", "Voltar")}.get(
-        passo, ("Concluir", "Pular", "Voltar")
-    )
+    nomes = {
+        "1": ("Continuar", "Pular"),
+        "sites": ("Continuar", "Pular", "Voltar ao passo 1"),
+        "2": ("Concluir", "Pular", "Voltar ao passo 2"),
+    }[passo]
     _pe_dentro_da_janela(page, nomes)
     corpo = page.locator(".assistente-corpo")
     if texto == "24px":  # o corpo rola e o pé continua à vista

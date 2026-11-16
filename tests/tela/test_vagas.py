@@ -987,7 +987,8 @@ def _com_contorno(local: Locator) -> bool:
 def test_primeira_linha_sem_marca(page: Page, painel: str) -> None:
     """Na carga nenhuma linha vem marcada; a primeira só fica no Tab (T301 item 6)."""
     page.set_viewport_size({"width": 1280, "height": 800})
-    page.goto(f"{painel}/vagas")
+    # Todas, sem vaga aberta: a seta para baixo precisa de uma segunda linha (Destaques tem uma)
+    page.goto(f"{painel}/vagas?aba=todas")
     _aguardar_lista(page)
     marcadas = page.locator('#lista-vagas [aria-selected="true"]')
     expect(marcadas).to_have_count(0)
@@ -999,7 +1000,7 @@ def test_primeira_linha_sem_marca(page: Page, painel: str) -> None:
     expect(primeira).to_be_focused()
     assert _com_contorno(primeira)
     # pelo Tab de verdade: o mesmo
-    page.goto(f"{painel}/vagas")
+    page.goto(f"{painel}/vagas?aba=todas")
     _aguardar_lista(page)
     for _ in range(150):
         page.keyboard.press("Tab")
