@@ -94,6 +94,7 @@ erDiagram
     vaga ||--o{ encaixe : "vaga_id"
     vaga ||--o{ correcao : "vaga_id"
     vaga ||--o{ evento : "vaga_id"
+    vaga ||--o| candidatura : "vaga_id"
     vaga ||--o| vaga_fts : "rowid = id"
     busca ||--o{ encaixe : "busca_id"
     pagina_acompanhada ||--o{ mudanca_pagina : "pagina_id"
@@ -234,6 +235,11 @@ erDiagram
         TEXT para
         TEXT criado_em
     }
+    candidatura {
+        INTEGER vaga_id PK, FK
+        TEXT abriu_em
+        INTEGER perguntar
+    }
     cotacao {
         TEXT moeda PK
         TEXT data PK
@@ -276,7 +282,7 @@ erDiagram
     }
 ```
 
-**Nothing is deleted.** The trigger `vaga_sem_delete` refuses any `DELETE` on `vaga`: a job that disappears from the source only gets `fechada_em`. The `evento` table (the history of what you did in the dashboard) only receives additions: `evento_sem_update` and `evento_sem_delete` refuse to change or delete a row. Writing always uses `INSERT ... ON CONFLICT DO UPDATE`, never `INSERT OR REPLACE`. The tables `cotacao`, `cache_http`, `enriquecimento` and `config` have no foreign key: `enriquecimento` links to the job only through the value of `url_hash`.
+**Nothing is deleted.** The trigger `vaga_sem_delete` refuses any `DELETE` on `vaga`: a job that disappears from the source only gets `fechada_em`. The `evento` table (the history of what you did in the dashboard) only receives additions: `evento_sem_update` and `evento_sem_delete` refuse to change or delete a row. The `candidatura` table (when you opened the application for each job) is updated in place, and `candidatura_sem_delete` refuses to delete a row. Writing always uses `INSERT ... ON CONFLICT DO UPDATE`, never `INSERT OR REPLACE`. The tables `cotacao`, `cache_http`, `enriquecimento` and `config` have no foreign key: `enriquecimento` links to the job only through the value of `url_hash`.
 
 ## 🔎 One search, step by step
 
