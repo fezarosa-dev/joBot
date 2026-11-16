@@ -75,14 +75,16 @@ O passo `uv run playwright install --with-deps chromium` leva 18 s na mediana e 
 **Arquivos:**
 - modificar `.github/workflows/ci.yml` (job `tela`; olhar também se o job `comuns` instala o Chromium).
 
-- [ ] **Cache:** guardar `~/.cache/ms-playwright` com a chave pela versão do `playwright` no `uv.lock` (hoje 1.65.1). Com cache encontrado, rodar só `uv run playwright install-deps chromium`; sem cache, o `install --with-deps` de hoje.
-- [ ] **Action fixada** pelo hash do commit, com a versão em comentário, do mesmo jeito que as outras do `ci.yml` (`actions/cache`).
-- [ ] **Sem dependência nova** e sem teste de unidade (é `ci.yml`).
-- [ ] **Prova:** tempo do passo antes e depois em 2 rodadas na branch `lote/manutencao` (a primeira enche o cache, a segunda o usa). Anotar na tabela abaixo.
+- [x] **Cache:** guardar `~/.cache/ms-playwright` com a chave pela versão do `playwright` no `uv.lock` (hoje 1.65.1). Com cache encontrado, nada mais roda: a imagem do runner já traz as bibliotecas do sistema (medido: 16 partes verdes sem `install-deps`). Sem cache, o `install --with-deps` de hoje.
+- [x] **Action fixada** pelo hash do commit, com a versão em comentário, do mesmo jeito que as outras do `ci.yml` (`actions/cache`).
+- [x] **Sem dependência nova** e sem teste de unidade (é `ci.yml`).
+- [x] **Prova:** tempo do passo antes e depois em 2 rodadas na branch `lote/ci-cache` (a primeira enche o cache, a segunda o usa). Anotar na tabela abaixo.
 
 | Medida | Antes | Depois |
 |---|---|---|
-| Passo de instalação do Chromium (mediana, máximo) | 18 s, 66 s | |
+| Passo de instalação do Chromium (mediana, máximo) | 18 s, 66 s | sem cache: 21 s, 34 s; com cache: 3 s, 5 s |
+
+**Notas.** O cache do Actions vale por ref: um lote ou PR novo só acha o cache se ele estiver no escopo da `main`. Depois do próximo PR da `dev` para a `main`, rodar uma vez `gh workflow run ci.yml --ref main` para semear; cada lote que o lê o mantém vivo (o GitHub apaga cache sem acesso há 7 dias). Se um teste de tela falhar com "Host system is missing dependencies", a imagem do runner mudou: devolver o passo `uv run playwright install-deps chromium` com `if` no cache-hit.
 
 ### T295: navegador e tela mais rápidos nos testes
 `depende_de: T292`
