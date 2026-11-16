@@ -5,7 +5,7 @@ from urllib.parse import urlsplit
 import pytest
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
-from playwright.sync_api import Locator, Page, expect
+from playwright.sync_api import Locator, Page, ViewportSize, expect
 
 from jobot.painel.seguranca import renderizar
 
@@ -273,7 +273,7 @@ def test_reduced_motion_desliga_animacao(page: Page, painel: str) -> None:
 
 
 # ---- barra lateral (T251; desenho 5.2) ----
-LARGA = {"width": 1200, "height": 800}
+LARGA: ViewportSize = {"width": 1200, "height": 800}
 ROLA_DE_LADO = "document.documentElement.scrollWidth > window.innerWidth"
 
 
@@ -430,6 +430,6 @@ def test_conteudo_rola_no_proprio_conteiner(page: Page, painel: str) -> None:
     )
     page.mouse.move(800, 400)
     page.mouse.wheel(0, 800)
-    page.wait_for_function("document.querySelector('.coluna').scrollTop > 0")
+    page.wait_for_function("() => document.querySelector('.coluna').scrollTop > 0")
     assert page.evaluate("document.scrollingElement.scrollTop") == 0
     expect(page.locator("header.topo")).to_be_in_viewport()

@@ -45,13 +45,13 @@ def test_menu_leva_as_configuracoes_e_cada_aba_abre_o_seu_grupo(page: Page, pain
     page.get_by_role("navigation", name="Principal").get_by_role(
         "link", name="Configurações"
     ).click()
-    expect(page).to_have_url(f"{painel}/configuracoes/fontes")
+    expect(page).to_have_url(f"{painel}/configuracoes/geral")
     grupos = page.get_by_role("navigation", name="Grupos de configurações")
-    expect(grupos.get_by_role("link", name="Fontes")).to_have_attribute("aria-current", "page")
+    expect(grupos.get_by_role("link", name="Geral")).to_have_attribute("aria-current", "page")
     for nome, caminho in (
+        ("Fontes", "fontes"),
         ("Funções", "funcoes"),
         ("Segundo plano", "segundo-plano"),
-        ("Geral", "geral"),
         ("Privacidade", "privacidade"),
         ("Serviços", "servicos"),
     ):
@@ -80,8 +80,9 @@ def test_desligar_destaques_tira_a_aba_e_o_painel_abre_em_todas(
     expect(page.get_by_label("Destaques de hoje", exact=True)).not_to_be_checked()
 
     page.goto(f"{painel}/vagas")
-    expect(page.get_by_role("link", name="Todas")).to_have_attribute("aria-current", "page")
-    expect(page.get_by_role("link", name="Destaques")).to_have_count(0)
+    lateral = page.get_by_role("navigation", name="Principal")
+    expect(lateral.get_by_role("link", name="Todas")).to_have_attribute("aria-current", "page")
+    expect(lateral.get_by_role("link", name="Destaques")).to_have_count(0)
     assert _sem_erro_no_console == []
 
 
