@@ -252,13 +252,16 @@ async def _uma_vez(
     status = resposta.status if resposta is not None else 0
     if parada := await _fora_ou_login(page, leitor, politica, status):
         return _parou(parada, page.url)
-    if await _e_cloudflare(page):
+    desafio = await _e_cloudflare(page)
+    if desafio:
         for _ in range(limites.ESPERA_CLOUDFLARE_S):
             await relogio.dormir(1)
             if not await _e_cloudflare(page):
                 break
         else:
             return _parou("captcha", page.url)  # não saiu sozinho: sem 2Captcha (A8)
+    # o desafio pode sair sozinho antes da primeira olhada: vale também o documento que trocou
+    if desafio or ouvidas.ultimas.get(urldefrag(page.url).url, resposta) is not resposta:
         await page.wait_for_load_state("load")
         # o status e o Retry-After da nova; page.url traz o #, a resposta não
         resposta = ouvidas.ultimas.get(urldefrag(page.url).url, resposta)

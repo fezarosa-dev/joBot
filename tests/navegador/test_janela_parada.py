@@ -329,6 +329,7 @@ async def test_duas_abas_dividem_os_15_minutos(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setattr(limites, "JANELA_PARADA_S", 60)  # 900 s eram 180 olhadas reais
     gravar_config(con, "captcha_ligado", False)  # sem 2Captcha: as duas param
     # o relógio da janela só anda depois que a pessoa resolve: assim "resolveu cedo" não depende
     # da velocidade da máquina

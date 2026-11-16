@@ -343,8 +343,8 @@ class SiteFalso:
                 return _Resposta(corpo=_pagina("Vagas", corpo))
             case "/lista-html":
                 return _Resposta(corpo=_pagina("Vagas", _lista_html([1, 2])))
-            case "/lista-25":  # 25 vagas numa página só (teto de páginas de vaga, T214)
-                return _Resposta(corpo=_pagina("Vagas", _lista_html(list(range(1, 26)))))
+            case "/lista-5":  # 5 vagas numa página só (teto de páginas de vaga, T214)
+                return _Resposta(corpo=_pagina("Vagas", _lista_html(list(range(1, 6)))))
             case "/paginada":
                 proxima = "/paginada?p=2" if pagina == 1 else None
                 ids = [1, 2] if pagina == 1 else [3, 4]
