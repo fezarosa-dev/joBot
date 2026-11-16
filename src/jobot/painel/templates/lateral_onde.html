@@ -1,0 +1,9 @@
+{#- os itens de "Onde buscar" da lateral (desenho 5.2). Na casca entra como está; a resposta HTMX de
+    Sugeridas volta com `oob` e troca esta lista no lugar (hx-swap-oob), com a contagem nova.
+    Precisa de `lado`, `caminho` e `onde_atual` (a área marcada). -#}
+{%- from "_onde.html" import onde %}
+<ul id="lateral-onde" aria-labelledby="secao-onde"{% if oob %} hx-swap-oob="true"{% endif %}>
+  {%- for chave, href, area, icone, segundo in onde if not segundo or lado.sugeridas_pendentes %}
+  <li{% if segundo %} class="segundo-nivel"{% endif %}><a data-icone="{{ icone }}" href="{{ href }}"{% if area == onde_atual %} aria-current="{{ 'page' if caminho == href else 'true' }}"{% endif %}>{{ t("casca.menu." ~ chave) }}{% if chave == "sugeridas" %} <span class="contagem">{{ lado.sugeridas_pendentes }}</span>{% endif %}</a></li>
+  {%- endfor %}
+</ul>

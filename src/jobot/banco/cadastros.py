@@ -260,6 +260,14 @@ def remover_empresa(con: sqlite3.Connection, id: int, agora: datetime) -> None:
             raise LookupError(f"empresa inexistente: {id}")
 
 
+def restaurar_empresa(con: sqlite3.Connection, id: int) -> None:
+    """Desfaz o remover: limpa `removida_em` da mesma linha."""
+    with con:
+        cur = con.execute("UPDATE empresa SET removida_em = NULL WHERE id = ?", (id,))
+        if cur.rowcount == 0:
+            raise LookupError(f"empresa inexistente: {id}")
+
+
 def ler_config(con: sqlite3.Connection, chave: str, padrao: Any = _SEM_PADRAO) -> Any:
     """Valor da chave (JSON decodificado). Sem linha, ou com JSON estragado, vale `padrao`.
 

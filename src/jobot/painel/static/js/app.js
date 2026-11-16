@@ -391,7 +391,10 @@
   // (a linha ou o detalhe somem) ou em nenhum lugar; em outro ponto ele fica onde está
   const ondeEstava = (no) => {
     if (no?.closest?.("#faixa-desfazer")) return "faixa";
-    if (!no || no === document.body || no.closest?.('#detalhe-vaga, [role="listbox"]')) return "lista";
+    // o botão do menu de contexto (popover fora da lista) conta como a lista, se a página tem uma
+    const naLista = '#detalhe-vaga, [role="listbox"], [data-lista-desfazer]';
+    if (no?.closest?.("[data-menu-contexto]") && document.querySelector("[data-lista-desfazer]")) return "lista";
+    if (!no || no === document.body || no.closest?.(naLista)) return "lista";
     return "";
   };
   // o aviso vem depois do settle, quando o botão da faixa que foi apertado já saiu da página (foco
@@ -454,6 +457,18 @@
       }
       devolverFoco(onde, linha);
     });
+  });
+  // Empresas e Sugeridas (T260): Descartar/Remover e Desfazer/Refazer trocam a lista por OOB e o
+  // botão apertado sai da página. O foco volta ao botão da faixa, à linha que voltou ou, se a
+  // lista perdeu a linha, à primeira que sobrou (ou à página, sem nenhuma)
+  document.addEventListener("lista-mudou", (evento) => {
+    const onde = ondeAntes;
+    const lista = document.querySelector("[data-lista-desfazer]");
+    const linha = document.getElementById(evento.detail.linha) ?? lista?.querySelector("li[tabindex]");
+    // o realce de 1 s vem pronto do servidor; sem tirar a classe ele ficaria parado em movimento reduzido
+    const volta = lista?.querySelector(".linha-volta");
+    if (volta) setTimeout(() => volta.classList.remove("linha-volta"), 1000);
+    devolverFoco(onde, linha);
   });
   document.addEventListener("click", (evento) => {
     if (!evento.target.closest("[data-faixa-fechar]")) return;

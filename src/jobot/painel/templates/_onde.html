@@ -1,0 +1,9 @@
+{#- (chave, href, começo do caminho, ícone, segundo nível) dos itens de "Onde buscar" -#}
+{%- set onde = (
+  ("buscas", "/buscas", "/buscas", "search", false),
+  ("empresas", "/empresas", "/empresas", "building-2", false),
+  ("sugeridas", "/empresas/sugeridas", "/empresas/sugeridas", "lightbulb", true),
+  ("fontes", "/fontes", "/fontes", "rss", false),
+  ("sites", "/sites", "/sites", "globe", false),
+) -%}
+{%- set config = ("configuracoes", "/configuracoes/geral", "/configuracoes", "settings", false) -%}

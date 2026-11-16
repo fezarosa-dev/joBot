@@ -11,6 +11,7 @@ A rede vem do `ClienteEducado`; `app.state.transporte` troca o transporte nos te
 """
 
 import asyncio
+import json
 import logging
 import sqlite3
 from collections.abc import Mapping
@@ -20,9 +21,11 @@ from typing import Annotated
 from fastapi import APIRouter, HTTPException, Path, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
-from jobot.banco.sugeridas import Sugerida, aprovar, descartar, sugeridas
+from jobot.banco.sugeridas import Sugerida, aprovar, descartar, restaurar, sugeridas
 from jobot.nucleo.coletores.plataformas import gupy
 from jobot.painel.cliente import cliente_do_painel
+from jobot.painel.consultas import relogio_do_painel
+from jobot.painel.lateral import ler_lateral
 from jobot.painel.seguranca import Con, renderizar
 
 router = APIRouter(prefix="/empresas/sugeridas")
@@ -60,8 +63,39 @@ def _linhas(con: sqlite3.Connection) -> list[Linha]:
 def _pagina(
     request: Request, con: sqlite3.Connection, erro: str | None = None, status: int = 200
 ) -> HTMLResponse:
-    resposta = renderizar(request, "sugeridas/lista.html", linhas=_linhas(con), erro=erro)
+    resposta = renderizar(
+        request, "sugeridas/lista.html", linhas=_linhas(con), volta=None, erro=erro
+    )
     resposta.status_code = status
+    return resposta
+
+
+def _resposta_faixa(
+    request: Request, con: sqlite3.Connection, sugestao_id: int, descartou: bool
+) -> Response:
+    """Descartar e Restaurar (T260). Sem HTMX, volta para a lista. Com HTMX, a faixa de desfazer e
+    a lista nova por OOB; a sugestão que voltou leva o realce. O Refazer é a rota de hoje."""
+    if request.headers.get("hx-request") != "true":
+        return RedirectResponse("/empresas/sugeridas", status_code=303)
+    resposta = renderizar(
+        request,
+        "_faixa_corpo_oob.html",
+        texto="descartada" if descartou else "restaurada",
+        acao="desfazer" if descartou else "refazer",
+        rota="/empresas/sugeridas/{id}/restaurar"
+        if descartou
+        else "/empresas/sugeridas/{id}/descartar",
+        id=sugestao_id,
+        voltar="/empresas/sugeridas",
+        corpo_id="corpo-sugeridas",
+        corpo="sugeridas/_corpo.html",
+        linhas=_linhas(con),
+        volta=None if descartou else sugestao_id,
+        lado=ler_lateral(con, relogio_do_painel(request).agora(), None),
+    )
+    # depois do settle, a faixa nova já está processada; o app.js devolve o foco (T260)
+    aviso = {"linha": "" if descartou else f"sugerida-{sugestao_id}"}
+    resposta.headers["HX-Trigger-After-Settle"] = json.dumps({"lista-mudou": aviso})
     return resposta
 
 
@@ -124,9 +158,18 @@ async def aprovar_sugestao(request: Request, con: Con, sugestao_id: SugestaoId) 
 
 
 @router.post("/{sugestao_id}/descartar")
-async def descartar_sugestao(con: Con, sugestao_id: SugestaoId) -> Response:
+async def descartar_sugestao(request: Request, con: Con, sugestao_id: SugestaoId) -> Response:
     try:
         descartar(con, sugestao_id)
     except LookupError as erro:
         raise HTTPException(404) from erro
-    return RedirectResponse("/empresas/sugeridas", status_code=303)
+    return _resposta_faixa(request, con, sugestao_id, descartou=True)
+
+
+@router.post("/{sugestao_id}/restaurar")
+async def restaurar_sugestao(request: Request, con: Con, sugestao_id: SugestaoId) -> Response:
+    try:
+        restaurar(con, sugestao_id)
+    except LookupError as erro:
+        raise HTTPException(404) from erro
+    return _resposta_faixa(request, con, sugestao_id, descartou=False)

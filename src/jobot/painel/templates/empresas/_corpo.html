@@ -1,0 +1,36 @@
+{%- if linhas %}
+<ul class="lista-buscas" id="lista-empresas">
+  {%- for r in linhas %}
+  {%- set e = r.e %}
+  <li class="linha-busca{% if not e.ativa %} linha-desligada{% endif %}{% if e.id == volta %} linha-volta{% endif %}" id="empresa-{{ e.id }}" tabindex="-1" data-menu="menu-empresa" data-id="{{ e.id }}" data-{{ "ligada" if e.ativa else "desligada" }}>
+    <div class="linha-busca-texto">
+      <div class="cartao-cabeca">
+        <h2 class="cartao-titulo">{{ e.nome }}</h2>
+        {%- if not e.ativa %}
+        <span class="selo">{{ t("empresas.desligada") }}</span>
+        {%- endif %}
+        {%- if r.talentos %}
+        <span class="selo">{{ t("empresas.banco_de_talentos") }}</span>
+        {%- endif %}
+      </div>
+      <ul class="meta">
+        <li>{{ r.fonte_nome }} · {{ e.identificador }}</li>
+      </ul>
+    </div>
+    <div class="linha-busca-acoes">
+      <form method="post" action="/empresas/{{ e.id }}/remover" hx-post="/empresas/{{ e.id }}/remover" hx-target="this" hx-swap="none">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button type="submit" class="botao-simples">{{ t("empresas.remover") }}</button>
+      </form>
+      <form method="post" action="/empresas/{{ e.id }}/{{ 'desligar' if e.ativa else 'ligar' }}" data-envia-ao-mudar>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="checkbox" class="chave chave-mini" role="switch" name="ativa"{% if e.ativa %} checked{% endif %} aria-label="{{ t('empresas.chave_rotulo', nome=e.nome) }}">
+        <noscript><button type="submit" class="botao-simples">{{ t("empresas.desligar" if e.ativa else "empresas.ligar") }}</button></noscript>
+      </form>
+    </div>
+  </li>
+  {%- endfor %}
+</ul>
+{%- else %}
+<p class="vazio">{{ t("empresas.vazio") }}</p>
+{%- endif %}
