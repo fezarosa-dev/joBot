@@ -1,0 +1,77 @@
+{#- O cartão do Gmail (T278; desenho 5.7.1): a senha de app nunca volta ao HTML; o campo da senha
+    nasce sempre vazio. Toda ação troca o cartão inteiro (`#conta-gmail`, outerHTML); o "Salvar" e
+    o "Conferir" mostram o componente indeterminado de `#gmail-progresso`, que mora em contas.html,
+    fora do cartão. Na resposta das rotas (`foco`), o foco vai ao campo com erro ou, se estava
+    solto, ao cartão; o estado novo é anunciado em `#status-gmail` (`anunciar`), fora do cartão. -#}
+{% from "_alerta.html" import alerta with context %}
+{%- set g = gmail %}
+{%- set conferir = g.tem_credencial and g.na_tela != "nunca_entrou" %}
+{%- set esperar = conferir and not g.pode_conferir %}
+{%- set erro_no_campo = g.erro_endereco or g.erro_senha %}
+<section id="conta-gmail" class="cartao-site cartao-gmail" aria-labelledby="gmail-titulo"{% if foco and not erro_no_campo %} data-foco-se-livre tabindex="-1"{% endif %}>
+  <h2 id="gmail-titulo" class="conta-titulo">{{ t("configuracoes.contas.gmail.titulo") }}</h2>
+  <p class="config-texto">{{ t("configuracoes.contas.gmail.explicacao") }} <a href="{{ t('configuracoes.contas.gmail.tutorial_url') }}" target="_blank" rel="noopener noreferrer">{{ t("configuracoes.contas.gmail.tutorial") }}</a></p>
+  {#- o estado com texto e forma, nunca só a cor (E15) -#}
+  <p class="config-texto conta-estado"><span class="selo selo-{{ g.na_tela }}">{{ t("configuracoes.contas.estado." ~ g.na_tela) }}</span>{% if g.hora %} <span class="conta-hora">{{ g.hora }}</span>{% endif %}</p>
+  {% if g.motivo %}<p class="config-texto">{{ t("configuracoes.contas.motivo." ~ g.motivo) }}</p>{% endif %}
+  {% if g.falhou_cofre %}
+  {#- a frase neutra e, conforme a origem, o que não aconteceu (C2): a leitura não diz mais nada -#}
+  <div class="config-alerta" role="alert"><p>{{ t("configuracoes.contas.gmail.erro.cofre") }}
+    {%- if g.falhou_cofre == "salvar" %} {{ t("configuracoes.contas.gmail.nao_guardou") }}
+    {%- elif g.falhou_cofre == "remover" %} {{ t("configuracoes.contas.gmail.erro.nao_apagou") }}{% endif %}</p></div>
+  {% endif %}
+  {% if g.aviso %}
+  <div class="config-alerta" role="alert"><p>{{ t("configuracoes.contas.motivo." ~ g.aviso) }} {{ t("configuracoes.contas.gmail.nao_guardou") }}</p></div>
+  {% endif %}
+  <form method="post" action="/configuracoes/gmail/salvar" class="config-form" novalidate>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div class="campo">
+      <label for="gmail-endereco">{{ t("configuracoes.contas.gmail.endereco") }}</label>
+      <input type="email" class="campo-texto" id="gmail-endereco" name="endereco" value="{{ g.endereco or '' }}" autocomplete="email" spellcheck="false"
+        {%- if g.erro_endereco %} aria-invalid="true" aria-describedby="gmail-endereco-erro"{% if foco %} data-foco{% endif %}{% endif %}>
+      {% if g.erro_endereco %}<small id="gmail-endereco-erro" class="campo-erro">{{ t("configuracoes.contas.gmail.erro.endereco") }}</small>{% endif %}
+    </div>
+    <div class="campo">
+      <label for="gmail-senha">{{ t("configuracoes.contas.gmail.senha") }}</label>
+      <input type="password" class="campo-texto" id="gmail-senha" name="senha" autocomplete="off" spellcheck="false"
+        aria-describedby="{% if g.erro_senha %}gmail-senha-erro {% endif %}gmail-acesso{% if g.tem_credencial %} gmail-guardada{% endif %}"
+        {%- if g.erro_senha %} aria-invalid="true"{% if foco and not g.erro_endereco %} data-foco{% endif %}{% endif %}>
+      {% if g.erro_senha %}<small id="gmail-senha-erro" class="campo-erro">{{ t("configuracoes.contas.gmail." ~ g.erro_senha) }}</small>{% endif %}
+      <small id="gmail-acesso">{{ t("configuracoes.contas.gmail.acesso") }}</small>
+      {% if g.tem_credencial %}<small id="gmail-guardada">{{ t("configuracoes.contas.gmail.senha_guardada") }}</small>{% endif %}
+      {% if g.local %}<small>{{ t("configuracoes.contas.gmail.no_arquivo") }}</small>{% endif %}
+    </div>
+    <div class="acoes">
+      <button type="submit" class="botao botao-primario" hx-post="/configuracoes/gmail/salvar" hx-target="#conta-gmail" hx-swap="outerHTML" hx-indicator="#gmail-progresso" hx-disabled-elt="this">{{ t("configuracoes.contas.gmail.salvar") }}</button>
+    </div>
+  </form>
+  {%- if esperar %}
+  <p class="config-texto conferir-espera" id="gmail-conferir-espera">{{ t("configuracoes.contas.conferir_espera") }}</p>
+  {%- endif %}
+  {#- o "Conferir" só com a credencial inteira; o "Remover" com qualquer pedaço dela ou com o cofre
+      em falha, para nunca sobrar senha sem jeito de tirá-la (C1) -#}
+  {%- if conferir or g.tem_algo or g.falhou_cofre %}
+  <div class="acoes">
+    {%- if conferir %}
+    {#- fora do formulário da senha: o "Conferir agora" não manda a senha digitada -#}
+    <form method="post" action="/configuracoes/gmail/conferir">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button type="submit" class="botao botao-secundario" hx-post="/configuracoes/gmail/conferir" hx-target="#conta-gmail" hx-swap="outerHTML" hx-indicator="#gmail-progresso" hx-disabled-elt="this"
+        {%- if esperar %} disabled aria-describedby="gmail-conferir-espera"{% endif %}>{{ t("configuracoes.contas.conferir") }}</button>
+    </form>
+    {%- endif %}
+    {%- if g.tem_algo or g.falhou_cofre %}
+    {#- sem JavaScript, um GET para a página de confirmação; com ele, o alerta (C4, T307) -#}
+    <form method="get" action="/configuracoes/gmail/remover/confirmar">
+      <button type="submit" class="botao botao-secundario" data-alerta-abre="alerta-gmail-remover">{{ t("configuracoes.contas.gmail.remover") }}</button>
+    </form>
+    {%- endif %}
+  </div>
+  {%- endif %}
+  {%- if g.tem_algo or g.falhou_cofre %}
+  {#- o "Remover" não confere nada: sem o indicador do "Conferindo…" (C6) -#}
+  {{ alerta("alerta-gmail-remover", t("configuracoes.contas.gmail.remover_pergunta"), t("configuracoes.contas.gmail.remover_explicacao"), t("configuracoes.contas.gmail.remover"), "/configuracoes/gmail/remover", alvo_htmx="#conta-gmail", troca="outerHTML") }}
+  {%- endif %}
+</section>
+{#- o estado novo na região fixa: a do cartão foi trocada junto com ele e não é anunciada (C3) -#}
+{% if anunciar %}<p hx-swap-oob="innerHTML:#status-gmail"><span data-some-sozinho>{{ t("configuracoes.contas.conferido_resultado", site=t("configuracoes.contas.gmail.titulo"), estado=t("configuracoes.contas.estado." ~ g.na_tela)) }}{% if g.motivo %} {{ t("configuracoes.contas.motivo." ~ g.motivo) }}{% endif %}</span></p>{% endif %}

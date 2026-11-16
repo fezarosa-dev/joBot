@@ -1,7 +1,22 @@
 <p class="config-texto">{{ t("configuracoes.contas.explicacao") }}</p>
+{% from "_alerta.html" import alerta with context %}
+{% from "execucao/_progresso.html" import progresso with context %}
+{#- os sites com login só existem com leitor registrado (E13) -#}
+{%- if cartoes %}
 <p class="config-texto">{{ t("configuracoes.sites_com_login.explicacao") }}</p>
 <p class="config-texto"{% if navegador == "nenhum" %} id="contas-sem-navegador"{% endif %}>{{ t("configuracoes.sites_com_login.navegador." ~ navegador) }}{% if navegador == "nenhum" %} <a href="/configuracoes/ferramentas">{{ t("configuracoes.sites_com_login.navegador.ir_ferramentas") }}</a>{% endif %}</p>
 {% include "configuracoes/_sites_cartoes.html" %}
+{%- endif %}
+{#- o Gmail depois dos sites; sem leitor, só ele (E13). A espera das ações do cartão fica fora
+    dele, que a resposta troca, como a de "Esquecer logins" -#}
+{% include "configuracoes/_cartao_gmail.html" %}
+{#- o estado novo do Gmail é anunciado aqui (C3): fora do cartão, que a resposta troca, e com ou
+    sem leitor (o `#status-sites` só existe com os cartões dos sites) -#}
+<p id="status-gmail" role="status" aria-live="polite" class="config-salvo"></p>
+<div id="gmail-progresso" class="progresso-espera">
+  {{- progresso({"indeterminado": True, "etapa": "conferir", "fontes": []}, corpo=True, base="gmail", texto=t("configuracoes.contas.conferindo"), nomeia=True) }}
+</div>
+{%- if cartoes %}
 <form method="post" action="/configuracoes/contas" class="config-form">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   <div class="campo">
@@ -24,8 +39,6 @@
   <div id="resultado-captcha-contas" class="resultado" aria-live="polite"></div>
   {%- endif %}
 </div>
-{% from "_alerta.html" import alerta with context %}
-{% from "execucao/_progresso.html" import progresso with context %}
 <div id="esquecer-logins" aria-live="polite">
   <form method="get" action="/configuracoes/contas/esquecer/confirmar">
     <div class="acoes">
@@ -40,3 +53,4 @@
 <div id="esquecer-progresso" class="progresso-espera">
   {{- progresso({"indeterminado": True, "etapa": "esquecer", "fontes": []}, corpo=True, base="esquecer", texto=t("execucao.etapa.esquecer"), nomeia=True) }}
 </div>
+{%- endif %}

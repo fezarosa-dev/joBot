@@ -357,3 +357,83 @@ def test_linha_desde_tem_texto(idioma: str) -> None:
     """T287: a frase "{status} desde {data}" da aba Candidatei, nos dois idiomas."""
     esperado = {"pt": "{status} desde {data}", "en": "{status} since {data}"}[idioma]
     assert i18n.carregar()[idioma].get("vagas.linha.desde") == esperado
+
+
+GMAIL = {
+    "pt": {
+        "titulo": "Gmail",
+        "explicacao": (
+            "Para o joBot conferir o seu Gmail, crie uma senha de app na sua conta Google e cole "
+            "aqui."
+        ),
+        "acesso": (
+            "A senha de app dá acesso a todo o seu e-mail. O joBot só abre a caixa de entrada "
+            "para leitura."
+        ),
+        "endereco": "Endereço do Gmail",
+        "senha": "Senha de app",
+        "senha_guardada": "Há uma senha de app guardada. Para trocar, cole outra.",
+        "salvar": "Salvar e conferir",
+        "remover": "Remover",
+        "remover_pergunta": "Remover a senha de app do Gmail?",
+        "remover_explicacao": (
+            "O joBot deixa de conferir o Gmail. A senha continua valendo na sua conta Google até "
+            "você revogá-la lá."
+        ),
+        "tutorial": "Como criar uma senha de app",
+        "tutorial_url": "https://github.com/fezarosa-dev/joBot/wiki/Gmail-senha-de-app",
+        "erro.endereco": "Digite um endereço de e-mail, como nome@gmail.com.",
+        "erro.senha": "A senha de app tem 16 letras. Copie de novo da página do Google.",
+        "erro.recusada": "O Google recusou a senha. Confira o endereço ou crie outra senha de app.",
+        "erro.cofre": "O cofre do sistema não respondeu.",
+        "erro.nao_apagou": "A senha não foi apagada. Tente de novo.",
+        "nao_guardou": "A senha não foi guardada.",
+        "no_arquivo": "Sem cofre do sistema: a senha ficou num arquivo que só o seu usuário lê.",
+    },
+    "en": {
+        "titulo": "Gmail",
+        "explicacao": (
+            "To let joBot check your Gmail, create an app password in your Google account and "
+            "paste it here."
+        ),
+        "acesso": (
+            "An app password gives access to your whole mailbox. joBot only opens the inbox "
+            "read-only."
+        ),
+        "endereco": "Gmail Address",
+        "senha": "App Password",
+        "senha_guardada": "An app password is saved. To change it, paste a new one.",
+        "salvar": "Save and Check",
+        "remover": "Remove",
+        "remover_pergunta": "Remove the Gmail app password?",
+        "remover_explicacao": (
+            "joBot stops checking Gmail. The password stays valid in your Google account until "
+            "you revoke it there."
+        ),
+        "tutorial": "How to Create an App Password",
+        "tutorial_url": "https://github.com/fezarosa-dev/joBot/wiki/Gmail-app-password",
+        "erro.endereco": "Enter an email address, like name@gmail.com.",
+        "erro.senha": "An app password has 16 letters. Copy it again from the Google page.",
+        "erro.recusada": (
+            "Google refused the password. Check the address or create a new app password."
+        ),
+        "erro.cofre": "The system password vault did not respond.",
+        "erro.nao_apagou": "The password was not removed. Try again.",
+        "nao_guardou": "The password was not saved.",
+        "no_arquivo": (
+            "No system password vault: the password is in a file only your user can read."
+        ),
+    },
+}
+
+
+@pytest.mark.parametrize("idioma", ["pt", "en"])
+def test_gmail_tem_texto(idioma: str) -> None:
+    """T278: as frases do cartão do Gmail nos dois idiomas, frase por frase, com o tutorial na
+    página do idioma; nenhuma chave do Gmail fora desta lista."""
+    catalogo = i18n.carregar()[idioma]
+    prefixo = "configuracoes.contas.gmail."
+    achadas = {
+        chave[len(prefixo) :]: v for chave, v in catalogo.items() if chave.startswith(prefixo)
+    }
+    assert achadas == GMAIL[idioma]

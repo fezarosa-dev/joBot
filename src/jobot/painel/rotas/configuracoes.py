@@ -70,6 +70,7 @@ from jobot.painel.ambiente import (
 from jobot.painel.consultas import relogio_do_painel
 from jobot.painel.formatos import conferido_texto, opcoes_de_pais
 from jobot.painel.rotas.execucao import criar_tarefa
+from jobot.painel.rotas.gmail import contexto_gmail
 from jobot.painel.rotas.servicos import contexto_captcha, no_cofre
 from jobot.painel.saude_das_fontes import estado_dos_escopos, motivo_mais_grave
 from jobot.painel.seguranca import Con, idioma_do_pedido, renderizar
@@ -246,8 +247,13 @@ async def contexto_sites_com_login(request: Request, con: Con) -> dict[str, Any]
 
 
 async def _ctx_contas(request: Request, con: Con) -> dict[str, Any]:
-    # a linha do 2Captcha no fim da aba (D139.26): só a máscara entra no contexto, nunca a chave
-    return await contexto_sites_com_login(request, con) | await contexto_captcha(request, con)
+    # a linha do 2Captcha no fim da aba (D139.26): só a máscara entra no contexto, nunca a chave;
+    # o cartão do Gmail (T278) nunca recebe a senha
+    return (
+        await contexto_sites_com_login(request, con)
+        | await contexto_captcha(request, con)
+        | await contexto_gmail(request, con)
+    )
 
 
 def _ferramentas(request: Request) -> dict[str, str]:
@@ -323,6 +329,13 @@ def _grupo_valido(request: Request, grupo: str) -> str:
     if grupo not in grupos_visiveis(leitores_do_painel(request)):
         raise HTTPException(404)
     return grupo
+
+
+def _exige_leitor(request: Request) -> None:
+    """A aba "Contas" aparece sem leitor (o Gmail mora lá, E13), mas mostrar não libera ação:
+    login, interruptor, conferir, horários e "Esquecer logins" pedem um leitor registrado."""
+    if not leitores_do_painel(request):
+        raise HTTPException(404)
 
 
 def _volta(grupo: str, salvo: bool = False, erro: str | None = None) -> RedirectResponse:
@@ -517,6 +530,8 @@ async def mostrar(request: Request, con: Con, grupo: str) -> Response:
 @router.post("/{grupo}")
 async def gravar(request: Request, con: Con, grupo: str) -> Response:
     gravador = _GRAVADORES.get(_grupo_valido(request, grupo))
+    if grupo == COM_LOGIN:
+        _exige_leitor(request)  # os horários são da leitura dos sites
     if gravador is None:  # "Ferramentas" não tem formulário: cada ação tem a sua rota
         raise HTTPException(405)
     return await gravador(request, con)
@@ -525,7 +540,7 @@ async def gravar(request: Request, con: Con, grupo: str) -> Response:
 @router.post(f"/{COM_LOGIN}/{{chave}}/interruptor")
 async def interruptor_do_site(request: Request, con: Con, chave: str) -> Response:
     """Liga ou desliga um site na hora (D132.8); só chave de leitor, nunca de fonte pública."""
-    _grupo_valido(request, COM_LOGIN)
+    _exige_leitor(request)
     if chave not in {leitor.chave for leitor in leitores_do_painel(request)}:
         raise HTTPException(404)
     ligar = "ligada" in await request.form()
@@ -559,8 +574,8 @@ def _minutos_de_login() -> int:
 
 
 def _leitor(request: Request, chave: str) -> LeitorComLogin:
-    """Só chave de leitor registrado; sem leitor o grupo nem existe (404)."""
-    _grupo_valido(request, COM_LOGIN)
+    """Só chave de leitor registrado; sem leitor, 404."""
+    _exige_leitor(request)
     for leitor in leitores_do_painel(request):
         if leitor.chave == chave:
             return leitor
@@ -738,7 +753,7 @@ async def estado_da_conferencia(request: Request, con: Con, chave: str) -> Respo
 @router.get(f"/{COM_LOGIN}/esquecer/confirmar")
 async def esquecer_logins_pergunta(request: Request) -> Response:
     """Sem JavaScript: a pergunta do alerta numa página; o GET não apaga nada (T307)."""
-    _grupo_valido(request, COM_LOGIN)
+    _exige_leitor(request)
     return renderizar(
         request,
         "confirmar.html",
@@ -753,7 +768,7 @@ async def esquecer_logins_pergunta(request: Request) -> Response:
 @router.post(f"/{COM_LOGIN}/esquecer/confirmar")
 async def esquecer_logins_confirmado(request: Request, con: Con) -> Response:
     """Confirma o alerta: apaga a pasta do perfil, nunca com leitura ou login rodando (D132.22)."""
-    _grupo_valido(request, COM_LOGIN)
+    _exige_leitor(request)
     trava = _trava_de_login(request)
     sem_js = request.headers.get("hx-request") != "true"  # T310, D165: volta à página do grupo
     if trava.locked():
