@@ -3158,3 +3158,21 @@ Do item 2 (T305 h), aceito e documentado. Sem JavaScript, o detalhe sobreposto f
 **Como desfazer:** 1 para 2 é mudar o comando em `desktop/src/instalar.rs`, no canal `casca` do `atualizar.py` e no hook do desinstalador (T336, T337), sem mexer nos dados. 2 para 1 é o mesmo caminho ao contrário; o `instalacao.json` ganha o caminho do executável, que fica sem uso.
 
 **Ver também:** D171 (itens 1 e 17), T322, desenho 6.2.
+
+## D174. Segundo plano no Windows: escolhas da T328 (para confirmar)
+
+**Status:** escolhas da sessão, para confirmar.
+
+**Contexto:** a T328 liga o segundo plano no Windows pelo Agendador de Tarefas (`sistema/segundo_plano_windows.py`) e põe a tela Configurações › Segundo plano e o passo 2 do assistente atrás de uma função só (`sistema/segundo_plano.py`: `suportado`, `ligar`, `desligar`, `status`, `criar_atalho`), como pede o desenho 6.5 (D171 item 12). Ficaram estas escolhas:
+
+1. Ligar só registra a tarefa (`schtasks /Create /SC ONLOGON /TN joBot /TR "\"<pythonw>\" -m jobot serve" /F`); não roda `/Run`. O servidor que está aberto continua; a tarefa sobe o joBot na próxima entrada no Windows. O caminho do `pythonw.exe` vai entre aspas dentro do `/TR`, porque a pasta do usuário pode ter espaço.
+2. "Rodando agora" segue o "Serviço instalado" no Windows: o `schtasks /Query` escreve o estado na língua do sistema, e ler o estado sem depender dela (PowerShell `Get-ScheduledTask`) fica para depois.
+3. Desligar sem tarefa registrada vale (o `/Delete` falha à toa); com a tarefa ainda lá (`/Query` acha), a falha vira recusa `segundo_plano.schtasks_falhou`, com a saída só no log, como no systemctl (T159).
+4. O atalho do menu só é criado no Linux; no Windows o instalador da casca (NSIS) cria o do Menu Iniciar (desenho 6.5).
+5. O comando `jobot segundo-plano` (CLI) continua só com o systemd; no Windows ele recusa com "o systemd do usuário não responde". Passar o CLI para a função única fica para uma tarefa própria.
+6. Fora do Linux e do Windows a tela e o passo 2 dizem "chega numa próxima versão" (chaves `nao_suportado`, que trocam as `nao_linux`); a T329 acrescenta o Mac em `segundo_plano.suportado`.
+7. Risco a provar no Windows de verdade (seção 10 do desenho): em conta sem administrador, o `schtasks /Create /SC ONLOGON` pode responder "acesso negado". A tela mostra a recusa com texto fixo e nada é gravado. Saída, se acontecer: um atalho na pasta Inicializar do usuário (`shell:startup`), que não pede administrador.
+
+**Como desfazer:** 1 é acrescentar `schtasks /Run /TN joBot` no `ligar` do Windows; 2 é trocar o `status` do Windows; 5 é apontar `segundo-plano` em `cli/__init__.py` para um `executar` que use `sistema.segundo_plano`. Nenhum dado muda.
+
+**Ver também:** D171 (itens 7 e 12), D61, desenho 6.5, T328, T329.

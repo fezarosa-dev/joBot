@@ -21,7 +21,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from apoio.relogio import RelogioFalso
-from apoio.segundo_plano_falso import FalsoSistema
+from apoio.segundo_plano_falso import FalsoAgendador, FalsoSistema
 from apoio.semear import inserir_vaga
 from apoio.site_falso import LeitorFalso
 from jobot.banco import buscas, cadastros
@@ -669,9 +669,10 @@ def test_passo2_erro_do_sistema_de_arquivos_nao_estoura(
 
 
 def test_fora_do_linux_o_passo2_vem_desativado(cenario: Cenario) -> None:
-    cenario.app.state.plataforma = "darwin"
+    cenario.app.state.plataforma = "freebsd14"  # nem Linux nem Windows
     html = cenario.get(PASSO_2).text
     assert "data-desativado" in html
+    assert "chega numa próxima versão" in html
     resposta = cenario.post(PASSO_2, {"segundo_plano": "ligar"})
     _redireciona(resposta, f"{PASSO_2}?feito=1")
     assert cenario.sistema.chamadas == []
@@ -682,6 +683,46 @@ def test_fora_do_linux_o_passo2_vem_desativado(cenario: Cenario) -> None:
 
 def test_no_linux_o_passo2_nao_vem_desativado(cenario: Cenario) -> None:
     assert "data-desativado" not in cenario.get(PASSO_2).text
+
+
+def _no_windows(cenario: Cenario) -> FalsoAgendador:
+    agendador = FalsoAgendador()
+    cenario.app.state.plataforma = "win32"
+    cenario.app.state.rodar_comando = agendador
+    return agendador
+
+
+def test_no_windows_o_passo2_liga_pelo_agendador(cenario: Cenario) -> None:
+    agendador = _no_windows(cenario)
+    html = cenario.get(PASSO_2).text
+    assert "data-desativado" not in html
+    assert "próxima versão" not in html
+    resposta = cenario.post(PASSO_2, {"segundo_plano": "ligar"})
+    _redireciona(resposta, f"{PASSO_2}?feito=1")
+    assert agendador.existe and agendador.chamadas[0][:2] == ("schtasks", "/Create")
+    assert not cenario.atalho.exists()  # no Windows o atalho é do instalador
+    assert cenario.config("segundo_plano") is True
+
+
+def test_no_windows_nao_ligar_apaga_a_tarefa_sem_atalho(cenario: Cenario) -> None:
+    agendador = _no_windows(cenario)
+    agendador.existe = True
+    resposta = cenario.post(PASSO_2, {"segundo_plano": "desligar"})
+    _redireciona(resposta, f"{PASSO_2}?feito=1")
+    assert not agendador.existe
+    assert not cenario.atalho.exists()
+    assert cenario.config("segundo_plano") is False
+
+
+def test_no_windows_falha_ao_apagar_a_tarefa_avisa_sem_prender(cenario: Cenario) -> None:
+    agendador = _no_windows(cenario)
+    agendador.existe = True
+    agendador.falha_em["/Delete"] = Resultado(1, erro="Acesso negado.")
+    resposta = cenario.post(PASSO_2, {"segundo_plano": "desligar"})
+    _redireciona(resposta, f"{PASSO_2}?feito=1&aviso=schtasks_falhou")
+    fim = cenario.get(resposta.headers["location"]).text
+    assert "o Agendador de Tarefas não conseguiu apagar a tarefa do joBot" in fim
+    assert cenario.config("primeira_execucao_concluida") is True
 
 
 # --- fim --------------------------------------------------------------------------------------
