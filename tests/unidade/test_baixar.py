@@ -1,5 +1,6 @@
 """Download conferido (T404; desenho 7): servidor em thread em 127.0.0.1, relógio injetado."""
 
+import errno
 import hashlib
 import io
 import json
@@ -17,10 +18,14 @@ from pathlib import Path
 import httpx
 import pytest
 
+from jobot import __version__
+from jobot.nucleo.quebra import URL_REPOSITORIO
 from jobot.sistema import instancia
 from jobot.sistema.baixar import (
+    INATIVIDADE_S,
     FalhaBaixar,
     baixar,
+    cliente_de_download,
     extrair,
     parcial_de,
     so_https,
@@ -107,7 +112,7 @@ def _baixar(servidor: Servidor, cliente: httpx.Client, destino: Path, **kw: obje
         "sha256": SHA,
         "cliente": cliente,
         "livre": lambda p: 1 << 40,
-        "aceita_salto": lambda u: True,
+        "aceita_url": lambda u: True,
     }
     opcoes.update(kw)
     baixar(servidor.url("/f"), destino, **opcoes)  # type: ignore[arg-type]
@@ -184,6 +189,7 @@ def test_so_troca_depois_de_conferir(
         sha256=SHA,
         cliente=cliente,
         livre=lambda p: 1 << 40,
+        aceita_url=lambda u: True,
     )
     assert destino.read_bytes() == CORPO
 
@@ -241,6 +247,102 @@ def test_60_s_sem_bytes_e_sem_rede_e_mantem_o_parcial(
     assert destino.read_bytes() == CORPO
 
 
+def test_cliente_de_download_tem_prazo_de_leitura_ua_e_nao_segue_saltos() -> None:
+    # (guarda) o silêncio total só acaba pelo prazo de leitura: `read=None` prende para sempre
+    with cliente_de_download() as c:
+        assert INATIVIDADE_S == 60.0
+        assert c.timeout.read == INATIVIDADE_S
+        assert c.follow_redirects is False
+        assert c.headers["User-Agent"] == f"joBot/{__version__} (+{URL_REPOSITORIO})"
+
+
+class _ParaNoMeio(httpx.SyncByteStream):
+    def __iter__(self) -> Iterator[bytes]:
+        yield CORPO[:1000]
+        raise httpx.ReadTimeout("parado")
+
+
+def test_silencio_no_meio_e_sem_rede_e_mantem_o_parcial(tmp_path: Path) -> None:
+    # o `ReadTimeout` é o que o prazo de leitura de `cliente_de_download` levanta
+    def responde(pedido: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, stream=_ParaNoMeio())
+
+    destino = tmp_path / "m.gguf"
+    with httpx.Client(transport=httpx.MockTransport(responde)) as c:
+        motivo = _motivo(
+            lambda: baixar(
+                "https://x.test/f",
+                destino,
+                tamanho=len(CORPO),
+                sha256=SHA,
+                cliente=c,
+                livre=lambda p: 1 << 40,
+            )
+        )
+    assert motivo == "sem_rede"
+    assert parcial_de(destino, SHA).read_bytes() == CORPO[:1000]
+
+
+def test_corpo_curto_sem_erro_e_sem_rede_e_mantem_o_parcial(
+    servidor: Servidor, cliente: httpx.Client, tmp_path: Path
+) -> None:
+    def curto(h: BaseHTTPRequestHandler) -> None:  # sem Content-Length: o fim é o fechamento
+        h.send_response(200)
+        h.end_headers()
+        h.wfile.write(CORPO[:1000])
+
+    servidor.rotas["/f"] = curto
+    destino = tmp_path / "m.gguf"
+    assert _motivo(lambda: _baixar(servidor, cliente, destino)) == "sem_rede"
+    assert parcial_de(destino, SHA).read_bytes() == CORPO[:1000]
+    assert not destino.exists()
+    # controle: a retomada completa
+    servidor.rotas["/f"] = arquivo()
+    _baixar(servidor, cliente, destino)
+    assert destino.read_bytes() == CORPO
+
+
+@pytest.mark.parametrize(
+    ("numero", "esperado", "fica"), [(errno.ENOSPC, "espaco", True), (errno.EIO, "arquivo", False)]
+)
+def test_erro_de_disco_no_meio_fica_nos_motivos(
+    servidor: Servidor,
+    cliente: httpx.Client,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    numero: int,
+    esperado: str,
+    fica: bool,
+) -> None:
+    servidor.rotas["/f"] = arquivo()
+    destino = tmp_path / "m.gguf"
+    original = Path.open
+
+    class Cheio:
+        def __init__(self, real: io.IOBase) -> None:
+            self.real = real
+
+        def __enter__(self) -> Cheio:
+            return self
+
+        def __exit__(self, *erro: object) -> None:
+            self.real.close()
+
+        def write(self, bloco: bytes) -> int:
+            raise OSError(numero, os.strerror(numero))
+
+    def abre(self: Path, mode: str = "r", *args: object, **kw: object) -> object:
+        real = original(self, mode, *args, **kw)  # type: ignore[call-overload]
+        return Cheio(real) if self.name.endswith(".parcial") and "b" in mode else real
+
+    monkeypatch.setattr(Path, "open", abre)
+    with pytest.raises((FalhaBaixar, OSError)) as erro:  # o velho deixava sair o `OSError`
+        _baixar(servidor, cliente, destino)
+    assert getattr(erro.value, "motivo", None) == esperado
+    assert parcial_de(destino, SHA).exists() is fica
+    assert not destino.exists()
+
+
 def test_erro_de_conexao_e_sem_rede(tmp_path: Path) -> None:
     def cai(pedido: httpx.Request) -> httpx.Response:
         raise httpx.ReadTimeout("parado", request=pedido)
@@ -276,6 +378,7 @@ def test_cancelar_mantem_o_parcial(
     cancelar = threading.Event()
     cancelar.set()
     assert _motivo(lambda: _baixar(servidor, cliente, destino, cancelar=cancelar)) == "cancelado"
+    assert servidor.pedidos == []  # já marcado: nenhum pedido à rede
     assert parcial_de(destino, SHA).exists()
     assert parcial_de(destino, SHA).read_bytes()[:1000] == CORPO[:1000]
     assert not destino.exists()
@@ -284,17 +387,33 @@ def test_cancelar_mantem_o_parcial(
 # --- saltos --------------------------------------------------------------------------------
 
 
-def test_salto_para_http_recusado(
+def test_url_inicial_http_recusada(
     servidor: Servidor, cliente: httpx.Client, tmp_path: Path
+) -> None:
+    servidor.rotas["/f"] = arquivo()
+    destino = tmp_path / "m.gguf"
+    motivo = _motivo(lambda: _baixar(servidor, cliente, destino, aceita_url=so_https))
+    assert motivo == "sem_rede"
+    assert servidor.pedidos == []
+    # controle: com a regra que aceita o `http` local, baixa
+    _baixar(servidor, cliente, destino)
+    assert destino.read_bytes() == CORPO
+
+
+def test_salto_recusado_mesmo_com_cliente_que_segue_saltos(
+    servidor: Servidor, tmp_path: Path
 ) -> None:
     servidor.rotas["/f"] = salto("/b")
     servidor.rotas["/b"] = arquivo()
     destino = tmp_path / "m.gguf"
-    motivo = _motivo(lambda: _baixar(servidor, cliente, destino, aceita_salto=so_https))
-    assert motivo == "sem_rede"
-    assert [p for p, _ in servidor.pedidos] == ["/f"]
-    # controle: com a regra que aceita o `http` local, o salto é seguido
-    _baixar(servidor, cliente, destino)
+    with httpx.Client(follow_redirects=True) as segue:
+        motivo = _motivo(
+            lambda: _baixar(servidor, segue, destino, aceita_url=lambda u: u.path == "/f")
+        )
+        assert motivo == "sem_rede"
+        assert [p for p, _ in servidor.pedidos] == ["/f"]
+        # controle: com a regra que aceita o salto, ele é seguido
+        _baixar(servidor, segue, destino)
     assert destino.read_bytes() == CORPO
 
 
