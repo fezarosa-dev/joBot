@@ -296,12 +296,32 @@ def test_falha_diz_o_que_houve_com_tentar_de_novo(
     expect(page.get_by_role("button", name="Tentar de novo", exact=True)).to_be_visible()
 
 
-def test_falha_do_navegador_diz_que_ele_vem_da_internet(page: Page, ui: str) -> None:
-    """D183.24: sem rede, a pessoa sabe o que fazer (conectar, ou desmarcar e baixar depois)."""
+def test_falha_do_navegador_oferece_instalar_sem_ele(page: Page, ui: str) -> None:
+    """D183.24: sem rede, tentar de novo com o navegador falha sempre; a própria tela de falha
+    instala sem ele (o passo Ferramentas fica para trás, sem Voltar)."""
     _ate_instalando(page, ui)
     _aviso(page, {"fim": "falhou", "motivo": "navegador"})
-    expect(page.locator("#falha-oque")).to_contain_text("confira a conexão")
-    expect(page.locator("#falha-oque")).to_contain_text("desmarque o navegador")
+    expect(page.locator("#falha-oque")).to_contain_text("confira a conexão e o espaço em disco")
+    expect(page.locator("#falha-oque")).to_contain_text("instale sem ele")
+    page.get_by_role("button", name="Instalar sem o navegador", exact=True).click()
+    expect(page.get_by_role("heading", name="Instalando o joBot")).to_be_visible()
+    assert [c for c in _chamadas(page) if c[0] == "instalar"] == [
+        ["instalar", True],
+        ["instalar", False],
+    ]
+    # sem o navegador a barra não reserva a fatia dele
+    _aviso(page, {"etapa": "abrir"})
+    assert _valor(page) == 92
+
+
+@pytest.mark.parametrize("motivo", ["arquivo", "espaco", "prova", "qualquer"])
+def test_so_a_falha_do_navegador_oferece_instalar_sem_ele(page: Page, ui: str, motivo: str) -> None:
+    _ate_instalando(page, ui)
+    _aviso(page, {"fim": "falhou", "motivo": "navegador"})
+    page.get_by_role("button", name="Tentar de novo", exact=True).click()
+    _aviso(page, {"fim": "falhou", "motivo": motivo})
+    expect(page.get_by_role("button", name="Tentar de novo", exact=True)).to_be_visible()
+    expect(page.get_by_role("button", name="Instalar sem o navegador", exact=True)).to_have_count(0)
 
 
 def test_instalador_incompleto_nao_oferece_instalar(page: Page, ui: str) -> None:
