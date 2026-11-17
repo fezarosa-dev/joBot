@@ -1081,6 +1081,30 @@ def test_camada_do_detalhe_depois_de_voltar(page: Page, painel: str) -> None:
     page.wait_for_function(NO_FLUXO)
 
 
+def test_camada_desce_mesmo_sem_quadro_na_largura_estreita(page: Page, painel: str) -> None:
+    """T314: a camada sobe fora do observador (afterSettle atrasado) com o miolo estreito, e a
+    largura volta antes de o navegador desenhar um quadro estreito. O ResizeObserver só avisa
+    quando o tamanho difere do último que entregou, então ele precisa se rearmar a cada troca de
+    camada; senão o detalhe fica preso em cima com a janela larga."""
+    page.set_viewport_size({"width": 1400, "height": 900})
+    page.goto(f"{painel}/vagas?aba=todas")
+    _abrir_ao_lado(page, NOVA)
+    page.wait_for_function(NO_FLUXO)
+    # numa tarefa só: estreita a .coluna, deixa um afterSettle subir a camada e volta a largura
+    subiu = page.evaluate(
+        """() => {
+          const coluna = document.querySelector('.coluna');
+          coluna.style.maxWidth = '780px';
+          document.body.dispatchEvent(new CustomEvent('htmx:afterSettle', {bubbles: true}));
+          const emCima = document.querySelector('#detalhe-vaga').matches(':popover-open');
+          coluna.style.maxWidth = '';
+          return emCima;
+        }"""
+    )
+    assert subiu is True
+    page.wait_for_function(NO_FLUXO)
+
+
 def test_titulos_da_lista_alinhados(page: Page, painel: str, banco: Path) -> None:
     """Com encaixe bom, médio, fraco ou nenhum, os títulos começam no mesmo x (a caixa do ícone
     existe vazia)."""
