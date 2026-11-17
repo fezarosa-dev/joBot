@@ -8,6 +8,7 @@ import argparse
 import asyncio
 import os
 import re
+import stat
 import threading
 import time
 from collections.abc import Callable, Iterator, Mapping
@@ -46,6 +47,7 @@ from jobot.nucleo.leitores.base import LeitorComLogin
 from jobot.painel.app import criar_app
 from jobot.painel.i18n import t
 from jobot.painel.rotas import execucao as rota
+from jobot.sistema import sair as sair_token
 
 pytestmark = pytest.mark.usefixtures("laco_versao_parado")
 
@@ -927,6 +929,60 @@ def test_sair_sem_servidor_avisa(tmp_path: Path) -> None:
     assert resposta.status_code == 503
 
 
+def _local(painel: Painel, host: str = "127.0.0.1") -> TestClient:
+    return TestClient(painel.app, base_url=BASE, follow_redirects=False, client=(host, 50000))
+
+
+def test_sair_com_segredo_local_encerra_sem_csrf(tmp_path: Path) -> None:
+    painel = Painel(tmp_path)
+    servidor = SimpleNamespace(should_exit=False)
+    painel.app.state.servidor = servidor
+    painel.app.state.sair_token = "segredo-certo"
+    with _local(painel) as http:
+        resposta = http.post("/sair", headers={sair_token.CABECALHO: "segredo-certo"})
+    assert resposta.status_code == 200
+    assert servidor.should_exit is True
+
+
+@pytest.mark.parametrize(
+    ("host", "segredo"),
+    [("127.0.0.1", "segredo-errado"), ("127.0.0.1", ""), ("10.0.0.2", "segredo-certo")],
+)
+def test_sair_com_segredo_errado_ou_de_fora_da_403(tmp_path: Path, host: str, segredo: str) -> None:
+    painel = Painel(tmp_path)
+    servidor = SimpleNamespace(should_exit=False)
+    painel.app.state.servidor = servidor
+    painel.app.state.sair_token = "segredo-certo"
+    with _local(painel, host) as http:
+        # nem o CSRF certo salva um segredo errado: o cabeçalho decide sozinho
+        resposta = http.post(
+            "/sair", headers={sair_token.CABECALHO: segredo, "X-CSRF-Token": painel.token}
+        )
+    assert resposta.status_code == 403
+    assert servidor.should_exit is False
+
+
+def test_segredo_de_sair_sem_token_gravado_da_403(tmp_path: Path) -> None:
+    painel = Painel(tmp_path)  # sem `sair_token` em app.state: não veio do `serve`
+    servidor = SimpleNamespace(should_exit=False)
+    painel.app.state.servidor = servidor
+    with _local(painel) as http:
+        assert http.post("/sair", headers={sair_token.CABECALHO: ""}).status_code == 403
+    assert servidor.should_exit is False
+
+
+def test_segredo_de_sair_nao_dispensa_o_csrf_noutra_rota(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _espiar_busca(monkeypatch, [])
+    painel = Painel(tmp_path)
+    painel.app.state.sair_token = "segredo-certo"
+    with _local(painel) as http:
+        cabecalhos = HTMX | {sair_token.CABECALHO: "segredo-certo"}
+        assert http.post("/buscar-agora", headers=cabecalhos).status_code == 403
+        assert http.post("/buscar-agora", headers=painel.htmx()).status_code == 200  # controle
+
+
 def test_serve_guarda_o_servidor_para_o_sair(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -958,6 +1014,50 @@ def test_serve_guarda_o_servidor_para_o_sair(
     monkeypatch.setattr(uvicorn, "Server", _Servidor)
     assert servir.executar(argparse.Namespace()) == 0
     assert vistos == [True]
+
+
+def test_serve_grava_o_sair_token_0600_e_o_apaga_no_fim(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    dados = tmp_path / "dados"
+    dados.mkdir()
+    vistos: list[tuple[str, int, object]] = []
+
+    class _Trava:
+        def __init__(self, *args: Any) -> None: ...
+
+        def pegar(self) -> bool:
+            return True
+
+        def soltar(self) -> None: ...
+
+    class _Servidor:
+        def __init__(self, config: Any) -> None:
+            self.config = config
+            self.started = False
+
+        def run(self) -> None:  # com o servidor "no ar": o arquivo existe e bate com o app
+            arquivo = dados / sair_token.NOME
+            app: FastAPI = self.config.app
+            vistos.append(
+                (
+                    arquivo.read_text(encoding="ascii"),
+                    stat.S_IMODE(arquivo.stat().st_mode),
+                    getattr(app.state, "sair_token", None),
+                )
+            )
+            self.started = True
+
+    monkeypatch.setattr(servir, "preparar_dados", lambda env: dados)
+    monkeypatch.setattr(servir, "porta", lambda env: PORTA)
+    monkeypatch.setattr(servir, "Trava", _Trava)
+    monkeypatch.setattr(uvicorn, "Server", _Servidor)
+    assert servir.executar(argparse.Namespace()) == 0
+    [(conteudo, modo, no_app)] = vistos
+    assert len(conteudo) >= 32
+    assert modo == 0o600
+    assert no_app == conteudo
+    assert not (dados / sair_token.NOME).exists()  # apagado no fim
 
 
 def _montar_parado(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, relogio: Any) -> FastAPI:
