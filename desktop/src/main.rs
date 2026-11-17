@@ -457,7 +457,7 @@ fn verificar_janela(alvo: &str, contexto: tauri::Context) {
 const SCRIPT_CHROMIUM: &str = r#"
 from playwright.sync_api import sync_playwright
 with sync_playwright() as p:
-    navegador = p.chromium.launch()
+    navegador = p.chromium.launch(channel="chromium")
     pagina = navegador.new_page()
     pagina.set_content("<p>joBot</p>")
     assert pagina.inner_text("p") == "joBot"
@@ -477,7 +477,7 @@ fn python_ao_lado(jobot: &Path, so: &str) -> PathBuf {
 /// O Python do venv rodando o `SCRIPT_CHROMIUM`, sem o ambiente do Python do AppImage.
 fn comando_chromium(jobot: &Path, so: &str) -> std::process::Command {
     let mut comando = std::process::Command::new(python_ao_lado(jobot, so));
-    comando.args(["-c", SCRIPT_CHROMIUM]);
+    servidor::sem_python_de_fora(&mut comando).args(["-c", SCRIPT_CHROMIUM]);
     comando
 }
 
