@@ -5,7 +5,12 @@ from typing import Any
 
 import pytest
 
+from jobot.nucleo.ia.contrato import limites
 from jobot.sistema.memoria import GIB, escolher_modelo, memoria_total
+
+# os cortes de produção, que o `jobot ferramentas baixar ia-local --modelo auto` lê (T409)
+_GIB = limites()["memoria_gib"]
+CORTES = {"desde_4b_gib": _GIB["modelo_4b_desde"], "aviso_gib": _GIB["aviso_lento_abaixo"]}
 
 _PAGINA = 4096
 
@@ -53,8 +58,8 @@ def test_global_memory_status_ex_que_falha_levanta() -> None:
     ],
 )
 def test_modelo_pela_memoria(gib: float, esperado: tuple[str, bool]) -> None:
-    assert escolher_modelo(memoria_total("linux", sysconf=_sysconf(gib))) == esperado
+    assert escolher_modelo(memoria_total("linux", sysconf=_sysconf(gib)), **CORTES) == esperado
 
 
 def test_modelo_pela_memoria_do_windows() -> None:
-    assert escolher_modelo(memoria_total("win32", status=_status(6.5))) == ("2b", True)
+    assert escolher_modelo(memoria_total("win32", status=_status(6.5)), **CORTES) == ("2b", True)
