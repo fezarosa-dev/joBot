@@ -7,6 +7,7 @@ import signal
 import sys
 from asyncio.subprocess import DEVNULL
 from collections.abc import Mapping, Sequence
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -19,6 +20,7 @@ from jobot.navegador.instalador import (
     ambiente_de_instalar,
     baixar_chromium,
     comando_de_baixar,
+    comando_de_baixar_pela_casca,
     comando_de_remover,
     remover_chromium,
 )
@@ -161,6 +163,24 @@ async def test_baixar_pronto_com_codigo_zero() -> None:
     assert len(abrir.abertos) == 1
     assert abrir.abertos[0][0] == comando_de_baixar()
     assert resultado == "pronto"
+
+
+async def test_baixar_pela_casca_leva_as_variaveis_do_windows(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Sem elas o subcomando não acha a pasta do Playwright nem abre socket no Windows."""
+    windows = {
+        n: f"/{n.lower()}" for n in ("LOCALAPPDATA", "USERPROFILE", "SYSTEMROOT", "TEMP", "TMP")
+    }
+    for nome, valor in {**windows, "JOBOT_TOKEN": "segredo"}.items():
+        monkeypatch.setenv(nome, valor)
+    abrir = _Abrir(JanelaFalsa(ja_saiu=True))
+    assert await baixar_chromium(abrir, Path("/dados")) == "pronto"
+    argumentos, ambiente = abrir.abertos[0]
+    assert argumentos == comando_de_baixar_pela_casca()
+    assert {n: ambiente.get(n) for n in windows} == windows
+    assert ambiente["JOBOT_DADOS"] == str(Path("/dados"))
+    assert "JOBOT_TOKEN" not in ambiente
 
 
 async def test_baixar_falhou_com_codigo_diferente_de_zero(

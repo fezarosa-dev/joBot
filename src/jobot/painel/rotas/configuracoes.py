@@ -61,10 +61,11 @@ from jobot.painel.ambiente import (
     abrir_instalador_do_painel,
     ambiente_do_painel,
     cofre_do_painel,
+    com_segundo_plano,
     grupos_visiveis,
     leitores_do_painel,
     ler_navegador_do_painel,
-    no_linux,
+    plataforma_do_painel,
     rodar_do_painel,
 )
 from jobot.painel.consultas import relogio_do_painel
@@ -74,7 +75,8 @@ from jobot.painel.rotas.gmail import contexto_gmail
 from jobot.painel.rotas.servicos import contexto_captcha, no_cofre
 from jobot.painel.saude_das_fontes import estado_dos_escopos, motivo_mais_grave
 from jobot.painel.seguranca import Con, idioma_do_pedido, renderizar
-from jobot.sistema import caso, segundo_plano_linux
+from jobot.sistema import casca, caso, segundo_plano
+from jobot.sistema.instalacao import manifesto_da_casca
 from jobot.sistema.segundo_plano_linux import Recusa
 
 router = APIRouter(prefix="/configuracoes")
@@ -140,17 +142,20 @@ async def _ctx_funcoes(request: Request, con: Con) -> dict[str, Any]:
 
 
 async def _ctx_segundo_plano(request: Request, con: Con) -> dict[str, Any]:
-    linux = no_linux(request)
+    suportado = com_segundo_plano(request)
     estado = None
-    if linux:
+    if suportado:
         estado = await run_in_threadpool(
-            segundo_plano_linux.status, rodar_do_painel(request), env=ambiente_do_painel(request)
+            segundo_plano.status,
+            rodar_do_painel(request),
+            env=ambiente_do_painel(request),
+            plataforma=plataforma_do_painel(request),
         )
     return {
-        "linux": linux,
+        "suportado": suportado,
         "estado": estado,
         "container": caso.nome_do_container(ambiente_do_painel(request)),
-        # D61 (A1): no Linux o interruptor segue o is-enabled do systemd; ativo não entra
+        # D61 (A1): o interruptor segue o instalado (is-enabled, /Query); ativo não entra
         "ligado": estado is not None and estado.habilitado,
     }
 
@@ -286,7 +291,19 @@ def contexto_ferramenta_navegador(request: Request) -> dict[str, Any]:
         estado = "chrome"
     else:
         estado = "instalado" if navegador == "chromium" else "nao_instalado"
-    return {"navegador": navegador, "resultado": resultado, "estado": estado}
+    # a atualização da casca não conseguiu trazer o Chromium novo (D174.13): Baixar de novo
+    desatualizado = navegador == "chromium" and casca.navegador_desatualizado(_dados(request))
+    return {
+        "navegador": navegador,
+        "resultado": resultado,
+        "estado": estado,
+        "desatualizado": desatualizado,
+    }
+
+
+def _dados(request: Request) -> Path:
+    pasta: Path = request.app.state.banco.parent
+    return pasta
 
 
 async def _contexto_ferramentas(request: Request, con: Con) -> dict[str, Any]:
@@ -401,14 +418,15 @@ async def _gravar_funcoes(request: Request, con: Con) -> Response:
 
 async def _gravar_segundo_plano(request: Request, con: Con) -> Response:
     form = await request.form()
-    linux = no_linux(request)
-    ligar = "segundo_plano" in form and linux  # fora do Linux o segundo plano é desativado
+    suportado = com_segundo_plano(request)
+    ligar = "segundo_plano" in form and suportado  # sem suporte o segundo plano é desativado
     rodar, env = rodar_do_painel(request), ambiente_do_painel(request)
+    plataforma = plataforma_do_painel(request)
     try:
         if ligar:
-            await run_in_threadpool(segundo_plano_linux.ligar, rodar, env=env)
-        elif linux:
-            await run_in_threadpool(segundo_plano_linux.desligar, rodar, env=env)
+            await run_in_threadpool(segundo_plano.ligar, rodar, env=env, plataforma=plataforma)
+        elif suportado:
+            await run_in_threadpool(segundo_plano.desligar, rodar, env=env, plataforma=plataforma)
     except Recusa as recusa:
         return await _pagina(request, con, "segundo-plano", motivo=recusa.motivo)
     except ValueError, OSError:  # caractere de controle no caminho, disco, permissão
@@ -833,27 +851,42 @@ async def estado_do_navegador(request: Request, con: Con) -> Response:
     return _fragmento_do_navegador(request)
 
 
+def _dados_da_casca(request: Request) -> Path | None:
+    """A pasta de dados no canal `casca` (T330: baixa da release); fora dele, `None`. Com o
+    `instalacao.json` ilegível, o `playwright install` de sempre ainda instala o navegador."""
+    dados: Path = request.app.state.banco.parent
+    try:
+        return dados if manifesto_da_casca(dados) is not None else None
+    except ValueError, OSError:
+        _LOG.exception("não deu para ler o instalacao.json; baixo pelo Playwright")
+        return None
+
+
 @router.post(_NAVEGADOR + "/baixar")
 async def baixar_navegador(request: Request) -> Response:
     """Baixa o Chromium do Playwright em segundo plano; um download por vez (D137.4)."""
     _grupo_valido(request, FERRAMENTAS)
     trava = _trava(request, "navegador")
-    if getattr(request.app.state, "navegador_instalado", None) or trava.locked():
+    instalado = getattr(request.app.state, "navegador_instalado", None)
+    desatualizado = instalado == "chromium" and casca.navegador_desatualizado(_dados(request))
+    if (instalado and not desatualizado) or trava.locked():
         return _fragmento_do_navegador(request)
     # tudo que pode falhar vem antes do acquire: depois dele, só o que não solta exceção
     abrir = abrir_instalador_do_painel(request)
     ler = ler_navegador_do_painel(request)
     ferramentas = _ferramentas(request)
+    dados_casca = _dados_da_casca(request)
     await trava.acquire()  # livre: não suspende, então a checagem acima vale
     ferramentas["navegador"] = "baixando"
 
     async def baixar() -> None:
         resultado = "falhou_baixar"  # erro inesperado sai assim; o `rodar` registra e solta
         try:
-            if await baixar_chromium(abrir) == "pronto":
+            if await baixar_chromium(abrir, dados_casca) == "pronto":
                 request.app.state.navegador_instalado = await ler()
                 if request.app.state.navegador_instalado:
                     resultado = "pronto"
+                    await run_in_threadpool(casca.tirar_marca_do_navegador, _dados(request))
                 else:
                     _LOG.warning("o instalador terminou, mas o navegador não apareceu no disco")
         finally:

@@ -4,7 +4,7 @@ import signal
 import socket
 import subprocess
 import threading
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -14,7 +14,7 @@ import pytest
 
 from apoio.filho_com_trava import filho_com_trava
 from jobot.sistema import abrir as modulo_abrir
-from jobot.sistema import instancia
+from jobot.sistema import instancia, sair
 from jobot.sistema.abrir import (
     _lancar,
     abrir_janela,
@@ -565,6 +565,122 @@ def test_sair_nao_sinaliza_pid_velho_sem_trava_presa(tmp_path: Path) -> None:
     finally:
         inocente.kill()
         inocente.wait()
+
+
+@contextmanager
+def _servidor_sair(status: int, ao_pedir: Callable[[], None]) -> Iterator[tuple[int, list[str]]]:
+    """Servidor local que responde ao POST /sair; devolve a porta e os segredos recebidos."""
+    recebidos: list[str] = []
+
+    class Resposta(BaseHTTPRequestHandler):
+        def do_POST(self) -> None:
+            recebidos.append(f"{self.path} {self.headers.get(sair.CABECALHO)}")
+            ao_pedir()
+            self.send_response(status)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
+        def log_message(self, format: str, *args: Any) -> None:
+            pass
+
+    servidor = ThreadingHTTPServer(("127.0.0.1", 0), Resposta)
+    fio = threading.Thread(target=servidor.serve_forever, daemon=True)
+    fio.start()
+    try:
+        yield servidor.server_address[1], recebidos
+    finally:
+        servidor.shutdown()
+        servidor.server_close()
+        fio.join()
+
+
+def _sem_kill(monkeypatch: pytest.MonkeyPatch) -> list[tuple[int, int]]:
+    sinais: list[tuple[int, int]] = []
+    monkeypatch.setattr(os, "kill", lambda pid, sinal: sinais.append((pid, sinal)))
+    return sinais
+
+
+def test_sair_no_windows_pede_pelo_http_com_o_segredo(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    sinais = _sem_kill(monkeypatch)
+    segredo = sair.gravar_token(tmp_path)
+    saida = _Saida()
+    trava: list[Trava] = []
+    with _servidor_sair(200, lambda: trava[0].soltar()) as (p, recebidos):
+        trava.append(Trava(tmp_path, p))
+        assert trava[0].pegar() is True
+        try:
+            codigo = sair_do_servidor(tmp_path, saida=saida, esperar_s=5, plataforma="win32")
+        finally:
+            trava[0].soltar()
+    assert codigo == 0
+    assert recebidos == [f"/sair {segredo}"]
+    assert sinais == []  # nada de SIGTERM no Windows
+    assert saida.linhas == ["joBot encerrado."]
+
+
+def test_sair_no_windows_com_segredo_recusado_avisa(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    sinais = _sem_kill(monkeypatch)
+    segredo = sair.gravar_token(tmp_path)
+    saida = _Saida()
+    with _servidor_sair(403, lambda: None) as (p, recebidos):
+        trava = Trava(tmp_path, p)
+        assert trava.pegar() is True
+        try:
+            codigo = sair_do_servidor(tmp_path, saida=saida, esperar_s=5, plataforma="win32")
+        finally:
+            trava.soltar()
+    assert codigo == 1
+    assert recebidos == [f"/sair {segredo}"]
+    assert sinais == []
+    assert saida.linhas and "403" in saida.texto
+    assert segredo not in saida.texto  # o segredo não vai à mensagem
+
+
+def test_sair_no_windows_sem_o_arquivo_do_segredo_avisa(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    sinais = _sem_kill(monkeypatch)
+    saida = _Saida()
+    with _servidor_sair(200, lambda: None) as (p, recebidos):
+        trava = Trava(tmp_path, p)
+        assert trava.pegar() is True
+        try:
+            codigo = sair_do_servidor(tmp_path, saida=saida, esperar_s=5, plataforma="win32")
+        finally:
+            trava.soltar()
+    assert codigo == 1
+    assert recebidos == []
+    assert sinais == []
+    assert saida.linhas
+
+
+@pytest.mark.parametrize("plataforma", ["linux", "darwin"])
+def test_sair_no_posix_continua_no_sigterm(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, plataforma: str
+) -> None:
+    sair.gravar_token(tmp_path)  # mesmo com o segredo no disco, o POSIX não usa o HTTP
+    saida = _Saida()
+    sinais: list[tuple[int, int]] = []
+    with _servidor_sair(200, lambda: None) as (p, recebidos):
+        trava = Trava(tmp_path, p)
+        assert trava.pegar() is True
+
+        def kill(pid: int, sinal: int) -> None:
+            sinais.append((pid, sinal))
+            trava.soltar()
+
+        monkeypatch.setattr(os, "kill", kill)
+        try:
+            codigo = sair_do_servidor(tmp_path, saida=saida, esperar_s=5, plataforma=plataforma)
+        finally:
+            trava.soltar()
+    assert codigo == 0
+    assert sinais == [(os.getpid(), signal.SIGTERM)]
+    assert recebidos == []
 
 
 # --- captura de exemplos com login: trava presa sem porta (T220) ---

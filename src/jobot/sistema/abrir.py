@@ -22,6 +22,8 @@ from jobot.sistema.instancia import (
     pid_e_porta_do_servidor,
     porta,
 )
+from jobot.sistema.sair import CABECALHO as CABECALHO_SAIR
+from jobot.sistema.sair import ler_token
 
 _LOG = logging.getLogger(__name__)
 _ESPERA_PASSO_S = 0.2
@@ -238,10 +240,33 @@ def abrir_painel(
     return 0
 
 
+def _pedir_sair(porta: int, segredo: str | None) -> str | None:
+    """`POST /sair` local com o segredo; None quando o servidor aceitou, senão o aviso."""
+    if segredo is None:
+        return "Não achei o segredo de parada do joBot (sair.token). Feche-o pela janela."
+    con = http.client.HTTPConnection("127.0.0.1", porta, timeout=5)
+    try:
+        con.request("POST", "/sair", headers={CABECALHO_SAIR: segredo})
+        status = con.getresponse().status
+    except OSError, http.client.HTTPException:
+        return f"O joBot não respondeu em {porta}."
+    finally:
+        con.close()
+    return None if status == 200 else f"O joBot recusou o pedido de parada ({status})."
+
+
 def sair_do_servidor(
-    dados: Path, *, saida: Callable[[str], None] = print, esperar_s: float = 10.0
+    dados: Path,
+    *,
+    saida: Callable[[str], None] = print,
+    esperar_s: float = 10.0,
+    plataforma: str = sys.platform,
 ) -> int:
-    """SIGTERM ao PID da trava (só se ela está presa) e espera a trava soltar."""
+    """Pede o fim ao servidor da trava (só se ela está presa) e espera a trava soltar.
+
+    No Linux e no Mac, SIGTERM ao PID; no Windows, sem SIGTERM, `POST /sair` com o segredo do
+    `sair.token` (desenho 6.1).
+    """
     pid, p = pid_e_porta_do_servidor(dados)  # uma leitura só: o PID e a porta são do mesmo dono
     if pid is not None and p is None:  # a trava é da captura, não do servidor: nada de SIGTERM
         saida(AVISO_CAPTURA)
@@ -249,14 +274,21 @@ def sair_do_servidor(
     if pid is None:
         saida("O joBot não está rodando.")
         return 0
-    try:
-        os.kill(pid, signal.SIGTERM)
-    except ProcessLookupError:
-        saida("O joBot já tinha encerrado.")
-        return 0
-    except PermissionError:
-        saida(f"Sem permissão para encerrar o joBot (PID {pid}).")
-        return 1
+    if plataforma == "win32":
+        assert p is not None  # trava do servidor: com PID e sem porta é a captura, tratada acima
+        problema = _pedir_sair(p, ler_token(dados))
+        if problema is not None:
+            saida(problema)
+            return 1
+    else:
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except ProcessLookupError:
+            saida("O joBot já tinha encerrado.")
+            return 0
+        except PermissionError:
+            saida(f"Sem permissão para encerrar o joBot (PID {pid}).")
+            return 1
     fim = time.monotonic() + esperar_s
     while pid_do_servidor(dados) is not None:
         if time.monotonic() >= fim:
@@ -267,10 +299,11 @@ def sair_do_servidor(
     return 0
 
 
-def subir_servidor() -> None:
-    """Servidor em processo separado; o comando `serve` é da T48."""
+def subir_servidor(python: str | None = None) -> None:
+    """Servidor em processo separado; o comando `serve` é da T48. `python`: o de outro venv (o
+    novo, no canal `casca` do `jobot atualizar`); sem ele, o deste processo."""
     subprocess.Popen(
-        [sys.executable, "-m", "jobot", "serve"],
+        [python or sys.executable, "-m", "jobot", "serve"],
         **processo.destacar(),
         stdin=subprocess.DEVNULL,
         stdout=subprocess.DEVNULL,

@@ -17,6 +17,7 @@ from fastapi.templating import Jinja2Templates
 from jobot.banco.conexao import abrir
 from jobot.painel import globais
 from jobot.painel.i18n import idioma_inicial, t
+from jobot.sistema.sair import CABECALHO as CABECALHO_SAIR
 
 Tema = Literal["sistema", "claro", "escuro"]
 TEMAS: tuple[Tema, ...] = ("sistema", "claro", "escuro")
@@ -108,9 +109,24 @@ def tema_e_texto(request: Request) -> tuple[str, str]:
 
 
 async def exigir_csrf(request: Request) -> None:
-    """Todo método que muda dados: origem do próprio painel e token certo, senão 403."""
+    """Todo método que muda dados: origem do próprio painel e token certo, senão 403.
+
+    Exceção: o `POST /sair` com o cabeçalho `X-Jobot-Sair` decide só pelo segredo local.
+    """
     if request.method in METODOS_SEGUROS:
         return
+    if request.url.path == "/sair" and (segredo := request.headers.get(CABECALHO_SAIR)) is not None:
+        # parada local (desenho 6.1): o segredo do `sair.token` vale no lugar do CSRF, só de
+        # 127.0.0.1; presente e errado é 403, mesmo com o CSRF certo
+        esperado: str | None = getattr(request.app.state, "sair_token", None)
+        cliente = request.client.host if request.client else None
+        if (
+            esperado
+            and cliente == "127.0.0.1"
+            and hmac.compare_digest(segredo.encode(), esperado.encode())
+        ):
+            return
+        raise HTTPException(403, detail=t(idioma_do_pedido(request), "seguranca.recarregue"))
     origem = request.headers.get("origin")
     enviado = request.headers.get(CABECALHO_CSRF)
     if enviado is None:

@@ -6,6 +6,7 @@ salvo o que o teste muda. O estado de habilitado acompanha `enable` e `disable`.
 """
 
 from collections.abc import Sequence
+from pathlib import Path
 
 from jobot.sistema.segundo_plano_linux import Resultado
 
@@ -52,3 +53,58 @@ class FalsoSistema:
             if resto[:2] == ("systemctl", "--user"):
                 achados.append(resto[2:])
         return achados
+
+
+class FalsoAgendador:
+    """Agendador de Tarefas falso (Windows): `schtasks` cria, apaga e consulta a tarefa."""
+
+    def __init__(self, existe: bool = False) -> None:
+        self.existe = existe  # a tarefa joBot está registrada
+        self.falha_em: dict[str, Resultado] = {}  # "/Create", "/Delete" ou "/Query" -> resposta
+        self.chamadas: list[tuple[str, ...]] = []
+        self.xml = ""  # o XML do /Create, lido do arquivo na hora da chamada
+
+    def __call__(self, comando: Sequence[str]) -> Resultado:
+        self.chamadas.append(tuple(comando))
+        if "/XML" in comando:
+            self.xml = Path(comando[comando.index("/XML") + 1]).read_text(encoding="utf-16")
+        assert comando[0] == "schtasks", f"comando inesperado: {comando!r}"
+        acao = comando[1]
+        if acao in self.falha_em:
+            return self.falha_em[acao]
+        if acao == "/Create":
+            self.existe = True
+        elif acao in ("/Delete", "/Query"):
+            if not self.existe:
+                return Resultado(1, erro="ERRO: o sistema não encontrou a tarefa.")
+            self.existe = acao == "/Query"
+        return Resultado(0)
+
+
+class FalsoLaunchctl:
+    """launchd falso (Mac): `launchctl` carrega, descarrega e mostra o LaunchAgent do joBot."""
+
+    def __init__(self, carregado: bool = False, rodando: bool = True) -> None:
+        self.carregado = carregado  # o LaunchAgent está no domínio gui/<uid>
+        self.rodando = rodando  # o `print` diz `state = running` (senão `not running`)
+        self.falha_em: dict[str, Resultado] = {}  # "bootstrap", "bootout" ou "print" -> resposta
+        self.chamadas: list[tuple[str, ...]] = []
+        self.plist = b""  # o plist do bootstrap, lido do arquivo na hora da chamada
+
+    def __call__(self, comando: Sequence[str]) -> Resultado:
+        self.chamadas.append(tuple(comando))
+        assert comando[0] == "launchctl", f"comando inesperado: {comando!r}"
+        acao = comando[1]
+        if acao in self.falha_em:
+            return self.falha_em[acao]
+        if acao == "bootstrap":
+            self.plist = Path(comando[3]).read_bytes()
+            self.carregado = True
+            return Resultado(0)
+        if not self.carregado:
+            return Resultado(113, erro="Could not find service in domain for user gui")
+        if acao == "bootout":
+            self.carregado = False
+            return Resultado(0)
+        estado = "running" if self.rodando else "not running"
+        return Resultado(0, f"gui/501/io.github.fezarosa-dev.jobot = {{\n\tstate = {estado}\n}}\n")
