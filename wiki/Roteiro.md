@@ -11,7 +11,7 @@
 
 ```mermaid
 flowchart LR
-    F1["✅ Fase 1 · Base"] --> F2["✅ Fase 2 · Navegador com login"] --> F3["⚪ Fase 3 · Instalador"] --> F4["⚪ Fase 4 · IA local"]
+    F1["✅ Fase 1 · Base"] --> F2["✅ Fase 2 · Navegador com login"] --> F3["🟡 Fase 3 · Instalador"] --> F4["⚪ Fase 4 · IA local"]
     F4 --> F5["⚪ Fase 5 · Extensão"] --> F6["⚪ Fase 6 · Áudio e Gmail"] --> F7["⚪ Fase 7 · Treino"]
     F7 --> F8["⚪ Fase 8 · GitHub Pages"] --> F9["⚪ Fase 9 · Publicação"]
 ```
@@ -22,7 +22,7 @@ flowchart LR
 |:---:|---|---|---|
 | ✅ | **1. Base** | Núcleo comum, fontes públicas, banco, painel e agenda | Concluída |
 | ✅ | **2. Navegador com login** | Login pela janela comum, LinkedIn primeiro, mapeamento dos sites e tratamento de CAPTCHA | Concluída |
-| ⚪ | **3. Instalador** | Instalador de 64 bits, com lista de ferramentas para marcar (Windows e Linux primeiro, Mac depois) | Planejada |
+| 🟡 | **3. Instalador** | Instalador de 64 bits, com lista de ferramentas para marcar (Windows e Linux primeiro, Mac depois) | Sendo construída |
 | ⚪ | **4. IA local** | Pacote offline (llama-server + Qwen) | Planejada |
 | ⚪ | **5. Extensão do navegador** | Extensão do navegador para formulários | Planejada |
 | ⚪ | **6. Áudio e Gmail** | Respostas por voz e leitura de e-mails | Planejada |
@@ -30,7 +30,7 @@ flowchart LR
 | ⚪ | **8. Versão GitHub Pages** | Versão no navegador, sem instalação | Planejada |
 | ⚪ | **9. Publicação** | README com selos e revisão de segurança | Planejada |
 
-<sub>✅ concluída · ⚪ planejada</sub>
+<sub>✅ concluída · 🟡 sendo construída · ⚪ planejada</sub>
 
 A versão 0.3.0 saiu entre a fase 2 e a fase 3, com a tela "Panorama" (visão geral das vagas e da busca) e a fila de candidaturas completa.
 
@@ -53,7 +53,7 @@ A versão 0.3.0 saiu entre a fase 2 e a fase 3, com a tela "Panorama" (visão ge
 </details>
 
 <details>
-<summary><strong>⚪ Fase 3, Instalador</strong></summary>
+<summary><strong>🟡 Fase 3, Instalador</strong></summary>
 
 - Instalador de 64 bits, feito para quem nunca abriu um terminal. Windows e Linux primeiro; o Mac vem depois.
 - Uma lista de ferramentas para marcar. O essencial já vem marcado e não dá para desmarcar. O que ficar sem marcar aparece depois no painel, para baixar quando você quiser.

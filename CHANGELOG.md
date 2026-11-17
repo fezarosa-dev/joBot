@@ -8,6 +8,10 @@ O formato segue o [Keep a Changelog 1.1.0](https://keepachangelog.com/pt-BR/1.1.
 
 ## [Não lançado]
 
+### Adicionado
+
+- ADR 0025: app de desktop e instalador. A fase 3 trará uma janela própria em volta do painel e uma tela de instalação na primeira abertura, com o `uv` embutido e os instaladores publicados na release; por ora, sem assinatura de código.
+
 ## [0.3.0] - 2026-11-16
 
 A fase 2 chega: o navegador com login e o LinkedIn, o primeiro site com login. O painel ganha um visual novo, a aba Contas (com o cartão do Gmail), o Panorama e a fila de candidaturas, e o roteiro passa a pôr o Instalador na fase 3.
