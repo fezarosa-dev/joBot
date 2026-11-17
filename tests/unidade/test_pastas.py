@@ -115,6 +115,26 @@ def test_preparar_pasta_nao_desce_na_pasta_da_casca(tmp_path: Path) -> None:
 
 
 @_SO_POSIX
+def test_preparar_pasta_nao_tira_o_x_das_ferramentas(tmp_path: Path) -> None:
+    # (guarda) o `llama-server` baixado em <dados>/ferramentas precisa do bit de execução na
+    # subida seguinte (T404; desenho 7; D185.18); controle: um arquivo frouxo fora fecha
+    pasta = tmp_path / "jobot"
+    programa = pasta / "ferramentas" / "llama" / "b12359" / "llama-server"
+    programa.parent.mkdir(parents=True)
+    programa.write_text("x")
+    programa.chmod(0o755)
+    (pasta / "ferramentas").chmod(0o755)
+    controle = pasta / "logs" / "jobot.log"
+    controle.parent.mkdir()
+    controle.write_text("x")
+    controle.chmod(0o755)
+    preparar_pasta(pasta)
+    assert _modo(programa) == 0o755
+    assert _modo(pasta / "ferramentas") == 0o700
+    assert _modo(controle) == 0o600
+
+
+@_SO_POSIX
 def test_preparar_pasta_nao_segue_navegador_symlink(tmp_path: Path) -> None:
     alvo = tmp_path / "fora"
     alvo.mkdir()
