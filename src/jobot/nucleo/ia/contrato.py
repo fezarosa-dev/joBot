@@ -57,6 +57,9 @@ class Pedido:
     max_tokens: int
     prazo_s: float
     versao: int  # `VERSAO` da tarefa, que volta na `Resposta`
+    # None: o padrão do backend. `encaixe` vai com 0 e `seed` fixo (desenho 5.2, D190)
+    temperatura: float | None = None
+    seed: int | None = None
 
 
 @dataclass(frozen=True)
