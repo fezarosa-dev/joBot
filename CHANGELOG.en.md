@@ -36,6 +36,7 @@ Phase 2 arrives: the browser with login and LinkedIn, the first site with login.
 
 ### Changed
 
+- The job list and the Overview open faster with many jobs: the tabs are counted in a single pass, and the Overview counts only what it shows.
 - New roadmap: version 0.3.0 came out after phase 2 ("Overview" screen and complete application queue); phase 3 becomes the Installer and the later phases move up one number, up to phase 9 (release).
 - New look for the dashboard, in the style of a Mac app: sidebar with Jobs and Where to Look, job list with the detail beside it, translucent windows and alerts, and the English title of the correction in Title Case ("Something Wrong with This Job?").
 

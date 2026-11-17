@@ -36,6 +36,7 @@ A fase 2 chega: o navegador com login e o LinkedIn, o primeiro site com login. O
 
 ### Alterado
 
+- A lista de vagas e o Panorama abrem mais rápido com muitas vagas: as abas são contadas numa passada só, e o Panorama conta só o que mostra.
 - Novo roteiro: a versão 0.3.0 saiu depois da fase 2 (tela "Panorama" e fila de candidaturas completa); a fase 3 vira o Instalador e as seguintes andam um número, até a fase 9 (publicação).
 - Visual novo do painel, no estilo de um aplicativo do Mac: barra lateral com Vagas e Onde buscar, lista de vagas com o detalhe ao lado, janelas e alertas translúcidos, e o título em inglês da correção em Title Case ("Something Wrong with This Job?").
 
