@@ -3,12 +3,17 @@
 // a prova da ponte da T321 (a IPC do Tauri numa origem http://127.0.0.1 remota).
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod fechar;
 mod servidor;
 
 use std::path::PathBuf;
+use std::sync::Mutex;
 use std::time::Duration;
 use tauri::webview::PageLoadEvent;
-use tauri::{AppHandle, Manager, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
+use tauri::{AppHandle, Manager, RunEvent, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
+
+/// O servidor que esta abertura da casca subiu (desenho 5.5): o único que ela pode parar.
+static SUBIDO: Mutex<Option<fechar::Subido>> = Mutex::new(None);
 
 /// Tempo que a tela "o joBot abriu no navegador" fica antes de a janela fechar (desenho 5.4).
 const AVISO_DA_JANELA: Duration = Duration::from_secs(10);
@@ -126,7 +131,18 @@ fn abrir_painel(janela: WebviewWindow, base: Url) {
         .ok_or(servidor::Falha::SemInstalacao)
         .and_then(|jobot| servidor::achar_ou_subir(&dados, &jobot, ambiente));
     let destino = match resultado {
-        Ok(porta) => servidor::url_do_painel(porta).parse().expect("URL fixa"),
+        Ok(achado) => {
+            if achado.subiu
+                && let Some(jobot) = servidor::jobot_instalado(&dados, std::env::consts::OS)
+            {
+                let porta = achado.porta;
+                *SUBIDO.lock().unwrap_or_else(|e| e.into_inner()) =
+                    Some(fechar::Subido { jobot, porta });
+            }
+            servidor::url_do_painel(achado.porta)
+                .parse()
+                .expect("URL fixa")
+        }
         Err(falha) => pagina_de_erro(
             &base,
             falha.codigo(),
@@ -210,12 +226,32 @@ fn trazer_para_frente(app: &AppHandle) {
     }
 }
 
+/// A janela fechou e a casca vai sair: para o servidor que ela subiu, se não for de ficar.
+fn ao_sair() {
+    let subido = SUBIDO.lock().unwrap_or_else(|e| e.into_inner()).take();
+    fechar::ao_fechar(
+        subido.as_ref(),
+        servidor::perguntar_segundo_plano,
+        |jobot| {
+            // destacado: o `jobot sair` termina o trabalho mesmo com a casca já fechada
+            if let Err(erro) = servidor::comando_destacado(jobot, "sair").spawn() {
+                eprintln!("jobot-app: não consegui rodar jobot sair: {erro}");
+            }
+        },
+    );
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     if let [flag, url] = args.as_slice()
         && flag == "--verificar-janela"
     {
         verificar_janela(url);
+        return;
+    }
+    if args.first().is_some_and(|a| a == "--desinstalar") {
+        // o desinstalador do NSIS (desktop/windows/ganchos.nsh, desenho 7.2)
+        fechar::desinstalar(&dados(), std::env::consts::OS, fechar::rodar_esperando);
         return;
     }
     tauri::Builder::default()
@@ -227,8 +263,13 @@ fn main() {
             abrir_janela(app.handle())?;
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("erro ao rodar a janela");
+        .build(tauri::generate_context!())
+        .expect("erro ao montar a janela")
+        .run(|_, evento| {
+            if let RunEvent::Exit = evento {
+                ao_sair();
+            }
+        });
 }
 
 /// Prova da ponte (T321): abre a URL sem moldura e sai com 0 se a IPC respondeu, 2 se não.

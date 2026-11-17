@@ -15,6 +15,13 @@ pub const PRAZO: Duration = Duration::from_secs(15);
 pub const PASSO: Duration = Duration::from_millis(200);
 const LINHAS_DO_LOG: usize = 20;
 
+/// O servidor achado ou subido; `subiu` diz se foi a casca que o subiu nesta abertura.
+#[derive(Debug, PartialEq)]
+pub struct Servidor {
+    pub porta: u16,
+    pub subiu: bool,
+}
+
 /// Por que o painel não abriu; o `codigo` vira o `motivo` da `ui/erro.html`.
 #[derive(Debug, PartialEq)]
 pub enum Falha {
@@ -137,18 +144,28 @@ pub fn url_do_painel(porta: u16) -> String {
     format!("http://127.0.0.1:{porta}/")
 }
 
-/// True só para `200` com um JSON `{"app": "jobot", ...}` (como `abrir.e_o_jobot`).
-pub fn e_o_jobot(resposta: &[u8]) -> bool {
-    let Some(fim) = resposta.windows(4).position(|w| w == b"\r\n\r\n") else {
-        return false;
-    };
+/// O JSON da resposta, só para `200` com `{"app": "jobot", ...}` (como `abrir.e_o_jobot`).
+fn saude(resposta: &[u8]) -> Option<serde_json::Value> {
+    let fim = resposta.windows(4).position(|w| w == b"\r\n\r\n")?;
     let cabeca = String::from_utf8_lossy(&resposta[..fim]);
     let status = cabeca.lines().next().unwrap_or("");
     if status.split_whitespace().nth(1) != Some("200") {
-        return false;
+        return None;
     }
     serde_json::from_slice::<serde_json::Value>(&resposta[fim + 4..])
-        .is_ok_and(|v| v.get("app").and_then(|a| a.as_str()) == Some("jobot"))
+        .ok()
+        .filter(|v| v.get("app").and_then(|a| a.as_str()) == Some("jobot"))
+}
+
+/// True só para `200` com um JSON `{"app": "jobot", ...}` (como `abrir.e_o_jobot`).
+pub fn e_o_jobot(resposta: &[u8]) -> bool {
+    saude(resposta).is_some()
+}
+
+/// O `segundo_plano` do `/saude-local` (desenho 5.5); sem o joBot ou sem o booleano: `None`.
+pub fn segundo_plano(resposta: &[u8]) -> Option<bool> {
+    let _ = resposta;
+    None
 }
 
 fn conectar(porta: u16, prazo: Duration) -> Option<TcpStream> {
@@ -156,19 +173,26 @@ fn conectar(porta: u16, prazo: Duration) -> Option<TcpStream> {
 }
 
 /// `GET /saude-local` direto no 127.0.0.1 (sem proxy, sem seguir redirecionamento).
-pub fn perguntar_saude(porta: u16) -> bool {
+fn pedir_saude(porta: u16) -> Vec<u8> {
+    let mut resposta = Vec::new();
     let Some(mut s) = conectar(porta, Duration::from_secs(1)) else {
-        return false;
+        return resposta;
     };
     let _ = s.set_read_timeout(Some(Duration::from_secs(1)));
     let _ = s.set_write_timeout(Some(Duration::from_secs(1)));
     let pedido = format!("GET /saude-local HTTP/1.0\r\nHost: 127.0.0.1:{porta}\r\n\r\n");
-    if s.write_all(pedido.as_bytes()).is_err() {
-        return false;
+    if s.write_all(pedido.as_bytes()).is_ok() {
+        let _ = s.take(8192).read_to_end(&mut resposta);
     }
-    let mut resposta = Vec::new();
-    let _ = s.take(8192).read_to_end(&mut resposta);
-    e_o_jobot(&resposta)
+    resposta
+}
+
+pub fn perguntar_saude(porta: u16) -> bool {
+    e_o_jobot(&pedir_saude(porta))
+}
+
+pub fn perguntar_segundo_plano(porta: u16) -> Option<bool> {
+    segundo_plano(&pedir_saude(porta))
 }
 
 pub fn porta_ocupada(porta: u16) -> bool {
@@ -242,7 +266,7 @@ pub fn achar_ou_subir(
     dados: &Path,
     jobot: &Path,
     env: impl Fn(&str) -> Option<String>,
-) -> Result<u16, Falha> {
+) -> Result<Servidor, Falha> {
     let inicio = std::time::Instant::now();
     achar_ou_subir_com(
         dados,
@@ -260,7 +284,7 @@ fn achar_ou_subir_com(
     padrao: u16,
     agora: impl Fn() -> Duration,
     dormir: impl FnMut(Duration),
-) -> Result<u16, Falha> {
+) -> Result<Servidor, Falha> {
     let (pid, gravada) = ler_trava(dados);
     if pid.is_some() && gravada.is_none() {
         return Err(Falha::Captura); // trava sem porta: captura com login no ar
@@ -289,11 +313,12 @@ fn achar_ou_subir_com(
             None => Sonda::Espera,
         }
     });
+    let subiu = filho.is_some();
     if let Some(mut c) = filho.filter(|_| saiu.is_none()) {
         std::thread::spawn(move || c.wait()); // colhe o processo quando ele sair
     }
     match (pronto, saiu) {
-        (true, _) => Ok(p),
+        (true, _) => Ok(Servidor { porta: p, subiu }),
         (false, Some(codigo)) => Err(Falha::Saiu(codigo)),
         (false, None) if porta_ocupada(p) && !perguntar_saude(p) => Err(Falha::Porta(p)),
         _ => Err(Falha::SemResposta(p)),
@@ -422,6 +447,30 @@ mod testes {
         assert!(!e_o_jobot(b"HTTP/1.1 200 OK\r\n\r\n[\"jobot\"]"));
         assert!(!e_o_jobot(b"HTTP/1.1 200 OK\r\n\r\nnao e json"));
         assert!(!e_o_jobot(b"lixo"));
+    }
+
+    #[test]
+    fn segundo_plano_vem_da_saude_do_jobot() {
+        let com = |corpo: &str| format!("HTTP/1.1 200 OK\r\n\r\n{corpo}").into_bytes();
+        let ligado = com(r#"{"app":"jobot","versao":"0.4.0","segundo_plano":true}"#);
+        let desligado = com(r#"{"app":"jobot","versao":"0.4.0","segundo_plano":false}"#);
+        assert_eq!(segundo_plano(&ligado), Some(true));
+        assert_eq!(segundo_plano(&desligado), Some(false));
+        // sem o campo, com outro tipo ou de outro programa: não se sabe, e a casca não para nada
+        assert_eq!(segundo_plano(&com(r#"{"app":"jobot"}"#)), None);
+        let texto = com(r#"{"app":"jobot","segundo_plano":"false"}"#);
+        assert_eq!(segundo_plano(&texto), None);
+        let outro = com(r#"{"app":"outro","segundo_plano":false}"#);
+        assert_eq!(segundo_plano(&outro), None);
+        assert_eq!(segundo_plano(b"lixo"), None);
+    }
+
+    #[test]
+    fn pergunta_o_segundo_plano_pela_rede_local() {
+        let p =
+            servidor_falso(b"HTTP/1.1 200 OK\r\n\r\n{\"app\":\"jobot\",\"segundo_plano\":false}");
+        assert_eq!(perguntar_segundo_plano(p), Some(false));
+        assert_eq!(perguntar_segundo_plano(porta_livre()), None);
     }
 
     #[test]
@@ -572,7 +621,7 @@ mod testes {
         p
     }
 
-    fn subir_com_relogio_falso(dados: &Path, jobot: &Path, padrao: u16) -> Result<u16, Falha> {
+    fn subir_com_relogio_falso(dados: &Path, jobot: &Path, padrao: u16) -> Result<Servidor, Falha> {
         let relogio = Cell::new(Duration::ZERO);
         achar_ou_subir_com(
             dados,
@@ -609,7 +658,13 @@ mod testes {
         let p = servidor_falso(b"HTTP/1.1 200 OK\r\n\r\n{\"app\":\"jobot\"}");
         let _dono = trava_presa(&dados, &format!("42\n{p}\n"));
         let r = subir_com_relogio_falso(&dados, Path::new(NAO_EXISTE), porta_livre());
-        assert_eq!(r, Ok(p));
+        assert_eq!(
+            r,
+            Ok(Servidor {
+                porta: p,
+                subiu: false
+            })
+        );
     }
 
     #[test]
