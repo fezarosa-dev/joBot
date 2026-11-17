@@ -296,8 +296,9 @@ def test_fumaca_sem_rede_no_linux_no_windows_e_no_mac() -> None:
     for imagem, nome in (("ubuntu:22.04", "jobot-fumaca"), ("ubuntu:24.04", "jobot-fumaca-nova")):
         assert f"docker build -t {nome} --build-arg BASE={imagem}" in texto, imagem
         assert f'APPIMAGE_EXTRACT_AND_RUN=1 {nome} sh -c "$appimage"\n' in texto, imagem
-    # o AppRun do AppImage exporta o LD_LIBRARY_PATH que a casca tira dos filhos (D183.18)
-    assert "LD_LIBRARY_PATH" in texto
+    # o AppRun do AppImage exporta o LD_LIBRARY_PATH que a casca tira dos filhos (D183.18):
+    # a fumaça falha se não o achar
+    assert 'test -n "$ld" && echo "o AppRun exporta: $ld"' in texto
     # Windows: regras de saída por caminho antes do /S, conferência de todo .exe, desinstalar
     for passo in (
         "New-NetFirewallRule -Direction Outbound -Action Block -Program",
