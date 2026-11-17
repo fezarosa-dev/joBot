@@ -1,5 +1,6 @@
 """Processo filho destacado do joBot e o seu encerramento, no POSIX e no Windows."""
 
+import contextlib
 import os
 import signal
 import subprocess
@@ -44,3 +45,17 @@ def encerrar_grupo(proc: Processo, *, forcar: bool = False, plataforma: str = sy
             proc.terminate()
         return
     os.killpg(proc.pid, signal.SIGKILL if forcar else signal.SIGTERM)
+
+
+def encerrar_arvore(proc: subprocess.Popen[Any], espera: float = 15.0) -> None:
+    """Encerra um filho aberto em sessão própria e tudo o que ele subiu: SIGTERM ao grupo, que o
+    `jobot ferramentas baixar navegador` pega para encerrar o `playwright install` (que vive em
+    outra sessão, fora do grupo); depois de `espera` s, SIGKILL ao que sobrou no grupo. No
+    Windows, `encerrar_grupo` já é o `taskkill /T /F` da árvore. Espera o filho sair."""
+    with contextlib.suppress(ProcessLookupError):
+        encerrar_grupo(proc)
+    with contextlib.suppress(subprocess.TimeoutExpired):
+        proc.communicate(timeout=espera)
+    with contextlib.suppress(ProcessLookupError):
+        encerrar_grupo(proc, forcar=True)
+    proc.communicate()

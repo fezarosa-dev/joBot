@@ -57,7 +57,8 @@ def test_actions_fixadas_por_hash() -> None:
         linha.strip()
         for arquivo in sorted((RAIZ / ".github" / "workflows").glob("*.yml"))
         for linha in arquivo.read_text(encoding="utf-8").splitlines()
-        if "uses:" in linha
+        # o workflow reutilizável do próprio repositório vem do mesmo commit
+        if "uses:" in linha and "uses: ./.github/workflows/" not in linha
     ]
     assert usos
     for linha in usos:

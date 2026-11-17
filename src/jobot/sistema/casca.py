@@ -10,8 +10,9 @@ religar) é do `atualizar.py`; aqui fica o que não mexe no servidor.
 Formato do pacote (escolha do redator, D174.16, para confirmar): na raiz do `.zip`,
 `manifesto.json` (`{"versao": "N.N.N", "arquivos": [{"nome", "tamanho", "sha256"}]}`),
 `restricoes.txt` (com hash de tudo, o joBot inclusive), `wheels/*.whl` (a do joBot também) e um
-`python/<nome>.tar.gz` (o `install_only` do python-build-standalone). O manifesto pode listar o
-`chromium-<alvo>.tar.gz` sem ele estar dentro (D174.8).
+`python/<nome>.tar.gz` (o `install_only` do python-build-standalone). O navegador não vem da
+release (D183.24): com o Chromium do Playwright instalado, o venv novo roda o `playwright install`
+da versão dele antes da troca (D174.13).
 """
 
 import hashlib
@@ -50,7 +51,6 @@ _VERSAO = r"[0-9]{1,9}\.[0-9]{1,9}\.[0-9]{1,9}"
 _SHA = re.compile(r"[0-9a-f]{64}")
 # caminho relativo com barra, sem `..`, sem barra invertida nem dois-pontos (nome do Windows)
 _NOME = re.compile(r"[A-Za-z0-9_+][A-Za-z0-9._+-]*(?:/[A-Za-z0-9_+][A-Za-z0-9._+-]*)*")
-_CHROMIUM = re.compile(r"chromium-[A-Za-z0-9_.-]+\.tar\.gz")
 # alvo = tripla do Rust que a casca usa no nome dos arquivos da release (D174.16)
 _ALVOS: Mapping[tuple[str, str], str] = {
     ("linux", "x86_64"): "x86_64-unknown-linux-gnu",
@@ -285,23 +285,6 @@ def _ler_manifesto(conteudo: bytes, versao: str) -> dict[str, tuple[int, str]]:
     return lidos
 
 
-def _sha_do_chromium(manifesto: Mapping[str, tuple[int, str]]) -> tuple[str, str] | None:
-    """(nome, sha256) do `chromium-<alvo>.tar.gz` listado, se houver."""
-    for nome, (_, sha) in manifesto.items():
-        if _CHROMIUM.fullmatch(nome):
-            return nome, sha
-    return None
-
-
-def _manifesto_instalado(caminho: Path) -> dict[str, tuple[int, str]] | None:
-    try:
-        conteudo = caminho.read_bytes()
-        versao = json.loads(conteudo).get("versao")
-        return _ler_manifesto(conteudo, versao) if isinstance(versao, str) else None
-    except OSError, ValueError, AttributeError, Falha:
-        return None
-
-
 def _extrair_pacote(
     pacote: Path, destino: Path, versao: str
 ) -> tuple[dict[str, tuple[int, str]], bytes]:
@@ -331,7 +314,7 @@ def _extrair_pacote(
                 vistos.add(info.filename)
     except (zipfile.BadZipFile, OSError) as erro:
         raise Falha(f"Não consegui abrir o pacote de atualização ({erro}); nada mudou.") from erro
-    faltam = [n for n in manifesto if n not in vistos and not _CHROMIUM.fullmatch(n)]
+    faltam = [n for n in manifesto if n not in vistos]
     if faltam:
         raise Falha(f"Falta no pacote de atualização: {', '.join(sorted(faltam))}; nada mudou.")
     return manifesto, bruto
@@ -402,48 +385,14 @@ def _rodou(rodar: Rodar, comando: list[str]) -> Resultado:
     return feito
 
 
-def _navegador(
-    rodar: Rodar,
-    cliente: httpx.Client,
-    temp: Path,
-    jobot: Path,
-    versao: str,
-    antigo: Mapping[str, tuple[int, str]] | None,
-    novo: Mapping[str, tuple[int, str]],
-    env: Mapping[str, str],
-    plataforma: str,
-) -> bool:
-    """D174.13: baixa o Chromium novo antes da troca; devolve `True` se ficou desatualizado."""
-    listado = _sha_do_chromium(novo)
+def _navegador(rodar: Rodar, jobot: Path, env: Mapping[str, str], plataforma: str) -> bool:
+    """D174.13 e D183.24: com o Chromium do Playwright na pasta, o `jobot ferramentas baixar
+    navegador` do venv novo roda o `playwright install` da versão nova antes da troca (nada baixa
+    se a revisão é a mesma); devolve `True` se ficou desatualizado."""
     pasta = pasta_do_playwright(env, plataforma)
-    instalado = pasta.is_dir() and any(p.name.startswith("chromium") for p in pasta.iterdir())
-    if listado is None or not instalado:
+    if not (pasta.is_dir() and any(p.name.startswith("chromium") for p in pasta.iterdir())):
         return False
-    nome, sha = listado
-    if antigo is not None and _sha_do_chromium(antigo) == listado:
-        return False
-    arquivo = temp / nome
-    try:
-        with arquivo.open("wb") as saida:
-            baixado = _baixar(cliente, f"{URL_TAG}/v{versao}/{nome}", saida, _TETO_PACOTE)
-    except (Falha, OSError) as erro:
-        log.warning("não baixei o navegador novo: %s", erro)
-        return True
-    if baixado != sha:
-        log.warning("o navegador baixado não confere com o manifesto")
-        return True
-    feito = rodar(
-        [
-            str(jobot),
-            "ferramentas",
-            "baixar",
-            "navegador",
-            "--arquivo",
-            str(arquivo),
-            "--sha256",
-            sha,
-        ]
-    )
+    feito = rodar([str(jobot), "ferramentas", "baixar", "navegador"])
     if feito.codigo != 0:
         log.warning("o navegador novo não instalou: %s", (feito.erro or feito.saida).strip())
         return True
@@ -522,17 +471,7 @@ def preparar(
                 f"O joBot novo não respondeu com a versão {versao} ({prova.saida.strip()!r}); "
                 "nada mudou."
             )
-        desatualizado = _navegador(
-            rodar,
-            cliente,
-            temp,
-            jobot,
-            versao,
-            _manifesto_instalado(Path(instalacao["manifesto"])),
-            manifesto,
-            env,
-            plataforma,
-        )
+        desatualizado = _navegador(rodar, jobot, env, plataforma)
     except BaseException as erro:
         _apagar(venv)
         if python_novo is not None:

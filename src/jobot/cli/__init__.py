@@ -38,8 +38,6 @@ def _parser() -> argparse.ArgumentParser:
     ferramentas = sub.add_parser("ferramentas", help="baixa as ferramentas opcionais")
     ferramentas.add_argument("acao", choices=["baixar"])
     ferramentas.add_argument("ferramenta", choices=["navegador"])
-    ferramentas.add_argument("--arquivo", metavar="chromium.tar.gz")
-    ferramentas.add_argument("--sha256", metavar="hex")
     plano = sub.add_parser("segundo-plano", help="liga ou desliga o serviço de segundo plano")
     plano.add_argument("acao", choices=["ligar", "desligar", "status"])
     rotulos = sub.add_parser("avaliar-rotulos", help="mede as regras contra um gabarito")

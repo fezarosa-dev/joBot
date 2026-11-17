@@ -40,7 +40,7 @@ ETAPAS = {
     "conferir": "Conferindo os arquivos",
     "python": "Preparando o Python",
     "jobot": "Instalando o joBot",
-    "navegador": "Instalando o navegador",
+    "navegador": "Baixando o navegador",
     "abrir": "Abrindo",
 }
 
@@ -150,14 +150,15 @@ def test_rodape_com_a_pasta_e_o_espaco_sem_baixar(page: Page, ui: str) -> None:
     assert "baix" not in rodape.inner_text().lower()
 
 
-def test_etapas_escritas_sem_baixando(page: Page, ui: str) -> None:
+def test_etapas_escritas_e_so_o_navegador_baixa(page: Page, ui: str) -> None:
     _ate_instalando(page, ui)
     linha = page.locator(".progresso-linha")
     for etapa, texto in ETAPAS.items():
         _aviso(page, {"etapa": etapa})
         expect(linha).to_have_text(texto)
         expect(page.get_by_role("status")).to_have_text(texto)
-    assert all("Baixando" not in t for t in ETAPAS.values())
+    # só o navegador vem da internet (D183.24); o resto sai dos recursos (D174.1)
+    assert [e for e, t in ETAPAS.items() if "Baixando" in t] == ["navegador"]
 
 
 def test_progresso_determinado_nao_volta_e_para_no_teto(page: Page, ui: str) -> None:
@@ -282,6 +283,7 @@ def test_fechar_fora_da_instalacao_fecha_sem_perguntar(page: Page, ui: str) -> N
         ("arquivo", "Um arquivo do instalador não é o esperado"),
         ("espaco", "Falta espaço em disco"),
         ("prova", "A conferência do joBot instalado falhou"),
+        ("navegador", "Não consegui baixar o navegador"),
         ("qualquer", "A instalação não terminou"),
     ],
 )
@@ -292,6 +294,34 @@ def test_falha_diz_o_que_houve_com_tentar_de_novo(
     _aviso(page, {"fim": "falhou", "motivo": motivo})
     expect(page.get_by_role("alert")).to_contain_text(frase)
     expect(page.get_by_role("button", name="Tentar de novo", exact=True)).to_be_visible()
+
+
+def test_falha_do_navegador_oferece_instalar_sem_ele(page: Page, ui: str) -> None:
+    """D183.24: sem rede, tentar de novo com o navegador falha sempre; a própria tela de falha
+    instala sem ele (o passo Ferramentas fica para trás, sem Voltar)."""
+    _ate_instalando(page, ui)
+    _aviso(page, {"fim": "falhou", "motivo": "navegador"})
+    expect(page.locator("#falha-oque")).to_contain_text("confira a conexão e o espaço em disco")
+    expect(page.locator("#falha-oque")).to_contain_text("instale sem ele")
+    page.get_by_role("button", name="Instalar sem o navegador", exact=True).click()
+    expect(page.get_by_role("heading", name="Instalando o joBot")).to_be_visible()
+    assert [c for c in _chamadas(page) if c[0] == "instalar"] == [
+        ["instalar", True],
+        ["instalar", False],
+    ]
+    # sem o navegador a barra não reserva a fatia dele
+    _aviso(page, {"etapa": "abrir"})
+    assert _valor(page) == 92
+
+
+@pytest.mark.parametrize("motivo", ["arquivo", "espaco", "prova", "qualquer"])
+def test_so_a_falha_do_navegador_oferece_instalar_sem_ele(page: Page, ui: str, motivo: str) -> None:
+    _ate_instalando(page, ui)
+    _aviso(page, {"fim": "falhou", "motivo": "navegador"})
+    page.get_by_role("button", name="Tentar de novo", exact=True).click()
+    _aviso(page, {"fim": "falhou", "motivo": motivo})
+    expect(page.get_by_role("button", name="Tentar de novo", exact=True)).to_be_visible()
+    expect(page.get_by_role("button", name="Instalar sem o navegador", exact=True)).to_have_count(0)
 
 
 def test_instalador_incompleto_nao_oferece_instalar(page: Page, ui: str) -> None:
