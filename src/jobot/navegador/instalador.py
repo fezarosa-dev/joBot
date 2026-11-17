@@ -12,7 +12,6 @@ import os
 import sys
 from asyncio.subprocess import DEVNULL
 from collections.abc import Mapping, Sequence
-from pathlib import Path
 from typing import Literal
 
 from jobot.navegador import limites
@@ -24,8 +23,8 @@ _LOG = logging.getLogger(__name__)
 
 Resultado = Literal["pronto", "falhou"]
 
-# O subcomando da casca baixa e grava em Python: no Windows, sem estas o `Path.home()` levanta e
-# o socket não abre (WinError 10106). Nenhuma leva segredo; fora do Windows não existem.
+# No Windows, sem estas o `playwright install` (um Node) não acha a pasta dele e o socket não
+# abre (WinError 10106). Nenhuma leva segredo; fora do Windows não existem.
 _DO_WINDOWS = ("LOCALAPPDATA", "USERPROFILE", "SYSTEMROOT", "TEMP", "TMP")
 
 
@@ -34,22 +33,18 @@ def comando_de_baixar() -> list[str]:
     return [sys.executable, "-P", "-m", "playwright", "install", "--no-shell", "chromium"]
 
 
-def comando_de_baixar_pela_casca() -> list[str]:
-    """Canal `casca`: o subcomando baixa o Chromium da release do joBot (T330; D174.2)."""
-    return [sys.executable, "-P", "-m", "jobot", "ferramentas", "baixar", "navegador"]
-
-
 def comando_de_remover() -> list[str]:
     """Sem `--all`: o Playwright só apaga o que nenhuma outra instalação dele usa."""
     return [sys.executable, "-P", "-m", "playwright", "uninstall"]
 
 
 def ambiente_de_instalar(extra: Mapping[str, str] | None = None) -> dict[str, str]:
-    """O mesmo ambiente enxuto da janela, mais a pasta dos navegadores se a pessoa mudou."""
+    """O mesmo ambiente enxuto da janela, mais as do Windows e a pasta dos navegadores se a
+    pessoa mudou."""
     amb = ambiente_do_navegador(extra or {})
-    pasta = os.environ.get("PLAYWRIGHT_BROWSERS_PATH")
-    if pasta is not None:
-        amb["PLAYWRIGHT_BROWSERS_PATH"] = pasta
+    for nome in (*_DO_WINDOWS, "PLAYWRIGHT_BROWSERS_PATH"):
+        if nome in os.environ:
+            amb[nome] = os.environ[nome]
     return amb
 
 
@@ -114,19 +109,10 @@ async def _rodar(
     return "pronto"
 
 
-async def baixar_chromium(abrir: AbrirJanela, dados_da_casca: Path | None = None) -> Resultado:
+async def baixar_chromium(abrir: AbrirJanela) -> Resultado:
     """Cancelar (o painel fechando) encerra o download: arquivo pela metade não vale nada.
-    Com a pasta de dados do canal `casca`, roda o subcomando que baixa da release, com o
-    `JOBOT_DADOS` para ele achar o mesmo `instalacao.json` e as `_DO_WINDOWS`."""
-    if dados_da_casca is None:
-        comando, ambiente = comando_de_baixar(), None
-    else:
-        comando = comando_de_baixar_pela_casca()
-        ambiente = {n: os.environ[n] for n in _DO_WINDOWS if n in os.environ}
-        ambiente["JOBOT_DADOS"] = str(dados_da_casca)
-    return await _rodar(
-        abrir, comando, limites.PRAZO_BAIXAR_S, cancelar_encerra=True, ambiente=ambiente
-    )
+    Vale também no canal `casca`: o joBot não redistribui o navegador (D183.24)."""
+    return await _rodar(abrir, comando_de_baixar(), limites.PRAZO_BAIXAR_S, cancelar_encerra=True)
 
 
 async def remover_chromium(abrir: AbrirJanela) -> Resultado:
