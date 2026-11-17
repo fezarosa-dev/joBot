@@ -2293,7 +2293,7 @@ Escolha da sessão (dono fora): a opção (a), para confirmar. Consequência: co
 
 15. (sessão) Quais são as essenciais travadas: o joBot e o Python que ele usa. O navegador para sites com login é opcional: vem marcado, mas dá para desmarcar.
 16. (sessão) A tecnologia da tela do instalador foi respondida pelo dono em 2026-11-15: Tauri (D142). A assinatura de código (que tem custo) não foi escolhida. A pesquisa voltou; a sessão recomenda o resto, para o dono decidir:
-   - Tela: Tauri (escolhida, D142). A tela é feita em HTML e CSS, no mesmo visual do painel, num projeto à parte (Rust e HTML); gera o instalador NSIS no Windows, AppImage e .deb no Linux e .dmg no Mac. O joBot em si continua instalado pelo `uv tool install`, chamado pela tela. Alternativas: Inno Setup com a página de componentes (só Windows, visual limitado) ou pywebview com PyInstaller (tudo em Python, visual menos polido).
+   - Tela: Tauri (escolhida, D142). A tela é feita em HTML e CSS, no mesmo visual do painel, ~~num projeto à parte~~ (superado em 2026-11-17: pasta `desktop/` do mesmo repositório, D171.4 e ADR 0025) (Rust e HTML); gera o instalador NSIS no Windows, AppImage e .deb no Linux e .dmg no Mac. O joBot em si continua instalado pelo `uv tool install`, chamado pela tela. Alternativas: Inno Setup com a página de componentes (só Windows, visual limitado) ou pywebview com PyInstaller (tudo em Python, visual menos polido).
    - Assinatura no Windows: SignPath Foundation, grátis para projeto de código aberto (exige o build no GitHub Actions, MFA e uma página com a política de assinatura). Sem assinatura, o SmartScreen pede "Executar assim mesmo"; mesmo assinado, ele avisa até o programa ganhar reputação. O Azure Artifact Signing (US$ 9,99 por mês) não atende o Brasil. Um certificado OV custa de US$ 129 a 434 por ano.
    - Mac: sem a conta de desenvolvedor da Apple (US$ 99 por ano) e a notarização, a pessoa precisa liberar o programa em Ajustes, em "Abrir Mesmo Assim". Recomendação: documentar esse passo até o Mac entrar (decisão 10).
 17. (sessão) Sem PR da `dev` para a `main` até a 0.3.0 (já na D134.6).
@@ -3125,7 +3125,7 @@ Do item 2 (T305 h), aceito e documentado. Sem JavaScript, o detalhe sobreposto f
 
 **Como desfazer:** cada item mora numa seção do desenho (13 lista as seções); trocar é editar o desenho antes da tarefa correspondente. Depois de construído: 7 e 12 são a `segundo_plano` e a casca (T328, T329, T337); 11 é tirar o aviso da casca na faixa (T332); 15 é tirar a conferência de recursos (T335). Nenhum dado muda.
 
-**Ver também:** D138, D139.10, D140, D142, D143, ADR 0003, 0017, 0018, 0023 e 0025 (a criar na T320).
+**Ver também:** D138, D139.10, D140, D142, D143, ADR 0003, 0017, 0018, 0023 e [0025](docs/decisions/0025-app-de-desktop-e-instalador.md).
 
 ## D172. Todo PR passa pela aprovação do dono
 

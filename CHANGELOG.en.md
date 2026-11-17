@@ -8,6 +8,10 @@ The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/
 
 ## [Unreleased]
 
+### Added
+
+- ADR 0025: desktop app and installer. Phase 3 will bring a window of its own around the dashboard and an install screen on first launch, with `uv` bundled and the installers published in the release; for now, without code signing.
+
 ## [0.3.0] - 2026-11-16
 
 Phase 2 arrives: the browser with login and LinkedIn, the first site with login. The dashboard gets a new look, the Accounts tab (with the Gmail card), the Overview and the application queue, and the roadmap now puts the Installer in phase 3.
