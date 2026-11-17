@@ -1,3 +1,4 @@
+import contextlib
 import os
 import signal
 import subprocess
@@ -120,3 +121,36 @@ def test_encerrar_grupo_windows_leva_o_neto_junto() -> None:
         assert kernel32.WaitForSingleObject(alca, 30_000) == 0  # WAIT_OBJECT_0: o neto saiu
     finally:
         kernel32.CloseHandle(alca)
+
+
+# o filho faz o que o `jobot ferramentas baixar navegador` faz: neto em sessão própria (fora do
+# grupo), encerrado por ele no SIGTERM
+_FILHO_COM_NETO = (
+    "import signal, subprocess, sys, time\n"
+    "neto = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(300)'],"
+    " start_new_session=True)\n"
+    "def sair(*_):\n"
+    "    neto.kill(); neto.wait(); sys.exit(0)\n"
+    "signal.signal(signal.SIGTERM, sair)\n"
+    "print(neto.pid, flush=True)\n"
+    "time.sleep(300)\n"
+)
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="no Windows é o taskkill /T (teste acima)")
+def test_encerrar_arvore_leva_o_neto_de_outra_sessao() -> None:
+    """D183.24: SIGTERM antes do SIGKILL, senão o neto de outra sessão fica órfão."""
+    proc = subprocess.Popen(
+        [sys.executable, "-c", _FILHO_COM_NETO], stdout=subprocess.PIPE, text=True,
+        start_new_session=True,
+    )  # fmt: skip
+    assert proc.stdout is not None
+    neto = int(proc.stdout.readline())
+    try:
+        processo.encerrar_arvore(proc)
+        assert proc.returncode == 0  # saiu pelo SIGTERM, não pelo SIGKILL
+        with pytest.raises(ProcessLookupError):
+            os.kill(neto, 0)
+    finally:
+        with contextlib.suppress(ProcessLookupError):
+            os.kill(neto, signal.SIGKILL)

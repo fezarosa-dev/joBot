@@ -2,7 +2,12 @@
 na casca (o joBot não redistribui o navegador), com as linhas JSON que a casca lê; sem processo."""
 
 import argparse
+import contextlib
 import json
+import os
+import signal
+import subprocess
+import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 
@@ -74,3 +79,44 @@ def test_main_chega_no_subcomando(monkeypatch: pytest.MonkeyPatch, tmp_path: Pat
     monkeypatch.setattr(ferramentas, "baixar_navegador", falso)
     assert jobot.cli.main(["ferramentas", "baixar", "navegador"]) == 0
     assert [(a.acao, a.ferramenta) for a in recebidos] == [("baixar", "navegador")]
+
+
+# o subcomando de verdade, com o `playwright install` trocado por um processo que só espera, aberto
+# pelo `abrir_instalador` de produção (em sessão própria); o PID dele sai no stderr
+_SUBCOMANDO = """
+import argparse, sys
+from jobot.cli import ferramentas
+from jobot.navegador.instalador import abrir_instalador
+
+async def abrir(argumentos, ambiente):
+    espera = [sys.executable, "-c", "import time; time.sleep(300)"]
+    janela = await abrir_instalador(espera, ambiente)
+    print(janela._processo.pid, file=sys.stderr, flush=True)
+    return janela
+
+sys.exit(ferramentas.baixar_navegador(argparse.Namespace(), abrir=abrir))
+"""
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="no Windows quem chama usa o taskkill /T")
+def test_sigterm_encerra_o_download_e_sai_com_a_linha_final() -> None:
+    """D183.24: a casca cancelando (ou o `jobot atualizar` no prazo) manda SIGTERM; o download,
+    em sessão própria, não fica órfão baixando enquanto o desfazer apaga o venv."""
+    proc = subprocess.Popen(
+        [sys.executable, "-c", _SUBCOMANDO], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        text=True,
+    )  # fmt: skip
+    assert proc.stderr is not None
+    neto = int(proc.stderr.readline())
+    try:
+        proc.send_signal(signal.SIGTERM)
+        saida, _ = proc.communicate(timeout=30)
+        assert proc.returncode == 1
+        assert _linhas(saida) == [{"etapa": "navegador", "feito": 0}, {"fim": "falhou"}]
+        with pytest.raises(ProcessLookupError):
+            os.kill(neto, 0)
+    finally:
+        with contextlib.suppress(ProcessLookupError):
+            os.kill(neto, signal.SIGKILL)
+        proc.kill()
+        proc.wait()

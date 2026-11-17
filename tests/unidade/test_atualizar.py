@@ -27,6 +27,7 @@ import pytest
 
 from jobot import __version__
 from jobot.cli import COMANDOS, main
+from jobot.navegador import limites
 from jobot.sistema import atualizar as modulo
 from jobot.sistema import casca, processo
 from jobot.sistema.atualizar import atualizar, tipo_de_instalacao
@@ -276,16 +277,47 @@ def test_comandos_sao_listas_nunca_shell(tmp_path: Path, monkeypatch: pytest.Mon
         assert comando[0] in {"git", "uv", "systemctl"}
         assert comando[:2] != ("sh", "-c")
     # o executor real passa a lista ao subprocess, sem shell
-    visto: list[Mapping[str, object]] = []
-
-    def run_falso(args: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
-        visto.append({"args": args, **kwargs})
-        return subprocess.CompletedProcess(args, 0, "", "")
-
-    monkeypatch.setattr(subprocess, "run", run_falso)
+    visto: list[_PopenFalso] = []
+    monkeypatch.setattr(subprocess, "Popen", lambda args, **kw: _guardar(visto, args, kw))
     assert modulo.rodar_atualizacao(["git", "-C", "/x", "status"]).codigo == 0
-    assert visto[0]["args"] == ["git", "-C", "/x", "status"]
-    assert visto[0].get("shell", False) is False
+    assert visto[0].args == ["git", "-C", "/x", "status"]
+    assert visto[0].kwargs.get("shell", False) is False
+
+
+class _PopenFalso:
+    def __init__(self, args: list[str], kwargs: Mapping[str, object], *, estoura: bool) -> None:
+        self.args, self.kwargs, self.estoura = args, kwargs, estoura
+        self.returncode = 0
+        self.prazos: list[float | None] = []
+
+    def communicate(self, timeout: float | None = None) -> tuple[str, str]:
+        self.prazos.append(timeout)
+        if self.estoura:
+            raise subprocess.TimeoutExpired(self.args, timeout or 0)
+        return "", ""
+
+
+def _guardar(
+    visto: list[_PopenFalso], args: list[str], kwargs: Mapping[str, object], estoura: bool = False
+) -> _PopenFalso:
+    visto.append(_PopenFalso(args, kwargs, estoura=estoura))
+    return visto[-1]
+
+
+def test_prazo_do_executor_encerra_a_arvore_e_cabe_o_download_do_navegador(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """D183.24: no prazo, a árvore toda sai (o `playwright install` em outra sessão inclusive),
+    e o prazo cabe o download do navegador do canal casca, que tem prazo próprio."""
+    visto: list[_PopenFalso] = []
+    encerrados: list[object] = []
+    monkeypatch.setattr(subprocess, "Popen", lambda args, **kw: _guardar(visto, args, kw, True))
+    monkeypatch.setattr(processo, "encerrar_arvore", encerrados.append)
+    assert modulo.rodar_atualizacao(["jobot", "ferramentas", "baixar", "navegador"]).codigo == 124
+    assert encerrados == visto
+    assert visto[0].kwargs["start_new_session"] is True
+    assert visto[0].prazos == [modulo._TEMPO_S]
+    assert modulo._TEMPO_S > limites.PRAZO_BAIXAR_S + limites.ESPERA_SAIR_JANELA_S
 
 
 def test_todo_comando_da_tabela_resolve() -> None:
