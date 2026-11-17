@@ -177,5 +177,22 @@
   "configuracoes.geral.versao.atual": "Versão instalada: {versao}",
   "configuracoes.geral.versao.ultima": "Última versão conhecida: {versao}",
   "configuracoes.geral.versao.nao_conferida": "Última versão conhecida: ainda não conferida. Com o aviso de versão ligado (Configurações › Privacidade), o joBot confere uma vez por dia.",
-  "configuracoes.geral.versao.em_dia": "Você está na versão mais nova que o joBot conhece."
+  "configuracoes.geral.versao.em_dia": "Você está na versão mais nova que o joBot conhece.",
+  "configuracoes.grupo.perfil": "Perfil",
+  "configuracoes.perfil.explicacao": "As habilidades que você tem. Com a IA ligada, o encaixe compara cada uma com o que a vaga pede.",
+  "configuracoes.perfil.habilidades": "Suas habilidades",
+  "configuracoes.perfil.habilidades.ajuda": "Uma por linha. Maiúsculas, acentos e repetidas não contam duas vezes.",
+  "configuracoes.perfil.privacidade.desligada": "Suas habilidades ficam no seu computador. A IA está desligada: nada sai dele.",
+  "configuracoes.perfil.privacidade.local": "Suas habilidades ficam no seu computador, e o texto da vaga também: o encaixe usa o modelo local.",
+  "configuracoes.perfil.privacidade.fora": "Suas habilidades ficam no seu computador; só o texto da vaga vai para {servico}.",
+  "configuracoes.perfil.servico.anthropic": "a API da Anthropic",
+  "configuracoes.perfil.servico.openai": "a OpenAI",
+  "configuracoes.perfil.servico.gemini": "o Google Gemini",
+  "configuracoes.perfil.servico.compativel": "o serviço compatível com a OpenAI",
+  "configuracoes.perfil.servico.outro": "um serviço de fora",
+  "configuracoes.perfil.erro.grande": "Até 200 habilidades, cada uma com até 100 caracteres.",
+  "configuracoes.perfil.apagar": "Apagar perfil",
+  "configuracoes.perfil.apagar.pergunta": "Apagar o perfil?",
+  "configuracoes.perfil.apagar.explicacao": "Suas habilidades saem do joBot. O que a IA já leu das vagas continua.",
+  "configuracoes.perfil.apagado": "Perfil apagado."
 }

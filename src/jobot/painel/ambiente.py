@@ -98,6 +98,7 @@ GRUPOS = (
     "geral",
     "fontes",
     "funcoes",
+    "perfil",
     "segundo-plano",
     "privacidade",
     "servicos",

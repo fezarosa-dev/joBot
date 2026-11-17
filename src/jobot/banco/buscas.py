@@ -297,6 +297,7 @@ def _recalcular(
     hoje: date,
     vaga_id: int | None,
     pais_padrao: str | None = None,
+    habilidades_perfil: Sequence[str] | None = None,
 ) -> int:
     alvo: Sequence[Busca]
     if busca_ids is None:
@@ -324,7 +325,7 @@ def _recalcular(
         locais.setdefault(vid, []).append(Local(cidade=cidade, uf=uf, pais=pais))
     # o que cada vaga pede (IA) e as habilidades do perfil (desenho 5.5): sem linha, neutro
     pede = pedes(con, vaga_id)
-    perfil = habilidades(con)
+    perfil = habilidades(con) if habilidades_perfil is None else habilidades_perfil
     gravar: list[tuple[Any, ...]] = []
     for linha in con.execute(f"SELECT {_COLUNAS_VAGA} FROM vaga" + onde("id"), params):
         dados = dict(zip(_NOMES_VAGA, linha, strict=True))
@@ -364,6 +365,7 @@ def recalcular_encaixe(
     hoje: date,
     vaga_id: int | None = None,
     pais_padrao: str | None = None,
+    habilidades_perfil: Sequence[str] | None = None,
 ) -> int:
     """Grava nota, nível, `nivel_base`, motivos e `oculta_motivo` de cada vaga para cada busca;
     devolve quantas. Lê o `pede` de `habilidades_vaga` e as habilidades do perfil (desenho 5.5).
@@ -371,7 +373,10 @@ def recalcular_encaixe(
     `busca_ids` `None`: as buscas ativas; uma lista: essas, ativas ou não. `vaga_id`: só aquela
     vaga (decisão 18: a rota de correção recalcula uma vaga). `regras_ligadas` é a chave geral de
     ocultar (11.3). `hoje` é o dia local do `Relogio` (`agora.astimezone().date()`), para a validade
-    de 7 dias da cotação. `pais_padrao` `None`: lê o Meu país do banco, uma vez por chamada.
+    de 7 dias da cotação. `pais_padrao` `None`: lê o Meu país do banco, uma vez por chamada;
+    `habilidades_perfil` `None`: lê as do perfil (a aba Perfil passa as novas antes de gravar).
     """
     with _escrita(con):
-        return _recalcular(con, busca_ids, regras_ligadas, hoje, vaga_id, pais_padrao)
+        return _recalcular(
+            con, busca_ids, regras_ligadas, hoje, vaga_id, pais_padrao, habilidades_perfil
+        )
