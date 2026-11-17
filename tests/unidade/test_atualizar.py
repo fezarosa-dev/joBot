@@ -28,7 +28,7 @@ import pytest
 from jobot import __version__
 from jobot.cli import COMANDOS, main
 from jobot.sistema import atualizar as modulo
-from jobot.sistema import casca
+from jobot.sistema import casca, processo
 from jobot.sistema.atualizar import atualizar, tipo_de_instalacao
 from jobot.sistema.instancia import Trava
 from jobot.sistema.pastas import pasta_do_playwright
@@ -559,7 +559,7 @@ class _Casca:
         if c[0] == "systemctl":
             nome = f"systemctl {c[2]}"
         else:
-            nome = f"{Path(c[0]).name} {c[1]}"
+            nome = f"{Path(c[0]).stem} {c[1]}"
         self.registro.append(nome)
         if nome in self.falha_em:
             return self.falha_em[nome]
@@ -985,10 +985,11 @@ def test_lancar_atualizacao_roda_destacado_com_a_pasta_e_o_log(
     assert kwargs["env"] == {"PATH": "/usr/bin", "JOBOT_DADOS": str(tmp_path)}
     assert kwargs["stdin"] == subprocess.DEVNULL
     assert kwargs["stderr"] == subprocess.STDOUT
-    assert kwargs["start_new_session"] is True
+    assert {k: kwargs[k] for k in processo.destacar()} == processo.destacar()
     log = tmp_path / "logs" / "atualizar.log"
     assert log.read_bytes() == b"saida\n"
-    assert log.stat().st_mode & 0o777 == 0o600
+    if sys.platform != "win32":  # modo do POSIX
+        assert log.stat().st_mode & 0o777 == 0o600
     # a segunda vez acrescenta, não apaga o que a primeira deixou
     modulo.lancar_atualizacao(tmp_path, {}, cgroup=tmp_path / "sem-cgroup")
     assert log.read_bytes() == b"saida\nsaida\n"
