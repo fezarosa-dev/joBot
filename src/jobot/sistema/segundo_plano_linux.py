@@ -58,6 +58,8 @@ _TEXTOS = {
     "segundo_plano.systemd_nao_responde": "o systemd do usuário não responde",
     "segundo_plano.home_diferente": "a pasta pessoal do container não é a do sistema",
     "segundo_plano.systemctl_falhou": "o systemctl {comando} falhou: {saida}",
+    "segundo_plano.schtasks_falhou": "o schtasks {comando} falhou: {saida}",
+    "segundo_plano.launchctl_falhou": "o launchctl {comando} falhou: {saida}",
 }
 
 
