@@ -151,7 +151,8 @@ def test_atualizar_marca_rodando_antes_de_lancar(painel: Painel) -> None:
 
     def espiar(dados: Path, ambiente: Mapping[str, str]) -> Rodando:
         vistos.append(painel.app.state.atualizacao.poll())
-        return lancar(dados, ambiente)
+        rodando: Rodando = lancar(dados, ambiente)
+        return rodando
 
     painel.app.state.lancar_atualizacao = espiar
     painel.post("/atualizar")

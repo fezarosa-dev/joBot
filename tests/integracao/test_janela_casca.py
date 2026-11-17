@@ -44,7 +44,8 @@ def cliente(tmp_path: Path) -> TestClient:
 def _html(cliente: TestClient, agente: str, caminho: str = "/_casca", idioma: str = "pt") -> str:
     resposta = cliente.get(caminho, headers={"user-agent": agente, "accept-language": idioma})
     assert resposta.status_code == 200
-    return resposta.text
+    texto: str = resposta.text
+    return texto
 
 
 def _raiz(html: str) -> str:
