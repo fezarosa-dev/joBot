@@ -6,15 +6,19 @@ Script do CI (`.github/workflows/pacotes.yml`), fora do pacote `jobot`. Três co
 - `restricoes --dependencias D --wheel W --saida R`: o `restricoes.txt` da release, o
   `uv export` com hash de toda dependência mais a linha `jobot==<versão> --hash=sha256:<sha>`.
 - `recursos --alvo A --wheel W --restricoes R --rodas DIR --navegadores DIR --saida S
-  --pacotes DIR`: baixa o `uv` e o Python da versão do `desktop/uv.meta.json` e confere o
-  sha256 de cada um; monta em `S` o `bin/uv.tar` (o `uv` num tar sem compressão), o
-  `python/<tag>/<arquivo>` (o espelho que o `uv python install --mirror` lê), as `wheels/`
-  (as do alvo, já baixadas com `--require-hashes`, e a do joBot), o `restricoes.txt` e o
-  `chromium-<alvo>.tar.gz` (reproduzível, da pasta do `playwright install --no-shell
-  chromium`), e por fim o `manifesto.json`, cujo sha256 sai no stdout (o
-  `JOBOT_MANIFESTO_SHA256` do build). Em `DIR` grava o `jobot-atualizacao-<versão>-<alvo>.zip`.
+  --pacotes DIR`: baixa o `uv`, o texto das licenças dele e o Python da versão do
+  `desktop/uv.meta.json` e confere o sha256 de cada um; monta em `S` o `bin/uv.tar` (o `uv` num
+  tar sem compressão), as `licencas/uv/`, o `python/<tag>/<arquivo>` (o espelho que o
+  `uv python install --mirror` lê), as `wheels/` (as do alvo, já baixadas com
+  `--require-hashes`, e a do joBot), o `restricoes.txt` e o `chromium-<alvo>.tar.gz`
+  (reproduzível, da pasta do `playwright install --no-shell chromium`, sem o Widevine), e por
+  fim o `manifesto.json`, cujo sha256 sai no stdout (o `JOBOT_MANIFESTO_SHA256` do build). Em
+  `DIR` grava o `jobot-atualizacao-<versão>-<alvo>.zip`.
 - `exes --recursos S --instalacao I --playwright P`: todo `.exe` que a instalação no Windows vai
   ter, um por linha, para a fumaça sem rede criar as regras de firewall antes do `/S`.
+- `ferramentas --saida DIR`: baixa e confere, pelo `desktop/appimage.meta.json`, o AppRun, o
+  linuxdeploy e o plugin dele que o Tauri usa no AppImage, e os põe no cache que o bundler lê
+  antes de baixar (D183.21).
 """
 
 import argparse
@@ -37,6 +41,7 @@ from provar_uv import linha_do_jobot
 
 RAIZ = Path(__file__).resolve().parents[1]
 META = RAIZ / "desktop" / "uv.meta.json"
+APPIMAGE = RAIZ / "desktop" / "appimage.meta.json"
 MANIFESTO = "manifesto.json"
 _BLOCO = 1 << 20
 
@@ -55,6 +60,13 @@ def endereco_do_python(meta: Mapping[str, Any], alvo: str) -> tuple[str, str, st
     nome = f"cpython-{py['versao']}+{py['tag']}-{alvo}-install_only_stripped.tar.gz"
     base = "https://github.com/astral-sh/python-build-standalone/releases/download"
     return f"{base}/{py['tag']}/{nome.replace('+', '%2B')}", nome, py["sha256"][alvo]
+
+
+def licencas_do_uv(meta: Mapping[str, Any]) -> list[tuple[str, str, str]]:
+    """(URL, nome, sha256) do texto de cada licença do `uv` (MIT e Apache-2.0), da tag da versão."""
+    uv = meta["uv"]
+    base = f"https://raw.githubusercontent.com/astral-sh/uv/{uv['versao']}"
+    return [(f"{base}/{nome}", nome, sha) for nome, sha in sorted(uv["licencas"].items())]
 
 
 def _sha256(arquivo: Path) -> str:
@@ -115,16 +127,20 @@ def _tar_do_uv(binario: Path, destino: Path) -> None:
     shutil.rmtree(binario.parent)
 
 
-def _sem_hora_nem_dono(info: tarfile.TarInfo) -> tarfile.TarInfo:
+def _sem_hora_nem_dono(info: tarfile.TarInfo) -> tarfile.TarInfo | None:
+    # o Widevine do Chrome for Testing não pode ser redistribuído; o joBot não usa DRM (D183.24)
+    if "WidevineCdm" in info.name.split("/"):
+        return None
     info.mtime, info.uid, info.gid, info.uname, info.gname = 0, 0, 0, "", ""
     return info
 
 
 def tar_do_navegador(pasta: Path, destino: Path) -> None:
     """O `chromium-<alvo>.tar.gz` com as pastas do `playwright install --no-shell chromium`
-    (D174.12): o `tarfile` guarda o modo e os symlinks; as pastas ocultas (`.links`) ficam de
-    fora. Reproduzível (D183): sem hora no gzip nem hora e dono nos membros, e o `tar.add` já
-    percorre as pastas em ordem; o canal `casca` compara o sha256 entre versões (D174.13)."""
+    (D174.12): o `tarfile` guarda o modo e os symlinks; as pastas ocultas (`.links`) e toda
+    pasta `WidevineCdm` ficam de fora (D183.24). Reproduzível (D183): sem hora no gzip nem hora
+    e dono nos membros, e o `tar.add` já percorre as pastas em ordem; o canal `casca` compara o
+    sha256 entre versões (D174.13)."""
     with (
         destino.open("wb") as bruto,
         gzip.GzipFile(filename="", mode="wb", fileobj=bruto, mtime=0) as comprimido,
@@ -159,12 +175,16 @@ def montar(
     roda: Path,
     restricoes: Path,
     navegadores: Path,
+    licencas: list[Path],
 ) -> str:
     """Recursos completos em `saida` (apagada antes: arquivo fora do manifesto recusa tudo);
     devolve o sha256 do `manifesto.json`."""
     shutil.rmtree(saida, ignore_errors=True)
     saida.mkdir(parents=True)
     _tar_do_uv(extrair_uv(uv, saida / "tmp-uv"), saida / "bin" / "uv.tar")
+    (saida / "licencas" / "uv").mkdir(parents=True)
+    for licenca in licencas:
+        shutil.copyfile(licenca, saida / "licencas" / "uv" / licenca.name)
     (saida / "python" / tag).mkdir(parents=True)
     shutil.copyfile(python, saida / "python" / tag / python.name)
     (saida / "wheels").mkdir()
@@ -257,6 +277,14 @@ def exes_do_windows(recursos: Path, instalacao: str, playwright: str, versao: st
     return list(dict.fromkeys(exes))
 
 
+def ferramentas(meta: Mapping[str, Mapping[str, str]], pasta: Path) -> None:
+    """Cada ferramenta do AppImage em `pasta/<nome>`, conferida e com o bit de execução."""
+    for nome, ferramenta in meta.items():
+        destino = pasta / nome
+        baixar(ferramenta["url"], destino, ferramenta["sha256"])
+        destino.chmod(0o755)
+
+
 def _versao() -> str:
     projeto = tomllib.loads((RAIZ / "pyproject.toml").read_text(encoding="utf-8"))
     return str(projeto["project"]["version"])
@@ -277,10 +305,14 @@ def main(argv: list[str]) -> None:
     e.add_argument("--recursos", type=Path, required=True)
     e.add_argument("--instalacao", required=True)
     e.add_argument("--playwright", required=True)
+    f = comandos.add_parser("ferramentas")
+    f.add_argument("--saida", type=Path, required=True)
     args = analisador.parse_args(argv)
 
     if args.comando == "restricoes":
         restricoes(args.dependencias, args.wheel, args.saida)
+    elif args.comando == "ferramentas":
+        ferramentas(json.loads(APPIMAGE.read_text(encoding="utf-8")), args.saida)
     elif args.comando == "exes":
         print(
             "\n".join(exes_do_windows(args.recursos, args.instalacao, args.playwright, _versao()))
@@ -294,6 +326,10 @@ def main(argv: list[str]) -> None:
         url, nome, sha = endereco_do_python(meta, args.alvo)
         python = baixados / nome
         baixar(url, python, sha)
+        licencas = []
+        for url, nome, sha in licencas_do_uv(meta):
+            licencas.append(baixados / "licencas" / nome)
+            baixar(url, licencas[-1], sha)
         versao = _versao()
         sha_manifesto = montar(
             saida=args.saida,
@@ -306,6 +342,7 @@ def main(argv: list[str]) -> None:
             roda=args.wheel,
             restricoes=args.restricoes,
             navegadores=args.navegadores,
+            licencas=licencas,
         )
         shutil.rmtree(baixados)
         pacote_de_atualizacao(args.saida, args.pacotes, versao, args.alvo)
