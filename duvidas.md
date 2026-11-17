@@ -3159,7 +3159,7 @@ Do item 2 (T305 h), aceito e documentado. Sem JavaScript, o detalhe sobreposto f
 
 **Ver também:** D171 (itens 1 e 17), T322, desenho 6.2.
 
-## D174. Segundo plano no Windows: escolhas da T328 (para confirmar)
+## D174. Segundo plano no Windows e no Mac: escolhas da T328 e da T329 (para confirmar)
 
 **Status:** escolhas da sessão, para confirmar.
 
@@ -3170,9 +3170,12 @@ Do item 2 (T305 h), aceito e documentado. Sem JavaScript, o detalhe sobreposto f
 3. Desligar sem tarefa registrada vale (o `/Delete` falha à toa); com a tarefa ainda lá (`/Query` acha), a falha vira recusa `segundo_plano.schtasks_falhou`, com a saída só no log, como no systemctl (T159).
 4. O atalho do menu só é criado no Linux; no Windows o instalador da casca (NSIS) cria o do Menu Iniciar (desenho 6.5).
 5. O comando `jobot segundo-plano` (CLI) continua só com o systemd; no Windows ele recusa com "o systemd do usuário não responde". Passar o CLI para a função única fica para uma tarefa própria.
-6. Fora do Linux e do Windows a tela e o passo 2 dizem "chega numa próxima versão" (chaves `nao_suportado`, que trocam as `nao_linux`); a T329 acrescenta o Mac em `segundo_plano.suportado`.
+6. Fora do Linux, do Windows e do Mac a tela e o passo 2 dizem "chega numa próxima versão" (chaves `nao_suportado`, que trocam as `nao_linux`); a T329 acrescentou o Mac (`darwin`) em `segundo_plano.suportado`.
 7. Risco a provar no Windows de verdade (seção 10 do desenho): em conta sem administrador, o `schtasks /Create` pode responder "acesso negado" (o gatilho com o usuário atual costuma dispensar administrador, mas falta ver), e falta ver a tarefa subir na bateria e passar de 72 h. A tela mostra a recusa com texto fixo e nada é gravado. Saída, se acontecer: um atalho na pasta Inicializar do usuário (`shell:startup`), que não pede administrador.
 
-**Como desfazer:** 1 é acrescentar `schtasks /Run /TN joBot` no `ligar` do Windows (ou voltar ao `/SC ONLOGON /TR`, com os padrões de bateria e 72 h); 2 é trocar o `status` do Windows; 5 é apontar `segundo-plano` em `cli/__init__.py` para um `executar` que use `sistema.segundo_plano`. Nenhum dado muda.
+8. (T329, Mac) `sistema/segundo_plano_mac.py`: o plist sai do `plistlib` (`texto_do_plist`), com `Label` `io.github.fezarosa-dev.jobot`, `ProgramArguments` `<python> -m jobot serve`, `RunAtLoad` e `KeepAlive` `{SuccessfulExit: false}` (o launchd só o refaz se sair com erro). Ligar grava o plist em `~/Library/LaunchAgents/` e roda `launchctl bootstrap gui/<uid> <plist>`; se o `launchctl print gui/<uid>/<rótulo>` já acha o serviço, só regrava o plist (outro `bootstrap` falharia e um `bootout` pararia o servidor no ar; o plist novo vale no próximo login). `bootstrap` recusado apaga o plist, para não subir no próximo login com o segundo plano desligado. Desligar roda `bootout` e apaga o plist; sem serviço carregado vale, com ele a falha vira recusa `segundo_plano.launchctl_falhou` (saída só no log). Status: "Serviço instalado" é o `launchctl print` achar o serviço, e "Rodando agora" é a saída dele trazer `state = running` (o `launchctl` não traduz). Sem atalho: o app vem do `.dmg`.
+9. (T329, Mac) Risco a provar no Mac de verdade (CI e dono): diferente do Windows (item 1), o `bootstrap` com `RunAtLoad` sobe o serviço na hora. Ligado pelo painel que já está aberto, o `serve` do launchd acha a trava, sai com código 1 ("O joBot já está aberto.") e o `KeepAlive` o refaz a cada 10 s (o `ThrottleInterval` padrão) até o painel fechar, quando ele assume. Não quebra nada, mas gasta um Python a cada 10 s. Saídas, se incomodar: o `serve` sair com 0 quando outra instância já está no ar (vale também para o `Restart=on-failure` do systemd), ou `ThrottleInterval` maior no plist.
+
+**Como desfazer:** 8 é trocar `segundo_plano_mac.ligar` (por exemplo, `bootout` e `bootstrap` sempre) ou o `KeepAlive` para `true`; 1 é acrescentar `schtasks /Run /TN joBot` no `ligar` do Windows (ou voltar ao `/SC ONLOGON /TR`, com os padrões de bateria e 72 h); 2 é trocar o `status` do Windows; 5 é apontar `segundo-plano` em `cli/__init__.py` para um `executar` que use `sistema.segundo_plano`. Nenhum dado muda.
 
 **Ver também:** D171 (itens 7 e 12), D61, desenho 6.5, T328, T329.

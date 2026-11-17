@@ -19,7 +19,7 @@ from fastapi.testclient import TestClient
 from selectolax.lexbor import LexborHTMLParser
 
 from apoio.relogio import RelogioFalso
-from apoio.segundo_plano_falso import FalsoAgendador, FalsoSistema
+from apoio.segundo_plano_falso import FalsoAgendador, FalsoLaunchctl, FalsoSistema
 from apoio.semear import inserir_vaga, semear
 from jobot.banco import buscas, cadastros
 from jobot.banco.conexao import abrir
@@ -622,6 +622,23 @@ def test_no_windows_recusa_do_agendador_mostra_texto_fixo(painel: Painel) -> Non
     assert "O schtasks /Create falhou. Os detalhes ficaram no jobot.log." in alerta
     assert "Acesso negado" not in resposta.text
     assert painel.config("segundo_plano") is None
+
+
+def test_no_mac_ligar_usa_o_launchd_e_a_recusa_mostra_texto_fixo(painel: Painel) -> None:
+    launchctl = FalsoLaunchctl()
+    painel.app.state.plataforma = "darwin"
+    painel.app.state.rodar_comando = launchctl
+    assert "data-desativado" not in painel.get(SEGUNDO_PLANO).text
+    launchctl.falha_em["bootstrap"] = Resultado(5, erro="Bootstrap failed: 5: Input/output error")
+    resposta = painel.post(SEGUNDO_PLANO, {"segundo_plano": "on"})
+    alerta = _alerta(resposta.text)
+    assert "O launchctl bootstrap falhou. Os detalhes ficaram no jobot.log." in alerta
+    assert "Input/output" not in resposta.text
+    assert painel.config("segundo_plano") is None
+    del launchctl.falha_em["bootstrap"]
+    resposta = painel.post(SEGUNDO_PLANO, {"segundo_plano": "on"})
+    assert resposta.headers["location"] == SEGUNDO_PLANO + SALVO
+    assert launchctl.carregado and painel.config("segundo_plano") is True
 
 
 # ------------------------------------------------------------------ aparência

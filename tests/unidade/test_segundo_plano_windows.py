@@ -115,7 +115,7 @@ def test_status_consulta_a_tarefa(existe: bool) -> None:
 
 @pytest.mark.parametrize(
     ("plataforma", "esperado"),
-    [("linux", True), ("win32", True), ("darwin", False), ("freebsd14", False)],
+    [("linux", True), ("win32", True), ("darwin", True), ("freebsd14", False)],
 )
 def test_suportado_pelo_sistema(plataforma: str, esperado: bool) -> None:
     assert segundo_plano.suportado(plataforma) is esperado
