@@ -535,7 +535,7 @@ CITA_0_2_1 = {"pt": ("chips", "0006", "5 segundos"), "en": ("chips", "0006", "5 
 V0_3_0 = "## [0.3.0] - 2026-11-16"
 RESUMO_0_3_0 = {"pt": ("Panorama", "LinkedIn"), "en": ("Overview", "LinkedIn")}
 # a 0.4.0 fecha a fase 3: o resumo cita a janela e o instalador
-V0_4_0 = "## [0.4.0] - 2026-11-18"
+V0_4_0 = "## [0.4.0] - 2026-11-17"
 RESUMO_0_4_0 = {"pt": ("fase 3", "janela", "instalador"), "en": ("Phase 3", "window", "installer")}
 
 
