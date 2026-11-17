@@ -50,7 +50,7 @@ def texto_encaixe(titulo: str, descricao: str) -> TextoVaga:
     descricao = _sem_marcas(descricao)
     cortados = max(len(descricao) - inicio - fim, 0)
     if cortados:
-        descricao = descricao[:inicio] + _MEIO + descricao[-fim:]
+        descricao = descricao[:inicio] + _MEIO + descricao[len(descricao) - fim :]
     return TextoVaga(f"{titulo}\n\n{descricao}", cortados)
 
 

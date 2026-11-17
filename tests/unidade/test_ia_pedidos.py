@@ -1,5 +1,6 @@
 """Montagem do pedido do `encaixe` (desenho 5.2 e 5.3 da fase 4): corte, marcas e determinismo."""
 
+import copy
 import inspect
 
 import pytest
@@ -33,6 +34,16 @@ def test_descricao_no_teto_vai_inteira() -> None:
     descricao = DESCRICAO_9000[:6000]
     texto = texto_encaixe("Dev", descricao)
     assert (texto.texto, texto.cortados) == ("Dev\n\n" + descricao, 0)
+
+
+def test_corte_sem_fim_fica_so_com_o_comeco(monkeypatch: pytest.MonkeyPatch) -> None:
+    dados = copy.deepcopy(limites())
+    dados["tarefas"]["encaixe"]["corte"]["fim"] = 0
+    monkeypatch.setattr(pedidos, "limites", lambda: dados)
+    texto = texto_encaixe("Dev", DESCRICAO_9000)
+    inicio = dados["tarefas"]["encaixe"]["corte"]["inicio"]
+    assert texto.texto == "Dev\n\n" + DESCRICAO_9000[:inicio] + "\n[...]\n"
+    assert texto.cortados == 9000 - inicio
 
 
 def test_titulo_longo_e_cortado() -> None:

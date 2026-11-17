@@ -76,6 +76,17 @@ def test_item_so_conta_como_palavra_inteira() -> None:
     assert pede_da_vaga(["Go", "Java", "C++", "Cloud"], texto) == ["C++", "Cloud"]
 
 
+def test_ponto_do_comeco_fica_e_so_sai_a_pontuacao_de_fechamento() -> None:
+    texto = "Vaga\n\nExperiência com .NET e (Python), Docker."
+    pede = [".NET", "(Python)", "Docker.", ".NET,"]
+    assert pede_da_vaga(pede, texto) == [".NET", "Python", "Docker"]
+
+
+def test_c_nao_casa_dentro_de_c_mais_mais_nem_de_c_sustenido() -> None:
+    assert pede_da_vaga(["C"], "Vaga\n\nC++ e C#.") == []
+    assert pede_da_vaga(["C"], "Vaga\n\nC e Python.") == ["C"]
+
+
 def test_repetidos_e_vazios_saem() -> None:
     texto = "Vaga\n\nPython e SQL."
     pede = ["Python", "python", " PYTHON. ", "", "--", "SQL"]

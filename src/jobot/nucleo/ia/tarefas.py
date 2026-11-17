@@ -20,8 +20,10 @@ class SaidaEncaixe(BaseModel):
     pede: list[Annotated[str, Field(max_length=60)]] = Field(max_length=30)
 
 
-# Pontas que saem de cada item; "+" e "#" ficam ("C++", "C#").
-_PONTAS = "".join(c for c in string.punctuation if c not in "+#") + string.whitespace
+# Pontas que saem de cada item (D190.5): só a pontuação de fechamento no fim e "(" no começo; o "."
+# do começo fica (".NET"), e "+" e "#" também ("C++", "C#").
+_COMECO = string.whitespace + "("
+_FIM = string.whitespace + ",;:.!?)"
 
 
 def pede_da_vaga(pede: list[str], texto: str) -> list[str]:
@@ -31,11 +33,11 @@ def pede_da_vaga(pede: list[str], texto: str) -> list[str]:
     vistos: set[str] = set()
     ficam = []
     for item in pede:
-        limpo = item.strip(_PONTAS)
+        limpo = item.lstrip(_COMECO).rstrip(_FIM)
         forma = normalizar(limpo)
         if not forma or forma in vistos:
             continue
-        if re.search(rf"(?<!\w){re.escape(forma)}(?!\w)", alvo):
+        if re.search(rf"(?<![\w+#]){re.escape(forma)}(?![\w+#])", alvo):
             vistos.add(forma)
             ficam.append(limpo)
     return ficam
