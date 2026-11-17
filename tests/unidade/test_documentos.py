@@ -699,3 +699,18 @@ def test_privacidade_cita_a_abertura(lingua: str) -> None:
     fim = conteudo.find("\n## ", inicio + 1)
     secao = conteudo[inicio : fim if fim != -1 else len(conteudo)]
     assert CITA_ABERTURA[lingua] in secao, README[lingua]
+
+
+# o que cada documento de estado vivo diz da fase 3 (T320): sendo construída
+FASE_3_SENDO_CONSTRUIDA = {
+    "docs/decisions/0017-fases.md": r"Fase 3, Instalador:.*sendo construída",
+    "docs/decisions/README.md": r"fase 3 está sendo construída",
+    "wiki/Roteiro.md": r"🟡 \| \*\*3\. Instalador\*\*.*Sendo construída",
+    "wiki/Roadmap.md": r"🟡 \| \*\*3\. Installer\*\*.*Being built",
+}
+
+
+@pytest.mark.parametrize("caminho", sorted(FASE_3_SENDO_CONSTRUIDA))
+def test_status_da_fase_3_igual_nos_documentos(caminho: str) -> None:
+    """A fase 3 consta como sendo construída em todo documento de estado vivo (T320)."""
+    assert re.search(FASE_3_SENDO_CONSTRUIDA[caminho], texto(caminho)), caminho
