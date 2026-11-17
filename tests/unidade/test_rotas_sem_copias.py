@@ -86,12 +86,11 @@ def test_sem_validadores_definido_uma_vez() -> None:
 AUXILIARES = {
     "ambiente": ("_ambiente", "ambiente_do_painel"),
     "rodar": ("_rodar", "rodar_do_painel"),
-    "no_linux": ("_no_linux", "no_linux"),
     "um": ("_um", "campo_unico"),
 }
 IMPORTAM = {
-    "configuracoes": ("ambiente_do_painel", "rodar_do_painel", "no_linux"),
-    "primeira_execucao": ("ambiente_do_painel", "rodar_do_painel", "no_linux"),
+    "configuracoes": ("ambiente_do_painel", "rodar_do_painel"),
+    "primeira_execucao": ("ambiente_do_painel", "rodar_do_painel"),
     "buscas": ("campo_unico",),
     "detalhe": ("campo_unico",),
 }

@@ -18,7 +18,6 @@ import jobot
 import jobot.cli
 from apoio.janela_falsa import JanelaFalsa
 from jobot.cli import ferramentas
-from jobot.navegador import chromium
 from jobot.navegador.chromium import pasta_do_playwright
 from jobot.navegador.instalador import comando_de_baixar
 from jobot.navegador.janela_comum import Janela
@@ -236,7 +235,7 @@ def test_troca_que_falha_devolve_a_instalacao_velha(
     arquivo = tmp_path / NOME
     arquivo.write_bytes(dados)
     trocar = os.replace
-    falhas = []
+    falhas: list[str | Path] = []
 
     def replace_que_falha(origem: str | Path, alvo: str | Path) -> None:
         if Path(alvo) == velha and not falhas:
@@ -244,7 +243,7 @@ def test_troca_que_falha_devolve_a_instalacao_velha(
             raise PermissionError("em uso")
         trocar(origem, alvo)
 
-    monkeypatch.setattr(chromium.os, "replace", replace_que_falha)
+    monkeypatch.setattr("jobot.navegador.chromium.os.replace", replace_que_falha)
     assert _sem_traceback(tmp_path, _args(arquivo, _hex(dados))) == 1
     assert _linhas(capsys.readouterr().out)[-1:] == [{"fim": "falhou"}]
     assert falhas
@@ -361,8 +360,11 @@ def test_sem_casca_chama_o_playwright_install(
     assert _linhas(capsys.readouterr().out) == [{"fim": fim}]
 
 
-def test_main_chega_no_subcomando(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_main_chega_no_subcomando(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     recebidos: list[argparse.Namespace] = []
+    # sem isso o executar abre o log na pasta de dados real de quem roda o teste
+    monkeypatch.setenv("JOBOT_DADOS", str(tmp_path))
+    monkeypatch.setattr(ferramentas, "configurar_log", lambda _dados: None)
 
     def falso(args: argparse.Namespace, **_: object) -> int:
         recebidos.append(args)
