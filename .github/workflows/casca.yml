@@ -34,7 +34,7 @@ jobs:
       - run: |
           canal=$(sed -n 's/^channel = "\(.*\)"$/\1/p' rust-toolchain.toml)
           test -n "$canal"
-          rustup toolchain install "$canal" --profile minimal --component rustfmt
+          rustup toolchain install "$canal" --profile minimal --component rustfmt --component clippy
           rustc --version
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -43,6 +43,7 @@ jobs:
             desktop/target
           key: casca-${{ runner.os }}-${{ hashFiles('desktop/Cargo.lock', 'desktop/rust-toolchain.toml') }}
       - run: cargo fmt --check
+      - run: cargo clippy --locked --all-targets -- -D warnings
       - run: cargo test --locked
       - run: cargo build --locked
       - name: verificar-janela
