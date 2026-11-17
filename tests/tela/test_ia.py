@@ -128,13 +128,14 @@ def test_tabela_com_modelo_invalido_marca_o_campo(
     onde = tarefa.get_by_role("combobox", name="Onde roda")
     onde.select_option("openai")
     expect(onde.locator('option[value="openai"]')).to_have_text("OpenAI (cobrada por uso)")
-    modelo = tarefa.get_by_role("textbox", name="Modelo", exact=True)
+    # com o `datalist`, o campo de texto tem o papel de combobox
+    modelo = tarefa.get_by_role("combobox", name="Modelo", exact=True)
     expect(modelo).to_have_accessible_description(re.compile("claude-haiku-5-5"))
     modelo.fill("gpt x")
     with page.expect_navigation():
         page.get_by_role("button", name="Salvar", exact=True).click()
     expect(page.get_by_role("alert").filter(has_text="sem espaço")).to_be_visible()
-    modelo = page.get_by_role("textbox", name="Modelo", exact=True)
+    modelo = page.get_by_role("combobox", name="Modelo", exact=True)
     expect(modelo).to_have_attribute("aria-invalid", "true")
     expect(modelo).to_have_value("gpt x")
     assert _tarefas(tmp_path) == {"encaixe": {"ligada": False, "backend": "", "modelo": ""}}
@@ -143,7 +144,7 @@ def test_tabela_com_modelo_invalido_marca_o_campo(
 def test_campo_e_select_com_foco_visivel_em_cores_forcadas(page: Page, painel: str) -> None:
     page.emulate_media(forced_colors="active")
     page.goto(f"{painel}{IA}")
-    modelo = page.get_by_role("textbox", name="Modelo", exact=True)
+    modelo = page.get_by_role("combobox", name="Modelo", exact=True)
     modelo.focus()
     expect(modelo).to_be_focused()
     page.keyboard.press("Shift+Tab")  # pelo teclado: o select ganha o anel de foco
