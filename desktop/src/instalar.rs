@@ -5,7 +5,8 @@
 //! instalação criou na pasta da casca sai e o `instalacao.json` não é gravado (o Chromium fica
 //! na pasta do Playwright, D181.9).
 //!
-//! Recursos (`desktop/recursos/`, D181): `manifesto.json`, `bin/uv` (`bin/uv.exe`),
+//! Recursos (`desktop/recursos/`, D181): `manifesto.json`, `bin/uv.tar` (o `uv` ou o `uv.exe`
+//! num tar sem compressão, D183),
 //! `python/<tag>/cpython-<versão>+<tag>-<alvo>-install_only_stripped.tar.gz` (o espelho que o
 //! `uv python install --mirror` lê), `restricoes.txt`, `wheels/*.whl` e
 //! `chromium-<alvo>.tar.gz`.
@@ -24,6 +25,7 @@ use std::time::Duration;
 
 pub const MANIFESTO: &str = "manifesto.json";
 pub const INSTALACAO: &str = "instalacao.json";
+const UV: &str = "bin/uv.tar";
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Entrada {
@@ -118,6 +120,26 @@ fn nome_valido(nome: &str) -> bool {
         && nome
             .split('/')
             .all(|parte| !parte.is_empty() && parte != "." && parte != "..")
+}
+
+/// O `uv` dos recursos vem num tar ustar sem compressão, de um arquivo só: o linuxdeploy do
+/// AppImage reescreve o rpath de todo ELF em `usr/lib`, e um `uv` solto deixaria de bater com o
+/// manifesto (D183). O tar já foi conferido pelo sha256; aqui só se tira o conteúdo.
+fn tirar_do_tar(tar: &Path, destino: &Path) -> Result<(), Erro> {
+    let ruim = || Erro::Arquivo(UV.into());
+    let bruto = fs::read(tar)?;
+    let cabecalho = bruto.get(..512).ok_or_else(ruim)?;
+    if &cabecalho[257..262] != b"ustar" || !matches!(cabecalho[156], b'0' | 0) {
+        return Err(ruim());
+    }
+    let tamanho = std::str::from_utf8(&cabecalho[124..136])
+        .ok()
+        .map(|t| t.trim_matches(|c: char| c == '\0' || c == ' '))
+        .and_then(|t| usize::from_str_radix(t, 8).ok())
+        .ok_or_else(ruim)?;
+    let dados = bruto.get(512..512 + tamanho).ok_or_else(ruim)?;
+    fs::write(destino, dados)?;
+    Ok(())
 }
 
 fn e_chromium(nome: &str) -> bool {
@@ -578,7 +600,7 @@ impl Instalador<'_> {
             cancelado,
             progresso,
         )?;
-        let uv = manifesto.achar(|n| n == format!("bin/{}", self.exe("uv")), "uv")?;
+        let uv = manifesto.achar(|n| n == UV, "uv")?;
         let python = manifesto.achar(|n| versao_do_python(n).is_some(), "python")?;
         let versao_python = versao_do_python(&python.nome).unwrap_or_default();
         let chromium = manifesto.achar(e_chromium, "chromium")?;
@@ -588,7 +610,7 @@ impl Instalador<'_> {
 
         progresso(json!({"etapa": "python"}));
         fs::create_dir_all(self.pasta.join("bin"))?;
-        fs::copy(self.recursos.join(&uv.nome), self.uv())?;
+        tirar_do_tar(&self.recursos.join(&uv.nome), &self.uv())?;
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
@@ -724,22 +746,58 @@ mod testes {
         hex(&Sha256::digest(bytes))
     }
 
-    const ARQUIVOS: [(&str, &str); 5] = [
-        ("bin/uv", "uv falso"),
-        (PYTHON, "python falso"),
-        ("restricoes.txt", "jobot==0.3.0 --hash=sha256:00\n"),
-        ("wheels/jobot-0.3.0-py3-none-any.whl", "roda falsa"),
-        (CHROMIUM, "chromium falso"),
-    ];
+    /// Um tar ustar de um arquivo só, como o `scripts/montar_recursos.py` grava o `uv`.
+    fn tar_de_um(nome: &str, dados: &[u8]) -> Vec<u8> {
+        let mut tar = vec![0u8; 512];
+        tar[..nome.len()].copy_from_slice(nome.as_bytes());
+        tar[100..108].copy_from_slice(b"0000755\0");
+        tar[124..136].copy_from_slice(format!("{:011o}\0", dados.len()).as_bytes());
+        tar[156] = b'0';
+        tar[257..263].copy_from_slice(b"ustar\0");
+        tar.extend_from_slice(dados);
+        tar.resize(tar.len().div_ceil(512) * 512 + 1024, 0);
+        tar
+    }
+
+    fn arquivos() -> [(&'static str, Vec<u8>); 5] {
+        [
+            (UV, tar_de_um("uv", b"uv falso")),
+            (PYTHON, b"python falso".to_vec()),
+            (
+                "restricoes.txt",
+                b"jobot==0.3.0 --hash=sha256:00\n".to_vec(),
+            ),
+            (
+                "wheels/jobot-0.3.0-py3-none-any.whl",
+                b"roda falsa".to_vec(),
+            ),
+            (CHROMIUM, b"chromium falso".to_vec()),
+        ]
+    }
+
+    #[test]
+    fn uv_sai_do_tar_e_tar_estragado_recusa() {
+        let raiz = temporaria("tar-do-uv");
+        let (tar, uv) = (raiz.join("uv.tar"), raiz.join("uv"));
+        fs::write(&tar, tar_de_um("uv", b"uv falso")).unwrap();
+        tirar_do_tar(&tar, &uv).unwrap();
+        assert_eq!(fs::read(&uv).unwrap(), b"uv falso");
+        fs::write(&tar, b"uv solto, sem tar").unwrap();
+        assert!(matches!(tirar_do_tar(&tar, &uv), Err(Erro::Arquivo(_))));
+        let mut curto = tar_de_um("uv", b"uv falso");
+        curto.truncate(515);
+        fs::write(&tar, curto).unwrap();
+        assert!(matches!(tirar_do_tar(&tar, &uv), Err(Erro::Arquivo(_))));
+    }
 
     /// Recursos de mentira com o manifesto certo; devolve o sha256 do manifesto.
     fn montar_recursos(raiz: &Path, versao: &str) -> String {
         let mut lista = Vec::new();
-        for (nome, conteudo) in ARQUIVOS {
+        for (nome, conteudo) in arquivos() {
             let caminho = raiz.join(nome);
             fs::create_dir_all(caminho.parent().unwrap()).unwrap();
-            fs::write(&caminho, conteudo).unwrap();
-            lista.push(json!({"nome": nome, "tamanho": conteudo.len(), "sha256": sha(conteudo.as_bytes())}));
+            fs::write(&caminho, &conteudo).unwrap();
+            lista.push(json!({"nome": nome, "tamanho": conteudo.len(), "sha256": sha(&conteudo)}));
         }
         let bruto = serde_json::to_vec(&json!({"versao": versao, "arquivos": lista})).unwrap();
         fs::write(raiz.join(MANIFESTO), &bruto).unwrap();
@@ -971,7 +1029,10 @@ mod testes {
             .join("cpython-3.14.7-linux-x86_64-gnu")
             .join("bin")
             .join("python3");
-        let espelho = format!("file://{}", texto(&c.recursos.join("python")));
+        // no Windows o endereço é `file:///C:/...`, com as barras de URL
+        let espelho = tauri::Url::from_file_path(c.recursos.join("python"))
+            .unwrap()
+            .to_string();
         let chromium = c.recursos.join(CHROMIUM);
         let esperado = vec![
             v(&[
@@ -1074,7 +1135,7 @@ mod testes {
         etapas.dedup();
         assert_eq!(etapas, ["conferir", "python", "jobot", "navegador"]);
         assert!(avisos.contains(&json!({"etapa": "navegador", "feito": 5, "total": 14})));
-        let total: u64 = ARQUIVOS.iter().map(|(_, c)| c.len() as u64).sum();
+        let total: u64 = arquivos().iter().map(|(_, c)| c.len() as u64).sum();
         assert!(avisos.contains(&json!({"etapa": "conferir", "feito": total, "total": total})));
     }
 
@@ -1262,7 +1323,7 @@ mod testes {
     fn estado_diz_se_esta_completo_e_quanto_ocupa() {
         let c = cenario("estado");
         let navegador = "chromium falso".len() as u64;
-        let total: u64 = ARQUIVOS.iter().map(|(_, c)| c.len() as u64).sum();
+        let total: u64 = arquivos().iter().map(|(_, c)| c.len() as u64).sum();
         assert_eq!(
             estado(&c.recursos, Some(c.sha.as_str()), VERSAO),
             json!({"completo": true, "base": total - navegador, "navegador": navegador})

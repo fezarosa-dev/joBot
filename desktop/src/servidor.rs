@@ -140,6 +140,49 @@ pub fn ler_trava(dados: &Path) -> (Option<u32>, Option<u16>) {
     interpretar_trava(&String::from_utf8_lossy(&texto[..lidos]))
 }
 
+/// Para os testes: prende a trava como o `instancia.py`, com `flock` no POSIX e, no Windows,
+/// um byte além dos dados (`_BYTE_DA_TRAVA`), que não impede ler o PID e a porta.
+#[cfg(test)]
+pub fn prender_como_o_python(arquivo: &File) {
+    #[cfg(not(windows))]
+    arquivo.lock().unwrap();
+    #[cfg(windows)]
+    {
+        use std::ffi::c_void;
+        use std::os::windows::io::AsRawHandle;
+        #[repr(C)]
+        struct Overlapped {
+            interno: usize,
+            interno_alto: usize,
+            deslocamento: u32,
+            deslocamento_alto: u32,
+            evento: *mut c_void,
+        }
+        #[link(name = "kernel32")]
+        unsafe extern "system" {
+            fn LockFileEx(
+                arquivo: *mut c_void,
+                opcoes: u32,
+                reservado: u32,
+                tamanho: u32,
+                tamanho_alto: u32,
+                sobreposto: *mut Overlapped,
+            ) -> i32;
+        }
+        let mut sobreposto = Overlapped {
+            interno: 0,
+            interno_alto: 0,
+            deslocamento: 1 << 20,
+            deslocamento_alto: 0,
+            evento: std::ptr::null_mut(),
+        };
+        // LOCKFILE_EXCLUSIVE_LOCK | LOCKFILE_FAIL_IMMEDIATELY, um byte
+        let ok =
+            unsafe { LockFileEx(arquivo.as_raw_handle(), 0x2 | 0x1, 0, 1, 0, &mut sobreposto) };
+        assert_ne!(ok, 0, "LockFileEx");
+    }
+}
+
 pub fn url_do_painel(porta: u16) -> String {
     format!("http://127.0.0.1:{porta}/")
 }
@@ -424,7 +467,7 @@ mod testes {
         std::fs::write(dados.join("jobot.lock"), "42\n8000\n").unwrap();
         assert_eq!(ler_trava(&dados), (None, None));
         let dono = File::open(dados.join("jobot.lock")).unwrap();
-        dono.lock().unwrap();
+        prender_como_o_python(&dono);
         assert_eq!(ler_trava(&dados), (Some(42), Some(8000)));
         drop(dono);
         assert_eq!(ler_trava(&temporaria("sem-trava")), (None, None));
@@ -594,7 +637,7 @@ mod testes {
     fn trava_presa(dados: &Path, texto: &str) -> File {
         std::fs::write(dados.join("jobot.lock"), texto).unwrap();
         let dono = File::open(dados.join("jobot.lock")).unwrap();
-        dono.lock().unwrap();
+        prender_como_o_python(&dono);
         dono
     }
 

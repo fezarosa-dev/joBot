@@ -7,11 +7,12 @@ Script do CI (`.github/workflows/pacotes.yml`), fora do pacote `jobot`. Três co
   `uv export` com hash de toda dependência mais a linha `jobot==<versão> --hash=sha256:<sha>`.
 - `recursos --alvo A --wheel W --restricoes R --rodas DIR --navegadores DIR --saida S
   --pacotes DIR`: baixa o `uv` e o Python da versão do `desktop/uv.meta.json` e confere o
-  sha256 de cada um; monta em `S` o `bin/uv`, o `python/<tag>/<arquivo>` (o espelho que o
-  `uv python install --mirror` lê), as `wheels/` (as do alvo, já baixadas com
-  `--require-hashes`, e a do joBot), o `restricoes.txt` e o `chromium-<alvo>.tar.gz` (da pasta
-  do `playwright install chromium`), e por fim o `manifesto.json`, cujo sha256 sai no stdout
-  (o `JOBOT_MANIFESTO_SHA256` do build). Em `DIR` grava o `jobot-atualizacao-<versão>-<alvo>.zip`.
+  sha256 de cada um; monta em `S` o `bin/uv.tar` (o `uv` num tar sem compressão), o
+  `python/<tag>/<arquivo>` (o espelho que o `uv python install --mirror` lê), as `wheels/`
+  (as do alvo, já baixadas com `--require-hashes`, e a do joBot), o `restricoes.txt` e o
+  `chromium-<alvo>.tar.gz` (da pasta do `playwright install chromium`), e por fim o
+  `manifesto.json`, cujo sha256 sai no stdout (o `JOBOT_MANIFESTO_SHA256` do build). Em `DIR`
+  grava o `jobot-atualizacao-<versão>-<alvo>.zip`.
 - `exes --recursos S --instalacao I --playwright P`: todo `.exe` que a instalação no Windows vai
   ter, um por linha, para a fumaça sem rede criar as regras de firewall antes do `/S`.
 """
@@ -101,6 +102,18 @@ def extrair_uv(arquivo: Path, pasta: Path) -> Path:
     return destino
 
 
+def _tar_do_uv(binario: Path, destino: Path) -> None:
+    """O `uv` num tar ustar sem compressão: o linuxdeploy do AppImage reescreve o rpath de todo
+    ELF em `usr/lib`, e um `uv` solto deixaria de bater com o manifesto (D183)."""
+    destino.parent.mkdir(parents=True)
+    with tarfile.open(destino, "w", format=tarfile.USTAR_FORMAT) as tar:
+        info = tar.gettarinfo(binario, arcname=binario.name)
+        info.mode, info.uid, info.gid, info.uname, info.gname = 0o755, 0, 0, "", ""
+        with binario.open("rb") as f:
+            tar.addfile(info, f)
+    shutil.rmtree(binario.parent)
+
+
 def tar_do_navegador(pasta: Path, destino: Path) -> None:
     """O `chromium-<alvo>.tar.gz` com as pastas do `playwright install chromium` (D174.12):
     o `tarfile` guarda o modo e os symlinks; as pastas ocultas (`.links`) ficam de fora."""
@@ -139,7 +152,7 @@ def montar(
     devolve o sha256 do `manifesto.json`."""
     shutil.rmtree(saida, ignore_errors=True)
     saida.mkdir(parents=True)
-    extrair_uv(uv, saida / "bin")
+    _tar_do_uv(extrair_uv(uv, saida / "tmp-uv"), saida / "bin" / "uv.tar")
     (saida / "python" / tag).mkdir(parents=True)
     shutil.copyfile(python, saida / "python" / tag / python.name)
     (saida / "wheels").mkdir()

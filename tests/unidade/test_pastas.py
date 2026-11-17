@@ -96,6 +96,25 @@ def test_preparar_pasta_nao_desce_em_navegador(tmp_path: Path) -> None:
 
 
 @_SO_POSIX
+def test_preparar_pasta_nao_desce_na_pasta_da_casca(tmp_path: Path) -> None:
+    # no Windows e no Mac a casca instala em <dados>/app (D181.6): o Python e o venv precisam
+    # do bit de execução (achado da fumaça da T339, D183)
+    pasta = tmp_path / "jobot"
+    python = pasta / "app" / "venvs" / "venv-0.4.0" / "bin" / "python"
+    python.parent.mkdir(parents=True)
+    python.write_text("x")
+    python.chmod(0o755)
+    (pasta / "app").chmod(0o755)
+    controle = pasta / "jobot.db"
+    controle.write_text("x")
+    controle.chmod(0o644)
+    preparar_pasta(pasta)
+    assert _modo(python) == 0o755
+    assert _modo(pasta / "app") == 0o700
+    assert _modo(controle) == 0o600
+
+
+@_SO_POSIX
 def test_preparar_pasta_nao_segue_navegador_symlink(tmp_path: Path) -> None:
     alvo = tmp_path / "fora"
     alvo.mkdir()

@@ -388,7 +388,7 @@ def test_montar_gera_recursos_com_manifesto_de_tudo(tmp_path: Path) -> None:
     )
     assert sorted(manifesto) == achados
     assert achados == [
-        "bin/uv",
+        "bin/uv.tar",
         f"chromium-{alvo}.tar.gz",
         f"python/20261110/{c['python'].name}",
         "restricoes.txt",
@@ -417,7 +417,13 @@ def test_pacote_de_atualizacao_no_formato_do_canal_casca(tmp_path: Path) -> None
         restricoes=c["restricoes"],
         navegadores=c["navegadores"],
     )
-    assert (saida / "bin" / "uv.exe").read_bytes() == b"uv falso"
+    # o uv vai num tar ustar sem compressão, de um arquivo só, que a casca abre (D183)
+    assert (saida / "bin" / "uv.tar").read_bytes()[257:263] == b"ustar\x00"
+    with tarfile.open(saida / "bin" / "uv.tar", "r:") as tar:
+        (membro,) = tar.getmembers()
+        assert (membro.name, membro.mode) == ("uv.exe", 0o755)
+        leitor = tar.extractfile(membro)
+        assert leitor is not None and leitor.read() == b"uv falso"
     pacote = m.pacote_de_atualizacao(saida, tmp_path / "dist", "0.3.0", alvo)
     assert pacote.name == f"jobot-atualizacao-0.3.0-{alvo}.zip"
     with zipfile.ZipFile(pacote) as z:
@@ -480,7 +486,6 @@ def test_exes_do_windows_cobrem_a_instalacao(tmp_path: Path) -> None:
     for esperado in (
         inst + "\\jobot-app.exe",
         inst + "\\uninstall.exe",
-        inst + "\\recursos\\bin\\uv.exe",
         casca + "\\bin\\uv.exe",
         cpython + "\\python.exe",
         cpython + "\\pythonw.exe",
