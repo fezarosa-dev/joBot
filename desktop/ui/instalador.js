@@ -24,6 +24,8 @@
   let etapa = null;
   let motivo = null;
   let instalando = false;
+  let parando = false;
+  let detalhe = "";
 
   const t = (chave, params = {}) =>
     Object.entries(params).reduce(
@@ -55,12 +57,14 @@
     if (!motivo) return;
     $("falha-titulo").textContent = t(`falha.${motivo}`);
     $("falha-oque").textContent = t(`falha.${motivo}_oque`);
+    $("falha-detalhe-texto").textContent = detalhe;
+    $("falha-detalhe").hidden = !detalhe;
   }
 
   function desenharEtapa() {
-    if (!etapa) return;
+    if (!etapa && !parando) return;
     const linha = $("instalador-linha");
-    linha.textContent = t(`etapa.${etapa}`);
+    linha.textContent = parando ? t("parando") : t(`etapa.${etapa}`);
     linha.title = linha.textContent;
   }
 
@@ -115,11 +119,12 @@
     if (aviso.fim === "falhou") {
       instalando = false;
       motivo = MOTIVOS.includes(aviso.motivo) ? aviso.motivo : "outro";
+      detalhe = typeof aviso.detalhe === "string" ? aviso.detalhe : "";
       desenharFalha();
       mostrarPasso("falha");
       return;
     }
-    if (!ORDEM.includes(aviso.etapa)) return;
+    if (parando || !ORDEM.includes(aviso.etapa)) return;
     if (aviso.etapa !== etapa) {
       etapa = aviso.etapa;
       desenharEtapa();
@@ -131,6 +136,7 @@
 
   async function instalar() {
     instalando = true;
+    parando = false;
     valor = 0;
     etapa = null;
     aplicar();
@@ -162,6 +168,12 @@
   $("alerta-continuar").addEventListener("click", () => $("alerta-fechar").close());
   $("alerta-parar").addEventListener("click", () => {
     $("alerta-fechar").close();
+    if (instalando) {
+      // o desfazer apaga o venv antes de a janela fechar: a pessoa vê que pediu
+      parando = true;
+      desenharEtapa();
+      $("etapa-viva").textContent = t("parando");
+    }
     fechar();
   });
   // no Mac a janela tem os botões do sistema (Overlay): o "Fechar" da faixa sairia repetido

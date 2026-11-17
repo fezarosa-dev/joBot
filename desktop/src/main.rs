@@ -15,7 +15,8 @@ use std::time::Duration;
 use tauri::ipc::Channel;
 use tauri::webview::PageLoadEvent;
 use tauri::{
-    AppHandle, Manager, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent,
+    AppHandle, Manager, RunEvent, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
+    WindowEvent,
 };
 
 /// O sha256 do `manifesto.json` dos recursos, gravado no build (desenho 6.2; D174.7). Sem ele
@@ -213,6 +214,12 @@ fn instalar(app: AppHandle, navegador: bool, progresso: Channel<Value>) -> Resul
         let Some(janela) = app.get_webview_window("main") else {
             return;
         };
+        // a pessoa pediu para fechar: fecha, mesmo que o cancelamento tenha chegado depois da
+        // última conferência e a instalação tenha terminado
+        if estado.cancelado.load(Ordering::SeqCst) {
+            let _ = janela.close();
+            return;
+        }
         match resultado {
             Ok(()) => {
                 let _ = progresso.send(json!({"etapa": "abrir"}));
@@ -223,9 +230,6 @@ fn instalar(app: AppHandle, navegador: bool, progresso: Channel<Value>) -> Resul
                         atual.join("/verificar.html").expect("caminho fixo"),
                     );
                 }
-            }
-            Err(_) if estado.cancelado.load(Ordering::SeqCst) => {
-                let _ = janela.close();
             }
             Err(erro) => {
                 let falha =
@@ -246,6 +250,17 @@ fn fechar_instalador(app: AppHandle) {
         estado.cancelado.store(true, Ordering::SeqCst);
     } else if let Some(janela) = app.get_webview_window("main") {
         let _ = janela.close();
+    }
+}
+
+fn em_curso(app: &AppHandle) -> bool {
+    app.state::<Arc<Instalacao>>().em_curso.load(Ordering::SeqCst)
+}
+
+/// Fechar no meio da instalação: a página pergunta antes (alerta, desenho 5.2).
+fn pedir_fechar(app: &AppHandle) {
+    if let Some(pagina) = app.get_webview_window("main") {
+        let _ = pagina.eval("window.__jobotPedirFechar && window.__jobotPedirFechar()");
     }
 }
 
@@ -342,25 +357,28 @@ fn main() {
             fechar_instalador
         ])
         .on_window_event(|janela, evento| {
-            // fechar no meio da instalação: a página pergunta antes (alerta, desenho 5.2)
             if let WindowEvent::CloseRequested { api, .. } = evento
-                && janela
-                    .state::<Arc<Instalacao>>()
-                    .em_curso
-                    .load(Ordering::SeqCst)
+                && em_curso(janela.app_handle())
             {
                 api.prevent_close();
-                if let Some(pagina) = janela.app_handle().get_webview_window(janela.label()) {
-                    let _ = pagina.eval("window.__jobotPedirFechar && window.__jobotPedirFechar()");
-                }
+                pedir_fechar(janela.app_handle());
             }
         })
         .setup(|app| {
             abrir_janela(app.handle())?;
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("erro ao rodar a janela");
+        .build(tauri::generate_context!())
+        .expect("erro ao montar a janela")
+        .run(|app, evento| {
+            // o Cmd+Q do Mac sai sem passar pelo CloseRequested: no meio da instalação, pergunta
+            if let RunEvent::ExitRequested { api, .. } = evento
+                && em_curso(app)
+            {
+                api.prevent_exit();
+                pedir_fechar(app);
+            }
+        });
 }
 
 /// Prova da ponte (T321): abre a URL sem moldura e sai com 0 se a IPC respondeu, 2 se não.

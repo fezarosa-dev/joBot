@@ -28,7 +28,7 @@
     min-block-size: 0; overflow-y: auto; padding-inline: 0.25rem; margin-inline: -0.25rem;
   }
   .instalador-pe {
-    flex-shrink: 0; display: flex; flex-direction: row-reverse; flex-wrap: wrap; gap: 0.5rem;
+    flex-shrink: 0; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.5rem;
     align-items: center; padding-block-start: 0.75rem;
     border-block-start: 1px solid var(--separador);
   }
@@ -54,6 +54,10 @@
   }
   .instalador-rodape dd { margin: 0; overflow-wrap: anywhere; }
   .progresso-corpo { inline-size: 100%; margin-block: 1rem; }
+  .falha-detalhe { margin-block-start: 1rem; color: var(--texto-2); font: var(--t-sub); }
+  .falha-detalhe pre {
+    max-block-size: 12rem; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere;
+  }
   .so-leitor {
     position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden;
     clip-path: inset(50%); white-space: nowrap;
@@ -119,6 +123,11 @@
         <h2 tabindex="-1" id="falha-titulo"></h2>
         <p class="texto-2" id="falha-oque"></p>
       </div>
+      <!-- o stderr do uv ou do jobot, para quem for diagnosticar -->
+      <details class="falha-detalhe" id="falha-detalhe" hidden>
+        <summary data-t="falha.detalhe"></summary>
+        <pre id="falha-detalhe-texto"></pre>
+      </details>
     </section>
 
     <section data-passo="pronto" hidden>
@@ -133,11 +142,12 @@
       </div>
     </section>
   </div>
+  <!-- a ordem do DOM é a visual: o Tab anda como os olhos (WCAG 2.4.3) -->
   <div class="instalador-pe">
+    <button type="button" id="voltar" class="botao-simples instalador-voltar" data-t="voltar" hidden></button>
     <button type="button" id="continuar" class="botao-principal" data-t="continuar" hidden></button>
     <button type="button" id="instalar" class="botao-principal" data-t="instalar" hidden></button>
     <button type="button" id="tentar" class="botao-principal" data-t="tentar" hidden></button>
-    <button type="button" id="voltar" class="botao-simples instalador-voltar" data-t="voltar" hidden></button>
   </div>
 </main>
 
@@ -147,9 +157,10 @@
     <p class="alerta-titulo" id="alerta-titulo" data-t="alerta.titulo"></p>
     <p class="alerta-texto" id="alerta-texto" data-t="alerta.texto"></p>
   </div>
+  <!-- visual do Mac (Alerta): a ação em cima, o cancelar embaixo, nenhum botão padrão -->
   <div class="alerta-acoes">
-    <button type="button" id="alerta-continuar" class="botao-principal" data-t="alerta.continuar"></button>
-    <button type="button" id="alerta-parar" class="botao-destrutivo" data-t="alerta.parar"></button>
+    <button type="button" id="alerta-parar" data-t="alerta.parar"></button>
+    <button type="button" id="alerta-continuar" data-t="alerta.continuar"></button>
   </div>
 </dialog>
 <script src="instalador.js"></script>
