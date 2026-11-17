@@ -31,7 +31,7 @@ It gathers, filters and organizes jobs from many sites into a nice dashboard tha
 </div>
 
 > [!IMPORTANT]
-> **joBot phases 1 and 2 (the foundation and the browser with login) are done: version 0.3.0.** It searches public sources for jobs, keeps everything on your computer and shows it in a dashboard. You can already [install and use it](#requirements-and-installation).
+> **joBot phases 1, 2 and 3 (the foundation, the browser with login and the installer) are done: version 0.4.0.** It searches public sources for jobs, keeps everything on your computer and shows it in a dashboard. You can already [install and use it](#requirements-and-installation).
 > LinkedIn is the site with login today (others can come through the [new site template](docs/site-novo.en.md)); it arrives in the next version and comes off. The Gmail card is already in Settings, Accounts; reading the emails, audio and the rest (the other sites with login, AI and browser extension) are still a plan. See the [roadmap](#roadmap). Before you turn on the sources, read the [usage and terms notices](#license-and-notices).
 
 ## 📑 Contents
@@ -63,7 +63,7 @@ Looking for a job today is tiring. You have to open many sites, repeat the same 
 joBot does this repetitive work for you. It visits job sites, gathers everything in one place and shows what matches what you are looking for.
 Everything runs on your computer. One installation serves one person, who can have several saved searches.
 
-What it does today (phases 1 and 2):
+What it does today (phases 1, 2 and 3):
 
 - 🔎 **Search** for jobs in dozens of public sources: sites, APIs and company job boards.
 - 🧹 **Clean up**: removes duplicate jobs, reads the salary and tags the field, level, work mode, region and contract type.
@@ -271,7 +271,7 @@ The app uses only two models: Haiku 5.5 (`claude-haiku-5-5`), faster and cheaper
 
 ### Offline package
 
-The installer is not here yet (phase 3), and the offline package comes in phase 4. When the installer arrives, it will show a list of tools for you to tick, and the offline package will appear in it. It will let you use AI without internet and without paying anything. Whatever you leave unticked, you can download later in the panel, in Settings, on the Tools screen. There you can also change your choice.
+The installer arrived in phase 3 (version 0.4.0), and the offline package comes in phase 4. The installer shows a list of tools for you to tick, and the offline package will appear in it. It will let you use AI without internet and without paying anything. Whatever you leave unticked, you can download later in the panel, in Settings, on the Tools screen. There you can also change your choice.
 
 | Item | Size | Note |
 |---|---|---|
@@ -498,7 +498,7 @@ Each phase only starts after the previous one passes the tests. No dates are pro
 |---|---|---|
 | **1. Base** | Common core, public sources, database, dashboard and scheduling | 🟢 Done (version 0.1.0) |
 | **2. Browser with login** | Login through a regular window, LinkedIn first, site mapping, CAPTCHA handling | 🟢 Done (version 0.3.0) |
-| **3. Installer** | 64-bit installer with a list of tools to tick (Windows and Linux first, Mac later) | 🟡 Being built |
+| **3. Installer** | 64-bit installer with a list of tools to tick (Windows and Linux first, Mac later) | 🟢 Done (version 0.4.0) |
 | **4. Local AI** | Offline package (llama-server + Qwen) | ⚪ Planned |
 | **5. Browser extension** | Browser extension for forms | ⚪ Planned |
 | **6. Audio and Gmail** | Answers by voice and email reading | ⚪ Planned |
@@ -506,7 +506,7 @@ Each phase only starts after the previous one passes the tests. No dates are pro
 | **8. GitHub Pages version** | GitHub Pages version, no installation | ⚪ Planned |
 | **9. Release** | README with badges and security review | ⚪ Planned |
 
-Version 0.3.0 came out between phase 2 and phase 3, with the "Overview" screen and the complete application queue.
+Version 0.3.0 came out between phase 2 and phase 3, with the "Overview" screen and the complete application queue. Version 0.4.0 closes phase 3, with a window of its own and the installer.
 
 <a id="faq"></a>
 ## ❓ FAQ
@@ -552,7 +552,7 @@ Each important decision is recorded in a short document called an ADR (architect
 <a id="how-to-contribute"></a>
 ## 🤝 How to contribute
 
-The repository is on GitHub. Phases 1 and 2 are done, phase 3 (the installer) is being built, and the next ones are being planned.
+The repository is on GitHub. Phases 1, 2 and 3 are done, and the next ones are being planned.
 
 - **Suggestions and job sources** can already be sent through issues, with ready-made forms.
 - **Questions** go through the [question form](https://github.com/fezarosa-dev/joBot/issues/new?template=duvida.yml). Read the [FAQ](https://github.com/fezarosa-dev/joBot/wiki/Frequently-asked-questions) first.
