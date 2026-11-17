@@ -104,6 +104,7 @@ erDiagram
     vaga ||--o{ correcao : "vaga_id"
     vaga ||--o{ evento : "vaga_id"
     vaga ||--o| candidatura : "vaga_id"
+    vaga ||--o| habilidades_vaga : "vaga_id"
     vaga ||--o| vaga_fts : "rowid = id"
     busca ||--o{ encaixe : "busca_id"
     pagina_acompanhada ||--o{ mudanca_pagina : "pagina_id"
@@ -228,6 +229,7 @@ erDiagram
         INTEGER nota
         TEXT nivel
         TEXT oculta_motivo
+        TEXT nivel_base
     }
     correcao {
         INTEGER id PK
@@ -248,6 +250,20 @@ erDiagram
         INTEGER vaga_id PK, FK
         TEXT abriu_em
         INTEGER perguntar
+    }
+    habilidades_vaga {
+        INTEGER vaga_id PK, FK
+        TEXT chave
+        TEXT pede
+        TEXT backend
+        TEXT modelo
+        TEXT falha
+        INTEGER tentativas
+    }
+    perfil {
+        INTEGER id PK
+        TEXT habilidades
+        TEXT atualizado_em
     }
     cotacao {
         TEXT moeda PK
@@ -291,7 +307,7 @@ erDiagram
     }
 ```
 
-**Nada é apagado.** O gatilho `vaga_sem_delete` recusa qualquer `DELETE` em `vaga`: a vaga que some da fonte só ganha `fechada_em`. A tabela `evento` (o histórico do que você fez no painel) só recebe acréscimo: `evento_sem_update` e `evento_sem_delete` recusam mudar ou apagar uma linha. A tabela `candidatura` (quando você abriu a candidatura de cada vaga) é atualizada no lugar, e `candidatura_sem_delete` recusa apagar uma linha. A gravação usa sempre `INSERT ... ON CONFLICT DO UPDATE`, nunca `INSERT OR REPLACE`. As tabelas `cotacao`, `cache_http`, `enriquecimento` e `config` não têm chave estrangeira: `enriquecimento` liga à vaga só pelo valor de `url_hash`.
+**Nada é apagado.** O gatilho `vaga_sem_delete` recusa qualquer `DELETE` em `vaga`: a vaga que some da fonte só ganha `fechada_em`. A tabela `evento` (o histórico do que você fez no painel) só recebe acréscimo: `evento_sem_update` e `evento_sem_delete` recusam mudar ou apagar uma linha. A tabela `candidatura` (quando você abriu a candidatura de cada vaga) é atualizada no lugar, e `candidatura_sem_delete` recusa apagar uma linha. A tabela `habilidades_vaga` (o que cada vaga pede, segundo a IA) também é atualizada no lugar, e uma falha nunca apaga o resultado anterior. A exceção é `perfil` (as suas habilidades): "Apagar perfil" apaga a linha, porque é dado seu, não vaga. A gravação usa sempre `INSERT ... ON CONFLICT DO UPDATE`, nunca `INSERT OR REPLACE`. As tabelas `cotacao`, `cache_http`, `enriquecimento` e `config` não têm chave estrangeira: `enriquecimento` liga à vaga só pelo valor de `url_hash`.
 
 ## 🔎 Uma busca, passo a passo
 
