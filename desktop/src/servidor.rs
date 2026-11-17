@@ -287,10 +287,15 @@ pub fn jobot_instalado(dados: &Path, so: &str) -> Option<PathBuf> {
     Some(jobot_do_venv(Path::new(venv), so)).filter(|j| j.is_file())
 }
 
-/// Tira o `PYTHONHOME` e o `PYTHONPATH` do ambiente de um filho: o AppImage os aponta para
-/// dentro dele e o Python do venv não acha a biblioteca padrão (achado da fumaça, D183).
+/// Tira o `PYTHONHOME`, o `PYTHONPATH` e o `LD_LIBRARY_PATH` do ambiente de um filho: o AppRun
+/// do AppImage os aponta para dentro dele; o Python do venv não achava a biblioteca padrão
+/// (achado da fumaça), e as bibliotecas do AppImage chegariam ao navegador do sistema que o
+/// `serve` abre (D183.18).
 pub fn sem_python_de_fora(comando: &mut Command) -> &mut Command {
-    comando.env_remove("PYTHONHOME").env_remove("PYTHONPATH")
+    comando
+        .env_remove("PYTHONHOME")
+        .env_remove("PYTHONPATH")
+        .env_remove("LD_LIBRARY_PATH")
 }
 
 /// `jobot <subcomando>` destacado (sessão própria no POSIX, grupo próprio sem console no
