@@ -3705,3 +3705,19 @@ Do item 2 (T305 h), aceito e documentado. Sem JavaScript, o detalhe sobreposto f
 **Como desfazer:** cada item diz o seu; o resto é o `ia.yml`, os dois scripts e o conjunto de ouro.
 
 **Ver também:** D185 (itens 7 e 19), D187.6, D190, D193.3, D195, desenho 6, 7 e 12, T402, T410, T411, T412.
+
+## D199. O dono confirma as escolhas de D171 a D196
+
+**Status:** decidida pelo dono em 2026-11-17.
+
+**Contexto:** a sessão rodou as fases 3 e 4 com a autonomia que o dono deu ("pode tomar as decisões, mas salva as decisões ... para poder depois ver se eu concordo"), e registrou as escolhas como "para confirmar" de D171 a D196. Em 2026-11-17 o dono viu o resumo e respondeu "concordo e deixo você fazer"; a leitura dos termos do Claude Code e do Codex fica para depois.
+
+**Decisões do dono:**
+
+1. As escolhas da sessão marcadas "para confirmar" de D171 a D196 ficam confirmadas, incluindo D183.20 (WebView2 sem download), D183.23 (tamanho dos instaladores) e D183.24 (o navegador não vai no instalador nem na release).
+2. Continuam pedindo o dono, caso a caso: gasto de dinheiro (o treino do Laya no RunPod, D185.8, com o valor na hora), os termos do Claude Code e do Codex antes de liberar esses backends (D185.5 e D185.6), o pedido ao SignPath e o teste dos instaladores na máquina dele (T343).
+3. Os artefatos de CI dos ensaios antigos que traziam o navegador do Playwright (Chrome for Testing, alguns com o Widevine) foram apagados em 2026-11-17 com o ok do dono: 44 artefatos dos runs 44035824360, 44038550645, 44042487875, 44053344701, 44058446804, 44069532284, 44073938119 e 44081501267 (D183.24).
+
+**Como desfazer:** o dono reabre qualquer item; as decisões citadas trazem o "como desfazer" de cada uma. Os artefatos apagados se refazem rodando o ensaio do `casca.yml` com `pacotes=true` num commit antigo (sem o navegador, desde a D183.24).
+
+**Ver também:** D171 a D196, T343.
