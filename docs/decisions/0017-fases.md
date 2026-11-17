@@ -2,11 +2,11 @@
 
 - **Status:** aceita
 - **Data:** 2026-11-13
-- **Atualizada:** 2026-11-16 (versões 0.1.1, 0.2.0 e 0.2.1 entre a fase 1 e a fase 2; fase 3 vira o Instalador, as seguintes andam um número, e a versão 0.3.0 traz o Panorama e a fila, D138; fase 3 com o app de desktop, D142, e o ajuste do Laya antes da fase 4, D141; fase 2 concluída e 0.3.0)
+- **Atualizada:** 2026-11-16 (versões 0.1.1, 0.2.0 e 0.2.1 entre a fase 1 e a fase 2; fase 3 vira o Instalador, as seguintes andam um número, e a versão 0.3.0 traz o Panorama e a fila, D138; fase 3 com o app de desktop, D142, e o ajuste do Laya antes da fase 4, D141; fase 2 concluída e 0.3.0); 2026-11-17 (fase 3 começa a ser construída, D171 e [0025](0025-app-de-desktop-e-instalador.md)); 2026-11-18 (fase 3 concluída na 0.4.0)
 
 ## Contexto
 
-O projeto é grande. Ir por fases deixa cada entrega testada antes da próxima. Hoje as fases 1 e 2 estão concluídas, as versões 0.1.0, 0.1.1, 0.2.0, 0.2.1 e 0.3.0 já saíram (a 0.2.0 traz filtros novos e deixa o 2Captcha preparado para a fase 2; a 0.2.1 deixa a lista de vagas mais rápida e faz o aviso «Salvo.» sumir sozinho; a 0.3.0 traz o navegador com login, o LinkedIn, o visual novo do painel, a aba Contas, o Panorama e a fila de candidaturas) e as outras fases estão planejadas. Em 2026-11-15 o dono decidiu a ordem LinkedIn (fase 2), Panorama e fila, versão 0.3.0, instalador, IA local (D138).
+O projeto é grande. Ir por fases deixa cada entrega testada antes da próxima. Hoje as fases 1, 2 e 3 estão concluídas, as versões 0.1.0, 0.1.1, 0.2.0, 0.2.1, 0.3.0 e 0.4.0 já saíram (a 0.2.0 traz filtros novos e deixa o 2Captcha preparado para a fase 2; a 0.2.1 deixa a lista de vagas mais rápida e faz o aviso «Salvo.» sumir sozinho; a 0.3.0 traz o navegador com login, o LinkedIn, o visual novo do painel, a aba Contas, o Panorama e a fila de candidaturas; a 0.4.0 traz a janela própria e o instalador para Windows, Linux e Mac) e as outras fases estão planejadas. Em 2026-11-15 o dono decidiu a ordem LinkedIn (fase 2), Panorama e fila, versão 0.3.0, instalador, IA local (D138).
 
 ## Decisão
 
@@ -14,7 +14,7 @@ O projeto é grande. Ir por fases deixa cada entrega testada antes da próxima. 
 - Entre a fase 1 e a fase 2 saem três versões pequenas: a 0.1.1 (nenhum erro trava o programa e todo erro aparece com o que a pessoa pode fazer), a 0.2.0 (filtros novos na tela de vagas, país e moeda) e a 0.2.1 (a lista de vagas abre mais rápido e o aviso "Salvo." some sozinho). A ordem das fases não muda.
 - Fase 2, Navegador com login: Chrome visível, mapeamento dos sites e tratamento de CAPTCHA. Status: concluída na 0.3.0 (navegador com login e o primeiro site).
 - Depois da fase 2 sai a versão 0.3.0, num lote separado do login: a tela "Panorama" (visão geral das vagas e da busca) e a fila de candidaturas completa (link de candidatura por e-mail, a pergunta "Você se candidatou?" quando a pessoa volta ao painel e as datas de cada passo). Só depois dela começa a fase 3.
-- Fase 3, Instalador: só 64 bits; Windows e Linux primeiro, Mac depois (testado só no GitHub Actions). A tela do instalador mostra uma lista de ferramentas para marcar: as essenciais vêm marcadas e não dá para desmarcar. As outras, se ficarem sem marca, aparecem depois no painel para baixar quando a pessoa quiser (ver [0023](0023-tudo-pelo-painel.md)). Status: planejada.
+- Fase 3, Instalador: só 64 bits; Windows e Linux primeiro, Mac depois (testado só no GitHub Actions). A tela do instalador mostra uma lista de ferramentas para marcar: as essenciais vêm marcadas e não dá para desmarcar. As outras, se ficarem sem marca, aparecem depois no painel para baixar quando a pessoa quiser (ver [0023](0023-tudo-pelo-painel.md)). Status: concluída na 0.4.0 (janela própria e instalador; desenho e decisões na D171 e na [0025](0025-app-de-desktop-e-instalador.md)).
 - Fase 4, IA local: pacote offline (llama-server + Qwen). Status: planejada.
 - Fase 5, Extensão do navegador. Status: planejada.
 - Fase 6, Áudio e Gmail. Status: planejada.
@@ -39,4 +39,5 @@ O projeto é grande. Ir por fases deixa cada entrega testada antes da próxima. 
 - [0016. Licença, sala limpa e processo de trabalho](0016-licenca-clean-room-e-processo.md)
 - [0018. Manutenção pela comunidade e CI aberto a todo PR](0018-manutencao-pela-comunidade.md)
 - [0023. Tudo pelo painel](0023-tudo-pelo-painel.md)
-- [duvidas.md: D141 (Laya antes da fase 4) e D142 (app de desktop)](../../duvidas.md)
+- [0025. App de desktop e instalador](0025-app-de-desktop-e-instalador.md)
+- [duvidas.md: D141 (Laya antes da fase 4), D142 (app de desktop) e D171 (fase 3)](../../duvidas.md)

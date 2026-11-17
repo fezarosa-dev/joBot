@@ -53,6 +53,7 @@ from jobot.nucleo.relogio import Relogio, RelogioReal
 from jobot.painel.app import criar_app
 from jobot.sistema.instancia import AVISO_CAPTURA, Trava, captura_em_andamento, porta
 from jobot.sistema.pastas import configurar_log, pasta_de_dados, preparar_pasta
+from jobot.sistema.sair import apagar_token, gravar_token
 
 log = logging.getLogger(__name__)
 
@@ -224,6 +225,9 @@ def montar(
         server_header=False,
         proxy_headers=False,
         lifespan="on",
+        # no pythonw (tarefa do Windows) sys.stdout é None: com cores automáticas o uvicorn
+        # chamaria sys.stdout.isatty() e o serve morreria ao subir
+        use_colors=False,
     )
     return app, config
 
@@ -241,18 +245,23 @@ def executar(args: argparse.Namespace) -> int:
         p = porta(os.environ)
         trava = Trava(dados, p)
         if not _pegar(trava):
-            print(
-                AVISO_CAPTURA if captura_em_andamento(dados) else "O joBot já está aberto.",
-                file=sys.stderr,
-            )
-            return 1
+            if captura_em_andamento(dados):
+                print(AVISO_CAPTURA, file=sys.stderr)
+                return 1  # a captura acaba logo: o launchd ou o systemd tenta de novo e assume
+            # 0 (D175 item 9): com o painel aberto, o KeepAlive do launchd e o
+            # Restart=on-failure do systemd não refazem o serve; ele volta no próximo login
+            print("O joBot já está aberto.", file=sys.stderr)
+            return 0
         try:
             app, config = montar(dados, p, env=os.environ)
             servidor = uvicorn.Server(config)
             app.state.servidor = servidor  # o POST /sair pede o encerramento por aqui (T49)
+            # o `jobot sair` do Windows prova ser local por este segredo (desenho 6.1)
+            app.state.sair_token = gravar_token(dados)
             with contextlib.suppress(SystemExit):  # o uvicorn sai assim se não consegue escutar
                 servidor.run()
         finally:
+            apagar_token(dados)  # com a trava presa, um arquivo que sobrou é de subida velha
             trava.soltar()
     except sqlite3.Error as erro:
         log.error("o servidor não subiu: erro do banco", exc_info=erro)

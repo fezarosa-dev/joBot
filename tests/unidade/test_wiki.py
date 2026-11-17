@@ -21,6 +21,7 @@ PARES = {
     "Perguntas-frequentes": "Frequently-asked-questions",
     "Gmail-senha-de-app": "Gmail-app-password",
     "Tirar-duvida": "Ask-a-question",
+    "Instalar": "Install",
 }
 PAR_DE = PARES | {en: pt for pt, en in PARES.items()}
 LINK = re.compile(r"\[[^\]]*\]\(([^)\s]+)\)")
@@ -68,6 +69,16 @@ def test_links_relativos_apontam_para_pagina_da_wiki() -> None:
                 ("../", "docs/", ".github/")
             ), f"{nome}: link para arquivo do repositório ({alvo}); use URL absoluta"
             assert (WIKI / f"{destino}.md").is_file(), f"{nome}: {alvo} não existe na wiki"
+
+
+def test_barra_lista_toda_pagina_nas_duas_linguas() -> None:
+    """Página nova entra nas duas listas do `_Sidebar.md`, a de cada língua (T341)."""
+    barra = texto("wiki/_Sidebar.md")
+    portugues, ingles = barra.split("### 🌎 English")
+    alvos_pt = {a.split("#")[0] for a in relativos(portugues)}
+    alvos_en = {a.split("#")[0] for a in relativos(ingles)}
+    assert sorted(set(PARES) - alvos_pt) == []
+    assert sorted(set(PARES.values()) - alvos_en) == []
 
 
 def test_readmes_apontam_para_a_wiki_e_nao_tem_faq_propria() -> None:

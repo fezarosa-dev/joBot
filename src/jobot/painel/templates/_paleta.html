@@ -4,6 +4,7 @@
     `csrf_token`, `tema`, `idioma` e `tamanho_texto` (a casca). Atalho só onde existe: as duas formas
     vão no HTML e o CSS esconde a que não vale (E14). -#}
 {%- from "_onde.html" import onde, config -%}
+{%- from "_alerta.html" import alerta with context -%}
 {%- set de_volta = url_de_volta(request) -%}
 {%- macro link(href, rotulo, mac="", outro="", ajuda=false) -%}
 <a role="option" tabindex="-1" href="{{ href }}"{% if ajuda %} target="_blank" rel="noopener noreferrer" data-ajuda{% endif %}><span class="paleta-rotulo">{{ rotulo }}</span>
@@ -34,7 +35,12 @@
     {{ link("/configuracoes/" ~ slug, t("casca.paleta.par", grupo=t("casca.menu.configuracoes"), valor=t(chave))) }}
     {%- endfor %}
     {{ envia("/buscar-agora", t("execucao.buscar_agora"), (("voltar", de_volta),), true) }}
-    {{ envia("/sair", t("execucao.sair")) }}
+    {#- Encerrar não volta pelo painel (D143.37): o botão abre o alerta de baixo; sem JavaScript, a
+        página de confirmação (T333) -#}
+    <form role="none" method="get" action="/sair/confirmar">
+      <input type="hidden" name="voltar" value="{{ de_volta }}">
+      <button type="submit" role="option" tabindex="-1" data-alerta-abre="alerta-encerrar"><span class="paleta-rotulo">{{ t("execucao.encerrar") }}</span></button>
+    </form>
     {#- o valor que já vale não é comando -#}
     {%- for opcao in ("sistema", "claro", "escuro") if opcao != tema %}
     {{ envia("/preferencias/tema", t("casca.paleta.par", grupo=t("casca.tema"), valor=t("casca.tema." ~ opcao)), (("voltar", de_volta), ("tema", opcao))) }}
@@ -50,3 +56,6 @@
   <p class="paleta-vazio" aria-hidden="true" hidden>{{ t("casca.paleta.zero") }}</p>
   <p class="paleta-estado" role="status" aria-live="polite" data-paleta-estado data-zero="{{ t('casca.paleta.zero') }}" data-um="{{ t('casca.paleta.um') }}" data-varios="{{ t('casca.paleta.varios', n='{n}') }}"></p>
 </dialog>
+{#- o alerta de Encerrar (T333; desenho 6.4) mora fora da paleta, que fecha ao escolher: a paleta e
+    Configurações › Geral o abrem -#}
+{{ alerta("alerta-encerrar", t("execucao.encerrar.pergunta"), t("execucao.encerrar.explicacao"), t("comum.encerrar"), "/sair") }}

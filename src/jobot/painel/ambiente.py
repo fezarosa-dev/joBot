@@ -1,14 +1,16 @@
 """O que as rotas do painel leem do sistema: ambiente, executor de comando e plataforma.
 
-O teste troca os oito em `app.state` (`ambiente`, `rodar_comando`, `plataforma`, `cofre`,
-`abrir_processo`, `ler_navegador`, `leitores` e `abrir_imap`); sem troca, vale o real. Os grupos de
+O teste troca os dez em `app.state` (`ambiente`, `rodar_comando`, `plataforma`, `cofre`,
+`abrir_processo`, `ler_navegador`, `leitores`, `abrir_imap`, `lancar_atualizacao` e
+`abrir_endereco`); sem troca, vale o real. Os grupos de
 Configurações moram aqui, abaixo das rotas, porque a lateral também os lê (T265).
 """
 
 import os
 import sys
 from collections.abc import Awaitable, Callable, Mapping, Sequence
-from typing import Literal
+from pathlib import Path
+from typing import Literal, Protocol
 
 from fastapi import Request
 
@@ -18,7 +20,9 @@ from jobot.nucleo import gmail
 from jobot.nucleo.gmail import AbrirImap
 from jobot.nucleo.leitores.base import LeitorComLogin
 from jobot.nucleo.leitores.registro import leitores
-from jobot.sistema import segundo_plano_linux
+from jobot.sistema import segundo_plano, segundo_plano_linux
+from jobot.sistema.abrir import abrir_navegador
+from jobot.sistema.atualizar import lancar_atualizacao
 from jobot.sistema.cofre import Cofre
 from jobot.sistema.segundo_plano_linux import Rodar
 
@@ -33,8 +37,13 @@ def rodar_do_painel(request: Request) -> Rodar:
     return segundo_plano_linux.rodar_comando if rodar is None else rodar
 
 
-def no_linux(request: Request) -> bool:
-    return str(getattr(request.app.state, "plataforma", sys.platform)).startswith("linux")
+def plataforma_do_painel(request: Request) -> str:
+    return str(getattr(request.app.state, "plataforma", sys.platform))
+
+
+def com_segundo_plano(request: Request) -> bool:
+    """O sistema tem segundo plano (desenho 6.5); fora dele a tela e o passo 2 vêm desativados."""
+    return segundo_plano.suportado(plataforma_do_painel(request))
 
 
 def cofre_do_painel(request: Request) -> Cofre:
@@ -61,6 +70,28 @@ def ler_navegador_do_painel(request: Request) -> LerNavegador:
     """Quem lê do disco qual navegador as janelas usam (sobe o driver do Playwright)."""
     ler: LerNavegador | None = getattr(request.app.state, "ler_navegador", None)
     return abrir.navegador_instalado if ler is None else ler
+
+
+class Rodando(Protocol):
+    def poll(self) -> int | None: ...
+
+
+LancarAtualizacao = Callable[[Path, Mapping[str, str]], Rodando]
+
+
+def lancar_atualizacao_do_painel(request: Request) -> LancarAtualizacao:
+    """Quem dispara o `jobot atualizar` destacado (T332)."""
+    lancar: LancarAtualizacao | None = getattr(request.app.state, "lancar_atualizacao", None)
+    return lancar_atualizacao if lancar is None else lancar
+
+
+def abrir_endereco_do_painel(request: Request) -> Callable[[str], bool]:
+    """Quem abre um endereço no navegador da pessoa, pelo Python (T332: a página da release)."""
+    abrir: Callable[[str], bool] | None = getattr(request.app.state, "abrir_endereco", None)
+    if abrir is not None:
+        return abrir
+    ambiente = ambiente_do_painel(request)
+    return lambda endereco: abrir_navegador(endereco, ambiente)
 
 
 GRUPOS = (

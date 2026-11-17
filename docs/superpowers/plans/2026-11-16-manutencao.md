@@ -312,3 +312,31 @@ Itens pequenos e independentes entre si.
 - [x] (f) um comentário em `app.js` passa de 100 colunas: quebrar.
 - [x] **Ver falhar:** para cada item que muda código, o teste do item com a asserção dele; itens só de texto ou comentário conferem por `rtk grep` e anotam a conclusão aqui. Itens (a) e (f) são só texto: o grep confirmou um único chamador posicional de _contexto_pagina e nenhum comentário do app.js acima de 100 colunas.
 - [x] **Ver passar:** os arquivos de teste mexidos e `uv run ruff check && uv run ruff format --check`; a tela roda no CI.
+
+### T314: o detalhe volta ao fluxo ao alargar a janela, sempre
+`depende_de: —` · T301, T305 (g)
+
+**O que se viu.** No CI do PR #14 (execução 43991167799, job `tela (9)`, commit fd8a8a9), `tests/tela/test_vagas.py::test_camada_do_detalhe_depois_de_voltar` estourou o prazo na última espera: depois de Voltar (`htmx:historyRestore`), de estreitar a janela para 800 px (o detalhe subiu à camada de cima, certo) e de alargar de novo para 1400 px, o `#detalhe-vaga` ficou em `:popover-open` e não voltou ao fluxo. O mesmo commit passou no CI do lote, e o teste passou 6 de 6 na `fedora-dev`: falha intermitente, só no CI. Para quem usa: às vezes, ao alargar a janela, o detalhe fica por cima da lista em vez de voltar para o lado.
+
+**Onde olhar.** `acertarCamada` em `static/js/app.js` roda no `ResizeObserver` da `.coluna` (religado em `observarColuna` no `htmx:historyRestore`), no `htmx:afterSwap` e no `htmx:afterSettle`, e decide por `modo()` (`--detalhe-modo`, que sai de container query). Hipóteses a provar antes de mexer: (a) o último quadro do redimensionamento chega ao observador antes de o estilo da container query refletir a largura final; (b) a `.coluna` observada não muda de tamanho na volta, porque outra caixa absorve a largura.
+
+- [x] **Reproduzir:** repetir o teste no CI (`gh workflow run ci.yml --ref <branch>` com o teste num laço de 50, ou `--count` se houver) ou forçar CPU lenta na `fedora-dev` (`page` com CDP `Emulation.setCPUThrottlingRate`). Sem reprodução, não há correção.
+
+**Tentativa de 2026-11-16 na `fedora-dev` (sem reprodução; `app.js` intocado).** Cópia temporária do teste, apagada no fim, com sonda por `add_init_script`: cada leitura de `--detalhe-modo` (cada `acertarCamada` com o detalhe aberto), cada entrega do `ResizeObserver` (com a largura), `observe`/`disconnect`, `showPopover`/`hidePopover`, `resize` e os eventos do htmx, com `innerWidth` e as larguras da `.coluna` e do `#vagas-miolo`. Rodadas, todas verdes: 30 seguidas sem freio; 30 com `setCPUThrottlingRate` 6; 40 com 20; 40 segurando as respostas das cargas que o Voltar dispara (`/aviso-*`, `/execucao/atual`) e soltando-as logo depois de estreitar, para o `afterSwap`/`afterSettle` delas cair na janela estreita; 30 dessas com freio 10. Dados de toda rodada:
+- (b) não se sustenta: a `.coluna` vai de 1160 para 800 e volta a 1160 (o `#vagas-miolo`, de 1088 para 752 e 1088), e o observador entrega as duas mudanças.
+- (a) sem sinal: em toda entrega do observador o `modo()` já batia com a largura final (`sobreposto` a 800; `coluna` a 1400, com o detalhe ainda em `:popover-open`), e o `hidePopover` veio na mesma entrega.
+- Candidata (c), não provada: o `ResizeObserver` só avisa quando o tamanho difere do último que ele entregou. Se a camada sobe por outro caminho (o `afterSwap`/`afterSettle` das cargas do Voltar chega uns 20 ms depois e roda `acertarCamada`) num quadro em que a janela já está em 800, e o Playwright alarga para 1400 antes de o navegador desenhar um quadro a 800, o observador nunca vê 800 e não avisa na volta: o detalhe fica em cima. O `set_viewport_size` do Playwright não espera quadro e a espera `EM_CIMA` confere na hora, então a janela existe em tese; aqui o quadro a 800 sempre veio antes. Correção que ela pediria: religar o observador (`observarColuna`) quando a troca de camada vem do htmx, para o próximo quadro reconferir. Só aplicar com a falha reproduzida (laço no CI, ou quadro controlado).
+- Reproduzido em 2026-11-17 no CI (branch descartável `lote/t314-laco`, 8 máquinas × 50 rodadas): 4 falhas (rodadas 13, 28, 31 e 38). A sonda (registro do `ResizeObserver`, `resize`, eventos do htmx, `show`/`hide`) provou a (c): o `show` veio do `afterSettle` atrasado de `#aviso-contas` com a janela já em 800, sem nenhum quadro a 800 (nem `resize 800` nem entrega do observador); na volta a 1400 a `.coluna` voltou a 1160, igual à última entrega, e o observador calou. O nó observado era a `.coluna` atual e conectada: a (d) caiu.
+- [x] **Teste que falha** pela hipótese provada, por asserção, nunca com `sleep`: `test_camada_desce_mesmo_sem_quadro_na_largura_estreita` estreita a `.coluna`, dispara um `afterSettle` e devolve a largura numa tarefa só; vermelho sem a correção (estoura no `NO_FLUXO`).
+- [x] **Corrigir** na causa (no observador ou no que alimenta o `modo()`), sem remendo que esconda: toda troca de camada rearma o observador (`vigiarColuna`), que passa a comparar com a largura da decisão; vale também para a barra lateral.
+- [x] **Ver passar:** o teste em laço no CI sem falha. Com a correção, 400 de 400 rodadas verdes (8 máquinas × 50, run 44007845086) e a suíte inteira verde no `lote/t314` (run 44007827492); juntado na `dev` em c06c83a.
+
+### T345: o título do detalhe estreito às vezes passa 0,33 px
+`depende_de: —`
+
+**O que se viu.** No CI do `lote/fase-3-onda2` (execução 44015725984, job `tela (1)`, 1ª tentativa), `tests/tela/test_detalhe.py::test_pagina_estreita_nao_cola_voltar_no_titulo` falhou em `assert 188.06 >= (156.90 + 32) - 0.5` (linha 219: a caixa da empresa começa 0,33 px antes do fim do título). Na 2ª tentativa passou. O lote não mexia no CSS nem no template do detalhe.
+
+- [ ] **Reproduzir:** laço do teste no CI (como na T314) e anotar a taxa e os números de cada falha.
+- [ ] **Achar a causa** (arredondamento de sub-pixel da entrelinha do título, fonte que ainda não carregou, quebra de linha diferente) com sonda, sem `sleep`.
+- [ ] **Teste que falha** pela causa provada e **corrigir** na causa (CSS ou espera certa no teste), sem só afrouxar a tolerância.
+- [ ] **Ver passar:** o laço no CI sem falha.

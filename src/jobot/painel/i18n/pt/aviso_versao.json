@@ -1,3 +1,14 @@
 {
-  "aviso_versao.texto": "Há uma versão nova do joBot: {versao}. Para atualizar, rode jobot atualizar no terminal."
+  "aviso_versao.texto": "Há uma versão nova do joBot: {versao}.",
+  "aviso_versao.janela": "A janela do joBot também tem versão nova.",
+  "aviso_versao.atualizar": "Atualizar agora",
+  "aviso_versao.baixar_janela": "Baixar a janela nova",
+  "aviso_versao.janela_aberta": "A página da versão nova abriu no seu navegador.",
+  "aviso_versao.janela_falhou": "Não deu para abrir o navegador. Baixe a janela nova em {endereco}",
+  "aviso_versao.atualizando": "Atualizando o joBot. O painel recarrega sozinho quando a versão nova abrir.",
+  "aviso_versao.demorou": "Passaram dois minutos e a versão nova não abriu. O que aconteceu fica no arquivo logs/atualizar.log, na pasta de dados (Configurações › Privacidade).",
+  "aviso_versao.tentar": "Tentar de novo",
+  "aviso_versao.nao_comecou": "Não deu para começar a atualização. O motivo fica no log do joBot, na pasta de dados (Configurações › Privacidade).",
+  "aviso_versao.atualizando_titulo": "Atualizando…",
+  "aviso_versao.sem_js": "Esta página confere de novo a cada 5 segundos e volta ao painel quando a versão nova abrir. Se passar de dois minutos, veja o arquivo logs/atualizar.log na pasta de dados (Configurações › Privacidade)."
 }

@@ -84,7 +84,7 @@ joBot has a single core and two "faces".
 
 | | 💻 Download version | 🌐 Browser version (GitHub Pages) |
 |---|---|---|
-| **Installation** | Native, with one command (planned) | None: just open the site |
+| **Installation** | Native, with the installer for each system (phase 3) or from the code | None: just open the site |
 | **Sources** | All | Public sources only |
 | **Sites with login** | Yes, you sign in in a regular browser window | No |
 | **AI** | Automatic (Claude, local model) or manual | Manual (copy and paste); labels by rules only |

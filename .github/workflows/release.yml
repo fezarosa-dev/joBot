@@ -1,0 +1,47 @@
+name: Release
+
+# Publica a versão (desenho 8; D174). Na tag vN.N.N, o pacotes.yml monta e testa (fumaça sem
+# rede) os instaladores, os pacotes de atualização, a wheel e o restricoes.txt (sem o navegador:
+# o joBot não redistribui o Chrome for Testing do Playwright, D183.24), e o job juntar dele põe tudo, o SHA256SUMS e as notas (a seção da versão no
+# CHANGELOG.md e no CHANGELOG.en.md) no artefato release. O job publicar só confere o
+# SHA256SUMS e cria a release (não rascunho, não prerelease, para virar a latest que o
+# versao.py lê) com esse artefato: o resto já passou pelo ensaio do casca.yml. À mão
+# (workflow_dispatch) é sempre ensaio: monta e testa, nunca publica. Só aqui há contents: write, e só no job publicar; o único segredo é o
+# GITHUB_TOKEN. Sem gatilho de pull request (ADR 0018: o CI de PR não tem segredo nem escrita).
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  pacotes:
+    uses: ./.github/workflows/pacotes.yml
+
+  publicar:
+    needs: pacotes
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release
+          path: release
+      - name: publicar
+        working-directory: release/anexos
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          shopt -s failglob
+          sha256sum -c SHA256SUMS
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --verify-tag \
+            --title "joBot $GITHUB_REF_NAME" --notes-file ../notas.md -- *

@@ -189,7 +189,7 @@ def test_changelog_tem_as_mesmas_secoes_nas_duas_linguas() -> None:
 
 def test_changelog_traz_a_versao_do_pacote() -> None:
     projeto = tomllib.loads(texto("pyproject.toml"))["project"]["version"]
-    assert projeto == __version__ == "0.3.0"
+    assert projeto == __version__ == "0.4.0"
     for caminho in CHANGELOG.values():
         conteudo = texto(caminho)
         for versao in (projeto, "0.1.0"):
@@ -225,6 +225,19 @@ def test_instalacao_traz_o_caso_distrobox(lingua: str) -> None:
     assert "distrobox-host-exec" in instalacao  # é o que o joBot chama de dentro do container
     assert prefixo_host({"CONTAINER_ID": "x"}) == ("distrobox-host-exec",)
     assert prefixo_host({}) == ()
+
+
+def test_casca_tem_a_mesma_versao_do_pacote() -> None:
+    projeto = tomllib.loads(texto("pyproject.toml"))["project"]["version"]
+    cargo = tomllib.loads(texto("desktop/Cargo.toml"))["package"]["version"]
+    tauri = json.loads(texto("desktop/tauri.conf.json")).get("version")
+    assert (cargo, tauri) == (projeto, projeto), "versão única nos três (desenho 8)"
+
+
+def test_gitignore_tem_as_pastas_geradas_da_casca() -> None:
+    linhas = {linha.strip() for linha in texto(".gitignore").splitlines()}
+    pastas = {"desktop/target/", "desktop/ui/painel/", "desktop/binaries/", "desktop/recursos/"}
+    assert pastas <= linhas, sorted(pastas - linhas)
 
 
 @pytest.mark.parametrize("lingua", LINGUAS)
@@ -352,10 +365,18 @@ CITA: Mapping[str, Mapping[str, tuple[str, ...]]] = {
         "páginas": (r"páginas que você manda acompanhar",),
         "endereço": (r"cola o endereço", r"só quando você"),
         "versão": (r"GitHub",),
-        "atualização": (r"pelo git e pelo uv", r"só quando você pede para atualizar"),
+        "atualização": (
+            r"pelo git e pelo uv",
+            r"só quando você pede para atualizar",
+            r"Atualizar agora",
+        ),
         "2captcha": (r"2Captcha", r"testa a chave"),
         "sites com login": (r"sites com login que você liga", r"vêm desligados", r"pelo navegador"),
-        "navegador": (r"servidores do Playwright", r"só quando você"),
+        "navegador": (
+            r"servidores do Playwright",
+            r"só quando você",
+            r"o marca na instalação",
+        ),
     },
     "en": {
         "fontes": (r"public job sources",),
@@ -364,10 +385,14 @@ CITA: Mapping[str, Mapping[str, tuple[str, ...]]] = {
         "páginas": (r"pages you ask it to follow",),
         "endereço": (r"paste an address", r"only when you"),
         "versão": (r"GitHub",),
-        "atualização": (r"through git and uv", r"only when you ask to update"),
+        "atualização": (r"through git and uv", r"only when you ask to update", r"Update now"),
         "2captcha": (r"2Captcha", r"test the key"),
         "sites com login": (r"sites with login you turn on", r"come off", r"through the browser"),
-        "navegador": (r"Playwright's servers", r"only when you"),
+        "navegador": (
+            r"Playwright's servers",
+            r"only when you",
+            r"check it during installation",
+        ),
     },
 }
 CONDICAO: Mapping[str, Mapping[bool, str]] = {
@@ -509,14 +534,31 @@ CITA_0_2_1 = {"pt": ("chips", "0006", "5 segundos"), "en": ("chips", "0006", "5 
 # o resumo da 0.3.0 cobre tudo o que estava em "Não lançado", não só o último lote
 V0_3_0 = "## [0.3.0] - 2026-11-16"
 RESUMO_0_3_0 = {"pt": ("Panorama", "LinkedIn"), "en": ("Overview", "LinkedIn")}
+# a 0.4.0 fecha a fase 3: o resumo cita a janela e o instalador
+V0_4_0 = "## [0.4.0] - 2026-11-18"
+RESUMO_0_4_0 = {"pt": ("fase 3", "janela", "instalador"), "en": ("Phase 3", "window", "installer")}
 
 
 @pytest.mark.parametrize("lingua", LINGUAS)
-def test_changelog_fecha_a_0_3_0(lingua: str) -> None:
-    """A 0.3.0 é a primeira seção de versão, e a linha de resumo dela cobre o lote inteiro."""
+def test_changelog_fecha_a_0_4_0(lingua: str) -> None:
+    """A 0.4.0 é a primeira seção de versão, "Não lançado" fica vazio e o resumo cobre a fase 3."""
     conteudo = texto(CHANGELOG[lingua])
     assert NAO_LANCADO[lingua] in conteudo, CHANGELOG[lingua]
     inicio = conteudo.index(NAO_LANCADO[lingua])
+    fim = conteudo.index("\n## [", inicio + 1)
+    assert conteudo[inicio:fim].strip() == NAO_LANCADO[lingua], CHANGELOG[lingua]
+    assert conteudo[fim + 1 :].startswith(V0_4_0), CHANGELOG[lingua]
+    secao = conteudo[fim + 1 :]
+    resumo = secao[: secao.index("###")]
+    for termo in RESUMO_0_4_0[lingua]:
+        assert termo in resumo, (CHANGELOG[lingua], termo)
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_changelog_mantem_o_resumo_da_0_3_0(lingua: str) -> None:
+    """A 0.3.0 vem logo depois da 0.4.0, e a linha de resumo dela cobre o lote inteiro."""
+    conteudo = texto(CHANGELOG[lingua])
+    inicio = conteudo.index(V0_4_0)
     fim = conteudo.index("\n## [", inicio + 1)
     assert conteudo[fim + 1 :].startswith(V0_3_0), CHANGELOG[lingua]
     # só o resumo: os itens movidos já trazem "LinkedIn" e deixariam passar um resumo do último lote
@@ -609,23 +651,31 @@ def test_rede_fala_da_cotacao_das_moedas(lingua: str) -> None:
 
 # o que cada documento diz da fase 1 (T132): concluída, e não mais "em andamento"
 FASE_1_CONCLUIDA = {
-    ".github/CONTRIBUTING.md": r"fases 1 e 2 \(base e navegador com login\) estão concluídas",
-    ".github/CONTRIBUTING.en.md": (
-        r"Phases 1 and 2 \(foundation and browser with login\) are complete"
+    ".github/CONTRIBUTING.md": (
+        r"fases 1, 2 e 3 \(base, navegador com login e instalador\) estão concluídas"
     ),
-    ".github/SECURITY.md": r"(?i)só a versão mais recente \(hoje a 0\.3\.0\)",
-    ".github/SECURITY.en.md": r"(?i)only the latest version \(currently 0\.3\.0\)",
+    ".github/CONTRIBUTING.en.md": (
+        r"Phases 1, 2 and 3 \(foundation, browser with login and installer\) are complete"
+    ),
+    ".github/SECURITY.md": r"(?i)só a versão mais recente \(hoje a 0\.4\.0\)",
+    ".github/SECURITY.en.md": r"(?i)only the latest version \(currently 0\.4\.0\)",
     ".github/SUPPORT.md": r"formulário de bug",
     ".github/SUPPORT.en.md": r"bug form",
-    "docs/decisions/0017-fases.md": r"fases 1 e 2 estão concluídas",
-    "docs/decisions/README.md": r"fases 1 e 2 estão concluídas",
-    "wiki/Home.md": r"fases 1 e 2 de 9 \(a base e o navegador com login\) estão concluídas",
-    "wiki/Home-en.md": r"Phases 1 and 2 of 9 \(the base and the browser with login\) are complete",
+    "docs/decisions/0017-fases.md": r"fases 1, 2 e 3 estão concluídas",
+    "docs/decisions/README.md": r"fases 1, 2 e 3 estão concluídas",
+    "wiki/Home.md": (
+        r"fases 1, 2 e 3 de 9 \(a base, o navegador com login e o instalador\) estão concluídas"
+    ),
+    "wiki/Home-en.md": (
+        r"Phases 1, 2 and 3 of 9 \(the base, the browser with login and the installer\)"
+        r" are complete"
+    ),
     "wiki/A-ideia-e-a-historia.md": (
-        r"fases 1 e 2 de 9 \(a base e o navegador com login\) estão concluídas"
+        r"fases 1, 2 e 3 de 9 \(a base, o navegador com login e o instalador\) estão concluídas"
     ),
     "wiki/The-idea-and-the-story.md": (
-        r"Phases 1 and 2 of 9 \(the base and the browser with login\) are complete"
+        r"Phases 1, 2 and 3 of 9 \(the base, the browser with login and the installer\)"
+        r" are complete"
     ),
     "wiki/Roteiro.md": r"\*\*1\. Base\*\*.*Concluída",
     "wiki/Roadmap.md": r"\*\*1\. Base\*\*.*Complete",
@@ -699,3 +749,167 @@ def test_privacidade_cita_a_abertura(lingua: str) -> None:
     fim = conteudo.find("\n## ", inicio + 1)
     secao = conteudo[inicio : fim if fim != -1 else len(conteudo)]
     assert CITA_ABERTURA[lingua] in secao, README[lingua]
+
+
+# o que cada documento de estado vivo diz da fase 3 (T342): concluída na 0.4.0
+FASE_3_CONCLUIDA = {
+    "docs/decisions/0017-fases.md": r"Fase 3, Instalador:.*concluída na 0\.4\.0",
+    "docs/decisions/README.md": r"fases 1, 2 e 3 estão concluídas \(versão 0\.4\.0\)",
+    "wiki/Roteiro.md": r"✅ \| \*\*3\. Instalador\*\*.*Concluída na 0\.4\.0",
+    "wiki/Roadmap.md": r"✅ \| \*\*3\. Installer\*\*.*Complete in 0\.4\.0",
+    "README.md": r"\*\*3\. Instalador\*\*.*🟢 Pronta \(versão 0\.4\.0\)",
+    "README.en.md": r"\*\*3\. Installer\*\*.*🟢 Done \(version 0\.4\.0\)",
+    ".github/CONTRIBUTING.md": r"fases 1, 2 e 3 .*estão concluídas: o joBot 0\.4\.0",
+    ".github/CONTRIBUTING.en.md": r"Phases 1, 2 and 3 .*are complete: joBot 0\.4\.0",
+}
+# sobra do tempo em que a fase 3 estava em obras
+FASE_3_EM_OBRAS = re.compile(
+    r"fase 3[^.\n]*sendo construída|phase 3[^.\n]*being built|🟡 Fase 3|🟡 Phase 3"
+    r"|instalador ainda vai chegar|installer is not here yet",
+    re.IGNORECASE,
+)
+
+
+@pytest.mark.parametrize("caminho", sorted(FASE_3_CONCLUIDA))
+def test_status_da_fase_3_igual_nos_documentos(caminho: str) -> None:
+    """A fase 3 consta como concluída na 0.4.0 em todo documento de estado vivo (T342)."""
+    conteudo = texto(caminho)
+    assert re.search(FASE_3_CONCLUIDA[caminho], conteudo), caminho
+    assert FASE_3_EM_OBRAS.search(conteudo) is None, caminho
+
+
+# T341: a instalação pelo instalador da fase 3, por língua; cada termo só o texto novo tem
+INSTALADOR_CITA = {
+    "pt": (
+        "-setup.exe",
+        "_aarch64.dmg",
+        "_x64.dmg",
+        ".AppImage",
+        ".deb",
+        ".rpm",
+        "100 a 200 MB",
+        "Mais informações",
+        "Executar assim mesmo",
+        "Abrir Mesmo Assim",
+        "nada é baixado na instalação, exceto o navegador",
+        "https://developer.microsoft.com/microsoft-edge/webview2/",
+        "%LOCALAPPDATA%\\joBot",
+        "~/Library/Application Support/joBot",
+        "~/.local/share/jobot-app",
+        "Desinstalar",
+        "Configurações › Ferramentas",
+        "https://github.com/fezarosa-dev/joBot/wiki/Instalar",
+    ),
+    "en": (
+        "-setup.exe",
+        "_aarch64.dmg",
+        "_x64.dmg",
+        ".AppImage",
+        ".deb",
+        ".rpm",
+        "100 to 200 MB",
+        "More info",
+        "Run anyway",
+        "Open Anyway",
+        "nothing is downloaded during the installation, except the browser",
+        "https://developer.microsoft.com/microsoft-edge/webview2/",
+        "%LOCALAPPDATA%\\joBot",
+        "~/Library/Application Support/joBot",
+        "~/.local/share/jobot-app",
+        "Uninstall",
+        "Settings › Tools",
+        "https://github.com/fezarosa-dev/joBot/wiki/Install",
+    ),
+}
+# o subtítulo de atualizar e o botão do painel que substitui o terminal (D176.9)
+ATUALIZAR = {"pt": ("### Atualizar", "Atualizar agora"), "en": ("### Updating", "Update now")}
+# a linha que ainda manda rodar `jobot atualizar` tem de dizer que é para quem instalou pelo código
+PELO_CODIGO = {"pt": "pelo código", "en": "from the code"}
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_readme_instala_pelo_instalador(lingua: str) -> None:
+    """O que baixar por sistema, tamanho, avisos sem selo, dados, desinstalar e sem rede (T341)."""
+    instalacao = secao(texto(README[lingua]), SECAO_INSTALACAO[lingua])
+    faltam = [termo for termo in INSTALADOR_CITA[lingua] if termo not in instalacao]
+    assert faltam == [], (README[lingua], faltam)
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_readme_atualiza_pelo_painel_quem_usa_o_instalador(lingua: str) -> None:
+    """Quem usa o instalador atualiza pelo botão; o terminal fica para quem instalou pelo código."""
+    instalacao = secao(texto(README[lingua]), SECAO_INSTALACAO[lingua])
+    titulo, botao = ATUALIZAR[lingua]
+    assert titulo in instalacao, README[lingua]
+    inicio = instalacao.index(titulo)
+    atualizar = instalacao[inicio : instalacao.find("\n### ", inicio + 1)]
+    assert botao in atualizar, README[lingua]
+    com_terminal = [linha for linha in atualizar.splitlines() if "jobot atualizar" in linha]
+    assert com_terminal, README[lingua]  # controle: quem instalou pelo código ainda acha o comando
+    for linha in com_terminal:
+        assert PELO_CODIGO[lingua] in linha.lower(), (README[lingua], linha)
+
+
+# o que a fase 3 entrega, na 0.4.0; e a frase velha do `uv` embutido, que a D174 superou
+FASE_3_NO_CHANGELOG = {
+    "pt": ("instalador", "Windows", "Atualizar agora", "Encerrar o joBot", "sem internet"),
+    "en": ("installer", "Windows", "Update now", "Quit joBot", "without internet"),
+}
+UV_EMBUTIDO = {"pt": "com o `uv` embutido", "en": "with `uv` bundled"}
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_changelog_traz_a_fase_3_na_0_4_0(lingua: str) -> None:
+    conteudo = texto(CHANGELOG[lingua])
+    assert V0_4_0 in conteudo, CHANGELOG[lingua]
+    inicio = conteudo.index(V0_4_0)
+    secao_0_4_0 = conteudo[inicio : conteudo.index("\n## [", inicio + 1)]
+    faltam = [termo for termo in FASE_3_NO_CHANGELOG[lingua] if termo not in secao_0_4_0]
+    assert faltam == [], (CHANGELOG[lingua], faltam)
+    assert UV_EMBUTIDO[lingua] not in conteudo, CHANGELOG[lingua]
+
+
+DECISOES_DA_WIKI = {"pt": "wiki/Decisoes.md", "en": "wiki/Decisions.md"}
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_wiki_de_decisoes_sem_o_uv_embutido(lingua: str) -> None:
+    """O resumo da ADR 0025 na wiki fala do instalador completo, não do `uv` embutido (D174)."""
+    conteudo = texto(DECISOES_DA_WIKI[lingua])
+    assert UV_EMBUTIDO[lingua] not in conteudo, DECISOES_DA_WIKI[lingua]
+
+
+CONTRIBUTING = {"pt": ".github/CONTRIBUTING.md", "en": ".github/CONTRIBUTING.en.md"}
+# como compilar a casca: a toolchain fixada, o modo de desenvolvimento e os recursos do instalador
+COMPILAR_A_CASCA = (
+    "desktop/rust-toolchain.toml",
+    "cargo install tauri-cli --version =2.12.4 --locked",
+    "cargo tauri dev",
+    "desktop/recursos/",
+    "scripts/montar_recursos.py",
+    "JOBOT_MANIFESTO_SHA256",
+)
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_contributing_ensina_a_compilar_a_casca(lingua: str) -> None:
+    citados = trechos(texto(CONTRIBUTING[lingua]))
+    faltam = [t for t in COMPILAR_A_CASCA if not any(t in trecho for trecho in citados)]
+    assert faltam == [], (CONTRIBUTING[lingua], faltam)
+
+
+def test_contributing_usa_o_tauri_cli_do_workflow() -> None:
+    """A versão do `tauri-cli` citada no guia é a que o build da release instala."""
+    workflow = texto(".github/workflows/pacotes.yml")
+    assert "cargo install tauri-cli --version =2.12.4 --locked" in workflow
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_readme_lista_todas_as_adrs(lingua: str) -> None:
+    numeros = sorted(
+        p.name[:4] for p in (RAIZ / "docs/decisions").glob("[0-9][0-9][0-9][0-9]-*.md")
+    )
+    assert numeros  # controle: achou as ADRs
+    conteudo = texto(README[lingua])
+    faltam = [n for n in numeros if f"| {n} | [" not in conteudo]
+    assert faltam == [], (README[lingua], faltam)

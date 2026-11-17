@@ -517,7 +517,7 @@ def test_correcao_sem_htmx_segue_a_pagina_de_hoje(painel: Painel) -> None:
     assert resposta.status_code == 200
     assert "<html" in resposta.text
     assert "<dialog" not in re.sub(
-        r'<dialog\b[^>]*\bid="paleta".*?</dialog>', "", resposta.text, flags=re.S
+        r'<dialog\b[^>]*\bid="(paleta|alerta-encerrar)".*?</dialog>', "", resposta.text, flags=re.S
     )
     assert 'class="painel correcoes"' in resposta.text
 
@@ -529,7 +529,7 @@ def test_restauracao_de_historico_do_htmx_recebe_a_pagina_inteira(painel: Painel
     assert resposta.status_code == 200
     assert "<html" in resposta.text
     assert "<dialog" not in re.sub(
-        r'<dialog\b[^>]*\bid="paleta".*?</dialog>', "", resposta.text, flags=re.S
+        r'<dialog\b[^>]*\bid="(paleta|alerta-encerrar)".*?</dialog>', "", resposta.text, flags=re.S
     )
     assert "HX-History-Restore-Request" in resposta.headers["Vary"]
 

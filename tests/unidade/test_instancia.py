@@ -1,12 +1,15 @@
 import errno
+import importlib.util
 import os
 import stat
 import subprocess
 import sys
 from pathlib import Path
+from types import ModuleType
 
 import pytest
 
+from jobot.sistema import instancia, processo
 from jobot.sistema.instancia import (
     Trava,
     pid_do_servidor,
@@ -14,6 +17,8 @@ from jobot.sistema.instancia import (
     porta,
     porta_do_servidor,
 )
+
+_SO_POSIX = pytest.mark.skipif(sys.platform == "win32", reason="modo, symlink e /proc do POSIX")
 
 
 def test_segunda_instancia_nao_pega_a_trava(tmp_path: Path) -> None:
@@ -26,6 +31,7 @@ def test_segunda_instancia_nao_pega_a_trava(tmp_path: Path) -> None:
     segunda.soltar()
 
 
+@_SO_POSIX
 def test_trava_guarda_pid_e_porta_com_modo_0600(tmp_path: Path) -> None:
     trava = Trava(tmp_path, 50000)
     assert trava.pegar() is True
@@ -74,6 +80,7 @@ def test_porta_do_servidor_ignora_porta_estragada(tmp_path: Path, lixo: str) -> 
     trava.soltar()
 
 
+@_SO_POSIX
 def test_trava_na_ponta_alheia_nao_segue_symlink(tmp_path: Path) -> None:
     alvo = tmp_path / "alheio"
     alvo.write_text("x")
@@ -88,11 +95,11 @@ def test_trava_na_ponta_alheia_nao_segue_symlink(tmp_path: Path) -> None:
 
 def test_trava_presa_por_outro_processo(tmp_path: Path) -> None:
     codigo = (
-        "import sys, time\n"
+        "import os, sys, time\n"
         "from pathlib import Path\n"
         "from jobot.sistema.instancia import Trava\n"
         "assert Trava(Path(sys.argv[1]), 1234).pegar()\n"
-        "print('pronto', flush=True)\n"
+        "print(os.getpid(), flush=True)\n"
         "time.sleep(60)\n"
     )
     filho = subprocess.Popen(
@@ -100,14 +107,16 @@ def test_trava_presa_por_outro_processo(tmp_path: Path) -> None:
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,
         text=True,
+        **processo.destacar(),
     )
     try:
         assert filho.stdout is not None
-        assert filho.stdout.readline().strip() == "pronto"
+        # No Windows o python.exe do venv é um lançador: quem pega a trava é o filho dele.
+        pid = int(filho.stdout.readline())
         assert Trava(tmp_path, 47615).pegar() is False
-        assert pid_do_servidor(tmp_path) == filho.pid
+        assert pid_do_servidor(tmp_path) == pid
     finally:
-        filho.kill()
+        processo.encerrar_grupo(filho, forcar=True)
         filho.wait()
     assert pid_do_servidor(tmp_path) is None  # morreu: a trava se solta sozinha
 
@@ -123,6 +132,7 @@ def test_jobot_porta_invalida_cai_no_padrao(valor: str) -> None:
     assert porta({"JOBOT_PORTA": valor}) == 47615
 
 
+@_SO_POSIX
 @pytest.mark.parametrize("chamada", ["fchmod", "ftruncate", "pwrite"])
 def test_falha_ao_gravar_solta_a_trava_e_nao_vaza_fd(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, chamada: str
@@ -153,3 +163,64 @@ def test_pid_e_porta_vem_juntos_da_mesma_leitura(tmp_path: Path) -> None:
     assert pid_e_porta_do_servidor(tmp_path) == (None, None)
     trava.soltar()
     assert pid_e_porta_do_servidor(tmp_path) == (None, None)  # solta: dado velho
+
+
+class _MsvcrtFalso:
+    """`msvcrt.locking` de mentira: trava por (arquivo, posição), como o LockFile do Windows."""
+
+    LK_UNLCK = 0
+    LK_NBLCK = 2
+
+    def __init__(self) -> None:
+        self.presas: dict[tuple[int, int, int], int] = {}
+
+    def locking(self, fd: int, modo: int, nbytes: int) -> None:
+        st = os.fstat(fd)
+        chave = (st.st_dev, st.st_ino, os.lseek(fd, 0, os.SEEK_CUR))
+        assert nbytes == 1
+        if modo == self.LK_NBLCK:
+            if chave in self.presas:
+                raise OSError(errno.EACCES, "presa")
+            self.presas[chave] = fd
+        elif modo == self.LK_UNLCK:
+            if self.presas.get(chave) != fd:
+                raise OSError(errno.EACCES, "não é dono")
+            del self.presas[chave]
+        else:
+            raise AssertionError(f"modo inesperado {modo}")
+
+
+def _instancia_no_windows(monkeypatch: pytest.MonkeyPatch, msvcrt: object) -> ModuleType:
+    """Cópia nova de `instancia.py` importada como se fosse no Windows."""
+    monkeypatch.setattr(sys, "platform", "win32")
+    monkeypatch.setitem(sys.modules, "msvcrt", msvcrt)
+    spec = importlib.util.spec_from_file_location("_instancia_win", instancia.__file__)
+    assert spec is not None and spec.loader is not None
+    modulo = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(modulo)
+    return modulo
+
+
+def test_no_windows_trava_usa_msvcrt(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    msvcrt = _MsvcrtFalso()
+    win = _instancia_no_windows(monkeypatch, msvcrt)
+    primeira = win.Trava(tmp_path, 50000)
+    segunda = win.Trava(tmp_path, 50000)
+    assert primeira.pegar() is True
+    assert len(msvcrt.presas) == 1  # a trava é do msvcrt, não do flock
+    assert segunda.pegar() is False
+    assert (tmp_path / "jobot.lock").read_bytes() == f"{os.getpid()}\n50000\n".encode()
+    assert win.pid_e_porta_do_servidor(tmp_path) == (os.getpid(), 50000)
+    assert len(msvcrt.presas) == 1  # a leitura não deixou trava a mais
+    primeira.soltar()
+    assert msvcrt.presas == {}
+    assert win.pid_e_porta_do_servidor(tmp_path) == (None, None)  # solta: dado velho
+    assert segunda.pegar() is True
+    segunda.soltar()
+
+
+def test_no_windows_o_import_nao_pede_fcntl(monkeypatch: pytest.MonkeyPatch) -> None:
+    fcntl_falso = ModuleType("fcntl")
+    monkeypatch.setitem(sys.modules, "fcntl", fcntl_falso)
+    win = _instancia_no_windows(monkeypatch, _MsvcrtFalso())
+    assert fcntl_falso not in vars(win).values()
