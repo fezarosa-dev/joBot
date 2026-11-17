@@ -1119,9 +1119,10 @@ mod testes {
                 assert_eq!(ambiente.get(fora), Some(&None), "{fora}");
             }
         }
-        // o PYTHONHOME e o PYTHONPATH do AppImage nunca chegam ao uv nem ao jobot (D183)
+        // o PYTHONHOME, o PYTHONPATH e o LD_LIBRARY_PATH do AppImage nunca chegam ao uv nem ao
+        // jobot (D183.18)
         for (argv, ambiente) in feitos.borrow().iter() {
-            for fora in ["PYTHONHOME", "PYTHONPATH"] {
+            for fora in ["LD_LIBRARY_PATH", "PYTHONHOME", "PYTHONPATH"] {
                 assert_eq!(ambiente.get(fora), Some(&None), "{fora} {argv:?}");
             }
         }
