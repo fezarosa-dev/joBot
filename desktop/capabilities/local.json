@@ -1,0 +1,9 @@
+{
+  "identifier": "local",
+  "description": "As páginas locais da casca (ui/) só arrastam a janela pela faixa do topo.",
+  "windows": ["main"],
+  "permissions": [
+    "core:window:allow-start-dragging",
+    "core:window:allow-internal-toggle-maximize"
+  ]
+}
