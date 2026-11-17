@@ -1,14 +1,27 @@
 // A casca do joBot (desenho 5.1 a 5.4): instância única, confere a janela, acha ou sobe o
-// `jobot serve` e abre o painel em http://127.0.0.1:<porta>/. Com --verificar-janela <url>,
-// a prova da ponte da T321 (a IPC do Tauri numa origem http://127.0.0.1 remota).
+// `jobot serve` e abre o painel em http://127.0.0.1:<porta>/; sem o joBot instalado, a tela de
+// instalação (5.2). Com --verificar-janela <url>, a prova da ponte da T321 (a IPC do Tauri numa
+// origem http://127.0.0.1 remota).
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod instalar;
 mod servidor;
 
-use std::path::PathBuf;
+use serde_json::{Value, json};
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
+use tauri::ipc::Channel;
 use tauri::webview::PageLoadEvent;
-use tauri::{AppHandle, Manager, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
+use tauri::{
+    AppHandle, Manager, RunEvent, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent,
+};
+
+/// O sha256 do `manifesto.json` dos recursos, gravado no build (desenho 6.2; D174.7). Sem ele
+/// (build local sem recursos), a tela diz que o instalador está incompleto.
+const SHA_MANIFESTO: Option<&str> = option_env!("JOBOT_MANIFESTO_SHA256");
+const VERSAO: &str = env!("CARGO_PKG_VERSION");
 
 /// Tempo que a tela "o joBot abriu no navegador" fica antes de a janela fechar (desenho 5.4).
 const AVISO_DA_JANELA: Duration = Duration::from_secs(10);
@@ -119,22 +132,137 @@ fn ir(janela: &WebviewWindow, url: Url) {
     }
 }
 
+/// Para onde a janela vai depois da conferência: o painel, a tela de instalação (sem o joBot
+/// instalado) ou a tela de erro com o fim do log.
+fn destino_do_arranque(base: &Url, resultado: Result<u16, servidor::Falha>, dados: &Path) -> Url {
+    match resultado {
+        Ok(porta) => servidor::url_do_painel(porta).parse().expect("URL fixa"),
+        Err(servidor::Falha::SemInstalacao) => base.join("/index.html").expect("caminho fixo"),
+        Err(falha) => pagina_de_erro(
+            base,
+            falha.codigo(),
+            &falha.detalhe(),
+            &servidor::fim_do_log(dados),
+        ),
+    }
+}
+
 /// Janela conferida: acha ou sobe o servidor e navega ao painel (roda fora da linha da janela).
 fn abrir_painel(janela: WebviewWindow, base: Url) {
     let dados = dados();
     let resultado = servidor::jobot_instalado(&dados, std::env::consts::OS)
         .ok_or(servidor::Falha::SemInstalacao)
         .and_then(|jobot| servidor::achar_ou_subir(&dados, &jobot, ambiente));
-    let destino = match resultado {
-        Ok(porta) => servidor::url_do_painel(porta).parse().expect("URL fixa"),
-        Err(falha) => pagina_de_erro(
-            &base,
-            falha.codigo(),
-            &falha.detalhe(),
-            &servidor::fim_do_log(&dados),
-        ),
-    };
-    ir(&janela, destino);
+    ir(&janela, destino_do_arranque(&base, resultado, &dados));
+}
+
+/// A instalação em curso (desenho 5.2): fechar a janela no meio pede confirmação na página, e
+/// o `cancelado` para o `uv` e desfaz o que a instalação criou.
+#[derive(Default)]
+struct Instalacao {
+    em_curso: AtomicBool,
+    cancelado: AtomicBool,
+}
+
+fn recursos(app: &AppHandle) -> PathBuf {
+    app.path()
+        .resource_dir()
+        .unwrap_or_default()
+        .join("recursos")
+}
+
+/// Para a tela de instalação: recursos completos, tamanhos e a pasta de dados.
+#[tauri::command]
+fn estado_instalador(app: AppHandle) -> Value {
+    let mut estado = instalar::estado(&recursos(&app), SHA_MANIFESTO, VERSAO);
+    estado["dados"] = dados().to_string_lossy().into_owned().into();
+    estado
+}
+
+/// Instala numa linha à parte; o progresso vai pelo canal e termina em `{"fim": ...}`.
+#[tauri::command]
+fn instalar(app: AppHandle, navegador: bool, progresso: Channel<Value>) -> Result<(), String> {
+    let estado = app.state::<Arc<Instalacao>>().inner().clone();
+    if estado.em_curso.swap(true, Ordering::SeqCst) {
+        return Err("a instalação já está em curso".into());
+    }
+    estado.cancelado.store(false, Ordering::SeqCst);
+    std::thread::spawn(move || {
+        let (recursos, dados) = (recursos(&app), dados());
+        let pasta = instalar::pasta_da_casca(ambiente, std::env::consts::OS);
+        let instalador = instalar::Instalador {
+            recursos: &recursos,
+            pasta: &pasta,
+            dados: &dados,
+            so: std::env::consts::OS,
+            versao: VERSAO,
+        };
+        let mut rodar = |comando: std::process::Command, linha: &mut dyn FnMut(&str)| {
+            instalar::rodar(comando, &estado.cancelado, linha)
+        };
+        let resultado = instalador.instalar(
+            SHA_MANIFESTO.unwrap_or_default(),
+            navegador,
+            &estado.cancelado,
+            &mut rodar,
+            &mut |aviso| {
+                let _ = progresso.send(aviso);
+            },
+        );
+        estado.em_curso.store(false, Ordering::SeqCst);
+        let Some(janela) = app.get_webview_window("main") else {
+            return;
+        };
+        // a pessoa pediu para fechar: fecha, mesmo que o cancelamento tenha chegado depois da
+        // última conferência e a instalação tenha terminado
+        if estado.cancelado.load(Ordering::SeqCst) {
+            let _ = janela.close();
+            return;
+        }
+        match resultado {
+            Ok(()) => {
+                let _ = progresso.send(json!({"etapa": "abrir"}));
+                let _ = progresso.send(json!({"fim": "pronto"}));
+                if let Ok(atual) = janela.url() {
+                    ir(
+                        &janela,
+                        atual.join("/verificar.html").expect("caminho fixo"),
+                    );
+                }
+            }
+            Err(erro) => {
+                let falha =
+                    json!({"fim": "falhou", "motivo": erro.codigo(), "detalhe": erro.detalhe()});
+                let _ = progresso.send(falha);
+            }
+        }
+    });
+    Ok(())
+}
+
+/// O "Fechar" da tela de instalação e o "Parar e fechar" do alerta: no meio da instalação,
+/// cancela (a linha da instalação desfaz e fecha a janela); fora dela, fecha.
+#[tauri::command]
+fn fechar_instalador(app: AppHandle) {
+    let estado = app.state::<Arc<Instalacao>>();
+    if estado.em_curso.load(Ordering::SeqCst) {
+        estado.cancelado.store(true, Ordering::SeqCst);
+    } else if let Some(janela) = app.get_webview_window("main") {
+        let _ = janela.close();
+    }
+}
+
+fn em_curso(app: &AppHandle) -> bool {
+    app.state::<Arc<Instalacao>>()
+        .em_curso
+        .load(Ordering::SeqCst)
+}
+
+/// Fechar no meio da instalação: a página pergunta antes (alerta, desenho 5.2).
+fn pedir_fechar(app: &AppHandle) {
+    if let Some(pagina) = app.get_webview_window("main") {
+        let _ = pagina.eval("window.__jobotPedirFechar && window.__jobotPedirFechar()");
+    }
 }
 
 /// Janela velha (5.4): abre o modo app de hoje (`jobot abrir`), avisa e fecha a janela.
@@ -223,12 +351,35 @@ fn main() {
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
             trazer_para_frente(app)
         }))
+        .manage(Arc::new(Instalacao::default()))
+        .invoke_handler(tauri::generate_handler![
+            estado_instalador,
+            instalar,
+            fechar_instalador
+        ])
+        .on_window_event(|janela, evento| {
+            if let WindowEvent::CloseRequested { api, .. } = evento
+                && em_curso(janela.app_handle())
+            {
+                api.prevent_close();
+                pedir_fechar(janela.app_handle());
+            }
+        })
         .setup(|app| {
             abrir_janela(app.handle())?;
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("erro ao rodar a janela");
+        .build(tauri::generate_context!())
+        .expect("erro ao montar a janela")
+        .run(|app, evento| {
+            // o Cmd+Q do Mac sai sem passar pelo CloseRequested: no meio da instalação, pergunta
+            if let RunEvent::ExitRequested { api, .. } = evento
+                && em_curso(app)
+            {
+                api.prevent_exit();
+                pedir_fechar(app);
+            }
+        });
 }
 
 /// Prova da ponte (T321): abre a URL sem moldura e sai com 0 se a IPC respondeu, 2 se não.
@@ -359,6 +510,18 @@ mod testes {
         assert!(!e_local(&url("http://127.0.0.1:47615/")));
         assert!(!e_local(&url("http://localhost/")));
         assert!(!e_local(&url("tauri://outro/")));
+    }
+
+    #[test]
+    fn sem_instalacao_vai_para_a_tela_de_instalacao() {
+        let base = url("tauri://localhost/__jobot/janela?ok=1");
+        let dados = Path::new("/nao/existe");
+        let destino = destino_do_arranque(&base, Err(servidor::Falha::SemInstalacao), dados);
+        assert_eq!(destino.as_str(), "tauri://localhost/index.html");
+        let painel = destino_do_arranque(&base, Ok(47615), dados);
+        assert_eq!(painel.as_str(), "http://127.0.0.1:47615/");
+        let erro = destino_do_arranque(&base, Err(servidor::Falha::Porta(8000)), dados);
+        assert_eq!(erro.path(), "/erro.html");
     }
 
     #[test]
