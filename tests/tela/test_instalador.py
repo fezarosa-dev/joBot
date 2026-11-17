@@ -449,7 +449,7 @@ def test_pronto_diz_o_que_nao_baixou_e_abre_o_jobot(page: Page, ui: str) -> None
     expect(page.get_by_role("heading", name="Pronto")).to_have_accessible_description(
         aviso.inner_text()
     )
-    expect(page.locator("[data-passo=pronto]")).not_to_contain_text("Abrindo")
+    expect(page.locator("#pronto-abrindo")).to_be_hidden()
     principais = page.locator(".botao-principal:visible")
     expect(principais).to_have_count(1)
     abrir = page.get_by_role("button", name="Abrir o joBot", exact=True)
@@ -480,7 +480,7 @@ def test_pronto_sem_falha_do_modelo_nao_mostra_aviso(page: Page, ui: str) -> Non
     _aviso(page, {"etapa": "abrir"})
     _aviso(page, {"fim": "pronto"})
     expect(page.get_by_role("heading", name="Pronto")).to_be_visible()
-    expect(page.locator("[data-passo=pronto]")).to_contain_text("Abrindo")
+    expect(page.locator("#pronto-abrindo")).to_be_visible()
     # controle: o aviso existe e fica escondido
     expect(page.locator("#pronto-ia")).to_have_count(1)
     expect(page.locator("#pronto-ia")).to_be_hidden()
