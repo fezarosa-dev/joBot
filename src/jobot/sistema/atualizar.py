@@ -237,6 +237,8 @@ def _atualizar_casca(
     if _parar_e_atualizar(rodar, dados, [], plano, parar):
         try:
             trocada = casca.trocar(dados, instalacao, nova)
+        except casca.Falha as falha:
+            print(falha, file=sys.stderr)
         except OSError as erro:
             print(f"Não consegui trocar a versão: {erro}. Nada mudou.", file=sys.stderr)
     if trocada is None:  # religa a versão de antes, que continua a do instalacao.json

@@ -522,7 +522,7 @@ def test_navegador_desatualizado_mostra_o_aviso_e_baixar(painel: Painel, idioma:
     _desatualizado(painel, True)
     html = painel.http.get(GRUPO).text
     assert _t("navegador.desatualizado", idioma) in _texto(html)
-    assert BAIXAR in html
+    assert BAIXAR in html and REMOVER in html  # quem só quer tirar o velho ainda acha o Remover
 
 
 def test_baixar_o_desatualizado_baixa_e_tira_a_marca(painel: Painel) -> None:

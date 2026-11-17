@@ -18,7 +18,7 @@ import sqlite3
 import subprocess
 import tarfile
 import zipfile
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from pathlib import Path
 
 import httpx
@@ -504,8 +504,11 @@ def _pacote(
 ) -> bytes:
     """O `.zip` da release: o manifesto lista o Chromium sem ele estar dentro (D174.8)."""
     dentro = {
-        "restricoes.txt": b"dep==1 --hash=sha256:" + b"0" * 64 + b"\n",
-        f"jobot-{VERSAO}-py3-none-any.whl": b"wheel do jobot",
+        "restricoes.txt": (
+            f"dep==1 --hash=sha256:{'0' * 64}\n"
+            f"jobot=={VERSAO} --hash=sha256:{_sha(b'wheel do jobot')}\n"
+        ).encode(),
+        f"wheels/jobot-{VERSAO}-py3-none-any.whl": b"wheel do jobot",
         "wheels/dep-1-py3-none-any.whl": b"wheel da dep",
         PYTHON_TAR: _tar({"python/bin/python3": b"#!python"}),
     }
@@ -669,8 +672,9 @@ def test_casca_monta_o_venv_novo_prova_e_so_entao_troca(
         assert opcao in pip
     assert pip[pip.index("--python") + 1] == str(novo / "bin" / "python")
     assert Path(pip[pip.index("--find-links") + 1]).name == "wheels"
-    assert Path(pip[pip.index("-r") + 1]).name == "restricoes.txt"
-    assert Path(pip[-1]).name == f"jobot-{VERSAO}-py3-none-any.whl"
+    # no --require-hashes todo requisito precisa de hash: o joBot vem pelo restricoes.txt
+    assert pip[-2:][0] == "-r" and Path(pip[-1]).name == "restricoes.txt"
+    assert not any(a.endswith(".whl") for a in pip)
     assert (str(novo / "bin" / "jobot"), "--version") in rodar.comandos
     assert (str(novo / "bin" / "jobot"), "segundo-plano", "ligar") in rodar.comandos
     instalacao = casca.ler_instalacao(tmp_path)
@@ -872,6 +876,68 @@ def test_voltar_sem_anterior_recusa(tmp_path: Path) -> None:
     casca.gravar_instalacao(tmp_path, instalacao)
     with pytest.raises(casca.Falha, match="Não há versão anterior"):
         casca.voltar_a_anterior(tmp_path)
+
+
+def test_casca_banco_danificado_na_troca_religa_e_nada_muda(
+    tmp_path: Path, sem_playwright: None, capsys: pytest.CaptureFixture[str]
+) -> None:
+    pasta = _instalada(tmp_path)
+    (tmp_path / "jobot.db").write_bytes(b"nao e sqlite" * 400)
+    antes = (tmp_path / casca.ARQUIVO).read_bytes()
+    registro: list[str] = []
+    rodar = _Casca(registro, plano_ligado=True)
+    assert _atualizar_casca(tmp_path, _Release(_pacote()), rodar, registro) == 1
+    assert (tmp_path / casca.ARQUIVO).read_bytes() == antes
+    assert not (pasta / f"manifesto-{VERSAO}.json").exists()
+    assert not (pasta / "venvs" / f"venv-{VERSAO}").exists()
+    # religa a versão de antes, pelo systemctl, não pelo joBot novo
+    assert registro.index("systemctl disable") < registro.index("systemctl enable")
+    assert "jobot segundo-plano" not in registro
+    assert "nada mudou" in capsys.readouterr().err.lower()
+
+
+def test_casca_erro_de_disco_no_download_nao_muda_nada(
+    tmp_path: Path, sem_playwright: None, capsys: pytest.CaptureFixture[str]
+) -> None:
+    pasta = _instalada(tmp_path)
+    antes = (tmp_path / casca.ARQUIVO).read_bytes()
+    release = _Release(_pacote())
+
+    def cheio() -> Iterator[bytes]:
+        yield b"comeco"
+        raise OSError(28, "No space left on device")
+
+    def responder(pedido: httpx.Request) -> httpx.Response:
+        if str(pedido.url) == f"{TAG}/{PACOTE}":
+            return httpx.Response(200, content=cheio())
+        return release._responder(pedido)
+
+    release.cliente = httpx.Client(transport=httpx.MockTransport(responder))
+    registro: list[str] = []
+    assert _atualizar_casca(tmp_path, release, _Casca(registro), registro) == 1
+    _intacta(tmp_path, pasta, antes, registro)
+    erro = capsys.readouterr().err
+    assert "No space left" in erro and "nada mudou" in erro.lower()
+
+
+def test_casca_pyvenv_ilegivel_nao_apaga_python(tmp_path: Path, sem_playwright: None) -> None:
+    pasta = _instalada(tmp_path)
+    (pasta / "venvs" / "venv-0.3.0" / "pyvenv.cfg").unlink()  # na dúvida, fica (D174.17)
+    registro: list[str] = []
+    assert _atualizar_casca(tmp_path, _Release(_pacote()), _Casca(registro), registro) == 0
+    assert (pasta / "python" / "cpython-sem-uso").is_dir()
+
+
+def test_casca_manifesto_antigo_ilegivel_baixa_o_chromium(
+    tmp_path: Path, sem_playwright: None
+) -> None:
+    pasta = _instalada(tmp_path, chromium_sha=_sha(CHROMIUM_NOVO))  # o mesmo, se lido
+    (pasta / "manifesto-0.3.0.json").write_text("{lixo")  # ilegível conta como diferente (D174.19)
+    _com_chromium(tmp_path)
+    registro: list[str] = []
+    release = _Release(_pacote())
+    assert _atualizar_casca(tmp_path, release, _Casca(registro), registro) == 0
+    assert f"{TAG}/{CHROMIUM}" in release.pedidos and "jobot ferramentas" in registro
 
 
 def test_jobot_version_diz_a_versao(capsys: pytest.CaptureFixture[str]) -> None:

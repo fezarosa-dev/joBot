@@ -9,8 +9,8 @@ religar) é do `atualizar.py`; aqui fica o que não mexe no servidor.
 
 Formato do pacote (escolha do redator, D174.15, para confirmar): na raiz do `.zip`,
 `manifesto.json` (`{"versao": "N.N.N", "arquivos": [{"nome", "tamanho", "sha256"}]}`),
-`restricoes.txt`, a wheel `jobot-<versão>-*.whl`, `wheels/*.whl` e um `python/<nome>.tar.gz`
-(o `install_only` do python-build-standalone). O manifesto pode listar o
+`restricoes.txt` (com hash de tudo, o joBot inclusive), `wheels/*.whl` (a do joBot também) e um
+`python/<nome>.tar.gz` (o `install_only` do python-build-standalone). O manifesto pode listar o
 `chromium-<alvo>.tar.gz` sem ele estar dentro (D174.8).
 """
 
@@ -162,15 +162,18 @@ def tirar_marca_do_navegador(dados: Path) -> None:
 
 
 def versao_do_banco(dados: Path) -> int:
-    """`PRAGMA user_version` do `jobot.db`, só lendo; sem banco, 0."""
+    """`PRAGMA user_version` do `jobot.db`, só lendo; sem banco, 0; `Falha` se não lê."""
     banco = dados / "jobot.db"
     if not banco.is_file():
         return 0
-    con = sqlite3.connect(f"{banco.resolve().as_uri()}?mode=ro", uri=True)
     try:
-        versao: int = con.execute("PRAGMA user_version").fetchone()[0]
-    finally:
-        con.close()
+        con = sqlite3.connect(f"{banco.resolve().as_uri()}?mode=ro", uri=True)
+        try:
+            versao: int = con.execute("PRAGMA user_version").fetchone()[0]
+        finally:
+            con.close()
+    except sqlite3.Error as erro:
+        raise Falha(f"Não consegui ler o banco {banco} ({erro}); nada mudou.") from erro
     return versao
 
 
@@ -483,7 +486,7 @@ def preparar(
         if baixado != sha:
             raise Falha("O pacote baixado não confere com o SHA256SUMS da release; nada mudou.")
         manifesto, bruto = _extrair_pacote(pacote, temp / "pacote", versao)
-        wheel = _um(manifesto, rf"jobot-{re.escape(versao)}-[^/]+\.whl", "a wheel do joBot")
+        _um(manifesto, rf"wheels/jobot-{re.escape(versao)}-[^/]+\.whl", "a wheel do joBot")
         tar = _um(manifesto, r"python/[^/]+\.tar\.gz", "o Python")
         _um(manifesto, r"restricoes\.txt", "o restricoes.txt")
         interpretador, python_novo = _python(pasta, temp / "pacote" / tar, plataforma)
@@ -510,7 +513,6 @@ def preparar(
                 "--python", str(python), "--no-index",
                 "--find-links", str(temp / "pacote" / "wheels"),
                 "--require-hashes", "-r", str(temp / "pacote" / "restricoes.txt"),
-                str(temp / "pacote" / wheel),
             ],
         )  # fmt: skip
         jobot = no_venv(venv, "jobot", plataforma)
@@ -531,10 +533,12 @@ def preparar(
             env,
             plataforma,
         )
-    except BaseException:
+    except BaseException as erro:
         _apagar(venv)
         if python_novo is not None:
             _apagar(python_novo)
+        if isinstance(erro, OSError):  # disco cheio, sem permissão: a pessoa lê, não traceback
+            raise Falha(f"Não consegui preparar a versão {versao} ({erro}); nada mudou.") from erro
         raise
     finally:
         _apagar(temp)
@@ -542,8 +546,12 @@ def preparar(
 
 
 def trocar(dados: Path, instalacao: Mapping[str, Any], nova: Preparada) -> dict[str, Any]:
-    """Grava o manifesto novo e troca `venv` e `anterior` no `instalacao.json` (atômico)."""
+    """Grava o manifesto novo e troca `venv` e `anterior` no `instalacao.json` (atômico).
+
+    Lê o banco antes de gravar: `Falha` dele não deixa nada para trás.
+    """
     pasta = Path(instalacao["pasta"])
+    user_version = versao_do_banco(dados)
     manifesto = pasta / f"manifesto-{nova.versao}.json"
     _gravar(manifesto, nova.manifesto)
     conteudo = dict(instalacao)
@@ -552,7 +560,7 @@ def trocar(dados: Path, instalacao: Mapping[str, Any], nova: Preparada) -> dict[
         anterior=instalacao["venv"],
         manifesto=str(manifesto),
         manifesto_anterior=instalacao["manifesto"],
-        user_version=versao_do_banco(dados),
+        user_version=user_version,
         navegador_desatualizado=nova.navegador_desatualizado,
     )
     gravar_instalacao(dados, conteudo)
