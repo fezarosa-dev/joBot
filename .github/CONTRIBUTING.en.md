@@ -35,6 +35,7 @@ Phases 1 and 2 (foundation and browser with login) are complete: joBot 0.3.0 can
 4. Check that `ruff`, `mypy --strict` and `pytest` pass.
 5. Make small commits, in Portuguese, in the format `type(scope): description`.
 6. Open a PR to `dev` using the [PR template](pull_request_template.md).
+7. Wait: the tests of your PR only run after the project maintainer allows them, and the PR is only merged with the maintainer's approval.
 
 ## Wiki
 
