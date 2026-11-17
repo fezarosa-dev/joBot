@@ -105,11 +105,24 @@ def test_todo_comando_da_tabela_resolve() -> None:
     assert sem_executar == []
 
 
-def test_saude_local_responde_jobot_e_versao(tmp_path: Path) -> None:
-    cliente = TestClient(criar_app(tmp_path, PORTA), base_url=BASE)
+def test_saude_local_responde_jobot_e_versao(dados: Path) -> None:
+    _banco(dados).close()  # sem linha `segundo_plano`: vale desligado (desenho 5.5)
+    cliente = TestClient(criar_app(dados, PORTA), base_url=BASE)
     resposta = cliente.get("/saude-local")
     assert resposta.status_code == 200
-    assert resposta.json() == {"app": "jobot", "versao": jobot.__version__}
+    assert resposta.json() == {
+        "app": "jobot",
+        "versao": jobot.__version__,
+        "segundo_plano": False,
+    }
+
+
+@pytest.mark.parametrize(("gravado", "esperado"), [(True, True), (False, False), ("sim", False)])
+def test_saude_local_diz_o_segundo_plano(dados: Path, gravado: object, esperado: bool) -> None:
+    with closing(_banco(dados)) as con:
+        gravar_config(con, "segundo_plano", gravado)
+    cliente = TestClient(criar_app(dados, PORTA), base_url=BASE)
+    assert cliente.get("/saude-local").json().get("segundo_plano") is esperado
 
 
 def test_escuta_so_em_127(dados: Path) -> None:
