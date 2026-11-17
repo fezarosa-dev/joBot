@@ -487,6 +487,7 @@ impl Instalador<'_> {
     /// `UV_LINK_MODE`...): só valem as que a casca põe.
     fn comando_uv(&self, argumentos: &[&str]) -> Command {
         let mut comando = Command::new(self.uv());
+        servidor::sem_python_de_fora(&mut comando);
         for (nome, _) in std::env::vars_os() {
             if nome.to_string_lossy().starts_with("UV_") {
                 comando.env_remove(nome);
@@ -503,7 +504,7 @@ impl Instalador<'_> {
 
     fn comando_jobot(&self, argumentos: &[&str]) -> Command {
         let mut comando = Command::new(servidor::jobot_do_venv(&self.venv(), self.so));
-        comando.args(argumentos);
+        servidor::sem_python_de_fora(&mut comando).args(argumentos);
         comando
     }
 
@@ -1092,6 +1093,12 @@ mod testes {
             );
             for fora in ["UV_NO_BINARY", "UV_CONSTRAINT"] {
                 assert_eq!(ambiente.get(fora), Some(&None), "{fora}");
+            }
+        }
+        // o PYTHONHOME e o PYTHONPATH do AppImage nunca chegam ao uv nem ao jobot (D183)
+        for (argv, ambiente) in feitos.borrow().iter() {
+            for fora in ["PYTHONHOME", "PYTHONPATH"] {
+                assert_eq!(ambiente.get(fora), Some(&None), "{fora} {argv:?}");
             }
         }
         assert!(argvs(&feitos).concat().iter().all(|a| !a.contains("http")));
