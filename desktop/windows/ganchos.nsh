@@ -21,8 +21,10 @@
 
 ; WebView2 (D183.20): o instalador não baixa nada (`webviewInstallMode: skip`, D174.1). Sem o
 ; WebView2 Runtime (Evergreen; as mesmas chaves que o instalador do Tauri lê, por máquina e por
-; usuário), mostra o link oficial da Microsoft e cancela antes de copiar qualquer arquivo. O
-; texto segue o idioma do instalador (1046 = português do Brasil).
+; usuário), mostra o link oficial da Microsoft e cancela antes de copiar qualquer arquivo (a
+; pasta de instalação, vazia, pode ficar: o Tauri a cria antes do gancho). No /S não há caixa
+; (o /SD IDOK é a resposta padrão): só cancela. O texto segue o idioma do instalador (1046 =
+; português do Brasil).
 !define JOBOT_WEBVIEW2 "Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"
 !define JOBOT_WEBVIEW2_URL "https://developer.microsoft.com/microsoft-edge/webview2/"
 

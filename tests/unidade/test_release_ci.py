@@ -325,16 +325,21 @@ def test_fumaca_sem_rede_no_linux_no_windows_e_no_mac() -> None:
     # o próprio instalador também tem regra (é ele que baixaria o WebView2, D183)
     assert "$exes = @($setup) + $exes" in texto
     assert texto.index("$exes = @($setup) + $exes") < texto.index("New-NetFirewallRule")
-    # ordem: instalar, conferir, --verificar, conferir, controle; só então as regras saem e o
-    # navegador vem da internet (D183.24)
+    # ordem: instalar, conferir, --verificar, conferir, controle, troca pela tela normal e
+    # reinstalação, tudo sem rede; só então as regras saem e o navegador vem da internet
+    # (D183.24); elas voltam para a desinstalação final
     ordem = [texto.index("Start-Process $setup -ArgumentList '/S'")]
     for passo in (
         "Conferir-Regras\n",
         "'--verificar'",
         "Conferir-Regras\n",
         "WinError 10013",
+        '"_?=$inst"',
+        "Start-Process $setup -ArgumentList '/S'",
         "Remove-NetFirewallRule",
         "'--verificar-navegador'",
+        "Bloquear\n",
+        "Start-Process $un -ArgumentList '/S' -Wait\n",
     ):
         ordem.append(texto.index(passo, ordem[-1] + 1))
     assert ordem == sorted(ordem)
@@ -358,6 +363,38 @@ def test_fumaca_sem_rede_no_linux_no_windows_e_no_mac() -> None:
     assert mac.index('jobot-app" --verificar\n') < mac.index('jobot-app" --verificar-navegador')
 
 
+# o gancho, instrução por instrução (sem comentários): o ramo "falta o WebView2" só se prova aqui,
+# porque o runner do Windows tem o runtime
+_SEM_WEBVIEW2 = (
+    "O joBot precisa do Microsoft Edge WebView2 Runtime, que não está instalado neste computador. "
+    "Instale-o pela página oficial da Microsoft e rode este instalador de novo: "
+    "${JOBOT_WEBVIEW2_URL}"
+)
+_NO_WEBVIEW2 = (
+    "joBot needs the Microsoft Edge WebView2 Runtime, which is not installed on this computer. "
+    "Install it from Microsoft's official page and run this installer again: ${JOBOT_WEBVIEW2_URL}"
+)
+_SE_FALTA = ['${If} $R9 == ""', '${OrIf} $R9 == "0.0.0.0"']
+_GANCHO_WEBVIEW2 = [
+    'ReadRegStr $R9 HKLM "SOFTWARE\\WOW6432Node\\${JOBOT_WEBVIEW2}" "pv"',
+    *_SE_FALTA,
+    'ReadRegStr $R9 HKLM "SOFTWARE\\${JOBOT_WEBVIEW2}" "pv"',
+    "${EndIf}",
+    *_SE_FALTA,
+    'ReadRegStr $R9 HKCU "SOFTWARE\\${JOBOT_WEBVIEW2}" "pv"',
+    "${EndIf}",
+    *_SE_FALTA,
+    "${If} $LANGUAGE == 1046",
+    f'StrCpy $R8 "{_SEM_WEBVIEW2}"',
+    "${Else}",
+    f'StrCpy $R8 "{_NO_WEBVIEW2}"',
+    "${EndIf}",
+    'MessageBox MB_ICONSTOP|MB_OK "$R8" /SD IDOK',
+    'Abort "$R8"',
+    "${EndIf}",
+]
+
+
 def test_instalador_do_windows_nao_baixa_o_webview2_e_confere_antes() -> None:
     """D183.20: sem rede na instalação (D174.1); sem o WebView2, aviso e cancela."""
     conf = json.loads((RAIZ / "desktop" / "tauri.conf.json").read_text(encoding="utf-8"))
@@ -365,29 +402,30 @@ def test_instalador_do_windows_nao_baixa_o_webview2_e_confere_antes() -> None:
     assert windows["webviewInstallMode"] == {"type": "skip"}
     assert windows["nsis"]["languages"] == ["English", "PortugueseBR"]
     bruto = (RAIZ / "desktop" / "windows" / "ganchos.nsh").read_bytes()
-    # o NSIS lê sem BOM pela página de código do sistema: o "não" sairia torto
+    # precaução: o tauri-bundler 2.12.4 chama o makensis com -INPUTCHARSET UTF8; o BOM vale
+    # também para quem compila o gancho à mão
     assert bruto.startswith(b"\xef\xbb\xbf")
     gancho = bruto.decode("utf-8-sig")
+    assert (
+        '!define JOBOT_WEBVIEW2 "Microsoft\\EdgeUpdate\\Clients\\'
+        '{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"' in gancho
+    )
+    assert (
+        '!define JOBOT_WEBVIEW2_URL "https://developer.microsoft.com/microsoft-edge/webview2/"'
+        in gancho
+    )
+    assert gancho.count("!macro NSIS_HOOK_PREINSTALL") == 1
     corpo = gancho[gancho.index("!macro NSIS_HOOK_PREINSTALL") :]
+    assert "!macroend" in corpo
     corpo = corpo[: corpo.index("!macroend")]
-    chave = "Microsoft\\EdgeUpdate\\Clients\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"
-    assert chave in gancho
-    for lugar in (
-        'HKLM "SOFTWARE\\WOW6432Node\\${JOBOT_WEBVIEW2}" "pv"',
-        'HKLM "SOFTWARE\\${JOBOT_WEBVIEW2}" "pv"',
-        'HKCU "SOFTWARE\\${JOBOT_WEBVIEW2}" "pv"',
-    ):
-        assert f"ReadRegStr $R9 {lugar}" in corpo, lugar
-    assert corpo.count('${OrIf} $R9 == "0.0.0.0"') == 3
-    assert "https://developer.microsoft.com/microsoft-edge/webview2/" in gancho
-    assert "${If} $LANGUAGE == 1046" in corpo
-    assert "O joBot precisa do Microsoft Edge WebView2 Runtime" in corpo
-    assert "joBot needs the Microsoft Edge WebView2 Runtime" in corpo
-    # o aviso aparece também no /S (resposta padrão) e a instalação para sem baixar nada
-    assert 'MessageBox MB_ICONSTOP|MB_OK "$R8" /SD IDOK' in corpo
-    assert corpo.index("MessageBox") < corpo.index('Abort "$R8"')
-    for proibido in ("NSISdl", "inetc", "ExecWait", "Exec "):
-        assert proibido not in corpo, proibido
+    instrucoes = [
+        linha.strip()
+        for linha in corpo.splitlines()[1:]
+        if linha.strip() and not linha.strip().startswith((";", "#"))
+    ]
+    # sem a chave nos três lugares, a caixa (no /S, só a resposta padrão) e o Abort; e nada de
+    # download, que nem existe nesta lista
+    assert instrucoes == _GANCHO_WEBVIEW2
 
 
 def test_casca_do_tauri_gera_os_pacotes_e_o_mac_assina_ad_hoc() -> None:
