@@ -18,7 +18,7 @@ from jobot.nucleo import gmail
 from jobot.nucleo.gmail import AbrirImap
 from jobot.nucleo.leitores.base import LeitorComLogin
 from jobot.nucleo.leitores.registro import leitores
-from jobot.sistema import segundo_plano_linux
+from jobot.sistema import segundo_plano, segundo_plano_linux
 from jobot.sistema.cofre import Cofre
 from jobot.sistema.segundo_plano_linux import Rodar
 
@@ -33,8 +33,13 @@ def rodar_do_painel(request: Request) -> Rodar:
     return segundo_plano_linux.rodar_comando if rodar is None else rodar
 
 
-def no_linux(request: Request) -> bool:
-    return str(getattr(request.app.state, "plataforma", sys.platform)).startswith("linux")
+def plataforma_do_painel(request: Request) -> str:
+    return str(getattr(request.app.state, "plataforma", sys.platform))
+
+
+def com_segundo_plano(request: Request) -> bool:
+    """O sistema tem segundo plano (desenho 6.5); fora dele a tela e o passo 2 vêm desativados."""
+    return segundo_plano.suportado(plataforma_do_painel(request))
 
 
 def cofre_do_painel(request: Request) -> Cofre:
