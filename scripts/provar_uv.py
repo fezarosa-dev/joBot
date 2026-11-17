@@ -130,7 +130,8 @@ def _provar_d173(base: Path, roda: Path, boas: Path, ruins: Path) -> bool:
         print(f"[d173-{nome}] {estado} (código {r.returncode})")
         if r.returncode:
             print("  " + "\n  ".join(r.stderr.strip().splitlines()[-4:]))
-        resultado[nome] = r.returncode == 0
+        # O ruim só conta como recusa se o motivo for o hash, não outra falha qualquer.
+        resultado[nome] = r.returncode == 0 or (nome == "ruim" and "hash" not in r.stderr.lower())
         if nome == "bom" and resultado[nome]:
             versao = _rodar([str(_python_do_venv(venv)), "-m", "jobot", "--version"], env)
             print(f"  jobot --version: {versao.stdout.strip()} (código {versao.returncode})")
@@ -139,6 +140,14 @@ def _provar_d173(base: Path, roda: Path, boas: Path, ruins: Path) -> bool:
 
 
 def main() -> int:
+    try:
+        return _main()
+    except subprocess.CalledProcessError as erro:
+        print(f"prova inválida: falhou {' '.join(map(str, erro.cmd))} (código {erro.returncode})")
+        return 2
+
+
+def _main() -> int:
     print(_rodar(["uv", "--version"], dict(os.environ)).stdout.strip())
     with tempfile.TemporaryDirectory(prefix="provar_uv_") as tmp:
         base = Path(tmp)

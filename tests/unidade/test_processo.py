@@ -13,6 +13,7 @@ class _Proc:
 
     def __init__(self) -> None:
         self.chamadas: list[str] = []
+        self.returncode: int | None = None
 
     def terminate(self) -> None:
         self.chamadas.append("terminate")
@@ -79,6 +80,19 @@ def test_encerrar_grupo_windows_sem_taskkill_usa_o_processo(
     proc = _Proc()
     processo.encerrar_grupo(proc, forcar=forcar, plataforma="win32")
     assert proc.chamadas == [metodo]
+
+
+@pytest.mark.parametrize("forcar", [False, True])
+def test_encerrar_grupo_windows_processo_encerrado_nao_chama_taskkill(
+    monkeypatch: pytest.MonkeyPatch, forcar: bool
+) -> None:
+    # Sem a alça do processo morto, o PID pode já ser de outro: o taskkill /T mataria a árvore dele.
+    chamados = _taskkill(monkeypatch, 0)
+    proc = _Proc()
+    proc.returncode = 0
+    processo.encerrar_grupo(proc, forcar=forcar, plataforma="win32")
+    assert chamados == []
+    assert proc.chamadas == []
 
 
 @pytest.mark.skipif(sys.platform != "win32", reason="prova da árvore no Windows de verdade")

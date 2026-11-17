@@ -29,8 +29,11 @@ def destacar(plataforma: str = sys.platform) -> dict[str, Any]:
 
 def encerrar_grupo(proc: Processo, *, forcar: bool = False, plataforma: str = sys.platform) -> None:
     """POSIX: sinal ao grupo inteiro. Windows: `taskkill /T /F` na árvore (os netos não saem
-    com o líder); sem ele (líder já saiu, `taskkill` ausente), `terminate`/`kill` no processo."""
+    com o líder); sem ele (`taskkill` ausente ou falhou), `terminate`/`kill` no processo.
+    No Windows, processo já encerrado não recebe nada: sem a alça, o PID pode ser de outro."""
     if plataforma == "win32":
+        if getattr(proc, "returncode", None) is not None:
+            return
         args = ["taskkill", "/T", "/F", "/PID", str(proc.pid)]
         feito = subprocess.run(args, capture_output=True, check=False, **_SEM_JANELA)
         if feito.returncode == 0:
