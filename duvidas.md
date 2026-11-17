@@ -3489,3 +3489,21 @@ Do item 2 (T305 h), aceito e documentado. Sem JavaScript, o detalhe sobreposto f
 **Como desfazer:** cada item diz o seu. Até a T400, só o desenho, o plano e esta D existem; voltar atrás é apagar os dois arquivos e esta D.
 
 **Ver também:** D1, D97, D108, D122, D125, D138, D139, D141, D174, D180, D183 (itens 2, 16, 20, 24 e 25), D184, desenho da fase 4, plano da fase 4.
+
+## D186. Status da fase 4 e notas nas ADRs: escolhas da T400 (para confirmar)
+
+**Status:** escolhas da sessão de 2026-11-17, para confirmar.
+
+**Contexto:** a T400 do plano da fase 4 cria a ADR 0026, põe notas nas ADRs 0002, 0007, 0009, 0010, 0011, 0014, 0015, 0017 e 0023 e muda junto o status da fase 4 nos documentos de estado vivo (ADR 0017, índice das ADRs, `wiki/Roteiro.md` e `Roadmap.md`, os dois READMEs e os dois CONTRIBUTING), como pede a D185.26. Algumas escolhas de texto e de teste ficaram com a sessão.
+
+1. **ADR 0026 com status "proposta".** O índice das ADRs manda começar em "proposta" e passar a "aceita" quando a decisão for confirmada; tudo nela vem da D185, que o dono ainda não confirmou. A 0025 usou "aceita (... para confirmar)" porque se apoiava em decisões do dono (D142, D174). Desfazer: "aceita" na ADR, no índice e na wiki quando o dono confirmar a D185.
+2. **Frase do status:** "sendo construída, rumo à 0.5.0" (en: "being built, toward 0.5.0"), sem data de início, porque a fase sai em duas versões e a 0.5.0 é a próxima; na tabela do README, 🟡 como no Roteiro. A ADR 0017 junta a mudança à entrada de 2026-11-18 do "Atualizada" (a T400 só entra na `dev` depois da tag `v0.4.0`, D185.24); as notas das outras ADRs levam a data em que foram escritas, 2026-11-17. Desfazer: outra frase nos oito documentos e no `FASE_4_EM_OBRAS`.
+3. **"Não lançado" deixa de ser vazio.** O `test_changelog_fecha_a_0_4_0` exigia "Não lançado" vazio; agora exige só que a 0.4.0 seja a primeira seção de versão logo depois dele, porque a ADR 0026 entra ali (`test_changelog_cita_as_adrs_que_existem`). O item fala no futuro ("chegará", "será"). Desfazer: voltar a asserção quando a 0.5.0 fechar o "Não lançado".
+4. **Roteiro e Roadmap da wiki:** os detalhes da fase 4 ganham as duas versões e o e5-small adiado junto do Laya, os dois com "ainda em decisão" (en: "still being decided"); o ⚪ do diagrama e do `<summary>` vira 🟡. A linha do multilingual-e5-small na tabela de downloads do README fica até a T420, que já reescreve essa tabela (sem o Whisper, D185.10). Desfazer: tirar as duas frases.
+5. **A wiki Decisões e Decisions ganha a linha da 0026**, como as da 0025, embora a lista de arquivos da T400 não as cite. O exemplo de número livre do índice passa a `0027-assunto.md`.
+6. **Testes novos** em `tests/unidade/test_documentos.py`: `test_status_da_fase_4_igual_nos_documentos` (molde de `FASE_3_CONCLUIDA`, mais `FASE_4_PLANEJADA` com controle positivo das frases velhas), `test_laya_antes_da_fase_4_diz_adiado` (linhas de lista com "Laya" e "antes da fase 4" na 0015 e na 0017, fora os metadados e os links, levam "adiado, para confirmar"), `test_indice_das_adrs_lista_todas` e `test_adr_0026_marca_para_confirmar_cada_escolha` (cada item da seção "Decisão" leva "para confirmar"). Provados por mutação numa cópia: ⚪ de volta no diagrama do Roteiro, frase velha ao lado da nova no CONTRIBUTING en, "planejada" na linha da fase 4 da 0017, "adiado" tirado da 0015, linha da 0026 tirada do índice e um item da 0026 sem "para confirmar"; os seis reprovaram por asserção.
+7. **"Ver também" no `duvidas.md`:** nada faltava; a D1, a D97, a D122, a D125, a D139, a D141 e a D174 já citavam a D185.
+
+**Como desfazer:** cada item diz o seu; tudo é texto e teste de documento, nenhum dado de quem usa muda.
+
+**Ver também:** D185 (itens 8, 9, 24, 25 e 26), desenho da fase 4 (seção 14), T400.
