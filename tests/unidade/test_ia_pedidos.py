@@ -81,7 +81,7 @@ def test_sistema_diz_que_o_conteudo_das_marcas_e_dado() -> None:
 def test_pedido_do_encaixe_leva_limites_temperatura_0_e_seed(backend: str, prazo: str) -> None:
     pedido = pedido_encaixe(texto_encaixe("Dev", "Python"), backend, "m1")
     assert (pedido.tarefa, pedido.modelo, pedido.esquema) == ("encaixe", "m1", SaidaEncaixe)
-    assert pedido.max_tokens == limites()["tarefas"]["encaixe"]["max_tokens"]
+    assert pedido.max_tokens == limites()["tarefas"]["encaixe"]["max_tokens"][prazo]
     assert pedido.prazo_s == limites()["prazo_s"][prazo]
     assert pedido.versao == VERSAO["encaixe"]
     assert pedido.temperatura == 0
