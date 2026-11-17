@@ -3127,7 +3127,7 @@ Do item 2 (T305 h), aceito e documentado. Sem JavaScript, o detalhe sobreposto f
 
 **Ver também:** D138, D139.10, D140, D142, D143, ADR 0003, 0017, 0018, 0023 e 0025 (a criar na T320).
 
-## D172. Hash das dependências na instalação pela casca (para decidir)
+## D173. Hash das dependências na instalação pela casca (para decidir)
 
 **Status:** aberta, o dono decide antes da T336 (tela de instalação) e da T337.
 
