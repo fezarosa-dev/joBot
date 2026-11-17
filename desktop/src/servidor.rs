@@ -1,7 +1,6 @@
 //! Achar, subir e conferir o joBot (desenho 5.1 e 7.1). A casca só fala HTTP com o painel e
 //! chama o executável `jobot` do venv; o ambiente, o relógio e a porta entram por parâmetro.
 
-#![allow(dead_code, unused_imports, unused_mut)] // vermelho da T335: corpos vazios
 use std::fs::{File, TryLockError};
 use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpStream};
@@ -62,14 +61,30 @@ fn casa_do_sistema() -> PathBuf {
 /// A mesma regra de `pasta_de_dados` em `src/jobot/sistema/pastas.py` (desenho 7.1): o
 /// `tests/unidade/test_casca_regras.py` confere por texto os caminhos e as variáveis daqui.
 pub fn pasta_de_dados(env: impl Fn(&str) -> Option<String>, so: &str) -> PathBuf {
-    let _ = (env, so);
-    PathBuf::new()
+    let var = |nome: &str| env(nome).filter(|v| !v.is_empty());
+    let casa = |nome: &str| var(nome).map_or_else(casa_do_sistema, PathBuf::from);
+    if let Some(dados) = var("JOBOT_DADOS") {
+        return PathBuf::from(dados);
+    }
+    match so {
+        "windows" => match var("LOCALAPPDATA") {
+            Some(local) => juntar(PathBuf::from(local), &["joBot"]),
+            None => juntar(casa("USERPROFILE"), &["AppData", "Local", "joBot"]),
+        },
+        "macos" => juntar(casa("HOME"), &["Library", "Application Support", "joBot"]),
+        _ => match var("XDG_DATA_HOME") {
+            Some(xdg) => juntar(PathBuf::from(xdg), &["jobot"]),
+            None => juntar(casa("HOME"), &[".local", "share", "jobot"]),
+        },
+    }
 }
 
 /// `JOBOT_PORTA` quando é um número de 1 a 65535; senão a porta padrão (como `instancia.porta`).
 pub fn porta(env: impl Fn(&str) -> Option<String>) -> u16 {
-    let _ = env;
-    0
+    env("JOBOT_PORTA")
+        .and_then(|v| v.trim().parse::<u16>().ok())
+        .filter(|p| *p >= 1)
+        .unwrap_or(PORTA_PADRAO)
 }
 
 fn inteiro_positivo(texto: &str) -> u64 {
@@ -82,25 +97,51 @@ fn inteiro_positivo(texto: &str) -> u64 {
 
 /// PID e porta das linhas do `jobot.lock` (formato de `instancia.py`); estragado: `None`.
 pub fn interpretar_trava(texto: &str) -> (Option<u32>, Option<u16>) {
-    let _ = texto;
-    (None, None)
+    let mut linhas = texto.split('\n');
+    let pid = linhas.next().map_or(0, inteiro_positivo);
+    let porta = linhas.next().map_or(0, inteiro_positivo);
+    (
+        u32::try_from(pid).ok().filter(|p| *p > 0),
+        u16::try_from(porta).ok().filter(|p| *p > 0),
+    )
 }
 
 /// PID e porta do servidor, só se alguém prende a trava agora: trava solta guarda dado velho.
 pub fn ler_trava(dados: &Path) -> (Option<u32>, Option<u16>) {
-    let _ = dados;
-    (None, None)
+    let caminho = dados.join("jobot.lock");
+    // como o O_NOFOLLOW do Python: nunca seguir symlink para fora da pasta de dados
+    match caminho.symlink_metadata() {
+        Ok(m) if m.file_type().is_file() => {}
+        _ => return (None, None),
+    }
+    let Ok(mut arquivo) = File::open(&caminho) else {
+        return (None, None);
+    };
+    match arquivo.try_lock_shared() {
+        Err(TryLockError::WouldBlock) => {}
+        _ => return (None, None), // ninguém prende (a trava solta ao fechar) ou erro
+    }
+    let mut texto = [0u8; 64];
+    let lidos = arquivo.read(&mut texto).unwrap_or(0);
+    interpretar_trava(&String::from_utf8_lossy(&texto[..lidos]))
 }
 
 pub fn url_do_painel(porta: u16) -> String {
-    let _ = porta;
-    String::new()
+    format!("http://127.0.0.1:{porta}/")
 }
 
 /// True só para `200` com um JSON `{"app": "jobot", ...}` (como `abrir.e_o_jobot`).
 pub fn e_o_jobot(resposta: &[u8]) -> bool {
-    let _ = resposta;
-    false
+    let Some(fim) = resposta.windows(4).position(|w| w == b"\r\n\r\n") else {
+        return false;
+    };
+    let cabeca = String::from_utf8_lossy(&resposta[..fim]);
+    let status = cabeca.lines().next().unwrap_or("");
+    if status.split_whitespace().nth(1) != Some("200") {
+        return false;
+    }
+    serde_json::from_slice::<serde_json::Value>(&resposta[fim + 4..])
+        .is_ok_and(|v| v.get("app").and_then(|a| a.as_str()) == Some("jobot"))
 }
 
 fn conectar(porta: u16, prazo: Duration) -> Option<TcpStream> {
@@ -109,8 +150,18 @@ fn conectar(porta: u16, prazo: Duration) -> Option<TcpStream> {
 
 /// `GET /saude-local` direto no 127.0.0.1 (sem proxy, sem seguir redirecionamento).
 pub fn perguntar_saude(porta: u16) -> bool {
-    let _ = porta;
-    false
+    let Some(mut s) = conectar(porta, Duration::from_secs(1)) else {
+        return false;
+    };
+    let _ = s.set_read_timeout(Some(Duration::from_secs(1)));
+    let _ = s.set_write_timeout(Some(Duration::from_secs(1)));
+    let pedido = format!("GET /saude-local HTTP/1.0\r\nHost: 127.0.0.1:{porta}\r\n\r\n");
+    if s.write_all(pedido.as_bytes()).is_err() {
+        return false;
+    }
+    let mut resposta = Vec::new();
+    let _ = s.take(8192).read_to_end(&mut resposta);
+    e_o_jobot(&resposta)
 }
 
 pub fn porta_ocupada(porta: u16) -> bool {
@@ -129,20 +180,38 @@ pub fn esperar(
     mut dormir: impl FnMut(Duration),
     mut sonda: impl FnMut() -> Sonda,
 ) -> bool {
-    let _ = (agora, &mut dormir, &mut sonda);
-    false
+    let fim = agora() + PRAZO;
+    loop {
+        match sonda() {
+            Sonda::Pronto => return true,
+            Sonda::Desiste => return false,
+            Sonda::Espera => {}
+        }
+        if agora() >= fim {
+            return false;
+        }
+        dormir(PASSO);
+    }
 }
 
 /// O executável `jobot` de um venv (desenho 6.2).
 pub fn jobot_do_venv(venv: &Path, so: &str) -> PathBuf {
-    let _ = (venv, so);
-    PathBuf::new()
+    if so == "windows" {
+        venv.join("Scripts").join("jobot.exe")
+    } else {
+        venv.join("bin").join("jobot")
+    }
 }
 
 /// O `jobot` do venv apontado por `<dados>/instalacao.json`; sem arquivo ou executável: `None`.
 pub fn jobot_instalado(dados: &Path, so: &str) -> Option<PathBuf> {
-    let _ = (dados, so);
-    None
+    let texto = std::fs::read(dados.join("instalacao.json")).ok()?;
+    let conteudo: serde_json::Value = serde_json::from_slice(&texto).ok()?;
+    if conteudo.get("canal")?.as_str()? != "casca" {
+        return None;
+    }
+    let venv = conteudo.get("venv")?.as_str().filter(|v| !v.is_empty())?;
+    Some(jobot_do_venv(Path::new(venv), so)).filter(|j| j.is_file())
 }
 
 /// `jobot <subcomando>` destacado (sessão própria no POSIX, grupo próprio sem console no
@@ -213,8 +282,10 @@ pub fn achar_ou_subir(
 
 /// As últimas `LINHAS_DO_LOG` linhas de `<dados>/logs/jobot.log`; sem log, vazio.
 pub fn fim_do_log(dados: &Path) -> String {
-    let _ = dados;
-    String::new()
+    let bruto = std::fs::read(dados.join("logs").join("jobot.log")).unwrap_or_default();
+    let texto = String::from_utf8_lossy(&bruto);
+    let linhas: Vec<&str> = texto.lines().collect();
+    linhas[linhas.len().saturating_sub(LINHAS_DO_LOG)..].join("\n")
 }
 
 #[cfg(test)]
