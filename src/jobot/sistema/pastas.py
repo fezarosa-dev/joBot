@@ -12,6 +12,8 @@ _MODO_ARQUIVO = 0o600
 PASTA_NAVEGADOR = "navegador"
 # A pasta da casca no Windows e no Mac (`<dados>/app`, D181.6): Python e venv com o `+x` deles.
 PASTA_DA_CASCA = "app"
+# O modelo local (`llama-server` e GGUF) baixado pelo joBot (desenho 7, D185.18): o `+x` fica.
+PASTA_FERRAMENTAS = "ferramentas"
 
 
 def pasta_de_dados(env: Mapping[str, str], plataforma: str = sys.platform) -> Path:
@@ -64,10 +66,10 @@ def preparar_pasta(p: Path) -> None:
     p.mkdir(mode=_MODO_PASTA, parents=True, exist_ok=True)
     corrigidos = [p] if _fechar(p, _MODO_PASTA) else []
     for dono, pastas, arquivos in os.walk(p):
-        for nome in (PASTA_NAVEGADOR, PASTA_DA_CASCA):
+        for nome in (PASTA_NAVEGADOR, PASTA_DA_CASCA, PASTA_FERRAMENTAS):
             if Path(dono) == p and nome in pastas:
-                # perfil do navegador e pasta da casca: só a pasta fecha; o conteúdo é do
-                # navegador (e pode ser symlink) ou da casca (executáveis)
+                # perfil do navegador, pasta da casca e ferramentas: só a pasta fecha; o conteúdo
+                # é do navegador (e pode ser symlink), da casca ou do modelo local (executáveis)
                 pastas.remove(nome)
                 corrigidos += [c] if _fechar(c := p / nome, _MODO_PASTA) else []
         corrigidos += [c for n in pastas if _fechar(c := Path(dono, n), _MODO_PASTA)]
