@@ -967,7 +967,8 @@
       // sem <dialog>, segue para a página de confirmação
       if (!alerta?.showModal || alerta.open) return;
       evento.preventDefault();
-      abridorDoAlerta = abre;
+      // da paleta (Encerrar, T333): ela fecha logo depois e a opção some; o foco volta a quem a abriu
+      abridorDoAlerta = abre.closest("[data-paleta]") ? abridorDaPaleta : abre;
       alerta.showModal();
       alerta.focus({ preventScroll: true });
       return;
@@ -1018,6 +1019,12 @@
     },
     true, // close não sobe: só a captura o vê no document
   );
+
+  // despedida do Encerrar (T333; desenho 6.4): dentro da casca (Tauri, com withGlobalTauri) a
+  // janela fecha junto; no navegador, a página diz que pode fechar
+  if (document.querySelector("[data-encerrado]")) {
+    window.__TAURI__?.window?.getCurrentWindow?.()?.close?.();
+  }
 
   // paleta de comandos (T265; desenho 5.4): o <dialog id="paleta"> de _paleta.html. Os comandos são
   // links e formulários que já existem; aqui só abre (botão, ⌘K / Ctrl+K), filtra, move a marca
@@ -1154,7 +1161,8 @@
       if (!evento.target.matches?.("dialog[data-paleta]")) return;
       const abridor = abridorDaPaleta;
       abridorDaPaleta = null;
-      if (abridor?.isConnected) abridor.focus({ preventScroll: true });
+      // a opção abriu um alerta (Encerrar): o foco fica nele e volta a este abridor quando ele fechar
+      if (abridor?.isConnected && !alertaAberto()) abridor.focus({ preventScroll: true });
     },
     true, // close não sobe: só a captura o vê no document
   );
