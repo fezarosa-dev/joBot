@@ -236,6 +236,30 @@ def test_chips_contam_com_os_outros_filtros(con: sqlite3.Connection, ids: dict[s
                 assert len(filtrada.itens) == n, (dim, valor)
 
 
+@pytest.mark.parametrize(
+    ("filtros", "grupos"),
+    [
+        ({"aba": "candidatei"}, ("status",)),  # o que o Panorama conta das candidaturas
+        ({"aba": "ocultas"}, ("motivo", "area")),
+        ({"modalidade": "presencial"}, ("encaixe", "modalidade", "area", "fonte")),
+        ({"uf": "SP"}, ("publicada", "uf", "contrato")),
+    ],
+)
+def test_contar_chips_so_os_grupos_pedidos(
+    con: sqlite3.Connection,
+    ids: dict[str, int],
+    filtros: dict[str, Any],
+    grupos: tuple[str, ...],
+) -> None:
+    """T312: cada grupo pedido conta igual à chamada completa, e os outros não vêm."""
+    for vaga, status in (("brl", "entrevista"), ("usd", "oferta"), ("nova", "candidatei")):
+        con.execute("UPDATE vaga SET status = ? WHERE id = ?", (status, ids[vaga]))
+    f = Filtros(busca_id=ids["busca"], **filtros)
+    completo = contar_chips(con, f, AGORA)
+    assert all(completo.get(g) for g in grupos), completo  # cada grupo pedido tem contagem
+    assert contar_chips(con, f, AGORA, grupos) == {g: completo[g] for g in grupos}
+
+
 def test_ordens(con: sqlite3.Connection, ids: dict[str, int]) -> None:
     b = ids["busca"]
 

@@ -8,7 +8,7 @@ e o Desfazer, com HTMX, trazem a faixa de desfazer e a lateral por OOB.
 import json
 import re
 import sqlite3
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from typing import Annotated, Any
@@ -220,12 +220,20 @@ def _nome_do_pais(codigo: str, idioma: str) -> str:
 
 
 def grupos_dos_chips(
-    con: sqlite3.Connection, estado: Estado, agora: datetime, idioma: str
+    con: sqlite3.Connection,
+    estado: Estado,
+    agora: datetime,
+    idioma: str,
+    grupos: Collection[str] | None = None,
 ) -> list[dict[str, Any]]:
-    """Os chips com contagem. Motivo (Ocultas) e situação (Candidatei) só contam: sem filtro."""
-    contagens = leitura.contar_chips(con, estado.filtros(), agora)
-    grupos: list[dict[str, Any]] = []
+    """Os chips com contagem. Motivo (Ocultas) e situação (Candidatei) só contam: sem filtro.
+
+    `grupos`: só esses (`None`, todos), como em `leitura.contar_chips`."""
+    contagens = leitura.contar_chips(con, estado.filtros(), agora, grupos)
+    saida: list[dict[str, Any]] = []
     for nome in (*CHIPS, "motivo", "status"):
+        if grupos is not None and nome not in grupos:
+            continue  # nem o chip escolhido de um grupo não pedido
         interativo = nome in CHIPS
         valores = dict(contagens.get(nome, {}))
         escolhido = estado.chips.get(nome)
@@ -254,8 +262,8 @@ def grupos_dos_chips(
                     "url": estado.url(chips=trocados if ligado else {**trocados, nome: valor}),
                 }
             )
-        grupos.append({"nome": nome, "interativo": interativo, "chips": chips})
-    return grupos
+        saida.append({"nome": nome, "interativo": interativo, "chips": chips})
+    return saida
 
 
 def seletor_de_buscas(con: sqlite3.Connection, estado: Estado) -> list[dict[str, Any]]:
