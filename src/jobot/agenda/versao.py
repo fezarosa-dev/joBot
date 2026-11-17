@@ -34,8 +34,9 @@ URL_VERSOES = "https://api.github.com/repos/fezarosa-dev/joBot/releases/latest"
 INTERVALO_S = 3600  # o laço acorda a cada hora; a checagem decide se já passou um dia
 UM_DIA = timedelta(days=1)
 _TAMANHO_MAX = 32  # antes do int(): acima de 4300 dígitos o int() levanta ValueError
-# fullmatch: o `$` aceitaria a quebra de linha final; [0-9]: o `\d` aceita dígito fora do ASCII
-_ETIQUETA = re.compile(r"v?[0-9]+\.[0-9]+\.[0-9]+")
+# fullmatch: o `$` aceitaria a quebra de linha final; [0-9]: o `\d` aceita dígito fora do ASCII;
+# {1,9}: sem repetição sem limite, o CodeQL não vê risco de ReDoS (a etiqueta vem de fora)
+_ETIQUETA = re.compile(r"v?[0-9]{1,9}\.[0-9]{1,9}\.[0-9]{1,9}")
 # o servidor respondeu (ou o cliente recusou a resposta): a hora da checagem conta
 _RESPOSTAS_RUINS = (
     Bloqueio,

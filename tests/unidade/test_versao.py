@@ -208,8 +208,18 @@ def test_erro_de_conexao_na_checagem_mantem_o_aviso(con: sqlite3.Connection) -> 
         "v١.٢.٣",
         "1.2.3" + "0" * 30,
         "v1.2." + "9" * 5000,
+        "v1.2." + "3" * 10,
     ],
-    ids=["nightly", "beta", "vazia", "quebra_de_linha", "digitos_arabes", "35_chars", "5000_noves"],
+    ids=[
+        "nightly",
+        "beta",
+        "vazia",
+        "quebra_de_linha",
+        "digitos_arabes",
+        "35_chars",
+        "5000_noves",
+        "parte_com_10_digitos",
+    ],
 )
 def test_etiqueta_fora_do_padrao_e_ignorada(con: sqlite3.Connection, etiqueta: str) -> None:
     gravar_config(con, "aviso_versao_ligada", True)
