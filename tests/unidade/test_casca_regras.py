@@ -6,6 +6,7 @@ perguntar `jobot dados --json`.
 """
 
 import ast
+import json
 import re
 from pathlib import Path
 
@@ -69,3 +70,19 @@ def test_mesmas_variaveis_de_ambiente() -> None:
 def test_mesma_porta_padrao() -> None:
     texto = SERVIDOR.read_text(encoding="utf-8")
     assert f"pub const PORTA_PADRAO: u16 = {instancia.PORTA_PADRAO};" in texto
+
+
+def test_desinstalar_no_windows_chama_a_casca_fora_da_atualizacao() -> None:
+    # desenho 7.2 (T337): o NSIS só chama `--desinstalar` da casca; quem desliga o segundo
+    # plano, para o servidor e apaga a pasta da casca é o Rust. Na troca de versão do NSIS
+    # (`/UPDATE`), nada disso roda: o venv e o segundo plano continuam.
+    desktop = RAIZ / "desktop"
+    conf = json.loads((desktop / "tauri.conf.json").read_text(encoding="utf-8"))
+    nsis = conf["bundle"].get("windows", {}).get("nsis", {})
+    assert "installerHooks" in nsis
+    ganchos = desktop / nsis["installerHooks"]
+    texto = ganchos.read_text(encoding="utf-8")
+    corpo = texto.split("!macro NSIS_HOOK_PREUNINSTALL", 1)[1].split("!macroend", 1)[0]
+    assert "${If} $UpdateMode <> 1" in corpo
+    assert 'ExecWait \'"$INSTDIR\\${MAINBINARYNAME}.exe" --desinstalar\'' in corpo
+    assert '"--desinstalar"' in (desktop / "src" / "main.rs").read_text(encoding="utf-8")

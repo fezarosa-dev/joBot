@@ -17,23 +17,53 @@ pub struct Subido {
 /// `/saude-local` diz `segundo_plano: false`. Servidor que a casca achou no ar (o do segundo
 /// plano, o de um `jobot abrir`), resposta que não vem ou sem o campo: nada é parado.
 pub fn ao_fechar(
-    _subido: Option<&Subido>,
-    _segundo_plano: impl FnOnce(u16) -> Option<bool>,
-    _sair: impl FnOnce(&Path),
+    subido: Option<&Subido>,
+    segundo_plano: impl FnOnce(u16) -> Option<bool>,
+    sair: impl FnOnce(&Path),
 ) {
+    if let Some(s) = subido
+        && segundo_plano(s.porta) == Some(false)
+    {
+        sair(&s.jobot);
+    }
 }
 
 /// A pasta da casca do `<dados>/instalacao.json` (desenho 6.2), só se apagá-la não leva a
 /// pasta de dados junto: caminho absoluto que não é a pasta de dados nem a contém.
-fn pasta_da_casca(_dados: &Path) -> Option<PathBuf> {
-    None
+fn pasta_da_casca(dados: &Path) -> Option<PathBuf> {
+    let texto = std::fs::read(dados.join("instalacao.json")).ok()?;
+    let conteudo: serde_json::Value = serde_json::from_slice(&texto).ok()?;
+    let pasta = PathBuf::from(conteudo.get("pasta")?.as_str()?);
+    if !pasta.is_absolute() {
+        return None;
+    }
+    // canônicos: `..`, symlink ou maiúsculas no Windows não escondem a pasta de dados
+    let pasta = pasta.canonicalize().ok()?;
+    let dados = dados.canonicalize().ok()?;
+    (!dados.starts_with(&pasta)).then_some(pasta)
 }
 
 /// Desinstalar (desenho 7.2; o NSIS chama `--desinstalar`): com o `jobot` do venv, desliga o
 /// segundo plano e para o servidor; depois apaga a pasta da casca e o `instalacao.json`.
 /// Nunca a pasta de dados; o Chromium da pasta padrão do Playwright fica (D174).
-pub fn desinstalar(_dados: &Path, _so: &str, _rodar: impl FnMut(&Path, &[&str])) {
-    let _ = (pasta_da_casca, apagar_pasta, servidor::jobot_instalado);
+pub fn desinstalar(dados: &Path, so: &str, mut rodar: impl FnMut(&Path, &[&str])) {
+    if let Some(jobot) = servidor::jobot_instalado(dados, so) {
+        // desligar sem serviço também vale (`segundo_plano.desligar`): não precisa perguntar antes
+        rodar(&jobot, &["segundo-plano", "desligar"]);
+        rodar(&jobot, &["sair"]);
+    }
+    if let Some(pasta) = pasta_da_casca(dados) {
+        apagar_pasta(&pasta);
+    }
+    let instalacao = dados.join("instalacao.json");
+    if let Err(erro) = std::fs::remove_file(&instalacao)
+        && erro.kind() != std::io::ErrorKind::NotFound
+    {
+        eprintln!(
+            "jobot-app: não consegui apagar {}: {erro}",
+            instalacao.display()
+        );
+    }
 }
 
 /// `jobot <args>` esperando o fim, sem entrada, saída nem janela de console.

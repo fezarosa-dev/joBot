@@ -288,15 +288,18 @@ def executar(args: argparse.Namespace) -> int:
 
 
 def _executar(args: argparse.Namespace) -> int:
+    # pela função que escolhe o sistema: o desinstalador da casca roda isto no Windows (T337)
+    from jobot.sistema import segundo_plano  # noqa: PLC0415 - ele importa este módulo
+
     try:
         if args.acao == "ligar":
-            ligar(rodar_comando)
+            segundo_plano.ligar(rodar_comando)
             print("segundo plano ligado")
         elif args.acao == "desligar":
-            desligar(rodar_comando)
+            segundo_plano.desligar(rodar_comando)
             print("segundo plano desligado")
         else:
-            estado = status(rodar_comando)
+            estado = segundo_plano.status(rodar_comando)
             print(f"segundo plano: {'ligado' if estado.habilitado else 'desligado'}")
             print(f"rodando: {'sim' if estado.ativo else 'não'}")
     except Recusa as recusa:

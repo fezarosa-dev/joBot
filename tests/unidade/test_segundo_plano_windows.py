@@ -1,5 +1,6 @@
 """Segundo plano no Windows (Agendador de Tarefas) e a função única que escolhe pelo sistema."""
 
+import argparse
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -153,3 +154,13 @@ def test_fora_dos_sistemas_nada_e_chamado() -> None:
     with pytest.raises(ValueError, match="freebsd14"):
         segundo_plano.ligar(agendador, env={}, plataforma="freebsd14")
     assert agendador.chamadas == []
+
+
+def test_linha_de_comando_desliga_pelo_sistema(monkeypatch: pytest.MonkeyPatch) -> None:
+    # o desinstalador da casca (T337) roda `jobot segundo-plano desligar` no Windows
+    agendador = FalsoAgendador(existe=True)
+    monkeypatch.setattr(segundo_plano_linux, "rodar_comando", agendador)
+    monkeypatch.setattr(segundo_plano.sys, "platform", "win32")
+    assert segundo_plano_linux.executar(argparse.Namespace(acao="desligar")) == 0
+    assert agendador.chamadas == [APAGAR]
+    assert not agendador.existe
