@@ -104,7 +104,7 @@ Mudar uma delas muda a tarefa responsável antes de ela começar.
 | E10 | O registro do clique escuta só o `click` por delegação no `document`, como o desenho 5.5 diz. O botão do meio do mouse (`auxclick`) e o "abrir em nova aba" do menu do navegador não registram: nesses casos a pessoa usa "Me candidatei", como hoje. | `test_tela_clique_registra` (CI) |
 | E11 | O cálculo da largura das barras é uma função pequena em `rotas/panorama.py`: `pct(n, maior) -> int`, arredondado, com piso de 2 quando `n > 0` e 0 quando `n == 0` ou `maior == 0`. Fica perto de quem usa, porque nenhuma outra tela desenha barra. | `test_pct_das_barras` |
 | E12 | Medidas propostas para o CSS, conferidas no `test_contraste.py` e na tela, que quem constrói pode ajustar na grade de 4px: número grande de 28px, barra de 8px de altura com cantos de 4px, 24px entre grupos e 12px entre blocos. Os ícones são `layout-dashboard` (lateral) e `circle-help` (faixa), da versão do Lucide fixada pela T249; se um não existir nessa versão, vale `gauge` para o Panorama e `help-circle` para a faixa, e o resumo diz qual entrou. | `test_estaticos.py` |
-| E13 | A medição dos 300 ms (desenho 6, "Custo do Panorama") é feita à mão e uma vez só. Quem constrói a T288 mede o `GET /panorama` contra o banco que `scripts/medir_filtros.py` monta e anota o tempo no resumo; se passar de 300 ms, abre uma `Tn`, sem cache neste lote. A medição não vira teste, porque o tempo no CI depende da máquina. | (resumo da T288) |
+| E13 | A medição dos 300 ms (desenho 6, "Custo do Panorama") é feita à mão e uma vez só. Quem constrói a T288 mede o `GET /panorama` contra o banco que `scripts/medir_filtros.py` monta e anota o tempo no resumo; se passar de 300 ms, abre uma `Tn`, sem cache neste lote. A medição não vira teste, porque o tempo no CI depende da máquina. Medição da T288: 6,2 s; virou a T312. | (resumo da T288) |
 | E14 | A 0.3.0 segue a ADR 0017: "depois da fase 2 sai a versão 0.3.0". A T291 só começa com a fase 2 concluída na `dev`. Concluída quer dizer que os planos da fase 2 que o dono der como da fase estão na `dev`, com o CI verde, inclusive o resto do lote do primeiro site, que o plano do LinkedIn diz ser condição da 0.3.0 (`2026-11-15-fase-2-login-linkedin.md`, "Fora deste plano": o botão "Baixar o navegador", o passo do assistente, o `CLAUDE.md` do projeto, as notas nas ADRs 0006 e 0022 e a ADR 0017). Isso é a T240, a T241 e os itens 1, 2, 4, 6 e 7 de "Espera o dono" de `2026-11-15-fase-2-primeiro-site-resto.md`, cada item com o ok do dono. Na ADR 0017, a T291 aplica o texto do item 7 (Status da fase 2 e linha "Atualizada") e, pela «Troca de versão», atualiza também a frase de histórico do Contexto, que hoje para na 0.2.1 e diz "Hoje a fase 1 está concluída". Texto proposto para essa frase (para confirmar, no mesmo ok do item 7): "Hoje as fases 1 e 2 estão concluídas, as versões 0.1.0, 0.1.1, 0.2.0, 0.2.1 e 0.3.0 já saíram (a 0.2.0 traz filtros novos e deixa o 2Captcha preparado para a fase 2; a 0.2.1 deixa a lista de vagas mais rápida e faz o aviso «Salvo.» sumir sozinho; a 0.3.0 traz o navegador com login, o LinkedIn, o visual novo do painel, a aba Contas, o Panorama e a fila de candidaturas) e as outras fases estão planejadas." Nenhuma versão antiga sai da frase, e o resto do Contexto (a decisão da D138) não muda. Os outros documentos de estado vivo (Roteiro, README, CONTRIBUTING) acompanham. A seção da 0.3.0 no CHANGELOG resume tudo o que está em "Não lançado": a fase 2 com o LinkedIn, o visual novo, Contas, o Panorama e a fila. Se o dono quiser a 0.3.0 antes do fim da fase 2, a ADR 0017 muda primeiro, e a T291 deixa a fase 2 como "em andamento". | `test_changelog_fecha_a_0_3_0` |
 | E15 | Na faixa, "e mais {n} para responder" leva a `/panorama#para-responder`. O Panorama só existe depois da T288, por isso a T285 e a T288 entram juntas no `lote/panorama-tela`, e o lote só vai para a `dev` com as duas. O link nunca dá 404 na `dev`. | `test_e_mais_n_leva_ao_panorama` |
 | E16 | Datas do painel no dia local. `data_curta` e `data_completa` (`painel/formatos.py`) fazem só `fromisoformat` e `strftime`, sem converter o fuso, e o relógio grava em UTC (`status_em`, `evento.criado_em`, `abriu_em`). Uma ação às 22:30 de Brasília sairia com o dia seguinte. A correção é uma só, na função compartilhada, na T283: um instante com fuso passa por `.astimezone()` antes do `strftime`; data sem hora (prazo, início) não muda. Isso também acerta o dia que hoje sai em UTC nas telas de Sites, Sugeridas e Programas; em Fontes nada muda, porque lá a data já chega local (`_local` de `rotas/fontes.py`). A alternativa, converter em cada chamador como o `_faixa` de `rotas/detalhe.py` faz, deixa o erro voltar no próximo chamador. | `test_instante_vira_dia_local` |
@@ -143,6 +143,7 @@ Mudar uma delas muda a tarefa responsável antes de ela começar.
 | 4 | T283 | da `dev` com a T261 e a T276 | muda de lugar os cartões de Fontes e `contas_em_queda`, por cima do que o visual e Contas deixaram, e põe o dia local em `data_curta` e `data_completa` (E16) antes das telas que mostram datas |
 | 5 | T284; depois T285, T286 e T287 | a T284 da `dev` com a onda 4; as outras da branch do `lote/panorama-tela` com a T284; todas juntas no `lote/panorama-tela` | a T285 e a T286 usam a rota e o `data-candidatura` da T284. A T285, a T286 e a T287 mexem em `test_i18n.py` e nos catálogos: juntar uma depois da outra, unindo à mão («Junção do lote») |
 | 6 | T288; depois T289 | da branch do `lote/panorama-tela` com a onda 5 | o Panorama usa a macro da pergunta (T285) e as consultas (T282, T283); a lateral e a paleta vêm depois da página. O lote só vai para a `dev` com a T288 (E15) |
+| 6 | T312 | `fix/panorama-rapido`, da branch do `lote/panorama-tela` com a T288 | a medição da T288 passou dos 300 ms (E13) |
 | 7 | T290 | da `dev` com o `lote/panorama-tela` | documentos de quem usa |
 | 8 | T291 | da `dev`, por último, com a fase 2 concluída (E14) | a 0.3.0: versão, CHANGELOG, PR da `dev` para a `main` |
 
@@ -731,6 +732,50 @@ Mudar uma delas muda a tarefa responsável antes de ela começar.
 
   Nunca contornar a proteção de branch (ADR 0016).
 
+### T312: Panorama dentro dos 300 ms (E13)
+`depende_de: T288` · desenho 6 ("Custo do Panorama"), E13
+
+**Medição da T288.** Com 300 mil vagas (banco de `scripts/medir_filtros.py`), o `GET /panorama` levou ~6,2 s (o `GET /vagas`, ~1,06 s). Por parte:
+- `grupos_dos_chips` da aba Todas: 3,0 s. Calcula os 9 grupos, e o Panorama usa 4;
+- `contar_chips(aba=candidatei)`: 1,6 s, só para o grupo status;
+- `contar_abas`: 0,68 s;
+- cartões e perguntas: ~0,03 s.
+
+O limite é 300 ms, sem cache neste lote (E13).
+
+**Arquivos:**
+- modificar `src/jobot/banco/leitura.py` (`contar_chips`), `src/jobot/painel/rotas/vagas.py` (`grupos_dos_chips`) e `src/jobot/painel/rotas/panorama.py`;
+- modificar `tests/integracao/test_leitura.py` e `tests/integracao/test_rota_panorama.py`.
+
+**Interfaces:**
+- `contar_chips(con, f, agora, grupos=None)`: com `grupos`, roda só o SQL desses grupos ("publicada" também só se pedida). `None` são todos, e os chamadores de hoje não mudam.
+- `grupos_dos_chips(con, estado, agora, idioma, grupos=None)`: repassa `grupos` e devolve só esses, nem o chip escolhido de um grupo que não foi pedido.
+- **Panorama.** "O que aparece" chama `grupos_dos_chips(..., BLOCOS)`. As candidaturas por passo vêm de `contar_chips(con, Filtros(aba="candidatei"), agora, ("status",))`, que roda um `GROUP BY v.status` só. Sem função nova: é o SQL de Vagas, sem cópia.
+- Nada de cache, tabela nova, índice ou migração.
+
+- [x] **Primeiro, valor errado:** o parâmetro `grupos` aceito e ignorado nas duas funções, e o Panorama já o passa.
+- [x] **Testes que falham:**
+- em `tests/integracao/test_leitura.py`, `test_contar_chips_so_os_grupos_pedidos`, parametrizado: Candidatei com status; Ocultas com motivo e área; filtro de modalidade com os 4 blocos; filtro de UF com publicada, UF e contrato. O resultado é igual à contagem completa em cada grupo pedido e não traz os outros. O banco semeado ganha candidaturas em três status;
+- em `tests/integracao/test_rota_panorama.py`, `test_panorama_so_conta_os_grupos_que_mostra`: o SQL da conexão do pedido, por `set_trace_callback` num `dependency_overrides` de `conexao`. Cada `SELECT <valor>, COUNT(DISTINCT v.id)` dos 4 blocos e do status roda uma vez, e nenhum de outro grupo nem o de "publicada". O controle está na mesma montagem: os 5 que a tela mostra passam pelo espião;
+- `test_grupos_dos_chips_so_os_pedidos`: com UF=SP escolhido, só os 4 grupos, na ordem de `CHIPS`, cada um igual ao da chamada completa. Controle: a chamada completa traz `uf`.
+- [x] **Ver falhar:** `uv run pytest tests/integracao/test_rota_panorama.py tests/integracao/test_leitura.py -k "so_conta_os_grupos or so_os_pedidos or so_os_grupos_pedidos"`: 6 falham por asserção.
+- [x] **Implementar** os itens de Interfaces.
+- [x] **Mutantes**, numa cópia de `src/` pelo `PYTHONPATH`: filtro de grupos invertido; "publicada" sempre ou nunca; o chip do grupo pedido contado sem o DR-43 (`sem=None`); `grupos_dos_chips` sem a guarda do laço ou sem repassar `grupos`; o Panorama com `contar_chips` inteiro no status. Todos reprovam.
+- [x] **Ver passar:** `test_rota_panorama.py`, `test_rota_vagas.py`, `test_rota_buscas.py`, `test_leitura.py`, `test_plano_consulta.py`, `tests/unidade/test_camadas.py` e `tests/unidade/test_rotas_sem_copias.py`; ruff; mypy nos arquivos tocados.
+- [x] **Medição** (à mão, banco de `scripts/medir_filtros.py`, mediana de 3 depois de aquecer). Com 300 mil vagas, o `GET /panorama` foi de 5,98 s (a base medida de novo nesta máquina) para 2,64 s. Por parte, depois:
+- os 4 grupos: 1,14 s (encaixe 0,20, modalidade 0,20, área 0,20, fonte 0,51);
+- `contar_abas` da rota: 0,65 s;
+- `contar_abas` da lateral, que toda página paga: 0,66 s;
+- status: 0,017 s;
+- o resto: ~0,15 s.
+
+Com 50 mil vagas, o `GET /panorama` leva 0,42 s.
+- **O que sobra.** Cada contagem varre as 300 mil vagas (~0,1 a 0,2 s por aba ou chip; a de fonte, 0,5 s, pelo `JOIN` com `ocorrencia`). Os próximos cortes sem cache, estimados e não medidos:
+- `contar_abas` numa passada só, com `SUM(CASE)` por aba, como "publicada": 7 varreduras viram 1, e ganha também a lateral de toda página;
+- o Panorama sem contar as abas duas vezes (a rota e a lateral na mesma página).
+
+Mesmo com os dois, os 300 ms com 300 mil vagas pedem contagens prontas (cache ou contador gravado), o que é decisão do dono (E13; R4 de esquema, se for tabela).
+
 ## Espera o dono
 
 1. **Nada de acesso.** Para construir e testar este lote, o joBot não precisa de conta, senha, chave nem acesso do dono:
@@ -777,6 +822,7 @@ Mudar uma delas muda a tarefa responsável antes de ela começar.
 | T289 | baixa | um item na lateral e na paleta |
 | T290 | baixa | texto, com os testes de documento |
 | T291 | média | troca de versão em muitos documentos e a publicação na `main` |
+| T312 | média | contar só o que a tela mostra, sem mudar o resultado de Vagas, com teste de SQL pelo trace e a medição à mão |
 
 ## Fora deste plano
 
@@ -784,7 +830,7 @@ Mudar uma delas muda a tarefa responsável antes de ela começar.
 - Registrar a abertura pelo botão do meio do mouse ou pelo menu do navegador (E10).
 - Editar as datas da linha do tempo (D147.14).
 - O Panorama como tela inicial (P3).
-- Cache das consultas do Panorama: só se a medição da T288 passar de 300 ms, numa `Tn` própria (E13).
+- Cache das consultas do Panorama (E13). A medição da T288 passou dos 300 ms, e a T312 corta consultas sem cache; o que sobra está na T312.
 - Uma regra geral de AST para todo `painel/` não importar `jobot.painel.rotas`: hoje o `painel/cliente.py` importa `relogio_do_painel` de `rotas/vagas.py`. Pode virar uma `Tn` depois da T251 do plano do visual, que tira `relogio_do_painel` de `rotas/vagas.py`.
 - HTMX no formulário de status do detalhe (desenho 5.4): a troca continua um POST com 303. Só o bloco `#estado-da-vaga` se pede de novo quando a resposta vem da faixa (E20).
 - Candidatura automática (D138, item 1): recusada.

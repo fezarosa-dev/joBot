@@ -8,13 +8,17 @@ hora vem do `RelogioFalso` do app. O fuso é o de São Paulo (-03:00) em todo te
 import html as html_lib
 import re
 import sqlite3
+from collections import Counter
+from collections.abc import AsyncIterator
 from contextlib import closing
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
 import pytest
+from fastapi import Request
 from fastapi.testclient import TestClient
+from starlette.datastructures import QueryParams
 
 from apoio.relogio import RelogioFalso
 from apoio.semear import inserir_vaga, semear
@@ -28,7 +32,10 @@ from jobot.banco.sessoes import gravar_sessao
 from jobot.nucleo.gmail import CONTA
 from jobot.painel import i18n
 from jobot.painel.app import criar_app
-from jobot.painel.rotas.panorama import pct
+from jobot.painel.moeda import exibicao_do_painel
+from jobot.painel.rotas.panorama import BLOCOS, pct
+from jobot.painel.rotas.vagas import grupos_dos_chips, ler_estado
+from jobot.painel.seguranca import conexao
 
 pytestmark = pytest.mark.usefixtures("fuso_de_sao_paulo")
 
@@ -381,6 +388,53 @@ def test_bloco_mostra_os_5_maiores(painel: Painel) -> None:
     cinco = sorted(contagem.items(), key=lambda kv: (-kv[1], kv[0]))[:5]
     linhas = BARRA.findall(_bloco(painel.pagina(), "area"))
     assert [int(n) for _, _, _, n in linhas] == [n for _, n in cinco]
+
+
+# --- Custo (T312) ---
+
+CONTA_CHIP = re.compile(r"SELECT (\S+), COUNT\(DISTINCT v\.id\)")
+
+
+def _sql_do_panorama(painel: Painel) -> list[str]:
+    """O SQL que a rota roda na conexão do pedido (a lateral abre a sua e fica de fora)."""
+    vistos: list[str] = []
+
+    async def espiada(request: Request) -> AsyncIterator[sqlite3.Connection]:
+        con = abrir(request.app.state.banco)
+        con.set_trace_callback(vistos.append)
+        try:
+            yield con
+        finally:
+            con.close()
+
+    painel.app.dependency_overrides[conexao] = espiada
+    try:
+        painel.pagina()
+    finally:
+        painel.app.dependency_overrides.pop(conexao)
+    return vistos
+
+
+def test_panorama_so_conta_os_grupos_que_mostra(painel: Painel) -> None:
+    """Dos chips, só os 4 de "O que aparece" e o status das candidaturas, uma vez cada."""
+    vistos = _sql_do_panorama(painel)
+    contagens = Counter(m.group(1) for sql in vistos if (m := CONTA_CHIP.match(sql)))
+    # controle na mesma montagem: as contagens que a tela mostra passam pelo espião
+    assert contagens == {"e.nivel": 1, "v.modalidade": 1, "v.area": 1, "o.fonte": 1, "v.status": 1}
+    assert not [sql for sql in vistos if "SUM(CASE WHEN julianday" in sql]  # "publicada"
+
+
+def test_grupos_dos_chips_so_os_pedidos(painel: Painel) -> None:
+    """Cada grupo pedido igual ao da chamada completa; o chip escolhido de outro grupo não vem."""
+    busca = painel.ids["busca"]
+    params = QueryParams({"aba": "todas", "busca": str(busca), "uf": "SP"})
+    with painel.con() as con:
+        estado = ler_estado(params, con, exibicao_do_painel(con, HORA.astimezone().date()))
+        completos = {g["nome"]: g for g in grupos_dos_chips(con, estado, HORA, "pt")}
+        pedidos = grupos_dos_chips(con, estado, HORA, "pt", BLOCOS)
+    assert "uf" in completos  # controle: sem o filtro de grupos, o chip escolhido aparece
+    assert [g["nome"] for g in pedidos] == ["modalidade", "area", "fonte", "encaixe"]
+    assert all(g == completos[g["nome"]] for g in pedidos)
 
 
 # --- Busca escolhida e ids ---
