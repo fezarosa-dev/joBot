@@ -126,7 +126,7 @@ mod testes {
     fn trava_presa(dados: &Path, texto: &str) -> std::fs::File {
         std::fs::write(dados.join("jobot.lock"), texto).unwrap();
         let dono = std::fs::File::open(dados.join("jobot.lock")).unwrap();
-        dono.lock().unwrap();
+        servidor::prender_como_o_python(&dono);
         dono
     }
 
