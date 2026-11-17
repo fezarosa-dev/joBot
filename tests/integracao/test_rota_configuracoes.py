@@ -19,7 +19,7 @@ from fastapi.testclient import TestClient
 from selectolax.lexbor import LexborHTMLParser
 
 from apoio.relogio import RelogioFalso
-from apoio.segundo_plano_falso import FalsoSistema
+from apoio.segundo_plano_falso import FalsoAgendador, FalsoSistema
 from apoio.semear import inserir_vaga, semear
 from jobot.banco import buscas, cadastros
 from jobot.banco.conexao import abrir
@@ -557,6 +557,9 @@ def test_interruptor_ligado_nao_depende_do_ativo(painel: Painel) -> None:
     assert _interruptor(painel.get(SEGUNDO_PLANO).text, "segundo_plano") == (True, True)
 
 
+SEM_SUPORTE = "freebsd14"  # nem Linux nem Windows
+
+
 class _NaoDeviaChamar:
     def __call__(self, comando: Sequence[str]) -> Resultado:
         raise AssertionError(f"consultou o systemd fora do Linux: {comando!r}")
@@ -564,7 +567,7 @@ class _NaoDeviaChamar:
 
 def test_fora_do_linux_nao_consulta_o_systemd(painel: Painel) -> None:
     painel.sql(GRAVAR_CHAVE, "true")
-    painel.app.state.plataforma = "win32"
+    painel.app.state.plataforma = SEM_SUPORTE
     painel.app.state.rodar_comando = _NaoDeviaChamar()
     html = painel.get(SEGUNDO_PLANO).text
     tag = next(t for t in re.findall(r"<input\b[^>]*>", html) if 'name="segundo_plano"' in t)
@@ -573,14 +576,52 @@ def test_fora_do_linux_nao_consulta_o_systemd(painel: Painel) -> None:
 
 
 def test_segundo_plano_fora_do_linux_fica_desativado(painel: Painel) -> None:
-    painel.app.state.plataforma = "win32"
+    painel.app.state.plataforma = SEM_SUPORTE
     html = painel.get(SEGUNDO_PLANO).text
+    assert "chega numa próxima versão" in _texto(html)
     tag = next(t for t in re.findall(r"<input\b[^>]*>", html) if 'name="segundo_plano"' in t)
     assert re.search(r"\sdisabled\b", tag)
     resposta = painel.post(SEGUNDO_PLANO, {"segundo_plano": "on"})  # forjado: nada é ligado
     assert resposta.status_code == 303
     assert painel.config("segundo_plano") is False
     assert painel.sistema.chamadas == []
+
+
+def _no_windows(painel: Painel, existe: bool = False) -> FalsoAgendador:
+    agendador = FalsoAgendador(existe=existe)
+    painel.app.state.plataforma = "win32"
+    painel.app.state.rodar_comando = agendador
+    return agendador
+
+
+def test_no_windows_o_segundo_plano_nao_vem_desativado(painel: Painel) -> None:
+    agendador = _no_windows(painel, existe=True)
+    html = painel.get(SEGUNDO_PLANO).text
+    assert "data-desativado" not in html
+    assert _interruptor(html, "segundo_plano") == (True, True)
+    assert "Serviço instalado: sim" in _texto(html)
+    assert agendador.chamadas == [("schtasks", "/Query", "/TN", "joBot")]
+
+
+def test_no_windows_ligar_e_desligar_usam_o_agendador(painel: Painel) -> None:
+    agendador = _no_windows(painel)
+    resposta = painel.post(SEGUNDO_PLANO, {"segundo_plano": "on"})
+    assert resposta.headers["location"] == SEGUNDO_PLANO + SALVO
+    assert agendador.existe and agendador.chamadas[0][:2] == ("schtasks", "/Create")
+    assert painel.config("segundo_plano") is True
+    painel.post(SEGUNDO_PLANO)
+    assert not agendador.existe
+    assert painel.config("segundo_plano") is False
+
+
+def test_no_windows_recusa_do_agendador_mostra_texto_fixo(painel: Painel) -> None:
+    agendador = _no_windows(painel)
+    agendador.falha_em["/Create"] = Resultado(1, erro="Acesso negado.")
+    resposta = painel.post(SEGUNDO_PLANO, {"segundo_plano": "on"})
+    alerta = _alerta(resposta.text)
+    assert "O schtasks /Create falhou. Os detalhes ficaram no jobot.log." in alerta
+    assert "Acesso negado" not in resposta.text
+    assert painel.config("segundo_plano") is None
 
 
 # ------------------------------------------------------------------ aparência
@@ -866,7 +907,7 @@ def test_falha_de_sistema_no_segundo_plano_nao_mostra_salvo(
     def quebra(*_a: object, **_k: object) -> None:
         raise OSError("disco cheio")
 
-    monkeypatch.setattr("jobot.painel.rotas.configuracoes.segundo_plano_linux.ligar", quebra)
+    monkeypatch.setattr("jobot.sistema.segundo_plano_linux.ligar", quebra)
     resposta = painel.post(SEGUNDO_PLANO, {"segundo_plano": "on"})
     assert "disco cheio" not in resposta.text  # o texto da exceção fica no log (D106)
     assert "Não consegui gravar os arquivos do serviço" in _alerta(resposta.text)

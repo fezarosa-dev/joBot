@@ -52,3 +52,26 @@ class FalsoSistema:
             if resto[:2] == ("systemctl", "--user"):
                 achados.append(resto[2:])
         return achados
+
+
+class FalsoAgendador:
+    """Agendador de Tarefas falso (Windows): `schtasks` cria, apaga e consulta a tarefa."""
+
+    def __init__(self, existe: bool = False) -> None:
+        self.existe = existe  # a tarefa joBot está registrada
+        self.falha_em: dict[str, Resultado] = {}  # "/Create", "/Delete" ou "/Query" -> resposta
+        self.chamadas: list[tuple[str, ...]] = []
+
+    def __call__(self, comando: Sequence[str]) -> Resultado:
+        self.chamadas.append(tuple(comando))
+        assert comando[0] == "schtasks", f"comando inesperado: {comando!r}"
+        acao = comando[1]
+        if acao in self.falha_em:
+            return self.falha_em[acao]
+        if acao == "/Create":
+            self.existe = True
+        elif acao in ("/Delete", "/Query"):
+            if not self.existe:
+                return Resultado(1, erro="ERRO: o sistema não encontrou a tarefa.")
+            self.existe = acao == "/Query"
+        return Resultado(0)

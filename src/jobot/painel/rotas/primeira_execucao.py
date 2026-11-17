@@ -1,7 +1,7 @@
 """Assistente de primeira execução: busca e segundo plano (desenho 13.6; plano T53).
 
 Passo 1 grava o Meu país e a primeira busca (a busca é opcional) e passo 2 liga ou desliga o
-segundo plano com `sistema.segundo_plano_linux`. No fim grava `primeira_execucao_concluida` e
+segundo plano com `sistema.segundo_plano`. No fim grava `primeira_execucao_concluida` e
 oferece "buscar agora" (o botão só aponta para `POST /buscar-agora`, que é da T49). Todo comando do
 sistema passa pelo executor de `app.state.rodar_comando`, o ambiente de `app.state.ambiente` e a
 plataforma de `app.state.plataforma`: o teste põe os falsos, o padrão é o sistema de verdade.
@@ -55,8 +55,9 @@ from jobot.nucleo.tratamento.locais import codigos_de_pais
 from jobot.painel import formatos
 from jobot.painel.ambiente import (
     ambiente_do_painel,
+    com_segundo_plano,
     leitores_do_painel,
-    no_linux,
+    plataforma_do_painel,
     rodar_do_painel,
 )
 from jobot.painel.consultas import relogio_do_painel
@@ -66,7 +67,7 @@ from jobot.painel.rotas.configuracoes import (
     contexto_sites_com_login,
 )
 from jobot.painel.seguranca import Con, idioma_do_pedido, renderizar
-from jobot.sistema import caso, segundo_plano_linux
+from jobot.sistema import caso, segundo_plano
 from jobot.sistema.segundo_plano_linux import Recusa
 
 router = APIRouter(prefix="/primeira-execucao")
@@ -94,6 +95,7 @@ _AVISOS = {
     "systemd_nao_responde": "segundo_plano.systemd_nao_responde",
     "home_diferente": "segundo_plano.home_diferente",
     "systemctl_falhou": _PRIMEIRO + "p2.aviso.systemctl_falhou",
+    "schtasks_falhou": _PRIMEIRO + "p2.aviso.schtasks_falhou",
 }
 
 
@@ -265,7 +267,7 @@ def _pagina(request: Request, passo: str, status: int = 200, **ctx: Any) -> Resp
         "voltar_url": None,  # só o passo 1 não tem o que voltar
         "voltar_n": None,
         "voltar_busca": None,
-        "linux": True,
+        "suportado": True,
         "container": None,
     } | ctx
     resposta = renderizar(request, "primeira_execucao/pagina.html", **contexto)
@@ -360,7 +362,7 @@ def _formulario_2(
         erro=erro,
         resumo=_resumo(achada, idioma_do_pedido(request)),
         busca_id=busca_id,
-        linux=no_linux(request),
+        suportado=com_segundo_plano(request),
         container=caso.nome_do_container(env),
     )
 
@@ -466,12 +468,13 @@ def _dia_local(agora: datetime) -> date:
 async def _desligar_sem_prender(request: Request) -> str | None:
     """Desliga e cria o atalho; falha vira log e o código fixo do aviso (D49 b), nunca trava."""
     rodar, env = rodar_do_painel(request), ambiente_do_painel(request)
+    plataforma = plataforma_do_painel(request)
     codigo = None
     # sempre: um ligar recusado no meio já deixou o arquivo do serviço, mesmo sem a config
     # DR-37: sem ligar o segundo plano, o atalho do menu é criado mesmo assim
-    for passo in (segundo_plano_linux.desligar, segundo_plano_linux.criar_atalho):
+    for passo in (segundo_plano.desligar, segundo_plano.criar_atalho):
         try:
-            await run_in_threadpool(passo, rodar, env=env)
+            await run_in_threadpool(passo, rodar, env=env, plataforma=plataforma)
         except Recusa as recusa:
             _LOG.warning("segundo plano: não consegui desligar: %s", recusa.motivo.chave)
             sufixo = recusa.motivo.chave.removeprefix("segundo_plano.")
@@ -488,12 +491,16 @@ async def _gravar_passo_2(request: Request, con: Con) -> Response:
     busca_id = _id_valido(str(form.get("busca", "")))
     if escolha not in ("ligar", "desligar"):
         raise HTTPException(422)
-    ligar = escolha == "ligar" and no_linux(request)  # fora do Linux o segundo plano é desativado
+    suportado = com_segundo_plano(request)
+    ligar = escolha == "ligar" and suportado  # sem suporte o segundo plano é desativado
     aviso = None
     if ligar:
         try:
             await run_in_threadpool(
-                segundo_plano_linux.ligar, rodar_do_painel(request), env=ambiente_do_painel(request)
+                segundo_plano.ligar,
+                rodar_do_painel(request),
+                env=ambiente_do_painel(request),
+                plataforma=plataforma_do_painel(request),
             )
         except Recusa as recusa:
             return _formulario_2(request, con, busca_id=busca_id, motivo=recusa.motivo)
@@ -502,7 +509,7 @@ async def _gravar_passo_2(request: Request, con: Con) -> Response:
             return _formulario_2(
                 request, con, busca_id=busca_id, erro=_PRIMEIRO + "p2.erro_arquivos"
             )
-    elif no_linux(request):
+    elif suportado:
         aviso = await _desligar_sem_prender(request)
     gravar_config(con, "segundo_plano", ligar)
     gravar_config(con, "primeira_execucao_concluida", True)
@@ -522,7 +529,7 @@ async def pular(request: Request, con: Con) -> Response:
     """Pular em qualquer passo: os padrões de quem não quer escolher agora, e Vagas (D143.18)."""
     pais = _pais_do_formulario(await request.form())
     _gravar_pais_se_falta(request, con, pais)
-    if no_linux(request):  # o atalho do menu sai como no "Não ligar agora"; falha só vai ao log
+    if com_segundo_plano(request):  # o atalho sai como no "Não ligar agora"; falha só vai ao log
         await _desligar_sem_prender(request)
     for leitor in leitores_do_painel(
         request
