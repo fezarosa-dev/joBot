@@ -30,6 +30,10 @@ src/jobot/
 │   ├── static/               CSS, JavaScript and local fonts
 │   └── i18n/                 texts in pt and en
 └── cli/                      terminal commands (jobot serve, buscar, atualizar...)
+desktop/                      the window (Tauri 2 shell, in Rust): outside the Python package
+├── src/                      startup, finding and starting the server, installing, closing
+├── ui/                       install screen: plain HTML, CSS and JS, texts in pt and en
+└── recursos/                 generated at build: uv, Python, wheels, joBot and manifest
 tests/                        unit, integration, screen (Playwright), fixtures and support
 scripts/                      capture examples, source watcher, check companies
 docs/decisions/               the architecture decisions (ADRs)
@@ -50,6 +54,9 @@ flowchart TD
     banco["banco<br/>SQLite, migrations, queries"]
     navegador["navegador<br/>browser with login (Playwright)"]
     nucleo["nucleo<br/>model, collectors, treatment, match"]
+    desktop["desktop/<br/>the window (Tauri, Rust), outside the package"]
+    desktop -.->|HTTP on 127.0.0.1| painel
+    desktop -.->|runs the jobot executable| cli
     cli --> painel
     cli --> agenda
     cli --> sistema
@@ -71,6 +78,8 @@ flowchart TD
 ```
 
 The test `tests/unidade/test_camadas.py` fails if someone breaks this rule.
+
+The `desktop/` shell (the joBot window) is a separate process, in Rust: it imports nothing from the Python package and nothing there imports it. It only talks HTTP to the dashboard on 127.0.0.1 and runs the `jobot` executable (and `uv`, to install), which is why its lines are dotted. Since it is not Python, `test_camadas.py` does not reach it; `test_arquitetura.py` checks that its node has only dotted lines.
 
 ## 🗄️ Database
 

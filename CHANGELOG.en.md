@@ -8,9 +8,25 @@ The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/
 
 ## [Unreleased]
 
+Phase 3 arrives: joBot gets a window of its own and an installer for Windows, Linux and Mac, which installs everything without internet, except the optional browser.
+
 ### Added
 
-- ADR 0025: desktop app and installer. Phase 3 will bring a window of its own around the dashboard and an install screen on first launch, with `uv` bundled and the installers published in the release; for now, without code signing.
+- Installer for Windows (`-setup.exe`), Linux (AppImage, `.deb` and `.rpm`, the latter experimental) and Mac (`.dmg`, experimental). Each one is about 100 to 200 MB, because it already brings Python 3.14, the libraries and joBot: the installation works without internet and checks the sha256 of every file. The browser for sites with login is not in the installer: if ticked, it comes from the internet through Playwright, without a checked sha256 (Playwright does not publish it). On a Windows without WebView2, the installer warns you with Microsoft's official link and cancels, without downloading anything. No seal (code signing) for now: the README explains how to open it on Windows and on the Mac.
+- A window of joBot's own, with an icon, around the same dashboard, which still stays only on your computer. On Windows and Linux the close, minimize and maximize buttons are drawn by joBot; on the Mac, they are the system's. Closing the window closes only the window: with the background service on, the searches go on.
+- Install screen on the window's first launch: joBot and Python come locked, the browser comes ticked and can be unticked (it downloads later in Settings › Tools), and the bar shows each step. If something fails, what was done is undone.
+- joBot now runs on Windows and on the Mac, each with its own data folder.
+- Background service on Windows (Task Scheduler) and on the Mac (LaunchAgent, experimental), besides systemd on Linux.
+- "Update now" button in the new version banner and in Settings › General. With the installer, the new version is built next to the current one, checked, and only goes in if it opens; otherwise nothing changes. When the window has a new version too, the "Download the new window" button opens the version page.
+- "Quit joBot" button in Settings › General and in the command palette, which stops the server and the searches.
+- With the installer, the browser for sites with login downloads through Playwright, during installation (if ticked) or on the Tools screen, and the Tools screen warns when it is outdated after an update.
+- Uninstalling on Windows turns off the background service and quits joBot, and never deletes the data folder.
+- ADR 0025: desktop app and installer. The window, the install screen, the complete offline installer (except the optional browser) and updating from the dashboard.
+
+### Changed
+
+- The new version banner no longer tells you to open the terminal: it brings the "Update now" button.
+- The README explains installing with the installer, the Windows and Mac warnings, where the data lives on each system and how to uninstall; the wiki gets the Install page.
 
 ## [0.3.0] - 2026-11-16
 

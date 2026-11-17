@@ -341,7 +341,7 @@ Detalhes na [ADR 0010](docs/decisions/0010-claude-code-da-pessoa.md).
 - **Não existe servidor do joBot.** Seus dados ficam no seu computador.
 - **Sem telemetria.** Nenhum dado de uso é enviado.
 - **Registro local da abertura.** O joBot guarda, só no seu computador, quando você abriu a candidatura de cada vaga; isso não sai daqui.
-- **Só pedidos de busca e conferência.** O joBot só faz pedidos de rede nestes casos: às fontes públicas de vagas que você deixa ligadas (vêm todas ligadas), incluindo a página de cada vaga; ao Banco Central, para pegar a cotação das moedas das vagas e mostrar o salário na moeda de exibição que você escolhe, com a conversão de moeda ligada (vem ligada); ao Common Crawl, uma vez por semana, para descobrir empresas novas, e depois aos quadros de vagas dessas empresas, para conferir (vem ligada); às páginas que você manda acompanhar (vem ligada, mas sem páginas na lista não há pedido); aos sites com login que você liga (vêm desligados), pelo navegador, com a sua conta; aos servidores do Playwright, para baixar o navegador, só quando você aperta "Baixar" em Ferramentas ou, no app de desktop, o marca na instalação (o joBot não distribui o navegador; ele vem do Playwright) ou atualiza o joBot com ele já baixado; ao 2Captcha, só quando você testa a chave em Configurações, Serviços, ou, na navegação com login, com a chave posta e o interruptor ligado (vem desligado); ao site de uma empresa, só quando você cola o endereço dela, testa ou aceita uma sugestão; à internet pelo git e pelo uv, para baixar a versão nova do joBot, só quando você pede para atualizar (comando jobot atualizar). Com o aviso de versão (próximo item) ligado, também pergunta ao GitHub (vem ligado; você pode desligar). Quem recebe o pedido vê o IP do seu computador, como em qualquer pedido na internet.
+- **Só pedidos de busca e conferência.** O joBot só faz pedidos de rede nestes casos: às fontes públicas de vagas que você deixa ligadas (vêm todas ligadas), incluindo a página de cada vaga; ao Banco Central, para pegar a cotação das moedas das vagas e mostrar o salário na moeda de exibição que você escolhe, com a conversão de moeda ligada (vem ligada); ao Common Crawl, uma vez por semana, para descobrir empresas novas, e depois aos quadros de vagas dessas empresas, para conferir (vem ligada); às páginas que você manda acompanhar (vem ligada, mas sem páginas na lista não há pedido); aos sites com login que você liga (vêm desligados), pelo navegador, com a sua conta; aos servidores do Playwright, para baixar o navegador, só quando você aperta "Baixar" em Ferramentas ou, no app de desktop, o marca na instalação (o joBot não distribui o navegador; ele vem do Playwright) ou atualiza o joBot com ele já baixado; ao 2Captcha, só quando você testa a chave em Configurações, Serviços, ou, na navegação com login, com a chave posta e o interruptor ligado (vem desligado); ao site de uma empresa, só quando você cola o endereço dela, testa ou aceita uma sugestão; à internet pelo git e pelo uv (ou ao GitHub, quando o joBot veio pelo instalador), para baixar a versão nova do joBot, só quando você pede para atualizar (botão Atualizar agora ou comando jobot atualizar). Com o aviso de versão (próximo item) ligado, também pergunta ao GitHub (vem ligado; você pode desligar). Quem recebe o pedido vê o IP do seu computador, como em qualquer pedido na internet.
 - **Aviso de versão ligado por padrão.** Uma vez por dia o joBot pergunta ao `api.github.com` qual é a versão mais nova. O pedido leva só o user agent fixo do joBot (que traz o número da versão) e o IP do seu computador, como todo pedido na internet. Não leva busca nem dado seu. Para desligar, vá em Configurações, Privacidade; desligado, não faz pedido nenhum.
 - **Segredos no cofre do sistema.** A senha de app do Gmail, a chave da API e o token do Telegram ficam no cofre de senhas do sistema operacional. Sem cofre, vão para um arquivo que só o seu usuário lê, e o painel avisa.
 - **Dados pessoais protegidos.** CPF e data de nascimento ficam no banco, numa pasta que só o seu usuário acessa e que não é sincronizada com nuvem. O painel recomenda ligar a criptografia de disco (LUKS, BitLocker ou FileVault).
@@ -356,17 +356,50 @@ Detalhes na [ADR 0010](docs/decisions/0010-claude-code-da-pessoa.md).
 <a id="requisitos-e-instalacao"></a>
 ## 📦 Requisitos e instalação
 
-> Esta é a instalação das fases 1 e 2 (versão 0.3.0): você baixa o código e roda com o uv. O instalador de um comando só chega na fase 3.
+> Há dois jeitos de instalar. **Pelo instalador** (a partir da versão 0.4.0): você baixa um arquivo, abre e tem o joBot numa janela própria, sem terminal. **Pelo código**: você baixa o código e roda com o uv, como nas versões 0.1.0 a 0.3.0. O passo a passo com mais detalhes está na [página Instalar da wiki](https://github.com/fezarosa-dev/joBot/wiki/Instalar).
 
 ### Requisitos
 
-- **Sistema:** Linux. O Windows e o macOS ainda não foram testados, e o segundo plano só existe no Linux.
-- **Programas:** [git](https://git-scm.com/) e [uv](https://docs.astral.sh/uv/). O uv baixa sozinho o Python 3.14 e as bibliotecas.
+- **Sistema, pelo instalador:** Windows 10 ou 11 de 64 bits, Linux de 64 bits (Ubuntu 22.04 ou mais novo, ou uma distro da mesma época) ou Mac com Apple Silicon ou Intel. O Mac é experimental: o instalador dele só foi testado no CI.
+- **Sistema, pelo código:** Linux. O Windows e o macOS rodam o joBot, mas por esse caminho ainda não foram testados.
+- **Programas, pelo código:** [git](https://git-scm.com/) e [uv](https://docs.astral.sh/uv/). O uv baixa sozinho o Python 3.14 e as bibliotecas. O instalador não precisa de nada disso: ele já traz tudo.
 - **Memória:** um computador comum serve. Os 8 GB de RAM só contam quando a IA local chegar (fase 4).
 - **Placa de vídeo e Docker:** não precisa. A instalação é nativa.
-- **Internet:** para baixar o joBot e para buscar as vagas.
+- **Espaço em disco:** de cerca de 100 a 200 MB para baixar o instalador, conforme o sistema, e a instalação ocupa bem mais (o navegador, se você o marcar, fica sozinho com cerca de 420 MB); a tela de instalação mostra quanto ela vai usar.
+- **Internet:** para baixar o instalador (ou o código) e para buscar as vagas. A instalação pelo instalador só usa a internet para baixar o navegador, se você o marcar.
 
-### Instalar e abrir
+### Pelo instalador
+
+Baixe o arquivo do seu sistema na [página da versão mais nova](https://github.com/fezarosa-dev/joBot/releases/latest). Cada um tem de cerca de 100 a 200 MB (o do Windows uns 120 MB, os do Mac uns 105 MB, o `.deb` e o `.rpm` uns 125 MB e o AppImage uns 200 MB), porque já traz o Python 3.14, as bibliotecas e o joBot. O navegador dos sites com login não vem no arquivo: ele vem da internet, se você o marcar na instalação.
+
+| Sistema | Arquivo | Como abrir |
+|---|---|---|
+| Windows | o que termina em `-setup.exe` | Dois cliques. Instala só para o seu usuário, sem pedir senha de administrador. |
+| Linux, qualquer distro | o que termina em `.AppImage` | Marque como executável (`chmod +x` no arquivo, ou Propriedades, Permissões) e abra. |
+| Linux, Debian e Ubuntu | o que termina em `.deb` | `sudo apt install ./` e o nome do arquivo. |
+| Linux, Fedora | o que termina em `.rpm` | `sudo dnf install ./` e o nome do arquivo. Experimental: o `.rpm` ainda não foi testado no CI. |
+| Mac com Apple Silicon (M1 ou mais novo) | o que termina em `_aarch64.dmg` | Abra o `.dmg` e arraste o joBot para Aplicativos. Experimental. |
+| Mac com Intel | o que termina em `_x64.dmg` | Abra o `.dmg` e arraste o joBot para Aplicativos. Experimental. |
+
+Na primeira vez que você abre, a janela do joBot mostra a tela de instalação:
+
+1. **Ferramentas.** joBot e Python 3.14 vêm marcados e travados (são necessários). O navegador para sites com login vem marcado e é o único que vem da internet: o joBot o baixa pelo Playwright, dos servidores do Playwright (uns 210 MB). Se você desmarcar, dá para baixar depois em Configurações › Ferramentas.
+2. **Instalando.** Tudo sai de dentro do instalador: nada é baixado na instalação, exceto o navegador, se marcado. O joBot confere o sha256 de cada arquivo contra a lista gravada quando o instalador foi feito, e o de cada biblioteca; se algum não bater, nada é instalado. O navegador fica fora dessa conferência: o Playwright não publica o sha256 dele, e o download vem por HTTPS. Sem internet, a instalação funciona igual sem o navegador: se o download dele falhar, a tela oferece seguir sem ele.
+3. **Pronto.** A janela abre o painel, com as perguntas da primeira execução (abaixo).
+
+Fechar a janela fecha só a janela: com o segundo plano ligado, as buscas seguem. Para parar tudo, use **Encerrar o joBot** em Configurações › Geral.
+
+No Windows, a janela usa o WebView2 da Microsoft, que o Windows 11 e o Windows 10 atualizado já trazem. Num Windows sem ele, o instalador não baixa nada: avisa, com o link oficial da Microsoft (https://developer.microsoft.com/microsoft-edge/webview2/), e cancela. Instale o WebView2 por esse link e abra o instalador de novo.
+
+### Avisos do Windows e do Mac
+
+Os instaladores ainda não têm selo (assinatura de código), então o sistema avisa que não reconhece o programa. Os arquivos são gerados pelo GitHub Actions a partir deste código. O `SHA256SUMS` da versão traz o sha256 de cada um: ele confere que o download não veio quebrado, mas, como sai da mesma release, não prova a origem. Isso fica para a assinatura de código, quando vier.
+
+- **Windows:** aparece "O Windows protegeu o computador". Clique em **Mais informações** e depois em **Executar assim mesmo**.
+- **Mac:** aparece que a Apple não conseguiu verificar o joBot. Feche o aviso, abra Ajustes do Sistema › Privacidade e Segurança, desça até a mensagem sobre o joBot e clique em **Abrir Mesmo Assim**. Confirme com a sua senha. Isso só acontece na primeira vez.
+- **Linux:** não há aviso.
+
+### Pelo código
 
 ```bash
 git clone https://github.com/fezarosa-dev/joBot.git
@@ -380,7 +413,7 @@ Se outro programa já usa a porta 47615, o joBot avisa e não abre nada. Defina 
 
 ### Comandos
 
-Rode todos de dentro da pasta `joBot`, com `uv run` na frente (por exemplo, `uv run jobot buscar`).
+Quem instalou pelo código roda todos de dentro da pasta `joBot`, com `uv run` na frente (por exemplo, `uv run jobot buscar`). Pelo instalador, o painel tem botão para o que você precisa e o terminal não é necessário.
 
 | Comando | O que faz |
 |---|---|
@@ -388,16 +421,33 @@ Rode todos de dentro da pasta `joBot`, com `uv run` na frente (por exemplo, `uv 
 | `jobot sair` | Encerra o servidor. |
 | `jobot serve` | Sobe só o servidor, sem abrir o navegador. |
 | `jobot buscar` | Faz uma busca no terminal e mostra como foi cada fonte. |
-| `jobot segundo-plano ligar` | Liga o segundo plano, para o joBot iniciar sozinho junto com o seu usuário. Com `desligar` tira o serviço, e com `status` mostra como está. Só no Linux. |
+| `jobot segundo-plano ligar` | Liga o segundo plano, para o joBot iniciar sozinho junto com o seu usuário. Com `desligar` tira o serviço, e com `status` mostra como está. No Linux usa o systemd; no Windows, o Agendador de Tarefas; no Mac, um LaunchAgent (experimental). |
 | `jobot atualizar` | Atualiza o joBot para a versão mais nova e religa o que estava ligado. |
 | `jobot ferramentas baixar navegador` | Baixa o navegador dos sites com login (o mesmo do botão "Baixar" em Ferramentas). |
 | `jobot avaliar-rotulos` | Para quem mantém o projeto: mede as regras de rótulo contra um arquivo de exemplos seu. |
 
 ### Onde ficam os dados
 
-- Tudo fica na pasta `~/.local/share/jobot`, só com acesso do seu usuário. Para usar outra pasta, defina `JOBOT_DADOS`.
-- O banco é o arquivo `jobot.db`, e o registro do que aconteceu fica em `logs/jobot.log`.
-- Nada sai dessa pasta, a não ser os pedidos de rede listados em [Privacidade e segurança](#privacidade-e-seguranca).
+Os dados ficam numa pasta só com acesso do seu usuário. Para usar outra pasta, defina `JOBOT_DADOS`. O banco é o arquivo `jobot.db`, e o registro do que aconteceu fica em `logs/jobot.log`. Pelo instalador, a janela guarda à parte o Python e as bibliotecas dela (a pasta da janela).
+
+| Sistema | Dados | Pasta da janela (só pelo instalador) |
+|---|---|---|
+| Linux | `~/.local/share/jobot` | `~/.local/share/jobot-app` |
+| Windows | `%LOCALAPPDATA%\joBot` | `%LOCALAPPDATA%\joBot\app` |
+| Mac | `~/Library/Application Support/joBot` | `~/Library/Application Support/joBot/app` |
+
+O navegador dos sites com login fica na pasta que o Playwright usa: `~/.cache/ms-playwright` no Linux, `%LOCALAPPDATA%\ms-playwright` no Windows e `~/Library/Caches/ms-playwright` no Mac. Nada sai dessas pastas, a não ser os pedidos de rede listados em [Privacidade e segurança](#privacidade-e-seguranca).
+
+### Desinstalar
+
+Desinstalar nunca apaga os seus dados: as vagas, as buscas e as configurações ficam na pasta de dados, e voltam se você instalar de novo. O navegador também fica, porque a pasta do Playwright pode servir a outro programa; para tirá-lo, aperte **Remover** em Configurações › Ferramentas antes de desinstalar.
+
+- **Windows:** em Configurações › Aplicativos (ou no Painel de Controle), escolha joBot e **Desinstalar**. O desinstalador desliga o segundo plano, encerra o joBot e apaga a pasta da janela.
+- **Linux:** primeiro desligue o segundo plano (Configurações › Segundo plano) e use **Encerrar o joBot**. Depois remova o pacote pelo gerenciador de programas (`sudo apt remove` ou `sudo dnf remove`) ou apague o arquivo `.AppImage`. O pacote não alcança a sua pasta pessoal: apague à mão a pasta `~/.local/share/jobot-app`.
+- **Mac:** primeiro desligue o segundo plano e use **Encerrar o joBot**. Depois arraste o joBot de Aplicativos para o Lixo e apague à mão a pasta `~/Library/Application Support/joBot/app`.
+- **Pelo código:** apague a pasta `joBot` que o `git clone` criou.
+
+Para apagar também os dados, apague a pasta de dados do seu sistema (tabela acima). Isso não tem volta.
 
 ### Se você usa distrobox
 
@@ -421,7 +471,10 @@ Depois, aperte **Buscar agora**, no topo do painel, ou espere a próxima busca d
 
 ### Atualizar
 
-Rode `uv run jobot atualizar`. O aviso de versão vem **ligado por padrão**: para desligar, vá em Configurações, Privacidade. Os detalhes estão em [Privacidade e segurança](#privacidade-e-seguranca).
+Quando sai uma versão nova, o painel avisa numa faixa no topo. O aviso de versão vem **ligado por padrão**: para desligar, vá em Configurações, Privacidade. Os detalhes estão em [Privacidade e segurança](#privacidade-e-seguranca).
+
+- **Pelo instalador:** aperte **Atualizar agora**, na faixa ou em Configurações › Geral. O joBot baixa o pacote da versão nova, confere o sha256 de cada arquivo, monta a versão nova ao lado da que você usa e só troca quando ela abre; se algo falhar, nada muda. Se a janela também tiver versão nova, a faixa mostra **Baixar a janela nova**, que abre a página da versão: baixe o instalador de novo e abra, e os seus dados ficam.
+- **Pelo código:** rode `uv run jobot atualizar` na pasta `joBot`.
 
 ### O que as próximas fases vão baixar
 
@@ -445,7 +498,7 @@ Cada fase só começa depois que a anterior passa nos testes. Não há datas pro
 |---|---|---|
 | **1. Base** | Núcleo comum, fontes públicas, banco, painel e agenda | 🟢 Pronta (versão 0.1.0) |
 | **2. Navegador com login** | Login pela janela comum, LinkedIn primeiro, mapeamento dos sites, tratamento de CAPTCHA | 🟢 Pronta (versão 0.3.0) |
-| **3. Instalador** | Instalador de 64 bits, com lista de ferramentas para marcar (Windows e Linux primeiro, Mac depois) | ⚪ Planejada |
+| **3. Instalador** | Instalador de 64 bits, com lista de ferramentas para marcar (Windows e Linux primeiro, Mac depois) | 🟡 Sendo construída |
 | **4. IA local** | Pacote offline (llama-server + Qwen) | ⚪ Planejada |
 | **5. Extensão do navegador** | Extensão do navegador para formulários | ⚪ Planejada |
 | **6. Áudio e Gmail** | Respostas por voz e leitura de e-mails | ⚪ Planejada |
@@ -494,11 +547,12 @@ Cada decisão importante está registrada num documento curto, chamado ADR (regi
 | 0022 | [CAPTCHA resolvido pelo serviço que a pessoa liga](docs/decisions/0022-captcha-pelo-servico-da-pessoa.md) |
 | 0023 | [Tudo pelo painel: ferramentas, atualização e encerramento](docs/decisions/0023-tudo-pelo-painel.md) |
 | 0024 | [Gmail por senha de app](docs/decisions/0024-gmail-por-senha-de-app.md) |
+| 0025 | [App de desktop e instalador](docs/decisions/0025-app-de-desktop-e-instalador.md) |
 
 <a id="como-contribuir"></a>
 ## 🤝 Como contribuir
 
-O repositório está no GitHub. As fases 1 e 2 estão prontas, e as próximas estão em planejamento.
+O repositório está no GitHub. As fases 1 e 2 estão prontas, a fase 3 (o instalador) está sendo construída, e as próximas estão em planejamento.
 
 - **Sugestões e fontes de vagas** já podem ser enviadas pelas issues, com formulários prontos.
 - **Dúvidas** vão pelo [formulário de dúvida](https://github.com/fezarosa-dev/joBot/issues/new?template=duvida.yml). Leia antes as [perguntas frequentes](https://github.com/fezarosa-dev/joBot/wiki/Perguntas-frequentes).
