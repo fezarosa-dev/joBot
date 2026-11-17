@@ -23,7 +23,14 @@ from typing import Protocol
 from jobot.banco.buscas import recalcular_encaixe
 from jobot.banco.cadastros import ler_config
 from jobot.banco.conexao import abrir
-from jobot.banco.ia import candidatas, chamadas_do_dia, gravar_falha, gravar_pede, tarefa_ia
+from jobot.banco.ia import (
+    candidatas,
+    chamadas_do_dia,
+    contar_chamada,
+    gravar_falha,
+    gravar_pede,
+    tarefa_ia,
+)
 from jobot.banco.perfil import habilidades
 from jobot.nucleo.ia.contrato import Backend, Falha, limites
 from jobot.nucleo.ia.pedidos import TextoVaga, pedido_encaixe, texto_encaixe
@@ -104,6 +111,7 @@ async def rodada(
                 chamadas_do_dia(con, tarefa.backend, relogio.agora()) >= lim["max_por_dia_fora"]
             ):
                 return
+            contar_chamada(con, tarefa.backend, relogio.agora())  # antes: a que falha também conta
             pedido = pedido_encaixe(texto, tarefa.backend, tarefa.modelo)
             try:
                 resposta = await asyncio.to_thread(backend.pedir, pedido)

@@ -181,10 +181,12 @@ class FabricaIA:
     """`app.state.ia`: `(backend, modelo) -> Backend` (desenho 5). A chave vem do cofre a cada
     chamada; a `Llama` do modelo local fica aqui e cai no fim de `vida` (D194.4)."""
 
-    def __init__(self, dados: Path, cofre: Cofre | None = None) -> None:
+    def __init__(self, dados: Path, banco: Path, cofre: Cofre | None = None) -> None:
         self._dados = dados
+        self._banco = banco
         self._cofre = cofre or Cofre(dados)
         self.llama: Llama | None = None
+        self._encerrada = False
         self._caminhos: tuple[Path, Path] | None = None
         self._trava = threading.Lock()  # o laço e as rotas (T416) chamam de threads diferentes
 
@@ -196,7 +198,7 @@ class FabricaIA:
         lida = self._cofre.ler(f"ia_{backend}")
         chave = lida[0] if lida else None
         if backend == "compativel":  # a chave é opcional (Ollama, LM Studio)
-            with closing(abrir(self._dados / "jobot.db")) as con:
+            with closing(abrir(self._banco)) as con:
                 valor = ler_config(con, "ia_compativel")
             endereco = valor.get("endereco") if isinstance(valor, dict) else None
             return ClienteCompativel(backend, endereco if isinstance(endereco, str) else "", chave)
@@ -209,6 +211,8 @@ class FabricaIA:
     def _instancia(self) -> Llama:
         programa, gguf, _ = caminhos_local(self._dados)  # sem modelo baixado: `modelo_ausente`
         with self._trava:
+            if self._encerrada:  # depois do fim de `vida`, nenhum `llama-server` novo
+                raise Falha("servico_fora")
             if self.llama is None or self._caminhos != (programa, gguf):
                 if self.llama is not None:
                     self.llama.encerrar()  # o modelo baixado mudou
@@ -217,6 +221,7 @@ class FabricaIA:
 
     def encerrar(self) -> None:
         with self._trava:
+            self._encerrada = True
             if self.llama is not None:
                 self.llama.encerrar()
 
@@ -262,7 +267,7 @@ def montar(
             # outra enquanto houver algum (desenho 5.4, item 6)
             pessoa: set[object] = set()
             app.state.ia_pessoa = pessoa
-            fabrica = FabricaIA(dados)
+            fabrica = FabricaIA(dados, caminho)
             app.state.ia = fabrica
 
             async def busca() -> None:
