@@ -37,7 +37,11 @@
     "windows": {
       "nsis": {
         "installerHooks": "windows/ganchos.nsh",
-        "compression": "none"
+        "compression": "none",
+        "languages": ["English", "PortugueseBR"]
+      },
+      "webviewInstallMode": {
+        "type": "skip"
       }
     }
   }

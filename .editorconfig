@@ -13,3 +13,7 @@ indent_size = 2
 
 [*.md]
 trim_trailing_whitespace = false
+
+# o NSIS lê o gancho sem BOM na página de código do sistema, não em UTF-8 (D183.20)
+[*.nsh]
+charset = utf-8-bom
