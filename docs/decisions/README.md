@@ -2,7 +2,7 @@
 
 Um ADR (registro de decisão de arquitetura) é um texto curto que guarda uma decisão: o contexto em que ela foi tomada, o que ficou decidido e as consequências. Assim, quem chegar depois entende o porquê das escolhas.
 
-Estas decisões vieram de 9 rodadas de perguntas e respostas feitas em 2026-11-13, mais ajustes depois. O projeto está em desenvolvimento e a fase 1 está concluída (versão 0.2.1); parte das decisões descreve fases que ainda não existem.
+Estas decisões vieram de 9 rodadas de perguntas e respostas feitas em 2026-11-13, mais ajustes depois. O projeto está em desenvolvimento e as fases 1 e 2 estão concluídas (versão 0.3.0); parte das decisões descreve fases que ainda não existem.
 
 | Nº | Decisão | Status |
 |---|---|---|

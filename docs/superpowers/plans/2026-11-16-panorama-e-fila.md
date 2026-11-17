@@ -717,11 +717,11 @@ Mudar uma delas muda a tarefa responsável antes de ela começar.
   - entra no lugar do teste de primeira seção da 0.2.1, e o teste dos itens da 0.2.1 continua valendo para a seção dela.
 - **Antes de fechar.** `rtk grep -rn "0\.2\.1" .`, fora de `tests/`, `.venv`, `duvidas.md`, `registros/`, planos e desenhos, e fora das seções de histórico do CHANGELOG. Só pode sobrar histórico.
 
-- [ ] **Primeiro, valor errado:** nenhum; o literal novo no teste nasce vermelho contra `__version__ == "0.2.1"`.
-- [ ] **Testes que falham** em `tests/unidade/test_documentos.py`: o literal `"0.3.0"` e `test_changelog_fecha_a_0_3_0`.
-- [ ] **Ver falhar:** `uv run pytest tests/unidade/test_documentos.py -q`.
-- [ ] **Implementar** os itens de Interfaces.
-- [ ] **Ver passar:** `tests/unidade/test_documentos.py`, `tests/unidade/test_wiki.py` e `tests/unidade/test_versao.py`; o `grep` acima sem sobra; ruff.
+- [x] **Primeiro, valor errado:** nenhum; o literal novo no teste nasce vermelho contra `__version__ == "0.2.1"`.
+- [x] **Testes que falham** em `tests/unidade/test_documentos.py`: o literal `"0.3.0"` e `test_changelog_fecha_a_0_3_0`.
+- [x] **Ver falhar:** `uv run pytest tests/unidade/test_documentos.py -q`.
+- [x] **Implementar** os itens de Interfaces.
+- [x] **Ver passar:** `tests/unidade/test_documentos.py`, `tests/unidade/test_wiki.py` e `tests/unidade/test_versao.py`; o `grep` acima sem sobra; ruff.
 - [ ] **Publicar (sessão principal, que roda o git na `fedora-dev`):**
   - commit `chore(versao): sobe a versão para 0.3.0`, na `dev`, depois do CI verde do lote dela;
   - PR da `dev` para a `main` com título e corpo da skill `pr-curto`;

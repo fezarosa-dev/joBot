@@ -31,7 +31,7 @@ It gathers, filters and organizes jobs from many sites into a nice dashboard tha
 </div>
 
 > [!IMPORTANT]
-> **joBot phase 1 (the foundation) is done: version 0.2.1.** It searches public sources for jobs, keeps everything on your computer and shows it in a dashboard. You can already [install and use it](#requirements-and-installation).
+> **joBot phases 1 and 2 (the foundation and the browser with login) are done: version 0.3.0.** It searches public sources for jobs, keeps everything on your computer and shows it in a dashboard. You can already [install and use it](#requirements-and-installation).
 > LinkedIn is the site with login today (others can come through the [new site template](docs/site-novo.en.md)); it arrives in the next version and comes off. The Gmail card is already in Settings, Accounts; reading the emails, audio and the rest (the other sites with login, AI and browser extension) are still a plan. See the [roadmap](#roadmap). Before you turn on the sources, read the [usage and terms notices](#license-and-notices).
 
 ## 📑 Contents
@@ -63,7 +63,7 @@ Looking for a job today is tiring. You have to open many sites, repeat the same 
 joBot does this repetitive work for you. It visits job sites, gathers everything in one place and shows what matches what you are looking for.
 Everything runs on your computer. One installation serves one person, who can have several saved searches.
 
-What it does today (phase 1):
+What it does today (phases 1 and 2):
 
 - 🔎 **Search** for jobs in dozens of public sources: sites, APIs and company job boards.
 - 🧹 **Clean up**: removes duplicate jobs, reads the salary and tags the field, level, work mode, region and contract type.
@@ -356,7 +356,7 @@ Details in [ADR 0010](docs/decisions/0010-claude-code-da-pessoa.md) (in Portugue
 <a id="requirements-and-installation"></a>
 ## 📦 Requirements and installation
 
-> This is the phase 1 installation (version 0.2.1): you download the code and run it with uv. The one-command installer only arrives in phase 3.
+> This is the phase 1 and 2 installation (version 0.3.0): you download the code and run it with uv. The one-command installer only arrives in phase 3.
 
 ### Requirements
 
@@ -424,7 +424,7 @@ Run `uv run jobot atualizar`. The version notice comes **on by default**: to tur
 
 ### What the next phases will download
 
-In phase 1, `uv sync` only downloads Python 3.14 (if missing) and joBot's libraries. There is no AI model, no controlled browser and no large file. These items come later, and they are optional:
+`uv sync` only downloads Python 3.14 (if missing) and joBot's libraries. It does not download an AI model, a controlled browser or any large file. These items come separately, and they are optional:
 
 | Item | Size | When |
 |---|---|---|
@@ -443,7 +443,7 @@ Each phase only starts after the previous one passes the tests. No dates are pro
 | Phase | What is included | Status |
 |---|---|---|
 | **1. Base** | Common core, public sources, database, dashboard and scheduling | 🟢 Done (version 0.1.0) |
-| **2. Browser with login** | Login through a regular window, LinkedIn first, site mapping, CAPTCHA handling | ⚪ Planned |
+| **2. Browser with login** | Login through a regular window, LinkedIn first, site mapping, CAPTCHA handling | 🟢 Done (version 0.3.0) |
 | **3. Installer** | 64-bit installer with a list of tools to tick (Windows and Linux first, Mac later) | ⚪ Planned |
 | **4. Local AI** | Offline package (llama-server + Qwen) | ⚪ Planned |
 | **5. Browser extension** | Browser extension for forms | ⚪ Planned |
@@ -452,7 +452,7 @@ Each phase only starts after the previous one passes the tests. No dates are pro
 | **8. GitHub Pages version** | GitHub Pages version, no installation | ⚪ Planned |
 | **9. Release** | README with badges and security review | ⚪ Planned |
 
-Between phase 2 and phase 3 comes version 0.3.0, with the "Overview" screen and the complete application queue.
+Version 0.3.0 came out between phase 2 and phase 3, with the "Overview" screen and the complete application queue.
 
 <a id="faq"></a>
 ## ❓ FAQ
@@ -497,7 +497,7 @@ Each important decision is recorded in a short document called an ADR (architect
 <a id="how-to-contribute"></a>
 ## 🤝 How to contribute
 
-The repository is on GitHub. Phase 1 is done, and the next ones are being planned.
+The repository is on GitHub. Phases 1 and 2 are done, and the next ones are being planned.
 
 - **Suggestions and job sources** can already be sent through issues, with ready-made forms.
 - **Questions** go through the [question form](https://github.com/fezarosa-dev/joBot/issues/new?template=duvida.yml). Read the [FAQ](https://github.com/fezarosa-dev/joBot/wiki/Frequently-asked-questions) first.

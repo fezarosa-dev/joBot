@@ -6,7 +6,7 @@ Obrigado pelo interesse! Este guia explica como ajudar com o joBot, agora e depo
 
 ## Estado do projeto
 
-A fase 1 (base) está concluída: o joBot 0.2.1 já dá para instalar e usar ([como instalar](../README.md#requisitos-e-instalacao)). As fases 2 a 9 estão planejadas. As decisões já tomadas estão em [`docs/decisions/`](../docs/decisions/README.md) (só em português por enquanto). Para saber o que o projeto é e para onde ele vai, leia o [README](../README.md).
+As fases 1 e 2 (base e navegador com login) estão concluídas: o joBot 0.3.0 já dá para instalar e usar ([como instalar](../README.md#requisitos-e-instalacao)). As fases 3 a 9 estão planejadas. As decisões já tomadas estão em [`docs/decisions/`](../docs/decisions/README.md) (só em português por enquanto). Para saber o que o projeto é e para onde ele vai, leia o [README](../README.md).
 
 ## Como ajudar agora
 
