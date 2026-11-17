@@ -31,6 +31,7 @@ from jobot.banco.migrar import migrar
 from jobot.banco.sessoes import gravar_sessao
 from jobot.nucleo.gmail import CONTA
 from jobot.painel import i18n
+from jobot.painel import lateral as modulo_lateral
 from jobot.painel.app import criar_app
 from jobot.painel.moeda import exibicao_do_painel
 from jobot.painel.rotas.panorama import BLOCOS, pct
@@ -396,7 +397,7 @@ CONTA_CHIP = re.compile(r"SELECT (\S+), COUNT\(DISTINCT v\.id\)")
 
 
 def _sql_do_panorama(painel: Painel) -> list[str]:
-    """O SQL que a rota roda na conexão do pedido (a lateral abre a sua e fica de fora)."""
+    """O SQL que a rota roda na conexão do pedido (no Panorama, a lateral também roda nela)."""
     vistos: list[str] = []
 
     async def espiada(request: Request) -> AsyncIterator[sqlite3.Connection]:
@@ -435,6 +436,43 @@ def test_grupos_dos_chips_so_os_pedidos(painel: Painel) -> None:
     assert "uf" in completos  # controle: sem o filtro de grupos, o chip escolhido aparece
     assert [g["nome"] for g in pedidos] == ["modalidade", "area", "fonte", "encaixe"]
     assert all(g == completos[g["nome"]] for g in pedidos)
+
+
+def _sql_do_pedido(painel: Painel, monkeypatch: pytest.MonkeyPatch, url: str) -> list[str]:
+    """O SQL de todas as conexões do pedido: a da rota e a que a lateral abre."""
+    vistos: list[str] = []
+
+    def abrir_espiada(caminho: Path) -> sqlite3.Connection:
+        con = abrir(caminho)
+        con.set_trace_callback(vistos.append)
+        return con
+
+    async def espiada(request: Request) -> AsyncIterator[sqlite3.Connection]:
+        with closing(abrir_espiada(request.app.state.banco)) as con:
+            yield con
+
+    monkeypatch.setattr(modulo_lateral, "abrir", abrir_espiada)
+    painel.app.dependency_overrides[conexao] = espiada
+    try:
+        painel.pagina(url)
+    finally:
+        painel.app.dependency_overrides.pop(conexao)
+    return vistos
+
+
+def test_panorama_conta_as_abas_uma_vez(painel: Painel, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A rota e a lateral usam a mesma contagem das abas: uma varredura por pedido."""
+
+    # a condição própria da aba Programas: não tem parâmetro, e o trace expande os parâmetros
+    programas = leitura.ABAS["programas"].removeprefix(leitura.ABAS["todas"] + " AND ")
+    assert programas != leitura.ABAS["programas"]
+
+    def contagens_das_abas(url: str) -> int:
+        return sum(programas in sql for sql in _sql_do_pedido(painel, monkeypatch, url))
+
+    # controle na mesma montagem: em Vagas, a lateral conta na conexão dela e o espião vê
+    assert contagens_das_abas("/vagas") == 1
+    assert contagens_das_abas("/panorama") == 1
 
 
 # --- Busca escolhida e ids ---

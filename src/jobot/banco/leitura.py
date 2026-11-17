@@ -439,13 +439,13 @@ def contar_abas(
 ) -> Mapping[str, int]:
     """Quantas vagas cada aba tem, sem filtro nem busca."""
     _preparar(con)
-    contagens: dict[str, int] = {}
-    for aba in ABAS:
-        onde, params = _onde(con, Filtros(aba=aba, busca_id=busca_id), agora)
-        contagens[aba] = con.execute(f"SELECT COUNT(*) FROM {_DE} WHERE {onde}", params).fetchone()[
-            0
-        ]
-    return contagens
+    # as abas se sobrepõem: uma consulta só, sem GROUP BY (T313)
+    _, params = _onde(con, Filtros(busca_id=busca_id), agora)
+    soma = ", ".join(
+        f"COALESCE(SUM(CASE WHEN {onde} THEN 1 ELSE 0 END), 0)" for onde in ABAS.values()
+    )
+    linha = con.execute(f"SELECT {soma} FROM {_DE}", params).fetchone()
+    return dict(zip(ABAS, linha, strict=True))
 
 
 def detalhe(

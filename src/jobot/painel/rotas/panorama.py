@@ -21,12 +21,12 @@ from jobot.banco.leitura import Filtros
 from jobot.painel.ambiente import leitores_do_painel
 from jobot.painel.consultas import (
     MAX_ID,
-    busca_efetiva,
     contas_em_queda,
     inteiro_da_url,
     relogio_do_painel,
 )
 from jobot.painel.formatos import data_completa, data_curta
+from jobot.painel.lateral import ler_lateral
 from jobot.painel.moeda import exibicao_do_painel
 from jobot.painel.rotas.vagas import Estado, grupos_dos_chips, ler_estado, seletor_de_buscas
 from jobot.painel.saude_das_fontes import cartoes, proxima_busca
@@ -123,14 +123,20 @@ async def panorama(request: Request, con: Con) -> Response:
     if not ler_config(con, "primeira_execucao_concluida", False):
         return RedirectResponse("/primeira-execucao/1", status_code=303)
     agora = relogio_do_painel(request).agora()
-    busca_id = busca_efetiva(con, inteiro_da_url(request.query_params.get("busca"), MAX_ID))
-    contexto: dict[str, Any] = {"vazio": not leitura.tem_vaga(con), "voltar": _VOLTAR}
+    # a lateral na conexão do pedido: a casca e "Hoje" usam a mesma contagem das abas (T313)
+    lado = ler_lateral(con, agora, inteiro_da_url(request.query_params.get("busca"), MAX_ID))
+    busca_id = lado.busca_id
+    contexto: dict[str, Any] = {
+        "vazio": not leitura.tem_vaga(con),
+        "voltar": _VOLTAR,
+        "lateral_lida": lado,
+    }
     contexto |= _a_busca(con, request, agora)
     if not contexto["vazio"]:
         # o Estado de Vagas para a aba Todas da busca escolhida, com a busca nos links
         params = QueryParams({"aba": "todas", **({"busca": str(busca_id)} if busca_id else {})})
         estado = ler_estado(params, con, exibicao_do_painel(con, agora.astimezone().date()))
-        abas = leitura.contar_abas(con, busca_id, agora)
+        abas = lado.contagens
         # só o grupo status: um GROUP BY v.status nas candidaturas (T312)
         status = leitura.contar_chips(con, Filtros(aba="candidatei"), agora, ("status",)).get(
             "status", {}
