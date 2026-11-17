@@ -1,8 +1,9 @@
 {%- set tema_atual = tema -%}
 {#- casca (desenho 5.2; T251): barra lateral, barra de ferramentas e as faixas logo abaixo dela.
-    O Sair (sem_barra) e o assistente (sem_lateral) ficam sem a lateral. -#}
+    O Sair (sem_barra) e o assistente (sem_lateral) ficam sem a lateral. A rota que já leu a
+    lateral na conexão dela a passa em `lateral_lida` (o Panorama, T313): não conta duas vezes. -#}
 {%- set com_lateral = not (sem_barra or sem_lateral) -%}
-{%- set lado = lateral(request) if com_lateral else none -%}
+{%- set lado = (lateral_lida if lateral_lida is defined else lateral(request)) if com_lateral else none -%}
 {#- "/" conta como Vagas; a área é o começo do caminho, inteiro ou seguido de "/" ("/vagasx" não é Vagas) -#}
 {%- set caminho = "/vagas" if request.url.path == "/" else request.url.path -%}
 {%- from "_onde.html" import onde, config -%}
