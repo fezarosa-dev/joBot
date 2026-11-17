@@ -40,6 +40,10 @@ def test_casca_roda_em_pr_em_lote_e_a_mao_sem_segredo() -> None:
         "description: Gera os instaladores, sem publicar",
         "type: boolean",
         "default: false",
+        "ia:",
+        "description: Prova o modelo local de verdade (T410)",
+        "type: boolean",
+        "default: false",
     ]
     assert "pull_request_target" not in texto
     assert _secao(texto, "permissions") == ["contents: read"]
@@ -51,7 +55,7 @@ def test_actions_fixadas_por_hash_com_versao() -> None:
     usos = re.findall(r"^\s*(?:- )?uses: (.+)$", CASCA.read_text(encoding="utf-8"), re.MULTILINE)
     assert usos
     for uso in usos:
-        if uso == "./.github/workflows/pacotes.yml":
+        if uso in ("./.github/workflows/pacotes.yml", "./.github/workflows/ia.yml"):
             continue
         assert re.fullmatch(r"[\w.-]+/[\w.-]+@[0-9a-f]{40} # v\d+\.\d+\.\d+", uso), uso
 
@@ -70,9 +74,9 @@ def _job(nome: str) -> str:
 
 def test_jobs_da_casca() -> None:
     jobs = re.findall(r"^  (\w+):$", _codigo().split("\njobs:\n", 1)[1], re.MULTILINE)
-    assert jobs == ["casca", "windows", "uv", "pacotes"]
-    # o pacotes chama o pacotes.yml, que tem os prazos dele
-    for nome in jobs[:-1]:
+    assert jobs == ["casca", "windows", "uv", "pacotes", "ia"]
+    # o pacotes e o ia chamam o pacotes.yml e o ia.yml, que têm os prazos deles
+    for nome in jobs[:-2]:
         assert "timeout-minutes:" in _job(nome), nome
 
 
@@ -118,6 +122,13 @@ def test_job_pacotes_so_com_a_entrada_e_sem_publicar() -> None:
     # os mesmos pacotes e a mesma fumaça sem rede da release, sem o publicar (T339)
     assert "uses: ./.github/workflows/pacotes.yml" in texto
     assert "release" not in texto
+
+
+def test_job_ia_so_com_a_entrada() -> None:
+    texto = _job("ia")
+    assert "if: github.event_name == 'workflow_dispatch' && inputs.ia" in texto
+    assert "uses: ./.github/workflows/ia.yml" in texto
+    assert "secrets" not in texto
 
 
 def _prova() -> ModuleType:
