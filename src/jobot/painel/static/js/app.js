@@ -304,11 +304,22 @@
   // sobreposto fica preso ao #vagas-miolo: cobre a lista na altura toda do miolo, com as ações no
   // pé dele. Só chega aí quem abre ?vaga= direto; sem JS o clique na linha abre a página própria
   // (E10).
+  // a largura do miolo muda com a janela e com a barra lateral. Voltar/Avançar troca o body e a
+  // .coluna: o observador passa para a nova. O observador só avisa quando o tamanho difere do
+  // último que ele entregou; se a camada troca por outro caminho (afterSettle) numa largura que ele
+  // nunca viu, ele precisa recomeçar daí, senão a volta à largura antiga passa calada (T314)
+  const observadorDaColuna = new ResizeObserver(() => acertarCamada());
+  const vigiarColuna = () => {
+    observadorDaColuna.disconnect();
+    const coluna = document.querySelector(".coluna");
+    if (coluna) observadorDaColuna.observe(coluna);
+  };
   const acertarCamada = () => {
     const no = lado();
     if (!no?.showPopover) return;
     const subir = no.open && modo() === "sobreposto";
     if (subir === no.matches(":popover-open")) return;
+    vigiarColuna();
     if (subir) {
       no.showPopover();
       return;
@@ -323,13 +334,8 @@
   // afterSwap também: na troca do #detalhe-vaga o nó novo sobe antes do settle, sem piscar no fluxo
   document.addEventListener("htmx:afterSwap", acertarCamada);
   document.addEventListener("htmx:afterSettle", acertarCamada);
-  // a largura do miolo muda com a janela e com a barra lateral. Voltar/Avançar troca o body e a
-  // .coluna: o observador passa para a nova (o observe já chama acertarCamada uma vez)
-  const observadorDaColuna = new ResizeObserver(acertarCamada);
   const observarColuna = () => {
-    observadorDaColuna.disconnect();
-    const coluna = document.querySelector(".coluna");
-    if (coluna) observadorDaColuna.observe(coluna);
+    vigiarColuna();
     acertarCamada();
   };
   observarColuna();
