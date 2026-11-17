@@ -129,6 +129,9 @@ fn tirar_do_tar(tar: &Path, destino: &Path) -> Result<(), Erro> {
     let ruim = || Erro::Arquivo(UV.into());
     let bruto = fs::read(tar)?;
     let cabecalho = bruto.get(..512).ok_or_else(ruim)?;
+    if &cabecalho[257..262] != b"ustar" || !matches!(cabecalho[156], b'0' | 0) {
+        return Err(ruim());
+    }
     let tamanho = std::str::from_utf8(&cabecalho[124..136])
         .ok()
         .map(|t| t.trim_matches(|c: char| c == '\0' || c == ' '))

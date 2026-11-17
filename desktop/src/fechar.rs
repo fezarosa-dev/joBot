@@ -91,7 +91,7 @@ pub fn rodar_esperando(jobot: &Path, args: &[&str]) {
 
 fn comando_esperando(jobot: &Path, args: &[&str]) -> Command {
     let mut comando = Command::new(jobot);
-    comando
+    servidor::sem_python_de_fora(&mut comando)
         .args(args)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
