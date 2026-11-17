@@ -84,5 +84,5 @@ def test_desinstalar_no_windows_chama_a_casca_fora_da_atualizacao() -> None:
     texto = ganchos.read_text(encoding="utf-8")
     corpo = texto.split("!macro NSIS_HOOK_PREUNINSTALL", 1)[1].split("!macroend", 1)[0]
     assert "${If} $UpdateMode <> 1" in corpo
-    assert 'ExecWait \'"$INSTDIR\\${MAINBINARYNAME}.exe" --desinstalar\'' in corpo
+    assert "ExecWait '\"$INSTDIR\\${MAINBINARYNAME}.exe\" --desinstalar'" in corpo
     assert '"--desinstalar"' in (desktop / "src" / "main.rs").read_text(encoding="utf-8")
