@@ -21,6 +21,33 @@ def test_ordem_das_pastas(tmp_path: Path) -> None:
     assert pasta_de_dados(vazias) == Path(casa) / ".local" / "share" / "jobot"
 
 
+def test_pasta_windows(tmp_path: Path) -> None:
+    local = str(tmp_path / "Local")
+    env = {"LOCALAPPDATA": local, "USERPROFILE": str(tmp_path / "eu"), "XDG_DATA_HOME": "x"}
+    assert pasta_de_dados(env, plataforma="win32") == Path(local) / "joBot"
+
+
+def test_windows_sem_localappdata(tmp_path: Path) -> None:
+    eu = str(tmp_path / "eu")
+    esperado = Path(eu) / "AppData" / "Local" / "joBot"
+    assert pasta_de_dados({"USERPROFILE": eu}, plataforma="win32") == esperado
+    assert pasta_de_dados({"LOCALAPPDATA": "", "USERPROFILE": eu}, plataforma="win32") == esperado
+
+
+def test_pasta_mac(tmp_path: Path) -> None:
+    casa = str(tmp_path / "casa")
+    env = {"HOME": casa, "XDG_DATA_HOME": str(tmp_path / "xdg")}
+    esperado = Path(casa) / "Library" / "Application Support" / "joBot"
+    assert pasta_de_dados(env, plataforma="darwin") == esperado
+
+
+@pytest.mark.parametrize("plataforma", ["linux", "win32", "darwin"])
+def test_jobot_dados_vence_em_todo_sistema(tmp_path: Path, plataforma: str) -> None:
+    dados = str(tmp_path / "dados")
+    env = {"JOBOT_DADOS": dados, "LOCALAPPDATA": "L", "HOME": "H", "USERPROFILE": "U"}
+    assert pasta_de_dados(env, plataforma=plataforma) == Path(dados)
+
+
 def _modo(p: Path) -> int:
     return stat.S_IMODE(p.stat().st_mode)
 

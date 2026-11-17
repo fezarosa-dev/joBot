@@ -14,6 +14,7 @@ import webbrowser
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 
+from jobot.sistema import processo
 from jobot.sistema.caso import prefixo_host
 from jobot.sistema.instancia import (
     AVISO_CAPTURA,
@@ -79,7 +80,7 @@ def _lancar(comando: Sequence[str]) -> bool:
     try:
         subprocess.Popen(
             comando,
-            start_new_session=True,
+            **processo.destacar(),
             stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
@@ -270,7 +271,7 @@ def subir_servidor() -> None:
     """Servidor em processo separado; o comando `serve` é da T48."""
     subprocess.Popen(
         [sys.executable, "-m", "jobot", "serve"],
-        start_new_session=True,
+        **processo.destacar(),
         stdin=subprocess.DEVNULL,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
