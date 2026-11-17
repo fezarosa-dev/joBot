@@ -196,7 +196,8 @@ def test_versoes_do_build_fixadas_como_no_uv_meta() -> None:
     usos = texto.count("uses: astral-sh/setup-uv@")
     assert usos == 2
     assert texto.count(f'version: "{meta["uv"]["versao"]}"') == usos
-    # o Python que monta o tar do Chromium (o zlib dele decide o sha256, D183.19)
+    # o Python do uv.meta.json em toda chamada do montar_recursos.py (D183.25; o tar do Chromium
+    # que o pedia saiu com a D183.24, o pino fica)
     chamadas = texto.count("scripts/montar_recursos.py")
     pythons = re.findall(r"--python (\S+) python scripts/montar_recursos\.py", texto)
     assert len(pythons) == chamadas == 4
@@ -426,6 +427,16 @@ def test_instalador_do_windows_nao_baixa_o_webview2_e_confere_antes() -> None:
     # sem a chave nos três lugares, a caixa (no /S, só a resposta padrão) e o Abort; e nada de
     # download, que nem existe nesta lista
     assert instrucoes == _GANCHO_WEBVIEW2
+    # nem outro gancho que baixe: só estes dois macros, e nenhuma instrução de download no arquivo
+    assert re.findall(r"^\s*!macro\s+(\S+)", gancho, re.M) == [
+        "NSIS_HOOK_PREUNINSTALL",
+        "NSIS_HOOK_PREINSTALL",
+    ]
+    codigo = "\n".join(
+        linha for linha in gancho.splitlines() if not linha.strip().startswith((";", "#"))
+    ).lower()
+    for proibido in ("nsisdl", "inetc", "download"):
+        assert proibido not in codigo
 
 
 def test_casca_do_tauri_gera_os_pacotes_e_o_mac_assina_ad_hoc() -> None:

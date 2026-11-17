@@ -1,5 +1,6 @@
 """`jobot ferramentas baixar navegador` (T330; D183.24): o `playwright install` de sempre, também
-na casca (o joBot não redistribui o navegador), com as linhas JSON que a casca lê; sem processo."""
+na casca (o joBot não redistribui o navegador), com as linhas JSON que a casca lê; só o teste do
+SIGTERM sobe processo de verdade."""
 
 import argparse
 import contextlib

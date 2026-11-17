@@ -1,7 +1,7 @@
 """Monta os recursos do instalador da casca e o pacote de atualização (T339; desenho 8;
 D174.1, D174.16 e D181.5).
 
-Script do CI (`.github/workflows/pacotes.yml`), fora do pacote `jobot`. Três comandos:
+Script do CI (`.github/workflows/pacotes.yml`), fora do pacote `jobot`. Quatro comandos:
 
 - `restricoes --dependencias D --wheel W --saida R`: o `restricoes.txt` da release, o
   `uv export` com hash de toda dependência mais a linha `jobot==<versão> --hash=sha256:<sha>`.
