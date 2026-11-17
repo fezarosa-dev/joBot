@@ -2,7 +2,7 @@
 
 - **Status:** aceita (as escolhas da sessão listadas na D171, itens 9 a 18, seguem para confirmar; no texto, cada frase que vem delas leva a marca "para confirmar")
 - **Data:** 2026-11-17
-- **Atualizada:** 2026-11-17, pela D173 e pela D174 do `duvidas.md` (instalador completo e sem rede; o texto por extenso entra na T341)
+- **Atualizada:** 2026-11-17, pela D173 e pela D174 do `duvidas.md` (instalador completo e sem rede; o texto por extenso entra na T341) e pela D183 (itens 20 e 24, decididos pela sessão, para o dono confirmar: o instalador do Windows não baixa o WebView2, e o navegador não vai no instalador nem na release, vem do `playwright install`)
 
 ## Contexto
 
