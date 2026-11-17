@@ -54,15 +54,11 @@ def app_painel(app_painel: FastAPI, cofre: Cofre, api: dict[str, Any]) -> FastAP
 
 
 @pytest.fixture(autouse=True)
-def _sem_erro_no_console(page: Page) -> Iterator[None]:
+def _sem_erro_no_console(page: Page) -> Iterator[list[str]]:
     erros: list[str] = []  # violação do CSP aparece como erro no console
-    # o 422 do endereço torto (T414) é a resposta esperada da página, não erro de script
-    page.on(
-        "console",
-        lambda m: erros.append(m.text) if m.type == "error" and "422" not in m.text else None,
-    )
+    page.on("console", lambda m: erros.append(m.text) if m.type == "error" else None)
     page.on("pageerror", lambda e: erros.append(str(e)))
-    yield
+    yield erros
     assert erros == []
 
 
@@ -312,7 +308,9 @@ def test_olho_da_chave_de_ia_e_so_do_proprio_campo(page: Page, painel: str) -> N
     expect(page.get_by_label("Chave da API")).to_have_attribute("type", "password")
 
 
-def test_endereco_torto_do_compativel_marca_o_campo(page: Page, painel: str) -> None:
+def test_endereco_torto_do_compativel_marca_o_campo(
+    page: Page, painel: str, _sem_erro_no_console: list[str]
+) -> None:
     page.goto(f"{painel}/configuracoes/servicos")
     campo = page.get_by_label("Endereço do serviço", exact=True)
     campo.fill("http://exemplo.com/v1")
@@ -325,6 +323,8 @@ def test_endereco_torto_do_compativel_marca_o_campo(page: Page, painel: str) -> 
     campo = page.get_by_label("Endereço do serviço", exact=True)
     expect(campo).to_have_attribute("aria-invalid", "true")
     expect(campo).to_have_value("http://exemplo.com/v1")
+    # o 422 do endereço torto é a resposta esperada da página, não erro de script; só neste teste
+    _sem_erro_no_console[:] = [e for e in _sem_erro_no_console if "422" not in e]
 
 
 def test_nenhum_controle_padrao_nos_cartoes_de_ia(page: Page, painel: str, cofre: Cofre) -> None:

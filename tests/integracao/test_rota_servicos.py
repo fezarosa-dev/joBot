@@ -636,6 +636,7 @@ IA = (*IA_COM_CHAVE, "compativel")
 CHAVE_IA = "sk-ant-api03-AbCd_1234-EfGh5678IjKl9012MnOpQrSt"
 OUTRA_IA = "AIzaSyZ-9876_VuTs5432RqPo1098NmLk7654"
 ENDERECO = "http://127.0.0.1:11434/v1"
+SENHA_NA_URL = "Segredo9x"  # "senha" não serve: o próprio aviso de erro diz "senha"
 APAGAR_IA = SERVICOS + "/ia/{}/apagar"
 
 
@@ -682,6 +683,15 @@ def test_todo_texto_dos_cartoes_de_ia_existe_em_pt_e_en(servico: str) -> None:
         chave = f"configuracoes.servicos.ia.{servico}.{sufixo}"
         for idioma in ("pt", "en"):
             assert catalogo[idioma].get(chave), (idioma, chave)
+
+
+@pytest.mark.parametrize("idioma", ["pt", "en"])
+@pytest.mark.parametrize("servico", IA)
+def test_rotulo_da_chave_de_ia_comeca_com_maiuscula(idioma: str, servico: str) -> None:
+    chave = "chave_opcional" if servico == "compativel" else "chave"
+    de = t(idioma, f"configuracoes.servicos.ia.{servico}.de")
+    rotulo = t(idioma, f"configuracoes.servicos.ia.{chave}", de=de)
+    assert rotulo[0].isupper(), rotulo
 
 
 @pytest.mark.parametrize("servico", IA_COM_CHAVE)
@@ -808,7 +818,8 @@ def test_endereco_do_compativel_que_vale(painel: Painel, digitado: str, gravado:
         "",
         "http://exemplo.com/v1",  # http só no próprio computador
         "ftp://exemplo.com/v1",
-        "https://eu:senha@exemplo.com/v1",
+        f"https://eu:{SENHA_NA_URL}@exemplo.com/v1",
+        f"eu:{SENHA_NA_URL}@exemplo.com/v1",
         "https://exemplo.com/v1?x=1",
         "https://exemplo.com/v1#x",
         "https://exem plo.com/v1",
@@ -829,6 +840,16 @@ def test_endereco_do_compativel_torto_volta_no_cartao_e_nada_e_gravado(
     assert _compativel(painel) == {"endereco": ENDERECO}
     assert painel.cofre.ler("ia_compativel") is None  # a chave digitada também não
     assert OUTRA_IA not in resposta.text
+    assert SENHA_NA_URL not in resposta.text
+
+
+def test_endereco_com_senha_nao_volta_no_campo_nem_com_a_chave_torta(painel: Painel) -> None:
+    # a chave torta volta antes de conferir o endereço: a senha dele também não pode voltar
+    digitado = f"https://eu:{SENHA_NA_URL}@exemplo.com/v1"
+    resposta = _salvar_ia(painel, "compativel", endereco=digitado, chave="curta")
+    assert resposta.status_code == 422
+    assert _no(resposta.text, "#campo-endereco-ia").attributes["value"] == ""
+    assert SENHA_NA_URL not in resposta.text
 
 
 def test_endereco_torto_volta_no_campo_para_corrigir(painel: Painel) -> None:
