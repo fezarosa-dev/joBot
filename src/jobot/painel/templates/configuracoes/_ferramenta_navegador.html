@@ -3,6 +3,9 @@
 <div id="ferramenta-navegador" aria-live="polite"{% if rodando %} hx-get="/configuracoes/ferramentas/navegador" hx-trigger="every 5s" hx-target="#ferramenta-navegador" hx-swap="outerHTML"{% endif %}>
   <p class="config-texto"><strong>{{ t("configuracoes.ferramentas.navegador.nome") }}</strong></p>
   <p class="config-texto">{{ t("configuracoes.ferramentas.estado." ~ estado) }}</p>
+  {%- if desatualizado and not rodando %}
+  <p class="config-texto" role="status">{{ t("configuracoes.ferramentas.navegador.desatualizado") }}</p>
+  {%- endif %}
   {%- if estado != "chrome" %}
   <p class="config-texto"><small>{{ t("configuracoes.ferramentas.navegador.tamanho") }}</small></p>
   {%- endif %}
@@ -12,13 +15,16 @@
   {%- if resultado in ("pronto", "removido", "continua", "em_uso", "falhou_baixar", "falhou_remover") %}
   <p class="config-texto" role="status">{{ t("configuracoes.ferramentas.aviso." ~ resultado) }}</p>
   {%- endif %}
-  {%- if estado == "nao_instalado" or resultado == "falhou_baixar" %}
+  {%- set baixar = estado == "nao_instalado" or resultado == "falhou_baixar" or (desatualizado and not rodando) %}
+  {%- set remover = navegador == "chromium" and not rodando and (not baixar or desatualizado) %}
+  {%- if baixar or remover %}
   <div class="acoes">
+    {%- if baixar %}
     <button type="button" class="botao botao-primario" hx-post="/configuracoes/ferramentas/navegador/baixar" hx-target="#ferramenta-navegador" hx-swap="outerHTML">{{ t("configuracoes.ferramentas.baixar") }}</button>
-  </div>
-  {%- elif navegador == "chromium" and not rodando %}
-  <div class="acoes">
+    {%- endif %}
+    {%- if remover %}
     <button type="button" class="botao botao-secundario" hx-post="/configuracoes/ferramentas/navegador/remover" hx-target="#ferramenta-navegador" hx-swap="outerHTML">{{ t("configuracoes.ferramentas.remover") }}</button>
+    {%- endif %}
   </div>
   {%- endif %}
 </div>

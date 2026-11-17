@@ -9,6 +9,7 @@ import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 
+from jobot import __version__
 from jobot.banco.migrar import BancoMaisNovo
 from jobot.sistema.pastas import configurar_log, pasta_de_dados
 
@@ -26,6 +27,8 @@ COMANDOS: Mapping[str, str] = {
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="jobot", description="Busca de vagas em fontes públicas.")
+    # a prova do venv novo no canal `casca` do `jobot atualizar` lê esta linha (T331)
+    parser.add_argument("--version", action="version", version=f"jobot {__version__}")
     sub = parser.add_subparsers(dest="comando", metavar="comando")
     sub.add_parser("abrir", help="abre o painel no navegador (o padrão)")
     sub.add_parser("sair", help="encerra o servidor")
