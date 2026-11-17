@@ -3,10 +3,11 @@
 `httpx` em fluxo para `<destino>.<12 primeiros do sha256>.parcial`, retomado com `Range` (200 no
 lugar de 206 recomeça), cortado ao passar do tamanho do manifesto e conferido (tamanho e sha256)
 antes do `os.replace`. Sem prazo total: 60 s sem bytes é `sem_rede`, e o `.parcial` fica para a
-retomada. Saltos seguidos à mão, no máximo 5, cada um pela regra (só `https`). Uma trava de
-arquivo por download: casca, painel e CLI não escrevem o mesmo `.parcial`.
+retomada. Saltos seguidos à mão, no máximo 5, e a URL inicial e cada salto pela regra (só `https`).
+Uma trava de arquivo por download: casca, painel e CLI não escrevem o mesmo `.parcial`.
 """
 
+import errno
 import hashlib
 import json
 import os
@@ -48,7 +49,8 @@ def so_https(url: httpx.URL) -> bool:
 
 
 def cliente_de_download() -> httpx.Client:
-    """User agent fixo do joBot (ADR 0005); os saltos ficam com `baixar`; sem prazo total."""
+    """User agent fixo do joBot (ADR 0005); os saltos ficam com `baixar`; sem prazo total, só o
+    de leitura: o silêncio total vira `ReadTimeout`, que é `sem_rede`."""
     return httpx.Client(
         headers={"User-Agent": f"joBot/{__version__} (+{URL_REPOSITORIO})"},
         follow_redirects=False,
@@ -76,7 +78,7 @@ def baixar(
     cancelar: threading.Event | None = None,
     agora: Callable[[], float] = time.monotonic,
     livre: Callable[[Path], int] = _livre,
-    aceita_salto: Callable[[httpx.URL], bool] = so_https,
+    aceita_url: Callable[[httpx.URL], bool] = so_https,
 ) -> None:
     """Baixa `url` em `destino` só se tamanho e sha256 baterem; senão `FalhaBaixar`.
 
@@ -97,12 +99,17 @@ def baixar(
         avisar = _avisador(progresso, etapa, tamanho)
         avisar(ja)
         if ja < tamanho:
+            if cancelar is not None and cancelar.is_set():
+                raise FalhaBaixar("cancelado")  # antes de qualquer pedido
             cabecalhos = {"Accept-Encoding": "identity"}  # bytes crus: o sha256 é do arquivo
             if ja:
                 cabecalhos["Range"] = f"bytes={ja}-"
             pedido = cliente.build_request("GET", url, headers=cabecalhos)
-            _receber(cliente, pedido, parcial, ja, tamanho, avisar, cancelar, agora, aceita_salto)
-        if parcial.stat().st_size != tamanho or _sha256(parcial) != sha256:
+            _receber(cliente, pedido, parcial, ja, tamanho, avisar, cancelar, agora, aceita_url)
+        atual = parcial.stat().st_size
+        if atual < tamanho:
+            raise FalhaBaixar("sem_rede")  # corpo curto sem erro do httpx: fica para retomar
+        if atual != tamanho or _sha256(parcial) != sha256:
             raise FalhaBaixar("arquivo")
         os.replace(parcial, destino)  # só depois de conferido
     except FalhaBaixar as falha:
@@ -127,16 +134,17 @@ def _avisador(progresso: Callable[[str], None], etapa: str, total: int) -> Calla
 
 
 def _abrir(
-    cliente: httpx.Client, pedido: httpx.Request, aceita_salto: Callable[[httpx.URL], bool]
+    cliente: httpx.Client, pedido: httpx.Request, aceita_url: Callable[[httpx.URL], bool]
 ) -> httpx.Response:
+    """A URL inicial e cada salto passam por `aceita_url`; os saltos nunca ficam com o cliente."""
     for _ in range(MAX_SALTOS + 1):
-        resposta = cliente.send(pedido, stream=True)
+        if not aceita_url(pedido.url):
+            raise FalhaBaixar("sem_rede")
+        resposta = cliente.send(pedido, stream=True, follow_redirects=False)
         proximo = resposta.next_request
         if proximo is None:
             return resposta
         resposta.close()
-        if not aceita_salto(proximo.url):
-            raise FalhaBaixar("sem_rede")
         pedido = proximo
     raise FalhaBaixar("sem_rede")
 
@@ -150,10 +158,10 @@ def _receber(
     avisar: Callable[[int], None],
     cancelar: threading.Event | None,
     agora: Callable[[], float],
-    aceita_salto: Callable[[httpx.URL], bool],
+    aceita_url: Callable[[httpx.URL], bool],
 ) -> None:
     try:
-        resposta = _abrir(cliente, pedido, aceita_salto)
+        resposta = _abrir(cliente, pedido, aceita_url)
         try:
             if resposta.status_code == 206 and ja:
                 modo, feito = "ab", ja
@@ -161,21 +169,24 @@ def _receber(
                 modo, feito = "wb", 0  # o servidor ignorou o `Range`: recomeça
             else:
                 raise FalhaBaixar("sem_rede")
-            with parcial.open(modo) as saida:
-                ultimo = agora()
-                for bloco in resposta.iter_raw():
-                    feito += len(bloco)
-                    if feito > tamanho:
-                        raise FalhaBaixar("arquivo")
-                    saida.write(bloco)
-                    avisar(feito)
-                    if cancelar is not None and cancelar.is_set():
-                        raise FalhaBaixar("cancelado")
-                    momento = agora()
-                    if momento - ultimo > INATIVIDADE_S:
-                        raise FalhaBaixar("sem_rede")
-                    ultimo = momento
-
+            try:
+                with parcial.open(modo) as saida:
+                    ultimo = agora()
+                    for bloco in resposta.iter_raw():
+                        feito += len(bloco)
+                        if feito > tamanho:
+                            raise FalhaBaixar("arquivo")
+                        saida.write(bloco)
+                        avisar(feito)
+                        if cancelar is not None and cancelar.is_set():
+                            raise FalhaBaixar("cancelado")
+                        momento = agora()
+                        if momento - ultimo > INATIVIDADE_S:
+                            raise FalhaBaixar("sem_rede")
+                        ultimo = momento
+            except OSError as erro:  # disco cheio no meio: `espaco`; o resto do disco: `arquivo`
+                motivo: Motivo = "espaco" if erro.errno == errno.ENOSPC else "arquivo"
+                raise FalhaBaixar(motivo) from erro
         finally:
             resposta.close()
     except httpx.HTTPError as erro:
