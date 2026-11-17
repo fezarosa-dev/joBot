@@ -6,7 +6,7 @@ Thanks for your interest! This guide explains how to help with joBot, now and af
 
 ## Project status
 
-Phases 1, 2 and 3 (foundation, browser with login and installer) are complete: joBot 0.4.0 can already be installed and used ([how to install](../README.en.md#requirements-and-installation)). Phases 4 to 9 are planned. The decisions made so far are in [`docs/decisions/`](../docs/decisions/README.md) (Portuguese only for now). To learn what the project is and where it is going, read the [README](../README.en.md).
+Phases 1, 2 and 3 (foundation, browser with login and installer) are complete: joBot 0.4.0 can already be installed and used ([how to install](../README.en.md#requirements-and-installation)). Phase 4 (local AI) is being built, toward 0.5.0; phases 5 to 9 are planned. The decisions made so far are in [`docs/decisions/`](../docs/decisions/README.md) (Portuguese only for now). To learn what the project is and where it is going, read the [README](../README.en.md).
 
 ## How to help now
 

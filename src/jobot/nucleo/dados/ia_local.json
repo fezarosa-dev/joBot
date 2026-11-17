@@ -1,0 +1,65 @@
+{
+  "conferido_em": "2026-11-17",
+  "llama_server": {
+    "build": "b12359",
+    "commit": "b1b770d90d94cad9e9ea5b993bdbc383a522fb28",
+    "atestacao": {
+      "owner": "ggml-org",
+      "workflow": "ggml-org/llama.cpp/.github/workflows/release-publish.yml"
+    },
+    "alvos": {
+      "ubuntu-x64": {
+        "arquivo": "llama-b12359-bin-ubuntu-x64.tar.gz",
+        "url": "https://github.com/ggml-org/llama.cpp/releases/download/b12359/llama-b12359-bin-ubuntu-x64.tar.gz",
+        "tamanho": 23311084,
+        "sha256": "0bc1f091e8916102b6d8f2cf944233a620e90a0f856c72d0ce41150c65c2e72e",
+        "licenca": "MIT",
+        "origem": "ggml-org/llama.cpp (https://github.com/ggml-org/llama.cpp)"
+      },
+      "win-cpu-x64": {
+        "arquivo": "llama-b12359-bin-win-cpu-x64.zip",
+        "url": "https://github.com/ggml-org/llama.cpp/releases/download/b12359/llama-b12359-bin-win-cpu-x64.zip",
+        "tamanho": 25097509,
+        "sha256": "837c1655e87df3b66989f4be33a792a1399c785bf259038dc75c900096683e69",
+        "licenca": "MIT",
+        "origem": "ggml-org/llama.cpp (https://github.com/ggml-org/llama.cpp)"
+      },
+      "macos-arm64": {
+        "arquivo": "llama-b12359-bin-macos-arm64.tar.gz",
+        "url": "https://github.com/ggml-org/llama.cpp/releases/download/b12359/llama-b12359-bin-macos-arm64.tar.gz",
+        "tamanho": 16907811,
+        "sha256": "82b00abc740160e1b9980e6cc79c117345fa34af058c80e6c0a69aa8ddccde75",
+        "licenca": "MIT",
+        "origem": "ggml-org/llama.cpp (https://github.com/ggml-org/llama.cpp)"
+      },
+      "macos-x64": {
+        "arquivo": "llama-b12359-bin-macos-x64.tar.gz",
+        "url": "https://github.com/ggml-org/llama.cpp/releases/download/b12359/llama-b12359-bin-macos-x64.tar.gz",
+        "tamanho": 12661621,
+        "sha256": "25320d529077ef5a3d16e7b5da26438f221d88c8c0930a32b0c79457f5eede56",
+        "licenca": "MIT",
+        "origem": "ggml-org/llama.cpp (https://github.com/ggml-org/llama.cpp)"
+      }
+    }
+  },
+  "modelos": {
+    "2b": {
+      "nome": "Qwen3.5-2B-Q4_K_M",
+      "arquivo": "Qwen3.5-2B-Q4_K_M.gguf",
+      "url": "https://huggingface.co/unsloth/Qwen3.5-2B-GGUF/resolve/f6d5376be1edb4d416d56da11e5397a961aca8ae/Qwen3.5-2B-Q4_K_M.gguf",
+      "tamanho": 1280835840,
+      "sha256": "aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223",
+      "licenca": "Apache-2.0",
+      "origem": "Qwen/Qwen3.5-2B (Qwen), GGUF unsloth/Qwen3.5-2B-GGUF (https://huggingface.co/unsloth/Qwen3.5-2B-GGUF)"
+    },
+    "4b": {
+      "nome": "Qwen3.5-4B-Q4_K_M",
+      "arquivo": "Qwen3.5-4B-Q4_K_M.gguf",
+      "url": "https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/resolve/e87f176479d0855a907a41277aca2f8ee7a09523/Qwen3.5-4B-Q4_K_M.gguf",
+      "tamanho": 2740937888,
+      "sha256": "00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4",
+      "licenca": "Apache-2.0",
+      "origem": "Qwen/Qwen3.5-4B (Qwen), GGUF unsloth/Qwen3.5-4B-GGUF (https://huggingface.co/unsloth/Qwen3.5-4B-GGUF)"
+    }
+  }
+}

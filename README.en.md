@@ -424,6 +424,7 @@ If you installed from the code, run all of them from inside the `joBot` folder, 
 | `jobot segundo-plano ligar` | Turns on the background service, so joBot starts by itself with your user. `desligar` removes the service, and `status` shows how it is. On Linux it uses systemd; on Windows, Task Scheduler; on the Mac, a LaunchAgent (experimental). |
 | `jobot atualizar` | Updates joBot to the newest version and turns back on what was on. |
 | `jobot ferramentas baixar navegador` | Downloads the browser for sites with login (the same as the "Download" button in Tools). |
+| `jobot ferramentas baixar ia-local` | Downloads the local AI model from the official source (llama.cpp's `llama-server` and an Unsloth Qwen3.5), with the sha256 checked. With `--modelo auto` (the default) it picks by the computer's memory; `--modelo 2b` or `4b` picks by hand. `atualizar ia-local` downloads what changed; `remover ia-local` deletes it all and turns off the tasks that used the local model. |
 | `jobot avaliar-rotulos` | For project maintainers: measures the label rules against an examples file of your own. |
 
 ### Where the data lives
@@ -499,7 +500,7 @@ Each phase only starts after the previous one passes the tests. No dates are pro
 | **1. Base** | Common core, public sources, database, dashboard and scheduling | 🟢 Done (version 0.1.0) |
 | **2. Browser with login** | Login through a regular window, LinkedIn first, site mapping, CAPTCHA handling | 🟢 Done (version 0.3.0) |
 | **3. Installer** | 64-bit installer with a list of tools to tick (Windows and Linux first, Mac later) | 🟢 Done (version 0.4.0) |
-| **4. Local AI** | Offline package (llama-server + Qwen) | ⚪ Planned |
+| **4. Local AI** | Offline package (llama-server + Qwen) | 🟡 Being built (toward 0.5.0) |
 | **5. Browser extension** | Browser extension for forms | ⚪ Planned |
 | **6. Audio and Gmail** | Answers by voice and email reading | ⚪ Planned |
 | **7. Training** | Learn from what you save and discard | ⚪ Planned |
@@ -548,11 +549,12 @@ Each important decision is recorded in a short document called an ADR (architect
 | 0023 | [Everything through the dashboard: tools, updates and shutdown](docs/decisions/0023-tudo-pelo-painel.md) |
 | 0024 | [Gmail with an app password](docs/decisions/0024-gmail-por-senha-de-app.md) |
 | 0025 | [Desktop app and installer](docs/decisions/0025-app-de-desktop-e-instalador.md) |
+| 0026 | [Phase 4 AI: tasks, backends and local model](docs/decisions/0026-ia-da-fase-4.md) |
 
 <a id="how-to-contribute"></a>
 ## 🤝 How to contribute
 
-The repository is on GitHub. Phases 1, 2 and 3 are done, and the next ones are being planned.
+The repository is on GitHub. Phases 1, 2 and 3 are done, phase 4 is being built and the following ones are being planned.
 
 - **Suggestions and job sources** can already be sent through issues, with ready-made forms.
 - **Questions** go through the [question form](https://github.com/fezarosa-dev/joBot/issues/new?template=duvida.yml). Read the [FAQ](https://github.com/fezarosa-dev/joBot/wiki/Frequently-asked-questions) first.
