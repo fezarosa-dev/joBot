@@ -1,17 +1,78 @@
-"""Instância única: `jobot.lock` com flock guarda o PID e a porta do servidor (desenho 12.3)."""
+"""Instância única: `jobot.lock` travado guarda o PID e a porta do servidor (desenho 12.3).
 
-import fcntl
+Linux e Mac travam com `fcntl.flock`; Windows com `msvcrt.locking` num byte longe dos dados
+(a trava do Windows é obrigatória: no mesmo byte dos dados, ninguém mais os leria).
+"""
+
+import contextlib
 import os
+import sys
 from collections.abc import Mapping
 from pathlib import Path
 
 PORTA_PADRAO = 47615
 _MODO = 0o600
+# O_NOFOLLOW: o lock nunca segue symlink para fora da pasta de dados (não existe no Windows).
+# O_BINARY: no Windows, sem ele o "\n" viraria "\r\n" e o formato mudaria.
+_FLAGS = getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_BINARY", 0)
+
+if sys.platform == "win32":
+    import msvcrt
+
+    _BYTE_DA_TRAVA = 1 << 20  # além do fim dos dados: travar depois do fim do arquivo vale
+
+    def _prender(fd: int, *, compartilhada: bool) -> bool:
+        # o Windows não tem trava compartilhada: a leitura prende e solta na hora
+        os.lseek(fd, _BYTE_DA_TRAVA, os.SEEK_SET)
+        try:
+            msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+        except OSError:
+            return False
+        return True
+
+    def _desprender(fd: int) -> None:
+        os.lseek(fd, _BYTE_DA_TRAVA, os.SEEK_SET)
+        msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+
+else:
+    import fcntl
+
+    def _prender(fd: int, *, compartilhada: bool) -> bool:
+        modo = fcntl.LOCK_SH if compartilhada else fcntl.LOCK_EX
+        try:
+            fcntl.flock(fd, modo | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return False
+        return True
+
+    def _desprender(fd: int) -> None:
+        fcntl.flock(fd, fcntl.LOCK_UN)
+
+
+def _fechar(fd: int) -> None:
+    """Solta a trava e fecha; no Windows, fechar sem soltar deixa a trava presa por um tempo."""
+    with contextlib.suppress(OSError):
+        _desprender(fd)
+    os.close(fd)
 
 
 def _abrir(dados: Path, flags: int) -> int:
-    # O_NOFOLLOW: o lock nunca segue symlink para fora da pasta de dados
-    return os.open(dados / "jobot.lock", flags | os.O_NOFOLLOW | os.O_CLOEXEC, _MODO)
+    return os.open(dados / "jobot.lock", flags | _FLAGS, _MODO)
+
+
+def _gravar(fd: int, dados: bytes) -> None:
+    if hasattr(os, "pwrite"):
+        os.pwrite(fd, dados, 0)
+    else:  # Windows
+        os.lseek(fd, 0, os.SEEK_SET)
+        os.write(fd, dados)
+
+
+def _ler(fd: int) -> bytes:
+    if hasattr(os, "pread"):
+        return os.pread(fd, 64, 0)
+    os.lseek(fd, 0, os.SEEK_SET)  # Windows
+    return os.read(fd, 64)
 
 
 class Trava:
@@ -25,24 +86,22 @@ class Trava:
         if self._fd is not None:
             return True
         fd = _abrir(self._dados, os.O_RDWR | os.O_CREAT)
-        try:
-            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError:
+        if not _prender(fd, compartilhada=False):
             os.close(fd)
             return False
         try:
             os.fchmod(fd, _MODO)
             os.ftruncate(fd, 0)
-            os.pwrite(fd, f"{os.getpid()}\n{self._porta}\n".encode(), 0)
+            _gravar(fd, f"{os.getpid()}\n{self._porta}\n".encode())
         except BaseException:
-            os.close(fd)  # sem isso o flock ficaria preso por um descritor sem dono
+            _fechar(fd)  # sem isso a trava ficaria presa por um descritor sem dono
             raise
         self._fd = fd
         return True
 
     def soltar(self) -> None:
         if self._fd is not None:
-            os.close(self._fd)  # fechar o descritor solta o flock
+            _fechar(self._fd)
             self._fd = None
 
 
@@ -53,14 +112,11 @@ def _linhas_da_trava(dados: Path) -> list[str] | None:
     except OSError:
         return None
     try:
-        try:
-            fcntl.flock(fd, fcntl.LOCK_SH | fcntl.LOCK_NB)
-        except BlockingIOError:
-            texto = os.pread(fd, 64, 0).decode("ascii", "replace")
-        else:
+        if _prender(fd, compartilhada=True):
             return None  # ninguém prende a trava
+        texto = _ler(fd).decode("ascii", "replace")
     finally:
-        os.close(fd)  # fechar também solta o flock compartilhado
+        _fechar(fd)
     return texto.split("\n")
 
 
