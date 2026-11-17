@@ -51,7 +51,7 @@ class _Grupo:
 
     async def wait(self) -> int:
         codigo = await self._processo.wait()
-        with contextlib.suppress(ProcessLookupError):  # o líder saiu; um filho pode ter ficado
+        with contextlib.suppress(ProcessLookupError):  # líder saiu; no POSIX um filho pode ficar
             _processo.encerrar_grupo(self._processo, forcar=True)
         return codigo
 
