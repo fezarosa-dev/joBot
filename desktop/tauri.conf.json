@@ -32,6 +32,11 @@
     ],
     "resources": {
       "recursos/": "recursos/"
+    },
+    "windows": {
+      "nsis": {
+        "installerHooks": "windows/ganchos.nsh"
+      }
     }
   }
 }

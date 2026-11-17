@@ -4,6 +4,7 @@
 // origem http://127.0.0.1 remota).
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod fechar;
 mod instalar;
 mod servidor;
 
@@ -22,6 +23,9 @@ use tauri::{
 /// (build local sem recursos), a tela diz que o instalador está incompleto.
 const SHA_MANIFESTO: Option<&str> = option_env!("JOBOT_MANIFESTO_SHA256");
 const VERSAO: &str = env!("CARGO_PKG_VERSION");
+
+/// Se esta abertura da casca subiu o servidor (desenho 5.5): só esse ela pode parar.
+static SUBIU: AtomicBool = AtomicBool::new(false);
 
 /// Tempo que a tela "o joBot abriu no navegador" fica antes de a janela fechar (desenho 5.4).
 const AVISO_DA_JANELA: Duration = Duration::from_secs(10);
@@ -152,7 +156,13 @@ fn abrir_painel(janela: WebviewWindow, base: Url) {
     let dados = dados();
     let resultado = servidor::jobot_instalado(&dados, std::env::consts::OS)
         .ok_or(servidor::Falha::SemInstalacao)
-        .and_then(|jobot| servidor::achar_ou_subir(&dados, &jobot, ambiente));
+        .and_then(|jobot| servidor::achar_ou_subir(&dados, &jobot, ambiente))
+        .map(|achado| {
+            if achado.subiu {
+                SUBIU.store(true, Ordering::Relaxed);
+            }
+            achado.porta
+        });
     ir(&janela, destino_do_arranque(&base, resultado, &dados));
 }
 
@@ -338,12 +348,33 @@ fn trazer_para_frente(app: &AppHandle) {
     }
 }
 
+/// A janela fechou e a casca vai sair: para o servidor que ela subiu, se não for de ficar.
+fn ao_sair() {
+    fechar::ao_fechar(
+        SUBIU.swap(false, Ordering::Relaxed),
+        &dados(),
+        std::env::consts::OS,
+        servidor::perguntar_segundo_plano,
+        |jobot| {
+            // destacado: o `jobot sair` termina o trabalho mesmo com a casca já fechada
+            if let Err(erro) = servidor::comando_destacado(jobot, "sair").spawn() {
+                eprintln!("jobot-app: não consegui rodar jobot sair: {erro}");
+            }
+        },
+    );
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     if let [flag, url] = args.as_slice()
         && flag == "--verificar-janela"
     {
         verificar_janela(url);
+        return;
+    }
+    if args.first().is_some_and(|a| a == "--desinstalar") {
+        // o desinstalador do NSIS (desktop/windows/ganchos.nsh, desenho 7.2)
+        fechar::desinstalar(&dados(), std::env::consts::OS, fechar::rodar_esperando);
         return;
     }
     tauri::Builder::default()
@@ -371,14 +402,14 @@ fn main() {
         })
         .build(tauri::generate_context!())
         .expect("erro ao montar a janela")
-        .run(|app, evento| {
+        .run(|app, evento| match evento {
             // o Cmd+Q do Mac sai sem passar pelo CloseRequested: no meio da instalação, pergunta
-            if let RunEvent::ExitRequested { api, .. } = evento
-                && em_curso(app)
-            {
+            RunEvent::ExitRequested { api, .. } if em_curso(app) => {
                 api.prevent_exit();
                 pedir_fechar(app);
             }
+            RunEvent::Exit => ao_sair(),
+            _ => {}
         });
 }
 
