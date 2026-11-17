@@ -18,6 +18,13 @@ PARES_NOVOS = (
     "texto-2/solido-barra texto/solido-elevado texto-2/solido-elevado texto/segmento"
 ).split()
 
+# os botões da janela desenhados pelo painel (T334; desenho 5.3) sobre a barra e o fundo, a 3:1
+PARES_JANELA = [
+    f"janela-{botao}/{fundo}"
+    for botao in ("fechar", "minimizar", "maximizar", "inativa")
+    for fundo in ("solido-barra", "fundo")
+]
+
 
 def _luminancia(cor: str) -> float:
     canais = [int(cor[i : i + 2], 16) / 255 for i in (1, 3, 5)]
@@ -70,7 +77,7 @@ def test_pares_novos_presentes() -> None:
     assert set(PARES_NOVOS) <= set(texto), set(PARES_NOVOS) - set(texto)
     assert len(texto) == len(set(texto)), "par repetido na lista de texto"
     grafico = _lista(PARES_GRAFICOS, css)
-    assert grafico == ["destaque/trilho-progresso"]
+    assert grafico == ["destaque/trilho-progresso", *PARES_JANELA]
     # o comentário de objeto gráfico não entra na conta de texto (4,5:1)
     assert "destaque/trilho-progresso" not in texto
 
@@ -114,3 +121,12 @@ def test_barra_do_panorama_usa_o_par_grafico() -> None:
     assert barra and preenchimento
     assert "background-color: var(--trilho-progresso)" in barra.group(1)
     assert "fill: var(--destaque)" in preenchimento.group(1)
+
+
+def test_botoes_da_janela_reprovam_com_as_cores_do_mac_no_claro() -> None:
+    """Guarda: o amarelo do Mac (#febc2e) sobre a barra clara não chega a 3:1."""
+    cores = _cores(BASE_CSS.read_text(encoding="utf-8"))
+    cores["janela-minimizar"] = ("#febc2e", "#febc2e")
+    assert _falhas(["janela-minimizar/solido-barra"], cores, MINIMO_GRAFICO) == [
+        "janela-minimizar/solido-barra no tema claro: 1.56"
+    ]
