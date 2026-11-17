@@ -111,6 +111,9 @@ def test_atestacao_com_o_dono_e_o_workflow_do_manifesto() -> None:
     # o pacote conferido é o da URL do manifesto para este alvo, o mesmo que o joBot baixa
     assert "manifesto_local()" in texto and "ALVO" in texto
     assert "GH_TOKEN: ${{ github.token }}" in texto
+    # e o pacote baixado de novo é o do sha256 do manifesto (o que o joBot conferiu e extraiu)
+    assert "['sha256']" in texto
+    assert texto.index("['sha256']") < texto.index("gh attestation verify")
 
 
 # --- conjunto de ouro -------------------------------------------------------------------------
@@ -321,14 +324,25 @@ def test_sem_modelo_baixado_e_modelo_ausente(tmp_path: Path) -> None:
 # --- medir_modelo.py --------------------------------------------------------------------------
 
 
-def test_vagas_longas_tem_o_tamanho_do_corte_e_sao_diferentes() -> None:
+def test_vagas_longas_tem_o_tamanho_do_corte_com_os_requisitos_no_fim() -> None:
     corte = limites()["tarefas"]["encaixe"]["corte"]
-    longas = medir.vagas_longas(_ouro(), 3)
+    ouro = _ouro()
+    longas = medir.vagas_longas(ouro, 3)
     assert len(longas) == 3
-    assert len({d for _, d in longas}) == 3  # o cache do prompt não pula a leitura
-    for titulo, descricao in longas:
+    assert len({d for _, d, _ in longas}) == 3  # o cache do prompt não pula a leitura
+    for (titulo, descricao, esperado), fonte in zip(longas, ouro, strict=False):
+        assert (titulo, esperado) == (fonte["titulo"], fonte["esperado"])
         assert len(descricao) == corte["inicio"] + corte["fim"]
-        assert texto_encaixe(titulo, descricao).cortados == 0
+        # os requisitos ficam no fim, onde costumam estar; o resto é texto de enchimento nosso
+        assert descricao.endswith("\n\n" + fonte["descricao"])
+        texto = texto_encaixe(titulo, descricao)
+        assert texto.cortados == 0
+        assert pede_da_vaga(esperado, texto.texto) == esperado
+
+
+def test_enchimento_nao_pede_nenhuma_habilidade_do_ouro() -> None:
+    todas = {x for vaga in _ouro() for x in vaga["esperado"]}
+    assert pede_da_vaga(sorted(todas), medir.ENCHIMENTO) == []
 
 
 TIMINGS = {
@@ -339,50 +353,49 @@ TIMINGS = {
 }
 
 
-def _cliente_gravado(timings: dict[str, float] | None) -> tuple[Any, httpx.Client]:
-    gravador = medir.Gravador(
-        httpx.MockTransport(
-            lambda _: httpx.Response(200, json=_resposta_openai(["Python"], timings))
-        )
-    )
+def _cliente_gravado(
+    timings: dict[str, float] | None, pede: tuple[str, ...] = ("Python",)
+) -> tuple[Any, httpx.Client]:
+    corpo = _resposta_openai(list(pede), timings)
+    gravador = medir.Gravador(httpx.MockTransport(lambda _: httpx.Response(200, json=corpo)))
     return gravador, httpx.Client(transport=gravador)
 
 
-def test_gravador_le_os_timings_e_a_resposta_segue_legivel() -> None:
+def _local(cliente: httpx.Client) -> Any:
     from jobot.nucleo.ia.compativel_openai import ClienteCompativel
 
+    return ClienteCompativel("local", "http://127.0.0.1:9/v1", "k", cliente=cliente)
+
+
+def test_gravador_le_os_timings_e_a_resposta_segue_legivel() -> None:
     gravador, cliente = _cliente_gravado(TIMINGS)
-    backend = ClienteCompativel("local", "http://127.0.0.1:9/v1", "k", cliente=cliente)
-    resposta = backend.pedir(pedido_encaixe(texto_encaixe("Dev", "Python"), "local", "m"))
+    resposta = _local(cliente).pedir(pedido_encaixe(texto_encaixe("Dev", "Python"), "local", "m"))
     assert resposta.dados == {"pede": ["Python"]}
     assert gravador.timings == [TIMINGS]
 
 
-def test_medir_junta_tempo_e_tokens_por_segundo() -> None:
-    from jobot.nucleo.ia.compativel_openai import ClienteCompativel
-
-    gravador, cliente = _cliente_gravado(TIMINGS)
-    backend = ClienteCompativel("local", "http://127.0.0.1:9/v1", "k", cliente=cliente)
-    vagas = [("Dev", "Python " * 10), ("Dev 2", "Python " * 11)]
-    medidas = medir.medir(
-        backend, gravador, "m", vagas, relogio=iter([0.0, 30.0, 30.0, 70.0]).__next__
-    )
+def test_medir_junta_tempo_tokens_por_segundo_e_acerto() -> None:
+    # "Kubernetes" não está nas vagas (a anti-invenção tira); "Docker" está, mas não é esperado
+    gravador, cliente = _cliente_gravado(TIMINGS, ("Python", "Kubernetes", "Docker"))
+    vagas = [
+        ("Dev", "Python, Docker e Go. " * 10, ["Python", "Go"]),
+        ("Dev 2", "Python " * 11, ["Python"]),
+    ]
+    relogio = iter([0.0, 30.0, 30.0, 70.0]).__next__
+    medidas = medir.medir(_local(cliente), gravador, "m", vagas, relogio=relogio)
     assert [m.segundos for m in medidas] == [30.0, 40.0]
-    assert [(m.leitura_n, m.leitura_tps, m.geracao_n, m.geracao_tps) for m in medidas] == [
-        (1500, 50.0, 40, 8.0)
-    ] * 2
+    numeros = [(m.leitura_n, m.leitura_tps, m.geracao_n, m.geracao_tps) for m in medidas]
+    assert numeros == [(1500, 50.0, 40, 8.0)] * 2
+    assert [(m.itens, m.achados, m.esperados) for m in medidas] == [(2, 1, 2), (1, 1, 1)]
     texto = medir.resumo(medidas, "windows-latest", "Qwen", carga_s=12.0)
-    for parte in ("windows-latest", "Qwen", "50.0", "8.0", "35.0", "40.0", "12.0"):
+    for parte in ("windows-latest", "Qwen", "50.0", "8.0", "35.0", "40.0", "12.0", "67%"):
         assert parte in texto, parte
 
 
 def test_medir_sem_timings_nao_inventa_numero() -> None:
-    from jobot.nucleo.ia.compativel_openai import ClienteCompativel
-
     gravador, cliente = _cliente_gravado(None)
-    backend = ClienteCompativel("local", "http://127.0.0.1:9/v1", "k", cliente=cliente)
-    medida = medir.medir(
-        backend, gravador, "m", [("Dev", "Python")], relogio=iter([0.0, 1.0]).__next__
-    )[0]
+    relogio = iter([0.0, 1.0]).__next__
+    vagas = [("Dev", "Python", ["Python"])]
+    medida = medir.medir(_local(cliente), gravador, "m", vagas, relogio=relogio)[0]
     assert (medida.leitura_tps, medida.geracao_tps) == (None, None)
     assert "?" in medir.resumo([medida], "x", "m", carga_s=0.0)

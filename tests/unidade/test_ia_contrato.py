@@ -248,7 +248,7 @@ def test_ia_json_traz_prazos_limites_e_cortes() -> None:
         "prazo_teste_s": {"fora": 30, "local": 180},
         "resposta_max_bytes": 1048576,
         "tarefas": {
-            "encaixe": {"max_tokens": 1024, "corte": {"inicio": 4000, "fim": 2000}},
+            "encaixe": {"max_tokens": 512, "corte": {"inicio": 4000, "fim": 2000}},
         },
         "laco": {"max_por_rodada": 20, "max_tentativas": 2, "max_por_dia_fora": 200},
         "memoria_gib": {"modelo_4b_desde": 11, "aviso_lento_abaixo": 7},
