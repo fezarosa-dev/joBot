@@ -368,7 +368,11 @@ CITA: Mapping[str, Mapping[str, tuple[str, ...]]] = {
         "atualização": (r"pelo git e pelo uv", r"só quando você pede para atualizar"),
         "2captcha": (r"2Captcha", r"testa a chave"),
         "sites com login": (r"sites com login que você liga", r"vêm desligados", r"pelo navegador"),
-        "navegador": (r"servidores do Playwright", r"só quando você"),
+        "navegador": (
+            r"servidores do Playwright",
+            r"só quando você",
+            r"o marca na instalação",
+        ),
     },
     "en": {
         "fontes": (r"public job sources",),
@@ -380,7 +384,11 @@ CITA: Mapping[str, Mapping[str, tuple[str, ...]]] = {
         "atualização": (r"through git and uv", r"only when you ask to update"),
         "2captcha": (r"2Captcha", r"test the key"),
         "sites com login": (r"sites with login you turn on", r"come off", r"through the browser"),
-        "navegador": (r"Playwright's servers", r"only when you"),
+        "navegador": (
+            r"Playwright's servers",
+            r"only when you",
+            r"check it during installation",
+        ),
     },
 }
 CONDICAO: Mapping[str, Mapping[bool, str]] = {
