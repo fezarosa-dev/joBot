@@ -2,7 +2,7 @@
 
 - **Status:** aceita
 - **Data:** 2026-11-13
-- **Atualizada:** 2026-11-13
+- **Atualizada:** 2026-11-13 e 2026-11-16
 
 ## Contexto
 
@@ -20,7 +20,7 @@ Vagas boas fecham rápido, mas visitar sites com login com frequência aumenta o
 ### Segundo plano
 
 - Rodar em segundo plano é escolha da pessoa: oferecido no assistente de primeira execução e mudável nas configurações.
-- Na fase 1, o segundo plano é o passo 2 da primeira execução. O assistente da fase 1 só tem preferências de busca e segundo plano; os outros passos chegam com as fases deles.
+- Na fase 1, o segundo plano é o passo 2 da primeira execução. Com um site com login registrado, o segundo plano passa a ser o passo 3. O assistente da fase 1 só tem preferências de busca e segundo plano; os outros passos chegam com as fases deles.
 - Com o segundo plano ligado: o joBot inicia com o computador, sem janela, e um atalho "joBot" abre o painel.
 - Se o joBot roda dentro de uma distrobox, o serviço do segundo plano e o atalho passam pelo distrobox-enter. O systemd do sistema principal não enxerga programas dentro do container.
 - Se o computador estava desligado no horário, a execução perdida acontece quando ele liga.
@@ -28,6 +28,10 @@ Vagas boas fecham rápido, mas visitar sites com login com frequência aumenta o
 ## Consequências
 
 - Com o segundo plano desligado, as buscas agendadas dependem de o joBot estar aberto.
+
+## Nota de 2026-11-15: horário perdido da leitura com login (D132.6)
+
+A leitura com login não segue a regra da execução perdida. Um horário perdido (joBot fechado ou máquina desligada durante toda a janela) é pulado, não recuperado ao ligar, e uma leitura que falhou não se repete na mesma janela. As buscas das fontes públicas não mudam. Ok do dono em 2026-11-16.
 
 ## Ver também
 

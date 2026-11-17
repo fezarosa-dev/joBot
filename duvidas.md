@@ -3045,9 +3045,9 @@ Do item 2 (T305 h), aceito e documentado. Sem JavaScript, o detalhe sobreposto f
 
 **Ver também:** T276, E11, E13, E14.
 
-## D169. Cartão do Gmail: frase do cofre, Remover sem JavaScript e troca com o cofre falhando (para confirmar)
+## D169. Cartão do Gmail: frase do cofre, Remover sem JavaScript e troca com o cofre falhando
 
-**Status:** para confirmar. Decidido pela sessão, com o dono fora. (A D168 fica reservada para a T284.)
+**Status:** decidida pelo dono em 2026-11-16: confirmou as escolhas recomendadas abaixo.
 
 **Contexto:** a revisão da T278 (cartão do Gmail na aba Contas) achou três pontos que o plano não fixava:
 
@@ -3073,9 +3073,9 @@ Do item 2 (T305 h), aceito e documentado. Sem JavaScript, o detalhe sobreposto f
 
 **Ver também:** T278, E10, E12, E13, D165, T307, T310.
 
-## D170. A lista depois da faixa "Você se candidatou?" (para confirmar)
+## D170. A lista depois da faixa "Você se candidatou?"
 
-**Status:** para confirmar. Decidido pela sessão, com o dono fora.
+**Status:** decidida pelo dono em 2026-11-16: confirmou as escolhas recomendadas abaixo.
 
 **Contexto:** a E20 do plano do panorama mandava o cartão da lista (`<article id="vaga-{id}">` de `vagas/cartao.html`) pedir `GET /vagas/{id}/cartao` quando a faixa responde, com o `_resposta` ganhando `foco`. A T305 tirou esse cartão: a linha da lista agora é `<a role="option" id="vaga-{id}">` em `vagas/linha.html`, já usa o `hx-get` para abrir o detalhe e não mostra o status (fora da aba Candidatei, onde a T287 pôs o "desde"). O `_resposta` também não existe mais. Sem mudança, depois do "Sim" a linha fica na aba Salvas até a lista ser recarregada, e o "Salvar" do menu dela continua com o estado antigo.
 

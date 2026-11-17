@@ -218,6 +218,8 @@ A T241 não precisa da T238 para o código (os testes usam `LeitorFalso`), mas a
 
 ## Espera o dono
 
+Ok do dono em 2026-11-16 para os itens 1, 2, 4, 6 e 7. Os itens 1 e 2 entraram no `CLAUDE.md` do projeto, que é local e fica fora do git; o 4 e o 6 nas ADRs 0006 e 0022; o 7 entra com a T291, junto do CHANGELOG da 0.3.0. Os itens 3 e 5 seguem esperando.
+
 Estes itens são do lote do primeiro site, mas mudam regra do projeto ou ADR aceita: só entram com o ok do dono. Cada um tem o texto proposto; com o ok, vira uma tarefa de texto, sem código.
 
 1. **`CLAUDE.md` do projeto, regra de coleta educada** (D132.15, pergunta 6 da D132). Texto proposto para trocar o começo da regra: "Coleta educada (ADR 0004 e 0005): nas fontes públicas, user agent fixo do joBot, intervalo por host, respeito a 429 e `Retry-After`. Na navegação com login, o user agent é o do próprio navegador, sem disfarce, com no máximo 30 páginas por site por leitura e de 3 a 8 s entre elas." O resto da regra (401, 403, login, desafio e a exceção da ADR 0022) não muda.
