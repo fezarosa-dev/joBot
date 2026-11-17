@@ -346,7 +346,7 @@ Mudar uma delas muda a tarefa responsável antes de ela começar.
   - O caso `"2026-11-13T12:00:00+00:00"` do `test_datas` continua valendo.
 - [x] **Ver falhar:** `uv run pytest tests/unidade/test_saude_das_fontes.py tests/unidade/test_formatos.py -q`.
 - [x] **Implementar** os itens de Interfaces.
-- [ ] **Ver passar:**
+- [x] **Ver passar:**
   - os mesmos arquivos, mais `tests/integracao/test_rota_fontes.py`, `tests/integracao/test_aviso_contas.py`, `tests/integracao/test_rota_preferencias.py` (registra os dois nomes como globais do Jinja), `tests/unidade/test_rotas_sem_copias.py`, `tests/unidade/test_consultas.py` e `tests/unidade/test_camadas.py`;
   - ruff;
   - a suíte inteira e mypy no CI do `lote/panorama-tela`.
@@ -466,7 +466,7 @@ Mudar uma delas muda a tarefa responsável antes de ela começar.
   - `test_tela_pelo_teclado`: os botões da faixa pelo teclado.
 - [x] **Ver falhar:** `uv run pytest tests/integracao/test_rota_aviso_candidatura.py tests/integracao/test_rota_vagas.py tests/unidade/test_i18n.py -q`.
 - [x] **Implementar** os itens de Interfaces, menos o cartão da lista (R4 acima) e o ícone `circle-help` (falta embutir o SVG do Lucide 1.73.0: pede baixar o pacote).
-- [ ] **Ver passar:** os mesmos arquivos, `tests/integracao/test_rota_candidatura.py`, `tests/unidade/test_estaticos.py`, `tests/unidade/test_contraste.py` e `tests/unidade/test_camadas.py`; ruff; `-m tela` e mypy no CI do `lote/panorama-tela`.
+- [x] **Ver passar:** os mesmos arquivos, `tests/integracao/test_rota_candidatura.py`, `tests/unidade/test_estaticos.py`, `tests/unidade/test_contraste.py` e `tests/unidade/test_camadas.py`; ruff; `-m tela` e mypy no CI do `lote/panorama-tela`.
 
 ### T286: linha do tempo e candidatura por e-mail no detalhe
 `depende_de: T280, T282, T284, T285` · desenho 5.4 (Linha do tempo), 5.6 (A vaga na tela), 5.7 (Botões), P2 (a), E20
@@ -523,7 +523,7 @@ Mudar uma delas muda a tarefa responsável antes de ela começar.
 - [x] **Teste de tela** (CI) em `tests/tela/test_tela_pergunta_candidatura.py`: `test_tela_detalhe_atualiza_depois_da_faixa` (E20). No detalhe de uma vaga Salva com a pergunta pendente, "Sim, me candidatei" na faixa e a espera pelo `GET /vagas/{id}` (`page.expect_response`). A `.situacao` diz Candidatei, o botão de status com `value="nova"` some e aparece o de `value="entrevista"`; a Linha do tempo tem Candidatei. Depois, "Desfazer" na faixa volta a `.situacao` a Salva, e o botão com `value="nova"` volta.
 - [x] **Ver falhar:** `uv run pytest tests/integracao/test_rota_detalhe.py tests/unidade/test_i18n.py -q`.
 - [x] **Implementar** os itens de Interfaces.
-- [ ] **Ver passar:** os mesmos arquivos e `tests/unidade/test_camadas.py`; ruff; `-m tela` e mypy no CI do `lote/panorama-tela`.
+- [x] **Ver passar:** os mesmos arquivos e `tests/unidade/test_camadas.py`; ruff; `-m tela` e mypy no CI do `lote/panorama-tela`.
 
 ### T287: "desde" na aba Candidatei
 `depende_de: T282, T283, T254` · desenho 5.4 (último item), E16
@@ -541,7 +541,7 @@ Mudar uma delas muda a tarefa responsável antes de ela começar.
   - `test_outras_abas_sem_desde`: é guarda e nasce verde. Mutante: mostrar "desde" em toda aba.
 - [x] **Ver falhar:** `uv run pytest tests/integracao/test_rota_vagas.py tests/unidade/test_i18n.py -q`.
 - [x] **Implementar** os itens de Interfaces.
-- [ ] **Ver passar:** os mesmos arquivos e `tests/unidade/test_camadas.py`; ruff; `-m tela` e mypy no CI do `lote/panorama-tela`.
+- [x] **Ver passar:** os mesmos arquivos e `tests/unidade/test_camadas.py`; ruff; `-m tela` e mypy no CI do `lote/panorama-tela`.
 
 ### T288: a tela Panorama
 `depende_de: T282, T283, T285, T253` · desenho 5.1, 5.2, 5.3, 5.10, E11, E12, E13, E19
@@ -632,7 +632,7 @@ Mudar uma delas muda a tarefa responsável antes de ela começar.
   - `test_para_responder_atualiza_com_o_evento`: Sim num botão de "Para responder" mostra a confirmação na faixa, e a lista perde a pergunta sem recarregar.
 - [x] **Ver falhar:** `uv run pytest tests/integracao/test_rota_panorama.py tests/unidade/test_contraste.py tests/unidade/test_i18n.py -q`.
 - [x] **Implementar** os itens de Interfaces e a medição.
-- [ ] **Ver passar:** os mesmos arquivos, `tests/unidade/test_rotas_sem_copias.py`, `tests/unidade/test_estaticos.py` e `tests/unidade/test_camadas.py`; ruff; `-m tela` e mypy no CI do `lote/panorama-tela`.
+- [x] **Ver passar:** os mesmos arquivos, `tests/unidade/test_rotas_sem_copias.py`, `tests/unidade/test_estaticos.py` e `tests/unidade/test_camadas.py`; ruff; `-m tela` e mypy no CI do `lote/panorama-tela`.
 
 ### T289: Panorama na lateral e na paleta
 `depende_de: T288, T265` · desenho 5.1, E12
@@ -656,7 +656,7 @@ Mudar uma delas muda a tarefa responsável antes de ela começar.
 - [x] **Testes de tela** (CI) em `tests/tela/test_casca_menu.py`: o item pelo teclado e a paleta abrindo o Panorama.
 - [x] **Ver falhar:** `uv run pytest tests/integracao/test_casca_menu.py tests/unidade/test_estaticos.py tests/unidade/test_i18n.py -q`.
 - [x] **Implementar** os itens de Interfaces.
-- [ ] **Ver passar:** os mesmos arquivos e `tests/unidade/test_camadas.py`; ruff; a suíte inteira, `-m tela` e mypy no CI do `lote/panorama-tela`.
+- [x] **Ver passar:** os mesmos arquivos e `tests/unidade/test_camadas.py`; ruff; a suíte inteira, `-m tela` e mypy no CI do `lote/panorama-tela`.
 
 ### T290: documentos de quem usa
 `depende_de: T284, T285, T286, T287, T288, T289` · desenho 5.9
