@@ -295,6 +295,8 @@ body {
 
 /* faixa "Você se candidatou?" (T285): a mesma caixa das outras; o campo escondido `mostrando` fica
    sempre lá, então a faixa vazia não tem altura por não ter caixa, não por `:empty` */
+.aviso-versao,
+.aviso-versao [data-atualizar-demorou],
 .aviso-candidatura,
 .aviso-candidatura .pergunta {
   display: flex;
@@ -307,11 +309,13 @@ body {
   flex: 1;
 }
 
+.aviso-versao p,
 .aviso-candidatura p {
   margin: 0;
   overflow-wrap: anywhere;
 }
 
+.aviso-versao p,
 .aviso-candidatura > p,
 .aviso-candidatura .pergunta-texto {
   flex: 1;
@@ -322,8 +326,24 @@ body {
   color: var(--texto-2);
 }
 
+.aviso-versao form,
 .aviso-candidatura form {
   display: contents;
+}
+
+/* "Atualizar agora" (T332): a barra e a explicação dos 120 s ocupam a linha inteira; o display
+   acima venceria o [hidden] do navegador */
+.aviso-versao [data-atualizar-barra],
+.aviso-versao [data-atualizar-demorou] {
+  flex-basis: 100%;
+}
+
+.aviso-versao [hidden] {
+  display: none;
+}
+
+.aviso-versao .progresso-corpo {
+  max-inline-size: 100%;
 }
 
 #aviso-erro:not([hidden]) {

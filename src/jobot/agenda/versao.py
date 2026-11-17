@@ -66,16 +66,23 @@ def aviso_ligado(con: sqlite3.Connection) -> bool:
     return ler_config(con, "aviso_versao_ligada") is True
 
 
+def ultima_conhecida(con: sqlite3.Connection) -> str | None:
+    """A etiqueta da última checagem, se válida, com o aviso ligado ou não (Configurações)."""
+    etiqueta = ler_config(con, "versao_nova", None)
+    return etiqueta if isinstance(etiqueta, str) and versao_da_etiqueta(etiqueta) else None
+
+
+def mais_nova_que_a_instalada(etiqueta: str) -> bool:
+    nova, atual = versao_da_etiqueta(etiqueta), _versao_atual()
+    return nova is not None and atual is not None and nova > atual
+
+
 def versao_para_avisar(con: sqlite3.Connection) -> str | None:
     """A etiqueta gravada, se o aviso está ligado e ela é maior que a versão instalada."""
     if not aviso_ligado(con):
         return None
-    etiqueta = ler_config(con, "versao_nova", None)
-    nova = versao_da_etiqueta(etiqueta)
-    atual = _versao_atual()
-    if nova is None or atual is None or nova <= atual:
-        return None
-    return str(etiqueta)
+    etiqueta = ultima_conhecida(con)
+    return etiqueta if etiqueta is not None and mais_nova_que_a_instalada(etiqueta) else None
 
 
 def _venceu(con: sqlite3.Connection, agora: datetime) -> bool:

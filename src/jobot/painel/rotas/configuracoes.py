@@ -33,7 +33,8 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse, Response
 from starlette.concurrency import run_in_threadpool
 
-from jobot.agenda.versao import aviso_ligado
+from jobot import __version__
+from jobot.agenda.versao import aviso_ligado, mais_nova_que_a_instalada, ultima_conhecida
 from jobot.banco import buscas, cadastros, cotacoes
 from jobot.banco.cadastros import PADROES, gravar_config, ler_config, ligar_fonte, meu_pais
 from jobot.banco.captcha import NOME_NO_COFRE
@@ -163,12 +164,16 @@ async def _ctx_segundo_plano(request: Request, con: Con) -> dict[str, Any]:
 async def _ctx_geral(request: Request, con: Con) -> dict[str, Any]:
     pais = meu_pais(con)
     moeda = ler_config(con, "moeda_exibicao")
+    ultima = ultima_conhecida(con)
     return {
         "paises": opcoes_de_pais(idioma_do_pedido(request)),
         "meu_pais": pais,
         "moedas": MOEDAS_EXIBICAO,
         "moeda_exibicao": moeda if isinstance(moeda, str) and moeda in MOEDAS_EXIBICAO else "",
         "moeda_do_pais": moeda_do_pais(pais),
+        "versao_atual": __version__,
+        "versao_ultima": ultima,
+        "tem_versao_nova": ultima is not None and mais_nova_que_a_instalada(ultima),
     }
 
 
