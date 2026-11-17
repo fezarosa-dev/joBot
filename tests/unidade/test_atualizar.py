@@ -28,7 +28,7 @@ import pytest
 from jobot import __version__
 from jobot.cli import COMANDOS, main
 from jobot.sistema import atualizar as modulo
-from jobot.sistema import casca
+from jobot.sistema import casca, processo
 from jobot.sistema.atualizar import atualizar, tipo_de_instalacao
 from jobot.sistema.instancia import Trava
 from jobot.sistema.pastas import pasta_do_playwright
@@ -559,7 +559,7 @@ class _Casca:
         if c[0] == "systemctl":
             nome = f"systemctl {c[2]}"
         else:
-            nome = f"{Path(c[0]).name} {c[1]}"
+            nome = f"{Path(c[0]).stem} {c[1]}"
         self.registro.append(nome)
         if nome in self.falha_em:
             return self.falha_em[nome]
@@ -616,10 +616,16 @@ def _instalada(dados: Path, *, chromium_sha: str = "a" * 64) -> Path:
 def sem_playwright(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("PLAYWRIGHT_BROWSERS_PATH", raising=False)
     monkeypatch.delenv("XDG_CACHE_HOME", raising=False)
+    monkeypatch.delenv("LOCALAPPDATA", raising=False)  # no Windows, a pasta vem da casa falsa
+
+
+def _no_venv(venv: Path, nome: str) -> Path:
+    """O executável do venv, escrito à mão para o teste não usar o `casca.no_venv`."""
+    return venv / "Scripts" / f"{nome}.exe" if sys.platform == "win32" else venv / "bin" / nome
 
 
 def _com_chromium(tmp_path: Path) -> None:
-    (tmp_path / "casa" / ".cache" / "ms-playwright" / "chromium-1187").mkdir(parents=True)
+    (pasta_do_playwright(os.environ) / "chromium-1187").mkdir(parents=True)
 
 
 def _atualizar_casca(
@@ -665,19 +671,21 @@ def test_casca_monta_o_venv_novo_prova_e_so_entao_troca(
     assert release.pedidos == [SOMAS, f"{TAG}/{PACOTE}"]  # sem Chromium instalado, não baixa
     uv = str(pasta / "bin" / "uv")
     venv_cmd = next(c for c in rodar.comandos if c[:2] == (uv, "venv"))
-    python_novo = pasta / "python" / "cpython-3.14.9-install_only" / "python" / "bin" / "python3"
+    extraido = pasta / "python" / "cpython-3.14.9-install_only" / "python"
+    windows = sys.platform == "win32"
+    python_novo = extraido / "python.exe" if windows else extraido / "bin" / "python3"
     assert venv_cmd[venv_cmd.index("--python") + 1] == str(python_novo)
     assert "--offline" in venv_cmd and venv_cmd[-1] == str(novo)
     pip = next(c for c in rodar.comandos if c[:2] == (uv, "pip"))
     for opcao in ("--offline", "--no-index", "--require-hashes"):
         assert opcao in pip
-    assert pip[pip.index("--python") + 1] == str(novo / "bin" / "python")
+    assert pip[pip.index("--python") + 1] == str(_no_venv(novo, "python"))
     assert Path(pip[pip.index("--find-links") + 1]).name == "wheels"
     # no --require-hashes todo requisito precisa de hash: o joBot vem pelo restricoes.txt
     assert pip[-2:][0] == "-r" and Path(pip[-1]).name == "restricoes.txt"
     assert not any(a.endswith(".whl") for a in pip)
-    assert (str(novo / "bin" / "jobot"), "--version") in rodar.comandos
-    assert (str(novo / "bin" / "jobot"), "segundo-plano", "ligar") in rodar.comandos
+    assert (str(_no_venv(novo, "jobot")), "--version") in rodar.comandos
+    assert (str(_no_venv(novo, "jobot")), "segundo-plano", "ligar") in rodar.comandos
     instalacao = casca.ler_instalacao(tmp_path)
     assert instalacao["venv"] == str(novo)
     assert instalacao["anterior"] == str(pasta / "venvs" / "venv-0.3.0")
@@ -708,7 +716,7 @@ def test_casca_sem_plano_sobe_o_servidor_do_venv_novo(tmp_path: Path, sem_playwr
         )
     finally:
         trava.soltar()
-    assert registro[-1] == f"subir_em {pasta / 'venvs' / f'venv-{VERSAO}' / 'bin' / 'python'}"
+    assert registro[-1] == f"subir_em {_no_venv(pasta / 'venvs' / f'venv-{VERSAO}', 'python')}"
     assert "subir" not in registro and "jobot segundo-plano" not in registro
 
 
@@ -793,7 +801,7 @@ def test_casca_baixa_o_chromium_novo_antes_da_troca(tmp_path: Path, sem_playwrig
     assert _atualizar_casca(tmp_path, release, rodar, registro) == 0
     assert release.pedidos == [SOMAS, f"{TAG}/{PACOTE}", f"{TAG}/{CHROMIUM}"]
     baixar = next(c for c in rodar.comandos if c[1:4] == ("ferramentas", "baixar", "navegador"))
-    assert baixar[0] == str(pasta / "venvs" / f"venv-{VERSAO}" / "bin" / "jobot")
+    assert baixar[0] == str(_no_venv(pasta / "venvs" / f"venv-{VERSAO}", "jobot"))
     assert Path(baixar[baixar.index("--arquivo") + 1]).name == CHROMIUM
     assert baixar[baixar.index("--sha256") + 1] == _sha(CHROMIUM_NOVO)
     # depois da prova do venv novo e antes de parar qualquer coisa
@@ -985,10 +993,11 @@ def test_lancar_atualizacao_roda_destacado_com_a_pasta_e_o_log(
     assert kwargs["env"] == {"PATH": "/usr/bin", "JOBOT_DADOS": str(tmp_path)}
     assert kwargs["stdin"] == subprocess.DEVNULL
     assert kwargs["stderr"] == subprocess.STDOUT
-    assert kwargs["start_new_session"] is True
+    assert {k: kwargs[k] for k in processo.destacar()} == processo.destacar()
     log = tmp_path / "logs" / "atualizar.log"
     assert log.read_bytes() == b"saida\n"
-    assert log.stat().st_mode & 0o777 == 0o600
+    if sys.platform != "win32":  # modo do POSIX
+        assert log.stat().st_mode & 0o777 == 0o600
     # a segunda vez acrescenta, não apaga o que a primeira deixou
     modulo.lancar_atualizacao(tmp_path, {}, cgroup=tmp_path / "sem-cgroup")
     assert log.read_bytes() == b"saida\nsaida\n"

@@ -1,4 +1,4 @@
-"""Prende o `casca.yml` (gatilhos, permissões, actions fixadas) e a página da prova da janela."""
+"""Prende o `casca.yml` (gatilhos, permissões, jobs, actions) e a página da prova da janela."""
 
 import importlib.util
 import re
@@ -35,6 +35,11 @@ def test_casca_roda_em_pr_em_lote_e_a_mao_sem_segredo() -> None:
         "push:",
         "branches: ['lote/**']",
         "workflow_dispatch:",
+        "inputs:",
+        "pacotes:",
+        "description: Gera os instaladores, sem publicar",
+        "type: boolean",
+        "default: false",
     ]
     assert "pull_request_target" not in texto
     assert _secao(texto, "permissions") == ["contents: read"]
@@ -49,19 +54,64 @@ def test_actions_fixadas_por_hash_com_versao() -> None:
         assert re.fullmatch(r"[\w.-]+/[\w.-]+@[0-9a-f]{40} # v\d+\.\d+\.\d+", uso), uso
 
 
-def test_job_linux_confere_a_janela_sob_xvfb() -> None:
-    texto = _codigo()
+def _job(nome: str) -> str:
+    """O bloco de um job (do `  nome:` até o próximo job), sem os comentários."""
+    linhas = _codigo().splitlines()
+    inicio = linhas.index(f"  {nome}:") + 1
+    corpo = []
+    for linha in linhas[inicio:]:
+        if re.match(r"  \S", linha) or (linha and not linha.startswith(" ")):
+            break
+        corpo.append(linha)
+    return "\n".join(corpo)
+
+
+def test_jobs_da_casca() -> None:
+    jobs = re.findall(r"^  (\w+):$", _codigo().split("\njobs:\n", 1)[1], re.MULTILINE)
+    assert jobs == ["casca", "windows", "uv", "pacotes"]
+    for nome in jobs:
+        assert "timeout-minutes:" in _job(nome), nome
+
+
+def test_job_casca_confere_rust_e_a_janela_sob_xvfb() -> None:
+    texto = _job("casca")
     assert "runs-on: ubuntu-22.04" in texto
-    assert "timeout-minutes:" in texto
     for passo in (
         "libwebkit2gtk-4.1-dev",
+        "--component rustfmt --component clippy",
         "cargo fmt --check",
+        "cargo clippy --locked --all-targets -- -D warnings",
         "cargo test --locked",
         "xvfb-run",
         "--verificar-janela",
         "scripts/prova_janela.py",
     ):
         assert passo in texto, passo
+
+
+def test_job_windows_roda_os_testes_de_sistema() -> None:
+    texto = _job("windows")
+    assert "runs-on: windows-latest" in texto
+    assert "uv sync --locked" in texto
+    filtro = '-k "pastas or instancia or processo or segundo_plano or atualizar"'
+    assert f"uv run pytest tests/unidade {filtro}" in texto
+
+
+def test_job_uv_so_a_mao_nos_tres_sistemas() -> None:
+    texto = _job("uv")
+    assert "if: github.event_name == 'workflow_dispatch'" in texto
+    assert "os: [ubuntu-latest, windows-latest, macos-latest]" in texto
+    assert "runs-on: ${{ matrix.os }}" in texto
+    assert "uv run python scripts/provar_uv.py" in texto
+
+
+def test_job_pacotes_so_com_a_entrada_e_sem_publicar() -> None:
+    texto = _job("pacotes")
+    assert "if: github.event_name == 'workflow_dispatch' && inputs.pacotes" in texto
+    assert "os: [ubuntu-22.04, windows-latest, macos-latest, macos-15-intel]" in texto
+    assert "cargo install tauri-cli --version =2.12.4 --locked" in texto
+    assert "cargo tauri build" in texto
+    assert "release" not in texto.replace("--release", "")
 
 
 def _prova() -> ModuleType:

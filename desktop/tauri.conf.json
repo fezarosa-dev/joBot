@@ -1,17 +1,43 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "joBot",
+  "version": "0.3.0",
   "identifier": "io.github.fezarosa-dev.jobot",
-  "build": {},
+  "build": {
+    "frontendDist": "ui"
+  },
   "app": {
     "withGlobalTauri": true,
-    "windows": [],
+    "windows": [
+      {
+        "label": "main",
+        "create": false,
+        "url": "verificar.html",
+        "title": "joBot",
+        "width": 1200,
+        "height": 800,
+        "minWidth": 800,
+        "minHeight": 560,
+        "center": true,
+        "decorations": false
+      }
+    ],
     "security": {
       "csp": null
     }
   },
   "bundle": {
     "active": false,
-    "icon": ["icons/icon.png"]
+    "icon": [
+      "icons/icon.png"
+    ],
+    "resources": {
+      "recursos/": "recursos/"
+    },
+    "windows": {
+      "nsis": {
+        "installerHooks": "windows/ganchos.nsh"
+      }
+    }
   }
 }
