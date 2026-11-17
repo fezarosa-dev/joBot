@@ -40,5 +40,21 @@
   "alerta.parar": "Stop and Close",
   "alerta.continuar": "Continue Installing",
   "falha.detalhe": "Details",
-  "parando": "Stopping…"
+  "parando": "Stopping…",
+  "abrir_jobot": "Open joBot",
+  "ferramentas.grupo_ia": "Artificial intelligence (optional)",
+  "ferramentas.ia_local": "Local model",
+  "ferramentas.ia_local_frase": "To use AI offline and for free. If you check it, it downloads {de} to {ate} from the internet, depending on the computer's memory; you can download it later in Settings › Tools.",
+  "ferramentas.tamanho_ate": "up to {tamanho}",
+  "etapa.ia_local": "Downloading the local model",
+  "pronto.ia_local": "joBot is installed, but the local model did not download: {motivo}. Download it later in Settings › Tools.",
+  "ia_local.motivo.sem_rede": "no internet connection",
+  "ia_local.motivo.espaco": "not enough disk space",
+  "ia_local.motivo.arquivo": "the downloaded file does not match",
+  "ia_local.motivo.ocupado": "another download of the model is in progress",
+  "ia_local.motivo.programa_ausente": "the model program does not run on this computer",
+  "ia_local.motivo.modelo_ausente": "the model is not available for this computer",
+  "ia_local.motivo.outro": "the download did not finish",
+  "alerta.titulo_ia": "Stop the model download?",
+  "alerta.texto_ia": "joBot is already installed. The download stops and resumes later in Settings › Tools."
 }
