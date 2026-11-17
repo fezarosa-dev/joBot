@@ -2,6 +2,7 @@
 
 - **Status:** aceita
 - **Data:** 2026-11-15
+- **Atualizada:** 2026-11-16
 
 ## Contexto
 
@@ -64,6 +65,10 @@ O desenho completo (parte do 2Captcha e a parte da IA pela sessão, que fica reg
 - A regra "nunca contorna CAPTCHA" continua valendo nas fontes públicas, no `README.md`, na wiki e no `CLAUDE.md` do projeto. Esses textos mudam junto com o código da fase 2, não antes.
 - Antes de construir, o dono confirma esta decisão (D124). Se não confirmar, a 0005 e a 0014 voltam ao texto anterior.
 - Desfazer: tirar a aba e o cliente da API e apagar a chave do cofre.
+
+## Reparo de 2026-11-15: o Turnstile (D132.44)
+
+Na fase 2, o 2Captcha só resolve o Turnstile avulso numa página. A página inteira de desafio do Cloudflare, mesmo com o Turnstile dentro, fica 30 s para sair sozinha e depois vai para a pessoa, sem 2Captcha. O reCAPTCHA v3 também fica fora da fase 2. Ok do dono em 2026-11-16.
 
 ## Ver também
 
