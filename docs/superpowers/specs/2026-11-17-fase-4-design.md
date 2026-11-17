@@ -128,7 +128,7 @@ desktop/                    Modelo local no grupo de IA do instalador
 - **Esquema por backend.** O esquema completo sai de `model_json_schema()`; `esquema_para(backend, modelo)` tira o que cada backend não aceita, e os limites tirados continuam conferidos pelo pydantic na resposta. llama.cpp: repetição acima de 2000 quebra a gramática (`MAX_REPETITION_THRESHOLD` em `src/llama-grammar.cpp` do b12359), então `maxLength` e `maxItems` acima de 2000 saem. OpenAI `strict`: só as palavras-chave da lista da documentação (conferida na T405 em 2026-11-17: sem `maxLength`, e todo campo em `required`). Gemini compatível e compatível genérico: a da OpenAI sem `pattern`, `multipleOf` e os `exclusive*`, que o Gemini não cita (D191.1). Anthropic (`input_schema`): o esquema inteiro. Teste por backend: toda palavra-chave do esquema enviado está na lista permitida daquele backend.
 - **Prazo, tamanho e gasto por chamada.** `prazo_s` (60 s fora, 180 s local; proposta, revistos pela medida da T410) vira o `timeout` do `httpx`, que fecha a conexão (o `llama-server` cancela o pedido quando a conexão fecha). `max_tokens` por tarefa em `ia.json` (a API da Anthropic exige; nos outros limita o gasto). Resposta com teto de 1 MB, lida em fluxo.
 - **Cliente HTTP da IA.** `httpx.Client` próprio da IA (não o `ClienteEducado`, que é da coleta): `follow_redirects=False` (chave e dado nunca são reenviados a outro host, padrões «HTTP»), e `trust_env=False` no modelo local (um proxy do ambiente não leva para fora o pedido ao `127.0.0.1`).
-- **Endereço do compatível.** `http` só para `127.0.0.1`, `localhost` e `::1`; fora disso, só `https`. Recusa `usuario:senha@`, query e fragmento.
+- **Endereço do compatível.** `http` só para `127.0.0.1`, `localhost` e `::1`; fora disso, só `https`. Recusa `usuario:senha@`, query, fragmento e espaço ou caractere invisível no meio; espaço nas pontas sai (D191.13).
 - **Versão.** Cada tarefa tem `VERSAO` (sobe quando o texto do pedido ou o esquema mudam). O resultado guardado leva `versao`, `backend` e `modelo`.
 
 ### 5.2 As tarefas
@@ -142,7 +142,7 @@ desktop/                    Modelo local no grupo de IA do instalador
 
 - **Lista permitida, não lista proibida** (D185.22). Cada tarefa declara os campos que entram; o resto nunca entra. Nome, e-mail, telefone e cidade nunca entram em nenhuma. Todo texto livre que entra (resumo, descrição de experiência, resposta de pergunta) passa pela mesma limpeza de e-mail, telefone e CPF. O teste serializa o pedido de um perfil com o e-mail escondido no resumo e numa resposta e exige que o e-mail não apareça.
 - **Corte do texto.** Teto de caracteres por tarefa e backend em `ia.json`, tirado do contexto do modelo (local: `-c 8192`). Vaga: 6000 caracteres (proposta), guardando os 4000 primeiros e os 2000 últimos (requisitos costumam ficar no fim); currículo: 12000 no local e 40000 fora (proposta). Cortou: a tela diz "a IA leu só parte do texto". Mesmo assim o pedido passa do contexto: `Falha("contexto")`.
-- **Determinismo.** `encaixe` e `curriculo` vão com temperatura 0 e `seed` fixo no corpo do pedido (onde o backend aceita), para a mesma vaga dar o mesmo `pede`.
+- **Determinismo.** `encaixe` e `curriculo` vão com temperatura 0 e `seed` fixo no corpo do pedido (onde o backend aceita), para a mesma vaga dar o mesmo `pede`. A OpenAI não leva `temperature` (os modelos de raciocínio só aceitam o padrão) e leva `max_completion_tokens` no lugar de `max_tokens` (D191.12).
 - Offline, todas as tarefas usam o Qwen local. Nunca Opus (ADR 0009).
 
 ### 5.3 Pedido e dados de terceiros
