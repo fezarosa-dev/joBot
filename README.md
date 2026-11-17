@@ -31,7 +31,7 @@ Ele junta, filtra e organiza vagas de muitos sites num painel bonito que roda no
 </div>
 
 > [!IMPORTANT]
-> **As fases 1 e 2 do joBot (a base e o navegador com login) estão prontas: versão 0.3.0.** Ele busca vagas em fontes públicas, guarda tudo no seu computador e mostra num painel. Já dá para [instalar e usar](#requisitos-e-instalacao).
+> **As fases 1, 2 e 3 do joBot (a base, o navegador com login e o instalador) estão prontas: versão 0.4.0.** Ele busca vagas em fontes públicas, guarda tudo no seu computador e mostra num painel. Já dá para [instalar e usar](#requisitos-e-instalacao).
 > O LinkedIn é o site com login de hoje (outros podem vir pelo [molde de site novo](docs/site-novo.md)); chega na próxima versão e vem desligado. O cartão do Gmail já está em Configurações, Contas; a leitura dos e-mails, o áudio e o resto (os outros sites com login, IA e extensão do navegador) ainda são plano. Veja o [roteiro](#roteiro). Antes de ligar as fontes, leia os [avisos de uso e de termos](#licenca-e-avisos).
 
 ## 📑 Sumário
@@ -63,7 +63,7 @@ Procurar vaga hoje cansa. É preciso abrir muitos sites, repetir os mesmos filtr
 O joBot faz esse trabalho repetitivo por você. Ele visita os sites de vagas, junta tudo num lugar só e mostra o que combina com o que você procura.
 Tudo roda no seu computador. Uma instalação serve a uma pessoa, que pode ter várias buscas salvas.
 
-O que ele faz hoje (fases 1 e 2):
+O que ele faz hoje (fases 1, 2 e 3):
 
 - 🔎 **Buscar** vagas em dezenas de fontes públicas: sites, APIs e quadros de vagas de empresas.
 - 🧹 **Limpar**: remove vagas repetidas, lê o salário e marca área, nível, modalidade, região e tipo de contrato.
@@ -271,7 +271,7 @@ O app usa só dois modelos: Haiku 5.5 (`claude-haiku-5-5`), mais rápido e barat
 
 ### Pacote offline
 
-O instalador ainda vai chegar (fase 3) e o pacote offline é da fase 4. Quando o instalador chegar, ele vai mostrar uma lista de ferramentas para você marcar, e o pacote offline vai aparecer nela. Ele vai permitir usar IA sem internet e sem pagar nada. O que você não marcar, dá para baixar depois no painel, em Configurações, na tela Ferramentas. Lá você também pode mudar a sua escolha.
+O instalador chegou na fase 3 (versão 0.4.0) e o pacote offline é da fase 4. O instalador mostra uma lista de ferramentas para você marcar, e o pacote offline vai aparecer nela. Ele vai permitir usar IA sem internet e sem pagar nada. O que você não marcar, dá para baixar depois no painel, em Configurações, na tela Ferramentas. Lá você também pode mudar a sua escolha.
 
 | Item | Tamanho | Observação |
 |---|---|---|
@@ -498,7 +498,7 @@ Cada fase só começa depois que a anterior passa nos testes. Não há datas pro
 |---|---|---|
 | **1. Base** | Núcleo comum, fontes públicas, banco, painel e agenda | 🟢 Pronta (versão 0.1.0) |
 | **2. Navegador com login** | Login pela janela comum, LinkedIn primeiro, mapeamento dos sites, tratamento de CAPTCHA | 🟢 Pronta (versão 0.3.0) |
-| **3. Instalador** | Instalador de 64 bits, com lista de ferramentas para marcar (Windows e Linux primeiro, Mac depois) | 🟡 Sendo construída |
+| **3. Instalador** | Instalador de 64 bits, com lista de ferramentas para marcar (Windows e Linux primeiro, Mac depois) | 🟢 Pronta (versão 0.4.0) |
 | **4. IA local** | Pacote offline (llama-server + Qwen) | ⚪ Planejada |
 | **5. Extensão do navegador** | Extensão do navegador para formulários | ⚪ Planejada |
 | **6. Áudio e Gmail** | Respostas por voz e leitura de e-mails | ⚪ Planejada |
@@ -506,7 +506,7 @@ Cada fase só começa depois que a anterior passa nos testes. Não há datas pro
 | **8. Versão GitHub Pages** | Versão GitHub Pages, sem instalação | ⚪ Planejada |
 | **9. Publicação** | README com selos e revisão de segurança | ⚪ Planejada |
 
-A versão 0.3.0 saiu entre a fase 2 e a fase 3, com a tela "Panorama" e a fila de candidaturas completa.
+A versão 0.3.0 saiu entre a fase 2 e a fase 3, com a tela "Panorama" e a fila de candidaturas completa. A versão 0.4.0 fecha a fase 3, com a janela própria e o instalador.
 
 <a id="perguntas-frequentes"></a>
 ## ❓ Perguntas frequentes
@@ -552,7 +552,7 @@ Cada decisão importante está registrada num documento curto, chamado ADR (regi
 <a id="como-contribuir"></a>
 ## 🤝 Como contribuir
 
-O repositório está no GitHub. As fases 1 e 2 estão prontas, a fase 3 (o instalador) está sendo construída, e as próximas estão em planejamento.
+O repositório está no GitHub. As fases 1, 2 e 3 estão prontas, e as próximas estão em planejamento.
 
 - **Sugestões e fontes de vagas** já podem ser enviadas pelas issues, com formulários prontos.
 - **Dúvidas** vão pelo [formulário de dúvida](https://github.com/fezarosa-dev/joBot/issues/new?template=duvida.yml). Leia antes as [perguntas frequentes](https://github.com/fezarosa-dev/joBot/wiki/Perguntas-frequentes).
