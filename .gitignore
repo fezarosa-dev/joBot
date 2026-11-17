@@ -24,3 +24,5 @@ htmlcov/
 # Casca de desktop (Tauri): build e esquemas gerados
 desktop/target/
 desktop/gen/
+desktop/ui/painel/
+desktop/recursos/
