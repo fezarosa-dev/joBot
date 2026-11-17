@@ -6,7 +6,9 @@ import hashlib
 import io
 import json
 import os
+import shutil
 import stat
+import subprocess
 import sys
 import tarfile
 from collections.abc import Callable, Iterator
@@ -23,6 +25,7 @@ from jobot.banco.cadastros import gravar_config, ler_config
 from jobot.banco.conexao import abrir
 from jobot.banco.migrar import migrar
 from jobot.cli import ferramentas
+from jobot.sistema import processo
 from jobot.sistema.llama import FalhaLlama, Llama
 from jobot.sistema.memoria import GIB
 from jobot.sistema.pastas import preparar_pasta
@@ -102,6 +105,17 @@ def rede() -> Iterator[Rede]:
     r.cliente.close()
 
 
+class Derrubar:
+    """O `llama.encerrar_sobra` falso: guarda o que `ver` diz no momento de cada chamada."""
+
+    def __init__(self, ver: Callable[[], object]) -> None:
+        self.ver = ver
+        self.vistos: list[object] = []
+
+    def __call__(self, dados: Path) -> None:
+        self.vistos.append(self.ver())
+
+
 class Versao:
     """O `llama-server --version` falso: grava o programa e os pedidos já feitos à rede."""
 
@@ -126,6 +140,7 @@ def _baixar(
     *,
     versao: Callable[[Path], bool] | None = None,
     memoria: Callable[[], int] = lambda: 16 * GIB,
+    encerrar_sobra: Callable[[Path], None] = lambda dados: None,
 ) -> int:
     return ferramentas.baixar_ia_local(
         dados,
@@ -135,12 +150,26 @@ def _baixar(
         versao=versao or Versao(rede),
         memoria=memoria,
         alvo="ubuntu-x64",
+        encerrar_sobra=encerrar_sobra,
     )
 
 
-def _atualizar(dados: Path, rede: Rede, manifesto: dict[str, Any]) -> int:
+def _atualizar(
+    dados: Path,
+    rede: Rede,
+    manifesto: dict[str, Any],
+    *,
+    encerrar_sobra: Callable[[Path], None] = lambda dados: None,
+    dormir: Callable[[float], None] = lambda s: None,
+) -> int:
     return ferramentas.atualizar_ia_local(
-        dados, manifesto=manifesto, cliente=rede.cliente, versao=Versao(rede), alvo="ubuntu-x64"
+        dados,
+        manifesto=manifesto,
+        cliente=rede.cliente,
+        versao=Versao(rede),
+        alvo="ubuntu-x64",
+        encerrar_sobra=encerrar_sobra,
+        dormir=dormir,
     )
 
 
@@ -237,6 +266,17 @@ def test_modelo_escolhido_nao_le_a_memoria(tmp_path: Path, rede: Rede) -> None:
     assert _baixar(tmp_path, rede, rede.manifesto(), "4b", memoria=memoria) == 0
 
 
+def test_memoria_que_nao_se_le_falha_pela_linha_fim(
+    tmp_path: Path, rede: Rede, capsys: pytest.CaptureFixture[str]
+) -> None:
+    def memoria() -> int:
+        raise OSError("GlobalMemoryStatusEx")
+
+    assert _baixar(tmp_path, rede, rede.manifesto(), "auto", memoria=memoria) == 1
+    assert rede.pedidos == []
+    assert _linhas(capsys.readouterr().out) == [{"fim": "falhou", "motivo": "arquivo"}]
+
+
 def test_sem_alvo_para_este_computador_falha_sem_pedido(
     tmp_path: Path, rede: Rede, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -321,9 +361,74 @@ def test_atualizar_sem_mudanca_nao_pede_nada(tmp_path: Path, rede: Rede) -> None
 def test_trocar_de_modelo_apaga_o_outro(tmp_path: Path, rede: Rede) -> None:
     manifesto = rede.manifesto()
     assert _baixar(tmp_path, rede, manifesto, "2b") == 0
-    assert _baixar(tmp_path, rede, manifesto, "4b") == 0
+    velho = _ferramentas(tmp_path) / "modelos" / manifesto["modelos"]["2b"]["arquivo"]
+    derrubar = Derrubar(lambda: velho.is_file())
+    assert _baixar(tmp_path, rede, manifesto, "4b", encerrar_sobra=derrubar) == 0
     modelos = _ferramentas(tmp_path) / "modelos"
     assert _nomes(modelos) == [manifesto["modelos"]["4b"]["arquivo"]]
+    assert derrubar.vistos[:1] == [True]  # o `llama-server` cai antes de apagar o GGUF velho
+
+
+def test_atualizar_derruba_o_servidor_antes_de_trocar_o_build_e_o_modelo(
+    tmp_path: Path, rede: Rede
+) -> None:
+    velho = rede.manifesto()
+    assert _baixar(tmp_path, rede, velho, "2b") == 0
+    build = _ferramentas(tmp_path) / "llama" / "b1"
+    gguf = _ferramentas(tmp_path) / "modelos" / velho["modelos"]["2b"]["arquivo"]
+    derrubar = Derrubar(lambda: (build.is_dir(), gguf.is_file()))
+    novo = rede.manifesto(build="b2", modelos={"2b": GGUF_2B + b"novo"})
+    assert _atualizar(tmp_path, rede, novo, encerrar_sobra=derrubar) == 0
+    assert derrubar.vistos[:1] == [(True, True)]
+    assert (build.exists(), gguf.exists()) == (False, False)
+
+
+def test_mesmo_nome_com_outro_conteudo_derruba_antes_de_trocar(tmp_path: Path, rede: Rede) -> None:
+    """No Windows, o GGUF aberto pelo `llama-server` não pode ser trocado pelo `os.replace`."""
+    velho = rede.manifesto()
+    assert _baixar(tmp_path, rede, velho, "2b") == 0
+    gguf = _ferramentas(tmp_path) / "modelos" / velho["modelos"]["2b"]["arquivo"]
+    novo = rede.manifesto(modelos={"2b": GGUF_2B + b"novo"})
+    novo["modelos"]["2b"]["arquivo"] = gguf.name
+    derrubar = Derrubar(lambda: gguf.read_bytes() == GGUF_2B)
+    assert _atualizar(tmp_path, rede, novo, encerrar_sobra=derrubar) == 0
+    assert derrubar.vistos[:1] == [True]
+    assert gguf.read_bytes() == GGUF_2B + b"novo"
+
+
+def test_programa_sumido_derruba_antes_de_trocar_a_pasta_do_build(
+    tmp_path: Path, rede: Rede
+) -> None:
+    manifesto = rede.manifesto()
+    assert _baixar(tmp_path, rede, manifesto, "2b") == 0
+    build = _ferramentas(tmp_path) / "llama" / "b1"
+    (build / "llama-b1" / "llama-server").unlink()
+    derrubar = Derrubar(build.is_dir)
+    assert _baixar(tmp_path, rede, manifesto, "2b", encerrar_sobra=derrubar) == 0
+    assert derrubar.vistos[:1] == [True]
+
+
+def test_anterior_preso_fica_e_o_comando_segue(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, rede: Rede, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Windows: o `.exe` do build velho ainda preso não falha o comando com o novo já anotado."""
+    assert _baixar(tmp_path, rede, rede.manifesto(), "2b") == 0
+    capsys.readouterr()
+    rmtree = shutil.rmtree
+
+    def preso(caminho: Any, *args: Any, **kwargs: Any) -> None:
+        if Path(caminho).name == "b1":
+            raise PermissionError(13, "em uso", str(caminho))
+        rmtree(caminho, *args, **kwargs)
+
+    monkeypatch.setattr(shutil, "rmtree", preso)
+    dormidas: list[float] = []
+    novo = rede.manifesto(build="b2")
+    assert _atualizar(tmp_path, rede, novo, dormir=dormidas.append) == 0
+    assert _linhas(capsys.readouterr().out)[-1] == {"fim": "pronto"}
+    assert dormidas == list(ferramentas.FOLGA)  # tentou de novo antes de desistir
+    assert _nomes(_ferramentas(tmp_path) / "llama") == ["b1", "b2"]
+    assert ferramentas.ler_anotacao(tmp_path)["build"] == "b2"
 
 
 def test_anotacao_torta_nao_apaga_fora_das_pastas(tmp_path: Path, rede: Rede) -> None:
@@ -395,6 +500,33 @@ def test_remover_derruba_o_servidor_apaga_as_pastas_e_desliga_as_tarefas_no_loca
             "encaixe": local | {"ligada": False},
             "curriculo": fora,
         }
+    assert _linhas(capsys.readouterr().out) == [{"fim": "pronto"}]
+
+
+def test_remover_espera_o_windows_soltar_os_arquivos(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, rede: Rede, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """O `taskkill /F` não espera: o `.exe` e o GGUF ainda presos dão `PermissionError`."""
+    assert _baixar(tmp_path, rede, rede.manifesto(), "2b") == 0
+    capsys.readouterr()
+    rmtree, presos = shutil.rmtree, [1, 1]
+
+    def preso(caminho: Any, *args: Any, **kwargs: Any) -> None:
+        if presos:
+            presos.pop()
+            raise PermissionError(13, "em uso", str(caminho))
+        rmtree(caminho, *args, **kwargs)
+
+    monkeypatch.setattr(shutil, "rmtree", preso)
+    dormidas: list[float] = []
+    assert (
+        ferramentas.remover_ia_local(
+            tmp_path, encerrar_sobra=lambda dados: None, dormir=dormidas.append
+        )
+        == 0
+    )
+    assert dormidas == list(ferramentas.FOLGA[:2])
+    assert _nomes(_ferramentas(tmp_path)) == []
     assert _linhas(capsys.readouterr().out) == [{"fim": "pronto"}]
 
 
@@ -483,3 +615,17 @@ def test_versao_roda_pelo_codigo_de_saida(tmp_path: Path) -> None:
     assert ferramentas.versao_roda(tmp_path / "bom") is True
     assert ferramentas.versao_roda(tmp_path / "ruim") is False
     assert ferramentas.versao_roda(tmp_path / "nao_existe") is False
+
+
+def test_versao_roda_sem_janela_no_windows(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Chamado do `pythonw` (painel, casca), o `--version` não pisca um console."""
+    vistos: list[dict[str, Any]] = []
+
+    def run(argv: list[str], **kwargs: Any) -> subprocess.CompletedProcess[bytes]:
+        vistos.append(kwargs)
+        return subprocess.CompletedProcess(argv, 0)
+
+    monkeypatch.setattr(processo, "SEM_JANELA", {"creationflags": 0x08000000})
+    monkeypatch.setattr(subprocess, "run", run)
+    assert ferramentas.versao_roda(tmp_path / "llama-server.exe") is True
+    assert [k.get("creationflags") for k in vistos] == [0x08000000]

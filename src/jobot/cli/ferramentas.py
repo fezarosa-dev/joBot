@@ -16,7 +16,8 @@ Modelo local: `baixar ia-local [--modelo auto|2b|4b]` baixa da fonte oficial o `
 o modelo (falha em 23 MB, não em 2,7 GB). `auto` escolhe pela memória, com os cortes do `ia.json`,
 e escreve antes de tudo `{"memoria": <bytes>, "modelo": "2b"|"4b", "lento": <bool>}`. O que baixou
 fica anotado em `<dados>/ferramentas/ia_local.json`; `atualizar ia-local` baixa só o que mudou no
-manifesto, com o mesmo modelo; `remover ia-local` desliga as tarefas no backend `local`, derruba o
+manifesto, com o mesmo modelo; os dois derrubam o `llama-server` antes de trocar ou apagar o
+anterior (D195.6); `remover ia-local` desliga as tarefas no backend `local`, derruba o
 `llama-server` e apaga `llama/`, `modelos/` e a anotação. Linhas JSON como as do navegador:
 `{"etapa":"ia_local","feito":N,"total":T}` por arquivo e `{"fim":"pronto"}` ou
 `{"fim":"falhou","motivo":...}`, com os motivos de `baixar.Motivo` mais `programa_ausente` e
@@ -36,8 +37,10 @@ import signal
 import sqlite3
 import subprocess
 import sys
+import time
 from collections.abc import Callable, Mapping
 from contextlib import closing
+from functools import partial
 from importlib import resources
 from pathlib import Path
 from typing import Any
@@ -49,7 +52,7 @@ from jobot.banco.cadastros import gravar_config, ler_config
 from jobot.navegador.instalador import Resultado, abrir_instalador, baixar_chromium
 from jobot.navegador.janela_comum import AbrirJanela
 from jobot.nucleo.ia.contrato import limites
-from jobot.sistema import llama
+from jobot.sistema import llama, processo
 from jobot.sistema.baixar import (
     FalhaBaixar,
     baixar,
@@ -57,7 +60,7 @@ from jobot.sistema.baixar import (
     extrair,
     tornar_executavel,
 )
-from jobot.sistema.casca import _gravar as gravar_atomico
+from jobot.sistema.casca import gravar_atomico
 from jobot.sistema.memoria import escolher_modelo, memoria_total
 from jobot.sistema.pastas import PASTA_FERRAMENTAS, configurar_log, pasta_de_dados, preparar_pasta
 
@@ -73,6 +76,9 @@ _ALVOS = {
 ANOTACAO = "ia_local.json"
 BACKEND_LOCAL = "local"  # o nome do backend em `esquema_para` e em `ia_tarefas`
 VERSAO_S = 30.0  # prazo do `llama-server --version`
+# pausas entre as tentativas de apagar: no Windows, o `llama-server` recém-derrubado pelo
+# `taskkill /F` ainda prende o `.exe` e o GGUF por um instante (D195.6 e D195.8)
+FOLGA = (0.5, 1.0, 2.0)
 
 
 def _escrever(linha: dict[str, object]) -> None:
@@ -137,6 +143,7 @@ def versao_roda(programa: Path) -> bool:
             stderr=subprocess.DEVNULL,
             timeout=VERSAO_S,
             check=False,
+            **processo.SEM_JANELA,  # do `pythonw` (painel, casca), sem console que pisca
         )
     except OSError, subprocess.TimeoutExpired:
         return False
@@ -156,17 +163,24 @@ def baixar_ia_local(
     versao: Callable[[Path], bool] = versao_roda,
     memoria: Callable[[], int] = memoria_total,
     alvo: str | None = ALVO,
+    encerrar_sobra: Callable[[Path], None] = llama.encerrar_sobra,
+    dormir: Callable[[float], None] = time.sleep,
 ) -> int:
     """`jobot ferramentas baixar ia-local`: 0 pronto, 1 falhou (a linha `fim` diz o motivo)."""
     modelo = escolha
     if escolha == "auto":
-        total = memoria()
+        try:
+            total = memoria()
+        except OSError:  # `GlobalMemoryStatusEx` que falha: a casca ainda lê a linha `fim`
+            _LOG.exception("a memória não foi lida")
+            _escrever({"fim": "falhou", "motivo": "arquivo"})
+            return 1
         cortes = limites()["memoria_gib"]
         modelo, lento = escolher_modelo(
             total, desde_4b_gib=cortes["modelo_4b_desde"], aviso_gib=cortes["aviso_lento_abaixo"]
         )
         _escrever({"memoria": total, "modelo": modelo, "lento": lento})
-    return _instalar(dados, modelo, manifesto, cliente, versao, alvo)
+    return _instalar(dados, modelo, manifesto, cliente, versao, alvo, encerrar_sobra, dormir)
 
 
 def atualizar_ia_local(
@@ -176,13 +190,15 @@ def atualizar_ia_local(
     cliente: httpx.Client | None = None,
     versao: Callable[[Path], bool] = versao_roda,
     alvo: str | None = ALVO,
+    encerrar_sobra: Callable[[Path], None] = llama.encerrar_sobra,
+    dormir: Callable[[float], None] = time.sleep,
 ) -> int:
     """Baixa o que mudou no manifesto, com o modelo anotado; nada baixado: `modelo_ausente`."""
     modelo = ler_anotacao(dados).get("modelo")
     if not isinstance(modelo, str) or not modelo:
         _escrever({"fim": "falhou", "motivo": "modelo_ausente"})
         return 1
-    return _instalar(dados, modelo, manifesto, cliente, versao, alvo)
+    return _instalar(dados, modelo, manifesto, cliente, versao, alvo, encerrar_sobra, dormir)
 
 
 def _instalar(
@@ -192,12 +208,17 @@ def _instalar(
     cliente: httpx.Client | None,
     versao: Callable[[Path], bool],
     alvo: str | None,
+    encerrar_sobra: Callable[[Path], None],
+    dormir: Callable[[float], None],
 ) -> int:
     manifesto = manifesto_local() if manifesto is None else manifesto
     proprio = cliente is None
     cliente = cliente_de_download() if cliente is None else cliente
+    derrubar = partial(encerrar_sobra, dados)
     try:
-        _servidor_e_modelo(dados / PASTA_FERRAMENTAS, modelo, manifesto, cliente, versao, alvo)
+        _servidor_e_modelo(
+            dados / PASTA_FERRAMENTAS, modelo, manifesto, cliente, versao, alvo, derrubar, dormir
+        )
     except (_Falhou, FalhaBaixar) as falha:
         _escrever({"fim": "falhou", "motivo": falha.motivo})
         return 1
@@ -220,7 +241,12 @@ def _servidor_e_modelo(
     cliente: httpx.Client,
     versao: Callable[[Path], bool],
     alvo: str | None,
+    derrubar: Callable[[], None],
+    dormir: Callable[[float], None],
 ) -> None:
+    """`derrubar` (o `llama.encerrar_sobra`) vem antes de cada troca ou apagamento: o
+    `llama-server` que o servidor do joBot subiu não fica servindo o velho, e no Windows solta o
+    `.exe` e o GGUF (D195.6)."""
     servidor = manifesto["llama_server"]
     item = servidor["alvos"].get(alvo) if alvo else None
     escolhido = manifesto["modelos"].get(modelo)
@@ -234,6 +260,8 @@ def _servidor_e_modelo(
     if anotado.get("build") == build and anotado.get("servidor_sha256") == item["sha256"]:
         programa = _dentro(ferramentas, pasta_llama, anotado.get("programa"))
     if programa is None or not programa.is_file():
+        if (pasta_llama / build).exists():
+            derrubar()  # a pasta do mesmo build vai ser trocada
         programa = _baixar_servidor(pasta_llama, build, item, alvo or "", cliente)
     if not versao(programa):  # antes do modelo: falha em 23 MB, não em 2,7 GB
         raise _Falhou("programa_ausente")
@@ -246,10 +274,13 @@ def _servidor_e_modelo(
     }
     _anotar(ferramentas, anotacao)
     if anotado.get("build") != build:
-        _apagar(pasta_llama, anotado.get("build"))
+        derrubar()
+        _apagar(pasta_llama, anotado.get("build"), dormir)
 
     destino = ferramentas / "modelos" / escolhido["arquivo"]
     if anotado.get("modelo_sha256") != escolhido["sha256"] or not destino.is_file():
+        if destino.exists():
+            derrubar()  # o `os.replace` do `baixar` troca o GGUF de mesmo nome
         baixar(
             escolhido["url"],
             destino,
@@ -265,7 +296,8 @@ def _servidor_e_modelo(
     }
     _anotar(ferramentas, anotacao)
     if anotado.get("arquivo") != escolhido["arquivo"]:
-        _apagar(ferramentas / "modelos", anotado.get("arquivo"))
+        derrubar()
+        _apagar(ferramentas / "modelos", anotado.get("arquivo"), dormir)
 
 
 def _baixar_servidor(
@@ -311,15 +343,31 @@ def _dentro(ferramentas: Path, pasta: Path, relativo: object) -> Path | None:
     return caminho if caminho.resolve().is_relative_to(pasta.resolve()) else None
 
 
-def _apagar(pasta: Path, nome: object) -> None:
-    """Apaga `pasta/nome` (arquivo ou pasta) só se `nome` for um nome só, sem barra nem `..`."""
+def _apagar(pasta: Path, nome: object, dormir: Callable[[float], None]) -> None:
+    """Apaga o anterior `pasta/nome` (arquivo ou pasta) só se `nome` for um nome só, sem barra
+    nem `..`. Se não sair, fica (com o aviso no log): o novo já está anotado."""
     if not isinstance(nome, str) or nome in ("", ".", "..") or Path(nome).name != nome:
         return
     alvo = pasta / nome
-    if alvo.is_dir() and not alvo.is_symlink():
-        shutil.rmtree(alvo)
-    else:
-        alvo.unlink(missing_ok=True)
+    try:
+        if alvo.is_dir() and not alvo.is_symlink():
+            _com_folga(lambda: shutil.rmtree(alvo), dormir)
+        else:
+            _com_folga(lambda: alvo.unlink(missing_ok=True), dormir)
+    except OSError:
+        _LOG.warning("o anterior %s ficou", alvo, exc_info=True)
+
+
+def _com_folga(apagar: Callable[[], None], dormir: Callable[[float], None]) -> None:
+    """`apagar`, de novo depois de cada pausa de `FOLGA` enquanto der `PermissionError`."""
+    for pausa in FOLGA:
+        try:
+            apagar()
+        except PermissionError:
+            dormir(pausa)
+        else:
+            return
+    apagar()
 
 
 def _anotar(ferramentas: Path, anotacao: Mapping[str, Any]) -> None:
@@ -327,7 +375,10 @@ def _anotar(ferramentas: Path, anotacao: Mapping[str, Any]) -> None:
 
 
 def remover_ia_local(
-    dados: Path, *, encerrar_sobra: Callable[[Path], None] = llama.encerrar_sobra
+    dados: Path,
+    *,
+    encerrar_sobra: Callable[[Path], None] = llama.encerrar_sobra,
+    dormir: Callable[[float], None] = time.sleep,
 ) -> int:
     """Desliga as tarefas no `local`, derruba o `llama-server` e apaga `llama/`, `modelos/` e a
     anotação. Banco ausente não é criado."""
@@ -336,8 +387,9 @@ def remover_ia_local(
         _desligar_local(dados / "jobot.db")
         encerrar_sobra(dados)
         for nome in ("llama", "modelos"):
-            if (ferramentas / nome).exists():
-                shutil.rmtree(ferramentas / nome)
+            pasta = ferramentas / nome
+            if pasta.exists():
+                _com_folga(partial(shutil.rmtree, pasta), dormir)
         (ferramentas / ANOTACAO).unlink(missing_ok=True)
     except OSError, sqlite3.Error:
         _LOG.exception("o modelo local não foi removido")
