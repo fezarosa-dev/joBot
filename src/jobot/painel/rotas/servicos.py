@@ -202,6 +202,8 @@ async def contexto_chaves_ia(request: Request, con: Con) -> dict[str, Any]:
 
 
 async def contexto_servicos(request: Request, con: Con) -> dict[str, Any]:
+    # shortcut: com o cofre travado, cada abertura da aba deixa presas 5 threads (2Captcha + 4 IA)
+    # no threadpool do anyio (40); se pesar, uma leitura só do cofre ou um semáforo (D201.7)
     return await contexto_captcha(request, con) | await contexto_chaves_ia(request, con)
 
 
@@ -219,9 +221,11 @@ async def gravar_chave_ia(
     endereco = digitado if isinstance(digitado, str) else ""
 
     def volta(status: int, erro: str, campo: str | None) -> tuple[int, dict[str, Any]]:
-        # o endereço digitado volta para corrigir; a chave nunca volta
+        # o endereço digitado volta para corrigir; a chave nunca volta, nem o endereço com `@`,
+        # que pode trazer usuário e senha (desenho 11; D201.2)
+        de_volta = "" if "@" in endereco else endereco
         return status, {
-            "erro_ia": {"servico": servico, "erro": erro, "campo": campo, "endereco": endereco}
+            "erro_ia": {"servico": servico, "erro": erro, "campo": campo, "endereco": de_volta}
         }
 
     if chave and not _CHAVE_IA.fullmatch(chave):

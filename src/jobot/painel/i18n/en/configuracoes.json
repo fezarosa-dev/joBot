@@ -93,7 +93,7 @@
   "configuracoes.servicos.ia.compativel.de": "compatible service",
   "configuracoes.servicos.ia.compativel.frase": "A server that speaks the OpenAI API, such as Ollama or LM Studio on your computer. joBot does not install them.",
   "configuracoes.servicos.ia.chave": "{de} key",
-  "configuracoes.servicos.ia.chave_opcional": "{de} key (optional)",
+  "configuracoes.servicos.ia.chave_opcional": "Key for the {de} (optional)",
   "configuracoes.servicos.ia.mostrar": "Show the {de} key",
   "configuracoes.servicos.ia.salvar": "Save the {de} key",
   "configuracoes.servicos.ia.compativel.salvar": "Save the address and the key",
