@@ -2,7 +2,7 @@
 
 - **Status:** aceita
 - **Data:** 2026-11-13
-- **Atualizada:** 2026-11-15 (seção do modelo leve na máquina da pessoa, D122; seção do Laya antes da fase 4, D141); antes, em 2026-11-13
+- **Atualizada:** 2026-11-15 (seção do modelo leve na máquina da pessoa, D122; seção do Laya antes da fase 4, D141); antes, em 2026-11-13; 2026-11-17 (o Laya antes da fase 4 fica adiado, para confirmar, e o Laya público é um modelo de decisão, D185.8 e [0026](0026-ia-da-fase-4.md))
 
 ## Contexto
 
@@ -53,10 +53,15 @@ Nunca entra dado pessoal: currículo real e ações da pessoa no painel ficam fo
 
 ## Laya antes da fase 4 (2026-11-15)
 
-- Exceção ao título e ao resto desta ADR: o ajuste fino do Laya sai da fase 7 e acontece antes da fase 4 (D141). Os outros treinos (LoRA do Qwen, classificador pessoal) continuam na fase 7.
+- Exceção ao título e ao resto desta ADR: o ajuste fino do Laya sai da fase 7 e ~~acontece antes da fase 4 (D141)~~ fica adiado, para confirmar (2026-11-17, D185.8): o dono decide primeiro se autoriza o gasto do treino antes da fase 4 ou adia. Os outros treinos (LoRA do Qwen, classificador pessoal) continuam na fase 7.
 - O Laya ajustado entra no encaixe junto com o Qwen local e reconhece palavras diferentes que querem dizer a mesma competência. Isso fecha o descompasso: o encaixe pelo sentido (D122) dependia do Laya ajustado, que só ficaria pronto na fase 7.
 - O resto vale como está: o modelo ajustado só substitui o original se ganhar no gabarito, o gabarito nunca entra no treino, e o treino roda no RunPod.
 - O ponto em aberto abaixo (termos das fontes) passa a valer antes deste treino do Laya, não antes da fase 7.
+
+## Laya adiado na fase 4 (2026-11-17, para confirmar)
+
+- Até o dono responder (D185.8, para confirmar), a fase 4 segue sem o Laya: as habilidades da vaga vêm da IA escolhida pela pessoa, e o código compara com o perfil ([0026](0026-ia-da-fase-4.md)). A fase 4 só prepara o conjunto de exemplos e o preço; nenhum treino roda e nenhum recurso do RunPod é criado sem o dono autorizar (para confirmar).
+- Nota (para confirmar): o Laya público (`convaiinnovations/laya-multilingual`, Apache-2.0, sobre o mmBERT-base) é um modelo de decisão (escolha, nota e "verdadeiro ou falso"), não um modelo que compara competências pelo sentido. O ajuste fino teria de ensinar essa comparação.
 
 ## Consequências
 
@@ -74,4 +79,5 @@ Nunca entra dado pessoal: currículo real e ações da pessoa no painel ficam fo
 - [0007. Tratamento das vagas: duplicadas, ciclo de vida, salário e rótulos](0007-tratamento-dos-dados.md)
 - [0009. Inteligência artificial: opções, modelos e pacote offline](0009-ia-backends-e-modelos.md)
 - [0014. Segurança e privacidade](0014-seguranca-e-privacidade.md)
-- [duvidas.md: D141 (Laya antes da fase 4)](../../duvidas.md)
+- [0026. IA da fase 4: tarefas, backends e modelo local](0026-ia-da-fase-4.md)
+- [duvidas.md: D141 (Laya antes da fase 4) e D185 (fase 4)](../../duvidas.md)

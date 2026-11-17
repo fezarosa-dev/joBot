@@ -8,6 +8,10 @@ O formato segue o [Keep a Changelog 1.1.0](https://keepachangelog.com/pt-BR/1.1.
 
 ## [Não lançado]
 
+### Adicionado
+
+- ADR 0026 (proposta): IA da fase 4. A IA chegará em duas versões, a 0.5.0 e a 0.6.0, desligada por padrão; o modelo local será baixado da fonte oficial, a pedido da pessoa, e a IA só listará o que a vaga pede, sem dar nota. O roteiro passa a mostrar a fase 4 sendo construída.
+
 ## [0.4.0] - 2026-11-18
 
 A fase 3 chega: o joBot ganha uma janela própria e um instalador para Windows, Linux e Mac, que instala tudo sem internet, menos o navegador opcional.
