@@ -8,9 +8,25 @@ O formato segue o [Keep a Changelog 1.1.0](https://keepachangelog.com/pt-BR/1.1.
 
 ## [Não lançado]
 
+A fase 3 chega: o joBot ganha uma janela própria e um instalador para Windows, Linux e Mac, que instala tudo sem internet.
+
 ### Adicionado
 
-- ADR 0025: app de desktop e instalador. A fase 3 trará uma janela própria em volta do painel e uma tela de instalação na primeira abertura, com o `uv` embutido e os instaladores publicados na release; por ora, sem assinatura de código.
+- Instalador para Windows (`-setup.exe`), Linux (AppImage, `.deb` e `.rpm`) e Mac (`.dmg`, experimental). Cada um tem cerca de 350 MB, porque já traz o Python 3.14, as bibliotecas, o joBot e o navegador dos sites com login: a instalação funciona sem internet e confere o sha256 de cada arquivo. Por enquanto sem selo (assinatura de código): o README explica como abrir no Windows e no Mac.
+- Uma janela própria do joBot, com ícone, em volta do mesmo painel, que continua só no seu computador. No Windows e no Linux os botões de fechar, minimizar e maximizar são desenhados pelo joBot; no Mac, são os do sistema. Fechar a janela fecha só a janela: com o segundo plano ligado, as buscas seguem.
+- Tela de instalação na primeira abertura da janela: joBot e Python vêm travados, o navegador vem marcado e dá para desmarcar (ele baixa depois em Configurações › Ferramentas), e a barra mostra cada etapa. Se algo falhar, o que foi feito é desfeito.
+- O joBot passa a rodar no Windows e no Mac, cada um com a sua pasta de dados.
+- Segundo plano no Windows (Agendador de Tarefas) e no Mac (LaunchAgent, experimental), além do systemd do Linux.
+- Botão "Atualizar agora" na faixa de versão nova e em Configurações › Geral. Pelo instalador, a versão nova é montada ao lado da atual, conferida, e só entra se abrir; senão, nada muda. Quando a janela também tem versão nova, o botão "Baixar a janela nova" abre a página da versão.
+- Botão "Encerrar o joBot" em Configurações › Geral e na paleta de comandos, que para o servidor e as buscas.
+- Pelo instalador, o navegador dos sites com login baixa da página da versão instalada do joBot, com o sha256 conferido, e a tela Ferramentas avisa quando ele fica desatualizado depois de uma atualização.
+- Desinstalar pelo Windows desliga o segundo plano e encerra o joBot, e nunca apaga a pasta de dados.
+- ADR 0025: app de desktop e instalador. A janela, a tela de instalação, o instalador completo e sem rede e a atualização pelo painel.
+
+### Alterado
+
+- A faixa de versão nova não manda mais abrir o terminal: ela traz o botão "Atualizar agora".
+- O README explica a instalação pelo instalador, os avisos do Windows e do Mac, onde ficam os dados em cada sistema e como desinstalar; a wiki ganha a página Instalar.
 
 ## [0.3.0] - 2026-11-16
 

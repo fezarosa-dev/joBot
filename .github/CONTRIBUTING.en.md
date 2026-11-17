@@ -6,7 +6,7 @@ Thanks for your interest! This guide explains how to help with joBot, now and af
 
 ## Project status
 
-Phases 1 and 2 (foundation and browser with login) are complete: joBot 0.3.0 can already be installed and used ([how to install](../README.en.md#requirements-and-installation)). Phases 3 to 9 are planned. The decisions made so far are in [`docs/decisions/`](../docs/decisions/README.md) (Portuguese only for now). To learn what the project is and where it is going, read the [README](../README.en.md).
+Phases 1 and 2 (foundation and browser with login) are complete: joBot 0.3.0 can already be installed and used ([how to install](../README.en.md#requirements-and-installation)). Phase 3 (installer) is being built, and phases 4 to 9 are planned. The decisions made so far are in [`docs/decisions/`](../docs/decisions/README.md) (Portuguese only for now). To learn what the project is and where it is going, read the [README](../README.en.md).
 
 ## How to help now
 
@@ -26,6 +26,19 @@ Phases 1 and 2 (foundation and browser with login) are complete: joBot 0.3.0 can
 - **Branches:** start the name with `feat/`, `fix/`, `docs/` or `ci/`, branching from `dev`. `main` only receives PRs coming from `dev`.
 - **Quality:** `ruff` handles style, `mypy` in strict mode (`--strict`) handles types and `pytest` runs the tests.
 - **New dependencies** only with a reason and a license compatible with MIT.
+
+## Building the window (shell)
+
+The joBot window is a Tauri 2 app, in Rust, in the `desktop/` folder ([ADR 0025](../docs/decisions/0025-app-de-desktop-e-instalador.md), in Portuguese). It stays outside the Python package: it only talks HTTP to the dashboard and calls `jobot` and `uv`. To work on it:
+
+1. Install Rust with [rustup](https://rustup.rs/). The version is pinned in `desktop/rust-toolchain.toml`, and rustup picks it by itself inside `desktop/`.
+2. On Linux, install the WebKitGTK libraries. On Debian and Ubuntu: `sudo apt install libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf`. On other distros the names change; see the [Tauri](https://v2.tauri.app/start/prerequisites/) prerequisites.
+3. Install the Tauri CLI at the same version as the release build: `cargo install tauri-cli --version =2.12.4 --locked`.
+4. Inside `desktop/`, `cargo tauri dev` opens the window in development mode. Before the PR, run `cargo fmt --check`, `cargo clippy --locked --all-targets -- -D warnings` and `cargo test --locked` there, the same as CI ([`casca.yml`](workflows/casca.yml)).
+
+**Resources.** On build, `desktop/build.rs` copies the dashboard's CSS, fonts and icon into `desktop/ui/painel/` and creates an empty `desktop/recursos/`; both folders are ignored by git. With empty resources, the window says the installer is incomplete: in development, that is expected. If joBot is already installed through the window, it goes straight to the dashboard; to see the install screen without touching your data, point `JOBOT_DADOS` at an empty folder.
+
+The real resources (`uv`, Python, the wheels, joBot, Chromium and `manifesto.json`) come from `scripts/montar_recursos.py recursos`, which checks the sha256 of every download and prints the manifest's; that value goes into the build through the `JOBOT_MANIFESTO_SHA256` variable. The whole recipe, step by step, is the `casca` job in [`pacotes.yml`](workflows/pacotes.yml), which the release runs and which `casca.yml` runs by hand with the `pacotes` input. Each installer weighs about 350 MB: to prove a change to the package, prefer CI.
 
 ## Code workflow (after phase 9)
 

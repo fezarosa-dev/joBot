@@ -720,6 +720,8 @@ FASE_3_SENDO_CONSTRUIDA = {
     "docs/decisions/README.md": r"fase 3 está sendo construída",
     "wiki/Roteiro.md": r"🟡 \| \*\*3\. Instalador\*\*.*Sendo construída",
     "wiki/Roadmap.md": r"🟡 \| \*\*3\. Installer\*\*.*Being built",
+    ".github/CONTRIBUTING.md": r"fase 3 \(instalador\) está sendo construída",
+    ".github/CONTRIBUTING.en.md": r"Phase 3 \(installer\) is being built",
 }
 
 
@@ -727,3 +729,128 @@ FASE_3_SENDO_CONSTRUIDA = {
 def test_status_da_fase_3_igual_nos_documentos(caminho: str) -> None:
     """A fase 3 consta como sendo construída em todo documento de estado vivo (T320)."""
     assert re.search(FASE_3_SENDO_CONSTRUIDA[caminho], texto(caminho)), caminho
+
+
+# T341: a instalação pelo instalador da fase 3, por língua; cada termo só o texto novo tem
+INSTALADOR_CITA = {
+    "pt": (
+        "-setup.exe",
+        "_aarch64.dmg",
+        "_x64.dmg",
+        ".AppImage",
+        ".deb",
+        ".rpm",
+        "350 MB",
+        "Mais informações",
+        "Executar assim mesmo",
+        "Abrir Mesmo Assim",
+        "nada é baixado",
+        "%LOCALAPPDATA%\\joBot",
+        "~/Library/Application Support/joBot",
+        "~/.local/share/jobot-app",
+        "Desinstalar",
+        "Configurações › Ferramentas",
+        "https://github.com/fezarosa-dev/joBot/wiki/Instalar",
+    ),
+    "en": (
+        "-setup.exe",
+        "_aarch64.dmg",
+        "_x64.dmg",
+        ".AppImage",
+        ".deb",
+        ".rpm",
+        "350 MB",
+        "More info",
+        "Run anyway",
+        "Open Anyway",
+        "nothing is downloaded",
+        "%LOCALAPPDATA%\\joBot",
+        "~/Library/Application Support/joBot",
+        "~/.local/share/jobot-app",
+        "Uninstall",
+        "Settings › Tools",
+        "https://github.com/fezarosa-dev/joBot/wiki/Install",
+    ),
+}
+# o subtítulo de atualizar e o botão do painel que substitui o terminal (D176.9)
+ATUALIZAR = {"pt": ("### Atualizar", "Atualizar agora"), "en": ("### Updating", "Update now")}
+# a linha que ainda manda rodar `jobot atualizar` tem de dizer que é para quem instalou pelo código
+PELO_CODIGO = {"pt": "pelo código", "en": "from the code"}
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_readme_instala_pelo_instalador(lingua: str) -> None:
+    """O que baixar por sistema, tamanho, avisos sem selo, dados, desinstalar e sem rede (T341)."""
+    instalacao = secao(texto(README[lingua]), SECAO_INSTALACAO[lingua])
+    faltam = [termo for termo in INSTALADOR_CITA[lingua] if termo not in instalacao]
+    assert faltam == [], (README[lingua], faltam)
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_readme_atualiza_pelo_painel_quem_usa_o_instalador(lingua: str) -> None:
+    """Quem usa o instalador atualiza pelo botão; o terminal fica para quem instalou pelo código."""
+    instalacao = secao(texto(README[lingua]), SECAO_INSTALACAO[lingua])
+    titulo, botao = ATUALIZAR[lingua]
+    assert titulo in instalacao, README[lingua]
+    inicio = instalacao.index(titulo)
+    atualizar = instalacao[inicio : instalacao.find("\n### ", inicio + 1)]
+    assert botao in atualizar, README[lingua]
+    com_terminal = [linha for linha in atualizar.splitlines() if "jobot atualizar" in linha]
+    assert com_terminal, README[lingua]  # controle: quem instalou pelo código ainda acha o comando
+    for linha in com_terminal:
+        assert PELO_CODIGO[lingua] in linha.lower(), (README[lingua], linha)
+
+
+# o que a fase 3 entrega, em "Não lançado"; e a frase velha do `uv` embutido, que a D174 superou
+FASE_3_NO_CHANGELOG = {
+    "pt": ("instalador", "Windows", "Atualizar agora", "Encerrar o joBot", "sem internet"),
+    "en": ("installer", "Windows", "Update now", "Quit joBot", "without internet"),
+}
+UV_EMBUTIDO = {"pt": "com o `uv` embutido", "en": "with `uv` bundled"}
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_changelog_traz_a_fase_3_em_nao_lancado(lingua: str) -> None:
+    conteudo = texto(CHANGELOG[lingua])
+    assert NAO_LANCADO[lingua] in conteudo, CHANGELOG[lingua]
+    inicio = conteudo.index(NAO_LANCADO[lingua])
+    nao_lancado = conteudo[inicio : conteudo.index("\n## [", inicio + 1)]
+    faltam = [termo for termo in FASE_3_NO_CHANGELOG[lingua] if termo not in nao_lancado]
+    assert faltam == [], (CHANGELOG[lingua], faltam)
+    assert UV_EMBUTIDO[lingua] not in conteudo, CHANGELOG[lingua]
+
+
+CONTRIBUTING = {"pt": ".github/CONTRIBUTING.md", "en": ".github/CONTRIBUTING.en.md"}
+# como compilar a casca: a toolchain fixada, o modo de desenvolvimento e os recursos do instalador
+COMPILAR_A_CASCA = (
+    "desktop/rust-toolchain.toml",
+    "cargo install tauri-cli --version =2.12.4 --locked",
+    "cargo tauri dev",
+    "desktop/recursos/",
+    "scripts/montar_recursos.py",
+    "JOBOT_MANIFESTO_SHA256",
+)
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_contributing_ensina_a_compilar_a_casca(lingua: str) -> None:
+    citados = trechos(texto(CONTRIBUTING[lingua]))
+    faltam = [t for t in COMPILAR_A_CASCA if not any(t in trecho for trecho in citados)]
+    assert faltam == [], (CONTRIBUTING[lingua], faltam)
+
+
+def test_contributing_usa_o_tauri_cli_do_workflow() -> None:
+    """A versão do `tauri-cli` citada no guia é a que o build da release instala."""
+    workflow = texto(".github/workflows/pacotes.yml")
+    assert "cargo install tauri-cli --version =2.12.4 --locked" in workflow
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_readme_lista_todas_as_adrs(lingua: str) -> None:
+    numeros = sorted(
+        p.name[:4] for p in (RAIZ / "docs/decisions").glob("[0-9][0-9][0-9][0-9]-*.md")
+    )
+    assert numeros  # controle: achou as ADRs
+    conteudo = texto(README[lingua])
+    faltam = [n for n in numeros if f"| {n} | [" not in conteudo]
+    assert faltam == [], (README[lingua], faltam)
