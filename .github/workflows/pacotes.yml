@@ -23,10 +23,11 @@ name: Pacotes
 #     --verificar, como usuário comum, e volta para o --verificar-navegador.
 #   Windows: regra de firewall de saída por caminho para o instalador e todo .exe que a
 #     instalação vai ter, criadas antes do /S; todo .exe da instalação precisa de regra (antes
-#     e depois do --verificar); controle: o Python do venv não sai e o do runner sai. Então as
-#     regras saem e roda o --verificar-navegador. Depois, a troca pela tela normal (o
-#     desinstalador velho no lugar, _?=, que não apaga o venv, D182.5) e a reinstalação; por
-#     fim desinstala (a pasta da casca e o instalacao.json saem, a pasta de dados fica).
+#     e depois do --verificar); controle: o Python do venv não sai e o do runner sai. Ainda
+#     sem rede, a troca pela tela normal (o desinstalador velho no lugar, _?=, que não apaga o
+#     venv, D182.5) e a reinstalação /S. Então as regras saem só para o
+#     --verificar-navegador e voltam para a desinstalação, também sem rede (a pasta da casca e
+#     o instalacao.json saem, a pasta de dados fica).
 #   Mac: o .app de dentro do .dmg, os dois passos com rede (limite: o runner não deixa isolar
 #     um processo).
 # juntar: os anexos da release (12 arquivos), o SHA256SUMS e as notas (a seção da versão dos
