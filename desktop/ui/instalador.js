@@ -1,7 +1,8 @@
 // Tela de instalação da casca (desenho 5.2; T336). Fala com a casca pelos comandos
 // `estado_instalador`, `instalar` e `fechar_instalador` (window.__TAURI__.core), que só as
 // páginas locais alcançam. O progresso chega por um canal: {"etapa", "feito", "total"} e, no fim,
-// {"fim": "pronto"} ou {"fim": "falhou", "motivo"}. A instalação não usa a rede (D174.1).
+// {"fim": "pronto"} ou {"fim": "falhou", "motivo"}. Só o navegador, opcional, vem da internet
+// (D183.24); o resto não usa a rede (D174.1).
 (() => {
   "use strict";
   // fatia fixa de cada etapa (proposta, D181); sem o navegador, as outras dividem o todo
@@ -9,7 +10,7 @@
   const ORDEM = ["conferir", "python", "jobot", "navegador", "abrir"];
   const TETO = 99; // a barra só chega a 100 no fim
   const FATOR_DISCO = 3; // arquivos compactados -> espaço instalado (aproximado, D181)
-  const MOTIVOS = ["arquivo", "espaco", "prova", "outro"];
+  const MOTIVOS = ["arquivo", "espaco", "prova", "navegador", "outro"];
   const BOTOES = {
     "boas-vindas": ["continuar"],
     ferramentas: ["instalar", "voltar"],

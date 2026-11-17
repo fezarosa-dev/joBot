@@ -1,7 +1,8 @@
 // A casca do joBot (desenho 5.1 a 5.4): instância única, confere a janela, acha ou sobe o
 // `jobot serve` e abre o painel em http://127.0.0.1:<porta>/; sem o joBot instalado, a tela de
 // instalação (5.2). Com --verificar-janela <url>, a prova da ponte da T321 (a IPC do Tauri numa
-// origem http://127.0.0.1 remota). Com --verificar, a fumaça sem janela da release (desenho 10).
+// origem http://127.0.0.1 remota). Com --verificar e --verificar-navegador, a fumaça sem janela
+// da release (desenho 10).
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod fechar;
@@ -376,6 +377,9 @@ fn main() {
     if args.first().is_some_and(|a| a == "--verificar") {
         std::process::exit(verificar(contexto.package_info()));
     }
+    if args.first().is_some_and(|a| a == "--verificar-navegador") {
+        std::process::exit(verificar_navegador(contexto.package_info()));
+    }
     if args.first().is_some_and(|a| a == "--desinstalar") {
         // o desinstalador do NSIS (desktop/windows/ganchos.nsh, desenho 7.2)
         fechar::desinstalar(&dados(), std::env::consts::OS, fechar::rodar_esperando);
@@ -453,7 +457,7 @@ fn verificar_janela(alvo: &str, contexto: tauri::Context) {
 /// Abre o Chromium de verdade pelo Python do venv e lê uma página (desenho 10): só conferir a
 /// pasta não prova o bit de execução nem as bibliotecas. `channel="chromium"` é o binário
 /// completo, o mesmo que o joBot abre com janela, em headless novo (sem tela); sem ele o
-/// Playwright cairia no headless shell, que os recursos nem trazem (D183).
+/// Playwright cairia no headless shell, que o `playwright install --no-shell` não baixa (D183).
 const SCRIPT_CHROMIUM: &str = r#"
 from playwright.sync_api import sync_playwright
 with sync_playwright() as p:
@@ -481,15 +485,13 @@ fn comando_chromium(jobot: &Path, so: &str) -> std::process::Command {
     comando
 }
 
-/// Fumaça sem janela (desenho 10; D174.4): instala dos recursos com o navegador, sobe o
-/// servidor, confere `/saude-local`, abre o Chromium headless e para o servidor. 0 se tudo deu.
-fn verificar(info: &tauri::PackageInfo) -> i32 {
-    let so = std::env::consts::OS;
+/// A pasta dos recursos (a mesma do app), a de dados e a da casca, para a fumaça.
+fn pastas_da_fumaca(info: &tauri::PackageInfo, so: &str) -> Option<(PathBuf, PathBuf, PathBuf)> {
     let recursos = match tauri::utils::platform::resource_dir(info, &tauri::Env::default()) {
         Ok(pasta) => pasta.join("recursos"),
         Err(erro) => {
             eprintln!("verificar: sem a pasta dos recursos: {erro}");
-            return 1;
+            return None;
         }
     };
     let (dados, pasta) = (dados(), instalar::pasta_da_casca(ambiente, so));
@@ -499,6 +501,17 @@ fn verificar(info: &tauri::PackageInfo) -> i32 {
         dados.display(),
         pasta.display()
     );
+    Some((recursos, dados, pasta))
+}
+
+/// Fumaça sem janela e sem rede (desenho 10; D174.4): instala dos recursos sem o navegador,
+/// sobe o servidor, confere `/saude-local` e para o servidor. 0 se tudo deu. O navegador, que
+/// vem da internet (D183.24), é o `--verificar-navegador`, num passo à parte com rede.
+fn verificar(info: &tauri::PackageInfo) -> i32 {
+    let so = std::env::consts::OS;
+    let Some((recursos, dados, pasta)) = pastas_da_fumaca(info, so) else {
+        return 1;
+    };
     let instalador = instalar::Instalador {
         recursos: &recursos,
         pasta: &pasta,
@@ -512,7 +525,7 @@ fn verificar(info: &tauri::PackageInfo) -> i32 {
     };
     let feito = instalador.instalar(
         SHA_MANIFESTO.unwrap_or_default(),
-        true,
+        false,
         &cancelado,
         &mut rodar,
         &mut |aviso| println!("verificar: {aviso}"),
@@ -543,15 +556,52 @@ fn verificar(info: &tauri::PackageInfo) -> i32 {
     };
     let saude = servidor::perguntar_saude(porta);
     println!("verificar: /saude-local na porta {porta}: {saude}");
-    let chromium = match comando_chromium(&jobot, so).status() {
-        Ok(status) => status.success(),
+    fechar::rodar_esperando(&jobot, &["sair"]);
+    if saude { 0 } else { 1 }
+}
+
+/// Fumaça do navegador, com rede, depois do `--verificar`: o mesmo passo da tela de instalação
+/// (`Instalador::baixar_navegador`, o `playwright install` pelo joBot do venv) e o Chromium
+/// aberto de verdade pelo Python do venv. 0 se os dois deram.
+fn verificar_navegador(info: &tauri::PackageInfo) -> i32 {
+    let so = std::env::consts::OS;
+    let Some((recursos, dados, pasta)) = pastas_da_fumaca(info, so) else {
+        return 1;
+    };
+    let Some(jobot) = servidor::jobot_instalado(&dados, so) else {
+        eprintln!("verificar: sem instalação; rode o --verificar antes");
+        return 1;
+    };
+    let instalador = instalar::Instalador {
+        recursos: &recursos,
+        pasta: &pasta,
+        dados: &dados,
+        so,
+        versao: VERSAO,
+    };
+    let cancelado = AtomicBool::new(false);
+    let mut rodar = |comando: std::process::Command, linha: &mut dyn FnMut(&str)| {
+        instalar::rodar(comando, &cancelado, linha)
+    };
+    let baixado = instalador.baixar_navegador(&cancelado, &mut rodar, &mut |aviso| {
+        println!("verificar: {aviso}")
+    });
+    if let Err(erro) = baixado {
+        eprintln!(
+            "verificar: o navegador não baixou ({}): {}",
+            erro.codigo(),
+            erro.detalhe()
+        );
+        return 1;
+    }
+    match comando_chromium(&jobot, so).status() {
+        Ok(status) if status.success() => 0,
+        Ok(_) => 1,
         Err(erro) => {
             eprintln!("verificar: não consegui rodar o Python do venv: {erro}");
-            false
+            1
         }
-    };
-    fechar::rodar_esperando(&jobot, &["sair"]);
-    if saude && chromium { 0 } else { 1 }
+    }
 }
 
 #[cfg(test)]
