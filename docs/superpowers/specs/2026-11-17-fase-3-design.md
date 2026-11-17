@@ -44,7 +44,7 @@ Quem usa baixa um arquivo, abre e tem o joBot numa janela própria, com ícone, 
 - O cabeçalho Host aceito é só `127.0.0.1:<porta>` e `localhost:<porta>` (`app.py:48-60`).
 - Todo POST exige o token CSRF da página (`src/jobot/painel/seguranca.py:110-124`).
 - Dependências fixadas: `==` no `pyproject.toml`; no Rust, `=x.y.z` no `Cargo.toml` e `Cargo.lock` versionado; Actions por hash de 40 dígitos com `# vX.Y.Z` (`tests/unidade/test_repositorio.py:51-64`); atualização à mão no fim da fase (ADR 0021).
-- Licenças compatíveis com MIT: Tauri e plugins oficiais são MIT/Apache-2.0; o `uv` é MIT/Apache-2.0. O Python (licença PSF) e o Chromium (BSD e as de terceiros dele) vão dentro do instalador (D174.1) com os arquivos de licença deles.
+- Licenças compatíveis com MIT: Tauri e plugins oficiais são MIT/Apache-2.0; o `uv` é MIT/Apache-2.0. O Python (licença PSF) e o Chromium (BSD e as de terceiros dele) vão dentro do instalador (D174.1) com os arquivos de licença deles. (T339: o texto das licenças do `uv` vai em `licencas/uv/` dos recursos. O navegador que o Playwright 1.65 baixa não é o Chromium BSD: é o Google Chrome for Testing, com os Termos de Serviço do Chrome e o Widevine, que não pode ser redistribuído; o tar sai sem o Widevine e redistribuir o resto espera o dono, D183.24.)
 - Documentos de quem usa e contribui são bilíngues; ADR e `duvidas.md` só em português.
 - `tests/unidade/test_ci.py:36-73` trava os jobs do `ci.yml` em `{lint, comuns, tela, ok}`: o Rust ganha workflow próprio (seção 9).
 
