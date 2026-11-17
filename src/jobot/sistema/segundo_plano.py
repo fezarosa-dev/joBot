@@ -29,7 +29,7 @@ def ligar(rodar: Rodar, *, env: Ambiente = None, plataforma: str | None = None) 
     if qual == "linux":
         segundo_plano_linux.ligar(rodar, env=env)
     elif qual == "windows":
-        segundo_plano_windows.ligar(rodar)
+        segundo_plano_windows.ligar(rodar, env=env)
     else:
         raise ValueError(f"segundo plano não existe em {qual}")
 

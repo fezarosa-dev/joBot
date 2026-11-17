@@ -224,6 +224,9 @@ def montar(
         server_header=False,
         proxy_headers=False,
         lifespan="on",
+        # no pythonw (tarefa do Windows) sys.stdout é None: com cores automáticas o uvicorn
+        # chamaria sys.stdout.isatty() e o serve morreria ao subir
+        use_colors=False,
     )
     return app, config
 

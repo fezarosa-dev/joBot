@@ -6,6 +6,7 @@ salvo o que o teste muda. O estado de habilitado acompanha `enable` e `disable`.
 """
 
 from collections.abc import Sequence
+from pathlib import Path
 
 from jobot.sistema.segundo_plano_linux import Resultado
 
@@ -61,9 +62,12 @@ class FalsoAgendador:
         self.existe = existe  # a tarefa joBot está registrada
         self.falha_em: dict[str, Resultado] = {}  # "/Create", "/Delete" ou "/Query" -> resposta
         self.chamadas: list[tuple[str, ...]] = []
+        self.xml = ""  # o XML do /Create, lido do arquivo na hora da chamada
 
     def __call__(self, comando: Sequence[str]) -> Resultado:
         self.chamadas.append(tuple(comando))
+        if "/XML" in comando:
+            self.xml = Path(comando[comando.index("/XML") + 1]).read_text(encoding="utf-16")
         assert comando[0] == "schtasks", f"comando inesperado: {comando!r}"
         acao = comando[1]
         if acao in self.falha_em:
