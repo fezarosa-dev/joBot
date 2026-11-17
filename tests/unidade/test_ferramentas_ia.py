@@ -577,6 +577,8 @@ def test_o_mais_x_sobrevive_ao_preparar_pasta_e_o_llama_sobe_de_novo(
 
 def test_main_chega_no_ia_local(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("JOBOT_DADOS", str(tmp_path))
+    # sem isso o handler do log de cada `tmp_path` fica no logger "jobot" (test_pastas.py)
+    monkeypatch.setattr(ferramentas, "configurar_log", lambda _dados: None)
     chamadas: list[tuple[str, Any]] = []
 
     def gravar(nome: str) -> Callable[..., int]:
@@ -602,6 +604,8 @@ def test_remover_com_banco_estragado_e_falha_sem_traceback(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     monkeypatch.setenv("JOBOT_DADOS", str(tmp_path))
+    # sem isso o handler do log de cada `tmp_path` fica no logger "jobot" (test_pastas.py)
+    monkeypatch.setattr(ferramentas, "configurar_log", lambda _dados: None)
     (tmp_path / "jobot.db").write_bytes(b"isto nao e um banco" * 100)
     assert jobot.cli.main(["ferramentas", "remover", "ia-local"]) == 1
     assert _linhas(capsys.readouterr().out) == [{"fim": "falhou", "motivo": "arquivo"}]
