@@ -47,6 +47,7 @@ def test_toda_chave_usada_pela_tela_existe() -> None:
     usadas |= {f"etapa.{e}" for e in ("conferir", "python", "jobot", "navegador", "abrir")}
     motivos = ("arquivo", "espaco", "prova", "outro")
     usadas |= {f"falha.{m}{s}" for m in motivos for s in ("", "_oque")}
+    usadas |= set(re.findall(r't\("([\w.]+)"', js))
     assert "ferramentas.tamanho" in js
     usadas.add("ferramentas.tamanho")
     assert usadas <= _catalogo("pt").keys()

@@ -221,6 +221,53 @@ def test_fechar_no_meio_pede_confirmacao(page: Page, ui: str) -> None:
     assert "fechar_instalador" in [c[0] for c in _chamadas(page)]
 
 
+def test_alerta_com_a_acao_em_cima_e_nenhum_botao_padrao(page: Page, ui: str) -> None:
+    # visual do Mac (Alerta): a ação em cima, "Cancelar" embaixo, sem estilo de padrão nem
+    # destrutivo (a pessoa pediu para fechar)
+    _ate_instalando(page, ui)
+    page.evaluate("window.__jobotPedirFechar()")
+    botoes = page.get_by_role("dialog").get_by_role("button")
+    expect(botoes).to_have_text(["Parar e fechar", "Continuar instalando"])
+    for i in range(2):
+        classes = botoes.nth(i).get_attribute("class") or ""
+        assert "botao-principal" not in classes and "botao-destrutivo" not in classes
+
+
+def test_parar_mostra_parando_e_o_progresso_nao_apaga(page: Page, ui: str) -> None:
+    _ate_instalando(page, ui)
+    page.evaluate("window.__jobotPedirFechar()")
+    page.get_by_role("button", name="Parar e fechar", exact=True).click()
+    expect(page.get_by_role("status")).to_have_text("Parando…")
+    expect(page.locator(".progresso-linha")).to_have_text("Parando…")
+    _aviso(page, {"etapa": "jobot"})
+    expect(page.locator(".progresso-linha")).to_have_text("Parando…")
+
+
+def test_tab_segue_a_ordem_visual_do_pe(page: Page, ui: str) -> None:
+    _abrir(page, ui)
+    page.get_by_role("button", name="Continuar", exact=True).click()
+    voltar = page.get_by_role("button", name="Voltar", exact=True)
+    instalar = page.get_by_role("button", name="Instalar", exact=True)
+    caixa_voltar, caixa_instalar = voltar.bounding_box(), instalar.bounding_box()
+    assert caixa_voltar is not None and caixa_instalar is not None
+    assert caixa_voltar["x"] < caixa_instalar["x"]
+    voltar.focus()
+    page.keyboard.press("Tab")
+    expect(instalar).to_be_focused()
+
+
+def test_falha_mostra_o_detalhe_para_diagnostico(page: Page, ui: str) -> None:
+    _ate_instalando(page, ui)
+    _aviso(page, {"fim": "falhou", "motivo": "outro", "detalhe": "uv pip install: deu errado"})
+    detalhe = page.locator("#falha-detalhe")
+    expect(detalhe).to_be_visible()
+    detalhe.get_by_text("Detalhes", exact=True).click()
+    expect(detalhe).to_contain_text("uv pip install: deu errado")
+    page.get_by_role("button", name="Tentar de novo", exact=True).click()
+    _aviso(page, {"fim": "falhou", "motivo": "arquivo"})
+    expect(detalhe).to_be_hidden()
+
+
 def test_fechar_fora_da_instalacao_fecha_sem_perguntar(page: Page, ui: str) -> None:
     _abrir(page, ui)
     expect(page.get_by_role("button", name="Continuar", exact=True)).to_be_visible()

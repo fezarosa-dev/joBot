@@ -947,6 +947,11 @@ mod testes {
 
     #[test]
     fn instala_com_os_comandos_montados_e_grava_depois_da_prova() {
+        // SAFETY: o std guarda o ambiente com trava própria e nenhum código C dos testes o lê
+        unsafe {
+            std::env::set_var("UV_NO_BINARY", "1"); // recusaria as wheels
+            std::env::set_var("UV_CONSTRAINT", "/outra/restricao.txt");
+        }
         let c = cenario("certo");
         let (feitos, mut executor) = falso(c.pasta.clone(), "jobot 0.3.0", None);
         let mut avisos = Vec::new();
@@ -971,7 +976,14 @@ mod testes {
         let chromium = c.recursos.join(CHROMIUM);
         let esperado = vec![
             v(&[
-                &uv, "python", "install", "--no-bin", "--mirror", &espelho, "3.14.7",
+                &uv,
+                "python",
+                "install",
+                "--no-bin",
+                "--no-registry",
+                "--mirror",
+                &espelho,
+                "3.14.7",
             ]),
             v(&[
                 &uv,
@@ -995,6 +1007,7 @@ mod testes {
                 "-r",
                 &texto(&c.recursos.join("restricoes.txt")),
             ]),
+            v(&[&jobot, "--version"]),
             v(&[
                 &jobot,
                 "ferramentas",
@@ -1005,10 +1018,9 @@ mod testes {
                 "--sha256",
                 &sha(b"chromium falso"),
             ]),
-            v(&[&jobot, "--version"]),
         ];
         assert_eq!(argvs(&feitos), esperado);
-        // o uv roda offline, com as pastas da casca, sem índice nem espelho de fora
+        // o uv roda offline, com as pastas da casca e sem nenhuma UV_* da pessoa
         for (argv, ambiente) in feitos.borrow().iter().take(3) {
             let valor = |k: &str| ambiente.get(k).cloned().flatten();
             assert_eq!(valor("UV_OFFLINE").as_deref(), Some("1"), "{argv:?}");
@@ -1018,11 +1030,7 @@ mod testes {
                 valor("UV_PYTHON_INSTALL_DIR"),
                 Some(texto(&c.pasta.join("python")))
             );
-            for fora in [
-                "UV_INDEX_URL",
-                "UV_DEFAULT_INDEX",
-                "UV_PYTHON_INSTALL_MIRROR",
-            ] {
+            for fora in ["UV_NO_BINARY", "UV_CONSTRAINT"] {
                 assert_eq!(ambiente.get(fora), Some(&None), "{fora}");
             }
         }
@@ -1266,6 +1274,11 @@ mod testes {
         );
         assert_eq!(
             estado(&c.recursos, Some(""), VERSAO),
+            json!({"completo": false})
+        );
+        // manifesto adulterado (sha256 diferente da constante do build)
+        assert_eq!(
+            estado(&c.recursos, Some(sha(b"outro").as_str()), VERSAO),
             json!({"completo": false})
         );
         assert_eq!(
