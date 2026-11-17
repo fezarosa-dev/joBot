@@ -1,0 +1,55 @@
+{#- Cartão de uma chave de IA (T414; desenho 10.3 da fase 4), no molde do 2Captcha: a chave vai ao
+    cofre e nunca volta à página (só a máscara). O compatível tem também o endereço, e a chave dele
+    é opcional. `erro_ia` vem da gravação que falhou (só na página inteira). -#}
+{%- set b = cartao.servico -%}
+{%- set de = t("configuracoes.servicos.ia." ~ b ~ ".de") -%}
+{%- set e = erro_ia if erro_ia is defined and erro_ia and erro_ia.servico == b else none -%}
+{%- set campo_errado = e.campo if e else none -%}
+<section id="cartao-ia-{{ b }}" class="config-bloco" aria-labelledby="ia-{{ b }}-titulo">
+  <h2 id="ia-{{ b }}-titulo">{{ t("configuracoes.servicos.ia." ~ b ~ ".titulo") }}</h2>
+  <p class="config-texto">{{ t("configuracoes.servicos.ia." ~ b ~ ".frase") }}</p>
+  <p class="config-texto">{{ t("configuracoes.servicos.ia.nada_sai") }}</p>
+  {% if cartao.falhou %}
+  <div class="config-alerta" role="alert">
+    <p>{{ t("configuracoes.servicos.erro.cofre") }}</p>
+  </div>
+  {% endif %}
+  {% if e %}
+  <div class="config-alerta" role="alert" id="ia-{{ b }}-erro">
+    <p>{{ t(e.erro) }}</p>
+  </div>
+  {% endif %}
+  <form method="post" action="/configuracoes/servicos" class="config-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="servico" value="{{ b }}">
+    {% if b == "compativel" %}
+    <div class="campo">
+      <label for="campo-endereco-ia">{{ t("configuracoes.servicos.ia.endereco") }}</label>
+      <input type="url" class="campo-texto" id="campo-endereco-ia" name="endereco" value="{{ e.endereco if e else cartao.endereco }}" required autocomplete="off" spellcheck="false" aria-describedby="endereco-ajuda-ia{% if campo_errado == 'endereco' %} ia-{{ b }}-erro{% endif %}"{% if campo_errado == "endereco" %} aria-invalid="true"{% endif %}>
+      <small id="endereco-ajuda-ia">{{ t("configuracoes.servicos.ia.endereco.ajuda") }}</small>
+    </div>
+    {% endif %}
+    <div class="campo">
+      <label for="campo-chave-ia-{{ b }}">{{ t("configuracoes.servicos.ia.chave_opcional" if b == "compativel" else "configuracoes.servicos.ia.chave", de=de) }}</label>
+      <div class="campo-linha">
+        <input type="password" class="campo-texto" id="campo-chave-ia-{{ b }}" name="chave" autocomplete="new-password" spellcheck="false"{% if foco_chave %} data-foco{% endif %} aria-describedby="chave-ajuda-ia-{{ b }}{% if campo_errado == 'chave' %} ia-{{ b }}-erro{% endif %}"{% if campo_errado == "chave" %} aria-invalid="true"{% endif %}>
+        <button type="button" class="botao botao-secundario" data-olho aria-controls="campo-chave-ia-{{ b }}" aria-pressed="false">{{ t("configuracoes.servicos.ia.mostrar", de=de) }}</button>
+      </div>
+      <small id="chave-ajuda-ia-{{ b }}">{{ t("configuracoes.servicos.captcha.chave.ajuda") }}</small>
+      {% if cartao.mascara %}<p class="config-texto">{{ t("configuracoes.servicos.captcha.salva", mascara=cartao.mascara) }}</p>{% endif %}
+      {% if cartao.local == "arquivo" %}<p class="config-texto">{{ t("configuracoes.servicos.captcha.no_arquivo") }}</p>{% endif %}
+    </div>
+    <div class="acoes">
+      <button type="submit" class="botao botao-secundario">{{ t("configuracoes.servicos.ia.compativel.salvar" if b == "compativel" else "configuracoes.servicos.ia.salvar", de=de) }}</button>
+    </div>
+  </form>
+  {% if cartao.apagavel %}
+  <form method="post" action="/configuracoes/servicos/ia/{{ b }}/apagar" class="config-form" hx-post="/configuracoes/servicos/ia/{{ b }}/apagar" hx-target="#cartao-ia-{{ b }}" hx-swap="outerHTML">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div class="acoes">
+      <button type="submit" class="botao botao-secundario">{{ t("configuracoes.servicos.ia.compativel.apagar" if b == "compativel" else "configuracoes.servicos.ia.apagar", de=de) }}</button>
+    </div>
+  </form>
+  {% endif %}
+</section>
+{% if cartao_salvo %}<p hx-swap-oob="innerHTML:#status-servicos"><span data-some-sozinho>{{ t("configuracoes.salvo") }}</span></p>{% endif %}

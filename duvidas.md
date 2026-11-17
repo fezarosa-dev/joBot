@@ -3778,3 +3778,21 @@ Do item 2 (T305 h), aceito e documentado. Sem JavaScript, o detalhe sobreposto f
 **Como desfazer:** cada item diz o seu; a aba sai tirando `perfil` de `GRUPOS` e o módulo `painel/rotas/perfil.py`.
 
 **Ver também:** D185 (itens 13 e 20), D188.8, D197.1, D197.6, desenho 8 da fase 4, T403, T413, T415.
+
+## D201. Chaves de IA em Serviços: escolhas da T414 (para confirmar)
+
+**Status:** decidido pela sessão em 2026-11-17, para confirmar. Nada aqui custa dinheiro nem manda dado para fora: os cartões só guardam (desenho 10.3 da fase 4); quem liga uma tarefa é a aba IA (T415).
+
+**Contexto:** a T414 põe em Serviços os cartões de chave da Anthropic, da OpenAI, do Google Gemini e do compatível com OpenAI (endereço e chave opcional), no molde do 2Captcha. O desenho fixou o cofre (`ia_<serviço>`), o "Apagar", o aviso do arquivo 0600 e a regra do endereço (5.1), e deixou abertos a ordem, o formato aceito da chave, o caminho do formulário e o que o "Apagar" do compatível apaga.
+
+1. **Ordem e botão.** Os quatro cartões vêm depois do 2Captcha, na ordem Anthropic, OpenAI, Gemini, compatível (`SERVICOS_IA` em `painel/rotas/servicos.py`). O "Salvar" de cada um é secundário: o botão principal da aba segue o do 2Captcha (um por tela). Os rótulos levam o nome do serviço ("Chave da OpenAI", "Salvar a chave da OpenAI", "Mostrar a chave da OpenAI", "Apagar a chave da OpenAI"), para cada controle ter nome único na aba. Desfazer: a ordem da tupla e a classe do botão.
+2. **Formulário.** O mesmo `POST /configuracoes/servicos` da chave do 2Captcha, com um campo escondido `servico`: com ele, `gravar_chave_ia` grava; sem ele, segue o 2Captcha. Serviço fora da lista é 422 seco. Erro de chave ou de endereço volta a página com 422, o aviso dentro do cartão (`role=alert`, ligado ao campo por `aria-describedby` e `aria-invalid`) e o endereço digitado de volta no campo; a chave digitada nunca volta. Funciona sem JavaScript; só o "Apagar" usa HTMX (troca o cartão e põe o foco no campo da chave), com 303 sem ele. Desfazer: rota própria em `servicos.py`.
+3. **Formato da chave.** De 8 a 512 caracteres ASCII visíveis, sem espaço (`[!-~]{8,512}`), depois de tirar as pontas: a chave vai no cabeçalho `Authorization`, e acento ou caractere invisível quebraria o pedido. Nenhuma regra por serviço (prefixo `sk-`, `AIza`): a T416 confere de verdade. Campo vazio mantém a chave salva, como no 2Captcha. Desfazer: `_CHAVE_IA`.
+4. **Endereço do compatível.** `conferir_endereco` do cliente (desenho 5.1, D191.13), mais um teto de 2048 caracteres (`TETO_ENDERECO`); gravado sem a `/` do fim em `ia_compativel.endereco`. O endereço é obrigatório no cartão do compatível; a chave, opcional. Com chave e endereço, a chave vai ao cofre primeiro e o endereço só é gravado se o cofre deu certo: nada fica meio gravado. Desfazer: a ordem em `gravar_chave_ia`.
+5. **Apagar.** Nos serviços pagos, apaga só a chave. No compatível, apaga o endereço (antes, para nada sair) e a chave: o botão diz "Apagar o endereço e a chave" e aparece com qualquer dos dois salvo. Apagar não desliga a tarefa que usa o serviço: sem chave, o laço recebe `sem_chave` e para a rodada sem pedido nenhum (D198.6), e a aba IA (T415) mostra o estado. Falha do cofre sem JavaScript volta com `?erro=cofre-ia-<serviço>`, que só o cartão daquele serviço mostra. Desfazer: desligar as tarefas no `apagar_ia`.
+6. **Textos.** Reaproveitam os do 2Captcha onde dizem o mesmo (chave salva com a máscara de 4 caracteres, o aviso do arquivo, o erro do cofre e a ajuda do campo). O cartão da Anthropic diz, em pt e en, que a chave precisa estar presa a um workspace e que um 402 é cobrança (aviso da T406, D192.3); os pagos dizem que são cobrados por uso; todos dizem que guardar a chave não liga nada. O "experimental, ainda não provado" fica na aba IA (desenho 10.3). Desfazer: as chaves `configuracoes.servicos.ia.*`.
+7. **Leitura.** As quatro leituras do cofre correm juntas (`asyncio.gather`), cada uma pelo `no_cofre` com prazo: com o cofre travado, a aba espera um prazo, não quatro, e cada cartão mostra o erro do cofre. Desfazer: leitura em sequência.
+
+**Como desfazer:** cada item diz o seu; os cartões saem tirando o laço de `servicos.html` e o bloco "chaves de IA" de `servicos.py`.
+
+**Ver também:** D185 (item 20), D191.13, D192.3, D198.6, D198.7, desenho 5.1 e 10.3 da fase 4, T406, T414, T415, T416.

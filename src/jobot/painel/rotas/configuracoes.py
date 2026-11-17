@@ -5,8 +5,9 @@ Os grupos em `/configuracoes/{grupo}`: geral (tema, idioma e tamanho do texto pe
 `/configuracoes/aparencia` de antes só redireciona no GET), fontes (uma chave por fonte, por leva),
 funções (as chaves da 13.7 e o N dos destaques), perfil (as habilidades; o contexto, o salvar e o
 "Apagar perfil" moram em `perfil.py`, T413), segundo plano, privacidade (onde ficam
-os dados, a recomendação de disco cifrado e o aviso de versão), serviços (a chave do 2Captcha, que
-fica no cofre; o interruptor e o apagar moram em `servicos.py`, T184) e contas (T218 e T275: só
+os dados, a recomendação de disco cifrado e o aviso de versão), serviços (a chave do 2Captcha e as
+de IA, que ficam no cofre; o interruptor, os apagar e a gravação das de IA moram em `servicos.py`,
+T184 e T414) e contas (T218 e T275: só
 existe com leitor registrado; o interruptor de cada site grava na hora, o cartão mostra o estado da
 sessão e os horários são um campo só). "Fazer login agora" e "Esquecer logins" (T219) usam o
 `jobot.navegador` e a trava `login` do `serve`: nunca abrem o navegador nem apagam o perfil enquanto
@@ -75,7 +76,12 @@ from jobot.painel.formatos import conferido_texto, opcoes_de_pais
 from jobot.painel.rotas.execucao import criar_tarefa
 from jobot.painel.rotas.gmail import contexto_gmail
 from jobot.painel.rotas.perfil import contexto_perfil, habilidades_do_texto, salvar_habilidades
-from jobot.painel.rotas.servicos import contexto_captcha, no_cofre
+from jobot.painel.rotas.servicos import (
+    contexto_captcha,
+    contexto_servicos,
+    gravar_chave_ia,
+    no_cofre,
+)
 from jobot.painel.saude_das_fontes import estado_dos_escopos, motivo_mais_grave
 from jobot.painel.seguranca import Con, idioma_do_pedido, renderizar
 from jobot.sistema import casca, caso, segundo_plano
@@ -325,7 +331,7 @@ _CONTEXTOS: dict[str, Contexto] = {
     "perfil": contexto_perfil,
     "segundo-plano": _ctx_segundo_plano,
     "privacidade": _ctx_privacidade,
-    "servicos": contexto_captcha,
+    "servicos": contexto_servicos,
     COM_LOGIN: _ctx_contas,
     "ferramentas": _contexto_ferramentas,
 }
@@ -476,6 +482,12 @@ async def _gravar_privacidade(request: Request, con: Con) -> Response:
 
 async def _gravar_servicos(request: Request, con: Con) -> Response:
     form = await request.form()
+    if "servico" in form:  # o cartão de uma chave de IA (T414)
+        falhou = await gravar_chave_ia(request, con, form)
+        if falhou is None:
+            return _volta("servicos", salvo=True)
+        status, ctx = falhou
+        return await _pagina(request, con, "servicos", status, **ctx)
     bruto = form.get("chave")
     if not isinstance(bruto, str) or not bruto.strip():
         return _volta("servicos", salvo=True)  # campo vazio mantém a chave salva
