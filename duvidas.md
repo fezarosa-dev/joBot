@@ -3125,4 +3125,4 @@ Do item 2 (T305 h), aceito e documentado. Sem JavaScript, o detalhe sobreposto f
 
 **Como desfazer:** cada item mora numa seção do desenho (13 lista as seções); trocar é editar o desenho antes da tarefa correspondente. Depois de construído: 7 e 12 são a `segundo_plano` e a casca (T328, T329, T337); 11 é tirar o aviso da casca na faixa (T332); 15 é tirar a conferência de recursos (T335). Nenhum dado muda.
 
-**Ver também:** D138, D139.10, D140, D142, D143, ADR 0003, 0017, 0018, 0023 e 0025 (a criar na T320).
+**Ver também:** D138, D139.10, D140, D142, D143, ADR 0003, 0017, 0018, 0023 e [0025](docs/decisions/0025-app-de-desktop-e-instalador.md).
