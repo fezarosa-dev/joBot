@@ -209,10 +209,13 @@ jobs:
           if ($LASTEXITCODE -ne 0 -or $exes.Count -eq 0) { throw 'não deu para listar os .exe' }
           # o próprio instalador também: é ele que baixaria o WebView2 (D183)
           $exes = @($setup) + $exes
-          foreach ($exe in $exes) {
-            New-NetFirewallRule -Direction Outbound -Action Block -Program $exe -DisplayName "jobot-fumaca $exe" | Out-Null
+          function Bloquear {
+            foreach ($exe in $exes) {
+              New-NetFirewallRule -Direction Outbound -Action Block -Program $exe -DisplayName "jobot-fumaca $exe" | Out-Null
+            }
+            Write-Output "$($exes.Count) regras de saída"
           }
-          Write-Output "$($exes.Count) regras de saída"
+          Bloquear
           $com = $exes | ForEach-Object { $_.ToLowerInvariant() }
           function Conferir-Regras {
             $achados = @(Get-ChildItem $inst -Recurse -Filter '*.exe' -File)
@@ -245,12 +248,6 @@ jobs:
           uv run --no-project --python 3.14 python -c $teste
           if ($LASTEXITCODE -ne 0) { throw 'o Python do runner, sem regra, não saiu: o controle não vale' }
           Write-Output 'controle: o Python do venv não sai, o do runner sai'
-          # o navegador vem da internet (D183.24): sem as regras, o passo da tela de instalação
-          Get-NetFirewallRule -DisplayName 'jobot-fumaca *' | Remove-NetFirewallRule
-          $v = Start-Process (Join-Path $inst 'jobot-app.exe') -ArgumentList '--verificar-navegador' -Wait -PassThru `
-            -RedirectStandardOutput "$saida-navegador.out" -RedirectStandardError "$saida-navegador.err"
-          Get-Content "$saida-navegador.out", "$saida-navegador.err"
-          if ($v.ExitCode -ne 0) { throw "--verificar-navegador: $($v.ExitCode)" }
           # troca pela tela normal: a PageLeaveReinstall do Tauri roda o desinstalador velho no
           # lugar (_?=), o gancho não chama o --desinstalar e o venv fica (D182.5). Em /S o
           # instalador pula essa página, então a fumaça faz o mesmo passo à mão.
@@ -265,6 +262,14 @@ jobs:
           $p = Start-Process $setup -ArgumentList '/S' -Wait -PassThru
           if ($p.ExitCode -ne 0) { throw "reinstalar: $($p.ExitCode)" }
           if (-not (Test-Path (Join-Path $inst 'app\venvs'))) { throw 'a reinstalação apagou o venv' }
+          # o navegador vem da internet (D183.24): sem as regras, o passo da tela de instalação,
+          # com o venv que ficou; as regras voltam para a desinstalação final
+          Get-NetFirewallRule -DisplayName 'jobot-fumaca *' | Remove-NetFirewallRule
+          $v = Start-Process (Join-Path $inst 'jobot-app.exe') -ArgumentList '--verificar-navegador' -Wait -PassThru `
+            -RedirectStandardOutput "$saida-navegador.out" -RedirectStandardError "$saida-navegador.err"
+          Get-Content "$saida-navegador.out", "$saida-navegador.err"
+          if ($v.ExitCode -ne 0) { throw "--verificar-navegador: $($v.ExitCode)" }
+          Bloquear
           # desinstalar de verdade: o NSIS se copia para o temporário e o gancho chama --desinstalar
           Start-Process $un -ArgumentList '/S' -Wait
           for ($i = 0; $i -lt 120 -and (Test-Path $un); $i++) { Start-Sleep -Seconds 1 }
