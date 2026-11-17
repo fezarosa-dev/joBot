@@ -13,6 +13,8 @@
   "detalhe.abrir_no_site_nova_aba": "Abrir no site (abre em nova aba)",
   "detalhe.encaixe.nota": "{nota} de 100",
   "detalhe.encaixe.sem_nota": "Sem nota de encaixe para esta busca.",
+  "detalhe.habilidades.origem": "O que a vaga pede, segundo a IA ({backend}, {modelo}).",
+  "detalhe.habilidades.cortado": "A IA leu só parte do texto da vaga.",
   "detalhe.estagio.curso": "Curso",
   "detalhe.estagio.semestre_minimo": "Semestre mínimo",
   "detalhe.estagio.ano_minimo": "Ano mínimo",

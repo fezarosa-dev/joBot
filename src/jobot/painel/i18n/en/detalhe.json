@@ -13,6 +13,8 @@
   "detalhe.abrir_no_site_nova_aba": "Open on Site (opens in a new tab)",
   "detalhe.encaixe.nota": "{nota} out of 100",
   "detalhe.encaixe.sem_nota": "No fit score for this search.",
+  "detalhe.habilidades.origem": "What the job asks for, according to the AI ({backend}, {modelo}).",
+  "detalhe.habilidades.cortado": "The AI read only part of the job text.",
   "detalhe.estagio.curso": "Course",
   "detalhe.estagio.semestre_minimo": "Minimum semester",
   "detalhe.estagio.ano_minimo": "Minimum year",

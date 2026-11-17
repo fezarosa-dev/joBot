@@ -1,12 +1,11 @@
 """Tarefas da IA (desenho 5.2 da fase 4): esquema de saída, `VERSAO` e a conferência no código."""
 
 import re
-import string
 from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from jobot.nucleo.texto import normalizar
+from jobot.nucleo.texto import normalizar, sem_pontas
 
 # Sobe quando o texto do pedido (`pedidos.py`) ou o esquema da tarefa mudam: a chave do laço muda e
 # a vaga é pedida de novo (desenho 5.1 e 5.4).
@@ -20,12 +19,6 @@ class SaidaEncaixe(BaseModel):
     pede: list[Annotated[str, Field(max_length=60)]] = Field(max_length=30)
 
 
-# Pontas que saem de cada item (D190.5): só a pontuação de fechamento no fim e "(" no começo; o "."
-# do começo fica (".NET"), e "+" e "#" também ("C++", "C#").
-_COMECO = string.whitespace + "("
-_FIM = string.whitespace + ",;:.!?)"
-
-
 def pede_da_vaga(pede: list[str], texto: str) -> list[str]:
     """Anti-invenção: fica só o item que aparece, normalizado e como palavra inteira, no texto
     enviado ao modelo (`TextoVaga.texto`); repetidos e vazios saem, na ordem da resposta."""
@@ -33,7 +26,7 @@ def pede_da_vaga(pede: list[str], texto: str) -> list[str]:
     vistos: set[str] = set()
     ficam = []
     for item in pede:
-        limpo = item.lstrip(_COMECO).rstrip(_FIM)
+        limpo = sem_pontas(item)
         forma = normalizar(limpo)
         if not forma or forma in vistos:
             continue
