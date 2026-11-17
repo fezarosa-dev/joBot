@@ -3163,7 +3163,7 @@ Do item 2 (T305 h), aceito e documentado. Sem JavaScript, o detalhe sobreposto f
 
 ## D174. Instalador completo e sem rede
 
-**Status:** itens 1 a 5 decididos pelo dono em 2026-11-17; itens 6 a 12 são escolhas da sessão, para confirmar.
+**Status:** itens 1 a 5 decididos pelo dono em 2026-11-17; itens 6 a 14 são escolhas da sessão, para confirmar.
 
 **Contexto:** o dono pediu um instalador "o menos quebrável possível". A D171.1 baixava o joBot da release na hora de instalar e o `uv` baixava o Python e as dependências da internet: qualquer falha de rede, de índice ou de CDN quebrava a instalação. A D173 já trocou o `uv tool install` por venv + `uv pip install --require-hashes`. Desenho 5.2, 6.2, 6.3, 7.2, 8, 9, 10 e 11; plano T344.
 
@@ -3179,13 +3179,15 @@ Do item 2 (T305 h), aceito e documentado. Sem JavaScript, o detalhe sobreposto f
 
 6. A casca copia o `uv` e o Python para a pasta dela (`bin/`, `python/`), porque o caminho de dentro do AppImage muda a cada abertura; os venvs ficam em `venvs/venv-<versão>` na mesma pasta (desenho 6.2).
 7. O sha256 do `manifesto.json` entra no binário da casca no build (`JOBOT_MANIFESTO_SHA256`); o manifesto traz o sha256 de cada arquivo dos recursos.
-8. O pacote de atualização (`jobot-atualizacao-<versão>-<alvo>.zip`) não leva o Chromium; ele vai pela tela Ferramentas quando a versão do Playwright mudar.
+8. O pacote de atualização (`jobot-atualizacao-<versão>-<alvo>.zip`) não leva o Chromium, mas o `manifesto.json` dele lista o `chromium-<alvo>.tar.gz` (nome, tamanho e sha256) sem o arquivo estar dentro, e a conferência aceita essa entrada que falta; assim o navegador ainda baixa pela tela Ferramentas depois de qualquer atualização.
 9. O canal `casca` refaz o segundo plano a cada troca de venv (o serviço aponta para o executável do venv).
 10. Desinstalar apaga a pasta da casca inteira (venvs, Python, `uv`, manifestos) e não apaga o Chromium da pasta padrão do Playwright, que pode servir a outro programa; o README diz como tirar pela tela Ferramentas.
-11. Mac `x86_64` gerado num runner Intel, para o Chromium e as wheels saírem da máquina do alvo.
-12. O arquivo do Chromium é um `.zip` (o `zipfile` da biblioteca padrão extrai nos três sistemas) feito pelo próprio `playwright install chromium` da versão fixada numa pasta temporária.
+11. Mac `x86_64` gerado no runner Intel `macos-15-intel`, para o Chromium e as wheels saírem da máquina do alvo. O GitHub está tirando os runners Intel do macOS (o `macos-13` já saiu): quando o último sumir, o `.dmg` `x86_64` (já experimental) sai da release. A outra saída, montar os recursos `x86_64` no runner ARM com `pip download --platform macosx_..._x86_64` e o Chromium mac-x64, fica anotada e não entra agora.
+12. O arquivo do Chromium é um `.tar.gz` gerado com `tarfile` a partir da pasta temporária do próprio `playwright install chromium` da versão fixada, e extraído com `tarfile` e `filter="data"` (guarda o modo e os symlinks e recusa caminho para fora da pasta). ~~É um `.zip` (o `zipfile` extrai nos três sistemas).~~ (superado em 2026-11-17 na revisão: o `zipfile` não restaura os bits de permissão Unix nem os symlinks; o `chrome` sairia sem `+x` e o `Chromium.app` quebraria.)
+13. Navegador desatualizado: com o Chromium instalado e o sha256 dele diferente entre o manifesto antigo e o novo, a atualização do canal `casca` baixa o arquivo novo pelo caminho da tela Ferramentas antes da troca; se esse download falhar, a troca segue e a tela Ferramentas marca "navegador desatualizado" (desenho 6.3; T331).
+14. Banco ao voltar à versão anterior: a troca grava o `user_version` do SQLite no `instalacao.json`, e voltar só acontece se ele não mudou desde a troca (senão recusa e diz por quê; restaurar a cópia `.antes-vN` perderia as vagas coletadas depois); e o `banco/migrar.py` passa a recusar abrir um esquema maior que a última migração que conhece (desenho 6.3; T331).
 
-**O que o dono faz:** confirmar 6 a 12 ou trocar algum. Se a T336 mostrar que o `uv` não instala o Python local sem rede, decidir a dependência nova do Rust (`tar` e `flate2`) antes de seguir (risco 7 do desenho).
+**O que o dono faz:** confirmar 6 a 14 ou trocar algum. Se a T336 mostrar que o `uv` não instala o Python local sem rede, decidir a dependência nova do Rust (`tar` e `flate2`) antes de seguir (risco 7 do desenho).
 
 **Como desfazer:** voltar à D171.1 é tirar `desktop/recursos/` do build e trocar o caminho local pelo download da release em `desktop/src/instalar.rs` (T336) e no canal `casca` do `atualizar.py` (T331); a fumaça sem rede da T339 sai junto. O navegador (2) volta para o `playwright install` tirando os caminhos (a) e (b) do subcomando da T330. Nenhum dado da pessoa muda.
 
