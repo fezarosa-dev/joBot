@@ -264,7 +264,9 @@ LADO = "#detalhe-vaga"
 def _abrir_pelo_teclado(page: Page, titulo: str) -> None:
     """Foca a linha da vaga e abre com Return: na janela larga do teste, o detalhe abre ao lado da
     lista (T255), com o título em h2 (o h1 é o da página). Espera o settle do htmx: antes dele, os
-    hx-* do detalhe novo ainda não valem e um Return no Ocultar faria o POST nativo."""
+    hx-* do detalhe novo ainda não valem e um Return no Ocultar faria o POST nativo. Espera também
+    antes de teclar: a linha que o "Carregar mais" acabou de trazer sem os hx-* navega a página."""
+    expect(page.locator(".htmx-request, .htmx-swapping, .htmx-settling")).to_have_count(0)
     _cartao(page, titulo).focus()
     page.keyboard.press("Enter")
     expect(page.locator(LADO).get_by_role("heading", level=2, name=titulo)).to_be_visible()
