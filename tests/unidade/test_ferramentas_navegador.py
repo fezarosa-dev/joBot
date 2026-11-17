@@ -56,9 +56,9 @@ def test_instalador_que_nao_abre_falha_com_linha_final(capsys: pytest.CaptureFix
 
 
 def test_sem_arquivo_nem_sha256_na_linha_de_comando() -> None:
-    """O caminho do arquivo da release saiu (D183.24): a opção velha é recusada."""
-    with pytest.raises(SystemExit):
-        jobot.cli.main(["ferramentas", "baixar", "navegador", "--arquivo", "c.tar.gz"])
+    """O caminho do arquivo da release saiu (D183.24): a opção velha é recusada (o argparse
+    sai com 2); o controle sem ela chega ao subcomando no teste de baixo."""
+    assert jobot.cli.main(["ferramentas", "baixar", "navegador", "--arquivo", "c.tar.gz"]) == 2
 
 
 def test_main_chega_no_subcomando(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
