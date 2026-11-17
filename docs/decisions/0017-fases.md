@@ -2,7 +2,7 @@
 
 - **Status:** aceita
 - **Data:** 2026-11-13
-- **Atualizada:** 2026-11-16 (versões 0.1.1, 0.2.0 e 0.2.1 entre a fase 1 e a fase 2; fase 3 vira o Instalador, as seguintes andam um número, e a versão 0.3.0 traz o Panorama e a fila, D138; fase 3 com o app de desktop, D142, e o ajuste do Laya antes da fase 4, D141; fase 2 concluída e 0.3.0); 2026-11-17 (fase 3 começa a ser construída, D171 e [0025](0025-app-de-desktop-e-instalador.md)); 2026-11-18 (fase 3 concluída na 0.4.0)
+- **Atualizada:** 2026-11-16 (versões 0.1.1, 0.2.0 e 0.2.1 entre a fase 1 e a fase 2; fase 3 vira o Instalador, as seguintes andam um número, e a versão 0.3.0 traz o Panorama e a fila, D138; fase 3 com o app de desktop, D142, e o ajuste do Laya antes da fase 4, D141; fase 2 concluída e 0.3.0); 2026-11-17 (fase 3 começa a ser construída, D171 e [0025](0025-app-de-desktop-e-instalador.md); fase 3 concluída na 0.4.0)
 
 ## Contexto
 
