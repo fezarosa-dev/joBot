@@ -18,6 +18,7 @@ import jobot
 import jobot.cli
 from apoio.janela_falsa import JanelaFalsa
 from jobot.cli import ferramentas
+from jobot.navegador import chromium
 from jobot.navegador.chromium import pasta_do_playwright
 from jobot.navegador.instalador import comando_de_baixar
 from jobot.navegador.janela_comum import Janela
@@ -120,7 +121,8 @@ def _rodar(
             "win32",
             {"LOCALAPPDATA": "C:/Users/ana/AppData/Local"},
             "C:/Users/ana/AppData/Local/ms-playwright",
-        ),  # noqa: E501
+        ),
+        ("win32", {"USERPROFILE": "C:/Users/ana"}, "C:/Users/ana/AppData/Local/ms-playwright"),
         ("linux", {"HOME": "/casa/ana", "PLAYWRIGHT_BROWSERS_PATH": "/outra"}, "/outra"),
     ],
 )
@@ -206,6 +208,61 @@ def test_arquivo_sem_sha256_e_recusado(tmp_path: Path, capsys: pytest.CaptureFix
     assert _rodar(tmp_path, _args(arquivo, None)) == 1
     assert _linhas(capsys.readouterr().out) == [{"fim": "falhou"}]
     assert _arvore(tmp_path / "ms-playwright") == []
+
+
+def _sem_traceback(tmp_path: Path, args: argparse.Namespace) -> int:
+    """`OSError` que escapa é saída sem a linha final, que a casca espera."""
+    try:
+        return _rodar(tmp_path, args)
+    except OSError:
+        return -1
+
+
+def test_arquivo_inexistente_falha_com_linha_final(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert _sem_traceback(tmp_path, _args(tmp_path / "nao-existe.tar.gz", "0" * 64)) == 1
+    assert _linhas(capsys.readouterr().out) == [{"fim": "falhou"}]
+
+
+def test_troca_que_falha_devolve_a_instalacao_velha(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A pasta nova não entra no lugar (no Windows, o chrome aberto): a velha volta inteira."""
+    velha = tmp_path / "ms-playwright" / "chromium-1"
+    velha.mkdir(parents=True)
+    (velha / "velho.txt").write_text("v")
+    dados = _tar(tmp_path)
+    arquivo = tmp_path / NOME
+    arquivo.write_bytes(dados)
+    trocar = os.replace
+    falhas = []
+
+    def replace_que_falha(origem: str | Path, alvo: str | Path) -> None:
+        if Path(alvo) == velha and not falhas:
+            falhas.append(origem)
+            raise PermissionError("em uso")
+        trocar(origem, alvo)
+
+    monkeypatch.setattr(chromium.os, "replace", replace_que_falha)
+    assert _sem_traceback(tmp_path, _args(arquivo, _hex(dados))) == 1
+    assert _linhas(capsys.readouterr().out)[-1:] == [{"fim": "falhou"}]
+    assert falhas
+    assert _arvore(tmp_path / "ms-playwright") == ["chromium-1", "chromium-1/velho.txt"]
+
+
+def test_extrair_apaga_sobras_de_um_cancelamento(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    destino = tmp_path / "ms-playwright"
+    (destino / ".jobot-abc" / "chromium-1").mkdir(parents=True)
+    (destino / ".jobot-xyz.tar.gz").write_bytes(b"metade")
+    dados = _tar(tmp_path)
+    arquivo = tmp_path / NOME
+    arquivo.write_bytes(dados)
+    assert _rodar(tmp_path, _args(arquivo, _hex(dados))) == 0
+    assert _linhas(capsys.readouterr().out)[-1:] == [{"fim": "pronto"}]
+    assert not [p for p in _arvore(destino) if p.startswith(".")]
 
 
 # ------------------------------------------------------------------ (b) canal casca

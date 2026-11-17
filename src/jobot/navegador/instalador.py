@@ -24,6 +24,10 @@ _LOG = logging.getLogger(__name__)
 
 Resultado = Literal["pronto", "falhou"]
 
+# O subcomando da casca baixa e grava em Python: no Windows, sem estas o `Path.home()` levanta e
+# o socket não abre (WinError 10106). Nenhuma leva segredo; fora do Windows não existem.
+_DO_WINDOWS = ("LOCALAPPDATA", "USERPROFILE", "SYSTEMROOT", "TEMP", "TMP")
+
 
 def comando_de_baixar() -> list[str]:
     """Só o Chromium, sem o headless shell e sem `--with-deps` (que pede sudo)."""
@@ -113,11 +117,13 @@ async def _rodar(
 async def baixar_chromium(abrir: AbrirJanela, dados_da_casca: Path | None = None) -> Resultado:
     """Cancelar (o painel fechando) encerra o download: arquivo pela metade não vale nada.
     Com a pasta de dados do canal `casca`, roda o subcomando que baixa da release, com o
-    `JOBOT_DADOS` para ele achar o mesmo `instalacao.json`."""
+    `JOBOT_DADOS` para ele achar o mesmo `instalacao.json` e as `_DO_WINDOWS`."""
     if dados_da_casca is None:
         comando, ambiente = comando_de_baixar(), None
     else:
-        comando, ambiente = comando_de_baixar_pela_casca(), {"JOBOT_DADOS": str(dados_da_casca)}
+        comando = comando_de_baixar_pela_casca()
+        ambiente = {n: os.environ[n] for n in _DO_WINDOWS if n in os.environ}
+        ambiente["JOBOT_DADOS"] = str(dados_da_casca)
     return await _rodar(
         abrir, comando, limites.PRAZO_BAIXAR_S, cancelar_encerra=True, ambiente=ambiente
     )

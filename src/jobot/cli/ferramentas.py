@@ -83,7 +83,11 @@ def baixar_navegador(
     abrir_cliente: Callable[[], httpx.Client] = _cliente,
     abrir: AbrirJanela = abrir_instalador,
 ) -> int:
-    pronto = _baixar(args, dados, destino, abrir_cliente, abrir)
+    try:
+        pronto = _baixar(args, dados, destino, abrir_cliente, abrir)
+    except OSError:  # arquivo que não existe, destino sem permissão: a casca espera a linha final
+        _LOG.exception("não deu para baixar o navegador")
+        pronto = False
     _escrever({"fim": "pronto" if pronto else "falhou"})
     return 0 if pronto else 1
 
