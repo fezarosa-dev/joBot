@@ -875,14 +875,14 @@ async def baixar_navegador(request: Request) -> Response:
     abrir = abrir_instalador_do_painel(request)
     ler = ler_navegador_do_painel(request)
     ferramentas = _ferramentas(request)
-    casca = _dados_da_casca(request)
+    dados_casca = _dados_da_casca(request)
     await trava.acquire()  # livre: não suspende, então a checagem acima vale
     ferramentas["navegador"] = "baixando"
 
     async def baixar() -> None:
         resultado = "falhou_baixar"  # erro inesperado sai assim; o `rodar` registra e solta
         try:
-            if await baixar_chromium(abrir, casca) == "pronto":
+            if await baixar_chromium(abrir, dados_casca) == "pronto":
                 request.app.state.navegador_instalado = await ler()
                 if request.app.state.navegador_instalado:
                     resultado = "pronto"
