@@ -40,9 +40,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          pacote="$RUNNER_TEMP/llama-server-pacote"
           url=$(uv run python -c "import sys; from jobot.cli.ferramentas import ALVO, manifesto_local; sys.stdout.write(manifesto_local()['llama_server']['alvos'][ALVO]['url'])")
-          curl -fsSL --retry 3 -o "$RUNNER_TEMP/llama-server-pacote" "$url"
-          gh attestation verify "$RUNNER_TEMP/llama-server-pacote" --owner ggml-org --signer-workflow ggml-org/llama.cpp/.github/workflows/release-publish.yml
+          curl -fsSL --retry 3 -o "$pacote" "$url"
+          uv run python -c "import hashlib, sys; from jobot.cli.ferramentas import ALVO, manifesto_local; sys.exit(hashlib.sha256(open(sys.argv[1], 'rb').read()).hexdigest() != manifesto_local()['llama_server']['alvos'][ALVO]['sha256'])" "$pacote"
+          gh attestation verify "$pacote" --owner ggml-org --signer-workflow ggml-org/llama.cpp/.github/workflows/release-publish.yml
       - name: provar-auto
         run: uv run python scripts/provar_ia.py --rotulo "${{ matrix.os }}"
       - name: medir-auto
