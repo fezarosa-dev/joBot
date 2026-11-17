@@ -520,9 +520,11 @@ def test_buscar_com_outra_busca_rodando_avisa(
     assert "já" in capsys.readouterr().err
 
 
-def test_serve_com_outro_jobot_aberto_avisa_e_sai_com_1(
+def test_serve_com_outro_jobot_aberto_avisa_e_sai_com_0(
     isolado: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
+    # sai com 0 (D174 item 9): o KeepAlive do launchd e o Restart=on-failure do systemd
+    # não refazem o serve enquanto o painel está aberto
     def montar_proibido(*args: object, **kwargs: object) -> None:
         raise AssertionError("não sobe nada com a trava presa")
 
@@ -531,7 +533,7 @@ def test_serve_com_outro_jobot_aberto_avisa_e_sai_com_1(
     outro = Trava(isolado, PORTA)
     assert outro.pegar()
     try:
-        assert servir.executar(argparse.Namespace(comando="serve")) == 1
+        assert servir.executar(argparse.Namespace(comando="serve")) == 0
     finally:
         outro.soltar()
     assert "já está aberto" in capsys.readouterr().err
