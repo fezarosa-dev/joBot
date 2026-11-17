@@ -10,15 +10,16 @@ Script do CI (`.github/workflows/pacotes.yml`), fora do pacote `jobot`. Três co
   sha256 de cada um; monta em `S` o `bin/uv.tar` (o `uv` num tar sem compressão), o
   `python/<tag>/<arquivo>` (o espelho que o `uv python install --mirror` lê), as `wheels/`
   (as do alvo, já baixadas com `--require-hashes`, e a do joBot), o `restricoes.txt` e o
-  `chromium-<alvo>.tar.gz` (da pasta do `playwright install chromium`), e por fim o
-  `manifesto.json`, cujo sha256 sai no stdout (o `JOBOT_MANIFESTO_SHA256` do build). Em `DIR`
-  grava o `jobot-atualizacao-<versão>-<alvo>.zip`.
+  `chromium-<alvo>.tar.gz` (reproduzível, da pasta do `playwright install --no-shell
+  chromium`), e por fim o `manifesto.json`, cujo sha256 sai no stdout (o
+  `JOBOT_MANIFESTO_SHA256` do build). Em `DIR` grava o `jobot-atualizacao-<versão>-<alvo>.zip`.
 - `exes --recursos S --instalacao I --playwright P`: todo `.exe` que a instalação no Windows vai
   ter, um por linha, para a fumaça sem rede criar as regras de firewall antes do `/S`.
 """
 
 import argparse
 import configparser
+import gzip
 import hashlib
 import json
 import shutil
@@ -114,13 +115,24 @@ def _tar_do_uv(binario: Path, destino: Path) -> None:
     shutil.rmtree(binario.parent)
 
 
+def _sem_hora_nem_dono(info: tarfile.TarInfo) -> tarfile.TarInfo:
+    info.mtime, info.uid, info.gid, info.uname, info.gname = 0, 0, 0, "", ""
+    return info
+
+
 def tar_do_navegador(pasta: Path, destino: Path) -> None:
-    """O `chromium-<alvo>.tar.gz` com as pastas do `playwright install chromium` (D174.12):
-    o `tarfile` guarda o modo e os symlinks; as pastas ocultas (`.links`) ficam de fora."""
-    with tarfile.open(destino, "w:gz") as tar:
+    """O `chromium-<alvo>.tar.gz` com as pastas do `playwright install --no-shell chromium`
+    (D174.12): o `tarfile` guarda o modo e os symlinks; as pastas ocultas (`.links`) ficam de
+    fora. Reproduzível (D183): sem hora no gzip nem hora e dono nos membros, e o `tar.add` já
+    percorre as pastas em ordem; o canal `casca` compara o sha256 entre versões (D174.13)."""
+    with (
+        destino.open("wb") as bruto,
+        gzip.GzipFile(filename="", mode="wb", fileobj=bruto, mtime=0) as comprimido,
+        tarfile.open(fileobj=comprimido, mode="w") as tar,
+    ):
         for item in sorted(pasta.iterdir()):
             if not item.name.startswith("."):
-                tar.add(item, arcname=item.name)
+                tar.add(item, arcname=item.name, filter=_sem_hora_nem_dono)
 
 
 def _entradas(raiz: Path, nomes: list[str]) -> list[dict[str, object]]:

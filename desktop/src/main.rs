@@ -450,12 +450,14 @@ fn verificar_janela(alvo: &str, contexto: tauri::Context) {
         .expect("erro ao rodar a janela");
 }
 
-/// Abre o Chromium de verdade (headless) pelo Python do venv e lê uma página (desenho 10): só
-/// conferir a pasta não prova o bit de execução nem as bibliotecas.
+/// Abre o Chromium de verdade pelo Python do venv e lê uma página (desenho 10): só conferir a
+/// pasta não prova o bit de execução nem as bibliotecas. `channel="chromium"` é o binário
+/// completo, o mesmo que o joBot abre com janela, em headless novo (sem tela); sem ele o
+/// Playwright cairia no headless shell, que os recursos nem trazem (D183).
 const SCRIPT_CHROMIUM: &str = r#"
 from playwright.sync_api import sync_playwright
 with sync_playwright() as p:
-    navegador = p.chromium.launch()
+    navegador = p.chromium.launch(channel="chromium")
     pagina = navegador.new_page()
     pagina.set_content("<p>joBot</p>")
     assert pagina.inner_text("p") == "joBot"
@@ -470,6 +472,13 @@ fn python_ao_lado(jobot: &Path, so: &str) -> PathBuf {
     } else {
         "python"
     })
+}
+
+/// O Python do venv rodando o `SCRIPT_CHROMIUM`, sem o ambiente do Python do AppImage.
+fn comando_chromium(jobot: &Path, so: &str) -> std::process::Command {
+    let mut comando = std::process::Command::new(python_ao_lado(jobot, so));
+    servidor::sem_python_de_fora(&mut comando).args(["-c", SCRIPT_CHROMIUM]);
+    comando
 }
 
 /// Fumaça sem janela (desenho 10; D174.4): instala dos recursos com o navegador, sobe o
@@ -534,11 +543,7 @@ fn verificar(info: &tauri::PackageInfo) -> i32 {
     };
     let saude = servidor::perguntar_saude(porta);
     println!("verificar: /saude-local na porta {porta}: {saude}");
-    let mut chromium = std::process::Command::new(python_ao_lado(&jobot, so));
-    let chromium = servidor::sem_python_de_fora(&mut chromium)
-        .args(["-c", SCRIPT_CHROMIUM])
-        .status();
-    let chromium = match chromium {
+    let chromium = match comando_chromium(&jobot, so).status() {
         Ok(status) => status.success(),
         Err(erro) => {
             eprintln!("verificar: não consegui rodar o Python do venv: {erro}");
@@ -589,6 +594,22 @@ mod testes {
             python_ao_lado(&jobot, "windows"),
             venv.join("Scripts").join("python.exe")
         );
+    }
+
+    #[test]
+    fn chromium_completo_pelo_python_do_venv_sem_o_ambiente_do_appimage() {
+        let venv = Path::new("venvs").join("venv-1");
+        let jobot = servidor::jobot_do_venv(&venv, "linux");
+        let c = comando_chromium(&jobot, "linux");
+        assert_eq!(c.get_program(), venv.join("bin").join("python").as_os_str());
+        assert_eq!(c.get_args().collect::<Vec<_>>(), ["-c", SCRIPT_CHROMIUM]);
+        let fora: Vec<_> = c
+            .get_envs()
+            .filter(|(_, v)| v.is_none())
+            .map(|(k, _)| k)
+            .collect();
+        assert_eq!(fora, ["PYTHONHOME", "PYTHONPATH"]);
+        assert!(SCRIPT_CHROMIUM.contains("p.chromium.launch(channel=\"chromium\")"));
     }
 
     #[test]

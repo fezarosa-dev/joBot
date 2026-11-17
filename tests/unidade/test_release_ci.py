@@ -2,6 +2,7 @@
 `scripts/montar_recursos.py`, que monta os recursos do instalador e o pacote de atualização
 (T339; desenho 8 e 10; D174.1, D174.4 e D174.16)."""
 
+import gzip
 import hashlib
 import importlib.util
 import io
@@ -50,6 +51,7 @@ def _secao(texto: str, chave: str) -> list[str]:
 
 def _job(caminho: Path, nome: str) -> str:
     linhas = _codigo(caminho).splitlines()
+    assert f"  {nome}:" in linhas, f"{caminho.name} sem o job {nome}"
     inicio = linhas.index(f"  {nome}:") + 1
     corpo = []
     for linha in linhas[inicio:]:
@@ -101,7 +103,21 @@ def test_release_monta_pelo_pacotes_e_publica_so_na_tag() -> None:
     assert "gh release create" in publicar
     assert "--draft" not in publicar and "--prerelease" not in publicar
     assert "GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}" in publicar
-    assert "sha256sum" in publicar and "SHA256SUMS" in publicar
+    # o publicar só baixa o que o juntar do pacotes.yml montou (e o ensaio provou) e cria a
+    # release: confere o SHA256SUMS, não o gera
+    assert "name: release" in publicar
+    assert "sha256sum -c" in publicar
+    assert "merge-multiple" not in publicar and "> SHA256SUMS" not in publicar
+    assert "--notes-file ../notas.md" in publicar
+
+
+def test_juntar_monta_os_anexos_o_sha256sums_e_as_notas() -> None:
+    juntar = _job(PACOTES, "juntar")
+    assert "needs: [wheel, casca]" in juntar
+    assert "merge-multiple: true" in juntar
+    assert "shopt -s failglob" in juntar
+    assert "sha256sum --" in juntar and "> SHA256SUMS" in juntar
+    assert "name: release" in juntar
     for anexo in (
         "*-setup.exe",
         "*.dmg",
@@ -113,17 +129,25 @@ def test_release_monta_pelo_pacotes_e_publica_so_na_tag() -> None:
         "jobot-*.whl",
         "restricoes.txt",
     ):
-        assert anexo in publicar, anexo
-    assert "CHANGELOG.md" in publicar and "CHANGELOG.en.md" in publicar
+        assert anexo in juntar, anexo
+    # 1 .exe, 2 .dmg, .deb, .rpm, AppImage, 4 pacotes, 4 Chromium, a wheel e o restricoes.txt
+    assert 'test "${#anexos[@]}" = 16' in juntar
+    assert "CHANGELOG.md CHANGELOG.en.md" in juntar
+    # a versão das notas vem do job wheel, que confere a da tag
+    assert "needs.wheel.outputs.versao" in juntar
 
 
 def test_pacotes_so_chamado_e_sem_escrita() -> None:
     texto = _codigo(PACOTES)
     assert _secao(texto, "on") == ["workflow_call:"]
     assert _secao(texto, "permissions") == ["contents: read"]
-    assert _jobs(PACOTES) == ["wheel", "casca"]
+    assert _jobs(PACOTES) == ["wheel", "casca", "juntar"]
     for nome in _jobs(PACOTES):
         assert "timeout-minutes:" in _job(PACOTES, nome), nome
+    # sem segredo, nem herdado de quem chama
+    assert "secrets" not in texto
+    for quem in (RELEASE, FLUXOS / "casca.yml"):
+        assert "secrets: inherit" not in _codigo(quem), quem.name
 
 
 def test_job_wheel_gera_a_wheel_e_o_restricoes_com_hash() -> None:
@@ -131,8 +155,10 @@ def test_job_wheel_gera_a_wheel_e_o_restricoes_com_hash() -> None:
     assert "uv build --wheel" in texto
     assert "uv export --locked --no-dev --no-emit-project --format requirements-txt" in texto
     assert "scripts/montar_recursos.py restricoes" in texto
-    # na tag, a versão do pyproject tem de ser a da tag
+    # na tag, a versão do pyproject tem de ser a da tag; o passo roda também no ensaio
     assert "GITHUB_REF_NAME" in texto
+    assert "if: startsWith(github.ref" not in texto
+    assert "versao: ${{ steps.versao.outputs.versao }}" in texto
 
 
 def test_job_casca_monta_os_recursos_e_compila_com_o_sha_do_manifesto() -> None:
@@ -146,7 +172,8 @@ def test_job_casca_monta_os_recursos_e_compila_com_o_sha_do_manifesto() -> None:
         assert re.search(rf"os: {runner}\n\s+alvo: {alvo}\n", texto), alvo
     for passo in (
         "PLAYWRIGHT_BROWSERS_PATH",
-        "playwright install chromium",
+        # sem o headless shell: o joBot só abre o Chromium com janela (D183)
+        "playwright install --no-shell chromium",
         "pip==26.2 download --only-binary=:all: --require-hashes",
         "scripts/montar_recursos.py recursos",
         'echo "JOBOT_MANIFESTO_SHA256=',
@@ -165,11 +192,13 @@ def test_fumaca_sem_rede_no_linux_no_windows_e_no_mac() -> None:
         "dpkg-deb -f",
         "apt-get satisfy",
         "install-deps chromium",
-        "docker run --rm --network none",
         "dpkg -i",
         "APPIMAGE_EXTRACT_AND_RUN=1",
     ):
         assert passo in texto, passo
+    # o .deb e o AppImage, cada um no seu contêiner sem rede
+    assert texto.count("docker run --rm --network none") == 2
+    assert texto.count("docker run") == 2
     # Windows: regras de saída por caminho antes do /S, conferência de todo .exe, desinstalar
     for passo in (
         "New-NetFirewallRule -Direction Outbound -Action Block -Program",
@@ -180,6 +209,26 @@ def test_fumaca_sem_rede_no_linux_no_windows_e_no_mac() -> None:
     ):
         assert passo in texto, passo
     assert texto.index("New-NetFirewallRule") < texto.index("'/S'")
+    # o próprio instalador também tem regra (é ele que baixaria o WebView2, D183)
+    assert "$exes = @($setup) + $exes" in texto
+    assert texto.index("$exes = @($setup) + $exes") < texto.index("New-NetFirewallRule")
+    # ordem: instalar, conferir, --verificar, conferir
+    ordem = [texto.index("Start-Process $setup -ArgumentList '/S'")]
+    for passo in ("Conferir-Regras\n", "'--verificar'", "Conferir-Regras\n"):
+        ordem.append(texto.index(passo, ordem[-1] + 1))
+    assert ordem == sorted(ordem)
+    # controle: o Python do venv não sai e o do runner, sem regra, sai
+    assert texto.count("socket.create_connection") == 1
+    controle = texto[texto.index("socket.create_connection") :]
+    assert "& $venvpy -c $teste" in controle
+    assert "uv run --no-project --python 3.14 python -c $teste" in controle
+    assert controle.index("& $venvpy") < controle.index("uv run --no-project")
+    # troca pela tela normal: o desinstalador velho no lugar (_?=), como o instalador do Tauri
+    troca = texto[texto.index('"_?=$inst"') :]
+    assert troca.index("app\\venvs") < troca.index("Start-Process $setup -ArgumentList '/S'")
+    assert "instalacao.json" in troca[: troca.index("Start-Process $setup")]
+    # depois de desinstalar de verdade, os dados ficam
+    assert "Join-Path $inst 'jobot.db'" in texto
     # Mac: o .app de dentro do .dmg
     assert "hdiutil attach" in texto
     assert texto.count("--verificar") >= 4
@@ -318,6 +367,28 @@ def test_tar_do_navegador_guarda_modo_e_symlink_e_deixa_os_ocultos(tmp_path: Pat
     assert membros["chromium-1254/chrome-linux/chrome"].mode & 0o111
     assert membros["chromium-1254/atalho"].issym()
     assert membros["chromium-1254/atalho"].linkname == "chrome-linux/chrome"
+
+
+def test_tar_do_navegador_e_reproduzivel(tmp_path: Path) -> None:
+    # o canal casca compara o sha256 do Chromium entre versões (D174.13): o mesmo conteúdo
+    # tem de dar o mesmo tar, mesmo com outra hora nos arquivos e no relógio
+    m = _script()
+    pasta = tmp_path / "navegadores"
+    chrome = pasta / "chromium-1254" / "chrome-linux" / "chrome"
+    chrome.parent.mkdir(parents=True)
+    chrome.write_bytes(b"chrome")
+    um, outro = tmp_path / "um.tar.gz", tmp_path / "outro.tar.gz"
+    m.tar_do_navegador(pasta, um)
+    for p in (chrome, chrome.parent, pasta / "chromium-1254"):
+        os.utime(p, (1_000_000, 1_000_000))
+    m.tar_do_navegador(pasta, outro)
+    assert _sha(um.read_bytes()) == _sha(outro.read_bytes())
+    with gzip.open(um) as g:
+        assert g.read(1)  # é gzip de verdade
+    with tarfile.open(um) as tar:
+        for membro in tar.getmembers():
+            assert (membro.mtime, membro.uid, membro.gid) == (0, 0, 0), membro.name
+            assert (membro.uname, membro.gname) == ("", ""), membro.name
 
 
 def _roda(caminho: Path, script: str) -> Path:
