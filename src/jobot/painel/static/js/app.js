@@ -942,6 +942,48 @@
     delete raiz.dataset.janela;
   });
 
+  // dentro da casca (T334; desenho 5.3): os círculos e o arraste chamam a ponte do Tauri, e só se
+  // ela existir (no navegador comum, ou com a marca forjada no user agent, nada acontece)
+  const janelaDaCasca = () =>
+    raiz.dataset.casca ? window.__TAURI__?.window?.getCurrentWindow?.() : undefined;
+  const rotularMaximizar = async () => {
+    const botao = document.querySelector('[data-janela-acao="toggleMaximize"]');
+    const janela = janelaDaCasca();
+    if (!botao || !janela) return;
+    try {
+      const maximizada = await janela.isMaximized();
+      botao.setAttribute("aria-label", maximizada ? botao.dataset.restaurar : botao.dataset.maximizar);
+    } catch {
+      // ponte recusou: fica o rótulo que veio do servidor
+    }
+  };
+  const pedirJanela = async (acao) => {
+    const janela = janelaDaCasca();
+    if (!janela) return;
+    try {
+      await janela[acao]();
+    } catch {
+      return; // ponte recusou: a janela fica como está
+    }
+    if (acao === "toggleMaximize") rotularMaximizar();
+  };
+  document.addEventListener("click", (evento) => {
+    const botao = evento.target.closest?.("[data-janela-acao]");
+    if (botao) pedirJanela(botao.dataset.janelaAcao);
+  });
+  // a barra e o topo vazio da lateral arrastam a janela; o segundo clique de um duplo maximiza
+  document.addEventListener("mousedown", (evento) => {
+    const alvo = evento.target;
+    if (evento.button !== 0 || !janelaDaCasca()) return;
+    const zona = alvo.closest?.(".topo, #lateral");
+    if (!zona || (zona.id === "lateral" && alvo !== zona)) return;
+    if (alvo.closest("a[href], button, input, select, textarea, label, summary, [tabindex]")) return;
+    pedirJanela(evento.detail === 2 ? "toggleMaximize" : "startDragging");
+  });
+  window.addEventListener("resize", rotularMaximizar);
+  document.addEventListener("htmx:historyRestore", rotularMaximizar);
+  rotularMaximizar();
+
   // menus de Configurações > Geral e o interruptor de cada busca: enviam ao mudar; o botão do
   // <noscript> cobre quem não tem JS
   document.addEventListener("change", (evento) => {

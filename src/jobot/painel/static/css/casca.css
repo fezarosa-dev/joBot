@@ -423,6 +423,73 @@ body {
 }
 
 /*
+ * Dentro da casca (T334; desenho 5.3). No Windows e no Linux, a fileira de três círculos fica fixa
+ * no canto da janela (filho do body: o vidro prenderia o fixed), por cima da lateral ou da barra;
+ * no Mac os botões do sistema ocupam o mesmo canto. Nos dois casos quem está no canto abre espaço:
+ * a lateral desce 36px e, sem lateral à vista, a barra recua 84px. Abaixo do link de pular (40).
+ */
+.janela-botoes {
+  position: fixed;
+  inset-block-start: 20px;
+  inset-inline-start: 20px;
+  z-index: 35;
+  display: flex;
+  gap: 8px;
+}
+
+.janela-botoes button {
+  display: grid;
+  place-items: center;
+  inline-size: 12px;
+  block-size: 12px;
+  min-block-size: 12px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: var(--janela-simbolo);
+  font-size: 0.625rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.janela-fechar {
+  background-color: var(--janela-fechar);
+}
+
+.janela-minimizar {
+  background-color: var(--janela-minimizar);
+}
+
+.janela-maximizar {
+  background-color: var(--janela-maximizar);
+}
+
+/* o símbolo (×, −, +) só no hover da fileira ou com o foco nela */
+.janela-botoes span {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duracao) var(--mola);
+}
+
+.janela-botoes:hover span,
+.janela-botoes:focus-within span {
+  opacity: 1;
+}
+
+:root[data-janela="inativa"] .janela-botoes button {
+  background-color: var(--janela-inativa);
+}
+
+:root[data-casca] .lateral {
+  padding-block-start: 36px;
+}
+
+:root[data-casca]:not([data-lateral]) .topo,
+:root[data-casca][data-lateral="recolhida"] .topo {
+  padding-inline-start: 84px;
+}
+
+/*
  * Janela média (640 a 900px), com JavaScript: a lateral fica recolhida e abre por cima do
  * conteúdo (sobreposta), abaixo da barra: nunca vidro sobre vidro, e o botão de recolher fica à
  * vista. Ela ocupa na grade as linhas abaixo da barra, por cima das faixas e da coluna, e assim
@@ -450,6 +517,15 @@ body {
 
   :root[data-js] .divisor {
     display: none;
+  }
+
+  /* a lateral abre abaixo da barra: quem fica no canto é a barra */
+  :root[data-casca][data-js] .lateral {
+    padding-block-start: 0;
+  }
+
+  :root[data-casca][data-js] .topo {
+    padding-inline-start: 84px;
   }
 }
 
@@ -556,5 +632,16 @@ body {
   #aviso-erro:not([hidden]),
   #faixa-desfazer .faixa {
     border-block-end-color: CanvasText;
+  }
+
+  /* sem as cores, cada círculo ganha contorno e o símbolo fica sempre à vista */
+  .janela-botoes button {
+    border: 1px solid ButtonText;
+    background-color: ButtonFace;
+    color: ButtonText;
+  }
+
+  .janela-botoes span {
+    opacity: 1;
   }
 }

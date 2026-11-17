@@ -3259,3 +3259,20 @@ Do item 2 (T305 h), aceito e documentado. Sem JavaScript, o detalhe sobreposto f
 **Como desfazer:** 3 é trocar o form do Sair em `execucao/barra.html` pelo GET com `data-alerta-abre="alerta-encerrar"` (ou tirá-lo); 1 e 2 são voltar o `envia("/sair", ...)` em `_paleta.html` e tirar o alerta e a rota `GET /sair/confirmar`; 4 é tirar o bloco `data-encerrado` do `app.js`. Nenhum dado muda.
 
 **Ver também:** D143.37, D171.7, desenho 5.5 e 6.4, T326, T333, T334, T335.
+
+## D178. O painel dentro da casca: escolhas da T334 (para confirmar)
+
+**Status:** escolhas da sessão, para confirmar.
+
+**Contexto:** a T334 põe no painel a marca da casca (`data-casca` no `<html>`), a fileira de três círculos no Windows e no Linux e o espaço dos botões do sistema no Mac (desenho 5.3). O desenho deixou abertos os tons, o lugar exato e o caminho da IPC pela CSP.
+
+1. Cores: no tema escuro, os tons do Mac (`#ff5f57`, `#febc2e`, `#28c840`); no claro, tons mais escuros (`#e0443e`, `#b07a00`, `#1f8a3a`), porque o amarelo do Mac dá 1,56:1 sobre a barra clara e o verde 2,06:1, abaixo dos 3:1 de objeto gráfico. Janela inativa: `#7c7c80` (claro) e `#8e8e93` (escuro), sem voltar à cor no hover. Os quatro tokens (`--janela-*`) estão na lista `contraste-grafico` contra `--solido-barra` e `--fundo`.
+2. Lugar: a fileira é filha do `<body>` e fica fixa no canto da janela (20px do topo e da borda, `z-index` 35, abaixo do link de pular). Quem está no canto abre espaço, no Windows, no Linux e no Mac: a lateral desce 36px; sem lateral à vista (assistente, recolhida, janela média) a barra recua 84px. A T335 ajusta a posição dos botões do Mac (`trafficLightPosition`) se não couberem nesse espaço.
+3. CSP: fica como está. A T321 mostrou que a IPC passa pelo `postMessage`; o primeiro pedido de cada página ainda gera uma violação de `connect-src` no console.
+4. Duplo clique: pelo `detail === 2` do `mousedown`, como a área de arraste do próprio Tauri, e não pelo evento `dblclick` (o `startDragging` do primeiro clique pode engolir o segundo).
+5. Arraste: a barra inteira e o topo vazio da lateral, fora de link, botão, campo e `[tabindex]`, também no Mac (a barra de título sobreposta não arrasta sozinha).
+6. A marca é lida por uma função global do Jinja (`marca_da_casca`, em `painel/globais.py`), não por middleware: só o `base.html` a usa. Ela devolve a versão e o sistema, para a T332 comparar a versão da casca. Sistema fora de `linux`, `windows` e `macos` vale como sem marca.
+
+**Como desfazer:** 1 é trocar os tokens em `base.css` (o teste de contraste confere); 2 é mudar `.janela-botoes` e as regras `:root[data-casca]` de `casca.css`; 3 é acrescentar `ipc: http://ipc.localhost` ao `connect-src` só nas respostas cujo pedido traz a marca (o middleware `cabecalhos` de `painel/app.py`); 4 é ouvir `dblclick`.
+
+**Ver também:** D142 (item 3), D143 (item 11), desenho 5.3, T321, T334.
