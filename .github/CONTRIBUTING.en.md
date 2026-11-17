@@ -38,7 +38,7 @@ The joBot window is a Tauri 2 app, in Rust, in the `desktop/` folder ([ADR 0025]
 
 **Resources.** On build, `desktop/build.rs` copies the dashboard's CSS, fonts and icon into `desktop/ui/painel/` and creates an empty `desktop/recursos/`; both folders are ignored by git. With empty resources, the window says the installer is incomplete: in development, that is expected. If joBot is already installed through the window, it goes straight to the dashboard; to see the install screen without touching your data, point `JOBOT_DADOS` at an empty folder.
 
-The real resources (`uv`, Python, the wheels, joBot, Chromium and `manifesto.json`) come from `scripts/montar_recursos.py recursos`, which checks the sha256 of every download and prints the manifest's; that value goes into the build through the `JOBOT_MANIFESTO_SHA256` variable. The whole recipe, step by step, is the `casca` job in [`pacotes.yml`](workflows/pacotes.yml), which the release runs and which `casca.yml` runs by hand with the `pacotes` input. Each installer weighs about 350 MB: to prove a change to the package, prefer CI.
+The real resources (`uv`, Python, the wheels, joBot, Chromium and `manifesto.json`) come from `scripts/montar_recursos.py recursos`, which checks the sha256 of every download (except Chromium's, which the Playwright CDN does not publish: the manifest's comes from what was downloaded) and prints the manifest's; that value goes into the build through the `JOBOT_MANIFESTO_SHA256` variable. The whole recipe, step by step, is the `casca` job in [`pacotes.yml`](workflows/pacotes.yml), which the release runs and which `casca.yml` runs by hand with the `pacotes` input. Each installer weighs about 350 MB: to prove a change to the package, prefer CI.
 
 ## Code workflow (after phase 9)
 

@@ -12,7 +12,7 @@ A fase 3 chega: o joBot ganha uma janela própria e um instalador para Windows, 
 
 ### Adicionado
 
-- Instalador para Windows (`-setup.exe`), Linux (AppImage, `.deb` e `.rpm`) e Mac (`.dmg`, experimental). Cada um tem cerca de 350 MB, porque já traz o Python 3.14, as bibliotecas, o joBot e o navegador dos sites com login: a instalação funciona sem internet e confere o sha256 de cada arquivo. Por enquanto sem selo (assinatura de código): o README explica como abrir no Windows e no Mac.
+- Instalador para Windows (`-setup.exe`), Linux (AppImage, `.deb` e `.rpm`, este experimental) e Mac (`.dmg`, experimental). Cada um tem cerca de 350 MB, porque já traz o Python 3.14, as bibliotecas, o joBot e o navegador dos sites com login: a instalação funciona sem internet e confere o sha256 de cada arquivo. Por enquanto sem selo (assinatura de código): o README explica como abrir no Windows e no Mac.
 - Uma janela própria do joBot, com ícone, em volta do mesmo painel, que continua só no seu computador. No Windows e no Linux os botões de fechar, minimizar e maximizar são desenhados pelo joBot; no Mac, são os do sistema. Fechar a janela fecha só a janela: com o segundo plano ligado, as buscas seguem.
 - Tela de instalação na primeira abertura da janela: joBot e Python vêm travados, o navegador vem marcado e dá para desmarcar (ele baixa depois em Configurações › Ferramentas), e a barra mostra cada etapa. Se algo falhar, o que foi feito é desfeito.
 - O joBot passa a rodar no Windows e no Mac, cada um com a sua pasta de dados.

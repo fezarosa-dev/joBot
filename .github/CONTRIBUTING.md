@@ -38,7 +38,7 @@ A janela do joBot é um app Tauri 2, em Rust, na pasta `desktop/` ([ADR 0025](..
 
 **Recursos.** No build, o `desktop/build.rs` copia o CSS, as fontes e o ícone do painel para `desktop/ui/painel/` e cria `desktop/recursos/` vazia; as duas pastas são ignoradas pelo git. Com os recursos vazios, a janela diz que o instalador está incompleto: em desenvolvimento, é o esperado. Se o joBot já estiver instalado pela janela, ela vai direto ao painel; para ver a tela de instalação sem tocar nos seus dados, aponte `JOBOT_DADOS` para uma pasta vazia.
 
-Os recursos de verdade (o `uv`, o Python, as wheels, o joBot, o Chromium e o `manifesto.json`) saem do `scripts/montar_recursos.py recursos`, que confere o sha256 de cada download e imprime o do manifesto; esse valor entra no build pela variável `JOBOT_MANIFESTO_SHA256`. A receita inteira, passo a passo, é o job `casca` de [`pacotes.yml`](workflows/pacotes.yml), que a release roda e que o `casca.yml` roda à mão com a entrada `pacotes`. Cada instalador pesa uns 350 MB: para provar uma mudança no pacote, prefira o CI.
+Os recursos de verdade (o `uv`, o Python, as wheels, o joBot, o Chromium e o `manifesto.json`) saem do `scripts/montar_recursos.py recursos`, que confere o sha256 de cada download (menos o do Chromium, que o CDN do Playwright não publica: o do manifesto sai do que foi baixado) e imprime o do manifesto; esse valor entra no build pela variável `JOBOT_MANIFESTO_SHA256`. A receita inteira, passo a passo, é o job `casca` de [`pacotes.yml`](workflows/pacotes.yml), que a release roda e que o `casca.yml` roda à mão com a entrada `pacotes`. Cada instalador pesa uns 350 MB: para provar uma mudança no pacote, prefira o CI.
 
 ## Fluxo para código (depois da fase 9)
 

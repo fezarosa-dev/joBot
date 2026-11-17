@@ -365,7 +365,7 @@ Details in [ADR 0010](docs/decisions/0010-claude-code-da-pessoa.md) (in Portugue
 - **Programs, from the code:** [git](https://git-scm.com/) and [uv](https://docs.astral.sh/uv/). uv downloads Python 3.14 and the libraries by itself. The installer needs none of this: it already brings everything.
 - **Memory:** an ordinary computer is enough. The 8 GB of RAM only matter when the local AI arrives (phase 4).
 - **Graphics card and Docker:** not needed. The installation is native.
-- **Disk space:** about 350 MB for the installer; the install screen shows how much the installation will use.
+- **Disk space:** about 350 MB to download the installer, and the installation takes much more (the browser alone takes about 420 MB); the install screen shows how much it will use.
 - **Internet:** to download the installer (or the code) and to search for jobs. Installing with the installer does not use the internet.
 
 ### With the installer
@@ -377,7 +377,7 @@ Download the file for your system from the [latest version page](https://github.
 | Windows | the one ending in `-setup.exe` | Double-click it. It installs for your user only, without asking for an administrator password. |
 | Linux, any distro | the one ending in `.AppImage` | Mark it as executable (`chmod +x` on the file, or Properties, Permissions) and open it. |
 | Linux, Debian and Ubuntu | the one ending in `.deb` | `sudo apt install ./` and the file name. |
-| Linux, Fedora | the one ending in `.rpm` | `sudo dnf install ./` and the file name. |
+| Linux, Fedora | the one ending in `.rpm` | `sudo dnf install ./` and the file name. Experimental: the `.rpm` has not been tested in CI yet. |
 | Mac with Apple Silicon (M1 or newer) | the one ending in `_aarch64.dmg` | Open the `.dmg` and drag joBot to Applications. Experimental. |
 | Mac with Intel | the one ending in `_x64.dmg` | Open the `.dmg` and drag joBot to Applications. Experimental. |
 
@@ -393,7 +393,7 @@ On Windows, the window uses Microsoft's WebView2, which Windows 11 and an up-to-
 
 ### Windows and Mac warnings
 
-The installers have no seal (code signing) yet, so the system warns that it does not recognize the program. The file is the same one GitHub Actions built from this code, and the version's `SHA256SUMS` lists the sha256 of each one.
+The installers have no seal (code signing) yet, so the system warns that it does not recognize the program. The files are built by GitHub Actions from this code. The version's `SHA256SUMS` lists the sha256 of each one: it checks that the download did not arrive broken, but, since it comes from the same release, it does not prove where the file came from. That is left to code signing, when it comes.
 
 - **Windows:** "Windows protected your PC" appears. Click **More info** and then **Run anyway**.
 - **Mac:** a message says Apple could not verify joBot. Close it, open System Settings › Privacy & Security, scroll down to the message about joBot and click **Open Anyway**. Confirm with your password. This only happens the first time.
