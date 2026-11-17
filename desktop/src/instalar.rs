@@ -1503,33 +1503,49 @@ mod testes {
         );
     }
 
+    /// O `ia_local` que `ler_manifesto` tira de um manifesto com esses tamanhos.
+    fn ia_do_manifesto(ia: Value) -> Result<Option<IaLocal>, Erro> {
+        let conteudo = json!({"versao": VERSAO, "arquivos": [], "ia_local": ia});
+        ler_manifesto(&serde_json::to_vec(&conteudo).unwrap()).map(|m| m.ia_local)
+    }
+
     #[test]
-    fn manifesto_sem_os_tamanhos_do_modelo_nao_oferece_o_modelo() {
-        let base = json!({"versao": VERSAO, "arquivos": []});
-        let ler = |ia: Value| {
-            let mut conteudo = base.clone();
-            conteudo["ia_local"] = ia;
-            ler_manifesto(&serde_json::to_vec(&conteudo).unwrap()).map(|m| m.ia_local)
-        };
-        // controle: com os tamanhos, o manifesto os traz
+    fn manifesto_traz_os_tamanhos_do_modelo() {
         let modelos = BTreeMap::from([("2b".to_string(), 100), ("4b".to_string(), 200)]);
         assert_eq!(
-            ler(IA_LOCAL.clone()),
+            ia_do_manifesto(IA_LOCAL.clone()),
             Ok(Some(IaLocal {
                 servidor: 10,
                 modelos
             }))
         );
-        assert_eq!(ler(Value::Null), Ok(None));
-        assert_eq!(ler(json!({"servidor": 10, "modelos": {}})), Ok(None));
+    }
+
+    // guardas: sem os tamanhos, ou com eles tortos, a tela não oferece o modelo (o controle é o
+    // teste acima, com a mesma montagem)
+    #[test]
+    fn manifesto_sem_os_tamanhos_nao_oferece_o_modelo() {
+        assert_eq!(ia_do_manifesto(Value::Null), Ok(None));
+    }
+
+    #[test]
+    fn manifesto_sem_modelo_nao_oferece_o_modelo() {
         assert_eq!(
-            ler(json!({"servidor": "10", "modelos": {"2b": 1}})),
+            ia_do_manifesto(json!({"servidor": 10, "modelos": {}})),
             Ok(None)
         );
-        assert_eq!(
-            ler(json!({"servidor": 10, "modelos": {"2b": -1}})),
-            Ok(None)
-        );
+    }
+
+    #[test]
+    fn manifesto_com_servidor_torto_nao_oferece_o_modelo() {
+        let ia = json!({"servidor": "10", "modelos": {"2b": 1}});
+        assert_eq!(ia_do_manifesto(ia), Ok(None));
+    }
+
+    #[test]
+    fn manifesto_com_tamanho_de_modelo_torto_nao_oferece_o_modelo() {
+        let ia = json!({"servidor": 10, "modelos": {"2b": 1, "4b": -1}});
+        assert_eq!(ia_do_manifesto(ia), Ok(None));
     }
 
     /// Executor do passo do modelo: imita o `jobot ferramentas baixar ia-local` com as linhas

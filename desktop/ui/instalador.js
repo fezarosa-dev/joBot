@@ -75,9 +75,12 @@
     if (ia) {
       const disco = formatar(ia.disco);
       $("tamanho-ia-local").textContent = t("ferramentas.tamanho_ate", { tamanho: disco });
+      // "de 1,3 a 2,7 GB": a unidade só no fim quando as duas pontas a dividem
+      const [de, ate] = [formatar(ia.de), formatar(ia.ate)];
+      const unidade = ate.slice(ate.lastIndexOf(" "));
       $("frase-ia-local").textContent = t("ferramentas.ia_local_frase", {
-        de: formatar(ia.de),
-        ate: formatar(ia.ate),
+        de: de.endsWith(unidade) ? de.slice(0, -unidade.length) : de,
+        ate,
       });
     }
     $("onde-fica").textContent = estado.dados || "";
