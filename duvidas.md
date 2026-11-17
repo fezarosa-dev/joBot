@@ -3090,3 +3090,39 @@ Do item 2 (T305 h), aceito e documentado. Sem JavaScript, o detalhe sobreposto f
 **Como desfazer:** para a B, um `addEventListener("candidatura-mudou", ...)` no `app.js` com `recarregarLista` e um teste de tela. Nenhum dado muda.
 
 **Ver também:** E20 do plano `2026-11-16-panorama-e-fila.md`, T285, T286, T287, T305.
+
+## D171. Fase 3: app de desktop e instalador
+
+**Status:** itens 1 a 8 decididos pelo dono em 2026-11-17; itens 9 a 18 são escolhas da sessão, para confirmar.
+
+**Contexto:** começo da fase 3 (ADR [0017](docs/decisions/0017-fases.md)). A D142 já tinha escolhido o Tauri e os botões da janela; faltavam a distribuição, a assinatura, os pacotes, o Mac, onde fica o código, o que acontece ao fechar a janela e como a janela se atualiza. Desenho em `docs/superpowers/specs/2026-11-17-fase-3-design.md` (seção 13 traz a mesma lista); plano em `docs/superpowers/plans/2026-11-17-fase-3.md`.
+
+**Decisões do dono:**
+
+1. O instalador traz o `uv` embutido e instala o joBot da release do GitHub da mesma versão, com o sha256 conferido.
+2. Linux: AppImage, `.deb` e `.rpm`.
+3. Mac: `.dmg` experimental, gerado e testado só no CI.
+4. O projeto Tauri fica na pasta `desktop/` do mesmo repositório (muda o "projeto à parte" da ADR 0003).
+5. Assinatura: sem selo por enquanto, custo zero. O dono pede o SignPath Foundation (grátis) quando quiser; a SignPath só aceita depois de o instalador já ter saído, então o pedido vem depois da 0.4.0.
+6. Não comprar certificado (responde o item de assinatura da D138.16).
+7. Fechar a janela fecha só a janela; o servidor segue se o segundo plano estiver ligado. Sem ícone na bandeja.
+8. A janela (casca) não se atualiza sozinha: avisa que há versão nova e abre a página da release.
+
+**Escolhas da sessão (para confirmar):**
+
+9. A tela de instalação é a primeira abertura da própria casca, igual nos três sistemas; o NSIS e os pacotes do Linux levam só a casca e o `uv` (os `.deb`/`.rpm` instalam como root e o `uv tool` é por usuário).
+10. Essenciais travadas: joBot e Python. O navegador vem marcado e dá para desmarcar (confirma a D138.15).
+11. Uma checagem de versão só, a do painel; a casca não consulta o GitHub (mantém a ADR 0014 e o interruptor de Privacidade).
+12. Segundo plano no Windows (Agendador de Tarefas) e no Mac (LaunchAgent, experimental) entram na fase 3, para o item 7 valer em todo sistema.
+13. Sem npm na casca: `withGlobalTauri` e HTML/CSS/JS puros.
+14. Parada no Windows por um segredo local (`<dados>/sair.token`) aceito pelo `POST /sair`; no Linux e no Mac segue o SIGTERM.
+15. Com WebKitGTK (ou WebView) sem os recursos de CSS do painel, a casca cai no modo app de hoje e diz por quê.
+16. Círculos da janela: 12px, 8px de espaço, símbolos no hover, cinza com a janela inativa (proposta).
+17. O `uv` da casca usa pastas próprias, separadas de um `uv` que a pessoa já tenha.
+18. Desinstalar nunca apaga a pasta de dados.
+
+**O que o dono faz:** confirmar 9 a 18 ou trocar algum. Depois da 0.4.0, fazer o pedido do SignPath (passo a passo no plano, T343).
+
+**Como desfazer:** cada item mora numa seção do desenho (13 lista as seções); trocar é editar o desenho antes da tarefa correspondente. Depois de construído: 7 e 12 são a `segundo_plano` e a casca (T328, T329, T337); 11 é tirar o aviso da casca na faixa (T332); 15 é tirar a conferência de recursos (T335). Nenhum dado muda.
+
+**Ver também:** D138, D139.10, D140, D142, D143, ADR 0003, 0017, 0018, 0023 e 0025 (a criar na T320).
