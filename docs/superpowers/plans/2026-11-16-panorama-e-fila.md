@@ -723,7 +723,7 @@ Mudar uma delas muda a tarefa responsável antes de ela começar.
 - [x] **Ver falhar:** `uv run pytest tests/unidade/test_documentos.py -q`.
 - [x] **Implementar** os itens de Interfaces.
 - [x] **Ver passar:** `tests/unidade/test_documentos.py`, `tests/unidade/test_wiki.py` e `tests/unidade/test_versao.py`; o `grep` acima sem sobra; ruff.
-- [ ] **Publicar (sessão principal, que roda o git na `fedora-dev`):**
+- [x] **Publicar (sessão principal, que roda o git na `fedora-dev`):**
   - commit `chore(versao): sobe a versão para 0.3.0`, na `dev`, depois do CI verde do lote dela;
   - PR da `dev` para a `main` com título e corpo da skill `pr-curto`;
   - o CI do PR verde, merge com merge commit;
