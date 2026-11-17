@@ -1,15 +1,16 @@
 //! Instalação pela casca, sem rede (desenho 5.2 e 6.2; D173, D174, D181). Confere o
 //! `manifesto.json` pelo sha256 gravado no build e cada arquivo dos recursos pelo manifesto,
-//! prepara o Python e o venv com o `uv` dos recursos, prova o `jobot --version`, instala o
-//! navegador se marcado e só então grava o `instalacao.json`. Falhou ou foi cancelada: o que a
+//! prepara o Python e o venv com o `uv` dos recursos, prova o `jobot --version`, baixa o
+//! navegador se marcado (o único passo com rede, D183.24) e só então grava o `instalacao.json`. Falhou ou foi cancelada: o que a
 //! instalação criou na pasta da casca sai e o `instalacao.json` não é gravado (o Chromium fica
 //! na pasta do Playwright, D181.9).
 //!
 //! Recursos (`desktop/recursos/`, D181): `manifesto.json`, `bin/uv.tar` (o `uv` ou o `uv.exe`
 //! num tar sem compressão, D183),
 //! `python/<tag>/cpython-<versão>+<tag>-<alvo>-install_only_stripped.tar.gz` (o espelho que o
-//! `uv python install --mirror` lê), `restricoes.txt`, `wheels/*.whl` e
-//! `chromium-<alvo>.tar.gz`.
+//! `uv python install --mirror` lê), `restricoes.txt`, `wheels/*.whl` e as `licencas/uv/`. O
+//! navegador não vem nos recursos: o joBot não redistribui o Chrome for Testing que o Playwright
+//! baixa (D183.24); o `jobot ferramentas baixar navegador` o baixa pelo `playwright install`.
 
 use crate::servidor;
 use serde_json::{Value, json};
@@ -26,6 +27,9 @@ use std::time::Duration;
 pub const MANIFESTO: &str = "manifesto.json";
 pub const INSTALACAO: &str = "instalacao.json";
 const UV: &str = "bin/uv.tar";
+/// Quanto o navegador baixado ocupa compactado, para o rodapé da tela (o Chromium do Playwright
+/// 1.65 baixa de 170 a 216 MB por sistema, D183.23); a tela multiplica pelo fator do disco.
+pub const TAMANHO_DO_NAVEGADOR: u64 = 190_000_000;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Entrada {
@@ -56,6 +60,8 @@ pub enum Erro {
     Arquivo(String),
     Espaco,
     Prova(String),
+    /// O download do navegador falhou (sem rede, por exemplo).
+    Navegador(String),
     Cancelado,
     Outro(String),
 }
@@ -66,6 +72,7 @@ impl Erro {
             Erro::Arquivo(_) => "arquivo",
             Erro::Espaco => "espaco",
             Erro::Prova(_) => "prova",
+            Erro::Navegador(_) => "navegador",
             Erro::Cancelado => "cancelado",
             Erro::Outro(_) => "outro",
         }
@@ -73,7 +80,10 @@ impl Erro {
 
     pub fn detalhe(&self) -> String {
         match self {
-            Erro::Arquivo(texto) | Erro::Prova(texto) | Erro::Outro(texto) => texto.clone(),
+            Erro::Arquivo(texto)
+            | Erro::Prova(texto)
+            | Erro::Navegador(texto)
+            | Erro::Outro(texto) => texto.clone(),
             _ => String::new(),
         }
     }
@@ -140,10 +150,6 @@ fn tirar_do_tar(tar: &Path, destino: &Path) -> Result<(), Erro> {
     let dados = bruto.get(512..512 + tamanho).ok_or_else(ruim)?;
     fs::write(destino, dados)?;
     Ok(())
-}
-
-fn e_chromium(nome: &str) -> bool {
-    nome.starts_with("chromium-") && nome.ends_with(".tar.gz") && !nome.contains('/')
 }
 
 /// A versão do Python pelo nome do arquivo no espelho (`python/<tag>/cpython-<versão>+<tag>-...`).
@@ -236,20 +242,15 @@ fn manifesto_da_versao(recursos: &Path, sha_manifesto: &str, versao: &str) -> Op
     ler_manifesto(&bruto).ok().filter(|m| m.versao == versao)
 }
 
-/// Para a tela: se os recursos estão completos e quanto ocupam (o navegador à parte).
+/// Para a tela: se os recursos estão completos e quanto ocupam (o navegador, baixado à parte,
+/// pela estimativa `TAMANHO_DO_NAVEGADOR`).
 pub fn estado(recursos: &Path, sha_manifesto: Option<&str>, versao: &str) -> Value {
     let manifesto = sha_manifesto.and_then(|sha| manifesto_da_versao(recursos, sha, versao));
     let Some(manifesto) = manifesto else {
         return json!({"completo": false});
     };
-    let tamanho = |chromium: bool| -> u64 {
-        let do_lado = manifesto
-            .arquivos
-            .iter()
-            .filter(|e| e_chromium(&e.nome) == chromium);
-        do_lado.map(|e| e.tamanho).sum()
-    };
-    json!({"completo": true, "base": tamanho(false), "navegador": tamanho(true)})
+    let base: u64 = manifesto.arquivos.iter().map(|e| e.tamanho).sum();
+    json!({"completo": true, "base": base, "navegador": TAMANHO_DO_NAVEGADOR})
 }
 
 /// Escrita atômica (`.tmp` na mesma pasta, `fsync` e troca), 0600 no Linux e no Mac.
@@ -558,6 +559,36 @@ impl Instalador<'_> {
         }
     }
 
+    /// O passo opcional do navegador: o `jobot ferramentas baixar navegador` do venv, que baixa
+    /// o Chromium pelo `playwright install` (com rede, D183.24); o progresso vem das linhas JSON.
+    pub fn baixar_navegador(
+        &self,
+        cancelado: &AtomicBool,
+        rodar: &mut Rodar,
+        progresso: &mut dyn FnMut(Value),
+    ) -> Result<(), Erro> {
+        if cancelado.load(Ordering::SeqCst) {
+            return Err(Erro::Cancelado);
+        }
+        progresso(json!({"etapa": "navegador"}));
+        let comando = self.comando_jobot(&["ferramentas", "baixar", "navegador"]);
+        let mut pronto = false;
+        let saida = rodar(comando, &mut |texto| match ler_linha(texto) {
+            Some(Linha::Progresso { feito, total }) => {
+                progresso(json!({"etapa": "navegador", "feito": feito, "total": total}));
+            }
+            Some(Linha::Fim(ok)) => pronto = ok,
+            None => {}
+        })?;
+        if saida.codigo != Some(0) || !pronto {
+            return Err(match falhou("jobot ferramentas baixar navegador", &saida) {
+                Erro::Outro(texto) => Erro::Navegador(texto),
+                outro => outro,
+            });
+        }
+        Ok(())
+    }
+
     /// Confere, instala e grava; com erro, desfaz o que criou.
     pub fn instalar(
         &self,
@@ -604,7 +635,6 @@ impl Instalador<'_> {
         let uv = manifesto.achar(|n| n == UV, "uv")?;
         let python = manifesto.achar(|n| versao_do_python(n).is_some(), "python")?;
         let versao_python = versao_do_python(&python.nome).unwrap_or_default();
-        let chromium = manifesto.achar(e_chromium, "chromium")?;
         if cancelado.load(Ordering::SeqCst) {
             return Err(Erro::Cancelado);
         }
@@ -675,32 +705,7 @@ impl Instalador<'_> {
         }
 
         if navegador {
-            progresso(json!({"etapa": "navegador", "feito": 0, "total": chromium.tamanho}));
-            let arquivo = self.recursos.join(&chromium.nome);
-            let comando = self.comando_jobot(&[
-                "ferramentas",
-                "baixar",
-                "navegador",
-                "--arquivo",
-                &arquivo.to_string_lossy(),
-                "--sha256",
-                &chromium.sha256,
-            ]);
-            if cancelado.load(Ordering::SeqCst) {
-                return Err(Erro::Cancelado);
-            }
-            let mut pronto = false;
-            let saida = rodar(comando, &mut |texto| match ler_linha(texto) {
-                Some(Linha::Progresso { feito, total }) => {
-                    let total = total.unwrap_or(chromium.tamanho);
-                    progresso(json!({"etapa": "navegador", "feito": feito, "total": total}));
-                }
-                Some(Linha::Fim(ok)) => pronto = ok,
-                None => {}
-            })?;
-            if saida.codigo != Some(0) || !pronto {
-                return Err(falhou("jobot ferramentas baixar navegador", &saida));
-            }
+            self.baixar_navegador(cancelado, rodar, progresso)?;
         }
 
         if cancelado.load(Ordering::SeqCst) {
@@ -734,7 +739,6 @@ mod testes {
 
     const VERSAO: &str = "0.3.0";
     const PYTHON: &str = "python/20260807/cpython-3.14.7+20260807-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz";
-    const CHROMIUM: &str = "chromium-x86_64-unknown-linux-gnu.tar.gz";
 
     fn temporaria(nome: &str) -> PathBuf {
         let p = std::env::temp_dir().join(format!("jobot-instalar-{nome}-{}", std::process::id()));
@@ -760,7 +764,7 @@ mod testes {
         tar
     }
 
-    fn arquivos() -> [(&'static str, Vec<u8>); 5] {
+    fn arquivos() -> [(&'static str, Vec<u8>); 4] {
         [
             (UV, tar_de_um("uv", b"uv falso")),
             (PYTHON, b"python falso".to_vec()),
@@ -772,7 +776,6 @@ mod testes {
                 "wheels/jobot-0.3.0-py3-none-any.whl",
                 b"roda falsa".to_vec(),
             ),
-            (CHROMIUM, b"chromium falso".to_vec()),
         ]
     }
 
@@ -907,6 +910,7 @@ mod testes {
                 Some("venv") => fs::create_dir_all(argv.last().unwrap()).unwrap(),
                 Some("ferramentas") => {
                     linha(r#"{"etapa":"navegador","feito":5,"total":14}"#);
+                    linha(r#"{"etapa":"navegador","feito":7}"#);
                     linha(r#"{"fim":"pronto"}"#);
                 }
                 Some("--version") => saida = format!("{versao}\n"),
@@ -1058,7 +1062,6 @@ mod testes {
         let espelho = tauri::Url::from_file_path(c.recursos.join("python"))
             .unwrap()
             .to_string();
-        let chromium = c.recursos.join(CHROMIUM);
         let esperado = vec![
             v(&[
                 &uv,
@@ -1093,16 +1096,8 @@ mod testes {
                 &texto(&c.recursos.join("restricoes.txt")),
             ]),
             v(&[&jobot, "--version"]),
-            v(&[
-                &jobot,
-                "ferramentas",
-                "baixar",
-                "navegador",
-                "--arquivo",
-                &texto(&chromium),
-                "--sha256",
-                &sha(b"chromium falso"),
-            ]),
+            // sem arquivo dos recursos: o navegador vem do `playwright install` (D183.24)
+            v(&[&jobot, "ferramentas", "baixar", "navegador"]),
         ];
         assert_eq!(argvs(&feitos), esperado);
         // o uv roda offline, com as pastas da casca e sem nenhuma UV_* da pessoa
@@ -1167,6 +1162,7 @@ mod testes {
         etapas.dedup();
         assert_eq!(etapas, ["conferir", "python", "jobot", "navegador"]);
         assert!(avisos.contains(&json!({"etapa": "navegador", "feito": 5, "total": 14})));
+        assert!(avisos.contains(&json!({"etapa": "navegador", "feito": 7, "total": null})));
         let total: u64 = arquivos().iter().map(|(_, c)| c.len() as u64).sum();
         assert!(avisos.contains(&json!({"etapa": "conferir", "feito": total, "total": total})));
     }
@@ -1253,7 +1249,12 @@ mod testes {
             &mut executor,
             &mut |_| {},
         );
-        assert!(matches!(r, Err(Erro::Outro(_))), "{r:?}");
+        // motivo próprio: a tela diz que o navegador vem da internet (D183.24)
+        assert!(
+            matches!(&r, Err(Erro::Navegador(t)) if t.contains("deu errado")),
+            "{r:?}"
+        );
+        assert_eq!(r.unwrap_err().codigo(), "navegador");
         assert!(!c.pasta.exists());
         assert!(!c.dados.join(INSTALACAO).exists());
     }
@@ -1354,11 +1355,10 @@ mod testes {
     #[test]
     fn estado_diz_se_esta_completo_e_quanto_ocupa() {
         let c = cenario("estado");
-        let navegador = "chromium falso".len() as u64;
         let total: u64 = arquivos().iter().map(|(_, c)| c.len() as u64).sum();
         assert_eq!(
             estado(&c.recursos, Some(c.sha.as_str()), VERSAO),
-            json!({"completo": true, "base": total - navegador, "navegador": navegador})
+            json!({"completo": true, "base": total, "navegador": TAMANHO_DO_NAVEGADOR})
         );
         assert_eq!(
             estado(&c.recursos, None, VERSAO),
