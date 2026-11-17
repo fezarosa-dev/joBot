@@ -86,9 +86,10 @@ def test_matriz_nos_tres_sistemas_com_prazo() -> None:
 
 def test_passos_baixam_atestam_provam_e_medem_os_dois_modelos() -> None:
     texto = _codigo()
+    # a atestação vem antes do baixar, que já roda o `llama-server --version`
     passos = [
-        "uv run jobot ferramentas baixar ia-local --modelo auto",
         "gh attestation verify",
+        "uv run jobot ferramentas baixar ia-local --modelo auto",
         "uv run python scripts/provar_ia.py",
         "uv run python scripts/medir_modelo.py",
         "uv run jobot ferramentas baixar ia-local --modelo 2b",
@@ -181,10 +182,11 @@ def test_pede_o_mesmo_pedido_do_encaixe() -> None:
 
 @pytest.mark.parametrize(
     ("achados", "vazias", "passou"),
-    [(8, 0, True), (7, 0, False), (10, 1, False), (10, 0, True)],
+    # 80 passa e 79 não: a meta não afrouxa sem o teste ver
+    [(80, 0, True), (79, 0, False), (100, 1, False), (100, 0, True)],
 )
 def test_meta_de_80_por_cento_e_nenhum_pede_vazio(achados: int, vazias: int, passou: bool) -> None:
-    resultado = provar.Resultado(esperados=10, achados=achados, vazias=vazias)
+    resultado = provar.Resultado(esperados=100, achados=achados, vazias=vazias)
     assert resultado.passou is passou
 
 

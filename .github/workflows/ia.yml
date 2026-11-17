@@ -4,11 +4,11 @@ name: IA
 # (workflow_dispatch com a entrada ia): gh workflow run casca.yml --ref lote/<nome> -f ia=true.
 # Só leitura e sem segredo; o GH_TOKEN é o token do próprio job, para o gh attestation verify
 # ler a atestação pública do llama-server.
-# Em cada sistema: baixa o modelo que a memória escolhe (--modelo auto; no Linux e no Windows
-# dos runners, o 4B), confere a atestação SLSA do pacote do llama-server do manifesto (D193.3),
-# prova o encaixe com o conjunto de ouro (scripts/provar_ia.py, meta) e mede tokens/s e tempo
-# por vaga (scripts/medir_modelo.py); depois troca para o 2B e prova e mede de novo. Os números
-# vão no resumo do job.
+# Em cada sistema: confere a atestação SLSA do pacote do llama-server do manifesto (D193.3)
+# antes de o joBot rodar o binário, baixa o modelo que a memória escolhe (--modelo auto; no Linux
+# e no Windows dos runners, o 4B), prova o encaixe com o conjunto de ouro (scripts/provar_ia.py,
+# meta) e mede tokens/s e tempo por vaga (scripts/medir_modelo.py); depois troca para o 2B e
+# prova e mede de novo. Os números vão no resumo do job.
 on:
   workflow_call:
 
@@ -34,8 +34,6 @@ jobs:
       - run: uv sync --locked
       - name: pasta-de-dados
         run: echo "JOBOT_DADOS=$RUNNER_TEMP/jobot-dados" >> "$GITHUB_ENV"
-      - name: baixar-auto
-        run: uv run jobot ferramentas baixar ia-local --modelo auto | grep -v '"etapa"'
       - name: atestacao
         env:
           GH_TOKEN: ${{ github.token }}
@@ -45,6 +43,8 @@ jobs:
           curl -fsSL --retry 3 -o "$pacote" "$url"
           uv run python -c "import hashlib, sys; from jobot.cli.ferramentas import ALVO, manifesto_local; sys.exit(hashlib.sha256(open(sys.argv[1], 'rb').read()).hexdigest() != manifesto_local()['llama_server']['alvos'][ALVO]['sha256'])" "$pacote"
           gh attestation verify "$pacote" --owner ggml-org --signer-workflow ggml-org/llama.cpp/.github/workflows/release-publish.yml
+      - name: baixar-auto
+        run: uv run jobot ferramentas baixar ia-local --modelo auto | grep -v '"etapa"'
       - name: provar-auto
         run: uv run python scripts/provar_ia.py --rotulo "${{ matrix.os }}"
       - name: medir-auto
