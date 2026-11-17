@@ -541,12 +541,12 @@ RESUMO_0_4_0 = {"pt": ("fase 3", "janela", "instalador"), "en": ("Phase 3", "win
 
 @pytest.mark.parametrize("lingua", LINGUAS)
 def test_changelog_fecha_a_0_4_0(lingua: str) -> None:
-    """A 0.4.0 é a primeira seção de versão, "Não lançado" fica vazio e o resumo cobre a fase 3."""
+    """A 0.4.0 é a primeira seção de versão, logo depois de "Não lançado" (que já recebe a fase 4,
+    T400), e o resumo dela cobre a fase 3."""
     conteudo = texto(CHANGELOG[lingua])
     assert NAO_LANCADO[lingua] in conteudo, CHANGELOG[lingua]
     inicio = conteudo.index(NAO_LANCADO[lingua])
     fim = conteudo.index("\n## [", inicio + 1)
-    assert conteudo[inicio:fim].strip() == NAO_LANCADO[lingua], CHANGELOG[lingua]
     assert conteudo[fim + 1 :].startswith(V0_4_0), CHANGELOG[lingua]
     secao = conteudo[fim + 1 :]
     resumo = secao[: secao.index("###")]
@@ -776,6 +776,86 @@ def test_status_da_fase_3_igual_nos_documentos(caminho: str) -> None:
     conteudo = texto(caminho)
     assert re.search(FASE_3_CONCLUIDA[caminho], conteudo), caminho
     assert FASE_3_EM_OBRAS.search(conteudo) is None, caminho
+
+
+# o que cada documento de estado vivo diz da fase 4 (T400, D185.26): sendo construída
+FASE_4_EM_OBRAS = {
+    "docs/decisions/0017-fases.md": r"Fase 4, IA local:.*Status: sendo construída, rumo à 0\.5\.0",
+    "docs/decisions/README.md": r"a fase 4 está sendo construída \(rumo à 0\.5\.0\)",
+    "wiki/Roteiro.md": r"🟡 \| \*\*4\. IA local\*\*.*\| Sendo construída \(rumo à 0\.5\.0\) \|",
+    "wiki/Roadmap.md": r"🟡 \| \*\*4\. Local AI\*\*.*\| Being built \(toward 0\.5\.0\) \|",
+    "README.md": r"\*\*4\. IA local\*\*.*\| 🟡 Sendo construída \(rumo à 0\.5\.0\) \|",
+    "README.en.md": r"\*\*4\. Local AI\*\*.*\| 🟡 Being built \(toward 0\.5\.0\) \|",
+    ".github/CONTRIBUTING.md": r"A fase 4 \(IA local\) está sendo construída, rumo à 0\.5\.0",
+    ".github/CONTRIBUTING.en.md": r"Phase 4 \(local AI\) is being built, toward 0\.5\.0",
+}
+# sobra do tempo em que a fase 4 estava só planejada
+FASE_4_PLANEJADA = re.compile(
+    r"4\. IA local\*\*[^\n]*Planejada|4\. Local AI\*\*[^\n]*Planned"
+    r"|Fase 4, IA local:[^\n]*planejada|⚪ Fase 4|⚪ Phase 4"
+    r"|fases 4 a 9 estão planejadas|Phases 4 to 9 are planned",
+    re.IGNORECASE,
+)
+
+
+@pytest.mark.parametrize("caminho", sorted(FASE_4_EM_OBRAS))
+def test_status_da_fase_4_igual_nos_documentos(caminho: str) -> None:
+    """A fase 4 consta como sendo construída em todo documento de estado vivo, e nenhum deles
+    ainda a chama de planejada (T400)."""
+    conteudo = texto(caminho)
+    assert re.search(FASE_4_EM_OBRAS[caminho], conteudo), caminho
+    assert FASE_4_PLANEJADA.search(conteudo) is None, caminho
+
+
+def test_fase_4_planejada_pega_as_frases_antigas() -> None:
+    """Controle positivo: o regex reconhece cada frase de "planejada" que a T400 trocou."""
+    antigas = (
+        "| ⚪ | **4. IA local** | Pacote offline (llama-server + Qwen) | Planejada |",
+        "| ⚪ | **4. Local AI** | Offline package (llama-server + Qwen) | Planned |",
+        "- Fase 4, IA local: pacote offline (llama-server + Qwen). Status: planejada.",
+        'F3 --> F4["⚪ Fase 4 · IA local"]',
+        "<summary><strong>⚪ Phase 4, Local AI</strong></summary>",
+        "As fases 4 a 9 estão planejadas.",
+        "Phases 4 to 9 are planned.",
+    )
+    assert [a for a in antigas if FASE_4_PLANEJADA.search(a) is None] == []
+
+
+# o ajuste do Laya antes da fase 4 (D141) fica adiado até o dono responder (D185.8)
+LAYA_ADIADO = ("docs/decisions/0015-treino.md", "docs/decisions/0017-fases.md")
+
+
+@pytest.mark.parametrize("caminho", LAYA_ADIADO)
+def test_laya_antes_da_fase_4_diz_adiado(caminho: str) -> None:
+    linhas = [
+        linha
+        for linha in texto(caminho).splitlines()
+        if linha.startswith("- ")
+        and not linha.startswith(("- [", "- **"))
+        and "Laya" in linha
+        and "antes da fase 4" in linha
+    ]
+    assert linhas, caminho  # controle: achou a linha do Laya
+    assert [linha for linha in linhas if "adiado, para confirmar" not in linha] == [], caminho
+
+
+def test_indice_das_adrs_lista_todas() -> None:
+    numeros = sorted(
+        p.name[:4] for p in (RAIZ / "docs/decisions").glob("[0-9][0-9][0-9][0-9]-*.md")
+    )
+    assert "0026" in numeros  # controle: a ADR da fase 4 existe
+    conteudo = texto("docs/decisions/README.md")
+    assert [n for n in numeros if f"| {n} | [" not in conteudo] == []
+
+
+def test_adr_0026_marca_para_confirmar_cada_escolha() -> None:
+    """Toda frase da decisão vem da D185, que o dono ainda não confirmou (padrões «Dúvidas»)."""
+    conteudo = texto("docs/decisions/0026-ia-da-fase-4.md")
+    assert "## Decisão" in conteudo
+    decisao = conteudo[conteudo.index("## Decisão") : conteudo.index("## Consequências")]
+    itens = [linha for linha in decisao.splitlines() if linha.startswith("- ")]
+    assert len(itens) >= 5  # controle: achou os itens
+    assert [i for i in itens if "para confirmar" not in i] == []
 
 
 # T341: a instalação pelo instalador da fase 3, por língua; cada termo só o texto novo tem

@@ -499,7 +499,7 @@ Cada fase só começa depois que a anterior passa nos testes. Não há datas pro
 | **1. Base** | Núcleo comum, fontes públicas, banco, painel e agenda | 🟢 Pronta (versão 0.1.0) |
 | **2. Navegador com login** | Login pela janela comum, LinkedIn primeiro, mapeamento dos sites, tratamento de CAPTCHA | 🟢 Pronta (versão 0.3.0) |
 | **3. Instalador** | Instalador de 64 bits, com lista de ferramentas para marcar (Windows e Linux primeiro, Mac depois) | 🟢 Pronta (versão 0.4.0) |
-| **4. IA local** | Pacote offline (llama-server + Qwen) | ⚪ Planejada |
+| **4. IA local** | Pacote offline (llama-server + Qwen) | 🟡 Sendo construída (rumo à 0.5.0) |
 | **5. Extensão do navegador** | Extensão do navegador para formulários | ⚪ Planejada |
 | **6. Áudio e Gmail** | Respostas por voz e leitura de e-mails | ⚪ Planejada |
 | **7. Treino** | Aprender com o que você salva e descarta | ⚪ Planejada |
@@ -548,11 +548,12 @@ Cada decisão importante está registrada num documento curto, chamado ADR (regi
 | 0023 | [Tudo pelo painel: ferramentas, atualização e encerramento](docs/decisions/0023-tudo-pelo-painel.md) |
 | 0024 | [Gmail por senha de app](docs/decisions/0024-gmail-por-senha-de-app.md) |
 | 0025 | [App de desktop e instalador](docs/decisions/0025-app-de-desktop-e-instalador.md) |
+| 0026 | [IA da fase 4: tarefas, backends e modelo local](docs/decisions/0026-ia-da-fase-4.md) |
 
 <a id="como-contribuir"></a>
 ## 🤝 Como contribuir
 
-O repositório está no GitHub. As fases 1, 2 e 3 estão prontas, e as próximas estão em planejamento.
+O repositório está no GitHub. As fases 1, 2 e 3 estão prontas, a fase 4 está sendo construída e as seguintes estão em planejamento.
 
 - **Sugestões e fontes de vagas** já podem ser enviadas pelas issues, com formulários prontos.
 - **Dúvidas** vão pelo [formulário de dúvida](https://github.com/fezarosa-dev/joBot/issues/new?template=duvida.yml). Leia antes as [perguntas frequentes](https://github.com/fezarosa-dev/joBot/wiki/Perguntas-frequentes).
