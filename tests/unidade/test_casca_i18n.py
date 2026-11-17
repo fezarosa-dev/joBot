@@ -44,9 +44,21 @@ def test_toda_chave_usada_pela_tela_existe() -> None:
     html = _ler(UI / "index.html")
     js = _ler(UI / "instalador.js")
     usadas = set(re.findall(r'data-t(?:-rotulo)?="([^"]+)"', html))
-    usadas |= {f"etapa.{e}" for e in ("conferir", "python", "jobot", "navegador", "abrir")}
+    etapas = ("conferir", "python", "jobot", "navegador", "ia_local", "abrir")
+    usadas |= {f"etapa.{e}" for e in etapas}
     motivos = ("arquivo", "espaco", "prova", "navegador", "outro")
     usadas |= {f"falha.{m}{s}" for m in motivos for s in ("", "_oque")}
+    # os motivos do `jobot ferramentas baixar ia-local` que a página Pronto diz (T418)
+    do_modelo = (
+        "sem_rede",
+        "espaco",
+        "arquivo",
+        "ocupado",
+        "programa_ausente",
+        "modelo_ausente",
+        "outro",
+    )
+    usadas |= {f"ia_local.motivo.{m}" for m in do_modelo}
     usadas |= set(re.findall(r't\("([\w.]+)"', js))
     assert "ferramentas.tamanho" in js
     usadas.add("ferramentas.tamanho")
