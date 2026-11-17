@@ -38,7 +38,7 @@ wiki/                         o texto desta wiki
 
 ## 🧱 Camadas
 
-A seta `A --> B` quer dizer "A pode importar B". Não há seta de volta: o `nucleo` não conhece ninguém, e o `painel` não importa `httpx` (só o `nucleo` usa `httpx`).
+A seta `A --> B` quer dizer "A pode importar B". Não há seta de volta: o `nucleo` não conhece ninguém, e o `painel` não importa `httpx` (o `httpx` fica no `nucleo` e no download do Chromium da release, em `navegador/chromium.py` e no comando `jobot ferramentas`).
 
 ```mermaid
 flowchart TD
