@@ -1,4 +1,4 @@
-"""Prova do `uv tool install` com hash nas dependências (T322, desenho 6.2, risco 2).
+"""Prova do `uv` com hash nas dependências (T322, D173, desenho 6.2, risco 2).
 
 Script de quem contribui e do CI: usa rede e o `uv` do sistema, fora do pacote `jobot`.
 Monta a wheel e o `restricoes.txt` (do `uv.lock`, com hashes) e instala o joBot em pastas
@@ -7,19 +7,30 @@ tocar nas pastas do usuário. Depois repete com o hash de uma dependência adult
 `uv` recusou. Se não recusar com `--constraints`, tenta `--with-requirements` com
 `UV_REQUIRE_HASHES=1` (o `uv tool install` não tem `--require-hashes`).
 
-Uso: `uv run python scripts/provar_uv.py` na raiz do repositório. Sai com 0 se algum caminho
-exigiu o hash, 1 se nenhum exigiu, 2 se a prova é inválida (a instalação boa falhou, ou o
-`uv pip install --require-hashes` aceitou o arquivo adulterado).
+Depois prova o caminho da D173 (T338): baixa as wheels só binárias do `restricoes.txt` (pelo
+`pip download --require-hashes`, que o `uv` não tem), põe a wheel do joBot junto com a linha
+`jobot==<versão> --hash=...` e instala num `uv venv` com `uv pip install --offline --no-index
+--find-links <wheels> --require-hashes`; o arquivo bom tem de instalar (e o `jobot --version`
+responder) e o adulterado tem de ser recusado.
+
+Uso: `uv run python scripts/provar_uv.py` na raiz do repositório. O resultado do `uv tool` sai
+só no texto; o código de saída é o da D173: 0 se o caminho dela vale, 2 se não vale ou se a
+prova é inválida (a instalação boa falhou, ou o `uv pip install --require-hashes` aceitou o
+arquivo adulterado).
 """
 
+import hashlib
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
 
 _HASH = re.compile(r"(--hash=sha256:)[0-9a-f]{64}")
+# O `pip` só baixa as wheels (o `uv` não tem `download`); versão fixa para a prova se repetir.
+_PIP = "pip==26.2"
 
 
 def adulterar(texto: str) -> tuple[str, str]:
@@ -37,6 +48,31 @@ def adulterar(texto: str) -> tuple[str, str]:
     if not alvo:
         raise SystemExit("nenhum pacote para adulterar no restricoes.txt")
     return "".join(linhas), alvo
+
+
+def linha_do_jobot(roda: Path) -> str:
+    """A linha do joBot no `restricoes.txt` da D173 (D174.16): versão e sha256 da wheel."""
+    versao = roda.name.split("-")[1]
+    sha = hashlib.sha256(roda.read_bytes()).hexdigest()
+    return f"jobot=={versao} --hash=sha256:{sha}\n"
+
+
+def comando_offline(venv: Path, rodas: Path, restricoes: Path) -> list[str]:
+    """O `uv pip install` da D173: sem índice, só da pasta de wheels, com hash de tudo."""
+    return [
+        "uv",
+        "pip",
+        "install",
+        "--python",
+        str(venv),
+        "--offline",
+        "--no-index",
+        "--find-links",
+        str(rodas),
+        "--require-hashes",
+        "-r",
+        str(restricoes),
+    ]
 
 
 def _rodar(args: list[str], env: dict[str, str]) -> subprocess.CompletedProcess[str]:
@@ -67,6 +103,41 @@ def _pip_recusa(base: Path, restricoes: Path) -> bool:
     return _rodar([*args, str(restricoes)], env).returncode != 0
 
 
+def _python_do_venv(venv: Path) -> Path:
+    return venv / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+
+
+def _provar_d173(base: Path, roda: Path, boas: Path, ruins: Path) -> bool:
+    """Instala offline do arquivo bom (tem de passar) e do adulterado (tem de ser recusado)."""
+    pasta = base / "d173"
+    env = os.environ | {
+        v: str(pasta / v.lower()) for v in ("UV_CACHE_DIR", "UV_PYTHON_INSTALL_DIR")
+    }
+    rodas = pasta / "wheels"
+    baixar = ["uvx", "--python", "3.14", _PIP, "download", "--only-binary=:all:"]
+    baixar += ["--require-hashes", "-r", str(boas), "-d", str(rodas)]
+    subprocess.run(baixar, env=env, check=True, stdout=subprocess.DEVNULL)
+    shutil.copy2(roda, rodas / roda.name)
+    linha = linha_do_jobot(roda)
+    resultado = {}
+    for nome, origem in (("bom", boas), ("ruim", ruins)):
+        restricoes = pasta / f"restricoes-{nome}.txt"
+        restricoes.write_text(origem.read_text(encoding="utf-8") + linha, encoding="utf-8")
+        venv = pasta / f"venv-{nome}"
+        subprocess.run(["uv", "venv", "--python", "3.14", str(venv)], env=env, check=True)
+        r = _rodar(comando_offline(venv, rodas, restricoes), env)
+        estado = "passou" if r.returncode == 0 else "falhou"
+        print(f"[d173-{nome}] {estado} (código {r.returncode})")
+        if r.returncode:
+            print("  " + "\n  ".join(r.stderr.strip().splitlines()[-4:]))
+        resultado[nome] = r.returncode == 0
+        if nome == "bom" and resultado[nome]:
+            versao = _rodar([str(_python_do_venv(venv)), "-m", "jobot", "--version"], env)
+            print(f"  jobot --version: {versao.stdout.strip()} (código {versao.returncode})")
+            resultado[nome] = versao.returncode == 0
+    return resultado["bom"] and not resultado["ruim"]
+
+
 def main() -> int:
     print(_rodar(["uv", "--version"], dict(os.environ)).stdout.strip())
     with tempfile.TemporaryDirectory(prefix="provar_uv_") as tmp:
@@ -94,21 +165,24 @@ def main() -> int:
 
         if not _instalar(base, "constraints-bom", ["--constraints", str(boas), str(roda)], {}):
             return 2
-        if not _instalar(base, "constraints-ruim", ["--constraints", str(ruins), str(roda)], {}):
+        if _instalar(base, "constraints-ruim", ["--constraints", str(ruins), str(roda)], {}):
+            print("resultado: --constraints NÃO exige o hash das dependências")
+            exigir = {"UV_REQUIRE_HASHES": "1"}
+            args = ["--with-requirements", str(boas), str(roda)]
+            bom = _instalar(base, "with-req-bom", args, exigir)
+            args = ["--with-requirements", str(ruins), str(roda)]
+            ruim = _instalar(base, "with-req-ruim", args, exigir)
+            exige = bom and not ruim
+            estado = "EXIGE" if exige else "NÃO exige"
+            print(f"resultado: --with-requirements + UV_REQUIRE_HASHES=1 {estado} o hash")
+        else:
             print("resultado: --constraints EXIGE o hash das dependências")
-            return 0
-        print("resultado: --constraints NÃO exige o hash das dependências")
 
-        exigir = {"UV_REQUIRE_HASHES": "1"}
-        bom = _instalar(base, "with-req-bom", ["--with-requirements", str(boas), str(roda)], exigir)
-        ruim = _instalar(
-            base, "with-req-ruim", ["--with-requirements", str(ruins), str(roda)], exigir
-        )
-        if bom and not ruim:
-            print("resultado: --with-requirements + UV_REQUIRE_HASHES=1 EXIGE o hash")
+        if _provar_d173(base, roda, boas, ruins):
+            print("resultado D173: --offline --require-hashes instala e recusa o adulterado")
             return 0
-        print("resultado: nenhum caminho exigiu o hash (limite: só a wheel e os pinos ==)")
-        return 1
+        print("resultado D173: o caminho NÃO vale")
+        return 2
 
 
 if __name__ == "__main__":

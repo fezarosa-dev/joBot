@@ -1,5 +1,6 @@
 import os
 import signal
+import subprocess
 import sys
 
 import pytest
@@ -45,13 +46,63 @@ def test_encerrar_grupo_posix_manda_sinal_ao_grupo(
     assert proc.chamadas == []
 
 
-@pytest.mark.parametrize(("forcar", "metodo"), [(False, "terminate"), (True, "kill")])
-def test_encerrar_grupo_windows_usa_o_processo(
-    monkeypatch: pytest.MonkeyPatch, forcar: bool, metodo: str
+def _taskkill(monkeypatch: pytest.MonkeyPatch, codigo: int) -> list[list[str]]:
+    chamados: list[list[str]] = []
+
+    def rodar(args: list[str], **_: object) -> subprocess.CompletedProcess[bytes]:
+        chamados.append(args)
+        return subprocess.CompletedProcess(args, codigo)
+
+    monkeypatch.setattr(processo.subprocess, "run", rodar)
+    return chamados
+
+
+@pytest.mark.parametrize("forcar", [False, True])
+def test_encerrar_grupo_windows_mata_a_arvore_com_taskkill(
+    monkeypatch: pytest.MonkeyPatch, forcar: bool
 ) -> None:
     enviados: list[tuple[int, int]] = []
     monkeypatch.setattr(os, "killpg", lambda pid, s: enviados.append((pid, s)), raising=False)
+    chamados = _taskkill(monkeypatch, 0)
+    proc = _Proc()
+    processo.encerrar_grupo(proc, forcar=forcar, plataforma="win32")
+    assert chamados == [["taskkill", "/T", "/F", "/PID", "4242"]]
+    assert proc.chamadas == []
+    assert enviados == []
+
+
+@pytest.mark.parametrize(("forcar", "metodo"), [(False, "terminate"), (True, "kill")])
+def test_encerrar_grupo_windows_sem_taskkill_usa_o_processo(
+    monkeypatch: pytest.MonkeyPatch, forcar: bool, metodo: str
+) -> None:
+    _taskkill(monkeypatch, 128)
     proc = _Proc()
     processo.encerrar_grupo(proc, forcar=forcar, plataforma="win32")
     assert proc.chamadas == [metodo]
-    assert enviados == []
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="prova da árvore no Windows de verdade")
+def test_encerrar_grupo_windows_leva_o_neto_junto() -> None:
+    import ctypes
+
+    neto = "import time; time.sleep(120)"
+    filho = (
+        "import subprocess, sys, time\n"
+        f"p = subprocess.Popen([sys.executable, '-c', {neto!r}])\n"
+        "print(p.pid, flush=True)\n"
+        "time.sleep(120)\n"
+    )
+    proc = subprocess.Popen(
+        [sys.executable, "-c", filho], stdout=subprocess.PIPE, text=True, **processo.destacar()
+    )
+    assert proc.stdout is not None
+    pid_neto = int(proc.stdout.readline())
+    kernel32 = ctypes.WinDLL("kernel32")  # type: ignore[attr-defined,unused-ignore]
+    alca = kernel32.OpenProcess(0x00100000, False, pid_neto)  # SYNCHRONIZE
+    assert alca
+    try:
+        processo.encerrar_grupo(proc)
+        assert proc.wait(timeout=30) is not None
+        assert kernel32.WaitForSingleObject(alca, 30_000) == 0  # WAIT_OBJECT_0: o neto saiu
+    finally:
+        kernel32.CloseHandle(alca)
