@@ -627,3 +627,337 @@ def test_chaves_novas_em_pt_e_en() -> None:
         assert set(re.findall(r"\{(\w+)\}", catalogo["pt"][chave])) == set(
             re.findall(r"\{(\w+)\}", catalogo["en"][chave])
         ), chave
+
+
+# --- chaves de IA (T414; desenho 10.3 da fase 4) -------------------------------------------
+
+IA_COM_CHAVE = ("anthropic", "openai", "gemini")
+IA = (*IA_COM_CHAVE, "compativel")
+CHAVE_IA = "sk-ant-api03-AbCd_1234-EfGh5678IjKl9012MnOpQrSt"
+OUTRA_IA = "AIzaSyZ-9876_VuTs5432RqPo1098NmLk7654"
+ENDERECO = "http://127.0.0.1:11434/v1"
+APAGAR_IA = SERVICOS + "/ia/{}/apagar"
+
+
+def _salvar_ia(painel: Painel, servico: str, **campos: str) -> Any:
+    return painel.post(SERVICOS, {"servico": servico, **campos})
+
+
+def _compativel(painel: Painel) -> object:
+    with closing(abrir(painel.banco)) as con:
+        return cadastros.ler_config(con, "ia_compativel")
+
+
+def _cartao_ia(html: str, servico: str) -> LexborNode:
+    return _no(html, f"#cartao-ia-{servico}")
+
+
+def test_servicos_mostra_os_quatro_cartoes_de_ia_depois_do_2captcha(painel: Painel) -> None:
+    html = painel.get(SERVICOS).text
+    ids = [str(n.attributes["id"]) for n in LexborHTMLParser(html).css('[id^="cartao-"]')]
+    assert ids == ["cartao-captcha", *(f"cartao-ia-{s}" for s in IA)]
+    for servico in IA:
+        cartao = _cartao_ia(html, servico)
+        titulo = pt(f"configuracoes.servicos.ia.{servico}.titulo")
+        assert _no(cartao.html or "", "h2").text(strip=True) == titulo
+        assert pt("configuracoes.servicos.ia.nada_sai") in html_lib.unescape(cartao.html or "")
+    # um botão principal por tela: o do 2Captcha; os das chaves de IA são secundários
+    assert len(LexborHTMLParser(html).css(".config-conteudo .botao-primario")) == 1
+
+
+def test_cartao_da_anthropic_avisa_do_workspace_e_da_cobranca(painel: Painel) -> None:
+    frase = pt("configuracoes.servicos.ia.anthropic.frase")
+    assert "workspace" in frase
+    assert "402" in frase
+    en = t("en", "configuracoes.servicos.ia.anthropic.frase")
+    assert "workspace" in en
+    assert "402" in en
+    assert frase in _texto(painel.get(SERVICOS))
+
+
+@pytest.mark.parametrize("servico", IA)
+def test_todo_texto_dos_cartoes_de_ia_existe_em_pt_e_en(servico: str) -> None:
+    catalogo = carregar()
+    for sufixo in ("titulo", "de", "frase"):
+        chave = f"configuracoes.servicos.ia.{servico}.{sufixo}"
+        for idioma in ("pt", "en"):
+            assert catalogo[idioma].get(chave), (idioma, chave)
+
+
+@pytest.mark.parametrize("servico", IA_COM_CHAVE)
+def test_salvar_chave_de_ia_grava_no_cofre_e_mostra_so_a_mascara(
+    painel: Painel, servico: str
+) -> None:
+    resposta = _salvar_ia(painel, servico, chave=CHAVE_IA)
+    assert resposta.status_code == 303
+    assert resposta.headers["location"] == SERVICOS + "?salvo=1"
+    assert painel.cofre.ler(f"ia_{servico}") == (CHAVE_IA, "sistema")
+    assert painel.cofre.ler(NOME) is None  # o 2Captcha não muda
+    seguinte = painel.get(SERVICOS)
+    cartao = html_lib.unescape(_cartao_ia(seguinte.text, servico).html or "")
+    assert pt("configuracoes.servicos.captcha.salva", mascara="•••• " + CHAVE_IA[-4:]) in cartao
+    assert CHAVE_IA not in seguinte.text  # (guarda) nunca no `value` nem em lugar nenhum
+    campo = _no(seguinte.text, f"#campo-chave-ia-{servico}").attributes
+    assert campo["type"] == "password"
+    assert "value" not in campo
+    assert campo["name"] == "chave"
+
+
+def test_cada_cartao_de_ia_mostra_so_a_propria_chave(painel: Painel) -> None:
+    _salvar_ia(painel, "openai", chave=CHAVE_IA)
+    html = painel.get(SERVICOS).text
+    salva = pt("configuracoes.servicos.captcha.salva", mascara="•••• " + CHAVE_IA[-4:])
+    for servico in IA:
+        com = salva in html_lib.unescape(_cartao_ia(html, servico).html or "")
+        assert com is (servico == "openai"), servico
+    assert salva not in html_lib.unescape(_no(html, "#cartao-captcha").html or "")
+
+
+def test_salvar_chave_de_ia_vazia_mantem_a_salva(painel: Painel) -> None:
+    _salvar_ia(painel, "gemini", chave=CHAVE_IA)
+    resposta = _salvar_ia(painel, "gemini", chave="   ")
+    assert resposta.status_code == 303
+    assert painel.cofre.ler("ia_gemini") == (CHAVE_IA, "sistema")
+
+
+def test_chave_de_ia_recortada_antes_de_salvar(painel: Painel) -> None:
+    assert _salvar_ia(painel, "openai", chave="  " + CHAVE_IA + "\n").status_code == 303
+    assert painel.cofre.ler("ia_openai") == (CHAVE_IA, "sistema")
+
+
+@pytest.mark.parametrize(
+    "ruim",
+    [
+        "sk-curt",  # 8 é o mínimo: 7 não
+        "a" * 513,
+        "sk-ant abc defghijkl",
+        "sk-ãbcdefghijkl",
+        "sk-abcd\nefghijkl",
+        "sk-abcd​efghijkl",
+    ],
+)
+def test_chave_de_ia_torta_volta_no_cartao_e_nao_grava(painel: Painel, ruim: str) -> None:
+    resposta = _salvar_ia(painel, "anthropic", chave=ruim)
+    assert resposta.status_code == 422
+    cartao = _cartao_ia(resposta.text, "anthropic")
+    alerta = _no(cartao.html or "", '[role="alert"]')
+    assert alerta.text(strip=True) == pt("configuracoes.servicos.ia.erro.chave")
+    assert _no(cartao.html or "", "#campo-chave-ia-anthropic").attributes["aria-invalid"] == "true"
+    assert painel.cofre.ler("ia_anthropic") is None
+    assert ruim.strip() not in _texto(resposta)
+
+
+def test_chave_de_ia_de_8_caracteres_vale(painel: Painel) -> None:
+    assert _salvar_ia(painel, "openai", chave="sk-12345").status_code == 303
+    assert painel.cofre.ler("ia_openai") == ("sk-12345", "sistema")
+
+
+@pytest.mark.parametrize("servico", ["", "local", "2captcha", "OPENAI", "ia_openai"])
+def test_servico_fora_da_lista_e_422_seco(painel: Painel, servico: str) -> None:
+    resposta = _salvar_ia(painel, servico, chave=CHAVE_IA)
+    assert resposta.status_code == 422
+    assert painel.backend.guardado == {}
+
+
+def test_salvar_chave_de_ia_sem_csrf_e_recusado(painel: Painel) -> None:
+    resposta = painel.http.post(SERVICOS, data={"servico": "openai", "chave": CHAVE_IA})
+    assert resposta.status_code == 403
+    assert painel.backend.guardado == {}
+
+
+# --- o compatível --------------------------------------------------------------------------
+
+
+def test_compativel_grava_o_endereco_sem_chave(painel: Painel) -> None:
+    resposta = _salvar_ia(painel, "compativel", endereco=ENDERECO, chave="")
+    assert resposta.status_code == 303
+    assert _compativel(painel) == {"endereco": ENDERECO}
+    assert painel.cofre.ler("ia_compativel") is None
+    html = painel.get(SERVICOS).text
+    assert _no(html, "#campo-endereco-ia").attributes["value"] == ENDERECO
+    rotulo = _no(html, 'label[for="campo-chave-ia-compativel"]').text(strip=True)
+    assert rotulo == pt(
+        "configuracoes.servicos.ia.chave_opcional", de=pt("configuracoes.servicos.ia.compativel.de")
+    )
+
+
+def test_compativel_com_chave_grava_os_dois(painel: Painel) -> None:
+    resposta = _salvar_ia(painel, "compativel", endereco=ENDERECO + "/", chave=OUTRA_IA)
+    assert resposta.status_code == 303
+    assert _compativel(painel) == {"endereco": ENDERECO}  # sem a `/` do fim
+    assert painel.cofre.ler("ia_compativel") == (OUTRA_IA, "sistema")
+    assert OUTRA_IA not in painel.get(SERVICOS).text
+
+
+@pytest.mark.parametrize(
+    ("digitado", "gravado"),
+    [
+        ("  https://api.exemplo.com/v1  ", "https://api.exemplo.com/v1"),
+        ("http://localhost:1234/v1", "http://localhost:1234/v1"),
+        ("http://[::1]:8080/v1", "http://[::1]:8080/v1"),
+    ],
+)
+def test_endereco_do_compativel_que_vale(painel: Painel, digitado: str, gravado: str) -> None:
+    assert _salvar_ia(painel, "compativel", endereco=digitado).status_code == 303
+    assert _compativel(painel) == {"endereco": gravado}
+
+
+@pytest.mark.parametrize(
+    "ruim",
+    [
+        "",
+        "http://exemplo.com/v1",  # http só no próprio computador
+        "ftp://exemplo.com/v1",
+        "https://eu:senha@exemplo.com/v1",
+        "https://exemplo.com/v1?x=1",
+        "https://exemplo.com/v1#x",
+        "https://exem plo.com/v1",
+        "https://exemplo.com:porta/v1",
+        "https://exemplo.com/" + "a" * 2048,
+    ],
+)
+def test_endereco_do_compativel_torto_volta_no_cartao_e_nada_e_gravado(
+    painel: Painel, ruim: str
+) -> None:
+    _salvar_ia(painel, "compativel", endereco=ENDERECO)
+    resposta = _salvar_ia(painel, "compativel", endereco=ruim, chave=OUTRA_IA)
+    assert resposta.status_code == 422
+    cartao = _cartao_ia(resposta.text, "compativel")
+    alerta = _no(cartao.html or "", '[role="alert"]')
+    assert alerta.text(strip=True) == pt("configuracoes.servicos.ia.erro.endereco")
+    assert _no(cartao.html or "", "#campo-endereco-ia").attributes["aria-invalid"] == "true"
+    assert _compativel(painel) == {"endereco": ENDERECO}
+    assert painel.cofre.ler("ia_compativel") is None  # a chave digitada também não
+    assert OUTRA_IA not in resposta.text
+
+
+def test_endereco_torto_volta_no_campo_para_corrigir(painel: Painel) -> None:
+    resposta = _salvar_ia(painel, "compativel", endereco="http://exemplo.com/v1")
+    assert _no(resposta.text, "#campo-endereco-ia").attributes["value"] == "http://exemplo.com/v1"
+
+
+# --- apagar a chave de IA ------------------------------------------------------------------
+
+
+def test_sem_chave_de_ia_nao_ha_botao_apagar(painel: Painel) -> None:
+    html = painel.get(SERVICOS).text
+    for servico in IA:
+        assert f'action="{APAGAR_IA.format(servico)}"' not in html
+
+
+@pytest.mark.parametrize("servico", IA_COM_CHAVE)
+def test_apagar_chave_de_ia_tira_do_cofre_e_devolve_o_cartao(painel: Painel, servico: str) -> None:
+    _salvar_ia(painel, servico, chave=CHAVE_IA)
+    _salvar_ia(painel, "openai" if servico != "openai" else "gemini", chave=OUTRA_IA)
+    assert f'action="{APAGAR_IA.format(servico)}"' in painel.get(SERVICOS).text
+    resposta = painel.post(APAGAR_IA.format(servico), htmx=True)
+    assert resposta.status_code == 200
+    assert re.match(rf'\s*<section[^>]*\bid="cartao-ia-{servico}"', resposta.text)
+    assert "data-foco" in _no(resposta.text, f"#campo-chave-ia-{servico}").attributes
+    oob = _no(resposta.text, "[hx-swap-oob]")
+    assert str(oob.attributes["hx-swap-oob"]).endswith("#status-servicos")
+    assert painel.cofre.ler(f"ia_{servico}") is None
+    assert f'action="{APAGAR_IA.format(servico)}"' not in resposta.text
+    outro = "openai" if servico != "openai" else "gemini"
+    assert painel.cofre.ler(f"ia_{outro}") == (OUTRA_IA, "sistema")  # só a dele
+
+
+def test_apagar_o_compativel_tira_o_endereco_e_a_chave(painel: Painel) -> None:
+    _salvar_ia(painel, "compativel", endereco=ENDERECO, chave=OUTRA_IA)
+    resposta = painel.post(APAGAR_IA.format("compativel"))
+    assert resposta.status_code == 303
+    assert resposta.headers["location"] == SERVICOS + "?salvo=1"
+    assert _compativel(painel) == {"endereco": ""}
+    assert painel.cofre.ler("ia_compativel") is None
+
+
+def test_compativel_so_com_endereco_tem_botao_apagar(painel: Painel) -> None:
+    _salvar_ia(painel, "compativel", endereco=ENDERECO)
+    assert f'action="{APAGAR_IA.format("compativel")}"' in painel.get(SERVICOS).text
+    assert painel.post(APAGAR_IA.format("compativel"), htmx=True).status_code == 200
+    assert _compativel(painel) == {"endereco": ""}
+
+
+@pytest.mark.parametrize("servico", ["local", "2captcha", "captcha", "x"])
+def test_apagar_servico_fora_da_lista_e_404(painel: Painel, servico: str) -> None:
+    painel.backend.guardado[(SERVICO, NOME)] = CHAVE
+    assert painel.post(APAGAR_IA.format(servico), htmx=True).status_code == 404
+    assert painel.cofre.ler(NOME) == (CHAVE, "sistema")
+
+
+def test_apagar_chave_de_ia_sem_csrf_e_recusado(painel: Painel) -> None:
+    _salvar_ia(painel, "openai", chave=CHAVE_IA)
+    assert painel.http.post(APAGAR_IA.format("openai")).status_code == 403
+    assert painel.cofre.ler("ia_openai") == (CHAVE_IA, "sistema")
+
+
+def test_apagar_chave_de_ia_que_o_cofre_recusa_avisa_so_no_cartao_dela(tmp_path: Path) -> None:
+    painel = Painel(tmp_path, CofreFalso(recusa_apagar=True))
+    _salvar_ia(painel, "openai", chave=CHAVE_IA)
+    resposta = painel.post(APAGAR_IA.format("openai"), htmx=True)
+    assert resposta.status_code == 200
+    assert pt("configuracoes.servicos.erro.cofre") in _texto(resposta)
+    sem_htmx = painel.post(APAGAR_IA.format("openai"))
+    assert sem_htmx.headers["location"] == SERVICOS + "?erro=cofre-ia-openai"
+    html = painel.get(sem_htmx.headers["location"]).text
+    erro = pt("configuracoes.servicos.erro.cofre")
+    assert erro in html_lib.unescape(_cartao_ia(html, "openai").html or "")
+    assert erro not in html_lib.unescape(_no(html, "#cartao-captcha").html or "")
+    assert erro not in html_lib.unescape(_cartao_ia(html, "gemini").html or "")
+
+
+# --- cofre ruim e segredo ------------------------------------------------------------------
+
+
+def test_sem_cofre_a_chave_de_ia_vai_ao_arquivo_e_o_cartao_avisa(tmp_path: Path) -> None:
+    painel = Painel(tmp_path, CofreFalso(falha=RuntimeError("x")))
+    assert _salvar_ia(painel, "anthropic", chave=CHAVE_IA).status_code == 303
+    assert (tmp_path / "ia_anthropic.segredo").read_text() == CHAVE_IA
+    html = painel.get(SERVICOS).text
+    aviso = pt("configuracoes.servicos.captcha.no_arquivo")
+    assert aviso in html_lib.unescape(_cartao_ia(html, "anthropic").html or "")
+    assert aviso not in html_lib.unescape(_cartao_ia(html, "openai").html or "")
+
+
+def test_cofre_que_falha_ao_gravar_a_chave_de_ia_avisa_sem_vazar(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    painel = Painel(tmp_path, CofreFalso(falha=RuntimeError(SEGREDO)))
+    (tmp_path / "ia_compativel.segredo").mkdir()  # o arquivo não abre
+    with caplog.at_level(logging.DEBUG):
+        resposta = _salvar_ia(painel, "compativel", endereco=ENDERECO, chave=CHAVE_IA)
+    assert resposta.status_code == 200
+    cartao = html_lib.unescape(_cartao_ia(resposta.text, "compativel").html or "")
+    assert pt("configuracoes.servicos.erro.cofre") in cartao
+    assert _compativel(painel) == {"endereco": ""}  # sem a chave, o endereço também não
+    for proibido in (SEGREDO, CHAVE_IA):
+        assert proibido not in caplog.text
+        assert proibido not in resposta.text
+
+
+def test_cofre_que_trava_ao_ler_as_chaves_de_ia_avisa_em_cada_cartao(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    trava = threading.Event()
+    painel = Painel(tmp_path, CofreFalso(trava=trava))
+    monkeypatch.setattr(limites, "PRAZO_COFRE_S", 0.05)
+    try:
+        html = painel.get(SERVICOS).text
+    finally:
+        trava.set()
+    for servico in IA:
+        cartao = html_lib.unescape(_cartao_ia(html, servico).html or "")
+        assert pt("configuracoes.servicos.erro.cofre") in cartao, servico
+
+
+@pytest.mark.parametrize("servico", IA)
+def test_chave_de_ia_nunca_no_log(
+    painel: Painel, caplog: pytest.LogCaptureFixture, servico: str
+) -> None:
+    campos = {"endereco": ENDERECO} if servico == "compativel" else {}
+    with caplog.at_level(logging.DEBUG):
+        _salvar_ia(painel, servico, chave=CHAVE_IA, **campos)
+        _salvar_ia(painel, servico, chave=CHAVE_IA + " torta", **campos)
+        painel.get(SERVICOS)
+        painel.post(APAGAR_IA.format(servico), htmx=True)
+    assert CHAVE_IA not in caplog.text
