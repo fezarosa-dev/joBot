@@ -83,7 +83,8 @@ def _aviso(page: Page, aviso: dict[str, Any]) -> None:
 
 
 def _valor(page: Page) -> int:
-    return int(page.get_by_role("progressbar").get_attribute("aria-valuenow") or "-1")
+    # pelo id: no passo "Pronto" a seção do progresso some da árvore de acessibilidade
+    return int(page.locator("#trilho").get_attribute("aria-valuenow") or "-1")
 
 
 def _ate_instalando(page: Page, ui: str, *, navegador: bool = True) -> None:
