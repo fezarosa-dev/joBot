@@ -23,7 +23,11 @@ from apoio.site_falso import LeitorFalso
 from jobot.banco import cadastros
 from jobot.banco.conexao import abrir
 from jobot.banco.migrar import migrar
-from jobot.navegador.instalador import comando_de_baixar, comando_de_remover
+from jobot.navegador.instalador import (
+    comando_de_baixar,
+    comando_de_baixar_pela_casca,
+    comando_de_remover,
+)
 from jobot.painel import i18n
 from jobot.painel.app import criar_app
 from jobot.painel.seguranca import CAMPO_CSRF
@@ -222,6 +226,26 @@ def test_baixar_mostra_baixando_e_depois_instalado(painel: Painel) -> None:
         assert REMOVER in final.text
         assert 'hx-trigger="every 5s"' not in final.text
         assert painel.app.state.navegador_instalado == "chromium"
+
+
+@pytest.mark.parametrize("canal", ["casca", "outro", "quebrado"])
+def test_baixar_no_canal_casca_usa_a_release(painel: Painel, tmp_path: Path, canal: str) -> None:
+    """Canal `casca`: o subcomando da T330 (caminho b), com a pasta de dados; fora dele, ou com o
+    `instalacao.json` quebrado, o `playwright install` de sempre (caminho c)."""
+    conteudo = {"casca": '{"canal": "casca", "manifesto": "/m.json"}', "outro": '{"canal": "x"}'}
+    (tmp_path / "instalacao.json").write_text(conteudo.get(canal, "{"))
+    painel.navegador(None)
+    with TestClient(painel.app, base_url=BASE) as http:
+        assert painel.post(BAIXAR, http).status_code == 200
+        assert _esperar(lambda: len(painel.abertos) == 1)
+        argumentos, ambiente = painel.abertos[0]
+        painel.processo.liberar.set()
+    if canal == "casca":
+        assert argumentos == comando_de_baixar_pela_casca()
+        assert ambiente["JOBOT_DADOS"] == str(tmp_path)
+    else:
+        assert argumentos == comando_de_baixar()
+        assert "JOBOT_DADOS" not in ambiente
 
 
 @pytest.mark.parametrize("resultado", ["pronto", "falhou_baixar", "removido"])

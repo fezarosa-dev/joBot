@@ -38,7 +38,7 @@ wiki/                         the text of this wiki
 
 ## 🧱 Layers
 
-The arrow `A --> B` means "A may import B". There is no arrow back: the `nucleo` knows nobody, and the `painel` does not import `httpx` (only the `nucleo` uses `httpx`).
+The arrow `A --> B` means "A may import B". There is no arrow back: the `nucleo` knows nobody, and the `painel` does not import `httpx` (`httpx` lives in the `nucleo` and in the Chromium download from the release, in `navegador/chromium.py` and the `jobot ferramentas` command).
 
 ```mermaid
 flowchart TD
