@@ -7,7 +7,7 @@ no FTS5, ou um padrão escapado no LIKE (RF1). Sem `vaga_fts`, a busca usa LIKE 
 import json
 import sqlite3
 import unicodedata
-from collections.abc import Mapping
+from collections.abc import Collection, Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Final
@@ -378,9 +378,11 @@ def listar(con: sqlite3.Connection, f: Filtros, agora: datetime) -> Pagina:
 
 
 def contar_chips(
-    con: sqlite3.Connection, f: Filtros, agora: datetime
+    con: sqlite3.Connection, f: Filtros, agora: datetime, grupos: Collection[str] | None = None
 ) -> Mapping[str, Mapping[str, int]]:
-    """Contagem por valor de cada chip; cada uma considera os outros filtros (DR-43)."""
+    """Contagem por valor de cada chip; cada uma considera os outros filtros (DR-43).
+
+    `grupos`: só esses (o Panorama mostra 4, T312); `None`, todos."""
     _preparar(con)
     chips = {nome: (valor, juncao, nome) for nome, (valor, juncao) in _CHIPS.items()}
     if f.aba in _CHIPS_DA_ABA:
@@ -388,6 +390,8 @@ def contar_chips(
         chips[nome] = (valor, "", "")
     contagens: dict[str, dict[str, int]] = {}
     for nome, (valor, juncao, sem) in chips.items():
+        if grupos is not None and nome not in grupos:
+            continue
         onde, params = _onde(con, f, agora, sem=sem)
         cur = con.execute(
             f"SELECT {valor}, COUNT(DISTINCT v.id) FROM {_DE} {juncao}"
@@ -395,6 +399,8 @@ def contar_chips(
             params,
         )
         contagens[nome] = {chave: n for chave, n in cur.fetchall()}
+    if grupos is not None and "publicada" not in grupos:
+        return contagens
     # os três períodos se sobrepõem: uma consulta só, sem GROUP BY
     onde, params = _onde(con, f, agora, sem="publicada")
     soma = ", ".join(
