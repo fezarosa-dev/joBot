@@ -23,17 +23,19 @@
   "etapa.abrir": "Opening",
   "falha.arquivo": "A file in the installer is not the expected one. Nothing was installed.",
   "falha.arquivo_oque": "Download the installer again from the joBot page.",
-  "falha.espaco": "Not enough disk space. Nothing was installed.",
+  "falha.espaco": "Not enough disk space. What the installation did was undone.",
   "falha.espaco_oque": "Free up some space and try again.",
   "falha.prova": "The check of the installed joBot failed. Nothing was installed.",
   "falha.prova_oque": "Try again. If it happens again, download the installer again from the joBot page.",
-  "falha.outro": "The installation did not finish. Nothing was installed.",
+  "falha.outro": "The installation did not finish. What it did was undone.",
   "falha.outro_oque": "Try again. If it happens again, download the installer again from the joBot page.",
   "pronto.titulo": "Done",
   "incompleto.titulo": "This installer is incomplete",
   "incompleto.texto": "Files the installation needs are missing. Download the installer again from the joBot page.",
   "alerta.titulo": "Stop the installation?",
-  "alerta.texto": "What was done will be undone and nothing stays installed.",
+  "alerta.texto": "What was done will be undone.",
   "alerta.parar": "Stop and Close",
-  "alerta.continuar": "Continue Installing"
+  "alerta.continuar": "Continue Installing",
+  "falha.detalhe": "Details",
+  "parando": "Stopping…"
 }

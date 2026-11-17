@@ -1,8 +1,9 @@
 //! Instalação pela casca, sem rede (desenho 5.2 e 6.2; D173, D174, D181). Confere o
 //! `manifesto.json` pelo sha256 gravado no build e cada arquivo dos recursos pelo manifesto,
-//! prepara o Python e o venv com o `uv` dos recursos, instala o navegador se marcado, prova o
-//! `jobot --version` e só então grava o `instalacao.json`. Falhou ou foi cancelada: o que a
-//! instalação criou sai e o `instalacao.json` não é gravado.
+//! prepara o Python e o venv com o `uv` dos recursos, prova o `jobot --version`, instala o
+//! navegador se marcado e só então grava o `instalacao.json`. Falhou ou foi cancelada: o que a
+//! instalação criou na pasta da casca sai e o `instalacao.json` não é gravado (o Chromium fica
+//! na pasta do Playwright, D181.9).
 //!
 //! Recursos (`desktop/recursos/`, D181): `manifesto.json`, `bin/uv` (`bin/uv.exe`),
 //! `python/<tag>/cpython-<versão>+<tag>-<alvo>-install_only_stripped.tar.gz` (o espelho que o
@@ -23,18 +24,6 @@ use std::time::Duration;
 
 pub const MANIFESTO: &str = "manifesto.json";
 pub const INSTALACAO: &str = "instalacao.json";
-
-/// Variáveis que levariam o `uv` a um índice ou espelho de fora; saem do ambiente dele.
-const DE_FORA: [&str; 8] = [
-    "UV_INDEX",
-    "UV_INDEX_URL",
-    "UV_DEFAULT_INDEX",
-    "UV_EXTRA_INDEX_URL",
-    "UV_FIND_LINKS",
-    "UV_PYTHON_INSTALL_MIRROR",
-    "UV_PYPY_INSTALL_MIRROR",
-    "UV_PYTHON_DOWNLOADS_JSON_URL",
-];
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Entrada {
@@ -216,16 +205,18 @@ pub fn pasta_da_casca(env: impl Fn(&str) -> Option<String>, so: &str) -> PathBuf
     }
 }
 
-fn manifesto_da_versao(recursos: &Path, versao: &str) -> Option<Manifesto> {
+/// O manifesto dos recursos, só se o sha256 bate com a constante do build e a versão é a da casca.
+fn manifesto_da_versao(recursos: &Path, sha_manifesto: &str, versao: &str) -> Option<Manifesto> {
     let bruto = fs::read(recursos.join(MANIFESTO)).ok()?;
+    if !e_hex(sha_manifesto) || hex(&Sha256::digest(&bruto)) != sha_manifesto {
+        return None;
+    }
     ler_manifesto(&bruto).ok().filter(|m| m.versao == versao)
 }
 
 /// Para a tela: se os recursos estão completos e quanto ocupam (o navegador à parte).
 pub fn estado(recursos: &Path, sha_manifesto: Option<&str>, versao: &str) -> Value {
-    let manifesto = sha_manifesto
-        .filter(|s| e_hex(s))
-        .and_then(|_| manifesto_da_versao(recursos, versao));
+    let manifesto = sha_manifesto.and_then(|sha| manifesto_da_versao(recursos, sha, versao));
     let Some(manifesto) = manifesto else {
         return json!({"completo": false});
     };
@@ -470,10 +461,14 @@ impl Instalador<'_> {
     }
 
     /// O `uv` da pasta da casca, offline, com as pastas da casca e sem índice nem espelho de fora.
+    /// Toda `UV_*` do ambiente da pessoa sai (índice, espelho, `UV_CONSTRAINT`, `UV_NO_BINARY`,
+    /// `UV_LINK_MODE`...): só valem as que a casca põe.
     fn comando_uv(&self, argumentos: &[&str]) -> Command {
         let mut comando = Command::new(self.uv());
-        for nome in DE_FORA {
-            comando.env_remove(nome);
+        for (nome, _) in std::env::vars_os() {
+            if nome.to_string_lossy().starts_with("UV_") {
+                comando.env_remove(nome);
+            }
         }
         comando
             .env("UV_OFFLINE", "1")
@@ -605,6 +600,7 @@ impl Instalador<'_> {
             "python",
             "install",
             "--no-bin",
+            "--no-registry", // no Windows, nada no registro (PEP 514) que o desfazer não tire
             "--mirror",
             espelho.as_str(),
             versao_python,
@@ -642,6 +638,19 @@ impl Instalador<'_> {
         ]);
         self.passo(rodar, instalar_jobot, "uv pip install", cancelado)?;
 
+        // a prova vem antes do navegador: o Chromium fica na pasta do Playwright, que o desfazer
+        // não toca (D181.9)
+        let prova = self.comando_jobot(&["--version"]);
+        let saida = self
+            .passo(rodar, prova, "jobot --version", cancelado)
+            .map_err(|erro| match erro {
+                Erro::Outro(texto) => Erro::Prova(texto),
+                outro => outro,
+            })?;
+        if saida.saida.trim() != format!("jobot {}", self.versao) {
+            return Err(Erro::Prova(saida.saida.trim().to_string()));
+        }
+
         if navegador {
             progresso(json!({"etapa": "navegador", "feito": 0, "total": chromium.tamanho}));
             let arquivo = self.recursos.join(&chromium.nome);
@@ -671,16 +680,6 @@ impl Instalador<'_> {
             }
         }
 
-        let prova = self.comando_jobot(&["--version"]);
-        let saida = self
-            .passo(rodar, prova, "jobot --version", cancelado)
-            .map_err(|erro| match erro {
-                Erro::Outro(texto) => Erro::Prova(texto),
-                outro => outro,
-            })?;
-        if saida.saida.trim() != format!("jobot {}", self.versao) {
-            return Err(Erro::Prova(saida.saida.trim().to_string()));
-        }
         if cancelado.load(Ordering::SeqCst) {
             return Err(Erro::Cancelado);
         }
