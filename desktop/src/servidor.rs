@@ -287,11 +287,17 @@ pub fn jobot_instalado(dados: &Path, so: &str) -> Option<PathBuf> {
     Some(jobot_do_venv(Path::new(venv), so)).filter(|j| j.is_file())
 }
 
+/// Tira o `PYTHONHOME` e o `PYTHONPATH` do ambiente de um filho: o AppImage os aponta para
+/// dentro dele e o Python do venv não acha a biblioteca padrão (achado da fumaça, D183).
+pub fn sem_python_de_fora(comando: &mut Command) -> &mut Command {
+    comando.env_remove("PYTHONHOME").env_remove("PYTHONPATH")
+}
+
 /// `jobot <subcomando>` destacado (sessão própria no POSIX, grupo próprio sem console no
 /// Windows, como `processo.destacar`): o servidor nunca é filho preso à casca.
 pub fn comando_destacado(jobot: &Path, subcomando: &str) -> Command {
     let mut comando = Command::new(jobot);
-    comando
+    sem_python_de_fora(&mut comando)
         .arg(subcomando)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
@@ -611,6 +617,12 @@ mod testes {
         let c = comando_destacado(Path::new("/v/bin/jobot"), "serve");
         assert_eq!(c.get_program(), "/v/bin/jobot");
         assert_eq!(c.get_args().collect::<Vec<_>>(), ["serve"]);
+        let fora: Vec<_> = c
+            .get_envs()
+            .filter(|(_, v)| v.is_none())
+            .map(|(k, _)| k)
+            .collect();
+        assert_eq!(fora, ["PYTHONHOME", "PYTHONPATH"]);
     }
 
     /// Um filho de verdade conta onde ficaram a entrada, as saídas e o grupo de processos.

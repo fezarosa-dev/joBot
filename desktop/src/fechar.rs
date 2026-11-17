@@ -85,7 +85,7 @@ pub fn desinstalar(dados: &Path, so: &str, mut rodar: impl FnMut(&Path, &[&str])
 /// `jobot <args>` esperando o fim, sem entrada, saída nem janela de console.
 pub fn rodar_esperando(jobot: &Path, args: &[&str]) {
     let mut comando = Command::new(jobot);
-    comando
+    servidor::sem_python_de_fora(&mut comando)
         .args(args)
         .stdin(Stdio::null())
         .stdout(Stdio::null())

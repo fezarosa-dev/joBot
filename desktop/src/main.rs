@@ -534,7 +534,8 @@ fn verificar(info: &tauri::PackageInfo) -> i32 {
     };
     let saude = servidor::perguntar_saude(porta);
     println!("verificar: /saude-local na porta {porta}: {saude}");
-    let chromium = std::process::Command::new(python_ao_lado(&jobot, so))
+    let mut chromium = std::process::Command::new(python_ao_lado(&jobot, so));
+    let chromium = servidor::sem_python_de_fora(&mut chromium)
         .args(["-c", SCRIPT_CHROMIUM])
         .status();
     let chromium = match chromium {
