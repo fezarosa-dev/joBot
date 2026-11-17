@@ -794,14 +794,18 @@ def test_catalogos_do_assistente_tem_as_mesmas_chaves_e_o_texto_do_sistema() -> 
     pt = _carregar_sem_repetir(base / "pt" / "primeira_execucao.json")
     en = _carregar_sem_repetir(base / "en" / "primeira_execucao.json")
     assert set(pt) == set(en)
+    # a linha de comando mostra a saída; a tela só diz onde achá-la (T159, T337)
+    falhas = {f"segundo_plano.{p}_falhou" for p in ("systemctl", "schtasks", "launchctl")}
     for chave, texto in segundo_plano_linux._TEXTOS.items():
-        if chave == "segundo_plano.systemctl_falhou":
-            continue  # a linha de comando mostra a saída; a tela só diz onde achá-la (T159)
+        if chave in falhas:
+            assert "{saida}" in texto
+            continue
         assert pt[chave] == texto  # o pt é igual ao texto da linha de comando
         assert en[chave] != pt[chave]
     for catalogo in (pt, en):
-        assert "{comando}" in catalogo["segundo_plano.systemctl_falhou"]
-        assert "{saida}" not in catalogo["segundo_plano.systemctl_falhou"]
+        for chave in falhas:
+            assert "{comando}" in catalogo[chave]
+            assert "{saida}" not in catalogo[chave]
 
 
 @pytest.mark.parametrize(

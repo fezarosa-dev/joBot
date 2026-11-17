@@ -23,6 +23,9 @@ from jobot.sistema.segundo_plano_linux import (
     texto_do_servico,
 )
 
+# O caminho do Python vai cru no texto esperado: com as barras do Windows o unit o escapa.
+_SO_LINUX = pytest.mark.skipif(sys.platform == "win32", reason="unit e atalho do Linux")
+
 ENTER = "/usr/bin/distrobox-enter"
 PY = "/opt/jobot/.venv/bin/python"
 DIRETO = Caso(python=PY)
@@ -145,6 +148,7 @@ def test_quebra_de_linha_no_caminho_nao_injeta_chave() -> None:
         texto_do_atalho(ruim)
 
 
+@_SO_LINUX
 def test_servico_direto_liga_pelo_systemctl_do_proprio_sistema(tmp_path: Path) -> None:
     rodar = Sistema(tmp_path)
     ligar(rodar, env=_env(tmp_path))
@@ -156,6 +160,7 @@ def test_servico_direto_liga_pelo_systemctl_do_proprio_sistema(tmp_path: Path) -
     assert _atalho(tmp_path).is_file()
 
 
+@_SO_LINUX
 def test_systemctl_passa_pelo_host_no_distrobox(tmp_path: Path) -> None:
     rodar = Sistema(tmp_path)
     ligar(rodar, env=_env(tmp_path, "fedora-dev"))
@@ -255,6 +260,7 @@ def test_systemctl_que_falha_loga_a_saida_completa_uma_vez(
     assert erro.value.motivo.params["saida"] == "SAIDA-CRUA do systemctl"  # a linha de comando usa
 
 
+@_SO_LINUX
 def test_atalho_criado_mesmo_com_segundo_plano_desligado(tmp_path: Path) -> None:
     rodar = Sistema(tmp_path)
     criar_atalho(rodar, env=_env(tmp_path, "fedora-dev"))
@@ -266,6 +272,7 @@ def test_atalho_criado_mesmo_com_segundo_plano_desligado(tmp_path: Path) -> None
     criar_atalho(rodar, env=_env(tmp_path, "fedora-dev"))  # repetir só reescreve
 
 
+@_SO_LINUX
 def test_atalho_sem_host_exec_usa_o_nome_simples(tmp_path: Path) -> None:
     criar_atalho(Sistema(tmp_path, host_exec=False), env=_env(tmp_path, "fedora-dev"))
     texto = _atalho(tmp_path).read_text("utf-8")
@@ -293,6 +300,8 @@ def test_rodar_comando_real_usa_lista_de_argumentos() -> None:
 
 def _rodar_com(monkeypatch: pytest.MonkeyPatch, rodar: Sistema) -> None:
     monkeypatch.setattr(sp, "rodar_comando", rodar)
+    # a linha de comando escolhe o sistema pelo sys.platform (T337): estes testes são do systemd
+    monkeypatch.setattr(sys, "platform", "linux")
 
 
 def test_executar_status_e_ligar(
@@ -438,3 +447,31 @@ def test_linha_de_comando_nao_repete_a_saida_do_systemctl_no_stderr(
     err = capsys.readouterr().err
     assert err.count("Failed to disable unit") == 1
     assert logging.getLogger("jobot").handlers == []  # o silenciador sai ao terminar
+
+
+@pytest.mark.parametrize(
+    ("chave", "programa"),
+    [
+        ("segundo_plano.schtasks_falhou", "schtasks"),
+        ("segundo_plano.launchctl_falhou", "launchctl"),
+    ],
+)
+def test_executar_traduz_a_falha_do_windows_e_do_mac(
+    chave: str,
+    programa: str,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # o desinstalador da casca roda `jobot segundo-plano desligar` no Windows e no Mac (T337)
+    from jobot.nucleo.modelo import Motivo  # noqa: PLC0415
+    from jobot.sistema import segundo_plano  # noqa: PLC0415
+
+    def falha(*_: object, **__: object) -> None:
+        raise Recusa(Motivo(chave=chave, params={"comando": "apagar", "saida": "negado"}))
+
+    monkeypatch.setattr(segundo_plano, "desligar", falha)
+    assert executar(argparse.Namespace(acao="desligar")) == 1
+    erro = capsys.readouterr().err
+    assert chave not in erro
+    assert f"{programa} apagar" in erro
+    assert "negado" in erro
