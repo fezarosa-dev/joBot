@@ -9,7 +9,6 @@ import asyncio
 import contextlib
 import logging
 import os
-import signal
 import sys
 from asyncio.subprocess import DEVNULL
 from collections.abc import Mapping, Sequence
@@ -18,6 +17,7 @@ from typing import Literal
 from jobot.navegador import limites
 from jobot.navegador.abrir import ambiente_do_navegador
 from jobot.navegador.janela_comum import AbrirJanela, Janela, encerrar
+from jobot.sistema import processo as _processo
 
 _LOG = logging.getLogger(__name__)
 
@@ -51,15 +51,15 @@ class _Grupo:
 
     async def wait(self) -> int:
         codigo = await self._processo.wait()
-        with contextlib.suppress(ProcessLookupError):  # o líder saiu; um filho pode ter ficado
-            os.killpg(self._processo.pid, signal.SIGKILL)
+        with contextlib.suppress(ProcessLookupError):  # líder saiu; no POSIX um filho pode ficar
+            _processo.encerrar_grupo(self._processo, forcar=True)
         return codigo
 
     def terminate(self) -> None:
-        os.killpg(self._processo.pid, signal.SIGTERM)
+        _processo.encerrar_grupo(self._processo)
 
     def kill(self) -> None:
-        os.killpg(self._processo.pid, signal.SIGKILL)
+        _processo.encerrar_grupo(self._processo, forcar=True)
 
 
 async def abrir_instalador(argumentos: Sequence[str], ambiente: Mapping[str, str]) -> Janela:
@@ -69,7 +69,7 @@ async def abrir_instalador(argumentos: Sequence[str], ambiente: Mapping[str, str
         stdin=DEVNULL,
         stdout=DEVNULL,
         stderr=DEVNULL,
-        start_new_session=True,
+        **_processo.destacar(),
     )
     return _Grupo(processo)
 
