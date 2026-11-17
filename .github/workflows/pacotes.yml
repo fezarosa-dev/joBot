@@ -9,13 +9,15 @@ name: Pacotes
 # casca (um runner por alvo, D174.11): baixa as wheels do alvo, só binárias e com
 #   --require-hashes; gera o Chromium pelo playwright install --no-shell da versão do uv.lock
 #   (sem o headless shell: o joBot só abre com janela, D183); monta
-#   desktop/recursos/ com o scripts/montar_recursos.py (uv e Python conferidos contra o
-#   desktop/uv.meta.json, manifesto.json com o sha256 de cada arquivo) e o pacote de
-#   atualização; compila com JOBOT_MANIFESTO_SHA256; e roda a fumaça (jobot-app --verificar
-#   instala dos recursos, sobe o servidor e abre o Chromium completo, channel="chromium", em
-#   headless):
+#   desktop/recursos/ com o scripts/montar_recursos.py (uv, licenças do uv e Python conferidos
+#   contra o desktop/uv.meta.json, Chromium sem o Widevine, D183.24, manifesto.json com o
+#   sha256 de cada arquivo) e o pacote de atualização; no Linux, põe no cache do Tauri as
+#   ferramentas do AppImage conferidas pelo desktop/appimage.meta.json; compila com
+#   JOBOT_MANIFESTO_SHA256 e o Cargo.lock; e roda a fumaça (jobot-app --verificar instala dos
+#   recursos, sobe o servidor e abre o Chromium completo, channel="chromium", em headless):
 #   Linux: imagem ubuntu:22.04 com as bibliotecas que o .deb declara e as do Chromium (o único
-#     passo com rede), depois o .deb (dpkg -i) e o AppImage em docker run --network none.
+#     passo com rede), depois o .deb (dpkg -i) e o AppImage em docker run --network none, o
+#     --verificar como usuário comum; o AppImage de novo numa ubuntu:24.04.
 #   Windows: regra de firewall de saída por caminho para o instalador e todo .exe que a
 #     instalação vai ter, criadas antes do /S; todo .exe da instalação e do Chromium precisa
 #     de regra (antes e depois do --verificar); controle: o Python do venv não sai e o do
@@ -41,22 +43,28 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          version: "0.13.8"
       - name: versão
         id: versao
         run: |
           versao=$(sed -n 's/^version = "\(.*\)"$/\1/p' pyproject.toml | head -n 1)
           echo "pyproject: $versao; ref: $GITHUB_REF_NAME"
           test -n "$versao"
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then test "v$versao" = "$GITHUB_REF_NAME"; fi
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || exit 1
+            test "v$versao" = "$GITHUB_REF_NAME"
+          fi
           echo "versao=$versao" >> "$GITHUB_OUTPUT"
       - run: uv build --wheel --out-dir dist
       - run: uv export --locked --no-dev --no-emit-project --format requirements-txt --output-file dist/dependencias.txt
-      - run: uv run --no-project --python 3.14 python scripts/montar_recursos.py restricoes --dependencias dist/dependencias.txt --wheel dist/jobot-*.whl --saida dist/restricoes.txt
+      - run: uv run --no-project --python 3.14.10 python scripts/montar_recursos.py restricoes --dependencias dist/dependencias.txt --wheel dist/jobot-*.whl --saida dist/restricoes.txt
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: wheel
           path: dist/
           if-no-files-found: error
+          retention-days: 2
 
   casca:
     needs: wheel
@@ -96,6 +104,8 @@ jobs:
           test -n "$canal"
           rustup toolchain install "$canal" --profile minimal
       - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          version: "0.13.8"
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: wheel
@@ -109,7 +119,7 @@ jobs:
           PLAYWRIGHT_BROWSERS_PATH="$RUNNER_TEMP/navegadores" uv run --no-dev playwright install --no-shell chromium
       - name: recursos
         run: |
-          sha=$(uv run --no-project --python 3.14 python scripts/montar_recursos.py recursos \
+          sha=$(uv run --no-project --python 3.14.10 python scripts/montar_recursos.py recursos \
             --alvo "$ALVO" --wheel dist/jobot-*.whl --restricoes dist/restricoes.txt \
             --rodas "$RUNNER_TEMP/rodas" --navegadores "$RUNNER_TEMP/navegadores" \
             --saida desktop/recursos --pacotes saida | tr -d '\r')
@@ -119,7 +129,11 @@ jobs:
           du -sh desktop/recursos saida/*
       - run: cargo install tauri-cli --version =2.12.4 --locked
         working-directory: desktop
-      - run: cargo tauri build --bundles ${{ matrix.pacotes }}
+      - name: ferramentas do AppImage
+        if: runner.os == 'Linux'
+        run: |
+          uv run --no-project --python 3.14.10 python scripts/montar_recursos.py ferramentas --saida "${XDG_CACHE_HOME:-$HOME/.cache}/tauri"
+      - run: cargo tauri build --bundles ${{ matrix.pacotes }} -- --locked
         working-directory: desktop
       - name: juntar
         run: |
@@ -137,6 +151,7 @@ jobs:
           path: saida/
           if-no-files-found: error
           compression-level: 0
+          retention-days: 2
 
       - name: fumaça sem rede (Linux)
         if: runner.os == 'Linux'
@@ -145,22 +160,31 @@ jobs:
           mkdir -p "$imagem"
           cp -r .venv/lib/python3.14/site-packages/playwright/driver "$imagem/driver"
           cat > "$imagem/Dockerfile" <<'FIM'
-          FROM ubuntu:22.04
+          ARG BASE
+          FROM $BASE
           ARG DEPS
           ENV DEBIAN_FRONTEND=noninteractive
           COPY driver /tmp/driver
           RUN apt-get update \
            && apt-get satisfy -y --no-install-recommends "$DEPS" \
            && /tmp/driver/node /tmp/driver/package/cli.js install-deps chromium \
-           && rm -rf /tmp/driver /var/lib/apt/lists/*
+           && rm -rf /tmp/driver /var/lib/apt/lists/* \
+           && useradd -m pessoa
           FIM
           deps=$(dpkg-deb -f saida/*.deb Depends)
           echo "Depends do .deb: $deps"
-          docker build -t jobot-fumaca --build-arg DEPS="$deps" "$imagem"
+          docker build -t jobot-fumaca --build-arg BASE=ubuntu:22.04 --build-arg DEPS="$deps" "$imagem"
+          # na 24.04 só o WebKitGTK do sistema (os nomes t64 não casam com o Depends da 22.04)
+          docker build -t jobot-fumaca-nova --build-arg BASE=ubuntu:24.04 --build-arg DEPS=libwebkit2gtk-4.1-0 "$imagem"
+          # dpkg -i como root; o --verificar como usuário comum, que não lê o que não é dele
           docker run --rm --network none -v "$PWD/saida:/saida:ro" jobot-fumaca \
-            sh -c 'dpkg -i /saida/*.deb && jobot-app --verificar'
-          docker run --rm --network none -v "$PWD/saida:/saida:ro" -e APPIMAGE_EXTRACT_AND_RUN=1 jobot-fumaca \
-            sh -c 'cp /saida/*.AppImage /tmp/jobot.AppImage && chmod +x /tmp/jobot.AppImage && cd /tmp && ./jobot.AppImage --verificar'
+            sh -c 'dpkg -i /saida/*.deb && runuser -u pessoa -- jobot-app --verificar'
+          appimage='cp /saida/*.AppImage /tmp/jobot.AppImage && chmod 755 /tmp/jobot.AppImage && cd /tmp \
+            && ./jobot.AppImage --appimage-extract AppRun >/dev/null \
+            && echo "o AppRun exporta: $(grep -ao "LD_LIBRARY_PATH=[^[:cntrl:]]*" squashfs-root/AppRun | head -n 1)" \
+            && rm -rf squashfs-root && runuser -u pessoa -- ./jobot.AppImage --verificar'
+          docker run --rm --network none -v "$PWD/saida:/saida:ro" -e APPIMAGE_EXTRACT_AND_RUN=1 jobot-fumaca sh -c "$appimage"
+          docker run --rm --network none -v "$PWD/saida:/saida:ro" -e APPIMAGE_EXTRACT_AND_RUN=1 jobot-fumaca-nova sh -c "$appimage"
 
       - name: fumaça sem rede (Windows)
         if: runner.os == 'Windows'
@@ -170,7 +194,7 @@ jobs:
           $inst = Join-Path $env:LOCALAPPDATA 'joBot'
           $pw = Join-Path $env:LOCALAPPDATA 'ms-playwright'
           $setup = (Get-ChildItem saida -Filter '*-setup.exe').FullName
-          $exes = @(uv run --no-project --python 3.14 python scripts/montar_recursos.py exes --recursos desktop/recursos --instalacao $inst --playwright $pw)
+          $exes = @(uv run --no-project --python 3.14.10 python scripts/montar_recursos.py exes --recursos desktop/recursos --instalacao $inst --playwright $pw)
           if ($LASTEXITCODE -ne 0 -or $exes.Count -eq 0) { throw 'não deu para listar os .exe' }
           # o próprio instalador também: é ele que baixaria o WebView2 (D183)
           $exes = @($setup) + $exes
@@ -280,3 +304,4 @@ jobs:
           path: release/
           if-no-files-found: error
           compression-level: 0
+          retention-days: 2

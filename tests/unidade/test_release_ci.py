@@ -15,6 +15,7 @@ import tarfile
 import zipfile
 from pathlib import Path
 from types import ModuleType
+from typing import Any
 
 import pytest
 
@@ -23,6 +24,7 @@ FLUXOS = RAIZ / ".github" / "workflows"
 RELEASE = FLUXOS / "release.yml"
 PACOTES = FLUXOS / "pacotes.yml"
 META = RAIZ / "desktop" / "uv.meta.json"
+APPIMAGE = RAIZ / "desktop" / "appimage.meta.json"
 ALVOS = [
     "x86_64-unknown-linux-gnu",
     "x86_64-pc-windows-msvc",
@@ -71,8 +73,21 @@ def test_release_so_por_tag_ou_a_mao_e_so_o_publicar_escreve() -> None:
     assert "pull_request" not in texto
     assert _secao(texto, "permissions") == ["contents: read"]
     assert texto.count("contents: write") == 1
-    assert "contents: write" in _job(RELEASE, "publicar")
+    # um permissions no topo e um no publicar, só com contents: write
+    assert texto.count("permissions:") == 2
+    assert _permissoes_do_job(RELEASE, "publicar") == ["contents: write"]
     assert set(re.findall(r"secrets\.\w+", texto)) == {"secrets.GITHUB_TOKEN"}
+    assert texto.count("secrets") == 1
+
+
+def _permissoes_do_job(caminho: Path, nome: str) -> list[str]:
+    linhas = _job(caminho, nome).splitlines()
+    corpo = []
+    for linha in linhas[linhas.index("    permissions:") + 1 :]:
+        if not linha.startswith("      "):
+            break
+        corpo.append(linha.strip())
+    return corpo
 
 
 def test_sem_escrita_no_que_roda_em_pr_e_no_pacotes() -> None:
@@ -101,7 +116,9 @@ def test_release_monta_pelo_pacotes_e_publica_so_na_tag() -> None:
     assert "needs: pacotes" in publicar
     assert "if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')" in publicar
     assert "gh release create" in publicar
+    # sem --latest: o gh marca a release nova como a latest, que o versao.py lê
     assert "--draft" not in publicar and "--prerelease" not in publicar
+    assert "--latest" not in publicar
     assert "GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}" in publicar
     # o publicar só baixa o que o juntar do pacotes.yml montou (e o ensaio provou) e cria a
     # release: confere o SHA256SUMS, não o gera
@@ -141,6 +158,7 @@ def test_pacotes_so_chamado_e_sem_escrita() -> None:
     texto = _codigo(PACOTES)
     assert _secao(texto, "on") == ["workflow_call:"]
     assert _secao(texto, "permissions") == ["contents: read"]
+    assert texto.count("permissions:") == 1
     assert _jobs(PACOTES) == ["wheel", "casca", "juntar"]
     for nome in _jobs(PACOTES):
         assert "timeout-minutes:" in _job(PACOTES, nome), nome
@@ -159,6 +177,38 @@ def test_job_wheel_gera_a_wheel_e_o_restricoes_com_hash() -> None:
     assert "GITHUB_REF_NAME" in texto
     assert "if: startsWith(github.ref" not in texto
     assert "versao: ${{ steps.versao.outputs.versao }}" in texto
+    # na tag, só a forma vN.N.N, a única que o versao.py e o canal casca leem
+    tag = 'if [[ "$GITHUB_REF" == refs/tags/v* ]]; then'
+    forma = r'[[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || exit 1'
+    assert forma in texto
+    assert texto.index(tag) < texto.index(forma) < texto.index('test "v$versao"')
+
+
+def _meta() -> dict[str, Any]:
+    dados: dict[str, Any] = json.loads(META.read_text(encoding="utf-8"))
+    return dados
+
+
+def test_versoes_do_build_fixadas_como_no_uv_meta() -> None:
+    texto = _codigo(PACOTES)
+    meta = _meta()
+    # o setup-uv com a versão do uv dos recursos, nunca a última
+    usos = texto.count("uses: astral-sh/setup-uv@")
+    assert usos == 2
+    assert texto.count(f'version: "{meta["uv"]["versao"]}"') == usos
+    # o Python que monta o tar do Chromium (o zlib dele decide o sha256, D183.19)
+    chamadas = texto.count("scripts/montar_recursos.py")
+    pythons = re.findall(r"--python (\S+) python scripts/montar_recursos\.py", texto)
+    assert len(pythons) == chamadas == 4
+    assert set(pythons) == {meta["python"]["versao"]}
+    # o Cargo.lock vale também no build da release
+    assert "cargo tauri build --bundles ${{ matrix.pacotes }} -- --locked\n" in texto
+
+
+def test_artefatos_do_pacotes_vivem_pouco() -> None:
+    # os anexos levam o navegador (D183.24): o artefato do ensaio some em dois dias
+    texto = _codigo(PACOTES)
+    assert texto.count("actions/upload-artifact@") == texto.count("retention-days: 2") == 3
 
 
 def test_job_casca_monta_os_recursos_e_compila_com_o_sha_do_manifesto() -> None:
@@ -184,6 +234,46 @@ def test_job_casca_monta_os_recursos_e_compila_com_o_sha_do_manifesto() -> None:
         assert passo in texto, passo
 
 
+def test_ferramentas_do_appimage_conferidas_antes_do_build() -> None:
+    # o Tauri só baixa o AppRun, o linuxdeploy e o plugin se não estão no cache (D183.21)
+    texto = _job(PACOTES, "casca")
+    semear = 'montar_recursos.py ferramentas --saida "${XDG_CACHE_HOME:-$HOME/.cache}/tauri"'
+    assert semear in texto
+    passo = texto[texto.rindex("- ", 0, texto.index(semear)) : texto.index(semear)]
+    assert "if: runner.os == 'Linux'" in passo
+    assert texto.index(semear) < texto.index("cargo tauri build")
+    ferramentas = json.loads(APPIMAGE.read_text(encoding="utf-8"))
+    # os nomes que o bundler do tauri-cli 2.12.4 procura no cache (linuxdeploy.rs)
+    assert sorted(ferramentas) == [
+        "AppRun-x86_64",
+        "linuxdeploy-07333c6-x86_64.AppImage",
+        "linuxdeploy-plugin-appimage.AppImage",
+    ]
+    for nome, f in ferramentas.items():
+        assert sorted(f) == ["sha256", "url"], nome
+        assert HEX.fullmatch(f["sha256"]), nome
+        assert f["url"].startswith("https://github.com/"), nome
+        # release com tag fixa, nunca a móvel continuous
+        assert "/releases/download/" in f["url"] and "continuous" not in f["url"], nome
+
+
+def test_ferramentas_baixa_confere_e_poe_o_bit_de_execucao(tmp_path: Path) -> None:
+    m = _script()
+    origem = tmp_path / "origem"
+    origem.mkdir()
+    meta = {}
+    for nome in ("AppRun-x86_64", "linuxdeploy-07333c6-x86_64.AppImage"):
+        (origem / nome).write_bytes(nome.encode())
+        meta[nome] = {"url": (origem / nome).as_uri(), "sha256": _sha(nome.encode())}
+    cache = tmp_path / "cache" / "tauri"
+    m.ferramentas(meta, cache)
+    assert sorted(p.name for p in cache.glob("*")) == sorted(meta)
+    for nome in meta:
+        assert (cache / nome).read_bytes() == nome.encode()
+        if os.name == "posix":
+            assert (cache / nome).stat().st_mode & 0o111 == 0o111, nome
+
+
 def test_fumaca_sem_rede_no_linux_no_windows_e_no_mac() -> None:
     texto = _job(PACOTES, "casca")
     # Linux: imagem com as bibliotecas do .deb e do Chromium, e o .deb e o AppImage sem rede
@@ -196,9 +286,18 @@ def test_fumaca_sem_rede_no_linux_no_windows_e_no_mac() -> None:
         "APPIMAGE_EXTRACT_AND_RUN=1",
     ):
         assert passo in texto, passo
-    # o .deb e o AppImage, cada um no seu contêiner sem rede
-    assert texto.count("docker run --rm --network none") == 2
-    assert texto.count("docker run") == 2
+    # o .deb e o AppImage na 22.04 e o AppImage de novo na 24.04, cada um no seu contêiner
+    # sem rede e como usuário comum (root leria qualquer arquivo dos recursos)
+    assert texto.count("docker run --rm --network none") == 3
+    assert texto.count("docker run") == 3
+    assert "useradd -m pessoa" in texto
+    assert "dpkg -i /saida/*.deb && runuser -u pessoa -- jobot-app --verificar" in texto
+    assert "runuser -u pessoa -- ./jobot.AppImage --verificar'" in texto
+    for imagem, nome in (("ubuntu:22.04", "jobot-fumaca"), ("ubuntu:24.04", "jobot-fumaca-nova")):
+        assert f"docker build -t {nome} --build-arg BASE={imagem}" in texto, imagem
+        assert f'APPIMAGE_EXTRACT_AND_RUN=1 {nome} sh -c "$appimage"\n' in texto, imagem
+    # o AppRun do AppImage exporta o LD_LIBRARY_PATH que a casca tira dos filhos (D183.18)
+    assert "LD_LIBRARY_PATH" in texto
     # Windows: regras de saída por caminho antes do /S, conferência de todo .exe, desinstalar
     for passo in (
         "New-NetFirewallRule -Direction Outbound -Action Block -Program",
@@ -252,6 +351,11 @@ def test_uv_meta_fixa_versao_e_sha_por_alvo() -> None:
         assert sorted(meta[chave]["sha256"]) == sorted(ALVOS), chave
         for sha in meta[chave]["sha256"].values():
             assert HEX.fullmatch(sha), sha
+    # o texto das duas licenças do uv vai junto do binário (desenho 3)
+    licencas = meta["uv"].get("licencas", {})
+    assert sorted(licencas) == ["LICENSE-APACHE", "LICENSE-MIT"]
+    for sha in licencas.values():
+        assert HEX.fullmatch(sha), sha
 
 
 # --- scripts/montar_recursos.py ---
@@ -295,6 +399,14 @@ def test_enderecos_saem_do_meta() -> None:
         f"{tag}/{nome.replace('+', '%2B')}"
     )
     assert sha == meta["python"]["sha256"]["x86_64-unknown-linux-gnu"]
+    assert m.licencas_do_uv(meta) == [
+        (
+            f"https://raw.githubusercontent.com/astral-sh/uv/{versao_uv}/{nome}",
+            nome,
+            meta["uv"].get("licencas", {}).get(nome),
+        )
+        for nome in ("LICENSE-APACHE", "LICENSE-MIT")
+    ]
 
 
 def test_baixar_confere_o_sha_e_apaga_o_que_nao_bate(tmp_path: Path) -> None:
@@ -370,6 +482,28 @@ def test_tar_do_navegador_guarda_modo_e_symlink_e_deixa_os_ocultos(tmp_path: Pat
     assert membros["chromium-1254/atalho"].linkname == "chrome-linux/chrome"
 
 
+def test_tar_do_navegador_deixa_o_widevine_de_fora(tmp_path: Path) -> None:
+    # o Playwright 1.65 baixa o Chrome for Testing, cujo Widevine o Google não deixa
+    # redistribuir; o joBot não toca mídia com DRM (D183.24)
+    m = _script()
+    pasta = tmp_path / "navegadores"
+    linux = pasta / "chromium-1254" / "chrome-linux64"
+    mac = pasta / "chromium-1254" / "chrome-mac-arm64" / "Framework.framework" / "Libraries"
+    for widevine in (linux / "WidevineCdm", mac / "WidevineCdm"):
+        (widevine / "_platform_specific" / "x64").mkdir(parents=True)
+        (widevine / "LICENSE").write_text("termos", encoding="utf-8")
+        (widevine / "_platform_specific" / "x64" / "libwidevinecdm.so").write_bytes(b"cdm")
+    (linux / "chrome").write_bytes(b"chrome")
+    (mac / "outra.dylib").write_bytes(b"dylib")
+    arquivo = tmp_path / "chromium.tar.gz"
+    m.tar_do_navegador(pasta, arquivo)
+    with tarfile.open(arquivo) as tar:
+        nomes = tar.getnames()
+    assert [n for n in nomes if "Widevine" in n] == []
+    assert "chromium-1254/chrome-linux64/chrome" in nomes
+    assert "chromium-1254/chrome-mac-arm64/Framework.framework/Libraries/outra.dylib" in nomes
+
+
 def test_tar_do_navegador_e_reproduzivel(tmp_path: Path) -> None:
     # o canal casca compara o sha256 do Chromium entre versões (D174.13): o mesmo conteúdo
     # tem de dar o mesmo tar, mesmo com outra hora nos arquivos e no relógio
@@ -378,6 +512,10 @@ def test_tar_do_navegador_e_reproduzivel(tmp_path: Path) -> None:
     chrome = pasta / "chromium-1254" / "chrome-linux" / "chrome"
     chrome.parent.mkdir(parents=True)
     chrome.write_bytes(b"chrome")
+    # duas pastas de topo, criadas fora da ordem
+    (pasta / "ffmpeg-1011").mkdir()
+    (pasta / "ffmpeg-1011" / "ffmpeg").write_bytes(b"ffmpeg")
+    (pasta / "chromium-1254" / "a.txt").write_bytes(b"a")
     um, outro = tmp_path / "um.tar.gz", tmp_path / "outro.tar.gz"
     m.tar_do_navegador(pasta, um)
     for p in (chrome, chrome.parent, pasta / "chromium-1254"):
@@ -386,7 +524,17 @@ def test_tar_do_navegador_e_reproduzivel(tmp_path: Path) -> None:
     assert _sha(um.read_bytes()) == _sha(outro.read_bytes())
     with gzip.open(um) as g:
         assert g.read(1)  # é gzip de verdade
+    # o campo MTIME do cabeçalho do gzip (bytes 4 a 7) é zero, não a hora do build
+    assert um.read_bytes()[4:8] == bytes(4)
     with tarfile.open(um) as tar:
+        assert tar.getnames() == [
+            "chromium-1254",
+            "chromium-1254/a.txt",
+            "chromium-1254/chrome-linux",
+            "chromium-1254/chrome-linux/chrome",
+            "ffmpeg-1011",
+            "ffmpeg-1011/ffmpeg",
+        ]
         for membro in tar.getmembers():
             assert (membro.mtime, membro.uid, membro.gid) == (0, 0, 0), membro.name
             assert (membro.uname, membro.gname) == ("", ""), membro.name
@@ -415,7 +563,12 @@ def _cenario(tmp_path: Path, alvo: str) -> dict[str, Path]:
     navegadores = tmp_path / "navegadores"
     (navegadores / "chromium-1254").mkdir(parents=True)
     (navegadores / "chromium-1254" / "chrome").write_bytes(b"chrome")
+    licencas = tmp_path / "licencas"
+    licencas.mkdir()
+    for nome in ("LICENSE-MIT", "LICENSE-APACHE"):
+        (licencas / nome).write_text(f"texto da {nome}", encoding="utf-8")
     return {
+        "licencas": licencas,
         "uv": _uv_falso(tmp_path, alvo),
         "python": python,
         "rodas": rodas,
@@ -449,6 +602,7 @@ def test_montar_gera_recursos_com_manifesto_de_tudo(tmp_path: Path) -> None:
         roda=c["roda"],
         restricoes=c["restricoes"],
         navegadores=c["navegadores"],
+        licencas=sorted(c["licencas"].iterdir()),
     )
     bruto = (saida / "manifesto.json").read_bytes()
     assert sha == _sha(bruto)
@@ -462,6 +616,8 @@ def test_montar_gera_recursos_com_manifesto_de_tudo(tmp_path: Path) -> None:
     assert achados == [
         "bin/uv.tar",
         f"chromium-{alvo}.tar.gz",
+        "licencas/uv/LICENSE-APACHE",
+        "licencas/uv/LICENSE-MIT",
         f"python/20261110/{c['python'].name}",
         "restricoes.txt",
         "wheels/httpx-0.28.1-py3-none-any.whl",
@@ -470,6 +626,9 @@ def test_montar_gera_recursos_com_manifesto_de_tudo(tmp_path: Path) -> None:
     for nome, (tamanho, sha_arquivo) in manifesto.items():
         dados = (saida / nome).read_bytes()
         assert (tamanho, sha_arquivo) == (len(dados), _sha(dados)), nome
+    assert (saida / "licencas" / "uv" / "LICENSE-MIT").read_text(encoding="utf-8") == (
+        "texto da LICENSE-MIT"
+    )
 
 
 def test_pacote_de_atualizacao_no_formato_do_canal_casca(tmp_path: Path) -> None:
@@ -488,6 +647,7 @@ def test_pacote_de_atualizacao_no_formato_do_canal_casca(tmp_path: Path) -> None
         roda=c["roda"],
         restricoes=c["restricoes"],
         navegadores=c["navegadores"],
+        licencas=sorted(c["licencas"].iterdir()),
     )
     # o uv vai num tar ustar sem compressão, de um arquivo só, que a casca abre (D183)
     assert (saida / "bin" / "uv.tar").read_bytes()[257:263] == b"ustar\x00"
@@ -549,6 +709,7 @@ def test_exes_do_windows_cobrem_a_instalacao(tmp_path: Path) -> None:
         roda=c["roda"],
         restricoes=c["restricoes"],
         navegadores=c["navegadores"],
+        licencas=sorted(c["licencas"].iterdir()),
     )
     inst = "C:\\U\\AppData\\Local\\joBot"
     exes = m.exes_do_windows(saida, inst, "C:\\U\\AppData\\Local\\ms-playwright", "0.3.0")
