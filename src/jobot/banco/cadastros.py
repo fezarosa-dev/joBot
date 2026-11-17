@@ -12,6 +12,7 @@ existe; `ValueError` = empresa sem nome ou identificador, fonte desconhecida, `a
 valor de config que não vira JSON.
 """
 
+import copy
 import json
 import sqlite3
 from collections.abc import Mapping, Sequence
@@ -47,6 +48,9 @@ PADROES: Mapping[str, object] = MappingProxyType(
         "moeda_exibicao": "",
         "captcha_ligado": False,  # ADR 0022: nasce desligado; só liga com chave salva
         "login_horarios": ["09:00", "18:00"],  # leitura com login, hora local (D132.6)
+        # IA (D185.2): cada tarefa com liga, backend e modelo, tudo desligado; ausente = desligada
+        "ia_tarefas": {"encaixe": {"ligada": False, "backend": "", "modelo": ""}},
+        "ia_compativel": {"endereco": ""},  # endereço do serviço compatível com OpenAI
     }
 )
 _SEM_PADRAO: Any = object()
@@ -271,7 +275,8 @@ def restaurar_empresa(con: sqlite3.Connection, id: int) -> None:
 def ler_config(con: sqlite3.Connection, chave: str, padrao: Any = _SEM_PADRAO) -> Any:
     """Valor da chave (JSON decodificado). Sem linha, ou com JSON estragado, vale `padrao`.
 
-    Sem `padrao`, vale o de `PADROES`; chave que não está lá levanta `KeyError`.
+    Sem `padrao`, vale uma cópia do de `PADROES` (quem mexe no valor não muda o padrão); chave
+    que não está lá levanta `KeyError`.
     """
     linha = con.execute("SELECT valor FROM config WHERE chave = ?", (chave,)).fetchone()
     if linha is not None:
@@ -279,7 +284,7 @@ def ler_config(con: sqlite3.Connection, chave: str, padrao: Any = _SEM_PADRAO) -
             return json.loads(linha[0])
         except ValueError:
             pass
-    return PADROES[chave] if padrao is _SEM_PADRAO else padrao
+    return copy.deepcopy(PADROES[chave]) if padrao is _SEM_PADRAO else padrao
 
 
 def gravar_config(con: sqlite3.Connection, chave: str, valor: object) -> None:
