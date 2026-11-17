@@ -164,7 +164,7 @@ def test_progresso_determinado_nao_volta_e_para_no_teto(page: Page, ui: str) -> 
     _ate_instalando(page, ui)
     expect(page.get_by_role("progressbar")).to_have_attribute("aria-valuenow", "0")
     valores = []
-    for aviso in [
+    avisos: list[dict[str, Any]] = [
         {"etapa": "conferir", "feito": 50, "total": 100},
         {"etapa": "conferir", "feito": 10, "total": 100},  # volta: a barra fica
         {"etapa": "python"},
@@ -173,7 +173,8 @@ def test_progresso_determinado_nao_volta_e_para_no_teto(page: Page, ui: str) -> 
         {"etapa": "navegador", "feito": 14, "total": 14},
         {"etapa": "abrir"},
         {"etapa": "conferir", "feito": 0, "total": 100},
-    ]:
+    ]
+    for aviso in avisos:
         _aviso(page, aviso)
         valores.append(_valor(page))
     assert valores == sorted(valores)
