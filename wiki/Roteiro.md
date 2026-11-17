@@ -11,7 +11,7 @@
 
 ```mermaid
 flowchart LR
-    F1["✅ Fase 1 · Base"] --> F2["⚪ Fase 2 · Navegador com login"] --> F3["⚪ Fase 3 · Instalador"] --> F4["⚪ Fase 4 · IA local"]
+    F1["✅ Fase 1 · Base"] --> F2["✅ Fase 2 · Navegador com login"] --> F3["⚪ Fase 3 · Instalador"] --> F4["⚪ Fase 4 · IA local"]
     F4 --> F5["⚪ Fase 5 · Extensão"] --> F6["⚪ Fase 6 · Áudio e Gmail"] --> F7["⚪ Fase 7 · Treino"]
     F7 --> F8["⚪ Fase 8 · GitHub Pages"] --> F9["⚪ Fase 9 · Publicação"]
 ```
@@ -21,7 +21,7 @@ flowchart LR
 | | Fase | O que entra | Estado |
 |:---:|---|---|---|
 | ✅ | **1. Base** | Núcleo comum, fontes públicas, banco, painel e agenda | Concluída |
-| ⚪ | **2. Navegador com login** | Login pela janela comum, LinkedIn primeiro, mapeamento dos sites e tratamento de CAPTCHA | Planejada |
+| ✅ | **2. Navegador com login** | Login pela janela comum, LinkedIn primeiro, mapeamento dos sites e tratamento de CAPTCHA | Concluída |
 | ⚪ | **3. Instalador** | Instalador de 64 bits, com lista de ferramentas para marcar (Windows e Linux primeiro, Mac depois) | Planejada |
 | ⚪ | **4. IA local** | Pacote offline (llama-server + Qwen) | Planejada |
 | ⚪ | **5. Extensão do navegador** | Extensão do navegador para formulários | Planejada |
@@ -32,7 +32,7 @@ flowchart LR
 
 <sub>✅ concluída · ⚪ planejada</sub>
 
-Entre a fase 2 e a fase 3 sai a versão 0.3.0, com a tela "Panorama" (visão geral das vagas e da busca) e a fila de candidaturas completa.
+A versão 0.3.0 saiu entre a fase 2 e a fase 3, com a tela "Panorama" (visão geral das vagas e da busca) e a fila de candidaturas completa.
 
 ## 🔍 Um pouco mais sobre cada fase
 
@@ -45,7 +45,7 @@ Entre a fase 2 e a fase 3 sai a versão 0.3.0, com a tela "Panorama" (visão ger
 </details>
 
 <details>
-<summary><strong>⚪ Fase 2, Navegador com login</strong></summary>
+<summary><strong>✅ Fase 2, Navegador com login</strong></summary>
 
 - O login é numa janela comum do navegador, sem automação: você entra como quiser (Google, e-mail e senha) e fecha a janela. O joBot confere a sessão sozinho e nunca digita a senha.
 - Ordem prevista de mapeamento dos sites: LinkedIn, Vagas.com, Catho, Indeed e, por último, os sites só de tecnologia. Hoje só o LinkedIn tem login; a Gupy é só pública, e os outros ficam para o futuro.

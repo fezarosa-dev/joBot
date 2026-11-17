@@ -31,7 +31,7 @@ Ele junta, filtra e organiza vagas de muitos sites num painel bonito que roda no
 </div>
 
 > [!IMPORTANT]
-> **A fase 1 do joBot (a base) está pronta: versão 0.2.1.** Ele busca vagas em fontes públicas, guarda tudo no seu computador e mostra num painel. Já dá para [instalar e usar](#requisitos-e-instalacao).
+> **As fases 1 e 2 do joBot (a base e o navegador com login) estão prontas: versão 0.3.0.** Ele busca vagas em fontes públicas, guarda tudo no seu computador e mostra num painel. Já dá para [instalar e usar](#requisitos-e-instalacao).
 > O LinkedIn é o site com login de hoje (outros podem vir pelo [molde de site novo](docs/site-novo.md)); chega na próxima versão e vem desligado. O cartão do Gmail já está em Configurações, Contas; a leitura dos e-mails, o áudio e o resto (os outros sites com login, IA e extensão do navegador) ainda são plano. Veja o [roteiro](#roteiro). Antes de ligar as fontes, leia os [avisos de uso e de termos](#licenca-e-avisos).
 
 ## 📑 Sumário
@@ -63,7 +63,7 @@ Procurar vaga hoje cansa. É preciso abrir muitos sites, repetir os mesmos filtr
 O joBot faz esse trabalho repetitivo por você. Ele visita os sites de vagas, junta tudo num lugar só e mostra o que combina com o que você procura.
 Tudo roda no seu computador. Uma instalação serve a uma pessoa, que pode ter várias buscas salvas.
 
-O que ele faz hoje (fase 1):
+O que ele faz hoje (fases 1 e 2):
 
 - 🔎 **Buscar** vagas em dezenas de fontes públicas: sites, APIs e quadros de vagas de empresas.
 - 🧹 **Limpar**: remove vagas repetidas, lê o salário e marca área, nível, modalidade, região e tipo de contrato.
@@ -356,7 +356,7 @@ Detalhes na [ADR 0010](docs/decisions/0010-claude-code-da-pessoa.md).
 <a id="requisitos-e-instalacao"></a>
 ## 📦 Requisitos e instalação
 
-> Esta é a instalação da fase 1 (versão 0.2.1): você baixa o código e roda com o uv. O instalador de um comando só chega na fase 3.
+> Esta é a instalação das fases 1 e 2 (versão 0.3.0): você baixa o código e roda com o uv. O instalador de um comando só chega na fase 3.
 
 ### Requisitos
 
@@ -424,7 +424,7 @@ Rode `uv run jobot atualizar`. O aviso de versão vem **ligado por padrão**: pa
 
 ### O que as próximas fases vão baixar
 
-Na fase 1, o `uv sync` só baixa o Python 3.14 (se faltar) e as bibliotecas do joBot. Não há modelo de IA, navegador controlado nem arquivo grande. Estes itens chegam depois, e são opcionais:
+O `uv sync` só baixa o Python 3.14 (se faltar) e as bibliotecas do joBot. Ele não baixa modelo de IA, navegador controlado nem arquivo grande. Estes itens vêm à parte, e são opcionais:
 
 | Item | Tamanho | Quando |
 |---|---|---|
@@ -443,7 +443,7 @@ Cada fase só começa depois que a anterior passa nos testes. Não há datas pro
 | Fase | O que entra | Status |
 |---|---|---|
 | **1. Base** | Núcleo comum, fontes públicas, banco, painel e agenda | 🟢 Pronta (versão 0.1.0) |
-| **2. Navegador com login** | Login pela janela comum, LinkedIn primeiro, mapeamento dos sites, tratamento de CAPTCHA | ⚪ Planejada |
+| **2. Navegador com login** | Login pela janela comum, LinkedIn primeiro, mapeamento dos sites, tratamento de CAPTCHA | 🟢 Pronta (versão 0.3.0) |
 | **3. Instalador** | Instalador de 64 bits, com lista de ferramentas para marcar (Windows e Linux primeiro, Mac depois) | ⚪ Planejada |
 | **4. IA local** | Pacote offline (llama-server + Qwen) | ⚪ Planejada |
 | **5. Extensão do navegador** | Extensão do navegador para formulários | ⚪ Planejada |
@@ -452,7 +452,7 @@ Cada fase só começa depois que a anterior passa nos testes. Não há datas pro
 | **8. Versão GitHub Pages** | Versão GitHub Pages, sem instalação | ⚪ Planejada |
 | **9. Publicação** | README com selos e revisão de segurança | ⚪ Planejada |
 
-Entre a fase 2 e a fase 3 sai a versão 0.3.0, com a tela "Panorama" e a fila de candidaturas completa.
+A versão 0.3.0 saiu entre a fase 2 e a fase 3, com a tela "Panorama" e a fila de candidaturas completa.
 
 <a id="perguntas-frequentes"></a>
 ## ❓ Perguntas frequentes
@@ -497,7 +497,7 @@ Cada decisão importante está registrada num documento curto, chamado ADR (regi
 <a id="como-contribuir"></a>
 ## 🤝 Como contribuir
 
-O repositório está no GitHub. A fase 1 está pronta, e as próximas estão em planejamento.
+O repositório está no GitHub. As fases 1 e 2 estão prontas, e as próximas estão em planejamento.
 
 - **Sugestões e fontes de vagas** já podem ser enviadas pelas issues, com formulários prontos.
 - **Dúvidas** vão pelo [formulário de dúvida](https://github.com/fezarosa-dev/joBot/issues/new?template=duvida.yml). Leia antes as [perguntas frequentes](https://github.com/fezarosa-dev/joBot/wiki/Perguntas-frequentes).

@@ -11,7 +11,7 @@
 
 ```mermaid
 flowchart LR
-    F1["✅ Phase 1 · Base"] --> F2["⚪ Phase 2 · Browser with login"] --> F3["⚪ Phase 3 · Installer"] --> F4["⚪ Phase 4 · Local AI"]
+    F1["✅ Phase 1 · Base"] --> F2["✅ Phase 2 · Browser with login"] --> F3["⚪ Phase 3 · Installer"] --> F4["⚪ Phase 4 · Local AI"]
     F4 --> F5["⚪ Phase 5 · Extension"] --> F6["⚪ Phase 6 · Audio and Gmail"] --> F7["⚪ Phase 7 · Training"]
     F7 --> F8["⚪ Phase 8 · GitHub Pages"] --> F9["⚪ Phase 9 · Release"]
 ```
@@ -21,7 +21,7 @@ flowchart LR
 | | Phase | What is included | Status |
 |:---:|---|---|---|
 | ✅ | **1. Base** | Common core, public sources, database, dashboard and scheduling | Complete |
-| ⚪ | **2. Browser with login** | Login through a regular window, LinkedIn first, site mapping and CAPTCHA handling | Planned |
+| ✅ | **2. Browser with login** | Login through a regular window, LinkedIn first, site mapping and CAPTCHA handling | Complete |
 | ⚪ | **3. Installer** | 64-bit installer with a list of tools to tick (Windows and Linux first, Mac later) | Planned |
 | ⚪ | **4. Local AI** | Offline package (llama-server + Qwen) | Planned |
 | ⚪ | **5. Browser extension** | Browser extension for forms | Planned |
@@ -32,7 +32,7 @@ flowchart LR
 
 <sub>✅ complete · ⚪ planned</sub>
 
-Between phase 2 and phase 3 comes version 0.3.0, with the "Overview" screen (an overview of the jobs and the search) and the complete application queue.
+Version 0.3.0 came out between phase 2 and phase 3, with the "Overview" screen (an overview of the jobs and the search) and the complete application queue.
 
 ## 🔍 A bit more about each phase
 
@@ -45,7 +45,7 @@ Between phase 2 and phase 3 comes version 0.3.0, with the "Overview" screen (an 
 </details>
 
 <details>
-<summary><strong>⚪ Phase 2, Browser with login</strong></summary>
+<summary><strong>✅ Phase 2, Browser with login</strong></summary>
 
 - The login happens in a regular browser window, with no automation: you sign in however you like (Google, email and password) and close the window. joBot checks the session by itself and never types the password.
 - Planned site mapping order: LinkedIn, Vagas.com, Catho, Indeed and, last, the technology-only sites. Today only LinkedIn has login; Gupy is public only, and the others are left for the future.

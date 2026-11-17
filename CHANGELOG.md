@@ -8,6 +8,10 @@ O formato segue o [Keep a Changelog 1.1.0](https://keepachangelog.com/pt-BR/1.1.
 
 ## [Não lançado]
 
+## [0.3.0] - 2026-11-16
+
+A fase 2 chega: o navegador com login e o LinkedIn, o primeiro site com login. O painel ganha um visual novo, a aba Contas (com o cartão do Gmail), o Panorama e a fila de candidaturas, e o roteiro passa a pôr o Instalador na fase 3.
+
 ### Adicionado
 
 - LinkedIn, o primeiro site com login. O leitor vem desligado: você liga em Configurações, Contas. Ele busca por cada cargo das suas buscas, com a cidade e o remoto, e lê só a última semana, ordenada por relevância. Como a lista não é completa, uma vaga do LinkedIn só fecha depois de 30 dias sem ser vista, e reabre se voltar.
@@ -32,7 +36,7 @@ O formato segue o [Keep a Changelog 1.1.0](https://keepachangelog.com/pt-BR/1.1.
 
 ### Alterado
 
-- Novo roteiro: depois da fase 2 sai a versão 0.3.0 (tela "Panorama" e fila de candidaturas completa); a fase 3 vira o Instalador e as seguintes andam um número, até a fase 9 (publicação).
+- Novo roteiro: a versão 0.3.0 saiu depois da fase 2 (tela "Panorama" e fila de candidaturas completa); a fase 3 vira o Instalador e as seguintes andam um número, até a fase 9 (publicação).
 - Visual novo do painel, no estilo de um aplicativo do Mac: barra lateral com Vagas e Onde buscar, lista de vagas com o detalhe ao lado, janelas e alertas translúcidos, e o título em inglês da correção em Title Case ("Something Wrong with This Job?").
 
 ### Corrigido

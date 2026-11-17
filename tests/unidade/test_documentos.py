@@ -189,7 +189,7 @@ def test_changelog_tem_as_mesmas_secoes_nas_duas_linguas() -> None:
 
 def test_changelog_traz_a_versao_do_pacote() -> None:
     projeto = tomllib.loads(texto("pyproject.toml"))["project"]["version"]
-    assert projeto == __version__ == "0.2.1"
+    assert projeto == __version__ == "0.3.0"
     for caminho in CHANGELOG.values():
         conteudo = texto(caminho)
         for versao in (projeto, "0.1.0"):
@@ -506,14 +506,24 @@ V0_2_1 = "## [0.2.1] - 2026-11-15"
 CITA_0_2_1 = {"pt": ("chips", "0006", "5 segundos"), "en": ("chips", "0006", "5 seconds")}
 
 
+# o resumo da 0.3.0 cobre tudo o que estava em "Não lançado", não só o último lote
+V0_3_0 = "## [0.3.0] - 2026-11-16"
+RESUMO_0_3_0 = {"pt": ("Panorama", "LinkedIn"), "en": ("Overview", "LinkedIn")}
+
+
 @pytest.mark.parametrize("lingua", LINGUAS)
-def test_changelog_fecha_a_0_2_1(lingua: str) -> None:
-    """A 0.2.1 é a primeira seção de versão, logo abaixo de "Não lançado" (que pode ter itens)."""
+def test_changelog_fecha_a_0_3_0(lingua: str) -> None:
+    """A 0.3.0 é a primeira seção de versão, e a linha de resumo dela cobre o lote inteiro."""
     conteudo = texto(CHANGELOG[lingua])
     assert NAO_LANCADO[lingua] in conteudo, CHANGELOG[lingua]
     inicio = conteudo.index(NAO_LANCADO[lingua])
     fim = conteudo.index("\n## [", inicio + 1)
-    assert conteudo[fim + 1 :].startswith(V0_2_1), CHANGELOG[lingua]
+    assert conteudo[fim + 1 :].startswith(V0_3_0), CHANGELOG[lingua]
+    # só o resumo: os itens movidos já trazem "LinkedIn" e deixariam passar um resumo do último lote
+    secao = conteudo[fim + 1 :]
+    resumo = secao[: secao.index("###")]
+    for termo in RESUMO_0_3_0[lingua]:
+        assert termo in resumo, (CHANGELOG[lingua], termo)
 
 
 @pytest.mark.parametrize("lingua", LINGUAS)
@@ -542,10 +552,10 @@ def test_changelog_traz_os_filtros_da_0_2_0(lingua: str) -> None:
 
 @pytest.mark.parametrize("lingua", LINGUAS)
 def test_changelog_cita_o_login_pela_janela_comum(lingua: str) -> None:
-    """Em "Não lançado", "Adicionado" diz do LinkedIn e do login pela janela comum."""
+    """Na 0.3.0, "Adicionado" diz do LinkedIn e do login pela janela comum."""
     conteudo = texto(CHANGELOG[lingua])
-    assert NAO_LANCADO[lingua] in conteudo, CHANGELOG[lingua]
-    inicio = conteudo.index(NAO_LANCADO[lingua])
+    assert V0_3_0 in conteudo, CHANGELOG[lingua]
+    inicio = conteudo.index(V0_3_0)
     secao_nova = conteudo[inicio : conteudo.index("\n## [", inicio + 1)]
     assert ADICIONADO[lingua] in secao_nova, CHANGELOG[lingua]
     adicionado = secao_nova[secao_nova.index(ADICIONADO[lingua]) :]
@@ -599,18 +609,24 @@ def test_rede_fala_da_cotacao_das_moedas(lingua: str) -> None:
 
 # o que cada documento diz da fase 1 (T132): concluída, e não mais "em andamento"
 FASE_1_CONCLUIDA = {
-    ".github/CONTRIBUTING.md": r"fase 1 \(base\) está concluída",
-    ".github/CONTRIBUTING.en.md": r"Phase 1 \(foundation\) is complete",
-    ".github/SECURITY.md": r"(?i)só a versão mais recente \(hoje a 0\.2\.1\)",
-    ".github/SECURITY.en.md": r"(?i)only the latest version \(currently 0\.2\.1\)",
+    ".github/CONTRIBUTING.md": r"fases 1 e 2 \(base e navegador com login\) estão concluídas",
+    ".github/CONTRIBUTING.en.md": (
+        r"Phases 1 and 2 \(foundation and browser with login\) are complete"
+    ),
+    ".github/SECURITY.md": r"(?i)só a versão mais recente \(hoje a 0\.3\.0\)",
+    ".github/SECURITY.en.md": r"(?i)only the latest version \(currently 0\.3\.0\)",
     ".github/SUPPORT.md": r"formulário de bug",
     ".github/SUPPORT.en.md": r"bug form",
-    "docs/decisions/0017-fases.md": r"fase 1 está concluída",
-    "docs/decisions/README.md": r"fase 1 está concluída",
-    "wiki/Home.md": r"fase 1 de 9 \(a base\) está concluída",
-    "wiki/Home-en.md": r"Phase 1 of 9 \(the base\) is complete",
-    "wiki/A-ideia-e-a-historia.md": r"fase 1 de 9 \(a base\) está concluída",
-    "wiki/The-idea-and-the-story.md": r"Phase 1 of 9 \(the base\) is complete",
+    "docs/decisions/0017-fases.md": r"fases 1 e 2 estão concluídas",
+    "docs/decisions/README.md": r"fases 1 e 2 estão concluídas",
+    "wiki/Home.md": r"fases 1 e 2 de 9 \(a base e o navegador com login\) estão concluídas",
+    "wiki/Home-en.md": r"Phases 1 and 2 of 9 \(the base and the browser with login\) are complete",
+    "wiki/A-ideia-e-a-historia.md": (
+        r"fases 1 e 2 de 9 \(a base e o navegador com login\) estão concluídas"
+    ),
+    "wiki/The-idea-and-the-story.md": (
+        r"Phases 1 and 2 of 9 \(the base and the browser with login\) are complete"
+    ),
     "wiki/Roteiro.md": r"\*\*1\. Base\*\*.*Concluída",
     "wiki/Roadmap.md": r"\*\*1\. Base\*\*.*Complete",
 }
@@ -646,10 +662,10 @@ CITA_CONTAS = {"pt": "Cartão do Gmail na aba Contas", "en": "Gmail card in the 
 
 @pytest.mark.parametrize("lingua", LINGUAS)
 def test_changelog_cita_a_aba_contas(lingua: str) -> None:
-    """Em "Não lançado" a aba é "Contas" e traz o cartão do Gmail; o nome velho não aparece."""
+    """Na 0.3.0 a aba é "Contas" e traz o cartão do Gmail; o nome velho não aparece."""
     conteudo = texto(CHANGELOG[lingua])
-    assert NAO_LANCADO[lingua] in conteudo, CHANGELOG[lingua]
-    inicio = conteudo.index(NAO_LANCADO[lingua])
+    assert V0_3_0 in conteudo, CHANGELOG[lingua]
+    inicio = conteudo.index(V0_3_0)
     secao_nova = conteudo[inicio : conteudo.index("\n## [", inicio + 1)]
     assert ABA_CONTAS[lingua] in secao_nova, CHANGELOG[lingua]
     assert CITA_CONTAS[lingua] in secao_nova, CHANGELOG[lingua]
@@ -665,10 +681,10 @@ PRIVACIDADE = {"pt": "## 🔒 Privacidade e segurança", "en": "## 🔒 Privacy 
 
 @pytest.mark.parametrize("lingua", LINGUAS)
 def test_changelog_cita_o_panorama(lingua: str) -> None:
-    """Em "Não lançado" o CHANGELOG traz o Panorama e a pergunta da fila de candidaturas."""
+    """Na 0.3.0 o CHANGELOG traz o Panorama e a pergunta da fila de candidaturas."""
     conteudo = texto(CHANGELOG[lingua])
-    assert NAO_LANCADO[lingua] in conteudo, CHANGELOG[lingua]
-    inicio = conteudo.index(NAO_LANCADO[lingua])
+    assert V0_3_0 in conteudo, CHANGELOG[lingua]
+    inicio = conteudo.index(V0_3_0)
     secao_nova = conteudo[inicio : conteudo.index("\n## [", inicio + 1)]
     for marcador in CITA_PANORAMA[lingua]:
         assert marcador in secao_nova, (CHANGELOG[lingua], marcador)
