@@ -279,6 +279,7 @@ mod testes {
 
     /// Executor falso: grava cada comando e imita o `uv` e o `jobot` (`falhar_em` faz o comando
     /// com esse argumento sair com 1; `versao` é o que o `jobot --version` responde).
+    #[allow(clippy::type_complexity)] // o executor é um impl FnMut: não cabe num type
     fn falso(
         pasta: PathBuf,
         versao: &'static str,
