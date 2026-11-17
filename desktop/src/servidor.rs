@@ -140,6 +140,49 @@ pub fn ler_trava(dados: &Path) -> (Option<u32>, Option<u16>) {
     interpretar_trava(&String::from_utf8_lossy(&texto[..lidos]))
 }
 
+/// Para os testes: prende a trava como o `instancia.py`, com `flock` no POSIX e, no Windows,
+/// um byte além dos dados (`_BYTE_DA_TRAVA`), que não impede ler o PID e a porta.
+#[cfg(test)]
+pub fn prender_como_o_python(arquivo: &File) {
+    #[cfg(not(windows))]
+    arquivo.lock().unwrap();
+    #[cfg(windows)]
+    {
+        use std::ffi::c_void;
+        use std::os::windows::io::AsRawHandle;
+        #[repr(C)]
+        struct Overlapped {
+            interno: usize,
+            interno_alto: usize,
+            deslocamento: u32,
+            deslocamento_alto: u32,
+            evento: *mut c_void,
+        }
+        #[link(name = "kernel32")]
+        unsafe extern "system" {
+            fn LockFileEx(
+                arquivo: *mut c_void,
+                opcoes: u32,
+                reservado: u32,
+                tamanho: u32,
+                tamanho_alto: u32,
+                sobreposto: *mut Overlapped,
+            ) -> i32;
+        }
+        let mut sobreposto = Overlapped {
+            interno: 0,
+            interno_alto: 0,
+            deslocamento: 1 << 20,
+            deslocamento_alto: 0,
+            evento: std::ptr::null_mut(),
+        };
+        // LOCKFILE_EXCLUSIVE_LOCK | LOCKFILE_FAIL_IMMEDIATELY, um byte
+        let ok =
+            unsafe { LockFileEx(arquivo.as_raw_handle(), 0x2 | 0x1, 0, 1, 0, &mut sobreposto) };
+        assert_ne!(ok, 0, "LockFileEx");
+    }
+}
+
 pub fn url_do_painel(porta: u16) -> String {
     format!("http://127.0.0.1:{porta}/")
 }
@@ -244,11 +287,22 @@ pub fn jobot_instalado(dados: &Path, so: &str) -> Option<PathBuf> {
     Some(jobot_do_venv(Path::new(venv), so)).filter(|j| j.is_file())
 }
 
+/// Tira o `PYTHONHOME`, o `PYTHONPATH` e o `LD_LIBRARY_PATH` do ambiente de um filho: o AppRun
+/// do AppImage os aponta para dentro dele; o Python do venv não achava a biblioteca padrão
+/// (achado da fumaça), e as bibliotecas do AppImage chegariam ao navegador do sistema que o
+/// `serve` abre (D183.18).
+pub fn sem_python_de_fora(comando: &mut Command) -> &mut Command {
+    comando
+        .env_remove("PYTHONHOME")
+        .env_remove("PYTHONPATH")
+        .env_remove("LD_LIBRARY_PATH")
+}
+
 /// `jobot <subcomando>` destacado (sessão própria no POSIX, grupo próprio sem console no
 /// Windows, como `processo.destacar`): o servidor nunca é filho preso à casca.
 pub fn comando_destacado(jobot: &Path, subcomando: &str) -> Command {
     let mut comando = Command::new(jobot);
-    comando
+    sem_python_de_fora(&mut comando)
         .arg(subcomando)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
@@ -424,7 +478,7 @@ mod testes {
         std::fs::write(dados.join("jobot.lock"), "42\n8000\n").unwrap();
         assert_eq!(ler_trava(&dados), (None, None));
         let dono = File::open(dados.join("jobot.lock")).unwrap();
-        dono.lock().unwrap();
+        prender_como_o_python(&dono);
         assert_eq!(ler_trava(&dados), (Some(42), Some(8000)));
         drop(dono);
         assert_eq!(ler_trava(&temporaria("sem-trava")), (None, None));
@@ -568,6 +622,12 @@ mod testes {
         let c = comando_destacado(Path::new("/v/bin/jobot"), "serve");
         assert_eq!(c.get_program(), "/v/bin/jobot");
         assert_eq!(c.get_args().collect::<Vec<_>>(), ["serve"]);
+        let fora: Vec<_> = c
+            .get_envs()
+            .filter(|(_, v)| v.is_none())
+            .map(|(k, _)| k)
+            .collect();
+        assert_eq!(fora, ["LD_LIBRARY_PATH", "PYTHONHOME", "PYTHONPATH"]);
     }
 
     /// Um filho de verdade conta onde ficaram a entrada, as saídas e o grupo de processos.
@@ -594,7 +654,7 @@ mod testes {
     fn trava_presa(dados: &Path, texto: &str) -> File {
         std::fs::write(dados.join("jobot.lock"), texto).unwrap();
         let dono = File::open(dados.join("jobot.lock")).unwrap();
-        dono.lock().unwrap();
+        prender_como_o_python(&dono);
         dono
     }
 

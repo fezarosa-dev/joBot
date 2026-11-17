@@ -27,7 +27,7 @@
     }
   },
   "bundle": {
-    "active": false,
+    "active": true,
     "icon": [
       "icons/icon.png"
     ],
@@ -36,7 +36,12 @@
     },
     "windows": {
       "nsis": {
-        "installerHooks": "windows/ganchos.nsh"
+        "installerHooks": "windows/ganchos.nsh",
+        "compression": "none",
+        "languages": ["English", "PortugueseBR"]
+      },
+      "webviewInstallMode": {
+        "type": "skip"
       }
     }
   }

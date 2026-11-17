@@ -1,0 +1,25 @@
+{
+  "uv": {
+    "versao": "0.13.8",
+    "sha256": {
+      "x86_64-unknown-linux-gnu": "5acfd9177cfecf0bf87578f059728215ccc884388988f55f7a65041b57387d91",
+      "x86_64-pc-windows-msvc": "529e78a9cec6cd7e3e014f7ecd8bda0c113969d4ed0f2efeedb85c30943325b8",
+      "aarch64-apple-darwin": "6b71028a6b904f2ae3340ef52e595512de807d06c0a20eaef2f692581b246558",
+      "x86_64-apple-darwin": "a04c2ffeac28b2003a2c13caf538ab425fcd7def3e4a41571f4a8fb370a66af3"
+    },
+    "licencas": {
+      "LICENSE-APACHE": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+      "LICENSE-MIT": "860e3d7a86b84e6a7012c7a635fc64df475cebc6cce34dfeb73a5982ec58176c"
+    }
+  },
+  "python": {
+    "versao": "3.14.10",
+    "tag": "20261110",
+    "sha256": {
+      "x86_64-unknown-linux-gnu": "c2ff2e97422f5d3896a16e0317fd212ba977bbf2688d93a6f7a03d817506bd30",
+      "x86_64-pc-windows-msvc": "32b6cf90a03e2bc15fda8d2ab7ff78c4870f138887d612932650ce764efaab8f",
+      "aarch64-apple-darwin": "f15ec3d15460dd66c2eb88639b152cd9040e7d1ece11e38bf89e8f53f0171e02",
+      "x86_64-apple-darwin": "85f8e54798e8e6aa58d2253f013d815c5616343cc0d15cbea882fca78bdfeae2"
+    }
+  }
+}

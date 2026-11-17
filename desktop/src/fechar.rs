@@ -84,17 +84,21 @@ pub fn desinstalar(dados: &Path, so: &str, mut rodar: impl FnMut(&Path, &[&str])
 
 /// `jobot <args>` esperando o fim, sem entrada, saída nem janela de console.
 pub fn rodar_esperando(jobot: &Path, args: &[&str]) {
+    if let Err(erro) = comando_esperando(jobot, args).status() {
+        eprintln!("jobot-app: não consegui rodar {}: {erro}", jobot.display());
+    }
+}
+
+fn comando_esperando(jobot: &Path, args: &[&str]) -> Command {
     let mut comando = Command::new(jobot);
-    comando
+    servidor::sem_python_de_fora(&mut comando)
         .args(args)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null());
     #[cfg(windows)]
     std::os::windows::process::CommandExt::creation_flags(&mut comando, 0x0800_0000);
-    if let Err(erro) = comando.status() {
-        eprintln!("jobot-app: não consegui rodar {}: {erro}", jobot.display());
-    }
+    comando
 }
 
 /// `remove_dir_all` com algumas tentativas: no Windows o processo que acabou de sair ainda
@@ -122,11 +126,24 @@ mod testes {
         p
     }
 
+    #[test]
+    fn rodar_esperando_sem_o_ambiente_do_appimage() {
+        let c = comando_esperando(Path::new("/v/bin/jobot"), &["sair"]);
+        assert_eq!(c.get_program(), "/v/bin/jobot");
+        assert_eq!(c.get_args().collect::<Vec<_>>(), ["sair"]);
+        let fora: Vec<_> = c
+            .get_envs()
+            .filter(|(_, v)| v.is_none())
+            .map(|(k, _)| k)
+            .collect();
+        assert_eq!(fora, ["LD_LIBRARY_PATH", "PYTHONHOME", "PYTHONPATH"]);
+    }
+
     /// Prende o `jobot.lock` com `texto`, como o `jobot serve` no ar.
     fn trava_presa(dados: &Path, texto: &str) -> std::fs::File {
         std::fs::write(dados.join("jobot.lock"), texto).unwrap();
         let dono = std::fs::File::open(dados.join("jobot.lock")).unwrap();
-        dono.lock().unwrap();
+        servidor::prender_como_o_python(&dono);
         dono
     }
 

@@ -35,7 +35,10 @@ from jobot.sistema.segundo_plano_linux import (
 
 Tipo = Literal["casca", "clone_git", "uv_tool", "desconhecida"]
 
-_TEMPO_S = 600  # git fetch e uv sync baixam coisas: 60 s do executor do segundo plano é pouco
+# git fetch e uv sync baixam coisas: 60 s do executor do segundo plano é pouco; e o `jobot
+# ferramentas baixar navegador` do canal casca tem 1800 s de download (`PRAZO_BAIXAR_S`, D137.3)
+# mais a espera para encerrar o `playwright install` (D183.24)
+_TEMPO_S = 1900
 _HASH = re.compile(r"[0-9a-f]{40}|[0-9a-f]{64}")
 _A_MAO = (
     "Não sei como este joBot foi instalado, então não atualizo sozinho. Atualize à mão: "
@@ -68,22 +71,30 @@ def raiz_da_instalacao() -> Path:
 
 
 def rodar_atualizacao(comando: Sequence[str]) -> Resultado:
-    """Executor real: lista de argumentos, sem shell, sem terminal e sem git pedir senha."""
+    """Executor real: lista de argumentos, sem shell, sem terminal e sem git pedir senha. Em
+    sessão própria: no prazo e no Ctrl+C, a árvore inteira sai (`processo.encerrar_arvore`),
+    também o download do navegador que o `jobot ferramentas baixar navegador` sobe (D183.24)."""
     try:
-        feito = subprocess.run(
+        filho = subprocess.Popen(
             list(comando),
-            capture_output=True,
-            text=True,
             stdin=subprocess.DEVNULL,
-            timeout=_TEMPO_S,
-            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
             env={**os.environ, "GIT_TERMINAL_PROMPT": "0"},
+            start_new_session=True,  # o grupo do POSIX; no Windows o taskkill /T acha a árvore
         )
-    except subprocess.TimeoutExpired:
-        return Resultado(124)
     except OSError:  # programa que não existe ou não abre
         return Resultado(127)
-    return Resultado(feito.returncode, feito.stdout, feito.stderr)
+    try:
+        saida, erro = filho.communicate(timeout=_TEMPO_S)
+    except subprocess.TimeoutExpired:
+        processo.encerrar_arvore(filho)
+        return Resultado(124)
+    except BaseException:  # Ctrl+C: em sessão própria, o filho não recebe o SIGINT do terminal
+        processo.encerrar_arvore(filho)
+        raise
+    return Resultado(filho.returncode, saida, erro)
 
 
 def _git(raiz: Path, *args: str) -> list[str]:
