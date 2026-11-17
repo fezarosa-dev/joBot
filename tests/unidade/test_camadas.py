@@ -79,13 +79,18 @@ def test_detector_acha_import_proibido(tmp_path: Path) -> None:
 
 
 def _ruins_fora_de(fonte: Path, proibidos: tuple[str, ...], menos: tuple[str, ...]) -> list[str]:
-    """Imports proibidos em `fonte`, ignorando os pacotes de topo listados em `menos`."""
+    """Imports proibidos em `fonte`, menos nas pastas de `menos` (`painel`, `nucleo/ia`)."""
     return [
         f"{arquivo.name}: {modulo}"
         for arquivo, modulo in _importados(fonte)
-        if arquivo.relative_to(fonte).parts[0] not in menos
+        if not any(_dentro(arquivo.relative_to(fonte), m) for m in menos)
         and any(_casa(modulo, p) for p in proibidos)
     ]
+
+
+def _dentro(relativo: Path, pasta: str) -> bool:
+    partes = tuple(pasta.split("/"))
+    return relativo.parts[: len(partes)] == partes
 
 
 def _playwright_fora_do_navegador(raiz: Path) -> list[str]:
@@ -102,6 +107,14 @@ def test_so_navegador_importa_playwright() -> None:
 def test_captcha_so_em_navegador_e_painel() -> None:
     # ADR 0022: o 2Captcha só age na navegação com login da fase 2; fonte pública não o importa.
     assert _ruins_fora_de(FONTE, ("jobot.nucleo.captcha",), ("navegador", "painel")) == []
+
+
+IA_SO_EM = ("agenda", "painel", "cli", "nucleo/ia")
+
+
+def test_ia_so_em_agenda_painel_e_cli() -> None:
+    # desenho 5 da fase 4: o `cli` monta os backends e os injeta no laço da `agenda` e no painel
+    assert _ruins_fora_de(FONTE, ("jobot.nucleo.ia",), IA_SO_EM) == []
 
 
 def test_camadas_de_baixo_nao_importam_navegador() -> None:
@@ -135,6 +148,22 @@ def test_detector_acha_captcha_fora_da_lista(tmp_path: Path) -> None:
         (jobot / pasta / "x.py").write_text("from jobot.nucleo import captcha\n")
     assert _ruins_fora_de(jobot, ("jobot.nucleo.captcha",), ("navegador", "painel")) == [
         "x.py: jobot.nucleo.captcha"
+    ]
+
+
+def test_detector_acha_ia_fora_da_lista(tmp_path: Path) -> None:
+    jobot = tmp_path / "jobot"
+    for pasta in ("agenda", "painel", "cli", "nucleo/ia", "banco", "nucleo"):
+        (jobot / pasta).mkdir(parents=True, exist_ok=True)
+    for pasta in ("agenda", "painel", "cli", "banco"):
+        (jobot / pasta / "x.py").write_text("from jobot.nucleo.ia import contrato\n")
+    (jobot / "nucleo" / "ia" / "falso.py").write_text("from .contrato import Falha\n")
+    (jobot / "nucleo" / "encaixe.py").write_text("import jobot.nucleo.ia.esquema\n")
+    (jobot / "nucleo" / "iam.py").write_text("import jobot.nucleo.iam\n")  # outro nome
+    assert _ruins_fora_de(jobot, ("jobot.nucleo.ia",), IA_SO_EM) == [
+        "x.py: jobot.nucleo.ia",
+        "x.py: jobot.nucleo.ia.contrato",
+        "encaixe.py: jobot.nucleo.ia.esquema",
     ]
 
 
