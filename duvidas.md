@@ -3243,3 +3243,19 @@ Do item 2 (T305 h), aceito e documentado. Sem JavaScript, o detalhe sobreposto f
 **Como desfazer:** 1 é tirar o `{% if tem_versao_nova %}` de `configuracoes/geral.html`; 2 é dar ao formulário do Geral um alvo próprio; 3 é trocar `PASSO_ATUALIZAR_MS`/`PRAZO_ATUALIZAR_MS` no `app.js`; 4 é tirar a guarda `poll()` da rota `atualizar`; 5 é voltar o `stdout` para `DEVNULL` em `lancar_atualizacao`; 7 e 8 moram em `painel/rotas/aviso_versao.py`. Nenhum dado muda.
 
 **Ver também:** D171 (itens 8 e 11), D174.3, ADR 0014, 0023 e 0025, desenho 5.6 e 6.3, T331, T332, T334.
+
+## D177. Encerrar pelo painel: escolhas da T333 (para confirmar)
+
+**Status:** escolhas da sessão, para confirmar.
+
+**Contexto:** a T333 põe "Encerrar o joBot" em Configurações › Geral e na paleta, com o alerta "Encerrar o joBot?" (desenho 6.4, D143.37), sobre o `POST /sair` que já existia. Ficaram estas escolhas:
+
+1. O alerta (`alerta-encerrar`) vem junto da paleta, logo depois do `<dialog id="paleta">` em `_paleta.html`: toda página com a lateral o tem, fechado. A paleta fecha ao escolher a opção, por isso o alerta não pode morar dentro dela. Os testes de rota que conferem "página sem `<dialog>`" passam a tirar também o `alerta-encerrar`, como já tiravam a paleta.
+2. A opção da paleta e o botão de Geral são um formulário GET para `/sair/confirmar` com `data-alerta-abre`, como o Esquecer logins: sem JavaScript, a página de confirmação (`confirmar.html`) faz a pergunta e o POST; o `voltar` passa por `caminho_do_painel`. A paleta deixou de ter o POST direto do Sair.
+3. O botão "Sair" da barra do topo continua como está (POST direto, sem alerta): os testes da barra o prendem e o desenho 6.4 fala só de Geral e da paleta. Fica a pergunta ao dono: o Sair da barra passa a abrir o mesmo alerta, ou sai da barra (Encerrar fica em Geral, na paleta e no menu da casca)?
+4. Na casca, o `app.js` da página de despedida (marca `data-encerrado`) chama `window.__TAURI__.window.getCurrentWindow().close()`. Isso pede `app.withGlobalTauri` e a permissão `core:window:allow-close` na capability da janela (T334 e T335). Sem a ponte, nada acontece e a página diz para fechar a janela.
+5. A despedida diz "Pode fechar esta janela." também no navegador comum (antes, "esta aba"), como no desenho; o verbo do botão do alerta é "Encerrar" (`comum.encerrar`; em inglês, "Quit").
+
+**Como desfazer:** 3 é trocar o form do Sair em `execucao/barra.html` pelo GET com `data-alerta-abre="alerta-encerrar"` (ou tirá-lo); 1 e 2 são voltar o `envia("/sair", ...)` em `_paleta.html` e tirar o alerta e a rota `GET /sair/confirmar`; 4 é tirar o bloco `data-encerrado` do `app.js`. Nenhum dado muda.
+
+**Ver também:** D143.37, D171.7, desenho 5.5 e 6.4, T326, T333, T334, T335.

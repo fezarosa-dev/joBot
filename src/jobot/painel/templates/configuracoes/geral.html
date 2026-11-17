@@ -77,3 +77,10 @@
   <p class="config-texto">{{ t("configuracoes.geral.versao.em_dia") }}</p>
   {%- endif %}
 </section>
+{#- Encerrar (T333; desenho 6.4): abre o alerta que vem com a paleta; sem JavaScript, a confirmação -#}
+<form method="get" action="/sair/confirmar">
+  <input type="hidden" name="voltar" value="/configuracoes/geral">
+  <div class="acoes">
+    <button type="submit" class="botao botao-secundario" data-alerta-abre="alerta-encerrar">{{ t("execucao.encerrar") }}</button>
+  </div>
+</form>

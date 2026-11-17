@@ -32,7 +32,7 @@ from jobot.nucleo.http import ClienteEducado
 from jobot.nucleo.leitores.registro import leitores
 from jobot.painel.consultas import relogio_do_painel
 from jobot.painel.progresso import Progresso, montar_progresso, segundos_ate
-from jobot.painel.seguranca import Con, de_volta, renderizar
+from jobot.painel.seguranca import Con, caminho_do_painel, de_volta, renderizar
 
 router = APIRouter()
 _AVISO = "jobot_ja_roda"  # cookie do aviso "já roda" no clique sem HTMX (lido em barra.html)
@@ -226,6 +226,20 @@ async def atual(
     if ja_roda:
         resposta.delete_cookie(_AVISO, httponly=True, samesite="strict")
     return resposta
+
+
+@router.get("/sair/confirmar")
+async def sair_pergunta(request: Request, voltar: str = "/") -> HTMLResponse:
+    """Sem JavaScript: a pergunta do alerta de Encerrar numa página; o GET não encerra (T333)."""
+    return renderizar(
+        request,
+        "confirmar.html",
+        titulo=("execucao.encerrar.pergunta", {}),
+        texto="execucao.encerrar.explicacao",
+        rotulo="comum.encerrar",
+        acao="/sair",
+        voltar=caminho_do_painel(voltar),
+    )
 
 
 @router.post("/sair")
