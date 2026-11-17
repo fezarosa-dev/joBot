@@ -21,7 +21,7 @@ if sys.platform == "win32":
 
     _BYTE_DA_TRAVA = 1 << 20  # além do fim dos dados: travar depois do fim do arquivo vale
 
-    def _prender(fd: int, *, compartilhada: bool) -> bool:
+    def prender(fd: int, *, compartilhada: bool) -> bool:
         # o Windows não tem trava compartilhada: a leitura prende e solta na hora
         os.lseek(fd, _BYTE_DA_TRAVA, os.SEEK_SET)
         try:
@@ -37,7 +37,7 @@ if sys.platform == "win32":
 else:
     import fcntl
 
-    def _prender(fd: int, *, compartilhada: bool) -> bool:
+    def prender(fd: int, *, compartilhada: bool) -> bool:
         modo = fcntl.LOCK_SH if compartilhada else fcntl.LOCK_EX
         try:
             fcntl.flock(fd, modo | fcntl.LOCK_NB)
@@ -49,7 +49,7 @@ else:
         fcntl.flock(fd, fcntl.LOCK_UN)
 
 
-def _fechar(fd: int) -> None:
+def fechar_trava(fd: int) -> None:
     """Solta a trava e fecha; no Windows, fechar sem soltar deixa a trava presa por um tempo."""
     with contextlib.suppress(OSError):
         _desprender(fd)
@@ -86,7 +86,7 @@ class Trava:
         if self._fd is not None:
             return True
         fd = _abrir(self._dados, os.O_RDWR | os.O_CREAT)
-        if not _prender(fd, compartilhada=False):
+        if not prender(fd, compartilhada=False):
             os.close(fd)
             return False
         try:
@@ -94,14 +94,14 @@ class Trava:
             os.ftruncate(fd, 0)
             _gravar(fd, f"{os.getpid()}\n{self._porta}\n".encode())
         except BaseException:
-            _fechar(fd)  # sem isso a trava ficaria presa por um descritor sem dono
+            fechar_trava(fd)  # sem isso a trava ficaria presa por um descritor sem dono
             raise
         self._fd = fd
         return True
 
     def soltar(self) -> None:
         if self._fd is not None:
-            _fechar(self._fd)
+            fechar_trava(self._fd)
             self._fd = None
 
 
@@ -112,11 +112,11 @@ def _linhas_da_trava(dados: Path) -> list[str] | None:
     except OSError:
         return None
     try:
-        if _prender(fd, compartilhada=True):
+        if prender(fd, compartilhada=True):
             return None  # ninguém prende a trava
         texto = _ler(fd).decode("ascii", "replace")
     finally:
-        _fechar(fd)
+        fechar_trava(fd)
     return texto.split("\n")
 
 
