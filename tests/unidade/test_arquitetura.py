@@ -127,9 +127,10 @@ def _nomes_definidos() -> set[str]:
     return achados
 
 
-def _subpacotes_de_coletores() -> list[str]:
-    pasta = FONTE / "nucleo" / "coletores"
-    return sorted(p.name for p in pasta.iterdir() if (p / "__init__.py").is_file())
+def _subpacotes_do_nucleo() -> list[str]:
+    """Os subpacotes de `nucleo` (`ia`, `leitores`...) e os de `nucleo/coletores`."""
+    pastas = (FONTE / "nucleo", FONTE / "nucleo" / "coletores")
+    return sorted(p.name for d in pastas for p in d.iterdir() if (p / "__init__.py").is_file())
 
 
 @pytest.mark.parametrize("lingua", LINGUAS)
@@ -207,7 +208,7 @@ def test_pastas_cita_todo_subpacote(lingua: str) -> None:
     arvores = [b for b in BLOCO_TEXTO.findall(_pagina(lingua)) if "src/jobot" in b]
     assert arvores, "a página não tem a árvore de pastas (bloco text com src/jobot)"
     arvore = arvores[0]
-    subpacotes = _subpacotes_de_coletores()
+    subpacotes = _subpacotes_do_nucleo()
     assert subpacotes  # há subpacote real
     assert sorted(n for n in subpacotes if not re.search(rf"\b{n}/", arvore)) == []
 

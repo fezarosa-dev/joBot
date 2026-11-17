@@ -19,7 +19,9 @@ src/jobot/
 │   │   ├── portais/          portais de estágio e primeiro emprego, ex.: ciee, iel
 │   │   ├── carreiras/        sites de carreira de uma empresa só, ex.: amazon, google
 │   │   └── (raiz)            base, executor, registro, paginas, descoberta_cc
+│   ├── leitores/             os sites com login: o que ler de cada um (um arquivo por site)
 │   ├── tratamento/           duplicadas, salário, rótulos, locais, ciclo de vida
+│   ├── ia/                   contrato da IA: pedido, resposta, falhas, esquema por serviço
 │   └── dados/                listas em JSON: fontes, empresas, rótulos, salário
 ├── banco/                    SQLite: conexão, migrações (migracoes/), gravação e consultas
 ├── agenda/                   agendador e execução das buscas
@@ -77,7 +79,7 @@ flowchart TD
     navegador --> banco
 ```
 
-O teste `tests/unidade/test_camadas.py` falha se alguém quebrar essa regra.
+O teste `tests/unidade/test_camadas.py` falha se alguém quebrar essa regra. Ele também confere que o contrato da IA (`nucleo/ia/`) só é importado pela `agenda`, pelo `painel`, pelo `cli` e por ele mesmo: o `cli` monta o serviço de IA e o entrega pronto às outras duas.
 
 A casca `desktop/` (a janela do joBot) é um processo à parte, em Rust: não importa nada do pacote Python e nada dele a importa. Ela só fala HTTP com o painel em 127.0.0.1 e roda o executável `jobot` (e o `uv`, para instalar), por isso as linhas dela são pontilhadas. Como ela não é Python, o `test_camadas.py` não a alcança; o `test_arquitetura.py` confere que o nó dela só tem linha pontilhada.
 
