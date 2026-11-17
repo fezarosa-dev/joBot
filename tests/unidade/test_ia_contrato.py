@@ -249,7 +249,7 @@ def test_ia_json_traz_prazos_limites_e_cortes() -> None:
         "resposta_max_bytes": 1048576,
         "tarefas": {
             "encaixe": {
-                "max_tokens": {"fora": 1024, "local": 512},
+                "max_tokens": {"fora": 1024, "local": 448},
                 "corte": {"inicio": 4000, "fim": 2000},
             },
         },
