@@ -62,10 +62,10 @@ Hoje `rotas/vagas.py` lê a config com `config_ou_padrao` (definida em `painel/c
 - modificar `src/jobot/painel/consultas.py` (apagar `config_ou_padrao` se ninguém mais usar; conferir com `rtk grep -rn config_ou_padrao src tests`);
 - modificar `tests/integracao/test_rota_vagas.py` e, se citar o nome apagado, o texto de `tests/unidade/test_lateral.py`.
 
-- [ ] **Teste que falha antes:** gravar `destaques_ligados` com JSON estragado (`INSERT` direto na tabela `config`, com `{`) e pedir `/` e `/vagas`; esperar 200 em `/vagas` e, em `/`, o redirecionamento para `/vagas?aba=destaques` (o padrão `True`). O teste afirma o valor de reserva (a aba de destaques ligada), não só o 200.
-- [ ] **Ver falhar:** `uv run pytest tests/integracao/test_rota_vagas.py -q -k estragad`; o vermelho é a asserção, não um erro de import.
-- [ ] **Corrigir:** trocar `config_ou_padrao(con, chave, padrao)` por `ler_config(con, chave, padrao)` nos três lugares e apagar a função e o import que sobrar.
-- [ ] **Ver passar:** o arquivo do teste e `uv run ruff check && uv run ruff format --check`.
+- [x] **Teste que falha antes:** gravar `destaques_ligados` com JSON estragado (`INSERT` direto na tabela `config`, com `{`) e pedir `/` e `/vagas`; esperar 200 em `/vagas` e, em `/`, o redirecionamento para `/vagas?aba=destaques` (o padrão `True`). O teste afirma o valor de reserva (a aba de destaques ligada), não só o 200.
+- [x] **Ver falhar:** `uv run pytest tests/integracao/test_rota_vagas.py -q -k estragad`; o vermelho é a asserção, não um erro de import.
+- [x] **Corrigir:** trocar `config_ou_padrao(con, chave, padrao)` por `ler_config(con, chave, padrao)` nos três lugares e apagar a função e o import que sobrar.
+- [x] **Ver passar:** o arquivo do teste e `uv run ruff check && uv run ruff format --check`.
 
 ### T294: Chromium do Playwright em cache no CI
 `depende_de: —`
@@ -147,14 +147,14 @@ O navegador casa `prefixos_login` com `host + caminho` da URL (`casa_login`, `sr
 **Interfaces:**
 - `prefixos_fora_do_host(leitores: Iterable[LeitorComLogin]) -> list[str]` no próprio `test_site_novo.py`, no molde de `faltas`: uma linha por problema, com a chave do leitor e o prefixo, apontando para `{GUIA}#login`. Um prefixo está torto se: tem `://`; não tem `/` (falta o caminho); o trecho antes da primeira `/` não está em minúsculas ou não é igual a um dos `hosts` do leitor em minúsculas; ou `casa_login(f"https://{prefixo}?x=1", leitor.prefixos_login)` é falso (o contrato real, com a query ignorada). Leitor sem nenhum prefixo também é problema: o navegador nunca acharia a tela de login.
 
-- [ ] **Testes que falham** em `tests/unidade/test_site_novo.py`:
+- [x] **Testes que falham** em `tests/unidade/test_site_novo.py`:
   - `test_todo_prefixo_de_login_comeca_pelo_host`: `prefixos_fora_do_host(leitores()) == []` (o `LinkedIn` passa) e, com o molde (`MoldeLogado` de `tests/apoio/molde_leitor.py`), também `[]`.
   - `test_prefixo_so_de_caminho_reprova` (prova por mutação): uma cópia do leitor, `class SoCaminho(LinkedIn): prefixos_login = ("/login", "/checkpoint/")`, dá dois achados, cada um com `linkedin_logado` e o prefixo; a asserção é `len(achados) == 2`, não só "não vazio".
   - `test_prefixo_com_esquema_ou_host_de_outro_site_reprova`: `("https://www.linkedin.com/login",)` e `("www.outro.invalid/login",)` dão um achado cada; `("WWW.linkedin.com/login",)` (host em maiúsculas) também.
   - `test_ancora_da_guarda_de_prefixo_existe_no_guia`: a seção `#login` de `docs/site-novo.md` e de `docs/site-novo.en.md` existe e cita `prefixos_login` (a falta aponta para ela).
-- [ ] **Ver falhar:** `uv run pytest tests/unidade/test_site_novo.py -q -k prefixo`; o vermelho é a asserção (a função recebe um stub que devolve `[]` para a mutação não ser pega), não erro de import.
-- [ ] **Implementar** a função e a linha do guia nas duas línguas.
-- [ ] **Ver passar:** `uv run pytest tests/unidade/test_site_novo.py tests/unidade/test_documentos.py -q`, `uv run ruff check && uv run ruff format --check`.
+- [x] **Ver falhar:** `uv run pytest tests/unidade/test_site_novo.py -q -k prefixo`; o vermelho é a asserção (a função recebe um stub que devolve `[]` para a mutação não ser pega), não erro de import.
+- [x] **Implementar** a função e a linha do guia nas duas línguas.
+- [x] **Ver passar:** `uv run pytest tests/unidade/test_site_novo.py tests/unidade/test_documentos.py -q`, `uv run ruff check && uv run ruff format --check`.
 
 ### T304: testes de tela do progresso sem esperar a pergunta de 2 s
 `depende_de: T295`
@@ -169,10 +169,10 @@ O navegador casa `prefixos_login` com `host + caminho` da URL (`casa_login`, `sr
 - Cada teste instala `page.clock.install()` antes do `goto` (o tempo corre, para os timers do HTMX), muda o estado no banco e chama `page.clock.fast_forward(2000)` para disparar a pergunta (`hx-trigger="every 2s"`, agendada com `setTimeout`), como em `test_buscar_agora.py`. Uma função `_proxima_pergunta(page)` no arquivo, sem `timeout=` maior que o padrão do `expect`.
 - A transição CSS não obedece ao relógio da página: o teste espera o estado do DOM (atributo `aria-valuenow`, texto da região viva), nunca o fim da animação (lição `padroes-tela`). `test_largura_anda_entre_perguntas` mede a largura, que depende da transição: medir o alvo (`style`/valor final) com `prefers-reduced-motion` ligado ou esperar `transitionend` em vez de largura intermediária.
 
-- [ ] **Teste que falha:** em `tests/unidade/test_testes_sem_espera.py`, `test_tela_nao_espera_a_pergunta_do_progresso`: nenhuma chamada de `tests/tela/test_progresso.py` tem `timeout=` com valor numérico (a asserção lista `arquivo:linha`); falha hoje com as nove linhas acima.
-- [ ] **Ver falhar:** `uv run pytest tests/unidade/test_testes_sem_espera.py -q -k progresso`.
-- [ ] **Implementar** a troca nos cinco testes e nos ajudantes.
-- [ ] **Ver passar:** o teste acima e `uv run ruff check && uv run ruff format --check`; a tela roda no CI (`lote/<nome>`), com `--durations` antes e depois (a parte do `test_progresso.py` perde os 2 a 5 s por teste).
+- [x] **Teste que falha:** em `tests/unidade/test_testes_sem_espera.py`, `test_tela_nao_espera_a_pergunta_do_progresso`: nenhuma chamada de `tests/tela/test_progresso.py` tem `timeout=` com valor numérico (a asserção lista `arquivo:linha`); falha hoje com as nove linhas acima.
+- [x] **Ver falhar:** `uv run pytest tests/unidade/test_testes_sem_espera.py -q -k progresso`.
+- [x] **Implementar** a troca nos cinco testes e nos ajudantes.
+- [x] **Ver passar:** o teste acima e `uv run ruff check && uv run ruff format --check`; a tela roda no CI (`lote/<nome>`), com `--durations` antes e depois (a parte do `test_progresso.py` perde os 2 a 5 s por teste).
 
 ### T305: acertos baixos do visual
 `depende_de: T301, T264` · D157, D161
@@ -213,10 +213,10 @@ Dois buracos pequenos que a T295 deixou.
 - O guarda reconhece `time.sleep` e `asyncio.sleep` só pelo nome pontuado: `from time import sleep` e depois `sleep(5)` vira nome `sleep` e passa batido (idem `from asyncio import sleep` e `anyio.sleep`). Pegar também `sleep`, `anyio.sleep` e o apelido (`from time import sleep as dormir`: ler os `ImportFrom` do arquivo por AST e juntar os apelidos de `time.sleep`, `asyncio.sleep` e `anyio.sleep`).
 - A fixture `fuso_de_sao_paulo` do `test_eureca.py` (linha 33, `autouse=True`) tem o mesmo nome da de `tests/conftest.py:84` (sem `autouse`, com a mesma tarefa de `monkeypatch.setenv("TZ", ...)` e `time.tzset()`): uma sombreia a outra e quem ler o arquivo não sabe qual vale. Remover a local e marcar o módulo com `pytestmark = pytest.mark.usefixtures("fuso_de_sao_paulo")`, ou renomear a local (`fuso_do_eureca`); a escolha é a que mantém o teste do Eureca com o fuso fixo em todos os seus testes.
 
-- [ ] **Testes que falham** em `tests/unidade/test_testes_sem_espera.py`: `test_guarda_pega_sleep_importado` (um arquivo de tela sintético em `tmp_path` com `from time import sleep` e `sleep(5)`, passado à função de varredura, dá um achado `sleep`; a varredura vira função que recebe a lista de arquivos, para o teste real e o sintético usarem a mesma) e `test_guarda_pega_sleep_com_apelido`; `test_sem_fixture_sombra`: nenhum arquivo de `tests/unidade/coletores/` define fixture com o nome de uma fixture de `tests/conftest.py` (varredura por AST dos `FunctionDef` com `@pytest.fixture`).
-- [ ] **Ver falhar:** `uv run pytest tests/unidade/test_testes_sem_espera.py -q -k "sleep or sombra"`; o vermelho é a asserção (achado ausente, ou `fuso_de_sao_paulo` duplicada).
-- [ ] **Implementar** os dois ajustes.
-- [ ] **Ver passar:** `uv run pytest tests/unidade/test_testes_sem_espera.py tests/unidade/coletores/test_eureca.py -q` e `uv run ruff check && uv run ruff format --check`.
+- [x] **Testes que falham** em `tests/unidade/test_testes_sem_espera.py`: `test_guarda_pega_sleep_importado` (um arquivo de tela sintético em `tmp_path` com `from time import sleep` e `sleep(5)`, passado à função de varredura, dá um achado `sleep`; a varredura vira função que recebe a lista de arquivos, para o teste real e o sintético usarem a mesma) e `test_guarda_pega_sleep_com_apelido`; `test_sem_fixture_sombra`: nenhum arquivo de `tests/unidade/coletores/` define fixture com o nome de uma fixture de `tests/conftest.py` (varredura por AST dos `FunctionDef` com `@pytest.fixture`).
+- [x] **Ver falhar:** `uv run pytest tests/unidade/test_testes_sem_espera.py -q -k "sleep or sombra"`; o vermelho é a asserção (achado ausente, ou `fuso_de_sao_paulo` duplicada).
+- [x] **Implementar** os dois ajustes.
+- [x] **Ver passar:** `uv run pytest tests/unidade/test_testes_sem_espera.py tests/unidade/coletores/test_eureca.py -q` e `uv run ruff check && uv run ruff format --check`.
 
 ### T307: confirmação sem JavaScript para as ações que apagam
 `depende_de: T259, T261, T262` · D159, D163
@@ -311,4 +311,4 @@ Itens pequenos e independentes entre si.
 - [x] (e) a guarda de CSS de `test_css.py` para ícones só pega a assinatura exata: aceitar variações de espaço.
 - [x] (f) um comentário em `app.js` passa de 100 colunas: quebrar.
 - [x] **Ver falhar:** para cada item que muda código, o teste do item com a asserção dele; itens só de texto ou comentário conferem por `rtk grep` e anotam a conclusão aqui. Itens (a) e (f) são só texto: o grep confirmou um único chamador posicional de _contexto_pagina e nenhum comentário do app.js acima de 100 colunas.
-- [ ] **Ver passar:** os arquivos de teste mexidos e `uv run ruff check && uv run ruff format --check`; a tela roda no CI.
+- [x] **Ver passar:** os arquivos de teste mexidos e `uv run ruff check && uv run ruff format --check`; a tela roda no CI.

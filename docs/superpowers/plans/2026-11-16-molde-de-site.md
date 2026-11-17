@@ -77,13 +77,13 @@ O molde executável do "Molde do coletor": um coletor por termo, JSON, paginado,
 - `test_resolver_recusa`: `pytest.raises(ValueError)`.
 - `test_fixtures_do_molde_sem_problemas`: `capturar.problemas(PASTA) == []` (módulo `scripts/capturar.py` carregado como em `tests/unidade/test_fixtures.py:15-23`); `PASTA` é a segunda linha a mudar na cópia. Existe porque `test_fixtures.py:64` só percorre `descobrir()`.
 
-- [ ] **Esqueleto:** criar `molde_coletor.py` com as assinaturas, cada método devolvendo o valor oposto ao esperado: `escopos` devolve `[]`, `coletar` devolve `ResultadoEscopo((), "falhou", "esqueleto", 0)` sem fazer pedido, `detalhar` devolve o próprio `item` quando for `VagaColetada` (em vez de `None`), `resolver` devolve `{}` (em vez de levantar `ValueError`). As fixtures vão montadas à mão com o meta.
-- [ ] **Teste que falha antes:** escrever `test_molde_coletor.py` com os 12 testes.
-- [ ] **Ver falhar:** `uv run pytest tests/unidade/coletores/test_molde_coletor.py -q`. Vermelho esperado: todos falham numa asserção (`[] != ["dev", "dados"]`, estado `falhou` em vez de `ok`, zero pedidos em vez de um, `resolver` sem `ValueError`), menos os que nascem verdes contra o esqueleto: `test_cumpre_o_protocolo` e `test_fixtures_do_molde_sem_problemas`. Erro de import ou de coleta não vale.
-- [ ] **Prova por mutação dos que nascem verdes** (cópia local, sem commitar; `registros/padroes.md:27`, «Teste que nasce verde»): trocar o `chave` da classe `Molde` por outro texto reprova `test_cumpre_o_protocolo`; mudar um byte de `normal.json` sem refazer o `sha256` do meta reprova `test_fixtures_do_molde_sem_problemas`. Anotar no retorno; o `mypy` (que checa as assinaturas) roda no CI.
-- [ ] **Implementar** o molde, curto e comentado só onde o porquê não se vê; `shortcut:` no teto de páginas.
-- [ ] **Ver passar:** `uv run pytest tests/unidade/coletores/test_molde_coletor.py tests/unidade/test_fixtures.py -q` e `uv run ruff check && uv run ruff format --check`.
-- [ ] **Conferir que o molde não virou fonte:** `uv run pytest tests/unidade/test_estrutura.py tests/unidade/test_registro.py -q` sem mudança.
+- [x] **Esqueleto:** criar `molde_coletor.py` com as assinaturas, cada método devolvendo o valor oposto ao esperado: `escopos` devolve `[]`, `coletar` devolve `ResultadoEscopo((), "falhou", "esqueleto", 0)` sem fazer pedido, `detalhar` devolve o próprio `item` quando for `VagaColetada` (em vez de `None`), `resolver` devolve `{}` (em vez de levantar `ValueError`). As fixtures vão montadas à mão com o meta.
+- [x] **Teste que falha antes:** escrever `test_molde_coletor.py` com os 12 testes.
+- [x] **Ver falhar:** `uv run pytest tests/unidade/coletores/test_molde_coletor.py -q`. Vermelho esperado: todos falham numa asserção (`[] != ["dev", "dados"]`, estado `falhou` em vez de `ok`, zero pedidos em vez de um, `resolver` sem `ValueError`), menos os que nascem verdes contra o esqueleto: `test_cumpre_o_protocolo` e `test_fixtures_do_molde_sem_problemas`. Erro de import ou de coleta não vale.
+- [x] **Prova por mutação dos que nascem verdes** (cópia local, sem commitar; `registros/padroes.md:27`, «Teste que nasce verde»): trocar o `chave` da classe `Molde` por outro texto reprova `test_cumpre_o_protocolo`; mudar um byte de `normal.json` sem refazer o `sha256` do meta reprova `test_fixtures_do_molde_sem_problemas`. Anotar no retorno; o `mypy` (que checa as assinaturas) roda no CI.
+- [x] **Implementar** o molde, curto e comentado só onde o porquê não se vê; `shortcut:` no teto de páginas.
+- [x] **Ver passar:** `uv run pytest tests/unidade/coletores/test_molde_coletor.py tests/unidade/test_fixtures.py -q` e `uv run ruff check && uv run ruff format --check`.
+- [x] **Conferir que o molde não virou fonte:** `uv run pytest tests/unidade/test_estrutura.py tests/unidade/test_registro.py -q` sem mudança.
 
 ### T297: molde do leitor com login
 `depende_de: —` · M1, M3, M4
@@ -115,13 +115,13 @@ O molde executável do `LeitorComLogin`: lista em HTML, escopo por termo, próxi
 - `test_estado_com_o_molde`: as leituras do molde em `estado_do_escopo` dão `ok`, `parcial` com `saude.formato_mudou`, e `falhou` com `saude.formato_mudou`.
 - `test_fixtures_do_molde_sem_problemas`: `capturar.problemas(PASTA) == []` para `tests/fixtures/molde_logado`; `PASTA` é uma das linhas a mudar na cópia.
 
-- [ ] **Esqueleto:** criar `molde_leitor.py` com as assinaturas, cada método devolvendo o valor oposto ao esperado: `e_login`, `pagina_logada` e `pagina_bloqueada` devolvem `True`; `proxima` devolve a `URL_ENTRADA` (em vez de `None`); `detalhar` devolve a própria `vaga` (em vez de `None`); `escopos` devolve `()`; `ler` devolve `Leitura((), 0, True)`. Cada teste de sim/não traz os dois casos, então uma constante sempre reprova um deles. Criar as fixtures com o meta.
-- [ ] **Teste que falha antes:** escrever `test_leitor_molde.py` com os 18 testes.
-- [ ] **Ver falhar:** `uv run pytest tests/unidade/test_leitor_molde.py -q`. Vermelho esperado: falham numa asserção `test_ler_lista`, `test_ler_lista_vazia_e_valida`, `test_e_login_pela_url`, `test_proxima_da_lista`, `test_detalhar_sem_descricao_e_none` e os demais menos os que nascem verdes contra o esqueleto: `test_cumpre_o_protocolo`, `test_sem_lista_e_formato_mudou` e `test_fixtures_do_molde_sem_problemas`.
-- [ ] **Prova por mutação dos que nascem verdes** (cópia local, sem commitar; `registros/padroes.md:27`): com o leitor pronto, trocar `chave` por um texto sem `_logado` reprova `test_cumpre_o_protocolo`; fazer `ler` devolver `Leitura((), 0, False)` quando `_CARTAO` não existe reprova `test_sem_lista_e_formato_mudou`; mudar um byte de `lista.html` sem refazer o `sha256` reprova `test_fixtures_do_molde_sem_problemas`. Anotar no retorno.
-- [ ] **Implementar** o leitor com `selectolax`, puro, sem `playwright`.
-- [ ] **Ver passar:** `uv run pytest tests/unidade/test_leitor_molde.py tests/unidade/test_fixtures.py -q` e `uv run ruff check && uv run ruff format --check`.
-- [ ] **Conferir que o molde não entrou no registro:** `uv run pytest tests/unidade/test_leitores_estado.py -q` sem mudança.
+- [x] **Esqueleto:** criar `molde_leitor.py` com as assinaturas, cada método devolvendo o valor oposto ao esperado: `e_login`, `pagina_logada` e `pagina_bloqueada` devolvem `True`; `proxima` devolve a `URL_ENTRADA` (em vez de `None`); `detalhar` devolve a própria `vaga` (em vez de `None`); `escopos` devolve `()`; `ler` devolve `Leitura((), 0, True)`. Cada teste de sim/não traz os dois casos, então uma constante sempre reprova um deles. Criar as fixtures com o meta.
+- [x] **Teste que falha antes:** escrever `test_leitor_molde.py` com os 18 testes.
+- [x] **Ver falhar:** `uv run pytest tests/unidade/test_leitor_molde.py -q`. Vermelho esperado: falham numa asserção `test_ler_lista`, `test_ler_lista_vazia_e_valida`, `test_e_login_pela_url`, `test_proxima_da_lista`, `test_detalhar_sem_descricao_e_none` e os demais menos os que nascem verdes contra o esqueleto: `test_cumpre_o_protocolo`, `test_sem_lista_e_formato_mudou` e `test_fixtures_do_molde_sem_problemas`.
+- [x] **Prova por mutação dos que nascem verdes** (cópia local, sem commitar; `registros/padroes.md:27`): com o leitor pronto, trocar `chave` por um texto sem `_logado` reprova `test_cumpre_o_protocolo`; fazer `ler` devolver `Leitura((), 0, False)` quando `_CARTAO` não existe reprova `test_sem_lista_e_formato_mudou`; mudar um byte de `lista.html` sem refazer o `sha256` reprova `test_fixtures_do_molde_sem_problemas`. Anotar no retorno.
+- [x] **Implementar** o leitor com `selectolax`, puro, sem `playwright`.
+- [x] **Ver passar:** `uv run pytest tests/unidade/test_leitor_molde.py tests/unidade/test_fixtures.py -q` e `uv run ruff check && uv run ruff format --check`.
+- [x] **Conferir que o molde não entrou no registro:** `uv run pytest tests/unidade/test_leitores_estado.py -q` sem mudança.
 
 ### T298: guarda de site completo
 `depende_de: —` · M5, M6
@@ -145,13 +145,13 @@ A guarda no CI: todo coletor e todo leitor registrados têm teste próprio, o le
 - `test_faltas_acha_site_sem_nome_no_catalogo`: chave só no pt; a falta cita `en`.
 - `test_moldes_ficam_fora_do_registro`: `"molde_coletor" not in descobrir()` e `"molde_logado"` fora de `leitores()`.
 
-- [ ] **Esqueleto:** `faltas` devolvendo `[]`.
-- [ ] **Teste que falha antes:** os 6 testes.
-- [ ] **Ver falhar:** `uv run pytest tests/unidade/test_site_novo.py -q`. Vermelho esperado: os 4 `test_faltas_acha_*` falham em `[] == ...` / falta não achada. `test_todo_site_registrado_esta_completo` e `test_moldes_ficam_fora_do_registro` passam já no vermelho: são a guarda e o controle do registro, provados pelos 4 controles positivos (`registros/padroes.md` «Teste que nasce verde»).
-- [ ] **Implementar** `faltas`, lendo os catálogos com `json`.
-- [ ] **Ver passar:** `uv run pytest tests/unidade/test_site_novo.py -q` e `uv run ruff check && uv run ruff format --check`.
-- [ ] **Prova por mutação** (anotar no retorno, sem commitar): renomear `tests/unidade/coletores/test_remotive.py` e apagar `fonte.linkedin_logado` do `en/comum.json` numa cópia local; `test_todo_site_registrado_esta_completo` reprova com as duas faltas; desfazer.
-- [ ] Se `test_todo_site_registrado_esta_completo` achar falta real hoje (o desenho espera que não: as 28 fontes têm teste, o LinkedIn tem `test_leitor_linkedin.py`), conserto R1 da fixture ou do catálogo, citado no retorno; se o `sha256` dos exemplos do `linkedin_logado` estiver errado, corrigi-lo com `capturar.problemas` como manda «Fixtures».
+- [x] **Esqueleto:** `faltas` devolvendo `[]`.
+- [x] **Teste que falha antes:** os 6 testes.
+- [x] **Ver falhar:** `uv run pytest tests/unidade/test_site_novo.py -q`. Vermelho esperado: os 4 `test_faltas_acha_*` falham em `[] == ...` / falta não achada. `test_todo_site_registrado_esta_completo` e `test_moldes_ficam_fora_do_registro` passam já no vermelho: são a guarda e o controle do registro, provados pelos 4 controles positivos (`registros/padroes.md` «Teste que nasce verde»).
+- [x] **Implementar** `faltas`, lendo os catálogos com `json`.
+- [x] **Ver passar:** `uv run pytest tests/unidade/test_site_novo.py -q` e `uv run ruff check && uv run ruff format --check`.
+- [x] **Prova por mutação** (anotar no retorno, sem commitar): renomear `tests/unidade/coletores/test_remotive.py` e apagar `fonte.linkedin_logado` do `en/comum.json` numa cópia local; `test_todo_site_registrado_esta_completo` reprova com as duas faltas; desfazer.
+- [x] Se `test_todo_site_registrado_esta_completo` achar falta real hoje (o desenho espera que não: as 28 fontes têm teste, o LinkedIn tem `test_leitor_linkedin.py`), conserto R1 da fixture ou do catálogo, citado no retorno; se o `sha256` dos exemplos do `linkedin_logado` estiver errado, corrigi-lo com `capturar.problemas` como manda «Fixtures».
 
 ### T299: guia de site novo, nas duas línguas
 `depende_de: T296, T297, T298` · M8, M9, M10, M11, M12
@@ -185,11 +185,11 @@ O guia que leva quem contribui do "achei um site" ao PR, e as ligações para el
 - `test_guia_de_site_novo_liga_os_moldes` (novo): o guia pt e o en citam os dois moldes e a guarda.
 - `test_guia_de_conserto_e_o_contributing_dizem_a_mesma_fase` (novo): a fase citada para PR de código em `docs/consertar-fonte.md` e `.en.md` é a mesma do `CONTRIBUTING` (hoje: 8 contra 9, então falha).
 
-- [ ] **Teste que falha antes:** generalizar `test_guia_consertar_fonte.py` (dicionário de guias com `site-novo`) e escrever os dois testes novos.
-- [ ] **Ver falhar:** `uv run pytest tests/unidade/test_guia_consertar_fonte.py -q`. Vermelho esperado: `test_contributing_cita_o_guia[site-novo]` (o `CONTRIBUTING` não cita o guia novo) e `test_guia_de_conserto_e_o_contributing_dizem_a_mesma_fase` (8 != 9) falham numa asserção. Os testes `[site-novo]` que precisam do arquivo falham na asserção de existência, escrita como `assert caminho.exists()` antes de ler, não como erro de leitura.
-- [ ] **Escrever** os dois guias, no tom do guia de conserto: frases curtas, um passo por vez, sem citar a máquina do dono. Para passar em `problemas()` (`test_guia_consertar_fonte.py:65-72`): caminho entre crases sempre completo (`src/jobot/nucleo/dados/fontes.json`, `src/jobot/painel/i18n/en/comum.json`, nunca `fontes.json` nem `en/comum.json`); âncora só dentro de link (`[copiar](site-novo.md#copiar)`, nunca `docs/site-novo.md#copiar` entre crases); marcador sem espaço (`test_leitor_<site>.py`). Passo `capturar` e `ler`: o comando grava só a primeira página; a página 2 dos testes de paginação é montada no teste, a partir do `normal` capturado. Ligar do `CONTRIBUTING`, da wiki, do `fonte.yml` e do guia de conserto; trocar "fase 8" por "fase 9"; linha no CHANGELOG pt e en.
-- [ ] **Ver passar:** `uv run pytest tests/unidade/test_guia_consertar_fonte.py tests/unidade/test_documentos.py tests/unidade/test_wiki.py -q` e `uv run ruff check && uv run ruff format --check`.
-- [ ] **Ler o guia como quem chega:** seguir os passos de `copiar` contra os moldes reais (sem gravar nada) e conferir que cada lista fixa citada existe com o nome citado.
+- [x] **Teste que falha antes:** generalizar `test_guia_consertar_fonte.py` (dicionário de guias com `site-novo`) e escrever os dois testes novos.
+- [x] **Ver falhar:** `uv run pytest tests/unidade/test_guia_consertar_fonte.py -q`. Vermelho esperado: `test_contributing_cita_o_guia[site-novo]` (o `CONTRIBUTING` não cita o guia novo) e `test_guia_de_conserto_e_o_contributing_dizem_a_mesma_fase` (8 != 9) falham numa asserção. Os testes `[site-novo]` que precisam do arquivo falham na asserção de existência, escrita como `assert caminho.exists()` antes de ler, não como erro de leitura.
+- [x] **Escrever** os dois guias, no tom do guia de conserto: frases curtas, um passo por vez, sem citar a máquina do dono. Para passar em `problemas()` (`test_guia_consertar_fonte.py:65-72`): caminho entre crases sempre completo (`src/jobot/nucleo/dados/fontes.json`, `src/jobot/painel/i18n/en/comum.json`, nunca `fontes.json` nem `en/comum.json`); âncora só dentro de link (`[copiar](site-novo.md#copiar)`, nunca `docs/site-novo.md#copiar` entre crases); marcador sem espaço (`test_leitor_<site>.py`). Passo `capturar` e `ler`: o comando grava só a primeira página; a página 2 dos testes de paginação é montada no teste, a partir do `normal` capturado. Ligar do `CONTRIBUTING`, da wiki, do `fonte.yml` e do guia de conserto; trocar "fase 8" por "fase 9"; linha no CHANGELOG pt e en.
+- [x] **Ver passar:** `uv run pytest tests/unidade/test_guia_consertar_fonte.py tests/unidade/test_documentos.py tests/unidade/test_wiki.py -q` e `uv run ruff check && uv run ruff format --check`.
+- [x] **Ler o guia como quem chega:** seguir os passos de `copiar` contra os moldes reais (sem gravar nada) e conferir que cada lista fixa citada existe com o nome citado.
 
 ### T300: alinhar README e wiki sobre os sites com login
 `depende_de: —` · só documentos
@@ -204,9 +204,9 @@ Hoje o texto diz que Gupy (com login), Vagas.com, Catho e Indeed são sites com 
 
 **Testes:** nenhum teste prende essas linhas (conferido: `tests/unidade/test_documentos.py` só trava as frases de `CITA` e a de fontes ligadas, e `tests/unidade/test_wiki.py` só confere os pares pt e en da wiki). Rodar `uv run pytest tests/unidade/test_documentos.py tests/unidade/test_wiki.py -q` antes e depois, e `ruff`. Não há executor de teste para o texto novo: a verificação é `grep -rn "Gupy (com login)\|Gupy (with login)" README.md README.en.md wiki/` sem resultado e a leitura do diff pelo revisor.
 
-- [ ] **Rodar antes:** os dois testes acima, verdes.
-- [ ] **Editar** os oito arquivos nas duas línguas, sem apagar plano de fase.
-- [ ] **Rodar depois:** os mesmos testes e o `grep` acima.
+- [x] **Rodar antes:** os dois testes acima, verdes.
+- [x] **Editar** os oito arquivos nas duas línguas, sem apagar plano de fase.
+- [x] **Rodar depois:** os mesmos testes e o `grep` acima.
 
 ## Depois das tarefas
 

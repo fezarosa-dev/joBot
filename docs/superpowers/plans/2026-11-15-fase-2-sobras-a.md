@@ -73,10 +73,10 @@ Em cada onda as duas tarefas não dividem arquivo, fora o `duvidas.md`, que cada
 
 **Interfaces:** `Montagem` (`test_janela_parada.py:84-111`) ganha `fechamentos: list[datetime]`. O `lancar` da fixture `montagem` (`:114-146`) registra `contexto.on("close", lambda _: m.fechamentos.append(m.relogio.agora()))`. Não há código de produção.
 
-- [ ] **Teste que falha (mutante):** em `test_captcha_sem_2captcha_para_a_janela` (`:216`), troque `assert montagem.contextos[0].pages == []` (`:247`) por `assert len(montagem.fechamentos) == 1  # o contexto fechou no fim`. Faça o mesmo em `test_duas_abas_dividem_os_15_minutos` (`:341`). Em `test_cancelar_a_leitura_fecha_o_navegador` (`test_execucao_logada.py:686`), apague a linha 705 (`pages == []`): a 704 (`fechou.is_set()`) já prova o fechamento.
-- [ ] **Ver falhar com o mutante:** numa cópia, tire o `await contexto.close()` do `finally` de `executar_login` (`navegador/execucao.py:170-174`). `uv run pytest tests/navegador/test_janela_parada.py -q` reprova os dois testes, e com `pages == []` eles passavam.
-- [ ] **Implementar:** nada além do teste.
-- [ ] **Ver passar** sem o mutante, com `uv run pytest tests/navegador/test_janela_parada.py tests/navegador/test_execucao_logada.py -q`, e depois `uv run ruff check && uv run ruff format --check`.
+- [x] **Teste que falha (mutante):** em `test_captcha_sem_2captcha_para_a_janela` (`:216`), troque `assert montagem.contextos[0].pages == []` (`:247`) por `assert len(montagem.fechamentos) == 1  # o contexto fechou no fim`. Faça o mesmo em `test_duas_abas_dividem_os_15_minutos` (`:341`). Em `test_cancelar_a_leitura_fecha_o_navegador` (`test_execucao_logada.py:686`), apague a linha 705 (`pages == []`): a 704 (`fechou.is_set()`) já prova o fechamento.
+- [x] **Ver falhar com o mutante:** numa cópia, tire o `await contexto.close()` do `finally` de `executar_login` (`navegador/execucao.py:170-174`). `uv run pytest tests/navegador/test_janela_parada.py -q` reprova os dois testes, e com `pages == []` eles passavam.
+- [x] **Implementar:** nada além do teste.
+- [x] **Ver passar** sem o mutante, com `uv run pytest tests/navegador/test_janela_parada.py tests/navegador/test_execucao_logada.py -q`, e depois `uv run ruff check && uv run ruff format --check`.
 
 ### T223: estouro do `get_attribute` não passa como página limpa
 `depende_de: —` · D134 (tarefa nova 2), D135.1
@@ -87,12 +87,12 @@ Em cada onda as duas tarefas não dividem arquivo, fora o `duvidas.md`, que cada
 
 **Recarga aceita:** na olhada da janela, um estouro passageiro troca o widget da marca por `nao_aceito`, a parada conta como saída e o site lê a mesma página de novo uma vez (`_Site.ir`, `execucao.py:320-322`). Se o desafio continua, a página para de novo e volta à janela no mesmo prazo. Custa uma leitura a mais, não o prazo, e o `None` de antes fazia o mesmo. Fica assim.
 
-- [ ] **Teste que falha:** com uma página falsa (`locator(...).all()` devolve um alvo cujo `get_attribute` levanta `playwright.async_api.TimeoutError("estourou")`):
+- [x] **Teste que falha:** com uma página falsa (`locator(...).all()` devolve um alvo cujo `get_attribute` levanta `playwright.async_api.TimeoutError("estourou")`):
   - `test_estouro_ao_ler_atributo_vira_desafio_nao_aceito`: `assert await achar_widget(pagina) == Widget("nao_aceito", "", False, None, None)`.
   - `test_pagina_trocando_no_meio_continua_sem_widget` (guarda): o mesmo alvo levanta `ErroDoPlaywright("Execution context was destroyed")`, e `assert await achar_widget(pagina) is None`. O mutante que troca `EstouroDoPlaywright` por `ErroDoPlaywright` (ou por `Exception`) na nova cláusula precisa reprovar `test_pagina_trocando_no_meio_continua_sem_widget`.
-- [ ] **Ver falhar:** `uv run pytest tests/navegador/test_captcha_logado.py -q -k "estouro or trocando"`. O primeiro falha com `None == Widget(...)`.
-- [ ] **Implementar** a cláusula e atualizar a docstring: "`None` sem widget ou com a página trocando no meio; estouro de prazo é desafio não aceito".
-- [ ] **Ver passar:** `uv run pytest tests/navegador/test_captcha_logado.py -q`, depois o portão de ruff.
+- [x] **Ver falhar:** `uv run pytest tests/navegador/test_captcha_logado.py -q -k "estouro or trocando"`. O primeiro falha com `None == Widget(...)`.
+- [x] **Implementar** a cláusula e atualizar a docstring: "`None` sem widget ou com a página trocando no meio; estouro de prazo é desafio não aceito".
+- [x] **Ver passar:** `uv run pytest tests/navegador/test_captcha_logado.py -q`, depois o portão de ruff.
 
 ### T224: desafio no detalhe grava `saude.captcha`
 `depende_de: T222` · D134.27 (trocada), D135.2
@@ -103,13 +103,13 @@ Em cada onda as duas tarefas não dividem arquivo, fora o `duvidas.md`, que cada
 - No `_detalhar_site`, o ramo `if not isinstance(visita, Captura)` passa a fazer `desfecho = estado_do_escopo((), parada=visita, cortada=False, tres_ok_com_vagas=False)` e `site.saude(desfecho.estado, desfecho.motivo)` antes do `return`. É o mesmo par do `_ler_paginas`. O log continua. Vale para toda parada no detalhe (`precisa_login`, `bloqueio`, `captcha`, `no_limite`).
 - No site falso, a rota `/lista-desafio-na-vaga` devolve `_pagina("Vagas", _lista_html([77]))`, e a `/lista-bloqueio-na-vaga` devolve `_pagina("Vagas", _lista_html([78]))`. Os `case "/vaga/77"` e `case "/vaga/78"` vêm antes do genérico (`site_falso.py:500`): o 77 devolve o widget de `/recaptcha-v2` (`:413-415`) e o 78 devolve 403, como o `/403` (`:359-360`).
 
-- [ ] **Teste que falha:** `test_parada_no_detalhe_grava_a_saude_do_site`, parametrizado com `("/lista-desafio-na-vaga", ("falhou", "saude.captcha"), 1)` e `("/lista-bloqueio-na-vaga", ("falhou", "saude.bloqueio"), 0)` (caminho, saúde do site, avisos). Monte `captcha_ligado` `False` e `monkeypatch.setattr(limites, "JANELA_PARADA_S", 60)`. O leitor é `LeitorFixo(base=..., urls=(("python", caminho),), lista_tem_descricao=False)`.
+- [x] **Teste que falha:** `test_parada_no_detalhe_grava_a_saude_do_site`, parametrizado com `("/lista-desafio-na-vaga", ("falhou", "saude.captcha"), 1)` e `("/lista-bloqueio-na-vaga", ("falhou", "saude.bloqueio"), 0)` (caminho, saúde do site, avisos). Monte `captcha_ligado` `False` e `monkeypatch.setattr(limites, "JANELA_PARADA_S", 60)`. O leitor é `LeitorFixo(base=..., urls=(("python", caminho),), lista_tem_descricao=False)`.
   - `assert _saude(con, execucao_id) == {("falso_logado", "python"): ("ok", None), ("falso_logado", ""): saude}`
   - `assert len(montagem.avisos) == avisos` (o 403 não abre a janela parada)
   - `assert estado_da_fonte([estado for (fonte, _), (estado, _) in _saude(con, execucao_id).items() if fonte == "falso_logado"]) == "parcial"`, com `from jobot.nucleo.coletores.executor import estado_da_fonte` (`executor.py:134-143`). Vale nos dois casos: um escopo `ok` e a linha do site `falhou`. No caso do captcha, o motivo do site é `saude.captcha`, que a primeira asserção já prende, e é o que `motivo_mais_grave` (`painel/rotas/fontes.py:87-92`) mostra.
-- [ ] **Ver falhar:** `uv run pytest tests/navegador/test_janela_parada.py -q -k detalhe`. Hoje falta a chave `("falso_logado", "")` nos dois casos.
-- [ ] **Implementar** as duas linhas e a rota. Na D134, item 27, acrescente "(trocada pela T224, D135.2)".
-- [ ] **Ver passar:** `uv run pytest tests/navegador/test_janela_parada.py tests/navegador/test_detalhe_logado.py -q`, depois o portão de ruff.
+- [x] **Ver falhar:** `uv run pytest tests/navegador/test_janela_parada.py -q -k detalhe`. Hoje falta a chave `("falso_logado", "")` nos dois casos.
+- [x] **Implementar** as duas linhas e a rota. Na D134, item 27, acrescente "(trocada pela T224, D135.2)".
+- [x] **Ver passar:** `uv run pytest tests/navegador/test_janela_parada.py tests/navegador/test_detalhe_logado.py -q`, depois o portão de ruff.
 
 ### T225: fechar a aba parada encerra a espera dela
 `depende_de: T224, T228` · D134 (tarefa nova 4), D135.3
@@ -126,7 +126,7 @@ Em cada onda as duas tarefas não dividem arquivo, fora o `duvidas.md`, que cada
 - `ESPERA_FECHAR_S` já existe (`limites.py:22`) e não muda de valor. O comentário acima dele (`:20-21`) diz "só nesse caminho de erro" e passa a citar também a aba parada que fechou.
 - O `finally` de `_ler_site` já engole o `close` de uma aba fechada.
 
-- [ ] **Teste que falha:** `test_fechar_a_aba_parada_encerra_a_espera`, parametrizado com `"logo"` e `"depois"`. Monte `monkeypatch.setattr(limites, "JANELA_PARADA_S", 60)` e `monkeypatch.setattr(limites, "ESPERA_FECHAR_S", 0.05)` (como `test_execucao_logada.py:512`: aqui o navegador não fecha, e a espera iria ao fim). Um site parado em `/recaptcha-v2`, sem 2Captcha.
+- [x] **Teste que falha:** `test_fechar_a_aba_parada_encerra_a_espera`, parametrizado com `"logo"` e `"depois"`. Monte `monkeypatch.setattr(limites, "JANELA_PARADA_S", 60)` e `monkeypatch.setattr(limites, "ESPERA_FECHAR_S", 0.05)` (como `test_execucao_logada.py:512`: aqui o navegador não fecha, e a espera iria ao fim). Um site parado em `/recaptcha-v2`, sem 2Captcha.
   - `"logo"`: a pessoa fecha a aba enquanto o aviso aparece. A aba fecha de dentro do aviso falso, então a ordem é fixa e não depende de corrida.
     - Antes de `montagem.deps(...)`, pegue `loop = asyncio.get_running_loop()` e troque o aviso com `monkeypatch.setattr(montagem, "avisar", avisar_e_fechar)`. O `deps` lê `self.avisar` na hora (`test_janela_parada.py:107`), então pega o novo.
     - `avisar_e_fechar(titulo, frase)` grava em `montagem.avisos` como o `Montagem.avisar` e roda `asyncio.run_coroutine_threadsafe(fechar_aba(), loop).result()`. `fechar_aba` é `async def` e faz `await montagem.aba("/recaptcha-v2").close()` e depois `assert "/recaptcha-v2" in dict(montagem.fechadas)`.
@@ -137,17 +137,17 @@ Em cada onda as duas tarefas não dividem arquivo, fora o `duvidas.md`, que cada
   - `assert _saude(...) == {("falso_logado", "python"): ("falhou", "saude.captcha")}`
   - `assert con.execute("SELECT estado FROM execucao WHERE id = ?", (execucao_id,)).fetchone() == ("concluida",)`
   - **Mutante do caso `"logo"`:** numa cópia, em `_Janela.parar`, mova o `aba.on("close", ...)` para depois do `await asyncio.to_thread(self._avisar, ...)`. Rode `uv run pytest tests/navegador/test_janela_parada.py -q -k "fechar_a_aba_parada and logo"`. Tem de falhar em `assert sum(montagem.relogio.dormidas) <= limites.OLHAR_S`, com 60: o `close` chegou antes do ouvinte, e a espera vai ao prazo inteiro.
-- [ ] **Guarda:** `test_fechar_o_navegador_com_a_janela_parada_interrompe`. Hoje ele passa: a olhada acha o `fechado` e levanta `NavegadorFechado`. Só vale com o mutante abaixo, rodado numa cópia depois de implementar. É um nome novo, que não repete nenhum `def` do arquivo. Monte `captcha_ligado` `False`, `monkeypatch.setattr(limites, "JANELA_PARADA_S", 60)` e o mesmo truque do `resolvido`. O `ESPERA_FECHAR_S` fica no valor de produção, porque aqui o `close` do contexto chega. Um site parado em `/recaptcha-v2`.
+- [x] **Guarda:** `test_fechar_o_navegador_com_a_janela_parada_interrompe`. Hoje ele passa: a olhada acha o `fechado` e levanta `NavegadorFechado`. Só vale com o mutante abaixo, rodado numa cópia depois de implementar. É um nome novo, que não repete nenhum `def` do arquivo. Monte `captcha_ligado` `False`, `monkeypatch.setattr(limites, "JANELA_PARADA_S", 60)` e o mesmo truque do `resolvido`. O `ESPERA_FECHAR_S` fica no valor de produção, porque aqui o `close` do contexto chega. Um site parado em `/recaptcha-v2`.
   - Depois do aviso, `await montagem.aba("/recaptcha-v2").close()` (o navegador fecha as abas antes de fechar a si). Em seguida `resolvido.set()` e logo `await montagem.contextos[0].close()`, sem outro `await` entre os dois. A olhada acorda com a aba fechada e o contexto ainda fechando.
   - `assert con.execute("SELECT estado, parada FROM execucao WHERE id = ?", (execucao_id,)).fetchone() == ("interrompida", "fechado")`
   - Mutante: no caminho da aba fechada, tire a espera pelo `fechado` e o `raise`, e siga direto com `_seguir(parada, False)`. Rode `uv run pytest tests/navegador/test_janela_parada.py -q -k fechar_o_navegador`. Tem de falhar na asserção do estado, com `("concluida", None)`, porque o `executar_login` não olha o `fechado` depois do `esperar`.
   - Lacuna: com o navegador de verdade, a janela estreita (o `close` da aba entregue numa olhada e o do contexto só depois) não se força de jeito determinístico. Este teste cobre o caso em que o contexto ainda está fechando quando a olhada acorda, e o código segue o mesmo molde do `_fechou`.
-- [ ] **Guarda:** `test_fechar_uma_aba_nao_encerra_a_espera_da_outra`. Monte `captcha_ligado` `False` e `monkeypatch.setattr(limites, "JANELA_PARADA_S", 60)`. Dois sites parados em caminhos diferentes com widget aceito, `/recaptcha-v2` e `/turnstile`, para `montagem.aba(caminho)` achar abas distintas; a pessoa fecha só a de `/recaptcha-v2`.
+- [x] **Guarda:** `test_fechar_uma_aba_nao_encerra_a_espera_da_outra`. Monte `captcha_ligado` `False` e `monkeypatch.setattr(limites, "JANELA_PARADA_S", 60)`. Dois sites parados em caminhos diferentes com widget aceito, `/recaptcha-v2` e `/turnstile`, para `montagem.aba(caminho)` achar abas distintas; a pessoa fecha só a de `/recaptcha-v2`.
   - `sum(dormidas) == 60` e as duas saúdes ficam `captcha`.
   - O mutante que, quando uma aba fecha, segue todas as paradas com `False` precisa reprovar.
-- [ ] **Ver falhar:** `uv run pytest tests/navegador/test_janela_parada.py -q -k fechar`.
-- [ ] **Implementar.** Na D132, item 6 de "Para confirmar", acrescente "(complementada pela T225, D135.3)". No desenho, no item "Janela parada (D132.26)", acrescente: "Aba parada que a pessoa fecha encerra a espera daquele site: ele fica com `captcha` na hora, e as outras abas seguem no mesmo prazo."
-- [ ] **Ver passar:** `uv run pytest tests/navegador/test_janela_parada.py -q`, depois o portão de ruff.
+- [x] **Ver falhar:** `uv run pytest tests/navegador/test_janela_parada.py -q -k fechar`.
+- [x] **Implementar.** Na D132, item 6 de "Para confirmar", acrescente "(complementada pela T225, D135.3)". No desenho, no item "Janela parada (D132.26)", acrescente: "Aba parada que a pessoa fecha encerra a espera daquele site: ele fica com `captcha` na hora, e as outras abas seguem no mesmo prazo."
+- [x] **Ver passar:** `uv run pytest tests/navegador/test_janela_parada.py -q`, depois o portão de ruff.
 
 ### T226: `PRAZO_COFRE_S` num lugar só e a chave lida uma vez por execução
 `depende_de: T223, T225` · D134.36 (trocada), D135.4, D135.5
@@ -169,8 +169,8 @@ Em cada onda as duas tarefas não dividem arquivo, fora o `duvidas.md`, que cada
 - `executar_login` cria `chave = ChaveDoCofre(deps.cofre)` uma vez e a passa ao `_ler_site`, que monta a `Cola`. `Dependencias.cofre` não muda.
 - O helper `_cola` de `test_captcha_logado.py:134-137` passa a usar `chave=ChaveDoCofre(cofre)`.
 
-- [ ] **Stub:** em `captcha.py`, `ChaveDoCofre.ler` com o comportamento de hoje, sem guardar nada: `asyncio.timeout(limites.PRAZO_COFRE_S)` sobre `asyncio.to_thread(cofre.ler, NOME_NO_COFRE)`, com o log no estouro, a cada chamada. `Cola` e `resolver_na_pagina` já aceitam `chave=` no lugar de `cofre=`, e o `executar_login` já cria a `ChaveDoCofre`. É o que deixa a coleta de `test_captcha_logado.py` passar (o helper `_cola` e o import de `ChaveDoCofre` a derrubariam) e faz o vermelho cair na asserção de leituras. O stub precisa do `asyncio.timeout`: sem ele, a thread presa no cofre travado nunca solta e o `finally` com `trava.set()` não chega a rodar.
-- [ ] **Teste que falha:**
+- [x] **Stub:** em `captcha.py`, `ChaveDoCofre.ler` com o comportamento de hoje, sem guardar nada: `asyncio.timeout(limites.PRAZO_COFRE_S)` sobre `asyncio.to_thread(cofre.ler, NOME_NO_COFRE)`, com o log no estouro, a cada chamada. `Cola` e `resolver_na_pagina` já aceitam `chave=` no lugar de `cofre=`, e o `executar_login` já cria a `ChaveDoCofre`. É o que deixa a coleta de `test_captcha_logado.py` passar (o helper `_cola` e o import de `ChaveDoCofre` a derrubariam) e faz o vermelho cair na asserção de leituras. O stub precisa do `asyncio.timeout`: sem ele, a thread presa no cofre travado nunca solta e o `finally` com `trava.set()` não chega a rodar.
+- [x] **Teste que falha:**
   - `test_prazo_do_cofre_definido_uma_vez` em `test_captcha_logado.py`. É o mesmo laço AST de `test_nome_no_cofre_definido_uma_vez` (`:574`): `assert achados == [("jobot/navegador/limites.py", "PRAZO_COFRE_S")]`. Hoje acha também `servicos.py`.
   - `test_chave_lida_do_cofre_uma_vez_por_execucao` em `test_janela_parada.py`. Use dois `LeitorFixo` (`falso_logado`, `outro_logado`) em `/recaptcha-passa`. O contador de leituras se define no próprio `test_janela_parada.py`, no molde da classe local `CofreContado` de `test_captcha_logado.py:551` ou do `_CofreContado` de `test_rota_servicos.py:342`; a de `test_captcha_logado.py` mora dentro de um teste e não se importa.
     - `assert lidos == [NOME_NO_COFRE]`. Com o stub dá `[NOME_NO_COFRE, NOME_NO_COFRE]`.
@@ -183,9 +183,9 @@ Em cada onda as duas tarefas não dividem arquivo, fora o `duvidas.md`, que cada
     - `chave = ChaveDoCofre(cofre)` e `a, b = await asyncio.gather(chave.ler(), chave.ler())`.
     - `assert lidos == [NOME_NO_COFRE]`, `assert a == b` e `assert maximo == 1`. Com o stub dá duas leituras.
     - Mutante: numa cópia, tire o `async with` do `asyncio.Lock` em `ChaveDoCofre.ler` e mantenha o guardado. As duas chamadas passam pela checagem do guardado antes de qualquer `to_thread` voltar, e o cofre é lido duas vezes. Rode `uv run pytest tests/navegador/test_captcha_logado.py -q -k ao_mesmo_tempo`. Tem de falhar em `assert lidos == [NOME_NO_COFRE]`. Essa é a asserção que mata o mutante. A do `maximo` fica junto, mas sozinha não é determinística, porque as duas threads podem não se sobrepor.
-- [ ] **Ver falhar:** `uv run pytest tests/navegador/test_janela_parada.py tests/navegador/test_captcha_logado.py -q -k "cofre"`. O AST falha porque `servicos.py` ainda define o nome; os dois de execução e o das duas leituras ao mesmo tempo falham na asserção de leituras.
-- [ ] **Implementar.** Na D134, item 36, acrescente "(trocada pela T226, D135.4 e D135.5)".
-- [ ] **Ver passar:** `uv run pytest tests/navegador/test_captcha_logado.py tests/navegador/test_janela_parada.py tests/integracao/test_rota_servicos.py -q`, depois o portão de ruff.
+- [x] **Ver falhar:** `uv run pytest tests/navegador/test_janela_parada.py tests/navegador/test_captcha_logado.py -q -k "cofre"`. O AST falha porque `servicos.py` ainda define o nome; os dois de execução e o das duas leituras ao mesmo tempo falham na asserção de leituras.
+- [x] **Implementar.** Na D134, item 36, acrescente "(trocada pela T226, D135.4 e D135.5)".
+- [x] **Ver passar:** `uv run pytest tests/navegador/test_captcha_logado.py tests/navegador/test_janela_parada.py tests/integracao/test_rota_servicos.py -q`, depois o portão de ruff.
 
 ### T227: `serve` diz que a captura está no ar
 `depende_de: —` · D134.31 (trocada), D135.6
@@ -196,13 +196,13 @@ Em cada onda as duas tarefas não dividem arquivo, fora o `duvidas.md`, que cada
 `print(AVISO_CAPTURA if captura_em_andamento(dados) else "O joBot já está aberto.", file=sys.stderr)`.
 Os dois nomes vêm de `jobot.sistema.instancia` (`:97-106`), como em `sistema/abrir.py:110`.
 
-- [ ] **Teste que falha:** `test_serve_com_captura_no_ar_diz_qual_e`. É o mesmo arranjo de `test_serve_com_outro_jobot_aberto_avisa_e_sai_com_1` (`test_servir.py:514`), mas com `Trava(isolado, 0)`, que é o que o `capturar_logado.py:408` prende.
+- [x] **Teste que falha:** `test_serve_com_captura_no_ar_diz_qual_e`. É o mesmo arranjo de `test_serve_com_outro_jobot_aberto_avisa_e_sai_com_1` (`test_servir.py:514`), mas com `Trava(isolado, 0)`, que é o que o `capturar_logado.py:408` prende.
   - `assert servir.executar(...) == 1`
   - `assert AVISO_CAPTURA in capsys.readouterr().err`
   - O teste antigo segue como controle.
-- [ ] **Ver falhar:** `uv run pytest tests/integracao/test_servir.py -q -k captura`.
-- [ ] **Implementar.** Na D134, item 31, acrescente "(feita na T227, D135.6)".
-- [ ] **Ver passar:** `uv run pytest tests/integracao/test_servir.py -q`, depois o portão de ruff.
+- [x] **Ver falhar:** `uv run pytest tests/integracao/test_servir.py -q -k captura`.
+- [x] **Implementar.** Na D134, item 31, acrescente "(feita na T227, D135.6)".
+- [x] **Ver passar:** `uv run pytest tests/integracao/test_servir.py -q`, depois o portão de ruff.
 
 ### T228: limites da página em `limites.py`
 `depende_de: —` · D134.21 (trocada), D135.7
@@ -217,14 +217,14 @@ Os dois nomes vêm de `jobot.sistema.instancia` (`:97-106`), como em `sistema/ab
 - `pagina.py` perde as linhas 30 e 31 e o `ESPERAS_LIMITE` do import (`:23`). Ela passa a ler `limites.ESPERA_ASSENTAR_MS` (`:148`), `limites.PASSOS_DEPOIS_DE_ROLAR` (`:157`) e `limites.ESPERA_429_S` (`:288`). O comentário `shortcut:` da linha 31 vai junto para `limites`.
 - `capturar_logado.py:54` e `:290` passam a ler `limites.ESPERA_ASSENTAR_MS`.
 
-- [ ] **Stub:** crie em `limites.py` os três nomes (`ESPERA_ASSENTAR_MS = 10_000`, `PASSOS_DEPOIS_DE_ROLAR = 5`, `ESPERA_429_S = ESPERAS_LIMITE[0]`), com `pagina.py` e o script ainda lendo as constantes velhas. Sem isso, o `monkeypatch.setattr(limites, ...)` dos testes levanta `AttributeError`, que não é vermelho.
-- [ ] **Teste que falha:**
+- [x] **Stub:** crie em `limites.py` os três nomes (`ESPERA_ASSENTAR_MS = 10_000`, `PASSOS_DEPOIS_DE_ROLAR = 5`, `ESPERA_429_S = ESPERAS_LIMITE[0]`), com `pagina.py` e o script ainda lendo as constantes velhas. Sem isso, o `monkeypatch.setattr(limites, ...)` dos testes levanta `AttributeError`, que não é vermelho.
+- [x] **Teste que falha:**
   - `test_limites_da_pagina_moram_em_limites` (AST, em `test_navegador_abrir.py`). Em `src/jobot/navegador/*.py` e `scripts/capturar_logado.py`, nenhum `ast.Name` ou alias de import chamado `ESPERA_ASSENTAR_MS`, `_PASSOS_DEPOIS_DE_ROLAR`, `PASSOS_DEPOIS_DE_ROLAR`, `ESPERA_429_S` ou `ESPERAS_LIMITE` fora de `limites.py`. Hoje acha `pagina.py`, que ainda define os nomes.
   - `test_429_sem_retry_after_espera_o_padrao` (`test_navegacao_logada.py:325-334`) com `monkeypatch.setattr(limites, "ESPERA_429_S", 11.0)` e `assert relogio.dormidas == [11.0]`. Com o stub dá `[30.0] != [11.0]`. O import de `ESPERAS_LIMITE` (`:14`) sai.
   - `test_passos_depois_de_rolar_vem_de_limites`, em `tests/navegador/test_navegacao_logada.py`: `monkeypatch.setattr(limites, "PASSOS_DEPOIS_DE_ROLAR", 2)` e `visitar(page, site.url("/lista-html"), LeitorFalso.para(site, rolar=True), politica_local, relogio)`. A rota `/lista-html` já existe (`tests/apoio/site_falso.py:314-315`): é HTML estático, sem `fetch`, então não pede nada ao rolar. Nenhuma rota nova. Meça antes, com o valor 5, quantas dormidas de 1 s a mesma página dá, e prenda `relogio.dormidas.count(1) == 2`. Com o stub dá 5.
-- [ ] **Ver falhar:** `uv run pytest tests/unidade/test_navegador_abrir.py tests/navegador/test_navegacao_logada.py -q -k "limites or 429 or passos"`. Os três falham em asserção.
-- [ ] **Implementar.** Na D134, item 21, acrescente "(feita na T228, D135.7)".
-- [ ] **Ver passar:** os mesmos dois arquivos inteiros, depois o portão de ruff e `MYPYPATH=src uv run mypy scripts/capturar_logado.py`.
+- [x] **Ver falhar:** `uv run pytest tests/unidade/test_navegador_abrir.py tests/navegador/test_navegacao_logada.py -q -k "limites or 429 or passos"`. Os três falham em asserção.
+- [x] **Implementar.** Na D134, item 21, acrescente "(feita na T228, D135.7)".
+- [x] **Ver passar:** os mesmos dois arquivos inteiros, depois o portão de ruff e `MYPYPATH=src uv run mypy scripts/capturar_logado.py`.
 
 ### T229: aviso no idioma da pessoa
 `depende_de: T225, T226` · D134.37 (trocada), D135.8
@@ -237,13 +237,13 @@ Os dois nomes vêm de `jobot.sistema.instancia` (`:97-106`), como em `sistema/ab
 - `_Janela.__init__(relogio, avisar, fechado, idioma)`. O `executar_login` passa `_idioma(con)` ao criar a `_Janela`, e o `_Janela.parar` usa `_FRASES_AVISO[self._idioma]`.
 - `Dependencias` não muda, para não mexer nas cinco montagens (`registros/padroes.md` («Teste de navegador»)).
 
-- [ ] **Teste que falha:** `test_aviso_sai_no_idioma_da_pessoa`, parametrizado com `(None, "Um site com login parou")`, `("en", "A site with login stopped")` e `("xx", "Um site com login parou")`. Grave `idioma` quando não for `None`, com uma parada em `/recaptcha-v2` sem 2Captcha e `monkeypatch.setattr(limites, "JANELA_PARADA_S", 60)`.
+- [x] **Teste que falha:** `test_aviso_sai_no_idioma_da_pessoa`, parametrizado com `(None, "Um site com login parou")`, `("en", "A site with login stopped")` e `("xx", "Um site com login parou")`. Grave `idioma` quando não for `None`, com uma parada em `/recaptcha-v2` sem 2Captcha e `monkeypatch.setattr(limites, "JANELA_PARADA_S", 60)`.
   - `assert montagem.avisos[0][1].startswith(esperado)`
   - `assert _sem_endereco(montagem.avisos)`
   - O caso `en` falha hoje.
-- [ ] **Ver falhar:** `uv run pytest tests/navegador/test_janela_parada.py -q -k idioma`.
-- [ ] **Implementar.** Na D134, item 37 e item 1 de "Para confirmar", acrescente "(trocada pela T229, D135.8)".
-- [ ] **Ver passar:** `uv run pytest tests/navegador/test_janela_parada.py -q`, depois o portão de ruff.
+- [x] **Ver falhar:** `uv run pytest tests/navegador/test_janela_parada.py -q -k idioma`.
+- [x] **Implementar.** Na D134, item 37 e item 1 de "Para confirmar", acrescente "(trocada pela T229, D135.8)".
+- [x] **Ver passar:** `uv run pytest tests/navegador/test_janela_parada.py -q`, depois o portão de ruff.
 
 ### T230: contexto sem downloads e sem service workers
 `depende_de: T228` · D134.48 (parte), D135.9
@@ -255,10 +255,10 @@ Os dois nomes vêm de `jobot.sistema.instancia` (`:97-106`), como em `sistema/ab
 - `"block"` impede o registro de service workers. Com isso a resposta vem da rede e continua disparando o evento `response` (o `Response.from_service_worker` só existe para a que o service worker atende).
 - Como o `contexto_de_teste` do site falso (`tests/apoio/site_falso.py:614-636`) e o da janela também passam por `abrir_contexto`, a bateria de navegação inteira prova que `ouvir_respostas` segue lendo.
 
-- [ ] **Teste que falha:** `test_contexto_sem_downloads_nem_service_workers`. Com `_Lancador(falham=(1,))` (`test_navegador_abrir.py:24-36`), as duas chamadas trazem `accept_downloads is False` e `service_workers == "block"`. Hoje `get` dá `None`.
-- [ ] **Ver falhar:** `uv run pytest tests/unidade/test_navegador_abrir.py -q -k downloads`.
-- [ ] **Implementar.** Na D134, item 48, acrescente "(downloads e service workers: T230, D135.9)".
-- [ ] **Ver passar:** `uv run pytest tests/unidade/test_navegador_abrir.py -q`, depois o portão de ruff. O `tests/navegador/test_navegacao_logada.py` é `tela` e não roda aqui: roda no CI da branch `lote/<nome>`, com a bateria de navegação inteira, e é ele que prova que as respostas seguem lidas com as duas opções.
+- [x] **Teste que falha:** `test_contexto_sem_downloads_nem_service_workers`. Com `_Lancador(falham=(1,))` (`test_navegador_abrir.py:24-36`), as duas chamadas trazem `accept_downloads is False` e `service_workers == "block"`. Hoje `get` dá `None`.
+- [x] **Ver falhar:** `uv run pytest tests/unidade/test_navegador_abrir.py -q -k downloads`.
+- [x] **Implementar.** Na D134, item 48, acrescente "(downloads e service workers: T230, D135.9)".
+- [x] **Ver passar:** `uv run pytest tests/unidade/test_navegador_abrir.py -q`, depois o portão de ruff. O `tests/navegador/test_navegacao_logada.py` é `tela` e não roda aqui: roda no CI da branch `lote/<nome>`, com a bateria de navegação inteira, e é ele que prova que as respostas seguem lidas com as duas opções.
 
 ### T231: só o ambiente que o navegador precisa
 `depende_de: T230` · D134.48 (parte), D135.10
@@ -270,14 +270,14 @@ Os dois nomes vêm de `jobot.sistema.instancia` (`:97-106`), como em `sistema/ab
 - `lancador_de_producao` (`:50-58`) passa `env={**{n: os.environ[n] for n in VARIAVEIS_DO_NAVEGADOR if n in os.environ}, **ambiente}`. As quatro variáveis da tela vêm só do `ambiente`, que `ambiente_da_tela` validou (`sistema/tela.py:13`, `:36`).
 - A docstring deixa de dizer "troca o ambiente inteiro" e passa a dizer o que vai.
 
-- [ ] **Teste que falha:** `test_lancador_de_producao_passa_so_o_ambiente_do_navegador`. Esvazie o ambiente com `monkeypatch.delenv(chave, raising=False)` sobre uma lista literal no teste: os quinze nomes da lista, os quatro da tela e `SEGREDO_DO_TESTE`. Não itere `abrir.VARIAVEIS_DO_NAVEGADOR`: hoje o nome não existe e o vermelho viraria `AttributeError`. Defina `HOME`, `PATH`, `LANG`, `SEGREDO_DO_TESTE=x` e `DISPLAY=:99`. O `ambiente` é `{"DISPLAY": ":7"}`.
+- [x] **Teste que falha:** `test_lancador_de_producao_passa_so_o_ambiente_do_navegador`. Esvazie o ambiente com `monkeypatch.delenv(chave, raising=False)` sobre uma lista literal no teste: os quinze nomes da lista, os quatro da tela e `SEGREDO_DO_TESTE`. Não itere `abrir.VARIAVEIS_DO_NAVEGADOR`: hoje o nome não existe e o vermelho viraria `AttributeError`. Defina `HOME`, `PATH`, `LANG`, `SEGREDO_DO_TESTE=x` e `DISPLAY=:99`. O `ambiente` é `{"DISPLAY": ":7"}`.
   - `assert "SEGREDO_DO_TESTE" not in env`. É esta asserção que falha hoje.
   - `assert env == {"HOME": ..., "PATH": ..., "LANG": ..., "DISPLAY": ":7"}`
   - `test_lancador_de_producao_mantem_home_e_path` (`:76`) segue como controle.
-- [ ] **Ver falhar:** `uv run pytest tests/unidade/test_navegador_abrir.py -q -k ambiente`.
-- [ ] **Implementar.** Na D134, item 48, acrescente "(ambiente do `serve`: T231, D135.10)".
-- [ ] **Ver passar:** `uv run pytest tests/unidade/test_navegador_abrir.py -q`, depois o portão de ruff.
-- [ ] **Verificação manual:** os testes usam lançador falso, então nada prova que o navegador abre com o `env` restrito. Quem faz é o dono, ou a sessão principal na máquina do dono, com tela; o agente da tarefa e o CI não fazem. Sem tela (o `ambiente_da_tela` volta vazio), não tente: registre na D135, em "Para confirmar com o dono", "verificação manual da T231 não conferida", e a tarefa fecha com os testes. Com tela, abra um Chromium do Playwright com `headless=False` pelo `lancador_de_producao` (com o `ambiente_da_tela` de verdade), carregue uma página e feche. Se houver Chrome instalado, repita com `channel="chrome"`. Registre no resumo da tarefa o comando, o navegador e o resultado. Se não abrir, a variável que faltou entra na lista e o caso vai à D135.10.
+- [x] **Ver falhar:** `uv run pytest tests/unidade/test_navegador_abrir.py -q -k ambiente`.
+- [x] **Implementar.** Na D134, item 48, acrescente "(ambiente do `serve`: T231, D135.10)".
+- [x] **Ver passar:** `uv run pytest tests/unidade/test_navegador_abrir.py -q`, depois o portão de ruff.
+- [x] **Verificação manual:** os testes usam lançador falso, então nada prova que o navegador abre com o `env` restrito. Quem faz é o dono, ou a sessão principal na máquina do dono, com tela; o agente da tarefa e o CI não fazem. Sem tela (o `ambiente_da_tela` volta vazio), não tente: registre na D135, em "Para confirmar com o dono", "verificação manual da T231 não conferida", e a tarefa fecha com os testes. Com tela, abra um Chromium do Playwright com `headless=False` pelo `lancador_de_producao` (com o `ambiente_da_tela` de verdade), carregue uma página e feche. Se houver Chrome instalado, repita com `channel="chrome"`. Registre no resumo da tarefa o comando, o navegador e o resultado. Se não abrir, a variável que faltou entra na lista e o caso vai à D135.10.
 
 ## Fora deste plano
 
