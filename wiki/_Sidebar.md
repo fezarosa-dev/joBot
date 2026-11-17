@@ -1,6 +1,7 @@
 ### 🇧🇷 Português
 
 - 🏠 [Início](Home)
+- 📦 [Instalar](Instalar)
 - 💡 [A ideia e a história](A-ideia-e-a-historia)
 - ⚙️ [Como funciona](Como-funciona)
 - 🏗️ [Arquitetura](Arquitetura)
@@ -16,6 +17,7 @@
 ### 🌎 English
 
 - 🏠 [Home](Home-en)
+- 📦 [Install](Install)
 - 💡 [The idea and the story](The-idea-and-the-story)
 - ⚙️ [How it works](How-it-works)
 - 🏗️ [Architecture](Architecture)
