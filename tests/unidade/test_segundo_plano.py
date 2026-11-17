@@ -300,6 +300,8 @@ def test_rodar_comando_real_usa_lista_de_argumentos() -> None:
 
 def _rodar_com(monkeypatch: pytest.MonkeyPatch, rodar: Sistema) -> None:
     monkeypatch.setattr(sp, "rodar_comando", rodar)
+    # a linha de comando escolhe o sistema pelo sys.platform (T337): estes testes são do systemd
+    monkeypatch.setattr(sys, "platform", "linux")
 
 
 def test_executar_status_e_ligar(
