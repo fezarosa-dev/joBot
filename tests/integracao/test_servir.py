@@ -193,7 +193,7 @@ def test_laco_da_agenda_sobe_com_o_app(dados: Path, monkeypatch: pytest.MonkeyPa
     motivos: list[str] = []
 
     async def busca_falsa(
-        con: sqlite3.Connection, cliente: ClienteEducado, relogio: Relogio, motivo: str
+        con: sqlite3.Connection, cliente: ClienteEducado, relogio: Relogio, motivo: str, **_: object
     ) -> None:
         assert isinstance(cliente, ClienteEducado)
         motivos.append(motivo)
