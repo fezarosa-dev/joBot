@@ -1,8 +1,11 @@
-"""Encaixe por regras e ocultação (desenho 11.2 e 11.3). Puro: dinheiro chega em reais inteiros."""
+"""Encaixe por regras e ocultação (desenho 11.2 e 11.3; habilidades: desenho 5.5 da fase 4).
+
+Puro: dinheiro chega em reais inteiros.
+"""
 
 import json
 import re
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from functools import cache
 from pathlib import Path
 from typing import Any, Literal
@@ -17,7 +20,7 @@ from jobot.nucleo.modelo import (
     Nivel,
     VagaTratada,
 )
-from jobot.nucleo.texto import normalizar
+from jobot.nucleo.texto import normalizar, sem_pontas
 
 # critério preenchido: (pontos obtidos, peso do critério, motivo)
 _Parte = tuple[int, int, Motivo]
@@ -189,6 +192,48 @@ def _faixa(nota: int) -> Literal["bom", "medio", "fraco"]:
     )
 
 
+def _forma(nome: str) -> str:
+    return normalizar(sem_pontas(nome))
+
+
+def casar(pede: Sequence[str], perfil: Sequence[str]) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """`tem` e `faltam` do que a vaga pede (desenho 5.5): igual, normalizado, a uma habilidade do
+    perfil. Sem repetidos nem vazios, na ordem do `pede`; nenhum item fica nos dois."""
+    meu = {_forma(h) for h in perfil}
+    vistos: set[str] = set()
+    tem: list[str] = []
+    faltam: list[str] = []
+    for item in pede:
+        forma = _forma(item)
+        if forma and forma not in vistos:
+            vistos.add(forma)
+            (tem if forma in meu else faltam).append(sem_pontas(item))
+    return tuple(tem), tuple(faltam)
+
+
+def _lista(nomes: Sequence[str]) -> str:
+    """Até 5 nomes para o motivo; o detalhe mostra a lista inteira."""
+    return ", ".join([*nomes[:5], "…"] if len(nomes) > 5 else nomes)
+
+
+def _habilidades(
+    pede: Sequence[str], perfil: Sequence[str]
+) -> tuple[int, int, tuple[Motivo, ...]] | None:
+    """Pontos = peso × tem/pede, metade sobe. Sem o que a vaga pede: `None`, neutro."""
+    tem, faltam = casar(pede, perfil)
+    total = len(tem) + len(faltam)
+    if not total:
+        return None
+    peso: int = _dados()["pesos"]["habilidades"]
+    casados = min(len(tem), total)  # a razão fica entre 0 e 1
+    motivos = tuple(
+        Motivo(chave=f"encaixe.habilidades_{nome}", params={"lista": _lista(itens)})
+        for nome, itens in (("tem", tem), ("faltam", faltam))
+        if itens
+    )
+    return (2 * peso * casados + total) // (2 * total), peso, motivos
+
+
 def calcular(
     v: VagaTratada,
     b: Busca,
@@ -197,11 +242,15 @@ def calcular(
     minimo_busca_brl: int | None,
     regras_ligadas: bool,
     pais_padrao: str,
+    habilidades_vaga: Sequence[str] | None = None,
+    habilidades_perfil: Sequence[str] = (),
 ) -> Encaixe:
     """Nota, motivos e ocultação de uma vaga para uma busca.
 
     `sal_mensal_brl` e `minimo_busca_brl` em reais inteiros (None = sem cotação ou sem dado).
     `pais_padrao` é o país da pessoa quando a busca não tem cidade (Meu país).
+    `habilidades_vaga` é o `pede` gravado pela IA (`None` = sem resultado, neutro) e
+    `habilidades_perfil` as do perfil; as regras de ocultar não leem nenhum dos dois (D185.11).
     """
     partes = [
         p
@@ -226,7 +275,16 @@ def calcular(
             None,
         )
     motivos = tuple(m for _, _, m in partes)
-    if not partes:
+    pontos, soma = sum(p for p, _, _ in partes), sum(w for _, w, _ in partes)
+    # o nível sem as habilidades: a fila do laço da IA lê este (desenho 5.4)
+    nivel_base = _faixa(_arredondar(pontos, soma)) if partes else None
+    habilidades = _habilidades(habilidades_vaga or (), habilidades_perfil)
+    if habilidades is not None:
+        pontos, soma = pontos + habilidades[0], soma + habilidades[1]
+        motivos += habilidades[2]
+    if not soma:
         return Encaixe(nota=None, nivel=None, motivos=motivos, oculta_motivo=oculta)
-    nota = _arredondar(sum(p for p, _, _ in partes), sum(w for _, w, _ in partes))
-    return Encaixe(nota=nota, nivel=_faixa(nota), motivos=motivos, oculta_motivo=oculta)
+    nota = _arredondar(pontos, soma)
+    return Encaixe(
+        nota=nota, nivel=_faixa(nota), motivos=motivos, oculta_motivo=oculta, nivel_base=nivel_base
+    )

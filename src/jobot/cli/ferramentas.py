@@ -51,7 +51,7 @@ from jobot.banco import conexao
 from jobot.banco.cadastros import gravar_config, ler_config
 from jobot.navegador.instalador import Resultado, abrir_instalador, baixar_chromium
 from jobot.navegador.janela_comum import AbrirJanela
-from jobot.nucleo.ia.contrato import limites
+from jobot.nucleo.ia.contrato import Falha, limites
 from jobot.sistema import llama, processo
 from jobot.sistema.baixar import (
     FalhaBaixar,
@@ -131,6 +131,17 @@ def ler_anotacao(dados: Path) -> dict[str, Any]:
     except OSError, ValueError:
         return {}
     return anotacao if isinstance(anotacao, dict) else {}
+
+
+def caminhos_local(dados: Path) -> tuple[Path, Path, str]:
+    """O `llama-server`, o GGUF e o nome do modelo anotados por `jobot ferramentas baixar
+    ia-local`; sem anotação: `Falha("modelo_ausente")`."""
+    anotacao = ler_anotacao(dados)
+    if not {"modelo", "arquivo", "programa"} <= anotacao.keys():
+        raise Falha("modelo_ausente")
+    ferramentas = dados / PASTA_FERRAMENTAS
+    nome = Path(anotacao["arquivo"]).stem
+    return ferramentas / anotacao["programa"], ferramentas / "modelos" / anotacao["arquivo"], nome
 
 
 def versao_roda(programa: Path) -> bool:

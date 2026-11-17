@@ -50,7 +50,7 @@ _CONSULTA_LIMITADA = 0x1000  # PROCESS_QUERY_LIMITED_INFORMATION
 _LOG = logging.getLogger(__name__)
 
 # Os nomes são os de `nucleo.ia.Motivo`: quem chama (agenda, cli) traduz para `Falha`.
-Motivo = Literal["programa_ausente", "tempo_esgotado"]
+Motivo = Literal["programa_ausente", "tempo_esgotado", "servico_fora"]
 
 
 class FalhaLlama(Exception):
@@ -249,12 +249,15 @@ class Llama:
         self._trava = threading.Lock()
         self._filho: Filho | None = None
         self._pronto = ("", "")
+        self._encerrada = False
 
     def subir(self) -> tuple[str, str]:
         """Levanta `FalhaLlama`, ou `OSError` se o `llama.json` não pôde ser gravado (disco
         cheio, pasta sem permissão); nos dois casos o filho é encerrado (sem conseguir, fica
         anotado no `llama.json` para a próxima subida)."""
         with self._trava:
+            if self._encerrada:  # o pedido que chegou depois do fim de `vida` não sobe outro
+                raise FalhaLlama("servico_fora")
             if self._filho is not None and self._filho.poll() is None:
                 return self._pronto
             self._filho = None
@@ -277,7 +280,9 @@ class Llama:
             return self._pronto
 
     def encerrar(self) -> None:
+        """Derruba a instância de vez: `subir` depois dá `servico_fora` (outra subida, outra)."""
         with self._trava:
+            self._encerrada = True
             if self._filho is not None:
                 self._encerrar(self._filho)
                 self._filho = None

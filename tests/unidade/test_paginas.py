@@ -575,7 +575,7 @@ def test_tarefa_paginas_usa_conexao_propria(
         recebidas["paginas"].append(con)
 
     async def busca_falsa(
-        con: sqlite3.Connection, cliente: ClienteEducado, relogio: Relogio, motivo: str
+        con: sqlite3.Connection, cliente: ClienteEducado, relogio: Relogio, motivo: str, **_: object
     ) -> None:
         recebidas["busca"].append(con)
 
