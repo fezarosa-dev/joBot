@@ -76,6 +76,7 @@ from jobot.painel.rotas.servicos import contexto_captcha, no_cofre
 from jobot.painel.saude_das_fontes import estado_dos_escopos, motivo_mais_grave
 from jobot.painel.seguranca import Con, idioma_do_pedido, renderizar
 from jobot.sistema import caso, segundo_plano
+from jobot.sistema.instalacao import manifesto_da_casca
 from jobot.sistema.segundo_plano_linux import Recusa
 
 router = APIRouter(prefix="/configuracoes")
@@ -838,6 +839,17 @@ async def estado_do_navegador(request: Request, con: Con) -> Response:
     return _fragmento_do_navegador(request)
 
 
+def _dados_da_casca(request: Request) -> Path | None:
+    """A pasta de dados no canal `casca` (T330: baixa da release); fora dele, `None`. Com o
+    `instalacao.json` ilegível, o `playwright install` de sempre ainda instala o navegador."""
+    dados: Path = request.app.state.banco.parent
+    try:
+        return dados if manifesto_da_casca(dados) is not None else None
+    except ValueError, OSError:
+        _LOG.exception("não deu para ler o instalacao.json; baixo pelo Playwright")
+        return None
+
+
 @router.post(_NAVEGADOR + "/baixar")
 async def baixar_navegador(request: Request) -> Response:
     """Baixa o Chromium do Playwright em segundo plano; um download por vez (D137.4)."""
@@ -849,13 +861,14 @@ async def baixar_navegador(request: Request) -> Response:
     abrir = abrir_instalador_do_painel(request)
     ler = ler_navegador_do_painel(request)
     ferramentas = _ferramentas(request)
+    casca = _dados_da_casca(request)
     await trava.acquire()  # livre: não suspende, então a checagem acima vale
     ferramentas["navegador"] = "baixando"
 
     async def baixar() -> None:
         resultado = "falhou_baixar"  # erro inesperado sai assim; o `rodar` registra e solta
         try:
-            if await baixar_chromium(abrir) == "pronto":
+            if await baixar_chromium(abrir, casca) == "pronto":
                 request.app.state.navegador_instalado = await ler()
                 if request.app.state.navegador_instalado:
                     resultado = "pronto"
