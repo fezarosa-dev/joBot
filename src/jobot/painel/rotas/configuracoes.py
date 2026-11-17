@@ -75,7 +75,7 @@ from jobot.painel.rotas.gmail import contexto_gmail
 from jobot.painel.rotas.servicos import contexto_captcha, no_cofre
 from jobot.painel.saude_das_fontes import estado_dos_escopos, motivo_mais_grave
 from jobot.painel.seguranca import Con, idioma_do_pedido, renderizar
-from jobot.sistema import caso, segundo_plano
+from jobot.sistema import casca, caso, segundo_plano
 from jobot.sistema.instalacao import manifesto_da_casca
 from jobot.sistema.segundo_plano_linux import Recusa
 
@@ -291,7 +291,19 @@ def contexto_ferramenta_navegador(request: Request) -> dict[str, Any]:
         estado = "chrome"
     else:
         estado = "instalado" if navegador == "chromium" else "nao_instalado"
-    return {"navegador": navegador, "resultado": resultado, "estado": estado}
+    # a atualização da casca não conseguiu trazer o Chromium novo (D174.13): Baixar de novo
+    desatualizado = navegador == "chromium" and casca.navegador_desatualizado(_dados(request))
+    return {
+        "navegador": navegador,
+        "resultado": resultado,
+        "estado": estado,
+        "desatualizado": desatualizado,
+    }
+
+
+def _dados(request: Request) -> Path:
+    pasta: Path = request.app.state.banco.parent
+    return pasta
 
 
 async def _contexto_ferramentas(request: Request, con: Con) -> dict[str, Any]:
@@ -855,7 +867,9 @@ async def baixar_navegador(request: Request) -> Response:
     """Baixa o Chromium do Playwright em segundo plano; um download por vez (D137.4)."""
     _grupo_valido(request, FERRAMENTAS)
     trava = _trava(request, "navegador")
-    if getattr(request.app.state, "navegador_instalado", None) or trava.locked():
+    instalado = getattr(request.app.state, "navegador_instalado", None)
+    desatualizado = instalado == "chromium" and casca.navegador_desatualizado(_dados(request))
+    if (instalado and not desatualizado) or trava.locked():
         return _fragmento_do_navegador(request)
     # tudo que pode falhar vem antes do acquire: depois dele, só o que não solta exceção
     abrir = abrir_instalador_do_painel(request)
@@ -872,6 +886,7 @@ async def baixar_navegador(request: Request) -> Response:
                 request.app.state.navegador_instalado = await ler()
                 if request.app.state.navegador_instalado:
                     resultado = "pronto"
+                    await run_in_threadpool(casca.tirar_marca_do_navegador, _dados(request))
                 else:
                     _LOG.warning("o instalador terminou, mas o navegador não apareceu no disco")
         finally:

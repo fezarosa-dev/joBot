@@ -299,10 +299,11 @@ def sair_do_servidor(
     return 0
 
 
-def subir_servidor() -> None:
-    """Servidor em processo separado; o comando `serve` é da T48."""
+def subir_servidor(python: str | None = None) -> None:
+    """Servidor em processo separado; o comando `serve` é da T48. `python`: o de outro venv (o
+    novo, no canal `casca` do `jobot atualizar`); sem ele, o deste processo."""
     subprocess.Popen(
-        [sys.executable, "-m", "jobot", "serve"],
+        [python or sys.executable, "-m", "jobot", "serve"],
         **processo.destacar(),
         stdin=subprocess.DEVNULL,
         stdout=subprocess.DEVNULL,
