@@ -977,7 +977,7 @@ def test_lancar_atualizacao_roda_destacado_com_a_pasta_e_o_log(
 
     monkeypatch.setattr(subprocess, "Popen", popen)
     feito: object = modulo.lancar_atualizacao(
-        tmp_path, {"PATH": "/usr/bin", "JOBOT_DADOS": "/outra"}
+        tmp_path, {"PATH": "/usr/bin", "JOBOT_DADOS": "/outra"}, cgroup=tmp_path / "sem-cgroup"
     )
     assert feito == "processo"
     [(comando, kwargs)] = chamadas
@@ -990,5 +990,32 @@ def test_lancar_atualizacao_roda_destacado_com_a_pasta_e_o_log(
     assert log.read_bytes() == b"saida\n"
     assert log.stat().st_mode & 0o777 == 0o600
     # a segunda vez acrescenta, não apaga o que a primeira deixou
-    modulo.lancar_atualizacao(tmp_path, {})
+    modulo.lancar_atualizacao(tmp_path, {}, cgroup=tmp_path / "sem-cgroup")
     assert log.read_bytes() == b"saida\nsaida\n"
+
+
+@pytest.mark.parametrize(
+    ("linha", "sob_o_servico"),
+    [
+        ("0::/user.slice/user-1000.slice/user@1000.service/app.slice/jobot.service\n", True),
+        ("0::/user.slice/user-1000.slice/session-2.scope\n", False),
+        ("0::/\n", False),  # na distrobox: o cgroup do contêiner; o `sair` para o servidor
+    ],
+)
+def test_lancar_atualizacao_sai_do_cgroup_do_servico(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, linha: str, sob_o_servico: bool
+) -> None:
+    """Revisão da T332: sob o jobot.service, o `systemctl --user disable --now` do `desligar()`
+    mata o cgroup inteiro, e o `jobot atualizar` filho do servidor morreria junto. Sob o serviço,
+    ele vai num scope próprio do systemd-run; fora dele, o comando fica como está."""
+    comandos: list[list[str]] = []
+    monkeypatch.setattr(subprocess, "Popen", lambda comando, **_: comandos.append(comando))
+    cgroup = tmp_path / "cgroup"
+    cgroup.write_text(linha)
+    modulo.lancar_atualizacao(tmp_path, {}, cgroup=cgroup)
+    jobot = [sys.executable, "-m", "jobot", "atualizar"]
+    prefixo = ["systemd-run", "--user", "--scope", "--collect", "--quiet", "--unit"]
+    if sob_o_servico:
+        assert comandos == [[*prefixo, "jobot-atualizar", "--", *jobot]]
+    else:
+        assert comandos == [jobot]

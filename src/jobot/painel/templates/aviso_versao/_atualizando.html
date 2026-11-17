@@ -1,20 +1,22 @@
 {#- a espera do "Atualizar agora" (T332; desenho 6.3), dentro de #aviso-versao: o componente único de
     progresso, indeterminado. O app.js pergunta ao /saude-local a cada 2 s e recarrega quando a
-    versão deixa de ser `de`; passados 120 s, esconde a barra e mostra o [data-atualizar-demorou] -#}
+    versão deixa de ser `de`; passados 120 s, esconde a barra e mostra o [data-atualizar-demorou].
+    O botão apertado some na troca: o foco vem para a caixa (nomeada pela linha do progresso) e,
+    aos 120 s, o app.js o leva ao "Tentar de novo" -#}
 {%- from "execucao/_progresso.html" import progresso with context -%}
-{%- macro tentar() -%}
+{%- macro tentar(foco=False) -%}
   <form method="post" action="/atualizar" hx-post="/atualizar" hx-target="#aviso-versao">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-    <button type="submit" class="botao">{{ t("aviso_versao.tentar") }}</button>
+    <button type="submit" class="botao"{% if foco %} data-foco-se-livre{% endif %}>{{ t("aviso_versao.tentar") }}</button>
   </form>
 {%- endmacro -%}
 {%- if falhou %}
 <div class="aviso-versao">
   <p>{{ t("aviso_versao.nao_comecou") }}</p>
-  {{- tentar() }}
+  {{- tentar(foco=True) }}
 </div>
 {%- else %}
-<div class="aviso-versao" data-atualizando data-de="{{ de }}">
+<div class="aviso-versao" data-atualizando data-de="{{ de }}" role="group" aria-labelledby="atualizar-linha" tabindex="-1" data-foco-se-livre>
   <div data-atualizar-barra>
     {{- progresso({"indeterminado": True, "etapa": "atualizar", "fontes": []}, corpo=True, base="atualizar", texto=t("aviso_versao.atualizando"), nomeia=True) }}
   </div>
