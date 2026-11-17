@@ -53,7 +53,7 @@ def _taskkill(monkeypatch: pytest.MonkeyPatch, codigo: int) -> list[list[str]]:
         chamados.append(args)
         return subprocess.CompletedProcess(args, codigo)
 
-    monkeypatch.setattr(processo.subprocess, "run", rodar)
+    monkeypatch.setattr(subprocess, "run", rodar)
     return chamados
 
 
