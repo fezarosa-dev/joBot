@@ -163,7 +163,7 @@ desktop/                    Modelo local no grupo de IA do instalador
 4. **Cada vaga.** Pede ao backend, confere e grava `pede` em `habilidades_vaga` (uma linha por vaga). Depois chama `recalcular_encaixe(vaga_id=...)`. A chamada roda fora da transação; só a gravação abre a escrita.
 5. **Falhas.** Falha do backend (5.1) para a rodada e não marca a vaga. Falha da vaga grava `falha`, `falha_em`, `falha_chave` e soma `tentativas`; a vaga só volta com `chave` nova, até `max_tentativas` (2, proposta) por chave. Falha nunca apaga um `pede` anterior.
 6. **Pedido da pessoa primeiro.** Enquanto há teste ao ligar ou (0.6.0) preparo em curso, o laço espera entre uma vaga e outra (com `-np 1`, os dois brigariam pelo mesmo slot).
-7. **Teto por dia.** Num backend de fora, no máximo `max_por_dia_fora` (200, proposta) chamadas do laço por dia local, contadas pelas linhas de `habilidades_vaga` com `feito_em` ou `falha_em` de hoje naquele backend; a aba IA mostra "N de 200 hoje". O local não tem teto.
+7. **Teto por dia.** Num backend de fora, no máximo `max_por_dia_fora` (200, proposta) chamadas do laço por dia local, contadas uma a uma antes de cada pedido naquele backend, também as que falham (D198.10); a aba IA mostra "N de 200 hoje". O local não tem teto.
 8. O andamento da busca não muda. Nenhuma linha nova no painel de execução: o detalhe da vaga mostra o resultado e a aba IA mostra a contagem.
 
 ### 5.5 Encaixe com habilidades

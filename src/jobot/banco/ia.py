@@ -9,9 +9,9 @@ import json
 import sqlite3
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 
-from jobot.banco.cadastros import ler_config
+from jobot.banco.cadastros import gravar_config, ler_config
 
 
 @dataclass(frozen=True)
@@ -92,21 +92,32 @@ def gravar_falha(
         )
 
 
+def _contagem(con: sqlite3.Connection, agora: datetime) -> dict[str, int]:
+    """`ia_chamadas` do dia local de `agora`, por backend; de outro dia ou estragada: vazia."""
+    valor = ler_config(con, "ia_chamadas", None)
+    if not isinstance(valor, dict) or valor.get("dia") != agora.astimezone().date().isoformat():
+        return {}
+    por_backend = valor.get("por_backend")
+    if not isinstance(por_backend, dict):
+        return {}
+    return {b: n for b, n in por_backend.items() if isinstance(n, int)}
+
+
 def chamadas_do_dia(con: sqlite3.Connection, backend: str, agora: datetime) -> int:
-    """Linhas com `feito_em` ou `falha_em` no dia local de `agora` naquele backend (teto do dia)."""
-    dia = agora.astimezone().date()
-    inicio = datetime(dia.year, dia.month, dia.day).astimezone()
-    proximo = dia + timedelta(days=1)
-    fim = datetime(proximo.year, proximo.month, proximo.day).astimezone()
-    contagem: int = con.execute(
-        "SELECT count(*) FROM habilidades_vaga WHERE"
-        " (backend = :b AND julianday(feito_em) >= julianday(:ini)"
-        "  AND julianday(feito_em) < julianday(:fim))"
-        " OR (falha_backend = :b AND julianday(falha_em) >= julianday(:ini)"
-        "  AND julianday(falha_em) < julianday(:fim))",
-        {"b": backend, "ini": inicio.isoformat(), "fim": fim.isoformat()},
-    ).fetchone()[0]
-    return contagem
+    """Chamadas do laço naquele backend no dia local de `agora` (teto do dia; D198.10)."""
+    return _contagem(con, agora).get(backend, 0)
+
+
+def contar_chamada(con: sqlite3.Connection, backend: str, agora: datetime) -> None:
+    """Soma uma chamada antes do pedido: a que falha (pela vaga ou pelo backend) também conta.
+
+    Guarda só o dia de hoje em `config.ia_chamadas`; o dia novo recomeça do zero.
+    """
+    # ponytail: ler e gravar sem trava; o laço é o único que conta (uma rodada por vez)
+    contagem = _contagem(con, agora)
+    contagem[backend] = contagem.get(backend, 0) + 1
+    dia = agora.astimezone().date().isoformat()  # DP8: o dia é o local
+    gravar_config(con, "ia_chamadas", {"dia": dia, "por_backend": contagem})
 
 
 @dataclass(frozen=True)

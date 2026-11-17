@@ -26,6 +26,7 @@ from jobot.agenda.execucao import executar_busca
 from jobot.banco.buscas import criar_busca
 from jobot.banco.cadastros import gravar_config
 from jobot.banco.conexao import abrir
+from jobot.banco.ia import chamadas_do_dia
 from jobot.banco.migrar import migrar
 from jobot.banco.perfil import gravar_habilidades
 from jobot.cli import servir
@@ -329,6 +330,18 @@ async def test_teto_do_dia_num_backend_de_fora_e_nenhum_no_local(con: sqlite3.Co
     assert len(falso.pedidos) == 5  # local: as três, sem teto
 
 
+async def test_teto_do_dia_conta_cada_chamada_com_as_falhas(con: sqlite3.Connection) -> None:
+    # D198.10: o teto conta chamadas, não vagas; a falha do backend e a segunda tentativa contam
+    _vagas(con, 2)
+    falso = Falso([Falha("tempo_esgotado")] + [Falha("formato")] * 4)
+    limites = LIMITES | {"max_por_dia_fora": 4}
+    await _rodada(con, falso, limites=limites)  # falha do backend: a rodada para, a chamada conta
+    await _rodada(con, falso, limites=limites)  # as duas falham pela vaga
+    await _rodada(con, falso, limites=limites)  # a segunda tentativa da primeira; o teto corta
+    assert _titulos(falso) == ["Dev Python 1", "Dev Python 1", "Dev Python 0", "Dev Python 1"]
+    assert chamadas_do_dia(con, "openai", AGORA) == 4
+
+
 # --- pedido da pessoa, encaixe, transação ---
 
 
@@ -598,7 +611,7 @@ class _Chaveiro:
 def _fabrica(tmp_path: Path, **chaves: str) -> servir.FabricaIA:
     chaveiro = _Chaveiro()
     chaveiro.guardado.update(chaves)
-    return servir.FabricaIA(tmp_path, Cofre(tmp_path, chaveiro))
+    return servir.FabricaIA(tmp_path, tmp_path / "jobot.db", Cofre(tmp_path, chaveiro))
 
 
 def test_fabrica_monta_cada_backend_com_a_chave_do_cofre(tmp_path: Path, caminho: Path) -> None:
@@ -631,6 +644,19 @@ def test_fabrica_sem_chave_ou_sem_modelo_local_falha_como_backend(tmp_path: Path
         fabrica("Manual", "m")
     # controle: com a chave, monta
     _fabrica(tmp_path, ia_openai="o")("openai", "m").fechar()
+
+
+def test_fabrica_le_o_compativel_do_banco_que_recebe(tmp_path: Path) -> None:
+    banco = tmp_path / "outro.db"
+    with closing(abrir(banco)) as con:
+        migrar(con, banco)
+        gravar_config(con, "ia_compativel", {"endereco": "http://127.0.0.1:11434/v1"})
+    fabrica = servir.FabricaIA(tmp_path, banco, Cofre(tmp_path, _Chaveiro()))
+    cliente = cast(ClienteCompativel, fabrica("compativel", "m"))
+    try:
+        assert cliente._url == "http://127.0.0.1:11434/v1/chat/completions"
+    finally:
+        cliente.fechar()
 
 
 def _anotar_local(dados: Path) -> None:
@@ -690,6 +716,17 @@ def test_local_sobe_uma_llama_so_e_traduz_a_falha(
     ]
     assert clientes == [("local", "http://127.0.0.1:9/v1", "k")]
     assert fabrica.llama is not None
+
+
+def test_fabrica_encerrada_nao_sobe_o_local(tmp_path: Path) -> None:
+    _anotar_local(tmp_path)
+    assert isinstance(_fabrica(tmp_path)("local", "qwen"), servir._Local)  # controle
+    fabrica = _fabrica(tmp_path)
+    fabrica.encerrar()
+    with pytest.raises(Falha) as erro:
+        fabrica("local", "qwen")
+    assert erro.value.motivo == "servico_fora"
+    assert fabrica.llama is None
 
 
 @pytest.fixture
