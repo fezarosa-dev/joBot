@@ -312,7 +312,7 @@ fn achar_ou_subir_com(
             None => Sonda::Espera,
         }
     });
-    let subiu = false; // ainda sem a lógica
+    let subiu = filho.is_some();
     if let Some(mut c) = filho.filter(|_| saiu.is_none()) {
         std::thread::spawn(move || c.wait()); // colhe o processo quando ele sair
     }

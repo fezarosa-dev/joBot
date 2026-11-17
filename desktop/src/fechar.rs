@@ -18,7 +18,17 @@ pub fn ao_fechar(
     segundo_plano: impl FnOnce(u16) -> Option<bool>,
     sair: impl FnOnce(&Path),
 ) {
-    let _ = (subiu, dados, so, segundo_plano, sair); // ainda sem a lógica
+    if !subiu {
+        return;
+    }
+    let (_, Some(porta)) = servidor::ler_trava(dados) else {
+        return; // ninguém prende a trava: não há servidor para parar
+    };
+    if segundo_plano(porta) == Some(false)
+        && let Some(jobot) = servidor::jobot_instalado(dados, so)
+    {
+        sair(&jobot);
+    }
 }
 
 /// A pasta da casca do `<dados>/instalacao.json` (desenho 6.2), só se apagá-la não leva a
@@ -27,6 +37,9 @@ pub fn ao_fechar(
 fn pasta_da_casca(dados: &Path) -> Option<PathBuf> {
     let texto = std::fs::read(dados.join("instalacao.json")).ok()?;
     let conteudo: serde_json::Value = serde_json::from_slice(&texto).ok()?;
+    if conteudo.get("canal")?.as_str()? != "casca" {
+        return None;
+    }
     let pasta = PathBuf::from(conteudo.get("pasta")?.as_str()?);
     if !pasta.is_absolute() {
         return None;
@@ -34,7 +47,16 @@ fn pasta_da_casca(dados: &Path) -> Option<PathBuf> {
     // canônicos: `..`, symlink ou maiúsculas no Windows não escondem a pasta de dados
     let pasta = pasta.canonicalize().ok()?;
     let dados = dados.canonicalize().ok()?;
-    (!dados.starts_with(&pasta)).then_some(pasta) // ainda sem o sinal da casca
+    if dados.starts_with(&pasta) {
+        return None;
+    }
+    let manifesto = |nome: &str| nome.starts_with("manifesto-") && nome.ends_with(".json");
+    let tem_sinal = pasta.join("bin").is_dir()
+        || std::fs::read_dir(&pasta)
+            .ok()?
+            .flatten()
+            .any(|e| e.file_name().to_str().is_some_and(manifesto) && e.path().is_file());
+    tem_sinal.then_some(pasta)
 }
 
 /// Desinstalar (desenho 7.2; o NSIS chama `--desinstalar`): com o `jobot` do venv, desliga o
