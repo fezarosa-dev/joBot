@@ -3126,3 +3126,18 @@ Do item 2 (T305 h), aceito e documentado. Sem JavaScript, o detalhe sobreposto f
 **Como desfazer:** cada item mora numa seção do desenho (13 lista as seções); trocar é editar o desenho antes da tarefa correspondente. Depois de construído: 7 e 12 são a `segundo_plano` e a casca (T328, T329, T337); 11 é tirar o aviso da casca na faixa (T332); 15 é tirar a conferência de recursos (T335). Nenhum dado muda.
 
 **Ver também:** D138, D139.10, D140, D142, D143, ADR 0003, 0017, 0018, 0023 e 0025 (a criar na T320).
+
+## D172. Todo PR passa pela aprovação do dono
+
+**Status:** decidida pelo dono em 2026-11-17 e já aplicada no GitHub.
+
+**Contexto:** o dono pediu que todo PR do joBot passe pela aprovação dele, para diminuir o risco de alguém mal-intencionado. Antes, a `main` exigia PR com zero aprovações, a `dev` só não podia ser reescrita nem apagada, e o CI de fork pedia o ok do dono só no primeiro PR de cada pessoa (ADR 0018).
+
+**Decisões:**
+
+1. (dono) Regras `proteger-main` e `proteger-dev`: todo PR precisa de uma aprovação do responsável (`.github/CODEOWNERS`), que cai se entrar commit novo, e o último push também precisa ser aprovado. Continuam valendo: sem reescrever e sem apagar.
+2. (sessão, para confirmar) Exceção só para o papel de administrador (o dono), porque o GitHub não deixa aprovar o próprio PR: na `main`, só por dentro de um PR (para juntar o PR `dev` → `main`); na `dev`, sempre (fluxo de lotes que entra direto).
+3. (dono) CI de PR vindo de fork espera o ok do dono para todo contribuidor de fora, não só o primeiro PR.
+4. (dono) Varredura de código do GitHub (CodeQL) na configuração padrão: Python, JavaScript e os workflows do Actions, nos PRs para a `main`, em cada push na `main` e uma vez por semana. Não põe arquivo no repositório e não leva segredo. Os alertas do Dependabot continuam ligados (só avisam); os PRs automáticos dele continuam desligados (ADR 0021). A detecção de segredos genéricos não está disponível nesta conta; a de provedores e o bloqueio de push com segredo já estavam ligados.
+
+**Como desfazer:** Settings › Rules › Rulesets (`proteger-main`, `proteger-dev`) e Settings › Actions › General › Fork pull request workflows. Nada no código muda; ADR 0016 e 0018 e o guia de contribuição citam esta decisão.

@@ -35,6 +35,7 @@ As fases 1 e 2 (base e navegador com login) estão concluídas: o joBot 0.3.0 j�
 4. Confira que `ruff`, `mypy --strict` e `pytest` passam.
 5. Faça commits pequenos, em português, no formato `tipo(escopo): descrição`.
 6. Abra um PR para a `dev` usando o [modelo de PR](pull_request_template.md).
+7. Espere: os testes do seu PR só rodam depois que o responsável pelo projeto liberar, e o PR só entra com a aprovação dele.
 
 ## Wiki
 
