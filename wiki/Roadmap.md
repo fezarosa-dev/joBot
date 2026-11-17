@@ -11,7 +11,7 @@
 
 ```mermaid
 flowchart LR
-    F1["✅ Phase 1 · Base"] --> F2["✅ Phase 2 · Browser with login"] --> F3["⚪ Phase 3 · Installer"] --> F4["⚪ Phase 4 · Local AI"]
+    F1["✅ Phase 1 · Base"] --> F2["✅ Phase 2 · Browser with login"] --> F3["✅ Phase 3 · Installer"] --> F4["⚪ Phase 4 · Local AI"]
     F4 --> F5["⚪ Phase 5 · Extension"] --> F6["⚪ Phase 6 · Audio and Gmail"] --> F7["⚪ Phase 7 · Training"]
     F7 --> F8["⚪ Phase 8 · GitHub Pages"] --> F9["⚪ Phase 9 · Release"]
 ```
@@ -22,7 +22,7 @@ flowchart LR
 |:---:|---|---|---|
 | ✅ | **1. Base** | Common core, public sources, database, dashboard and scheduling | Complete |
 | ✅ | **2. Browser with login** | Login through a regular window, LinkedIn first, site mapping and CAPTCHA handling | Complete |
-| ⚪ | **3. Installer** | 64-bit installer with a list of tools to tick (Windows and Linux first, Mac later) | Planned |
+| ✅ | **3. Installer** | 64-bit installer with a list of tools to tick (Windows and Linux first, Mac later) | Complete in 0.4.0 |
 | ⚪ | **4. Local AI** | Offline package (llama-server + Qwen) | Planned |
 | ⚪ | **5. Browser extension** | Browser extension for forms | Planned |
 | ⚪ | **6. Audio and Gmail** | Answers by voice and email reading | Planned |
@@ -30,9 +30,9 @@ flowchart LR
 | ⚪ | **8. GitHub Pages version** | Browser version, no installation | Planned |
 | ⚪ | **9. Release** | README with badges and security review | Planned |
 
-<sub>✅ complete · ⚪ planned</sub>
+<sub>✅ complete · 🟡 being built · ⚪ planned</sub>
 
-Version 0.3.0 came out between phase 2 and phase 3, with the "Overview" screen (an overview of the jobs and the search) and the complete application queue.
+Version 0.3.0 came out between phase 2 and phase 3, with the "Overview" screen (an overview of the jobs and the search) and the complete application queue. Version 0.4.0 closes phase 3, with a window of its own and the installer.
 
 ## 🔍 A bit more about each phase
 
@@ -53,7 +53,7 @@ Version 0.3.0 came out between phase 2 and phase 3, with the "Overview" screen (
 </details>
 
 <details>
-<summary><strong>⚪ Phase 3, Installer</strong></summary>
+<summary><strong>✅ Phase 3, Installer</strong></summary>
 
 - A 64-bit installer, made for people who have never opened a terminal. Windows and Linux first; the Mac comes later.
 - A list of tools to tick. The essentials come ticked and cannot be unticked. Whatever you leave unticked shows up later in the dashboard, to download whenever you want.

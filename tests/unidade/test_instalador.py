@@ -163,6 +163,22 @@ async def test_baixar_pronto_com_codigo_zero() -> None:
     assert resultado == "pronto"
 
 
+async def test_baixar_leva_as_variaveis_do_windows(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Sem elas o `playwright install` (um Node) não acha a pasta do Playwright nem abre socket
+    no Windows; vale também na casca, que baixa o navegador assim (D183.24)."""
+    windows = {
+        n: f"/{n.lower()}" for n in ("LOCALAPPDATA", "USERPROFILE", "SYSTEMROOT", "TEMP", "TMP")
+    }
+    for nome, valor in {**windows, "JOBOT_TOKEN": "segredo"}.items():
+        monkeypatch.setenv(nome, valor)
+    abrir = _Abrir(JanelaFalsa(ja_saiu=True))
+    assert await baixar_chromium(abrir) == "pronto"
+    argumentos, ambiente = abrir.abertos[0]
+    assert argumentos == comando_de_baixar()
+    assert {n: ambiente.get(n) for n in windows} == windows
+    assert "JOBOT_TOKEN" not in ambiente
+
+
 async def test_baixar_falhou_com_codigo_diferente_de_zero(
     caplog: pytest.LogCaptureFixture,
 ) -> None:

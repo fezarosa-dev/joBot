@@ -12,6 +12,7 @@ import logging
 import os
 import socket
 import sqlite3
+import sys
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable, Iterator, Mapping
 from contextlib import closing
@@ -105,11 +106,24 @@ def test_todo_comando_da_tabela_resolve() -> None:
     assert sem_executar == []
 
 
-def test_saude_local_responde_jobot_e_versao(tmp_path: Path) -> None:
-    cliente = TestClient(criar_app(tmp_path, PORTA), base_url=BASE)
+def test_saude_local_responde_jobot_e_versao(dados: Path) -> None:
+    _banco(dados).close()  # sem linha `segundo_plano`: vale desligado (desenho 5.5)
+    cliente = TestClient(criar_app(dados, PORTA), base_url=BASE)
     resposta = cliente.get("/saude-local")
     assert resposta.status_code == 200
-    assert resposta.json() == {"app": "jobot", "versao": jobot.__version__}
+    assert resposta.json() == {
+        "app": "jobot",
+        "versao": jobot.__version__,
+        "segundo_plano": False,
+    }
+
+
+@pytest.mark.parametrize(("gravado", "esperado"), [(True, True), (False, False), ("sim", False)])
+def test_saude_local_diz_o_segundo_plano(dados: Path, gravado: object, esperado: bool) -> None:
+    with closing(_banco(dados)) as con:
+        gravar_config(con, "segundo_plano", gravado)
+    cliente = TestClient(criar_app(dados, PORTA), base_url=BASE)
+    assert cliente.get("/saude-local").json().get("segundo_plano") is esperado
 
 
 def test_escuta_so_em_127(dados: Path) -> None:
@@ -119,6 +133,14 @@ def test_escuta_so_em_127(dados: Path) -> None:
     assert config.server_header is False
     assert config.proxy_headers is False
     assert config.app is app
+
+
+def test_monta_sem_console_como_no_pythonw(dados: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # a tarefa do Windows roda `pythonw -m jobot serve`: lá sys.stdout e sys.stderr são None
+    monkeypatch.setattr(sys, "stdout", None)
+    monkeypatch.setattr(sys, "stderr", None)
+    _, config = servir.montar(dados, PORTA, relogio=RelogioFalso(AGORA))
+    assert config.use_colors is False
 
 
 def test_ao_subir_marca_interrompidas_migra_e_semeia(dados: Path) -> None:
@@ -511,9 +533,11 @@ def test_buscar_com_outra_busca_rodando_avisa(
     assert "já" in capsys.readouterr().err
 
 
-def test_serve_com_outro_jobot_aberto_avisa_e_sai_com_1(
+def test_serve_com_outro_jobot_aberto_avisa_e_sai_com_0(
     isolado: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
+    # sai com 0 (D175 item 9): o KeepAlive do launchd e o Restart=on-failure do systemd
+    # não refazem o serve enquanto o painel está aberto
     def montar_proibido(*args: object, **kwargs: object) -> None:
         raise AssertionError("não sobe nada com a trava presa")
 
@@ -522,7 +546,7 @@ def test_serve_com_outro_jobot_aberto_avisa_e_sai_com_1(
     outro = Trava(isolado, PORTA)
     assert outro.pegar()
     try:
-        assert servir.executar(argparse.Namespace(comando="serve")) == 1
+        assert servir.executar(argparse.Namespace(comando="serve")) == 0
     finally:
         outro.soltar()
     assert "já está aberto" in capsys.readouterr().err

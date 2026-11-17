@@ -20,3 +20,11 @@ htmlcov/
 .env
 .env.*
 !.env.example
+
+# Casca de desktop (Tauri): build e esquemas gerados
+desktop/target/
+desktop/gen/
+# Gerados no build: cópia do CSS do painel, binários e recursos do instalador
+desktop/ui/painel/
+desktop/binaries/
+desktop/recursos/

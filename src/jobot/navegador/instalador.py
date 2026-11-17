@@ -9,7 +9,6 @@ import asyncio
 import contextlib
 import logging
 import os
-import signal
 import sys
 from asyncio.subprocess import DEVNULL
 from collections.abc import Mapping, Sequence
@@ -18,10 +17,15 @@ from typing import Literal
 from jobot.navegador import limites
 from jobot.navegador.abrir import ambiente_do_navegador
 from jobot.navegador.janela_comum import AbrirJanela, Janela, encerrar
+from jobot.sistema import processo as _processo
 
 _LOG = logging.getLogger(__name__)
 
 Resultado = Literal["pronto", "falhou"]
+
+# No Windows, sem estas o `playwright install` (um Node) não acha a pasta dele e o socket não
+# abre (WinError 10106). Nenhuma leva segredo; fora do Windows não existem.
+_DO_WINDOWS = ("LOCALAPPDATA", "USERPROFILE", "SYSTEMROOT", "TEMP", "TMP")
 
 
 def comando_de_baixar() -> list[str]:
@@ -34,12 +38,13 @@ def comando_de_remover() -> list[str]:
     return [sys.executable, "-P", "-m", "playwright", "uninstall"]
 
 
-def ambiente_de_instalar() -> dict[str, str]:
-    """O mesmo ambiente enxuto da janela, mais a pasta dos navegadores se a pessoa mudou."""
-    amb = ambiente_do_navegador({})
-    pasta = os.environ.get("PLAYWRIGHT_BROWSERS_PATH")
-    if pasta is not None:
-        amb["PLAYWRIGHT_BROWSERS_PATH"] = pasta
+def ambiente_de_instalar(extra: Mapping[str, str] | None = None) -> dict[str, str]:
+    """O mesmo ambiente enxuto da janela, mais as do Windows e a pasta dos navegadores se a
+    pessoa mudou."""
+    amb = ambiente_do_navegador(extra or {})
+    for nome in (*_DO_WINDOWS, "PLAYWRIGHT_BROWSERS_PATH"):
+        if nome in os.environ:
+            amb[nome] = os.environ[nome]
     return amb
 
 
@@ -51,15 +56,15 @@ class _Grupo:
 
     async def wait(self) -> int:
         codigo = await self._processo.wait()
-        with contextlib.suppress(ProcessLookupError):  # o líder saiu; um filho pode ter ficado
-            os.killpg(self._processo.pid, signal.SIGKILL)
+        with contextlib.suppress(ProcessLookupError):  # líder saiu; no POSIX um filho pode ficar
+            _processo.encerrar_grupo(self._processo, forcar=True)
         return codigo
 
     def terminate(self) -> None:
-        os.killpg(self._processo.pid, signal.SIGTERM)
+        _processo.encerrar_grupo(self._processo)
 
     def kill(self) -> None:
-        os.killpg(self._processo.pid, signal.SIGKILL)
+        _processo.encerrar_grupo(self._processo, forcar=True)
 
 
 async def abrir_instalador(argumentos: Sequence[str], ambiente: Mapping[str, str]) -> Janela:
@@ -69,16 +74,21 @@ async def abrir_instalador(argumentos: Sequence[str], ambiente: Mapping[str, str
         stdin=DEVNULL,
         stdout=DEVNULL,
         stderr=DEVNULL,
-        start_new_session=True,
+        **_processo.destacar(),
     )
     return _Grupo(processo)
 
 
 async def _rodar(
-    abrir: AbrirJanela, argumentos: list[str], prazo: float, *, cancelar_encerra: bool
+    abrir: AbrirJanela,
+    argumentos: list[str],
+    prazo: float,
+    *,
+    cancelar_encerra: bool,
+    ambiente: Mapping[str, str] | None = None,
 ) -> Resultado:
     try:
-        janela = await abrir(argumentos, ambiente_de_instalar())
+        janela = await abrir(argumentos, ambiente_de_instalar(ambiente))
     except OSError:
         _LOG.exception("não deu para abrir o instalador do navegador")
         return "falhou"
@@ -100,7 +110,8 @@ async def _rodar(
 
 
 async def baixar_chromium(abrir: AbrirJanela) -> Resultado:
-    """Cancelar (o painel fechando) encerra o download: arquivo pela metade não vale nada."""
+    """Cancelar (o painel fechando) encerra o download: arquivo pela metade não vale nada.
+    Vale também no canal `casca`: o joBot não redistribui o navegador (D183.24)."""
     return await _rodar(abrir, comando_de_baixar(), limites.PRAZO_BAIXAR_S, cancelar_encerra=True)
 
 

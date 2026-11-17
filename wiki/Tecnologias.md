@@ -11,7 +11,7 @@
 | Tecnologia | Para quê | Por quê |
 |---|---|---|
 | 🐍 **Python** (3.14 ou mais nova) | A linguagem do joBot inteiro. | Escolhida na [ADR 0003](https://github.com/fezarosa-dev/joBot/blob/main/docs/decisions/0003-stack-e-instalacao-nativa.md). |
-| 📦 **uv** | Instalar e rodar o joBot e as bibliotecas dele. | A instalação é nativa e planejada para um comando, sem Docker. |
+| 📦 **uv** | Instalar e rodar o joBot e as bibliotecas dele. | A instalação é nativa, sem Docker; o instalador da fase 3 já traz o `uv` e tudo o que ele instala. |
 | ⚡ **FastAPI** (0.162.7) + **Uvicorn** (0.54.0) | O servidor do painel. | O painel abre no seu navegador e só aceita conexões do próprio computador (127.0.0.1). |
 | 🧩 **Jinja2** (3.1.6) | Montar as páginas do painel. | As páginas saem prontas do servidor. |
 | 🔁 **HTMX** | Atualizar partes da página sem recarregar tudo. | Interface ágil com pouco JavaScript. O arquivo fica dentro do app. |
@@ -64,6 +64,6 @@ A instalação é nativa ([ADR 0003](https://github.com/fezarosa-dev/joBot/blob/
 
 ## 💻 Onde roda
 
-- **Sistemas:** Linux, Windows e macOS. O desenvolvimento acontece no Linux; os instaladores chegam na fase 3: Windows e Linux primeiro, macOS depois.
+- **Sistemas:** Linux, Windows e macOS. O desenvolvimento acontece no Linux; os instaladores da fase 3 cobrem Windows, Linux e Mac (o Mac é experimental).
 - **Memória:** 8 GB de RAM (16 GB deixam tudo mais folgado).
 - **Placa de vídeo:** não precisa.

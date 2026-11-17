@@ -7,19 +7,35 @@ mexem em `~/.config/systemd/user`.
 """
 
 import argparse
+import contextlib
+import hashlib
 import importlib
+import io
+import json
 import logging
 import os
+import re
+import signal
+import sqlite3
 import subprocess
-from collections.abc import Callable, Mapping, Sequence
+import sys
+import tarfile
+import time
+import zipfile
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from pathlib import Path
 
+import httpx
 import pytest
 
-from jobot.cli import COMANDOS
+from jobot import __version__
+from jobot.cli import COMANDOS, main
+from jobot.navegador import limites
 from jobot.sistema import atualizar as modulo
+from jobot.sistema import casca, processo
 from jobot.sistema.atualizar import atualizar, tipo_de_instalacao
 from jobot.sistema.instancia import Trava
+from jobot.sistema.pastas import pasta_do_playwright
 from jobot.sistema.segundo_plano_linux import Resultado
 
 PORTA = 47997
@@ -264,16 +280,94 @@ def test_comandos_sao_listas_nunca_shell(tmp_path: Path, monkeypatch: pytest.Mon
         assert comando[0] in {"git", "uv", "systemctl"}
         assert comando[:2] != ("sh", "-c")
     # o executor real passa a lista ao subprocess, sem shell
-    visto: list[Mapping[str, object]] = []
-
-    def run_falso(args: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
-        visto.append({"args": args, **kwargs})
-        return subprocess.CompletedProcess(args, 0, "", "")
-
-    monkeypatch.setattr(subprocess, "run", run_falso)
+    visto: list[_PopenFalso] = []
+    monkeypatch.setattr(subprocess, "Popen", lambda args, **kw: _guardar(visto, args, kw))
     assert modulo.rodar_atualizacao(["git", "-C", "/x", "status"]).codigo == 0
-    assert visto[0]["args"] == ["git", "-C", "/x", "status"]
-    assert visto[0].get("shell", False) is False
+    assert visto[0].args == ["git", "-C", "/x", "status"]
+    assert visto[0].kwargs.get("shell", False) is False
+
+
+class _PopenFalso:
+    def __init__(self, args: list[str], kwargs: Mapping[str, object], *, estoura: bool) -> None:
+        self.args, self.kwargs, self.estoura = args, kwargs, estoura
+        self.returncode = 0
+        self.prazos: list[float | None] = []
+
+    def communicate(self, timeout: float | None = None) -> tuple[str, str]:
+        self.prazos.append(timeout)
+        if self.estoura:
+            raise subprocess.TimeoutExpired(self.args, timeout or 0)
+        return "", ""
+
+
+def _guardar(
+    visto: list[_PopenFalso], args: list[str], kwargs: Mapping[str, object], estoura: bool = False
+) -> _PopenFalso:
+    visto.append(_PopenFalso(args, kwargs, estoura=estoura))
+    return visto[-1]
+
+
+def test_prazo_do_executor_encerra_a_arvore_e_cabe_o_download_do_navegador(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """D183.24: no prazo, a árvore toda sai (o `playwright install` em outra sessão inclusive),
+    e o prazo cabe o download do navegador do canal casca, que tem prazo próprio."""
+    visto: list[_PopenFalso] = []
+    encerrados: list[object] = []
+    monkeypatch.setattr(subprocess, "Popen", lambda args, **kw: _guardar(visto, args, kw, True))
+    monkeypatch.setattr(processo, "encerrar_arvore", encerrados.append)
+    assert modulo.rodar_atualizacao(["jobot", "ferramentas", "baixar", "navegador"]).codigo == 124
+    assert encerrados == visto
+    assert visto[0].kwargs["start_new_session"] is True
+    assert visto[0].prazos == [modulo._TEMPO_S]
+    assert modulo._TEMPO_S > limites.PRAZO_BAIXAR_S + limites.ESPERA_SAIR_JANELA_S
+
+
+# quem chama o executor real; o filho (em sessão própria) sobe um neto em outra sessão, como o
+# `jobot ferramentas baixar navegador` sobe o `playwright install`, e o encerra no SIGTERM
+_PAI = """
+import sys
+from jobot.sistema.atualizar import rodar_atualizacao
+rodar_atualizacao([sys.executable, "-c", sys.argv[1], sys.argv[2]])
+"""
+_FILHO = """
+import os, signal, subprocess, sys, time
+neto = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(300)"],
+                        start_new_session=True)
+def sair(*_):
+    neto.terminate(); neto.wait(); sys.exit(1)
+signal.signal(signal.SIGTERM, sair)
+with open(sys.argv[1] + ".tmp", "w") as f:
+    f.write(f"{os.getpid()} {neto.pid}")
+os.replace(sys.argv[1] + ".tmp", sys.argv[1])
+time.sleep(300)
+"""
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="no Windows o Ctrl+C chega à árvore toda")
+def test_ctrl_c_no_executor_encerra_o_filho_e_o_neto(tmp_path: Path) -> None:
+    """D183.24 (revisão 4): o filho nasce em sessão própria e não recebe o SIGINT do terminal;
+    o Ctrl+C de quem chama encerra a árvore, sem deixar o download órfão."""
+    pids = tmp_path / "pids"
+    pai = subprocess.Popen([sys.executable, "-c", _PAI, _FILHO, str(pids)], start_new_session=True)
+    filho = neto = 0
+    try:
+        prazo = time.monotonic() + 30
+        while not pids.exists() and time.monotonic() < prazo and pai.poll() is None:
+            time.sleep(0.05)
+        filho, neto = map(int, pids.read_text().split())
+        os.killpg(pai.pid, signal.SIGINT)
+        pai.wait(timeout=30)
+        for pid in (filho, neto):
+            with pytest.raises(ProcessLookupError):
+                os.kill(pid, 0)
+    finally:
+        for pid in (filho, neto):
+            if pid:
+                with contextlib.suppress(ProcessLookupError):
+                    os.kill(pid, signal.SIGKILL)
+        pai.kill()
+        pai.wait()
 
 
 def test_todo_comando_da_tabela_resolve() -> None:
@@ -449,3 +543,548 @@ def test_atualizar_com_captura_recusa_e_nao_sobe_servidor(
         "Uma captura de exemplos com login está em andamento. "
         "Encerre-a no terminal dela e tente de novo."
     ) in capsys.readouterr().err
+
+
+# --- canal casca (T331; desenho 6.3; D174.3, D174.8, D174.13 e D174.14) -------------------
+
+VERSAO = "9.9.9"
+ALVO = casca.alvo_atual() or "x86_64-unknown-linux-gnu"
+PACOTE = f"jobot-atualizacao-{VERSAO}-{ALVO}.zip"
+TAG = f"https://github.com/fezarosa-dev/joBot/releases/download/v{VERSAO}"
+SOMAS = "https://github.com/fezarosa-dev/joBot/releases/latest/download/SHA256SUMS"
+PYTHON_TAR = "python/cpython-3.14.9-install_only.tar.gz"
+
+
+def _sha(conteudo: bytes) -> str:
+    return hashlib.sha256(conteudo).hexdigest()
+
+
+def _tar(arquivos: Mapping[str, bytes]) -> bytes:
+    buffer = io.BytesIO()
+    with tarfile.open(fileobj=buffer, mode="w:gz") as tar:
+        for nome, conteudo in arquivos.items():
+            info = tarfile.TarInfo(nome)
+            info.size = len(conteudo)
+            info.mode = 0o755
+            tar.addfile(info, io.BytesIO(conteudo))
+    return buffer.getvalue()
+
+
+def _manifesto(arquivos: Mapping[str, bytes], **trocar: str) -> dict[str, object]:
+    itens = [
+        {"nome": n, "tamanho": len(c), "sha256": trocar.get(n, _sha(c))}
+        for n, c in arquivos.items()
+    ]
+    return {"versao": VERSAO, "arquivos": itens}
+
+
+def _pacote(
+    *, trocar: Mapping[str, str] | None = None, extra: Mapping[str, bytes] | None = None
+) -> bytes:
+    """O `.zip` da release; o navegador não vai na release (D183.24)."""
+    dentro = {
+        "restricoes.txt": (
+            f"dep==1 --hash=sha256:{'0' * 64}\n"
+            f"jobot=={VERSAO} --hash=sha256:{_sha(b'wheel do jobot')}\n"
+        ).encode(),
+        f"wheels/jobot-{VERSAO}-py3-none-any.whl": b"wheel do jobot",
+        "wheels/dep-1-py3-none-any.whl": b"wheel da dep",
+        PYTHON_TAR: _tar({"python/bin/python3": b"#!python"}),
+    }
+    manifesto = _manifesto(dentro, **(trocar or {}))
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as zf:
+        zf.writestr("manifesto.json", json.dumps(manifesto))
+        for nome, conteudo in {**dentro, **(extra or {})}.items():
+            zf.writestr(nome, conteudo)
+    return buffer.getvalue()
+
+
+class _Release:
+    """O GitHub falso por `httpx.MockTransport`: só as URLs da release, nada de rede."""
+
+    def __init__(self, pacote: bytes, *, versao: str = VERSAO, sha: str | None = None) -> None:
+        self.pacote = pacote
+        self.urls: dict[str, bytes] = {
+            SOMAS: f"{sha or _sha(pacote)}  jobot-atualizacao-{versao}-{ALVO}.zip\n".encode(),
+            f"{TAG}/{PACOTE}": pacote,
+        }
+        self.pedidos: list[str] = []
+        self.cliente = httpx.Client(transport=httpx.MockTransport(self._responder))
+
+    def _responder(self, pedido: httpx.Request) -> httpx.Response:
+        url = str(pedido.url)
+        self.pedidos.append(url)
+        if url in self.urls:
+            return httpx.Response(200, content=self.urls[url])
+        return httpx.Response(404)
+
+
+class _Casca:
+    """Executor falso do canal casca: uv, o jobot do venv novo e o systemctl."""
+
+    def __init__(self, registro: list[str], *, plano_ligado: bool = False) -> None:
+        self.registro = registro
+        self.plano_ligado = plano_ligado
+        self.comandos: list[tuple[str, ...]] = []
+        self.falha_em: dict[str, Resultado] = {}
+        self.versao_nova = VERSAO
+
+    def __call__(self, comando: Sequence[str]) -> Resultado:
+        c = tuple(comando)
+        self.comandos.append(c)
+        if c[0] == "systemctl":
+            nome = f"systemctl {c[2]}"
+        else:
+            nome = f"{Path(c[0]).stem} {c[1]}"
+        self.registro.append(nome)
+        if nome in self.falha_em:
+            return self.falha_em[nome]
+        if nome == "systemctl is-enabled":
+            return Resultado(0 if self.plano_ligado else 1)
+        if nome == "systemctl disable":
+            self.plano_ligado = False
+        if nome == "uv venv":
+            venv = Path(c[-1])
+            (venv / "bin").mkdir(parents=True)
+            python = Path(c[c.index("--python") + 1])
+            (venv / "pyvenv.cfg").write_text(f"home = {python.parent}\n")
+        if nome == "jobot --version":
+            return Resultado(0, f"jobot {self.versao_nova}\n")
+        return Resultado(0)
+
+
+def _venv(pasta: Path, versao: str, python: str) -> Path:
+    venv = pasta / "venvs" / f"venv-{versao}"
+    (venv / "bin").mkdir(parents=True)
+    (venv / "pyvenv.cfg").write_text(f"home = {pasta / 'python' / python / 'python' / 'bin'}\n")
+    (pasta / "python" / python / "python" / "bin").mkdir(parents=True, exist_ok=True)
+    return venv
+
+
+def _instalada(dados: Path) -> Path:
+    """Instalação da casca na 0.3.0, com a 0.2.0 de anterior e a 0.1.0 que sobrou."""
+    pasta = dados / "app"
+    atual = _venv(pasta, "0.3.0", "cpython-velho")
+    anterior = _venv(pasta, "0.2.0", "cpython-mais-velho")
+    _venv(pasta, "0.1.0", "cpython-mais-velho")
+    (pasta / "python" / "cpython-sem-uso").mkdir()
+    for versao in ("0.1.0", "0.2.0", "0.3.0"):
+        (pasta / f"manifesto-{versao}.json").write_text(
+            json.dumps({"versao": versao, "arquivos": []})
+        )
+    casca.gravar_instalacao(
+        dados,
+        {
+            "canal": "casca",
+            "pasta": str(pasta),
+            "uv": str(pasta / "bin" / "uv"),
+            "venv": str(atual),
+            "anterior": str(anterior),
+            "manifesto": str(pasta / "manifesto-0.3.0.json"),
+            "manifesto_anterior": str(pasta / "manifesto-0.2.0.json"),
+        },
+    )
+    return pasta
+
+
+@pytest.fixture
+def sem_playwright(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("PLAYWRIGHT_BROWSERS_PATH", raising=False)
+    monkeypatch.delenv("XDG_CACHE_HOME", raising=False)
+    monkeypatch.delenv("LOCALAPPDATA", raising=False)  # no Windows, a pasta vem da casa falsa
+
+
+def _no_venv(venv: Path, nome: str) -> Path:
+    """O executável do venv, escrito à mão para o teste não usar o `casca.no_venv`."""
+    return venv / "Scripts" / f"{nome}.exe" if sys.platform == "win32" else venv / "bin" / nome
+
+
+def _com_chromium(tmp_path: Path) -> None:
+    (pasta_do_playwright(os.environ) / "chromium-1187").mkdir(parents=True)
+
+
+def _atualizar_casca(
+    dados: Path, release: _Release, rodar: _Casca, registro: list[str], trava: Trava | None = None
+) -> int:
+    parar, subir = _falsos(registro, trava)
+    return atualizar(
+        rodar,
+        dados,
+        parar=parar,
+        subir=subir,
+        subir_em=lambda python: registro.append(f"subir_em {python}"),
+        cliente=release.cliente,
+        raiz=dados / "nao_e_clone",
+    )
+
+
+def test_instalacao_json_da_tipo_casca(tmp_path: Path) -> None:
+    raiz = _clone_falso(tmp_path / "clone")
+    assert tipo_de_instalacao(raiz, tmp_path) == "clone_git"
+    _instalada(tmp_path)
+    assert tipo_de_instalacao(raiz, tmp_path) == "casca"
+
+
+def test_casca_monta_o_venv_novo_prova_e_so_entao_troca(
+    tmp_path: Path, sem_playwright: None, capsys: pytest.CaptureFixture[str]
+) -> None:
+    pasta = _instalada(tmp_path)
+    registro: list[str] = []
+    rodar = _Casca(registro, plano_ligado=True)
+    release = _Release(_pacote())
+    trava = _rodando(tmp_path)
+    try:
+        assert _atualizar_casca(tmp_path, release, rodar, registro, trava) == 0
+    finally:
+        trava.soltar()
+    novo = pasta / "venvs" / f"venv-{VERSAO}"
+    # a prova vem antes de parar qualquer coisa; o segundo plano é refeito pelo joBot novo
+    passos = [r for r in registro if r.split()[0] in ("uv", "jobot", "parar") or "disable" in r]
+    assert passos == [
+        "uv venv", "uv pip", "jobot --version", "systemctl disable", "parar", "jobot segundo-plano",
+    ]  # fmt: skip
+    assert release.pedidos == [SOMAS, f"{TAG}/{PACOTE}"]  # sem Chromium instalado, não baixa
+    uv = str(pasta / "bin" / "uv")
+    venv_cmd = next(c for c in rodar.comandos if c[:2] == (uv, "venv"))
+    extraido = pasta / "python" / "cpython-3.14.9-install_only" / "python"
+    windows = sys.platform == "win32"
+    python_novo = extraido / "python.exe" if windows else extraido / "bin" / "python3"
+    assert venv_cmd[venv_cmd.index("--python") + 1] == str(python_novo)
+    assert "--offline" in venv_cmd and venv_cmd[-1] == str(novo)
+    pip = next(c for c in rodar.comandos if c[:2] == (uv, "pip"))
+    for opcao in ("--offline", "--no-index", "--require-hashes"):
+        assert opcao in pip
+    assert pip[pip.index("--python") + 1] == str(_no_venv(novo, "python"))
+    assert Path(pip[pip.index("--find-links") + 1]).name == "wheels"
+    # no --require-hashes todo requisito precisa de hash: o joBot vem pelo restricoes.txt
+    assert pip[-2:][0] == "-r" and Path(pip[-1]).name == "restricoes.txt"
+    assert not any(a.endswith(".whl") for a in pip)
+    assert (str(_no_venv(novo, "jobot")), "--version") in rodar.comandos
+    assert (str(_no_venv(novo, "jobot")), "segundo-plano", "ligar") in rodar.comandos
+    instalacao = casca.ler_instalacao(tmp_path)
+    assert instalacao["venv"] == str(novo)
+    assert instalacao["anterior"] == str(pasta / "venvs" / "venv-0.3.0")
+    assert instalacao["manifesto"] == str(pasta / f"manifesto-{VERSAO}.json")
+    assert instalacao["manifesto_anterior"] == str(pasta / "manifesto-0.3.0.json")
+    assert instalacao["user_version"] == 0 and instalacao["navegador_desatualizado"] is False
+    # fica o atual e o anterior; vão os mais velhos, o Python sem uso e o que sobrou do download
+    assert sorted(p.name for p in (pasta / "venvs").iterdir()) == ["venv-0.3.0", f"venv-{VERSAO}"]
+    assert sorted(p.name for p in (pasta / "python").iterdir()) == [
+        "cpython-3.14.9-install_only", "cpython-velho",
+    ]  # fmt: skip
+    assert sorted(p.name for p in pasta.glob("manifesto-*")) == [
+        "manifesto-0.3.0.json", f"manifesto-{VERSAO}.json",
+    ]  # fmt: skip
+    assert not list(pasta.glob("baixando-*"))
+    assert VERSAO in capsys.readouterr().out
+
+
+def test_casca_sem_plano_sobe_o_servidor_do_venv_novo(tmp_path: Path, sem_playwright: None) -> None:
+    pasta = _instalada(tmp_path)
+    registro: list[str] = []
+    trava = _rodando(tmp_path)
+    try:
+        assert (
+            _atualizar_casca(tmp_path, _Release(_pacote()), _Casca(registro), registro, trava) == 0
+        )
+    finally:
+        trava.soltar()
+    assert registro[-1] == f"subir_em {_no_venv(pasta / 'venvs' / f'venv-{VERSAO}', 'python')}"
+    assert "subir" not in registro and "jobot segundo-plano" not in registro
+
+
+def _intacta(tmp_path: Path, pasta: Path, antes: bytes, registro: list[str]) -> None:
+    assert (tmp_path / casca.ARQUIVO).read_bytes() == antes
+    assert not (pasta / "venvs" / f"venv-{VERSAO}").exists()
+    assert not (pasta / "python" / "cpython-3.14.9-install_only").exists()
+    assert not list(pasta.glob("baixando-*")) and not (pasta / f"manifesto-{VERSAO}.json").exists()
+    assert "parar" not in registro and "systemctl disable" not in registro
+    assert sorted(p.name for p in (pasta / "venvs").iterdir()) == [
+        "venv-0.1.0",
+        "venv-0.2.0",
+        "venv-0.3.0",
+    ]
+
+
+@pytest.mark.parametrize(
+    ("release", "mensagem"),
+    [
+        (lambda: _Release(_pacote(), sha="b" * 64), "SHA256SUMS"),
+        (
+            lambda: _Release(_pacote(trocar={"wheels/dep-1-py3-none-any.whl": "c" * 64})),
+            "wheels/dep",
+        ),
+        (lambda: _Release(_pacote(extra={"intruso.py": b"x"})), "intruso.py"),
+    ],
+    ids=["pacote", "arquivo_de_dentro", "fora_do_manifesto"],
+)
+def test_casca_que_nao_confere_nao_muda_nada(
+    tmp_path: Path,
+    sem_playwright: None,
+    capsys: pytest.CaptureFixture[str],
+    release: Callable[[], _Release],
+    mensagem: str,
+) -> None:
+    pasta = _instalada(tmp_path)
+    antes = (tmp_path / casca.ARQUIVO).read_bytes()
+    registro: list[str] = []
+    rodar = _Casca(registro)
+    assert _atualizar_casca(tmp_path, release(), rodar, registro) == 1
+    _intacta(tmp_path, pasta, antes, registro)
+    assert not any(r.startswith("uv ") for r in registro)
+    assert mensagem in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("falha", ["uv pip", "jobot --version", "versao_errada"])
+def test_casca_prova_que_falha_apaga_o_venv_novo(
+    tmp_path: Path, sem_playwright: None, capsys: pytest.CaptureFixture[str], falha: str
+) -> None:
+    pasta = _instalada(tmp_path)
+    antes = (tmp_path / casca.ARQUIVO).read_bytes()
+    registro: list[str] = []
+    rodar = _Casca(registro)
+    if falha == "versao_errada":
+        rodar.versao_nova = "0.3.0"
+    else:
+        rodar.falha_em[falha] = Resultado(1, erro="quebrou")
+    assert _atualizar_casca(tmp_path, _Release(_pacote()), rodar, registro) == 1
+    assert "uv venv" in registro  # chegou a montar
+    _intacta(tmp_path, pasta, antes, registro)
+    assert "nada mudou" in capsys.readouterr().err.lower()
+
+
+def test_casca_ja_na_mais_nova_nao_baixa_o_pacote(tmp_path: Path, sem_playwright: None) -> None:
+    pasta = _instalada(tmp_path)
+    antes = (tmp_path / casca.ARQUIVO).read_bytes()
+    registro: list[str] = []
+    atual = re.match(r"[0-9]+\.[0-9]+\.[0-9]+", __version__)
+    assert atual is not None
+    release = _Release(_pacote(), versao=atual[0])
+    assert _atualizar_casca(tmp_path, release, _Casca(registro), registro) == 0
+    assert release.pedidos == [SOMAS]
+    _intacta(tmp_path, pasta, antes, registro)
+
+
+def test_casca_com_chromium_baixa_o_do_playwright_novo_antes_da_troca(
+    tmp_path: Path, sem_playwright: None
+) -> None:
+    """D183.24: o navegador não vem da release; o `jobot ferramentas baixar navegador` do venv
+    novo roda o `playwright install` da versão nova (nada baixa se a revisão é a mesma)."""
+    pasta = _instalada(tmp_path)
+    _com_chromium(tmp_path)
+    registro: list[str] = []
+    rodar = _Casca(registro, plano_ligado=True)
+    release = _Release(_pacote())
+    assert _atualizar_casca(tmp_path, release, rodar, registro) == 0
+    assert release.pedidos == [SOMAS, f"{TAG}/{PACOTE}"]
+    baixar = [c for c in rodar.comandos if c[1:4] == ("ferramentas", "baixar", "navegador")]
+    jobot_novo = str(_no_venv(pasta / "venvs" / f"venv-{VERSAO}", "jobot"))
+    assert baixar == [(jobot_novo, "ferramentas", "baixar", "navegador")]
+    # depois da prova do venv novo e antes de parar qualquer coisa
+    assert registro.index("jobot --version") < registro.index("jobot ferramentas")
+    assert registro.index("jobot ferramentas") < registro.index("systemctl disable")
+    assert casca.ler_instalacao(tmp_path)["navegador_desatualizado"] is False
+
+
+def test_casca_sem_chromium_nao_baixa_o_navegador(tmp_path: Path, sem_playwright: None) -> None:
+    _instalada(tmp_path)
+    registro: list[str] = []
+    release = _Release(_pacote())
+    assert _atualizar_casca(tmp_path, release, _Casca(registro), registro) == 0
+    assert release.pedidos == [SOMAS, f"{TAG}/{PACOTE}"]
+    assert "jobot ferramentas" not in registro
+    assert casca.ler_instalacao(tmp_path)["navegador_desatualizado"] is False
+
+
+def test_casca_chromium_que_falha_troca_e_marca_desatualizado(
+    tmp_path: Path, sem_playwright: None
+) -> None:
+    pasta = _instalada(tmp_path)
+    _com_chromium(tmp_path)
+    registro: list[str] = []
+    rodar = _Casca(registro)
+    rodar.falha_em["jobot ferramentas"] = Resultado(1, erro="sem rede")
+    assert _atualizar_casca(tmp_path, _Release(_pacote()), rodar, registro) == 0
+    instalacao = casca.ler_instalacao(tmp_path)
+    assert instalacao["venv"] == str(pasta / "venvs" / f"venv-{VERSAO}")
+    assert instalacao["navegador_desatualizado"] is True
+    assert casca.navegador_desatualizado(tmp_path)
+
+
+def _banco(dados: Path, versao: int) -> None:
+    con = sqlite3.connect(dados / "jobot.db")
+    try:
+        con.execute(f"PRAGMA user_version = {versao:d}")
+    finally:
+        con.close()
+
+
+def test_troca_grava_o_user_version_e_voltar_troca_o_ponteiro(
+    tmp_path: Path, sem_playwright: None
+) -> None:
+    pasta = _instalada(tmp_path)
+    _banco(tmp_path, 41)
+    registro: list[str] = []
+    assert _atualizar_casca(tmp_path, _Release(_pacote()), _Casca(registro), registro) == 0
+    assert casca.ler_instalacao(tmp_path)["user_version"] == 41
+    casca.voltar_a_anterior(tmp_path)
+    instalacao = casca.ler_instalacao(tmp_path)
+    assert instalacao["venv"] == str(pasta / "venvs" / "venv-0.3.0")
+    assert instalacao["anterior"] == str(pasta / "venvs" / f"venv-{VERSAO}")
+    assert instalacao["manifesto"] == str(pasta / "manifesto-0.3.0.json")
+    assert instalacao["manifesto_anterior"] == str(pasta / f"manifesto-{VERSAO}.json")
+
+
+def test_voltar_com_o_banco_migrado_recusa_e_nada_muda(
+    tmp_path: Path, sem_playwright: None
+) -> None:
+    _instalada(tmp_path)
+    _banco(tmp_path, 41)
+    registro: list[str] = []
+    assert _atualizar_casca(tmp_path, _Release(_pacote()), _Casca(registro), registro) == 0
+    _banco(tmp_path, 42)  # o joBot novo migrou ao abrir
+    antes = (tmp_path / casca.ARQUIVO).read_bytes()
+    with pytest.raises(casca.Falha, match="41 virou 42"):
+        casca.voltar_a_anterior(tmp_path)
+    assert (tmp_path / casca.ARQUIVO).read_bytes() == antes
+
+
+def test_voltar_sem_anterior_recusa(tmp_path: Path) -> None:
+    _instalada(tmp_path)
+    instalacao = casca.ler_instalacao(tmp_path)
+    instalacao["anterior"] = None
+    casca.gravar_instalacao(tmp_path, instalacao)
+    with pytest.raises(casca.Falha, match="Não há versão anterior"):
+        casca.voltar_a_anterior(tmp_path)
+
+
+def test_casca_banco_danificado_na_troca_religa_e_nada_muda(
+    tmp_path: Path, sem_playwright: None, capsys: pytest.CaptureFixture[str]
+) -> None:
+    pasta = _instalada(tmp_path)
+    (tmp_path / "jobot.db").write_bytes(b"nao e sqlite" * 400)
+    antes = (tmp_path / casca.ARQUIVO).read_bytes()
+    registro: list[str] = []
+    rodar = _Casca(registro, plano_ligado=True)
+    assert _atualizar_casca(tmp_path, _Release(_pacote()), rodar, registro) == 1
+    assert (tmp_path / casca.ARQUIVO).read_bytes() == antes
+    assert not (pasta / f"manifesto-{VERSAO}.json").exists()
+    assert not (pasta / "venvs" / f"venv-{VERSAO}").exists()
+    # religa a versão de antes, pelo systemctl, não pelo joBot novo
+    assert registro.index("systemctl disable") < registro.index("systemctl enable")
+    assert "jobot segundo-plano" not in registro
+    assert "nada mudou" in capsys.readouterr().err.lower()
+
+
+def test_casca_erro_de_disco_no_download_nao_muda_nada(
+    tmp_path: Path, sem_playwright: None, capsys: pytest.CaptureFixture[str]
+) -> None:
+    pasta = _instalada(tmp_path)
+    antes = (tmp_path / casca.ARQUIVO).read_bytes()
+    release = _Release(_pacote())
+
+    def cheio() -> Iterator[bytes]:
+        yield b"comeco"
+        raise OSError(28, "No space left on device")
+
+    def responder(pedido: httpx.Request) -> httpx.Response:
+        if str(pedido.url) == f"{TAG}/{PACOTE}":
+            return httpx.Response(200, content=cheio())
+        return release._responder(pedido)
+
+    release.cliente = httpx.Client(transport=httpx.MockTransport(responder))
+    registro: list[str] = []
+    assert _atualizar_casca(tmp_path, release, _Casca(registro), registro) == 1
+    _intacta(tmp_path, pasta, antes, registro)
+    erro = capsys.readouterr().err
+    assert "No space left" in erro and "nada mudou" in erro.lower()
+
+
+def test_casca_pyvenv_ilegivel_nao_apaga_python(tmp_path: Path, sem_playwright: None) -> None:
+    pasta = _instalada(tmp_path)
+    (pasta / "venvs" / "venv-0.3.0" / "pyvenv.cfg").unlink()  # na dúvida, fica (D174.18)
+    registro: list[str] = []
+    assert _atualizar_casca(tmp_path, _Release(_pacote()), _Casca(registro), registro) == 0
+    assert (pasta / "python" / "cpython-sem-uso").is_dir()
+
+
+def test_jobot_version_diz_a_versao(capsys: pytest.CaptureFixture[str]) -> None:
+    assert main(["--version"]) == 0
+    assert capsys.readouterr().out == f"jobot {__version__}\n"
+
+
+@pytest.mark.parametrize(
+    ("plataforma", "env", "esperado"),
+    [
+        ("linux", {"HOME": "/c"}, "/c/.cache/ms-playwright"),
+        ("linux", {"HOME": "/c", "XDG_CACHE_HOME": "/x"}, "/x/ms-playwright"),
+        ("linux", {"HOME": "/c", "PLAYWRIGHT_BROWSERS_PATH": "/p"}, "/p"),
+        ("linux", {"HOME": "/c", "PLAYWRIGHT_BROWSERS_PATH": "0"}, "/c/.cache/ms-playwright"),
+        ("darwin", {"HOME": "/c"}, "/c/Library/Caches/ms-playwright"),
+        ("win32", {"HOME": "/c", "LOCALAPPDATA": "/l"}, "/l/ms-playwright"),
+    ],
+)
+def test_pasta_do_playwright(plataforma: str, env: dict[str, str], esperado: str) -> None:
+    assert pasta_do_playwright(env, plataforma) == Path(esperado)
+
+
+def test_lancar_atualizacao_roda_destacado_com_a_pasta_e_o_log(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """T332: o painel dispara o `jobot atualizar` num grupo próprio, porque ele para o servidor
+    que o chamou; a saída vai para `logs/atualizar.log` (0600), que a tela cita se demorar."""
+    chamadas: list[tuple[list[str], dict[str, object]]] = []
+
+    def popen(comando: list[str], **kwargs: object) -> str:
+        arquivo = kwargs["stdout"]
+        assert hasattr(arquivo, "write")
+        arquivo.write(b"saida\n")
+        chamadas.append((comando, kwargs))
+        return "processo"
+
+    monkeypatch.setattr(subprocess, "Popen", popen)
+    feito: object = modulo.lancar_atualizacao(
+        tmp_path, {"PATH": "/usr/bin", "JOBOT_DADOS": "/outra"}, cgroup=tmp_path / "sem-cgroup"
+    )
+    assert feito == "processo"
+    [(comando, kwargs)] = chamadas
+    assert comando == [sys.executable, "-m", "jobot", "atualizar"]
+    assert kwargs["env"] == {"PATH": "/usr/bin", "JOBOT_DADOS": str(tmp_path)}
+    assert kwargs["stdin"] == subprocess.DEVNULL
+    assert kwargs["stderr"] == subprocess.STDOUT
+    assert {k: kwargs[k] for k in processo.destacar()} == processo.destacar()
+    log = tmp_path / "logs" / "atualizar.log"
+    assert log.read_bytes() == b"saida\n"
+    if sys.platform != "win32":  # modo do POSIX
+        assert log.stat().st_mode & 0o777 == 0o600
+    # a segunda vez acrescenta, não apaga o que a primeira deixou
+    modulo.lancar_atualizacao(tmp_path, {}, cgroup=tmp_path / "sem-cgroup")
+    assert log.read_bytes() == b"saida\nsaida\n"
+
+
+@pytest.mark.parametrize(
+    ("linha", "sob_o_servico"),
+    [
+        ("0::/user.slice/user-1000.slice/user@1000.service/app.slice/jobot.service\n", True),
+        ("0::/user.slice/user-1000.slice/session-2.scope\n", False),
+        ("0::/\n", False),  # na distrobox: o cgroup do contêiner; o `sair` para o servidor
+    ],
+)
+def test_lancar_atualizacao_sai_do_cgroup_do_servico(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, linha: str, sob_o_servico: bool
+) -> None:
+    """Revisão da T332: sob o jobot.service, o `systemctl --user disable --now` do `desligar()`
+    mata o cgroup inteiro, e o `jobot atualizar` filho do servidor morreria junto. Sob o serviço,
+    ele vai num scope próprio do systemd-run; fora dele, o comando fica como está."""
+    comandos: list[list[str]] = []
+    monkeypatch.setattr(subprocess, "Popen", lambda comando, **_: comandos.append(comando))
+    cgroup = tmp_path / "cgroup"
+    cgroup.write_text(linha)
+    modulo.lancar_atualizacao(tmp_path, {}, cgroup=cgroup)
+    jobot = [sys.executable, "-m", "jobot", "atualizar"]
+    prefixo = ["systemd-run", "--user", "--scope", "--collect", "--quiet", "--unit"]
+    if sob_o_servico:
+        assert comandos == [[*prefixo, "jobot-atualizar", "--", *jobot]]
+    else:
+        assert comandos == [jobot]

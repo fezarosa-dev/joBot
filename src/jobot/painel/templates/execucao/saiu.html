@@ -1,9 +1,10 @@
-{#- a despedida do Sair (T264): estado vazio, sem lateral e sem botões -#}
+{#- a despedida do Sair (T264): estado vazio, sem lateral e sem botões; na casca, o app.js fecha a
+    janela ao ver o data-encerrado (T333) -#}
 {% extends "base.html" %}
 {% block titulo %}{{ t("execucao.saiu_titulo") }} · joBot{% endblock %}
 {% block estilos %}<link rel="stylesheet" href="/static/css/vagas.css"><link rel="stylesheet" href="/static/css/detalhe.css">{% endblock %}
 {% block conteudo %}
-<div class="vazio">
+<div class="vazio" data-encerrado>
   <span class="icone" data-icone="log-out" aria-hidden="true"></span>
   <h1>{{ t("execucao.saiu_titulo") }}</h1>
   <p>{{ t("execucao.saiu") }}</p>
