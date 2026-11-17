@@ -25,6 +25,7 @@ from jobot.banco import cadastros
 from jobot.banco.captcha import TETO_DIA
 from jobot.banco.conexao import abrir
 from jobot.banco.migrar import migrar
+from jobot.navegador import limites
 from jobot.nucleo.captcha import Falha
 from jobot.painel.app import criar_app
 from jobot.painel.i18n import carregar, t
@@ -355,7 +356,7 @@ def test_cofre_que_trava_vira_erro_em_15_s(
     trava = threading.Event()
     backend = _CofreContado(trava=trava)
     painel = Painel(tmp_path, backend)
-    monkeypatch.setattr(servicos, "PRAZO_COFRE_S", 0.05)
+    monkeypatch.setattr(limites, "PRAZO_COFRE_S", 0.05)
     try:
         with caplog.at_level(logging.DEBUG):
             resposta = painel.salvar(CHAVE)
@@ -436,7 +437,7 @@ def test_testar_com_o_cofre_travado_mostra_erro_do_cofre(
     trava = threading.Event()
     painel = Painel(tmp_path, CofreFalso(trava=trava))
     painel.api(_so_se_chamado)
-    monkeypatch.setattr(servicos, "PRAZO_COFRE_S", 0.05)
+    monkeypatch.setattr(limites, "PRAZO_COFRE_S", 0.05)
     try:
         resposta = painel.testar("")
     finally:

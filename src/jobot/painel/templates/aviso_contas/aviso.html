@@ -1,0 +1,10 @@
+{%- if contas -%}
+{%- if contas | length > 1 -%}
+{%- set frase = t("casca.aviso_contas.varios", quantos=contas | length) -%}
+{%- elif so_gmail -%}
+{%- set frase = t("casca.aviso_contas.gmail") -%}
+{%- else -%}
+{%- set frase = t("casca.aviso_contas.um", site=contas[0][1]) -%}
+{%- endif -%}
+<p class="aviso-contas">{{ frase }} <a href="/configuracoes/contas#conta-{{ contas[0][0] }}">{{ t("casca.aviso_contas.entrar") }}</a></p>
+{%- endif -%}

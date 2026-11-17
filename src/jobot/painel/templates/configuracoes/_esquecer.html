@@ -1,0 +1,9 @@
+{#- "Esquecer logins": o resultado do alerta de confirmação (D132.22) -#}
+{%- if fase == "em_andamento" %}
+<p class="config-texto" data-foco>{{ t("configuracoes.sites_com_login.em_andamento") }}</p>
+{%- else %}
+<p class="config-texto" data-foco>{{ t("configuracoes.sites_com_login.esquecer." ~ fase) }}</p>
+{%- endif %}
+{%- if cartoes is defined %}
+{% with oob = True %}{% include "configuracoes/_sites_cartoes.html" %}{% endwith %}
+{%- endif %}

@@ -75,10 +75,12 @@ def decimal_curto(valor: Decimal, idioma: str) -> str:
 
 
 def _ler_data(data: str) -> datetime | None:
+    """Instante com fuso (UTC do banco) vira hora local: o dia mostrado é o do calendário local."""
     try:
-        return datetime.fromisoformat(data)
+        lida = datetime.fromisoformat(data)
     except ValueError:
         return None
+    return lida.astimezone() if lida.tzinfo else lida
 
 
 def data_curta(data: str, idioma: str) -> str:
@@ -215,3 +217,19 @@ def opcoes_de_pais(idioma: str) -> list[tuple[str, str]]:
     nome = nome_em_ingles if idioma == "en" else nome_do_pais
     pares = [(codigo, nome(codigo) or codigo) for codigo in codigos_de_pais()]
     return sorted(pares, key=lambda par: normalizar(par[1]))
+
+
+def conferido_texto(conferido_em: str, agora: datetime, idioma: str) -> str:
+    """Texto como "conferido hoje às 09:02": a hora e o dia são os locais, nunca os de UTC (E19)."""
+    lida = _ler_data(conferido_em)
+    if lida is None:
+        return ""
+    local = lida.astimezone()
+    hora = local.strftime("%H:%M")
+    dias = (agora.astimezone().date() - local.date()).days
+    if dias == 0:
+        return t(idioma, "configuracoes.contas.conferido.hoje", hora=hora)
+    if dias == 1:
+        return t(idioma, "configuracoes.contas.conferido.ontem", hora=hora)
+    data = data_curta(local.isoformat(), idioma)
+    return t(idioma, "configuracoes.contas.conferido.data", data=data, hora=hora)

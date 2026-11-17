@@ -6,13 +6,14 @@ Thanks for your interest! This guide explains how to help with joBot, now and af
 
 ## Project status
 
-Phase 1 (foundation) is complete: joBot 0.2.1 can already be installed and used ([how to install](../README.en.md#requirements-and-installation)). Phases 2 to 8 are planned. The decisions made so far are in [`docs/decisions/`](../docs/decisions/README.md) (Portuguese only for now). To learn what the project is and where it is going, read the [README](../README.en.md).
+Phases 1 and 2 (foundation and browser with login) are complete: joBot 0.3.0 can already be installed and used ([how to install](../README.en.md#requirements-and-installation)). Phases 3 to 9 are planned. The decisions made so far are in [`docs/decisions/`](../docs/decisions/README.md) (Portuguese only for now). To learn what the project is and where it is going, read the [README](../README.en.md).
 
 ## How to help now
 
 - **Suggestions and job sources** are welcome right away. Open an issue using the forms: Bug, Feature request or Job source.
 - **Did a job source break?** The guide [How to fix a source that broke](../docs/consertar-fonte.en.md) shows how to find what changed and fix it. For now it helps you understand the path and report what you found in an issue; the PR with the fix follows the rule below.
-- **Code pull requests** will only be accepted after the release (phase 8). Until then, the code is still changing a lot.
+- **Want to add a new job site?** The guide [How to add a new site](../docs/site-novo.en.md) takes you from the site to the PR, with a template that already runs for a public site and another for a site with login. For now it helps you get ready and open the "Job source" issue; the PR follows the rule below.
+- **Code pull requests** will only be accepted after the release (phase 9). Until then, the code is still changing a lot.
 - Issues and PRs can be written in **Portuguese or English**.
 - Found a security flaw? **Do not open a public issue.** See the [Security Policy](SECURITY.en.md).
 - Need help or have a question? See [Support](SUPPORT.en.md).
@@ -26,7 +27,7 @@ Phase 1 (foundation) is complete: joBot 0.2.1 can already be installed and used 
 - **Quality:** `ruff` handles style, `mypy` in strict mode (`--strict`) handles types and `pytest` runs the tests.
 - **New dependencies** only with a reason and a license compatible with MIT.
 
-## Code workflow (after phase 8)
+## Code workflow (after phase 9)
 
 1. Fork the repository.
 2. Create a branch from the up-to-date `dev`, with the right prefix (`feat/`, `fix/`, `docs/` or `ci/`).

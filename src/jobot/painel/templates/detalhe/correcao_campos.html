@@ -1,0 +1,30 @@
+{#- Os formulários da correção, um por item: o botão de cada linha manda só aquela correção, sem
+    risco de a pessoa escrever num campo e o envio levar outro. A página e o sheet (T264) usam este
+    mesmo trecho. -#}
+{%- for campo in campos %}
+{%- set nome = t("detalhe.correcao.campo." ~ campo) %}
+{%- set valor = f.valores.get(campo, "") if f.campo == campo else atual.get(campo, "") %}
+<form class="linha-correcao" method="post" action="/vagas/{{ vaga.id }}/correcao">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <input type="hidden" name="campo" value="{{ campo }}">
+  {%- if erro and f.campo == campo %}
+  <p class="erro" role="alert">{{ t(erro.chave, **erro.params) }}</p>
+  {%- endif %}
+  <label for="valor-{{ campo }}">{{ nome }}</label>
+  {%- if campo in listas %}
+  <select id="valor-{{ campo }}" name="valor_{{ campo }}">
+    {%- for o in listas[campo] %}
+    <option value="{{ o }}"{% if o == valor %} selected{% endif %}>{{ t("detalhe.correcao.fechada." ~ o) if campo == "fechada" else rotulo(campo ~ "." ~ o, o) }}</option>
+    {%- endfor %}
+  </select>
+  {%- else %}
+  <input id="valor-{{ campo }}" type="text" name="valor_{{ campo }}" value="{{ valor }}" maxlength="500"{% if campo == "uf" %} size="3"{% endif %}{% if campo in ("salario", "outro") %} aria-describedby="dica-{{ campo }}"{% endif %}>
+  {%- endif %}
+  {%- if campo in ("salario", "outro") %}
+  <p class="dica" id="dica-{{ campo }}">{{ t("detalhe.correcao.dica." ~ campo) }}</p>
+  {%- endif %}
+  <label for="correcao-comentario-{{ campo }}">{{ t("detalhe.correcao.comentario") }}</label>
+  <textarea id="correcao-comentario-{{ campo }}" name="comentario" rows="2" maxlength="500">{{ f.comentario if f.campo == campo else "" }}</textarea>
+  <button type="submit" class="primario" aria-label="{{ t('detalhe.correcao.salvar_campo', campo=nome) }}">{{ t("detalhe.correcao.salvar") }}</button>
+</form>
+{%- endfor %}

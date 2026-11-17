@@ -16,12 +16,17 @@ Procurar vaga hoje exige abrir muitos sites, repetir filtros e perder prazos. O 
 - Toda funcionalidade pode ser ligada ou desligada.
 - Uma pessoa por instalação, com várias buscas salvas.
 - Público: pessoas comuns, em computadores médios (8 a 16 GB de RAM, sem placa de vídeo dedicada), com Linux, Windows ou macOS.
-- Código aberto sob licença MIT, no GitHub. A publicação para uso (instaladores) é a fase 8.
+- Código aberto sob licença MIT, no GitHub. A publicação para uso é a fase 9; os instaladores vêm antes, na fase 3.
 
 ## Consequências
 
 - Sem envio automático, cai o risco de spam e de bloqueio de conta.
 - Como tudo é desligável, cada função precisa de uma chave nas configurações.
+
+## Nota (2026-11-16): abertura da candidatura
+
+- O registro de quando a pessoa abriu a candidatura de cada vaga fica só no computador dela, no banco local. Nada disso é enviado.
+- O botão de candidatura por e-mail só abre o programa de e-mail da pessoa; o joBot não envia nada e continua sem enviar candidatura nenhuma.
 
 ## Ver também
 

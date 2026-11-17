@@ -2,23 +2,31 @@
 
 - **Status:** aceita
 - **Data:** 2026-11-13
-- **Atualizada:** 2026-11-15 (versões 0.1.1, 0.2.0 e 0.2.1 entre a fase 1 e a fase 2)
+- **Atualizada:** 2026-11-16 (versões 0.1.1, 0.2.0 e 0.2.1 entre a fase 1 e a fase 2; fase 3 vira o Instalador, as seguintes andam um número, e a versão 0.3.0 traz o Panorama e a fila, D138; fase 3 com o app de desktop, D142, e o ajuste do Laya antes da fase 4, D141; fase 2 concluída e 0.3.0)
 
 ## Contexto
 
-O projeto é grande. Ir por fases deixa cada entrega testada antes da próxima. Hoje a fase 1 está concluída, as versões 0.1.0, 0.1.1, 0.2.0 e 0.2.1 já saíram (a 0.2.0 traz filtros novos e deixa o 2Captcha preparado para a fase 2; a 0.2.1 deixa a lista de vagas mais rápida e faz o aviso "Salvo." sumir sozinho) e as outras fases estão planejadas.
+O projeto é grande. Ir por fases deixa cada entrega testada antes da próxima. Hoje as fases 1 e 2 estão concluídas, as versões 0.1.0, 0.1.1, 0.2.0, 0.2.1 e 0.3.0 já saíram (a 0.2.0 traz filtros novos e deixa o 2Captcha preparado para a fase 2; a 0.2.1 deixa a lista de vagas mais rápida e faz o aviso «Salvo.» sumir sozinho; a 0.3.0 traz o navegador com login, o LinkedIn, o visual novo do painel, a aba Contas, o Panorama e a fila de candidaturas) e as outras fases estão planejadas. Em 2026-11-15 o dono decidiu a ordem LinkedIn (fase 2), Panorama e fila, versão 0.3.0, instalador, IA local (D138).
 
 ## Decisão
 
 - Fase 1, Base: núcleo comum, fontes públicas, banco, painel e agenda, mais o vigia semanal das fontes e o `jobot atualizar` (ver [0018](0018-manutencao-pela-comunidade.md)). Os detalhes ficam para o desenho da fase 1. Status: concluída.
 - Entre a fase 1 e a fase 2 saem três versões pequenas: a 0.1.1 (nenhum erro trava o programa e todo erro aparece com o que a pessoa pode fazer), a 0.2.0 (filtros novos na tela de vagas, país e moeda) e a 0.2.1 (a lista de vagas abre mais rápido e o aviso "Salvo." some sozinho). A ordem das fases não muda.
-- Fase 2, Navegador com login: Chrome visível, mapeamento dos sites e tratamento de CAPTCHA. Status: planejada.
-- Fase 3, IA local: pacote offline (llama-server + Qwen). Status: planejada.
-- Fase 4, Extensão do navegador. Status: planejada.
-- Fase 5, Áudio e Gmail. Status: planejada.
-- Fase 6, Treino. Status: planejada.
-- Fase 7, Versão GitHub Pages. Status: planejada.
-- Fase 8, Publicação: instaladores, README com selos, revisão de segurança. Status: planejada.
+- Fase 2, Navegador com login: Chrome visível, mapeamento dos sites e tratamento de CAPTCHA. Status: concluída na 0.3.0 (navegador com login e o primeiro site).
+- Depois da fase 2 sai a versão 0.3.0, num lote separado do login: a tela "Panorama" (visão geral das vagas e da busca) e a fila de candidaturas completa (link de candidatura por e-mail, a pergunta "Você se candidatou?" quando a pessoa volta ao painel e as datas de cada passo). Só depois dela começa a fase 3.
+- Fase 3, Instalador: só 64 bits; Windows e Linux primeiro, Mac depois (testado só no GitHub Actions). A tela do instalador mostra uma lista de ferramentas para marcar: as essenciais vêm marcadas e não dá para desmarcar. As outras, se ficarem sem marca, aparecem depois no painel para baixar quando a pessoa quiser (ver [0023](0023-tudo-pelo-painel.md)). Status: planejada.
+- Fase 4, IA local: pacote offline (llama-server + Qwen). Status: planejada.
+- Fase 5, Extensão do navegador. Status: planejada.
+- Fase 6, Áudio e Gmail. Status: planejada.
+- Fase 7, Treino. Status: planejada.
+- Fase 8, Versão GitHub Pages. Status: planejada.
+- Fase 9, Publicação: README com selos e revisão de segurança (os instaladores saíram desta fase e foram para a fase 3). Status: planejada.
+
+## App de desktop na fase 3 e Laya antes da fase 4 (2026-11-15)
+
+- A fase 3 inclui, além do instalador, o app de desktop: uma casca Tauri com ícone e janela própria em volta do mesmo painel, que continua em 127.0.0.1. O mesmo projeto Tauri gera o instalador (D142). O visual de app do Mac vem da D140.
+- O ajuste fino do Laya (ADR 0015) acontece antes da fase 4, e o Laya ajustado entra no encaixe junto com o Qwen local (D141). Os outros treinos seguem na fase 7.
+- Nenhuma fase muda de número nem de nome.
 
 ## Consequências
 
@@ -30,3 +38,5 @@ O projeto é grande. Ir por fases deixa cada entrega testada antes da próxima. 
 - [0002. Duas versões, um núcleo](0002-duas-versoes-um-nucleo.md)
 - [0016. Licença, sala limpa e processo de trabalho](0016-licenca-clean-room-e-processo.md)
 - [0018. Manutenção pela comunidade e CI aberto a todo PR](0018-manutencao-pela-comunidade.md)
+- [0023. Tudo pelo painel](0023-tudo-pelo-painel.md)
+- [duvidas.md: D141 (Laya antes da fase 4) e D142 (app de desktop)](../../duvidas.md)

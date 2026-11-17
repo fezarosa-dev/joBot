@@ -8,7 +8,7 @@ import socket
 from collections import defaultdict
 from collections.abc import AsyncGenerator, AsyncIterator, Awaitable, Callable, Mapping
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from email.utils import parsedate_to_datetime
 from typing import Literal, Protocol
 
@@ -25,6 +25,8 @@ CABECALHOS_ACEITOS = frozenset({"accept", "accept-language", "content-type", "ra
 _NUNCA = ("Cookie", "Origin", "Authorization", "Referer")
 _SO_NA_ORIGEM = ("X-Tenant", "If-None-Match", "If-Modified-Since")
 Resolvedor = Callable[[str], Awaitable[list[str]]]  # host -> endereços IP em texto
+MotivoEspera = Literal["limite", "erro"]  # limite: 429/503; erro: nova tentativa (rede ou 5xx)
+AoEsperar = Callable[[datetime, MotivoEspera], Awaitable[None]]  # (fim da espera, motivo)
 
 
 @dataclass(frozen=True)
@@ -109,7 +111,7 @@ class CabecalhoProibido(ValueError):
     """Cabeçalho fora da lista permitida (DR-51)."""
 
 
-def _segundos_retry_after(valor: str | None, agora: datetime) -> float | None:
+def segundos_retry_after(valor: str | None, agora: datetime) -> float | None:
     if valor is None:
         return None
     valor = valor.strip()
@@ -231,9 +233,19 @@ class ClienteEducado:
         para_no_429: bool = False,
         teto_espera_s: float | None = None,
         seguir_saltos: bool = True,
+        ao_esperar: AoEsperar | None = None,
     ) -> HttpDoEscopo:
+        """`ao_esperar` é avisado antes de cada espera de 429/503 e de nova tentativa; o
+        intervalo normal entre pedidos ao mesmo host não conta como espera."""
         return HttpDoEscopo(
-            self, espera_s, condicional, max_pedidos, para_no_429, teto_espera_s, seguir_saltos
+            self,
+            espera_s,
+            condicional,
+            max_pedidos,
+            para_no_429,
+            teto_espera_s,
+            seguir_saltos,
+            ao_esperar,
         )
 
     async def fechar(self) -> None:
@@ -299,8 +311,10 @@ class HttpDoEscopo:
         para_no_429: bool,
         teto_espera_s: float | None = None,
         seguir_saltos: bool = True,
+        ao_esperar: AoEsperar | None = None,
     ) -> None:
         self._dono = dono
+        self._ao_esperar = ao_esperar
         self._espera_s = espera_s
         self._condicional = condicional
         self._max_pedidos = max_pedidos
@@ -389,7 +403,7 @@ class HttpDoEscopo:
                 espera = next(esperas_erro, None)
                 if espera is None:
                     raise ErroDeRede(f"{pedido.url}: {erro}") from erro
-                await relogio.dormir(espera)
+                await self._esperar(espera, "erro")
                 continue
 
             status = resposta.status_code
@@ -421,7 +435,7 @@ class HttpDoEscopo:
                     raise Parou429(
                         f"{pedido.url}: HTTP {status}{sufixo}", cabecalhos=resposta.headers
                     )
-                pedida = _segundos_retry_after(resposta.headers.get("Retry-After"), relogio.agora())
+                pedida = segundos_retry_after(resposta.headers.get("Retry-After"), relogio.agora())
                 if (
                     status == 429
                     and pedida is None
@@ -447,15 +461,21 @@ class HttpDoEscopo:
                         f"{pedido.url}: espera de {espera:.0f} s acima do teto do escopo",
                         cabecalhos=resposta.headers,
                     )
-                await relogio.dormir(espera)
+                await self._esperar(espera, "limite")
                 continue
             if status >= 500:
                 espera = next(esperas_erro, None)
                 if espera is None:
                     raise ErroDeRede(f"{pedido.url}: HTTP {status} depois das tentativas", status)
-                await relogio.dormir(espera)
+                await self._esperar(espera, "erro")
                 continue
             raise ErroDeRede(f"{pedido.url}: HTTP {status}", status)
+
+    async def _esperar(self, espera: float, motivo: MotivoEspera) -> None:
+        relogio = self._dono._relogio
+        if self._ao_esperar is not None:
+            await self._ao_esperar(relogio.agora() + timedelta(seconds=espera), motivo)
+        await relogio.dormir(espera)
 
     def _guardar_validadores(self, url: str, resposta: httpx.Response) -> None:
         if resposta.status_code != 200:

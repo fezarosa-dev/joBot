@@ -114,7 +114,7 @@ def _expressoes(no: object) -> Iterator[str]:
 def test_regex_no_subconjunto_comum() -> None:
     expressoes = list(_expressoes(json.loads(ARQUIVO.read_text(encoding="utf-8"))))
     assert expressoes, "rotulos.json sem nenhuma expressão"
-    # também os padrões montados a partir dos 'termos', que são o que a fase 7 vai portar
+    # também os padrões montados a partir dos 'termos', que são o que a fase 8 vai portar
     montados = [p.pattern for regras in _REGRAS.values() for r in regras for p in r.padroes]
     for e in expressoes + montados:
         re.compile(e)

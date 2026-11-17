@@ -10,7 +10,7 @@ from fastapi import Request
 
 from jobot import __version__
 from jobot.nucleo.http import ClienteEducado
-from jobot.painel.rotas.vagas import relogio_do_painel
+from jobot.painel.consultas import relogio_do_painel
 from jobot.painel.sem_validadores import SemValidadores
 
 

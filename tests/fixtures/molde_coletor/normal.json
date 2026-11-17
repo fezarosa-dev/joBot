@@ -1,0 +1,32 @@
+{
+  "vagas": [
+    {
+      "id": 1001,
+      "titulo": "Pessoa Desenvolvedora Python Pleno",
+      "empresa": "Exemplo Tecnologia",
+      "url": "https://vagas.exemplo.invalid/vaga/1001",
+      "descricao": "<p>Time de produto, Python e SQL. Trabalho híbrido.</p>",
+      "local": "São Paulo, SP",
+      "publicada_em": "2026-11-10T09:00:00-03:00"
+    },
+    {
+      "id": 1002,
+      "titulo": "Analista de Dados Júnior",
+      "empresa": "Loja Fictícia",
+      "url": "https://vagas.exemplo.invalid/vaga/1002",
+      "descricao": "<p>Painéis, SQL e planilhas. Remoto no Brasil.</p>",
+      "local": "Remoto",
+      "publicada_em": "2026-11-11T14:30:00-03:00"
+    },
+    {
+      "id": 1003,
+      "titulo": "Estágio em Desenvolvimento Web",
+      "empresa": "Dados Inventados Ltda",
+      "url": "https://vagas.exemplo.invalid/vaga/1003",
+      "descricao": "<p>HTML, CSS e um pouco de JavaScript.</p>",
+      "local": "Curitiba, PR",
+      "publicada_em": "2026-11-12T08:15:00-03:00"
+    }
+  ],
+  "proxima": true
+}

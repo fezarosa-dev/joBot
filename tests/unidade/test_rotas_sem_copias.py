@@ -5,7 +5,7 @@ from pathlib import Path
 
 PAINEL = Path(__file__).resolve().parents[2] / "src/jobot/painel"
 ROTAS = sorted((PAINEL / "rotas").glob("*.py"))
-USAM_A_HORA = ("buscas", "configuracoes", "empresas", "primeira_execucao")
+USAM_A_HORA = ("buscas", "configuracoes", "empresas", "primeira_execucao", "vagas")
 
 
 def _arvore(caminho: Path) -> ast.Module:
@@ -53,9 +53,8 @@ def test_rotas_sem_copia_de_relogio() -> None:
     for rota in ROTAS:
         arvore = _arvore(rota)
         assert "_relogio" not in _funcoes(arvore), rota.name
-        if rota.name != "vagas.py":
-            # a leitura de app.state.relogio mora só em relogio_do_painel
-            assert not _le_o_relogio_do_estado(arvore), rota.name
+        # a leitura de app.state.relogio mora só em relogio_do_painel, em `painel/consultas.py`
+        assert not _le_o_relogio_do_estado(arvore), rota.name
     for nome in USAM_A_HORA:
         importados = {
             (n.module, a.name)
@@ -63,7 +62,7 @@ def test_rotas_sem_copia_de_relogio() -> None:
             if isinstance(n, ast.ImportFrom)
             for a in n.names
         }
-        assert ("jobot.painel.rotas.vagas", "relogio_do_painel") in importados, nome
+        assert ("jobot.painel.consultas", "relogio_do_painel") in importados, nome
 
 
 def test_sem_validadores_definido_uma_vez() -> None:

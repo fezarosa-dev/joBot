@@ -102,7 +102,7 @@ Visual
 
 IA
 
-- ADR 0009: backends incluem a "sessão do Claude Code" (ADR 0010); teste ao ligar com sinal de espera, ✓ ou erro com o que fazer, e o backend fica desligado se falhar. Tudo da fase 3. Não há código de IA.
+- ADR 0009: backends incluem a "sessão do Claude Code" (ADR 0010); teste ao ligar com sinal de espera, ✓ ou erro com o que fazer, e o backend fica desligado se falhar. Tudo da fase 4 (a IA; a numeração atual está na ADR 0017). Não há código de IA.
 - ADR 0010: o joBot não tem login do Claude; roda `claude auth status` e `claude -p`; a marca aparece só em texto simples, com o aviso de que o joBot não é afiliado.
 
 Fatos públicos usados (conferidos em 2026-11-15)
@@ -190,16 +190,16 @@ Princípios (as skills de design do projeto, em linguagem simples): mexer só o 
 - JS só em arquivo próprio: o olho e o fechamento do aviso entram no `app.js` (CSP, seção 3), sem script inline.
 - Acessibilidade: todo campo com `<label>`, ajuda ligada por `aria-describedby`, `aria-live` na região do resultado (vazia sai do layout, lição de `:empty`), foco visível, ordem de tabulação na ordem da tela, alvos de toque com pelo menos 2,5 rem.
 
-### Parte F. IA pela sessão do Claude Code e do Codex (só registro; fase 3)
+### Parte F. IA pela sessão do Claude Code e do Codex (só registro; fase 4)
 
 Nada é construído agora. É a D125 e a emenda na ADR 0009.
 
 - A sessão do Claude Code já está decidida (ADR 0010, ADR 0009).
-- Entra também, para confirmar, a sessão do Codex CLI da pessoa: o joBot roda `codex exec` numa pasta temporária vazia, com a saída em formato fixo (as opções exatas são conferidas na fase 3), no mesmo molde da 0010 (a pessoa entra pelo fluxo da própria OpenAI; o joBot nunca toca na credencial). Teste ao ligar, no molde da 0009 (sinal de espera, ✓ ou erro com o que fazer).
+- Entra também, para confirmar, a sessão do Codex CLI da pessoa: o joBot roda `codex exec` numa pasta temporária vazia, com a saída em formato fixo (as opções exatas são conferidas na fase 4), no mesmo molde da 0010 (a pessoa entra pelo fluxo da própria OpenAI; o joBot nunca toca na credencial). Teste ao ligar, no molde da 0009 (sinal de espera, ✓ ou erro com o que fazer).
 - Antes de construir, conferir nos termos da OpenAI se o uso do plano do ChatGPT em automação pessoal é permitido (a documentação recomenda chave de API e não autoriza nem proíbe o plano, seção 4). Se não for permitido, o Codex entra só com chave de API, que é o backend OpenAI que já existe na ADR 0009.
 - "Codex" é marca da OpenAI. O joBot não é afiliado à OpenAI. O nome aparece só em texto simples, como o do Claude Code na ADR 0010.
-- Botão "Baixar" ao lado de cada backend de sessão. Ele abre a página oficial de instalação no navegador da pessoa (Claude Code: <https://code.claude.com/docs/en/setup>; Codex: a página oficial do Codex CLI, endereço conferido na fase 3, hoje <https://learn.chatgpt.com/docs/codex/cli>). O joBot não baixa nem roda instalador: a página oficial escolhe o sistema certo, e o painel não carrega recurso externo.
-- O botão aparece quando o programa não é achado no `PATH` (`shutil.which`); com o programa instalado, o botão some e o teste ao ligar assume. O link é `target="_blank" rel="noopener noreferrer"`.
+- Botão "Baixar" ao lado de cada backend de sessão. Pela [ADR 0023](../../decisions/0023-tudo-pelo-painel.md), ele faz o joBot instalar a ferramenta pelo instalador oficial dela (Claude Code: <https://code.claude.com/docs/en/setup>; Codex: a página oficial do Codex CLI, endereço conferido na fase 4, hoje <https://learn.chatgpt.com/docs/codex/cli>), a pedido da pessoa, e o joBot nunca remove essas ferramentas. O painel só mostra o botão e não carrega recurso externo; quem baixa é o joBot. A página oficial continua como link ao lado, para quem quiser ver antes.
+- O botão aparece quando o programa não é achado no `PATH` (`shutil.which`); com o programa instalado, o botão some e o teste ao ligar assume. O link da página oficial é `target="_blank" rel="noopener noreferrer"`.
 
 ## 6. O que fica para o construtor
 
@@ -223,7 +223,7 @@ Nada é construído agora. É a D125 e a emenda na ADR 0009.
 4. O saldo aparece só quando a pessoa clica em "Testar chave"?
    Recomendação: sim. Assim o joBot não faz pedido ao 2Captcha sem a pessoa pedir ou sem uma resolução em andamento.
 5. O nome da aba é "Serviços"?
-   Recomendação: sim. Cabe a chave do 2Captcha agora e, na fase 3, o cartão das IAs de sessão.
+   Recomendação: sim. Cabe a chave do 2Captcha agora e, na fase 4, o cartão das IAs de sessão.
 6. Codex: se os termos da OpenAI não permitirem o plano do ChatGPT em automação, entra só com chave de API?
    Recomendação: sim (D125).
 
@@ -271,4 +271,4 @@ E. Visual (`tests/tela/test_configuracoes.py`)
 - Nenhum `<input type="checkbox">` do cartão sem a classe `.chave`.
 
 F. IA pela sessão (nada agora)
-- Quando a fase 3 construir: o botão "Baixar" só aparece sem o programa no `PATH` (com `shutil.which` falso nos dois casos); o link é o oficial e tem `rel="noopener noreferrer"`; o teste ao ligar do Codex segue o da 0009 (offline, com executável falso).
+- Quando a fase 4 construir: o botão "Baixar" só aparece sem o programa no `PATH` (com `shutil.which` falso nos dois casos) e instala pelo instalador oficial (executor falso, offline); o link da página oficial é o oficial e tem `rel="noopener noreferrer"`; o teste ao ligar do Codex segue o da 0009 (offline, com executável falso).

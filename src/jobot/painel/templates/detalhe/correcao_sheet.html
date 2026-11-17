@@ -1,0 +1,17 @@
+{#- O sheet da correção (T264; desenho 5.8): um <dialog> modal de 520px. O htmx o põe no
+    .correcao-slot do detalhe e o app.js chama showModal(); Esc, o botão do pé e o clique no fundo
+    fecham. O corpo rola e o pé fica fixo (E17). Sem JavaScript este arquivo não é pedido: o link
+    leva à página `detalhe/correcao.html`, com os mesmos formulários. -#}
+<dialog class="sheet vidro vidro-grande vidro-elevado" aria-labelledby="correcao-titulo">
+  <header class="sheet-cab">
+    <h2 id="correcao-titulo">{{ t("detalhe.correcao.titulo") }}</h2>
+    <p class="dica">{{ t("detalhe.correcao.vaga", titulo=vaga.titulo, empresa=vaga.empresa) }}</p>
+  </header>
+  <div class="sheet-corpo">
+    <p class="dica">{{ t("detalhe.correcao.dica") }}</p>
+    {% include "detalhe/correcao_campos.html" %}
+  </div>
+  <footer class="sheet-pe">
+    <button type="button" class="secundario" data-fechar-sheet>{{ t("detalhe.correcao.fechar") }}</button>
+  </footer>
+</dialog>

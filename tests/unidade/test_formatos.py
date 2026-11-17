@@ -1,6 +1,6 @@
 """Textos de salário, data e local do cartão da vaga (desenho 13.4; plano T45)."""
 
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 
@@ -36,6 +36,7 @@ _BASE: dict[str, Any] = {
     "prazo": None,
     "publicada_em": None,
     "primeira_vista_em": "2026-11-13T12:00:00+00:00",
+    "status_em": None,
     "fechada": False,
     "nova": True,
     "fecha_logo": False,
@@ -102,6 +103,15 @@ def test_taxa_de_cambio(venda: str, idioma: str, esperado: str) -> None:
 def test_datas(data: str, idioma: str, curta: str, completa: str) -> None:
     assert formatos.data_curta(data, idioma) == curta
     assert formatos.data_completa(data, idioma) == completa
+
+
+@pytest.mark.usefixtures("fuso_de_sao_paulo")
+def test_instante_em_utc_mostra_o_dia_local() -> None:
+    """01:00Z de 16/11 ainda é 15/11 em Brasília; data sem hora não muda."""
+    instante = "2026-11-16T01:00:00+00:00"
+    assert formatos.data_curta(instante, "pt") == "15/11"
+    assert formatos.data_completa(instante, "en") == "11/15/2026"
+    assert formatos.data_curta("2026-11-16", "pt") == "16/11"
 
 
 def test_data_ilegivel_volta_como_veio() -> None:
@@ -421,3 +431,40 @@ def test_paises_texto(paises: tuple[str, ...], idioma: str, esperado: str) -> No
 )
 def test_decimal_curto(valor: Decimal, idioma: str, esperado: str) -> None:
     assert formatos.decimal_curto(valor, idioma) == esperado
+
+
+def _conferido(conferido_em: str, agora: str, idioma: str = "pt") -> str:
+    return formatos.conferido_texto(conferido_em, datetime.fromisoformat(agora), idioma)
+
+
+@pytest.mark.usefixtures("fuso_de_sao_paulo")
+def test_conferido_hoje() -> None:
+    texto = _conferido("2026-11-16T09:02:00-03:00", "2026-11-16T15:00:00+00:00")
+    assert texto == "conferido hoje às 09:02"
+
+
+@pytest.mark.usefixtures("fuso_de_sao_paulo")
+def test_conferido_ontem() -> None:  # já é dia 16 em UTC, mas é dia 15 aqui
+    texto = _conferido("2026-11-15T23:30:00-03:00", "2026-11-16T12:00:00+00:00")
+    assert texto == "conferido ontem às 23:30"
+
+
+@pytest.mark.usefixtures("fuso_de_sao_paulo")
+def test_conferido_antes_em_ingles() -> None:
+    texto = _conferido("2026-11-13T09:02:00-03:00", "2026-11-16T12:00:00+00:00", "en")
+    assert texto == "checked on 11/13 at 09:02"
+
+
+@pytest.mark.usefixtures("fuso_de_sao_paulo")
+def test_conferido_ilegivel_vazio() -> None:
+    assert _conferido("ontem", "2026-11-16T12:00:00+00:00") == ""
+
+
+@pytest.mark.usefixtures("fuso_de_sao_paulo")
+def test_instante_vira_dia_local() -> None:
+    """01:30Z de 17/11 ainda é 16/11 em Brasília; o mesmo dia sem hora fica como está."""
+    instante = "2026-11-17T01:30:00+00:00"
+    assert formatos.data_curta(instante, "pt") == "16/11"
+    assert formatos.data_completa(instante, "pt") == "16/11/2026"
+    assert formatos.data_curta(instante, "en") == "11/16"
+    assert formatos.data_curta("2026-11-17", "pt") == "17/11"  # controle: sem hora, não muda

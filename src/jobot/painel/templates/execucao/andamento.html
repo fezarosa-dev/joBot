@@ -1,32 +1,45 @@
 {#- trecho do andamento: o HTMX pergunta a cada 2 s só enquanto a busca roda (desenho 13.2);
-    `visto` diz o que já está na tela, e sem mudança a rota devolve 204 e nada é trocado -#}
+    `visto` diz o que já está na tela, e sem mudança a rota devolve 204 e nada é trocado.
+    Só a resposta do clique leva o envoltório de entrada (limiar de 1 s, T252); a pergunta troca
+    o elemento de dentro, com hx-target="this" explícito: o htmx 2 herdaria o "find .andamento"
+    do envoltório e o pedido nem sairia. A etapa nova vai para a região viva fixa da casca (#andamento-etapa)
+    por OOB com innerHTML: o nó com role="status" nunca é trocado -#}
+{%- from "execucao/_progresso.html" import progresso, etapa_viva with context -%}
+{%- macro viva(texto) -%}
+<span hx-swap-oob="innerHTML:#andamento-etapa"><span>{{ texto }}</span></span>
+{%- endmacro -%}
 {%- if saindo %}
 <div class="andamento">
   <p class="andamento-aviso">{{ t("execucao.saindo") }}</p>
 </div>
 {%- elif rodando %}
-<div class="andamento" hx-get="/execucao/atual?visto={{ marca|urlencode }}" hx-trigger="every 2s" hx-swap="outerHTML">
+{#- a entrada pergunta uma vez antes do limiar: busca que acaba em menos de 1 s mostra só o fim -#}
+{%- if entrada %}<div class="andamento-entrada" hx-get="/execucao/atual?visto={{ marca|urlencode }}" hx-trigger="load delay:800ms" hx-target="find .andamento" hx-swap="outerHTML">{% endif %}
+<div class="andamento" hx-get="/execucao/atual?visto={{ marca|urlencode }}" hx-trigger="every 2s" hx-target="this" hx-swap="outerHTML">
   {%- if ja_rodava %}
   <p class="andamento-aviso">{{ t("execucao.ja_roda") }}</p>
   {%- endif %}
-  <p><span class="andamento-ponto" aria-hidden="true"></span>{{ t("execucao.rodando") }}{% if atual %} · {{ t("execucao.prontas", n=atual.escopos_prontos) }}{% endif %}</p>
-  {%- if atual and atual.fontes_rodando %}
-  {%- set nomes = [] %}
-  {%- for f in atual.fontes_rodando[:5] %}{% set _ = nomes.append(rotulo("fonte." ~ f, f)) %}{% endfor %}
-  {%- set resto = atual.fontes_rodando|length - 5 %}
-  <p>{{ t("execucao.ainda_rodando", fontes=nomes|join(", ") ~ (" +" ~ resto if resto > 0 else "")) }}</p>
-  {%- elif atual and atual.coleta_acabou %}
-  <p>{{ t("execucao.detalhes") }}</p>
-  {%- endif %}
+  {{ progresso(prog, restam=restam, motivos=motivos) }}
 </div>
+{%- if entrada %}</div>{% endif %}
+{%- if anunciar %}
+{{ viva(etapa_viva(prog)) }}
+{%- endif %}
 {%- elif ultima %}
+{%- if ultima.estado == "concluida" %}
+{%- set texto = t("execucao.terminou", n=ultima.novas) %}
 <div class="andamento">
-  {%- if ultima.estado == "concluida" %}
-  <p>{{ t("execucao.terminou", n=ultima.novas) }}</p>
-  {%- elif ultima.parada %}
-  <p>{{ t("execucao.parada." ~ ultima.parada) }} {{ t("execucao.parada.novas", n=ultima.novas) }} {{ t("execucao.parada.tentar") }}</p>
-  {%- else %}{#- execução de antes do motivo da parada (T153) #}
-  <p>{{ t("execucao.interrompida", n=ultima.novas) }}</p>
-  {%- endif %}
+  {{ progresso(fim, texto=texto) }}
 </div>
+{%- else %}
+{%- if ultima.parada %}
+{%- set texto = t("execucao.parada." ~ ultima.parada) ~ " " ~ t("execucao.parada.novas", n=ultima.novas) ~ " " ~ t("execucao.parada.tentar") %}
+{%- else %}{#- execução de antes do motivo da parada (T153) #}
+{%- set texto = t("execucao.interrompida", n=ultima.novas) %}
+{%- endif %}
+<div class="andamento">
+  <p class="progresso-linha">{{ texto }}</p>
+</div>
+{%- endif %}
+{{ viva(texto) }}
 {%- endif %}

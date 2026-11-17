@@ -26,27 +26,38 @@ from jobot import __version__
 from jobot.agenda.agendador import INTERVALOS, laco
 from jobot.agenda.descoberta import executar_descoberta
 from jobot.agenda.execucao import executar_busca, reprocessar_se_regras_mudaram
+from jobot.agenda.login import Login
 from jobot.agenda.paginas import executar_paginas
 from jobot.agenda.versao import laco_versao
 from jobot.banco.buscas import recalcular_encaixe
-from jobot.banco.cadastros import ler_config, semear
+from jobot.banco.cadastros import PADROES, fontes_com_login_ligadas, ler_config, semear
 from jobot.banco.conexao import abrir
 from jobot.banco.cotacoes import aplicar_cotacoes
-from jobot.banco.execucoes import Motivo, Tipo, inicio_da_ultima_completa, marcar_interrompidas
+from jobot.banco.execucoes import (
+    Motivo,
+    Tipo,
+    inicio_da_ultima_completa,
+    inicio_da_ultima_leitura_login,
+    marcar_interrompidas,
+)
 from jobot.banco.gravacao import ValidadoresDoBanco
 from jobot.banco.migrar import BancoMaisNovo, migrar
 from jobot.banco.paginas import existe_pagina_nova
 from jobot.cli import caminho_do_log, mensagem_do_banco
+from jobot.navegador.abrir import navegador_instalado
+from jobot.navegador.execucao import dependencias_de_producao, executar_login
+from jobot.nucleo.horarios import horarios_validos
 from jobot.nucleo.http import ClienteEducado
+from jobot.nucleo.leitores.registro import leitores
 from jobot.nucleo.relogio import Relogio, RelogioReal
 from jobot.painel.app import criar_app
-from jobot.sistema.instancia import Trava, porta
+from jobot.sistema.instancia import AVISO_CAPTURA, Trava, captura_em_andamento, porta
 from jobot.sistema.pastas import configurar_log, pasta_de_dados, preparar_pasta
 
 log = logging.getLogger(__name__)
 
 HOST = "127.0.0.1"  # fixo: não aceita outro valor (14.1)
-TIPOS: tuple[Tipo, ...] = ("busca", "descoberta", "paginas")
+TIPOS: tuple[Tipo, ...] = ("busca", "descoberta", "paginas", "login")
 _INTERRUPTORES: Mapping[Tipo, str] = {
     "descoberta": "descoberta_cc_ligada",
     "paginas": "paginas_ligadas",
@@ -87,6 +98,7 @@ class _EstadoDoBanco:
 
     def __init__(self, caminho: Path) -> None:
         self._caminho = caminho
+        self._torto_avisado: object = None
 
     def ultimas(self) -> Mapping[Tipo, datetime | None]:
         with closing(abrir(self._caminho)) as con:
@@ -97,12 +109,31 @@ class _EstadoDoBanco:
             if ler_config(con, "primeira_execucao_concluida", False) is not True:
                 # sem as preferências do assistente a busca sairia vazia e ocuparia o "Buscar
                 # agora" do fim dele; o painel e `jobot buscar` não passam por aqui (T139)
-                return {tipo: False for tipo in TIPOS}
+                return {**{tipo: False for tipo in TIPOS}, "login": False}
             return {tipo: bool(ler_config(con, chave)) for tipo, chave in _INTERRUPTORES.items()}
 
     def pagina_nova(self) -> bool:
         with closing(abrir(self._caminho)) as con:
             return existe_pagina_nova(con)
+
+    def login(self) -> Login | None:
+        with closing(abrir(self._caminho)) as con:
+            registrados = {leitor.chave for leitor in leitores()}
+            if not registrados.intersection(fontes_com_login_ligadas(con)):
+                return None
+            valor = ler_config(con, "login_horarios")
+            try:
+                horarios = horarios_validos(valor)
+            except ValueError as erro:
+                # valor torto no banco (edição à mão, versão futura): a agenda segue (RF3);
+                # o laço lê a cada 60 s, então avisa uma vez por valor
+                if valor != self._torto_avisado:
+                    self._torto_avisado = valor
+                    log.warning(
+                        "login_horarios inválido no banco (%s); vale o padrão", erro.args[0]
+                    )
+                horarios = horarios_validos(PADROES["login_horarios"])
+            return Login(horarios, inicio_da_ultima_leitura_login(con))
 
 
 def _perdida(caminho: Path, agora: datetime) -> bool:
@@ -113,7 +144,11 @@ def _perdida(caminho: Path, agora: datetime) -> bool:
 
 
 def montar(
-    dados: Path, porta: int, *, relogio: Relogio | None = None
+    dados: Path,
+    porta: int,
+    *,
+    relogio: Relogio | None = None,
+    env: Mapping[str, str] = os.environ,
 ) -> tuple[FastAPI, uvicorn.Config]:
     """App do painel com a agenda no lifespan e a configuração do uvicorn (só 127.0.0.1)."""
     relogio = relogio or RelogioReal()
@@ -146,11 +181,25 @@ def montar(
                 with closing(abrir(caminho)) as con:  # conexão própria, como a busca
                     await executar_paginas(con, cliente, relogio)
 
+            async def login(motivo: Motivo = "agenda") -> None:
+                with closing(abrir(caminho)) as con:  # conexão própria, como a busca
+                    async with dependencias_de_producao(dados, env) as deps:
+                        await executar_login(
+                            con, cliente, relogio, motivo, leitores=leitores(), deps=deps
+                        )
+
             tarefas: Mapping[str, Callable[[], Awaitable[None]]] = {
                 "busca": busca,
                 "descoberta": descoberta,
                 "paginas": paginas,
+                "login": login,
             }
+            app.state.tarefa_login = login  # o "Buscar agora" dispara a mesma, com motivo "agora"
+            if leitores():
+                # shortcut: navegador_instalado é calculado ao subir o serve; "Baixar" e
+                # "Remover" em Ferramentas atualizam app.state, mas instalar o Chrome com o serve
+                # no ar só aparece depois de reiniciar; reler se isso confundir alguém
+                app.state.navegador_instalado = await navegador_instalado()
             agenda = asyncio.create_task(
                 laco(tarefas, _EstadoDoBanco(caminho), relogio, travas=travas)
             )
@@ -192,10 +241,13 @@ def executar(args: argparse.Namespace) -> int:
         p = porta(os.environ)
         trava = Trava(dados, p)
         if not _pegar(trava):
-            print("O joBot já está aberto.", file=sys.stderr)
+            print(
+                AVISO_CAPTURA if captura_em_andamento(dados) else "O joBot já está aberto.",
+                file=sys.stderr,
+            )
             return 1
         try:
-            app, config = montar(dados, p)
+            app, config = montar(dados, p, env=os.environ)
             servidor = uvicorn.Server(config)
             app.state.servidor = servidor  # o POST /sair pede o encerramento por aqui (T49)
             with contextlib.suppress(SystemExit):  # o uvicorn sai assim se não consegue escutar

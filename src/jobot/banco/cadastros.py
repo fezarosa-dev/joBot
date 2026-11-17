@@ -14,7 +14,7 @@ valor de config que não vira JSON.
 
 import json
 import sqlite3
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from pathlib import Path
@@ -23,6 +23,8 @@ from typing import Any, Literal, cast
 
 from jobot.nucleo.cambio import MOEDAS_EXIBICAO, moeda_do_pais
 from jobot.nucleo.coletores.registro import carregar_fontes
+from jobot.nucleo.leitores.base import LeitorComLogin
+from jobot.nucleo.leitores.registro import leitores
 from jobot.nucleo.modelo import Empresa
 from jobot.nucleo.tratamento.locais import codigos_de_pais
 
@@ -44,6 +46,7 @@ PADROES: Mapping[str, object] = MappingProxyType(
         "meu_pais": "BR",
         "moeda_exibicao": "",
         "captcha_ligado": False,  # ADR 0022: nasce desligado; só liga com chave salva
+        "login_horarios": ["09:00", "18:00"],  # leitura com login, hora local (D132.6)
     }
 )
 _SEM_PADRAO: Any = object()
@@ -60,6 +63,7 @@ class FonteCadastrada:
     leva: Literal["A", "B"]
     ligada: bool
     intervalo_min: int | None  # minutos entre execuções; None = sem intervalo mínimo
+    com_login: bool = False
 
 
 def empresas_iniciais() -> tuple[Empresa, ...]:
@@ -99,6 +103,7 @@ def semear(con: sqlite3.Connection) -> None:
                 " intervalo_min = excluded.intervalo_min",
                 (chave, limites.leva, limites.intervalo_min, int(limites.ligada_padrao)),
             )
+        _por_leitores(con, leitores())
         for e in empresas_iniciais():
             con.execute(
                 "INSERT INTO empresa (nome, area, pais, fonte, identificador, parametros,"
@@ -117,6 +122,32 @@ def semear(con: sqlite3.Connection) -> None:
             )
 
 
+def semear_leitores(con: sqlite3.Connection, leitores: Sequence[LeitorComLogin]) -> None:
+    """Põe a fonte de cada leitor registrado: nasce desligada e com login; `ligada` é da pessoa."""
+    with con:
+        _por_leitores(con, leitores)
+
+
+def _por_leitores(con: sqlite3.Connection, leitores: Sequence[LeitorComLogin]) -> None:
+    # sem `with con`: no modo legado do sqlite3 um `with` dentro do de `semear` daria COMMIT no meio
+    for leitor in leitores:
+        con.execute(
+            "INSERT INTO fonte (chave, leva, intervalo_min, ligada, com_login)"
+            " VALUES (?, 'A', NULL, 0, 1) ON CONFLICT(chave) DO UPDATE SET com_login = 1",
+            (leitor.chave,),
+        )
+
+
+def fontes_com_login_ligadas(con: sqlite3.Connection) -> list[str]:
+    """Chaves das fontes com login que a pessoa ligou, na ordem em que entraram."""
+    return [
+        c
+        for (c,) in con.execute(
+            "SELECT chave FROM fonte WHERE com_login = 1 AND ligada = 1 ORDER BY rowid"
+        )
+    ]
+
+
 def _json(parametros: Mapping[str, str]) -> str:
     return json.dumps(dict(parametros), ensure_ascii=False, sort_keys=True)
 
@@ -124,10 +155,11 @@ def _json(parametros: Mapping[str, str]) -> str:
 def fontes(con: sqlite3.Connection) -> list[FonteCadastrada]:
     """Todas as fontes, na ordem em que entraram (a do `fontes.json`)."""
     linhas = con.execute(
-        "SELECT chave, leva, ligada, intervalo_min FROM fonte ORDER BY rowid"
+        "SELECT chave, leva, ligada, intervalo_min, com_login FROM fonte ORDER BY rowid"
     ).fetchall()
     return [
-        FonteCadastrada(c, cast(Literal["A", "B"], lv), bool(li), im) for c, lv, li, im in linhas
+        FonteCadastrada(c, cast(Literal["A", "B"], lv), bool(li), im, bool(cl))
+        for c, lv, li, im, cl in linhas
     ]
 
 
@@ -224,6 +256,14 @@ def remover_empresa(con: sqlite3.Connection, id: int, agora: datetime) -> None:
             "UPDATE empresa SET removida_em = COALESCE(removida_em, ?) WHERE id = ?",
             (agora.astimezone(UTC).isoformat(), id),
         )
+        if cur.rowcount == 0:
+            raise LookupError(f"empresa inexistente: {id}")
+
+
+def restaurar_empresa(con: sqlite3.Connection, id: int) -> None:
+    """Desfaz o remover: limpa `removida_em` da mesma linha."""
+    with con:
+        cur = con.execute("UPDATE empresa SET removida_em = NULL WHERE id = ?", (id,))
         if cur.rowcount == 0:
             raise LookupError(f"empresa inexistente: {id}")
 

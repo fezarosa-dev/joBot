@@ -387,7 +387,7 @@ def test_abrem_issue_formato_mudou_excecao_e_zero_em_fonte_unica(
 
 @pytest.mark.parametrize("estado", ["falhou", "parcial", "no_limite"])
 def test_chaves_so_resumo_nao_abrem_issue(estado: str) -> None:
-    assert len(vigia.SO_RESUMO) == 14
+    assert len(vigia.SO_RESUMO) == 18
     for chave in sorted(vigia.SO_RESUMO):
         assert vigia.quebrou(_r(estado=estado, motivo=chave, listadas=1)) is False, chave
 

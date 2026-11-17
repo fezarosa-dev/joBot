@@ -12,12 +12,14 @@ PARES = {
     "Home": "Home-en",
     "A-ideia-e-a-historia": "The-idea-and-the-story",
     "Como-funciona": "How-it-works",
+    "Atalhos-de-teclado": "Keyboard-shortcuts",
     "Arquitetura": "Architecture",
     "Tecnologias": "Technologies",
     "Decisoes": "Decisions",
     "Roteiro": "Roadmap",
     "Apoie": "Support-the-project",
     "Perguntas-frequentes": "Frequently-asked-questions",
+    "Gmail-senha-de-app": "Gmail-app-password",
     "Tirar-duvida": "Ask-a-question",
 }
 PAR_DE = PARES | {en: pt for pt, en in PARES.items()}
@@ -104,3 +106,59 @@ def test_workflow_da_wiki_so_roda_na_main() -> None:
     assert "pull_request" not in wf  # cobre pull_request e pull_request_target
     assert "contents: write" in wf
     assert re.search(r"push:\s*\n\s*branches: \[main\]", wf)
+
+
+DOCS_GMAIL = ("README.md", "README.en.md")
+# a nota "o cartão chega depois" que o lote Contas tira: a aba já existe
+SEM_VERSAO_PROXIMA = (
+    "versão próxima",
+    "upcoming version",
+    "chega com a aba",
+    "arrives with the Accounts tab",
+)
+PAGINAS_COM_GMAIL = (
+    "wiki/Gmail-senha-de-app.md",
+    "wiki/Gmail-app-password.md",
+    "wiki/Perguntas-frequentes.md",
+    "wiki/Frequently-asked-questions.md",
+)
+
+
+def linhas_com_gmail() -> list[tuple[str, str]]:
+    """(arquivo, linha) de toda linha que cita Gmail nas páginas da wiki e nos dois README."""
+    arquivos = [f"wiki/{nome}.md" for nome in paginas()] + list(DOCS_GMAIL)
+    return [
+        (arquivo, linha)
+        for arquivo in arquivos
+        for linha in texto(arquivo).splitlines()
+        if "Gmail" in linha
+    ]
+
+
+def test_gmail_sem_versao_proxima() -> None:
+    linhas = linhas_com_gmail()
+    # controle positivo: o conjunto não é vazio e pega as quatro páginas e os dois README
+    assert {arquivo for arquivo, _ in linhas} >= set(PAGINAS_COM_GMAIL) | set(DOCS_GMAIL)
+    for arquivo, linha in linhas:
+        for frase in SEM_VERSAO_PROXIMA:
+            assert frase not in linha, (arquivo, frase)
+
+
+def nota_de_privacidade(arquivo: str) -> str:
+    """A linha `>` logo depois do título da seção de privacidade."""
+    linhas = texto(arquivo).splitlines()
+    titulo = next(i for i, linha in enumerate(linhas) if linha.startswith("## 🔒"))
+    nota = next((linha for linha in linhas[titulo + 1 : titulo + 4] if linha.startswith(">")), "")
+    return nota
+
+
+def test_nota_de_privacidade_sem_gmail_futuro() -> None:
+    esperado = {
+        "README.md": ("Configurações, Contas", "fase 6", "IA, Gmail"),
+        "README.en.md": ("Settings, Accounts", "phase 6", "AI, Gmail"),
+    }
+    for arquivo, (aba, fase, velho) in esperado.items():
+        nota = nota_de_privacidade(arquivo)
+        assert aba in nota, arquivo  # controle positivo: a nota existe e cita a aba
+        assert fase in nota, arquivo
+        assert velho not in nota, arquivo

@@ -5,6 +5,8 @@ import sqlite3
 from collections.abc import Iterator
 from datetime import UTC, date, datetime
 from pathlib import Path
+from types import SimpleNamespace
+from typing import cast
 
 import pytest
 
@@ -18,17 +20,23 @@ from jobot.banco.cadastros import (
     empresas_da_coleta,
     empresas_iniciais,
     fontes,
+    fontes_com_login_ligadas,
     gravar_config,
     ler_config,
     ligar_fonte,
     meu_pais,
     moeda_efetiva,
     remover_empresa,
+    restaurar_empresa,
     semear,
+    semear_leitores,
 )
 from jobot.banco.conexao import abrir
 from jobot.banco.migrar import migrar
+from jobot.banco.sugeridas import descartar, gravar_sugestoes, restaurar
+from jobot.nucleo.coletores.descoberta_cc import Sugestao
 from jobot.nucleo.coletores.registro import carregar_fontes
+from jobot.nucleo.leitores.base import LeitorComLogin
 from jobot.nucleo.modelo import Empresa
 
 AGORA = datetime(2026, 11, 13, 12, 0, tzinfo=UTC)
@@ -151,6 +159,11 @@ def _total(con: sqlite3.Connection, tabela: str) -> int:
     return int(con.execute(f"SELECT COUNT(*) FROM {tabela}").fetchone()[0])
 
 
+def _publicas_desligadas(con: sqlite3.Connection) -> list[str]:
+    """Os sites com login (o LinkedIn do registro) nascem desligados: aqui só contam as públicas."""
+    return sorted(f.chave for f in fontes(con) if not f.ligada and not f.com_login)
+
+
 def test_empresas_json_tem_o_total_e_a_leva_a() -> None:
     assert len(empresas_iniciais()) == TOTAL
     lista = [e for e in empresas_iniciais() if e.fonte in IDENTIFICADORES]  # a leva A
@@ -173,7 +186,10 @@ def test_empresas_json_tem_o_total_e_a_leva_a() -> None:
 
 def test_semear_grava_fontes_e_empresas(con: sqlite3.Connection) -> None:
     semear(con)
-    assert _total(con, "fonte") == 28
+    assert _total(con, "fonte") == 29  # as 28 públicas e o linkedin_logado do registro
+    assert con.execute(
+        "SELECT ligada, com_login FROM fonte WHERE chave = 'linkedin_logado'"
+    ).fetchall() == [(0, 1)]
     assert _total(con, "empresa") == TOTAL
     origem = con.execute("SELECT DISTINCT origem FROM empresa").fetchall()
     assert origem == [("lista_inicial",)]
@@ -187,7 +203,7 @@ def test_semear_duas_vezes_nao_duplica(con: sqlite3.Connection) -> None:
     semear(con)
     ids = con.execute("SELECT id, fonte, identificador FROM empresa ORDER BY id").fetchall()
     semear(con)
-    assert _total(con, "fonte") == 28
+    assert _total(con, "fonte") == 29
     assert _total(con, "empresa") == TOTAL
     assert con.execute("SELECT id, fonte, identificador FROM empresa ORDER BY id").fetchall() == ids
 
@@ -200,7 +216,7 @@ def test_semear_nao_sobrescreve_o_que_a_pessoa_mudou(con: sqlite3.Connection) ->
     con.execute("UPDATE empresa SET nome = 'Meu C6', area = 'minha' WHERE id = ?", (c6,))
     con.commit()
     semear(con)
-    assert sorted(f.chave for f in fontes(con) if not f.ligada) == ["remotive"]
+    assert _publicas_desligadas(con) == ["remotive"]
     assert _linha(con, "greenhouse", "c6bank") == (c6, 0, 0)
     assert con.execute("SELECT nome, area FROM empresa WHERE id = ?", (c6,)).fetchone() == (
         "Meu C6",
@@ -210,7 +226,7 @@ def test_semear_nao_sobrescreve_o_que_a_pessoa_mudou(con: sqlite3.Connection) ->
 
 def test_semear_fontes_todas_nascem_ligadas(con: sqlite3.Connection) -> None:
     semear(con)
-    assert [f.chave for f in fontes(con) if not f.ligada] == []
+    assert _publicas_desligadas(con) == []
     arquivo = Path(__file__).resolve().parents[2] / "src/jobot/nucleo/dados/fontes.json"
     esperadas = sum(
         d.get("ligada_padrao", True) for d in json.loads(arquivo.read_text("utf-8")).values()
@@ -227,20 +243,20 @@ def test_semear_fonte_com_ligada_padrao_falso_nasce_desligada_e_a_escolha_sobrev
     )
     monkeypatch.setattr(cadastros, "carregar_fontes", lambda _texto: falso)
     semear(con)
-    assert [f.chave for f in fontes(con) if not f.ligada] == ["x"]
+    assert _publicas_desligadas(con) == ["x"]
     ligar_fonte(con, "x", True)
     semear(con)
-    assert [f.chave for f in fontes(con) if not f.ligada] == []
+    assert _publicas_desligadas(con) == []
 
 
 def test_semear_fontes_mantem_escolha_de_quem_ja_tem_linha(con: sqlite3.Connection) -> None:
     semear(con)
-    assert [f.chave for f in fontes(con) if not f.ligada] == []
+    assert _publicas_desligadas(con) == []
     ligar_fonte(con, "eureca", False)
     ligar_fonte(con, "remotive", False)
     ligar_fonte(con, "eureca", True)
     semear(con)
-    assert [f.chave for f in fontes(con) if not f.ligada] == ["remotive"]
+    assert _publicas_desligadas(con) == ["remotive"]
 
 
 def test_semear_acrescenta_so_o_que_falta(con: sqlite3.Connection) -> None:
@@ -255,7 +271,7 @@ def test_semear_acrescenta_so_o_que_falta(con: sqlite3.Connection) -> None:
 
 def test_intervalo_min_copiado_para_fonte(con: sqlite3.Connection) -> None:
     semear(con)
-    por_chave = {f.chave: f for f in fontes(con)}
+    por_chave = {f.chave: f for f in fontes(con) if not f.com_login}
     assert len(por_chave) == 28
     assert por_chave["remotive"].intervalo_min == 360
     assert por_chave["jobicy"].intervalo_min == 60
@@ -272,11 +288,11 @@ def test_intervalo_min_copiado_para_fonte(con: sqlite3.Connection) -> None:
 
 def test_ligar_e_desligar_fonte(con: sqlite3.Connection) -> None:
     semear(con)
-    assert [f.chave for f in fontes(con) if not f.ligada] == []
+    assert _publicas_desligadas(con) == []
     ligar_fonte(con, "wwr", False)
-    assert sorted(f.chave for f in fontes(con) if not f.ligada) == ["wwr"]
+    assert _publicas_desligadas(con) == ["wwr"]
     ligar_fonte(con, "wwr", True)
-    assert all(f.ligada for f in fontes(con))
+    assert _publicas_desligadas(con) == []
 
 
 def test_ligar_fonte_inexistente_levanta_lookup(con: sqlite3.Connection) -> None:
@@ -315,6 +331,54 @@ def test_remover_exige_fuso_e_empresa_existente(con: sqlite3.Connection) -> None
     with pytest.raises(LookupError):
         remover_empresa(con, 99999, AGORA)
     assert _linha(con, "greenhouse", "c6bank") == (c6, 1, 0)
+
+
+def test_restaurar_empresa_limpa_removida_em(con: sqlite3.Connection) -> None:
+    """Desfazer do remover (T260): a mesma linha volta à tela; nada nasce nem some."""
+    semear(con)
+    c6 = _linha(con, "greenhouse", "c6bank")[0]
+    con.execute("UPDATE empresa SET ativa = 0 WHERE id = ?", (c6,))
+    con.commit()
+    remover_empresa(con, c6, AGORA)
+    assert c6 not in {e.id for e in empresas(con)}
+
+    restaurar_empresa(con, c6)
+
+    assert _linha(con, "greenhouse", "c6bank") == (c6, 0, 0)  # `ativa` não muda
+    assert c6 in {e.id for e in empresas(con)}
+    assert _total(con, "empresa") == TOTAL
+    restaurar_empresa(con, c6)  # empresa que não está removida: nada muda
+    assert _linha(con, "greenhouse", "c6bank") == (c6, 0, 0)
+    with pytest.raises(LookupError):
+        restaurar_empresa(con, 99999)
+    assert _total(con, "empresa") == TOTAL
+
+
+def _sugerir_vitta(con: sqlite3.Connection) -> int:
+    """Uma sugestão pendente do Greenhouse; devolve o `id`."""
+    con.execute("INSERT INTO fonte (chave, leva) VALUES ('greenhouse', 'A')")
+    gravar_sugestoes(con, [Sugestao("greenhouse", "vitta", "https://x.test/vitta")], AGORA)
+    return int(con.execute("SELECT id FROM empresa_sugerida").fetchone()[0])
+
+
+def test_restaurar_sugerida_volta_a_pendente(con: sqlite3.Connection) -> None:
+    """Desfazer do descartar (T260): `UPDATE` da mesma linha, sem mudar o número de linhas."""
+    id_ = _sugerir_vitta(con)
+    descartar(con, id_)
+    assert con.execute("SELECT estado FROM empresa_sugerida").fetchall() == [("descartada",)]
+
+    restaurar(con, id_)
+
+    assert con.execute("SELECT id, estado FROM empresa_sugerida").fetchall() == [(id_, "pendente")]
+    restaurar(con, id_)  # já pendente: nada muda (o Desfazer apertado duas vezes)
+    assert con.execute("SELECT id, estado FROM empresa_sugerida").fetchall() == [(id_, "pendente")]
+    # sugestão aprovada já virou empresa: o Desfazer do descartar não a alcança
+    con.execute("UPDATE empresa_sugerida SET estado = 'aprovada' WHERE id = ?", (id_,))
+    con.commit()
+    for alvo in (99999, id_):
+        with pytest.raises(LookupError):
+            restaurar(con, alvo)
+    assert con.execute("SELECT estado FROM empresa_sugerida").fetchall() == [("aprovada",)]
 
 
 def test_semear_pula_removida_sem_criar_linha(con: sqlite3.Connection) -> None:
@@ -429,7 +493,9 @@ def test_padroes_de_config(con: sqlite3.Connection) -> None:
         "meu_pais",
         "moeda_exibicao",
         "captcha_ligado",
+        "login_horarios",
     }
+    assert ler_config(con, "login_horarios") == ["09:00", "18:00"]
 
 
 def test_gravar_e_ler_config(con: sqlite3.Connection) -> None:
@@ -486,3 +552,71 @@ def test_valores_invalidos_caem_no_padrao(con: sqlite3.Connection, ruim: object)
     assert moeda_efetiva(con) == "BRL"  # segue o país (padrão BR)
     gravar_config(con, "moeda_exibicao", "JPY")
     assert moeda_efetiva(con) == "JPY"
+
+
+def _leitor(chave: str) -> LeitorComLogin:
+    return cast(LeitorComLogin, SimpleNamespace(chave=chave))
+
+
+def test_semear_leitores_nasce_desligada_e_com_login(con: sqlite3.Connection) -> None:
+    semear_leitores(con, [_leitor("x_logado")])
+
+    assert con.execute(
+        "SELECT leva, intervalo_min, ligada, com_login FROM fonte WHERE chave = 'x_logado'"
+    ).fetchall() == [("A", None, 0, 1)]
+    [dela] = [f for f in fontes(con) if f.chave == "x_logado"]
+    assert dela.com_login is True and dela.ligada is False
+
+
+def test_semear_leitores_nao_troca_ligada(con: sqlite3.Connection) -> None:
+    semear_leitores(con, [_leitor("x_logado")])
+    ligar_fonte(con, "x_logado", True)
+
+    semear_leitores(con, [_leitor("x_logado")])
+
+    assert con.execute(
+        "SELECT ligada, com_login FROM fonte WHERE chave = 'x_logado'"
+    ).fetchall() == [(1, 1)]
+
+
+def test_semear_chama_semear_leitores_com_o_registro(
+    con: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(cadastros, "leitores", lambda: (_leitor("y_logado"),))
+
+    semear(con)
+
+    assert con.execute("SELECT com_login FROM fonte WHERE chave = 'y_logado'").fetchall() == [(1,)]
+    assert {f.chave for f in fontes(con) if f.com_login} == {"y_logado"}
+
+
+def test_fonte_publica_nasce_sem_login(con: sqlite3.Connection) -> None:
+    semear(con)
+    assert {f.chave for f in fontes(con) if f.com_login} == {"linkedin_logado"}
+
+
+def test_fontes_com_login_ligadas_so_as_ligadas(con: sqlite3.Connection) -> None:
+    semear(con)
+    assert fontes_com_login_ligadas(con) == []  # controle: sem leitor, lista vazia
+    semear_leitores(con, [_leitor("a_logado"), _leitor("b_logado")])
+    ligar_fonte(con, "b_logado", True)
+    ligar_fonte(con, "greenhouse", True)  # pública ligada não entra
+
+    assert fontes_com_login_ligadas(con) == ["b_logado"]
+
+
+def test_semear_e_uma_transacao_so(
+    con: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Falha nas empresas desfaz também as fontes e os leitores já postos na mesma semeadura."""
+    monkeypatch.setattr(cadastros, "leitores", lambda: (_leitor("z_logado"),))
+
+    def quebra() -> list[Empresa]:
+        raise RuntimeError("empresas")
+
+    monkeypatch.setattr(cadastros, "empresas_iniciais", quebra)
+
+    with pytest.raises(RuntimeError):
+        semear(con)
+
+    assert con.execute("SELECT count(*) FROM fonte").fetchone() == (0,)

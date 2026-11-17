@@ -1,29 +1,38 @@
 """Tela de vagas: abas, filtros, ordem, destaques e ações da vaga (desenho 13.3 a 13.5; plano T45).
 
 Todo parâmetro de URL é lido à mão: link velho ou torto cai no padrão, nunca em 422 (RF2).
-Ação que muda dados é um `<form>` de verdade: sem JavaScript volta por 303 (`voltar`), com HTMX
-troca só o corpo do cartão.
+Ação que muda dados é um `<form>` de verdade: sem JavaScript volta por 303 (`voltar`); o Ocultar
+e o Desfazer, com HTMX, trazem a faixa de desfazer e a lateral por OOB.
 """
 
 import json
 import re
 import sqlite3
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from typing import Annotated, Any
-from urllib.parse import urlencode
+from urllib.parse import parse_qs, parse_qsl, urlencode, urlsplit
 
 from fastapi import APIRouter, Form, HTTPException, Path, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from starlette.datastructures import QueryParams
 
 from jobot.banco import acoes, leitura
-from jobot.banco.leitura import Filtros, Fonte, Item
+from jobot.banco.cadastros import gravar_config, ler_config
+from jobot.banco.leitura import Filtros, Item
 from jobot.banco.paginas import paginas, ultimas_diferencas
-from jobot.nucleo.destaques import Candidata, destaques
-from jobot.nucleo.relogio import Relogio, RelogioReal
 from jobot.nucleo.tratamento.locais import codigos_de_pais, nome_do_pais, nome_em_ingles
+from jobot.painel.consultas import (
+    MAX_ID,
+    busca_ativa,
+    busca_efetiva,
+    ids_destaques,
+    inteiro_da_url,
+    relogio_do_painel,
+)
+from jobot.painel.detalhe_vaga import contexto_do_detalhe
+from jobot.painel.lateral import ler_lateral
 from jobot.painel.moeda import Exibicao, FiltroSalario, exibicao_do_painel, filtro_salario
 from jobot.painel.seguranca import Con, de_volta, renderizar
 
@@ -48,45 +57,17 @@ _ROTULO_CHIP = {
 }
 _TETO_SALARIO = 10**12
 _MAX_TEXTO = 100
-MAX_ID = 2**31
 # o INTEGER do SQLite é de 64 bits com sinal: id maior estoura em OverflowError (500)
-VagaId = Annotated[int, Path(ge=1, le=2**63 - 1)]
+_MAX_VAGA = 2**63 - 1  # o maior INTEGER do SQLite
+VagaId = Annotated[int, Path(ge=1, le=_MAX_VAGA)]
 _MAX_PAGINA = 10_000
-_DESTAQUES_N = 10
-# janela larga para o SQL; a de 24 h é da função pura `destaques`
-_ANTES_DESTAQUES = "julianday(v.primeira_vista_em) >= julianday(:agora) - 2"
-
-
-def relogio_do_painel(request: Request) -> Relogio:
-    relogio: Relogio = getattr(request.app.state, "relogio", None) or RelogioReal()
-    return relogio
-
-
-def _config(con: sqlite3.Connection, chave: str, padrao: Any) -> Any:
-    linha = con.execute("SELECT valor FROM config WHERE chave = ?", (chave,)).fetchone()
-    return padrao if linha is None else json.loads(linha[0])
-
-
-def inteiro_da_url(texto: str | None, maximo: int) -> int | None:
-    """Número de 1 a `maximo`; qualquer outra coisa (letra, zero, negativo, enorme) é None."""
-    # o tamanho vem antes do `int()`: texto com mais de 4300 dígitos o faz levantar ValueError
-    if texto is None or not texto.isascii() or not texto.isdigit() or len(texto) > len(str(maximo)):
-        return None
-    numero = int(texto)
-    return numero if 1 <= numero <= maximo else None
+# o Desfazer recarrega até 20 páginas de uma vez (T311): 10 mil vagas levavam ~4 s e 7,6 MB
+_MAX_RECARGA = 20
 
 
 def _texto(texto: str | None) -> str | None:
     limpo = "".join(c for c in texto or "" if c.isprintable()).strip()[:_MAX_TEXTO]
     return limpo or None
-
-
-def busca_efetiva(con: sqlite3.Connection, pedida: int | None) -> int | None:
-    """A busca da URL, se existir; senão a primeira ativa; sem nenhuma, None."""
-    if pedida is not None and con.execute("SELECT 1 FROM busca WHERE id = ?", (pedida,)).fetchone():
-        return pedida
-    linha = con.execute("SELECT id FROM busca WHERE ativa = 1 ORDER BY id LIMIT 1").fetchone()
-    return None if linha is None else int(linha[0])
 
 
 def _sem_criterio(con: sqlite3.Connection, busca_id: int | None) -> bool:
@@ -187,7 +168,7 @@ def _chip_valido(grupo: str, valor: str) -> bool:
 
 
 def ler_estado(params: QueryParams, con: sqlite3.Connection, ex: Exibicao) -> Estado:
-    ligados = bool(_config(con, "destaques_ligados", True))
+    ligados = bool(ler_config(con, "destaques_ligados"))
     validas = {*leitura.ABAS, *([ABA_DESTAQUES] if ligados else [])}
     pedida_aba = params.get("aba") or ""
     aba = pedida_aba if pedida_aba in validas else (ABA_DESTAQUES if ligados else "todas")
@@ -221,73 +202,10 @@ def ler_estado(params: QueryParams, con: sqlite3.Connection, ex: Exibicao) -> Es
     )
 
 
-def utc_do_banco(texto: str) -> datetime | None:
-    try:
-        data = datetime.fromisoformat(texto)
-    except ValueError:
-        return None
-    return data if data.tzinfo else data.replace(tzinfo=UTC)
-
-
-def _ids_destaques(con: sqlite3.Connection, busca_id: int | None, agora: datetime) -> list[int]:
-    """As vagas da aba Destaques: só abertas, não ocultas e novas (a função pura faz o resto)."""
-    quantas = _config(con, "destaques_n", _DESTAQUES_N)
-    if not isinstance(quantas, int) or isinstance(quantas, bool) or quantas < 1:
-        quantas = _DESTAQUES_N
-    linhas = con.execute(
-        "SELECT v.id, v.empresa, e.nota, v.publicada_em, v.primeira_vista_em"
-        " FROM vaga v LEFT JOIN encaixe e ON e.vaga_id = v.id AND e.busca_id = :busca"
-        f" WHERE {leitura.ABAS['novas']} AND {_ANTES_DESTAQUES}",
-        # o dia de calendário é o do fuso local (mesma regra do `leitura`)
-        {
-            "agora": agora.isoformat(),
-            "hoje": agora.astimezone().date().isoformat(),
-            "busca": busca_id,
-        },
-    ).fetchall()
-    candidatas = []
-    for vaga_id, empresa, nota, publicada, primeira in linhas:
-        vista = utc_do_banco(primeira)
-        if vista is not None:
-            candidata = Candidata(
-                vaga_id=vaga_id,
-                empresa=empresa,
-                nota=nota,
-                publicada_em=utc_do_banco(publicada) if publicada else None,
-                primeira_vista_em=vista,
-            )
-            candidatas.append(candidata)
-    return [c.vaga_id for c in destaques(candidatas, agora, quantas)]
-
-
-def _unicas(fontes: Sequence[Fonte]) -> list[Fonte]:
-    """Uma fonte por nome: a mesma fonte em dois escopos aparece uma vez."""
-    vistas: dict[str, Fonte] = {}
-    for f in fontes:
-        vistas.setdefault(f.fonte, f)
-    return list(vistas.values())
-
-
-def _fontes(con: sqlite3.Connection, ids: Sequence[int]) -> dict[int, list[Fonte]]:
-    """As fontes das ocorrências abertas de cada vaga (todas, se a vaga fechou), como no detalhe."""
-    por_vaga: dict[int, list[Fonte]] = {i: [] for i in ids}
-    if not ids:
-        return por_vaga
-    marcas = ", ".join("?" * len(ids))  # só interrogações: os ids vão como parâmetros
-    cur = con.execute(
-        f"SELECT o.vaga_id, o.fonte, o.url FROM ocorrencia o WHERE o.vaga_id IN ({marcas})"
-        " AND (o.sumiu_em IS NULL OR NOT EXISTS (SELECT 1 FROM ocorrencia a"
-        " WHERE a.vaga_id = o.vaga_id AND a.sumiu_em IS NULL))"
-        " ORDER BY o.primeira_vista_em, o.id",
-        list(ids),
-    )
-    for vaga_id, fonte, url in cur:
-        por_vaga[vaga_id].append(Fonte(fonte=fonte, url=url, url_candidatura=None))
-    return {i: _unicas(fs) for i, fs in por_vaga.items()}
-
-
 def _id_html(valor: str) -> str:
-    return re.sub(r"[^A-Za-z0-9_-]", "_", valor)
+    """Id de HTML que não se repete: todo caractere fora de `[A-Za-z0-9-]` (o `_` também) vira
+    `_<hex>_`; como o hex não tem `_`, dois valores diferentes nunca dão o mesmo id."""
+    return re.sub(r"[^A-Za-z0-9-]", lambda m: f"_{ord(m.group()):x}_", valor)
 
 
 def _ordem_chip(grupo: str, valor: str) -> int:
@@ -302,12 +220,20 @@ def _nome_do_pais(codigo: str, idioma: str) -> str:
 
 
 def grupos_dos_chips(
-    con: sqlite3.Connection, estado: Estado, agora: datetime, idioma: str
+    con: sqlite3.Connection,
+    estado: Estado,
+    agora: datetime,
+    idioma: str,
+    grupos: Collection[str] | None = None,
 ) -> list[dict[str, Any]]:
-    """Os chips com contagem. Motivo (Ocultas) e situação (Candidatei) só contam: sem filtro."""
-    contagens = leitura.contar_chips(con, estado.filtros(), agora)
-    grupos: list[dict[str, Any]] = []
+    """Os chips com contagem. Motivo (Ocultas) e situação (Candidatei) só contam: sem filtro.
+
+    `grupos`: só esses (`None`, todos), como em `leitura.contar_chips`."""
+    contagens = leitura.contar_chips(con, estado.filtros(), agora, grupos)
+    saida: list[dict[str, Any]] = []
     for nome in (*CHIPS, "motivo", "status"):
+        if grupos is not None and nome not in grupos:
+            continue  # nem o chip escolhido de um grupo não pedido
         interativo = nome in CHIPS
         valores = dict(contagens.get(nome, {}))
         escolhido = estado.chips.get(nome)
@@ -336,25 +262,18 @@ def grupos_dos_chips(
                     "url": estado.url(chips=trocados if ligado else {**trocados, nome: valor}),
                 }
             )
-        grupos.append({"nome": nome, "interativo": interativo, "chips": chips})
-    return grupos
+        saida.append({"nome": nome, "interativo": interativo, "chips": chips})
+    return saida
 
 
-def _seletor(con: sqlite3.Connection, estado: Estado) -> list[dict[str, Any]]:
-    """As buscas ativas (e a da URL, mesmo desligada), cada uma com a vista atual trocada nela."""
+def seletor_de_buscas(con: sqlite3.Connection, estado: Estado) -> list[dict[str, Any]]:
+    """As buscas ativas (e a da URL, mesmo desligada), para o menu pop-up da barra da lista."""
     linhas = con.execute(
         "SELECT id, nome FROM busca WHERE ativa = 1 OR id = ? ORDER BY id", (estado.busca_id,)
     ).fetchall()
     if len(linhas) < 2:
         return []
-    return [
-        {
-            "nome": nome,
-            "atual": id_ == estado.busca_id,
-            "url": replace(estado, busca_id=id_, busca_url=True).url(),
-        }
-        for id_, nome in linhas
-    ]
+    return [{"id": id_, "nome": nome, "atual": id_ == estado.busca_id} for id_, nome in linhas]
 
 
 def _paginas_programas(con: sqlite3.Connection) -> list[dict[str, Any]]:
@@ -366,46 +285,41 @@ def _paginas_programas(con: sqlite3.Connection) -> list[dict[str, Any]]:
 
 
 def _contexto_pagina(
-    con: sqlite3.Connection, estado: Estado, agora: datetime, ex: Exibicao
+    con: sqlite3.Connection, estado: Estado, agora: datetime, ex: Exibicao, ate_pagina: int = 1
 ) -> dict[str, Any]:
-    ids_destaques = _ids_destaques(con, estado.busca_id, agora) if estado.destaques_ligados else []
-    contagens = leitura.contar_abas(con, estado.busca_id, agora)
-    chaves = [*([ABA_DESTAQUES] if estado.destaques_ligados else []), *leitura.ABAS]
-    abas = [
-        {
-            "chave": chave,
-            "n": len(ids_destaques) if chave == ABA_DESTAQUES else contagens[chave],
-            "atual": chave == estado.aba,
-            "url": estado.url(aba=chave, chips={}),
-        }
-        for chave in chaves
-    ]
+    """`ate_pagina`: quantas páginas da lista vêm juntas (o Desfazer recarrega até a que o
+    "Carregar mais" já trouxe, T305)."""
+    ids_de_destaque = ids_destaques(con, estado.busca_id, agora) if estado.destaques_ligados else []
     itens: Sequence[Item]
     mais_url = None
     fora_sem_salario = fora_sem_valor = 0
     if estado.e_destaques:
-        achados = [leitura.detalhe(con, i, estado.busca_id, agora) for i in ids_destaques]
-        detalhes = [d for d in achados if d is not None]
-        itens = detalhes
-        fontes = {d.id: _unicas(d.fontes) for d in detalhes}
+        achados = [leitura.detalhe(con, i, estado.busca_id, agora) for i in ids_de_destaque]
+        itens = [d for d in achados if d is not None]
+        ate_pagina = 1
     else:
-        pagina = leitura.listar(con, estado.filtros(), agora)
-        itens = pagina.itens
-        fontes = _fontes(con, [i.id for i in itens])
+        juntos: list[Item] = []
+        tem_mais, n = True, 0
+        while tem_mais and n < ate_pagina:
+            n += 1
+            pagina = leitura.listar(con, estado.filtros(n), agora)
+            juntos += pagina.itens
+            tem_mais = pagina.tem_mais
+        itens, ate_pagina = juntos, n
         fora_sem_salario, fora_sem_valor = leitura.contar_fora_do_salario(
             con, estado.filtros(), agora
         )
-        if pagina.tem_mais:
-            mais_url = estado.url(extras=[("pagina", "2")])
+        if tem_mais:
+            mais_url = estado.url(extras=[("pagina", str(ate_pagina + 1))])
     return {
         "paginas_programas": _paginas_programas(con) if estado.aba == "programas" else [],
-        "abas": abas,
-        "seletor": _seletor(con, estado),
+        "seletor": seletor_de_buscas(con, estado),
+        # o menu de busca manda a vista de agora (aba, filtros, ordem) e só troca a `busca`
+        "campos_do_seletor": parse_qsl(urlsplit(replace(estado, busca_url=False).url()).query),
         "chips_url": None if estado.e_destaques else estado.url(caminho="/vagas/chips"),
         "itens": itens,
-        "fontes": fontes,
         "mais_url": mais_url,
-        "proxima": 2,
+        "proxima": ate_pagina + 1,
         "ordens": list(leitura.ORDENS),
         "ordem": estado.ordem,
         "q": estado.q,
@@ -414,7 +328,9 @@ def _contexto_pagina(
         "empresa": estado.empresa,
         "sal_de": estado.sal_de,
         "sal_ate": estado.sal_ate,
-        "n_mais_filtros": sum(
+        # os chips ativos moram no "Mais filtros" (T301): contam junto com os campos
+        "n_mais_filtros": len(estado.chips)
+        + sum(
             1
             for v in (estado.excluir, estado.cidade, estado.empresa, estado.sal_de, estado.sal_ate)
             if v not in ("", None)
@@ -426,6 +342,7 @@ def _contexto_pagina(
         "mostrar_tambem_url": replace(estado, sem_salario=True).url(),
         "sem_criterio": estado.sem_criterio,
         "e_destaques": estado.e_destaques,
+        "tem_busca": True,  # a casca põe o campo q na barra, ligado ao form#busca do miolo
         "aba_da_busca": "todas" if estado.e_destaques else estado.aba,
         "campos_ocultos": [
             *((g, v) for g in CHIPS if (v := estado.chips.get(g))),
@@ -435,20 +352,37 @@ def _contexto_pagina(
         "busca_na_url": estado.busca_url,
         "retorno": estado.url(),
         "marcar_foco": False,
+        "url_vaga": estado.url(extras=[("vaga", "")]),  # a linha completa com o seu id
     }
 
 
+def _lateral_oob(
+    con: sqlite3.Connection, agora: datetime, busca_id: int | None, caminho: str, aba: str
+) -> dict[str, Any]:
+    """A seção "Vagas" da lateral para a resposta HTMX trocar no lugar: as contagens de agora e o
+    item marcado igual ao da casca (`caminho` e `aba` são os da página que a pessoa vê)."""
+    lado = ler_lateral(con, agora, busca_id)
+    return {"lado": lado, "caminho": caminho, "aba": aba if aba in lado.abas else lado.abas[0]}
+
+
 def com_vary(resposta: HTMLResponse) -> HTMLResponse:
-    resposta.headers["Vary"] = "HX-Request, HX-History-Restore-Request"
+    resposta.headers["Vary"] = "HX-Request, HX-History-Restore-Request, HX-Target"
     return resposta
 
 
 @router.get("/")
 async def raiz(con: Con) -> RedirectResponse:
-    if not _config(con, "primeira_execucao_concluida", False):
+    if not ler_config(con, "primeira_execucao_concluida", False):
         return RedirectResponse("/primeira-execucao/1", status_code=303)
-    aba = ABA_DESTAQUES if _config(con, "destaques_ligados", True) else "todas"
+    aba = ABA_DESTAQUES if ler_config(con, "destaques_ligados") else "todas"
     return RedirectResponse(f"/vagas?aba={aba}", status_code=303)
+
+
+def _gravar_escolha(con: sqlite3.Connection, pedida: int | None) -> None:
+    """Só o id de uma busca ligada vira a escolhida; o resto (texto, id que não existe, busca
+    desligada) não grava nada. A desligada continua valendo na página, mas só nela (E16)."""
+    if busca_ativa(con, pedida) and ler_config(con, "busca_escolhida", None) != pedida:
+        gravar_config(con, "busca_escolhida", pedida)
 
 
 @router.get("/vagas")
@@ -456,12 +390,16 @@ async def vagas(request: Request, con: Con) -> HTMLResponse:
     agora = relogio_do_painel(request).agora()
     ex = exibicao_do_painel(con, agora.astimezone().date())
     estado = ler_estado(request.query_params, con, ex)
+    _gravar_escolha(con, inteiro_da_url(request.query_params.get("busca"), MAX_ID))
     cabecalho = request.headers
     restaurando = cabecalho.get("hx-history-restore-request") == "true"
     parcial = cabecalho.get("hx-request") == "true" and not restaurando
     pagina = inteiro_da_url(request.query_params.get("pagina"), _MAX_PAGINA) or 1
-    if parcial and pagina > 1 and not estado.e_destaques:
-        # "carregar mais": só os cartões novos e o botão da página seguinte
+    # o Desfazer recarrega o miolo inteiro até a página já carregada (T305); o "carregar mais"
+    # mira o #lista-vagas
+    miolo_ate = parcial and cabecalho.get("hx-target") == "vagas-miolo"
+    if parcial and pagina > 1 and not estado.e_destaques and not miolo_ate:
+        # "carregar mais": só as linhas novas e o botão da página seguinte
         lista = leitura.listar(con, estado.filtros(pagina), agora)
         seguinte = estado.url(extras=[("pagina", str(pagina + 1))])
         return com_vary(
@@ -470,15 +408,30 @@ async def vagas(request: Request, con: Con) -> HTMLResponse:
                 "vagas/mais.html",
                 exibicao=ex,
                 itens=lista.itens,
-                fontes=_fontes(con, [i.id for i in lista.itens]),
                 mais_url=seguinte if lista.tem_mais else None,
                 proxima=pagina + 1,
                 marcar_foco=True,
                 retorno=estado.url(),
                 busca_id=estado.busca_id,
+                url_vaga=estado.url(extras=[("vaga", "")]),
             )
         )
-    contexto = _contexto_pagina(con, estado, agora, ex)
+    # o detalhe ao lado (T255): id torto ou de vaga que não existe abre só a lista
+    vaga_id = inteiro_da_url(request.query_params.get("vaga"), _MAX_VAGA)
+    vaga = None if vaga_id is None else leitura.detalhe(con, vaga_id, estado.busca_id, agora)
+    detalhe: dict[str, Any] | None = None
+    if vaga is not None:
+        retorno = estado.url(extras=[("vaga", str(vaga.id))])
+        detalhe = contexto_do_detalhe(con, vaga, agora.astimezone().date(), retorno)
+    if parcial and cabecalho.get("hx-target") == "detalhe-vaga":
+        # o clique na linha troca só o detalhe: sem refazer a lista, os Destaques e a lateral
+        return com_vary(renderizar(request, "vagas/detalhe_lado.html", detalhe=detalhe))
+    contexto = _contexto_pagina(
+        con, estado, agora, ex, min(pagina, _MAX_RECARGA) if miolo_ate else 1
+    )
+    contexto["detalhe"] = detalhe
+    if parcial:
+        contexto["lateral_oob"] = _lateral_oob(con, agora, estado.busca_id, "/vagas", estado.aba)
     modelo = "vagas/miolo.html" if parcial else "vagas/pagina.html"
     return com_vary(renderizar(request, modelo, **contexto))
 
@@ -493,27 +446,52 @@ def _aplicar(request: Request, acao: Callable[[datetime], None]) -> None:
         raise HTTPException(422) from erro  # o texto da tela sai do status (T150)
 
 
-def _resposta(
-    request: Request, con: sqlite3.Connection, vaga_id: int, voltar: str, busca: str
+def _lateral_de_volta(
+    con: sqlite3.Connection, agora: datetime, busca_id: int | None, voltar: str
+) -> dict[str, Any]:
+    """A lateral por OOB com o item marcado da página de onde a pessoa veio (`voltar`)."""
+    de = urlsplit(voltar)
+    aba = parse_qs(de.query).get("aba", [""])[0]
+    return _lateral_oob(con, agora, busca_id, "/vagas" if de.path == "/" else de.path, aba)
+
+
+def _resposta_faixa(
+    request: Request,
+    con: sqlite3.Connection,
+    vaga_id: int,
+    voltar: str,
+    busca: str,
+    ocultou: bool,
+    antes: str = "",
+    com_faixa: bool = True,
 ) -> Response:
-    """HTMX recebe o corpo novo do cartão; sem HTMX, a pessoa volta para a página de onde veio."""
+    """Ocultar e Desfazer/Refazer (T256). Sem HTMX, volta para a página como antes. Com HTMX, a
+    faixa de desfazer e a lateral por OOB; o HX-Trigger-After-Settle avisa o app.js para tirar a
+    linha (e fechar o detalhe dela) ou para recarregar a lista com a linha de volta. O aviso sai
+    depois do settle: antes dele, os hx-* da faixa nova ainda não valem e um ⌘Z viraria POST
+    nativo. `antes` vai no form do Desfazer: "-1" quando a vaga estava em "mostrar mesmo assim",
+    para o Desfazer voltar a ela e não a 0. `com_faixa=False` (Ocultar repetido, vaga já oculta)
+    deixa a faixa da tela como está: a nova levaria `antes=""` e o Desfazer zeraria a vaga."""
     if request.headers.get("hx-request") != "true":
         return de_volta(voltar)
-    busca_id = busca_efetiva(con, inteiro_da_url(busca, MAX_ID))
     agora = relogio_do_painel(request).agora()
-    vaga = leitura.detalhe(con, vaga_id, busca_id, agora)
-    if vaga is None:
-        raise HTTPException(404, "vaga não existe")
-    return renderizar(
+    busca_id = busca_efetiva(con, inteiro_da_url(busca, MAX_ID))
+    resposta = renderizar(
         request,
-        "vagas/corpo.html",
-        exibicao=exibicao_do_painel(con, agora.astimezone().date()),
-        item=vaga,
-        fontes={vaga.id: _unicas(vaga.fontes)},
-        retorno=voltar,
-        busca_id=busca_id,
-        foco=True,
+        "vagas/faixa_oob.html",
+        texto="ocultada" if ocultou else "mostrada",
+        acao="desfazer" if ocultou else "refazer",
+        rota="/vagas/{id}/mostrar" if ocultou else "/vagas/{id}/ocultar",
+        vaga_id=vaga_id,
+        voltar=voltar,
+        busca=busca,
+        antes=antes,
+        com_faixa=com_faixa,
+        lateral_oob=_lateral_de_volta(con, agora, busca_id, voltar),
     )
+    evento = "vaga-ocultada" if ocultou else "vaga-mostrada"
+    resposta.headers["HX-Trigger-After-Settle"] = json.dumps({evento: {"vaga": vaga_id}})
+    return resposta
 
 
 @router.post("/vagas/{vaga_id}/status")
@@ -523,10 +501,11 @@ async def mudar_status(
     vaga_id: VagaId,
     status: Annotated[str, Form()],
     voltar: Annotated[str, Form()] = "/",
-    busca: Annotated[str, Form()] = "",
 ) -> Response:
+    """Salvar e os passos seguintes. Quem pede é o menu de contexto e o detalhe, por POST sem
+    HTMX: a resposta volta para a página de onde a pessoa veio (o corpo do cartão saiu, T305)."""
     _aplicar(request, lambda agora: acoes.mudar_status(con, vaga_id, status, agora))
-    return _resposta(request, con, vaga_id, voltar, busca)
+    return de_volta(voltar)
 
 
 @router.post("/vagas/{vaga_id}/ocultar")
@@ -537,8 +516,13 @@ async def ocultar(
     voltar: Annotated[str, Form()] = "/",
     busca: Annotated[str, Form()] = "",
 ) -> Response:
+    linha = con.execute("SELECT oculta_manual FROM vaga WHERE id = ?", (vaga_id,)).fetchone()
     _aplicar(request, lambda agora: acoes.ocultar(con, vaga_id, agora))
-    return _resposta(request, con, vaga_id, voltar, busca)
+    antes = "-1" if linha and linha[0] == -1 else ""
+    ja_oculta = bool(linha and linha[0] == 1)
+    return _resposta_faixa(
+        request, con, vaga_id, voltar, busca, ocultou=True, antes=antes, com_faixa=not ja_oculta
+    )
 
 
 @router.post("/vagas/{vaga_id}/mostrar")
@@ -548,11 +532,16 @@ async def mostrar(
     vaga_id: VagaId,
     voltar: Annotated[str, Form()] = "/",
     busca: Annotated[str, Form()] = "",
+    antes: Annotated[str, Form()] = "",
 ) -> Response:
-    """ "Trazer de volta" (ocultada à mão) ou "mostrar mesmo assim" (ocultada por regra)."""
+    """ "Trazer de volta" (ocultada à mão) ou "mostrar mesmo assim" (ocultada por regra). O
+    Desfazer da faixa manda `antes=-1` quando o Ocultar saiu de um "mostrar mesmo assim"."""
     linha = con.execute("SELECT oculta_manual FROM vaga WHERE id = ?", (vaga_id,)).fetchone()
     if linha is None:
         raise HTTPException(404, "vaga não existe")
-    acao = acoes.trazer_de_volta if linha[0] == 1 else acoes.mostrar
-    _aplicar(request, lambda agora: acao(con, vaga_id, agora))
-    return _resposta(request, con, vaga_id, voltar, busca)
+    if linha[0] == 1:
+        oculta = -1 if antes == "-1" else 0
+        _aplicar(request, lambda agora: acoes.trazer_de_volta(con, vaga_id, agora, oculta))
+    else:
+        _aplicar(request, lambda agora: acoes.mostrar(con, vaga_id, agora))
+    return _resposta_faixa(request, con, vaga_id, voltar, busca, ocultou=False)

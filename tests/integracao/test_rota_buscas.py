@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 from html import unescape
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlencode
 
 import pytest
 from fastapi import FastAPI
@@ -328,6 +329,161 @@ def test_apagar_leva_o_encaixe_e_deixa_a_vaga(painel: Painel) -> None:
     assert painel.total("vaga") == vagas
 
 
+def _dialogo(html: str, busca: int) -> str:
+    achado = re.search(rf'<dialog\b[^>]*id="alerta-busca-{busca}".*?</dialog>', html, re.DOTALL)
+    assert achado, "falta o <dialog> do alerta de apagar"
+    return achado.group(0)
+
+
+def _tag_de_abertura(html: str) -> str:
+    return html[: html.index(">") + 1]
+
+
+def test_apagar_tem_alerta(painel: Painel) -> None:
+    """T259: o alerta é um <dialog> com o nome escapado, o form de hoje, o foco no próprio dialog
+    (E13: nenhum botão com autofocus) e o Cancelar fora do envio."""
+    busca = painel.ids["busca"]
+    painel.sql("UPDATE busca SET nome = ? WHERE id = ?", 'Dados <b>&"x"', busca)
+    html = painel.get("/buscas").text
+    dialogo = _dialogo(html, busca)
+    abertura = _tag_de_abertura(dialogo)
+    assert 'role="alertdialog"' in abertura
+    assert re.search(r"\bautofocus\b", abertura)
+    assert 'tabindex="-1"' in abertura
+    assert "<b>" not in html  # o nome entrou escapado
+    achou = re.search(r'<h2[^>]*class="alerta-titulo"[^>]*>(.*?)</h2>', dialogo, re.DOTALL)
+    assert achou
+    titulo = unescape(achou.group(1))
+    assert titulo.strip() == 'Apagar a busca «Dados <b>&"x"»?'
+    assert re.search(r'aria-labelledby="alerta-busca-\d+-titulo"', abertura)
+    form = re.search(
+        r'<form[^>]*action="/buscas/(\d+)/apagar"[^>]*>(.*?)</form>', dialogo, re.DOTALL
+    )
+    assert form and int(form.group(1)) == busca
+    assert 'method="post"' in form.group(0)
+    assert f'name="{CAMPO_CSRF}" value="{painel.token}"' in form.group(2)
+    botoes = re.findall(r"<button\b[^>]*>", dialogo)
+    assert len(botoes) == 2
+    assert not any(re.search(r"\bautofocus\b", b) for b in botoes)
+    cancelar = [b for b in botoes if 'type="button"' in b]
+    assert len(cancelar) == 1 and "data-alerta-fecha" in cancelar[0]
+    assert "As vagas que ela trouxe continuam." in dialogo
+
+
+def _fora_do_dialogo(html: str) -> str:
+    return re.sub(r"<dialog\b.*?</dialog>", "", html, flags=re.DOTALL)
+
+
+def test_apagar_busca_sem_js_vai_para_confirmar(painel: Painel) -> None:
+    """T307: o botão Apagar da linha, lido sem JavaScript, leva à página de confirmação (GET que
+    não muda nada); o texto é o do alerta, o botão faz o POST de hoje e o Cancelar volta."""
+    busca = painel.ids["busca"]
+    painel.sql("UPDATE busca SET nome = ? WHERE id = ?", 'Dados <b>&"x"', busca)
+    fora = _fora_do_dialogo(painel.get("/buscas").text)
+    (form,) = re.findall(
+        rf'<form[^>]*action="/buscas/{busca}/apagar/confirmar"[^>]*>.*?</form>', fora, re.DOTALL
+    )
+    assert 'method="get"' in form
+    assert re.search(r'<button[^>]*type="submit"[^>]*data-alerta-abre="alerta-busca-\d+"', form)
+    assert CAMPO_CSRF not in form  # GET: nada de token na URL
+    assert f'action="/buscas/{busca}/apagar"' not in fora  # o POST direto só existe no alerta
+    assert "<details" not in fora
+
+    antes = painel.total("busca")
+    for _ in range(2):  # GET repetido: nada muda
+        r = painel.get(f"/buscas/{busca}/apagar/confirmar")
+        assert r.status_code == 200
+        assert painel.total("busca") == antes == 1
+    pagina = r.text
+    assert "<b>" not in pagina  # o nome entrou escapado
+    titulo = re.search(r'<h1[^>]*class="alerta-titulo"[^>]*>(.*?)</h1>', pagina, re.DOTALL)
+    assert titulo and unescape(titulo.group(1)).strip() == 'Apagar a busca «Dados <b>&"x"»?'
+    assert "As vagas que ela trouxe continuam." in pagina
+    (post,) = re.findall(
+        rf'<form[^>]*action="/buscas/{busca}/apagar"[^>]*>(.*?)</form>', pagina, re.DOTALL
+    )
+    assert f'name="{CAMPO_CSRF}" value="{painel.token}"' in post
+    assert re.search(r'<button[^>]*type="submit"[^>]*>\s*Apagar\s*</button>', post)
+    assert re.search(r'<a\b[^>]*href="/buscas"[^>]*>\s*Cancelar\s*</a>', pagina)
+    sem_paleta = re.sub(r'<dialog\b[^>]*\bid="paleta".*?</dialog>', "", pagina, flags=re.S)
+    assert "<dialog" not in sem_paleta and "autofocus" not in sem_paleta
+
+
+def test_apagar_busca_confirmar_em_ingles(painel: Painel) -> None:
+    painel.sql(
+        "INSERT INTO config (chave, valor) VALUES ('idioma', '\"en\"')"
+        " ON CONFLICT (chave) DO UPDATE SET valor = excluded.valor"
+    )
+    pagina = painel.get(f"/buscas/{painel.ids['busca']}/apagar/confirmar").text
+    assert "Delete the Search" in pagina and re.search(r">\s*Cancel\s*</a>", pagina)
+
+
+@pytest.mark.parametrize(("busca", "status"), [("999", 404), (str(2**63 - 1), 404), ("0", 422)])
+def test_apagar_busca_confirmar_de_busca_que_nao_existe(
+    painel: Painel, busca: str, status: int
+) -> None:
+    assert painel.get(f"/buscas/{busca}/apagar/confirmar").status_code == status
+
+
+def test_apagar_busca_post_direto_continua(painel: Painel) -> None:
+    """O POST de hoje (o do alerta e o do botão da página de confirmação) apaga como antes."""
+    busca = painel.ids["busca"]
+    r = painel.post(f"/buscas/{busca}/apagar")
+    assert (r.status_code, r.headers["location"], painel.total("busca")) == (303, "/buscas", 0)
+
+
+@pytest.mark.parametrize(("ativa", "acao"), [(1, "desligar"), (0, "ligar")])
+def test_linha_tem_interruptor_mini_e_menu(painel: Painel, ativa: int, acao: str) -> None:
+    """Cada linha: o interruptor (role switch) num form que liga ou desliga, e o alvo do menu."""
+    busca = painel.ids["busca"]
+    painel.sql("UPDATE busca SET ativa = ? WHERE id = ?", ativa, busca)
+    html = painel.get("/buscas").text
+    linha = re.search(
+        rf'<li\b[^>]*id="busca-{busca}".*?(?=<li\b[^>]*id="busca-|<dialog\b)', html, re.DOTALL
+    )
+    assert linha
+    abertura = _tag_de_abertura(linha.group(0))
+    assert 'data-menu="menu-busca"' in abertura and f'data-id="{busca}"' in abertura
+    assert (" data-ligada" in abertura) == bool(ativa)
+    assert (" data-desligada" in abertura) == (not ativa)
+    form = re.search(
+        rf'<form[^>]*action="/buscas/{busca}/{acao}"[^>]*>(.*?)</form>', linha.group(0), re.DOTALL
+    )
+    assert form and "data-envia-ao-mudar" in form.group(0)
+    caixa = re.search(r'<input[^>]*role="switch"[^>]*>', form.group(1))
+    assert caixa and 'class="chave chave-mini"' in caixa.group(0)
+    assert ("checked" in caixa.group(0)) == bool(ativa)
+    assert "aria-label=" in caixa.group(0)
+    assert f'name="{CAMPO_CSRF}"' in form.group(1)
+
+
+def test_menu_da_lista_tem_as_acoes_da_linha(painel: Painel) -> None:
+    html = painel.get("/buscas").text
+    menu = re.search(
+        r'<div id="menu-busca"[^>]*data-menu-contexto.*?</div>\s*<div id="menu-busca-aviso"',
+        html,
+        re.DOTALL,
+    )
+    assert menu
+    for modelo in (
+        "/vagas?aba=todas&amp;busca={id}",
+        "/buscas/{id}",
+        "/buscas/{id}/ligar",
+        "/buscas/{id}/desligar",
+    ):
+        assert modelo in menu.group(0), modelo
+    assert 'data-requer="ligada"' in menu.group(0) and 'data-requer="desligada"' in menu.group(0)
+    assert "data-acionar" in menu.group(0)
+    assert len(re.findall(r'role="group"', menu.group(0))) == 3
+
+
+@pytest.mark.parametrize("idioma", ["pt", "en"])
+def test_buscas_sem_o_apagar_em_dois_cliques(painel: Painel, idioma: str) -> None:
+    """O <details> de "Apagar mesmo" saiu: o texto antigo não aparece em nenhum idioma."""
+    r = painel.http.get("/buscas", headers={"Accept-Language": idioma})
+    assert "Apagar mesmo" not in r.text and "Delete it" not in r.text
+
+
 @pytest.mark.parametrize("acao", ["", "/ligar", "/desligar", "/apagar"])
 def test_busca_inexistente_e_404(painel: Painel, acao: str) -> None:
     assert painel.post(f"/buscas/999{acao}", _form()).status_code == 404
@@ -406,18 +562,25 @@ def test_criar_e_editar_busca_passam_o_dia_local(
 
 
 def _seletor(html: str) -> list[tuple[str, bool]]:
-    """Os links do seletor de busca: (endereço, é a busca atual)."""
-    bloco = re.search(r'<nav class="seletor-busca".*?</nav>', html, re.S)
+    """As opções do seletor de busca (T254: um `<select>` num form GET): (endereço que o form
+    monta ao escolher a opção, é a busca atual)."""
+    bloco = re.search(r'<form class="seletor-busca".*?</form>', html, re.S)
     if bloco is None:
         return []
+    ocultos = [
+        (unescape(n), unescape(v))
+        for n, v in re.findall(
+            r'<input type="hidden" name="([^"]+)" value="([^"]*)">', bloco.group(0)
+        )
+    ]
     return [
-        (unescape(m.group(1)), 'aria-current="true"' in m.group(0))
-        for m in re.finditer(r'<a [^>]*href="([^"]+)"[^>]*>', bloco.group(0))
+        ("/vagas?" + urlencode([*ocultos, ("busca", m.group(1))]), "selected" in m.group(0))
+        for m in re.finditer(r'<option value="([^"]+)"[^>]*>', bloco.group(0))
     ]
 
 
 def _titulos(html: str) -> list[str]:
-    return re.findall(r'<h3 class="cartao-titulo"><a [^>]*>([^<]*)</a>', html)
+    return re.findall(r'<span class="linha-titulo" title="[^"]*">([^<]*)</span>', html)
 
 
 def test_seletor_so_aparece_com_duas_buscas_ativas(painel: Painel) -> None:

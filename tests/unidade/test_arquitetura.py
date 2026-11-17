@@ -47,17 +47,25 @@ def _sql(texto: str) -> str:
 
 
 def _tabelas_de(textos: list[str]) -> set[str]:
-    """Tabelas criadas (comuns e virtuais) menos as apagadas."""
-    criadas: set[str] = set()
-    apagadas: set[str] = set()
+    """Tabelas (comuns e virtuais) que sobram lendo os comandos em ordem: CREATE acrescenta,
+    DROP tira, ALTER TABLE x RENAME TO y troca x por y."""
+    tabelas: set[str] = set()
+    comando = re.compile(
+        r"CREATE\s+(?:VIRTUAL\s+)?TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?P<criada>\w+)"
+        r"|DROP\s+TABLE\s+(?:IF\s+EXISTS\s+)?(?P<apagada>\w+)"
+        r"|ALTER\s+TABLE\s+(?P<de>\w+)\s+RENAME\s+TO\s+(?P<para>\w+)",
+        re.I,
+    )
     for texto in map(_sql, textos):
-        criadas |= set(
-            re.findall(
-                r"CREATE\s+(?:VIRTUAL\s+)?TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(\w+)", texto, re.I
-            )
-        )
-        apagadas |= set(re.findall(r"DROP\s+TABLE\s+(?:IF\s+EXISTS\s+)?(\w+)", texto, re.I))
-    return criadas - apagadas
+        for achado in comando.finditer(texto):
+            if achado["criada"]:
+                tabelas.add(achado["criada"])
+            elif achado["apagada"]:
+                tabelas.discard(achado["apagada"])
+            else:
+                tabelas.discard(achado["de"])
+                tabelas.add(achado["para"])
+    return tabelas
 
 
 def _chaves_de(textos: list[str]) -> set[frozenset[str]]:
@@ -162,6 +170,9 @@ def test_leitor_do_esquema_tira_tabela_apagada_e_comentario() -> None:
     sql += "-- CREATE TABLE c (z INTEGER);\nDROP TABLE a;\nCREATE VIRTUAL TABLE d USING fts5(t);\n"
     assert _tabelas_de([sql]) == {"b", "d"}
     assert _chaves_de([sql]) == {frozenset(("a", "b"))}
+    refeita = "CREATE TABLE e (x); CREATE TABLE e_nova (x); DROP TABLE e;"
+    refeita += " ALTER TABLE e_nova RENAME TO e;"
+    assert _tabelas_de([refeita]) == {"e"}
 
 
 @pytest.mark.parametrize("lingua", LINGUAS)

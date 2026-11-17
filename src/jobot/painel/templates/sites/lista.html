@@ -1,32 +1,49 @@
 {% extends "base.html" %}
+{% from "_alerta.html" import alerta with context %}
+{% from "_menu_contexto.html" import menu_contexto with context %}
 {% block titulo %}{{ t("sites.titulo") }} · joBot{% endblock %}
 {% block estilos %}<link rel="stylesheet" href="/static/css/vagas.css"><link rel="stylesheet" href="/static/css/buscas.css"><link rel="stylesheet" href="/static/css/empresas.css"><link rel="stylesheet" href="/static/css/sites.css">{% endblock %}
 {% block conteudo %}
 <h1 class="titulo-pagina">{{ t("sites.titulo") }}</h1>
 <p class="situacao">{{ t("sites.intro") }}</p>
 {% if linhas %}
-<ul class="lista" id="lista-sites">
+<ul class="lista-agrupada" id="lista-sites">
   {%- for r in linhas %}
   {%- set p = r.p %}
-  <li class="cartao{% if not p.ativa %} cartao-oculta{% endif %}" id="site-{{ p.id }}">
-    <div class="cartao-cabeca">
-      <h2 class="cartao-titulo">{{ p.nome }}</h2>
-      {%- if not p.ativa %}
-      <span class="selo">{{ t("sites.desativada") }}</span>
-      {%- endif %}
+  <li class="linha-site{% if not p.ativa %} linha-desligada{% endif %}" id="site-{{ p.id }}" tabindex="-1" data-menu="menu-site" data-id="{{ p.id }}"{% if p.ativa %} data-ativa{% endif %}>
+    <div class="linha-site-topo">
+      <div class="linha-site-texto">
+        <div class="cartao-cabeca">
+          <h2 class="cartao-titulo">{{ p.nome }}</h2>
+          {%- if not p.ativa %}
+          <span class="selo">{{ t("sites.desativada") }}</span>
+          {%- endif %}
+        </div>
+        <ul class="meta">
+          <li>{{ p.url }}</li>
+          <li>
+            {%- if p.estado == "falhou" %}{{ t("sites.estado.falhou", motivo=t("sites.motivo." ~ (p.motivo or "desconhecido"))) }}
+            {%- elif p.estado == "ok" %}{{ t("sites.estado.ok", data=data_completa(p.verificada_em.isoformat(), idioma)) }}
+            {%- else %}{{ t("sites.estado.nova") }}{% endif %}</li>
+          {%- if p.mudou_em %}
+          <li>{{ t("sites.mudou_em", data=data_completa(p.mudou_em.isoformat(), idioma)) }}</li>
+          {%- endif %}
+        </ul>
+      </div>
+      <div class="linha-site-acoes">
+        {%- if p.ativa %}
+        <form method="post" action="/sites/{{ p.id }}/desativar">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button type="submit" class="botao-simples">{{ t("sites.desativar") }}</button>
+        </form>
+        {%- endif %}
+        <form method="get" action="/sites/{{ p.id }}/remover/confirmar">
+          <button type="submit" class="botao-simples" data-alerta-abre="alerta-site-{{ p.id }}">{{ t("comum.remover") }}</button>
+        </form>
+      </div>
     </div>
-    <ul class="meta">
-      <li>{{ p.url }}</li>
-      <li>
-        {%- if p.estado == "falhou" %}{{ t("sites.estado.falhou", motivo=t("sites.motivo." ~ (p.motivo or "desconhecido"))) }}
-        {%- elif p.estado == "ok" %}{{ t("sites.estado.ok", data=data_completa(p.verificada_em.isoformat(), idioma)) }}
-        {%- else %}{{ t("sites.estado.nova") }}{% endif %}</li>
-      {%- if p.mudou_em %}
-      <li>{{ t("sites.mudou_em", data=data_completa(p.mudou_em.isoformat(), idioma)) }}</li>
-      {%- endif %}
-    </ul>
     {%- if r.mudancas %}
-    <details class="apagar">
+    <details class="ver-mudancas">
       <summary>{{ t("sites.ver_mudancas", n=r.mudancas | length) }}</summary>
       <div class="mudancas">
         {%- for m in r.mudancas %}
@@ -38,25 +55,24 @@
       </div>
     </details>
     {%- endif %}
-    <div class="acoes">
-      {%- if p.ativa %}
-      <form method="post" action="/sites/{{ p.id }}/desativar">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <button type="submit" class="secundario">{{ t("sites.desativar") }}</button>
-      </form>
-      {%- endif %}
-      <details class="apagar">
-        <summary>{{ t("sites.remover") }}</summary>
-        <form method="post" action="/sites/{{ p.id }}/remover">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-          <p>{{ t("sites.remover_aviso", nome=p.nome) }}</p>
-          <button type="submit" class="secundario">{{ t("sites.remover_confirmar") }}</button>
-        </form>
-      </details>
-    </div>
   </li>
   {%- endfor %}
 </ul>
+{%- for r in linhas %}
+{{ alerta("alerta-site-" ~ r.p.id, t("sites.remover_titulo", nome=r.p.nome), t("sites.remover_texto"), t("comum.remover"), "/sites/" ~ r.p.id ~ "/remover") }}
+{%- endfor %}
+{#- o menu mora fora da lista, como o da Vagas e o das Buscas: nada o troca nem o duplica -#}
+{% call menu_contexto("menu-site", t("sites.menu.rotulo")) %}
+<div role="group">
+<form method="post" action="/sites" data-modelo-acao="/sites/{id}/desativar" data-requer="ativa">
+<input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<button type="submit" role="menuitem" tabindex="-1">{{ t("sites.desativar") }}</button>
+</form>
+</div>
+<div role="group">
+<button type="button" role="menuitem" tabindex="-1" data-acionar="remover">{{ t("sites.menu.remover") }}</button>
+</div>
+{% endcall %}
 {% else %}
 <p class="vazio">{{ t("sites.vazio") }}</p>
 {% endif %}

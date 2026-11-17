@@ -1,12 +1,13 @@
 import asyncio
 from collections.abc import Awaitable, Callable, Mapping
 from contextlib import suppress
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 
 import pytest
 
 from apoio.relogio import RelogioFalso
 from jobot.agenda.agendador import Estado, laco, o_que_roda
+from jobot.agenda.login import Login
 from jobot.banco.execucoes import Tipo
 
 pytestmark = pytest.mark.anyio
@@ -98,6 +99,7 @@ class _Estado:
         }
         self.chaves: dict[str, bool] = dict(LIGADOS)
         self.nova = False
+        self.dados_login: Login | None = None
 
     def ultimas(self) -> Mapping[Tipo, datetime | None]:
         return self.datas
@@ -107,6 +109,9 @@ class _Estado:
 
     def pagina_nova(self) -> bool:
         return self.nova
+
+    def login(self) -> Login | None:
+        return self.dados_login
 
 
 class _Relogio(RelogioFalso):
@@ -307,3 +312,18 @@ async def test_travas_de_fora_com_tipo_sem_tarefa_nao_derrubam_o_laco() -> None:
     tarefa.cancel()
     with suppress(asyncio.CancelledError):
         await tarefa
+
+
+async def test_laco_passa_o_login_do_estado() -> None:
+    relogio = _Relogio(voltas=2)
+    inicios: list[datetime] = []
+
+    async def login() -> None:
+        inicios.append(relogio.agora())
+
+    estado = _Estado()
+    local = AGORA.astimezone()
+    # o horário de parede é o da hora local de AGORA: vence quando a espera de 60 s acaba
+    estado.dados_login = Login((time(local.hour, local.minute),), None)
+    await _girar({"login": login}, estado, relogio)
+    assert inicios == [AGORA + timedelta(seconds=60)]

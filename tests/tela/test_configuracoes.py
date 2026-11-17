@@ -1,5 +1,6 @@
 """Configurações no navegador: abas, interruptores, aparência e privacidade (plano T54)."""
 
+import re
 from pathlib import Path
 from typing import Literal
 
@@ -45,13 +46,13 @@ def test_menu_leva_as_configuracoes_e_cada_aba_abre_o_seu_grupo(page: Page, pain
     page.get_by_role("navigation", name="Principal").get_by_role(
         "link", name="Configurações"
     ).click()
-    expect(page).to_have_url(f"{painel}/configuracoes/fontes")
+    expect(page).to_have_url(f"{painel}/configuracoes/geral")
     grupos = page.get_by_role("navigation", name="Grupos de configurações")
-    expect(grupos.get_by_role("link", name="Fontes")).to_have_attribute("aria-current", "page")
+    expect(grupos.get_by_role("link", name="Geral")).to_have_attribute("aria-current", "page")
     for nome, caminho in (
+        ("Fontes", "fontes"),
         ("Funções", "funcoes"),
         ("Segundo plano", "segundo-plano"),
-        ("Aparência", "aparencia"),
         ("Privacidade", "privacidade"),
         ("Serviços", "servicos"),
     ):
@@ -80,8 +81,9 @@ def test_desligar_destaques_tira_a_aba_e_o_painel_abre_em_todas(
     expect(page.get_by_label("Destaques de hoje", exact=True)).not_to_be_checked()
 
     page.goto(f"{painel}/vagas")
-    expect(page.get_by_role("link", name="Todas")).to_have_attribute("aria-current", "page")
-    expect(page.get_by_role("link", name="Destaques")).to_have_count(0)
+    lateral = page.get_by_role("navigation", name="Principal")
+    expect(lateral.get_by_role("link", name="Todas")).to_have_attribute("aria-current", "page")
+    expect(lateral.get_by_role("link", name="Destaques")).to_have_count(0)
     assert _sem_erro_no_console == []
 
 
@@ -132,14 +134,35 @@ def test_segundo_plano_recusado_mostra_o_motivo(
     expect(page.get_by_role("alert")).to_contain_text("o systemd do usuário não responde")
 
 
-def test_aparencia_troca_tema_e_idioma_e_fica_na_pagina(page: Page, painel: str) -> None:
-    page.goto(f"{painel}/configuracoes/aparencia")
-    page.locator("[data-preferencia=tema]").get_by_role("button", name="Escuro").click()
-    expect(page).to_have_url(f"{painel}/configuracoes/aparencia")
+def test_tema_e_idioma_pelo_menu_de_geral_ficam_depois_de_recarregar(
+    page: Page, painel: str
+) -> None:
+    page.goto(f"{painel}/configuracoes/geral")
+    with page.expect_navigation():
+        page.locator("[data-preferencia=tema]").get_by_role("combobox").select_option("escuro")
+    expect(page).to_have_url(f"{painel}/configuracoes/geral")
     expect(page.locator("html")).to_have_attribute("data-tema", "escuro")
-    page.locator("[data-preferencia=idioma]").get_by_role("button", name="English").click()
-    expect(page).to_have_url(f"{painel}/configuracoes/aparencia")
+    with page.expect_navigation():
+        page.locator("[data-preferencia=idioma]").get_by_role("combobox").select_option("en")
+    expect(page).to_have_url(f"{painel}/configuracoes/geral")
     expect(page.get_by_role("heading", name="Settings")).to_be_visible()
+    page.reload()
+    expect(page.locator("html")).to_have_attribute("data-tema", "escuro")
+    expect(page.locator("html")).to_have_attribute("lang", "en")
+    expect(page.locator("[data-preferencia=tema]").get_by_role("combobox")).to_have_value("escuro")
+
+
+@pytest.mark.parametrize(("valor", "px"), [("padrao", 13.0), ("grande", 15.0), ("maior", 17.0)])
+def test_tamanho_do_texto_no_corpo(page: Page, painel: str, valor: str, px: float) -> None:
+    page.goto(f"{painel}/configuracoes/geral")
+    if valor != "padrao":
+        with page.expect_navigation():
+            page.locator("[data-preferencia=texto]").get_by_role("combobox").select_option(valor)
+    expect(page.locator("html")).to_have_attribute("data-texto", valor)
+    page.reload()
+    expect(page.locator("html")).to_have_attribute("data-texto", valor)
+    tamanho = page.evaluate("parseFloat(getComputedStyle(document.body).fontSize)")
+    assert abs(tamanho - px) <= 0.1, (valor, tamanho)
 
 
 def test_fontes_desliga_uma_e_ela_volta_desmarcada(page: Page, painel: str) -> None:
@@ -152,26 +175,94 @@ def test_fontes_desliga_uma_e_ela_volta_desmarcada(page: Page, painel: str) -> N
     expect(page.get_by_label("Himalayas", exact=True)).to_be_checked()
 
 
-def test_so_pelo_teclado_liga_e_desliga_a_chave(page: Page, painel: str) -> None:
+def test_so_pelo_teclado_liga_e_desliga_a_caixa_de_marcar(page: Page, painel: str) -> None:
     page.goto(f"{painel}/configuracoes/funcoes")
-    chave = page.get_by_label("Páginas acompanhadas", exact=True)
+    caixa = page.get_by_label("Páginas acompanhadas", exact=True)
+    expect(caixa).to_have_attribute("type", "checkbox")
+    expect(caixa).not_to_have_attribute("role", "switch")
+    medidas = caixa.bounding_box()
+    assert medidas is not None and round(medidas["width"]) == round(medidas["height"]) == 14
+    caixa.focus()
+    page.keyboard.press("Space")
+    expect(caixa).not_to_be_checked()
+    page.keyboard.press("Space")
+    expect(caixa).to_be_checked()
+
+
+def test_o_interruptor_fica_onde_a_opcao_comanda_um_grupo(
+    page: Page, painel: str, sistema: FalsoSistema
+) -> None:
+    sistema.habilitado = False  # o falso começa habilitado; o teste parte do interruptor desligado
+    page.goto(f"{painel}/configuracoes/segundo-plano")
+    chave = page.get_by_role("switch")
+    expect(chave).to_have_count(1)
     chave.focus()
     page.keyboard.press("Space")
-    expect(chave).not_to_be_checked()
-    page.keyboard.press("Space")
-    expect(chave).to_be_checked()
+    expect(page.get_by_role("switch")).to_be_checked()
+
+
+def test_item_configuracoes_abre_o_ultimo_grupo(page: Page, painel: str) -> None:
+    item = page.get_by_role("navigation", name="Principal").get_by_role(
+        "link", name="Configurações"
+    )
+    page.goto(f"{painel}/vagas")
+    expect(item).to_have_attribute("href", "/configuracoes/geral")  # sem registro: Geral
+    page.goto(f"{painel}/configuracoes/privacidade")
+    page.goto(f"{painel}/vagas")
+    expect(item).to_have_attribute("href", "/configuracoes/privacidade")
+    item.click()
+    expect(page).to_have_url(f"{painel}/configuracoes/privacidade")
+
+    page.goto(f"{painel}/vagas")  # o atalho vai ao mesmo lugar
+    page.keyboard.press("ControlOrMeta+,")
+    expect(page).to_have_url(f"{painel}/configuracoes/privacidade")
+    # o app.js (defer) grava o grupo na carga: sem esperá-la, o clear corre contra essa gravação
+    page.wait_for_load_state("load")
+
+    page.evaluate("localStorage.clear()")  # sem registro de novo
+    page.goto(f"{painel}/vagas")
+    expect(item).to_have_attribute("href", "/configuracoes/geral")
+    page.keyboard.press("ControlOrMeta+,")
+    expect(page).to_have_url(f"{painel}/configuracoes/geral")
+
+
+def test_atalho_de_configuracoes_depois_de_voltar_no_historico(page: Page, painel: str) -> None:
+    """Voltar troca o body (historyRestore): o atalho acha o item novo, não o nó solto de antes."""
+    page.goto(f"{painel}/configuracoes/privacidade")  # guarda o grupo
+    page.goto(f"{painel}/vagas?aba=todas&ordem=recentes")
+    page.evaluate("() => { window.__mesmaPagina = true; }")
+    # a ordem troca o miolo com hx-push-url (o item da lateral é página inteira e não serve)
+    page.locator("#ordem").select_option("empresa")
+    expect(page).to_have_url(re.compile(r"[?&]ordem=empresa"))
+    page.go_back()
+    expect(page).to_have_url(re.compile(r"[?&]ordem=recentes"))
+    assert page.evaluate("() => window.__mesmaPagina") is True  # restaurada pelo htmx, sem recarga
+    page.keyboard.press("ControlOrMeta+,")
+    expect(page).to_have_url(f"{painel}/configuracoes/privacidade")
+
+
+def test_ultimo_grupo_sem_armazenamento_cai_em_geral(page: Page, painel: str) -> None:
+    page.add_init_script(
+        "Object.defineProperty(window, 'localStorage', {get() { throw new Error('bloqueado'); }})"
+    )
+    page.goto(f"{painel}/configuracoes/privacidade")
+    page.goto(f"{painel}/vagas")
+    item = page.get_by_role("navigation", name="Principal").get_by_role(
+        "link", name="Configurações"
+    )
+    expect(item).to_have_attribute("href", "/configuracoes/geral")
 
 
 @pytest.mark.parametrize("esquema", ["light", "dark"])
-def test_aparencia_troca_meu_pais_e_moeda(
+def test_geral_troca_meu_pais_e_moeda(
     page: Page, painel: str, esquema: Literal["light", "dark"]
 ) -> None:
     page.emulate_media(color_scheme=esquema)
-    page.goto(f"{painel}/configuracoes/aparencia")
+    page.goto(f"{painel}/configuracoes/geral")
     page.get_by_label("Meu país", exact=True).select_option(label="Portugal")
     page.get_by_role("button", name="Salvar").click()
     expect(page.get_by_role("status").filter(has_text="Salvo.")).to_be_visible()
-    page.goto(f"{painel}/configuracoes/aparencia")
+    page.goto(f"{painel}/configuracoes/geral")
     expect(page.get_by_label("Meu país", exact=True)).to_have_value("PT")
     expect(page.get_by_label("Meu país", exact=True).locator("option:checked")).to_have_text(
         "Portugal"

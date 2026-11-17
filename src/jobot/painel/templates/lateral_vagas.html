@@ -1,0 +1,13 @@
+{#- a lista da seção "Vagas" da lateral (desenho 5.2; T253). Na casca entra como está; nas respostas
+    HTMX de Vagas volta com `oob` e troca esta lista no lugar (hx-swap-oob), com a contagem nova.
+    Precisa de `lado`, `caminho` e `aba_atual` (a aba marcada; só vale em Vagas). -#}
+{%- set icones = {
+  "destaques": "sparkles", "todas": "inbox", "novas": "circle-dot", "fecham_logo": "hourglass",
+  "salvas": "bookmark", "candidatei": "send", "programas": "graduation-cap", "ocultas": "eye-off",
+} -%}
+<ul id="lateral-vagas" aria-labelledby="secao-vagas"{% if oob %} hx-swap-oob="true"{% endif %}>
+  {%- for aba in lado.abas %}
+  {%- set n = lado.contagens.get(aba, 0) %}
+  <li><a data-icone="{{ icones[aba] }}" href="/vagas?aba={{ aba }}{% if lado.busca_id %}&amp;busca={{ lado.busca_id }}{% endif %}"{% if aba == aba_atual %} aria-current="{{ 'page' if caminho == '/vagas' else 'true' }}"{% endif %}>{{ t("casca.lateral.destaques") if aba == "destaques" else t("vagas.aba." ~ aba) }}{% if n %} <span class="contagem">{{ n }}</span>{% endif %}</a></li>
+  {%- endfor %}
+</ul>

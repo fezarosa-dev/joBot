@@ -8,5 +8,7 @@
   "sugeridas.descartar": "Descartar",
   "sugeridas.removida": "Você removeu esta empresa em {data}. Aprovar não a traz de volta; para acompanhá-la de novo, adicione-a em Empresas.",
   "sugeridas.erro.fonte_fora": "Não deu para falar com a fonte agora. A sugestão continua aqui; tente de novo mais tarde.",
-  "sugeridas.erro.pagina": "Essa página não parece ser de uma empresa da Gupy. A sugestão continua aqui; descarte-a se não servir."
+  "sugeridas.erro.pagina": "Essa página não parece ser de uma empresa da Gupy. A sugestão continua aqui; descarte-a se não servir.",
+  "sugeridas.menu.rotulo": "Ações da sugestão",
+  "sugeridas.menu.abrir_no_site": "Abrir no site"
 }

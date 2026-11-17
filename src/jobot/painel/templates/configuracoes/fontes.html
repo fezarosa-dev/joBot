@@ -5,7 +5,7 @@
   <fieldset class="grupo-leva">
     <legend>{{ t("configuracoes.fontes.leva_" ~ (leva | lower)) }}</legend>
     {% for f in itens %}
-    <label class="opcao"><input type="checkbox" class="chave" name="fonte" value="{{ f.chave }}"{% if f.ligada %} checked{% endif %}> {{ t("fonte." ~ f.chave) }}</label>
+    <label class="opcao"><input type="checkbox" name="fonte" value="{{ f.chave }}"{% if f.ligada %} checked{% endif %}> {{ t("fonte." ~ f.chave) }}</label>
     {% endfor %}
   </fieldset>
   {% endif %}{% endfor %}

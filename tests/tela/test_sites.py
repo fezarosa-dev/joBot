@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 from fastapi import FastAPI
-from playwright.sync_api import Locator, Page, expect
+from playwright.sync_api import Browser, Locator, Page, expect
 
 from jobot.banco.conexao import abrir
 from jobot.banco.paginas import adicionar_pagina, gravar_leitura
@@ -45,7 +45,7 @@ def app_painel(app_painel: FastAPI, tmp_path: Path) -> FastAPI:
 
 
 def _cartao(page: Page, nome: str) -> Locator:
-    return page.locator("#lista-sites li.cartao").filter(
+    return page.locator("#lista-sites > li").filter(
         has=page.get_by_role("heading", name=nome, exact=True)
     )
 
@@ -63,7 +63,7 @@ def test_lista_as_paginas_com_estado_e_mudanca(page: Page, painel: str) -> None:
     page.goto(f"{painel}/sites")
 
     expect(page.get_by_role("heading", level=1)).to_have_text("Sites")
-    expect(page.locator("#lista-sites li.cartao")).to_have_count(2)
+    expect(page.locator("#lista-sites > li")).to_have_count(2)
     expect(_cartao(page, "Trainee Alfa")).to_contain_text("Mudou em 13/11/2026")
     expect(_cartao(page, "Estágio Beta")).not_to_contain_text("Mudou em")
     assert erros == []
@@ -74,7 +74,7 @@ def test_adicionar_pagina_publica_aparece_na_lista(page: Page, painel: str) -> N
     _adicionar(page, "Programa Gama", "https://gama.exemplo.test/vagas")
 
     expect(page).to_have_url(re.compile(r"/sites$"))
-    expect(page.locator("#lista-sites li.cartao")).to_have_count(3)
+    expect(page.locator("#lista-sites > li")).to_have_count(3)
     expect(_cartao(page, "Programa Gama")).to_contain_text("Ainda não lida")
 
 
@@ -89,7 +89,7 @@ def test_endereco_interno_mostra_mensagem_e_nao_grava(
 
     expect(page.get_by_role("alert")).to_contain_text("Esse endereço não pode ser acompanhado")
     expect(page.get_by_label("Endereço da página")).to_have_value(endereco)  # o texto volta
-    expect(page.locator("#lista-sites li.cartao")).to_have_count(2)
+    expect(page.locator("#lista-sites > li")).to_have_count(2)
 
 
 def test_desativar_marca_a_pagina_e_tira_o_botao(page: Page, painel: str) -> None:
@@ -101,32 +101,98 @@ def test_desativar_marca_a_pagina_e_tira_o_botao(page: Page, painel: str) -> Non
     expect(beta.get_by_role("button", name="Desativar")).to_have_count(0)
 
 
-def test_remover_pede_confirmacao_e_apaga_a_pagina(page: Page, painel: str) -> None:
+def test_remover_site_abre_o_alerta_e_cancelar_nao_remove(page: Page, painel: str) -> None:
     page.goto(f"{painel}/sites")
     alfa = _cartao(page, "Trainee Alfa")
-    alfa.locator("details.apagar", has_text="Remover").locator("summary").click()
-    expect(alfa).to_contain_text("O texto guardado e as mudanças dela serão apagados")
-    alfa.get_by_role("button", name="Remover mesmo").click()
+    botao = alfa.get_by_role("button", name="Remover", exact=True)
+    botao.click()
 
+    alerta = page.get_by_role("alertdialog")
+    expect(alerta).to_be_visible()
+    expect(alerta).to_contain_text("Remover o site «Trainee Alfa»?")
+    expect(alerta).to_contain_text("O texto guardado e as mudanças dele serão apagados.")
+    expect(alerta).to_be_focused()  # o foco fica no próprio alerta, nunca num botão (E13)
+
+    alerta.get_by_role("button", name="Cancelar").click()
+    expect(alerta).to_be_hidden()
+    expect(botao).to_be_focused()  # o foco volta ao botão que abriu
+    page.reload()
+    expect(page.locator("#lista-sites > li")).to_have_count(2)
+
+    _cartao(page, "Trainee Alfa").get_by_role("button", name="Remover", exact=True).click()
+    page.get_by_role("alertdialog").get_by_role("button", name="Remover", exact=True).click()
     expect(_cartao(page, "Trainee Alfa")).to_have_count(0)
-    expect(page.locator("#lista-sites li.cartao")).to_have_count(1)
+    expect(page.locator("#lista-sites > li")).to_have_count(1)
+
+
+def test_remover_site_sem_js_pede_confirmacao(browser: Browser, painel: str) -> None:
+    """T307: sem JavaScript, Remover abre a página de confirmação e só o botão dela remove;
+    Cancelar volta à lista com tudo no lugar."""
+    contexto = browser.new_context(java_script_enabled=False, locale="pt-BR")
+    try:
+        pagina = contexto.new_page()
+        pagina.goto(f"{painel}/sites")
+        lista = pagina.locator("#lista-sites > li")
+        expect(lista).to_have_count(2)
+        _cartao(pagina, "Trainee Alfa").get_by_role("button", name="Remover", exact=True).click()
+
+        expect(pagina).to_have_url(re.compile(r"/sites/\d+/remover/confirmar\??$"))
+        expect(pagina.get_by_role("heading", level=1)).to_have_text(
+            "Remover o site «Trainee Alfa»?"
+        )
+        expect(pagina.locator("main")).to_contain_text(
+            "O texto guardado e as mudanças dele serão apagados."
+        )
+        pagina.get_by_role("link", name="Cancelar", exact=True).click()
+        expect(pagina).to_have_url(re.compile(r"/sites$"))
+        expect(lista).to_have_count(2)  # abrir e cancelar não removeu nada
+
+        _cartao(pagina, "Trainee Alfa").get_by_role("button", name="Remover", exact=True).click()
+        pagina.locator("main").get_by_role("button", name="Remover", exact=True).click()
+        expect(pagina).to_have_url(re.compile(r"/sites$"))
+        expect(lista).to_have_count(1)
+        expect(_cartao(pagina, "Trainee Alfa")).to_have_count(0)
+    finally:
+        contexto.close()
+
+
+def test_desativar_nao_pergunta_nada(page: Page, painel: str) -> None:
+    page.goto(f"{painel}/sites")
+    _cartao(page, "Estágio Beta").get_by_role("button", name="Desativar").click()
+    expect(page.get_by_role("alertdialog")).to_have_count(0)  # fora da lista só existe fechado
+    expect(_cartao(page, "Estágio Beta")).to_contain_text("Desativada")
+
+
+def test_menu_de_contexto_remover_abre_o_alerta(page: Page, painel: str) -> None:
+    page.goto(f"{painel}/sites")
+    _cartao(page, "Estágio Beta").click(button="right", position={"x": 40, "y": 12})
+    itens = page.locator("#menu-site").get_by_role("menuitem")
+    expect(itens).to_have_text(["Desativar", "Remover…"])
+    itens.filter(has_text="Remover…").click()
+    alerta = page.get_by_role("alertdialog")
+    expect(alerta).to_be_visible()
+    expect(alerta).to_contain_text("Estágio Beta")
+    page.keyboard.press("Escape")
+    expect(alerta).to_be_hidden()
+    expect(page.locator("#lista-sites > li")).to_have_count(2)
 
 
 def test_aba_programas_mostra_mudou_em_e_leva_para_sites(page: Page, painel: str) -> None:
     page.goto(f"{painel}/vagas?aba=programas")
 
     secao = page.locator("#lista-programas-paginas")
-    expect(secao.locator("li.cartao")).to_have_count(2)  # as duas ativas aparecem
-    alfa = secao.locator("li.cartao").filter(has_text="Trainee Alfa")
-    expect(alfa).to_contain_text("mudou em 13/11/2026")
+    expect(secao.locator("> li")).to_have_count(2)  # as duas ativas aparecem
+    alfa = secao.locator("> li").filter(has_text="Trainee Alfa")
+    expect(alfa.locator("a.linha")).to_contain_text("mudou em 13/11/2026")  # a linha das vagas
     alfa.locator("summary").click()
     expect(alfa).to_contain_text("+inscrições encerradas")
     # o CSS de sites.css chega na tela de vagas: linha longa quebra em vez de estourar a largura
     expect(alfa.locator("pre.diferenca")).to_have_css("white-space", "pre-wrap")
-    beta = secao.locator("li.cartao").filter(has_text="Estágio Beta")
+    beta = secao.locator("> li").filter(has_text="Estágio Beta")
     expect(beta).not_to_contain_text("mudou em")
     expect(beta).to_contain_text("sem mudança")
-    alfa.get_by_role("link", name="Ver em Sites").click()
+    expect(secao.locator("li.cartao, [role=option]")).to_have_count(0)
+    alfa.get_by_role("link", name=re.compile(r"^Trainee Alfa")).click()
     expect(page).to_have_url(re.compile(r"/sites#site-\d+$"))
 
 

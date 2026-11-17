@@ -11,7 +11,7 @@ Ele junta, filtra e organiza vagas de muitos sites num painel que roda no seu pr
 
 [![licença MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-blue?style=flat-square)](https://github.com/fezarosa-dev/joBot/blob/main/LICENSE)
 [![status: em desenvolvimento](https://img.shields.io/badge/status-em%20desenvolvimento-orange?style=flat-square)](Roteiro)
-[![fase 1 de 8](https://img.shields.io/badge/fase-1%20de%208-yellow?style=flat-square)](Roteiro)
+[![fase 1 de 8](https://img.shields.io/badge/fase-1%20de%209-yellow?style=flat-square)](Roteiro)
 [![Python 3.14](https://img.shields.io/badge/Python-3.14-3776AB?style=flat-square&logo=python&logoColor=white)](Tecnologias)
 [![plataformas: Linux | Windows | macOS](https://img.shields.io/badge/plataformas-Linux%20%7C%20Windows%20%7C%20macOS-lightgrey?style=flat-square)](Tecnologias)
 <br>
@@ -47,7 +47,7 @@ O joBot nasceu para ajudar jovens universitários a encontrar o primeiro emprego
 Depois a ideia cresceu e virou um assistente para todo mundo que procura vaga, de qualquer área. [Leia a história completa](A-ideia-e-a-historia).
 
 > [!NOTE]
-> **O joBot está em desenvolvimento.** A fase 1 de 8 (a base) está concluída: já dá para [instalar e usar](https://github.com/fezarosa-dev/joBot/blob/main/README.md#requisitos-e-instalacao) a versão 0.2.1. As fases 2 a 8 estão planejadas. Veja o [roteiro](Roteiro).
+> **O joBot está em desenvolvimento.** As fases 1 e 2 de 9 (a base e o navegador com login) estão concluídas: já dá para [instalar e usar](https://github.com/fezarosa-dev/joBot/blob/main/README.md#requisitos-e-instalacao) a versão 0.3.0. As fases 3 a 9 estão planejadas. Veja o [roteiro](Roteiro).
 
 ## ✨ Destaques
 
@@ -70,9 +70,10 @@ Serve para todo tipo de vaga e toda área: CLT, PJ, estágio, trainee, temporár
 |---|---|
 | 💡 [A ideia e a história](A-ideia-e-a-historia) | Por que o joBot existe, o que ele faz, o que não faz e os princípios. |
 | ⚙️ [Como funciona](Como-funciona) | O caminho de uma vaga, da fonte até o painel, e as duas versões. |
+| ⌨️ [Atalhos de teclado](Atalhos-de-teclado) | As teclas do painel: paleta de comandos, lista de vagas, Desfazer e ajuda. |
 | 🧰 [Tecnologias](Tecnologias) | As ferramentas usadas e o porquê de cada uma. |
 | 📚 [Decisões](Decisoes) | Todas as decisões do projeto, cada uma em uma linha. |
-| 🗺️ [Roteiro](Roteiro) | As 8 fases e em qual estamos. |
+| 🗺️ [Roteiro](Roteiro) | As 9 fases e em qual estamos. |
 | 💛 [Apoie](Apoie) | Como ajudar o projeto, com ou sem dinheiro. |
 | ❓ [Perguntas frequentes](Perguntas-frequentes) | As dúvidas mais comuns, respondidas. |
 | 🙋 [Tirar dúvida](Tirar-duvida) | O caminho para perguntar o que não está aqui. |

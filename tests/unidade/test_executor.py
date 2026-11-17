@@ -29,6 +29,7 @@ from jobot.nucleo.http import (
     HttpDoEscopo,
     HttpEducado,
     LimiteAtingido,
+    MotivoEspera,
     OrcamentoGasto,
     Parou429,
     RespostaGrande,
@@ -194,17 +195,23 @@ async def _rodar(
     ao_terminar: Callable[[SaidaEscopo], Awaitable[None]] | None = None,
     ao_comecar_fonte: Callable[[str], Awaitable[None]] | None = None,
     ao_terminar_fonte: Callable[[str], Awaitable[None]] | None = None,
+    ao_planejar: Callable[[Mapping[str, int]], Awaitable[None]] | None = None,
+    ao_esperar: Callable[[str, datetime, MotivoEspera], Awaitable[None]] | None = None,
 ) -> list[SaidaEscopo]:
     rel = relogio or RelogioFalso()
     cli = cliente or _cliente(servidor, rel, leitor)
     prova: Historico = historico or HistoricoFalso()
     por_chave = {c.chave: c for c in coletores}
     saidas: list[SaidaEscopo] = []
-    avisos: dict[str, Callable[[str], Awaitable[None]]] = {}
+    avisos: dict[str, Any] = {}
     if ao_comecar_fonte is not None:
         avisos["ao_comecar_fonte"] = ao_comecar_fonte
     if ao_terminar_fonte is not None:
         avisos["ao_terminar_fonte"] = ao_terminar_fonte
+    if ao_planejar is not None:
+        avisos["ao_planejar"] = ao_planejar
+    if ao_esperar is not None:
+        avisos["ao_esperar"] = ao_esperar
 
     async def guardar(saida: SaidaEscopo) -> None:
         saidas.append(saida)
@@ -946,3 +953,87 @@ async def test_zero_inesperado_conta_urls_listadas() -> None:
     historico = HistoricoFalso(com_vagas={("s", "")})
     saidas = await _rodar([ColetorFalso("s", acao=_sitemap())], historico=historico)
     assert _estados(saidas) == {"s": ("parcial", "saude.zero_inesperado")}
+
+
+# --- total planejado e espera da fonte (T245) ------------------------------------------------
+
+
+class Planos:
+    """`ao_planejar` falso: guarda cada dicionário recebido."""
+
+    def __init__(self, eventos: list[object] | None = None) -> None:
+        self.lista: list[dict[str, int]] = []
+        self.eventos = eventos
+
+    async def __call__(self, totais: Mapping[str, int]) -> None:
+        self.lista.append(dict(totais))
+        if self.eventos is not None:
+            self.eventos.append("plano")
+
+
+async def test_total_planejado_antes_da_primeira_consulta() -> None:
+    eventos: list[object] = []
+    planos = Planos(eventos)
+
+    def responder(pedido: httpx.Request) -> httpx.Response:
+        eventos.append("pedido")
+        return _uma_vaga(pedido)
+
+    async def guardar(saida: SaidaEscopo) -> None:
+        eventos.append("saida")
+
+    await _rodar(
+        [
+            ColetorFalso("a", lista=("a1", "a2", "a3")),
+            ColetorFalso("b", lista=("b1", "b2")),
+            ColetorFalso("c", erro_escopos=ValueError("ctx")),
+        ],
+        servidor=Servidor(responder),
+        ao_terminar=guardar,
+        ao_planejar=planos,
+    )
+    assert planos.lista == [{"a": 3, "b": 2, "c": 1}]
+    assert eventos[0] == "plano"
+    assert eventos.count("pedido") == 5 and eventos.count("saida") == 6
+
+
+async def test_escopos_chamados_uma_vez_por_fonte() -> None:
+    # Guarda: nasce verde. Mutante: `_Fonte.rodar` chamar `escopos()` de novo.
+    a, b = ColetorFalso("a", lista=("a1", "a2")), ColetorFalso("b")
+    await _rodar([a, b], ao_planejar=Planos())
+    assert len(a.contextos) == 1 and len(b.contextos) == 1
+
+
+async def test_total_bate_com_as_linhas() -> None:
+    planos = Planos()
+    g = ColetorFalso("g", lista=("e1.exemplo", "e2.exemplo"), max_pedidos=1)
+    saidas = await _rodar(
+        [g, ColetorFalso("c", erro_escopos=ValueError("ctx"))], ao_planejar=planos
+    )
+    assert _estados(saidas)["e2.exemplo"] == ("no_limite", "saude.orcamento")
+    assert _estados(saidas)["c"][0] == "falhou"
+    assert len(saidas) == 3
+    assert [sum(p.values()) for p in planos.lista] == [len(saidas)]
+
+
+async def test_espera_da_fonte_leva_a_chave() -> None:
+    respostas = [httpx.Response(429, headers={"Retry-After": "5"})]
+    avisos: list[tuple[str, datetime, MotivoEspera]] = []
+
+    def responder(pedido: httpx.Request) -> httpx.Response:
+        return respostas.pop(0) if respostas else _uma_vaga(pedido)
+
+    async def esperou(fonte: str, fim: datetime, motivo: MotivoEspera) -> None:
+        avisos.append((fonte, fim, motivo))
+
+    saidas = await _rodar([ColetorFalso("a")], servidor=Servidor(responder), ao_esperar=esperou)
+    assert _estados(saidas) == {"a": ("ok", None)}
+    assert avisos == [("a", AGORA + timedelta(seconds=5), "limite")]
+
+
+async def test_fontes_desligadas_fora_do_plano() -> None:
+    planos = Planos()
+    a = ColetorFalso("a")
+    await _rodar([a, ColetorFalso("b")], ligadas={"b"}, ao_planejar=planos)
+    assert planos.lista == [{"b": 1}]
+    assert a.contextos == []

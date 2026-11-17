@@ -1,0 +1,13 @@
+{
+  "url": "https://vagas.exemplo.invalid/busca?q=termo+raro",
+  "data": "2026-11-16T12:00:00+00:00",
+  "codigo": 200,
+  "cabecalhos": {
+    "Content-Type": "text/html; charset=utf-8"
+  },
+  "tipo": "text/html",
+  "sha256": "99384b6a8d249c2ae40538e50f4357cdbe8958c9dbb044cb500b6f7ea7945c9f",
+  "versao": "0.2.1",
+  "metodo": "GET",
+  "montado_a_mao": "montado à mão para o molde (host .invalid, empresas e títulos inventados, conta 'Conta de exemplo'): uma busca logada sem nenhuma vaga, com a lista vazia"
+}

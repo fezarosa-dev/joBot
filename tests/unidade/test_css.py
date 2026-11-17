@@ -1,0 +1,653 @@
+"""Regras do CSS do painel: vidro, movimento, tipo e controles (desenho 5.1, 5.3 e 5.7; T248)."""
+
+import re
+from typing import NamedTuple
+
+import pytest
+
+from jobot.painel.app import ESTATICOS
+
+PASTA = ESTATICOS / "css"
+BASE = PASTA / "base.css"
+REDUZIDO = "@media (prefers-reduced-motion: reduce)"
+
+
+class Regra(NamedTuple):
+    contexto: tuple[str, ...]  # at-rules que envolvem a regra, de fora para dentro
+    seletor: str
+    corpo: str
+
+
+def _sem_comentarios(css: str) -> str:
+    return re.sub(r"/\*.*?\*/", "", css, flags=re.DOTALL)
+
+
+def _fecha(texto: str, abre: int) -> int:
+    """Índice logo depois do `}` que fecha o `{` em `abre` (chaves contadas)."""
+    fundo = 0
+    for i in range(abre, len(texto)):
+        fundo += {"{": 1, "}": -1}.get(texto[i], 0)
+        if fundo == 0:
+            return i + 1
+    raise AssertionError("chave sem par")
+
+
+def _regras(texto: str, contexto: tuple[str, ...] = ()) -> list[Regra]:
+    """Regras de um CSS sem comentários; `@media` e `@supports` são abertos, o resto é folha."""
+    achadas: list[Regra] = []
+    i = 0
+    while (abre := texto.find("{", i)) != -1:
+        cabeca = texto[i:abre].strip()
+        fim = _fecha(texto, abre)
+        corpo = texto[abre + 1 : fim - 1]
+        if cabeca.startswith(("@media", "@supports")):
+            achadas += _regras(corpo, (*contexto, cabeca))
+        else:
+            achadas.append(Regra(contexto, cabeca, corpo))
+        i = fim
+    return achadas
+
+
+def _todas() -> list[tuple[str, Regra]]:
+    achadas = []
+    for arquivo in sorted(PASTA.glob("*.css")):
+        css = _sem_comentarios(arquivo.read_text(encoding="utf-8"))
+        achadas += [(arquivo.name, r) for r in _regras(css)]
+    return achadas
+
+
+def _base() -> str:
+    return _sem_comentarios(BASE.read_text(encoding="utf-8"))
+
+
+def _seletores(regra: Regra) -> list[str]:
+    return [s.strip() for s in regra.seletor.split(",")]
+
+
+def _valor(regra: Regra, propriedade: str) -> str | None:
+    achado = re.search(rf"(?:^|[;\s]){re.escape(propriedade)}\s*:\s*([^;]+)", regra.corpo)
+    return achado.group(1).strip() if achado else None
+
+
+def test_o_leitor_de_css_enxerga_as_regras() -> None:
+    """Guarda dos testes abaixo: sem regras lidas, todos passariam por vazio."""
+    todas = _todas()
+    assert len(todas) > 100
+    assert {nome for nome, _ in todas} >= {"base.css", "vagas.css", "configuracoes.css"}
+    aninhada = _regras("@media (a) { .x, .y { c: d } } .z { e: f }")
+    assert [(r.contexto, r.seletor) for r in aninhada] == [(("@media (a)",), ".x, .y"), ((), ".z")]
+
+
+def test_backdrop_filter_so_no_vidro() -> None:
+    fora = [
+        f"{nome}: {r.seletor}"
+        for nome, r in _todas()
+        if "backdrop-filter" in r.corpo
+        and not all(re.search(r"\.vidro(-grande)?(?![\w-])", s) for s in _seletores(r))
+    ]
+    assert fora == []
+
+
+def test_sem_letter_spacing() -> None:
+    com = [nome for nome, r in _todas() if "letter-spacing" in r.corpo]
+    assert com == []
+
+
+def _tamanho_em_px(valor: str) -> float:
+    numero = float(re.match(r"[\d.]+", valor).group())  # type: ignore[union-attr]
+    return numero * 16 if valor.endswith("rem") else numero
+
+
+def test_nada_abaixo_de_10px() -> None:
+    pequenos = []
+    for nome, r in _todas():
+        for achado in re.findall(r"font-size\s*:\s*([\d.]+(?:rem|px))", r.corpo):
+            if _tamanho_em_px(achado) < 10:
+                pequenos.append(f"{nome}: {r.seletor}: {achado}")
+        # tokens de tipo: `--t-x: peso tamanho/entrelinha`
+        for achado in re.findall(r"--t-[\w-]+\s*:\s*\d+\s+([\d.]+(?:rem|px))/", r.corpo):
+            if _tamanho_em_px(achado) < 10:
+                pequenos.append(f"{nome}: {r.seletor}: {achado}")
+    assert pequenos == []
+
+
+def test_tokens_de_tipo_da_escala_do_mac() -> None:
+    corpo = "".join(r.corpo for _, r in _todas() if r.seletor == ":root")
+    esperado = {
+        "large": "26/32",
+        "title1": "22/26",
+        "title2": "17/22",
+        "title3": "15/20",
+        "headline": "13/16",
+        "body": "13/16",
+        "callout": "12/15",
+        "sub": "11/14",
+        "foot": "10/13",
+        "cap1": "10/13",
+        "cap2": "10/13",
+    }
+    achado = {}
+    for nome, peso, tam, linha in re.findall(
+        r"--t-([\w]+)\s*:\s*(\d+)\s+([\d.]+)rem/([\d.]+)rem", corpo
+    ):
+        assert int(peso) in (400, 500, 600, 700), nome
+        achado[nome] = f"{round(float(tam) * 16)}/{round(float(linha) * 16)}"
+    assert achado == esperado
+    assert re.search(r"--t-headline\s*:\s*700\b", corpo)
+
+
+def test_tokens_de_tipo_trazem_a_familia() -> None:
+    """`font: var(--t-x)` só vale com a família no fim: sem ela o atalho é inválido na hora do
+    valor computado, vira `unset` e o corpo sai em 16px em vez de 13px (CI da tela de texto)."""
+    corpo = "".join(r.corpo for _, r in _todas() if r.seletor == ":root")
+    assert _valor(next(r for _, r in _todas() if r.seletor == ":root"), "--familia")
+    tokens = re.findall(r"(--t-[\w-]+)\s*:\s*([^;]+);", corpo)
+    assert len(tokens) == 11
+    sem_familia = [nome for nome, valor in tokens if not valor.strip().endswith("var(--familia)")]
+    assert sem_familia == []
+
+
+def test_font_com_token_de_tipo_nao_repete_a_familia() -> None:
+    """A regra que usa `font: var(--t-x)` não leva `font-family` (a família já vem no token)."""
+    usos = [(n, r) for n, r in _todas() if re.search(r"font\s*:\s*var\(--t-", r.corpo)]
+    assert len(usos) >= 3  # guarda: sem usos lidos, o teste passaria por vazio
+    com_familia = [f"{n}: {r.seletor}" for n, r in usos if "font-family" in r.corpo]
+    assert com_familia == []
+
+
+def test_html_respeita_o_tamanho_do_navegador() -> None:
+    regra = next(r for _, r in _todas() if r.seletor == "html")
+    assert _valor(regra, "font-size") == "100%"
+
+
+def test_body_no_tamanho_do_corpo() -> None:
+    regra = next(r for n, r in _todas() if n == "base.css" and r.seletor == "body")
+    assert "var(--t-body)" in regra.corpo
+    assert "1.0625rem" not in regra.corpo
+    # a família vem no token (`--t-body` termina em `var(--familia)`), não em `font-family`
+    assert "font-family" not in regra.corpo
+
+
+def test_botoes_com_1_75rem() -> None:
+    regras = [r for r in _regras(_base()) if not r.contexto]
+    botao = next((r for r in regras if "button" in _seletores(r)), None)
+    assert botao, "base.css sem regra de button"
+    assert _valor(botao, "min-block-size") == "1.75rem"
+    campo = next((r for r in regras if 'input[type="text"]' in _seletores(r)), None)
+    assert campo, "base.css sem regra do campo de texto"
+    assert _valor(campo, "min-block-size") == "1.75rem"
+    assert _valor(campo, "border-radius") == "var(--raio-controle)"
+
+
+def test_sem_min_height_de_2_5rem() -> None:
+    """Nenhum botão, campo ou menu do painel fica com o 2.5rem de antes.
+
+    Controles de 2rem e 2.25rem (.chip, .opcao, .config-grupos a) ficam para as
+    tarefas de cada tela (T251 em diante)."""
+    antigos = [f"{n}: {r.seletor}" for n, r in _todas() if "min-height: 2.5rem" in r.corpo]
+    assert antigos == []
+
+
+def test_cursor_pointer_so_em_link() -> None:
+    erradas = [
+        f"{nome}: {s}"
+        for nome, r in _todas()
+        if _valor(r, "cursor") == "pointer"
+        for s in _seletores(r)
+        if not (re.match(r"a\b", s) or "[href]" in s)
+    ]
+    assert erradas == []
+
+
+def test_botao_tem_cursor_default() -> None:
+    botao = next((r for r in _regras(_base()) if "button" in _seletores(r)), None)
+    assert botao, "base.css sem regra de button"
+    assert _valor(botao, "cursor") == "default"
+
+
+def test_sem_scale_no_active() -> None:
+    com = [
+        f"{n}: {r.seletor}" for n, r in _todas() if ":active" in r.seletor and "scale(" in r.corpo
+    ]
+    assert com == []
+
+
+def _mola(nome: str) -> list[float]:
+    """Os valores de `linear(...)` do `:root` do base.css, na ordem."""
+    achado = re.search(rf"--{nome}\s*:\s*linear\(([^)]*)\)", _base())
+    assert achado, f"--{nome} sem linear(...)"
+    return [float(item.split()[0]) for item in achado.group(1).split(",")]
+
+
+@pytest.mark.parametrize("nome", ["mola-suave", "mola-leve"])
+def test_mola_tem_vinte_pontos(nome: str) -> None:
+    pontos = _mola(nome)
+    assert len(pontos) >= 20
+    assert pontos[0] == 0
+    assert pontos[-1] == 1
+
+
+def test_molas_sem_rebote_alem_do_previsto() -> None:
+    assert max(_mola("mola-suave")) <= 1
+    assert 1 < max(_mola("mola-leve")) <= 1.006
+
+
+def test_mola_de_reserva_e_padrao() -> None:
+    css = _base()
+    assert "cubic-bezier(0.22, 1, 0.36, 1)" in css
+    assert re.search(r"--mola\s*:\s*var\(--mola-suave\)", css)
+    assert re.search(r"--duracao\s*:\s*190ms", css)
+
+
+def test_caminho_solido_completo() -> None:
+    regras = _regras(_base())
+
+    def tira_o_filtro(contexto: str, seletor: str = ".vidro") -> list[Regra]:
+        return [
+            r
+            for r in regras
+            if (contexto in " ".join(r.contexto) or contexto in r.seletor)
+            and any(re.search(rf"{re.escape(seletor)}(?![\w-])", s) for s in _seletores(r))
+            and re.search(r"(?<!-webkit-)backdrop-filter\s*:\s*none", r.corpo)
+        ]
+
+    for contexto in (
+        "@media (prefers-reduced-transparency: reduce)",
+        "@media (prefers-contrast: more)",
+        "@supports not (backdrop-filter",
+        '[data-janela="inativa"]',
+    ):
+        assert tira_o_filtro(contexto), contexto
+        assert tira_o_filtro(contexto, ".vidro-grande"), contexto
+    mais = tira_o_filtro("@media (prefers-contrast: more)")
+    assert any("1px solid var(--texto)" in r.corpo for r in mais)
+
+
+def test_so_o_vidro_tem_filtro_e_o_fundo_solido_vem_do_token() -> None:
+    css = _base()
+    assert "--vidro-blur: 24px" in css
+    assert "--vidro-blur-grande: 40px" in css
+    assert "--vidro-sat: 1.4" in css
+    assert re.search(r"--vidro-fundo\s*:\s*color-mix\(in srgb, var\(--solido-barra\) 72%", css)
+    assert re.search(
+        r"--vidro-fundo-grande\s*:\s*color-mix\(in srgb, var\(--solido-barra\) 85%", css
+    )
+
+
+def test_painel_e_topo_sem_vidro_proprio() -> None:
+    regras = {r.seletor: r for r in _regras(_base()) if not r.contexto}
+    assert "var(--superficie)" in regras[".painel"].corpo
+    assert "backdrop-filter" not in regras[".painel"].corpo
+    assert "backdrop-filter" not in regras[".topo"].corpo
+
+
+def test_topo_usa_a_classe_vidro() -> None:
+    template = (ESTATICOS.parent / "templates" / "base.html").read_text(encoding="utf-8")
+    assert '<header class="topo vidro">' in template
+
+
+def test_raios_e_sombras_novos() -> None:
+    css = _base()
+    for pedaco in (
+        "--raio-controle: 6px",
+        "--raio-grande: 10px",
+        "--raio: 10px",
+        "--raio-sheet: 18px",
+        "--sombra-cor:",
+        "--sombra-cor-forte:",
+        "--borda-elevada:",
+    ):
+        assert pedaco in css, pedaco
+
+
+def test_movimento_reduzido_por_ultimo_e_sem_transform() -> None:
+    css = _base()
+    inicio = css.rindex(REDUZIDO)
+    fim = _fecha(css, css.index("{", inicio))
+    assert css[fim:].strip() == "", "há regra depois do bloco de movimento reduzido"
+    bloco = css[inicio:fim]
+    assert re.search(r"transform\s*:\s*none\s*!important", bloco)
+    assert re.search(r"animation(-name)?\s*:\s*none\s*!important", bloco)
+    duracao = re.search(r"transition-duration\s*:\s*(\d+)ms", bloco)
+    assert duracao and int(duracao.group(1)) <= 150
+    assert "transform" not in re.search(r"transition-property\s*:([^;]+);", bloco).group(1)  # type: ignore[union-attr]
+
+
+def test_lateral_sobreposta_comeca_abaixo_da_barra() -> None:
+    """Janela média (T251): a lateral aberta por cima do conteúdo começa abaixo da barra, que fica
+    por cima dela; nunca vidro sobre vidro, e o botão de recolher continua clicável. A lateral fica
+    na grade, nas linhas abaixo da barra, e não num offset fixo: se a barra quebrar linha, ela segue
+    a altura real."""
+    css = _sem_comentarios((PASTA / "casca.css").read_text(encoding="utf-8"))
+    media = {r.seletor: r for r in _regras(css) if any("899.98px" in c for c in r.contexto)}
+    lateral = media[":root[data-js] .lateral"]
+    assert _valor(lateral, "grid-row") == "2 / -1"
+    assert _valor(lateral, "grid-column") == "1 / -1"
+    assert _valor(lateral, "position") != "fixed"
+    assert not re.search(r"(?:^|[;\s])inset", lateral.corpo)
+    assert int(_valor(media[":root[data-js] .topo"], "z-index") or 0) > int(
+        _valor(lateral, "z-index") or 0
+    )
+    raiz = next(r for r in _regras(_base()) if r.seletor == ":root" and not r.contexto)
+    assert _valor(raiz, "--barra-altura") == "52px"
+    topo = next(r for r in _regras(_base()) if r.seletor == ".topo" and not r.contexto)
+    assert _valor(topo, "min-block-size") == "var(--barra-altura)"
+
+
+def test_link_de_pular_fica_acima_da_barra() -> None:
+    """O link de pular é o primeiro foco da página: nenhuma barra pode cobri-lo (WCAG 2.4.11),
+    em nenhuma faixa de largura."""
+    pular = next(r for r in _regras(_base()) if r.seletor == ".pular" and not r.contexto)
+    barras = [
+        int(z)
+        for _, r in _todas()
+        if any(re.search(r"\.topo(?![\w-])", s) for s in _seletores(r))
+        and (z := _valor(r, "z-index")) is not None
+    ]
+    assert barras
+    assert int(_valor(pular, "z-index") or 0) > max(barras)
+
+
+def test_ancora_do_progresso_fica_no_proprio_componente() -> None:
+    """O nome de âncora é global: com a barra do topo e o componente do corpo na mesma página, o
+    popover de um se ancoraria no último .progresso do DOM. anchor-scope o prende ao seu (T252)."""
+    css = _sem_comentarios((PASTA / "execucao.css").read_text(encoding="utf-8"))
+    progresso = next(r for r in _regras(css) if r.seletor == ".progresso" and not r.contexto)
+    assert _valor(progresso, "anchor-name") == "--andamento"
+    assert _valor(progresso, "anchor-scope") == "--andamento"
+
+
+def test_espera_escondida_usa_o_limiar_de_1s_da_entrada() -> None:
+    """O componente das outras esperas (T266) nasce escondido e usa a MESMA animação de 1 s do
+    envoltório de entrada do andamento (`andamento-entrar`), também em movimento reduzido."""
+    css = _sem_comentarios((PASTA / "execucao.css").read_text(encoding="utf-8"))
+    regras = _regras(css)
+    espera = ".progresso-espera.htmx-request"
+    base = next(r for r in regras if r.seletor == ".progresso-espera" and not r.contexto)
+    assert _valor(base, "display") == "none"
+    for contexto, atraso in (((), "200ms ease-out 1s backwards"), ((REDUZIDO,), "1ms linear 1s")):
+        regra = next(r for r in regras if r.contexto == contexto and espera in _seletores(r))
+        assert ".andamento-entrada" in _seletores(regra)  # um só mecanismo, não uma cópia
+        assert (_valor(regra, "animation") or "").startswith(f"andamento-entrar {atraso}")
+
+
+def test_linha_escolhida_passa_a_cor_a_todo_descendente() -> None:
+    """Texto branco da linha escolhida chega aos netos (`.nao-informado`), não só aos `> span`."""
+    escolhida = '.lista-linhas:focus-within .linha[aria-selected="true"]'
+    herdam = [
+        s
+        for nome, r in _todas()
+        if nome == "vagas.css" and not r.contexto and _valor(r, "color") == "inherit"
+        for s in _seletores(r)
+        if s.startswith(escolhida + " ") and not s.removeprefix(escolhida).lstrip().startswith(">")
+    ]
+    assert herdam, "a cor da linha escolhida não desce para os descendentes"
+
+
+def test_titulo_do_detalhe_ao_lado_em_titulo_3() -> None:
+    """Desenho 5.2 (Detalhe): o título vai em título 3; a coluna ao lado tem de 320 a 380px."""
+    regras = [
+        r
+        for nome, r in _todas()
+        if nome == "vagas.css" and ".detalhe-lado .titulo-pagina" in _seletores(r)
+    ]
+    assert regras
+    assert [_valor(r, "font") for r in regras] == ["var(--t-title3)"] * len(regras)
+
+
+def _regra_de(nome: str, seletor: str) -> Regra:
+    achadas = [r for arq, r in _todas() if arq == nome and r.seletor == seletor and not r.contexto]
+    assert achadas, f"{nome}: sem a regra {seletor}"
+    return achadas[0]
+
+
+def test_alerta_tem_a_medida_o_raio_e_o_veu_do_desenho() -> None:
+    """Desenho 5.4 (Alerta): 260px, raio 18px, véu --veu; o display só com [open] (fechado, o
+    dialog precisa continuar escondido); botões presos no pé, só o texto rola (E17)."""
+    alerta = _regra_de("base.css", ".alerta")
+    assert _valor(alerta, "inline-size") == "16.25rem"
+    assert _valor(alerta, "border-radius") == "var(--raio-sheet)"
+    sombra = _valor(alerta, "box-shadow") or ""
+    assert "var(--sombra-alerta)" in sombra and "var(--vidro-borda)" in sombra  # sombra e filete
+    assert _valor(alerta, "display") is None
+    aberto = _regra_de("base.css", ".alerta[open]")
+    assert (_valor(aberto, "display"), _valor(aberto, "flex-direction")) == ("flex", "column")
+    assert _valor(aberto, "max-block-size")
+    assert _valor(_regra_de("base.css", ".alerta::backdrop"), "background-color") == "var(--veu)"
+    assert _valor(_regra_de("base.css", ".alerta-corpo"), "overflow-y") == "auto"
+    pe = _regra_de("base.css", ".alerta-acoes")
+    assert (_valor(pe, "flex"), _valor(pe, "flex-direction")) == ("none", "column")
+
+
+def test_alerta_entra_com_fade_e_escala_de_96() -> None:
+    """Fade e scale(.96) em 200ms; o bloco global de movimento reduzido zera o transform e deixa
+    só o fundido."""
+    css = _base()
+    assert re.search(
+        r"@starting-style\s*\{[^@]*\.alerta\[open\]\s*\{[^}]*opacity:\s*0[^}]*scale\(0?\.96\)", css
+    )
+    aberto = _regra_de("base.css", ".alerta[open]")
+    transicao = _valor(aberto, "transition") or ""
+    assert "opacity 200ms" in transicao and "transform 200ms" in transicao
+
+
+def test_alerta_usa_vidro_so_pela_classe() -> None:
+    """O desenho dá `.vidro-grande` ao alerta no HTML; nenhum backdrop-filter novo no CSS dele."""
+    for seletor in (".alerta", ".alerta[open]", ".alerta::backdrop"):
+        assert "backdrop-filter" not in _regra_de("base.css", seletor).corpo
+
+
+def test_alerta_nao_anula_o_caminho_solido_do_vidro() -> None:
+    """`.alerta` (0,1,0) reseta borda e sombra do UA: escrita DEPOIS dos blocos sólidos do vidro,
+    ela anularia a borda de 1px de contraste e de transparência reduzida. Fica antes deles."""
+    css = _sem_comentarios(_base())
+    alerta = css.index("\n.alerta {")
+    solido = re.search(r"@media \(prefers-(reduced-transparency|contrast)[^{]*\{\s*\.vidro,", css)
+    assert solido
+    assert alerta < solido.start(), "base.css: .alerta depois dos blocos sólidos do vidro"
+
+
+def test_toda_tela_com_apagar_em_details_liga_o_css_que_o_estiliza() -> None:
+    """Empresas e Sites ainda usam <details class="apagar">; a regra só sai com o último uso."""
+    modelos = ESTATICOS.parent / "templates"
+    for modelo in modelos.rglob("*.html"):
+        if 'class="apagar"' not in modelo.read_text(encoding="utf-8"):
+            continue
+        texto = modelo.read_text(encoding="utf-8")
+        if modelo.name != "lista.html" and "{% extends" not in texto:
+            continue  # parcial: o CSS vem da página que a inclui
+        ligados = {m for m in re.findall(r"/static/css/([\w-]+)\.css", texto)}
+        estilizado = any(
+            r.seletor == ".apagar summary" for arq, r in _todas() if arq[:-4] in ligados
+        )
+        assert estilizado, f'{modelo.name}: class="apagar" sem .apagar summary no CSS ligado'
+
+
+def test_interruptor_mora_na_base_e_buscas_nao_liga_o_css_de_configuracoes() -> None:
+    """O interruptor (38x22px) e o mini (30x18px) moram no base.css, que toda página liga: a lista
+    de buscas não precisa mais do configuracoes.css."""
+    base = _base()
+    regras = {r.seletor: r for r in _regras(base) if not r.contexto}
+    assert {".chave", ".chave-mini"} <= regras.keys(), "base.css sem o interruptor"
+    mini = regras[".chave-mini"]
+    assert (_valor(mini, "--larg"), _valor(mini, "--alt")) == ("1.875rem", "1.125rem")
+    assert (_valor(regras[".chave"], "--larg"), _valor(regras[".chave"], "--alt")) == (
+        "2.375rem",
+        "1.375rem",
+    )
+    assert ".chave" not in _sem_comentarios((PASTA / "configuracoes.css").read_text("utf-8"))
+    modelo = (ESTATICOS.parent / "templates" / "buscas" / "lista.html").read_text(encoding="utf-8")
+    assert "/static/css/configuracoes.css" not in modelo
+    assert "configuracoes.css" not in (PASTA / "buscas.css").read_text(encoding="utf-8")
+
+
+CAIXA = 'input[type="checkbox"]:not(.chave)'
+
+
+def _regra_da_caixa(seletor: str, *, contexto: tuple[str, ...] = ()) -> Regra:
+    achadas = [r for r in _regras(_base()) if r.seletor == seletor and r.contexto == contexto]
+    assert achadas, f"base.css sem a regra {seletor}"
+    return achadas[0]
+
+
+def test_caixa_de_marcar_14px_raio_4_e_visto_branco_sobre_o_destaque() -> None:
+    """Desenho 5.3: caixa de 14px, raio 4px, visto em --sobre-destaque sobre --destaque. Sem
+    transform no visto (o movimento reduzido o zera) e sem url(data:) (o CSP só aceita 'self')."""
+    caixa = _regra_da_caixa(CAIXA)
+    assert _valor(caixa, "appearance") == "none"
+    assert _valor(caixa, "inline-size") == _valor(caixa, "block-size") == "0.875rem"
+    assert _valor(caixa, "border-radius") == "4px"
+    marcada = _regra_da_caixa(f"{CAIXA}:checked")
+    assert _valor(marcada, "background-color") == "var(--destaque)"
+    visto = _regra_da_caixa(f"{CAIXA}::after")
+    assert _valor(visto, "background-color") == "var(--sobre-destaque)"
+    assert _valor(visto, "clip-path") is not None
+    assert "transform" not in visto.corpo and "data:" not in visto.corpo
+    assert _valor(_regra_da_caixa(f"{CAIXA}:checked::after"), "opacity") == "1"
+
+
+def test_caixa_de_marcar_tem_foco_desativada_e_cores_forcadas() -> None:
+    foco = _regra_da_caixa(f"{CAIXA}:focus-visible")
+    assert _valor(foco, "outline") == "2px solid var(--foco)"
+    desativada = _regra_da_caixa(f"{CAIXA}:disabled")
+    assert _valor(desativada, "opacity") == "0.45"
+    bloco = [r for r in _regras(_base()) if r.contexto == ("@media (forced-colors: active)",)]
+    na_caixa = [r for r in bloco if r.seletor.startswith(CAIXA)]
+    assert na_caixa, "a caixa de marcar não tem regra em cores forçadas"
+    texto = " ".join(r.corpo for r in na_caixa)
+    for cor in ("ButtonText", "Highlight", "HighlightText", "GrayText"):
+        assert cor in texto, cor
+
+
+def test_borda_da_caixa_de_marcar_cita_o_contraste() -> None:
+    """A borda da caixa desmarcada é --texto-2 (3:1 de objeto gráfico, WCAG 1.4.11), par já na
+    lista de contraste do base.css; o comentário da regra diz isso."""
+    css = BASE.read_text(encoding="utf-8")
+    assert f"{CAIXA} {{" in css, "base.css sem a regra da caixa de marcar"
+    antes = css[: css.index(f"{CAIXA} {{")]
+    comentario = antes[antes.rindex("/*") :]
+    assert "texto-2/superficie" in comentario and "sobre-destaque/destaque" in comentario
+    assert _valor(_regra_da_caixa(CAIXA), "border") == "1px solid var(--texto-2)"
+    lista = re.search(r"/\* contraste: ([^*]+)\*/", css)
+    assert lista is not None
+    pares = lista.group(1).split()
+    assert "texto-2/superficie" in pares and "sobre-destaque/destaque" in pares
+
+
+def test_classe_chave_so_em_caixa_de_marcar() -> None:
+    """`.chave` mora no base.css (global): só `<input>` a usa (um `<code>` virava trilho)."""
+    achados = []
+    for modelo in sorted((ESTATICOS.parent / "templates").rglob("*.html")):
+        for tag in re.findall(
+            r"<(\w+)[^>]*\bclass=\"[^\"]*(?<![\w-])chave(?:-mini)?(?![\w-])[^\"]*\"",
+            modelo.read_text("utf-8"),
+        ):
+            if tag != "input":
+                achados.append(f"{modelo.name}: <{tag}>")
+    assert not achados
+    assert not re.search(
+        r"(^|[\s,}])\.chave\b", _sem_comentarios((PASTA / "fontes.css").read_text("utf-8"))
+    )
+
+
+def test_sheet_entra_com_a_mola_leve() -> None:
+    """Desenho 5.1 (T305 j): o sheet entra em 280 a 300ms com a mola leve, só opacidade e
+    transform, a partir do @starting-style. O bloco de movimento reduzido do base.css tira o
+    transform e deixa o fundido de 120ms."""
+    regras = _regras(_sem_comentarios((PASTA / "detalhe.css").read_text(encoding="utf-8")))
+    aberto = next(r for r in regras if r.seletor == ".sheet[open]" and not r.contexto)
+    transicao = [p.split() for p in (_valor(aberto, "transition") or "").split(",") if p.strip()]
+    assert sorted(p[0] for p in transicao) == ["opacity", "transform"]
+    for propriedade, duracao, curva in transicao:
+        assert 280 <= int(duracao.removesuffix("ms")) <= 300, propriedade
+        assert curva == "var(--mola-leve)", propriedade
+    inicios = [
+        d
+        for r in regras
+        if r.seletor == "@starting-style"
+        for d in _regras(r.corpo)
+        if d.seletor == ".sheet[open]"
+    ]
+    assert len(inicios) == 1
+    assert _valor(inicios[0], "opacity") == "0"
+    assert (_valor(inicios[0], "transform") or "none") != "none"
+
+
+def test_lista_agrupada_definida_uma_vez() -> None:
+    """O bloco da lista agrupada (desenho 5.8, T309) mora só em `.lista-agrupada`, no base.css: as
+    listas de Buscas, Fontes, Sites, Empresas e Sugeridas usam a classe, sem cópia do bloco."""
+    blocos = [
+        (arquivo, r.seletor)
+        for arquivo, r in _todas()
+        if _valor(r, "box-shadow") == "inset 0 0 0 0.5px var(--separador)"
+        and _valor(r, "list-style") == "none"
+    ]
+    assert blocos == [("base.css", ".lista-agrupada")]
+    modelos = ESTATICOS.parent / "templates"
+    for modelo, lista in (
+        ("buscas/lista.html", "lista-buscas"),
+        ("fontes/pagina.html", "lista-fontes"),
+        ("sites/lista.html", "lista-sites"),
+        ("empresas/_corpo.html", "lista-empresas"),
+        ("sugeridas/_corpo.html", "lista-sugeridas"),
+    ):
+        html = (modelos / modelo).read_text(encoding="utf-8")
+        assert f'<ul class="lista-agrupada" id="{lista}">' in html, modelo
+
+
+def _nome_do_icone(seletor: str) -> str | None:
+    """O nome de `[data-icone="x"]`, com espaço à vontade e aspas simples ou duplas."""
+    achado = re.fullmatch(r"""\[\s*data-icone\s*=\s*["']([\w-]+)["']\s*\]""", seletor)
+    return achado.group(1) if achado else None
+
+
+def test_guarda_de_icone_aceita_variacoes_de_espaco() -> None:
+    """T311 (e): a guarda não pode deixar escapar o seletor só por causa do espaço ou das aspas."""
+    for seletor in (
+        '[data-icone="x-y"]',
+        '[data-icone = "x-y"]',
+        '[ data-icone="x-y" ]',
+        "[data-icone='x-y']",
+        '[data-icone  =  "x-y"  ]',
+    ):
+        assert _nome_do_icone(seletor) == "x-y", seletor
+    assert _nome_do_icone('[data-icone="x"] .y') is None
+    assert _nome_do_icone('[data-icones="x"]') is None
+
+
+def test_regra_de_icone_uma_vez() -> None:
+    """Cada `data-icone` tem a regra do `--icone` num arquivo só (T309); os ícones de mais de uma
+    tela (encaixe, estado da fonte e do progresso) ficam no casca.css, que toda página carrega."""
+    lugares: dict[str, set[str]] = {}
+    for arquivo, r in _todas():
+        if _valor(r, "--icone") is None:
+            continue
+        for seletor in _seletores(r):
+            if nome := _nome_do_icone(seletor):
+                lugares.setdefault(nome, set()).add(arquivo)
+    repetidos = {nome: sorted(onde) for nome, onde in lugares.items() if len(onde) > 1}
+    assert repetidos == {}
+    for nome in ("circle", "contrast", "circle-check", "circle-x", "clock"):
+        assert lugares[nome] == {"casca.css"}, nome
+
+
+def test_selos_das_contas_tem_forma_propria() -> None:
+    """E15: o selo da conta nunca difere só pela cor. "Conectado" e "Precisa entrar" são os dois
+    com cor de estado: o segundo tem contorno de 2px, o primeiro de 1px."""
+    corpos = {
+        s: r.corpo
+        for nome, r in _todas()
+        if nome == "configuracoes.css" and not r.contexto
+        for s in _seletores(r)
+    }
+
+    def borda(estado: str) -> str:
+        proprio = corpos.get(f".cartao-site .selo-{estado}", "")
+        achado = re.search(r"border(?:-width)?\s*:\s*([0-9.]+px)", proprio)
+        if achado is None:
+            achado = re.search(r"border(?:-width)?\s*:\s*([0-9.]+px)", corpos[".cartao-site .selo"])
+        assert achado is not None
+        return achado[1]
+
+    assert borda("conectado") == "1px"
+    assert borda("precisa_entrar") == "2px"

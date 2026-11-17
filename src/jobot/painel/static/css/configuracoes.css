@@ -1,7 +1,7 @@
 /* Configurações (plano T54): só as cores e medidas da base.css, nenhuma cor nova. */
 
 .config {
-  max-width: 44rem;
+  max-width: 56rem;
   margin: 0 auto;
 }
 
@@ -9,35 +9,84 @@
   margin: 0 0 1rem;
   font-size: 2rem;
   font-weight: 700;
-  letter-spacing: -0.025em;
+}
+
+/* lista de grupos à esquerda, grupo aberto à direita (jeito dos Ajustes) */
+.config-corpo {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.5rem;
+}
+
+.config-conteudo {
+  flex: 1;
+  min-inline-size: 0;
+}
+
+.config-grupos {
+  flex: none;
+  inline-size: 13rem;
 }
 
 .config-grupos ul {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem;
-  margin: 0 0 1.5rem;
-  padding: 0.25rem;
-  border-radius: 12px;
-  background-color: var(--trilho);
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
   list-style: none;
 }
 
 .config-grupos a {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  min-height: 2.25rem;
-  padding: 0.25rem 0.9rem;
-  border-radius: 9px;
+  gap: 8px;
+  min-block-size: 32px;
+  padding-inline: 8px;
+  border-radius: var(--raio-controle);
   color: var(--texto);
-  font-size: 0.9375rem;
+  font-size: 0.8125rem;
+  line-height: 1rem;
   text-decoration: none;
 }
 
+.config-grupos a:hover:not([aria-current]) {
+  background-color: var(--hover);
+}
+
+/* grupo aberto: cor de destaque e texto branco, como o item da lateral */
 .config-grupos a[aria-current="page"] {
-  background-color: var(--segmento);
-  box-shadow: 0 1px 3px var(--sombra);
-  font-weight: 600;
+  background-color: var(--destaque);
+  color: var(--sobre-destaque);
+}
+
+/* ícone de 20px, desenhado por máscara na cor do texto (as máscaras de rss e globe vêm da casca.css) */
+.config-grupos a::before {
+  content: "";
+  display: block;
+  flex: none;
+  inline-size: 20px;
+  block-size: 20px;
+  background-color: currentColor;
+  -webkit-mask: var(--icone) center / contain no-repeat;
+  mask: var(--icone) center / contain no-repeat;
+}
+
+[data-icone="sliders-horizontal"] { --icone: url("/static/icones/sliders-horizontal.svg"); }
+[data-icone="toggle-right"] { --icone: url("/static/icones/toggle-right.svg"); }
+[data-icone="timer"] { --icone: url("/static/icones/timer.svg"); }
+[data-icone="shield"] { --icone: url("/static/icones/shield.svg"); }
+[data-icone="plug"] { --icone: url("/static/icones/plug.svg"); }
+[data-icone="key-round"] { --icone: url("/static/icones/key-round.svg"); }
+
+@media (max-width: 40rem) {
+  .config-corpo {
+    flex-direction: column;
+  }
+
+  .config-grupos {
+    inline-size: 100%;
+  }
 }
 
 .config-texto {
@@ -115,6 +164,12 @@
   font-weight: 500;
 }
 
+/* caixa de marcar: o quadrado vem antes do texto, que não engorda como o do interruptor */
+.interruptor-caixa {
+  justify-content: flex-start;
+  font-weight: 400;
+}
+
 .grupo-leva {
   display: grid;
   gap: 0.25rem;
@@ -132,84 +187,18 @@
 }
 
 .grupo-leva .opcao {
-  justify-content: space-between;
+  justify-content: flex-start;
   min-height: 2.25rem;
-}
-
-/* A chave: um checkbox sem a aparência do sistema, com a bolinha que corre. Ao apertar, a bolinha
-   estica para os lados; ligada, ela cresce para a esquerda (a borda direita fica no lugar). */
-.chave {
-  appearance: none;
-  position: relative;
-  flex: none;
-  width: 2.75rem;
-  height: 1.625rem;
-  margin: 0;
-  border-radius: 999px;
-  background-color: var(--trilho);
-  cursor: pointer;
-  transition: background-color var(--duracao) var(--mola);
-}
-
-.chave::after {
-  content: "";
-  position: absolute;
-  top: 0.125rem;
-  left: 0.125rem;
-  width: 1.375rem;
-  height: 1.375rem;
-  border-radius: 999px;
-  background-color: var(--segmento);
-  box-shadow: 0 1px 3px var(--sombra);
-  transition:
-    transform var(--duracao) var(--mola),
-    width var(--duracao) var(--mola);
-}
-
-.chave:checked {
-  background-color: var(--destaque);
-}
-
-.chave:checked::after {
-  transform: translateX(1.125rem);
-  background-color: var(--sobre-destaque);
-}
-
-.chave:active:not(:disabled)::after {
-  width: 1.75rem;
-}
-
-.chave:checked:active:not(:disabled)::after {
-  transform: translateX(0.75rem);
-}
-
-.chave:focus-visible {
-  outline: 2px solid var(--foco);
-  outline-offset: 2px;
-}
-
-/* desativada: trilho neutro, sem a cor de destaque e sem sombra na bolinha; não é só a opacidade */
-.chave:disabled,
-.chave:disabled:checked {
-  background-color: var(--trilho);
-  box-shadow: inset 0 0 0 1px var(--borda);
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.chave:disabled::after {
-  background-color: var(--segmento);
-  box-shadow: none;
 }
 
 .config-form .campo input.campo-texto,
 .config-form .campo input[type="number"] {
   box-sizing: border-box;
   width: 7rem;
-  min-height: 2.5rem;
+  min-block-size: 1.75rem;
   padding: 0.4rem 0.75rem;
   border: 1px solid var(--borda);
-  border-radius: 10px;
+  border-radius: var(--raio-controle);
   background-color: var(--superficie);
   color: var(--texto);
   font: inherit;
@@ -275,23 +264,13 @@
   box-sizing: border-box;
   width: 100%;
   max-width: 24rem;
-  min-height: 2.5rem;
+  min-block-size: 1.75rem;
   padding: 0.4rem 0.75rem;
   border: 1px solid var(--borda);
-  border-radius: 10px;
+  border-radius: var(--raio-controle);
   background-color: var(--superficie);
   color: var(--texto);
   font: inherit;
-}
-
-.config .botao-escolha {
-  background-color: var(--trilho);
-  color: var(--texto);
-}
-
-.config .botao-escolha[aria-pressed="true"] {
-  background-color: var(--destaque);
-  color: var(--sobre-destaque);
 }
 
 /* Campos, opções e botões: o mesmo desenho do assistente, escopado aqui. */
@@ -338,21 +317,17 @@
   display: inline-flex;
   align-items: center;
   box-sizing: border-box;
-  min-height: 2.5rem;
+  min-block-size: 1.75rem;
   margin: 0;
   padding: 0.4rem 1rem;
   border: 0;
-  border-radius: 10px;
+  border-radius: var(--raio-controle);
   font: inherit;
   font-size: 0.9375rem;
   font-weight: 500;
   text-decoration: none;
-  cursor: pointer;
-  transition: transform var(--duracao) var(--mola);
-}
-
-.config .botao:active:not(:disabled) {
-  transform: scale(0.96);
+  cursor: default;
+  transition: background-color 120ms ease-out;
 }
 
 .config .botao:disabled {
@@ -485,10 +460,8 @@
 /* a regra do base.css já zera tudo; aqui o cartão do 2Captcha fica explícito: o indicador de
    espera para num ponto fixo e o resultado aparece sem subir */
 @media (prefers-reduced-motion: reduce) {
-  .chave,
-  .chave::after,
   .config-form .campo input.campo-texto {
-    transition: none;
+    transition: none !important; /* vence o fundido de 120ms do base.css (!important, seletor menor) */
   }
 
   .config .botao.htmx-request::after,
@@ -497,45 +470,94 @@
   }
 }
 
-/* modo de alto contraste: o navegador troca as cores; a chave ganha borda e cores do sistema para
-   ligado e desligado não ficarem iguais, e o botão olho apertado ganha borda além do fundo */
+/* modo de alto contraste: o botão olho apertado ganha borda além do fundo (a chave e a caixa de
+   marcar têm o bloco delas no base.css) */
 @media (forced-colors: active) {
-  .chave {
-    border: 2px solid ButtonText;
-    background-color: Canvas;
+  .config-grupos a::before {
     forced-color-adjust: none;
+    background-color: CanvasText;
   }
 
-  .chave::after {
-    top: 0;
-    left: 0;
-    width: calc(1.625rem - 4px);
-    height: calc(1.625rem - 4px);
-    background-color: ButtonText;
-    box-shadow: none;
-  }
-
-  .chave:checked {
+  .config-grupos a[aria-current="page"],
+  .config-grupos a[aria-current="page"]::before {
+    forced-color-adjust: none;
     background-color: Highlight;
+    color: HighlightText;
   }
 
-  .chave:checked::after {
+  .config-grupos a[aria-current="page"]::before {
     background-color: HighlightText;
-  }
-
-  .chave:disabled,
-  .chave:disabled:checked {
-    border-color: GrayText;
-    background-color: Canvas;
-    box-shadow: none;
-    opacity: 1;
-  }
-
-  .chave:disabled::after {
-    background-color: GrayText;
   }
 
   .config .botao[data-olho][aria-pressed="true"] {
     border: 2px solid ButtonText;
   }
+}
+
+/* Contas (T218, T275): um cartão por site, só as medidas e cores já usadas acima. */
+.cartao-site {
+  margin: 0 0 1rem;
+}
+
+.cartao-site .config-texto {
+  margin: 0.25rem 0 0;
+}
+
+/* o selo do estado (E15): texto e forma juntos (contorno, tracejado ou fundo), nunca só a cor */
+.cartao-site .selo {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  background-color: var(--superficie);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.cartao-site .selo-conectado {
+  color: var(--sucesso);
+}
+
+/* a mesma cor de estado do conectado não basta: contorno de 2px, com o padding 1px menor */
+.cartao-site .selo-precisa_entrar {
+  padding: calc(0.1rem - 1px) calc(0.5rem - 1px);
+  border-width: 2px;
+  color: var(--alerta);
+}
+
+.cartao-site .selo-nao_conferiu {
+  border-color: var(--borda-controle);
+  background-color: var(--trilho);
+  color: var(--texto);
+}
+
+.cartao-site .selo-nunca_entrou {
+  border: 1px dashed var(--borda-controle);
+  color: var(--texto-2);
+}
+
+.cartao-site .selo-desligado {
+  border-color: transparent;
+  background-color: var(--sob-pagina);
+  color: var(--texto-2);
+}
+
+.cartao-site .conta-hora,
+.cartao-site .conferir-espera {
+  color: var(--texto-2);
+}
+
+/* "Conferir agora" rodando (T277): o componente indeterminado fica abaixo do nome do site */
+.cartao-site .conta-conferindo {
+  margin-block-start: 0.5rem;
+}
+
+/* Gmail (T278): o campo recusado ganha a borda de alerta e a frase logo abaixo; a frase diz o erro,
+   a cor só reforça (E15) */
+.cartao-gmail .campo-texto[aria-invalid="true"] {
+  border-color: var(--alerta);
+}
+
+.cartao-gmail .campo-erro {
+  color: var(--alerta);
 }

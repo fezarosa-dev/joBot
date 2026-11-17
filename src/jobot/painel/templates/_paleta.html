@@ -1,0 +1,52 @@
+{#- Paleta de comandos (T265; desenho 5.4): um <dialog> modal no alto, escrito no servidor no idioma
+    da página. Cada comando é um link ou um formulário que já existe (a paleta não cria ação); o
+    app.js só abre, filtra e move a marca (e dá o id de cada opção). Precisa de `lado`, `request`,
+    `csrf_token`, `tema`, `idioma` e `tamanho_texto` (a casca). Atalho só onde existe: as duas formas
+    vão no HTML e o CSS esconde a que não vale (E14). -#}
+{%- from "_onde.html" import onde, config -%}
+{%- set de_volta = url_de_volta(request) -%}
+{%- macro link(href, rotulo, mac="", outro="", ajuda=false) -%}
+<a role="option" tabindex="-1" href="{{ href }}"{% if ajuda %} target="_blank" rel="noopener noreferrer" data-ajuda{% endif %}><span class="paleta-rotulo">{{ rotulo }}</span>
+      {%- if mac %}<span class="paleta-atalho" aria-hidden="true"><kbd data-sistema="mac">{{ mac }}</kbd><kbd data-sistema="outro">{{ outro }}</kbd></span>{% endif -%}
+</a>
+{%- endmacro -%}
+{%- macro envia(acao, rotulo, campos=(), htmx=false) -%}
+<form role="none" method="post" action="{{ acao }}"{% if htmx %} hx-post="{{ acao }}" hx-target="#andamento" hx-swap="innerHTML"{% endif %}>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      {%- for nome, valor in campos %}
+      <input type="hidden" name="{{ nome }}" value="{{ valor }}">
+      {%- endfor %}
+      <button type="submit" role="option" tabindex="-1"><span class="paleta-rotulo">{{ rotulo }}</span></button>
+    </form>
+{%- endmacro -%}
+<dialog id="paleta" class="paleta vidro vidro-grande vidro-elevado" aria-label="{{ t('casca.paleta.titulo') }}" data-paleta>
+  <input type="text" role="combobox" class="paleta-campo" aria-controls="paleta-lista" aria-expanded="true" aria-autocomplete="list" autocomplete="off" spellcheck="false" maxlength="100" placeholder="{{ t('casca.paleta.buscar') }}" aria-label="{{ t('casca.paleta.buscar') }}" data-paleta-campo>
+  <div id="paleta-lista" class="paleta-lista" role="listbox" aria-label="{{ t('casca.paleta.titulo') }}" data-paleta-lista>
+    {{ link("/panorama", t("casca.lateral.panorama")) }}
+    {%- for aba in lado.abas %}
+    {{ link("/vagas?aba=" ~ aba ~ ("&busca=" ~ lado.busca_id if lado.busca_id else ""), t("casca.lateral.destaques") if aba == "destaques" else t("vagas.aba." ~ aba)) }}
+    {%- endfor %}
+    {%- for chave, href, _, _, segundo in onde if not segundo or lado.sugeridas_pendentes %}
+    {{ link(href, t("casca.menu." ~ chave)) }}
+    {%- endfor %}
+    {{ link(config[1], t("casca.menu.configuracoes"), "⌘,", "Ctrl+,") }}
+    {%- for slug, chave in grupos_configuracoes(request) %}
+    {{ link("/configuracoes/" ~ slug, t("casca.paleta.par", grupo=t("casca.menu.configuracoes"), valor=t(chave))) }}
+    {%- endfor %}
+    {{ envia("/buscar-agora", t("execucao.buscar_agora"), (("voltar", de_volta),), true) }}
+    {{ envia("/sair", t("execucao.sair")) }}
+    {#- o valor que já vale não é comando -#}
+    {%- for opcao in ("sistema", "claro", "escuro") if opcao != tema %}
+    {{ envia("/preferencias/tema", t("casca.paleta.par", grupo=t("casca.tema"), valor=t("casca.tema." ~ opcao)), (("voltar", de_volta), ("tema", opcao))) }}
+    {%- endfor %}
+    {%- for opcao in ("pt", "en") if opcao != idioma %}
+    {{ envia("/preferencias/idioma", t("casca.paleta.par", grupo=t("casca.idioma"), valor=t("casca.idioma." ~ opcao)), (("voltar", de_volta), ("idioma", opcao))) }}
+    {%- endfor %}
+    {%- for opcao in ("padrao", "grande", "maior") if opcao != tamanho_texto %}
+    {{ envia("/preferencias/texto", t("casca.paleta.par", grupo=t("configuracoes.geral.texto"), valor=t("configuracoes.geral.texto." ~ opcao)), (("voltar", de_volta), ("tamanho", opcao))) }}
+    {%- endfor %}
+    {{ link(t("casca.ajuda.url"), t("casca.ajuda"), "⌘?", "Ctrl+?", true) }}
+  </div>
+  <p class="paleta-vazio" aria-hidden="true" hidden>{{ t("casca.paleta.zero") }}</p>
+  <p class="paleta-estado" role="status" aria-live="polite" data-paleta-estado data-zero="{{ t('casca.paleta.zero') }}" data-um="{{ t('casca.paleta.um') }}" data-varios="{{ t('casca.paleta.varios', n='{n}') }}"></p>
+</dialog>

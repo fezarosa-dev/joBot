@@ -1,0 +1,36 @@
+{%- if linhas %}
+<ul class="lista-agrupada" id="lista-sugeridas">
+  {%- for r in linhas %}
+  {%- set s = r.s %}
+  <li class="linha-busca{% if s.id == volta %} linha-volta{% endif %}" id="sugerida-{{ s.id }}" tabindex="-1" data-menu="menu-sugerida" data-id="{{ s.id }}"{% if r.link %} data-site="{{ s.url_exemplo }}"{% endif %}>
+    <div class="linha-busca-texto">
+      <div class="cartao-cabeca">
+        <h2 class="cartao-titulo">{{ s.identificador }}</h2>
+        <span class="selo">{{ rotulo("fonte." ~ s.fonte, s.fonte) }}</span>
+      </div>
+      <ul class="meta">
+        <li>{{ t("sugeridas.achada_em", data=data_completa(s.descoberta_em.isoformat(), idioma)) }}</li>
+        <li>{{ t("sugeridas.exemplo") }}
+          {%- if r.link %} <a href="{{ s.url_exemplo }}" target="_blank" rel="noopener noreferrer">{{ s.url_exemplo }}</a>
+          {%- else %} {{ s.url_exemplo }}{% endif %}</li>
+      </ul>
+      {%- if r.removida_em %}
+      <p class="aviso">{{ t("sugeridas.removida", data=data_completa(r.removida_em, idioma)) }}</p>
+      {%- endif %}
+    </div>
+    <div class="linha-busca-acoes">
+      <form method="post" action="/empresas/sugeridas/{{ s.id }}/aprovar">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button type="submit">{{ t("sugeridas.aprovar") }}</button>
+      </form>
+      <form method="post" action="/empresas/sugeridas/{{ s.id }}/descartar" hx-post="/empresas/sugeridas/{{ s.id }}/descartar" hx-target="this" hx-swap="none">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button type="submit" class="botao-simples">{{ t("sugeridas.descartar") }}</button>
+      </form>
+    </div>
+  </li>
+  {%- endfor %}
+</ul>
+{%- else %}
+<p class="vazio">{{ t("sugeridas.vazio") }}</p>
+{%- endif %}

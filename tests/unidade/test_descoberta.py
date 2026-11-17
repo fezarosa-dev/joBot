@@ -451,8 +451,7 @@ async def test_descoberta_bate_o_coracao_a_cada_etapa(
         finally:
             paradas.append(execucao_id)
 
-    # raising=False: sem o nome público o falso fica de fora e o teste falha na asserção
-    monkeypatch.setattr(descoberta, "bater", bater_falso, raising=False)
+    monkeypatch.setattr(descoberta, "manter_batimento", bater_falso)
     cliente = _cliente(servidor)
     try:
         await executar_descoberta(con, cliente, relogio)

@@ -111,7 +111,8 @@ def test_toda_fonte_tem_coletor_interruptor_e_saude(dados: Path) -> None:
     coletores = descobrir()
     catalogo = carregar()
     with closing(_banco(dados)) as con:
-        cadastradas = {f.chave: f for f in fontes(con)}
+        # site com login tem leitor e aba própria, não coletor (o linkedin_logado do registro)
+        cadastradas = {f.chave: f for f in fontes(con) if not f.com_login}
     cliente = _app(dados)
     saude = cliente.get("/fontes").text
     config = cliente.get("/configuracoes/fontes").text
@@ -400,10 +401,11 @@ async def _destaques(dados: Path) -> None:
         gravar_config(con, "primeira_execucao_concluida", True)
         cliente = _app(dados)
         assert cliente.get("/").headers["location"] == "/vagas?aba=destaques"  # controle
-        assert 'id="aba-destaques"' in cliente.get("/vagas?aba=destaques").text
+        # a aba mora na lateral (T254)
+        assert 'href="/vagas?aba=destaques' in cliente.get("/vagas?aba=destaques").text
         gravar_config(con, "destaques_ligados", False)
         assert cliente.get("/").headers["location"] == "/vagas?aba=todas"
-        assert 'id="aba-destaques"' not in cliente.get("/vagas?aba=destaques").text
+        assert 'href="/vagas?aba=destaques' not in cliente.get("/vagas?aba=destaques").text
 
 
 async def _conversao(dados: Path) -> None:

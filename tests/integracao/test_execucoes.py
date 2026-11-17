@@ -22,6 +22,7 @@ from jobot.banco.execucoes import (
     fechar_execucao,
     gravar_saude,
     inicio_da_ultima_completa,
+    inicio_da_ultima_leitura_login,
     interromper_execucao,
     marcar_interrompidas,
     saude_recente,
@@ -147,6 +148,25 @@ def test_interrompida_nao_conta_como_completa(con: sqlite3.Connection) -> None:
     assert inicio_da_ultima_completa(con, "paginas") is None
 
 
+def test_ultima_leitura_conta_concluida_e_interrompida(con: sqlite3.Connection) -> None:
+    assert inicio_da_ultima_leitura_login(con) is None
+    concluida = AGORA + timedelta(hours=1)
+    _rodada(con, concluida, [], tipo="login")
+    assert inicio_da_ultima_leitura_login(con) == concluida
+    interrompida = abrir_execucao(con, "login", "agenda", concluida + timedelta(hours=5))
+    assert interrompida is not None
+    marcar_interrompidas(con, concluida + timedelta(hours=9))
+    assert inicio_da_ultima_leitura_login(con) == concluida + timedelta(hours=5)
+
+
+def test_ultima_leitura_ignora_rodando_e_outros_tipos(con: sqlite3.Connection) -> None:
+    _rodada(con, AGORA, [], tipo="busca")
+    _rodada(con, AGORA + timedelta(hours=1), [], tipo="descoberta")
+    assert inicio_da_ultima_leitura_login(con) is None
+    abrir_execucao(con, "login", "agenda", AGORA + timedelta(hours=2))  # ainda rodando
+    assert inicio_da_ultima_leitura_login(con) is None
+
+
 def test_execucao_rodando_nao_conta_como_completa(con: sqlite3.Connection) -> None:
     abrir_execucao(con, "busca", "agenda", AGORA)
     assert inicio_da_ultima_completa(con, "busca") is None
@@ -170,6 +190,17 @@ def test_execucao_atual_traz_a_que_roda(con: sqlite3.Connection) -> None:
     assert atual is not None
     assert (atual.id, atual.escopos_prontos) == (busca, 2)
     assert atual.batimento_em == AGORA + timedelta(minutes=1)
+
+
+def test_desligada_fora_das_prontas(con: sqlite3.Connection) -> None:
+    id_ = abrir_execucao(con, "busca", "agora", AGORA)
+    assert id_ is not None
+    gravar_saude(con, id_, "remotive", "", "ok", vagas=1, pedidos=1)
+    gravar_saude(con, id_, "gupy", "weg", "ok", vagas=1, pedidos=1)
+    gravar_saude(con, id_, "lever", "", "desligada")
+    atual = execucao_atual(con)
+    assert atual is not None
+    assert atual.escopos_prontos == 2
 
 
 def test_execucao_atual_traz_as_fontes_que_comecaram_e_nao_terminaram(
@@ -206,6 +237,19 @@ def test_execucao_atual_traz_as_fontes_que_comecaram_e_nao_terminaram(
         (busca,),
     ).fetchall()
     assert [(f, c < t) for f, c, t in linhas] == [("gupy", True), ("remotive", True)]
+
+
+def test_coleta_acaba_com_fonte_com_login_ligada(con: sqlite3.Connection) -> None:
+    con.execute("UPDATE fonte SET ligada = 0 WHERE chave != 'remotive'")
+    con.execute("INSERT INTO fonte (chave, leva, ligada, com_login) VALUES ('x_logado', 'A', 1, 1)")
+    con.commit()
+    id_ = abrir_execucao(con, "busca", "agenda", AGORA)
+    assert id_ is not None
+    comecar_fonte(con, id_, "remotive", AGORA)
+    terminar_fonte(con, id_, "remotive", AGORA)
+    atual = execucao_atual(con)
+    assert atual is not None
+    assert atual.coleta_acabou is True
 
 
 def test_agora_sem_fuso_recusado(con: sqlite3.Connection) -> None:

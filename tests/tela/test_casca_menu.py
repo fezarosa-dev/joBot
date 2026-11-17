@@ -1,18 +1,28 @@
-"""Menu principal da casca no navegador: teclado, foco visível e contraste (decisão 22; T86)."""
+"""Menu da barra lateral no navegador: teclado, foco visível e contraste (decisão 22; T86; T251)."""
+
+import re
+from contextlib import closing
+from pathlib import Path
 
 import pytest
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from playwright.sync_api import Locator, Page, expect
 
+from jobot.banco.cadastros import gravar_config
+from jobot.banco.conexao import abrir
 from jobot.painel.seguranca import renderizar
 
 pytestmark = pytest.mark.tela
 
 CASCA = "/_casca"
 MINIMO = 4.5
+# banco semeado: Destaques ligado (padrão) e nenhuma sugestão pendente. Vagas: Destaques e as sete
+# abas; Onde buscar: Buscas, Empresas, Fontes e Sites; Configurações; e o Panorama, que vem antes
+ITENS = 1 + 8 + 4 + 1
 # cor de cada item sobre o que aparece atrás dele: sobe pelos fundos até um opaco e compõe as
-# camadas (a barra do topo é translúcida); as cores chegam como rgb() ou color(srgb ...)
+# camadas (a lateral e a barra do topo são translúcidas); as cores chegam como rgb() ou
+# color(srgb ...)
 CONTRASTE = """el => {
   const canais = s => {
     const n = s.match(/-?[\\d.]+/g).map(Number);
@@ -42,7 +52,10 @@ CONTRASTE = """el => {
 
 
 @pytest.fixture
-def app_painel(app_painel: FastAPI) -> FastAPI:
+def app_painel(app_painel: FastAPI, tmp_path: Path) -> FastAPI:
+    with closing(abrir(tmp_path / "jobot.db")) as con:
+        gravar_config(con, "primeira_execucao_concluida", True)  # senão /panorama redireciona
+
     @app_painel.get(CASCA)
     async def casca(request: Request) -> HTMLResponse:
         return renderizar(request, "base.html")
@@ -59,13 +72,15 @@ def test_tab_chega_no_menu_depois_do_pular(page: Page, painel: str) -> None:
     page.keyboard.press("Tab")
     expect(page.get_by_role("link", name="Pular para o conteúdo")).to_be_focused()
     itens = _itens(page)
-    expect(itens).to_have_count(7)
-    # a ordem do foco segue a do menu: a marca vem antes, depois os sete itens
+    expect(itens).to_have_count(ITENS)
+    # a ordem do foco segue a da lateral: a marca vem antes, depois os itens e o divisor
     page.keyboard.press("Tab")
-    expect(page.locator("a.marca")).to_be_focused()
-    for i in range(7):
+    expect(page.locator("aside.lateral a.marca")).to_be_focused()
+    for i in range(ITENS):
         page.keyboard.press("Tab")
         expect(itens.nth(i)).to_be_focused()
+    page.keyboard.press("Tab")
+    expect(page.get_by_role("separator", name="Largura da barra lateral")).to_be_focused()
 
 
 def test_foco_do_menu_e_visivel(page: Page, painel: str) -> None:
@@ -89,9 +104,36 @@ def test_contraste_dos_itens_do_menu(page: Page, painel: str, esquema: str) -> N
     page.emulate_media(color_scheme="light" if esquema == "light" else "dark")
     page.goto(painel + "/vagas")
     itens = _itens(page)
-    assert itens.count() == 7
-    razoes = [itens.nth(i).evaluate(CONTRASTE) for i in range(7)]
+    expect(itens).to_have_count(ITENS)
+    razoes = [itens.nth(i).evaluate(CONTRASTE) for i in range(ITENS)]
     # o item da área aberta tem outro fundo: entra na conta junto com os demais
     menu = page.get_by_role("navigation", name="Principal")
     expect(menu.locator("[aria-current=page]")).to_have_count(1)
     assert [r for r in razoes if r < MINIMO] == [], f"contraste no tema {esquema}: {razoes}"
+
+
+def test_panorama_abre_pelo_teclado_na_lateral(page: Page, painel: str) -> None:
+    page.goto(painel + CASCA)
+    page.keyboard.press("Tab")  # o pular
+    page.keyboard.press("Tab")  # a marca
+    page.keyboard.press("Tab")
+    panorama = _itens(page).first
+    expect(panorama).to_have_text("Panorama")
+    expect(panorama).to_be_focused()
+    page.keyboard.press("Enter")
+    expect(page).to_have_url(re.compile(r"/panorama$"))
+    expect(_itens(page).first).to_have_attribute("aria-current", "page")
+
+
+def test_paleta_abre_o_panorama(page: Page, painel: str) -> None:
+    page.goto(painel + CASCA)
+    page.keyboard.press("Control+k")
+    paleta = page.locator("#paleta")
+    expect(paleta).to_be_visible()
+    page.get_by_role("combobox", name="Buscar comando", exact=True).fill("Panorama")
+    expect(paleta.get_by_role("option", name="Panorama", exact=True)).to_have_attribute(
+        "aria-selected", "true"
+    )
+    page.keyboard.press("Enter")
+    expect(page).to_have_url(re.compile(r"/panorama$"))
+    expect(paleta).to_be_hidden()

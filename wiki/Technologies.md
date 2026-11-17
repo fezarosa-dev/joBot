@@ -19,7 +19,7 @@
 | 🌐 **httpx** (0.28.1) | Request the pages and APIs of the job sources. | It is joBot's only HTTP client, where polite collection lives (identification and a pause between requests). |
 | 🔍 **selectolax** (1.0.2) | Read the HTML of job pages. | Separate the job data from the rest of the page. |
 | 🔐 **keyring** (25.7.0) | Keep the 2Captcha key in the system password vault. | The key is not left in a plain file; without a vault, it goes to a file only you can read (ADR 0014). |
-| 🎭 **Playwright** (1.65.1) | Control a browser. | Opens a visible Chrome so you can log in and solve CAPTCHAs (phase 2). It also runs the screen tests. |
+| 🎭 **Playwright** (1.65.1) | Control a browser. | Reads the sites with login, using the session you opened (phase 2). It also runs the screen tests. |
 
 ## ✅ Quality
 
@@ -28,7 +28,7 @@
 | 🧪 **pytest** (9.2.0) | Run the tests. | TDD in all code: write the test, see it fail, implement, see it pass. |
 | 🧹 **ruff** (0.17.5) | Style and common mistakes. | A single style across the project. |
 | 🔎 **mypy** strict (2.4.1) | Check the types. | In strict mode, type errors show up before running. |
-| 🤖 **GitHub Actions** | Automatic tasks on GitHub. | Runs the tests on every PR (pull request), including from forks, free for public repositories. It also copies this wiki and will build the GitHub Pages version (phase 7). |
+| 🤖 **GitHub Actions** | Automatic tasks on GitHub. | Runs the tests on every PR (pull request), including from forks, free for public repositories. It also copies this wiki and will build the GitHub Pages version (phase 8). |
 
 > [!NOTE]
 > The versions in parentheses are the ones [`pyproject.toml`](https://github.com/fezarosa-dev/joBot/blob/main/pyproject.toml) pins today.
@@ -58,12 +58,12 @@ AI is optional. Without it, joBot works with rules and keywords ([ADR 0009](http
 The installation is native ([ADR 0003](https://github.com/fezarosa-dev/joBot/blob/main/docs/decisions/0003-stack-e-instalacao-nativa.md)):
 
 - Docker Desktop is heavy and, on Windows and macOS, runs inside a virtual machine.
-- A visible Chrome for manual login and CAPTCHA is hard inside a container.
+- Opening a browser window for you to log in is hard inside a container.
 - Microphone, starting with the system and shortcuts are operating system features.
 - The Claude Code login would have to be done again inside the container (on macOS it lives in the Keychain, which the container cannot see).
 
 ## 💻 Where it runs
 
-- **Systems:** Linux, Windows and macOS. Development happens on Linux; the Windows and macOS installers arrive in phase 8.
+- **Systems:** Linux, Windows and macOS. Development happens on Linux; the installers arrive in phase 3: Windows and Linux first, macOS later.
 - **Memory:** 8 GB of RAM (16 GB gives more room).
 - **Graphics card:** not needed.

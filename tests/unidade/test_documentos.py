@@ -189,7 +189,7 @@ def test_changelog_tem_as_mesmas_secoes_nas_duas_linguas() -> None:
 
 def test_changelog_traz_a_versao_do_pacote() -> None:
     projeto = tomllib.loads(texto("pyproject.toml"))["project"]["version"]
-    assert projeto == __version__ == "0.2.1"
+    assert projeto == __version__ == "0.3.0"
     for caminho in CHANGELOG.values():
         conteudo = texto(caminho)
         for versao in (projeto, "0.1.0"):
@@ -354,6 +354,8 @@ CITA: Mapping[str, Mapping[str, tuple[str, ...]]] = {
         "versão": (r"GitHub",),
         "atualização": (r"pelo git e pelo uv", r"só quando você pede para atualizar"),
         "2captcha": (r"2Captcha", r"testa a chave"),
+        "sites com login": (r"sites com login que você liga", r"vêm desligados", r"pelo navegador"),
+        "navegador": (r"servidores do Playwright", r"só quando você"),
     },
     "en": {
         "fontes": (r"public job sources",),
@@ -364,6 +366,8 @@ CITA: Mapping[str, Mapping[str, tuple[str, ...]]] = {
         "versão": (r"GitHub",),
         "atualização": (r"through git and uv", r"only when you ask to update"),
         "2captcha": (r"2Captcha", r"test the key"),
+        "sites com login": (r"sites with login you turn on", r"come off", r"through the browser"),
+        "navegador": (r"Playwright's servers", r"only when you"),
     },
 }
 CONDICAO: Mapping[str, Mapping[bool, str]] = {
@@ -381,7 +385,8 @@ CHAVE_DO_PADRAO = {
 # o que o texto diz das fontes: todas vêm ligadas (o `fontes.json` não desliga nenhuma)
 FONTES_LIGADAS = {"pt": r"vêm todas ligadas", "en": r"all come on"}
 # pedidos que só saem quando a pessoa age, sem padrão ligado ou desligado: a frase diz quando
-SO_QUANDO_PEDE = {"endereço", "atualização"}
+# (os sites com login são vários, cada um com a sua chave, sempre desligada: a frase diz isso)
+SO_QUANDO_PEDE = {"endereço", "atualização", "sites com login", "navegador"}
 
 
 def test_condicao_aceita_os_dois_generos() -> None:
@@ -456,6 +461,24 @@ def test_texto_acompanha_o_padrao_real(
         _conferir_pedidos(lingua)
 
 
+TAMANHO_DO_CHROMIUM = {
+    "pt": "| Navegador controlado pelo Playwright",
+    "en": "| Browser controlled by Playwright",
+}
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_readme_diz_o_tamanho_do_chromium(lingua: str) -> None:
+    """A tabela de tamanhos diz quanto o Chromium baixa (T240; D137.8), no lugar de "A definir"."""
+    linhas = [
+        linha
+        for linha in texto(README[lingua]).splitlines()
+        if linha.startswith(TAMANHO_DO_CHROMIUM[lingua])
+    ]
+    assert len(linhas) == 1
+    assert "210 MB" in linhas[0]
+
+
 @pytest.mark.parametrize("lingua", LINGUAS)
 def test_changelog_nao_cita_duvida_por_numero(lingua: str) -> None:
     """Quem usa o joBot não conhece o `duvidas.md`: o item diz o efeito, não o número (D1, D3)."""
@@ -464,6 +487,12 @@ def test_changelog_nao_cita_duvida_por_numero(lingua: str) -> None:
 
 
 NAO_LANCADO = {"pt": "## [Não lançado]", "en": "## [Unreleased]"}
+ADICIONADO = {"pt": "### Adicionado", "en": "### Added"}
+# termos que só o item do LinkedIn e do login pela janela comum têm
+CITA_LOGIN_JANELA = {
+    "pt": ("LinkedIn", "janela comum", "nunca digita"),
+    "en": ("LinkedIn", "regular browser window", "never types"),
+}
 V0_2_0 = "## [0.2.0] - 2026-11-15"
 # o que a 0.2.0 diz dos filtros, do país e da moeda
 CITA_0_2_0 = {
@@ -477,15 +506,24 @@ V0_2_1 = "## [0.2.1] - 2026-11-15"
 CITA_0_2_1 = {"pt": ("chips", "0006", "5 segundos"), "en": ("chips", "0006", "5 seconds")}
 
 
+# o resumo da 0.3.0 cobre tudo o que estava em "Não lançado", não só o último lote
+V0_3_0 = "## [0.3.0] - 2026-11-16"
+RESUMO_0_3_0 = {"pt": ("Panorama", "LinkedIn"), "en": ("Overview", "LinkedIn")}
+
+
 @pytest.mark.parametrize("lingua", LINGUAS)
-def test_changelog_fecha_a_0_2_1(lingua: str) -> None:
-    """A 0.2.1 vem logo abaixo de "Não lançado", que fica sem itens."""
+def test_changelog_fecha_a_0_3_0(lingua: str) -> None:
+    """A 0.3.0 é a primeira seção de versão, e a linha de resumo dela cobre o lote inteiro."""
     conteudo = texto(CHANGELOG[lingua])
     assert NAO_LANCADO[lingua] in conteudo, CHANGELOG[lingua]
     inicio = conteudo.index(NAO_LANCADO[lingua])
     fim = conteudo.index("\n## [", inicio + 1)
-    assert "\n- " not in conteudo[inicio:fim], f"{CHANGELOG[lingua]}: Não lançado não fica vazio"
-    assert conteudo[fim + 1 :].startswith(V0_2_1), CHANGELOG[lingua]
+    assert conteudo[fim + 1 :].startswith(V0_3_0), CHANGELOG[lingua]
+    # só o resumo: os itens movidos já trazem "LinkedIn" e deixariam passar um resumo do último lote
+    secao = conteudo[fim + 1 :]
+    resumo = secao[: secao.index("###")]
+    for termo in RESUMO_0_3_0[lingua]:
+        assert termo in resumo, (CHANGELOG[lingua], termo)
 
 
 @pytest.mark.parametrize("lingua", LINGUAS)
@@ -510,6 +548,40 @@ def test_changelog_traz_os_filtros_da_0_2_0(lingua: str) -> None:
     for termo in CITA_0_2_0[lingua]:
         assert termo in secao_0_2_0, (CHANGELOG[lingua], termo)
     assert re.findall(r"\bD\d+\b", secao_0_2_0) == []
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_changelog_cita_o_login_pela_janela_comum(lingua: str) -> None:
+    """Na 0.3.0, "Adicionado" diz do LinkedIn e do login pela janela comum."""
+    conteudo = texto(CHANGELOG[lingua])
+    assert V0_3_0 in conteudo, CHANGELOG[lingua]
+    inicio = conteudo.index(V0_3_0)
+    secao_nova = conteudo[inicio : conteudo.index("\n## [", inicio + 1)]
+    assert ADICIONADO[lingua] in secao_nova, CHANGELOG[lingua]
+    adicionado = secao_nova[secao_nova.index(ADICIONADO[lingua]) :]
+    for termo in CITA_LOGIN_JANELA[lingua]:
+        assert termo in adicionado, (CHANGELOG[lingua], termo)
+
+
+FAQ = {"pt": "wiki/Perguntas-frequentes.md", "en": "wiki/Frequently-asked-questions.md"}
+# o que a pergunta sobre a vaga "fechada" no LinkedIn diz: só o texto novo tem estes termos
+FAQ_FECHADA = {
+    "pt": ("não vista há 30 dias", "última semana", "reabre"),
+    "en": ("not seen for 30 days", "last week", "reopens"),
+}
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_faq_diz_o_que_fechada_quer_dizer_no_linkedin(lingua: str) -> None:
+    """Na wiki, a resposta do LinkedIn (relevância, última semana, 30 dias, reabre) é uma só."""
+    conteudo = texto(FAQ[lingua])
+    marcador = FAQ_FECHADA[lingua][0]
+    assert marcador in conteudo, FAQ[lingua]
+    resposta = conteudo[: conteudo.index("</details>", conteudo.index(marcador))]
+    resposta = resposta[resposta.rindex("<details>") :]
+    assert "LinkedIn" in resposta, FAQ[lingua]
+    for termo in FAQ_FECHADA[lingua]:
+        assert termo in resposta, (FAQ[lingua], termo)
 
 
 # a cotação que o pedido ao Banco Central traz, e o que sai dos textos de rede
@@ -537,18 +609,24 @@ def test_rede_fala_da_cotacao_das_moedas(lingua: str) -> None:
 
 # o que cada documento diz da fase 1 (T132): concluída, e não mais "em andamento"
 FASE_1_CONCLUIDA = {
-    ".github/CONTRIBUTING.md": r"fase 1 \(base\) está concluída",
-    ".github/CONTRIBUTING.en.md": r"Phase 1 \(foundation\) is complete",
-    ".github/SECURITY.md": r"(?i)só a versão mais recente \(hoje a 0\.2\.1\)",
-    ".github/SECURITY.en.md": r"(?i)only the latest version \(currently 0\.2\.1\)",
+    ".github/CONTRIBUTING.md": r"fases 1 e 2 \(base e navegador com login\) estão concluídas",
+    ".github/CONTRIBUTING.en.md": (
+        r"Phases 1 and 2 \(foundation and browser with login\) are complete"
+    ),
+    ".github/SECURITY.md": r"(?i)só a versão mais recente \(hoje a 0\.3\.0\)",
+    ".github/SECURITY.en.md": r"(?i)only the latest version \(currently 0\.3\.0\)",
     ".github/SUPPORT.md": r"formulário de bug",
     ".github/SUPPORT.en.md": r"bug form",
-    "docs/decisions/0017-fases.md": r"fase 1 está concluída",
-    "docs/decisions/README.md": r"fase 1 está concluída",
-    "wiki/Home.md": r"fase 1 de 8 \(a base\) está concluída",
-    "wiki/Home-en.md": r"Phase 1 of 8 \(the base\) is complete",
-    "wiki/A-ideia-e-a-historia.md": r"fase 1 de 8 \(a base\) está concluída",
-    "wiki/The-idea-and-the-story.md": r"Phase 1 of 8 \(the base\) is complete",
+    "docs/decisions/0017-fases.md": r"fases 1 e 2 estão concluídas",
+    "docs/decisions/README.md": r"fases 1 e 2 estão concluídas",
+    "wiki/Home.md": r"fases 1 e 2 de 9 \(a base e o navegador com login\) estão concluídas",
+    "wiki/Home-en.md": r"Phases 1 and 2 of 9 \(the base and the browser with login\) are complete",
+    "wiki/A-ideia-e-a-historia.md": (
+        r"fases 1 e 2 de 9 \(a base e o navegador com login\) estão concluídas"
+    ),
+    "wiki/The-idea-and-the-story.md": (
+        r"Phases 1 and 2 of 9 \(the base and the browser with login\) are complete"
+    ),
     "wiki/Roteiro.md": r"\*\*1\. Base\*\*.*Concluída",
     "wiki/Roadmap.md": r"\*\*1\. Base\*\*.*Complete",
 }
@@ -574,3 +652,50 @@ def test_changelogs_com_a_mesma_data_da_0_1_0() -> None:
     }
     assert all(datas.values()), datas
     assert len({m.group(1) for m in datas.values() if m}) == 1
+
+
+# a aba de Configurações com o estado de cada login: nome de hoje e nome velho, por língua
+ABA_CONTAS = {"pt": "Configurações, Contas", "en": "Settings, Accounts"}
+ABA_VELHA = {"pt": r"Configurações\W+Sites com login", "en": r"Settings\W+Sites with login"}
+CITA_CONTAS = {"pt": "Cartão do Gmail na aba Contas", "en": "Gmail card in the Accounts tab"}
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_changelog_cita_a_aba_contas(lingua: str) -> None:
+    """Na 0.3.0 a aba é "Contas" e traz o cartão do Gmail; o nome velho não aparece."""
+    conteudo = texto(CHANGELOG[lingua])
+    assert V0_3_0 in conteudo, CHANGELOG[lingua]
+    inicio = conteudo.index(V0_3_0)
+    secao_nova = conteudo[inicio : conteudo.index("\n## [", inicio + 1)]
+    assert ABA_CONTAS[lingua] in secao_nova, CHANGELOG[lingua]
+    assert CITA_CONTAS[lingua] in secao_nova, CHANGELOG[lingua]
+    assert not re.search(ABA_VELHA[lingua], conteudo), CHANGELOG[lingua]
+
+
+# o Panorama e a fila de candidaturas em "Não lançado": o nome da tela e a pergunta, por língua
+CITA_PANORAMA = {"pt": ("Panorama", "Você se candidatou?"), "en": ("Overview", "Did you apply")}
+# a linha de privacidade sobre a abertura da candidatura, por língua
+CITA_ABERTURA = {"pt": "quando você abriu a candidatura", "en": "when you opened the application"}
+PRIVACIDADE = {"pt": "## 🔒 Privacidade e segurança", "en": "## 🔒 Privacy and security"}
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_changelog_cita_o_panorama(lingua: str) -> None:
+    """Na 0.3.0 o CHANGELOG traz o Panorama e a pergunta da fila de candidaturas."""
+    conteudo = texto(CHANGELOG[lingua])
+    assert V0_3_0 in conteudo, CHANGELOG[lingua]
+    inicio = conteudo.index(V0_3_0)
+    secao_nova = conteudo[inicio : conteudo.index("\n## [", inicio + 1)]
+    for marcador in CITA_PANORAMA[lingua]:
+        assert marcador in secao_nova, (CHANGELOG[lingua], marcador)
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_privacidade_cita_a_abertura(lingua: str) -> None:
+    """Na seção de privacidade do README: o registro local de quando a candidatura foi aberta."""
+    conteudo = texto(README[lingua])
+    assert PRIVACIDADE[lingua] in conteudo, README[lingua]
+    inicio = conteudo.index(PRIVACIDADE[lingua])
+    fim = conteudo.find("\n## ", inicio + 1)
+    secao = conteudo[inicio : fim if fim != -1 else len(conteudo)]
+    assert CITA_ABERTURA[lingua] in secao, README[lingua]

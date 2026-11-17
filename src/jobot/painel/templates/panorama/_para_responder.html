@@ -1,0 +1,14 @@
+{#- Conteúdo de `#para-responder` (T288; desenho 5.2): as perguntas pendentes, da mais recente para
+    a mais antiga, com a macro da faixa (T285, E8). O servidor o desenha na carga do Panorama e o
+    devolve sozinho em `GET /panorama/para-responder`, depois de `candidatura-mudou`. O `total` vai
+    como 1: o "e mais {n} para responder" da faixa aponta para esta lista e aqui não serve. -#}
+{%- from "candidatura/_pergunta.html" import pergunta with context -%}
+{%- if pendentes %}
+<ul class="perguntas">
+  {%- for p in pendentes %}
+  <li>{{ pergunta(p, "responder", 1) }}</li>
+  {%- endfor %}
+</ul>
+{%- else %}
+<p class="nada">{{ t("panorama.responder.vazio") }}</p>
+{%- endif -%}

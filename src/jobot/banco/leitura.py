@@ -7,11 +7,12 @@ no FTS5, ou um padrão escapado no LIKE (RF1). Sem `vaga_fts`, a busca usa LIKE 
 import json
 import sqlite3
 import unicodedata
-from collections.abc import Mapping
+from collections.abc import Collection, Mapping
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
+from typing import Any, Final
 
+from jobot.banco.acoes import DEGRAU
 from jobot.nucleo.modelo import Local, Motivo
 from jobot.nucleo.texto import normalizar
 
@@ -90,7 +91,7 @@ _COLUNAS = f"""
   v.sal_mensal_max_brl, v.sal_cotacao_data,
   (SELECT c.venda FROM cotacao c
     WHERE c.moeda = v.sal_moeda AND c.data = v.sal_cotacao_data) AS sal_cotacao_venda,
-  v.sal_plausivel, v.prazo, v.publicada_em, v.primeira_vista_em,
+  v.sal_plausivel, v.prazo, v.publicada_em, v.primeira_vista_em, v.status_em,
   {_FECHADA} AS fechada, {_NOVA} AS nova, {_FECHA_LOGO} AS fecha_logo,
   e.nota, e.nivel AS encaixe, COALESCE(e.motivos, '[]') AS motivos,
   CASE WHEN {_OCULTA} THEN {_MOTIVO_OCULTA} END AS oculta_motivo,
@@ -153,6 +154,7 @@ class Item:
     prazo: str | None
     publicada_em: str | None
     primeira_vista_em: str
+    status_em: str | None  # quando o status atual foi posto; vaga antiga pode não ter
     fechada: bool  # fechada na fonte ou prazo vencido: selo "fechada"
     nova: bool
     fecha_logo: bool
@@ -376,9 +378,11 @@ def listar(con: sqlite3.Connection, f: Filtros, agora: datetime) -> Pagina:
 
 
 def contar_chips(
-    con: sqlite3.Connection, f: Filtros, agora: datetime
+    con: sqlite3.Connection, f: Filtros, agora: datetime, grupos: Collection[str] | None = None
 ) -> Mapping[str, Mapping[str, int]]:
-    """Contagem por valor de cada chip; cada uma considera os outros filtros (DR-43)."""
+    """Contagem por valor de cada chip; cada uma considera os outros filtros (DR-43).
+
+    `grupos`: só esses (o Panorama mostra 4, T312); `None`, todos."""
     _preparar(con)
     chips = {nome: (valor, juncao, nome) for nome, (valor, juncao) in _CHIPS.items()}
     if f.aba in _CHIPS_DA_ABA:
@@ -386,6 +390,8 @@ def contar_chips(
         chips[nome] = (valor, "", "")
     contagens: dict[str, dict[str, int]] = {}
     for nome, (valor, juncao, sem) in chips.items():
+        if grupos is not None and nome not in grupos:
+            continue
         onde, params = _onde(con, f, agora, sem=sem)
         cur = con.execute(
             f"SELECT {valor}, COUNT(DISTINCT v.id) FROM {_DE} {juncao}"
@@ -393,6 +399,8 @@ def contar_chips(
             params,
         )
         contagens[nome] = {chave: n for chave, n in cur.fetchall()}
+    if grupos is not None and "publicada" not in grupos:
+        return contagens
     # os três períodos se sobrepõem: uma consulta só, sem GROUP BY
     onde, params = _onde(con, f, agora, sem="publicada")
     soma = ", ".join(
@@ -431,13 +439,13 @@ def contar_abas(
 ) -> Mapping[str, int]:
     """Quantas vagas cada aba tem, sem filtro nem busca."""
     _preparar(con)
-    contagens: dict[str, int] = {}
-    for aba in ABAS:
-        onde, params = _onde(con, Filtros(aba=aba, busca_id=busca_id), agora)
-        contagens[aba] = con.execute(f"SELECT COUNT(*) FROM {_DE} WHERE {onde}", params).fetchone()[
-            0
-        ]
-    return contagens
+    # as abas se sobrepõem: uma consulta só, sem GROUP BY (T313)
+    _, params = _onde(con, Filtros(busca_id=busca_id), agora)
+    soma = ", ".join(
+        f"COALESCE(SUM(CASE WHEN {onde} THEN 1 ELSE 0 END), 0)" for onde in ABAS.values()
+    )
+    linha = con.execute(f"SELECT {soma} FROM {_DE}", params).fetchone()
+    return dict(zip(ABAS, linha, strict=True))
 
 
 def detalhe(
@@ -474,3 +482,90 @@ def detalhe(
     )
     candidatura = next((x.url_candidatura for x in fontes if x.url_candidatura), None)
     return Detalhe(**linha, fontes=fontes, url_candidatura=candidatura)
+
+
+PASSOS: Final = ("salva", "candidatei", "entrevista", "oferta", "recusada")
+
+
+def datas_dos_passos(con: sqlite3.Connection, vaga_id: int) -> dict[str, str]:
+    """Quando a vaga chegou a cada passo, na ordem de `PASSOS`, até o status atual (desenho 5.4).
+
+    Vale o evento mais novo (pelo instante) que levou ao passo. Oferta e recusada valem o mesmo
+    degrau: só entra a que é o status atual. Passo pulado ou desfeito não entra.
+    """
+    linha = con.execute("SELECT status FROM vaga WHERE id = ?", (vaga_id,)).fetchone()
+    if linha is None:
+        return {}
+    status = linha[0]
+    datas: dict[str, str] = {}
+    for passo in PASSOS:
+        if DEGRAU[passo] > DEGRAU[status] or (DEGRAU[passo] == DEGRAU[status] and passo != status):
+            continue
+        evento = con.execute(
+            "SELECT criado_em FROM evento WHERE vaga_id = ? AND para = ?"
+            " AND acao IN ('salvou', 'mudou_status')"
+            " ORDER BY julianday(criado_em) DESC, id DESC LIMIT 1",
+            (vaga_id, passo),
+        ).fetchone()
+        if evento is not None:
+            datas[passo] = evento[0]
+    return datas
+
+
+@dataclass(frozen=True)
+class Fechando:
+    vaga_id: int
+    titulo: str
+    empresa: str
+    prazo: str
+
+
+def salvas_que_fecham(con: sqlite3.Connection, agora: datetime, limite: int) -> list[Fechando]:
+    """Salvas com prazo de hoje a 7 dias (dia local), as que fecham primeiro. A oculta entra,
+    como na aba Salvas; a fechada na fonte não."""
+    cur = con.execute(
+        "SELECT v.id, v.titulo, v.empresa, v.prazo FROM vaga v"
+        f" WHERE v.status = 'salva' AND v.fechada_em IS NULL AND {_FECHA_LOGO}"
+        " ORDER BY date(v.prazo), v.id LIMIT :limite",
+        {"hoje": _hoje(agora), "limite": limite},
+    )
+    return [Fechando(*linha) for linha in cur]
+
+
+def tem_vaga(con: sqlite3.Connection) -> bool:
+    """O banco já viu alguma vaga (oculta e fechada contam)."""
+    return bool(con.execute("SELECT EXISTS(SELECT 1 FROM vaga)").fetchone()[0])
+
+
+@dataclass(frozen=True)
+class Pergunta:
+    vaga_id: int
+    titulo: str
+    empresa: str
+    abriu_em: str
+    status: str
+
+
+# Pendente: não respondida, ainda em nova/salva e não ocultada à mão (-1 é "mostrar mesmo assim").
+_PENDENTE = (
+    "FROM candidatura c JOIN vaga v ON v.id = c.vaga_id"
+    " WHERE c.perguntar = 1 AND v.status IN ('nova', 'salva') AND v.oculta_manual <> 1"
+)
+
+
+def perguntas_pendentes(con: sqlite3.Connection, limite: int) -> tuple[list[Pergunta], int]:
+    """As perguntas "Você se candidatou?" a responder, a aberta mais recente primeiro, e o total."""
+    cur = con.execute(
+        f"SELECT v.id, v.titulo, v.empresa, c.abriu_em, v.status {_PENDENTE}"
+        " ORDER BY julianday(c.abriu_em) DESC, c.vaga_id DESC LIMIT ?",
+        (limite,),
+    )
+    lista = [Pergunta(*linha) for linha in cur]
+    total: int = con.execute(f"SELECT count(*) {_PENDENTE}").fetchone()[0]
+    return lista, total
+
+
+def abertura_da_candidatura(con: sqlite3.Connection, vaga_id: int) -> str | None:
+    """Quando a pessoa abriu a candidatura da vaga pelo painel, ou `None`."""
+    linha = con.execute("SELECT abriu_em FROM candidatura WHERE vaga_id = ?", (vaga_id,)).fetchone()
+    return None if linha is None else str(linha[0])

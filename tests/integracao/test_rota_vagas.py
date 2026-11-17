@@ -2,8 +2,11 @@
 
 import json
 import re
+import time
+from collections.abc import Iterator
 from contextlib import closing
 from datetime import timedelta
+from html import unescape
 from pathlib import Path
 from typing import Any
 
@@ -94,8 +97,8 @@ def _chips(painel: Painel, url: str, **kw: Any) -> str:
 
 
 def _atual(html: str) -> list[str]:
-    """As abas marcadas com aria-current (só o `<nav class="abas">`, não o menu da casca)."""
-    abas = re.search(r'<nav class="abas".*?</nav>', html, re.S)
+    """As abas marcadas com aria-current: as abas moram só na lateral (T254, D150 item 1)."""
+    abas = re.search(r'<ul id="lateral-vagas".*?</ul>', html, re.S)
     assert abas is not None
     return re.findall(r'<a\b[^>]*aria-current="page"[^>]*>', abas.group(0))
 
@@ -108,6 +111,26 @@ def test_raiz_vai_para_vagas_ou_para_a_primeira_execucao(painel: Painel) -> None
     assert (pronta.status_code, pronta.headers["location"]) == (303, "/vagas?aba=destaques")
     painel.config("destaques_ligados", False)
     assert painel.get("/").headers["location"] == "/vagas?aba=todas"
+
+
+def test_config_estragada_cai_no_padrao_em_vez_de_dar_500(painel: Painel) -> None:
+    # sem relançar a exceção da rota: o vermelho é o 500, não um traceback no cliente
+    http = TestClient(
+        painel.http.app,
+        base_url=f"http://127.0.0.1:{PORTA}",
+        follow_redirects=False,
+        raise_server_exceptions=False,
+    )
+    painel.config("primeira_execucao_concluida", True)
+    painel.sql("INSERT INTO config (chave, valor) VALUES ('destaques_ligados', '{')")
+    lista = http.get("/vagas")
+    assert lista.status_code == 200
+    assert "aba=destaques" in _atual(lista.text)[0]  # o padrão de `destaques_ligados` é True
+    raiz = http.get("/")
+    assert (raiz.status_code, raiz.headers.get("location")) == (303, "/vagas?aba=destaques")
+    painel.sql("UPDATE config SET valor = '{' WHERE chave = 'primeira_execucao_concluida'")
+    raiz = http.get("/")
+    assert (raiz.status_code, raiz.headers.get("location")) == (303, "/primeira-execucao/1")
 
 
 def test_oito_abas_e_so_a_atual_tem_aria_current(painel: Painel) -> None:
@@ -133,10 +156,8 @@ def test_destaques_desligado_some_a_aba_e_abre_em_todas(painel: Painel) -> None:
 
 
 def test_abas_trazem_a_contagem(painel: Painel) -> None:
-    html = painel.get("/vagas?aba=todas").text
-    todas = re.search(r'<a\b[^>]*href="/vagas\?aba=todas[^"]*"[^>]*>(.*?)</a>', html, re.S)
-    assert todas
-    assert "7" in todas.group(1)
+    # a contagem mora na lateral (T253); a tela não repete as abas (T254)
+    assert _contagem_da_aba(painel.get("/vagas?aba=todas").text, "todas") == 7
 
 
 def test_chips_com_contagem_e_aria_pressed(painel: Painel) -> None:
@@ -184,6 +205,19 @@ def test_rota_dos_chips_traz_o_fragmento_com_as_contagens(painel: Painel) -> Non
     assert 'aria-pressed="true"' in _tag(resposta.text, "chip-modalidade-remoto")
     assert 'data-contagem="2"' in _tag(resposta.text, "chip-modalidade-presencial")
     assert _chips(painel, "/vagas?aba=todas") == painel.get("/vagas/chips?aba=todas").text
+
+
+def test_chips_de_valores_que_so_diferem_por_espaco_e_sublinhado_tem_ids_diferentes(
+    painel: Painel,
+) -> None:
+    painel.semear_mais(fonte="a b")
+    painel.semear_mais(fonte="a_b")
+    html = _chips(painel, "/vagas?aba=todas")
+    botoes = re.findall(r'<button\b[^>]*\bid="(chip-fonte-[^"]*)"', html)
+    assert len(botoes) == len(set(botoes))
+    assert len([b for b in botoes if b.startswith("chip-fonte-a_")]) == 2
+    ids = re.findall(r'\bid="([^"]+)"', html)
+    assert len(ids) == len(set(ids))
 
 
 def test_rota_dos_chips_sem_chips_vem_vazia(painel: Painel) -> None:
@@ -273,9 +307,47 @@ def test_carregar_mais(painel: Painel) -> None:
     assert 'id="mais-3"' not in segunda.text
 
 
-def test_cartao_com_botao_de_salvar_so_pelo_teclado(painel: Painel) -> None:
-    html = painel.get("/vagas?aba=todas").text
+def test_lista_recarregada_traz_as_paginas_ja_carregadas(painel: Painel) -> None:
+    """T305 (a): o Desfazer recarrega o `#vagas-miolo` até a página que o "Carregar mais" já
+    trouxe (`pagina=N` com `HX-Target: vagas-miolo`); a caixa do botão diz quantas páginas estão
+    na tela (`data-paginas`), para o app.js saber o N."""
+    for n in range(60):
+        painel.semear_mais(titulo=f"Extra {n}", empresa=f"Extra SA {n}")
+    primeira = painel.get("/vagas?aba=todas").text
+    assert 'data-paginas="1"' in _tag(primeira, "mais-caixa")
+    segunda = painel.get(_hx_get(primeira, "mais-2"), headers=HX).text
+    assert 'data-paginas="2"' in _tag(segunda, "mais-caixa")
+    miolo = painel.get("/vagas?aba=todas&pagina=2", headers=HX | {"HX-Target": "vagas-miolo"})
+    assert len(_cartoes(miolo.text)) == 67
+    assert 'id="lista-vagas"' in miolo.text
+    assert 'data-paginas="2"' in _tag(miolo.text, "mais-caixa")
+    assert 'id="mais-3"' not in miolo.text
+    # com mais páginas que as pedidas, o botão segue para a seguinte
+    um = painel.get("/vagas?aba=todas&pagina=1", headers=HX | {"HX-Target": "vagas-miolo"})
+    assert len(_cartoes(um.text)) == 50
+    assert "pagina=2" in _hx_get(um.text, "mais-2")
+
+
+def test_recarga_do_miolo_tem_teto_de_paginas(painel: Painel) -> None:
+    """T311 (d): recarregar 10 mil vagas de uma vez leva ~4 s e 7,6 MB; o Desfazer junta no
+    máximo 20 páginas (1000 linhas) e o "Carregar mais" segue de lá; o `pagina=N` direto, do
+    "Carregar mais", não muda."""
+    with closing(abrir(painel.banco)) as con:
+        for n in range(1100):
+            inserir_vaga(con, titulo=f"Extra {n}", empresa=f"Extra SA {n}")
+    miolo = painel.get("/vagas?aba=todas&pagina=30", headers=HX | {"HX-Target": "vagas-miolo"})
+    assert len(_cartoes(miolo.text)) == 1000
+    assert 'data-paginas="20"' in _tag(miolo.text, "mais-caixa")
+    assert "pagina=21" in _hx_get(miolo.text, "mais-21")
+    direta = painel.get("/vagas?aba=todas&pagina=22", headers=HX)
+    assert len(_cartoes(direta.text)) == 50
+
+
+def test_salvar_pelo_teclado_fica_no_detalhe(painel: Painel) -> None:
+    """T254: a linha da lista é só o link; salvar e ocultar moram na página da vaga (E10)."""
     vaga = painel.ids["nova"]
+    assert "/status" not in _cartao_html(painel.get("/vagas?aba=todas").text, vaga)
+    html = painel.get(f"/vagas/{vaga}").text
     form = re.search(rf'<form\b[^>]*action="/vagas/{vaga}/status"[^>]*>(.*?)</form>', html, re.S)
     assert form
     assert 'name="status" value="salva"' in form.group(1)
@@ -296,10 +368,11 @@ def test_via_fonte_com_link_em_toda_fonte_sem_olhar_credito(painel: Painel) -> N
         AGORA.isoformat(),
         AGORA.isoformat(),
     )
-    html = painel.get("/vagas?aba=todas").text
-    cartao = html.split(f'id="vaga-{vaga}"')[1].split("</article>")[0]
+    # T254: as fontes saem da linha (D143.53) e ficam no detalhe
+    assert "via " not in _cartao_html(painel.get("/vagas?aba=todas").text, vaga)
+    cartao = painel.get(f"/vagas/{vaga}").text
     links = re.findall(r"<a\b[^>]*>", cartao)
-    fontes = [x for x in links if "exemplo.test" in x or "github.test" in x]
+    fontes = [x for x in links if 'aria-label="via ' in x]
     assert len(fontes) == 2
     for tag in fontes:
         assert 'rel="noopener noreferrer"' in tag
@@ -316,6 +389,7 @@ def test_link_de_fonte_que_nao_e_http_nao_vira_href(painel: Painel) -> None:
         vaga,
     )
     assert "javascript:" not in painel.get("/vagas?aba=todas").text
+    assert "javascript:" not in painel.get(f"/vagas/{vaga}").text
 
 
 def test_texto_de_vaga_sai_escapado(painel: Painel) -> None:
@@ -335,14 +409,16 @@ def test_salario_em_dolar_mostra_cotacao_e_reais(painel: Painel) -> None:
 
 
 def _cartao_html(html: str, vaga: int) -> str:
-    achou = re.search(rf'id="vaga-{vaga}".*?</article>', html, re.S)
-    assert achou, f"sem cartão da vaga {vaga}"
+    """A linha da vaga na lista (T254: o cartão virou `<a role="option">`)."""
+    achou = re.search(rf'<a\b[^>]*\bid="vaga-{vaga}".*?</a>', html, re.S)
+    assert achou, f"sem a linha da vaga {vaga}"
     return achou.group(0)
 
 
-CONVERTIDO_EUR = (
-    r"<strong>US\$ 5\.000/mês</strong>\s*"
-    r'<small class="convertido">≈ € 4\.520/mês · US\$ 1 = € 0,904 \(PTAX de 12/11\)</small>'
+# a linha mostra o convertido e leva o original e a cotação no title (D143.53)
+CONVERTIDO_EUR_LINHA = (
+    r'<span class="linha-salario" title="US\$ 5\.000/mês · ≈ € 4\.520/mês · '
+    r'US\$ 1 = € 0,904 \(PTAX de 12/11\)">≈ € 4\.520/mês</span>'
 )
 
 
@@ -356,10 +432,10 @@ def _em_euro(painel: Painel) -> None:
     )
 
 
-def test_valor_convertido_fica_em_linha_propria_no_cartao(painel: Painel) -> None:
+def test_valor_convertido_vai_na_linha_com_o_original_no_title(painel: Painel) -> None:
     _em_euro(painel)
     cartao = _cartao_html(painel.get("/vagas?aba=todas").text, painel.ids["usd"])
-    assert re.search(CONVERTIDO_EUR, cartao)
+    assert re.search(CONVERTIDO_EUR_LINHA, cartao)
     assert "em-reais" not in cartao
 
 
@@ -379,19 +455,24 @@ def test_valor_convertido_vale_no_carregar_mais(painel: Painel) -> None:
         )
     primeira = painel.get("/vagas?aba=todas").text
     segunda = painel.get(_hx_get(primeira, "mais-2"), headers=HX).text
-    assert re.search(CONVERTIDO_EUR, segunda)
+    assert re.search(CONVERTIDO_EUR_LINHA, segunda)
     assert "≈ R$" not in segunda
 
 
-def test_valor_convertido_vale_no_cartao_devolvido_pela_acao(painel: Painel) -> None:
-    _em_euro(painel)
-    resposta = painel.http.post(
-        f"/vagas/{painel.ids['usd']}/status",
-        data={CAMPO_CSRF: painel.token, "status": "salva", "voltar": "/vagas"},
-        headers=HX,
-    )
-    assert resposta.status_code == 200
-    assert re.search(CONVERTIDO_EUR, resposta.text)
+def test_corpo_antigo_nao_existe() -> None:
+    """T305 (c): nenhum `hx-target` do painel usa mais o corpo do cartão (o menu e o detalhe
+    mandam o `POST .../status` sem HTMX): os dois templates saíram e nada os cita."""
+    src = Path(__file__).resolve().parents[2] / "src"
+    modelos = src / "jobot" / "painel" / "templates" / "vagas"
+    assert not (modelos / "corpo.html").exists()
+    assert not (modelos / "corpo_oob.html").exists()
+    citam = [
+        str(arquivo)
+        for arquivo in src.rglob("*")
+        if arquivo.suffix in {".py", ".html", ".js"}
+        and "vagas/corpo" in arquivo.read_text(encoding="utf-8")
+    ]
+    assert citam == []
 
 
 def test_vaga_sem_salario_diz_nao_informado(painel: Painel) -> None:
@@ -401,7 +482,9 @@ def test_vaga_sem_salario_diz_nao_informado(painel: Painel) -> None:
         titulo="Salário absurdo", sal_moeda="BRL", sal_min=99999900, sal_plausivel=0
     )
     html = painel.get("/vagas?aba=todas&ordem=recentes").text
-    marca = '<p class="salario nao-informado">Salário não informado</p>'
+    marca = (
+        'class="linha-salario nao-informado" title="Salário não informado">Salário não informado<'
+    )
     assert marca in _cartao_html(html, sem)
     assert marca in _cartao_html(html, implausivel)
     assert marca not in _cartao_html(html, painel.ids["brl"])
@@ -588,17 +671,15 @@ def test_status_invalido_ou_ausente_422_e_nada_grava(painel: Painel) -> None:
     assert painel.sql("SELECT COUNT(*) FROM evento") == [(0,)]
 
 
-def test_salvar_e_mudar_status_no_cartao(painel: Painel) -> None:
+def test_salvar_e_mudar_status(painel: Painel) -> None:
     vaga = painel.ids["nova"]
     resposta = painel.http.post(
         f"/vagas/{vaga}/status",
         data={CAMPO_CSRF: painel.token, "status": "salva", "voltar": "/vagas?aba=novas"},
         headers=HX,
     )
-    assert resposta.status_code == 200
-    assert "<html" not in resposta.text
-    assert "Salva" in resposta.text
-    assert 'name="status" value="candidatei"' in resposta.text
+    # T305 (c): com ou sem HTMX, a ação volta para a página de onde veio
+    assert (resposta.status_code, resposta.headers.get("location")) == (303, "/vagas?aba=novas")
     assert painel.sql("SELECT status FROM vaga WHERE id = ?", vaga) == [("salva",)]
     painel.post(f"/vagas/{vaga}/status", status="candidatei")
     desfazer = painel.post(f"/vagas/{vaga}/status", status="salva")
@@ -641,6 +722,151 @@ def test_ocultar_e_trazer_de_volta(painel: Painel) -> None:
     ]
 
 
+def _faixa(html: str) -> str:
+    """A faixa de desfazer que veio por OOB (T256): o nó de `base.html`, trocado por dentro."""
+    achou = re.search(r'<div\b[^>]*\bid="faixa-desfazer"[^>]*>.*?</div>\s*$', html, re.S | re.M)
+    assert achou, "sem a faixa de desfazer na resposta"
+    abertura = _tag(achou.group(0), "faixa-desfazer")
+    assert 'role="status"' in abertura
+    assert 'hx-swap-oob="innerHTML"' in abertura
+    return achou.group(0)
+
+
+def _ocultar_hx(painel: Painel, vaga: int) -> Any:
+    return painel.http.post(
+        f"/vagas/{vaga}/ocultar", data={CAMPO_CSRF: painel.token, "voltar": "/vagas"}, headers=HX
+    )
+
+
+def _mostrar_hx(painel: Painel, vaga: int) -> Any:
+    return painel.http.post(
+        f"/vagas/{vaga}/mostrar", data={CAMPO_CSRF: painel.token, "voltar": "/vagas"}, headers=HX
+    )
+
+
+def _form_da_faixa(faixa: str, destino: str) -> str:
+    achou = re.search(rf'<form\b[^>]*\baction="{re.escape(destino)}"[^>]*>.*?</form>', faixa, re.S)
+    assert achou, f"a faixa não traz o formulário para {destino}"
+    return achou.group(0)
+
+
+def test_ocultar_traz_a_faixa_com_mostrar(painel: Painel) -> None:
+    vaga = painel.ids["nova"]
+    # no detalhe ao lado, Ocultar vai por HTMX sem herdar o hx-target de ninguém
+    _, miolo = _lado(painel.get(f"/vagas?aba=todas&vaga={vaga}").text)
+    achou = re.search(rf'<form\b[^>]*action="/vagas/{vaga}/ocultar"[^>]*>', miolo)
+    assert achou and f'hx-post="/vagas/{vaga}/ocultar"' in achou.group(0)
+    assert 'hx-target="this"' in achou.group(0) and 'hx-swap="none"' in achou.group(0)
+    resposta = _ocultar_hx(painel, vaga)
+    assert resposta.status_code == 200
+    faixa = _faixa(resposta.text)
+    assert "Vaga ocultada" in faixa
+    form = _form_da_faixa(faixa, f"/vagas/{vaga}/mostrar")
+    assert 'method="post"' in form
+    assert f'name="{CAMPO_CSRF}" value="{painel.token}"' in form
+    assert ">Desfazer<" in form
+    # o botão da faixa não leva o hx-target herdado de quem o contém
+    assert 'hx-target="this"' in form and 'hx-swap="none"' in form
+    assert 'aria-label="Fechar"' in faixa
+    # quem pediu é avisado para tirar a linha (e fechar o detalhe, se for ela) só depois do settle,
+    # quando a faixa nova já tem os hx-* (antes, um ⌘Z viraria POST nativo)
+    assert "HX-Trigger" not in resposta.headers
+    assert json.loads(resposta.headers["HX-Trigger-After-Settle"]) == {
+        "vaga-ocultada": {"vaga": vaga}
+    }
+
+
+def test_desfazer_traz_a_faixa_com_ocultar(painel: Painel) -> None:
+    vaga = painel.ids["nova"]
+    _ocultar_hx(painel, vaga)
+    resposta = _mostrar_hx(painel, vaga)
+    assert resposta.status_code == 200
+    faixa = _faixa(resposta.text)
+    assert "Vaga mostrada de novo" in faixa
+    form = _form_da_faixa(faixa, f"/vagas/{vaga}/ocultar")
+    assert f'name="{CAMPO_CSRF}" value="{painel.token}"' in form
+    assert ">Refazer<" in form
+    assert f"/vagas/{vaga}/mostrar" not in faixa
+    assert "HX-Trigger" not in resposta.headers
+    assert json.loads(resposta.headers["HX-Trigger-After-Settle"]) == {
+        "vaga-mostrada": {"vaga": vaga}
+    }
+    assert painel.sql("SELECT oculta_manual FROM vaga WHERE id = ?", vaga) == [(0,)]
+
+
+def test_refazer_oculta_de_novo(painel: Painel) -> None:
+    vaga = painel.ids["nova"]
+    _ocultar_hx(painel, vaga)
+    _mostrar_hx(painel, vaga)
+    resposta = _ocultar_hx(painel, vaga)
+    assert resposta.status_code == 200
+    assert "Vaga ocultada" in _faixa(resposta.text)
+    assert painel.sql("SELECT oculta_manual FROM vaga WHERE id = ?", vaga) == [(1,)]
+    assert vaga in _cartoes(painel.get("/vagas?aba=ocultas").text)
+    # ocultar continua sendo acréscimo de evento: nada apagado
+    assert painel.sql("SELECT acao FROM evento WHERE vaga_id = ? ORDER BY id", vaga) == [
+        ("ocultou",),
+        ("desfez",),
+        ("ocultou",),
+    ]
+
+
+def test_form_da_faixa_leva_voltar_e_busca(painel: Painel) -> None:
+    """Sem o JS (POST nativo), o form da faixa volta para a página de onde veio a ação."""
+    vaga = painel.ids["nova"]
+    voltar = "/vagas?aba=salvas&q=dev"
+    resposta = painel.http.post(
+        f"/vagas/{vaga}/ocultar",
+        data={CAMPO_CSRF: painel.token, "voltar": voltar, "busca": "7"},
+        headers=HX,
+    )
+    form = _form_da_faixa(_faixa(resposta.text), f"/vagas/{vaga}/mostrar")
+    assert 'name="voltar" value="/vagas?aba=salvas&amp;q=dev"' in form
+    assert 'name="busca" value="7"' in form
+    resposta = painel.http.post(
+        f"/vagas/{vaga}/mostrar", data={CAMPO_CSRF: painel.token, "voltar": voltar}, headers=HX
+    )
+    form = _form_da_faixa(_faixa(resposta.text), f"/vagas/{vaga}/ocultar")
+    assert 'name="voltar" value="/vagas?aba=salvas&amp;q=dev"' in form
+    assert 'name="busca" value=""' in form
+
+
+def _enviar_form_da_faixa(painel: Painel, resposta: Any, destino: str) -> Any:
+    """Aperta o botão da faixa como o navegador: manda todos os campos hidden do formulário."""
+    form = _form_da_faixa(_faixa(resposta.text), destino)
+    campos = dict(re.findall(r'<input type="hidden" name="([^"]+)" value="([^"]*)"', form))
+    return painel.http.post(destino, data={k: unescape(v) for k, v in campos.items()}, headers=HX)
+
+
+def test_desfazer_volta_ao_mostrar_mesmo_assim(painel: Painel) -> None:
+    """O Desfazer é o inverso do Ocultar: quem tinha mandado "mostrar mesmo assim" (-1) numa vaga
+    que a regra oculta volta a -1, não a 0 (que a regra esconderia de novo). Vale no Refazer."""
+    vaga = painel.ids["oculta_regra"]
+    painel.post(f"/vagas/{vaga}/mostrar")
+    assert painel.sql("SELECT oculta_manual FROM vaga WHERE id = ?", vaga) == [(-1,)]
+    oculta = _ocultar_hx(painel, vaga)
+    volta = _enviar_form_da_faixa(painel, oculta, f"/vagas/{vaga}/mostrar")
+    assert volta.status_code == 200
+    assert painel.sql("SELECT oculta_manual FROM vaga WHERE id = ?", vaga) == [(-1,)]
+    assert vaga in _cartoes(painel.get("/vagas?aba=todas").text)
+    refeita = _enviar_form_da_faixa(painel, volta, f"/vagas/{vaga}/ocultar")
+    assert painel.sql("SELECT oculta_manual FROM vaga WHERE id = ?", vaga) == [(1,)]
+    _enviar_form_da_faixa(painel, refeita, f"/vagas/{vaga}/mostrar")
+    assert painel.sql("SELECT oculta_manual FROM vaga WHERE id = ?", vaga) == [(-1,)]
+    # só acréscimo: cada passo é um evento
+    assert painel.sql("SELECT acao FROM evento WHERE vaga_id = ? ORDER BY id", vaga) == [
+        ("mostrou",),
+        ("ocultou",),
+        ("desfez",),
+        ("ocultou",),
+        ("desfez",),
+    ]
+    # o "Trazer de volta" das Ocultas (sem o campo da faixa) segue zerando, como na decisão da T44
+    painel.post(f"/vagas/{vaga}/ocultar")
+    painel.post(f"/vagas/{vaga}/mostrar")
+    assert painel.sql("SELECT oculta_manual FROM vaga WHERE id = ?", vaga) == [(0,)]
+
+
 def test_mostrar_mesmo_assim_numa_vaga_oculta_por_regra(painel: Painel) -> None:
     vaga = painel.ids["oculta_regra"]
     assert vaga in _cartoes(painel.get("/vagas?aba=ocultas").text)
@@ -651,10 +877,13 @@ def test_mostrar_mesmo_assim_numa_vaga_oculta_por_regra(painel: Painel) -> None:
     assert vaga not in _cartoes(painel.get("/vagas?aba=ocultas").text)
 
 
-def test_cartao_de_vaga_oculta_oferece_trazer_de_volta(painel: Painel) -> None:
+def test_vaga_oculta_oferece_trazer_de_volta(painel: Painel) -> None:
+    """T254: a linha diz por que está oculta; o botão de trazer de volta fica no detalhe."""
     html = painel.get("/vagas?aba=ocultas").text
-    assert f'action="/vagas/{painel.ids["oculta_manual"]}/mostrar"' in html
-    assert f'action="/vagas/{painel.ids["oculta_regra"]}/mostrar"' in html
+    for chave in ("oculta_manual", "oculta_regra"):
+        vaga = painel.ids[chave]
+        assert 'data-icone="eye-off"' in _cartao_html(html, vaga)
+        assert f'action="/vagas/{vaga}/mostrar"' in painel.get(f"/vagas/{vaga}").text
 
 
 def test_motivo_do_encaixe_aparece_com_texto_para_leitor_de_tela(painel: Painel) -> None:
@@ -663,10 +892,13 @@ def test_motivo_do_encaixe_aparece_com_texto_para_leitor_de_tela(painel: Painel)
         json.dumps([{"chave": "encaixe.cargo_titulo", "params": {"palavra": "python"}}]),
         painel.ids["usd"],
     )
-    html = painel.get("/vagas?aba=todas").text
-    cartao = html.split(f'id="vaga-{painel.ids["usd"]}"')[1].split("</article>")[0]
-    assert "Cargo no título: python" in cartao
-    assert "Bom" in cartao
+    # T254: na linha, o nível vai para o leitor de tela; o motivo fica no detalhe (D143.53)
+    linha = _cartao_html(painel.get("/vagas?aba=todas").text, painel.ids["usd"])
+    assert '<span class="so-leitor">, Encaixe: Bom</span>' in linha
+    assert "Cargo no título" not in linha
+    detalhe = painel.get(f"/vagas/{painel.ids['usd']}").text
+    assert "Cargo no título: python" in detalhe
+    assert "Bom" in detalhe
 
 
 def test_motivo_com_chave_desconhecida_ou_parametro_faltando_nao_derruba(painel: Painel) -> None:
@@ -751,18 +983,21 @@ def test_clicar_num_chip_mantem_os_campos_de_mais_filtros(painel: Painel) -> Non
     assert "cidade=sao" in url
 
 
-def test_url_das_abas_mantem_os_campos_novos(painel: Painel) -> None:
+def test_trocar_de_busca_mantem_os_campos_da_vista(painel: Painel) -> None:
+    """T254: o seletor de busca da barra leva a aba e os filtros; só a busca muda."""
+    _nova_busca(painel, "Segunda")
     html = painel.get(
-        "/vagas?aba=todas&sal_de=7000&cidade=sao&excluir=cobol&modalidade=remoto"
+        "/vagas?aba=novas&sal_de=7000&cidade=sao&excluir=cobol&modalidade=remoto"
     ).text
-    abas = re.search(r'<nav class="abas".*?</nav>', html, re.S)
-    assert abas
-    links = re.findall(r'<a\b[^>]*\bhref="([^"]+)"', abas.group(0))
-    assert len(links) == 8
-    for link in links:
-        for parte in ("sal_de=7000", "cidade=sao", "excluir=cobol"):
-            assert parte in link, (link, parte)
-        assert "modalidade" not in link
+    form = re.search(r'<form class="seletor-busca".*?</form>', html, re.S)
+    assert form
+    ocultos = dict(
+        re.findall(r'<input type="hidden" name="([^"]+)" value="([^"]*)">', form.group(0))
+    )
+    assert ocultos["aba"] == "novas"
+    assert (ocultos["sal_de"], ocultos["cidade"], ocultos["excluir"]) == ("7000", "sao", "cobol")
+    assert ocultos["modalidade"] == "remoto"
+    assert "busca" not in ocultos  # vem do <select>
 
 
 def test_sem_salario_vai_nos_campos_ocultos(painel: Painel) -> None:
@@ -788,13 +1023,44 @@ def test_carregar_mais_mantem_os_filtros_novos(painel: Painel) -> None:
     assert not set(_cartoes(segunda.text)) & set(com)
 
 
-def test_mais_filtros_fechado_sem_filtro_e_aberto_com_contador(painel: Painel) -> None:
+def test_mais_filtros_fechado_com_contador(painel: Painel) -> None:
+    """T301 item 1: o "Mais filtros" vem fechado mesmo com filtro; o resumo diz quantos valem."""
     fechado = painel.get("/vagas?aba=todas").text
     assert '<details class="mais-filtros">' in fechado
     assert "<summary>Mais filtros</summary>" in fechado
-    aberto = painel.get("/vagas?aba=todas&cidade=sao&sal_de=7000").text
-    assert '<details class="mais-filtros" open>' in aberto
-    assert "<summary>Mais filtros (2)</summary>" in aberto
+    com_filtro = painel.get("/vagas?aba=todas&cidade=sao&sal_de=7000").text
+    assert '<details class="mais-filtros">' in com_filtro
+    assert "<summary>Mais filtros (2)</summary>" in com_filtro
+
+
+MAIS_FILTROS = re.compile(r"<details\b[^>]*\bclass=\"mais-filtros\"[^>]*>.*?</details>", re.S)
+
+
+def test_barra_da_lista_numa_linha_com_filtros_no_mais(painel: Painel) -> None:
+    """T301 item 1: os grupos de chips entram no "Mais filtros", que vem fechado com chip ativo."""
+    html = painel.get("/vagas?aba=todas&modalidade=remoto").text
+    barra = re.search(r'<div class="barra-lista">.*?</form>\s*</div>', html, re.S)
+    assert barra
+    mais = MAIS_FILTROS.search(barra.group(0))
+    assert mais
+    assert mais.group(0).startswith('<details class="mais-filtros">')  # sem `open`
+    assert 'id="filtros-chips"' in mais.group(0)
+    assert barra.group(0).count('id="filtros-chips"') == 1  # só dentro do "Mais filtros"
+    # o recipiente herda do form#busca o alvo e a URL: ele troca a si mesmo e não mexe na URL
+    recipiente = _tag(html, "filtros-chips")
+    assert 'hx-target="this"' in recipiente
+    assert 'hx-push-url="false"' in recipiente
+
+
+@pytest.mark.parametrize(
+    ("idioma", "resumo"), [("pt", "Mais filtros (2)"), ("en", "More Filters (2)")]
+)
+def test_mais_filtros_conta_os_ativos(painel: Painel, idioma: str, resumo: str) -> None:
+    """T301 item 1: os chips ativos contam no resumo, como os campos."""
+    html = painel.get(
+        "/vagas?aba=todas&modalidade=remoto&nivel=pleno", headers={"Accept-Language": idioma}
+    ).text
+    assert f"<summary>{resumo}</summary>" in html
 
 
 @pytest.mark.parametrize(
@@ -975,3 +1241,658 @@ def test_campos_de_texto_novos_saem_escapados(painel: Painel) -> None:
     painel.semear_mais(titulo="Vaga AB", empresa='a"b', modalidade="remoto", **_SAL_SP)
     fragmento = painel.get("/vagas/chips", params=consulta).text
     assert "empresa=a%22b" in _hx_get(fragmento, "chip-modalidade-remoto")
+
+
+# ---- contagens da lateral e busca escolhida (T253; D143.50, E16) ----
+
+
+def _nova_busca(painel: Painel, nome: str, *, ativa: int = 1) -> int:
+    linhas = painel.sql(
+        "INSERT INTO busca (nome, cargos, modalidades, ativa, criada_em)"
+        " VALUES (?, '[\"python\"]', '[]', ?, ?) RETURNING id",
+        nome,
+        ativa,
+        AGORA.isoformat(),
+    )
+    return int(linhas[0][0])
+
+
+def _config_toda(painel: Painel) -> list[tuple[Any, ...]]:
+    return painel.sql("SELECT chave, valor FROM config ORDER BY chave")
+
+
+def _ids_da_lateral(html: str) -> set[str]:
+    """Os `busca=` dos links de Vagas da lateral."""
+    ul = re.search(r'<ul\b[^>]*id="lateral-vagas".*?</ul>', html, re.S)
+    assert ul is not None, "sem a seção Vagas da lateral"
+    return set(re.findall(r"busca=(\d+)", unescape(ul.group(0))))
+
+
+def _contagem_da_aba(html: str, aba: str) -> int:
+    achou = re.search(
+        rf'<a\b[^>]*href="/vagas\?aba={aba}[^"]*"[^>]*>[^<]*'
+        r'(?:<span class="contagem">(\d+)</span>)?',
+        html,
+    )
+    assert achou, f"sem o link da aba {aba} na lateral"
+    return int(achou.group(1) or 0)
+
+
+def _busca_marcada(html: str) -> list[str]:
+    """O nome da busca marcada no seletor da barra da lista (T254: um `<select>`)."""
+    seletor = re.search(r'<select id="busca-escolhida".*?</select>', html, re.S)
+    assert seletor is not None
+    return re.findall(r"<option\b[^>]*\bselected[^>]*>([^<]*)</option>", seletor.group(0))
+
+
+def test_busca_escolhida_vale_sem_busca_na_url(painel: Painel) -> None:
+    primeira = painel.ids["busca"]
+    segunda = _nova_busca(painel, "Segunda")
+    # sem escolha, a lateral usa a primeira ativa
+    assert _ids_da_lateral(painel.get("/fontes").text) == {str(primeira)}
+    painel.get(f"/vagas?aba=todas&busca={segunda}")
+    assert painel.sql("SELECT valor FROM config WHERE chave = 'busca_escolhida'") == [
+        (str(segunda),)
+    ]
+    # outra página, sem busca na URL: a lateral leva a escolhida
+    assert _ids_da_lateral(painel.get("/fontes").text) == {str(segunda)}
+    # e Vagas usa a escolhida: o seletor marca a segunda
+    assert _busca_marcada(painel.get("/vagas?aba=novas").text) == ["Segunda"]
+
+
+def test_busca_escolhida_apagada_cai_na_primeira_ativa(painel: Painel) -> None:
+    primeira = painel.ids["busca"]
+    segunda = _nova_busca(painel, "Segunda")
+    painel.get(f"/vagas?aba=todas&busca={segunda}")
+    assert _ids_da_lateral(painel.get("/fontes").text) == {str(segunda)}
+    painel.sql("UPDATE busca SET ativa = 0 WHERE id = ?", segunda)  # desligada
+    assert _ids_da_lateral(painel.get("/fontes").text) == {str(primeira)}
+    painel.sql("UPDATE busca SET ativa = 1 WHERE id = ?", segunda)
+    assert _ids_da_lateral(painel.get("/fontes").text) == {str(segunda)}
+    painel.sql("DELETE FROM busca WHERE id = ?", segunda)  # apagada
+    assert _ids_da_lateral(painel.get("/fontes").text) == {str(primeira)}
+    assert "aba=novas" in painel.get("/vagas?aba=novas").text  # a tela não quebra
+
+
+def test_busca_invalida_nao_grava(painel: Painel) -> None:
+    desligada = _nova_busca(painel, "Desligada", ativa=0)
+    ativa = _nova_busca(painel, "Ativa")
+    antes = _config_toda(painel)
+    for pedida in ("abc", "999999", "0", "-1", str(desligada)):
+        assert painel.get(f"/vagas?aba=todas&busca={pedida}").status_code == 200
+        assert _config_toda(painel) == antes, f"busca={pedida} gravou"
+    # controle positivo: com o id de uma busca ativa, a escolha muda
+    painel.get(f"/vagas?aba=todas&busca={ativa}")
+    depois = _config_toda(painel)
+    assert depois != antes
+    assert ("busca_escolhida", str(ativa)) in depois
+
+
+def test_busca_desligada_na_url_continua_valendo(painel: Painel) -> None:
+    """Guarda (mutante: `busca_efetiva` aceitar só busca ativa)."""
+    _nova_busca(painel, "Ativa")
+    desligada = _nova_busca(painel, "Desligada", ativa=0)
+    antes = _config_toda(painel)
+    html = painel.get(f"/vagas?aba=todas&busca={desligada}").text
+    assert _busca_marcada(html) == ["Desligada"]
+    assert _config_toda(painel) == antes
+
+
+def test_ocultar_atualiza_a_contagem_por_oob(painel: Painel) -> None:
+    antes = _contagem_da_aba(painel.get("/vagas?aba=todas").text, "ocultas")
+    assert antes == 2
+    vaga = painel.ids["nova"]
+    resposta = painel.http.post(
+        f"/vagas/{vaga}/ocultar",
+        data={CAMPO_CSRF: painel.token, "voltar": "/vagas?aba=salvas"},
+        headers=HX,
+    )
+    assert resposta.status_code == 200
+    html = resposta.text
+    oob = re.search(r'<ul\b[^>]*hx-swap-oob="true"[^>]*>.*?</ul>', html, re.S)
+    assert oob is not None, "a seção Vagas da lateral não veio por hx-swap-oob"
+    assert 'id="lateral-vagas"' in oob.group(0)
+    assert _contagem_da_aba(oob.group(0), "ocultas") == antes + 1
+    # o item marcado é o da aba de onde a pessoa veio
+    marcados = re.findall(r'<a\b[^>]*aria-current="page"[^>]*>', oob.group(0))
+    assert len(marcados) == 1 and "aba=salvas" in marcados[0]
+
+
+def test_aba_por_htmx_traz_a_lateral_por_oob_uma_vez(painel: Painel) -> None:
+    """Guarda: a troca de aba troca a seção Vagas da lateral (uma só, não uma por cartão); a
+    página inteira traz o id uma vez e sem `hx-swap-oob`."""
+    inteira = painel.get("/vagas?aba=salvas").text
+    assert inteira.count('id="lateral-vagas"') == 1 and "hx-swap-oob" not in inteira
+    parcial = painel.get("/vagas?aba=salvas", headers=HX).text
+    assert parcial.count('id="lateral-vagas"') == 1
+    oob = re.search(r'<ul\b[^>]*hx-swap-oob="true"[^>]*>.*?</ul>', parcial, re.S)
+    assert oob is not None
+    marcados = re.findall(r'<a\b[^>]*aria-current="page"[^>]*>', oob.group(0))
+    assert len(marcados) == 1 and "aba=salvas" in marcados[0]
+
+
+def test_acao_na_pagina_da_vaga_marca_a_lateral_como_area(painel: Painel) -> None:
+    """Guarda: de uma página filha (detalhe), o item fica `aria-current="true"`, como na casca."""
+    vaga = painel.ids["nova"]
+    resposta = painel.http.post(
+        f"/vagas/{vaga}/ocultar",
+        data={CAMPO_CSRF: painel.token, "voltar": f"/vagas/{vaga}"},
+        headers=HX,
+    )
+    oob = re.search(r'<ul\b[^>]*hx-swap-oob="true"[^>]*>.*?</ul>', resposta.text, re.S)
+    assert oob is not None
+    marcados = re.findall(r'<a\b[^>]*aria-current="([a-z]+)"[^>]*>', oob.group(0))
+    assert marcados == ["true"]
+    assert _contagem_da_aba(oob.group(0), "ocultas") == 3
+
+
+# --- T254: a lista em linhas (listbox), a barra da lista e o estado vazio ---
+
+LISTBOX = re.compile(r'(<div\b[^>]*\brole="listbox"[^>]*>)(.*?)</div>', re.S)
+OPCAO = re.compile(r'(<a\b[^>]*\brole="option"[^>]*>)(.*?)</a>', re.S)
+SEM_PALETA = re.compile(
+    r'<dialog\b[^>]*\bid="paleta".*?</dialog>', re.S
+)  # a paleta (T265) é outra listbox
+
+
+def _listbox(html: str) -> tuple[str, str]:
+    """A abertura e o miolo do `role="listbox"` (as linhas só têm `<span>` e `<time>` dentro)."""
+    achados = LISTBOX.findall(SEM_PALETA.sub("", html))
+    assert len(achados) == 1, f"esperava 1 listbox, achou {len(achados)}"
+    abertura, miolo = achados[0]
+    return str(abertura), str(miolo)
+
+
+def _opcoes(html: str) -> list[tuple[str, str]]:
+    return OPCAO.findall(_listbox(html)[1])
+
+
+def _linha(html: str, vaga: int) -> tuple[str, str]:
+    achadas = [(a, d) for a, d in _opcoes(html) if f'id="vaga-{vaga}"' in a]
+    assert len(achadas) == 1, f"sem a linha da vaga {vaga}"
+    return achadas[0]
+
+
+def test_lista_e_listbox_com_options(painel: Painel) -> None:
+    html = painel.get("/vagas?aba=todas").text
+    abertura, miolo = _listbox(html)
+    assert 'id="lista-vagas"' in abertura
+    assert f'aria-label="{t("pt", "vagas.lista")}"' in abertura
+    opcoes = _opcoes(html)
+    assert len(opcoes) == len(_cartoes(html)) == 7
+    for abertura_opcao, dentro in opcoes:
+        assert 'aria-selected="false"' in abertura_opcao
+        assert "<a" not in dentro and "<button" not in dentro and "<form" not in dentro
+    # nada fora das options dentro do listbox (sem <li>, sem <ul>)
+    assert re.sub(OPCAO, "", miolo).strip() == ""
+
+
+def test_linha_tem_tres_linhas(painel: Painel) -> None:
+    """Título com o encaixe; empresa e local; salário, selos e data: nessa ordem, com `title`."""
+    vaga = painel.ids["usd"]
+    _, dentro = _linha(painel.get("/vagas?aba=todas").text, vaga)
+    partes = re.findall(r'class="linha-(\d)"', dentro)
+    assert partes == ["1", "2", "3"]
+    titulo = re.search(r'<span class="linha-titulo" title="([^"]*)">([^<]*)</span>', dentro)
+    assert titulo and titulo.groups() == ("Desenvolvedor Python", "Desenvolvedor Python")
+    empresa = re.search(r'<span class="linha-2" title="([^"]*)">', dentro)
+    assert empresa and empresa.group(1).startswith("Zeta Corp")
+    salario = re.search(r'<span class="linha-salario" title="([^"]*)">([^<]*)</span>', dentro)
+    assert salario
+    assert salario.group(1) == "US$ 5.000/mês · ≈ R$ 28.250/mês · US$ 1 = R$ 5,65 (PTAX de 13/11)"
+    assert salario.group(2) == "≈ R$ 28.250/mês"
+    data = re.search(r'<time datetime="([^"]+)" title="([^"]+)">([^<]+)</time>', dentro)
+    assert data, "sem a data na linha 3"
+    marcas = ('class="linha-titulo"', 'class="linha-2"', "linha-salario", "<time")
+    ordem = [dentro.index(m) for m in marcas]
+    assert ordem == sorted(ordem)
+    # fontes, motivo do encaixe e botões saem da linha (detalhe e menu)
+    assert "via " not in dentro and 'class="motivo"' not in dentro
+
+
+def test_linha_e_link_sem_js(painel: Painel) -> None:
+    html = painel.get("/vagas?aba=todas").text
+    ids = _cartoes(html)
+    opcoes = _opcoes(html)
+    assert [re.findall(r'id="vaga-(\d+)"', a) for a, _ in opcoes] == [[str(i)] for i in ids]
+    for abertura, dentro in opcoes:
+        vaga = re.findall(r'id="vaga-(\d+)"', abertura)[0]
+        assert f'href="/vagas/{vaga}"' in abertura
+        assert "tabindex" not in abertura  # sem JS, todo link no Tab
+        # T255: com JS a linha abre o detalhe ao lado; o htmx só age por cima do href
+        assert re.findall(r"\b(hx-[a-z-]+)=", abertura) == [
+            "hx-get",
+            "hx-target",
+            "hx-select",
+            "hx-swap",
+            "hx-push-url",
+        ]
+        assert 'hx-target="#detalhe-vaga"' in abertura
+        assert "<a" not in dentro and "<button" not in dentro
+    vaga = painel.ids["usd"]
+    assert painel.get(f"/vagas/{vaga}").status_code == 200
+
+
+def test_abas_saem_do_topo(painel: Painel) -> None:
+    _nova_busca(painel, "Segunda")
+    html = painel.get("/vagas?aba=todas").text
+    assert 'class="abas"' not in html and 'id="aba-todas"' not in html
+    seletor = re.search(r'<select\b[^>]*\bname="busca"[^>]*>(.*?)</select>', html, re.S)
+    assert seletor, "o seletor de busca não é um <select>"
+    assert len(re.findall(r"<option\b", seletor.group(1))) == 2
+    assert len(re.findall(r"<option\b[^>]*\bselected\b", seletor.group(1))) == 1
+    ordem = re.search(r'<select\b[^>]*\bid="ordem"[^>]*>', html)
+    assert ordem and 'form="busca"' in ordem.group(0)
+    barra = re.search(r'<div class="barra-lista"[^>]*>.*?<form id="busca"', html, re.S)
+    assert barra, "o form#busca não está na barra da lista"
+
+
+def test_seletor_de_busca_so_com_duas_buscas(painel: Painel) -> None:
+    html = painel.get("/vagas?aba=todas").text
+    assert not re.search(r'<select\b[^>]*\bname="busca"', html)
+
+
+def test_vagas_tem_um_so_aria_current_page(painel: Painel) -> None:
+    """D150.1: sem a `nav.abas`, só o item da lateral marca a página aberta."""
+    for url in ("/vagas", "/vagas?aba=salvas"):
+        assert painel.get(url).text.count('aria-current="page"') == 1
+
+
+def test_programas_fora_do_listbox(painel: Painel) -> None:
+    from jobot.banco.paginas import adicionar_pagina
+
+    with closing(abrir(painel.banco)) as con:
+        adicionar_pagina(con, "https://alfa.exemplo.test/trainee", "Trainee Alfa")
+        con.commit()
+    vaga = painel.semear_mais(titulo="Trainee 2027", contrato="trainee")
+    html = painel.get("/vagas?aba=programas").text
+    abertura, miolo = _listbox(html)
+    assert f'id="vaga-{vaga}"' in miolo
+    assert "lista-programas-paginas" not in miolo and "Trainee Alfa" not in miolo
+    secao = html.index('id="lista-programas-paginas"')
+    assert html.index(abertura) < secao
+    assert "Trainee Alfa" in html[secao:]
+    assert 'href="/sites#site-' in html[secao:]
+
+
+def test_programas_com_estilo_de_linha(painel: Painel) -> None:
+    """Desenho 5.2: as páginas acompanhadas usam a linha das vagas, sem cartão e fora do listbox,
+    cada uma um link para Sites."""
+    from jobot.banco.paginas import adicionar_pagina
+
+    with closing(abrir(painel.banco)) as con:
+        id_ = adicionar_pagina(con, "https://alfa.exemplo.test/trainee", "Trainee Alfa")
+        con.commit()
+    html = painel.get("/vagas?aba=programas").text
+    assert not re.search(
+        r'<section\b[^>]*class="painel"[^>]*aria-labelledby="programas-paginas"', html
+    )
+    lista = re.search(r'<ul\b([^>]*)\bid="lista-programas-paginas"[^>]*>(.*?)</ul>', html, re.S)
+    assert lista
+    assert "lista-linhas" in lista.group(1).split('"')[1].split()
+    assert "cartao" not in lista.group(2) and 'role="option"' not in lista.group(2)
+    linha = re.search(rf'<a class="linha" href="/sites#site-{id_}">(.*?)</a>', lista.group(2), re.S)
+    assert linha
+    assert re.search(r'<span class="linha-1">.*Trainee Alfa', linha.group(1), re.S)
+    assert '<span class="linha-2"' in linha.group(1)
+
+
+@pytest.mark.parametrize(
+    ("idioma", "titulo", "botao"),
+    [("pt", "Nenhuma vaga", "Buscar vagas"), ("en", "No Jobs", "Search for Jobs")],
+)
+@pytest.mark.parametrize(
+    ("aba", "frase"), [("todas", "vagas.vazio"), ("destaques", "vagas.vazio_destaques")]
+)
+def test_vazio_tem_buscar_vagas(
+    painel: Painel, idioma: str, titulo: str, botao: str, aba: str, frase: str
+) -> None:
+    cab = {"Accept-Language": idioma}
+    # destaques não usam a busca: ficam vazios quando nada foi visto nas últimas 24 h
+    painel.sql("UPDATE vaga SET primeira_vista_em = ?", (AGORA - timedelta(days=30)).isoformat())
+    html = painel.get(f"/vagas?aba={aba}&q=zzzznadaachado", headers=cab).text
+    vazio = re.search(r'<div id="lista-vagas" class="vazio"[^>]*>(.*?)</div>', html, re.S)
+    assert vazio, "sem o estado vazio"
+    corpo = vazio.group(1)
+    assert 'data-icone="search-x"' in corpo
+    assert f">{titulo}</h2>" in corpo
+    assert f"<p>{t(idioma, frase)}</p>" in corpo
+    form = re.search(r'<form\b[^>]*action="/buscar-agora"[^>]*>(.*?)</form>', corpo, re.S)
+    assert form and 'hx-target="#andamento"' in form.group(0)
+    assert f">{botao}</button>" in form.group(1)
+    assert f'name="{CAMPO_CSRF}"' in form.group(1)
+    assert 'role="listbox"' not in SEM_PALETA.sub("", html)
+
+
+@pytest.mark.usefixtures("fuso_de_sao_paulo")
+def test_data_de_coleta_na_linha_e_o_dia_local(painel: Painel) -> None:
+    """Vista às 01:00Z de 16/11 = 22:00 de 15/11 em Brasília: a linha mostra 15/11."""
+    vaga = painel.semear_mais(publicada_em=None, primeira_vista_em="2026-11-16T01:00:00+00:00")
+    _, dentro = _linha(painel.get("/vagas?aba=todas").text, vaga)
+    data = re.search(r'<time datetime="[^"]+" title="([^"]+)">([^<]+)</time>', dentro)
+    assert data and data.groups() == ("15/11/2026", "15/11")
+
+
+def test_ordem_e_mais_filtros_em_title_case_no_en(painel: Painel) -> None:
+    """Restrições globais: item de menu e botão em inglês seguem o Title Case da HIG."""
+    html = painel.get("/vagas?aba=todas", headers={"Accept-Language": "en"}).text
+    ordem = re.search(r'<select\b[^>]*\bid="ordem"[^>]*>(.*?)</select>', html, re.S)
+    assert ordem
+    opcoes = [unescape(o) for o in re.findall(r"<option\b[^>]*>([^<]+)</option>", ordem.group(1))]
+    assert opcoes == [
+        "Best Fit",
+        "Most Recent",
+        "Closest Deadline",
+        "Highest Salary",
+        "Company (A to Z)",
+    ]
+    assert "<summary>More Filters</summary>" in html
+    assert t("en", "vagas.mais_filtros_n", n=2) == "More Filters (2)"
+    assert t("en", "vagas.mais") == "Load More Jobs"
+
+
+# --- T255: o detalhe ao lado da lista (`/vagas?vaga=<id>`) ---
+
+LADO = re.compile(r'(<dialog\b[^>]*\bid="detalhe-vaga"[^>]*>)(.*?)</dialog>', re.S)
+
+
+def _lado(html: str) -> tuple[str, str]:
+    """A abertura e o miolo do `<dialog>` do detalhe: ele existe sempre, aberto ou vazio."""
+    achados = LADO.findall(html)
+    assert len(achados) == 1, f"esperava 1 detalhe ao lado, achou {len(achados)}"
+    abertura, miolo = achados[0]
+    return str(abertura), str(miolo)
+
+
+def test_vaga_na_url_traz_o_detalhe(painel: Painel) -> None:
+    vaga = painel.ids["nova"]
+    url = f"/vagas?aba=todas&ordem=recentes&vaga={vaga}"
+    for resposta in (painel.get(url), painel.get(url, headers=HX)):
+        assert resposta.status_code == 200
+        abertura, miolo = _lado(resposta.text)
+        assert re.search(r"\sopen\b", abertura)
+        assert f'data-vaga="{vaga}"' in abertura
+        assert "Engenheira de Integração" in miolo
+        assert re.search(r"<h2\b[^>]*>Engenheira de Integração</h2>", miolo)  # h1 é o da página
+        linha, _ = _linha(resposta.text, vaga)
+        assert 'aria-selected="true"' in linha
+        outras = [a for a, _ in _opcoes(resposta.text) if f'id="vaga-{vaga}"' not in a]
+        assert outras and all('aria-selected="false"' in a for a in outras)
+    # a linha pede o detalhe por HTMX e guarda aba e ordem no endereço; sem JS, a página da vaga
+    linha, _ = _linha(painel.get("/vagas?aba=todas&ordem=recentes").text, vaga)
+    assert f'href="/vagas/{vaga}"' in linha
+    assert f'hx-get="/vagas?aba=todas&amp;ordem=recentes&amp;vaga={vaga}"' in linha
+    assert 'hx-target="#detalhe-vaga"' in linha
+    assert 'hx-push-url="true"' in linha
+
+
+@pytest.mark.parametrize("valor", ["abc", "999999", "9" * 5000, str(2**63), "0", "-3", ""])
+def test_vaga_invalida_na_url_sem_detalhe(painel: Painel, valor: str) -> None:
+    for cabecalhos in ({}, HX):
+        resposta = painel.get(f"/vagas?aba=todas&vaga={valor}", headers=cabecalhos)
+        assert resposta.status_code == 200
+        assert _cartoes(resposta.text)  # a lista vem inteira
+        abertura, miolo = _lado(resposta.text)
+        assert not re.search(r"\sopen\b", abertura)
+        assert "data-vaga" not in abertura
+        assert miolo.strip() == ""
+        assert 'aria-selected="true"' not in _listbox(resposta.text)[1]
+
+
+def test_detalhe_tem_os_botoes_da_linha(painel: Painel) -> None:
+    vaga = painel.ids["nova"]
+    lista = f"/vagas?aba=todas&vaga={vaga}"
+    _, miolo = _lado(painel.get(lista).text)
+    # Abrir no site: a página da vaga na fonte, em outra aba
+    site = re.search(r"<a\b([^>]*)>Abrir no site</a>", miolo)
+    assert site
+    assert f'href="https://exemplo.test/vagas/{vaga}"' in site.group(1)
+    assert 'target="_blank"' in site.group(1)
+    assert 'rel="noopener noreferrer"' in site.group(1)
+    # as fontes ("via …") e o motivo do encaixe
+    assert 'aria-label="via Remotive' in miolo
+    assert re.search(rf"<h3\b[^>]*>{t('pt', 'detalhe.secao.encaixe')}</h3>", miolo)
+    assert t("pt", "detalhe.encaixe.nota", nota=80) in miolo
+    # Salvar e Ocultar voltam para a mesma vista, com o detalhe aberto
+    status = re.search(rf'<form\b[^>]*action="/vagas/{vaga}/status"[^>]*>(.*?)</form>', miolo, re.S)
+    assert status
+    assert 'name="status" value="salva"' in status.group(1)
+    assert f'name="voltar" value="{escape(lista)}"' in status.group(1)
+    ocultar = re.search(
+        rf'<form\b[^>]*action="/vagas/{vaga}/ocultar"[^>]*>(.*?)</form>', miolo, re.S
+    )
+    assert ocultar
+    assert f'name="voltar" value="{escape(lista)}"' in ocultar.group(1)
+    # salva, o detalhe ao lado oferece o Candidatei
+    salvar = painel.post(f"/vagas/{vaga}/status", status="salva", voltar=lista)
+    assert (salvar.status_code, salvar.headers["location"]) == (303, lista)
+    _, miolo = _lado(painel.get(lista).text)
+    assert (
+        f'value="candidatei" class="secundario">{t("pt", "vagas.acao.para.candidatei")}<' in miolo
+    )
+
+
+def test_pedido_do_detalhe_traz_so_o_dialog(painel: Painel) -> None:
+    """A linha pede só o detalhe (`HX-Target: detalhe-vaga`): o servidor não refaz a lista, os
+    Destaques nem a lateral a cada clique."""
+    vaga = painel.ids["nova"]
+    url = f"/vagas?aba=todas&vaga={vaga}"
+    so_o_lado = {**HX, "HX-Target": "detalhe-vaga"}
+    resposta = painel.get(url, headers=so_o_lado)
+    assert resposta.status_code == 200
+    abertura, miolo = _lado(resposta.text)
+    assert f'data-vaga="{vaga}"' in abertura
+    assert re.search(r"<h2\b[^>]*>Engenheira de Integração</h2>", miolo)
+    assert 'id="lista-vagas"' not in resposta.text
+    assert "hx-swap-oob" not in resposta.text
+    # controle: o mesmo pedido de outro alvo traz o miolo inteiro
+    assert 'id="lista-vagas"' in painel.get(url, headers=HX).text
+    # vaga torta no pedido do detalhe: o dialog vazio, nunca 500
+    torta = painel.get("/vagas?aba=todas&vaga=abc", headers=so_o_lado)
+    assert torta.status_code == 200
+    abertura, miolo = _lado(torta.text)
+    assert "data-vaga" not in abertura
+    assert miolo.strip() == ""
+
+
+def test_detalhe_pelo_clique_usa_a_moeda_de_exibicao(painel: Painel) -> None:
+    """O detalhe pedido só (o clique na linha) converte na moeda escolhida, igual à página cheia."""
+    _em_euro(painel)
+    url = f"/vagas?aba=todas&vaga={painel.ids['usd']}"
+    convertido = r"≈ € 4\.520/mês · US\$ 1 = € 0,904 \(PTAX de 12/11\)"
+    for cabecalhos in ({}, {**HX, "HX-Target": "detalhe-vaga"}):
+        _, miolo = _lado(painel.get(url, headers=cabecalhos).text)
+        assert re.search(convertido, miolo)
+        assert "≈ R$" not in miolo
+
+
+def test_lista_vazia_com_vaga_na_url_traz_o_detalhe(painel: Painel) -> None:
+    """O dialog existe mesmo sem linhas: a vaga da URL abre, e o alvo do htmx não some."""
+    vaga = painel.ids["nova"]
+    for cabecalhos in ({}, HX):
+        resposta = painel.get(f"/vagas?aba=todas&q=zzqxnadaqui&vaga={vaga}", headers=cabecalhos)
+        assert resposta.status_code == 200
+        assert not _cartoes(resposta.text)
+        abertura, miolo = _lado(resposta.text)
+        assert f'data-vaga="{vaga}"' in abertura
+        assert "Engenheira de Integração" in miolo
+
+
+def test_ocultar_repetido_nao_troca_a_faixa(painel: Painel) -> None:
+    """Duplo clique no Ocultar: o 2º POST acha a vaga já oculta e não troca a faixa, que guarda
+    o `antes=-1` do 1º. Senão o Desfazer zeraria a vaga e não voltaria ao "mostrar mesmo assim"."""
+    vaga = painel.ids["oculta_regra"]
+    painel.post(f"/vagas/{vaga}/mostrar")
+    primeira = _ocultar_hx(painel, vaga)
+    form = _form_da_faixa(_faixa(primeira.text), f"/vagas/{vaga}/mostrar")
+    assert 'name="antes" value="-1"' in form
+    segunda = _ocultar_hx(painel, vaga)
+    assert segunda.status_code == 200
+    assert 'id="faixa-desfazer"' not in segunda.text
+    assert painel.sql("SELECT oculta_manual FROM vaga WHERE id = ?", vaga) == [(1,)]
+    assert painel.sql("SELECT acao FROM evento WHERE vaga_id = ? ORDER BY id", vaga) == [
+        ("mostrou",),
+        ("ocultou",),
+    ]
+
+
+# --- T257: o menu de contexto da vaga (desenho 5.4, D143.39) ---
+
+MENU_ABERTURA = re.compile(r'<div\b[^>]*\bid="menu-vaga"[^>]*>')
+MENU_ITENS = {
+    "pt": ("Abrir", "Abrir no site da vaga", "Salvar", "Ocultar", "Copiar link"),
+    "en": ("Open", "Open on Job Site", "Save", "Hide", "Copy Link"),
+}
+
+
+def _menu(html: str) -> tuple[str, str]:
+    """A abertura do menu da vaga e o que vem até a região do aviso de "Copiar link"."""
+    achados = MENU_ABERTURA.findall(html)
+    assert len(achados) == 1, f"esperava 1 menu da vaga, achou {len(achados)}"
+    inicio = html.index(achados[0]) + len(achados[0])
+    return achados[0], html[inicio : html.index('id="menu-vaga-aviso"', inicio)]
+
+
+@pytest.mark.parametrize("idioma", ["pt", "en"])
+def test_menu_de_contexto_vem_renderizado(painel: Painel, idioma: str) -> None:
+    """Um menu só na página (não um por linha), escondido até abrir, com as cinco ações do
+    detalhe; cada linha leva o que o app.js põe no menu ao abrir."""
+    cab = {"Accept-Language": idioma}
+    html = painel.get("/vagas?aba=todas", headers=cab).text
+    abertura, corpo = _menu(html)
+    assert html.count('role="menu"') == 1 and len(_opcoes(html)) == 7
+    assert re.search(r'\spopover[\s>="]', abertura) and not re.search(r"\sopen\b", abertura)
+    assert 'role="menu"' in abertura and "data-menu-contexto" in abertura
+    assert f'aria-label="{t(idioma, "vagas.menu.rotulo")}"' in abertura
+    # as cinco ações, em três grupos, sem atalho escrito
+    textos = re.findall(r'role="menuitem"[^>]*>([^<]+)<', corpo)
+    assert textos == list(MENU_ITENS[idioma])
+    assert corpo.count('role="group"') == 3
+    assert "<kbd" not in corpo
+    # links: a vaga no painel e a vaga na fonte (outra aba)
+    assert re.search(r'<a\b[^>]*data-modelo-href="/vagas/\{id\}"[^>]*data-abrir', corpo)
+    site = re.search(r'<a\b([^>]*data-modelo-href="\{site\}"[^>]*)>', corpo)
+    assert site
+    assert 'data-requer="site"' in site.group(1)
+    assert 'target="_blank"' in site.group(1) and 'rel="noopener noreferrer"' in site.group(1)
+    # Salvar e Ocultar são os formulários do detalhe, com o token; o Ocultar vai por HTMX e traz
+    # a faixa de desfazer, como no detalhe ao lado (T256)
+    forms = dict(
+        (acao, (attrs, dentro))
+        for attrs, dentro in re.findall(r"<form\b([^>]*)>(.*?)</form>", corpo, re.S)
+        for acao in re.findall(r'data-modelo-acao="([^"]+)"', attrs)
+    )
+    assert set(forms) == {"/vagas/{id}/status", "/vagas/{id}/ocultar"}
+    for attrs, dentro in forms.values():
+        assert 'method="post"' in attrs
+        assert f'name="{CAMPO_CSRF}" value="{painel.token}"' in dentro
+        assert 'name="voltar"' in dentro and 'name="busca"' in dentro
+    status_attrs, status_dentro = forms["/vagas/{id}/status"]
+    assert 'data-requer="salvar"' in status_attrs and "hx-post" not in status_attrs
+    assert 'name="status" value="salva"' in status_dentro
+    ocultar_attrs, _ = forms["/vagas/{id}/ocultar"]
+    assert 'data-requer="ocultar"' in ocultar_attrs
+    assert 'hx-post="' in ocultar_attrs
+    assert 'hx-target="this"' in ocultar_attrs and 'hx-swap="none"' in ocultar_attrs
+    # Copiar link: o endereço na fonte, com o aviso curto numa região viva
+    copiar = re.search(r'<button\b([^>]*data-modelo-copiar="\{site\}"[^>]*)>', corpo)
+    assert copiar and 'data-requer="site"' in copiar.group(1)
+    assert f'data-copiado="{t(idioma, "vagas.menu.copiado")}"' in copiar.group(1)
+    assert f'data-nao-copiou="{t(idioma, "vagas.menu.nao_copiou")}"' in copiar.group(1)
+    assert re.search(r'<div\b[^>]*id="menu-vaga-aviso"[^>]*role="status"', html)
+    # a linha diz o que o menu oferece: Salvar só a nova, Ocultar só a visível, site só http
+    nova, _ = _linha(html, painel.ids["nova"])
+    assert 'data-menu="menu-vaga"' in nova and f'data-id="{painel.ids["nova"]}"' in nova
+    assert f'data-site="https://exemplo.test/vagas/{painel.ids["nova"]}"' in nova
+    assert "data-salvar" in nova and "data-ocultar" in nova
+    salvas = painel.get("/vagas?aba=salvas", headers=cab).text
+    salva, _ = _linha(salvas, painel.ids["fechada_salva"])
+    assert "data-salvar" not in salva and "data-ocultar" in salva
+    ocultas = painel.get("/vagas?aba=ocultas", headers=cab).text
+    oculta, _ = _linha(ocultas, painel.ids["oculta_manual"])
+    assert 'data-menu="menu-vaga"' in oculta and "data-ocultar" not in oculta
+    # a troca do miolo por HTMX não traz outro menu: ele mora fora do #vagas-miolo
+    assert 'role="menu"' not in painel.get("/vagas?aba=novas", headers={**cab, **HX}).text
+
+
+ENCAIXE = re.compile(r'<span class="([^"]*\bicone-encaixe\b[^"]*)"([^>]*)></span>')
+
+
+def test_encaixe_da_linha_e_icone(painel: Painel) -> None:
+    """T301 item 5: ícone Lucide numa caixa fixa, presente também sem encaixe; sem os glifos."""
+    sem = painel.semear_mais(titulo="Vaga sem encaixe")
+    html = painel.get("/vagas?aba=todas").text
+    esperado = {"usd": "circle-check", "brl": "contrast", "trainee": "circle"}
+    for nome, icone in esperado.items():
+        abertura, miolo = _linha(html, painel.ids[nome])
+        caixas = ENCAIXE.findall(miolo)
+        assert len(caixas) == 1, nome
+        classes, atributos = caixas[0]
+        assert "icone" in classes.split()
+        assert f'data-icone="{icone}"' in atributos
+        assert 'aria-hidden="true"' in atributos
+        assert "so-leitor" in miolo  # o texto para leitor de tela continua
+    _, vazia = _linha(html, sem)
+    caixas = ENCAIXE.findall(vazia)
+    assert len(caixas) == 1  # a caixa vazia segura o x do título
+    assert "data-icone" not in caixas[0][1]
+    for glifo in "●◐○":
+        assert glifo not in _listbox(html)[1]
+
+
+def test_escala_do_encaixe_cresce() -> None:
+    """D161: do fraco ao bom o círculo enche (vazio, metade, com o visto), sem SVG novo."""
+    from jobot.painel.seguranca import TEMPLATES
+
+    macro = TEMPLATES.env.get_template("_encaixe.html").module.icone_encaixe  # type: ignore[attr-defined]
+    icones = []
+    for nivel in ("fraco", "medio", "bom"):
+        achado = re.search(r'data-icone="([^"]+)"', str(macro(nivel)))
+        assert achado, nivel
+        icones.append(achado.group(1))
+    assert icones == ["circle", "contrast", "circle-check"]
+
+
+@pytest.fixture
+def fuso_menos_tres(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """TZ `<-03>3`: o dia mostrado é o local (E16); o fuso volta antes do último `tzset`."""
+    monkeypatch.setenv("TZ", "<-03>3")
+    time.tzset()
+    yield
+    monkeypatch.undo()
+    time.tzset()
+
+
+def _linha_da_vaga(html: str, vaga: int) -> str:
+    achou = re.search(rf'<a\b[^>]*\bid="vaga-{vaga}".*?</a>', html, re.S)
+    assert achou, f"sem linha da vaga {vaga}"
+    return unescape(re.sub(r"<[^>]+>", " ", achou.group(0)))
+
+
+@pytest.mark.parametrize(
+    ("idioma", "frase"), [("pt", "Candidatei desde 16/11"), ("en", "Applied since 11/16")]
+)
+def test_candidatei_mostra_desde(
+    painel: Painel, fuso_menos_tres: None, idioma: str, frase: str
+) -> None:
+    """T287: 01:30 UTC de 17/11 é 22:30 de 16/11 no fuso local (E16)."""
+    vaga = painel.semear_mais(status="candidatei", status_em="2026-11-17T01:30:00+00:00")
+    html = painel.get("/vagas?aba=candidatei", headers={"Accept-Language": idioma}).text
+    assert frase in " ".join(_linha_da_vaga(html, vaga).split())
+
+
+def test_status_em_nulo_sem_desde(painel: Painel, fuso_menos_tres: None) -> None:
+    antiga = painel.semear_mais(status="candidatei", status_em=None)
+    nova = painel.semear_mais(status="candidatei", status_em="2026-11-17T01:30:00+00:00")
+    html = painel.get("/vagas?aba=candidatei").text
+    assert "desde" in _linha_da_vaga(html, nova)  # controle
+    texto = " ".join(_linha_da_vaga(html, antiga).split())
+    assert "desde" not in texto and "Candidatei" in texto
+
+
+def test_outras_abas_sem_desde(painel: Painel, fuso_menos_tres: None) -> None:
+    """Guarda: só a aba Candidatei tem o "desde"."""
+    vaga = painel.semear_mais(status="candidatei", status_em="2026-11-17T01:30:00+00:00")
+    html = painel.get("/vagas?aba=todas").text
+    assert vaga in _cartoes(html)
+    assert "desde" not in _linha_da_vaga(html, vaga)

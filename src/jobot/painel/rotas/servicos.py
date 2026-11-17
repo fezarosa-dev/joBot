@@ -17,7 +17,8 @@ from fastapi.responses import RedirectResponse, Response
 from starlette.concurrency import run_in_threadpool
 
 from jobot.banco.cadastros import gravar_config, ler_config
-from jobot.banco.captcha import TETO_DIA
+from jobot.banco.captcha import NOME_NO_COFRE, TETO_DIA
+from jobot.navegador import limites
 from jobot.nucleo.captcha import ErroCaptcha, Falha, mascarar, saldo, validar_chave
 from jobot.painel.ambiente import cofre_do_painel
 from jobot.painel.cliente import cliente_do_painel
@@ -28,8 +29,6 @@ from jobot.painel.seguranca import Con, idioma_do_pedido, renderizar
 router = APIRouter(prefix="/configuracoes/servicos/captcha")
 _LOG = logging.getLogger(__name__)
 
-NOME = "2captcha"
-PRAZO_COFRE_S = 15.0
 PRAZO_TESTE_S = 30.0
 _CARTAO = "configuracoes/_cartao_captcha.html"
 _RESULTADO = "configuracoes/_resultado_captcha.html"
@@ -42,9 +41,9 @@ async def no_cofre[T](func: Callable[..., T], *args: object) -> T:
         # shortcut: a thread do keyring fica presa até o cofre responder; com o cofre travado,
         # salvar ou apagar espera até 2 prazos (gravar + reler) e a thread do gravar que estourou
         # ainda pode gravar depois; trocar quando houver API assíncrona do cofre
-        return await asyncio.wait_for(run_in_threadpool(func, *args), PRAZO_COFRE_S)
+        return await asyncio.wait_for(run_in_threadpool(func, *args), limites.PRAZO_COFRE_S)
     except TimeoutError as erro:
-        _LOG.warning("cofre: sem resposta em %s s (%s)", PRAZO_COFRE_S, type(erro).__name__)
+        _LOG.warning("cofre: sem resposta em %s s (%s)", limites.PRAZO_COFRE_S, type(erro).__name__)
         raise OSError("o cofre não respondeu a tempo") from None
 
 
@@ -53,7 +52,7 @@ async def contexto_captcha(request: Request, con: Con) -> dict[str, Any]:
     mascara = local = None
     falhou = request.query_params.get("erro") == "cofre"
     try:
-        achado = await no_cofre(cofre_do_painel(request).ler, NOME)
+        achado = await no_cofre(cofre_do_painel(request).ler, NOME_NO_COFRE)
     except OSError as erro:
         _LOG.warning("2captcha: não consegui ler a chave: %s", type(erro).__name__)
         falhou = True
@@ -100,7 +99,7 @@ async def apagar(request: Request, con: Con) -> Response:
     try:
         # shortcut: com o cofre travado espera até 2 prazos (apagar + reler o cartão) e a thread
         # que estourou ainda pode apagar depois; trocar quando o cofre tiver API assíncrona
-        await no_cofre(cofre_do_painel(request).apagar, NOME)
+        await no_cofre(cofre_do_painel(request).apagar, NOME_NO_COFRE)
     except OSError as erro:
         _LOG.warning("2captcha: não consegui apagar a chave: %s", type(erro).__name__)
         falhou = True
@@ -129,7 +128,7 @@ async def testar(request: Request) -> Response:
             return _resultado(request, False, "configuracoes.servicos.erro.formato")
     else:
         try:
-            achado = await no_cofre(cofre_do_painel(request).ler, NOME)
+            achado = await no_cofre(cofre_do_painel(request).ler, NOME_NO_COFRE)
         except OSError as erro:
             _LOG.warning("2captcha: não consegui ler a chave: %s", type(erro).__name__)
             return _resultado(request, False, "configuracoes.servicos.erro.cofre")

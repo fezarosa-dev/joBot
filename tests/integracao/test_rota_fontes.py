@@ -82,18 +82,25 @@ class Painel:
         return self.http.post(url, data={CAMPO_CSRF: self.token, **(dados or {})})
 
     def cartao(self, chave: str) -> str:
-        """O HTML do cartão da fonte: do `id` dela até o começo do cartão seguinte."""
+        """O HTML da linha da fonte: do `id` dela até o começo da linha seguinte."""
         resposta = self.get()
         assert resposta.status_code == 200
         pagina: str = resposta.text
         inicio = pagina.find(f'id="fonte-{chave}"')
         assert inicio >= 0, f"sem cartão para {chave}"
-        fim = pagina.find('<li class="cartao', inicio)
+        fim = pagina.find('<li class="linha-fonte', inicio)
         return pagina[inicio : fim if fim >= 0 else len(pagina)]
 
 
 def _texto(html: str) -> str:
     return re.sub(r"\s+", " ", unescape(re.sub(r"<[^>]+>", " ", html))).strip()
+
+
+def _caixa(html: str) -> str:
+    """A tag de abertura da caixa de marcar da fonte (a única da linha)."""
+    caixa: str
+    (caixa,) = re.findall(r'<input\b[^>]*type="checkbox"[^>]*>', html)
+    return caixa
 
 
 def _links_de_reporte(html: str) -> list[str]:
@@ -109,7 +116,7 @@ def test_lista_toda_fonte_cadastrada_sem_execucao(painel: Painel) -> None:
     resposta = painel.get()
     assert resposta.status_code == 200
     total = painel.sql("SELECT count(*) FROM fonte")[0][0]
-    assert len(re.findall(r'<li class="cartao[^"]*" id="fonte-', resposta.text)) == total
+    assert len(re.findall(r'<li class="linha-fonte[^"]*" id="fonte-', resposta.text)) == total
     assert "Ainda não rodou" in _texto(painel.cartao("remotive"))
 
 
@@ -541,8 +548,9 @@ def test_desligar_muda_para_desligada_e_ligar_volta(painel: Painel) -> None:
     assert painel.sql("SELECT ligada FROM fonte WHERE chave='remotive'") == [(0,)]
     cartao = _texto(painel.cartao("remotive"))
     assert "Desligada" in cartao
-    assert "Ligar" in cartao
     assert "Próxima execução" not in cartao
+    assert 'type="checkbox"' in painel.cartao("remotive")
+    assert "checked" not in _caixa(painel.cartao("remotive"))
 
     assert painel.post("/fontes/remotive/ligar").status_code == 303
     assert painel.sql("SELECT ligada FROM fonte WHERE chave='remotive'") == [(1,)]
@@ -552,6 +560,30 @@ def test_desligar_muda_para_desligada_e_ligar_volta(painel: Painel) -> None:
 def test_ligar_e_desligar_fonte_inexistente_404(painel: Painel) -> None:
     assert painel.post("/fontes/nao_existe/ligar").status_code == 404
     assert painel.post("/fontes/nao_existe/desligar").status_code == 404
+
+
+def test_cartao_de_site_com_login_tem_nome_e_link_sem_caixa_de_marcar(painel: Painel) -> None:
+    linkedin = painel.cartao("linkedin_logado")
+    assert '<h2 class="cartao-titulo" id="fonte-titulo-linkedin_logado">LinkedIn</h2>' in linkedin
+    assert 'action="/fontes/linkedin_logado/' not in linkedin
+    assert 'type="checkbox"' not in linkedin
+    link = re.findall(r'<a [^>]*href="/configuracoes/contas"[^>]*>([^<]*)</a>', linkedin)
+    assert link == ["Ligue e desligue em Configurações › Contas"]
+    # controle: a fonte pública tem a caixa de marcar e não o link
+    remotive = painel.cartao("remotive")
+    assert 'action="/fontes/remotive/desligar"' in remotive
+    assert "/configuracoes/contas" not in remotive
+
+
+@pytest.mark.parametrize("acao", ["ligar", "desligar"])
+def test_ligar_e_desligar_site_com_login_da_422_e_nao_grava(painel: Painel, acao: str) -> None:
+    antes = painel.sql("SELECT ligada FROM fonte WHERE chave = 'linkedin_logado'")
+    assert antes == [(0,)]
+    assert painel.post(f"/fontes/linkedin_logado/{acao}").status_code == 422
+    assert painel.sql("SELECT ligada FROM fonte WHERE chave = 'linkedin_logado'") == antes
+    painel.sql("UPDATE fonte SET ligada = 1 WHERE chave = 'linkedin_logado'")
+    assert painel.post(f"/fontes/linkedin_logado/{acao}").status_code == 422
+    assert painel.sql("SELECT ligada FROM fonte WHERE chave = 'linkedin_logado'") == [(1,)]
 
 
 def test_ligar_sem_token_csrf_403(painel: Painel) -> None:
@@ -707,3 +739,96 @@ def test_cartao_ok_nao_mostra_o_motivo_de_um_escopo_no_limite(painel: Painel) ->
     assert 'class="selo selo-ok"' in cartao.split("<details")[0]
     assert '<p class="motivo">' not in cartao  # o motivo do escopo fica na lista de escopos
     assert "intervalo mínimo" in _texto(cartao)
+
+
+def test_fonte_liga_por_caixa_de_marcar(painel: Painel) -> None:
+    """T261: cada fonte pública tem um `input type="checkbox"` com o rótulo ligado por `for`, no
+    form que já existia (liga ao mudar; o botão do `<noscript>` cobre quem não tem JavaScript)."""
+    painel.sql("UPDATE fonte SET ligada = 0 WHERE chave = 'remotive'")
+    html = painel.get().text
+    chaves = re.findall(r'<li class="linha-fonte[^"]*" id="fonte-([^"]+)"', html)
+    publicas = [c for c in chaves if f'action="/fontes/{c}/' in painel.cartao(c)]
+    assert len(publicas) >= 2
+    assert "linkedin_logado" in chaves and "linkedin_logado" not in publicas
+    for chave in publicas:
+        cartao = painel.cartao(chave)
+        caixa = _caixa(cartao)
+        id_ = re.search(r'\bid="([^"]+)"', caixa)
+        assert id_, chave
+        rotulo = re.search(rf'<label[^>]*\bfor="{id_.group(1)}"[^>]*>(.*?)</label>', cartao, re.S)
+        assert rotulo and _texto(rotulo.group(1)) == "Ligada", chave
+        ligada = painel.sql("SELECT ligada FROM fonte WHERE chave = ?", chave) == [(1,)]
+        assert bool(re.search(r"\bchecked\b", caixa)) is ligada, chave
+        acao = "desligar" if ligada else "ligar"
+        assert re.search(
+            rf'<form[^>]*action="/fontes/{chave}/{acao}"[^>]*data-envia-ao-mudar', cartao
+        )
+        assert re.search(r"<noscript>\s*<button[^>]*type=\"submit\"", cartao), chave
+    assert not re.search(
+        r"<button[^>]*>\s*(Ligar|Desligar)\s*</button>",
+        re.sub(r"<noscript>.*?</noscript>", "", html, flags=re.S),
+    )
+
+
+def test_caixa_de_marcar_tem_o_nome_da_fonte_no_nome_acessivel(painel: Painel) -> None:
+    """T261: o nome acessível da caixa junta o título da fonte e o rótulo "Ligada"
+    (`aria-labelledby`, ids únicos por fonte); só "Ligada" seria igual em toda caixa da página."""
+    html = painel.get().text
+    chaves = re.findall(r'<li class="linha-fonte[^"]*" id="fonte-([^"]+)"', html)
+    publicas = [c for c in chaves if f'action="/fontes/{c}/' in painel.cartao(c)]
+    assert len(publicas) >= 2
+    todos_ids = re.findall(r'\bid="([^"]+)"', html)
+    for chave in publicas:
+        cartao = painel.cartao(chave)
+        caixa = _caixa(cartao)
+        ref = re.search(r'\baria-labelledby="([^"]+)"', caixa)
+        assert ref, chave
+        ids = ref.group(1).split()
+        assert len(ids) == 2 and all(todos_ids.count(i) == 1 for i in ids), chave
+        titulo, rotulo = ids
+        assert re.search(rf'<h2[^>]*\bid="{titulo}"[^>]*>\s*[^<\s]', cartao), chave
+        assert rotulo != titulo
+        assert re.search(rf'<label[^>]*\bid="{rotulo}"[^>]*>\s*Ligada\s*</label>', cartao), chave
+
+
+@pytest.mark.parametrize(
+    ("estado", "icone"),
+    [
+        ("ok", "circle-check"),
+        ("sem_mudanca", "circle"),
+        ("parcial", "triangle-alert"),
+        ("falhou", "circle-x"),
+        ("no_limite", "clock"),
+        ("desligada", "eye-off"),
+        ("sem_execucao", "circle-dashed"),
+    ],
+)
+def test_estado_da_fonte_tem_icone_e_texto(painel: Painel, estado: str, icone: str) -> None:
+    """T261: o estado nunca vai só pelo ícone nem só pela cor: ícone decorativo e o texto dele."""
+    if estado == "desligada":
+        painel.sql("UPDATE fonte SET ligada = 0 WHERE chave = 'remotive'")
+    elif estado != "sem_execucao":
+        extras: dict[str, Any] = {"vagas": 1, "pedidos": 1}
+        motivo = {"parcial": "saude.excecao:KeyError", "falhou": "saude.formato_mudou"}.get(estado)
+        painel.execucao(AGORA - timedelta(hours=1), ("remotive", "", estado, motivo, extras))
+    cartao = painel.cartao("remotive")
+    texto = {
+        "ok": "Ok",
+        "sem_mudanca": "Sem mudança",
+        "parcial": "Parcial",
+        "falhou": "Falhou",
+        "no_limite": "No limite",
+        "desligada": "Desligada",
+        "sem_execucao": "Ainda não rodou",
+    }[estado]
+    inicio = cartao.index('<span class="selo selo-')
+    ate = cartao.index("</span>", cartao.index("</span>", inicio) + 1) + len("</span>")
+    bloco = cartao[inicio:ate]  # o selo, com o <span> do ícone dentro
+    assert f'data-icone="{icone}"' in bloco and 'aria-hidden="true"' in bloco, estado
+    assert _texto(bloco) == texto, estado
+
+
+def test_lista_de_fontes_e_agrupada_e_sem_cartao(painel: Painel) -> None:
+    html = painel.get().text
+    assert re.search(r'<ul class="lista-agrupada" id="lista-fontes">', html)
+    assert '<li class="cartao' not in html

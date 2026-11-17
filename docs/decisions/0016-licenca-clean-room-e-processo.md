@@ -27,7 +27,7 @@ O projeto vai ser público e quer poder reaproveitar ideias de outros projetos s
 - Commits em português, no formato `tipo(escopo): descrição`.
 - TDD em todo código: escrever o teste, ver falhar, implementar, ver passar.
 - Testes no GitHub rodam em todo PR, inclusive de fork e para a `dev` (ver [0018](0018-manutencao-pela-comunidade.md)).
-- O repositório fica no GitHub, público. A publicação de verdade (instaladores e versão para uso) é a fase 8.
+- O repositório fica no GitHub, público. A publicação de verdade (versão para uso) é a fase 9; os instaladores vêm antes, na fase 3.
 
 ### Idiomas e arquivos da comunidade
 

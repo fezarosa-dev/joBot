@@ -1,4 +1,4 @@
-<ul class="lista">
-  {%- include "vagas/lista.html" %}
-</ul>
-{% include "vagas/proximo.html" %}
+{#- "carregar mais" (T254): as linhas novas entram no fim do listbox (hx-swap="beforeend"); o
+    botão da página seguinte troca a caixa dele por hx-swap-oob -#}
+{%- include "vagas/lista.html" %}
+{%- with oob = true %}{% include "vagas/proximo.html" %}{% endwith %}

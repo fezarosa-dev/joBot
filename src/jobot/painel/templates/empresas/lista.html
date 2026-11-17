@@ -1,45 +1,31 @@
 {% extends "base.html" %}
+{% from "_menu_contexto.html" import menu_contexto with context %}
 {% block titulo %}{{ t("empresas.titulo") }} · joBot{% endblock %}
-{% block estilos %}<link rel="stylesheet" href="/static/css/vagas.css"><link rel="stylesheet" href="/static/css/buscas.css"><link rel="stylesheet" href="/static/css/empresas.css">{% endblock %}
+{% block estilos %}<link rel="stylesheet" href="/static/css/vagas.css"><link rel="stylesheet" href="/static/css/buscas.css"><link rel="stylesheet" href="/static/css/configuracoes.css"><link rel="stylesheet" href="/static/css/empresas.css">{% endblock %}
 {% block conteudo %}
 <h1 class="titulo-pagina">{{ t("empresas.titulo") }}</h1>
-{% if linhas %}
-<ul class="lista" id="lista-empresas">
-  {%- for r in linhas %}
-  {%- set e = r.e %}
-  <li class="cartao{% if not e.ativa %} cartao-oculta{% endif %}" id="empresa-{{ e.id }}">
-    <div class="cartao-cabeca">
-      <h2 class="cartao-titulo">{{ e.nome }}</h2>
-      {%- if not e.ativa %}
-      <span class="selo">{{ t("empresas.desligada") }}</span>
-      {%- endif %}
-      {%- if r.talentos %}
-      <span class="selo">{{ t("empresas.banco_de_talentos") }}</span>
-      {%- endif %}
-    </div>
-    <ul class="meta">
-      <li>{{ r.fonte_nome }} · {{ e.identificador }}</li>
-    </ul>
-    <div class="acoes">
-      <form method="post" action="/empresas/{{ e.id }}/{{ 'desligar' if e.ativa else 'ligar' }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <button type="submit" class="secundario">{{ t("empresas.desligar" if e.ativa else "empresas.ligar") }}</button>
-      </form>
-      <details class="apagar">
-        <summary>{{ t("empresas.remover") }}</summary>
-        <form method="post" action="/empresas/{{ e.id }}/remover">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-          <p>{{ t("empresas.remover_aviso", nome=e.nome) }}</p>
-          <button type="submit" class="secundario">{{ t("empresas.remover_confirmar") }}</button>
-        </form>
-      </details>
-    </div>
-  </li>
-  {%- endfor %}
-</ul>
-{% else %}
-<p class="vazio">{{ t("empresas.vazio") }}</p>
-{% endif %}
+<div id="corpo-empresas" data-lista-desfazer>
+{%- include "empresas/_corpo.html" %}
+</div>
+{#- o menu mora fora da lista, como o da Vagas: a troca da lista não o duplica nem o apaga -#}
+{% call menu_contexto("menu-empresa", t("empresas.menu.rotulo")) %}
+<div role="group">
+<form method="post" action="/empresas" data-modelo-acao="/empresas/{id}/ligar" data-requer="desligada">
+<input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<button type="submit" role="menuitem" tabindex="-1">{{ t("empresas.ligar") }}</button>
+</form>
+<form method="post" action="/empresas" data-modelo-acao="/empresas/{id}/desligar" data-requer="ligada">
+<input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<button type="submit" role="menuitem" tabindex="-1">{{ t("empresas.desligar") }}</button>
+</form>
+</div>
+<div role="group">
+<form method="post" action="/empresas" data-modelo-acao="/empresas/{id}/remover" hx-post="/empresas" hx-target="this" hx-swap="none">
+<input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<button type="submit" role="menuitem" tabindex="-1">{{ t("empresas.remover") }}</button>
+</form>
+</div>
+{% endcall %}
 <section class="painel nova" aria-labelledby="nova-titulo">
   <h2 id="nova-titulo">{{ t("empresas.nova") }}</h2>
   <form class="formulario" method="post" action="/empresas">

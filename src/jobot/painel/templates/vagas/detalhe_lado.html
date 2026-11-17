@@ -1,0 +1,12 @@
+{#- o detalhe ao lado (T255): existe sempre, mesmo com a lista vazia, porque é o alvo do htmx; vazio e
+    fechado sem `vaga` na URL. O clique na linha recebe só este trecho (a rota olha o HX-Target).
+    Coluna de 860px para cima, sobreposto (sem ser modal) de 640 a 860, e escondido abaixo de 640,
+    onde a linha leva à página da vaga. O popover="manual" deixa o app.js subir o sobreposto para a
+    camada de cima (T301); fechado ou em coluna, o dialog aberto segue visível no fluxo. -#}
+<dialog id="detalhe-vaga" class="detalhe-lado" popover="manual"{% if detalhe %} open data-vaga="{{ detalhe.vaga.id }}" aria-labelledby="lado-titulo"{% endif %}>
+  {%- if detalhe %}
+  {%- with vaga=detalhe.vaga, fontes=detalhe.fontes, candidatura=detalhe.candidatura, site=detalhe.site, faixa=detalhe.faixa, estagio=detalhe.estagio, retorno=detalhe.retorno, http=detalhe.http, exibicao=detalhe.exibicao, passos=detalhe.passos, email=detalhe.email, principal=detalhe.principal, n=2, prefixo="lado-" %}
+  {% include "detalhe/corpo.html" %}
+  {%- endwith %}
+  {%- endif %}
+</dialog>

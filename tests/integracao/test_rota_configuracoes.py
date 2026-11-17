@@ -7,12 +7,12 @@ import html as html_lib
 import json
 import re
 import sqlite3
-import time
-from collections.abc import Iterator, Sequence
+from collections.abc import Sequence
 from contextlib import closing
 from datetime import UTC, date, datetime
 from pathlib import Path
-from typing import Any
+from types import SimpleNamespace
+from typing import Any, cast
 
 import pytest
 from fastapi.testclient import TestClient
@@ -24,6 +24,8 @@ from apoio.semear import inserir_vaga, semear
 from jobot.banco import buscas, cadastros
 from jobot.banco.conexao import abrir
 from jobot.banco.migrar import migrar
+from jobot.nucleo.leitores.base import LeitorComLogin
+from jobot.painel.ambiente import GRUPOS
 from jobot.painel.app import criar_app
 from jobot.painel.seguranca import CAMPO_CSRF
 from jobot.sistema.segundo_plano_linux import Resultado
@@ -41,6 +43,7 @@ FUNCOES_URL = "/configuracoes/funcoes"
 PRIVACIDADE = "/configuracoes/privacidade"
 SEGUNDO_PLANO = "/configuracoes/segundo-plano"
 FONTES = "/configuracoes/fontes"
+GERAL = "/configuracoes/geral"
 SALVO = "?salvo=1"
 GRAVAR_CHAVE = (
     "INSERT INTO config (chave, valor) VALUES ('segundo_plano', ?) "
@@ -115,15 +118,6 @@ def painel(tmp_path: Path) -> Painel:
     return Painel(tmp_path)
 
 
-@pytest.fixture
-def fuso_sao_paulo(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    monkeypatch.setenv("TZ", "America/Sao_Paulo")
-    time.tzset()
-    yield
-    monkeypatch.undo()  # volta o TZ antes do tzset: sem isso o fuso vaza para os outros testes
-    time.tzset()
-
-
 def _interruptor(html: str, nome: str) -> tuple[bool, bool]:
     """(existe, marcado) do checkbox de nome `nome`."""
     for tag in re.findall(r"<input\b[^>]*>", html):
@@ -159,12 +153,30 @@ def _salvo(html: str) -> str | None:
 
 def test_raiz_leva_ao_primeiro_grupo(painel: Painel) -> None:
     resposta = painel.get("/configuracoes")
-    assert (resposta.status_code, resposta.headers.get("location")) == (303, FONTES)
+    assert (resposta.status_code, resposta.headers.get("location")) == (303, GERAL)
 
 
-@pytest.mark.parametrize(
-    "grupo", ["fontes", "funcoes", "segundo-plano", "aparencia", "privacidade"]
-)
+def test_geral_e_o_primeiro_grupo(painel: Painel) -> None:
+    assert GRUPOS[0] == "geral"
+    assert "aparencia" not in GRUPOS
+    abas = re.findall(
+        r'<a href="(/configuracoes/[^"]+)"', painel.get(GERAL).text.split("config-grupos")[1]
+    )
+    assert abas[0] == GERAL
+    assert "/configuracoes/aparencia" not in abas
+
+
+def test_aparencia_vai_para_geral(painel: Painel) -> None:
+    resposta = painel.get("/configuracoes/aparencia")
+    assert (resposta.status_code, resposta.headers.get("location")) == (303, GERAL)
+    assert painel.get(GERAL).status_code == 200
+    # só o GET muda de endereço: o POST do endereço velho não grava mais (D139.25)
+    resposta = painel.post("/configuracoes/aparencia", {"meu_pais": "PT", "moeda_exibicao": ""})
+    assert resposta.status_code == 404
+    assert painel.config("meu_pais") is None
+
+
+@pytest.mark.parametrize("grupo", ["geral", "fontes", "funcoes", "segundo-plano", "privacidade"])
 def test_cada_grupo_abre_com_a_aba_dele_marcada(painel: Painel, grupo: str) -> None:
     resposta = painel.get(f"/configuracoes/{grupo}")
     assert resposta.status_code == 200
@@ -174,9 +186,83 @@ def test_cada_grupo_abre_com_a_aba_dele_marcada(painel: Painel, grupo: str) -> N
     assert "/configuracoes/fontes" in re.findall(r'href="(/configuracoes/[^"]+)"', resposta.text)
 
 
+ICONE_DO_GRUPO = {
+    "geral": "sliders-horizontal",
+    "fontes": "rss",
+    "funcoes": "toggle-right",
+    "segundo-plano": "timer",
+    "privacidade": "shield",
+    "servicos": "plug",
+    "contas": "key-round",
+    "ferramentas": "globe",
+}
+ESTATICOS = Path(__file__).resolve().parents[2] / "src" / "jobot" / "painel" / "static"
+
+
+def _links_dos_grupos(html: str) -> list[str]:
+    """As tags `<a>` do `nav.config-grupos`, na ordem da tela."""
+    nav = re.search(r'<nav class="config-grupos".*?</nav>', html, re.S)
+    assert nav is not None
+    return re.findall(r"<a\b[^>]*>", nav.group(0))
+
+
+def test_icones_dos_grupos_cobrem_todos_os_grupos() -> None:
+    assert tuple(ICONE_DO_GRUPO) == GRUPOS
+
+
+@pytest.mark.parametrize("grupo", ["geral", "fontes", "funcoes", "segundo-plano", "privacidade"])
+def test_grupos_com_icone_e_aria_current(painel: Painel, grupo: str) -> None:
+    html = painel.get(f"/configuracoes/{grupo}").text
+    links = _links_dos_grupos(html)
+    assert len(links) >= 5
+    estilos = "".join(
+        (ESTATICOS / "css" / nome).read_text(encoding="utf-8")
+        for nome in ("casca.css", "configuracoes.css")
+    )
+    for link in links:
+        destino = re.search(r'href="/configuracoes/([^"]+)"', link)
+        assert destino is not None, link
+        icone = ICONE_DO_GRUPO[destino.group(1)]
+        assert f'data-icone="{icone}"' in link, link
+        assert (ESTATICOS / "icones" / f"{icone}.svg").is_file(), icone
+        assert f'[data-icone="{icone}"]' in estilos, icone  # o desenho tem a máscara no CSS
+        # só o grupo aberto leva aria-current
+        assert ('aria-current="page"' in link) == (destino.group(1) == grupo), link
+
+
 def test_grupo_desconhecido_da_404(painel: Painel) -> None:
     assert painel.get("/configuracoes/nada").status_code == 404
     assert painel.post("/configuracoes/nada").status_code == 404
+
+
+def test_grupo_sumido_vai_para_geral(painel: Painel) -> None:
+    """Grupo guardado pelo navegador que sem leitor não existe mais cai em Geral, não em 404."""
+    grupo = "ferramentas"
+    assert painel.get(f"/configuracoes/{grupo}").status_code == 200  # controle: com leitor existe
+    painel.app.state.leitores = ()
+    resposta = painel.get(f"/configuracoes/{grupo}")
+    assert (resposta.status_code, resposta.headers.get("location")) == (303, GERAL)
+    assert painel.get(GERAL).status_code == 200
+    # só o GET redireciona: gravar num grupo que não existe continua 404
+    assert painel.post(f"/configuracoes/{grupo}").status_code == 404
+
+
+def test_contas_visivel_sem_leitor(painel: Painel) -> None:
+    """E13: "Contas" fica nas abas sem leitor (o Gmail mora lá); "Ferramentas" some."""
+    painel.app.state.leitores = ()
+    resposta = painel.get("/configuracoes/contas")
+    assert resposta.status_code == 200
+    abas = re.findall(r'href="(/configuracoes/[^"]+)"', painel.get(GERAL).text)
+    assert "/configuracoes/contas" in abas
+    assert "/configuracoes/ferramentas" not in abas
+
+
+@pytest.mark.parametrize("leitores", [None, ()])
+def test_grupo_desconhecido_continua_404(painel: Painel, leitores: tuple[()] | None) -> None:
+    if leitores is not None:
+        painel.app.state.leitores = leitores
+    for grupo in ("nada", "sites-com-logins", "Geral"):
+        assert painel.get(f"/configuracoes/{grupo}").status_code == 404, grupo
 
 
 def test_post_sem_token_da_403(painel: Painel) -> None:
@@ -207,6 +293,15 @@ def test_cada_interruptor_grava_desligado_e_ligado(painel: Painel, chave: str) -
     assert _interruptor(painel.get(FUNCOES_URL).text, chave) == (True, True)
 
 
+def test_opcoes_por_caixa_de_marcar(painel: Painel) -> None:
+    """As opções de Funções são caixas de marcar: o interruptor fica para o que comanda um grupo."""
+    html = painel.get(FUNCOES_URL).text
+    caixas = [t for t in re.findall(r"<input\b[^>]*>", html) if 'type="checkbox"' in t]
+    assert [re.search(r'name="([^"]+)"', c).group(1) for c in caixas] == list(FUNCOES)  # type: ignore[union-attr]
+    for caixa in caixas:
+        assert "chave" not in caixa and "switch" not in caixa, caixa
+
+
 def test_destaques_n_grava_inteiro_e_volta_na_tela(painel: Painel) -> None:
     assert painel.funcoes(destaques_n="3").status_code == 303
     assert painel.config("destaques_n") == 3
@@ -226,12 +321,13 @@ def test_destaques_n_invalido_da_422_e_nao_grava_nada(painel: Painel, ruim: str)
 def test_destaques_desligados_tiram_a_aba_e_o_painel_abre_em_todas(painel: Painel) -> None:
     painel.sql("INSERT INTO config (chave, valor) VALUES ('primeira_execucao_concluida', 'true')")
     assert painel.get("/").headers.get("location") == "/vagas?aba=destaques"
-    assert 'id="aba-destaques"' in painel.get("/vagas?aba=destaques").text
+    # as abas moram na lateral (T254)
+    assert 'href="/vagas?aba=destaques' in painel.get("/vagas?aba=destaques").text
     painel.funcoes(destaques_ligados=False)
     assert painel.get("/").headers.get("location") == "/vagas?aba=todas"
     html = painel.get("/vagas?aba=destaques").text  # a aba pedida não existe mais: abre em Todas
-    assert 'id="aba-destaques"' not in html
-    assert re.search(r'id="aba-todas"[^>]*aria-current="page"', html)
+    assert 'href="/vagas?aba=destaques' not in html
+    assert re.search(r'href="/vagas\?aba=todas[^"]*" aria-current="page"', html)
 
 
 def test_regras_de_ocultar_desligadas_param_de_ocultar_e_ligadas_voltam(painel: Painel) -> None:
@@ -260,7 +356,9 @@ def test_conversao_desligada_tira_o_real_da_vaga_estrangeira_e_mantem_o_da_vaga_
     assert (painel.brl("usd"), painel.brl("brl")) == (28250, 8000)
 
 
-def test_conversao_com_cotacao_de_8_dias_nao_converte(painel: Painel, fuso_sao_paulo: None) -> None:
+def test_conversao_com_cotacao_de_8_dias_nao_converte(
+    painel: Painel, fuso_de_sao_paulo: None
+) -> None:
     # 13/11 12:00 UTC é 13/11 09:00 em São Paulo: a cotação vale 7 dias a partir do dia local
     painel.funcoes(conversao_moeda_ligada=False)
     painel.sql("UPDATE cotacao SET data = '2026-11-05'")  # 8 dias antes de 13/11
@@ -280,7 +378,7 @@ def test_conversao_com_cotacao_de_8_dias_nao_converte(painel: Painel, fuso_sao_p
     ],
 )
 def test_conversao_e_encaixe_usam_o_dia_local(
-    painel: Painel, fuso_sao_paulo: None, cotacao: str, converte: bool, oculta: str | None
+    painel: Painel, fuso_de_sao_paulo: None, cotacao: str, converte: bool, oculta: str | None
 ) -> None:
     # 14/11 02:00 UTC ainda é 13/11 23:00 em São Paulo; 06/11 está a 8 dias do dia UTC
     painel.app.state.relogio = RelogioFalso(datetime(2026, 11, 14, 2, 0, tzinfo=UTC))
@@ -330,7 +428,7 @@ def test_conversao_ligada_sem_mudar_a_chave_nao_mexe_nas_vagas(painel: Painel) -
 
 def test_fontes_mostra_uma_chave_por_fonte_agrupadas_por_leva(painel: Painel) -> None:
     html = painel.get(FONTES).text
-    cadastradas = [f.chave for f in _fontes(painel)]
+    cadastradas = [f.chave for f in _fontes(painel) if not f.com_login]  # sem o linkedin_logado
     assert len(cadastradas) >= 28
     marcas = re.findall(r'<input\b[^>]*name="fonte"[^>]*>', html)
     assert [_valor(m) for m in marcas] == cadastradas
@@ -339,27 +437,60 @@ def test_fontes_mostra_uma_chave_por_fonte_agrupadas_por_leva(painel: Painel) ->
     assert html.count('class="grupo-leva"') == 2
 
 
+_PUBLICA = " AND com_login = 0"  # o linkedin_logado do registro nasce desligado
+
+
 def _fontes(painel: Painel) -> list[Any]:
     with closing(abrir(painel.banco)) as con:
         return cadastros.fontes(con)
 
 
 def test_desligar_fonte_pela_configuracao_grava_ligada_zero(painel: Painel) -> None:
-    todas = [f.chave for f in _fontes(painel)]
+    todas = [f.chave for f in _fontes(painel) if not f.com_login]
     resposta = painel.post(FONTES, {"fonte": [c for c in todas if c != "remotive"]})
     assert (resposta.status_code, resposta.headers.get("location")) == (303, FONTES + SALVO)
-    assert painel.sql("SELECT chave FROM fonte WHERE ligada = 0") == [("remotive",)]
+    assert painel.sql(f"SELECT chave FROM fonte WHERE ligada = 0{_PUBLICA}") == [("remotive",)]
     marcadas = re.findall(r'<input\b[^>]*name="fonte"[^>]*>', painel.get(FONTES).text)
     desmarcada = [m for m in marcadas if 'value="remotive"' in m]
     assert len(desmarcada) == 1 and not re.search(r"\schecked\b", desmarcada[0])
     painel.post(FONTES, {"fonte": todas})
-    assert painel.sql("SELECT COUNT(*) FROM fonte WHERE ligada = 0") == [(0,)]
+    assert painel.sql(f"SELECT COUNT(*) FROM fonte WHERE ligada = 0{_PUBLICA}") == [(0,)]
 
 
 def test_fonte_desconhecida_da_422_e_nao_grava(painel: Painel) -> None:
     resposta = painel.post(FONTES, {"fonte": ["remotive", "nao_existe"]})
     assert resposta.status_code == 422
-    assert painel.sql("SELECT chave FROM fonte WHERE ligada = 0") == []
+    assert painel.sql(f"SELECT chave FROM fonte WHERE ligada = 0{_PUBLICA}") == []
+
+
+def _com_leitor(painel: Painel, ligado: bool = True) -> None:
+    leitor = cast(LeitorComLogin, SimpleNamespace(chave="x_logado"))
+    with closing(abrir(painel.banco)) as con:
+        cadastros.semear_leitores(con, [leitor])
+        cadastros.ligar_fonte(con, "x_logado", ligado)
+
+
+def test_aba_fontes_nao_lista_fonte_com_login(painel: Painel) -> None:
+    _com_leitor(painel)
+    marcas = re.findall(r'<input\b[^>]*name="fonte"[^>]*>', painel.get(FONTES).text)
+    valores = [_valor(m) for m in marcas]
+    assert len(valores) >= 28
+    assert "x_logado" not in valores
+
+
+def test_salvar_aba_fontes_nao_desliga_site_com_login(painel: Painel) -> None:
+    _com_leitor(painel)
+    publicas = [f.chave for f in _fontes(painel) if not f.com_login]
+    resposta = painel.post(FONTES, {"fonte": publicas})
+    assert resposta.status_code == 303
+    assert painel.sql("SELECT ligada FROM fonte WHERE chave = 'x_logado'") == [(1,)]
+
+
+def test_salvar_aba_fontes_com_chave_com_login_da_422(painel: Painel) -> None:
+    _com_leitor(painel, ligado=False)
+    resposta = painel.post(FONTES, {"fonte": ["remotive", "x_logado"]})
+    assert resposta.status_code == 422
+    assert painel.sql("SELECT ligada FROM fonte WHERE chave = 'x_logado'") == [(0,)]
 
 
 # ------------------------------------------------------------------ segundo plano
@@ -455,19 +586,16 @@ def test_segundo_plano_fora_do_linux_fica_desativado(painel: Painel) -> None:
 # ------------------------------------------------------------------ aparência
 
 
-def test_aparencia_usa_as_rotas_de_preferencia_e_volta_para_ela(painel: Painel) -> None:
-    html = painel.get("/configuracoes/aparencia").text
-    for qual in ("tema", "idioma"):  # os formulários da página, além dos da casca
+def test_geral_usa_as_rotas_de_preferencia_e_volta_para_ela(painel: Painel) -> None:
+    html = painel.get(GERAL).text
+    for qual in ("tema", "idioma", "texto"):  # tema e idioma saíram da barra (T251): só aqui
         assert re.search(rf'<form [^>]*action="/preferencias/{qual}"[^>]*data-preferencia', html)
-    assert html.count('name="voltar" value="/configuracoes/aparencia"') >= 4
-    resposta = painel.post(
-        "/preferencias/tema", {"tema": "escuro", "voltar": "/configuracoes/aparencia"}
-    )
-    assert resposta.headers.get("location") == "/configuracoes/aparencia"
+    assert html.count(f'name="voltar" value="{GERAL}"') >= 4  # os 3 da página e o Buscar agora
+    resposta = painel.post("/preferencias/tema", {"tema": "escuro", "voltar": GERAL})
+    assert resposta.headers.get("location") == GERAL
     assert painel.config("tema") == "escuro"
 
 
-APARENCIA = "/configuracoes/aparencia"
 HOJE = date(2026, 11, 13)
 
 
@@ -503,13 +631,13 @@ def _oculta_de(painel: Painel, busca: int, vaga: int) -> str | None:
     return None if linhas[0][0] is None else str(linhas[0][0])
 
 
-def test_aparencia_grava_meu_pais_e_moeda(painel: Painel) -> None:
-    resposta = painel.post(APARENCIA, {"meu_pais": "PT", "moeda_exibicao": "JPY"})
+def test_pais_e_moeda_gravam_por_geral(painel: Painel) -> None:
+    resposta = painel.post(GERAL, {"meu_pais": "PT", "moeda_exibicao": "JPY"})
     assert resposta.status_code == 303
-    assert resposta.headers.get("location") == APARENCIA + SALVO
+    assert resposta.headers.get("location") == GERAL + SALVO
     assert painel.config("meu_pais") == "PT"
     assert painel.config("moeda_exibicao") == "JPY"
-    painel.post(APARENCIA, {"meu_pais": "PT", "moeda_exibicao": ""})  # "" = a do país
+    painel.post(GERAL, {"meu_pais": "PT", "moeda_exibicao": ""})  # "" = a do país
     assert painel.config("moeda_exibicao") == ""
 
 
@@ -524,20 +652,20 @@ def test_aparencia_grava_meu_pais_e_moeda(painel: Painel) -> None:
         {"meu_pais": "PT"},
     ],
 )
-def test_aparencia_recusa_valor_de_fora(painel: Painel, dados: dict[str, str]) -> None:
+def test_geral_recusa_valor_de_fora(painel: Painel, dados: dict[str, str]) -> None:
     _gravar_pais(painel, "BR")
     antes = painel.sql("SELECT chave, valor FROM config ORDER BY chave")
-    resposta = painel.post(APARENCIA, dados)
+    resposta = painel.post(GERAL, dados)
     assert resposta.status_code == 422
     assert painel.sql("SELECT chave, valor FROM config ORDER BY chave") == antes
     # controle: o mesmo formulário com valores da lista é aceito
-    assert painel.post(APARENCIA, {"meu_pais": "PT", "moeda_exibicao": "EUR"}).status_code == 303
+    assert painel.post(GERAL, {"meu_pais": "PT", "moeda_exibicao": "EUR"}).status_code == 303
 
 
 def test_trocar_meu_pais_recalcula_o_encaixe(painel: Painel) -> None:
     busca, vaga = _vaga_restrita_a_pt(painel)
     assert _oculta_de(painel, busca, vaga) == "pais"  # controle: com BR a vaga de PT fica oculta
-    painel.post(APARENCIA, {"meu_pais": "PT", "moeda_exibicao": ""})
+    painel.post(GERAL, {"meu_pais": "PT", "moeda_exibicao": ""})
     assert _oculta_de(painel, busca, vaga) is None
 
 
@@ -550,10 +678,10 @@ def test_trocar_so_a_moeda_nao_recalcula(painel: Painel, monkeypatch: pytest.Mon
         return 0
 
     monkeypatch.setattr("jobot.painel.rotas.configuracoes.buscas.recalcular_encaixe", conta)
-    painel.post(APARENCIA, {"meu_pais": "PT", "moeda_exibicao": "JPY"})
+    painel.post(GERAL, {"meu_pais": "PT", "moeda_exibicao": "JPY"})
     assert chamadas == []
     assert painel.config("moeda_exibicao") == "JPY"
-    painel.post(APARENCIA, {"meu_pais": "DE", "moeda_exibicao": "JPY"})  # controle: país muda
+    painel.post(GERAL, {"meu_pais": "DE", "moeda_exibicao": "JPY"})  # controle: país muda
     assert len(chamadas) == 1
 
 
@@ -569,10 +697,10 @@ def test_recalculo_que_falha_ao_trocar_pais_nao_grava_a_chave(
     with monkeypatch.context() as m:
         m.setattr("jobot.painel.rotas.configuracoes.buscas.recalcular_encaixe", quebra)
         with pytest.raises(sqlite3.OperationalError):
-            painel.post(APARENCIA, {"meu_pais": "PT", "moeda_exibicao": ""})
+            painel.post(GERAL, {"meu_pais": "PT", "moeda_exibicao": ""})
     assert painel.config("meu_pais") == "BR"
     assert _oculta_de(painel, busca, vaga) == "pais"  # o encaixe segue como estava
-    painel.post(APARENCIA, {"meu_pais": "PT", "moeda_exibicao": ""})  # sem falha: grava e recalcula
+    painel.post(GERAL, {"meu_pais": "PT", "moeda_exibicao": ""})  # sem falha: grava e recalcula
     assert painel.config("meu_pais") == "PT"
     assert _oculta_de(painel, busca, vaga) is None
 
@@ -584,9 +712,9 @@ def _opcoes(html: str, nome: str) -> list[tuple[str, str]]:
     return [(valor, html_lib.unescape(texto).strip()) for valor, texto in achadas]
 
 
-def test_aparencia_mostra_os_paises_na_lingua_da_tela(painel: Painel) -> None:
+def test_geral_mostra_os_paises_na_lingua_da_tela(painel: Painel) -> None:
     _gravar_pais(painel, "PT")
-    pt = painel.get(APARENCIA).text
+    pt = painel.get(GERAL).text
     paises = _opcoes(pt, "meu_pais")
     assert len(paises) == 55
     assert ("DE", "Alemanha") in paises
@@ -596,7 +724,7 @@ def test_aparencia_mostra_os_paises_na_lingua_da_tela(painel: Painel) -> None:
     assert len(moedas) == 12
     assert moedas[0] == ("", "A do meu país (EUR)")
     assert [valor for valor, _ in moedas[1:]][:2] == ["BRL", "AUD"]
-    en = painel.get(APARENCIA, headers={"Accept-Language": "en"}).text
+    en = painel.get(GERAL, headers={"Accept-Language": "en"}).text
     assert ("DE", "Germany") in _opcoes(en, "meu_pais")
     assert _opcoes(en, "moeda_exibicao")[0] == ("", "My country's (EUR)")
 
@@ -690,7 +818,7 @@ def test_salvo_em_ingles(painel: Painel) -> None:
 
 @pytest.mark.parametrize(
     "url",
-    [FONTES, FUNCOES_URL, SEGUNDO_PLANO, PRIVACIDADE, APARENCIA, "/configuracoes/servicos"],
+    [FONTES, FUNCOES_URL, SEGUNDO_PLANO, PRIVACIDADE, GERAL, "/configuracoes/servicos"],
 )
 def test_salvo_estatico_some_sozinho(painel: Painel, url: str) -> None:
     com = LexborHTMLParser(painel.get(url + SALVO).text).css_first(

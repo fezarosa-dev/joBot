@@ -1,0 +1,160 @@
+/* Panorama (plano T288; desenho 5.1 a 5.3, E12): só os tokens da base.css e propriedades lógicas,
+   nenhuma cor nova e nenhuma animação. Os grupos são o .painel opaco da base.css, numa coluna.
+   A barra é um SVG de geometria (a CSP recusa o atributo style): o preenchimento é --destaque
+   sobre o trilho --trilho-progresso, o par do teste gráfico (3:1, contraste-grafico). */
+
+.panorama {
+  display: grid;
+  gap: 24px;
+  max-inline-size: 48rem;
+}
+
+.panorama h2,
+.panorama h3 {
+  margin-block: 0 12px;
+}
+
+.panorama .bloco {
+  margin-block-start: 12px;
+}
+
+.panorama .barra-lista {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.panorama .busca-contada,
+.panorama .descricao,
+.panorama .mais-comum,
+.panorama .nada {
+  margin-block: 0 12px;
+  color: var(--texto-2);
+}
+
+/* Hoje: cinco números grandes, o rótulo embaixo */
+.numeros {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.numeros a {
+  display: grid;
+  padding-block: 4px;
+  color: var(--texto);
+  text-decoration: none;
+}
+
+.numeros .numero {
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+.numeros .rotulo {
+  color: var(--texto-2);
+}
+
+.numeros a:hover .rotulo {
+  text-decoration: underline;
+}
+
+.passos,
+.fecham,
+.perguntas,
+.barras,
+.linhas-busca {
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.passos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+}
+
+.passos .numero,
+.barras .numero {
+  font-variant-numeric: tabular-nums;
+}
+
+.fecham li,
+.linhas-busca li,
+.perguntas li + li {
+  margin-block-start: 8px;
+}
+
+.fecham .empresa,
+.fecham .prazo {
+  color: var(--texto-2);
+}
+
+/* Para responder: a pergunta da faixa (T285), sem o fundo da faixa */
+.perguntas .pergunta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.perguntas .pergunta-texto {
+  flex: 1 1 16rem;
+}
+
+.perguntas .pergunta p,
+.perguntas .pergunta form {
+  margin: 0;
+}
+
+.perguntas .pergunta-quando {
+  color: var(--texto-2);
+}
+
+/* O que aparece: rótulo, barra e número numa linha; a linha toda é o link */
+.barras a {
+  display: grid;
+  grid-template-columns: minmax(6rem, 10rem) 1fr 3rem;
+  align-items: center;
+  gap: 12px;
+  padding-block: 4px;
+  color: var(--texto);
+  text-decoration: none;
+}
+
+.barras .numero {
+  text-align: end;
+}
+
+.barras a:hover .rotulo {
+  text-decoration: underline;
+}
+
+.barra {
+  display: block;
+  inline-size: 100%;
+  block-size: 8px;
+  border-radius: 4px;
+  background-color: var(--trilho-progresso);
+}
+
+.barra rect {
+  fill: var(--destaque);
+}
+
+@media (forced-colors: active) {
+  .barra {
+    outline: 1px solid CanvasText;
+  }
+
+  .barra rect {
+    fill: CanvasText;
+  }
+}
