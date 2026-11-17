@@ -405,7 +405,9 @@ def test_apagar_busca_sem_js_vai_para_confirmar(painel: Painel) -> None:
     assert f'name="{CAMPO_CSRF}" value="{painel.token}"' in post
     assert re.search(r'<button[^>]*type="submit"[^>]*>\s*Apagar\s*</button>', post)
     assert re.search(r'<a\b[^>]*href="/buscas"[^>]*>\s*Cancelar\s*</a>', pagina)
-    sem_paleta = re.sub(r'<dialog\b[^>]*\bid="paleta".*?</dialog>', "", pagina, flags=re.S)
+    sem_paleta = re.sub(
+        r'<dialog\b[^>]*\bid="(?:paleta|alerta-encerrar)".*?</dialog>', "", pagina, flags=re.S
+    )
     assert "<dialog" not in sem_paleta and "autofocus" not in sem_paleta
 
 

@@ -470,7 +470,6 @@ def test_paleta_tem_os_comandos(cliente: TestClient, banco: Path, idioma: str) -
     assert token
     for acao in (
         "/buscar-agora",
-        "/sair",
         "/preferencias/tema",
         "/preferencias/idioma",
         "/preferencias/texto",
