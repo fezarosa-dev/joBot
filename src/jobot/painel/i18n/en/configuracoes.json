@@ -177,5 +177,22 @@
   "configuracoes.geral.versao.atual": "Installed version: {versao}",
   "configuracoes.geral.versao.ultima": "Latest known version: {versao}",
   "configuracoes.geral.versao.nao_conferida": "Latest known version: not checked yet. With the version notice on (Settings › Privacy), joBot checks once a day.",
-  "configuracoes.geral.versao.em_dia": "You have the newest version joBot knows about."
+  "configuracoes.geral.versao.em_dia": "You have the newest version joBot knows about.",
+  "configuracoes.grupo.perfil": "Profile",
+  "configuracoes.perfil.explicacao": "The skills you have. With AI on, matching compares each one with what the job asks for.",
+  "configuracoes.perfil.habilidades": "Your skills",
+  "configuracoes.perfil.habilidades.ajuda": "One per line. Case, accents and repeats don't count twice.",
+  "configuracoes.perfil.privacidade.desligada": "Your skills stay on your computer. AI is off: nothing leaves it.",
+  "configuracoes.perfil.privacidade.local": "Your skills stay on your computer, and so does the job text: matching uses the local model.",
+  "configuracoes.perfil.privacidade.fora": "Your skills stay on your computer; only the job text goes to {servico}.",
+  "configuracoes.perfil.servico.anthropic": "the Anthropic API",
+  "configuracoes.perfil.servico.openai": "OpenAI",
+  "configuracoes.perfil.servico.gemini": "Google Gemini",
+  "configuracoes.perfil.servico.compativel": "the OpenAI-compatible service",
+  "configuracoes.perfil.servico.outro": "an outside service",
+  "configuracoes.perfil.erro.grande": "Up to 200 skills, each up to 100 characters.",
+  "configuracoes.perfil.apagar": "Delete profile",
+  "configuracoes.perfil.apagar.pergunta": "Delete the profile?",
+  "configuracoes.perfil.apagar.explicacao": "Your skills are removed from joBot. What AI already read from the jobs stays.",
+  "configuracoes.perfil.apagado": "Profile deleted."
 }

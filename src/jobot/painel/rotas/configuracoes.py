@@ -3,7 +3,8 @@
 Os grupos em `/configuracoes/{grupo}`: geral (tema, idioma e tamanho do texto pelas rotas
 `/preferencias`; Meu país e moeda de exibição pelo próprio `/configuracoes/geral`; o
 `/configuracoes/aparencia` de antes só redireciona no GET), fontes (uma chave por fonte, por leva),
-funções (as chaves da 13.7 e o N dos destaques), segundo plano, privacidade (onde ficam
+funções (as chaves da 13.7 e o N dos destaques), perfil (as habilidades; o contexto, o salvar e o
+"Apagar perfil" moram em `perfil.py`, T413), segundo plano, privacidade (onde ficam
 os dados, a recomendação de disco cifrado e o aviso de versão), serviços (a chave do 2Captcha, que
 fica no cofre; o interruptor e o apagar moram em `servicos.py`, T184) e contas (T218 e T275: só
 existe com leitor registrado; o interruptor de cada site grava na hora, o cartão mostra o estado da
@@ -73,6 +74,7 @@ from jobot.painel.consultas import relogio_do_painel
 from jobot.painel.formatos import conferido_texto, opcoes_de_pais
 from jobot.painel.rotas.execucao import criar_tarefa
 from jobot.painel.rotas.gmail import contexto_gmail
+from jobot.painel.rotas.perfil import contexto_perfil, habilidades_do_texto, salvar_habilidades
 from jobot.painel.rotas.servicos import contexto_captcha, no_cofre
 from jobot.painel.saude_das_fontes import estado_dos_escopos, motivo_mais_grave
 from jobot.painel.seguranca import Con, idioma_do_pedido, renderizar
@@ -90,6 +92,7 @@ _ICONES = dict(
             "sliders-horizontal",
             "rss",
             "toggle-right",
+            "graduation-cap",
             "timer",
             "shield",
             "plug",
@@ -113,6 +116,7 @@ _PARCIAIS = {
     "geral": "geral",
     "fontes": "fontes",
     "funcoes": "funcoes",
+    "perfil": "perfil",
     "segundo-plano": "segundo_plano",
     "privacidade": "privacidade",
     "servicos": "servicos",
@@ -318,6 +322,7 @@ _CONTEXTOS: dict[str, Contexto] = {
     "geral": _ctx_geral,
     "fontes": _ctx_fontes,
     "funcoes": _ctx_funcoes,
+    "perfil": contexto_perfil,
     "segundo-plano": _ctx_segundo_plano,
     "privacidade": _ctx_privacidade,
     "servicos": contexto_captcha,
@@ -490,6 +495,25 @@ async def _gravar_servicos(request: Request, con: Con) -> Response:
     return _volta("servicos", salvo=True)
 
 
+async def _gravar_perfil(request: Request, con: Con) -> Response:
+    texto = (await request.form()).get("habilidades")
+    if not isinstance(texto, str):
+        raise HTTPException(422)
+    try:
+        lista = habilidades_do_texto(texto)
+    except ValueError:  # a página volta com o que foi digitado, e nada é gravado
+        return await _pagina(
+            request,
+            con,
+            "perfil",
+            422,
+            habilidades_texto=texto,
+            erro="configuracoes.perfil.erro.grande",
+        )
+    salvar_habilidades(request, con, lista)
+    return _volta("perfil", salvo=True)
+
+
 async def _gravar_sites_com_login(request: Request, con: Con) -> Response:
     form = await request.form()
     bruto = form.get("horarios")
@@ -508,6 +532,7 @@ _GRAVADORES: dict[str, Callable[[Request, Con], Awaitable[Response]]] = {
     "geral": _gravar_geral,
     "fontes": _gravar_fontes,
     "funcoes": _gravar_funcoes,
+    "perfil": _gravar_perfil,
     "segundo-plano": _gravar_segundo_plano,
     "privacidade": _gravar_privacidade,
     "servicos": _gravar_servicos,

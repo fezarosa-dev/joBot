@@ -3760,3 +3760,21 @@ Do item 2 (T305 h), aceito e documentado. Sem JavaScript, o detalhe sobreposto f
 **Como desfazer:** cada item diz o seu; o laço sai tirando a tarefa de `vida`.
 
 **Ver também:** D185 (itens 11 e 12), D188, D190, D194.4, D194.7, D196.7, desenho 5.4 da fase 4, T408, T411, T412, T415, T416.
+
+## D200. Aba Perfil mínima: escolhas da T413 (para confirmar)
+
+**Status:** decidido pela sessão em 2026-11-17, para confirmar. Nada aqui custa dinheiro nem manda dado para fora: as habilidades ficam no banco local.
+
+**Contexto:** a T413 faz a aba Perfil de Configurações (desenho 8 da fase 4, D185.13): as habilidades, uma por linha, gravadas normalizadas e sem repetidos, "Apagar perfil" com confirmação e a frase de privacidade. O desenho deixou abertos a posição da aba, o que é "normalizada", o teto, quem recalcula o encaixe e a frase quando a IA está desligada.
+
+1. **Posição e ícone.** `perfil` entra em `GRUPOS` logo depois de `funcoes` (a D185.20 só põe a IA "depois de Funções"; a T415 decide se a IA fica antes ou depois do Perfil). O ícone é o `graduation-cap` da Lucide que já está no painel (o da aba Programas), sem baixar ícone novo. Desfazer: mudar a ordem em `GRUPOS` e o ícone em `_ICONES`.
+2. **Normalizar.** Uma habilidade por linha (`splitlines`); caractere de controle vira espaço, invisível (categoria Cf, como o espaço de largura zero) sai, espaços viram um só e as pontas saem com o mesmo `sem_pontas` do encaixe (D197.1). Repetida pela forma `normalizar` (caixa, acento, espaços) sai, e fica a primeira grafia: o banco guarda "PostgreSQL" como a pessoa escreveu, não em minúsculas. Desfazer: `habilidades_do_texto` em `painel/rotas/perfil.py`.
+3. **Teto.** Até 200 habilidades com até 100 caracteres cada; passou, a página volta com 422, a mensagem e o texto digitado, e nada é gravado. Campo ausente no POST é 422 seco. Desfazer: `TETO_HABILIDADES` e `TETO_CARACTERES`.
+4. **Recalcular antes de gravar.** `recalcular_encaixe` ganhou `habilidades_perfil` (`None` lê o perfil do banco, como `pais_padrao`; `banco/buscas.py` fica fora da lista de arquivos do plano). A aba recalcula com a lista nova **antes** de gravar (padrões «Config»): se o recálculo falha, as habilidades e as notas ficam como estavam. Só recalcula quando o conjunto normalizado muda; mudar só a ordem ou a grafia grava sem recalcular. "Apagar perfil" recalcula com a lista vazia antes de apagar a linha. O recálculo passa por todas as buscas ativas na própria rota, como em Geral e Funções. Desfazer: gravar e chamar `recalcular_encaixe` sem o parâmetro.
+5. **Frase de privacidade.** Três frases, pelo estado da tarefa `encaixe` (`tarefa_ia`): desligada ("A IA está desligada: nada sai dele"), local ("o texto da vaga também [fica]: o encaixe usa o modelo local") e de fora ("só o texto da vaga vai para {servico}"). Os nomes dos serviços ficam em `configuracoes.perfil.servico.*` (Anthropic, OpenAI, Gemini, compatível); backend desconhecido vira "um serviço de fora", nunca erro. A frase também descreve o campo (`aria-describedby`). A T415 pode reaproveitar os nomes ou movê-los para a aba IA. Desfazer: `_privacidade` e as chaves.
+6. **Apagar perfil.** O botão só aparece com habilidades gravadas (lista vazia gravada não mostra). Abre o alerta (`_alerta.html`, POST comum, sem HTMX); sem JavaScript, um GET leva à página `confirmar.html` e só o botão dela apaga. Depois volta com `?apagado=1` e "Perfil apagado." (código fixo na URL, padrões-tela «Formulário»). O `app.js` não tira o `?apagado=` da URL como tira o `?salvo=`: recarregar repete a frase. Desfazer: mesmo molde de "Esquecer logins", com HTMX.
+7. **Campo.** `textarea` com a classe `campo-texto`: as regras de `configuracoes.css` do campo de texto valem para ele também (borda, foco, movimento reduzido), mais `resize: vertical`; `aria-invalid` no erro do teto. Campo vazio grava a lista vazia (a linha fica); só "Apagar perfil" apaga a linha.
+
+**Como desfazer:** cada item diz o seu; a aba sai tirando `perfil` de `GRUPOS` e o módulo `painel/rotas/perfil.py`.
+
+**Ver também:** D185 (itens 13 e 20), D188.8, D197.1, D197.6, desenho 8 da fase 4, T403, T413, T415.

@@ -1,0 +1,30 @@
+{#- Aba Perfil (T413; desenho 8 da fase 4): as habilidades, uma por linha, e "Apagar perfil" com o
+    alerta de confirmação (sem JavaScript, a página `confirmar.html`). A frase de privacidade diz
+    para onde vai o texto da vaga, pelo estado da tarefa `encaixe`. -#}
+{% from "_alerta.html" import alerta with context %}
+{% if apagado %}
+<p role="status" class="config-salvo" aria-live="polite"><span data-some-sozinho>{{ t("configuracoes.perfil.apagado") }}</span></p>
+{% endif %}
+<p class="config-texto">{{ t("configuracoes.perfil.explicacao") }}</p>
+<p class="config-texto" id="perfil-privacidade">
+  {%- if privacidade.servico %}{{ t(privacidade.chave, servico=t(privacidade.servico)) }}{% else %}{{ t(privacidade.chave) }}{% endif -%}
+</p>
+<form method="post" action="/configuracoes/perfil" class="config-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <div class="campo">
+    <label for="campo-habilidades">{{ t("configuracoes.perfil.habilidades") }}</label>
+    <textarea class="campo-texto" id="campo-habilidades" name="habilidades" rows="8" autocomplete="off" spellcheck="false" aria-describedby="habilidades-ajuda perfil-privacidade"{% if erro %} aria-invalid="true"{% endif %}>{{ habilidades_texto }}</textarea>
+    <small id="habilidades-ajuda">{{ t("configuracoes.perfil.habilidades.ajuda") }}</small>
+  </div>
+  <div class="acoes">
+    <button type="submit" class="botao botao-primario">{{ t("configuracoes.salvar") }}</button>
+  </div>
+</form>
+{%- if tem_perfil %}
+<form method="get" action="/configuracoes/perfil/apagar/confirmar">
+  <div class="acoes">
+    <button type="submit" class="botao botao-secundario" data-alerta-abre="alerta-perfil">{{ t("configuracoes.perfil.apagar") }}</button>
+  </div>
+</form>
+{{ alerta("alerta-perfil", t("configuracoes.perfil.apagar.pergunta"), t("configuracoes.perfil.apagar.explicacao"), t("comum.apagar"), "/configuracoes/perfil/apagar") }}
+{%- endif %}
