@@ -16,6 +16,8 @@ from jobot.banco import acoes
 from jobot.banco import migrar as modulo_migrar
 from jobot.banco.conexao import abrir
 from jobot.banco.leitura import (
+    ABAS,
+    POR_PAGINA,
     Filtros,
     Pagina,
     contar_abas,
@@ -209,6 +211,46 @@ def test_abas(con: sqlite3.Connection, ids: dict[str, int]) -> None:
         "UPDATE vaga SET status = 'nova', primeira_vista_em = ? WHERE id = ?", (velha, ids["nova"])
     )
     assert _lista(con, aba="novas", busca_id=b) == []
+
+
+@pytest.mark.parametrize("qual", ["escolhida", "nenhuma", "sem_encaixe"])
+def test_contar_abas_igual_a_lista_de_cada_aba(
+    con: sqlite3.Connection, ids: dict[str, int], qual: str
+) -> None:
+    """Cada aba conta o que a lista dela mostra, com a busca, sem busca e com uma sem encaixe."""
+    # candidaturas em três status (uma fechada) e mais uma salva
+    con.execute("UPDATE vaga SET status = 'candidatei' WHERE id = ?", (ids["usd"],))
+    con.execute(
+        "UPDATE vaga SET status = 'entrevista', fechada_em = ? WHERE id = ?",
+        (AGORA.isoformat(), ids["brl"]),
+    )
+    con.execute("UPDATE vaga SET status = 'recusada' WHERE id = ?", (ids["himalayas"],))
+    con.execute("UPDATE vaga SET status = 'salva' WHERE id = ?", (ids["prazo_3_dias"],))
+    outra = con.execute(
+        "INSERT INTO busca (nome, cargos, criada_em) VALUES ('Outra', '[]', ?)",
+        (AGORA.isoformat(),),
+    ).lastrowid
+    busca = {"escolhida": ids["busca"], "nenhuma": None, "sem_encaixe": outra}[qual]
+    esperado = {aba: len(_lista(con, aba=aba, busca_id=busca)) for aba in ABAS}
+    assert max(esperado.values()) < POR_PAGINA  # cada lista cabe numa página
+    assert len(set(esperado.values())) >= 3, esperado  # abas com números diferentes
+    assert contar_abas(con, busca, AGORA) == esperado
+
+
+def test_contar_abas_sem_vaga_da_zero(con: sqlite3.Connection) -> None:
+    """Sem vaga nenhuma, cada aba conta 0, não `None`."""
+    assert contar_abas(con, None, AGORA) == dict.fromkeys(ABAS, 0)
+
+
+def test_contar_abas_numa_varredura_so(con: sqlite3.Connection, ids: dict[str, int]) -> None:
+    """As 7 abas saem de um SELECT só sobre `vaga` (o valor de cada uma, no teste de cima)."""
+    vistos: list[str] = []
+    con.set_trace_callback(vistos.append)
+    contagens = contar_abas(con, ids["busca"], AGORA)
+    con.set_trace_callback(None)
+    assert contagens.keys() == ABAS.keys()
+    varreduras = [sql for sql in vistos if "FROM vaga v" in sql]
+    assert len(varreduras) == 1, varreduras
 
 
 def test_chips_contam_com_os_outros_filtros(con: sqlite3.Connection, ids: dict[str, int]) -> None:
