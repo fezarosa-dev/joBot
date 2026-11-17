@@ -180,8 +180,9 @@ jobs:
           docker run --rm --network none -v "$PWD/saida:/saida:ro" jobot-fumaca \
             sh -c 'dpkg -i /saida/*.deb && runuser -u pessoa -- jobot-app --verificar'
           appimage='cp /saida/*.AppImage /tmp/jobot.AppImage && chmod 755 /tmp/jobot.AppImage && cd /tmp \
-            && ./jobot.AppImage --appimage-extract AppRun >/dev/null \
-            && echo "o AppRun exporta: $(grep -ao "LD_LIBRARY_PATH=[^[:cntrl:]]*" squashfs-root/AppRun | head -n 1)" \
+            && ./jobot.AppImage --appimage-extract "AppRun*" >/dev/null && ls squashfs-root \
+            && ld=$(grep -aho "LD_LIBRARY_PATH=[^[:cntrl:]]*" squashfs-root/AppRun* | head -n 1) \
+            && test -n "$ld" && echo "o AppRun exporta: $ld" \
             && rm -rf squashfs-root && runuser -u pessoa -- ./jobot.AppImage --verificar'
           docker run --rm --network none -v "$PWD/saida:/saida:ro" -e APPIMAGE_EXTRACT_AND_RUN=1 jobot-fumaca sh -c "$appimage"
           docker run --rm --network none -v "$PWD/saida:/saida:ro" -e APPIMAGE_EXTRACT_AND_RUN=1 jobot-fumaca-nova sh -c "$appimage"
