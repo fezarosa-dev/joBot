@@ -2,8 +2,11 @@
 
 import hashlib
 import importlib.util
+import subprocess
 from pathlib import Path
 from types import ModuleType
+
+import pytest
 
 RAIZ = Path(__file__).resolve().parents[2]
 
@@ -40,3 +43,13 @@ def test_instalar_offline_exige_hash_e_nao_usa_indice(tmp_path: Path) -> None:
         "-r",
         str(restricoes),
     ]
+
+
+def test_passo_que_falha_da_prova_invalida(monkeypatch: pytest.MonkeyPatch) -> None:
+    provar = _provar()
+
+    def falhar(*_: object, **__: object) -> None:
+        raise subprocess.CalledProcessError(1, ["uv", "build"])
+
+    monkeypatch.setattr(provar, "_main", falhar)
+    assert provar.main() == 2
