@@ -1,12 +1,15 @@
 import errno
+import importlib.util
 import os
 import stat
 import subprocess
 import sys
 from pathlib import Path
+from types import ModuleType
 
 import pytest
 
+from jobot.sistema import instancia
 from jobot.sistema.instancia import (
     Trava,
     pid_do_servidor,
@@ -153,3 +156,64 @@ def test_pid_e_porta_vem_juntos_da_mesma_leitura(tmp_path: Path) -> None:
     assert pid_e_porta_do_servidor(tmp_path) == (None, None)
     trava.soltar()
     assert pid_e_porta_do_servidor(tmp_path) == (None, None)  # solta: dado velho
+
+
+class _MsvcrtFalso:
+    """`msvcrt.locking` de mentira: trava por (arquivo, posição), como o LockFile do Windows."""
+
+    LK_UNLCK = 0
+    LK_NBLCK = 2
+
+    def __init__(self) -> None:
+        self.presas: dict[tuple[int, int, int], int] = {}
+
+    def locking(self, fd: int, modo: int, nbytes: int) -> None:
+        st = os.fstat(fd)
+        chave = (st.st_dev, st.st_ino, os.lseek(fd, 0, os.SEEK_CUR))
+        assert nbytes == 1
+        if modo == self.LK_NBLCK:
+            if chave in self.presas:
+                raise OSError(errno.EACCES, "presa")
+            self.presas[chave] = fd
+        elif modo == self.LK_UNLCK:
+            if self.presas.get(chave) != fd:
+                raise OSError(errno.EACCES, "não é dono")
+            del self.presas[chave]
+        else:
+            raise AssertionError(f"modo inesperado {modo}")
+
+
+def _instancia_no_windows(monkeypatch: pytest.MonkeyPatch, msvcrt: object) -> ModuleType:
+    """Cópia nova de `instancia.py` importada como se fosse no Windows."""
+    monkeypatch.setattr(sys, "platform", "win32")
+    monkeypatch.setitem(sys.modules, "msvcrt", msvcrt)
+    spec = importlib.util.spec_from_file_location("_instancia_win", instancia.__file__)
+    assert spec is not None and spec.loader is not None
+    modulo = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(modulo)
+    return modulo
+
+
+def test_no_windows_trava_usa_msvcrt(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    msvcrt = _MsvcrtFalso()
+    win = _instancia_no_windows(monkeypatch, msvcrt)
+    primeira = win.Trava(tmp_path, 50000)
+    segunda = win.Trava(tmp_path, 50000)
+    assert primeira.pegar() is True
+    assert len(msvcrt.presas) == 1  # a trava é do msvcrt, não do flock
+    assert segunda.pegar() is False
+    assert (tmp_path / "jobot.lock").read_bytes() == f"{os.getpid()}\n50000\n".encode()
+    assert win.pid_e_porta_do_servidor(tmp_path) == (os.getpid(), 50000)
+    assert len(msvcrt.presas) == 1  # a leitura não deixou trava a mais
+    primeira.soltar()
+    assert msvcrt.presas == {}
+    assert win.pid_e_porta_do_servidor(tmp_path) == (None, None)  # solta: dado velho
+    assert segunda.pegar() is True
+    segunda.soltar()
+
+
+def test_no_windows_o_import_nao_pede_fcntl(monkeypatch: pytest.MonkeyPatch) -> None:
+    fcntl_falso = ModuleType("fcntl")
+    monkeypatch.setitem(sys.modules, "fcntl", fcntl_falso)
+    win = _instancia_no_windows(monkeypatch, _MsvcrtFalso())
+    assert fcntl_falso not in vars(win).values()
