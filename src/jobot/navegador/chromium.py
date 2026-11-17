@@ -6,6 +6,7 @@ Extrai com `tarfile` e `filter="data"` (guarda o `+x` e os symlinks relativos e 
 para fora) numa pasta temporária dentro do destino; só no fim as pastas vão para o lugar.
 """
 
+import contextlib
 import hashlib
 import json
 import logging
@@ -36,9 +37,8 @@ def pasta_do_playwright(ambiente: Mapping[str, str], plataforma: str) -> Path:
     if ambiente.get("PLAYWRIGHT_BROWSERS_PATH"):
         return Path(ambiente["PLAYWRIGHT_BROWSERS_PATH"])
     if plataforma == "win32":
-        return Path(ambiente.get("LOCALAPPDATA") or Path.home() / "AppData" / "Local") / (
-            "ms-playwright"
-        )
+        perfil = Path(ambiente.get("USERPROFILE") or Path.home())
+        return Path(ambiente.get("LOCALAPPDATA") or perfil / "AppData" / "Local") / "ms-playwright"
     casa = Path(ambiente["HOME"]) if ambiente.get("HOME") else Path.home()
     if plataforma == "darwin":
         return casa / "Library" / "Caches" / "ms-playwright"
@@ -54,13 +54,56 @@ def _sha256(arquivo: Path) -> str:
     return soma.hexdigest()
 
 
+def _apagar(caminho: Path) -> None:
+    if caminho.is_dir() and not caminho.is_symlink():
+        shutil.rmtree(caminho)
+    else:
+        caminho.unlink(missing_ok=True)
+
+
+def _limpar_sobras(destino: Path, manter: Path) -> None:
+    """O cancelamento mata o processo sem `finally`: as pastas e o download `.jobot-*` ficam."""
+    for sobra in destino.glob(f"{_PREFIXO}*"):
+        if sobra != manter:
+            with contextlib.suppress(OSError):
+                _apagar(sobra)
+
+
+def _trocar(novas: list[Path], destino: Path, velhas: Path) -> bool:
+    """Põe cada pasta nova no lugar guardando a velha em `velhas`; se uma falhar (no Windows,
+    o chrome aberto), desfaz tudo e a instalação velha fica inteira."""
+    feitas: list[tuple[Path, Path | None]] = []
+    try:
+        for pasta in novas:
+            alvo = destino / pasta.name
+            guardada = None
+            if alvo.exists() or alvo.is_symlink():
+                guardada = velhas / pasta.name
+                os.replace(alvo, guardada)
+            feitas.append((alvo, guardada))
+            os.replace(pasta, alvo)
+    except OSError:
+        _LOG.exception("não deu para pôr o Chromium no lugar; a instalação velha volta")
+        for alvo, guardada in reversed(feitas):
+            with contextlib.suppress(OSError):
+                if guardada is not None and (guardada.exists() or guardada.is_symlink()):
+                    if alvo.exists() or alvo.is_symlink():
+                        _apagar(alvo)
+                    os.replace(guardada, alvo)
+        return False
+    return True
+
+
 def extrair(arquivo: Path, sha256: str, destino: Path, progresso: Progresso) -> bool:
-    """Confere e extrai; qualquer erro deixa o destino como estava (sem nada pela metade)."""
+    """Confere e extrai; qualquer erro deixa o destino como estava (sem nada pela metade).
+    `OSError` de ler o arquivo ou criar o destino sobe para quem chamou."""
     if _sha256(arquivo) != sha256:
         _LOG.warning("o sha256 de %s não confere", arquivo.name)
         return False
     destino.mkdir(parents=True, exist_ok=True)
+    _limpar_sobras(destino, arquivo)
     temporaria = Path(tempfile.mkdtemp(prefix=_PREFIXO, dir=destino))
+    velhas = Path(tempfile.mkdtemp(prefix=_PREFIXO, dir=destino))
     try:
         try:
             with tarfile.open(arquivo, "r:gz") as tar:
@@ -71,16 +114,10 @@ def extrair(arquivo: Path, sha256: str, destino: Path, progresso: Progresso) -> 
         except tarfile.TarError, OSError:
             _LOG.exception("não deu para extrair %s", arquivo.name)
             return False
-        for pasta in temporaria.iterdir():
-            alvo = destino / pasta.name
-            if alvo.is_dir() and not alvo.is_symlink():
-                shutil.rmtree(alvo)  # instalação velha ou pela metade da mesma revisão
-            elif alvo.exists() or alvo.is_symlink():
-                alvo.unlink()
-            os.replace(pasta, alvo)
-        return True
+        return _trocar(list(temporaria.iterdir()), destino, velhas)
     finally:
         shutil.rmtree(temporaria, ignore_errors=True)
+        shutil.rmtree(velhas, ignore_errors=True)
 
 
 def _entrada_do_chromium(manifesto: Path) -> tuple[str, int, str] | None:
