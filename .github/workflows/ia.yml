@@ -1,0 +1,61 @@
+name: IA
+
+# Prova do modelo local de verdade (T410; desenho 12 da fase 4). Só é chamado pelo casca.yml
+# (workflow_dispatch com a entrada ia): gh workflow run casca.yml --ref lote/<nome> -f ia=true.
+# Só leitura e sem segredo; o GH_TOKEN é o token do próprio job, para o gh attestation verify
+# ler a atestação pública do llama-server.
+# Em cada sistema: confere a atestação SLSA do pacote do llama-server do manifesto (D193.3)
+# antes de o joBot rodar o binário, baixa o modelo que a memória escolhe (--modelo auto; no Linux
+# e no Windows dos runners, o 4B), prova o encaixe com o conjunto de ouro (scripts/provar_ia.py,
+# meta) e mede tokens/s e tempo por vaga (scripts/medir_modelo.py); depois troca para o 2B e
+# prova e mede de novo. Os números vão no resumo do job.
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  ia:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          enable-cache: true
+      - run: uv sync --locked
+      - name: pasta-de-dados
+        run: echo "JOBOT_DADOS=$RUNNER_TEMP/jobot-dados" >> "$GITHUB_ENV"
+      - name: atestacao
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          pacote="$RUNNER_TEMP/llama-server-pacote"
+          url=$(uv run python -c "import sys; from jobot.cli.ferramentas import ALVO, manifesto_local; sys.stdout.write(manifesto_local()['llama_server']['alvos'][ALVO]['url'])")
+          curl -fsSL --retry 3 -o "$pacote" "$url"
+          uv run python -c "import hashlib, sys; from jobot.cli.ferramentas import ALVO, manifesto_local; sys.exit(hashlib.sha256(open(sys.argv[1], 'rb').read()).hexdigest() != manifesto_local()['llama_server']['alvos'][ALVO]['sha256'])" "$pacote"
+          gh attestation verify "$pacote" --owner ggml-org --signer-workflow ggml-org/llama.cpp/.github/workflows/release-publish.yml
+      - name: baixar-auto
+        run: uv run jobot ferramentas baixar ia-local --modelo auto | grep -v '"etapa"'
+      - name: provar-auto
+        run: uv run python scripts/provar_ia.py --rotulo "${{ matrix.os }}"
+      - name: medir-auto
+        if: ${{ !cancelled() }}
+        run: uv run python scripts/medir_modelo.py --rotulo "${{ matrix.os }}"
+      - name: baixar-2b
+        if: ${{ !cancelled() }}
+        run: uv run jobot ferramentas baixar ia-local --modelo 2b | grep -v '"etapa"'
+      - name: provar-2b
+        if: ${{ !cancelled() }}
+        run: uv run python scripts/provar_ia.py --rotulo "${{ matrix.os }}"
+      - name: medir-2b
+        if: ${{ !cancelled() }}
+        run: uv run python scripts/medir_modelo.py --rotulo "${{ matrix.os }}"

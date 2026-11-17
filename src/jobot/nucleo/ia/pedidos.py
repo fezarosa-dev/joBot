@@ -59,13 +59,14 @@ def pedido_encaixe(texto: TextoVaga, backend: str, modelo: str) -> Pedido:
     if texto.cortados:
         usuario += _AVISO_CORTE.format(n=texto.cortados)
     lim = limites()
+    lugar = "local" if backend == "local" else "fora"
     return Pedido(
         tarefa="encaixe",
         modelo=modelo,
         mensagens=(Mensagem("system", SISTEMA_ENCAIXE), Mensagem("user", usuario)),
         esquema=SaidaEncaixe,
-        max_tokens=lim["tarefas"]["encaixe"]["max_tokens"],
-        prazo_s=lim["prazo_s"]["local" if backend == "local" else "fora"],
+        max_tokens=lim["tarefas"]["encaixe"]["max_tokens"][lugar],
+        prazo_s=lim["prazo_s"][lugar],
         versao=VERSAO["encaixe"],
         temperatura=0,
         seed=SEED,
