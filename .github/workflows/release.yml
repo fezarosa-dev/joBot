@@ -1,8 +1,8 @@
 name: Release
 
 # Publica a versão (desenho 8; D174). Na tag vN.N.N, o pacotes.yml monta e testa (fumaça sem
-# rede) os instaladores, os pacotes de atualização, os chromium-<alvo>.tar.gz, a wheel e o
-# restricoes.txt, e o job juntar dele põe tudo, o SHA256SUMS e as notas (a seção da versão no
+# rede) os instaladores, os pacotes de atualização, a wheel e o restricoes.txt (sem o navegador:
+# o joBot não redistribui o Chrome for Testing do Playwright, D183.24), e o job juntar dele põe tudo, o SHA256SUMS e as notas (a seção da versão no
 # CHANGELOG.md e no CHANGELOG.en.md) no artefato release. O job publicar só confere o
 # SHA256SUMS e cria a release (não rascunho, não prerelease, para virar a latest que o
 # versao.py lê) com esse artefato: o resto já passou pelo ensaio do casca.yml. À mão
