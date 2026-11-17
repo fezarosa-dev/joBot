@@ -22,7 +22,11 @@ pytestmark = pytest.mark.tela
 @pytest.fixture(autouse=True)
 def _sem_erro_no_console(page: Page) -> Iterator[None]:
     erros: list[str] = []  # violação do CSP aparece como erro no console
-    page.on("console", lambda m: erros.append(m.text) if m.type == "error" else None)
+    # o 422 do teto é a resposta esperada da página, não erro de script
+    page.on(
+        "console",
+        lambda m: erros.append(m.text) if m.type == "error" and "422" not in m.text else None,
+    )
     page.on("pageerror", lambda e: erros.append(str(e)))
     yield
     assert erros == []
