@@ -789,16 +789,30 @@ mod testes {
         curto.truncate(515);
         fs::write(&tar, curto).unwrap();
         assert!(matches!(tirar_do_tar(&tar, &uv), Err(Erro::Arquivo(_))));
+    }
+
+    #[test]
+    fn tar_sem_a_marca_ustar_recusa() {
+        let raiz = temporaria("tar-sem-marca");
+        let (tar, uv) = (raiz.join("uv.tar"), raiz.join("uv"));
         // tamanho certo, mas sem a marca ustar
         let mut sem_marca = tar_de_um("uv", b"uv falso");
         sem_marca[257..263].fill(0);
         fs::write(&tar, sem_marca).unwrap();
         assert!(matches!(tirar_do_tar(&tar, &uv), Err(Erro::Arquivo(_))));
+        assert!(!uv.exists());
+    }
+
+    #[test]
+    fn tar_com_symlink_recusa() {
+        let raiz = temporaria("tar-symlink");
+        let (tar, uv) = (raiz.join("uv.tar"), raiz.join("uv"));
         // ustar, mas um symlink em vez de arquivo
         let mut atalho = tar_de_um("uv", b"uv falso");
         atalho[156] = b'2';
         fs::write(&tar, atalho).unwrap();
         assert!(matches!(tirar_do_tar(&tar, &uv), Err(Erro::Arquivo(_))));
+        assert!(!uv.exists());
     }
 
     /// Recursos de mentira com o manifesto certo; devolve o sha256 do manifesto.

@@ -203,8 +203,11 @@ jobs:
           $venvs = @(Get-ChildItem (Join-Path $inst 'app\venvs') -Directory)
           if ($venvs.Count -ne 1) { throw "venvs: $($venvs.Count)" }
           $venvpy = Join-Path $venvs[0].FullName 'Scripts\python.exe'
-          & $venvpy -c $teste 2>$null
+          $bloqueado = @(& $venvpy -c $teste 2>&1 | ForEach-Object { "$_" })
           if ($LASTEXITCODE -eq 0) { throw 'o Python do venv saiu para a rede: as regras não bloqueiam' }
+          $bloqueado | Select-Object -Last 3
+          # WSAEACCES: a conexão foi recusada pela regra, não por outro motivo
+          if (-not ($bloqueado -match 'WinError 10013')) { throw 'o Python do venv falhou, mas não pelo firewall' }
           uv run --no-project --python 3.14 python -c $teste
           if ($LASTEXITCODE -ne 0) { throw 'o Python do runner, sem regra, não saiu: o controle não vale' }
           Write-Output 'controle: o Python do venv não sai, o do runner sai'

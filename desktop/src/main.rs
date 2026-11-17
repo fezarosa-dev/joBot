@@ -609,6 +609,10 @@ mod testes {
             .map(|(k, _)| k)
             .collect();
         assert_eq!(fora, ["PYTHONHOME", "PYTHONPATH"]);
+    }
+
+    #[test]
+    fn script_abre_o_chromium_completo_e_nao_o_headless_shell() {
         assert!(SCRIPT_CHROMIUM.contains("p.chromium.launch(channel=\"chromium\")"));
     }
 

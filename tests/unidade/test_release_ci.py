@@ -221,6 +221,7 @@ def test_fumaca_sem_rede_no_linux_no_windows_e_no_mac() -> None:
     assert texto.count("socket.create_connection") == 1
     controle = texto[texto.index("socket.create_connection") :]
     assert "& $venvpy -c $teste" in controle
+    assert "-match 'WinError 10013'" in controle
     assert "uv run --no-project --python 3.14 python -c $teste" in controle
     assert controle.index("& $venvpy") < controle.index("uv run --no-project")
     # troca pela tela normal: o desinstalador velho no lugar (_?=), como o instalador do Tauri
