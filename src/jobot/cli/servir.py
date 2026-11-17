@@ -244,11 +244,13 @@ def executar(args: argparse.Namespace) -> int:
         p = porta(os.environ)
         trava = Trava(dados, p)
         if not _pegar(trava):
-            print(
-                AVISO_CAPTURA if captura_em_andamento(dados) else "O joBot já está aberto.",
-                file=sys.stderr,
-            )
-            return 1
+            if captura_em_andamento(dados):
+                print(AVISO_CAPTURA, file=sys.stderr)
+                return 1  # a captura acaba logo: o launchd ou o systemd tenta de novo e assume
+            # 0 (D174 item 9): com o painel aberto, o KeepAlive do launchd e o
+            # Restart=on-failure do systemd não refazem o serve; ele volta no próximo login
+            print("O joBot já está aberto.", file=sys.stderr)
+            return 0
         try:
             app, config = montar(dados, p, env=os.environ)
             servidor = uvicorn.Server(config)
