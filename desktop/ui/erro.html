@@ -11,6 +11,8 @@
     color-scheme: light dark;
     --fundo: #f5f5f7; --superficie: #ffffff; --texto: #1d1d1f; --texto-2: #6e6e73;
     --destaque: #0071e3; --separador: #d2d2d7;
+    /* contraste: #ffffff sobre --botao #0071e3 = 4,70:1; fica igual no tema escuro */
+    --botao: #0071e3;
   }
   @media (prefers-color-scheme: dark) {
     :root {
@@ -26,9 +28,17 @@
   main { max-width: 640px; margin: 0 auto; padding: 56px 24px 32px; }
   h1 { font-size: 22px; line-height: 1.25; margin: 0 0 8px; }
   p { margin: 0 0 16px; color: var(--texto-2); }
+  /* janela sem moldura (Windows e Linux): a faixa do topo arrasta, os botões não */
+  .arrastar {
+    position: fixed; top: 0; left: 0; right: 0; height: 40px; -webkit-app-region: drag;
+  }
+  .acoes { display: flex; gap: 8px; flex-wrap: wrap; -webkit-app-region: no-drag; }
   button {
-    font: inherit; font-weight: 600; color: #ffffff; background: var(--destaque);
+    font: inherit; font-weight: 600; color: #ffffff; background: var(--botao);
     border: 0; border-radius: 8px; padding: 8px 16px; cursor: pointer;
+  }
+  button.secundario {
+    color: var(--texto); background: var(--superficie); border: 1px solid var(--separador);
   }
   button:focus-visible { outline: 3px solid var(--destaque); outline-offset: 2px; }
   details { margin-top: 24px; }
@@ -44,10 +54,16 @@
 </style>
 </head>
 <body>
+<div class="arrastar" data-tauri-drag-region></div>
 <main>
-  <h1 id="titulo" role="alert"></h1>
-  <p id="oque"></p>
-  <button type="button" id="tentar"></button>
+  <div role='alert'>
+    <h1 id="titulo"></h1>
+    <p id="oque"></p>
+  </div>
+  <div class="acoes">
+    <button type="button" id="tentar"></button>
+    <button type="button" id="fechar" class="secundario"></button>
+  </div>
   <details id="registro" open hidden>
     <summary id="registro-titulo"></summary>
     <pre id="log"></pre>
@@ -65,6 +81,7 @@
         subir: ["Não consegui abrir o joBot.", "O sistema respondeu: {detalhe}. Instale o joBot de novo pelo instalador."],
         janela: ["Seu sistema tem uma versão antiga do componente de janelas; o joBot abriu no navegador.", "Esta janela fecha sozinha."],
         tentar: "Tentar de novo",
+        fechar: "Fechar",
         registro: "Fim do registro (logs/jobot.log)"
       },
       en: {
@@ -76,6 +93,7 @@
         subir: ["Could not open joBot.", "The system said: {detalhe}. Install joBot again with the installer."],
         janela: ["Your system has an old version of the window component; joBot opened in the browser.", "This window closes by itself."],
         tentar: "Try again",
+        fechar: "Close",
         registro: "End of the log (logs/jobot.log)"
       }
     };
@@ -94,12 +112,16 @@
     tentar.hidden = motivo === "janela";
     // a casca lê este endereço (main.rs, aviso_local) e recomeça pela conferência da janela
     tentar.addEventListener("click", function () { location.href = "/__jobot/tentar"; });
+    var fechar = document.getElementById("fechar");
+    fechar.textContent = t.fechar;
+    // como o "tentar": a casca lê /__jobot/fechar e fecha a janela
+    fechar.addEventListener("click", function () { location.href = "/__jobot/fechar"; });
     if (log) {
       document.getElementById("registro-titulo").textContent = t.registro;
       document.getElementById("log").textContent = log;
       document.getElementById("registro").hidden = false;
     }
-    if (!tentar.hidden) tentar.focus();
+    (tentar.hidden ? fechar : tentar).focus();
   })();
 </script>
 </body>
