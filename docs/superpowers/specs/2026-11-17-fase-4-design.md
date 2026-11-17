@@ -163,7 +163,7 @@ desktop/                    Modelo local no grupo de IA do instalador
 4. **Cada vaga.** Pede ao backend, confere e grava `pede` em `habilidades_vaga` (uma linha por vaga). Depois chama `recalcular_encaixe(vaga_id=...)`. A chamada roda fora da transação; só a gravação abre a escrita.
 5. **Falhas.** Falha do backend (5.1) para a rodada e não marca a vaga. Falha da vaga grava `falha`, `falha_em`, `falha_chave` e soma `tentativas`; a vaga só volta com `chave` nova, até `max_tentativas` (2, proposta) por chave. Falha nunca apaga um `pede` anterior.
 6. **Pedido da pessoa primeiro.** Enquanto há teste ao ligar ou (0.6.0) preparo em curso, o laço espera entre uma vaga e outra (com `-np 1`, os dois brigariam pelo mesmo slot).
-7. **Teto por dia.** Num backend de fora, no máximo `max_por_dia_fora` (200, proposta) chamadas do laço por dia local, contadas pelas linhas de `habilidades_vaga` com `feito_em` ou `falha_em` de hoje naquele backend; a aba IA mostra "N de 200 hoje". O local não tem teto.
+7. **Teto por dia.** Num backend de fora, no máximo `max_por_dia_fora` (200, proposta) chamadas do laço por dia local, contadas uma a uma antes de cada pedido naquele backend, também as que falham (D198.10); a aba IA mostra "N de 200 hoje". O local não tem teto.
 8. O andamento da busca não muda. Nenhuma linha nova no painel de execução: o detalhe da vaga mostra o resultado e a aba IA mostra a contagem.
 
 ### 5.5 Encaixe com habilidades
@@ -172,7 +172,7 @@ desktop/                    Modelo local no grupo de IA do instalador
 - **Casamento no código, puro.** `tem` = itens de `pede` cuja forma normalizada (caixa, acento, espaços, pontuação das pontas) é igual à de alguma habilidade do perfil; `faltam` = `pede` menos `tem`; sem repetidos. A razão `len(tem) / len(pede)` fica entre 0 e 1 por construção e o código ainda limita a 1. A nota muda na hora quando a pessoa edita as habilidades, sem chamada nova.
 - `_habilidades`: sem linha ou `pede` vazio → `None`, neutro (a nota fica igual à de hoje). Senão pontos = peso × razão, arredondado como os outros. Peso **25** em `encaixe.json` (proposta).
 - `Encaixe` ganha `nivel_base` (o nível sem o critério), gravado em `encaixe.nivel_base` para a fila (5.4). As regras de ocultar não mudam (D185.11).
-- Motivos: `vagas.motivo.habilidades_tem` e `vagas.motivo.habilidades_faltam` (`{lista}`, até 5 nomes), nos dois catálogos; o detalhe mostra a lista inteira, diz que a lista veio da IA (backend e modelo) e avisa quando o texto foi cortado.
+- Motivos: `encaixe.habilidades_tem` e `encaixe.habilidades_faltam` (prefixo dos outros motivos, D197.4) (`{lista}`, até 5 nomes), nos dois catálogos; o detalhe mostra a lista inteira, diz que a lista veio da IA (backend e modelo) e avisa quando o texto foi cortado.
 - Sinônimos ("Postgres" e "PostgreSQL") ficam de fora na 0.5.0. Se a medida mostrar perda grande, uma tarefa curta e opcional só de sinônimos, com duas listas pequenas, sem o resto do perfil (D185.11).
 
 ### 5.6 Custo para quem usa

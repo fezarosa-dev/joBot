@@ -165,7 +165,9 @@ def test_descoberta_e_paginas_ligadas_na_agenda(
     }
 
     def falso(tipo: str) -> Callable[..., Awaitable[None]]:
-        async def executar(con: sqlite3.Connection, cliente: ClienteEducado, *_: object) -> None:
+        async def executar(
+            con: sqlite3.Connection, cliente: ClienteEducado, *_: object, **__: object
+        ) -> None:
             con.execute("SELECT 1")  # a conexão chega aberta
             chamadas[tipo].append((con, cliente))
 

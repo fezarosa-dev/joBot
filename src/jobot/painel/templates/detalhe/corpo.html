@@ -129,13 +129,28 @@
     <ul class="motivos">
       {%- for m in vaga.motivos %}
       {%- set texto = motivo(m) %}
-      {%- if texto %}
+      {#- T411: com a lista da IA abaixo, os motivos de habilidades (até 5 nomes) saem -#}
+      {%- if texto and not (habilidades and m.chave.startswith("encaixe.habilidades_")) %}
       <li>{{ texto }}</li>
       {%- endif %}
       {%- endfor %}
     </ul>
     {%- else %}
     <p class="vazio">{{ t("detalhe.encaixe.sem_nota") }}</p>
+    {%- endif %}
+    {%- if habilidades %}
+    <p class="motivo">{{ t("detalhe.habilidades.origem", backend=habilidades.backend, modelo=habilidades.modelo) }}</p>
+    <ul class="motivos">
+      {%- if habilidades.tem %}
+      <li>{{ t("encaixe.habilidades_tem", lista=habilidades.tem) }}</li>
+      {%- endif %}
+      {%- if habilidades.faltam %}
+      <li>{{ t("encaixe.habilidades_faltam", lista=habilidades.faltam) }}</li>
+      {%- endif %}
+    </ul>
+    {%- if habilidades.cortado %}
+    <p class="motivo">{{ t("detalhe.habilidades.cortado") }}</p>
+    {%- endif %}
     {%- endif %}
   </section>
   <section class="bloco faixa" aria-labelledby="{{ prefixo }}det-faixa">
