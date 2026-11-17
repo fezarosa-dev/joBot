@@ -3526,3 +3526,22 @@ Do item 2 (T305 h), aceito e documentado. Sem JavaScript, o detalhe sobreposto f
 **Como desfazer:** cada item diz o seu. Nada grava no banco nem chama serviço; nenhum código de produção importa `nucleo/ia` ainda.
 
 **Ver também:** D185 (itens 3, 4, 12, 19, 21 e 22), desenho 5 e 5.1 da fase 4, T401, T405, T406, T410.
+
+## D188. Migração 0012 e consultas da IA: escolhas da T403 (para confirmar)
+
+**Status:** escolhas da sessão de 2026-11-17 na T403, dentro da D185, para o dono confirmar. Nada aqui custa dinheiro nem muda o que a pessoa vê.
+
+**Contexto:** o plano da fase 4 (T403) e o desenho (5.4, 5.5 e 8) dizem as tabelas e colunas da migração `0012_ia.sql`, mas deixam abertos quem conta a falha de que backend, o valor de `encaixe.nivel_base` nas linhas que já existem, a forma de `ia_tarefas` e `ia_compativel` em `PADROES` e o que os CHECKs fecham.
+
+1. **Coluna `falha_backend` em `habilidades_vaga`, além da lista do plano.** A contagem do dia (desenho 5.4, item 7) é por backend e conta `feito_em` ou `falha_em` de hoje. A coluna `backend` diz de onde veio o `pede`; gravar nela o backend de uma falha trocaria a origem de um `pede` anterior (que o detalhe mostra, T411), e não gravar deixaria a falha fora do teto do dia. `falha_backend` guarda o backend da última falha, e `chamadas_do_dia` conta a linha no backend do `pede` (por `feito_em`) e no da falha (por `falha_em`). Desfazer: migração nova sem uso da coluna (a publicada não se tira).
+2. **`encaixe.nivel_base` nasce igual a `nivel` nas linhas que já existem** (`UPDATE encaixe SET nivel_base = nivel` na migração). Até a T411 não há critério de habilidades, então o nível sem ele é o próprio nível; assim a fila do laço (T412) vê as vagas de hoje sem esperar um recálculo. `encaixe` não tem gatilho. Linhas gravadas depois, até a T411 escrever a coluna, ficam com `NULL` e o recálculo da T411 as preenche. Desfazer: a T411 recalcula tudo na subida.
+3. **CHECKs.** `falha` só aceita os motivos da vaga (`recusa`, `formato`, `contexto`, desenho 5.1): falha do backend não marca a vaga. `tentativas >= 0`. `perfil.id = 1`. `nivel_base` com o mesmo CHECK de `nivel`. Sem CHECK em `backend` e `modelo`: a lista de backends cresce (manual na 0.6.0, sessões depois), e cada backend novo pediria migração. Sem gatilho contra `DELETE` em `habilidades_vaga` (nenhuma função apaga; um "refazer" futuro pode querer). Desfazer: migração nova.
+4. **`tentativas` por chave.** A falha soma 1 quando a `falha_chave` é a mesma da falha anterior e recomeça em 1 com chave nova. O acerto troca `chave`, `pede`, `backend`, `modelo`, `versao` e `feito_em` e não mexe nos campos da falha (nada é apagado); a fila da T412 compara a chave atual com `chave` e com `falha_chave`. `versao` é inteiro (a `VERSAO` da tarefa, T402). Desfazer: zerar a falha no acerto.
+5. **Padrões da config.** `ia_tarefas` = `{"encaixe": {"ligada": false, "backend": "", "modelo": ""}}` e `ia_compativel` = `{"endereco": ""}`. `banco.ia.tarefa_ia` lê a tarefa: ausente ou estranha (sem objeto, `ligada` diferente de `true`, backend ou modelo vazio ou que não é texto) é desligada; as tarefas da 0.6.0 nascem desligadas sem mudar o padrão. O `banco` não confere o nome do backend contra o `Literal` do `nucleo.ia` (a regra de camadas da T401 não deixa o `banco` importar `nucleo.ia`); quem liga confere. Desfazer: outro padrão em `PADROES`.
+6. **`ler_config` devolve uma cópia do padrão.** Com `ia_tarefas` (um dicionário dentro de outro) quem lê o padrão, muda e grava (os atalhos da T415) mudaria o padrão de todos no mesmo processo; `login_horarios` já tinha o mesmo risco. `copy.deepcopy` no ramo do padrão, com teste. Desfazer: tirar a cópia.
+7. **Dia local na contagem.** `chamadas_do_dia(con, backend, agora)` usa `agora.astimezone().date()` e compara por `julianday()` com a meia-noite local e a do dia seguinte, em ISO com fuso; vale com `feito_em` gravado em qualquer fuso. Sem índice: a tabela tem uma linha por vaga. Desfazer: índice em migração nova, se a medida pedir.
+8. **Perfil.** `perfil.habilidades` lê só os textos de uma lista JSON (valor estranho vira lista vazia); normalizar e tirar repetidos fica com a tela (T413). "Apagar perfil" apaga a linha e deixa `habilidades_vaga` (desenho 8). Desfazer: são funções.
+
+**Como desfazer:** cada item diz o seu. Até o lote entrar na `dev`, a migração ainda pode mudar; depois, só migração nova.
+
+**Ver também:** D185 (itens 2, 11, 12, 13 e 28), desenho da fase 4 (5.4, 5.5 e 8), plano da fase 4 (T403, T411, T412, T413, T415).
