@@ -87,8 +87,12 @@
     for (const secao of document.querySelectorAll("[data-passo]")) {
       secao.hidden = secao.dataset.passo !== nome;
     }
-    const visiveis = BOTOES[nome] || [];
-    for (const id of ["continuar", "instalar", "tentar", "voltar"]) $(id).hidden = !visiveis.includes(id);
+    const visiveis = [...(BOTOES[nome] || [])];
+    // sem rede, tentar de novo com o navegador falha sempre: a saída fica na própria tela (D183.24)
+    if (nome === "falha" && motivo === "navegador") visiveis.push("sem-navegador");
+    for (const id of ["continuar", "instalar", "tentar", "voltar", "sem-navegador"]) {
+      $(id).hidden = !visiveis.includes(id);
+    }
     document.querySelector(`[data-passo="${nome}"] [tabindex="-1"]`)?.focus();
   }
 
@@ -163,6 +167,11 @@
   $("voltar").addEventListener("click", () => mostrarPasso("boas-vindas"));
   $("instalar").addEventListener("click", instalar);
   $("tentar").addEventListener("click", instalar);
+  $("sem-navegador").addEventListener("click", () => {
+    $("ferramenta-navegador").checked = false;
+    desenharRodape();
+    instalar();
+  });
   $("ferramenta-navegador").addEventListener("change", desenharRodape);
   $("idioma").addEventListener("change", (evento) => carregarTextos(evento.target.value));
   $("fechar-janela").addEventListener("click", () => window.__jobotPedirFechar());
