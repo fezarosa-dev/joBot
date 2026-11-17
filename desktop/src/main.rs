@@ -608,7 +608,7 @@ mod testes {
             .filter(|(_, v)| v.is_none())
             .map(|(k, _)| k)
             .collect();
-        assert_eq!(fora, ["PYTHONHOME", "PYTHONPATH"]);
+        assert_eq!(fora, ["LD_LIBRARY_PATH", "PYTHONHOME", "PYTHONPATH"]);
     }
 
     #[test]
