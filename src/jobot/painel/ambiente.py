@@ -99,6 +99,7 @@ GRUPOS = (
     "fontes",
     "funcoes",
     "perfil",
+    "ia",
     "segundo-plano",
     "privacidade",
     "servicos",

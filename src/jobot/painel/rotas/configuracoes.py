@@ -4,7 +4,8 @@ Os grupos em `/configuracoes/{grupo}`: geral (tema, idioma e tamanho do texto pe
 `/preferencias`; Meu país e moeda de exibição pelo próprio `/configuracoes/geral`; o
 `/configuracoes/aparencia` de antes só redireciona no GET), fontes (uma chave por fonte, por leva),
 funções (as chaves da 13.7 e o N dos destaques), perfil (as habilidades; o contexto, o salvar e o
-"Apagar perfil" moram em `perfil.py`, T413), segundo plano, privacidade (onde ficam
+"Apagar perfil" moram em `perfil.py`, T413), IA (os atalhos e a tarefa por tarefa; o contexto e a
+gravação moram em `ia.py`, T415), segundo plano, privacidade (onde ficam
 os dados, a recomendação de disco cifrado e o aviso de versão), serviços (a chave do 2Captcha e as
 de IA, que ficam no cofre; o interruptor, os apagar e a gravação das de IA moram em `servicos.py`,
 T184 e T414) e contas (T218 e T275: só
@@ -75,6 +76,7 @@ from jobot.painel.consultas import relogio_do_painel
 from jobot.painel.formatos import conferido_texto, opcoes_de_pais
 from jobot.painel.rotas.execucao import criar_tarefa
 from jobot.painel.rotas.gmail import contexto_gmail
+from jobot.painel.rotas.ia import contexto_ia, gravar_ia
 from jobot.painel.rotas.perfil import contexto_perfil, habilidades_do_texto, salvar_habilidades
 from jobot.painel.rotas.servicos import (
     contexto_captcha,
@@ -99,6 +101,7 @@ _ICONES = dict(
             "rss",
             "toggle-right",
             "graduation-cap",
+            "sparkles",
             "timer",
             "shield",
             "plug",
@@ -123,6 +126,7 @@ _PARCIAIS = {
     "fontes": "fontes",
     "funcoes": "funcoes",
     "perfil": "perfil",
+    "ia": "ia",
     "segundo-plano": "segundo_plano",
     "privacidade": "privacidade",
     "servicos": "servicos",
@@ -329,6 +333,7 @@ _CONTEXTOS: dict[str, Contexto] = {
     "fontes": _ctx_fontes,
     "funcoes": _ctx_funcoes,
     "perfil": contexto_perfil,
+    "ia": contexto_ia,
     "segundo-plano": _ctx_segundo_plano,
     "privacidade": _ctx_privacidade,
     "servicos": contexto_servicos,
@@ -526,6 +531,14 @@ async def _gravar_perfil(request: Request, con: Con) -> Response:
     return _volta("perfil", salvo=True)
 
 
+async def _gravar_ia(request: Request, con: Con) -> Response:
+    feito = await gravar_ia(request, con, await request.form())
+    if isinstance(feito, str):
+        return RedirectResponse(feito, 303)
+    status, ctx = feito
+    return await _pagina(request, con, "ia", status, **ctx)
+
+
 async def _gravar_sites_com_login(request: Request, con: Con) -> Response:
     form = await request.form()
     bruto = form.get("horarios")
@@ -545,6 +558,7 @@ _GRAVADORES: dict[str, Callable[[Request, Con], Awaitable[Response]]] = {
     "fontes": _gravar_fontes,
     "funcoes": _gravar_funcoes,
     "perfil": _gravar_perfil,
+    "ia": _gravar_ia,
     "segundo-plano": _gravar_segundo_plano,
     "privacidade": _gravar_privacidade,
     "servicos": _gravar_servicos,

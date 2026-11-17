@@ -11,6 +11,7 @@ do núcleo, a chave do cofre e o `llama-server`) e o laço só recebe o backend 
 import argparse
 import asyncio
 import contextlib
+import functools
 import logging
 import os
 import sqlite3
@@ -226,6 +227,14 @@ class FabricaIA:
                 self.llama.encerrar()
 
 
+def modelo_local(dados: Path) -> str | None:
+    """O nome do modelo local baixado (a aba IA, T415), lido a cada chamada; sem ele, `None`."""
+    try:
+        return caminhos_local(dados)[2]
+    except Falha:
+        return None
+
+
 def _perdida(caminho: Path, agora: datetime) -> bool:
     """A última busca completa passou de 3 h (ou está no futuro): a primeira será a recuperação."""
     with closing(abrir(caminho)) as con:
@@ -249,6 +258,7 @@ def montar(
     travas: dict[str, asyncio.Lock] = {tipo: asyncio.Lock() for tipo in TIPOS}
     app.state.travas = travas
     app.state.relogio = relogio  # o "Buscar agora" usa o mesmo relógio da agenda
+    app.state.modelo_local = functools.partial(modelo_local, dados)  # a aba IA (T415)
     motivos: list[Motivo] = ["recuperacao"] if _perdida(caminho, relogio.agora()) else []
 
     @contextlib.asynccontextmanager

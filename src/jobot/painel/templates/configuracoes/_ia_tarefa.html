@@ -1,0 +1,47 @@
+{#- Uma tarefa da aba IA (T415): ligar, onde roda (só os backends configurados), o modelo, a frase
+    de privacidade, o aviso de serviço que sumiu, as marcas do serviço pago e os pedidos de hoje.
+    `v` é o digitado que voltou (erro ou confirmação do custo); senão, o gravado. -#}
+{%- set n = linha.nome -%}
+{%- set v = ia_digitado[n] if ia_digitado and n in ia_digitado else linha -%}
+<fieldset class="grupo-leva" aria-describedby="ia-{{ n }}-ajuda ia-{{ n }}-privacidade">
+  <legend>{{ t("configuracoes.ia.tarefa." ~ n) }}</legend>
+  <p class="config-texto" id="ia-{{ n }}-ajuda">{{ t("configuracoes.ia.tarefa." ~ n ~ ".ajuda") }}</p>
+  <div class="interruptor">
+    <label class="interruptor-linha interruptor-caixa">
+      <input type="checkbox" name="{{ n }}_ligada"{% if v.ligada %} checked{% endif %}{% if not ia_backends %} disabled{% endif %}>
+      <span class="interruptor-texto">{{ t("configuracoes.ia.ligada") }}</span>
+    </label>
+  </div>
+  {%- if ia_backends %}
+  <div class="campo">
+    <label for="ia-{{ n }}-backend">{{ t("configuracoes.ia.backend") }}</label>
+    <select id="ia-{{ n }}-backend" name="{{ n }}_backend"{% if ia_erro_campo == "backend" %} aria-invalid="true"{% endif %}>
+      {%- for b in ia_backends %}
+      <option value="{{ b }}"{% if b == v.backend %} selected{% endif %}>{{ t("configuracoes.ia.backend." ~ b) }}</option>
+      {%- endfor %}
+    </select>
+  </div>
+  <div class="campo">
+    <label for="ia-{{ n }}-modelo">{{ t("configuracoes.ia.modelo") }}</label>
+    <input type="text" class="campo-texto" id="ia-{{ n }}-modelo" name="{{ n }}_modelo" value="{{ v.modelo }}" list="ia-modelos-claude" maxlength="200" autocomplete="off" spellcheck="false" aria-describedby="ia-{{ n }}-modelo-ajuda"{% if ia_erro_campo == "modelo" %} aria-invalid="true"{% endif %}>
+    <small id="ia-{{ n }}-modelo-ajuda">{{ t("configuracoes.ia.modelo.ajuda") }}{% if ia_local %} {{ t("configuracoes.ia.modelo.local", modelo=ia_local) }}{% endif %}</small>
+  </div>
+  {%- else %}
+  <p class="config-texto">{{ t("configuracoes.ia.sem_backend") }}</p>
+  {%- endif %}
+  <p class="config-texto" id="ia-{{ n }}-privacidade">
+    {%- if linha.privacidade.servico %}{{ t(linha.privacidade.chave, servico=t(linha.privacidade.servico)) }}{% else %}{{ t(linha.privacidade.chave) }}{% endif -%}
+  </p>
+  {%- if linha.parada %}
+  <p class="config-texto">
+    {%- if linha.backend == "local" %}{{ t("configuracoes.ia.sem_servico.local") }}{% else %}{{ t("configuracoes.ia.sem_servico", servico=t(linha.privacidade.servico)) }}{% endif -%}
+  </p>
+  {%- endif %}
+  {%- if linha.backend in ia_pagos %}
+  <p class="config-texto">{{ t("configuracoes.ia.cobrado") }}</p>
+  <p class="config-texto">{{ t("configuracoes.ia.experimental") }}</p>
+  {%- endif %}
+  {%- if linha.hoje is not none %}
+  <p class="config-texto">{{ t("configuracoes.ia.hoje", n=linha.hoje, teto=ia_teto) }}</p>
+  {%- endif %}
+</fieldset>
