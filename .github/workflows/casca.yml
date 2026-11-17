@@ -10,7 +10,8 @@ name: Casca
 # clippy e os testes da casca, que passam pelos ramos #[cfg(windows)].
 # Só no workflow_dispatch: o job uv (prova do uv com hash, T322 e D173) nos três
 # sistemas e, com a entrada pacotes, o job pacotes: o mesmo pacotes.yml da release
-# (instaladores e fumaça sem rede, T339), sem publicar.
+# (instaladores e fumaça sem rede, T339), sem publicar; com a entrada ia, o job ia: o ia.yml
+# (o modelo local de verdade nos três sistemas, T410).
 on:
   pull_request:
   push:
@@ -19,6 +20,10 @@ on:
     inputs:
       pacotes:
         description: Gera os instaladores, sem publicar
+        type: boolean
+        default: false
+      ia:
+        description: Prova o modelo local de verdade (T410)
         type: boolean
         default: false
 
@@ -121,3 +126,7 @@ jobs:
   pacotes:
     if: github.event_name == 'workflow_dispatch' && inputs.pacotes
     uses: ./.github/workflows/pacotes.yml
+
+  ia:
+    if: github.event_name == 'workflow_dispatch' && inputs.ia
+    uses: ./.github/workflows/ia.yml
