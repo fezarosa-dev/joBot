@@ -2,6 +2,7 @@ import logging
 import logging.handlers
 import os
 import stat
+import sys
 from collections.abc import Mapping
 from pathlib import Path
 
@@ -11,10 +12,20 @@ _MODO_ARQUIVO = 0o600
 PASTA_NAVEGADOR = "navegador"
 
 
-def pasta_de_dados(env: Mapping[str, str]) -> Path:
-    """Linux: JOBOT_DADOS, depois $XDG_DATA_HOME/jobot, depois ~/.local/share/jobot."""
+def pasta_de_dados(env: Mapping[str, str], plataforma: str = sys.platform) -> Path:
+    """JOBOT_DADOS vence. Windows: %LOCALAPPDATA%\\joBot (ou ~\\AppData\\Local\\joBot).
+    Mac: ~/Library/Application Support/joBot. Linux: $XDG_DATA_HOME/jobot, depois
+    ~/.local/share/jobot."""
     if env.get("JOBOT_DADOS"):
         return Path(env["JOBOT_DADOS"])
+    if plataforma == "win32":
+        if env.get("LOCALAPPDATA"):
+            return Path(env["LOCALAPPDATA"]) / "joBot"
+        perfil = Path(env["USERPROFILE"]) if env.get("USERPROFILE") else Path.home()
+        return perfil / "AppData" / "Local" / "joBot"
+    if plataforma == "darwin":
+        casa = Path(env["HOME"]) if env.get("HOME") else Path.home()
+        return casa / "Library" / "Application Support" / "joBot"
     if env.get("XDG_DATA_HOME"):
         return Path(env["XDG_DATA_HOME"]) / "jobot"
     casa = Path(env["HOME"]) if env.get("HOME") else Path.home()

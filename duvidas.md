@@ -2293,7 +2293,7 @@ Escolha da sessão (dono fora): a opção (a), para confirmar. Consequência: co
 
 15. (sessão) Quais são as essenciais travadas: o joBot e o Python que ele usa. O navegador para sites com login é opcional: vem marcado, mas dá para desmarcar.
 16. (sessão) A tecnologia da tela do instalador foi respondida pelo dono em 2026-11-15: Tauri (D142). A assinatura de código (que tem custo) não foi escolhida. A pesquisa voltou; a sessão recomenda o resto, para o dono decidir:
-   - Tela: Tauri (escolhida, D142). A tela é feita em HTML e CSS, no mesmo visual do painel, num projeto à parte (Rust e HTML); gera o instalador NSIS no Windows, AppImage e .deb no Linux e .dmg no Mac. O joBot em si continua instalado pelo `uv tool install`, chamado pela tela. Alternativas: Inno Setup com a página de componentes (só Windows, visual limitado) ou pywebview com PyInstaller (tudo em Python, visual menos polido).
+   - Tela: Tauri (escolhida, D142). A tela é feita em HTML e CSS, no mesmo visual do painel, ~~num projeto à parte~~ (superado em 2026-11-17: pasta `desktop/` do mesmo repositório, D171.4 e ADR 0025) (Rust e HTML); gera o instalador NSIS no Windows, AppImage e .deb no Linux e .dmg no Mac. O joBot em si continua instalado pelo `uv tool install`, chamado pela tela. Alternativas: Inno Setup com a página de componentes (só Windows, visual limitado) ou pywebview com PyInstaller (tudo em Python, visual menos polido).
    - Assinatura no Windows: SignPath Foundation, grátis para projeto de código aberto (exige o build no GitHub Actions, MFA e uma página com a política de assinatura). Sem assinatura, o SmartScreen pede "Executar assim mesmo"; mesmo assinado, ele avisa até o programa ganhar reputação. O Azure Artifact Signing (US$ 9,99 por mês) não atende o Brasil. Um certificado OV custa de US$ 129 a 434 por ano.
    - Mac: sem a conta de desenvolvedor da Apple (US$ 99 por ano) e a notarização, a pessoa precisa liberar o programa em Ajustes, em "Abrir Mesmo Assim". Recomendação: documentar esse passo até o Mac entrar (decisão 10).
 17. (sessão) Sem PR da `dev` para a `main` até a 0.3.0 (já na D134.6).
@@ -3125,7 +3125,7 @@ Do item 2 (T305 h), aceito e documentado. Sem JavaScript, o detalhe sobreposto f
 
 **Como desfazer:** cada item mora numa seção do desenho (13 lista as seções); trocar é editar o desenho antes da tarefa correspondente. Depois de construído: 7 e 12 são a `segundo_plano` e a casca (T328, T329, T337); 11 é tirar o aviso da casca na faixa (T332); 15 é tirar a conferência de recursos (T335). Nenhum dado muda.
 
-**Ver também:** D138, D139.10, D140, D142, D143, ADR 0003, 0017, 0018, 0023 e 0025 (a criar na T320).
+**Ver também:** D138, D139.10, D140, D142, D143, ADR 0003, 0017, 0018, 0023 e [0025](docs/decisions/0025-app-de-desktop-e-instalador.md).
 
 ## D172. Todo PR passa pela aprovação do dono
 
@@ -3141,3 +3141,20 @@ Do item 2 (T305 h), aceito e documentado. Sem JavaScript, o detalhe sobreposto f
 4. (dono) Varredura de código do GitHub (CodeQL) na configuração padrão: Python, JavaScript e os workflows do Actions, nos PRs para a `main`, em cada push na `main` e uma vez por semana. Não põe arquivo no repositório e não leva segredo. Os alertas do Dependabot continuam ligados (só avisam); os PRs automáticos dele continuam desligados (ADR 0021). A detecção de segredos genéricos não está disponível nesta conta; a de provedores e o bloqueio de push com segredo já estavam ligados.
 
 **Como desfazer:** Settings › Rules › Rulesets (`proteger-main`, `proteger-dev`) e Settings › Actions › General › Fork pull request workflows. Nada no código muda; ADR 0016 e 0018 e o guia de contribuição citam esta decisão.
+
+## D173. Hash das dependências na instalação pela casca (para decidir)
+
+**Status:** aberta, o dono decide antes da T336 (tela de instalação) e da T337.
+
+**Contexto:** a T322 mediu (`uv 0.12.3`, `scripts/provar_uv.py`) que o `uv tool install` não confere o hash de cada dependência, nem com `--constraints` nem com `--with-requirements` e `UV_REQUIRE_HASHES=1`. O `uv pip install --require-hashes -r restricoes.txt` recusa o mesmo arquivo adulterado. Desenho 6.2 e 6.3.
+
+**Opções:**
+
+1. **Manter `uv tool install --constraints`** com o limite escrito no README e na ADR 0025. A garantia fica no sha256 da wheel e do `restricoes.txt` (conferidos em Rust) e nos pinos `==`; uma dependência trocada no índice com a mesma versão passaria. Mais simples: o `uv tool` cuida do executável `jobot`, do `--force` na atualização e do `uv tool uninstall`.
+2. **Trocar por `uv venv` + `uv pip install --require-hashes -r restricoes.txt <wheel>`** numa pasta da casca. Cada dependência tem o hash conferido. Custo: a casca e o `atualizar.py` (canal `casca`) passam a cuidar do executável (caminho dentro do venv), da troca na atualização (venv novo e troca de pasta) e da remoção no desinstalador.
+
+**Recomendada:** 2. O instalador é a porta de entrada de quem não usa terminal, e o custo fica em código da casca que ainda não existe.
+
+**Como desfazer:** 1 para 2 é mudar o comando em `desktop/src/instalar.rs`, no canal `casca` do `atualizar.py` e no hook do desinstalador (T336, T337), sem mexer nos dados. 2 para 1 é o mesmo caminho ao contrário; o `instalacao.json` ganha o caminho do executável, que fica sem uso.
+
+**Ver também:** D171 (itens 1 e 17), T322, desenho 6.2.

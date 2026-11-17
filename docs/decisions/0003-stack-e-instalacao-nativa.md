@@ -2,7 +2,7 @@
 
 - **Status:** aceita
 - **Data:** 2026-11-13
-- **Atualizada:** 2026-11-15 (o Ollama volta como opção pelo backend compatível com OpenAI; Tauri na fase 3, D142)
+- **Atualizada:** 2026-11-15 (o Ollama volta como opção pelo backend compatível com OpenAI; Tauri na fase 3, D142); 2026-11-17 (o projeto Tauri fica em `desktop/` no mesmo repositório, D171)
 
 ## Contexto
 
@@ -36,8 +36,12 @@ O público é leigo e usa computadores médios. O app precisa abrir um Chrome vi
 ## Tauri na fase 3 (2026-11-15)
 
 - Na fase 3 entra o Tauri (Rust e HTML) como casca do app de desktop e como tela do instalador (D138, decisão 16; D142). A casca dá ao joBot ícone e janela própria em volta do mesmo painel, que continua em 127.0.0.1 e não é reescrito. A janela usa o navegador embutido do sistema (WebKitGTK, WebView2 ou WKWebView).
-- O joBot em si continua instalado pelo `uv tool install`, chamado pelo instalador. A lista de tecnologias acima não muda: o Rust fica só na casca, num projeto à parte.
+- O joBot em si continua instalado pelo `uv tool install`, chamado pelo instalador. A lista de tecnologias acima não muda: o Rust fica só na casca, ~~num projeto à parte~~ na pasta `desktop/` do mesmo repositório (superado em 2026-11-17, ver abaixo).
 - Como toda dependência, o Tauri entra com a licença conferida (regra acima).
+
+## Pasta `desktop/` no mesmo repositório (2026-11-17)
+
+- O projeto Tauri fica na pasta `desktop/` deste repositório, não num projeto à parte (D171.4). O pacote Python não importa nada dele; a casca só fala HTTP com o painel e chama o `jobot` e o `uv`. Ver [0025](0025-app-de-desktop-e-instalador.md).
 
 ## Consequências
 
@@ -50,4 +54,5 @@ O público é leigo e usa computadores médios. O app precisa abrir um Chrome vi
 - [0009. Inteligência artificial: opções, modelos e pacote offline](0009-ia-backends-e-modelos.md)
 - [0010. Usar o Claude Code que a pessoa já tem (sem login dentro do joBot)](0010-claude-code-da-pessoa.md)
 - [0016. Licença, sala limpa e processo de trabalho](0016-licenca-clean-room-e-processo.md)
-- [duvidas.md: D138 (instalador) e D142 (app de desktop)](../../duvidas.md)
+- [0025. App de desktop e instalador](0025-app-de-desktop-e-instalador.md)
+- [duvidas.md: D138 (instalador), D142 (app de desktop) e D171 (fase 3)](../../duvidas.md)

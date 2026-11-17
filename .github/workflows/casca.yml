@@ -1,0 +1,66 @@
+name: Casca
+
+# A casca de desktop (Tauri, pasta desktop/). Mesmos gatilhos do ci.yml (ADR 0018):
+# todo pull request, push em lote/** e workflow_dispatch. Gatilho pull_request,
+# nunca pull_request_target; sem segredos.
+# O job linux roda no ubuntu-22.04 (WebKitGTK mais velho que se espera achar) e,
+# sob xvfb, confere se a IPC do Tauri responde no painel em http://127.0.0.1 com a
+# CSP real do painel (T321); se não, tenta com a origem da IPC no connect-src.
+on:
+  pull_request:
+  push:
+    branches: ['lote/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: casca-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xvfb
+      - run: |
+          canal=$(sed -n 's/^channel = "\(.*\)"$/\1/p' rust-toolchain.toml)
+          test -n "$canal"
+          rustup toolchain install "$canal" --profile minimal --component rustfmt
+          rustc --version
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry
+            desktop/target
+          key: casca-${{ runner.os }}-${{ hashFiles('desktop/Cargo.lock', 'desktop/rust-toolchain.toml') }}
+      - run: cargo fmt --check
+      - run: cargo test --locked
+      - run: cargo build --locked
+      - name: verificar-janela
+        env:
+          WEBKIT_DISABLE_DMABUF_RENDERER: '1'
+          WEBKIT_DISABLE_COMPOSITING_MODE: '1'
+        run: |
+          prova() {
+            python3 ../scripts/prova_janela.py "$1" $2 &
+            servidor=$!
+            sleep 1
+            codigo=0
+            xvfb-run -a timeout 120 ./target/debug/jobot-app --verificar-janela "http://127.0.0.1:$1/" || codigo=$?
+            kill "$servidor"
+            return "$codigo"
+          }
+          painel=0; prova 8765 || painel=$?
+          ipc=0; prova 8766 --com-ipc || ipc=$?
+          echo "CSP do painel: $painel; com a origem da IPC: $ipc"
+          echo "CSP do painel: $painel; com a origem da IPC: $ipc" >> "$GITHUB_STEP_SUMMARY"
+          [ "$painel" = 0 ] || [ "$ipc" = 0 ]
