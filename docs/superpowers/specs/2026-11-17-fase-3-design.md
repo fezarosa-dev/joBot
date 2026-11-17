@@ -166,7 +166,7 @@ Botão "Encerrar o joBot" em Configurações › Geral e na paleta de comandos, 
 
 ### 6.5 Segundo plano no Windows e no Mac
 
-- Windows (`sistema/segundo_plano_windows.py`): tarefa do Agendador de Tarefas por usuário, "ao fazer logon", rodando o `pythonw` do joBot com `-m jobot serve` (sem janela de console); `schtasks /Create /SC ONLOGON /TN joBot /TR ... /F`, `/Delete`, `/Query`. Atalho no Menu Iniciar: o NSIS da casca já cria.
+- Windows (`sistema/segundo_plano_windows.py`): tarefa do Agendador de Tarefas por usuário, "ao fazer logon", rodando o `pythonw` do joBot com `-m jobot serve` (sem janela de console); `schtasks /Create /TN joBot /XML <arquivo> /F` (gatilho ao entrar do usuário atual, sem os padrões de bateria e de 72 h; D174 item 1), `/Delete`, `/Query`. Atalho no Menu Iniciar: o NSIS da casca já cria.
 - Mac (`sistema/segundo_plano_mac.py`): LaunchAgent em `~/Library/LaunchAgents/io.github.fezarosa-dev.jobot.plist` com `RunAtLoad` e `KeepAlive` para falha; `launchctl bootstrap gui/<uid>` e `bootout`. Experimental como o `.dmg`.
 - A tela Configurações › Segundo plano e o passo 2 do assistente passam a usar uma função só (`sistema.segundo_plano.ligar/desligar/status`) que escolhe pelo sistema; fora dos três sistemas, segue desativado com "chega numa próxima versão".
 - Os testes desses dois arquivos são de unidade, com o executor de comandos injetado (como o do systemd). A prova real é do dono e do CI (seção 10).

@@ -12,6 +12,7 @@ import logging
 import os
 import socket
 import sqlite3
+import sys
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable, Iterator, Mapping
 from contextlib import closing
@@ -119,6 +120,14 @@ def test_escuta_so_em_127(dados: Path) -> None:
     assert config.server_header is False
     assert config.proxy_headers is False
     assert config.app is app
+
+
+def test_monta_sem_console_como_no_pythonw(dados: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # a tarefa do Windows roda `pythonw -m jobot serve`: lá sys.stdout e sys.stderr são None
+    monkeypatch.setattr(sys, "stdout", None)
+    monkeypatch.setattr(sys, "stderr", None)
+    _, config = servir.montar(dados, PORTA, relogio=RelogioFalso(AGORA))
+    assert config.use_colors is False
 
 
 def test_ao_subir_marca_interrompidas_migra_e_semeia(dados: Path) -> None:
