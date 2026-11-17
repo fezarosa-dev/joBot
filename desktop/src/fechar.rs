@@ -6,30 +6,24 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::Duration;
 
-/// O servidor que a casca subiu nesta abertura: só esse ela pode parar ao fechar.
-#[derive(Debug, Clone, PartialEq)]
-pub struct Subido {
-    pub jobot: PathBuf,
-    pub porta: u16,
-}
-
-/// Ao fechar a janela (desenho 5.5): `jobot sair` só se a casca subiu o servidor e o
-/// `/saude-local` diz `segundo_plano: false`. Servidor que a casca achou no ar (o do segundo
-/// plano, o de um `jobot abrir`), resposta que não vem ou sem o campo: nada é parado.
+/// Ao fechar a janela (desenho 5.5): `jobot sair` só se a casca subiu o servidor nesta
+/// abertura e o `/saude-local` diz `segundo_plano: false`. Servidor que a casca achou no ar
+/// (o do segundo plano, o de um `jobot abrir`), resposta que não vem ou sem o campo: nada é
+/// parado. A porta (da trava) e o `jobot` (do `instalacao.json`) são lidos agora, não os da
+/// abertura: o "Atualizar agora" troca o venv e pode trocar a porta (D182).
 pub fn ao_fechar(
-    subido: Option<&Subido>,
+    subiu: bool,
+    dados: &Path,
+    so: &str,
     segundo_plano: impl FnOnce(u16) -> Option<bool>,
     sair: impl FnOnce(&Path),
 ) {
-    if let Some(s) = subido
-        && segundo_plano(s.porta) == Some(false)
-    {
-        sair(&s.jobot);
-    }
+    let _ = (subiu, dados, so, segundo_plano, sair); // ainda sem a lógica
 }
 
 /// A pasta da casca do `<dados>/instalacao.json` (desenho 6.2), só se apagá-la não leva a
-/// pasta de dados junto: caminho absoluto que não é a pasta de dados nem a contém.
+/// pasta de dados junto (caminho absoluto que não é a pasta de dados nem a contém) e se ela
+/// parece mesmo a da casca: canal `casca` e um `bin/` ou um `manifesto-*.json` dentro.
 fn pasta_da_casca(dados: &Path) -> Option<PathBuf> {
     let texto = std::fs::read(dados.join("instalacao.json")).ok()?;
     let conteudo: serde_json::Value = serde_json::from_slice(&texto).ok()?;
@@ -40,7 +34,7 @@ fn pasta_da_casca(dados: &Path) -> Option<PathBuf> {
     // canônicos: `..`, symlink ou maiúsculas no Windows não escondem a pasta de dados
     let pasta = pasta.canonicalize().ok()?;
     let dados = dados.canonicalize().ok()?;
-    (!dados.starts_with(&pasta)).then_some(pasta)
+    (!dados.starts_with(&pasta)).then_some(pasta) // ainda sem o sinal da casca
 }
 
 /// Desinstalar (desenho 7.2; o NSIS chama `--desinstalar`): com o `jobot` do venv, desliga o
@@ -106,19 +100,22 @@ mod testes {
         p
     }
 
-    fn subido() -> Subido {
-        Subido {
-            jobot: PathBuf::from("/venv/bin/jobot"),
-            porta: 47615,
-        }
+    /// Prende o `jobot.lock` com `texto`, como o `jobot serve` no ar.
+    fn trava_presa(dados: &Path, texto: &str) -> std::fs::File {
+        std::fs::write(dados.join("jobot.lock"), texto).unwrap();
+        let dono = std::fs::File::open(dados.join("jobot.lock")).unwrap();
+        dono.lock().unwrap();
+        dono
     }
 
     /// Fecha com a resposta `segundo_plano` e conta quem perguntou e quem chamou `jobot sair`.
-    fn fechar(subido: Option<&Subido>, resposta: Option<bool>) -> (Vec<u16>, Vec<PathBuf>) {
+    fn fechar(subiu: bool, dados: &Path, resposta: Option<bool>) -> (Vec<u16>, Vec<PathBuf>) {
         let perguntas = RefCell::new(Vec::new());
         let saidas = RefCell::new(Vec::new());
         ao_fechar(
-            subido,
+            subiu,
+            dados,
+            "linux",
             |porta| {
                 perguntas.borrow_mut().push(porta);
                 resposta
@@ -128,30 +125,74 @@ mod testes {
         (perguntas.into_inner(), saidas.into_inner())
     }
 
+    /// `<dados>` instalado com o servidor no ar na porta 47615.
+    fn no_ar(nome: &str) -> (PathBuf, PathBuf, std::fs::File) {
+        let dados = temporaria(nome);
+        let jobot = instalado(&dados, &dados.join("app"));
+        let dono = trava_presa(&dados, "42\n47615\n");
+        (dados, jobot, dono)
+    }
+
     #[test]
     fn segundo_plano_desligado_chama_jobot_sair() {
-        let (perguntas, saidas) = fechar(Some(&subido()), Some(false));
+        let (dados, jobot, _dono) = no_ar("desligado");
+        let (perguntas, saidas) = fechar(true, &dados, Some(false));
         assert_eq!(perguntas, [47615]);
-        assert_eq!(saidas, [PathBuf::from("/venv/bin/jobot")]);
+        assert_eq!(saidas, [jobot]);
     }
 
     #[test]
     fn segundo_plano_ligado_nao_chama() {
-        let (_, saidas) = fechar(Some(&subido()), Some(true));
+        let (dados, _, _dono) = no_ar("ligado");
+        let (_, saidas) = fechar(true, &dados, Some(true));
         assert!(saidas.is_empty());
     }
 
     #[test]
     fn sem_resposta_nao_chama() {
-        let (_, saidas) = fechar(Some(&subido()), None);
+        let (dados, _, _dono) = no_ar("sem-resposta");
+        let (_, saidas) = fechar(true, &dados, None);
         assert!(saidas.is_empty());
     }
 
     #[test]
     fn nunca_para_servidor_que_a_casca_nao_subiu() {
-        let (perguntas, saidas) = fechar(None, Some(false));
+        let (dados, _, _dono) = no_ar("nao-subiu");
+        let (perguntas, saidas) = fechar(false, &dados, Some(false));
         assert!(perguntas.is_empty());
         assert!(saidas.is_empty());
+    }
+
+    #[test]
+    fn trava_solta_nao_pergunta() {
+        // o servidor já saiu: a trava ficou com dado velho, ninguém a prende
+        let dados = temporaria("trava-solta");
+        instalado(&dados, &dados.join("app"));
+        std::fs::write(dados.join("jobot.lock"), "42\n47615\n").unwrap();
+        let (perguntas, saidas) = fechar(true, &dados, Some(false));
+        assert!(perguntas.is_empty());
+        assert!(saidas.is_empty());
+    }
+
+    #[test]
+    fn depois_de_atualizar_usa_o_jobot_e_a_porta_de_agora() {
+        // "Atualizar agora": venv novo no instalacao.json e o servidor novo noutra porta
+        let (dados, _, dono) = no_ar("atualizou");
+        drop(dono);
+        let venv = dados.join("app").join("venvs").join("venv-0.4.1");
+        let novo = servidor::jobot_do_venv(&venv, "linux");
+        std::fs::create_dir_all(novo.parent().unwrap()).unwrap();
+        std::fs::write(&novo, "").unwrap();
+        let instalacao = serde_json::json!({
+            "canal": "casca",
+            "pasta": dados.join("app"),
+            "venv": venv,
+        });
+        std::fs::write(dados.join("instalacao.json"), instalacao.to_string()).unwrap();
+        let _dono = trava_presa(&dados, "43\n8123\n");
+        let (perguntas, saidas) = fechar(true, &dados, Some(false));
+        assert_eq!(perguntas, [8123]);
+        assert_eq!(saidas, [novo]);
     }
 
     /// `<dados>` com o banco, um venv com o `jobot` e o `instalacao.json` apontando `pasta`.
@@ -234,6 +275,37 @@ mod testes {
             desinstalar_contando(&dados);
             assert!(dados.join("jobot.db").is_file(), "{nome}");
         }
+    }
+
+    #[test]
+    fn desinstalar_so_apaga_pasta_com_cara_de_casca() {
+        // canal de outro jeito de instalar, ou pasta sem `bin/` nem manifesto: fica
+        for (nome, canal, sinal) in [("outro-canal", "pip", true), ("sem-sinal", "casca", false)] {
+            let dados = temporaria(nome);
+            let pasta = dados.join("app");
+            instalado(&dados, &pasta);
+            if !sinal {
+                std::fs::remove_file(pasta.join("manifesto-0.4.0.json")).unwrap();
+            }
+            let mut instalacao: serde_json::Value =
+                serde_json::from_slice(&std::fs::read(dados.join("instalacao.json")).unwrap())
+                    .unwrap();
+            instalacao["canal"] = canal.into();
+            std::fs::write(dados.join("instalacao.json"), instalacao.to_string()).unwrap();
+            desinstalar_contando(&dados);
+            assert!(pasta.join("python").is_dir(), "{nome}");
+        }
+    }
+
+    #[test]
+    fn desinstalar_reconhece_a_pasta_pelo_bin() {
+        let dados = temporaria("com-bin");
+        let pasta = dados.join("app");
+        instalado(&dados, &pasta);
+        std::fs::remove_file(pasta.join("manifesto-0.4.0.json")).unwrap();
+        std::fs::create_dir_all(pasta.join("bin")).unwrap();
+        desinstalar_contando(&dados);
+        assert!(!pasta.exists());
     }
 
     #[test]

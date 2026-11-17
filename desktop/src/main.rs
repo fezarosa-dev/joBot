@@ -7,13 +7,13 @@ mod fechar;
 mod servidor;
 
 use std::path::PathBuf;
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use tauri::webview::PageLoadEvent;
 use tauri::{AppHandle, Manager, RunEvent, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
-/// O servidor que esta abertura da casca subiu (desenho 5.5): o único que ela pode parar.
-static SUBIDO: Mutex<Option<fechar::Subido>> = Mutex::new(None);
+/// Se esta abertura da casca subiu o servidor (desenho 5.5): só esse ela pode parar.
+static SUBIU: AtomicBool = AtomicBool::new(false);
 
 /// Tempo que a tela "o joBot abriu no navegador" fica antes de a janela fechar (desenho 5.4).
 const AVISO_DA_JANELA: Duration = Duration::from_secs(10);
@@ -132,12 +132,8 @@ fn abrir_painel(janela: WebviewWindow, base: Url) {
         .and_then(|jobot| servidor::achar_ou_subir(&dados, &jobot, ambiente));
     let destino = match resultado {
         Ok(achado) => {
-            if achado.subiu
-                && let Some(jobot) = servidor::jobot_instalado(&dados, std::env::consts::OS)
-            {
-                let porta = achado.porta;
-                *SUBIDO.lock().unwrap_or_else(|e| e.into_inner()) =
-                    Some(fechar::Subido { jobot, porta });
+            if achado.subiu {
+                SUBIU.store(true, Ordering::Relaxed);
             }
             servidor::url_do_painel(achado.porta)
                 .parse()
@@ -228,9 +224,10 @@ fn trazer_para_frente(app: &AppHandle) {
 
 /// A janela fechou e a casca vai sair: para o servidor que ela subiu, se não for de ficar.
 fn ao_sair() {
-    let subido = SUBIDO.lock().unwrap_or_else(|e| e.into_inner()).take();
     fechar::ao_fechar(
-        subido.as_ref(),
+        SUBIU.swap(false, Ordering::Relaxed),
+        &dados(),
+        std::env::consts::OS,
         servidor::perguntar_segundo_plano,
         |jobot| {
             // destacado: o `jobot sair` termina o trabalho mesmo com a casca já fechada
