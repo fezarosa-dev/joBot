@@ -71,6 +71,8 @@ def rodar_comando(comando: Sequence[str]) -> Resultado:
             stdin=subprocess.DEVNULL,
             timeout=60,
             check=False,
+            # no Windows, sem isto o schtasks pisca uma janela de console (servidor do pythonw)
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         )
     except subprocess.TimeoutExpired:
         return Resultado(124)

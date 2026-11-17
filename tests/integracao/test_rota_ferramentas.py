@@ -23,10 +23,15 @@ from apoio.site_falso import LeitorFalso
 from jobot.banco import cadastros
 from jobot.banco.conexao import abrir
 from jobot.banco.migrar import migrar
-from jobot.navegador.instalador import comando_de_baixar, comando_de_remover
+from jobot.navegador.instalador import (
+    comando_de_baixar,
+    comando_de_baixar_pela_casca,
+    comando_de_remover,
+)
 from jobot.painel import i18n
 from jobot.painel.app import criar_app
 from jobot.painel.seguranca import CAMPO_CSRF
+from jobot.sistema import casca
 
 PORTA = 47623
 BASE = f"http://127.0.0.1:{PORTA}"
@@ -222,6 +227,26 @@ def test_baixar_mostra_baixando_e_depois_instalado(painel: Painel) -> None:
         assert REMOVER in final.text
         assert 'hx-trigger="every 5s"' not in final.text
         assert painel.app.state.navegador_instalado == "chromium"
+
+
+@pytest.mark.parametrize("canal", ["casca", "outro", "quebrado"])
+def test_baixar_no_canal_casca_usa_a_release(painel: Painel, tmp_path: Path, canal: str) -> None:
+    """Canal `casca`: o subcomando da T330 (caminho b), com a pasta de dados; fora dele, ou com o
+    `instalacao.json` quebrado, o `playwright install` de sempre (caminho c)."""
+    conteudo = {"casca": '{"canal": "casca", "manifesto": "/m.json"}', "outro": '{"canal": "x"}'}
+    (tmp_path / "instalacao.json").write_text(conteudo.get(canal, "{"))
+    painel.navegador(None)
+    with TestClient(painel.app, base_url=BASE) as http:
+        assert painel.post(BAIXAR, http).status_code == 200
+        assert _esperar(lambda: len(painel.abertos) == 1)
+        argumentos, ambiente = painel.abertos[0]
+        painel.processo.liberar.set()
+    if canal == "casca":
+        assert argumentos == comando_de_baixar_pela_casca()
+        assert ambiente["JOBOT_DADOS"] == str(tmp_path)
+    else:
+        assert argumentos == comando_de_baixar()
+        assert "JOBOT_DADOS" not in ambiente
 
 
 @pytest.mark.parametrize("resultado", ["pronto", "falhou_baixar", "removido"])
@@ -490,3 +515,57 @@ def test_remover_no_assistente_desliga_o_login_dos_cartoes(painel: Painel) -> No
         assert 'aria-describedby="contas-sem-navegador"' in botao
         frase = re.search(r'<p\b[^>]*\bid="contas-sem-navegador"[^>]*>([^<]*)</p>', oob)
         assert frase is not None and "baixe o navegador acima" in frase[1]
+
+
+# ------------------------------------------- navegador desatualizado (T331; D174.13)
+
+
+def _desatualizado(painel: Painel, marca: bool) -> None:
+    pasta = painel.banco.parent / "app"
+    casca.gravar_instalacao(
+        painel.banco.parent,
+        {
+            "canal": "casca",
+            "pasta": str(pasta),
+            "uv": str(pasta / "bin" / "uv"),
+            "venv": str(pasta / "venvs" / "venv-9.9.9"),
+            "manifesto": str(pasta / "manifesto-9.9.9.json"),
+            "navegador_desatualizado": marca,
+        },
+    )
+
+
+@pytest.mark.parametrize("idioma", ["pt", "en"])
+def test_navegador_desatualizado_mostra_o_aviso_e_baixar(painel: Painel, idioma: str) -> None:
+    painel.idioma(idioma)
+    painel.navegador("chromium")
+    _desatualizado(painel, False)  # controle: sem a marca, só o Remover
+    html = painel.http.get(GRUPO).text
+    assert _t("navegador.desatualizado", idioma) not in _texto(html)
+    assert BAIXAR not in html and REMOVER in html
+    _desatualizado(painel, True)
+    html = painel.http.get(GRUPO).text
+    assert _t("navegador.desatualizado", idioma) in _texto(html)
+    assert BAIXAR in html and REMOVER in html  # quem só quer tirar o velho ainda acha o Remover
+
+
+def test_baixar_o_desatualizado_baixa_e_tira_a_marca(painel: Painel) -> None:
+    painel.navegador("chromium")
+    _desatualizado(painel, True)
+    with TestClient(painel.app, base_url=BASE) as http:
+        assert painel.post(BAIXAR, http).status_code == 200
+        assert _esperar(lambda: len(painel.abertos) == 1)
+        assert casca.navegador_desatualizado(painel.banco.parent)  # só sai depois do pronto
+        painel.processo.liberar.set()
+        assert _esperar(lambda: painel.resultado() == "pronto")
+    assert not casca.navegador_desatualizado(painel.banco.parent)
+    assert casca.ler_instalacao(painel.banco.parent)["venv"].endswith("venv-9.9.9")
+
+
+@pytest.mark.parametrize("achado", [None, "chrome"])
+def test_marca_sem_chromium_nao_diz_desatualizado(painel: Painel, achado: str | None) -> None:
+    painel.navegador(achado)
+    _desatualizado(painel, True)
+    assert _t("navegador.desatualizado") not in _texto(painel.http.get(GRUPO).text)
+    painel.navegador("chromium")  # controle: a mesma marca com o Chromium aparece
+    assert _t("navegador.desatualizado") in _texto(painel.http.get(GRUPO).text)

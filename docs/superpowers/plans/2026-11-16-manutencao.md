@@ -330,3 +330,13 @@ Itens pequenos e independentes entre si.
 - [x] **Teste que falha** pela hipótese provada, por asserção, nunca com `sleep`: `test_camada_desce_mesmo_sem_quadro_na_largura_estreita` estreita a `.coluna`, dispara um `afterSettle` e devolve a largura numa tarefa só; vermelho sem a correção (estoura no `NO_FLUXO`).
 - [x] **Corrigir** na causa (no observador ou no que alimenta o `modo()`), sem remendo que esconda: toda troca de camada rearma o observador (`vigiarColuna`), que passa a comparar com a largura da decisão; vale também para a barra lateral.
 - [x] **Ver passar:** o teste em laço no CI sem falha. Com a correção, 400 de 400 rodadas verdes (8 máquinas × 50, run 44007845086) e a suíte inteira verde no `lote/t314` (run 44007827492); juntado na `dev` em c06c83a.
+
+### T345: o título do detalhe estreito às vezes passa 0,33 px
+`depende_de: —`
+
+**O que se viu.** No CI do `lote/fase-3-onda2` (execução 44015725984, job `tela (1)`, 1ª tentativa), `tests/tela/test_detalhe.py::test_pagina_estreita_nao_cola_voltar_no_titulo` falhou em `assert 188.06 >= (156.90 + 32) - 0.5` (linha 219: a caixa da empresa começa 0,33 px antes do fim do título). Na 2ª tentativa passou. O lote não mexia no CSS nem no template do detalhe.
+
+- [ ] **Reproduzir:** laço do teste no CI (como na T314) e anotar a taxa e os números de cada falha.
+- [ ] **Achar a causa** (arredondamento de sub-pixel da entrelinha do título, fonte que ainda não carregou, quebra de linha diferente) com sonda, sem `sleep`.
+- [ ] **Teste que falha** pela causa provada e **corrigir** na causa (CSS ou espera certa no teste), sem só afrouxar a tolerância.
+- [ ] **Ver passar:** o laço no CI sem falha.

@@ -87,6 +87,7 @@ def test_tabela_de_comandos() -> None:
         "buscar": "jobot.cli.buscar",
         "avaliar-rotulos": "jobot.cli.avaliar_rotulos",
         "atualizar": "jobot.cli.atualizar",
+        "ferramentas": "jobot.cli.ferramentas",
     }
 
 
