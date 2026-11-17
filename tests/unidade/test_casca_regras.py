@@ -74,8 +74,9 @@ def test_mesma_porta_padrao() -> None:
 
 def test_desinstalar_no_windows_chama_a_casca_fora_da_atualizacao() -> None:
     # desenho 7.2 (T337): o NSIS só chama `--desinstalar` da casca; quem desliga o segundo
-    # plano, para o servidor e apaga a pasta da casca é o Rust. Na troca de versão do NSIS
-    # (`/UPDATE`), nada disso roda: o venv e o segundo plano continuam.
+    # plano, para o servidor e apaga a pasta da casca é o Rust. Na troca de versão (pelo
+    # updater, `/UPDATE`, ou pela tela normal), nada disso roda: o venv e o segundo plano
+    # continuam (D182).
     desktop = RAIZ / "desktop"
     conf = json.loads((desktop / "tauri.conf.json").read_text(encoding="utf-8"))
     nsis = conf["bundle"].get("windows", {}).get("nsis", {})
@@ -84,5 +85,9 @@ def test_desinstalar_no_windows_chama_a_casca_fora_da_atualizacao() -> None:
     texto = ganchos.read_text(encoding="utf-8")
     corpo = texto.split("!macro NSIS_HOOK_PREUNINSTALL", 1)[1].split("!macroend", 1)[0]
     assert "${If} $UpdateMode <> 1" in corpo
+    # troca manual (o .exe novo pela tela normal): o instalador novo roda o desinstalador
+    # velho no lugar (`_?=`), então ele roda de dentro de $INSTDIR; o desinstalador de
+    # verdade se copia para o temporário antes. Assim só a desinstalação de verdade apaga.
+    assert "${AndIf} $EXEDIR != $INSTDIR" in corpo
     assert "ExecWait '\"$INSTDIR\\${MAINBINARYNAME}.exe\" --desinstalar'" in corpo
     assert '"--desinstalar"' in (desktop / "src" / "main.rs").read_text(encoding="utf-8")
