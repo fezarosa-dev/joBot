@@ -96,7 +96,7 @@ nucleo/ia/                  puro, com httpx onde fala com serviço
   tarefas.py                tarefas: esquema de saída (pydantic, extra="forbid"), VERSAO, anti-invenção
   pedidos.py                monta as mensagens (texto nosso + dados delimitados e limpos)
   compativel_openai.py      cliente /chat/completions (OpenAI, Gemini, local, Ollama, LM Studio...)
-  anthropic.py              cliente /v1/messages com ferramenta forçada
+  anthropic.py              cliente /v1/messages com a ferramenta `responder` (D192)
   falso.py                  backend de teste (respostas prontas, grava os pedidos)
   manual.py                 (0.6.0) texto para copiar e leitura da resposta colada
 nucleo/dados/ia.json        tarefas, modelos padrão, limites, prazos, tetos, cortes de memória
@@ -190,7 +190,7 @@ desktop/                    Modelo local no grupo de IA do instalador
 | OpenAI | o mesmo cliente, `https://api.openai.com/v1` fixo | cofre (`ia_openai`) | 0.5.0 |
 | Google Gemini | o mesmo cliente, endpoint compatível do Gemini (`https://generativelanguage.googleapis.com/v1beta/openai`, conferido na T405) | cofre (`ia_gemini`) | 0.5.0 |
 | Modelo local | o mesmo cliente, `http://127.0.0.1:<porta>/v1`, com o `llama-server` do joBot (seção 7) | aleatória por subida, só em memória | 0.5.0 |
-| API da Anthropic | `POST https://api.anthropic.com/v1/messages` com uma ferramenta `responder` forçada (`tool_choice`), lendo o `input` | cofre (`ia_anthropic`) | 0.5.0 |
+| API da Anthropic | `POST https://api.anthropic.com/v1/messages` com uma ferramenta `responder` (forçada por `tool_choice` no Haiku; no Sonnet 5.5, que recusa a forçada, `auto` com `thinking` `between_tools`, D192), lendo o `input` | cofre (`ia_anthropic`) | 0.5.0 |
 | IA manual | o painel mostra o pedido para copiar e um campo para colar a resposta | — | 0.6.0, só nas tarefas sob pedido |
 | Sem IA | regras de hoje | — | padrão |
 | Sessão do Claude Code | `claude -p` (ADR 0010) | login da ferramenta | espera o dono (6.2) |
