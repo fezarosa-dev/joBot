@@ -3126,3 +3126,20 @@ Do item 2 (T305 h), aceito e documentado. Sem JavaScript, o detalhe sobreposto f
 **Como desfazer:** cada item mora numa seção do desenho (13 lista as seções); trocar é editar o desenho antes da tarefa correspondente. Depois de construído: 7 e 12 são a `segundo_plano` e a casca (T328, T329, T337); 11 é tirar o aviso da casca na faixa (T332); 15 é tirar a conferência de recursos (T335). Nenhum dado muda.
 
 **Ver também:** D138, D139.10, D140, D142, D143, ADR 0003, 0017, 0018, 0023 e 0025 (a criar na T320).
+
+## D172. Hash das dependências na instalação pela casca (para decidir)
+
+**Status:** aberta, o dono decide antes da T336 (tela de instalação) e da T337.
+
+**Contexto:** a T322 mediu (`uv 0.12.3`, `scripts/provar_uv.py`) que o `uv tool install` não confere o hash de cada dependência, nem com `--constraints` nem com `--with-requirements` e `UV_REQUIRE_HASHES=1`. O `uv pip install --require-hashes -r restricoes.txt` recusa o mesmo arquivo adulterado. Desenho 6.2 e 6.3.
+
+**Opções:**
+
+1. **Manter `uv tool install --constraints`** com o limite escrito no README e na ADR 0025. A garantia fica no sha256 da wheel e do `restricoes.txt` (conferidos em Rust) e nos pinos `==`; uma dependência trocada no índice com a mesma versão passaria. Mais simples: o `uv tool` cuida do executável `jobot`, do `--force` na atualização e do `uv tool uninstall`.
+2. **Trocar por `uv venv` + `uv pip install --require-hashes -r restricoes.txt <wheel>`** numa pasta da casca. Cada dependência tem o hash conferido. Custo: a casca e o `atualizar.py` (canal `casca`) passam a cuidar do executável (caminho dentro do venv), da troca na atualização (venv novo e troca de pasta) e da remoção no desinstalador.
+
+**Recomendada:** 2. O instalador é a porta de entrada de quem não usa terminal, e o custo fica em código da casca que ainda não existe.
+
+**Como desfazer:** 1 para 2 é mudar o comando em `desktop/src/instalar.rs`, no canal `casca` do `atualizar.py` e no hook do desinstalador (T336, T337), sem mexer nos dados. 2 para 1 é o mesmo caminho ao contrário; o `instalacao.json` ganha o caminho do executável, que fica sem uso.
+
+**Ver também:** D171 (itens 1 e 17), T322, desenho 6.2.

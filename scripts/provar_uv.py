@@ -8,7 +8,8 @@ tocar nas pastas do usuário. Depois repete com o hash de uma dependência adult
 `UV_REQUIRE_HASHES=1` (o `uv tool install` não tem `--require-hashes`).
 
 Uso: `uv run python scripts/provar_uv.py` na raiz do repositório. Sai com 0 se algum caminho
-exigiu o hash, 1 se nenhum exigiu, 2 se a instalação boa falhou (prova inválida).
+exigiu o hash, 1 se nenhum exigiu, 2 se a prova é inválida (a instalação boa falhou, ou o
+`uv pip install --require-hashes` aceitou o arquivo adulterado).
 """
 
 import os
@@ -54,6 +55,18 @@ def _instalar(base: Path, nome: str, args: list[str], extra: dict[str, str]) -> 
     return r.returncode == 0
 
 
+def _pip_recusa(base: Path, restricoes: Path) -> bool:
+    """Controle: num venv temporário, `uv pip --require-hashes` tem de recusar o arquivo."""
+    venv = base / "venv-controle"
+    pasta = base / "controle"
+    env = os.environ | {
+        v: str(pasta / v.lower()) for v in ("UV_CACHE_DIR", "UV_PYTHON_INSTALL_DIR")
+    }
+    subprocess.run(["uv", "venv", "--python", "3.14", str(venv)], env=env, check=True)
+    args = ["uv", "pip", "install", "--python", str(venv), "--require-hashes", "-r"]
+    return _rodar([*args, str(restricoes)], env).returncode != 0
+
+
 def main() -> int:
     print(_rodar(["uv", "--version"], dict(os.environ)).stdout.strip())
     with tempfile.TemporaryDirectory(prefix="provar_uv_") as tmp:
@@ -70,10 +83,14 @@ def main() -> int:
             check=True,
             stdout=subprocess.DEVNULL,
         )
-        texto, pacote = adulterar(boas.read_text())
+        texto, pacote = adulterar(boas.read_text(encoding="utf-8"))
         ruins = base / "restricoes-adulteradas.txt"
-        ruins.write_text(texto)
+        ruins.write_text(texto, encoding="utf-8")
         print(f"hash adulterado em: {pacote}")
+        if not _pip_recusa(base, ruins):
+            print("prova inválida: uv pip --require-hashes aceitou o arquivo adulterado")
+            return 2
+        print("controle: uv pip install --require-hashes recusa o arquivo adulterado")
 
         if not _instalar(base, "constraints-bom", ["--constraints", str(boas), str(roda)], {}):
             return 2
