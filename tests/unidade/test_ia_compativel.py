@@ -121,15 +121,18 @@ def test_corpo_leva_modelo_mensagens_esquema_tokens_temperatura_e_seed(
                 "schema": esquema_para(backend, _Saida),
             },
         },
-        "max_tokens": 1024,
-        "temperature": 0,
-        "seed": 7,
-    }
+    } | (
+        # OpenAI: `max_tokens` está obsoleto e é recusado nos modelos de raciocínio; `temperature`
+        # também (D191.12)
+        {"max_completion_tokens": 1024, "seed": 7}
+        if backend == "openai"
+        else {"max_tokens": 1024, "temperature": 0, "seed": 7}
+    )
     assert pedido.extensions["timeout"] == dict.fromkeys(("connect", "read", "write", "pool"), 60)
 
 
 def test_sem_temperatura_e_seed_o_corpo_nao_os_leva() -> None:
-    cliente, pedidos = _cliente(lambda _: _ok())
+    cliente, pedidos = _cliente(lambda _: _ok(), "local", "http://127.0.0.1:8085/v1")
     cliente.pedir(_pedido(temperatura=None, seed=None))
     assert len(pedidos) == 1
     corpo = json.loads(pedidos[0].content)
@@ -147,6 +150,36 @@ def test_authorization_so_com_chave() -> None:
         sem.pedir(_pedido())
         assert len(pedidos_sem) == 1
         assert "Authorization" not in pedidos_sem[0].headers
+
+
+def test_chave_com_espaco_nas_pontas_vai_limpa() -> None:
+    cliente, pedidos = _cliente(lambda _: _ok(), chave=f"\u00a0 {CHAVE}\n")
+    cliente.pedir(_pedido())
+    assert pedidos[0].headers["Authorization"] == f"Bearer {CHAVE}"
+
+
+@pytest.mark.parametrize("chave", [f"sk-\u00a0{CHAVE}", f"{CHAVE}\u200b", f"sk\n{CHAVE}", "sk-ção"])
+def test_chave_fora_do_ascii_imprimivel_e_chave_recusada(
+    chave: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Colada com um NBSP, um zero-width ou uma quebra no meio: `chave_recusada` sem mandar, e a
+    chave não vai na `Falha` (o `UnicodeEncodeError` a guardaria em `.object`)."""
+    caplog.set_level(logging.INFO)
+    motivo, pedidos = _falha(lambda _: _ok(), chave=chave)
+    assert (motivo, pedidos) == ("chave_recusada", [])
+    assert CHAVE not in caplog.text and "chave_recusada" in caplog.text
+
+
+def test_erro_inesperado_nao_registra_ok(caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.INFO)
+
+    def explode(_: httpx.Request) -> httpx.Response:
+        raise RuntimeError("inesperado")
+
+    cliente, _ = _cliente(explode)
+    with pytest.raises(RuntimeError):
+        cliente.pedir(_pedido())
+    assert ": erro em " in caplog.text and ": ok em " not in caplog.text
 
 
 @pytest.mark.parametrize(
@@ -271,6 +304,14 @@ def test_endereco_aceito(endereco: str) -> None:
     assert conferir_endereco(endereco) == endereco.rstrip("/")
 
 
+@pytest.mark.parametrize("sujo", [" https://servico.exemplo/v1 ", "https://servico.exemplo/v1/\n"])
+def test_endereco_com_espaco_nas_pontas_vai_limpo(sujo: str) -> None:
+    assert conferir_endereco(sujo) == "https://servico.exemplo/v1"
+    cliente, pedidos = _cliente(lambda _: _ok(), "compativel", sujo)
+    cliente.pedir(_pedido())
+    assert str(pedidos[0].url) == "https://servico.exemplo/v1/chat/completions"
+
+
 @pytest.mark.parametrize(
     "endereco",
     [
@@ -287,6 +328,9 @@ def test_endereco_aceito(endereco: str) -> None:
         "https://servico.exemplo/v1?",
         "https://servico.exemplo/v1#s3gr3d0",
         "http://127.0.0.1:porta/v1",
+        "https://servi co.exemplo/v1",
+        "https://servico.exemplo/v\n1",
+        "https://servico.exemplo/v1\u200b/x",
     ],
 )
 def test_endereco_recusado_antes_de_mandar(endereco: str) -> None:
@@ -403,5 +447,8 @@ def test_chave_nunca_vai_ao_log_nem_a_falha(caplog: pytest.LogCaptureFixture) ->
     contexto = erro.value.__context__
     assert erro.value.__cause__ is None and (contexto is None or erro.value.__suppress_context__)
     # controle: o log vê o modelo, o resultado e a duração
-    assert re.search(r"openai m-teste: ok em \d+\.\d+ s", caplog.text)
-    assert re.search(r"openai m-teste: chave_recusada em \d+\.\d+ s", caplog.text)
+    tamanho = len(_ok().read())
+    assert re.search(rf"ia encaixe openai m-teste: ok em \d+\.\d+ s, {tamanho} bytes", caplog.text)
+    assert re.search(
+        r"ia encaixe openai m-teste: chave_recusada em \d+\.\d+ s, \d+ bytes", caplog.text
+    )

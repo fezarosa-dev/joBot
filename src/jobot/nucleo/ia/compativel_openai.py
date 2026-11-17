@@ -12,6 +12,11 @@ Fontes conferidas em 2026-11-17 (T405):
   https://aistudio.google.com/docs/openai
 - llama.cpp, contexto estourado é 400 com `type` `exceed_context_size_error` (PR 15780):
   https://github.com/ggml-org/llama.cpp/pull/15780
+- OpenAI, `max_tokens` "deprecated in favor of `max_completion_tokens`" e incompatível com os
+  modelos de raciocínio; `max_completion_tokens` conta também os tokens de raciocínio:
+  https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create
+  `temperature` fora do padrão é recusada nos modelos de raciocínio (GPT-5; do 5.1 em diante, só
+  com `reasoning_effort` `none`), segundo relatos, não a referência: por isso não vai (D191.12).
 """
 
 import json
@@ -46,7 +51,11 @@ _POR_CODIGO: Final[dict[int, Motivo]] = {
 def conferir_endereco(endereco: str) -> str:
     """`https`, ou `http` só para `127.0.0.1`, `localhost` e `::1`; sem `usuario:senha@`, query
     nem fragmento. Devolve sem a `/` do fim. A mensagem de erro não repete o endereço (ele pode
-    trazer uma senha)."""
+    trazer uma senha). Espaço e controle nas pontas saem (vêm de copiar e colar); no meio,
+    recusa."""
+    endereco = endereco.strip()
+    if any(c.isspace() or not c.isprintable() for c in endereco):
+        raise ValueError("endereço da IA com espaço ou caractere invisível")
     partes = urlsplit(endereco)
     try:
         partes.port  # noqa: B018 (porta que não é número levanta ValueError)
@@ -80,26 +89,45 @@ class ClienteCompativel:
         cliente: httpx.Client | None = None,
     ) -> None:
         self.backend = backend
-        self._url = conferir_endereco(endereco) + "/chat/completions"
-        self._chave = chave
-        self._http = cliente if cliente is not None else novo_cliente(endereco)
+        limpo = conferir_endereco(endereco)
+        self._url = limpo + "/chat/completions"
+        self._chave = chave.strip() if chave else None  # espaço e quebra de copiar e colar
+        self._http = cliente if cliente is not None else novo_cliente(limpo)
 
     def fechar(self) -> None:
         self._http.close()
 
     def pedir(self, pedido: Pedido) -> Resposta:
         comeco = time.monotonic()
-        resultado = "ok"
+        resultado = "erro"  # só vira "ok" depois do sucesso
+        tamanho = 0
         try:
-            return conferir(pedido, self._chamar(pedido), self.backend)
+            codigo, corpo = self._chamar(pedido)
+            tamanho = len(corpo)
+            if codigo != 200:
+                raise Falha(_motivo_do_erro(codigo, corpo))
+            resposta = conferir(pedido, _conteudo(corpo), self.backend)
+            resultado = "ok"
+            return resposta
         except Falha as falha:
             resultado = falha.motivo
             raise
         finally:
-            duracao = time.monotonic() - comeco
-            _LOG.info("ia %s %s: %s em %.2f s", self.backend, pedido.modelo, resultado, duracao)
+            _LOG.info(
+                "ia %s %s %s: %s em %.2f s, %d bytes",
+                pedido.tarefa,
+                self.backend,
+                pedido.modelo,
+                resultado,
+                time.monotonic() - comeco,
+                tamanho,
+            )
 
-    def _chamar(self, pedido: Pedido) -> object:
+    def _chamar(self, pedido: Pedido) -> tuple[int, bytes]:
+        """O código e o corpo lido. Chave que não é ASCII imprimível (um NBSP ou zero-width colado)
+        é recusada antes: o `httpx` levantaria `UnicodeEncodeError`, que guarda a chave inteira."""
+        if self._chave and not (self._chave.isascii() and self._chave.isprintable()):
+            raise Falha("chave_recusada")
         cabecalhos = {"Authorization": f"Bearer {self._chave}"} if self._chave else {}
         requisicao = self._http.build_request(
             "POST",
@@ -118,9 +146,7 @@ class ClienteCompativel:
             corpo = _ler(resposta)
         finally:
             resposta.close()  # no prazo, fecha a conexão: o llama-server cancela o pedido
-        if resposta.status_code != 200:
-            raise Falha(_motivo_do_erro(resposta.status_code, corpo))
-        return _conteudo(corpo)
+        return resposta.status_code, corpo
 
     def _corpo(self, pedido: Pedido) -> dict[str, Any]:
         corpo: dict[str, Any] = {
@@ -134,9 +160,14 @@ class ClienteCompativel:
                     "schema": esquema_para(self.backend, pedido.esquema),
                 },
             },
-            "max_tokens": pedido.max_tokens,
         }
-        if pedido.temperatura is not None:
+        if self.backend == "openai":
+            # `max_tokens` é recusado nos modelos de raciocínio, e `temperature` fora do padrão
+            # também (fontes no topo; D191.12). `seed` fica: a referência não o restringe.
+            corpo["max_completion_tokens"] = pedido.max_tokens
+        else:
+            corpo["max_tokens"] = pedido.max_tokens
+        if pedido.temperatura is not None and self.backend != "openai":
             corpo["temperature"] = pedido.temperatura
         if pedido.seed is not None:
             corpo["seed"] = pedido.seed
