@@ -93,7 +93,8 @@ def test_aviso_aparece_no_painel_com_role_status(dados: Path) -> None:
     assert fragmento.status_code == 200
     assert "<html" not in fragmento.text  # fragmento HTMX, sem a casca
     assert "v99.0.0" in fragmento.text
-    assert "jobot atualizar" in fragmento.text
+    assert "Atualizar agora" in fragmento.text  # T332: o botão, não o terminal (ADR 0023)
+    assert "terminal" not in fragmento.text
 
 
 def test_aviso_em_ingles(dados: Path) -> None:

@@ -3221,3 +3221,58 @@ Do item 2 (T305 h), aceito e documentado. Sem JavaScript, o detalhe sobreposto f
 **Como desfazer:** 9 é voltar o `return 0` de "já está aberto" em `cli/servir.py` para 1 e pôr `ThrottleInterval` alto no plist; 8 é trocar `segundo_plano_mac.ligar` (por exemplo, `bootout` e `bootstrap` sempre) ou o `KeepAlive` para `true`; 1 é acrescentar `schtasks /Run /TN joBot` no `ligar` do Windows (ou voltar ao `/SC ONLOGON /TR`, com os padrões de bateria e 72 h); 2 é trocar o `status` do Windows; 5 é apontar `segundo-plano` em `cli/__init__.py` para um `executar` que use `sistema.segundo_plano`. Nenhum dado muda.
 
 **Ver também:** D171 (itens 7 e 12), D61, desenho 6.5, T328, T329.
+
+## D176. Atualizar pelo painel: escolhas da T332 (para confirmar)
+
+**Status:** escolhas da sessão, para confirmar.
+
+**Contexto:** a T332 tira o terminal da faixa `#aviso-versao` (ADR 0023) e põe "Atualizar agora" na faixa e em Configurações › Geral, como pede o desenho 5.6 e 6.3. As rotas moram em `painel/rotas/aviso_versao.py` (`POST /atualizar`, `GET /atualizando`, `POST /abrir-release`); o `jobot atualizar` destacado sai de `sistema/atualizar.py` (`lancar_atualizacao`), injetado pelo `app.state.lancar_atualizacao`, e a abertura da página da release pelo `app.state.abrir_endereco` (`painel/ambiente.py`). Ficaram estas escolhas:
+
+1. Configurações › Geral, bloco "Atualizar o joBot": mostra a versão instalada e a última conhecida (o `versao_nova` gravado pela checagem diária, com o aviso ligado ou não: `agenda.versao.ultima_conhecida`); o botão "Atualizar agora" só aparece com uma versão mais nova conhecida (`mais_nova_que_a_instalada`). Sem checagem, diz "ainda não conferida" e lembra que o aviso de versão (Privacidade) é quem confere; com a última igual ou mais velha, "Você está na versão mais nova que o joBot conhece". Testes: `test_geral_mostra_a_versao_atual_e_a_ultima_conhecida`, `test_geral_sem_versao_nova_nao_oferece_atualizar`, `test_geral_sem_checagem_diz_que_nao_conferiu`.
+2. A espera tem um lugar só: os dois botões (faixa e Geral) trocam o conteúdo de `#aviso-versao`, que fica fora da coluna que rola e é `role="status"`. A barra é o componente único de progresso (visual do Mac 5.9), indeterminada e sem a classe de entrada de 1 s, porque a atualização leva minutos.
+3. O `app.js` pergunta ao `/saude-local` a cada 2 s (`AbortSignal.timeout` de 5 s) e recarrega a página quando a `versao` deixa de ser a `data-de` (a versão de quando o botão foi apertado); servidor fora no meio da troca só faz perguntar de novo. Passados 120 s, a barra some e aparece a explicação com "Tentar de novo". `data-perguntas` conta as perguntas agendadas (o teste de tela espera por ele antes de cada `fast_forward`).
+4. Um `jobot atualizar` por vez: o servidor guarda o processo em `app.state.atualizacao`; o segundo POST com ele ainda rodando (`poll()` sem código) só devolve a espera, e depois que ele termina o POST dispara outro (`test_segundo_post_com_a_atualizacao_rodando_nao_dispara_outra`). Assim "Tentar de novo" com a atualização ainda baixando só volta a esperar. A marca de rodando entra em `app.state.atualizacao` antes do `await` do lançamento (e sai se ele falha), para dois POSTs quase juntos (faixa e Geral, clique duplo) não dispararem dois (`test_atualizar_marca_rodando_antes_de_lancar`).
+5. A saída do `jobot atualizar` destacado vai para `<dados>/logs/atualizar.log` (0600, `O_NOFOLLOW`, acrescenta), em vez de `DEVNULL`: é o arquivo que a explicação dos 120 s e a página sem JavaScript citam. Não gira; cresce só a cada atualização.
+6. Sem HTMX: 303 para `/atualizando?de=<versão>`, com `<meta http-equiv="refresh" content="5;url=/atualizando?de=<versão>">`; com a versão no ar diferente de `de`, 303 para `/`; `de` que não é versão vale como a versão atual. Falha ao disparar: 303 para `/atualizando?erro=nao_comecou`, sem refresh, com "Tentar de novo". Limite: se o refresh cair com o servidor parado, o navegador mostra a página de erro dele e para de recarregar (sem JavaScript não dá para insistir).
+7. A marca da casca no user agent é lida por `_MARCA_CASCA` (` joBot-casca/N.N.N (linux|windows|macos)`); outra forma conta como fora da casca (sem "Baixar a janela nova"). A versão da casca é comparada com a `versao_nova` pelo mesmo `versao_da_etiqueta`. A T334 pode mover o leitor para um módulo comum quando o middleware dela ler a mesma marca.
+8. `POST /abrir-release` abre `https://github.com/fezarosa-dev/joBot/releases/latest` (endereço fixo, nada da pessoa na URL) pelo `sistema.abrir.abrir_navegador` (o `xdg-open` do host na distrobox, o `webbrowser` fora dela). Com HTMX, a faixa volta inteira com "A página da versão nova abriu no seu navegador." ou, se não abriu, com o endereço escrito como texto (sem link: o painel não abre nada de fora). Sem HTMX, 303 para o `voltar` (só caminho do painel), sem retorno: limite aceito, porque a faixa só chega pelo HTMX (`hx-trigger="load"`); sem ele o botão nem aparece.
+9. O README ainda manda rodar `uv run jobot atualizar` na seção de atualizar: a troca do texto (pt e en) fica para a tarefa de documentos da fase 3, junto do resto do app de desktop.
+10. Segundo plano ligado no Linux fora da distrobox: o servidor roda no cgroup do `jobot.service` (KillMode padrão, `control-group`), e o `desligar()` do `jobot atualizar` (`systemctl --user disable --now`) mataria o cgroup inteiro, com o próprio `jobot atualizar` filho do servidor; o `start_new_session` não tira o processo do cgroup. Quando `/proc/self/cgroup` termina em `/jobot.service`, `lancar_atualizacao` monta `systemd-run --user --scope --collect --quiet --unit jobot-atualizar -- <python> -m jobot atualizar` (scope: a saída segue para o `atualizar.log`). Dentro da distrobox o cgroup visto é o do contêiner e o `ExecStop` é o `sair`: fica como estava. Teste: `test_lancar_atualizacao_sai_do_cgroup_do_servico`. Para a T335 (Mac) e a T341 (Windows), o mesmo risco: `launchctl bootout` do LaunchAgent mata os processos do job, e o `schtasks /End` encerra a tarefa; o `jobot atualizar` disparado pelo painel precisa nascer fora deles (no Mac, um job próprio do launchd; no Windows, conferir se o processo destacado sobrevive ao fim da tarefa), com teste lá.
+11. Foco: o botão apertado na faixa some na troca. A caixa da espera é `role="group"` com `aria-labelledby` na linha do progresso, `tabindex="-1"` e `data-foco-se-livre`; aos 120 s, o `app.js` leva o foco ao "Tentar de novo" se ele estava na caixa ou solto; a falha ao disparar foca o "Tentar de novo" e a resposta do "Baixar a janela nova" foca o aviso (aberta ou o endereço). De Configurações › Geral o botão não some e o foco fica nele.
+
+**Como desfazer:** 1 é tirar o `{% if tem_versao_nova %}` de `configuracoes/geral.html`; 2 é dar ao formulário do Geral um alvo próprio; 3 é trocar `PASSO_ATUALIZAR_MS`/`PRAZO_ATUALIZAR_MS` no `app.js`; 4 é tirar a guarda `poll()` da rota `atualizar`; 5 é voltar o `stdout` para `DEVNULL` em `lancar_atualizacao`; 7 e 8 moram em `painel/rotas/aviso_versao.py`. Nenhum dado muda.
+
+**Ver também:** D171 (itens 8 e 11), D174.3, ADR 0014, 0023 e 0025, desenho 5.6 e 6.3, T331, T332, T334.
+
+## D177. Encerrar pelo painel: escolhas da T333 (para confirmar)
+
+**Status:** escolhas da sessão, para confirmar.
+
+**Contexto:** a T333 põe "Encerrar o joBot" em Configurações › Geral e na paleta, com o alerta "Encerrar o joBot?" (desenho 6.4, D143.37), sobre o `POST /sair` que já existia. Ficaram estas escolhas:
+
+1. O alerta (`alerta-encerrar`) vem junto da paleta, logo depois do `<dialog id="paleta">` em `_paleta.html`: toda página com a lateral o tem, fechado. A paleta fecha ao escolher a opção, por isso o alerta não pode morar dentro dela. Os testes de rota que conferem "página sem `<dialog>`" passam a tirar também o `alerta-encerrar`, como já tiravam a paleta.
+2. A opção da paleta e o botão de Geral são um formulário GET para `/sair/confirmar` com `data-alerta-abre`, como o Esquecer logins: sem JavaScript, a página de confirmação (`confirmar.html`) faz a pergunta e o POST; o `voltar` passa por `caminho_do_painel`. A paleta deixou de ter o POST direto do Sair.
+3. O botão "Sair" da barra do topo continua como está (POST direto, sem alerta): os testes da barra o prendem e o desenho 6.4 fala só de Geral e da paleta. Fica a pergunta ao dono: o Sair da barra passa a abrir o mesmo alerta, ou sai da barra (Encerrar fica em Geral, na paleta e no menu da casca)?
+4. Na casca, o `app.js` da página de despedida (marca `data-encerrado`) chama `window.__TAURI__.window.getCurrentWindow().close()`. Isso pede `app.withGlobalTauri` e a permissão `core:window:allow-close` na capability da janela (T334 e T335). Sem a ponte, nada acontece e a página diz para fechar a janela.
+5. A despedida diz "Pode fechar esta janela." também no navegador comum (antes, "esta aba"), como no desenho; o verbo do botão do alerta é "Encerrar" (`comum.encerrar`; em inglês, "Quit").
+
+**Como desfazer:** 3 é trocar o form do Sair em `execucao/barra.html` pelo GET com `data-alerta-abre="alerta-encerrar"` (ou tirá-lo); 1 e 2 são voltar o `envia("/sair", ...)` em `_paleta.html` e tirar o alerta e a rota `GET /sair/confirmar`; 4 é tirar o bloco `data-encerrado` do `app.js`. Nenhum dado muda.
+
+**Ver também:** D143.37, D171.7, desenho 5.5 e 6.4, T326, T333, T334, T335.
+
+## D178. O painel dentro da casca: escolhas da T334 (para confirmar)
+
+**Status:** escolhas da sessão, para confirmar.
+
+**Contexto:** a T334 põe no painel a marca da casca (`data-casca` no `<html>`), a fileira de três círculos no Windows e no Linux e o espaço dos botões do sistema no Mac (desenho 5.3). O desenho deixou abertos os tons, o lugar exato e o caminho da IPC pela CSP.
+
+1. Cores: no tema escuro, os tons do Mac (`#ff5f57`, `#febc2e`, `#28c840`); no claro, tons mais escuros (`#e0443e`, `#b07a00`, `#1f8a3a`), porque o amarelo do Mac dá 1,56:1 sobre a barra clara e o verde 2,06:1, abaixo dos 3:1 de objeto gráfico. Janela inativa: `#7c7c80` (claro) e `#8e8e93` (escuro), sem voltar à cor no hover. Os quatro tokens (`--janela-*`) estão na lista `contraste-grafico` contra `--solido-barra` e `--fundo`.
+2. Lugar: a fileira é filha do `<body>` e fica fixa no canto da janela (20px do topo e da borda, `z-index` 35, abaixo do link de pular). Quem está no canto abre espaço, no Windows, no Linux e no Mac: a lateral desce 36px; sem lateral à vista (assistente, recolhida, janela média) a barra recua 84px. A T335 ajusta a posição dos botões do Mac (`trafficLightPosition`) se não couberem nesse espaço.
+3. CSP: fica como está. A T321 mostrou que a IPC passa pelo `postMessage`; o primeiro pedido de cada página ainda gera uma violação de `connect-src` no console.
+4. Duplo clique: pelo `detail === 2` do `mousedown`, como a área de arraste do próprio Tauri, e não pelo evento `dblclick` (o `startDragging` do primeiro clique pode engolir o segundo).
+5. Arraste: a barra inteira e o topo vazio da lateral, fora de link, botão, campo e `[tabindex]`, também no Mac (a barra de título sobreposta não arrasta sozinha).
+6. A marca é lida por uma função global do Jinja (`marca_da_casca`, em `painel/globais.py`), não por middleware: só o `base.html` a usa. Ela devolve a versão e o sistema, para a T332 comparar a versão da casca. Sistema fora de `linux`, `windows` e `macos` vale como sem marca.
+
+**Como desfazer:** 1 é trocar os tokens em `base.css` (o teste de contraste confere); 2 é mudar `.janela-botoes` e as regras `:root[data-casca]` de `casca.css`; 3 é acrescentar `ipc: http://ipc.localhost` ao `connect-src` só nas respostas cujo pedido traz a marca (o middleware `cabecalhos` de `painel/app.py`); 4 é ouvir `dblclick`.
+
+**Ver também:** D142 (item 3), D143 (item 11), desenho 5.3, T321, T334.
