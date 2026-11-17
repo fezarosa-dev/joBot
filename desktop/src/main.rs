@@ -15,8 +15,7 @@ use std::time::Duration;
 use tauri::ipc::Channel;
 use tauri::webview::PageLoadEvent;
 use tauri::{
-    AppHandle, Manager, RunEvent, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
-    WindowEvent,
+    AppHandle, Manager, RunEvent, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent,
 };
 
 /// O sha256 do `manifesto.json` dos recursos, gravado no build (desenho 6.2; D174.7). Sem ele
@@ -254,7 +253,9 @@ fn fechar_instalador(app: AppHandle) {
 }
 
 fn em_curso(app: &AppHandle) -> bool {
-    app.state::<Arc<Instalacao>>().em_curso.load(Ordering::SeqCst)
+    app.state::<Arc<Instalacao>>()
+        .em_curso
+        .load(Ordering::SeqCst)
 }
 
 /// Fechar no meio da instalação: a página pergunta antes (alerta, desenho 5.2).
