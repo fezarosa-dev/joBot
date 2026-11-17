@@ -19,7 +19,7 @@ use std::fmt::Write as _;
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, BufRead, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
 use std::time::Duration;
@@ -278,7 +278,48 @@ pub fn gravar_atomico(destino: &Path, conteudo: &[u8]) -> io::Result<()> {
     gravado
 }
 
-/// Roda o comando sem janela nem entrada, avisa cada linha do stdout e o mata se `cancelado`.
+/// No cancelamento, quanto o comando tem para sair depois do SIGTERM: o `jobot ferramentas
+/// baixar navegador` espera até 10 s o `playwright install` sair (`ESPERA_SAIR_JANELA_S`).
+#[cfg(unix)]
+const ESPERA_SAIR: Duration = Duration::from_secs(15);
+
+/// Para o comando e o que ele subiu (D183.24). POSIX: SIGTERM ao grupo, que o `jobot ferramentas
+/// baixar navegador` pega para encerrar o `playwright install` (em sessão própria, fora do
+/// grupo), e SIGKILL ao grupo depois de `ESPERA_SAIR`. Windows: `taskkill /T /F` na árvore, antes
+/// de o pai sair (o job do lançador do uv deixa os netos escaparem).
+fn parar_arvore(filho: &mut Child) {
+    #[cfg(unix)]
+    {
+        unsafe extern "C" {
+            fn kill(pid: i32, sinal: i32) -> i32;
+        }
+        let grupo = -(filho.id() as i32);
+        // SAFETY: só manda um sinal; o grupo é o do filho (`process_group(0)` no `rodar`)
+        unsafe { kill(grupo, 15) }; // SIGTERM
+        let ate = std::time::Instant::now() + ESPERA_SAIR;
+        while std::time::Instant::now() < ate && matches!(filho.try_wait(), Ok(None)) {
+            std::thread::sleep(Duration::from_millis(100));
+        }
+        // SAFETY: idem; o que sobrou no grupo
+        unsafe { kill(grupo, 9) }; // SIGKILL
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        let _ = Command::new("taskkill")
+            .args(["/T", "/F", "/PID", &filho.id().to_string()])
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .creation_flags(0x0800_0000) // sem console
+            .status();
+    }
+    let _ = filho.kill();
+    let _ = filho.wait();
+}
+
+/// Roda o comando sem janela nem entrada, num grupo próprio, avisa cada linha do stdout e, se
+/// `cancelado`, para a árvore inteira (`parar_arvore`).
 pub fn rodar(
     mut comando: Command,
     cancelado: &AtomicBool,
@@ -290,6 +331,8 @@ pub fn rodar(
         .stderr(Stdio::piped());
     #[cfg(windows)]
     std::os::windows::process::CommandExt::creation_flags(&mut comando, 0x0800_0000); // sem console
+    #[cfg(unix)]
+    std::os::unix::process::CommandExt::process_group(&mut comando, 0);
     let mut filho = comando.spawn()?;
     let (envia, recebe) = mpsc::channel();
     let stdout = filho.stdout.take().expect("stdout com pipe");
@@ -309,8 +352,7 @@ pub fn rodar(
     let mut saida = String::new();
     loop {
         if cancelado.load(Ordering::SeqCst) {
-            let _ = filho.kill();
-            let _ = filho.wait();
+            parar_arvore(&mut filho);
             return Err(Erro::Cancelado);
         }
         match recebe.recv_timeout(Duration::from_millis(100)) {
@@ -1426,5 +1468,88 @@ mod testes {
         let r = rodar(comando, &AtomicBool::new(true), &mut |_| {});
         assert!(matches!(r, Err(Erro::Cancelado)), "{r:?}");
         assert!(inicio.elapsed() < std::time::Duration::from_secs(10));
+    }
+
+    /// Cancela o comando e devolve os PIDs que ele escreveu e os que ainda vivem depois de até 5 s.
+    #[cfg(any(target_os = "linux", windows))]
+    fn cancelar_e_ver_netos(
+        comando: Command,
+        vivo: impl Fn(&str) -> bool,
+    ) -> (Vec<String>, Vec<String>) {
+        let cancelado = AtomicBool::new(false);
+        let mut netos = Vec::new();
+        let r = rodar(comando, &cancelado, &mut |l| {
+            netos.extend(l.split_whitespace().map(str::to_string));
+            cancelado.store(true, Ordering::SeqCst);
+        });
+        assert!(matches!(r, Err(Erro::Cancelado)), "{r:?}");
+        let ate = std::time::Instant::now() + Duration::from_secs(5);
+        let mut vivos: Vec<String> = netos.clone();
+        while !vivos.is_empty() && std::time::Instant::now() < ate {
+            vivos.retain(|pid| vivo(pid));
+            std::thread::sleep(Duration::from_millis(100));
+        }
+        (netos, vivos)
+    }
+
+    /// D183.24: o `jobot ferramentas baixar navegador` sobe o `playwright install` em sessão
+    /// própria e o encerra no SIGTERM; o cancelamento chega a ele e ao grupo, não só ao filho.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn rodar_cancelado_encerra_os_netos() {
+        let mut comando = Command::new("/bin/sh");
+        comando.args([
+            "-c",
+            "sleep 300 & a=$!; setsid sleep 300 & b=$!; trap 'kill $b; exit 0' TERM; echo $a $b; wait",
+        ]);
+        // morto ou zumbi (sem quem o recolha no contêiner)
+        let vivo = |pid: &str| {
+            fs::read_to_string(format!("/proc/{pid}/stat")).is_ok_and(|s| {
+                !s.rsplit(')')
+                    .next()
+                    .unwrap_or("")
+                    .trim_start()
+                    .starts_with('Z')
+            })
+        };
+        let (netos, vivos) = cancelar_e_ver_netos(comando, vivo);
+        for pid in &vivos {
+            let _ = Command::new("kill").args(["-9", pid]).status();
+        }
+        assert_eq!(netos.len(), 2, "{netos:?}");
+        assert!(
+            vivos.is_empty(),
+            "netos vivos depois de cancelar: {vivos:?}"
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn rodar_cancelado_encerra_os_netos() {
+        let mut comando = Command::new("powershell");
+        comando.args([
+            "-NoProfile",
+            "-Command",
+            "$p = Start-Process -FilePath ping -ArgumentList '-n','300','127.0.0.1' -WindowStyle Hidden -PassThru; [Console]::Out.WriteLine($p.Id); [Console]::Out.Flush(); Wait-Process -Id $p.Id",
+        ]);
+        let vivo = |pid: &str| {
+            Command::new("tasklist")
+                .args(["/FI", &format!("PID eq {pid}"), "/NH"])
+                .output()
+                .is_ok_and(|s| {
+                    String::from_utf8_lossy(&s.stdout)
+                        .split_whitespace()
+                        .any(|p| p == pid)
+                })
+        };
+        let (netos, vivos) = cancelar_e_ver_netos(comando, vivo);
+        for pid in &vivos {
+            let _ = Command::new("taskkill").args(["/F", "/PID", pid]).status();
+        }
+        assert_eq!(netos.len(), 1, "{netos:?}");
+        assert!(
+            vivos.is_empty(),
+            "netos vivos depois de cancelar: {vivos:?}"
+        );
     }
 }
