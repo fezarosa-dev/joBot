@@ -424,6 +424,7 @@ Quem instalou pelo código roda todos de dentro da pasta `joBot`, com `uv run` n
 | `jobot segundo-plano ligar` | Liga o segundo plano, para o joBot iniciar sozinho junto com o seu usuário. Com `desligar` tira o serviço, e com `status` mostra como está. No Linux usa o systemd; no Windows, o Agendador de Tarefas; no Mac, um LaunchAgent (experimental). |
 | `jobot atualizar` | Atualiza o joBot para a versão mais nova e religa o que estava ligado. |
 | `jobot ferramentas baixar navegador` | Baixa o navegador dos sites com login (o mesmo do botão "Baixar" em Ferramentas). |
+| `jobot ferramentas baixar ia-local` | Baixa o modelo local de IA da fonte oficial (o `llama-server` do llama.cpp e um Qwen3.5 da Unsloth), com o sha256 conferido. Com `--modelo auto` (o padrão) escolhe pela memória do computador; `--modelo 2b` ou `4b` escolhe à mão. `atualizar ia-local` baixa o que mudou; `remover ia-local` apaga tudo e desliga as tarefas que usavam o modelo local. |
 | `jobot avaliar-rotulos` | Para quem mantém o projeto: mede as regras de rótulo contra um arquivo de exemplos seu. |
 
 ### Onde ficam os dados

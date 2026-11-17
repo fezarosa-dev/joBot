@@ -123,10 +123,10 @@ def ler_instalacao(dados: Path) -> dict[str, Any]:
 
 
 def gravar_instalacao(dados: Path, conteudo: Mapping[str, Any]) -> None:
-    _gravar(dados / ARQUIVO, json.dumps(conteudo, ensure_ascii=False, indent=2).encode())
+    gravar_atomico(dados / ARQUIVO, json.dumps(conteudo, ensure_ascii=False, indent=2).encode())
 
 
-def _gravar(destino: Path, conteudo: bytes) -> None:
+def gravar_atomico(destino: Path, conteudo: bytes) -> None:
     """`.tmp` com `O_EXCL` e 0600 na mesma pasta, `fsync` e `os.replace` (atômico)."""
     tmp = destino.with_name(f"{destino.name}.tmp")
     tmp.unlink(missing_ok=True)
@@ -492,7 +492,7 @@ def trocar(dados: Path, instalacao: Mapping[str, Any], nova: Preparada) -> dict[
     pasta = Path(instalacao["pasta"])
     user_version = versao_do_banco(dados)
     manifesto = pasta / f"manifesto-{nova.versao}.json"
-    _gravar(manifesto, nova.manifesto)
+    gravar_atomico(manifesto, nova.manifesto)
     conteudo = dict(instalacao)
     conteudo.update(
         venv=str(nova.venv),

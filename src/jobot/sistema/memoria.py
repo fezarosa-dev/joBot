@@ -1,7 +1,8 @@
 """Memória total do computador e o modelo local que cabe nela (desenho 7; D185.19; D189).
 
 O sistema informa menos que o nominal (um PC de 16 GB informa uns 13,3 GiB): os cortes têm folga.
-Os cortes moram aqui até a T409 lê-los do `ia.json` (D189).
+Os cortes vêm de quem chama, lidos do `memoria_gib` do `nucleo/dados/ia.json` (o `sistema` não lê a
+IA; T409, D195): 4B a partir de 11 GiB, aviso só abaixo de 7 GiB.
 """
 
 import ctypes
@@ -11,8 +12,6 @@ from collections.abc import Callable
 from typing import Any, Literal
 
 GIB = 1 << 30
-CORTE_4B_GIB = 11.0  # 4B a partir daqui: um PC de 12 GB (uns 11,5 GiB) leva o 4B
-AVISO_GIB = 7.0  # "pode ficar lento" só abaixo daqui: um PC de 8 GB (uns 7,7 GiB) não avisa
 
 Modelo = Literal["2b", "4b"]
 
@@ -49,7 +48,8 @@ def memoria_total(
     return ler("SC_PHYS_PAGES") * ler("SC_PAGE_SIZE")
 
 
-def escolher_modelo(total: int) -> tuple[Modelo, bool]:
-    """(modelo, avisar que pode ficar lento) pela memória total em bytes."""
+def escolher_modelo(total: int, *, desde_4b_gib: float, aviso_gib: float) -> tuple[Modelo, bool]:
+    """(modelo, avisar que pode ficar lento) pela memória total em bytes: 4B a partir de
+    `desde_4b_gib`, aviso só abaixo de `aviso_gib`."""
     gib = total / GIB
-    return ("4b" if gib >= CORTE_4B_GIB else "2b"), gib < AVISO_GIB
+    return ("4b" if gib >= desde_4b_gib else "2b"), gib < aviso_gib
