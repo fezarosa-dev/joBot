@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="pt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>joBot</title>
+<!-- Desenho 5.1 (passo 5) e 5.4: a tela de erro da casca. Sem light-dark(): abre também no
+     WebKitGTK velho. O texto chega pela URL (motivo, detalhe, log) e entra só por textContent. -->
+<style>
+  :root {
+    color-scheme: light dark;
+    --fundo: #f5f5f7; --superficie: #ffffff; --texto: #1d1d1f; --texto-2: #6e6e73;
+    --destaque: #0071e3; --separador: #d2d2d7;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --fundo: #000000; --superficie: #1c1c1e; --texto: #f5f5f7; --texto-2: #a1a1a6;
+      --destaque: #0a84ff; --separador: #38383a;
+    }
+  }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    background: var(--fundo); color: var(--texto);
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  }
+  main { max-width: 640px; margin: 0 auto; padding: 56px 24px 32px; }
+  h1 { font-size: 22px; line-height: 1.25; margin: 0 0 8px; }
+  p { margin: 0 0 16px; color: var(--texto-2); }
+  button {
+    font: inherit; font-weight: 600; color: #ffffff; background: var(--destaque);
+    border: 0; border-radius: 8px; padding: 8px 16px; cursor: pointer;
+  }
+  button:focus-visible { outline: 3px solid var(--destaque); outline-offset: 2px; }
+  details { margin-top: 24px; }
+  summary { cursor: pointer; color: var(--texto-2); }
+  pre {
+    margin: 8px 0 0; padding: 12px; max-height: 320px; overflow: auto;
+    background: var(--superficie); border: 1px solid var(--separador); border-radius: 8px;
+    font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    white-space: pre-wrap; word-break: break-word;
+  }
+  [hidden] { display: none !important; }
+  @media (forced-colors: active) { button { border: 1px solid ButtonText; } }
+</style>
+</head>
+<body>
+<main>
+  <h1 id="titulo" role="alert"></h1>
+  <p id="oque"></p>
+  <button type="button" id="tentar"></button>
+  <details id="registro" open hidden>
+    <summary id="registro-titulo"></summary>
+    <pre id="log"></pre>
+  </details>
+</main>
+<script>
+  (function () {
+    var textos = {
+      pt: {
+        instalar: ["O joBot não está instalado nesta conta.", "Instale o joBot de novo pelo instalador."],
+        porta: ["A porta {detalhe} está ocupada por outro programa.", "Feche esse programa ou defina JOBOT_PORTA com outra porta e tente de novo."],
+        captura: ["Uma captura de exemplos com login está em andamento.", "Encerre-a no terminal dela e tente de novo."],
+        sem_resposta: ["O joBot não respondeu na porta {detalhe}.", "Veja o fim do registro abaixo e tente de novo."],
+        saiu: ["O joBot fechou logo ao abrir.", "Veja o fim do registro abaixo e tente de novo."],
+        subir: ["Não consegui abrir o joBot.", "O sistema respondeu: {detalhe}. Instale o joBot de novo pelo instalador."],
+        janela: ["Seu sistema tem uma versão antiga do componente de janelas; o joBot abriu no navegador.", "Esta janela fecha sozinha."],
+        tentar: "Tentar de novo",
+        registro: "Fim do registro (logs/jobot.log)"
+      },
+      en: {
+        instalar: ["joBot is not installed for this account.", "Install joBot again with the installer."],
+        porta: ["Port {detalhe} is in use by another program.", "Close that program or set JOBOT_PORTA to another port and try again."],
+        captura: ["A sample capture with login is running.", "Stop it in its terminal and try again."],
+        sem_resposta: ["joBot did not answer on port {detalhe}.", "See the end of the log below and try again."],
+        saiu: ["joBot closed right after opening.", "See the end of the log below and try again."],
+        subir: ["Could not open joBot.", "The system said: {detalhe}. Install joBot again with the installer."],
+        janela: ["Your system has an old version of the window component; joBot opened in the browser.", "This window closes by itself."],
+        tentar: "Try again",
+        registro: "End of the log (logs/jobot.log)"
+      }
+    };
+    var idioma = /^pt\b/i.test(navigator.language || "") ? "pt" : "en";
+    var t = textos[idioma];
+    var url = new URLSearchParams(location.search);
+    var motivo = t[url.get("motivo")] ? url.get("motivo") : "subir";
+    var detalhe = url.get("detalhe") || "";
+    var log = url.get("log") || "";
+    var trocar = function (texto) { return texto.split("{detalhe}").join(detalhe); };
+    document.documentElement.lang = idioma;
+    document.getElementById("titulo").textContent = trocar(t[motivo][0]);
+    document.getElementById("oque").textContent = trocar(t[motivo][1]);
+    var tentar = document.getElementById("tentar");
+    tentar.textContent = t.tentar;
+    tentar.hidden = motivo === "janela";
+    // a casca lê este endereço (main.rs, aviso_local) e recomeça pela conferência da janela
+    tentar.addEventListener("click", function () { location.href = "/__jobot/tentar"; });
+    if (log) {
+      document.getElementById("registro-titulo").textContent = t.registro;
+      document.getElementById("log").textContent = log;
+      document.getElementById("registro").hidden = false;
+    }
+    if (!tentar.hidden) tentar.focus();
+  })();
+</script>
+</body>
+</html>
