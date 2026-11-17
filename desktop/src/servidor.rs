@@ -164,8 +164,7 @@ pub fn e_o_jobot(resposta: &[u8]) -> bool {
 
 /// O `segundo_plano` do `/saude-local` (desenho 5.5); sem o joBot ou sem o booleano: `None`.
 pub fn segundo_plano(resposta: &[u8]) -> Option<bool> {
-    let _ = resposta;
-    None
+    saude(resposta)?.get("segundo_plano")?.as_bool()
 }
 
 fn conectar(porta: u16, prazo: Duration) -> Option<TcpStream> {
