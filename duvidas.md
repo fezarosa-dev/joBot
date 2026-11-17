@@ -3489,3 +3489,22 @@ Do item 2 (T305 h), aceito e documentado. Sem JavaScript, o detalhe sobreposto f
 **Como desfazer:** cada item diz o seu. Até a T400, só o desenho, o plano e esta D existem; voltar atrás é apagar os dois arquivos e esta D.
 
 **Ver também:** D1, D97, D108, D122, D125, D138, D139, D141, D174, D180, D183 (itens 2, 16, 20, 24 e 25), D184, desenho da fase 4, plano da fase 4.
+
+## D189. Download conferido e memória: escolhas da T404 (para confirmar)
+
+**Status:** decidido pela sessão em 2026-11-17, para confirmar.
+
+**Contexto:** a T404 faz o download conferido (`sistema/baixar.py`), a leitura da memória (`sistema/memoria.py`) e a pasta `ferramentas` no `preparar_pasta` (desenho 7; D185.7, D185.18 e D185.19). O desenho fechou os motivos (`sem_rede`, `espaco`, `arquivo`, `cancelado`) e deixou aberto o que fazer com a trava tomada ("espera ou recusa"), com o salto recusado e onde moram os cortes de memória antes do `ia.json`.
+
+1. **Trava tomada recusa, com o motivo novo `ocupado`.** O segundo download do mesmo arquivo não espera: `FalhaBaixar("ocupado")`, sem pedido à rede, e o `.parcial` do outro fica. A trava é o arquivo `<arquivo>.<12 do sha256>.trava`, ao lado do `.parcial`, preso como o `jobot.lock` (`instancia.prender`; `_prender` e `_fechar` viraram públicos, `prender` e `fechar_trava`); o arquivo vazio fica na pasta. Desfazer: trava bloqueante (espera) e tirar o `ocupado` de `Motivo`.
+2. **Salto recusado e HTTP fora de 200/206 são `sem_rede`** (o `.parcial` fica): salto que a regra recusa (só `https`), mais de 5 saltos, 404, 5xx e erro do `httpx`. Desfazer: um motivo próprio em `Motivo`.
+3. **Inatividade em duas partes.** Silêncio total: o prazo de leitura do `httpx` (60 s, `cliente_de_download`). Bloco que chega depois de mais de 60 s do anterior (relógio injetado, `agora`): também `sem_rede`, com o bloco já gravado no `.parcial`. 60 s cravados não contam. Desfazer: só o prazo do `httpx`.
+4. **Progresso:** `baixar` entrega a linha JSON pronta (`{"etapa","feito","total"}`) a um callback: a primeira (com o que já havia no `.parcial`), uma por ponto percentual e a do fim. A linha `{"fim":...}` é de quem chama (T409).
+5. **Cortes de memória em `memoria.py`** (`CORTE_4B_GIB = 11`, `AVISO_GIB = 7`, os do desenho) até a T409 lê-los do `ia.json` da T401, que roda em paralelo; `escolher_modelo` devolve `(modelo, aviso)`. Desfazer: ler do `ia.json` aqui, quando a T401 entrar.
+6. **`.parcial` fora do esperado:** maior que o tamanho do manifesto é apagado e recomeça; do tamanho certo só é conferido, sem pedido. 206 com `Content-Range` de outro começo não é conferido: o sha256 do fim pega e apaga o `.parcial`.
+7. **Extração na pasta que quem chama passar.** O `.zip` confere todos os nomes antes de extrair qualquer um; o `.tar.gz` com `filter="data"` pode deixar membros já extraídos antes do recusado: a T409 extrai numa pasta nova e a apaga na falha. `OSError` na extração (disco cheio inclusive) é `arquivo`. `tornar_executavel` põe só o `+x` do dono (no Windows, nada).
+8. **Bytes crus:** o pedido manda `Accept-Encoding: identity` e lê `iter_raw`, para o sha256 e o `Range` falarem dos bytes do arquivo.
+
+**Como desfazer:** cada item diz o seu; o resto é `sistema/baixar.py` e `sistema/memoria.py`.
+
+**Ver também:** D185 (itens 7, 18 e 19), desenho 7, T404, T409.
