@@ -194,24 +194,33 @@ def test_gravar_habilidades_vaga_nao_dispara_gatilho(con: sqlite3.Connection) ->
 # contagem do dia
 
 
-def test_chamadas_do_dia_por_backend_e_dia_local(con: sqlite3.Connection) -> None:
+def test_chamadas_do_dia_contam_cada_chamada_por_backend_e_dia_local(
+    con: sqlite3.Connection,
+) -> None:
     # agora: 01:00 UTC do dia 18, que é 22:00 do dia 17 no fuso -03
     agora = datetime(2026, 11, 18, 1, 0, tzinfo=UTC)
-    hoje_cedo = datetime(2026, 11, 17, 9, 0, tzinfo=MENOS_3)
-    ontem_tarde = datetime(2026, 11, 16, 23, 30, tzinfo=MENOS_3)  # já é dia 17 em UTC
-    amanha_utc = datetime(2026, 11, 18, 3, 30, tzinfo=UTC)  # 00:30 do dia 18 local
-    a, b, c, d, e = (_vaga(con) for _ in range(5))
-    _pede(con, a, ["x"], backend="openai", agora=hoje_cedo)
-    _falha(con, b, backend="openai", agora=hoje_cedo)
-    _pede(con, c, ["x"], backend="openai", agora=ontem_tarde)
-    _pede(con, d, ["x"], backend="openai", agora=amanha_utc)
-    _pede(con, e, ["x"], backend="local", agora=hoje_cedo)
-    _falha(con, e, backend="openai", agora=hoje_cedo)  # `pede` local, falha openai: conta no openai
+    vaga = _vaga(con)
+    for _ in range(3):
+        ia.contar_chamada(con, "openai", agora)
+    ia.contar_chamada(con, "local", agora)
+    _falha(con, vaga, backend="openai", agora=agora)  # a linha da vaga não conta: só a chamada
     assert ia.chamadas_do_dia(con, "openai", agora) == 3
     assert ia.chamadas_do_dia(con, "local", agora) == 1
     assert ia.chamadas_do_dia(con, "gemini", agora) == 0
-    # um dia depois (local), nada de hoje conta e o de amanhã conta
-    assert ia.chamadas_do_dia(con, "openai", agora + timedelta(days=1)) == 1
+    # 00:30 do dia 18 local (03:30 UTC, o mesmo dia 18 em UTC): a contagem recomeça
+    amanha = datetime(2026, 11, 18, 3, 30, tzinfo=UTC)
+    assert ia.chamadas_do_dia(con, "openai", amanha) == 0
+    ia.contar_chamada(con, "openai", amanha)
+    assert ia.chamadas_do_dia(con, "openai", amanha) == 1
+    assert ia.chamadas_do_dia(con, "local", amanha) == 0
+
+
+def test_contagem_estragada_na_config_recomeca(con: sqlite3.Connection) -> None:
+    for estragado in ("x", {"dia": T0.astimezone().date().isoformat(), "por_backend": "x"}):
+        gravar_config(con, "ia_chamadas", estragado)
+        assert ia.chamadas_do_dia(con, "openai", T0) == 0
+        ia.contar_chamada(con, "openai", T0)
+        assert ia.chamadas_do_dia(con, "openai", T0) == 1
 
 
 # ia_tarefas

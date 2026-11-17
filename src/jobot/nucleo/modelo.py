@@ -255,3 +255,5 @@ class Encaixe:
     nivel: Literal["bom", "medio", "fraco"] | None
     motivos: tuple[Motivo, ...] = ()
     oculta_motivo: str | None = None  # regra que escondeu; None se visível
+    # o nível sem o critério de habilidades (desenho 5.5): a fila do laço da IA lê este
+    nivel_base: Literal["bom", "medio", "fraco"] | None = None

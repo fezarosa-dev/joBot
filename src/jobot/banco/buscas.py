@@ -20,6 +20,8 @@ from typing import Any
 
 from jobot.banco.cadastros import meu_pais
 from jobot.banco.cotacoes import cotacao_mais_recente
+from jobot.banco.ia import pedes
+from jobot.banco.perfil import habilidades
 from jobot.nucleo.cambio import MOEDAS, em_reais
 from jobot.nucleo.encaixe import calcular
 from jobot.nucleo.modelo import (
@@ -320,10 +322,14 @@ def _recalcular(
         "SELECT vaga_id, cidade, uf, pais FROM local_vaga" + onde("vaga_id"), params
     ):
         locais.setdefault(vid, []).append(Local(cidade=cidade, uf=uf, pais=pais))
+    # o que cada vaga pede (IA) e as habilidades do perfil (desenho 5.5): sem linha, neutro
+    pede = pedes(con, vaga_id)
+    perfil = habilidades(con)
     gravar: list[tuple[Any, ...]] = []
     for linha in con.execute(f"SELECT {_COLUNAS_VAGA} FROM vaga" + onde("id"), params):
         dados = dict(zip(_NOMES_VAGA, linha, strict=True))
         vaga = _vaga(dados, tuple(locais.get(dados["id"], ())))
+        achado = pede.get(dados["id"])
         for b in alvo:
             e = calcular(
                 vaga,
@@ -332,15 +338,19 @@ def _recalcular(
                 minimo_busca_brl=minimos[b.id],
                 regras_ligadas=regras_ligadas,
                 pais_padrao=padrao,
+                habilidades_vaga=None if achado is None else achado.pede,
+                habilidades_perfil=perfil,
             )
             motivos = [{"chave": m.chave, "params": dict(m.params)} for m in e.motivos]
             texto = json.dumps(motivos, ensure_ascii=False)
-            gravar.append((b.id, dados["id"], e.nota, e.nivel, texto, e.oculta_motivo))
+            gravar.append(
+                (b.id, dados["id"], e.nota, e.nivel, texto, e.oculta_motivo, e.nivel_base)
+            )
     con.executemany(
-        "INSERT INTO encaixe (busca_id, vaga_id, nota, nivel, motivos, oculta_motivo)"
-        " VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(busca_id, vaga_id) DO UPDATE SET"
+        "INSERT INTO encaixe (busca_id, vaga_id, nota, nivel, motivos, oculta_motivo, nivel_base)"
+        " VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(busca_id, vaga_id) DO UPDATE SET"
         " nota = excluded.nota, nivel = excluded.nivel, motivos = excluded.motivos,"
-        " oculta_motivo = excluded.oculta_motivo",
+        " oculta_motivo = excluded.oculta_motivo, nivel_base = excluded.nivel_base",
         gravar,
     )
     return len(gravar)
@@ -355,7 +365,8 @@ def recalcular_encaixe(
     vaga_id: int | None = None,
     pais_padrao: str | None = None,
 ) -> int:
-    """Grava nota, nível, motivos e `oculta_motivo` de cada vaga para cada busca; devolve quantas.
+    """Grava nota, nível, `nivel_base`, motivos e `oculta_motivo` de cada vaga para cada busca;
+    devolve quantas. Lê o `pede` de `habilidades_vaga` e as habilidades do perfil (desenho 5.5).
 
     `busca_ids` `None`: as buscas ativas; uma lista: essas, ativas ou não. `vaga_id`: só aquela
     vaga (decisão 18: a rota de correção recalcula uma vaga). `regras_ligadas` é a chave geral de

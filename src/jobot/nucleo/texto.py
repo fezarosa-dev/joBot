@@ -1,4 +1,5 @@
 import re
+import string
 import unicodedata
 from html.parser import HTMLParser
 from typing import Literal
@@ -12,6 +13,17 @@ def normalizar(s: str) -> str:
     sem_acento = "".join(c for c in unicodedata.normalize("NFD", s) if not unicodedata.combining(c))
     sem_acento = sem_acento.replace("\u2019", "'")
     return " ".join(sem_acento.casefold().split())
+
+
+# Pontas que saem de um nome de habilidade (D190.5): só a pontuação de fechamento no fim e "(" no
+# começo; o "." do começo fica (".NET"), e "+" e "#" também ("C++", "C#").
+_COMECO = string.whitespace + "("
+_FIM = string.whitespace + ",;:.!?)"
+
+
+def sem_pontas(item: str) -> str:
+    """O nome sem espaço e pontuação nas pontas; a anti-invenção e o encaixe usam o mesmo corte."""
+    return item.lstrip(_COMECO).rstrip(_FIM)
 
 
 # Conteúdo que o leitor não vê: some junto com a tag.

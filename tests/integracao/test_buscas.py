@@ -25,8 +25,10 @@ from jobot.banco.buscas import (
 from jobot.banco.cadastros import gravar_config
 from jobot.banco.conexao import abrir
 from jobot.banco.cotacoes import gravar_cotacao
+from jobot.banco.ia import gravar_falha, gravar_pede
 from jobot.banco.leitura import Filtros, listar
 from jobot.banco.migrar import migrar
+from jobot.banco.perfil import gravar_habilidades
 from jobot.nucleo.cambio import Cotacao
 from jobot.nucleo.modelo import Busca, Local, Modalidade, Nivel
 
@@ -477,3 +479,69 @@ def test_agora_sem_fuso_levanta_value_error_sem_gravar(con: sqlite3.Connection) 
             con, Busca(nome="x"), datetime(2026, 11, 13, 9, 0), regras_ligadas=True, hoje=HOJE
         )
     assert con.execute("SELECT count(*) FROM busca").fetchone() == (0,)
+
+
+# --- habilidades (desenho 5.5, T411) ---
+
+
+def _pede(con: sqlite3.Connection, vaga: int, pede: list[str]) -> None:
+    gravar_pede(
+        con, vaga, chave="c1", pede=pede, backend="local", modelo="qwen", versao=1, agora=AGORA
+    )
+
+
+def _niveis(con: sqlite3.Connection, busca_id: int, vaga_id: int) -> tuple[object, ...]:
+    return tuple(
+        con.execute(
+            "SELECT nota, nivel, nivel_base FROM encaixe WHERE busca_id = ? AND vaga_id = ?",
+            (busca_id, vaga_id),
+        ).fetchone()
+    )
+
+
+def test_recalcular_le_habilidades_da_vaga_e_do_perfil(con: sqlite3.Connection) -> None:
+    vaga = inserir_vaga(con, titulo="Dev Python")
+    sem_linha = inserir_vaga(con, titulo="Dev Python")
+    falhou = inserir_vaga(con, titulo="Dev Python")
+    bid = _busca(con, cargos=("python",))
+    _pede(con, vaga, ["Python", "Docker"])
+    gravar_falha(con, falhou, chave="c1", motivo="formato", backend="local", agora=AGORA)
+    gravar_habilidades(con, ["python"], AGORA)
+    recalcular_encaixe(con, None, True, hoje=HOJE)
+    nota, nivel, motivos, _ = _encaixe(con, bid, vaga) or (None,) * 4
+    assert (nota, nivel) == (82, "bom")  # (40 + 13) / 65
+    assert _chaves(str(motivos)) == [
+        "encaixe.cargo_titulo",
+        "encaixe.habilidades_tem",
+        "encaixe.habilidades_faltam",
+    ]
+    # sem `pede` (sem linha ou só com falha), a nota é a de antes
+    assert _niveis(con, bid, sem_linha) == (100, "bom", "bom")
+    assert _niveis(con, bid, falhou) == (100, "bom", "bom")
+
+
+def test_perfil_muda_e_a_nota_muda_sem_pedir_de_novo(con: sqlite3.Connection) -> None:
+    vaga = inserir_vaga(con, titulo="Dev Python")
+    bid = _busca(con, cargos=("python",))
+    _pede(con, vaga, ["Python", "Docker"])
+    gravar_habilidades(con, ["python"], AGORA)
+    recalcular_encaixe(con, None, True, hoje=HOJE, vaga_id=vaga)
+    assert _niveis(con, bid, vaga)[0] == 82
+    antes = con.execute("SELECT * FROM habilidades_vaga").fetchall()
+    gravar_habilidades(con, ["Python", "DOCKER"], AGORA)
+    recalcular_encaixe(con, None, True, hoje=HOJE, vaga_id=vaga)
+    assert _niveis(con, bid, vaga)[0] == 100
+    assert con.execute("SELECT * FROM habilidades_vaga").fetchall() == antes
+
+
+def test_recalcular_grava_nivel_base_sem_o_criterio(con: sqlite3.Connection) -> None:
+    vaga = inserir_vaga(con, titulo="Dev Python")
+    sem_linha = inserir_vaga(con, titulo="Dev Python")
+    bid = _busca(con, cargos=("python",))
+    _pede(con, vaga, ["Go"])
+    gravar_habilidades(con, ["Python"], AGORA)
+    con.execute("UPDATE encaixe SET nivel_base = NULL")
+    con.commit()
+    recalcular_encaixe(con, None, True, hoje=HOJE)
+    assert _niveis(con, bid, vaga) == (62, "medio", "bom")  # 40 de 65; sem o critério, 100
+    assert _niveis(con, bid, sem_linha) == (100, "bom", "bom")

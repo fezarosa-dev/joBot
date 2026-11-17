@@ -221,8 +221,12 @@ def test_encerrar_derruba_a_instancia_e_apaga_o_registro(
     instancia.encerrar()
     assert m.encerrados == m.lancador.filhos
     assert not m.registro.exists()
-    instancia.subir()
-    assert len(m.lancador.subidas) == 2
+    # encerrada não sobe de novo: o pedido que chega depois do fim de `vida` não deixa sobra
+    with pytest.raises(FalhaLlama) as erro:
+        instancia.subir()
+    assert erro.value.motivo == "servico_fora"
+    assert len(m.lancador.subidas) == 1
+    assert not m.registro.exists()
 
 
 def _sobra(m: Montagem) -> None:
