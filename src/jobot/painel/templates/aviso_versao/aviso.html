@@ -18,9 +18,9 @@
   {{- formulario("/abrir-release", t("aviso_versao.baixar_janela"), True) }}
   {%- endif %}
   {%- if janela == "aberta" %}
-  <p>{{ t("aviso_versao.janela_aberta") }}</p>
+  <p data-foco-se-livre>{{ t("aviso_versao.janela_aberta") }}</p>
   {%- elif janela == "falhou" %}
-  <p>{{ t("aviso_versao.janela_falhou", endereco=endereco) }}</p>
+  <p data-foco-se-livre>{{ t("aviso_versao.janela_falhou", endereco=endereco) }}</p>
   {%- endif %}
 </div>
 {%- endif -%}

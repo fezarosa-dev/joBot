@@ -38,6 +38,13 @@ _MARCA_CASCA = re.compile(
 _ERROS = {"nao_comecou": "aviso_versao.nao_comecou"}
 
 
+class _Disparando:
+    """O `jobot atualizar` sendo lançado: conta como rodando."""
+
+    def poll(self) -> None:
+        return None
+
+
 def _janela_velha(request: Request, versao: str) -> bool:
     """A casca (pelo user agent) é mais velha que a versão nova; fora da casca, não."""
     achado = _MARCA_CASCA.search(request.headers.get("user-agent", ""))
@@ -71,12 +78,15 @@ async def atualizar(request: Request) -> Response:
     rodando = getattr(estado, "atualizacao", None)
     falhou = False
     if rodando is None or rodando.poll() is not None:
+        # a marca entra antes do await: o segundo POST que chega durante o lançamento já a vê
+        estado.atualizacao = _Disparando()
         lancar = lancar_atualizacao_do_painel(request)
         try:
             estado.atualizacao = await run_in_threadpool(
                 lancar, estado.banco.parent, ambiente_do_painel(request)
             )
         except OSError:
+            estado.atualizacao = None
             _LOG.warning("não deu para começar o jobot atualizar", exc_info=True)
             falhou = True
     if request.headers.get("hx-request") is None:

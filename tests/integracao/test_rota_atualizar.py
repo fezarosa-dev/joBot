@@ -143,6 +143,29 @@ def test_segundo_post_com_a_atualizacao_rodando_nao_dispara_outra(painel: Painel
     assert len(painel.lancados) == 2
 
 
+def test_atualizar_marca_rodando_antes_de_lancar(painel: Painel) -> None:
+    """Revisão da T332: dois POSTs quase juntos (faixa e Geral, clique duplo) não disparam dois
+    `jobot atualizar`: a marca de rodando entra antes do lançamento, não depois."""
+    vistos: list[int | None] = []
+    lancar = painel.app.state.lancar_atualizacao
+
+    def espiar(dados: Path, ambiente: Mapping[str, str]) -> Rodando:
+        vistos.append(painel.app.state.atualizacao.poll())
+        return lancar(dados, ambiente)
+
+    painel.app.state.lancar_atualizacao = espiar
+    painel.post("/atualizar")
+    assert vistos == [None]
+    # o lançamento que falha tira a marca: "Tentar de novo" dispara outra vez
+    painel.processos[0].codigo = 0
+    painel.falha = OSError("sem python")
+    painel.post("/atualizar")
+    assert painel.app.state.atualizacao is None
+    painel.falha = None
+    painel.post("/atualizar")
+    assert len(painel.lancados) == 2
+
+
 def test_post_atualizar_sem_csrf_recusa_e_nao_dispara(painel: Painel) -> None:
     resposta = painel.cliente.post("/atualizar", headers=HTMX)
     assert resposta.status_code == 403

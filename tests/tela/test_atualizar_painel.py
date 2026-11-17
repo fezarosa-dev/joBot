@@ -113,6 +113,23 @@ def test_atualizar_agora_mostra_o_progresso_e_recarrega_com_a_versao_nova(
     assert page.evaluate("() => window.__mesmaPagina") is None
 
 
+def test_atualizar_pelo_teclado_leva_o_foco_para_a_espera(page: Page, painel: str) -> None:
+    """Revisão da T332: o botão focado some na troca; o foco vai para a caixa da espera, que tem
+    nome (a linha do progresso), e não cai no body."""
+    page.clock.install()
+    page.route("**/saude-local", _saude([__version__]))
+    _abrir_casca(page, painel)
+    regiao = page.locator(REGIAO)
+    regiao.get_by_role("button", name="Atualizar agora").focus()
+    with page.expect_response("**/atualizar"):
+        page.keyboard.press("Enter")
+    caixa = regiao.locator("[data-atualizando]")
+    expect(caixa).to_be_focused()
+    expect(caixa).to_have_accessible_name(
+        "Atualizando o joBot. O painel recarrega sozinho quando a versão nova abrir."
+    )
+
+
 def test_depois_de_120_s_explica_e_oferece_tentar_de_novo(
     page: Page, painel: str, falsos: Falsos
 ) -> None:
@@ -134,12 +151,15 @@ def test_depois_de_120_s_explica_e_oferece_tentar_de_novo(
             expect(demorou).to_be_hidden()
     assert 55 <= perguntas <= 61, perguntas
     expect(demorou).to_be_visible()
+    # o foco estava na caixa (veio do botão apertado): vai ao "Tentar de novo"
+    expect(regiao.get_by_role("button", name="Tentar de novo")).to_be_focused()
     expect(demorou).to_contain_text("logs/atualizar.log")
     expect(regiao.get_by_role("progressbar")).to_be_hidden()
     expect(caixa).to_have_attribute("data-perguntas", str(perguntas))  # parou de perguntar
     with page.expect_response("**/atualizar"):
         regiao.get_by_role("button", name="Tentar de novo").click()
     expect(regiao.get_by_role("progressbar")).to_be_visible()
+    expect(regiao.locator("[data-atualizando]")).to_be_focused()
     # o falso ainda roda: o segundo POST só volta a esperar, sem outro `jobot atualizar`
     assert len(falsos.lancados) == 1
 
@@ -160,7 +180,8 @@ def test_casca_velha_baixa_a_janela_nova_pelo_python(
     assert rolagem <= 0, f"a faixa estoura a largura em {rolagem}px"
     with page.expect_response("**/abrir-release"):
         regiao.get_by_role("button", name="Baixar a janela nova").click()
-    expect(regiao).to_contain_text("A página da versão nova abriu no seu navegador.")
+    aviso = regiao.get_by_text("A página da versão nova abriu no seu navegador.")
+    expect(aviso).to_be_focused()  # o botão sumiu na troca: o foco não cai no body
     assert falsos.abertos == [RELEASE]
     expect(regiao.get_by_role("link")).to_have_count(0)  # o painel não abre nada de fora
 

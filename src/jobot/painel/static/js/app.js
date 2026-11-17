@@ -1283,6 +1283,11 @@
       const demorou = caixa.querySelector("[data-atualizar-demorou]");
       if (barra) barra.hidden = true;
       if (demorou) demorou.hidden = false;
+      // o foco na caixa (ou solto) vai ao "Tentar de novo"; em outro lugar, fica onde está
+      const ativo = document.activeElement;
+      if (!ativo || ativo === document.body || ativo === caixa || barra?.contains(ativo)) {
+        demorou?.querySelector("button")?.focus();
+      }
     };
     agendar();
   };
