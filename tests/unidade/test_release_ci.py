@@ -2,7 +2,6 @@
 `scripts/montar_recursos.py`, que monta os recursos do instalador e o pacote de atualização
 (T339; desenho 8 e 10; D174.1, D174.4 e D174.16)."""
 
-import gzip
 import hashlib
 import importlib.util
 import io
@@ -142,13 +141,14 @@ def test_juntar_monta_os_anexos_o_sha256sums_e_as_notas() -> None:
         "*.rpm",
         "*.AppImage",
         "jobot-atualizacao-*.zip",
-        "chromium-*.tar.gz",
         "jobot-*.whl",
         "restricoes.txt",
     ):
         assert anexo in juntar, anexo
-    # 1 .exe, 2 .dmg, .deb, .rpm, AppImage, 4 pacotes, 4 Chromium, a wheel e o restricoes.txt
-    assert 'test "${#anexos[@]}" = 16' in juntar
+    # o navegador não vai na release (D183.24)
+    assert "chromium" not in juntar
+    # 1 .exe, 2 .dmg, .deb, .rpm, AppImage, 4 pacotes, a wheel e o restricoes.txt
+    assert 'test "${#anexos[@]}" = 12' in juntar
     assert "CHANGELOG.md CHANGELOG.en.md" in juntar
     # a versão das notas vem do job wheel, que confere a da tag
     assert "needs.wheel.outputs.versao" in juntar
@@ -206,7 +206,7 @@ def test_versoes_do_build_fixadas_como_no_uv_meta() -> None:
 
 
 def test_artefatos_do_pacotes_vivem_pouco() -> None:
-    # os anexos levam o navegador (D183.24): o artefato do ensaio some em dois dias
+    # os instaladores são grandes (D183.23): o artefato do ensaio some em dois dias
     texto = _codigo(PACOTES)
     assert texto.count("actions/upload-artifact@") == texto.count("retention-days: 2") == 3
 
@@ -220,10 +220,11 @@ def test_job_casca_monta_os_recursos_e_compila_com_o_sha_do_manifesto() -> None:
         ("x86_64-apple-darwin", "macos-15-intel"),
     ):
         assert re.search(rf"os: {runner}\n\s+alvo: {alvo}\n", texto), alvo
+    # o joBot não redistribui o Chrome for Testing do Playwright: nada de navegador no build
+    # (D183.24); a fumaça o baixa como a pessoa, pelo --verificar-navegador
+    assert "playwright install" not in texto and "--navegadores" not in texto
+    assert "chromium-" not in texto
     for passo in (
-        "PLAYWRIGHT_BROWSERS_PATH",
-        # sem o headless shell: o joBot só abre o Chromium com janela (D183)
-        "playwright install --no-shell chromium",
         "pip==26.2 download --only-binary=:all: --require-hashes",
         "scripts/montar_recursos.py recursos",
         'echo "JOBOT_MANIFESTO_SHA256=',
@@ -286,16 +287,26 @@ def test_fumaca_sem_rede_no_linux_no_windows_e_no_mac() -> None:
         "APPIMAGE_EXTRACT_AND_RUN=1",
     ):
         assert passo in texto, passo
-    # o .deb e o AppImage na 22.04 e o AppImage de novo na 24.04, cada um no seu contêiner
-    # sem rede e como usuário comum (root leria qualquer arquivo dos recursos)
-    assert texto.count("docker run --rm --network none") == 3
-    assert texto.count("docker run") == 3
+    # o .deb e o AppImage na 22.04 e o AppImage de novo na 24.04, cada um no seu contêiner e
+    # como usuário comum (root leria qualquer arquivo dos recursos): o --verificar sem rede
+    # (conferida: só a interface lo) e, depois, com rede, o --verificar-navegador (D183.24)
+    assert texto.count("docker run") == 1  # dentro da função, chamada três vezes
     assert "useradd -m pessoa" in texto
-    assert "dpkg -i /saida/*.deb && runuser -u pessoa -- jobot-app --verificar" in texto
-    assert "runuser -u pessoa -- ./jobot.AppImage --verificar'" in texto
+    linux = texto[texto.index("fumaça (Linux)") : texto.index("fumaça sem rede (Windows)")]
+    ordem = [linux.index('docker network disconnect bridge "$c"')]
+    for passo in (
+        'test "$(ls /sys/class/net)" = lo',
+        'runuser -u pessoa -- $3 --verificar"',
+        'docker network connect bridge "$c"',
+        "runuser -u pessoa -- $3 --verificar-navegador",
+    ):
+        ordem.append(linux.index(passo, ordem[-1]))
+    assert ordem == sorted(ordem)
+    assert "fumaca jobot-fumaca 'dpkg -i /saida/*.deb' jobot-app\n" in linux
+    for nome in ("jobot-fumaca", "jobot-fumaca-nova"):
+        assert f'fumaca {nome} "$appimage" ./jobot.AppImage\n' in linux, nome
     for imagem, nome in (("ubuntu:22.04", "jobot-fumaca"), ("ubuntu:24.04", "jobot-fumaca-nova")):
         assert f"docker build -t {nome} --build-arg BASE={imagem}" in texto, imagem
-        assert f'APPIMAGE_EXTRACT_AND_RUN=1 {nome} sh -c "$appimage"\n' in texto, imagem
     # o AppRun do AppImage exporta o LD_LIBRARY_PATH que a casca tira dos filhos (D183.18):
     # a fumaça falha se não o achar
     assert 'test -n "$ld" && echo "o AppRun exporta: $ld"' in texto
@@ -312,11 +323,20 @@ def test_fumaca_sem_rede_no_linux_no_windows_e_no_mac() -> None:
     # o próprio instalador também tem regra (é ele que baixaria o WebView2, D183)
     assert "$exes = @($setup) + $exes" in texto
     assert texto.index("$exes = @($setup) + $exes") < texto.index("New-NetFirewallRule")
-    # ordem: instalar, conferir, --verificar, conferir
+    # ordem: instalar, conferir, --verificar, conferir, controle; só então as regras saem e o
+    # navegador vem da internet (D183.24)
     ordem = [texto.index("Start-Process $setup -ArgumentList '/S'")]
-    for passo in ("Conferir-Regras\n", "'--verificar'", "Conferir-Regras\n"):
+    for passo in (
+        "Conferir-Regras\n",
+        "'--verificar'",
+        "Conferir-Regras\n",
+        "WinError 10013",
+        "Remove-NetFirewallRule",
+        "'--verificar-navegador'",
+    ):
         ordem.append(texto.index(passo, ordem[-1] + 1))
     assert ordem == sorted(ordem)
+    assert "ms-playwright" not in texto and "--playwright" not in texto
     # controle: o Python do venv não sai e o do runner, sem regra, sai
     assert texto.count("socket.create_connection") == 1
     controle = texto[texto.index("socket.create_connection") :]
@@ -330,9 +350,42 @@ def test_fumaca_sem_rede_no_linux_no_windows_e_no_mac() -> None:
     assert "instalacao.json" in troca[: troca.index("Start-Process $setup")]
     # depois de desinstalar de verdade, os dados ficam
     assert "Join-Path $inst 'jobot.db'" in texto
-    # Mac: o .app de dentro do .dmg
+    # Mac: o .app de dentro do .dmg, com rede, nos dois passos
     assert "hdiutil attach" in texto
-    assert texto.count("--verificar") >= 4
+    mac = texto[texto.index("fumaça (Mac, com rede)") :]
+    assert mac.index("jobot-app\" --verificar\n") < mac.index('jobot-app" --verificar-navegador')
+
+
+def test_instalador_do_windows_nao_baixa_o_webview2_e_confere_antes() -> None:
+    """D183.20: sem rede na instalação (D174.1); sem o WebView2, aviso e cancela."""
+    conf = json.loads((RAIZ / "desktop" / "tauri.conf.json").read_text(encoding="utf-8"))
+    windows = conf["bundle"]["windows"]
+    assert windows["webviewInstallMode"] == {"type": "skip"}
+    assert windows["nsis"]["languages"] == ["English", "PortugueseBR"]
+    bruto = (RAIZ / "desktop" / "windows" / "ganchos.nsh").read_bytes()
+    # o NSIS lê sem BOM pela página de código do sistema: o "não" sairia torto
+    assert bruto.startswith(b"\xef\xbb\xbf")
+    gancho = bruto.decode("utf-8-sig")
+    corpo = gancho[gancho.index("!macro NSIS_HOOK_PREINSTALL") :]
+    corpo = corpo[: corpo.index("!macroend")]
+    chave = "Microsoft\\EdgeUpdate\\Clients\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"
+    assert chave in gancho
+    for lugar in (
+        'HKLM "SOFTWARE\\WOW6432Node\\${JOBOT_WEBVIEW2}" "pv"',
+        'HKLM "SOFTWARE\\${JOBOT_WEBVIEW2}" "pv"',
+        'HKCU "SOFTWARE\\${JOBOT_WEBVIEW2}" "pv"',
+    ):
+        assert f"ReadRegStr $R9 {lugar}" in corpo, lugar
+    assert corpo.count('${OrIf} $R9 == "0.0.0.0"') == 3
+    assert "https://developer.microsoft.com/microsoft-edge/webview2/" in gancho
+    assert "${If} $LANGUAGE == 1046" in corpo
+    assert "O joBot precisa do Microsoft Edge WebView2 Runtime" in corpo
+    assert "joBot needs the Microsoft Edge WebView2 Runtime" in corpo
+    # o aviso aparece também no /S (resposta padrão) e a instalação para sem baixar nada
+    assert 'MessageBox MB_ICONSTOP|MB_OK "$R8" /SD IDOK' in corpo
+    assert corpo.index("MessageBox") < corpo.index('Abort "$R8"')
+    for proibido in ("NSISdl", "inetc", "ExecWait", "Exec "):
+        assert proibido not in corpo, proibido
 
 
 def test_casca_do_tauri_gera_os_pacotes_e_o_mac_assina_ad_hoc() -> None:
@@ -463,84 +516,6 @@ def test_extrair_uv_tira_so_o_uv(tmp_path: Path, alvo: str) -> None:
         assert destino.stat().st_mode & stat.S_IXUSR
 
 
-def test_tar_do_navegador_guarda_modo_e_symlink_e_deixa_os_ocultos(tmp_path: Path) -> None:
-    m = _script()
-    pasta = tmp_path / "navegadores"
-    chrome = pasta / "chromium-1254" / "chrome-linux" / "chrome"
-    chrome.parent.mkdir(parents=True)
-    chrome.write_bytes(b"chrome")
-    chrome.chmod(0o755)
-    (pasta / "chromium-1254" / "atalho").symlink_to("chrome-linux/chrome")
-    (pasta / ".links").mkdir()
-    (pasta / ".links" / "x").write_text("y", encoding="utf-8")
-    arquivo = tmp_path / "chromium-x86_64-unknown-linux-gnu.tar.gz"
-    m.tar_do_navegador(pasta, arquivo)
-    with tarfile.open(arquivo) as tar:
-        membros = {t.name: t for t in tar.getmembers()}
-    assert ".links" not in membros and ".links/x" not in membros
-    assert membros["chromium-1254/chrome-linux/chrome"].mode & 0o111
-    assert membros["chromium-1254/atalho"].issym()
-    assert membros["chromium-1254/atalho"].linkname == "chrome-linux/chrome"
-
-
-def test_tar_do_navegador_deixa_o_widevine_de_fora(tmp_path: Path) -> None:
-    # o Playwright 1.65 baixa o Chrome for Testing, cujo Widevine o Google não deixa
-    # redistribuir; o joBot não toca mídia com DRM (D183.24)
-    m = _script()
-    pasta = tmp_path / "navegadores"
-    linux = pasta / "chromium-1254" / "chrome-linux64"
-    mac = pasta / "chromium-1254" / "chrome-mac-arm64" / "Framework.framework" / "Libraries"
-    for widevine in (linux / "WidevineCdm", mac / "WidevineCdm"):
-        (widevine / "_platform_specific" / "x64").mkdir(parents=True)
-        (widevine / "LICENSE").write_text("termos", encoding="utf-8")
-        (widevine / "_platform_specific" / "x64" / "libwidevinecdm.so").write_bytes(b"cdm")
-    (linux / "chrome").write_bytes(b"chrome")
-    (mac / "outra.dylib").write_bytes(b"dylib")
-    arquivo = tmp_path / "chromium.tar.gz"
-    m.tar_do_navegador(pasta, arquivo)
-    with tarfile.open(arquivo) as tar:
-        nomes = tar.getnames()
-    assert [n for n in nomes if "Widevine" in n] == []
-    assert "chromium-1254/chrome-linux64/chrome" in nomes
-    assert "chromium-1254/chrome-mac-arm64/Framework.framework/Libraries/outra.dylib" in nomes
-
-
-def test_tar_do_navegador_e_reproduzivel(tmp_path: Path) -> None:
-    # o canal casca compara o sha256 do Chromium entre versões (D174.13): o mesmo conteúdo
-    # tem de dar o mesmo tar, mesmo com outra hora nos arquivos e no relógio
-    m = _script()
-    pasta = tmp_path / "navegadores"
-    chrome = pasta / "chromium-1254" / "chrome-linux" / "chrome"
-    chrome.parent.mkdir(parents=True)
-    chrome.write_bytes(b"chrome")
-    # duas pastas de topo, criadas fora da ordem
-    (pasta / "ffmpeg-1011").mkdir()
-    (pasta / "ffmpeg-1011" / "ffmpeg").write_bytes(b"ffmpeg")
-    (pasta / "chromium-1254" / "a.txt").write_bytes(b"a")
-    um, outro = tmp_path / "um.tar.gz", tmp_path / "outro.tar.gz"
-    m.tar_do_navegador(pasta, um)
-    for p in (chrome, chrome.parent, pasta / "chromium-1254"):
-        os.utime(p, (1_000_000, 1_000_000))
-    m.tar_do_navegador(pasta, outro)
-    assert _sha(um.read_bytes()) == _sha(outro.read_bytes())
-    with gzip.open(um) as g:
-        assert g.read(1)  # é gzip de verdade
-    # o campo MTIME do cabeçalho do gzip (bytes 4 a 7) é zero, não a hora do build
-    assert um.read_bytes()[4:8] == bytes(4)
-    with tarfile.open(um) as tar:
-        assert tar.getnames() == [
-            "chromium-1254",
-            "chromium-1254/a.txt",
-            "chromium-1254/chrome-linux",
-            "chromium-1254/chrome-linux/chrome",
-            "ffmpeg-1011",
-            "ffmpeg-1011/ffmpeg",
-        ]
-        for membro in tar.getmembers():
-            assert (membro.mtime, membro.uid, membro.gid) == (0, 0, 0), membro.name
-            assert (membro.uname, membro.gname) == ("", ""), membro.name
-
-
 def _roda(caminho: Path, script: str) -> Path:
     caminho.parent.mkdir(exist_ok=True)
     nome, versao = caminho.name.split("-")[:2]
@@ -561,9 +536,6 @@ def _cenario(tmp_path: Path, alvo: str) -> dict[str, Path]:
     restricoes.write_text("httpx==0.28.1\njobot==0.3.0\n", encoding="utf-8")
     python = tmp_path / "cpython-3.14.10+20261110-x-install_only_stripped.tar.gz"
     python.write_bytes(b"python")
-    navegadores = tmp_path / "navegadores"
-    (navegadores / "chromium-1254").mkdir(parents=True)
-    (navegadores / "chromium-1254" / "chrome").write_bytes(b"chrome")
     licencas = tmp_path / "licencas"
     licencas.mkdir()
     for nome in ("LICENSE-MIT", "LICENSE-APACHE"):
@@ -575,7 +547,6 @@ def _cenario(tmp_path: Path, alvo: str) -> dict[str, Path]:
         "rodas": rodas,
         "roda": roda,
         "restricoes": restricoes,
-        "navegadores": navegadores,
     }
 
 
@@ -602,7 +573,6 @@ def test_montar_gera_recursos_com_manifesto_de_tudo(tmp_path: Path) -> None:
         rodas=c["rodas"],
         roda=c["roda"],
         restricoes=c["restricoes"],
-        navegadores=c["navegadores"],
         licencas=sorted(c["licencas"].iterdir()),
     )
     bruto = (saida / "manifesto.json").read_bytes()
@@ -616,7 +586,6 @@ def test_montar_gera_recursos_com_manifesto_de_tudo(tmp_path: Path) -> None:
     assert sorted(manifesto) == achados
     assert achados == [
         "bin/uv.tar",
-        f"chromium-{alvo}.tar.gz",
         "licencas/uv/LICENSE-APACHE",
         "licencas/uv/LICENSE-MIT",
         f"python/20261110/{c['python'].name}",
@@ -647,7 +616,6 @@ def test_pacote_de_atualizacao_no_formato_do_canal_casca(tmp_path: Path) -> None
         rodas=c["rodas"],
         roda=c["roda"],
         restricoes=c["restricoes"],
-        navegadores=c["navegadores"],
         licencas=sorted(c["licencas"].iterdir()),
     )
     # o uv vai num tar ustar sem compressão, de um arquivo só, que a casca abre (D183)
@@ -672,11 +640,7 @@ def test_pacote_de_atualizacao_no_formato_do_canal_casca(tmp_path: Path) -> None
     ]
     for nome, dados in dentro.items():
         assert manifesto[nome] == (len(dados), _sha(dados)), nome
-    # o Chromium fica listado sem estar dentro (D174.8)
-    chromium = f"chromium-{alvo}.tar.gz"
-    assert chromium not in dentro
-    assert manifesto[chromium] == _manifesto((saida / "manifesto.json").read_bytes())[chromium]
-    assert set(manifesto) == set(dentro) | {chromium}
+    assert set(manifesto) == set(dentro)
 
 
 def test_exes_do_windows_cobrem_a_instalacao(tmp_path: Path) -> None:
@@ -696,8 +660,6 @@ def test_exes_do_windows_cobrem_a_instalacao(tmp_path: Path) -> None:
         for nome in ("python/python.exe", "python/pythonw.exe", "python/Scripts/pip.exe"):
             info = tarfile.TarInfo(nome)
             tar.addfile(info, io.BytesIO(b""))
-    c["navegadores"].joinpath("chromium-1254", "chrome-win").mkdir()
-    c["navegadores"].joinpath("chromium-1254", "chrome-win", "chrome.exe").write_bytes(b"")
     saida = tmp_path / "recursos"
     m.montar(
         saida=saida,
@@ -709,11 +671,10 @@ def test_exes_do_windows_cobrem_a_instalacao(tmp_path: Path) -> None:
         rodas=c["rodas"],
         roda=c["roda"],
         restricoes=c["restricoes"],
-        navegadores=c["navegadores"],
         licencas=sorted(c["licencas"].iterdir()),
     )
     inst = "C:\\U\\AppData\\Local\\joBot"
-    exes = m.exes_do_windows(saida, inst, "C:\\U\\AppData\\Local\\ms-playwright", "0.3.0")
+    exes = m.exes_do_windows(saida, inst, "0.3.0")
     casca = inst + "\\app"
     venv = casca + "\\venvs\\venv-0.3.0"
     cpython = casca + "\\python\\cpython-3.14.10-windows-x86_64-none"
@@ -730,7 +691,6 @@ def test_exes_do_windows_cobrem_a_instalacao(tmp_path: Path) -> None:
         venv + "\\Scripts\\httpx.exe",
         venv + "\\Scripts\\playwright.exe",
         venv + "\\Lib\\site-packages\\playwright\\driver\\node.exe",
-        "C:\\U\\AppData\\Local\\ms-playwright\\chromium-1254\\chrome-win\\chrome.exe",
     ):
         assert esperado in exes, esperado
     assert len(exes) == len(set(exes))

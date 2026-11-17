@@ -468,7 +468,6 @@ def test_atualizar_com_captura_recusa_e_nao_sobe_servidor(
 VERSAO = "9.9.9"
 ALVO = casca.alvo_atual() or "x86_64-unknown-linux-gnu"
 PACOTE = f"jobot-atualizacao-{VERSAO}-{ALVO}.zip"
-CHROMIUM = f"chromium-{ALVO}.tar.gz"
 TAG = f"https://github.com/fezarosa-dev/joBot/releases/download/v{VERSAO}"
 SOMAS = "https://github.com/fezarosa-dev/joBot/releases/latest/download/SHA256SUMS"
 PYTHON_TAR = "python/cpython-3.14.9-install_only.tar.gz"
@@ -497,13 +496,10 @@ def _manifesto(arquivos: Mapping[str, bytes], **trocar: str) -> dict[str, object
     return {"versao": VERSAO, "arquivos": itens}
 
 
-CHROMIUM_NOVO = _tar({"chrome-linux/chrome": b"chrome novo"})
-
-
 def _pacote(
     *, trocar: Mapping[str, str] | None = None, extra: Mapping[str, bytes] | None = None
 ) -> bytes:
-    """O `.zip` da release: o manifesto lista o Chromium sem ele estar dentro (D174.8)."""
+    """O `.zip` da release; o navegador não vai na release (D183.24)."""
     dentro = {
         "restricoes.txt": (
             f"dep==1 --hash=sha256:{'0' * 64}\n"
@@ -513,7 +509,7 @@ def _pacote(
         "wheels/dep-1-py3-none-any.whl": b"wheel da dep",
         PYTHON_TAR: _tar({"python/bin/python3": b"#!python"}),
     }
-    manifesto = _manifesto({**dentro, CHROMIUM: CHROMIUM_NOVO}, **(trocar or {}))
+    manifesto = _manifesto(dentro, **(trocar or {}))
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w") as zf:
         zf.writestr("manifesto.json", json.dumps(manifesto))
@@ -530,7 +526,6 @@ class _Release:
         self.urls: dict[str, bytes] = {
             SOMAS: f"{sha or _sha(pacote)}  jobot-atualizacao-{versao}-{ALVO}.zip\n".encode(),
             f"{TAG}/{PACOTE}": pacote,
-            f"{TAG}/{CHROMIUM}": CHROMIUM_NOVO,
         }
         self.pedidos: list[str] = []
         self.cliente = httpx.Client(transport=httpx.MockTransport(self._responder))
@@ -585,7 +580,7 @@ def _venv(pasta: Path, versao: str, python: str) -> Path:
     return venv
 
 
-def _instalada(dados: Path, *, chromium_sha: str = "a" * 64) -> Path:
+def _instalada(dados: Path) -> Path:
     """Instalação da casca na 0.3.0, com a 0.2.0 de anterior e a 0.1.0 que sobrou."""
     pasta = dados / "app"
     atual = _venv(pasta, "0.3.0", "cpython-velho")
@@ -593,9 +588,8 @@ def _instalada(dados: Path, *, chromium_sha: str = "a" * 64) -> Path:
     _venv(pasta, "0.1.0", "cpython-mais-velho")
     (pasta / "python" / "cpython-sem-uso").mkdir()
     for versao in ("0.1.0", "0.2.0", "0.3.0"):
-        itens = [{"nome": CHROMIUM, "tamanho": 1, "sha256": chromium_sha}]
         (pasta / f"manifesto-{versao}.json").write_text(
-            json.dumps({"versao": versao, "arquivos": itens})
+            json.dumps({"versao": versao, "arquivos": []})
         )
     casca.gravar_instalacao(
         dados,
@@ -692,8 +686,6 @@ def test_casca_monta_o_venv_novo_prova_e_so_entao_troca(
     assert instalacao["manifesto"] == str(pasta / f"manifesto-{VERSAO}.json")
     assert instalacao["manifesto_anterior"] == str(pasta / "manifesto-0.3.0.json")
     assert instalacao["user_version"] == 0 and instalacao["navegador_desatualizado"] is False
-    gravado = json.loads((pasta / f"manifesto-{VERSAO}.json").read_text())
-    assert CHROMIUM in [i["nome"] for i in gravado["arquivos"]]  # listado sem estar no pacote
     # fica o atual e o anterior; vão os mais velhos, o Python sem uso e o que sobrou do download
     assert sorted(p.name for p in (pasta / "venvs").iterdir()) == ["venv-0.3.0", f"venv-{VERSAO}"]
     assert sorted(p.name for p in (pasta / "python").iterdir()) == [
@@ -792,48 +784,46 @@ def test_casca_ja_na_mais_nova_nao_baixa_o_pacote(tmp_path: Path, sem_playwright
     _intacta(tmp_path, pasta, antes, registro)
 
 
-def test_casca_baixa_o_chromium_novo_antes_da_troca(tmp_path: Path, sem_playwright: None) -> None:
+def test_casca_com_chromium_baixa_o_do_playwright_novo_antes_da_troca(
+    tmp_path: Path, sem_playwright: None
+) -> None:
+    """D183.24: o navegador não vem da release; o `jobot ferramentas baixar navegador` do venv
+    novo roda o `playwright install` da versão nova (nada baixa se a revisão é a mesma)."""
     pasta = _instalada(tmp_path)
     _com_chromium(tmp_path)
     registro: list[str] = []
     rodar = _Casca(registro, plano_ligado=True)
     release = _Release(_pacote())
     assert _atualizar_casca(tmp_path, release, rodar, registro) == 0
-    assert release.pedidos == [SOMAS, f"{TAG}/{PACOTE}", f"{TAG}/{CHROMIUM}"]
-    baixar = next(c for c in rodar.comandos if c[1:4] == ("ferramentas", "baixar", "navegador"))
-    assert baixar[0] == str(_no_venv(pasta / "venvs" / f"venv-{VERSAO}", "jobot"))
-    assert Path(baixar[baixar.index("--arquivo") + 1]).name == CHROMIUM
-    assert baixar[baixar.index("--sha256") + 1] == _sha(CHROMIUM_NOVO)
+    assert release.pedidos == [SOMAS, f"{TAG}/{PACOTE}"]
+    baixar = [c for c in rodar.comandos if c[1:4] == ("ferramentas", "baixar", "navegador")]
+    jobot_novo = str(_no_venv(pasta / "venvs" / f"venv-{VERSAO}", "jobot"))
+    assert baixar == [(jobot_novo, "ferramentas", "baixar", "navegador")]
     # depois da prova do venv novo e antes de parar qualquer coisa
     assert registro.index("jobot --version") < registro.index("jobot ferramentas")
     assert registro.index("jobot ferramentas") < registro.index("systemctl disable")
     assert casca.ler_instalacao(tmp_path)["navegador_desatualizado"] is False
 
 
-def test_casca_com_o_mesmo_chromium_nao_baixa(tmp_path: Path, sem_playwright: None) -> None:
-    _instalada(tmp_path, chromium_sha=_sha(CHROMIUM_NOVO))
-    _com_chromium(tmp_path)
+def test_casca_sem_chromium_nao_baixa_o_navegador(tmp_path: Path, sem_playwright: None) -> None:
+    _instalada(tmp_path)
     registro: list[str] = []
     release = _Release(_pacote())
     assert _atualizar_casca(tmp_path, release, _Casca(registro), registro) == 0
     assert release.pedidos == [SOMAS, f"{TAG}/{PACOTE}"]
     assert "jobot ferramentas" not in registro
+    assert casca.ler_instalacao(tmp_path)["navegador_desatualizado"] is False
 
 
-@pytest.mark.parametrize("como", ["download", "instalar"])
 def test_casca_chromium_que_falha_troca_e_marca_desatualizado(
-    tmp_path: Path, sem_playwright: None, como: str
+    tmp_path: Path, sem_playwright: None
 ) -> None:
     pasta = _instalada(tmp_path)
     _com_chromium(tmp_path)
     registro: list[str] = []
     rodar = _Casca(registro)
-    release = _Release(_pacote())
-    if como == "download":
-        del release.urls[f"{TAG}/{CHROMIUM}"]
-    else:
-        rodar.falha_em["jobot ferramentas"] = Resultado(1, erro="não extraiu")
-    assert _atualizar_casca(tmp_path, release, rodar, registro) == 0
+    rodar.falha_em["jobot ferramentas"] = Resultado(1, erro="sem rede")
+    assert _atualizar_casca(tmp_path, _Release(_pacote()), rodar, registro) == 0
     instalacao = casca.ler_instalacao(tmp_path)
     assert instalacao["venv"] == str(pasta / "venvs" / f"venv-{VERSAO}")
     assert instalacao["navegador_desatualizado"] is True
@@ -935,18 +925,6 @@ def test_casca_pyvenv_ilegivel_nao_apaga_python(tmp_path: Path, sem_playwright: 
     registro: list[str] = []
     assert _atualizar_casca(tmp_path, _Release(_pacote()), _Casca(registro), registro) == 0
     assert (pasta / "python" / "cpython-sem-uso").is_dir()
-
-
-def test_casca_manifesto_antigo_ilegivel_baixa_o_chromium(
-    tmp_path: Path, sem_playwright: None
-) -> None:
-    pasta = _instalada(tmp_path, chromium_sha=_sha(CHROMIUM_NOVO))  # o mesmo, se lido
-    (pasta / "manifesto-0.3.0.json").write_text("{lixo")  # ilegível conta como diferente (D174.20)
-    _com_chromium(tmp_path)
-    registro: list[str] = []
-    release = _Release(_pacote())
-    assert _atualizar_casca(tmp_path, release, _Casca(registro), registro) == 0
-    assert f"{TAG}/{CHROMIUM}" in release.pedidos and "jobot ferramentas" in registro
 
 
 def test_jobot_version_diz_a_versao(capsys: pytest.CaptureFixture[str]) -> None:
