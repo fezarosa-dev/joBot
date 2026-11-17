@@ -312,3 +312,15 @@ Itens pequenos e independentes entre si.
 - [x] (f) um comentário em `app.js` passa de 100 colunas: quebrar.
 - [x] **Ver falhar:** para cada item que muda código, o teste do item com a asserção dele; itens só de texto ou comentário conferem por `rtk grep` e anotam a conclusão aqui. Itens (a) e (f) são só texto: o grep confirmou um único chamador posicional de _contexto_pagina e nenhum comentário do app.js acima de 100 colunas.
 - [x] **Ver passar:** os arquivos de teste mexidos e `uv run ruff check && uv run ruff format --check`; a tela roda no CI.
+
+### T314: o detalhe volta ao fluxo ao alargar a janela, sempre
+`depende_de: —` · T301, T305 (g)
+
+**O que se viu.** No CI do PR #14 (execução 43991167799, job `tela (9)`, commit fd8a8a9), `tests/tela/test_vagas.py::test_camada_do_detalhe_depois_de_voltar` estourou o prazo na última espera: depois de Voltar (`htmx:historyRestore`), de estreitar a janela para 800 px (o detalhe subiu à camada de cima, certo) e de alargar de novo para 1400 px, o `#detalhe-vaga` ficou em `:popover-open` e não voltou ao fluxo. O mesmo commit passou no CI do lote, e o teste passou 6 de 6 na `fedora-dev`: falha intermitente, só no CI. Para quem usa: às vezes, ao alargar a janela, o detalhe fica por cima da lista em vez de voltar para o lado.
+
+**Onde olhar.** `acertarCamada` em `static/js/app.js` roda no `ResizeObserver` da `.coluna` (religado em `observarColuna` no `htmx:historyRestore`), no `htmx:afterSwap` e no `htmx:afterSettle`, e decide por `modo()` (`--detalhe-modo`, que sai de container query). Hipóteses a provar antes de mexer: (a) o último quadro do redimensionamento chega ao observador antes de o estilo da container query refletir a largura final; (b) a `.coluna` observada não muda de tamanho na volta, porque outra caixa absorve a largura.
+
+- [ ] **Reproduzir:** repetir o teste no CI (`gh workflow run ci.yml --ref <branch>` com o teste num laço de 50, ou `--count` se houver) ou forçar CPU lenta na `fedora-dev` (`page` com CDP `Emulation.setCPUThrottlingRate`). Sem reprodução, não há correção.
+- [ ] **Teste que falha** pela hipótese provada, por asserção, nunca com `sleep`.
+- [ ] **Corrigir** na causa (no observador ou no que alimenta o `modo()`), sem remendo que esconda.
+- [ ] **Ver passar:** o teste em laço no CI sem falha.
