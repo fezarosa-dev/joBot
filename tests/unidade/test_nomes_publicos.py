@@ -7,6 +7,7 @@ RAIZ = Path(__file__).resolve().parents[2]
 PASTAS = (
     RAIZ / "src" / "jobot" / "painel" / "rotas",
     RAIZ / "src" / "jobot" / "agenda",
+    RAIZ / "src" / "jobot" / "cli",
     RAIZ / "scripts",
 )
 

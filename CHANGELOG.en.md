@@ -8,6 +8,10 @@ The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/
 
 ## [Unreleased]
 
+### Added
+
+- ADR 0026 (proposed): phase 4 AI. The AI will arrive in two versions, 0.5.0 and 0.6.0, off by default; the local model will be downloaded from the official source, when the person asks, and the AI will only list what the job asks for, without giving a score. The roadmap now shows phase 4 being built.
+
 ## [0.4.0] - 2026-11-17
 
 Phase 3 arrives: joBot gets a window of its own and an installer for Windows, Linux and Mac, which installs everything without internet, except the optional browser.

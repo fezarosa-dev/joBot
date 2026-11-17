@@ -19,7 +19,9 @@ src/jobot/
 │   │   ├── portais/          internship and first-job portals, e.g. ciee, iel
 │   │   ├── carreiras/        career sites of a single company, e.g. amazon, google
 │   │   └── (root)            base, executor, registro, paginas, descoberta_cc
+│   ├── leitores/             the sites with login: what to read on each (one file per site)
 │   ├── tratamento/           duplicates, salary, labels, places, life cycle
+│   ├── ia/                   AI contract, schema per service, tasks and request building
 │   └── dados/                JSON lists: sources, companies, labels, salary
 ├── banco/                    SQLite: connection, migrations (migracoes/), writing and queries
 ├── agenda/                   scheduler and search runs
@@ -77,7 +79,7 @@ flowchart TD
     navegador --> banco
 ```
 
-The test `tests/unidade/test_camadas.py` fails if someone breaks this rule.
+The test `tests/unidade/test_camadas.py` fails if someone breaks this rule. It also checks that the AI contract (`nucleo/ia/`) is imported only by `agenda`, `painel`, `cli` and itself: `cli` builds the AI service and hands it ready to the other two.
 
 The `desktop/` shell (the joBot window) is a separate process, in Rust: it imports nothing from the Python package and nothing there imports it. It only talks HTTP to the dashboard on 127.0.0.1 and runs the `jobot` executable (and `uv`, to install), which is why its lines are dotted. Since it is not Python, `test_camadas.py` does not reach it; `test_arquitetura.py` checks that its node has only dotted lines.
 
@@ -104,6 +106,7 @@ erDiagram
     vaga ||--o{ correcao : "vaga_id"
     vaga ||--o{ evento : "vaga_id"
     vaga ||--o| candidatura : "vaga_id"
+    vaga ||--o| habilidades_vaga : "vaga_id"
     vaga ||--o| vaga_fts : "rowid = id"
     busca ||--o{ encaixe : "busca_id"
     pagina_acompanhada ||--o{ mudanca_pagina : "pagina_id"
@@ -228,6 +231,7 @@ erDiagram
         INTEGER nota
         TEXT nivel
         TEXT oculta_motivo
+        TEXT nivel_base
     }
     correcao {
         INTEGER id PK
@@ -248,6 +252,20 @@ erDiagram
         INTEGER vaga_id PK, FK
         TEXT abriu_em
         INTEGER perguntar
+    }
+    habilidades_vaga {
+        INTEGER vaga_id PK, FK
+        TEXT chave
+        TEXT pede
+        TEXT backend
+        TEXT modelo
+        TEXT falha
+        INTEGER tentativas
+    }
+    perfil {
+        INTEGER id PK
+        TEXT habilidades
+        TEXT atualizado_em
     }
     cotacao {
         TEXT moeda PK
@@ -291,7 +309,7 @@ erDiagram
     }
 ```
 
-**Nothing is deleted.** The trigger `vaga_sem_delete` refuses any `DELETE` on `vaga`: a job that disappears from the source only gets `fechada_em`. The `evento` table (the history of what you did in the dashboard) only receives additions: `evento_sem_update` and `evento_sem_delete` refuse to change or delete a row. The `candidatura` table (when you opened the application for each job) is updated in place, and `candidatura_sem_delete` refuses to delete a row. Writing always uses `INSERT ... ON CONFLICT DO UPDATE`, never `INSERT OR REPLACE`. The tables `cotacao`, `cache_http`, `enriquecimento` and `config` have no foreign key: `enriquecimento` links to the job only through the value of `url_hash`.
+**Nothing is deleted.** The trigger `vaga_sem_delete` refuses any `DELETE` on `vaga`: a job that disappears from the source only gets `fechada_em`. The `evento` table (the history of what you did in the dashboard) only receives additions: `evento_sem_update` and `evento_sem_delete` refuse to change or delete a row. The `candidatura` table (when you opened the application for each job) is updated in place, and `candidatura_sem_delete` refuses to delete a row. The `habilidades_vaga` table (what each job asks for, according to the AI) is also updated in place, and a failure never deletes the previous result. The exception is `perfil` (your skills): "Delete profile" deletes the row, because it is your data, not a job. Writing always uses `INSERT ... ON CONFLICT DO UPDATE`, never `INSERT OR REPLACE`. The tables `cotacao`, `cache_http`, `enriquecimento` and `config` have no foreign key: `enriquecimento` links to the job only through the value of `url_hash`.
 
 ## 🔎 One search, step by step
 

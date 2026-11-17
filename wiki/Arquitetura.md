@@ -19,7 +19,9 @@ src/jobot/
 │   │   ├── portais/          portais de estágio e primeiro emprego, ex.: ciee, iel
 │   │   ├── carreiras/        sites de carreira de uma empresa só, ex.: amazon, google
 │   │   └── (raiz)            base, executor, registro, paginas, descoberta_cc
+│   ├── leitores/             os sites com login: o que ler de cada um (um arquivo por site)
 │   ├── tratamento/           duplicadas, salário, rótulos, locais, ciclo de vida
+│   ├── ia/                   contrato da IA, esquema por serviço, tarefas e montagem dos pedidos
 │   └── dados/                listas em JSON: fontes, empresas, rótulos, salário
 ├── banco/                    SQLite: conexão, migrações (migracoes/), gravação e consultas
 ├── agenda/                   agendador e execução das buscas
@@ -77,7 +79,7 @@ flowchart TD
     navegador --> banco
 ```
 
-O teste `tests/unidade/test_camadas.py` falha se alguém quebrar essa regra.
+O teste `tests/unidade/test_camadas.py` falha se alguém quebrar essa regra. Ele também confere que o contrato da IA (`nucleo/ia/`) só é importado pela `agenda`, pelo `painel`, pelo `cli` e por ele mesmo: o `cli` monta o serviço de IA e o entrega pronto às outras duas.
 
 A casca `desktop/` (a janela do joBot) é um processo à parte, em Rust: não importa nada do pacote Python e nada dele a importa. Ela só fala HTTP com o painel em 127.0.0.1 e roda o executável `jobot` (e o `uv`, para instalar), por isso as linhas dela são pontilhadas. Como ela não é Python, o `test_camadas.py` não a alcança; o `test_arquitetura.py` confere que o nó dela só tem linha pontilhada.
 
@@ -104,6 +106,7 @@ erDiagram
     vaga ||--o{ correcao : "vaga_id"
     vaga ||--o{ evento : "vaga_id"
     vaga ||--o| candidatura : "vaga_id"
+    vaga ||--o| habilidades_vaga : "vaga_id"
     vaga ||--o| vaga_fts : "rowid = id"
     busca ||--o{ encaixe : "busca_id"
     pagina_acompanhada ||--o{ mudanca_pagina : "pagina_id"
@@ -228,6 +231,7 @@ erDiagram
         INTEGER nota
         TEXT nivel
         TEXT oculta_motivo
+        TEXT nivel_base
     }
     correcao {
         INTEGER id PK
@@ -248,6 +252,20 @@ erDiagram
         INTEGER vaga_id PK, FK
         TEXT abriu_em
         INTEGER perguntar
+    }
+    habilidades_vaga {
+        INTEGER vaga_id PK, FK
+        TEXT chave
+        TEXT pede
+        TEXT backend
+        TEXT modelo
+        TEXT falha
+        INTEGER tentativas
+    }
+    perfil {
+        INTEGER id PK
+        TEXT habilidades
+        TEXT atualizado_em
     }
     cotacao {
         TEXT moeda PK
@@ -291,7 +309,7 @@ erDiagram
     }
 ```
 
-**Nada é apagado.** O gatilho `vaga_sem_delete` recusa qualquer `DELETE` em `vaga`: a vaga que some da fonte só ganha `fechada_em`. A tabela `evento` (o histórico do que você fez no painel) só recebe acréscimo: `evento_sem_update` e `evento_sem_delete` recusam mudar ou apagar uma linha. A tabela `candidatura` (quando você abriu a candidatura de cada vaga) é atualizada no lugar, e `candidatura_sem_delete` recusa apagar uma linha. A gravação usa sempre `INSERT ... ON CONFLICT DO UPDATE`, nunca `INSERT OR REPLACE`. As tabelas `cotacao`, `cache_http`, `enriquecimento` e `config` não têm chave estrangeira: `enriquecimento` liga à vaga só pelo valor de `url_hash`.
+**Nada é apagado.** O gatilho `vaga_sem_delete` recusa qualquer `DELETE` em `vaga`: a vaga que some da fonte só ganha `fechada_em`. A tabela `evento` (o histórico do que você fez no painel) só recebe acréscimo: `evento_sem_update` e `evento_sem_delete` recusam mudar ou apagar uma linha. A tabela `candidatura` (quando você abriu a candidatura de cada vaga) é atualizada no lugar, e `candidatura_sem_delete` recusa apagar uma linha. A tabela `habilidades_vaga` (o que cada vaga pede, segundo a IA) também é atualizada no lugar, e uma falha nunca apaga o resultado anterior. A exceção é `perfil` (as suas habilidades): "Apagar perfil" apaga a linha, porque é dado seu, não vaga. A gravação usa sempre `INSERT ... ON CONFLICT DO UPDATE`, nunca `INSERT OR REPLACE`. As tabelas `cotacao`, `cache_http`, `enriquecimento` e `config` não têm chave estrangeira: `enriquecimento` liga à vaga só pelo valor de `url_hash`.
 
 ## 🔎 Uma busca, passo a passo
 

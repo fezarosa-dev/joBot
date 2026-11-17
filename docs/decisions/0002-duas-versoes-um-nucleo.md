@@ -2,6 +2,7 @@
 
 - **Status:** aceita
 - **Data:** 2026-11-13
+- **Atualizada:** 2026-11-17 (a IA da fase 4 não dá nota de encaixe, para confirmar, D185 e [0026](0026-ia-da-fase-4.md))
 
 ## Contexto
 
@@ -31,6 +32,11 @@ Nem todo mundo quer instalar um programa. Uma versão no navegador, sem instala�
 - O site mostra `atualizado em <data>`.
 - O cron (agendador) roda fora do minuto :00, porque horários cheios atrasam ou perdem execuções.
 
+## Nota de encaixe na fase 4 (2026-11-17, para confirmar)
+
+- Na fase 4, a IA não dá nota de encaixe (D185.11, para confirmar): ela só lista o que a vaga pede, e o código compara com o perfil. A "nota de encaixe" pela IA manual da versão Pages muda junto: a fase 8 decide o que a IA manual faz no encaixe.
+- Os esquemas das respostas da IA ficam em pydantic, no Python (D185.3, para confirmar). Eles não servem ao JavaScript da versão Pages; a fase 8 decide se viram dados que as duas versões leem.
+
 ## Consequências
 
 - As regras de rótulo precisam funcionar igual em Python e em JavaScript (ver 0007).
@@ -45,3 +51,5 @@ Nem todo mundo quer instalar um programa. Uma versão no navegador, sem instala�
 - [0007. Tratamento das vagas: duplicadas, ciclo de vida, salário e rótulos](0007-tratamento-dos-dados.md)
 - [0009. Inteligência artificial: opções, modelos e pacote offline](0009-ia-backends-e-modelos.md)
 - [0017. Fases do projeto](0017-fases.md)
+- [0026. IA da fase 4: tarefas, backends e modelo local](0026-ia-da-fase-4.md)
+- [duvidas.md: D185 (fase 4)](../../duvidas.md)

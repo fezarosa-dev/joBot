@@ -2,7 +2,7 @@
 
 - **Status:** aceita
 - **Data:** 2026-11-13
-- **Atualizada:** 2026-11-13
+- **Atualizada:** 2026-11-13; 2026-11-17 (perfil mínimo na 0.5.0, passos IA e Perfil na 0.6.0, sem CPF, data de nascimento e projetos; tudo para confirmar, D185 e [0026](0026-ia-da-fase-4.md))
 
 ## Contexto
 
@@ -42,6 +42,13 @@ Sem um perfil bom, a IA não tem com o que trabalhar, e preencher formulário lo
 - Modelo padrão: "small" (484 MB). O "medium" (1,53 GB) é opcional.
 - O áudio é apagado depois da transcrição.
 
+## Fase 4 (2026-11-17, para confirmar)
+
+- **Perfil em duas versões** (D185.13, para confirmar): na 0.5.0, o perfil guarda só as habilidades, com "Apagar perfil"; na 0.6.0, experiências, cursos e as perguntas do perfil. CPF, data de nascimento e projetos ficam de fora, por minimização e porque nenhuma tarefa os pede. O texto do currículo não é guardado.
+- **Currículo** (D185.14, para confirmar): na 0.6.0, lido pelo pypdf num processo à parte, com prazo, tamanho e número de páginas limitados; o PDF não é guardado.
+- **Primeira execução** (D185.15, para confirmar): na 0.6.0, dois passos opcionais antes dos de hoje, IA (os atalhos) e Perfil (currículo e as primeiras perguntas). O Claude Code só é detectado quando a sessão dele vier (ver [0010](0010-claude-code-da-pessoa.md)).
+- **Áudio** fica na fase 6 (D139.11).
+
 ## Consequências
 
 - O perfil é a fonte única para encaixe, candidatura e extensão.
@@ -54,3 +61,5 @@ Sem um perfil bom, a IA não tem com o que trabalhar, e preencher formulário lo
 - [0010. Usar o Claude Code que a pessoa já tem (sem login dentro do joBot)](0010-claude-code-da-pessoa.md)
 - [0013. Gmail e avisos](0013-gmail-e-avisos.md)
 - [0014. Segurança e privacidade](0014-seguranca-e-privacidade.md)
+- [0026. IA da fase 4: tarefas, backends e modelo local](0026-ia-da-fase-4.md)
+- [duvidas.md: D185 (fase 4)](../../duvidas.md)

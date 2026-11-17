@@ -37,6 +37,8 @@ TABELAS = {
     "sessao_site",
     "sessao_conta",
     "candidatura",
+    "perfil",
+    "habilidades_vaga",
 }
 INDICES = {
     "execucao_uma_por_tipo",

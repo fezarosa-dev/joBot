@@ -2,7 +2,7 @@
 
 - **Status:** aceita
 - **Data:** 2026-11-13
-- **Atualizada:** 2026-11-13
+- **Atualizada:** 2026-11-13; 2026-11-17 (o multilingual-e5-small sai da fase 4, para confirmar, D185 e [0026](0026-ia-da-fase-4.md))
 
 ## Contexto
 
@@ -51,7 +51,7 @@ Decisão de 2026-11-13. A fase 7 treina modelos (ADR 0015) e precisa destes dado
 - O gabarito nunca entra em dados de treino.
 - O painel da fase 1 não tem tela para conferir rótulos. Ela existia para o dono avaliar as regras; em 2026-11-13 o dono trocou essa avaliação pelo gabarito rotulado por modelos, e a tela saiu.
 - A fase 1 mede e registra o acerto de cada rótulo.
-- Se algum rótulo ficar abaixo de 90% de acerto, só esse rótulo passa a usar o modelo gratuito multilingual-e5-small (cerca de 120 MB, licença MIT). Isso fica para a fase 4, junto com a IA local.
+- Se algum rótulo ficar abaixo de 90% de acerto, só esse rótulo passa a usar o modelo gratuito multilingual-e5-small (cerca de 120 MB, licença MIT). ~~Isso fica para a fase 4, junto com a IA local.~~ Sai da fase 4 e volta junto do Laya (2026-11-17, D185.9, para confirmar): ele pede um runtime de embedding, que é dependência nova, e exemplos rotulados que não podem ser o gabarito.
 
 ## Consequências
 
@@ -65,3 +65,5 @@ Decisão de 2026-11-13. A fase 7 treina modelos (ADR 0015) e precisa destes dado
 - [0004. Fontes públicas de vagas e coleta educada](0004-fontes-publicas.md)
 - [0008. Painel e visual](0008-painel-e-visual.md)
 - [0015. Treino de modelos (fase 7)](0015-treino.md)
+- [0026. IA da fase 4: tarefas, backends e modelo local](0026-ia-da-fase-4.md)
+- [duvidas.md: D185 (fase 4)](../../duvidas.md)
