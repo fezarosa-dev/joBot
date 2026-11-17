@@ -3566,3 +3566,19 @@ Do item 2 (T305 h), aceito e documentado. Sem JavaScript, o detalhe sobreposto f
 **Como desfazer:** cada item diz o seu; o resto é `sistema/baixar.py` e `sistema/memoria.py`.
 
 **Ver também:** D185 (itens 7, 18 e 19), desenho 7, T404, T409.
+
+## D193. Manifesto do modelo local: escolhas da T407 (para confirmar)
+
+**Status:** decidido pela sessão em 2026-11-17, para confirmar.
+
+**Contexto:** a T407 monta `nucleo/dados/ia_local.json` (desenho 7; D185.7) com o `llama-server` b12359 por alvo e o Qwen3.5 2B e 4B Q4_K_M da Unsloth. O desenho fixou os arquivos, os tamanhos e as fontes do sha256 e deixou abertos o formato do arquivo e como provar a atestação.
+
+1. **Formato.** `conferido_em`; `llama_server` com `build`, `commit`, `atestacao` (`owner`, `workflow`) e `alvos` por nome (`ubuntu-x64`, `win-cpu-x64`, `macos-arm64`, `macos-x64`); `modelos` com as chaves de `memoria.Modelo` (`2b`, `4b`) e o `nome` de cada um. Cada arquivo leva `arquivo`, `url`, `tamanho`, `sha256`, `licenca` e `origem`, repetidos nos quatro alvos, porque o desenho pede licença e origem por arquivo e o cartão de Ferramentas mostra o do arquivo baixado. Desfazer: licença e origem uma vez por grupo.
+2. **Fatos conferidos em 2026-11-17** pelas APIs públicas: a tag `b12359` e a anotada `v1.0.0` apontam para o commit `b1b770d90d94cad9e9ea5b993bdbc383a522fb28`; o `digest` de cada anexo vem de `api.github.com/repos/ggml-org/llama.cpp/releases/tags/b12359`; licença MIT pela API de licença do repositório. Unsloth: commit `f6d5376be1edb4d416d56da11e5397a961aca8ae` (2B) e `e87f176479d0855a907a41277aca2f8ee7a09523` (4B), o oid LFS de `tree/<commit>` igual ao `X-Linked-ETag` do `resolve/<commit>/...`, tamanhos iguais aos do desenho, licença Apache-2.0 no GGUF e no `Qwen/Qwen3.5-<n>B` de origem. As fontes estão citadas na docstring de `tests/unidade/test_ia_local_manifesto.py`.
+3. **Atestação conferida pela API, não pelo arquivo.** `api.github.com/repos/ggml-org/llama.cpp/attestations/sha256:<digest>` devolveu, para cada um dos quatro, um bundle SLSA provenance v1 cujo sujeito é o arquivo com esse digest, feito por `.github/workflows/release-publish.yml` do `ggml-org/llama.cpp` (ref `refs/heads/master`, não a tag). O `gh attestation verify <arquivo> --owner ggml-org` no arquivo pede baixar os 78 MB e fica com o `ia.yml` da T410, que já baixa: proposta `--signer-workflow ggml-org/llama.cpp/.github/workflows/release-publish.yml`, o valor de `atestacao.workflow`. Desfazer: rodar o `gh attestation verify` aqui e tirar o passo da T410.
+4. **`origem` sem tradução.** É nome próprio e endereço (`ggml-org/llama.cpp (https://github.com/ggml-org/llama.cpp)`; `Qwen/Qwen3.5-2B (Qwen), GGUF unsloth/Qwen3.5-2B-GGUF (https://...)`), igual em pt e en; o rótulo "Licença"/"Origem" do cartão entra nos catálogos na T417. Desfazer: `origem` por idioma.
+5. **Sem leitor no núcleo.** A T407 só traz o JSON e o teste; quem baixa (T409) e o cartão (T417) leem o arquivo, no molde de `contrato.limites()`. Desfazer: são funções.
+
+**Como desfazer:** cada item diz o seu; o resto é `nucleo/dados/ia_local.json`.
+
+**Ver também:** D185 (item 7), D189, desenho 7, T407, T409, T410, T417.
