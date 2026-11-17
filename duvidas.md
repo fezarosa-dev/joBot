@@ -3582,3 +3582,22 @@ Do item 2 (T305 h), aceito e documentado. Sem JavaScript, o detalhe sobreposto f
 **Como desfazer:** cada item diz o seu; o resto é `nucleo/dados/ia_local.json`.
 
 **Ver também:** D185 (item 7), D189, desenho 7, T407, T409, T410, T417.
+
+## D194. Rodar o `llama-server`: escolhas da T408 (para confirmar)
+
+**Status:** decidido pela sessão em 2026-11-17, para confirmar.
+
+**Contexto:** a T408 faz `sistema/llama.py`, que sobe o `llama-server` do modelo local (desenho 7; D185.7). O desenho deixou aberto o caminho da chave (ambiente ou arquivo, "o que o `--help` tiver"), a amostragem na subida e como reconhecer a sobra. Conferido em 2026-11-17 no código da tag `b12359` (`common/arg.cpp`, `tools/server/server.cpp` e `server-http.cpp` do `ggml-org/llama.cpp`): existem `--no-slots`, `--no-webui`, `-rea/--reasoning on|off|auto`, `--sleep-idle-seconds` (-1 desliga, 0 é recusado), `-ngl`, `-np`, `-c`, `--api-key` (ambiente `LLAMA_API_KEY`) e `--api-key-file`; o argv vence o ambiente; `/health` é público e dá 503 enquanto o modelo carrega.
+
+1. **Chave pelo ambiente (`LLAMA_API_KEY`), não por arquivo.** Os dois existem no b12359. O argv qualquer um lê no `ps`; o ambiente, só o dono do processo e o root; e não sobra arquivo para apagar. A chave é `secrets.token_urlsafe(32)`, nova a cada subida, só em memória. O ambiente do filho vai sem nenhuma variável `LLAMA_*` da pessoa (sem olhar maiúsculas): uma `LLAMA_ARG_*` que o argv não cita valeria (a `LLAMA_ARG_API_KEY_FILE` somaria chaves). Desfazer: `--api-key-file` 0600 em `ferramentas/`, apagado no `encerrar`.
+2. **Motivos próprios com os nomes do contrato.** `FalhaLlama` com `programa_ausente` e `tempo_esgotado`: o `sistema` não importa `nucleo.ia` (`test_camadas.py`, `IA_SO_EM`); quem chama (agenda, cli) traduz para `Falha`. Programa que não abre (`OSError` no lançador) também é `programa_ausente`.
+3. **Sobra encerrada na subida seguinte do `llama-server`, só se for a nossa.** `Llama.subir` lê `<dados>/ferramentas/llama.json` antes de lançar e encerra o grupo do PID só se a linha de comando dele (`ps -ww -o command=`; no Windows, o nome da imagem no `tasklist`) começa pelo programa gravado e tem `--port <porta>`: PID reusado por outro processo não é encerrado. Registro estragado é ignorado; o registro é apagado em todo caso. O `-ww` veio do teste com o próprio PID: sem ele o `ps` cortou a linha em 80 colunas. Desfazer: chamar o encerramento da sobra também na subida do servidor do joBot.
+4. **O fim do servidor do joBot chama `Llama.encerrar`.** A T408 entrega `encerrar` (derruba a árvore e apaga o registro); a ligação no lifespan de `cli/servir.py` entra com a primeira tarefa que guarda a instância no `app.state` (T412 ou T416), junto com a chamada da sobra do item 3, se o dono quiser as duas lá.
+5. **Amostragem fora do argv.** Temperatura e `seed` vão em cada pedido (cliente da T405); o argv é o do desenho, sem `--temp` nem `--seed`. Desfazer: somar as opções em `argv_do_servidor`.
+6. **Espera.** `GET /health` a cada 0,5 s, 2 s por pedido, `trust_env=False` (proxy do ambiente não entra) e sem seguir salto; antes de cada pedido e depois do 200 o filho tem de estar vivo, senão `programa_ausente` (o 200 de outro processo na porta não vale). 120 s sem 200: `tempo_esgotado`, a árvore encerrada e o registro apagado.
+7. **Registro.** `llama.json` com `pid`, `porta` e `programa`, 0600, gravado por arquivo temporário (`O_EXCL`, `O_NOFOLLOW`) e `os.replace` logo depois de lançar, para uma queda durante a espera deixar a sobra anotada.
+8. **Porta livre por `bind` em `127.0.0.1:0`.** Fecha antes do filho abrir; se outro a tomar nesse meio, o filho morre e é `programa_ausente` (item 6).
+
+**Como desfazer:** cada item diz o seu; o resto é `sistema/llama.py`.
+
+**Ver também:** D185 (item 7), D189, D193, desenho 7, T408, T409, T412, T416.
