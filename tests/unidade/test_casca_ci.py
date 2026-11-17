@@ -51,6 +51,8 @@ def test_actions_fixadas_por_hash_com_versao() -> None:
     usos = re.findall(r"^\s*(?:- )?uses: (.+)$", CASCA.read_text(encoding="utf-8"), re.MULTILINE)
     assert usos
     for uso in usos:
+        if uso == "./.github/workflows/pacotes.yml":
+            continue
         assert re.fullmatch(r"[\w.-]+/[\w.-]+@[0-9a-f]{40} # v\d+\.\d+\.\d+", uso), uso
 
 
@@ -69,7 +71,8 @@ def _job(nome: str) -> str:
 def test_jobs_da_casca() -> None:
     jobs = re.findall(r"^  (\w+):$", _codigo().split("\njobs:\n", 1)[1], re.MULTILINE)
     assert jobs == ["casca", "windows", "uv", "pacotes"]
-    for nome in jobs:
+    # o pacotes chama o pacotes.yml, que tem os prazos dele
+    for nome in jobs[:-1]:
         assert "timeout-minutes:" in _job(nome), nome
 
 
@@ -95,6 +98,10 @@ def test_job_windows_roda_os_testes_de_sistema() -> None:
     assert "uv sync --locked" in texto
     filtro = '-k "pastas or instancia or processo or segundo_plano or atualizar"'
     assert f"uv run pytest tests/unidade {filtro}" in texto
+    # os ramos #[cfg(windows)] da casca (nota da revisão da T337)
+    assert "--component clippy" in texto
+    assert "cargo clippy --locked --all-targets -- -D warnings" in texto
+    assert "cargo test --locked" in texto
 
 
 def test_job_uv_so_a_mao_nos_tres_sistemas() -> None:
@@ -108,10 +115,9 @@ def test_job_uv_so_a_mao_nos_tres_sistemas() -> None:
 def test_job_pacotes_so_com_a_entrada_e_sem_publicar() -> None:
     texto = _job("pacotes")
     assert "if: github.event_name == 'workflow_dispatch' && inputs.pacotes" in texto
-    assert "os: [ubuntu-22.04, windows-latest, macos-latest, macos-15-intel]" in texto
-    assert "cargo install tauri-cli --version =2.12.4 --locked" in texto
-    assert "cargo tauri build" in texto
-    assert "release" not in texto.replace("--release", "")
+    # os mesmos pacotes e a mesma fumaça sem rede da release, sem o publicar (T339)
+    assert "uses: ./.github/workflows/pacotes.yml" in texto
+    assert "release" not in texto
 
 
 def _prova() -> ModuleType:

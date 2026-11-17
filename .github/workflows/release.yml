@@ -1,0 +1,55 @@
+name: Release
+
+# Publica a versão (desenho 8; D174). Na tag vN.N.N, o pacotes.yml monta e testa (fumaça sem
+# rede) os instaladores, os pacotes de atualização, os chromium-<alvo>.tar.gz, a wheel e o
+# restricoes.txt; o job publicar cria a release (não rascunho, não prerelease, para virar a
+# latest que o versao.py lê) com tudo isso e o SHA256SUMS, e o corpo vem da seção da versão
+# no CHANGELOG.md e no CHANGELOG.en.md. À mão (workflow_dispatch) é sempre ensaio: monta e
+# testa, nunca publica. Só aqui há contents: write, e só no job publicar; o único segredo é o
+# GITHUB_TOKEN. Sem gatilho de pull request (ADR 0018: o CI de PR não tem segredo nem escrita).
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  pacotes:
+    uses: ./.github/workflows/pacotes.yml
+
+  publicar:
+    needs: pacotes
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: anexos
+          merge-multiple: true
+      - name: notas
+        run: |
+          versao="${GITHUB_REF_NAME#v}"
+          secao() { awk -v v="## [$versao]" 'index($0, v) == 1 {p = 1; next} /^## / {p = 0} p' "$1"; }
+          { secao CHANGELOG.md; echo; echo '---'; echo; secao CHANGELOG.en.md; } > "$RUNNER_TEMP/notas.md"
+          grep -q '[^[:space:]-]' "$RUNNER_TEMP/notas.md"
+      - name: publicar
+        working-directory: anexos
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          shopt -s failglob
+          anexos=(*-setup.exe *.dmg *.deb *.rpm *.AppImage jobot-atualizacao-*.zip chromium-*.tar.gz jobot-*.whl restricoes.txt)
+          sha256sum -- "${anexos[@]}" > SHA256SUMS
+          cat SHA256SUMS
+          gh release create "$GITHUB_REF_NAME" --verify-tag --title "joBot $GITHUB_REF_NAME" \
+            --notes-file "$RUNNER_TEMP/notas.md" -- "${anexos[@]}" SHA256SUMS

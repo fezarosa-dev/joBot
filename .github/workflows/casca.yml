@@ -6,10 +6,11 @@ name: Casca
 # O job casca roda no ubuntu-22.04 (WebKitGTK mais velho que se espera achar): fmt,
 # clippy, testes e, sob xvfb, confere se a IPC do Tauri responde no painel em
 # http://127.0.0.1 com a CSP real do painel (T321); se não, tenta com a origem da IPC
-# no connect-src. O job windows roda os testes de sistema no Windows (desenho 10).
+# no connect-src. O job windows roda os testes de sistema no Windows (desenho 10) e o
+# clippy e os testes da casca, que passam pelos ramos #[cfg(windows)].
 # Só no workflow_dispatch: o job uv (prova do uv com hash, T322 e D173) nos três
-# sistemas e, com a entrada pacotes, o job pacotes (cargo tauri build, sem publicar;
-# a fumaça sem rede entra com a T339).
+# sistemas e, com a entrada pacotes, o job pacotes: o mesmo pacotes.yml da release
+# (instaladores e fumaça sem rede, T339), sem publicar.
 on:
   pull_request:
   push:
@@ -77,7 +78,7 @@ jobs:
 
   windows:
     runs-on: windows-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
@@ -85,6 +86,23 @@ jobs:
           enable-cache: true
       - run: uv sync --locked
       - run: uv run pytest tests/unidade -k "pastas or instancia or processo or segundo_plano or atualizar"
+      - name: rust
+        shell: bash
+        working-directory: desktop
+        run: |
+          canal=$(sed -n 's/^channel = "\(.*\)"$/\1/p' rust-toolchain.toml)
+          test -n "$canal"
+          rustup toolchain install "$canal" --profile minimal --component clippy
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry
+            desktop/target
+          key: casca-${{ runner.os }}-${{ hashFiles('desktop/Cargo.lock', 'desktop/rust-toolchain.toml') }}
+      - run: cargo clippy --locked --all-targets -- -D warnings
+        working-directory: desktop
+      - run: cargo test --locked
+        working-directory: desktop
 
   uv:
     if: github.event_name == 'workflow_dispatch'
@@ -102,25 +120,4 @@ jobs:
 
   pacotes:
     if: github.event_name == 'workflow_dispatch' && inputs.pacotes
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-22.04, windows-latest, macos-latest, macos-15-intel]
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 60
-    defaults:
-      run:
-        shell: bash
-        working-directory: desktop
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
-      - run: |
-          canal=$(sed -n 's/^channel = "\(.*\)"$/\1/p' rust-toolchain.toml)
-          test -n "$canal"
-          rustup toolchain install "$canal" --profile minimal
-      - run: cargo install tauri-cli --version =2.12.4 --locked
-      - run: cargo tauri build
+    uses: ./.github/workflows/pacotes.yml
