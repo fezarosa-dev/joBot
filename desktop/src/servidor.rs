@@ -312,7 +312,7 @@ fn achar_ou_subir_com(
             None => Sonda::Espera,
         }
     });
-    let subiu = filho.is_some();
+    let subiu = false; // ainda sem a lógica
     if let Some(mut c) = filho.filter(|_| saiu.is_none()) {
         std::thread::spawn(move || c.wait()); // colhe o processo quando ele sair
     }
@@ -687,6 +687,52 @@ mod testes {
             std::thread::sleep,
         );
         assert!(matches!(r, Err(Falha::Saiu(Some(c))) if c != 0), "{r:?}");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn jobot_que_sobe_e_fica_pronto_subiu() {
+        use std::os::unix::fs::PermissionsExt;
+        let dados = temporaria("subiu");
+        // um `jobot` falso que fica vivo; o servidor falso só responde depois do spawn
+        let jobot = dados.join("jobot");
+        std::fs::write(&jobot, "#!/bin/sh\nexec sleep 5\n").unwrap();
+        std::fs::set_permissions(&jobot, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let p = porta_livre();
+        let relogio = Cell::new(Duration::ZERO);
+        let ouvindo = Cell::new(false);
+        // ETXTBSY: outro teste pode ter feito fork com o arquivo recém-escrito aberto
+        let r = std::iter::repeat_with(|| {
+            achar_ou_subir_com(
+                &dados,
+                &jobot,
+                p,
+                || relogio.get(),
+                |d| {
+                    if !ouvindo.replace(true) {
+                        let ouvinte = TcpListener::bind(("127.0.0.1", p)).unwrap();
+                        std::thread::spawn(move || {
+                            for mut s in ouvinte.incoming().flatten() {
+                                let mut pedido = [0u8; 512];
+                                let _ = s.read(&mut pedido);
+                                let _ = s.write_all(b"HTTP/1.1 200 OK\r\n\r\n{\"app\":\"jobot\"}");
+                            }
+                        });
+                    }
+                    relogio.set(relogio.get() + d);
+                },
+            )
+        })
+        .take(3)
+        .find(|r| !matches!(r, Err(Falha::NaoSubiu(e)) if e.contains("busy")))
+        .unwrap();
+        assert_eq!(
+            r,
+            Ok(Servidor {
+                porta: p,
+                subiu: true
+            })
+        );
     }
 
     #[test]
