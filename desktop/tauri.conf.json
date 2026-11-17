@@ -2,10 +2,25 @@
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "joBot",
   "identifier": "io.github.fezarosa-dev.jobot",
-  "build": {},
+  "build": {
+    "frontendDist": "ui"
+  },
   "app": {
     "withGlobalTauri": true,
-    "windows": [],
+    "windows": [
+      {
+        "label": "main",
+        "create": false,
+        "url": "verificar.html",
+        "title": "joBot",
+        "width": 1200,
+        "height": 800,
+        "minWidth": 800,
+        "minHeight": 560,
+        "center": true,
+        "decorations": false
+      }
+    ],
     "security": {
       "csp": null
     }
