@@ -3556,7 +3556,7 @@ Do item 2 (T305 h), aceito e documentado. Sem JavaScript, o detalhe sobreposto f
 2. **Salto recusado e HTTP fora de 200/206 são `sem_rede`** (o `.parcial` fica): URL inicial ou salto que a regra recusa (`aceita_url`, só `https`; a URL inicial passa pela regra antes do primeiro pedido), mais de 5 saltos, 404, 5xx e erro do `httpx`. Os saltos nunca ficam com o cliente: `baixar` manda `follow_redirects=False` em cada `send`, mesmo que o cliente injetado siga saltos. Desfazer: um motivo próprio em `Motivo`.
 3. **Inatividade em duas partes.** Silêncio total: o prazo de leitura do `httpx` (60 s, `cliente_de_download`, que o teste confere junto com o user agent e o `follow_redirects=False`); o `ReadTimeout` no meio do corpo é `sem_rede` com o `.parcial` mantido. Bloco que chega depois de mais de 60 s do anterior (relógio injetado, `agora`): também `sem_rede`, com o bloco já gravado no `.parcial`. 60 s cravados não contam. Desfazer: só o prazo do `httpx`.
 4. **Progresso:** `baixar` entrega a linha JSON pronta (`{"etapa","feito","total"}`) a um callback: a primeira (com o que já havia no `.parcial`), uma por ponto percentual e a do fim. A linha `{"fim":...}` é de quem chama (T409).
-5. **Cortes de memória em `memoria.py`** (`CORTE_4B_GIB = 11`, `AVISO_GIB = 7`, os do desenho) até a T409 lê-los do `ia.json` da T401, que roda em paralelo; `escolher_modelo` devolve `(modelo, aviso)`. Desfazer: ler do `ia.json` aqui, quando a T401 entrar.
+5. **Cortes de memória em `memoria.py`** (`CORTE_4B_GIB = 11`, `AVISO_GIB = 7`, os do desenho) até a T409 lê-los do `ia.json` da T401, que roda em paralelo; `escolher_modelo` devolve `(modelo, aviso)`. Desfazer: ler do `ia.json` aqui, quando a T401 entrar. Superado na T409: os cortes vêm do `ia.json` pelo `cli` (D195.1).
 6. **`.parcial` fora do esperado:** maior que o tamanho do manifesto é apagado e recomeça; do tamanho certo só é conferido, sem pedido. 206 com `Content-Range` de outro começo não é conferido: o sha256 do fim pega e apaga o `.parcial`. Corpo que acaba antes do tamanho sem erro do `httpx` (sem `Content-Length`, fechado antes da hora) é `sem_rede` e o `.parcial` fica para a retomada; `arquivo` fica para o sha256 errado e o corte acima do tamanho.
 7. **Extração na pasta que quem chama passar.** O `.zip` confere todos os nomes antes de extrair qualquer um; o `.tar.gz` com `filter="data"` pode deixar membros já extraídos antes do recusado: a T409 extrai numa pasta nova e a apaga na falha. `OSError` na extração (disco cheio inclusive) é `arquivo`. `tornar_executavel` põe só o `+x` do dono (no Windows, nada).
 8. **Bytes crus:** o pedido manda `Accept-Encoding: identity` e lê `iter_raw`, para o sha256 e o `Range` falarem dos bytes do arquivo.
@@ -3565,7 +3565,7 @@ Do item 2 (T305 h), aceito e documentado. Sem JavaScript, o detalhe sobreposto f
 
 **Como desfazer:** cada item diz o seu; o resto é `sistema/baixar.py` e `sistema/memoria.py`.
 
-**Ver também:** D185 (itens 7, 18 e 19), desenho 7, T404, T409.
+**Ver também:** D185 (itens 7, 18 e 19), D195, desenho 7, T404, T409.
 
 ## D193. Manifesto do modelo local: escolhas da T407 (para confirmar)
 
@@ -3600,4 +3600,26 @@ Do item 2 (T305 h), aceito e documentado. Sem JavaScript, o detalhe sobreposto f
 
 **Como desfazer:** cada item diz o seu; o resto é `sistema/llama.py`.
 
-**Ver também:** D185 (item 7), D189, D193, desenho 7, T408, T409, T412, T416.
+**Ver também:** D185 (item 7), D189, D193, D195, desenho 7, T408, T409, T412, T416.
+
+## D195. `jobot ferramentas` para o modelo local: escolhas da T409 (para confirmar)
+
+**Status:** decidido pela sessão em 2026-11-17, para confirmar.
+
+**Contexto:** a T409 faz `jobot ferramentas baixar|atualizar|remover ia-local` em `cli/ferramentas.py` (desenho 7 e 10.1; D185.7, D185.17 e D185.19), sobre o download da T404 (`sistema/baixar.py`), o manifesto da T407 (`nucleo/dados/ia_local.json`) e o `llama-server` da T408. O desenho fixou a ordem (servidor, `--version`, modelo), a anotação em `<dados>/ferramentas/ia_local.json` e o que o `remover` faz; ficaram abertos o formato das linhas e da anotação, onde o programa fica dentro do pacote e o que "o que mudou" quer dizer.
+
+1. **`auto` e os cortes.** `--modelo auto` (o padrão) escreve antes de tudo `{"memoria": <bytes>, "modelo": "2b"|"4b", "lento": <bool>}`. Os cortes vêm do `memoria_gib` do `ia.json`, lidos pelo `cli` (`contrato.limites()`) e passados a `memoria.escolher_modelo(total, desde_4b_gib=..., aviso_gib=...)`: o `sistema` não importa `nucleo.ia` (`test_camadas.py`), e as constantes `CORTE_4B_GIB` e `AVISO_GIB` saíram de `memoria.py` (fecha a D189.5). `--modelo 2b` ou `4b` não lê a memória. Desfazer: ler o `ia.json` em `memoria.py` pelo caminho do arquivo.
+2. **Alvo pelo `sys.platform` e pelo `platform.machine()`** (`alvo_daqui`): Linux x86_64, Windows AMD64, Mac arm64 e x86_64. Sem binário oficial (Linux ARM, Windows ARM): `{"fim":"falhou","motivo":"programa_ausente"}`, sem pedido à rede. Desfazer: somar alvos ao manifesto e ao mapa.
+3. **O programa é achado pelo nome dentro do pacote** (`llama-server` ou `llama-server.exe`, o primeiro em ordem se houver mais de um), sem fixar o caminho de dentro do `.tar.gz` ou do `.zip`; as bibliotecas ficam ao lado, onde o pacote as pôs. Extração em `llama/<build>.novo`, troca para `llama/<build>` só depois de achar o programa e dar o `+x`; na falha a pasta nova é apagada (D189.7). O pacote baixado é apagado no fim, com sucesso ou falha. Pacote sem o programa: `programa_ausente`. Desfazer: caminho fixo por alvo no manifesto.
+4. **`llama-server --version`** (`versao_roda`): `subprocess.run` com entrada e saídas em `DEVNULL`, prazo de 30 s; código 0 é "roda". Roda em todo `baixar` e `atualizar`, mesmo quando o servidor já estava baixado, antes de qualquer pedido do modelo. Desfazer: só depois de baixar o servidor.
+5. **Anotação** `<dados>/ferramentas/ia_local.json`: `build`, `alvo`, `programa` (relativo a `ferramentas/`, com `/`), `servidor_sha256`, `modelo` (`2b`/`4b`), `arquivo` e `modelo_sha256`. Gravada por arquivo temporário 0600 e `os.replace` (`casca._gravar`), uma vez depois do `--version` e outra depois do modelo: o modelo que falha deixa o servidor anotado. "Mudou" é o sha256 do manifesto diferente do anotado, ou o arquivo ausente. O `programa` anotado só vale dentro de `llama/` (senão baixa de novo). `ler_anotacao(dados)` devolve `{}` sem arquivo ou com ele estragado. Desfazer: são campos.
+6. **Trocar e atualizar apagam o anterior.** Build novo apaga a pasta do build anotado; modelo novo (outro `--modelo` ou outro arquivo no manifesto) apaga o GGUF anotado. Só apaga se o nome anotado for um nome só (sem barra nem `..`), dentro de `llama/` ou `modelos/`. A `.trava` vazia de cada download fica (D189.1). Desfazer: manter os dois modelos e trocar só a anotação.
+7. **`atualizar ia-local` usa o modelo anotado**; sem modelo anotado (nada baixado, ou só o servidor) é `{"fim":"falhou","motivo":"modelo_ausente"}`, sem pedido. Desfazer: tratar como `baixar --modelo auto`.
+8. **`remover ia-local`:** desliga as tarefas, depois derruba o `llama-server` anotado em `llama.json` (`llama.encerrar_sobra`), depois apaga `llama/`, `modelos/` e a anotação; a pasta `ferramentas/` fica. Desligar é `ligada: false` em toda tarefa de `ia_tarefas` com backend `local`, mantendo backend e modelo (a aba IA mostra o que estava escolhido); as outras não mudam. Sem `jobot.db`, o banco não é criado; banco estragado ou erro de disco é `{"fim":"falhou","motivo":"arquivo"}` com o traceback só no log. Desfazer: apagar antes de desligar.
+9. **Linhas e código de saída.** `{"etapa":"ia_local","feito":N,"total":T}` em duas sequências, uma por arquivo (servidor, depois modelo): a barra da casca recomeça no modelo (a T418 pode somar os totais). Fim: `{"fim":"pronto"}` (0) ou `{"fim":"falhou","motivo":...}` (1), com os motivos de `baixar.Motivo` mais `programa_ausente` e `modelo_ausente` do contrato da IA; `OSError` fora do download (pasta sem permissão, disco cheio na extração ou na anotação) vira `espaco` ou `arquivo`. `navegador` com `atualizar` ou `remover`: 2, como erro de argumento. Desfazer: uma barra só com o total somado.
+10. **Cancelar é matar o processo.** Sem tratador de SIGTERM: o processo morre e o `.parcial` fica para a retomada (desenho 10.1); a pasta `.novo` que sobrar é apagada na extração seguinte. Desfazer: tratador que marca o `cancelar` do `baixar`.
+11. **README pt e en** ganham a linha de `jobot ferramentas baixar ia-local` na tabela de comandos; a T420 revê o resto.
+
+**Como desfazer:** cada item diz o seu; o resto é `cli/ferramentas.py`.
+
+**Ver também:** D185 (itens 7, 17 e 19), D189 (itens 1, 5 e 7), D193, D194, desenho 7 e 10.1, T409, T410, T417, T418.

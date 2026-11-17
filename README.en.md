@@ -424,6 +424,7 @@ If you installed from the code, run all of them from inside the `joBot` folder, 
 | `jobot segundo-plano ligar` | Turns on the background service, so joBot starts by itself with your user. `desligar` removes the service, and `status` shows how it is. On Linux it uses systemd; on Windows, Task Scheduler; on the Mac, a LaunchAgent (experimental). |
 | `jobot atualizar` | Updates joBot to the newest version and turns back on what was on. |
 | `jobot ferramentas baixar navegador` | Downloads the browser for sites with login (the same as the "Download" button in Tools). |
+| `jobot ferramentas baixar ia-local` | Downloads the local AI model from the official source (llama.cpp's `llama-server` and an Unsloth Qwen3.5), with the sha256 checked. With `--modelo auto` (the default) it picks by the computer's memory; `--modelo 2b` or `4b` picks by hand. `atualizar ia-local` downloads what changed; `remover ia-local` deletes it all and turns off the tasks that used the local model. |
 | `jobot avaliar-rotulos` | For project maintainers: measures the label rules against an examples file of your own. |
 
 ### Where the data lives
