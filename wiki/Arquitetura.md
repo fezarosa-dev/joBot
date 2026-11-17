@@ -30,6 +30,10 @@ src/jobot/
 │   ├── static/               CSS, JavaScript e fontes locais
 │   └── i18n/                 textos em pt e en
 └── cli/                      comandos de terminal (jobot serve, buscar, atualizar...)
+desktop/                      a janela (casca Tauri 2, em Rust): fora do pacote Python
+├── src/                      arranque, achar e subir o servidor, instalar, fechar
+├── ui/                       tela de instalação: HTML, CSS e JS puros, textos em pt e en
+└── recursos/                 gerado no build: uv, Python, wheels, joBot e manifesto
 tests/                        unidade, integração, tela (Playwright), fixtures e apoio
 scripts/                      capturar exemplos, vigia de fontes, conferir empresas
 docs/decisions/               as decisões de arquitetura (ADRs)
@@ -38,7 +42,7 @@ wiki/                         o texto desta wiki
 
 ## 🧱 Camadas
 
-A seta `A --> B` quer dizer "A pode importar B". Não há seta de volta: o `nucleo` não conhece ninguém, e o `painel` não importa `httpx` (o `httpx` fica no `nucleo` e no download do Chromium da release, em `navegador/chromium.py` e no comando `jobot ferramentas`).
+A seta `A --> B` quer dizer "A pode importar B". Não há seta de volta: o `nucleo` não conhece ninguém, e o `painel` não importa `httpx` (o `httpx` fica no `nucleo` e no `jobot atualizar`, em `sistema/atualizar.py` e `sistema/casca.py`).
 
 ```mermaid
 flowchart TD
@@ -50,6 +54,9 @@ flowchart TD
     banco["banco<br/>SQLite, migrações, consultas"]
     navegador["navegador<br/>navegador com login (Playwright)"]
     nucleo["nucleo<br/>modelo, coletores, tratamento, encaixe"]
+    desktop["desktop/<br/>a janela (Tauri, Rust), fora do pacote"]
+    desktop -.->|HTTP em 127.0.0.1| painel
+    desktop -.->|roda o executável jobot| cli
     cli --> painel
     cli --> agenda
     cli --> sistema
@@ -71,6 +78,8 @@ flowchart TD
 ```
 
 O teste `tests/unidade/test_camadas.py` falha se alguém quebrar essa regra.
+
+A casca `desktop/` (a janela do joBot) é um processo à parte, em Rust: não importa nada do pacote Python e nada dele a importa. Ela só fala HTTP com o painel em 127.0.0.1 e roda o executável `jobot` (e o `uv`, para instalar), por isso as linhas dela são pontilhadas. Como ela não é Python, o `test_camadas.py` não a alcança; o `test_arquitetura.py` confere que o nó dela só tem linha pontilhada.
 
 ## 🗄️ Banco
 

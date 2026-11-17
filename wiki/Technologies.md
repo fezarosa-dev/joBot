@@ -11,7 +11,7 @@
 | Technology | What for | Why |
 |---|---|---|
 | 🐍 **Python** (3.14 or newer) | The language of all of joBot. | Chosen in [ADR 0003](https://github.com/fezarosa-dev/joBot/blob/main/docs/decisions/0003-stack-e-instalacao-nativa.md). |
-| 📦 **uv** | Install and run joBot and its libraries. | The installation is native and planned for one command, without Docker. |
+| 📦 **uv** | Install and run joBot and its libraries. | The installation is native, without Docker; the phase 3 installer already brings `uv` and everything it installs. |
 | ⚡ **FastAPI** (0.162.7) + **Uvicorn** (0.54.0) | The dashboard server. | The dashboard opens in your browser and only accepts connections from your own computer (127.0.0.1). |
 | 🧩 **Jinja2** (3.1.6) | Build the dashboard pages. | The pages come ready from the server. |
 | 🔁 **HTMX** | Update parts of the page without reloading everything. | A responsive interface with little JavaScript. The file ships inside the app. |
@@ -64,6 +64,6 @@ The installation is native ([ADR 0003](https://github.com/fezarosa-dev/joBot/blo
 
 ## 💻 Where it runs
 
-- **Systems:** Linux, Windows and macOS. Development happens on Linux; the installers arrive in phase 3: Windows and Linux first, macOS later.
+- **Systems:** Linux, Windows and macOS. Development happens on Linux; the phase 3 installers cover Windows, Linux and Mac (the Mac is experimental).
 - **Memory:** 8 GB of RAM (16 GB gives more room).
 - **Graphics card:** not needed.

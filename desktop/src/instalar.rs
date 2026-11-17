@@ -1,14 +1,16 @@
 //! Instalação pela casca, sem rede (desenho 5.2 e 6.2; D173, D174, D181). Confere o
 //! `manifesto.json` pelo sha256 gravado no build e cada arquivo dos recursos pelo manifesto,
-//! prepara o Python e o venv com o `uv` dos recursos, prova o `jobot --version`, instala o
-//! navegador se marcado e só então grava o `instalacao.json`. Falhou ou foi cancelada: o que a
+//! prepara o Python e o venv com o `uv` dos recursos, prova o `jobot --version`, baixa o
+//! navegador se marcado (o único passo com rede, D183.24) e só então grava o `instalacao.json`. Falhou ou foi cancelada: o que a
 //! instalação criou na pasta da casca sai e o `instalacao.json` não é gravado (o Chromium fica
 //! na pasta do Playwright, D181.9).
 //!
-//! Recursos (`desktop/recursos/`, D181): `manifesto.json`, `bin/uv` (`bin/uv.exe`),
+//! Recursos (`desktop/recursos/`, D181): `manifesto.json`, `bin/uv.tar` (o `uv` ou o `uv.exe`
+//! num tar sem compressão, D183),
 //! `python/<tag>/cpython-<versão>+<tag>-<alvo>-install_only_stripped.tar.gz` (o espelho que o
-//! `uv python install --mirror` lê), `restricoes.txt`, `wheels/*.whl` e
-//! `chromium-<alvo>.tar.gz`.
+//! `uv python install --mirror` lê), `restricoes.txt`, `wheels/*.whl` e as `licencas/uv/`. O
+//! navegador não vem nos recursos: o joBot não redistribui o Chrome for Testing que o Playwright
+//! baixa (D183.24); o `jobot ferramentas baixar navegador` o baixa pelo `playwright install`.
 
 use crate::servidor;
 use serde_json::{Value, json};
@@ -17,13 +19,17 @@ use std::fmt::Write as _;
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, BufRead, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
 use std::time::Duration;
 
 pub const MANIFESTO: &str = "manifesto.json";
 pub const INSTALACAO: &str = "instalacao.json";
+const UV: &str = "bin/uv.tar";
+/// Quanto o navegador baixado ocupa compactado, para o rodapé da tela (o Chromium do Playwright
+/// 1.65 baixa de 170 a 216 MB por sistema, D183.23); a tela multiplica pelo fator do disco.
+pub const TAMANHO_DO_NAVEGADOR: u64 = 190_000_000;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Entrada {
@@ -54,6 +60,8 @@ pub enum Erro {
     Arquivo(String),
     Espaco,
     Prova(String),
+    /// O download do navegador falhou (sem rede, por exemplo).
+    Navegador(String),
     Cancelado,
     Outro(String),
 }
@@ -64,6 +72,7 @@ impl Erro {
             Erro::Arquivo(_) => "arquivo",
             Erro::Espaco => "espaco",
             Erro::Prova(_) => "prova",
+            Erro::Navegador(_) => "navegador",
             Erro::Cancelado => "cancelado",
             Erro::Outro(_) => "outro",
         }
@@ -71,7 +80,10 @@ impl Erro {
 
     pub fn detalhe(&self) -> String {
         match self {
-            Erro::Arquivo(texto) | Erro::Prova(texto) | Erro::Outro(texto) => texto.clone(),
+            Erro::Arquivo(texto)
+            | Erro::Prova(texto)
+            | Erro::Navegador(texto)
+            | Erro::Outro(texto) => texto.clone(),
             _ => String::new(),
         }
     }
@@ -120,8 +132,24 @@ fn nome_valido(nome: &str) -> bool {
             .all(|parte| !parte.is_empty() && parte != "." && parte != "..")
 }
 
-fn e_chromium(nome: &str) -> bool {
-    nome.starts_with("chromium-") && nome.ends_with(".tar.gz") && !nome.contains('/')
+/// O `uv` dos recursos vem num tar ustar sem compressão, de um arquivo só: o linuxdeploy do
+/// AppImage reescreve o rpath de todo ELF em `usr/lib`, e um `uv` solto deixaria de bater com o
+/// manifesto (D183). O tar já foi conferido pelo sha256; aqui só se tira o conteúdo.
+fn tirar_do_tar(tar: &Path, destino: &Path) -> Result<(), Erro> {
+    let ruim = || Erro::Arquivo(UV.into());
+    let bruto = fs::read(tar)?;
+    let cabecalho = bruto.get(..512).ok_or_else(ruim)?;
+    if &cabecalho[257..262] != b"ustar" || !matches!(cabecalho[156], b'0' | 0) {
+        return Err(ruim());
+    }
+    let tamanho = std::str::from_utf8(&cabecalho[124..136])
+        .ok()
+        .map(|t| t.trim_matches(|c: char| c == '\0' || c == ' '))
+        .and_then(|t| usize::from_str_radix(t, 8).ok())
+        .ok_or_else(ruim)?;
+    let dados = bruto.get(512..512 + tamanho).ok_or_else(ruim)?;
+    fs::write(destino, dados)?;
+    Ok(())
 }
 
 /// A versão do Python pelo nome do arquivo no espelho (`python/<tag>/cpython-<versão>+<tag>-...`).
@@ -214,20 +242,15 @@ fn manifesto_da_versao(recursos: &Path, sha_manifesto: &str, versao: &str) -> Op
     ler_manifesto(&bruto).ok().filter(|m| m.versao == versao)
 }
 
-/// Para a tela: se os recursos estão completos e quanto ocupam (o navegador à parte).
+/// Para a tela: se os recursos estão completos e quanto ocupam (o navegador, baixado à parte,
+/// pela estimativa `TAMANHO_DO_NAVEGADOR`).
 pub fn estado(recursos: &Path, sha_manifesto: Option<&str>, versao: &str) -> Value {
     let manifesto = sha_manifesto.and_then(|sha| manifesto_da_versao(recursos, sha, versao));
     let Some(manifesto) = manifesto else {
         return json!({"completo": false});
     };
-    let tamanho = |chromium: bool| -> u64 {
-        let do_lado = manifesto
-            .arquivos
-            .iter()
-            .filter(|e| e_chromium(&e.nome) == chromium);
-        do_lado.map(|e| e.tamanho).sum()
-    };
-    json!({"completo": true, "base": tamanho(false), "navegador": tamanho(true)})
+    let base: u64 = manifesto.arquivos.iter().map(|e| e.tamanho).sum();
+    json!({"completo": true, "base": base, "navegador": TAMANHO_DO_NAVEGADOR})
 }
 
 /// Escrita atômica (`.tmp` na mesma pasta, `fsync` e troca), 0600 no Linux e no Mac.
@@ -255,7 +278,48 @@ pub fn gravar_atomico(destino: &Path, conteudo: &[u8]) -> io::Result<()> {
     gravado
 }
 
-/// Roda o comando sem janela nem entrada, avisa cada linha do stdout e o mata se `cancelado`.
+/// No cancelamento, quanto o comando tem para sair depois do SIGTERM: o `jobot ferramentas
+/// baixar navegador` espera até 10 s o `playwright install` sair (`ESPERA_SAIR_JANELA_S`).
+#[cfg(unix)]
+const ESPERA_SAIR: Duration = Duration::from_secs(15);
+
+/// Para o comando e o que ele subiu (D183.24). POSIX: SIGTERM ao grupo, que o `jobot ferramentas
+/// baixar navegador` pega para encerrar o `playwright install` (em sessão própria, fora do
+/// grupo), e SIGKILL ao grupo depois de `ESPERA_SAIR`. Windows: `taskkill /T /F` na árvore, antes
+/// de o pai sair (o job do lançador do uv deixa os netos escaparem).
+fn parar_arvore(filho: &mut Child) {
+    #[cfg(unix)]
+    {
+        unsafe extern "C" {
+            fn kill(pid: i32, sinal: i32) -> i32;
+        }
+        let grupo = -(filho.id() as i32);
+        // SAFETY: só manda um sinal; o grupo é o do filho (`process_group(0)` no `rodar`)
+        unsafe { kill(grupo, 15) }; // SIGTERM
+        let ate = std::time::Instant::now() + ESPERA_SAIR;
+        while std::time::Instant::now() < ate && matches!(filho.try_wait(), Ok(None)) {
+            std::thread::sleep(Duration::from_millis(100));
+        }
+        // SAFETY: idem; o que sobrou no grupo
+        unsafe { kill(grupo, 9) }; // SIGKILL
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        let _ = Command::new("taskkill")
+            .args(["/T", "/F", "/PID", &filho.id().to_string()])
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .creation_flags(0x0800_0000) // sem console
+            .status();
+    }
+    let _ = filho.kill();
+    let _ = filho.wait();
+}
+
+/// Roda o comando sem janela nem entrada, num grupo próprio, avisa cada linha do stdout e, se
+/// `cancelado`, para a árvore inteira (`parar_arvore`).
 pub fn rodar(
     mut comando: Command,
     cancelado: &AtomicBool,
@@ -267,6 +331,8 @@ pub fn rodar(
         .stderr(Stdio::piped());
     #[cfg(windows)]
     std::os::windows::process::CommandExt::creation_flags(&mut comando, 0x0800_0000); // sem console
+    #[cfg(unix)]
+    std::os::unix::process::CommandExt::process_group(&mut comando, 0);
     let mut filho = comando.spawn()?;
     let (envia, recebe) = mpsc::channel();
     let stdout = filho.stdout.take().expect("stdout com pipe");
@@ -286,8 +352,7 @@ pub fn rodar(
     let mut saida = String::new();
     loop {
         if cancelado.load(Ordering::SeqCst) {
-            let _ = filho.kill();
-            let _ = filho.wait();
+            parar_arvore(&mut filho);
             return Err(Erro::Cancelado);
         }
         match recebe.recv_timeout(Duration::from_millis(100)) {
@@ -465,6 +530,7 @@ impl Instalador<'_> {
     /// `UV_LINK_MODE`...): só valem as que a casca põe.
     fn comando_uv(&self, argumentos: &[&str]) -> Command {
         let mut comando = Command::new(self.uv());
+        servidor::sem_python_de_fora(&mut comando);
         for (nome, _) in std::env::vars_os() {
             if nome.to_string_lossy().starts_with("UV_") {
                 comando.env_remove(nome);
@@ -481,7 +547,7 @@ impl Instalador<'_> {
 
     fn comando_jobot(&self, argumentos: &[&str]) -> Command {
         let mut comando = Command::new(servidor::jobot_do_venv(&self.venv(), self.so));
-        comando.args(argumentos);
+        servidor::sem_python_de_fora(&mut comando).args(argumentos);
         comando
     }
 
@@ -535,6 +601,36 @@ impl Instalador<'_> {
         }
     }
 
+    /// O passo opcional do navegador: o `jobot ferramentas baixar navegador` do venv, que baixa
+    /// o Chromium pelo `playwright install` (com rede, D183.24); o progresso vem das linhas JSON.
+    pub fn baixar_navegador(
+        &self,
+        cancelado: &AtomicBool,
+        rodar: &mut Rodar,
+        progresso: &mut dyn FnMut(Value),
+    ) -> Result<(), Erro> {
+        if cancelado.load(Ordering::SeqCst) {
+            return Err(Erro::Cancelado);
+        }
+        progresso(json!({"etapa": "navegador"}));
+        let comando = self.comando_jobot(&["ferramentas", "baixar", "navegador"]);
+        let mut pronto = false;
+        let saida = rodar(comando, &mut |texto| match ler_linha(texto) {
+            Some(Linha::Progresso { feito, total }) => {
+                progresso(json!({"etapa": "navegador", "feito": feito, "total": total}));
+            }
+            Some(Linha::Fim(ok)) => pronto = ok,
+            None => {}
+        })?;
+        if saida.codigo != Some(0) || !pronto {
+            return Err(match falhou("jobot ferramentas baixar navegador", &saida) {
+                Erro::Outro(texto) => Erro::Navegador(texto),
+                outro => outro,
+            });
+        }
+        Ok(())
+    }
+
     /// Confere, instala e grava; com erro, desfaz o que criou.
     pub fn instalar(
         &self,
@@ -578,17 +674,16 @@ impl Instalador<'_> {
             cancelado,
             progresso,
         )?;
-        let uv = manifesto.achar(|n| n == format!("bin/{}", self.exe("uv")), "uv")?;
+        let uv = manifesto.achar(|n| n == UV, "uv")?;
         let python = manifesto.achar(|n| versao_do_python(n).is_some(), "python")?;
         let versao_python = versao_do_python(&python.nome).unwrap_or_default();
-        let chromium = manifesto.achar(e_chromium, "chromium")?;
         if cancelado.load(Ordering::SeqCst) {
             return Err(Erro::Cancelado);
         }
 
         progresso(json!({"etapa": "python"}));
         fs::create_dir_all(self.pasta.join("bin"))?;
-        fs::copy(self.recursos.join(&uv.nome), self.uv())?;
+        tirar_do_tar(&self.recursos.join(&uv.nome), &self.uv())?;
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
@@ -652,32 +747,7 @@ impl Instalador<'_> {
         }
 
         if navegador {
-            progresso(json!({"etapa": "navegador", "feito": 0, "total": chromium.tamanho}));
-            let arquivo = self.recursos.join(&chromium.nome);
-            let comando = self.comando_jobot(&[
-                "ferramentas",
-                "baixar",
-                "navegador",
-                "--arquivo",
-                &arquivo.to_string_lossy(),
-                "--sha256",
-                &chromium.sha256,
-            ]);
-            if cancelado.load(Ordering::SeqCst) {
-                return Err(Erro::Cancelado);
-            }
-            let mut pronto = false;
-            let saida = rodar(comando, &mut |texto| match ler_linha(texto) {
-                Some(Linha::Progresso { feito, total }) => {
-                    let total = total.unwrap_or(chromium.tamanho);
-                    progresso(json!({"etapa": "navegador", "feito": feito, "total": total}));
-                }
-                Some(Linha::Fim(ok)) => pronto = ok,
-                None => {}
-            })?;
-            if saida.codigo != Some(0) || !pronto {
-                return Err(falhou("jobot ferramentas baixar navegador", &saida));
-            }
+            self.baixar_navegador(cancelado, rodar, progresso)?;
         }
 
         if cancelado.load(Ordering::SeqCst) {
@@ -711,7 +781,6 @@ mod testes {
 
     const VERSAO: &str = "0.3.0";
     const PYTHON: &str = "python/20260807/cpython-3.14.7+20260807-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz";
-    const CHROMIUM: &str = "chromium-x86_64-unknown-linux-gnu.tar.gz";
 
     fn temporaria(nome: &str) -> PathBuf {
         let p = std::env::temp_dir().join(format!("jobot-instalar-{nome}-{}", std::process::id()));
@@ -724,22 +793,81 @@ mod testes {
         hex(&Sha256::digest(bytes))
     }
 
-    const ARQUIVOS: [(&str, &str); 5] = [
-        ("bin/uv", "uv falso"),
-        (PYTHON, "python falso"),
-        ("restricoes.txt", "jobot==0.3.0 --hash=sha256:00\n"),
-        ("wheels/jobot-0.3.0-py3-none-any.whl", "roda falsa"),
-        (CHROMIUM, "chromium falso"),
-    ];
+    /// Um tar ustar de um arquivo só, como o `scripts/montar_recursos.py` grava o `uv`.
+    fn tar_de_um(nome: &str, dados: &[u8]) -> Vec<u8> {
+        let mut tar = vec![0u8; 512];
+        tar[..nome.len()].copy_from_slice(nome.as_bytes());
+        tar[100..108].copy_from_slice(b"0000755\0");
+        tar[124..136].copy_from_slice(format!("{:011o}\0", dados.len()).as_bytes());
+        tar[156] = b'0';
+        tar[257..263].copy_from_slice(b"ustar\0");
+        tar.extend_from_slice(dados);
+        tar.resize(tar.len().div_ceil(512) * 512 + 1024, 0);
+        tar
+    }
+
+    fn arquivos() -> [(&'static str, Vec<u8>); 4] {
+        [
+            (UV, tar_de_um("uv", b"uv falso")),
+            (PYTHON, b"python falso".to_vec()),
+            (
+                "restricoes.txt",
+                b"jobot==0.3.0 --hash=sha256:00\n".to_vec(),
+            ),
+            (
+                "wheels/jobot-0.3.0-py3-none-any.whl",
+                b"roda falsa".to_vec(),
+            ),
+        ]
+    }
+
+    #[test]
+    fn uv_sai_do_tar_e_tar_estragado_recusa() {
+        let raiz = temporaria("tar-do-uv");
+        let (tar, uv) = (raiz.join("uv.tar"), raiz.join("uv"));
+        fs::write(&tar, tar_de_um("uv", b"uv falso")).unwrap();
+        tirar_do_tar(&tar, &uv).unwrap();
+        assert_eq!(fs::read(&uv).unwrap(), b"uv falso");
+        fs::write(&tar, b"uv solto, sem tar").unwrap();
+        assert!(matches!(tirar_do_tar(&tar, &uv), Err(Erro::Arquivo(_))));
+        let mut curto = tar_de_um("uv", b"uv falso");
+        curto.truncate(515);
+        fs::write(&tar, curto).unwrap();
+        assert!(matches!(tirar_do_tar(&tar, &uv), Err(Erro::Arquivo(_))));
+    }
+
+    #[test]
+    fn tar_sem_a_marca_ustar_recusa() {
+        let raiz = temporaria("tar-sem-marca");
+        let (tar, uv) = (raiz.join("uv.tar"), raiz.join("uv"));
+        // tamanho certo, mas sem a marca ustar
+        let mut sem_marca = tar_de_um("uv", b"uv falso");
+        sem_marca[257..263].fill(0);
+        fs::write(&tar, sem_marca).unwrap();
+        assert!(matches!(tirar_do_tar(&tar, &uv), Err(Erro::Arquivo(_))));
+        assert!(!uv.exists());
+    }
+
+    #[test]
+    fn tar_com_symlink_recusa() {
+        let raiz = temporaria("tar-symlink");
+        let (tar, uv) = (raiz.join("uv.tar"), raiz.join("uv"));
+        // ustar, mas um symlink em vez de arquivo
+        let mut atalho = tar_de_um("uv", b"uv falso");
+        atalho[156] = b'2';
+        fs::write(&tar, atalho).unwrap();
+        assert!(matches!(tirar_do_tar(&tar, &uv), Err(Erro::Arquivo(_))));
+        assert!(!uv.exists());
+    }
 
     /// Recursos de mentira com o manifesto certo; devolve o sha256 do manifesto.
     fn montar_recursos(raiz: &Path, versao: &str) -> String {
         let mut lista = Vec::new();
-        for (nome, conteudo) in ARQUIVOS {
+        for (nome, conteudo) in arquivos() {
             let caminho = raiz.join(nome);
             fs::create_dir_all(caminho.parent().unwrap()).unwrap();
-            fs::write(&caminho, conteudo).unwrap();
-            lista.push(json!({"nome": nome, "tamanho": conteudo.len(), "sha256": sha(conteudo.as_bytes())}));
+            fs::write(&caminho, &conteudo).unwrap();
+            lista.push(json!({"nome": nome, "tamanho": conteudo.len(), "sha256": sha(&conteudo)}));
         }
         let bruto = serde_json::to_vec(&json!({"versao": versao, "arquivos": lista})).unwrap();
         fs::write(raiz.join(MANIFESTO), &bruto).unwrap();
@@ -824,6 +952,7 @@ mod testes {
                 Some("venv") => fs::create_dir_all(argv.last().unwrap()).unwrap(),
                 Some("ferramentas") => {
                     linha(r#"{"etapa":"navegador","feito":5,"total":14}"#);
+                    linha(r#"{"etapa":"navegador","feito":7}"#);
                     linha(r#"{"fim":"pronto"}"#);
                 }
                 Some("--version") => saida = format!("{versao}\n"),
@@ -971,8 +1100,10 @@ mod testes {
             .join("cpython-3.14.7-linux-x86_64-gnu")
             .join("bin")
             .join("python3");
-        let espelho = format!("file://{}", texto(&c.recursos.join("python")));
-        let chromium = c.recursos.join(CHROMIUM);
+        // no Windows o endereço é `file:///C:/...`, com as barras de URL
+        let espelho = tauri::Url::from_file_path(c.recursos.join("python"))
+            .unwrap()
+            .to_string();
         let esperado = vec![
             v(&[
                 &uv,
@@ -1007,16 +1138,8 @@ mod testes {
                 &texto(&c.recursos.join("restricoes.txt")),
             ]),
             v(&[&jobot, "--version"]),
-            v(&[
-                &jobot,
-                "ferramentas",
-                "baixar",
-                "navegador",
-                "--arquivo",
-                &texto(&chromium),
-                "--sha256",
-                &sha(b"chromium falso"),
-            ]),
+            // sem arquivo dos recursos: o navegador vem do `playwright install` (D183.24)
+            v(&[&jobot, "ferramentas", "baixar", "navegador"]),
         ];
         assert_eq!(argvs(&feitos), esperado);
         // o uv roda offline, com as pastas da casca e sem nenhuma UV_* da pessoa
@@ -1031,6 +1154,13 @@ mod testes {
             );
             for fora in ["UV_NO_BINARY", "UV_CONSTRAINT"] {
                 assert_eq!(ambiente.get(fora), Some(&None), "{fora}");
+            }
+        }
+        // o PYTHONHOME, o PYTHONPATH e o LD_LIBRARY_PATH do AppImage nunca chegam ao uv nem ao
+        // jobot (D183.18)
+        for (argv, ambiente) in feitos.borrow().iter() {
+            for fora in ["LD_LIBRARY_PATH", "PYTHONHOME", "PYTHONPATH"] {
+                assert_eq!(ambiente.get(fora), Some(&None), "{fora} {argv:?}");
             }
         }
         assert!(argvs(&feitos).concat().iter().all(|a| !a.contains("http")));
@@ -1074,7 +1204,8 @@ mod testes {
         etapas.dedup();
         assert_eq!(etapas, ["conferir", "python", "jobot", "navegador"]);
         assert!(avisos.contains(&json!({"etapa": "navegador", "feito": 5, "total": 14})));
-        let total: u64 = ARQUIVOS.iter().map(|(_, c)| c.len() as u64).sum();
+        assert!(avisos.contains(&json!({"etapa": "navegador", "feito": 7, "total": null})));
+        let total: u64 = arquivos().iter().map(|(_, c)| c.len() as u64).sum();
         assert!(avisos.contains(&json!({"etapa": "conferir", "feito": total, "total": total})));
     }
 
@@ -1160,7 +1291,12 @@ mod testes {
             &mut executor,
             &mut |_| {},
         );
-        assert!(matches!(r, Err(Erro::Outro(_))), "{r:?}");
+        // motivo próprio: a tela diz que o navegador vem da internet (D183.24)
+        assert!(
+            matches!(&r, Err(Erro::Navegador(t)) if t.contains("deu errado")),
+            "{r:?}"
+        );
+        assert_eq!(r.unwrap_err().codigo(), "navegador");
         assert!(!c.pasta.exists());
         assert!(!c.dados.join(INSTALACAO).exists());
     }
@@ -1261,11 +1397,10 @@ mod testes {
     #[test]
     fn estado_diz_se_esta_completo_e_quanto_ocupa() {
         let c = cenario("estado");
-        let navegador = "chromium falso".len() as u64;
-        let total: u64 = ARQUIVOS.iter().map(|(_, c)| c.len() as u64).sum();
+        let total: u64 = arquivos().iter().map(|(_, c)| c.len() as u64).sum();
         assert_eq!(
             estado(&c.recursos, Some(c.sha.as_str()), VERSAO),
-            json!({"completo": true, "base": total - navegador, "navegador": navegador})
+            json!({"completo": true, "base": total, "navegador": TAMANHO_DO_NAVEGADOR})
         );
         assert_eq!(
             estado(&c.recursos, None, VERSAO),
@@ -1333,5 +1468,88 @@ mod testes {
         let r = rodar(comando, &AtomicBool::new(true), &mut |_| {});
         assert!(matches!(r, Err(Erro::Cancelado)), "{r:?}");
         assert!(inicio.elapsed() < std::time::Duration::from_secs(10));
+    }
+
+    /// Cancela o comando e devolve os PIDs que ele escreveu e os que ainda vivem depois de até 5 s.
+    #[cfg(any(target_os = "linux", windows))]
+    fn cancelar_e_ver_netos(
+        comando: Command,
+        vivo: impl Fn(&str) -> bool,
+    ) -> (Vec<String>, Vec<String>) {
+        let cancelado = AtomicBool::new(false);
+        let mut netos = Vec::new();
+        let r = rodar(comando, &cancelado, &mut |l| {
+            netos.extend(l.split_whitespace().map(str::to_string));
+            cancelado.store(true, Ordering::SeqCst);
+        });
+        assert!(matches!(r, Err(Erro::Cancelado)), "{r:?}");
+        let ate = std::time::Instant::now() + Duration::from_secs(5);
+        let mut vivos: Vec<String> = netos.clone();
+        while !vivos.is_empty() && std::time::Instant::now() < ate {
+            vivos.retain(|pid| vivo(pid));
+            std::thread::sleep(Duration::from_millis(100));
+        }
+        (netos, vivos)
+    }
+
+    /// D183.24: o `jobot ferramentas baixar navegador` sobe o `playwright install` em sessão
+    /// própria e o encerra no SIGTERM; o cancelamento chega a ele e ao grupo, não só ao filho.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn rodar_cancelado_encerra_os_netos() {
+        let mut comando = Command::new("/bin/sh");
+        comando.args([
+            "-c",
+            "sleep 300 & a=$!; setsid sleep 300 & b=$!; trap 'kill $b; exit 0' TERM; echo $a $b; wait",
+        ]);
+        // morto ou zumbi (sem quem o recolha no contêiner)
+        let vivo = |pid: &str| {
+            fs::read_to_string(format!("/proc/{pid}/stat")).is_ok_and(|s| {
+                !s.rsplit(')')
+                    .next()
+                    .unwrap_or("")
+                    .trim_start()
+                    .starts_with('Z')
+            })
+        };
+        let (netos, vivos) = cancelar_e_ver_netos(comando, vivo);
+        for pid in &vivos {
+            let _ = Command::new("kill").args(["-9", pid]).status();
+        }
+        assert_eq!(netos.len(), 2, "{netos:?}");
+        assert!(
+            vivos.is_empty(),
+            "netos vivos depois de cancelar: {vivos:?}"
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn rodar_cancelado_encerra_os_netos() {
+        let mut comando = Command::new("powershell");
+        comando.args([
+            "-NoProfile",
+            "-Command",
+            "$p = Start-Process -FilePath ping -ArgumentList '-n','300','127.0.0.1' -WindowStyle Hidden -PassThru; [Console]::Out.WriteLine($p.Id); [Console]::Out.Flush(); Wait-Process -Id $p.Id",
+        ]);
+        let vivo = |pid: &str| {
+            Command::new("tasklist")
+                .args(["/FI", &format!("PID eq {pid}"), "/NH"])
+                .output()
+                .is_ok_and(|s| {
+                    String::from_utf8_lossy(&s.stdout)
+                        .split_whitespace()
+                        .any(|p| p == pid)
+                })
+        };
+        let (netos, vivos) = cancelar_e_ver_netos(comando, vivo);
+        for pid in &vivos {
+            let _ = Command::new("taskkill").args(["/F", "/PID", pid]).status();
+        }
+        assert_eq!(netos.len(), 1, "{netos:?}");
+        assert!(
+            vivos.is_empty(),
+            "netos vivos depois de cancelar: {vivos:?}"
+        );
     }
 }

@@ -84,7 +84,7 @@ O joBot tem um núcleo só e duas "caras".
 
 | | 💻 Versão para baixar | 🌐 Versão no navegador (GitHub Pages) |
 |---|---|---|
-| **Instalação** | Nativa, com um comando (planejada) | Nenhuma: é só abrir o site |
+| **Instalação** | Nativa, pelo instalador de cada sistema (fase 3) ou pelo código | Nenhuma: é só abrir o site |
 | **Fontes** | Todas | Só fontes públicas |
 | **Sites com login** | Sim, você entra numa janela comum do navegador | Não |
 | **IA** | Automática (Claude, modelo local) ou manual | Manual (copiar e colar); rótulos só por regras |
