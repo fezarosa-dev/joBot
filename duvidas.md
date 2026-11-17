@@ -3222,7 +3222,7 @@ Do item 2 (T305 h), aceito e documentado. Sem JavaScript, o detalhe sobreposto f
 
 **Ver também:** D171 (itens 7 e 12), D61, desenho 6.5, T328, T329.
 
-## D176. O painel dentro da casca: escolhas da T334 (para confirmar)
+## D178. O painel dentro da casca: escolhas da T334 (para confirmar)
 
 **Status:** escolhas da sessão, para confirmar.
 
