@@ -1,7 +1,7 @@
 // A casca do joBot (desenho 5.1 a 5.4): instância única, confere a janela, acha ou sobe o
 // `jobot serve` e abre o painel em http://127.0.0.1:<porta>/; sem o joBot instalado, a tela de
 // instalação (5.2). Com --verificar-janela <url>, a prova da ponte da T321 (a IPC do Tauri numa
-// origem http://127.0.0.1 remota).
+// origem http://127.0.0.1 remota). Com --verificar, a fumaça sem janela da release (desenho 10).
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod fechar;
@@ -365,12 +365,16 @@ fn ao_sair() {
 }
 
 fn main() {
+    let contexto = tauri::generate_context!();
     let args: Vec<String> = std::env::args().skip(1).collect();
     if let [flag, url] = args.as_slice()
         && flag == "--verificar-janela"
     {
-        verificar_janela(url);
+        verificar_janela(url, contexto);
         return;
+    }
+    if args.first().is_some_and(|a| a == "--verificar") {
+        std::process::exit(verificar(contexto.package_info()));
     }
     if args.first().is_some_and(|a| a == "--desinstalar") {
         // o desinstalador do NSIS (desktop/windows/ganchos.nsh, desenho 7.2)
@@ -400,7 +404,7 @@ fn main() {
             abrir_janela(app.handle())?;
             Ok(())
         })
-        .build(tauri::generate_context!())
+        .build(contexto)
         .expect("erro ao montar a janela")
         .run(|app, evento| match evento {
             // o Cmd+Q do Mac sai sem passar pelo CloseRequested: no meio da instalação, pergunta
@@ -414,7 +418,7 @@ fn main() {
 }
 
 /// Prova da ponte (T321): abre a URL sem moldura e sai com 0 se a IPC respondeu, 2 se não.
-fn verificar_janela(alvo: &str) {
+fn verificar_janela(alvo: &str, contexto: tauri::Context) {
     let url: Url = alvo.parse().expect("URL inválida");
     tauri::Builder::default()
         .setup(move |app| {
@@ -442,8 +446,106 @@ fn verificar_janela(alvo: &str) {
             });
             Ok(())
         })
-        .run(tauri::generate_context!())
+        .run(contexto)
         .expect("erro ao rodar a janela");
+}
+
+/// Abre o Chromium de verdade (headless) pelo Python do venv e lê uma página (desenho 10): só
+/// conferir a pasta não prova o bit de execução nem as bibliotecas.
+const SCRIPT_CHROMIUM: &str = r#"
+from playwright.sync_api import sync_playwright
+with sync_playwright() as p:
+    navegador = p.chromium.launch()
+    pagina = navegador.new_page()
+    pagina.set_content("<p>joBot</p>")
+    assert pagina.inner_text("p") == "joBot"
+    navegador.close()
+print("verificar: chromium ok")
+"#;
+
+/// O `python` ao lado do `jobot` do venv (`bin/` ou `Scripts\`).
+fn python_ao_lado(jobot: &Path, so: &str) -> PathBuf {
+    jobot.with_file_name(if so == "windows" {
+        "python.exe"
+    } else {
+        "python"
+    })
+}
+
+/// Fumaça sem janela (desenho 10; D174.4): instala dos recursos com o navegador, sobe o
+/// servidor, confere `/saude-local`, abre o Chromium headless e para o servidor. 0 se tudo deu.
+fn verificar(info: &tauri::PackageInfo) -> i32 {
+    let so = std::env::consts::OS;
+    let recursos = match tauri::utils::platform::resource_dir(info, &tauri::Env::default()) {
+        Ok(pasta) => pasta.join("recursos"),
+        Err(erro) => {
+            eprintln!("verificar: sem a pasta dos recursos: {erro}");
+            return 1;
+        }
+    };
+    let (dados, pasta) = (dados(), instalar::pasta_da_casca(ambiente, so));
+    println!("verificar: recursos {}", recursos.display());
+    println!(
+        "verificar: dados {}; casca {}",
+        dados.display(),
+        pasta.display()
+    );
+    let instalador = instalar::Instalador {
+        recursos: &recursos,
+        pasta: &pasta,
+        dados: &dados,
+        so,
+        versao: VERSAO,
+    };
+    let cancelado = AtomicBool::new(false);
+    let mut rodar = |comando: std::process::Command, linha: &mut dyn FnMut(&str)| {
+        instalar::rodar(comando, &cancelado, linha)
+    };
+    let feito = instalador.instalar(
+        SHA_MANIFESTO.unwrap_or_default(),
+        true,
+        &cancelado,
+        &mut rodar,
+        &mut |aviso| println!("verificar: {aviso}"),
+    );
+    if let Err(erro) = feito {
+        eprintln!(
+            "verificar: a instalação falhou ({}): {}",
+            erro.codigo(),
+            erro.detalhe()
+        );
+        return 1;
+    }
+    let Some(jobot) = servidor::jobot_instalado(&dados, so) else {
+        eprintln!("verificar: o instalacao.json não aponta um jobot");
+        return 1;
+    };
+    let porta = match servidor::achar_ou_subir(&dados, &jobot, ambiente) {
+        Ok(achado) => achado.porta,
+        Err(falha) => {
+            eprintln!(
+                "verificar: o servidor não subiu ({}): {}",
+                falha.codigo(),
+                falha.detalhe()
+            );
+            eprintln!("{}", servidor::fim_do_log(&dados));
+            return 1;
+        }
+    };
+    let saude = servidor::perguntar_saude(porta);
+    println!("verificar: /saude-local na porta {porta}: {saude}");
+    let chromium = std::process::Command::new(python_ao_lado(&jobot, so))
+        .args(["-c", SCRIPT_CHROMIUM])
+        .status();
+    let chromium = match chromium {
+        Ok(status) => status.success(),
+        Err(erro) => {
+            eprintln!("verificar: não consegui rodar o Python do venv: {erro}");
+            false
+        }
+    };
+    fechar::rodar_esperando(&jobot, &["sair"]);
+    if saude && chromium { 0 } else { 1 }
 }
 
 #[cfg(test)]
@@ -471,6 +573,21 @@ mod testes {
     #[test]
     fn outra_pagina_nao_e_resultado() {
         assert_eq!(resultado(&url("http://127.0.0.1:8765/?ok=1")), None);
+    }
+
+    #[test]
+    fn python_ao_lado_do_jobot_do_venv() {
+        let venv = Path::new("venvs").join("venv-1");
+        let jobot = servidor::jobot_do_venv(&venv, "linux");
+        assert_eq!(
+            python_ao_lado(&jobot, "linux"),
+            venv.join("bin").join("python")
+        );
+        let jobot = servidor::jobot_do_venv(&venv, "windows");
+        assert_eq!(
+            python_ao_lado(&jobot, "windows"),
+            venv.join("Scripts").join("python.exe")
+        );
     }
 
     #[test]
