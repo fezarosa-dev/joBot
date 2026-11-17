@@ -55,5 +55,10 @@
   "casca.aviso_candidatura.sim": "Yes, I Applied",
   "casca.aviso_candidatura.ainda_nao": "Not Yet",
   "casca.aviso_candidatura.mais": "and {n} more to answer",
-  "casca.aviso_candidatura.marcada": "{titulo} marked as Applied."
+  "casca.aviso_candidatura.marcada": "{titulo} marked as Applied.",
+  "casca.janela.botoes": "Window controls",
+  "casca.janela.fechar": "Close",
+  "casca.janela.minimizar": "Minimize",
+  "casca.janela.maximizar": "Maximize",
+  "casca.janela.restaurar": "Restore"
 }

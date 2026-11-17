@@ -942,6 +942,48 @@
     delete raiz.dataset.janela;
   });
 
+  // dentro da casca (T334; desenho 5.3): os círculos e o arraste chamam a ponte do Tauri, e só se
+  // ela existir (no navegador comum, ou com a marca forjada no user agent, nada acontece)
+  const janelaDaCasca = () =>
+    raiz.dataset.casca ? window.__TAURI__?.window?.getCurrentWindow?.() : undefined;
+  const rotularMaximizar = async () => {
+    const botao = document.querySelector('[data-janela-acao="toggleMaximize"]');
+    const janela = janelaDaCasca();
+    if (!botao || !janela) return;
+    try {
+      const maximizada = await janela.isMaximized();
+      botao.setAttribute("aria-label", maximizada ? botao.dataset.restaurar : botao.dataset.maximizar);
+    } catch {
+      // ponte recusou: fica o rótulo que veio do servidor
+    }
+  };
+  const pedirJanela = async (acao) => {
+    const janela = janelaDaCasca();
+    if (!janela) return;
+    try {
+      await janela[acao]();
+    } catch {
+      return; // ponte recusou: a janela fica como está
+    }
+    if (acao === "toggleMaximize") rotularMaximizar();
+  };
+  document.addEventListener("click", (evento) => {
+    const botao = evento.target.closest?.("[data-janela-acao]");
+    if (botao) pedirJanela(botao.dataset.janelaAcao);
+  });
+  // a barra e o topo vazio da lateral arrastam a janela; o segundo clique de um duplo maximiza
+  document.addEventListener("mousedown", (evento) => {
+    const alvo = evento.target;
+    if (evento.button !== 0 || !janelaDaCasca()) return;
+    const zona = alvo.closest?.(".topo, #lateral");
+    if (!zona || (zona.id === "lateral" && alvo !== zona)) return;
+    if (alvo.closest("a[href], button, input, select, textarea, label, summary, [tabindex]")) return;
+    pedirJanela(evento.detail === 2 ? "toggleMaximize" : "startDragging");
+  });
+  window.addEventListener("resize", rotularMaximizar);
+  document.addEventListener("htmx:historyRestore", rotularMaximizar);
+  rotularMaximizar();
+
   // menus de Configurações > Geral e o interruptor de cada busca: enviam ao mudar; o botão do
   // <noscript> cobre quem não tem JS
   document.addEventListener("change", (evento) => {
@@ -967,7 +1009,8 @@
       // sem <dialog>, segue para a página de confirmação
       if (!alerta?.showModal || alerta.open) return;
       evento.preventDefault();
-      abridorDoAlerta = abre;
+      // da paleta (Encerrar, T333): ela fecha logo depois e a opção some; o foco volta a quem a abriu
+      abridorDoAlerta = abre.closest("[data-paleta]") ? abridorDaPaleta : abre;
       alerta.showModal();
       alerta.focus({ preventScroll: true });
       return;
@@ -1018,6 +1061,12 @@
     },
     true, // close não sobe: só a captura o vê no document
   );
+
+  // despedida do Encerrar (T333; desenho 6.4): dentro da casca (Tauri, com withGlobalTauri) a
+  // janela fecha junto; no navegador, a página diz que pode fechar
+  if (document.querySelector("[data-encerrado]")) {
+    window.__TAURI__?.window?.getCurrentWindow?.()?.close?.();
+  }
 
   // paleta de comandos (T265; desenho 5.4): o <dialog id="paleta"> de _paleta.html. Os comandos são
   // links e formulários que já existem; aqui só abre (botão, ⌘K / Ctrl+K), filtra, move a marca
@@ -1154,7 +1203,8 @@
       if (!evento.target.matches?.("dialog[data-paleta]")) return;
       const abridor = abridorDaPaleta;
       abridorDaPaleta = null;
-      if (abridor?.isConnected) abridor.focus({ preventScroll: true });
+      // a opção abriu um alerta (Encerrar): o foco fica nele e volta a este abridor quando ele fechar
+      if (abridor?.isConnected && !alertaAberto()) abridor.focus({ preventScroll: true });
     },
     true, // close não sobe: só a captura o vê no document
   );
@@ -1244,6 +1294,57 @@
       headers: { "X-CSRF-Token": token },
     }).catch(() => {});
   });
+
+  // "Atualizar agora" (T332; desenho 6.3): o `jobot atualizar` para e religa o servidor. A caixa
+  // [data-atualizando] pergunta ao /saude-local a cada 2 s e recarrega quando a versão no ar deixa de
+  // ser a data-de; com o servidor fora no meio da troca, pergunta de novo. Passados 120 s, esconde a
+  // barra e mostra a explicação com "Tentar de novo". data-perguntas conta as perguntas agendadas
+  const PASSO_ATUALIZAR_MS = 2000;
+  const PRAZO_ATUALIZAR_MS = 120000;
+  const esperarAtualizacao = (caixa) => {
+    if (caixa.dataset.perguntas) return;
+    const inicio = Date.now();
+    let perguntas = 0;
+    const agendar = () => {
+      perguntas += 1;
+      caixa.dataset.perguntas = String(perguntas);
+      setTimeout(perguntar, PASSO_ATUALIZAR_MS);
+    };
+    const perguntar = async () => {
+      if (!caixa.isConnected) return;
+      try {
+        const resposta = await fetch("/saude-local", {
+          cache: "no-store",
+          signal: AbortSignal.timeout(5000),
+        });
+        const saude = resposta.ok ? await resposta.json() : null;
+        if (saude?.app === "jobot" && saude.versao !== caixa.dataset.de) {
+          window.location.reload();
+          return;
+        }
+      } catch {
+        // servidor fora (parado para a troca) ou resposta estranha: pergunta de novo
+      }
+      if (Date.now() - inicio < PRAZO_ATUALIZAR_MS) {
+        agendar();
+        return;
+      }
+      const barra = caixa.querySelector("[data-atualizar-barra]");
+      const demorou = caixa.querySelector("[data-atualizar-demorou]");
+      if (barra) barra.hidden = true;
+      if (demorou) demorou.hidden = false;
+      // o foco na caixa (ou solto) vai ao "Tentar de novo"; em outro lugar, fica onde está
+      const ativo = document.activeElement;
+      if (!ativo || ativo === document.body || ativo === caixa || barra?.contains(ativo)) {
+        demorou?.querySelector("button")?.focus();
+      }
+    };
+    agendar();
+  };
+  const procurarAtualizacao = () => {
+    for (const caixa of document.querySelectorAll("[data-atualizando]")) esperarAtualizacao(caixa);
+  };
+  document.addEventListener("htmx:afterSettle", procurarAtualizacao);
 
   // "Copiar endereço" do e-mail de candidatura (desenho 5.7): vem hidden e só aparece com
   // JavaScript (sem ele o endereço continua à vista). A troca do #estado-da-vaga traz o botão de
