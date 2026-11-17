@@ -8,6 +8,8 @@ O formato segue o [Keep a Changelog 1.1.0](https://keepachangelog.com/pt-BR/1.1.
 
 ## [Não lançado]
 
+## [0.4.0] - 2026-11-18
+
 A fase 3 chega: o joBot ganha uma janela própria e um instalador para Windows, Linux e Mac, que instala tudo sem internet, menos o navegador opcional.
 
 ### Adicionado
