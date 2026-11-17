@@ -102,6 +102,8 @@
   "encaixe.idioma_ok": "Job language as you want",
   "encaixe.idioma_nao_detectado": "Job language not detected",
   "encaixe.idioma_fora": "Language outside what you want",
+  "encaixe.habilidades_tem": "Skills you have: {lista}",
+  "encaixe.habilidades_faltam": "Skills you are missing: {lista}",
   "vagas.programas.titulo": "Tracked program pages",
   "vagas.programas.mudou_em": "changed on {data}",
   "vagas.programas.nova": "Not read yet.",

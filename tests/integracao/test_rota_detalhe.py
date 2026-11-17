@@ -2,6 +2,7 @@
 
 import html as html_lib
 import importlib
+import json
 import re
 import time
 from collections.abc import Iterator
@@ -265,6 +266,46 @@ def test_detalhe_mostra_encaixe_e_ocultar_volta_para_o_detalhe(painel: Painel) -
     assert f'value="/vagas/{vaga}"' in html  # `voltar` das ações da vaga
     assert f'action="/vagas/{vaga}/ocultar"' in html
     assert f'href="/vagas/{vaga}/correcao"' in html
+
+
+# ---------------------------------------------------------------- T411 (desenho 5.5)
+
+OITO = ["Python", "Go", "Rust", "Java", "SQL", "Docker", "Kotlin", "Git"]
+
+
+def _habilidades(painel: Painel, nome: str, pede: list[str], perfil: list[str]) -> None:
+    painel.sql(
+        "INSERT INTO habilidades_vaga (vaga_id, chave, pede, backend, modelo, versao, feito_em)"
+        " VALUES (?, 'c1', ?, 'local', 'qwen3-4b', 1, '2026-11-17T10:00:00+00:00')",
+        painel.ids[nome],
+        json.dumps(pede),
+    )
+    painel.sql(
+        "INSERT INTO perfil (id, habilidades, atualizado_em)"
+        " VALUES (1, ?, '2026-11-17T10:00:00+00:00')",
+        json.dumps(perfil),
+    )
+
+
+def test_detalhe_mostra_as_habilidades_inteiras_com_backend_e_modelo(painel: Painel) -> None:
+    _habilidades(painel, "usd", OITO, ["git", "PYTHON"])
+    # o motivo gravado, com até 5 nomes, dá lugar à lista inteira
+    motivos = [{"chave": "encaixe.habilidades_faltam", "params": {"lista": "Go, Rust, …"}}]
+    painel.sql("UPDATE encaixe SET motivos = ?", json.dumps(motivos))
+    texto = _texto(painel.detalhe("usd"))
+    assert "Habilidades que você tem: Python, Git" in texto
+    assert "Habilidades que faltam: Go, Rust, Java, SQL, Docker, Kotlin" in texto
+    assert "O que a vaga pede, segundo a IA (local, qwen3-4b)" in texto
+    assert "…" not in texto
+    assert "A IA leu só parte do texto da vaga" not in texto  # descrição curta
+    # controle: outra vaga, sem linha, não tem o bloco
+    assert "segundo a IA" not in _texto(painel.detalhe("nova"))
+
+
+def test_detalhe_avisa_quando_a_ia_leu_so_parte_do_texto(painel: Painel) -> None:
+    _habilidades(painel, "usd", ["Python"], [])
+    painel.sql("UPDATE vaga SET descricao_texto = ? WHERE id = ?", "x " * 3001, painel.ids["usd"])
+    assert "A IA leu só parte do texto da vaga" in _texto(painel.detalhe("usd"))
 
 
 def test_pagina_propria_embrulha_o_detalhe_para_a_leitura(painel: Painel) -> None:

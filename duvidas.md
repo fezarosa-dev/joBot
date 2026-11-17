@@ -3705,3 +3705,20 @@ Do item 2 (T305 h), aceito e documentado. Sem JavaScript, o detalhe sobreposto f
 **Como desfazer:** cada item diz o seu; o resto é o `ia.yml`, os dois scripts e o conjunto de ouro.
 
 **Ver também:** D185 (itens 7 e 19), D187.6, D190, D193.3, D195, desenho 6, 7 e 12, T402, T410, T411, T412.
+
+## D197. Critério de habilidades no encaixe: escolhas da T411 (para confirmar)
+
+**Status:** decidido pela sessão em 2026-11-17, para confirmar. Nada aqui custa dinheiro; sem linha em `habilidades_vaga` a nota de toda vaga fica igual à de antes (até a T412 gravar, nada muda na tela).
+
+**Contexto:** a T411 liga o `pede` gravado (`habilidades_vaga`) e `perfil.habilidades` ao `calcular` (desenho 5.5 da fase 4, D185.11). O desenho fixou o casamento, o peso, o `nivel_base` e os motivos, e deixou abertos onde mora o corte das pontas, como arredondar, o texto dos motivos e o que o detalhe mostra.
+
+1. **Um só corte das pontas.** O corte de `pede_da_vaga` (D190.5) saiu de `nucleo/ia/tarefas.py` para `nucleo/texto.sem_pontas`; a anti-invenção e o casamento (`encaixe.casar`) usam `normalizar(sem_pontas(item))`, então o item que passou pela anti-invenção é comparado do mesmo jeito que foi conferido no `TextoVaga.texto` (notas da T402 para a T412). O nome que aparece em `tem` e `faltam` é o do `pede`, sem as pontas. Desfazer: cada lado com o seu corte.
+2. **Pontos.** `peso × casados / total`, metade sobe, a mesma regra de `_arredondar` (25 × 3/4 = 18,75 → 19). `casados` é limitado a `total`, além da construção (desenho 5.5). Sem item depois de tirar vazios e repetidos, `None`: neutro, nem soma o peso. Desfazer: outra conta em `_habilidades`.
+3. **`nivel_base`.** É a faixa da nota sem o critério; com nenhum outro critério preenchido (busca sem cargo, local, nível, salário nem idioma), fica `None` mesmo com o critério de habilidades valendo. A fila da T412 só pega `bom` ou `medio`, então essa vaga não entra na fila; mas uma busca sem critério nenhum já não tinha nota. Desfazer: `nivel_base` = `nivel` nesse caso.
+4. **Chaves dos motivos.** `encaixe.habilidades_tem` e `encaixe.habilidades_faltam` em `vagas.json`, no padrão dos outros motivos (`encaixe.cargo_titulo` …), em vez do `vagas.motivo.habilidades_*` do desenho 5.5. Até 5 nomes; com mais, "…" no fim. Textos: "Habilidades que você tem: {lista}" / "Habilidades que faltam: {lista}" (en: "Skills you have" / "Skills you are missing"). Desfazer: renomear as chaves nos catálogos e em `encaixe.py`.
+5. **Detalhe.** Com `pede` gravado e não vazio, a seção Encaixe mostra "O que a vaga pede, segundo a IA (backend, modelo)" e as duas listas inteiras, casadas com o perfil de agora; os motivos de habilidades gravados (até 5 nomes) saem da lista de motivos para não repetir. O aviso "A IA leu só parte do texto da vaga" usa o `texto_encaixe` do texto de hoje da vaga: se o texto mudou depois da leitura, o aviso é o do texto novo (a T412 refaz a leitura quando a chave muda). Chaves novas em `detalhe.json` (`detalhe.habilidades.origem`, `detalhe.habilidades.cortado`). Desfazer: tirar o bloco do `corpo.html`.
+6. **Leitura no banco.** `banco/ia.pedes(con, vaga_id=None)` devolve `{vaga_id: PedeVaga(pede, backend, modelo)}`; linha só com falha (`pede` NULL) ou com JSON estranho fica de fora (neutro). O `_recalcular` lê tudo de uma vez, como os locais. Quem chama `recalcular_encaixe` quando a pessoa grava as habilidades é a tela do perfil (T413); aqui o teste prova que a nota muda sem chamada nova à IA. Desfazer: são funções novas.
+
+**Como desfazer:** cada item diz o seu; o critério sai tirando `habilidades` de `encaixe.json` e o bloco de `calcular`.
+
+**Ver também:** D185 (itens 11 e 12), D188, D190.5, D196.8, desenho 5.4 e 5.5 da fase 4, T411, T412, T413.

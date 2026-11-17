@@ -1,9 +1,11 @@
+from collections.abc import Sequence
 from typing import Any
 
-from jobot.nucleo.encaixe import _arredondar, calcular
+from jobot.nucleo.encaixe import _arredondar, calcular, casar
 from jobot.nucleo.modelo import (
     Aviso,
     Busca,
+    Encaixe,
     Local,
     Modalidade,
     Nivel,
@@ -12,6 +14,7 @@ from jobot.nucleo.modelo import (
     VagaTratada,
 )
 from jobot.nucleo.tratamento.tratar import tratar
+from jobot.painel import i18n
 
 SP = Local(cidade="São Paulo", uf="SP", pais="BR")
 CAMPINAS = Local(cidade="Campinas", uf="SP", pais="BR")
@@ -443,3 +446,123 @@ def test_remoto_sem_modalidade_escolhida_pontua_remoto() -> None:
     )
     so_presencial = _busca(cidades=(SP,), modalidades=(Modalidade.PRESENCIAL,))
     assert _motivo_local(remota, so_presencial) == "encaixe.modalidade_fora"
+
+
+# --- habilidades (desenho 5.5, T411) ---
+
+SETE = ["Python", "Go", "Rust", "Java", "SQL", "Docker", "Git"]
+
+
+def _com(
+    v: VagaTratada, b: Busca, pede: Sequence[str] | None, perfil: Sequence[str], **extra: Any
+) -> Encaixe:
+    args: dict[str, Any] = {
+        "sal_mensal_brl": 8000,
+        "minimo_busca_brl": 5000 if b.salario_min_centavos else None,
+        "regras_ligadas": False,
+        "pais_padrao": "BR",
+        "habilidades_vaga": pede,
+        "habilidades_perfil": perfil,
+    }
+    return calcular(v, b, **(args | extra))
+
+
+def _so_habilidades(pede: Sequence[str] | None, perfil: Sequence[str]) -> Encaixe:
+    """Busca sem nenhum outro critério: a nota sai só das habilidades (100 x pontos / 25)."""
+    return _com(_tratada(), Busca(nome="só habilidades"), pede, perfil)
+
+
+def test_habilidades_casadas_pontuam_25_vezes_a_razao_arredondada() -> None:
+    pede = ["Python", "Banco de Dados", "Inglês", "Docker"]
+    perfil = ["  python", "banco   de dados", "INGLES"]  # caixa, acento e espaço diferentes
+    assert _so_habilidades(pede, perfil).nota == 76  # 25 x 3/4 = 18,75, sobe para 19
+    assert _com(_vaga_completa(), _busca(), pede, perfil).nota == 95  # (100 + 19) / 125
+
+
+def test_habilidade_repetida_no_pede_conta_uma_vez() -> None:
+    assert _so_habilidades(["Python", " python ", "Docker"], ["Python"]).nota == 52  # 1 de 2: 13
+
+
+def test_razao_das_habilidades_nunca_passa_de_um() -> None:
+    assert _so_habilidades(["Python"], ["Python", "python", "PYTHON"]).nota == 100
+
+
+def test_tem_e_faltam_sem_sobreposicao_nem_repetidos() -> None:
+    tem, faltam = casar(["Python", "python", "Go", "Docker"], ["PYTHON", "(docker)."])
+    assert (tem, faltam) == (("Python", "Docker"), ("Go",))
+
+
+def test_pede_vazio_ou_ausente_e_neutro() -> None:
+    for pede in (None, [], ["", "  "]):
+        r = _com(_vaga_completa(), _busca(), pede, ["Python"])
+        assert (r.nota, r.nivel, r.nivel_base) == (100, "bom", "bom")
+        assert not any(m.chave.startswith("encaixe.habilidades") for m in r.motivos)
+    # controle: com o que a vaga pede e nada casado, a nota cai
+    assert _com(_vaga_completa(), _busca(), ["Go"], ["Python"]).nota == 80
+
+
+def test_motivos_de_habilidades_com_ate_cinco_nomes() -> None:
+    def motivos(perfil: Sequence[str]) -> list[tuple[str, object]]:
+        r = _so_habilidades(SETE, perfil)
+        return [(m.chave, m.params.get("lista")) for m in r.motivos]
+
+    assert motivos(SETE) == [("encaixe.habilidades_tem", "Python, Go, Rust, Java, SQL, …")]
+    assert motivos([]) == [("encaixe.habilidades_faltam", "Python, Go, Rust, Java, SQL, …")]
+    assert motivos(["git", "PYTHON"]) == [
+        ("encaixe.habilidades_tem", "Python, Git"),
+        ("encaixe.habilidades_faltam", "Go, Rust, Java, SQL, Docker"),
+    ]
+
+
+def test_motivos_de_habilidades_nos_dois_catalogos() -> None:
+    catalogo = i18n.carregar()
+    textos = {
+        (idioma, chave): catalogo[idioma]
+        .get(f"encaixe.habilidades_{chave}", "")
+        .format(lista="Python")
+        for idioma in ("pt", "en")
+        for chave in ("tem", "faltam")
+    }
+    assert textos == {
+        ("pt", "tem"): "Habilidades que você tem: Python",
+        ("pt", "faltam"): "Habilidades que faltam: Python",
+        ("en", "tem"): "Skills you have: Python",
+        ("en", "faltam"): "Skills you are missing: Python",
+    }
+
+
+def test_nivel_base_e_o_nivel_sem_as_habilidades() -> None:
+    so_cargo = Busca(nome="cargo", cargos=("backend",))
+    r = _com(_tratada(), so_cargo, ["Go"], ["Python"])
+    assert (r.nota, r.nivel, r.nivel_base) == (62, "medio", "bom")  # 40 de 65
+    sem = _com(_tratada(), so_cargo, None, ["Python"])
+    assert (sem.nota, sem.nivel, sem.nivel_base) == (100, "bom", "bom")
+    so_habilidades = _so_habilidades(["Go"], ["Python"])
+    assert (so_habilidades.nota, so_habilidades.nivel, so_habilidades.nivel_base) == (
+        0,
+        "fraco",
+        None,
+    )
+
+
+def test_sem_habilidades_da_vaga_a_nota_e_a_de_antes() -> None:
+    # (guarda) os números de `test_pesos`, agora com perfil e sem o que a vaga pede
+    casos = [
+        (_vaga_completa(), 100),
+        (_vaga_completa(locais=(CAMPINAS,)), 90),
+        (_vaga_completa(nivel=Nivel.SENIOR), 85),
+        (_vaga_completa(titulo="Analista", descricao_texto="trabalho com java"), 60),
+    ]
+    for vaga, nota in casos:
+        assert _com(vaga, _busca(), None, ["Python"]).nota == nota
+    # controle: com o que a vaga pede, a nota muda
+    assert _com(_vaga_completa(locais=(CAMPINAS,)), _busca(), ["Go"], ["Python"]).nota == 72
+
+
+def test_habilidades_que_faltam_nao_ocultam() -> None:
+    # (guarda) as regras de ocultar não mudam (D185.11)
+    r = _com(_vaga_completa(), _busca(), ["Go", "Rust"], ["Python"], regras_ligadas=True)
+    assert (r.oculta_motivo, r.nota) == (None, 80)
+    # controle: a regra de hoje ainda oculta, com a mesma lista
+    ruim = _com(_ruim(), _busca_ruim(), ["Go"], ["Python"], regras_ligadas=True, sal_mensal_brl=100)
+    assert ruim.oculta_motivo == "modalidade"
