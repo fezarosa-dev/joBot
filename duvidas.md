@@ -3141,3 +3141,20 @@ Do item 2 (T305 h), aceito e documentado. Sem JavaScript, o detalhe sobreposto f
 4. (dono) Varredura de código do GitHub (CodeQL) na configuração padrão: Python, JavaScript e os workflows do Actions, nos PRs para a `main`, em cada push na `main` e uma vez por semana. Não põe arquivo no repositório e não leva segredo. Os alertas do Dependabot continuam ligados (só avisam); os PRs automáticos dele continuam desligados (ADR 0021). A detecção de segredos genéricos não está disponível nesta conta; a de provedores e o bloqueio de push com segredo já estavam ligados.
 
 **Como desfazer:** Settings › Rules › Rulesets (`proteger-main`, `proteger-dev`) e Settings › Actions › General › Fork pull request workflows. Nada no código muda; ADR 0016 e 0018 e o guia de contribuição citam esta decisão.
+
+## D173. Hash das dependências na instalação pela casca (para decidir)
+
+**Status:** aberta, o dono decide antes da T336 (tela de instalação) e da T337.
+
+**Contexto:** a T322 mediu (`uv 0.12.3`, `scripts/provar_uv.py`) que o `uv tool install` não confere o hash de cada dependência, nem com `--constraints` nem com `--with-requirements` e `UV_REQUIRE_HASHES=1`. O `uv pip install --require-hashes -r restricoes.txt` recusa o mesmo arquivo adulterado. Desenho 6.2 e 6.3.
+
+**Opções:**
+
+1. **Manter `uv tool install --constraints`** com o limite escrito no README e na ADR 0025. A garantia fica no sha256 da wheel e do `restricoes.txt` (conferidos em Rust) e nos pinos `==`; uma dependência trocada no índice com a mesma versão passaria. Mais simples: o `uv tool` cuida do executável `jobot`, do `--force` na atualização e do `uv tool uninstall`.
+2. **Trocar por `uv venv` + `uv pip install --require-hashes -r restricoes.txt <wheel>`** numa pasta da casca. Cada dependência tem o hash conferido. Custo: a casca e o `atualizar.py` (canal `casca`) passam a cuidar do executável (caminho dentro do venv), da troca na atualização (venv novo e troca de pasta) e da remoção no desinstalador.
+
+**Recomendada:** 2. O instalador é a porta de entrada de quem não usa terminal, e o custo fica em código da casca que ainda não existe.
+
+**Como desfazer:** 1 para 2 é mudar o comando em `desktop/src/instalar.rs`, no canal `casca` do `atualizar.py` e no hook do desinstalador (T336, T337), sem mexer nos dados. 2 para 1 é o mesmo caminho ao contrário; o `instalacao.json` ganha o caminho do executável, que fica sem uso.
+
+**Ver também:** D171 (itens 1 e 17), T322, desenho 6.2.
