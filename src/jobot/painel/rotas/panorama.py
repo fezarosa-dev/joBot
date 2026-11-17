@@ -91,7 +91,7 @@ def _o_que_aparece(
     con: sqlite3.Connection, estado: Estado, agora: datetime, idioma: str
 ) -> list[dict[str, Any]]:
     """Os blocos de chips da aba Todas, com a largura da barra e o mais comum de cada um."""
-    grupos = {g["nome"]: g for g in grupos_dos_chips(con, estado, agora, idioma)}
+    grupos = {g["nome"]: g for g in grupos_dos_chips(con, estado, agora, idioma, BLOCOS)}
     blocos = []
     for nome in BLOCOS:
         if nome not in grupos:  # sem busca, o encaixe não tem contagem e o bloco some
@@ -131,7 +131,10 @@ async def panorama(request: Request, con: Con) -> Response:
         params = QueryParams({"aba": "todas", **({"busca": str(busca_id)} if busca_id else {})})
         estado = ler_estado(params, con, exibicao_do_painel(con, agora.astimezone().date()))
         abas = leitura.contar_abas(con, busca_id, agora)
-        status = leitura.contar_chips(con, Filtros(aba="candidatei"), agora).get("status", {})
+        # só o grupo status: um GROUP BY v.status nas candidaturas (T312)
+        status = leitura.contar_chips(con, Filtros(aba="candidatei"), agora, ("status",)).get(
+            "status", {}
+        )
         contexto |= {
             "busca": _busca(con, busca_id),
             "seletor": seletor_de_buscas(con, estado),
