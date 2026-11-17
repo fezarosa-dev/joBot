@@ -18,6 +18,8 @@ Status usados: **resolvida** (o dono decidiu ou aceitou a decisão da sessão, c
 
 Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthropic.
 
+**Ver também (2026-11-18):** D185: a sessão do Claude Code vem construída e não liberada até o dono confirmar o texto legal atual (item 5).
+
 ## D2. Titular do copyright no arquivo LICENSE
 
 **Status:** resolvida em 2026-11-13
@@ -1480,6 +1482,8 @@ A meta de 90% só foi batida em UF. Ela não trava a fase 1.
 
 **Decisão provisória:** (a). Desfazer: esvaziar `fontes.so_brasil` em `rotulos.json` e subir a `versao_algoritmo`.
 
+**Ver também (2026-11-18):** D185: o multilingual-e5-small sai da fase 4 e volta junto do Laya (item 9).
+
 ## D98. Triagem do ensaio da T80 (A82)
 
 **Status:** resolvida em 2026-11-15: o dono aceitou a decisão da sessão
@@ -1692,6 +1696,8 @@ A meta de 90% só foi batida em UF. Ela não trava a fase 1.
 
 **Decisão:** comparar pelo sentido, com o Laya ajustado (ADR 0015). Se ele pesar demais, o caminho é: quantizar primeiro (int8, cerca de 4 vezes menor); destilar para um modelo menor só se ainda ficar lento num PC comum (8 a 16 GB, sem placa de vídeo); poda manual fica de fora. O modelo roda só na máquina da pessoa. O GitHub Actions nunca recebe currículo nem as vagas da pessoa: só confere que o modelo carrega e acerta um teste pequeno, com exemplos públicos. O treino continua no RunPod. A ADR 0015 ganhou a seção "Modelo leve na máquina da pessoa (2026-11-15)".
 
+**Ver também (2026-11-18):** D185: o Laya fica preparado, sem treino, e a fase 4 segue com as habilidades pela IA escolhida (item 8).
+
 ## D123. A bateria de testes roda no GitHub Actions (CI1)
 
 **Status:** resolvida em 2026-11-15: o dono pediu; o jeito foi escolha da sessão, para confirmar
@@ -1743,6 +1749,8 @@ A meta de 90% só foi batida em UF. Ela não trava a fase 1.
 - "Codex" é marca da OpenAI; o joBot não é afiliado à OpenAI (mesma linha que já existe para o Claude).
 
 **Como desfazer:** tirar o backend do Codex e o botão da ADR 0009; nada de código a desfazer.
+
+**Ver também (2026-11-18):** D185: a sessão do Codex vem construída e não liberada até o dono confirmar os termos (item 6).
 
 ## D126. Quatro escolhas do desenho da 0.2.0, limite de 1 s relativo e salário sem moeda na URL (D107)
 
@@ -2393,6 +2401,8 @@ Escolha da sessão (dono fora): a opção (a), para confirmar. Consequência: co
 
 **Como desfazer:** o dono manda trocar qualquer item. O desenho do lote fica em `docs/superpowers/specs/2026-11-15-contas-design.md`; trocar um estado, a faixa, o intervalo ou o aviso é editar o desenho antes do plano. A parte de IA do instalador fica no protótipo do Canvas até a fase 4; voltar atrás é tirar o grupo do protótipo.
 
+**Ver também (2026-11-18):** D185: grupo de IA no instalador, botões Entrar no Pronto, Codex e Claude Code só liberados (itens 5, 6, 17 a 19).
+
 ## D140. Visual de app do Mac
 
 **Status:** decidida pelo dono em 2026-11-15. Todos os itens são do dono; não há escolha da sessão. As regras de cada item, a segunda rodada de respostas do dono e as escolhas da sessão estão na D143.
@@ -2431,6 +2441,8 @@ Escolha da sessão (dono fora): a opção (a), para confirmar. Consequência: co
 **O que acontece até o Laya entrar:** a dica de variações da D109 segue como está, na tela de buscas ("coloque variações, uma por linha"), porque o encaixe compara a palavra exata e sem sinônimos. Esta decisão não mexe nela. O texto da D109 ("só chega na fase 3") e o título da D122 ("fases 3 e 6") usam a numeração antiga das fases; vale a ordem da ADR 0017. O ponto em aberto da ADR 0015 (conferir nos termos de cada fonte se as vagas podem entrar em treino de modelo público) passa a valer antes deste treino, não antes da fase 7.
 
 **Como desfazer:** o dono manda trocar qualquer item. Voltar atrás é devolver o ajuste do Laya à fase 7 e tirar as notas das ADRs 0015 e 0017.
+
+**Ver também (2026-11-18):** D185: o treino do Laya fica preparado e espera o dono autorizar o gasto (item 8).
 
 ## D142. App de desktop e botões da janela
 
@@ -3203,6 +3215,8 @@ Do item 2 (T305 h), aceito e documentado. Sem JavaScript, o detalhe sobreposto f
 
 **Ver também:** D138.15, D171 (itens 1, 9 e 17), D173, T330, T331, T336, T337, T338, T339, T344, ADR [0025](docs/decisions/0025-app-de-desktop-e-instalador.md).
 
+**Ver também (2026-11-18):** D185: o modelo local é baixado da fonte oficial com sha256, como exceção do tipo da D183.24 (item 7).
+
 ## D175. Segundo plano no Windows e no Mac: escolhas da T328 e da T329 (para confirmar)
 
 **Status:** escolhas da sessão, para confirmar.
@@ -3433,3 +3447,42 @@ Do item 2 (T305 h), aceito e documentado. Sem JavaScript, o detalhe sobreposto f
 **Como desfazer:** cada item é texto; os testes novos estão em `tests/unidade/test_documentos.py`, `test_wiki.py` e `test_arquitetura.py`. Nenhum dado de quem usa muda.
 
 **Ver também:** D174, D176 (item 9), D182, D183 (itens 20, 23 e 24), desenho 12, T341, T342, T343.
+
+## D185. Fase 4, IA local e opções de IA: escolhas do desenho (para confirmar)
+
+**Status:** escolhas da sessão de 2026-11-18, com a autonomia que o dono deu, para ele confirmar. Nada aqui custa dinheiro: o treino do Laya só fica preparado (item 8).
+
+**Contexto:** o desenho `docs/superpowers/specs/2026-11-18-fase-4-design.md` e o plano `docs/superpowers/plans/2026-11-18-fase-4.md` (T400 a T423, versão 0.5.0) precisavam fechar o que as decisões do dono deixaram aberto: os conflitos entre a ADR 0009 (pacote offline perguntado pelo instalador, com áudio), a D174.1 (instalador sem rede), a D139.3 e a D139.11 (Modelo local desmarcado; Whisper na fase 6); a D141 (Laya antes da fase 4), cujo treino custa; os termos da Anthropic e da OpenAI para os backends de sessão (D1, D125, D139.2); o perfil, que não existe (P1 do mapa do perfil); e onde a IA entra no encaixe, que hoje é puro e roda dentro de uma transação (`src/jobot/banco/buscas.py:291-366`). Cada item diz a escolha, o motivo e como desfazer; o número é o mesmo da seção 16 do desenho.
+
+1. **Escopo da 0.5.0.** Entram: contrato de IA, backends, modelo local, encaixe por habilidade, perfil (currículo e questionário), preparar candidatura, aba IA, Ferramentas, Contas, Serviços e o grupo de IA do instalador. Ficam de fora: e-mail e recrutadores (fase 6), extensão (fase 5), áudio (fase 6), LoRA e classificador (fase 7), rótulos por IA (item 9), Laya (item 8), Qwen 9B (D139.11). Motivo: é o que o README e a wiki prometem para a fase 4, sem puxar as fases seguintes. Desfazer: mover um item entre as listas e o plano ganha ou perde a tarefa.
+2. **Quatro tarefas, todas desligadas por padrão:** `encaixe`, `candidatura`, `curriculo` e `perguntas`, cada uma com liga, backend e modelo (ADR 0009). A configuração vai na `config`, chave `ia_tarefas`. Motivo: IA opcional e nada sai da máquina sem a pessoa ligar. Desfazer: mudar o padrão em `PADROES`.
+3. **Contrato com pydantic.** Os esquemas de pedido e resposta são modelos pydantic com `extra="forbid"`, e o mesmo `model_json_schema()` vai a todos os backends. O `pydantic==2.14.3` passa a dependência direta; já está no `uv.lock` pelo FastAPI, então não entra pacote novo. Motivo: valida e gera o esquema com o que já está instalado, sem escrever um validador próprio. Desfazer: trocar por um validador próprio do subconjunto de JSON Schema e tirar a linha do `pyproject.toml`.
+4. **Backends.** Um cliente compatível com OpenAI atende a OpenAI e o Gemini (pelo endpoint compatível do Google, conferido na T404), o modelo local, o Ollama, o LM Studio e serviços como o OpenRouter. Somam-se um cliente da API da Anthropic (ferramenta forçada), o Claude Code, o Codex, a IA manual (só nas tarefas sob pedido) e "sem IA". Nenhum SDK de provedor: o `httpx` basta. Motivo: menos código e nenhuma dependência nova; a ADR 0009 pede a mesma saída de todos. Desfazer: um cliente próprio por provedor, se algum endpoint compatível falhar.
+5. **Sessão do Claude Code: construída e não liberada.** A D1 (dono) e a ADR 0010 continuam como desenho do backend, mas o texto legal atual do Claude Code (`code.claude.com/docs/en/legal-and-compliance`, lido em 2026-11-17/18) diz que o login das assinaturas serve ao uso comum do Claude Code e que quem constrói produto deve usar chave de API. O joBot chama o Claude Code da própria pessoa, para ela mesma; ainda assim, a leitura é do dono. Até ele confirmar, `ia.json` traz `liberado: false`: o backend, o item do instalador, o cartão de Ferramentas e o de Contas não aparecem, e "Tudo Claude" usa a chave da API da Anthropic. Motivo: é a saída mais segura com informação nova depois da decisão do dono. Desfazer: `liberado: true` e o teste da T401 junto. Ver também D1.
+6. **Sessão do Codex: construída e não liberada.** A D139.2 (dono) aceita o login do ChatGPT se os termos permitirem, e a D125 pede a conferência. A documentação do Codex recomenda chave de API para automação e tem um guia para manter o login do ChatGPT em scripts confiáveis; os Termos de Uso deram 403. Mesma saída do item 5. A T407 tenta os termos de novo; se proibirem, o Codex sai e fica a chave da OpenAI. Desfazer: como o item 5. Ver também D125 e D139.
+7. **Modelo local da fonte oficial, com sha256.** O `llama-server` vem do build b12359 (os binários da tag `v1.0.0`, com atestação SLSA e `digest` sha256 na API do GitHub). A ADR 0009 citava o b12366, sem sha256 registrado. O modelo é o Qwen3.5-2B ou 4B Q4_K_M da Unsloth, por URL com revisão fixa. Tudo fica no `nucleo/dados/ia_local.json` e vai para `<dados>/ferramentas/`. O joBot baixa da fonte oficial, a pedido da pessoa (no instalador, com o item marcado, ou em Ferramentas). Nada disso vai dentro do instalador nem na release: o 4B (2,74 GB) passa do limite de 2 GiB por anexo de release do GitHub, e o instalador passaria de 1,5 GB. A licença permitiria redistribuir (MIT e Apache-2.0), mas não é preciso. É uma exceção à D174.1 do mesmo tipo da D183.24, só que com sha256 conferido. Também resolve o "o instalador pergunta uma vez" da ADR 0009: o item fica desmarcado no grupo de IA (D139.3). Desfazer: trocar o build no manifesto, ou levar o 2B para dentro do instalador como recurso, o que exige o dono aceitar o tamanho.
+8. **Laya preparado, sem treino.** O ajuste custa (RunPod e a geração de exemplos), então não acontece. A T420 deixa prontos o script do conjunto (vagas sem e-mail, telefone e nome, mais exemplos fictícios; nunca o gabarito), o script de treino com modo de ensaio e o preço estimado. A fase 4 segue sem o Laya: as habilidades vêm da tarefa `encaixe` pelo backend escolhido (o Qwen local ou um serviço). Quando o Laya ajustado ganhar no gabarito, ele entra como opção da tarefa `encaixe`, e o runtime dele (ONNX, dependência nova) é decidido nessa hora. Nota: o Laya público (`convaiinnovations/Laya`, Apache-2.0, versão multilíngue sobre mmBERT-base, 322M) é um modelo de decisão (perguntas de escolha, de nota e de "verdadeiro ou falso"), não um modelo de embedding de competências; o treino usa as perguntas de "verdadeiro ou falso". Desfazer: o dono autoriza o gasto e a T420 roda (D141 continua valendo). Ver também D122 e D141.
+9. **O e5-small sai da fase 4.** A ADR 0007:54 punha o multilingual-e5-small nos rótulos abaixo de 90% (hoje todos, menos a UF). Isso pede um runtime de embedding (dependência nova) e exemplos rotulados que não podem ser o gabarito. Volta junto do Laya, e até lá as regras de rótulo seguem. Motivo: não cabe sem dependência nova nem sem dado de treino. Desfazer: uma tarefa de IA `rotulos` como passo à parte, medida com `medir()` contra o gabarito do dono. Ver também D97.
+10. **Sem áudio no pacote offline.** A D139.11 (dono) vence o "modelo de transcrição de áudio" da ADR 0009:65; a tabela do README perde o Whisper na T421. Desfazer: nenhum; a fase 6 traz o áudio.
+11. **Encaixe por habilidade.** `calcular()` continua puro e ganha o critério `habilidades` (peso 25 em `encaixe.json`, proposta), que recebe `pede`, `tem` e `faltam` já guardados. A IA não dá nota e não esconde vaga: ela só lista. O código descarta o `tem` que não está no perfil e o `faltam` fora do `pede`. Sem resultado da IA, o critério é neutro e a nota fica como hoje. Motivo: a conta continua testável e a regra de ouro fica no código. Desfazer: outro peso em `encaixe.json`, ou tirar o critério.
+12. **Laço à parte.** A IA roda depois da execução da busca, fora da transação e com conexão própria (`agenda/ia.py`). Pega até 20 vagas por rodada, só as abertas, não ocultas, com encaixe bom ou médio, das mais novas para as mais velhas. O resultado vai para `habilidades_vaga`, uma linha por vaga, com uma chave de versão. O modelo local sobe sob demanda e cai depois de 10 min parado. O andamento da busca não muda. Motivo: o Qwen em CPU leva perto de 1 min por vaga (estimativa) e não pode prender a busca. Desfazer: mudar o limite em `ia.json`.
+13. **Perfil.** P1 (a) do mapa do perfil: a tabela `perfil` de uma linha, mais `experiencia`, `curso` e `pergunta_perfil` (migração 0012). Sem CPF e sem data de nascimento na 0.5.0 (minimização). Tirar uma experiência ou um curso apaga a linha: é dado da pessoa, não vaga. P2 a P6 ficam de fora (busca e regras de ocultar sem campos novos; viagem, horário e setor sem rótulo). Desfazer: migração nova com os campos.
+14. **Currículo pelo pypdf.** Até 5 MB e 20 páginas, numa thread com prazo. O PDF não é guardado, só o texto. A IA extrai e a pessoa revisa antes de salvar; sem IA, o formulário vem vazio. O `pypdf` é a biblioteca que a ADR 0011 já escolheu (BSD-3), fixada com `==` na T412. Desfazer: outros limites.
+15. **Primeira execução.** Dois passos opcionais antes dos de hoje: IA (oferece o Claude Code quando liberado e logado, senão os atalhos) e Perfil (currículo e as perguntas do bloco A). O passo de busca de hoje continua. Desfazer: mudar a ordem no mapa de passos.
+16. **Preparar candidatura.** O botão fica no detalhe da vaga. A IA prepara a carta, o resumo do currículo, o que a pessoa tem, o que falta e perguntas para o perfil, no idioma da vaga. Fica guardado o último preparo, e os campos do perfil usados aparecem na tela. O joBot nunca envia nada: o `mailto:` continua só com o assunto. Desfazer: tirar o botão.
+17. **Instalador.** O grupo de IA vem desmarcado e mostra só os itens liberados. Os itens de IA rodam depois de gravado o `instalacao.json`, e uma falha neles não desfaz o joBot: a página Pronto lista o que faltou e manda para Ferramentas. A página Pronto ganha "Entrar no Claude Code" e "Entrar no Codex", o que confirma a D139.14 pela sessão. Não lembra a última escolha (a D139.3 diz "pode"). Motivo: um download de 2,7 GB que falha não pode desfazer a instalação. Desfazer: tornar a falha fatal, como a do navegador.
+18. **Onde ficam as ferramentas e de onde vêm.** Ficam em `<dados>/ferramentas/`: llama, modelos e Codex. A pasta de dados não some ao desinstalar a casca; Ferramentas › Remover apaga o modelo local. O Claude Code vem pelo instalador oficial dele (script por HTTPS, que confere o binário que baixa; a T416 confere). O sha256 desse script não é fixado, porque ele muda; é o limite aceito. O Codex vem pelo binário da release oficial no GitHub, com versão e sha256 fixos. O joBot nunca remove o Claude Code nem o Codex (D138.7). Desfazer: outra pasta, ou abrir só a página oficial (D125 antiga).
+19. **Modelo pela memória.** O Python lê a memória total (stdlib e `ctypes`). Abaixo de 12 GB vai o 2B; de 12 GB para cima, o 4B; abaixo de 8 GB, o 2B com aviso. A pessoa troca em Ferramentas, com o tamanho à vista (D139.11). A casca mostra os dois tamanhos e a regra. Desfazer: outros cortes em `ia.json`.
+20. **Telas.** Ferramentas fica sempre visível (o navegador só com leitor com login). A aba IA entra em Configurações, depois de Funções. Serviços ganha os cartões de chave da Anthropic, da OpenAI, do Gemini e do compatível (endereço e chave opcional), no cofre. Desfazer: mudar a ordem em `GRUPOS`.
+21. **Teste ao ligar.** Roda numa thread com prazo de 30 s nos serviços de fora e 180 s no local (conta a primeira carga). O painel pergunta a cada 2 s. Falhou, a tarefa fica desligada. Desfazer: outros prazos em `ia.json`.
+22. **Segurança dos pedidos.** O dado vai entre marcas (marca de dentro do dado é trocada). Nenhum backend tem ferramenta. A saída só passa pelo esquema e é mostrada escapada. O log não leva o conteúdo. O llama-server fica em `127.0.0.1`, com chave aleatória por subida. Cada tarefa leva só o mínimo: o `encaixe` não leva nome nem contato. Desfazer: nenhum previsto.
+23. **Nome do modelo fora do Claude.** Na OpenAI, no Gemini e no compatível, a pessoa digita o nome do modelo e o teste ao ligar confere; o joBot não mantém lista. No Claude, só Haiku 5.5 e Sonnet 5.5 (ADR 0009). Desfazer: uma lista em `ia.json`.
+24. **Ordem das versões.** A 0.5.0 só sai depois da 0.4.0 publicada (T342 e T343 esperam o dono); o trabalho da fase 4 segue em paralelo na `dev`. Desfazer: nenhum.
+25. **Documentos.** ADR nova 0026 e notas nas 0007, 0009, 0010, 0011, 0014 (o RunPod também no treino do Laya antes da fase 4), 0015, 0017 e 0023, na T400, com "para confirmar" no que vem desta D. Desfazer: são texto.
+26. **Status da fase 4.** A ADR 0017 passa a "sendo construída desde 2026-11-18, rumo à 0.5.0", junto com este desenho. Os outros documentos de estado vivo (índice das ADRs, Roteiro, CONTRIBUTING) entram na T400 com teste próprio. Desfazer: voltar a "planejada".
+
+**Espera o dono:** confirmar esta D; os itens 5 e 6 (termos); o gasto do item 8 (RunPod, chave no `.env` e, antes, os termos das fontes); a medida de velocidade na máquina dele e o Qwen 9B (D139.11); o portão da 0.5.0 (T423).
+
+**Como desfazer:** cada item diz o seu. Até a T400, só o desenho, o plano, esta D e a linha de status da ADR 0017 existem; voltar atrás é apagar os dois arquivos e esta D e devolver o status "planejada".
+
+**Ver também:** D1, D97, D108, D122, D125, D138, D139, D141, D174, D183 (item 24), desenho da fase 4, plano da fase 4 (T400 a T423).
