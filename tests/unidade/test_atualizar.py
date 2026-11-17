@@ -16,6 +16,7 @@ import os
 import re
 import sqlite3
 import subprocess
+import sys
 import tarfile
 import zipfile
 from collections.abc import Callable, Iterator, Mapping, Sequence
@@ -958,3 +959,36 @@ def test_jobot_version_diz_a_versao(capsys: pytest.CaptureFixture[str]) -> None:
 )
 def test_pasta_do_playwright(plataforma: str, env: dict[str, str], esperado: str) -> None:
     assert pasta_do_playwright(env, plataforma) == Path(esperado)
+
+
+def test_lancar_atualizacao_roda_destacado_com_a_pasta_e_o_log(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """T332: o painel dispara o `jobot atualizar` num grupo próprio, porque ele para o servidor
+    que o chamou; a saída vai para `logs/atualizar.log` (0600), que a tela cita se demorar."""
+    chamadas: list[tuple[list[str], dict[str, object]]] = []
+
+    def popen(comando: list[str], **kwargs: object) -> str:
+        arquivo = kwargs["stdout"]
+        assert hasattr(arquivo, "write")
+        arquivo.write(b"saida\n")
+        chamadas.append((comando, kwargs))
+        return "processo"
+
+    monkeypatch.setattr(subprocess, "Popen", popen)
+    feito: object = modulo.lancar_atualizacao(
+        tmp_path, {"PATH": "/usr/bin", "JOBOT_DADOS": "/outra"}
+    )
+    assert feito == "processo"
+    [(comando, kwargs)] = chamadas
+    assert comando == [sys.executable, "-m", "jobot", "atualizar"]
+    assert kwargs["env"] == {"PATH": "/usr/bin", "JOBOT_DADOS": str(tmp_path)}
+    assert kwargs["stdin"] == subprocess.DEVNULL
+    assert kwargs["stderr"] == subprocess.STDOUT
+    assert kwargs["start_new_session"] is True
+    log = tmp_path / "logs" / "atualizar.log"
+    assert log.read_bytes() == b"saida\n"
+    assert log.stat().st_mode & 0o777 == 0o600
+    # a segunda vez acrescenta, não apaga o que a primeira deixou
+    modulo.lancar_atualizacao(tmp_path, {})
+    assert log.read_bytes() == b"saida\nsaida\n"

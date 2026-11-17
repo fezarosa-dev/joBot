@@ -1,1 +1,26 @@
-{%- if versao %}<p class="aviso-versao">{{ t("aviso_versao.texto", versao=versao) }}</p>{% endif -%}
+{#- a faixa de versão nova (T85 e T332; desenho 5.6): nada de terminal (ADR 0023). "Atualizar agora"
+    dispara o `jobot atualizar`; na casca mais velha que a versão nova, "Baixar a janela nova" abre a
+    página da release pelo Python. Sem HTMX, os formulários seguem: `voltar` é a página aberta -#}
+{%- macro formulario(acao, rotulo, com_voltar=False) -%}
+  <form method="post" action="{{ acao }}" hx-post="{{ acao }}" hx-target="#aviso-versao">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    {%- if com_voltar %}
+    <input type="hidden" name="voltar" value="{{ voltar }}">
+    {%- endif %}
+    <button type="submit" class="botao">{{ rotulo }}</button>
+  </form>
+{%- endmacro -%}
+{%- if versao %}
+<div class="aviso-versao">
+  <p>{{ t("aviso_versao.texto", versao=versao) }}{% if janela_nova %} {{ t("aviso_versao.janela") }}{% endif %}</p>
+  {{- formulario("/atualizar", t("aviso_versao.atualizar")) }}
+  {%- if janela_nova %}
+  {{- formulario("/abrir-release", t("aviso_versao.baixar_janela"), True) }}
+  {%- endif %}
+  {%- if janela == "aberta" %}
+  <p>{{ t("aviso_versao.janela_aberta") }}</p>
+  {%- elif janela == "falhou" %}
+  <p>{{ t("aviso_versao.janela_falhou", endereco=endereco) }}</p>
+  {%- endif %}
+</div>
+{%- endif -%}
