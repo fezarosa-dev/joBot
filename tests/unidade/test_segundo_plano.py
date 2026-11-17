@@ -445,3 +445,31 @@ def test_linha_de_comando_nao_repete_a_saida_do_systemctl_no_stderr(
     err = capsys.readouterr().err
     assert err.count("Failed to disable unit") == 1
     assert logging.getLogger("jobot").handlers == []  # o silenciador sai ao terminar
+
+
+@pytest.mark.parametrize(
+    ("chave", "programa"),
+    [
+        ("segundo_plano.schtasks_falhou", "schtasks"),
+        ("segundo_plano.launchctl_falhou", "launchctl"),
+    ],
+)
+def test_executar_traduz_a_falha_do_windows_e_do_mac(
+    chave: str,
+    programa: str,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # o desinstalador da casca roda `jobot segundo-plano desligar` no Windows e no Mac (T337)
+    from jobot.nucleo.modelo import Motivo  # noqa: PLC0415
+    from jobot.sistema import segundo_plano  # noqa: PLC0415
+
+    def falha(*_: object, **__: object) -> None:
+        raise Recusa(Motivo(chave=chave, params={"comando": "apagar", "saida": "negado"}))
+
+    monkeypatch.setattr(segundo_plano, "desligar", falha)
+    assert executar(argparse.Namespace(acao="desligar")) == 1
+    erro = capsys.readouterr().err
+    assert chave not in erro
+    assert f"{programa} apagar" in erro
+    assert "negado" in erro

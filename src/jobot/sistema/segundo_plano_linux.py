@@ -58,6 +58,8 @@ _TEXTOS = {
     "segundo_plano.systemd_nao_responde": "o systemd do usuário não responde",
     "segundo_plano.home_diferente": "a pasta pessoal do container não é a do sistema",
     "segundo_plano.systemctl_falhou": "o systemctl {comando} falhou: {saida}",
+    "segundo_plano.schtasks_falhou": "o schtasks {comando} falhou: {saida}",
+    "segundo_plano.launchctl_falhou": "o launchctl {comando} falhou: {saida}",
 }
 
 
@@ -288,15 +290,18 @@ def executar(args: argparse.Namespace) -> int:
 
 
 def _executar(args: argparse.Namespace) -> int:
+    # pela função que escolhe o sistema: o desinstalador da casca roda isto no Windows (T337)
+    from jobot.sistema import segundo_plano  # noqa: PLC0415 - ele importa este módulo
+
     try:
         if args.acao == "ligar":
-            ligar(rodar_comando)
+            segundo_plano.ligar(rodar_comando)
             print("segundo plano ligado")
         elif args.acao == "desligar":
-            desligar(rodar_comando)
+            segundo_plano.desligar(rodar_comando)
             print("segundo plano desligado")
         else:
-            estado = status(rodar_comando)
+            estado = segundo_plano.status(rodar_comando)
             print(f"segundo plano: {'ligado' if estado.habilitado else 'desligado'}")
             print(f"rodando: {'sim' if estado.ativo else 'não'}")
     except Recusa as recusa:
