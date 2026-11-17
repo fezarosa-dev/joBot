@@ -21,7 +21,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from apoio.relogio import RelogioFalso
-from apoio.segundo_plano_falso import FalsoAgendador, FalsoSistema
+from apoio.segundo_plano_falso import FalsoAgendador, FalsoLaunchctl, FalsoSistema
 from apoio.semear import inserir_vaga
 from apoio.site_falso import LeitorFalso
 from jobot.banco import buscas, cadastros
@@ -725,6 +725,20 @@ def test_no_windows_falha_ao_apagar_a_tarefa_avisa_sem_prender(cenario: Cenario)
     assert cenario.config("primeira_execucao_concluida") is True
 
 
+def test_no_mac_falha_ao_tirar_o_servico_avisa_sem_prender(cenario: Cenario) -> None:
+    launchctl = FalsoLaunchctl(carregado=True)
+    cenario.app.state.plataforma = "darwin"
+    cenario.app.state.rodar_comando = launchctl
+    assert "próxima versão" not in cenario.get(PASSO_2).text
+    launchctl.falha_em["bootout"] = Resultado(1, erro="Boot-out failed: 1")
+    resposta = cenario.post(PASSO_2, {"segundo_plano": "desligar"})
+    _redireciona(resposta, f"{PASSO_2}?feito=1&aviso=launchctl_falhou")
+    fim = cenario.get(resposta.headers["location"]).text
+    assert "o launchd não conseguiu tirar o serviço do joBot" in fim
+    assert not cenario.atalho.exists()  # no Mac o app vem do .dmg
+    assert cenario.config("primeira_execucao_concluida") is True
+
+
 # --- fim --------------------------------------------------------------------------------------
 
 
@@ -1020,7 +1034,7 @@ def test_pular_com_atalho_que_falha_segue(
 
 
 def test_pular_fora_do_linux_nao_mexe_no_sistema(cenario: Cenario) -> None:
-    cenario.app.state.plataforma = "darwin"
+    cenario.app.state.plataforma = "freebsd14"  # nem Linux, nem Windows, nem Mac
     _redireciona(cenario.post(PULAR), "/vagas")
     assert cenario.sistema.chamadas == []
     assert not cenario.atalho.exists()

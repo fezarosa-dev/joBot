@@ -96,6 +96,7 @@ _AVISOS = {
     "home_diferente": "segundo_plano.home_diferente",
     "systemctl_falhou": _PRIMEIRO + "p2.aviso.systemctl_falhou",
     "schtasks_falhou": _PRIMEIRO + "p2.aviso.schtasks_falhou",
+    "launchctl_falhou": _PRIMEIRO + "p2.aviso.launchctl_falhou",
 }
 
 

@@ -51,6 +51,7 @@
   "primeira_execucao.p2.aviso.arquivos": "I could not change the service files (may be permission or disk; details in the log)",
   "primeira_execucao.p2.aviso.systemctl_falhou": "systemctl could not turn the service off (details in the log)",
   "primeira_execucao.p2.aviso.schtasks_falhou": "Task Scheduler could not delete the joBot task (details in the log)",
+  "primeira_execucao.p2.aviso.launchctl_falhou": "launchd could not remove the joBot service (details in the log)",
   "primeira_execucao.p2.voltar": "Back to Step {n}",
   "primeira_execucao.pronto.titulo": "All set",
   "primeira_execucao.pronto.texto": "joBot can look for jobs now. Use the Search now button at the top, or see what is already here.",
@@ -59,5 +60,6 @@
   "segundo_plano.systemd_nao_responde": "the user systemd is not responding",
   "segundo_plano.home_diferente": "the container home folder is not the host home folder",
   "segundo_plano.systemctl_falhou": "systemctl {comando} failed. The details are in jobot.log.",
-  "segundo_plano.schtasks_falhou": "schtasks {comando} failed. The details are in jobot.log."
+  "segundo_plano.schtasks_falhou": "schtasks {comando} failed. The details are in jobot.log.",
+  "segundo_plano.launchctl_falhou": "launchctl {comando} failed. The details are in jobot.log."
 }

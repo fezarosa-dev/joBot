@@ -51,6 +51,7 @@
   "primeira_execucao.p2.aviso.arquivos": "não consegui mexer nos arquivos do serviço (pode ser permissão ou disco; detalhes no log)",
   "primeira_execucao.p2.aviso.systemctl_falhou": "o systemctl não conseguiu desligar o serviço (detalhes no log)",
   "primeira_execucao.p2.aviso.schtasks_falhou": "o Agendador de Tarefas não conseguiu apagar a tarefa do joBot (detalhes no log)",
+  "primeira_execucao.p2.aviso.launchctl_falhou": "o launchd não conseguiu tirar o serviço do joBot (detalhes no log)",
   "primeira_execucao.p2.voltar": "Voltar ao passo {n}",
   "primeira_execucao.pronto.titulo": "Tudo pronto",
   "primeira_execucao.pronto.texto": "O joBot já pode buscar vagas. Use o botão Buscar agora no topo, ou veja o que já tem.",
@@ -59,5 +60,6 @@
   "segundo_plano.systemd_nao_responde": "o systemd do usuário não responde",
   "segundo_plano.home_diferente": "a pasta pessoal do container não é a do sistema",
   "segundo_plano.systemctl_falhou": "O systemctl {comando} falhou. Os detalhes ficaram no jobot.log.",
-  "segundo_plano.schtasks_falhou": "O schtasks {comando} falhou. Os detalhes ficaram no jobot.log."
+  "segundo_plano.schtasks_falhou": "O schtasks {comando} falhou. Os detalhes ficaram no jobot.log.",
+  "segundo_plano.launchctl_falhou": "O launchctl {comando} falhou. Os detalhes ficaram no jobot.log."
 }
