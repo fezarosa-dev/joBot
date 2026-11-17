@@ -88,8 +88,8 @@ A T250 vem antes da T251 porque a casca nova tira tema e idioma da barra, e os t
 - `valor_mostrado(p: float, fim_da_etapa: float, partida: float, parado_s: float, *, fechada: bool) -> float`: `1.0` se `fechada`; senão `L = curva(fim_da_etapa)`, `n = max(0, floor((parado_s - PARADA_S) / PASSO_S))` quando `parado_s >= PARADA_S` (zero antes), `v = max(curva(p), partida, L - (L - partida) * RESTO ** n)`, devolvido como `min(v, L, TETO)`.
 - `partida_nova(valor_antes: float, p_novo: float) -> float`: `max(curva(p_novo), valor_antes)`.
 
-- [ ] **Primeiro, valor errado:** `curva` devolve `p`; `valor_mostrado` devolve `curva(p)`; `pesos_da_execucao` devolve os pesos crus; `fracao` devolve `(0.0, 1.0)`; `partida_nova` devolve `valor_antes`.
-- [ ] **Testes que falham** em `tests/unidade/test_andamento.py`:
+- [x] **Primeiro, valor errado:** `curva` devolve `p`; `valor_mostrado` devolve `curva(p)`; `pesos_da_execucao` devolve os pesos crus; `fracao` devolve `(0.0, 1.0)`; `partida_nova` devolve `valor_antes`.
+- [x] **Testes que falham** em `tests/unidade/test_andamento.py`:
   - `test_curva_nas_pontas` (guarda, nasce verde com `curva = p`): `curva(0) == 0` e `curva(1) == 1`. Mutante: `curva = p ** 1.25 + 1e-3`.
   - `test_curva_cresce_e_fica_abaixo_de_p`: numa grade de 101 pontos, `curva` cresce sempre e `curva(p) < p` em `0 < p < 1`.
   - `test_pesos_somam_um_sem_uma_etapa`: `pesos_da_execucao(["coleta", "encaixe"])` soma 1,0 e guarda a proporção 80:5; sem `detalhes` e `cotacoes`, `fracao(..., "encaixe", None, None)[0] == pytest.approx(80/85)`.
@@ -98,9 +98,9 @@ A T250 vem antes da T251 porque a casca nova tira tema e idioma da barra, e os t
   - `test_avanco_lento_nunca_passa_do_limite`: `p = 0.6`, `B = 0.8`, partida `curva(0.6)`. Em toda a faixa de `parado_s` de 0 a 3600, o valor fica `<= curva(0.8)`; de 5 a 600 s (`MAX_RETRY_AFTER_S`), estritamente `<` que `curva(0.8)` e `>` que `curva(0.6)`; antes de 3 s, igual a `max(curva(p), partida)`. Depois de uns 690 s o `float` arredonda o valor para o próprio limite, e por isso o `<` estrito para em 600 s (E1).
   - `test_teto_ate_fechar`: `valor_mostrado(1.0, 1.0, 0.99, 999, fechada=False) <= 0.99` e `valor_mostrado(..., fechada=True) == 1.0`.
   - `test_partida_nova_nunca_menor`: `partida_nova(0.7, 0.5) == 0.7` e `partida_nova(0.1, 0.5) == curva(0.5)`.
-- [ ] **Ver falhar:** `uv run pytest tests/unidade/test_andamento.py -q`.
-- [ ] **Implementar** os itens de Interfaces.
-- [ ] **Ver passar:** o mesmo arquivo e `tests/unidade/test_camadas.py`; ruff; mypy no CI.
+- [x] **Ver falhar:** `uv run pytest tests/unidade/test_andamento.py -q`.
+- [x] **Implementar** os itens de Interfaces.
+- [x] **Ver passar:** o mesmo arquivo e `tests/unidade/test_camadas.py`; ruff; mypy no CI.
 
 ### T245: chamáveis de espera e de total planejado no núcleo
 `depende_de: —` · desenho 5.9 ("O que o lado de trás precisa guardar"), E7
@@ -113,21 +113,21 @@ A T250 vem antes da T251 porque a casca nova tira tema e idioma da barra, e os t
 - `http.py`: `MotivoEspera = Literal["limite", "erro"]`; `AoEsperar = Callable[[datetime, MotivoEspera], Awaitable[None]]`. `ClienteEducado.escopo(..., ao_esperar: AoEsperar | None = None)` repassa ao `HttpDoEscopo`, que chama `await ao_esperar(relogio.agora() + timedelta(seconds=espera), motivo)` logo antes de cada `relogio.dormir(espera)` do laço de envio: `"limite"` no 429 e no 503 (com `Retry-After` ou com as esperas padrão), `"erro"` na nova tentativa depois de erro de transporte ou 5xx. Sem `ao_esperar`, nada muda.
 - `executor.py`: `rodar(..., ao_planejar: Callable[[Mapping[str, int]], Awaitable[None]] = _nada_planejado, ao_esperar: Callable[[str, datetime, MotivoEspera], Awaitable[None]] = _nada_esperado)`. Antes de criar as tarefas, `rodar` chama `escopos()` de cada fonte ligada (a mesma chamada que `_Fonte.rodar` faz hoje), guarda a lista ou o erro, e chama `ao_planejar({chave: n})` uma vez, com `n = len(escopos)` ou `1` para a fonte cujo `escopos()` falhou. `_Fonte` recebe a lista (ou o erro) pronta, sem chamar `escopos()` de novo, e grava a linha de escopo vazio da falha como hoje. `_Fonte` passa ao `cliente.escopo(...)` um `ao_esperar` que leva a chave da fonte.
 
-- [ ] **Primeiro, valor errado:** `escopo` aceita `ao_esperar` e não o chama; `rodar` aceita `ao_planejar` e não o chama.
-- [ ] **Testes que falham** em `tests/unidade/test_http.py` (relógio e transporte falsos de hoje):
+- [x] **Primeiro, valor errado:** `escopo` aceita `ao_esperar` e não o chama; `rodar` aceita `ao_planejar` e não o chama.
+- [x] **Testes que falham** em `tests/unidade/test_http.py` (relógio e transporte falsos de hoje):
   - `test_espera_avisada_no_429_com_retry_after`: `Retry-After: 7` → um aviso com `fim == agora + 7 s` e motivo `"limite"`, antes do `dormir(7)` (a ordem fica na lista de chamadas do relógio falso).
   - `test_espera_avisada_no_503_sem_retry_after`: avisos de 30 e 60 s, motivo `"limite"`.
   - `test_espera_avisada_na_nova_tentativa`: erro de transporte e depois 502 → avisos de 2 e 4 s, motivo `"erro"`.
   - `test_sem_espera_sem_aviso` (guarda): 200 direto e o intervalo normal entre pedidos não chamam `ao_esperar`. Mutante: avisar no `_enviar`.
-- [ ] **Testes que falham** em `tests/unidade/test_executor.py`:
+- [x] **Testes que falham** em `tests/unidade/test_executor.py`:
   - `test_total_planejado_antes_da_primeira_consulta`: duas fontes com 3 e 2 escopos e uma cujo `escopos()` levanta; `ao_planejar` é chamado uma vez com `{"a": 3, "b": 2, "c": 1}`, antes do primeiro pedido e do primeiro `ao_terminar_escopo`.
   - `test_escopos_chamados_uma_vez_por_fonte`: um coletor falso conta as chamadas de `escopos()`; o total é 1 por fonte.
   - `test_total_bate_com_as_linhas`: o número de `SaidaEscopo` recebidas é igual à soma planejada, com um escopo fora do orçamento (linha "no_limite") e a fonte que falhou.
   - `test_espera_da_fonte_leva_a_chave`: o transporte responde 429 com `Retry-After: 5` na fonte `"a"`; `ao_esperar` recebe `("a", agora + 5 s, "limite")`.
   - `test_fontes_desligadas_fora_do_plano`: fonte fora de `ligadas` não aparece no dicionário.
-- [ ] **Ver falhar:** `uv run pytest tests/unidade/test_http.py tests/unidade/test_executor.py -q`.
-- [ ] **Implementar** os itens de Interfaces. O semáforo `MAX_FONTES_JUNTAS` continua só em volta do `_Fonte.rodar`.
-- [ ] **Ver passar:** os mesmos arquivos, mais `tests/unidade/test_executor_log.py`; ruff; mypy no CI.
+- [x] **Ver falhar:** `uv run pytest tests/unidade/test_http.py tests/unidade/test_executor.py -q`.
+- [x] **Implementar** os itens de Interfaces. O semáforo `MAX_FONTES_JUNTAS` continua só em volta do `_Fonte.rodar`.
+- [x] **Ver passar:** os mesmos arquivos, mais `tests/unidade/test_executor_log.py`; ruff; mypy no CI.
 
 ### T246: dados do progresso no banco
 `depende_de: —` · desenho 5.9, E2, E3, `registros/padroes.md` («Esquema», «Teste de migração», «Transação»)
@@ -172,9 +172,9 @@ A T250 vem antes da T251 porque a casca nova tira tema e idioma da barra, e os t
   - As outras gravações por `INSERT ... ON CONFLICT DO UPDATE`; todas com a regra de transação do `_marcar_fonte` de hoje (quem abriu a transação confirma).
 - `execucao_atual`: `escopos_prontos` passa a contar só as linhas de `saude` com `estado <> 'desligada'`.
 
-- [ ] **Primeiro, valor errado:** `ler_andamento` devolve `(None, ())`; as gravações não gravam; `execucao_atual` como hoje.
-- [ ] **Testes que falham** em `tests/integracao/test_migracao_NNNN.py` (lê só o seu arquivo, pelo ajudante que confere `exists()`): `test_migracao_andamento_cria_as_tabelas` (colunas e `CHECK`, por `PRAGMA table_info` e por um `INSERT` com etapa fora da lista que levanta `IntegrityError`); `test_migracao_andamento_sobre_banco_antigo` (migrações `[:N]` num banco em `tmp_path` com uma execução e uma `saude`, depois a nova; nada some). Vermelho por mutante: a migração sem o `CHECK` de `estado`.
-- [ ] **Testes que falham** em `tests/integracao/test_andamento_banco.py`:
+- [x] **Primeiro, valor errado:** `ler_andamento` devolve `(None, ())`; as gravações não gravam; `execucao_atual` como hoje.
+- [x] **Testes que falham** em `tests/integracao/test_migracao_NNNN.py` (lê só o seu arquivo, pelo ajudante que confere `exists()`): `test_migracao_andamento_cria_as_tabelas` (colunas e `CHECK`, por `PRAGMA table_info` e por um `INSERT` com etapa fora da lista que levanta `IntegrityError`); `test_migracao_andamento_sobre_banco_antigo` (migrações `[:N]` num banco em `tmp_path` com uma execução e uma `saude`, depois a nova; nada some). Vermelho por mutante: a migração sem o `CHECK` de `estado`.
+- [x] **Testes que falham** em `tests/integracao/test_andamento_banco.py`:
   - `test_planejar_grava_total_e_fila`: `{"a": 3, "b": 2}` → `total_planejado == 5`, etapa `coleta`, duas fontes em `fila`.
   - `test_marcar_fonte_muda_a_propria_linha`: `fila` → `lendo` → `esperando` (com fim e motivo) → `lendo`; uma linha só, e a espera limpa no fim.
   - `test_marcar_fonte_feitas_none_mantem`: `feitas=2`, depois `marcar_fonte(..., "lendo")` sem `feitas` → continua 2; `total` continua o do `planejar`.
@@ -182,10 +182,10 @@ A T250 vem antes da T251 porque a casca nova tira tema e idioma da barra, e os t
   - `test_mudar_etapa_guarda_partida_e_instante`.
   - `test_nada_apagado`: depois de `fim`, as linhas continuam.
   - `test_gravacao_dentro_de_transacao_aberta_nao_confirma` (molde do `gravar_saude`).
-- [ ] **Teste que falha** em `tests/integracao/test_execucoes.py`: `test_desligada_fora_das_prontas`: duas linhas `ok` e uma `desligada` → `escopos_prontos == 2`.
-- [ ] **Ver falhar:** `uv run pytest tests/integracao/test_migracao_NNNN.py tests/integracao/test_andamento_banco.py tests/integracao/test_execucoes.py -q`.
-- [ ] **Implementar** os itens de Interfaces. Conferir os gatilhos de hoje (`evento`, `BEFORE DELETE` de `vaga`, FTS5): nenhum toca nas tabelas novas.
-- [ ] **Ver passar:** os mesmos arquivos e `tests/integracao/test_migracoes.py`; ruff; mypy no CI.
+- [x] **Teste que falha** em `tests/integracao/test_execucoes.py`: `test_desligada_fora_das_prontas`: duas linhas `ok` e uma `desligada` → `escopos_prontos == 2`.
+- [x] **Ver falhar:** `uv run pytest tests/integracao/test_migracao_NNNN.py tests/integracao/test_andamento_banco.py tests/integracao/test_execucoes.py -q`.
+- [x] **Implementar** os itens de Interfaces. Conferir os gatilhos de hoje (`evento`, `BEFORE DELETE` de `vaga`, FTS5): nenhum toca nas tabelas novas.
+- [x] **Ver passar:** os mesmos arquivos e `tests/integracao/test_migracoes.py`; ruff; mypy no CI.
 
 ### T247: a agenda grava o progresso
 `depende_de: T244, T245, T246` · desenho 5.9, E1, E8
@@ -201,8 +201,8 @@ A T250 vem antes da T251 porque a casca nova tira tema e idioma da barra, e os t
 - Etapas fixadas no começo: `coleta` e `encaixe` sempre; `detalhes` com `enriquecimento_ligado`; `cotacoes` com `conversao_moeda_ligada`. `executar_busca` pergunta antes a `_ha_regras_a_reprocessar(con)` (embrulha `tem_para_reprocessar(con, VERSAO_REGRAS)`; `sqlite3.Error` vai ao log e dá `False`); só se der `True` a etapa `regras` entra e é marcada antes de `reprocessar_se_regras_mudaram` rodar.
 - `rodar` recebe `ao_planejar=marcas.planejado`, `ao_esperar=marcas.esperando` e os avisos de fonte de hoje ligados também às `Marcas`. O fim da consulta (`ao_terminar_escopo`) chama `consulta_pronta`. A fonte termina como `falhou` quando `estado_da_fonte` dos estados dela der falha.
 
-- [ ] **Primeiro, valor errado:** `Marcas` sem gravar nada.
-- [ ] **Testes que falham** em `tests/integracao/test_execucao.py` (coletores, cliente e relógio falsos de hoje):
+- [x] **Primeiro, valor errado:** `Marcas` sem gravar nada.
+- [x] **Testes que falham** em `tests/integracao/test_execucao.py` (coletores, cliente e relógio falsos de hoje):
   - `test_busca_grava_etapas_na_ordem`: com `monkeypatch`, `abrir_andamento`, `planejar` e `mudar_etapa` de `jobot.banco.andamento` são embrulhadas por funções que anotam a etapa gravada e chamam a original (a agenda as chama pelo módulo, `andamento.mudar_etapa(...)`, para o embrulho valer). A sequência anotada, sem repetições seguidas, é `preparando`, `coleta`, `detalhes`, `cotacoes`, `encaixe`, `fim`.
   - `test_regras_mudadas_marcam_regras_antes_de_cotacoes`: com as regras trocadas antes da busca e vagas para reprocessar, a sequência anotada tem `regras` logo depois de `detalhes` e antes de `cotacoes`; sem regras trocadas, `regras` não aparece.
   - `test_sem_enriquecimento_sem_etapa_de_detalhes`: `etapas` gravadas sem `detalhes`.
@@ -210,9 +210,9 @@ A T250 vem antes da T251 porque a casca nova tira tema e idioma da barra, e os t
   - `test_espera_marca_a_fonte`: um 429 com `Retry-After: 5` deixa a fonte `esperando` com `espera_ate == agora + 5 s`.
   - `test_partida_nunca_desce`: as partidas gravadas formam sequência não decrescente.
   - `test_marca_que_falha_nao_derruba_a_busca`: `banco.andamento.marcar_fonte` trocada por uma que levanta `sqlite3.OperationalError`; a execução fecha como `concluida` e as vagas foram gravadas.
-- [ ] **Ver falhar:** `uv run pytest tests/integracao/test_execucao.py -q`.
-- [ ] **Implementar** os itens de Interfaces.
-- [ ] **Ver passar:** o mesmo arquivo, `tests/integracao/test_execucao_log.py`, `tests/integracao/test_motivo_da_parada.py` e `tests/unidade/test_camadas.py`; ruff; mypy no CI. A tela de andamento de hoje não muda.
+- [x] **Ver falhar:** `uv run pytest tests/integracao/test_execucao.py -q`.
+- [x] **Implementar** os itens de Interfaces.
+- [x] **Ver passar:** o mesmo arquivo, `tests/integracao/test_execucao_log.py`, `tests/integracao/test_motivo_da_parada.py` e `tests/unidade/test_camadas.py`; ruff; mypy no CI. A tela de andamento de hoje não muda.
 
 ### T248: tokens do visual
 `depende_de: —` · desenho 5.1 e 5.7
@@ -229,7 +229,7 @@ A T250 vem antes da T251 porque a casca nova tira tema e idioma da barra, e os t
 - Raios: `--raio-controle: 6px`, `--raio-grande: 10px` (`--raio` passa de 14 para 10px), `--raio-sheet: 18px`, pílula 999px. Sombras: `--sombra-cor`, `--sombra-cor-forte`, `--borda-elevada` e as três sombras do desenho.
 - Movimento: `--mola-suave` e `--mola-leve` em `linear()` com pelo menos 20 pontos e o `cubic-bezier(0.22, 1, 0.36, 1)` de reserva; `--mola: var(--mola-suave)`; `--duracao: 190ms`; sem `scale` no `:active`; nunca animar `backdrop-filter`. O bloco de movimento reduzido vai para o fim do arquivo, no lugar do de hoje: sem `transform`, transições de até 150ms.
 
-- [ ] **Testes que falham** em `tests/unidade/test_css.py` (lê os `.css` de `static/css/`):
+- [x] **Testes que falham** em `tests/unidade/test_css.py` (lê os `.css` de `static/css/`):
   - `test_backdrop_filter_so_no_vidro`: toda regra com `backdrop-filter` tem seletor `.vidro` ou `.vidro-grande`.
   - `test_sem_letter_spacing` e `test_nada_abaixo_de_10px` (nenhum `font-size` menor que `0.625rem` ou `10px`).
   - `test_movimento_reduzido_por_ultimo_e_sem_transform`: o último `@media (prefers-reduced-motion: reduce)` do `base.css` vem depois de toda outra regra e zera `transform`.
@@ -240,14 +240,14 @@ A T250 vem antes da T251 porque a casca nova tira tema e idioma da barra, e os t
   - `test_sem_scale_no_active`: nenhuma regra com `:active` tem `scale(` (hoje há em `base.css`, `configuracoes.css` e `execucao.css`).
   - `test_botoes_com_1_75rem`: a regra de `button` do `base.css` tem `min-block-size: 1.75rem`, e o campo de texto também.
   - `test_body_no_tamanho_do_corpo`: a regra de `body` usa `var(--t-body)` e não tem `1.0625rem`.
-- [ ] **Testes que falham** em `tests/unidade/test_contraste.py`:
+- [x] **Testes que falham** em `tests/unidade/test_contraste.py`:
   - `test_pares_novos_presentes`: os pares de texto do desenho 5.1 (`texto-2/fundo`, `texto-2/sob-pagina`, `texto-2/superficie`, `texto/solido-barra`, `texto-2/solido-barra`, `texto/solido-elevado`, `texto-2/solido-elevado`, `texto/segmento`) estão todos nos comentários `contraste`, e `destaque/trilho-progresso` no `contraste-grafico`. A regex de hoje (`contraste:`) não pega `contraste-grafico:`, e cada par é conferido uma vez só.
   - `test_contraste_minimo` (de hoje) passa a cobrir os pares de texto novos a 4,5:1, nos dois temas.
   - `test_contraste_grafico_minimo`: os pares de `contraste-grafico` a 3:1, nos dois temas. Mutante para o vermelho: um `--trilho-progresso` igual ao `--destaque`.
-- [ ] **Testes de tela** (`tela`, rodam no CI): `test_painel_e_translucido` passa a pedir `.painel` opaco e, com `reduced_transparency="reduce"` ou `forced_colors`/`contrast: more` emulados, nenhum `backdrop-filter` ativo; `test_reduced_motion_desliga_animacao` passa a pedir nenhuma transição de `transform` e as outras com até 150ms.
-- [ ] **Ver falhar:** `uv run pytest tests/unidade/test_css.py tests/unidade/test_contraste.py -q`.
-- [ ] **Implementar** os itens de Interfaces. Se um par de texto reprovar, escurecer (claro) ou clarear (escuro) o texto até passar e anotar o valor novo no resumo. Se `destaque/trilho-progresso` reprovar, o `--trilho-progresso` escurece (claro) ou clareia (escuro) e o `--destaque` não muda (desenho 6).
-- [ ] **Ver passar:** os mesmos arquivos e `tests/unidade/test_estaticos.py`; ruff; `-m tela` no CI.
+- [x] **Testes de tela** (`tela`, rodam no CI): `test_painel_e_translucido` passa a pedir `.painel` opaco e, com `reduced_transparency="reduce"` ou `forced_colors`/`contrast: more` emulados, nenhum `backdrop-filter` ativo; `test_reduced_motion_desliga_animacao` passa a pedir nenhuma transição de `transform` e as outras com até 150ms.
+- [x] **Ver falhar:** `uv run pytest tests/unidade/test_css.py tests/unidade/test_contraste.py -q`.
+- [x] **Implementar** os itens de Interfaces. Se um par de texto reprovar, escurecer (claro) ou clarear (escuro) o texto até passar e anotar o valor novo no resumo. Se `destaque/trilho-progresso` reprovar, o `--trilho-progresso` escurece (claro) ou clareia (escuro) e o `--destaque` não muda (desenho 6).
+- [x] **Ver passar:** os mesmos arquivos e `tests/unidade/test_estaticos.py`; ruff; `-m tela` no CI.
 
 ### T249: ícones Lucide embutidos
 `depende_de: —` · desenho 5.3 (Ícones) e 5.9 (Ver detalhes)
@@ -260,14 +260,14 @@ A T250 vem antes da T251 porque a casca nova tira tema e idioma da barra, e os t
 - Uma versão publicada do Lucide, fixada em `lucide.meta.json` com `versao`, `licenca`, `origem` (a URL pública do pacote dessa versão) e `arquivos: {nome: sha256}`, no molde do `inter.meta.json`.
 - Só os ícones usados: os 22 do mapa do desenho 5.3, os 5 de estado da 5.9 (`circle-dashed`, `book-open`, `circle-check`, `circle-x`, `clock`) e 8 que o mapa não cobre (proposta): nos grupos de Configurações, Geral `sliders-horizontal`, Funções `toggle-right`, Segundo plano `timer`, Privacidade `shield`, Serviços `plug` e Sites com login `key-round` (o grupo Fontes usa o `rss` da lateral); no estado vazio da lista, `search-x`; na página Saiu, `log-out` (a página de Erro usa o `triangle-alert` do mapa). São 35 nomes, numa constante `ICONES` do teste. Traço de 1,5px (`stroke-width="1.5"` no SVG). Nome que não existir na versão fixada é trocado por outro do mesmo sentido, anotado no resumo e na D144.
 
-- [ ] **Testes que falham** em `tests/unidade/test_estaticos.py`:
+- [x] **Testes que falham** em `tests/unidade/test_estaticos.py`:
   - `test_icones_batem_com_o_meta`: cada arquivo de `icones/*.svg` está no `lucide.meta.json` com o mesmo sha256, e o contrário. O meta é lido por um ajudante que confere `exists()` antes de abrir, para a falta dele dar falha de asserção e não `FileNotFoundError`.
   - `test_icones_tem_licenca`: `LICENSE` existe e cita Lucide.
   - `test_icones_do_mapa_existem`: todos os nomes de `ICONES` estão em `icones/`.
   - `test_icones_sem_recurso_externo`: nenhum SVG tem `href` nem `url(` para fora.
-- [ ] **Ver falhar:** `uv run pytest tests/unidade/test_estaticos.py -q`.
-- [ ] **Implementar:** baixar os SVG da versão fixada (pelo pacote publicado), ajustar o traço e gravar o meta.
-- [ ] **Ver passar:** o mesmo arquivo e `tests/unidade/test_documentos.py`; ruff.
+- [x] **Ver falhar:** `uv run pytest tests/unidade/test_estaticos.py -q`.
+- [x] **Implementar:** baixar os SVG da versão fixada (pelo pacote publicado), ajustar o traço e gravar o meta.
+- [x] **Ver passar:** o mesmo arquivo e `tests/unidade/test_documentos.py`; ruff.
 
 ### T250: Configurações > Geral, com tamanho do texto
 `depende_de: T248` · desenho 5.1 (tamanho do texto) e 5.4 (Configurações), D143.4, D143.22, D143.43
@@ -285,15 +285,15 @@ A T250 vem antes da T251 porque a casca nova tira tema e idioma da barra, e os t
 - i18n: tema e idioma reaproveitam as chaves de hoje (`casca.tema`, `casca.tema.sistema|claro|escuro`, `casca.idioma`, `casca.idioma.pt|en`), sem cópia. Em en, `casca.tema` passa de "Theme" a "Appearance" (procurar "Theme" em `tests/` antes de fechar). Chaves novas, pt e en: `configuracoes.grupo.geral` "Geral"/"General"; `configuracoes.geral.texto` "Tamanho do texto"/"Text Size"; `configuracoes.geral.texto.padrao|grande|maior` "Padrão"/"Default", "Grande"/"Large", "Maior"/"Larger"; `configuracoes.geral.salvar_escolha` "Salvar"/"Save" (o botão do `<noscript>`). Sai `configuracoes.grupo.aparencia`; as chaves de `configuracoes.aparencia.*` que mantêm o sentido (país e moeda) ficam.
 - `erros.py`: a página de erro leva `data-texto` como leva `data-tema`; banco ausente ou com defeito dá `padrao`, sem levantar.
 
-- [ ] **Primeiro, valor errado:** `/preferencias/texto` responde 303 sem gravar.
-- [ ] **Testes que falham** em `tests/integracao/test_rota_preferencias.py`: `test_texto_grava_e_vai_ao_html` (grava `"maior"` e a página seguinte traz `data-texto="maior"`); `test_texto_fora_da_lista_da_422`; `test_preferencias_sem_js` (o HTML de `/configuracoes/geral` traz os três `<select>` com `name` certo e um `<noscript>` com botão de enviar em cada formulário).
-- [ ] **Testes que falham** em `tests/integracao/test_rota_configuracoes.py`: `test_aparencia_vai_para_geral` (303, `location == "/configuracoes/geral"`); `test_pais_e_moeda_gravam_por_geral`; `test_geral_e_o_primeiro_grupo`. Os testes que voltam para `/configuracoes/aparencia` passam a `/configuracoes/geral`.
-- [ ] **Teste que falha** em `tests/integracao/test_erros.py`: `test_erro_leva_o_tamanho_do_texto` (com `tamanho_texto = "grande"`, a página de erro traz `data-texto="grande"`; com o banco quebrado, `padrao`).
-- [ ] **Teste que falha** em `tests/unidade/test_i18n.py`: `test_grupo_aparencia_saiu` (`configuracoes.grupo.aparencia` não existe em pt nem em en).
-- [ ] **Testes de tela** em `tests/tela/test_configuracoes.py`: o tema e o idioma trocados pelo menu de Geral ficam depois de recarregar; `test_tamanho_do_texto_no_corpo`: o `font-size` calculado do `body` é 13px em "Padrão", 15px em "Grande" e 17px em "Maior" (tolerância de 0,1px).
-- [ ] **Ver falhar:** `uv run pytest tests/integracao/test_rota_preferencias.py tests/integracao/test_rota_configuracoes.py tests/integracao/test_erros.py tests/unidade/test_i18n.py -q`.
-- [ ] **Implementar** os itens de Interfaces. Os botões de tema e idioma da barra ficam até a T251.
-- [ ] **Ver passar:** os mesmos arquivos; ruff; `-m tela` e mypy no CI.
+- [x] **Primeiro, valor errado:** `/preferencias/texto` responde 303 sem gravar.
+- [x] **Testes que falham** em `tests/integracao/test_rota_preferencias.py`: `test_texto_grava_e_vai_ao_html` (grava `"maior"` e a página seguinte traz `data-texto="maior"`); `test_texto_fora_da_lista_da_422`; `test_preferencias_sem_js` (o HTML de `/configuracoes/geral` traz os três `<select>` com `name` certo e um `<noscript>` com botão de enviar em cada formulário).
+- [x] **Testes que falham** em `tests/integracao/test_rota_configuracoes.py`: `test_aparencia_vai_para_geral` (303, `location == "/configuracoes/geral"`); `test_pais_e_moeda_gravam_por_geral`; `test_geral_e_o_primeiro_grupo`. Os testes que voltam para `/configuracoes/aparencia` passam a `/configuracoes/geral`.
+- [x] **Teste que falha** em `tests/integracao/test_erros.py`: `test_erro_leva_o_tamanho_do_texto` (com `tamanho_texto = "grande"`, a página de erro traz `data-texto="grande"`; com o banco quebrado, `padrao`).
+- [x] **Teste que falha** em `tests/unidade/test_i18n.py`: `test_grupo_aparencia_saiu` (`configuracoes.grupo.aparencia` não existe em pt nem em en).
+- [x] **Testes de tela** em `tests/tela/test_configuracoes.py`: o tema e o idioma trocados pelo menu de Geral ficam depois de recarregar; `test_tamanho_do_texto_no_corpo`: o `font-size` calculado do `body` é 13px em "Padrão", 15px em "Grande" e 17px em "Maior" (tolerância de 0,1px).
+- [x] **Ver falhar:** `uv run pytest tests/integracao/test_rota_preferencias.py tests/integracao/test_rota_configuracoes.py tests/integracao/test_erros.py tests/unidade/test_i18n.py -q`.
+- [x] **Implementar** os itens de Interfaces. Os botões de tema e idioma da barra ficam até a T251.
+- [x] **Ver passar:** os mesmos arquivos; ruff; `-m tela` e mypy no CI.
 
 ### T251: casca nova (lateral, barra de ferramentas, faixas)
 `depende_de: T248, T249, T250` · desenho 5.2, 5.5 (`/`), 5.7, 5.8 (Casca, Erro e Saiu), D143.3, D143.42
@@ -380,17 +380,17 @@ A T250 vem antes da T251 porque a casca nova tira tema e idioma da barra, e os t
 - `busca_efetiva(con, pedida)`: a da URL, se existe (ativa ou não, como hoje e como o desenho 5.2: quem abre um link velho vê a busca dele); senão a gravada em `busca_escolhida`, se ainda existe e está ativa; senão a primeira ativa (E16). Escolher busca em Vagas grava `busca_escolhida` (`gravar_config`, `ON CONFLICT`) só quando o `busca` da URL passa por `inteiro_da_url` e aponta para uma busca que existe e está ativa; texto, id que não existe ou busca desligada não gravam nada. Os links da lateral levam `&busca=<id>` quando há busca.
 - Nas respostas HTMX de Vagas (aba, busca, filtro, ocultar, mudar estado), a seção "Vagas" da lateral volta por `hx-swap-oob`, com o `aria-current` certo.
 
-- [ ] **Primeiro, valor errado:** `contagens` vazio.
-- [ ] **Testes que falham** em `tests/integracao/test_rota_vagas.py` e `test_casca_menu.py`:
+- [x] **Primeiro, valor errado:** `contagens` vazio.
+- [x] **Testes que falham** em `tests/integracao/test_rota_vagas.py` e `test_casca_menu.py`:
   - `test_lateral_conta_fora_de_vagas`: em `/buscas`, a lateral traz as contagens das abas e a de Destaques, e esconde a que é zero.
   - `test_busca_escolhida_vale_sem_busca_na_url`: escolher a busca 2 em Vagas; `/fontes` traz os links com `busca=2`, e `/vagas?aba=novas` usa a 2.
   - `test_busca_escolhida_apagada_cai_na_primeira_ativa`.
   - `test_busca_invalida_nao_grava`: com `busca=abc`, com um id que não existe e com o id de uma busca desligada, o conteúdo da tabela `config` (hash de todas as linhas) fica igual ao de antes; controle positivo: com o id de uma busca ativa, `busca_escolhida` muda.
   - `test_busca_desligada_na_url_continua_valendo`: `/vagas?busca=<id desligada>` mostra as vagas dessa busca, como hoje, e não grava a escolha. A primeira parte é guarda; mutante: `busca_efetiva` aceitar só busca ativa.
   - `test_ocultar_atualiza_a_contagem_por_oob`: a resposta do ocultar traz a seção com `hx-swap-oob` e a contagem de Ocultas mais um.
-- [ ] **Ver falhar:** `uv run pytest tests/integracao/test_rota_vagas.py tests/integracao/test_casca_menu.py -q`.
-- [ ] **Implementar** os itens de Interfaces.
-- [ ] **Ver passar:** os mesmos arquivos e `tests/unidade/test_camadas.py`; ruff; mypy no CI.
+- [x] **Ver falhar:** `uv run pytest tests/integracao/test_rota_vagas.py tests/integracao/test_casca_menu.py -q`.
+- [x] **Implementar** os itens de Interfaces.
+- [x] **Ver passar:** os mesmos arquivos e `tests/unidade/test_camadas.py`; ruff; mypy no CI.
 
 ### T254: lista de Vagas em linhas, com teclado
 `depende_de: T253` · desenho 5.2 (Lista, Busca), 5.5, 5.8 (Vagas, Linha da vaga), D143.52, D143.53, D143.59
@@ -406,17 +406,17 @@ A T250 vem antes da T251 porque a casca nova tira tema e idioma da barra, e os t
 - Na aba Programas, as páginas acompanhadas numa seção abaixo, fora do `listbox`, como links.
 - Estado vazio: ícone `search-x` em 20px, título, uma linha e o botão "Buscar vagas". A linha reaproveita `vagas.vazio` (e `vagas.vazio_destaques` em Destaques). Chaves novas, pt e en: `vagas.vazio.titulo` "Nenhuma vaga"/"No Jobs" e `vagas.vazio.buscar` "Buscar vagas"/"Search for Jobs" (proposta; o botão faz o mesmo que "Buscar agora").
 
-- [ ] **Testes que falham** em `tests/integracao/test_rota_vagas.py`:
+- [x] **Testes que falham** em `tests/integracao/test_rota_vagas.py`:
   - `test_lista_e_listbox_com_options`: um `role="listbox"` e uma `role="option"` por vaga, sem `<button>` nem `<a>` descendente de `option`.
   - `test_linha_tem_tres_linhas`: título, empresa e local, salário e data, nessa ordem, cada um com `title`.
   - `test_linha_e_link_sem_js`: cada `role="option"` é um `<a>` com `href="/vagas/{id}"` da própria vaga, e não tem `<a>` nem `<button>` dentro.
   - `test_abas_saem_do_topo`: sem `nav.abas`; o seletor de busca e a ordem como `<select>`.
   - `test_programas_fora_do_listbox`.
   - `test_vazio_tem_buscar_vagas`: o título, a linha de `vagas.vazio` e o botão "Buscar vagas"/"Search for Jobs", em pt e en.
-- [ ] **Testes de tela** (CI): em `test_vagas.py`, J, K, setas, Home e End movem o foco; Return abre; "/" continua focando a busca, agora na barra; com 2 buscas, o menu pop-up troca a busca; o formulário `#busca` está na barra da lista.
-- [ ] **Ver falhar:** `uv run pytest tests/integracao/test_rota_vagas.py -q`.
-- [ ] **Implementar** os itens de Interfaces.
-- [ ] **Ver passar:** os mesmos arquivos, `tests/unidade/test_i18n.py` e `tests/unidade/test_css.py`; ruff; `-m tela` no CI.
+- [x] **Testes de tela** (CI): em `test_vagas.py`, J, K, setas, Home e End movem o foco; Return abre; "/" continua focando a busca, agora na barra; com 2 buscas, o menu pop-up troca a busca; o formulário `#busca` está na barra da lista.
+- [x] **Ver falhar:** `uv run pytest tests/integracao/test_rota_vagas.py -q`.
+- [x] **Implementar** os itens de Interfaces.
+- [x] **Ver passar:** os mesmos arquivos, `tests/unidade/test_i18n.py` e `tests/unidade/test_css.py`; ruff; `-m tela` no CI.
 
 ### T255: detalhe ao lado da lista
 `depende_de: T254` · desenho 5.2 (Detalhe, Endereço da vaga escolhida, Seleção e foco de coluna, Larguras), D143.35, D143.51
@@ -431,11 +431,11 @@ A T250 vem antes da T251 porque a casca nova tira tema e idioma da barra, e os t
 - A linha aberta fica marcada (`aria-selected`). A coluna com o foco (`:focus-within`) mostra a seleção em `--destaque`; as outras, em `--selecao-inativa`.
 - O detalhe traz as fontes, o motivo do encaixe e os botões que saíram da linha (Abrir no site, Salvar, Candidatei, Ocultar).
 
-- [ ] **Testes que falham** em `tests/integracao/test_rota_vagas.py`: `test_vaga_na_url_traz_o_detalhe`; `test_vaga_invalida_na_url_sem_detalhe` (`vaga=abc`, id que não existe, um número de 5000 dígitos e `2**63`: 200 sem detalhe, nunca 500); `test_detalhe_tem_os_botoes_da_linha`.
-- [ ] **Testes de tela** (CI): `test_coluna_entre_640_e_860_abre_sobreposto`; `test_coluna_larga_abre_ao_lado`; `test_recarregar_abre_a_mesma_vaga`; `test_esc_fecha_o_sobreposto`; `test_janela_inativa_selecao_cinza` (com `data-janela="inativa"` no `<html>`, o fundo calculado da linha marcada é o de `--selecao-inativa`, mesmo com o foco na lista; desenho 7).
-- [ ] **Ver falhar:** `uv run pytest tests/integracao/test_rota_vagas.py tests/integracao/test_rota_detalhe.py -q`.
-- [ ] **Implementar** os itens de Interfaces.
-- [ ] **Ver passar:** os mesmos arquivos; ruff; `-m tela` e mypy no CI.
+- [x] **Testes que falham** em `tests/integracao/test_rota_vagas.py`: `test_vaga_na_url_traz_o_detalhe`; `test_vaga_invalida_na_url_sem_detalhe` (`vaga=abc`, id que não existe, um número de 5000 dígitos e `2**63`: 200 sem detalhe, nunca 500); `test_detalhe_tem_os_botoes_da_linha`.
+- [x] **Testes de tela** (CI): `test_coluna_entre_640_e_860_abre_sobreposto`; `test_coluna_larga_abre_ao_lado`; `test_recarregar_abre_a_mesma_vaga`; `test_esc_fecha_o_sobreposto`; `test_janela_inativa_selecao_cinza` (com `data-janela="inativa"` no `<html>`, o fundo calculado da linha marcada é o de `--selecao-inativa`, mesmo com o foco na lista; desenho 7).
+- [x] **Ver falhar:** `uv run pytest tests/integracao/test_rota_vagas.py tests/integracao/test_rota_detalhe.py -q`.
+- [x] **Implementar** os itens de Interfaces.
+- [x] **Ver passar:** os mesmos arquivos; ruff; `-m tela` e mypy no CI.
 
 ### T256: Desfazer e Refazer do Ocultar
 `depende_de: T255` · desenho 5.4 (Desfazer), 5.5, D143.16, D143.17, D143.36
@@ -451,11 +451,11 @@ A T250 vem antes da T251 porque a casca nova tira tema e idioma da barra, e os t
 - ⌘Z (Ctrl+Z fora do Mac) aciona o botão da faixa visível só quando o foco não está em campo de texto; ⇧⌘Z (Ctrl+Shift+Z) aciona o Refazer. Sem faixa, nada. Sistema por `navigator.userAgentData?.platform ?? navigator.platform`.
 - i18n `casca.desfazer.*`: `ocultada` "Vaga ocultada"/"Job hidden"; `mostrada` "Vaga mostrada de novo"/"Job shown again"; `desfazer` "Desfazer"/"Undo"; `refazer` "Refazer"/"Redo"; `fechar` "Fechar"/"Close"; `descartada` "Sugestão descartada"/"Suggestion discarded"; `removida` "Empresa removida"/"Company removed" (as duas últimas, usadas na T260).
 
-- [ ] **Testes que falham** em `tests/integracao/test_rota_vagas.py`: `test_ocultar_traz_a_faixa_com_mostrar` (`hx-swap-oob`, `role="status"`, formulário com `action="/vagas/{id}/mostrar"` e `csrf_token`); `test_desfazer_traz_a_faixa_com_ocultar`; `test_refazer_oculta_de_novo` (o status da vaga volta a oculta).
-- [ ] **Testes de tela** (CI): `test_cmd_z_desfaz_fora_do_campo`; `test_cmd_z_no_campo_nao_desfaz_a_faixa`; `test_shift_cmd_z_refaz`; `test_faixa_fica_ao_trocar_de_aba`.
-- [ ] **Ver falhar:** `uv run pytest tests/integracao/test_rota_vagas.py -q`.
-- [ ] **Implementar** os itens de Interfaces.
-- [ ] **Ver passar:** o mesmo arquivo e `tests/unidade/test_i18n.py`; ruff; `-m tela` no CI.
+- [x] **Testes que falham** em `tests/integracao/test_rota_vagas.py`: `test_ocultar_traz_a_faixa_com_mostrar` (`hx-swap-oob`, `role="status"`, formulário com `action="/vagas/{id}/mostrar"` e `csrf_token`); `test_desfazer_traz_a_faixa_com_ocultar`; `test_refazer_oculta_de_novo` (o status da vaga volta a oculta).
+- [x] **Testes de tela** (CI): `test_cmd_z_desfaz_fora_do_campo`; `test_cmd_z_no_campo_nao_desfaz_a_faixa`; `test_shift_cmd_z_refaz`; `test_faixa_fica_ao_trocar_de_aba`.
+- [x] **Ver falhar:** `uv run pytest tests/integracao/test_rota_vagas.py -q`.
+- [x] **Implementar** os itens de Interfaces.
+- [x] **Ver passar:** o mesmo arquivo e `tests/unidade/test_i18n.py`; ruff; `-m tela` no CI.
 
 ### T257: menu de contexto da vaga
 `depende_de: T256` · desenho 5.4 (Menu de contexto), D143.39
@@ -470,11 +470,11 @@ A T250 vem antes da T251 porque a casca nova tira tema e idioma da barra, e os t
 - Abre com o botão direito, a tecla de menu ou Shift+F10, no ponteiro (ou na linha, pelo teclado); elemento com `popover` ou `<dialog>` não modal, raio 10px, itens de 24px, item destacado em `--destaque`. Setas movem, Esc fecha e o foco volta à linha. Sem JavaScript, não há menu.
 - "Copiar link" copia o endereço da vaga no site de origem pela API de área de transferência, com aviso curto em `role="status"`.
 
-- [ ] **Teste que falha** em `tests/integracao/test_rota_vagas.py`: `test_menu_de_contexto_vem_renderizado` (o menu está na página, escondido, com as cinco ações e os formulários com `csrf_token`).
-- [ ] **Testes de tela** (CI): `test_botao_direito_abre`; `test_shift_f10_abre`; `test_esc_fecha_e_foco_volta`; `test_ocultar_pelo_menu_traz_a_faixa`.
-- [ ] **Ver falhar:** `uv run pytest tests/integracao/test_rota_vagas.py -q`.
-- [ ] **Implementar** os itens de Interfaces.
-- [ ] **Ver passar:** o mesmo arquivo e `tests/unidade/test_i18n.py`; ruff; `-m tela` no CI.
+- [x] **Teste que falha** em `tests/integracao/test_rota_vagas.py`: `test_menu_de_contexto_vem_renderizado` (o menu está na página, escondido, com as cinco ações e os formulários com `csrf_token`).
+- [x] **Testes de tela** (CI): `test_botao_direito_abre`; `test_shift_f10_abre`; `test_esc_fecha_e_foco_volta`; `test_ocultar_pelo_menu_traz_a_faixa`.
+- [x] **Ver falhar:** `uv run pytest tests/integracao/test_rota_vagas.py -q`.
+- [x] **Implementar** os itens de Interfaces.
+- [x] **Ver passar:** o mesmo arquivo e `tests/unidade/test_i18n.py`; ruff; `-m tela` no CI.
 
 ### T258: conferência com o dono (portão)
 `depende_de: T248 a T257, CI verde no lote/visual-vagas` · D140.8, D143.54
@@ -527,12 +527,12 @@ Não é código. A branch `feat/visual-mac` só entra na `dev` depois do ok do d
 - Descartar e remover rodam sem pergunta e trazem a faixa da T256 ("Sugestão descartada" e "Empresa removida") com "Desfazer" para a rota de restaurar; o Refazer é a própria ação de hoje (`/descartar`, `/remover`).
 - Lista agrupada; menu de contexto com as ações da linha.
 
-- [ ] **Primeiro, valor errado:** `restaurar` e `restaurar_empresa` não fazem nada; as rotas respondem 303 sem chamar.
-- [ ] **Testes que falham** em `tests/integracao/test_cadastros.py`: `test_restaurar_sugerida_volta_a_pendente`; `test_restaurar_empresa_limpa_removida_em`; os dois sem mudar o número de linhas da tabela.
-- [ ] **Testes que falham** em `tests/integracao/test_rota_sugeridas.py` e `test_rota_empresas.py`: `test_descartar_traz_a_faixa_com_restaurar`; `test_remover_traz_a_faixa_com_restaurar`; `test_restaurar_sem_csrf_da_403`; `test_restaurar_id_que_nao_existe_da_404`.
-- [ ] **Ver falhar:** `uv run pytest tests/integracao/test_cadastros.py tests/integracao/test_rota_sugeridas.py tests/integracao/test_rota_empresas.py -q`.
-- [ ] **Implementar** os itens de Interfaces.
-- [ ] **Ver passar:** os mesmos arquivos e `tests/unidade/test_rotas_sem_copias.py`; ruff; `-m tela` e mypy no CI.
+- [x] **Primeiro, valor errado:** `restaurar` e `restaurar_empresa` não fazem nada; as rotas respondem 303 sem chamar.
+- [x] **Testes que falham** em `tests/integracao/test_cadastros.py`: `test_restaurar_sugerida_volta_a_pendente`; `test_restaurar_empresa_limpa_removida_em`; os dois sem mudar o número de linhas da tabela.
+- [x] **Testes que falham** em `tests/integracao/test_rota_sugeridas.py` e `test_rota_empresas.py`: `test_descartar_traz_a_faixa_com_restaurar`; `test_remover_traz_a_faixa_com_restaurar`; `test_restaurar_sem_csrf_da_403`; `test_restaurar_id_que_nao_existe_da_404`.
+- [x] **Ver falhar:** `uv run pytest tests/integracao/test_cadastros.py tests/integracao/test_rota_sugeridas.py tests/integracao/test_rota_empresas.py -q`.
+- [x] **Implementar** os itens de Interfaces.
+- [x] **Ver passar:** os mesmos arquivos e `tests/unidade/test_rotas_sem_copias.py`; ruff; `-m tela` e mypy no CI.
 
 ### T261: Fontes e Sites
 `depende_de: T259` · desenho 5.8 (Fontes, Sites), 5.3 (caixa de marcar)
@@ -545,11 +545,11 @@ Não é código. A branch `feat/visual-mac` só entra na `dev` depois do ok do d
 - Fontes: lista agrupada; estado com ícone e texto; caixa de marcar (14px, raio 4px, visto branco sobre `--destaque`, bloco `forced-colors`) para ligar.
 - Sites: lista agrupada; "Remover" abre o alerta da T259 ("Remover o site «{nome}»?"/"Remove the Site \"{nome}\"?", "O texto guardado e as mudanças dele serão apagados."/"Its saved text and changes will be deleted."); desativar continua sem pergunta; menu de contexto com as ações da linha.
 
-- [ ] **Testes que falham**: em `test_rota_fontes.py`, `test_fonte_liga_por_caixa_de_marcar` (um `input type="checkbox"` por fonte, com o rótulo ligado); em `test_rota_sites.py`, `test_remover_tem_alerta`.
-- [ ] **Testes de tela** (CI): `test_remover_site_abre_o_alerta_e_cancelar_nao_remove`; `test_caixa_de_marcar_pelo_teclado`.
-- [ ] **Ver falhar:** `uv run pytest tests/integracao/test_rota_fontes.py tests/integracao/test_rota_sites.py -q`.
-- [ ] **Implementar** os itens de Interfaces.
-- [ ] **Ver passar:** os mesmos arquivos e `tests/unidade/test_i18n.py`; ruff; `-m tela` no CI.
+- [x] **Testes que falham**: em `test_rota_fontes.py`, `test_fonte_liga_por_caixa_de_marcar` (um `input type="checkbox"` por fonte, com o rótulo ligado); em `test_rota_sites.py`, `test_remover_tem_alerta`.
+- [x] **Testes de tela** (CI): `test_remover_site_abre_o_alerta_e_cancelar_nao_remove`; `test_caixa_de_marcar_pelo_teclado`.
+- [x] **Ver falhar:** `uv run pytest tests/integracao/test_rota_fontes.py tests/integracao/test_rota_sites.py -q`.
+- [x] **Implementar** os itens de Interfaces.
+- [x] **Ver passar:** os mesmos arquivos e `tests/unidade/test_i18n.py`; ruff; `-m tela` no CI.
 
 ### T262: Configurações no jeito dos Ajustes
 `depende_de: T259` · desenho 5.4 (Configurações), 5.3, 5.8 (Configurações), D143.28, D143.43
@@ -601,11 +601,11 @@ Não é código. A branch `feat/visual-mac` só entra na `dev` depois do ok do d
 - Erro e Saiu: estado vazio com ícone de 20px (`triangle-alert` no Erro, `log-out` no Saiu, da T249), título curto e o que fazer; Saiu sem lateral e sem botões.
 - Item a mais, da conferência por fotos (T258, D157): a página própria a 600px. "Voltar para as vagas" encosta no título, o nome da empresa sobrepõe a base do `h1`, "Ocultar" quebra para uma linha só dele, e a faixa de navegação marca "Destaques de hoje" sem a vaga estar nessa aba. Pedido: espaço entre o link de volta e o título, e entre o `h1` e a empresa (o `line-height` do título não corta a linha de baixo); as ações quebram juntas, como na T301 (item 8); a faixa marca a aba de origem quando ela vem na URL (`?aba=`) e nenhuma quando não vem. Hoje `base.html` cai em `lado.abas[0]` quando a aba não vem; na página própria esse padrão não vale (o padrão continua na lista de Vagas).
 
-- [ ] **Testes que falham**: em `test_rota_detalhe.py`, `test_correcao_em_dialog_com_formulario_de_hoje`; `test_pagina_propria_sem_aba_nao_marca_nenhuma` (sem `?aba`, nenhum link de `#lateral-vagas` tem `aria-current`; com `?aba=salvas`, só o de Salvas); em `test_erros.py`, `test_erro_diz_o_que_fazer` (título, uma linha e o link de volta).
-- [ ] **Testes de tela** (CI): `test_correcao_abre_e_esc_fecha`; `test_sheet_correcao_botoes_visiveis`: janela de 1024×560, sheet de correção aberto; os botões do sheet estão inteiros dentro da janela e o corpo do sheet rola (E17); `test_pagina_propria_a_600px`: janela de 600×900, `/vagas/{id}`; a caixa do link de volta termina acima da caixa do `h1`, a caixa do `h1` termina acima da linha da empresa (sem sobrepor), e os botões de ação não quebram texto por dentro.
-- [ ] **Ver falhar:** `uv run pytest tests/integracao/test_rota_detalhe.py tests/integracao/test_erros.py -q`.
-- [ ] **Implementar** os itens de Interfaces.
-- [ ] **Ver passar:** os mesmos arquivos; ruff; `-m tela` no CI.
+- [x] **Testes que falham**: em `test_rota_detalhe.py`, `test_correcao_em_dialog_com_formulario_de_hoje`; `test_pagina_propria_sem_aba_nao_marca_nenhuma` (sem `?aba`, nenhum link de `#lateral-vagas` tem `aria-current`; com `?aba=salvas`, só o de Salvas); em `test_erros.py`, `test_erro_diz_o_que_fazer` (título, uma linha e o link de volta).
+- [x] **Testes de tela** (CI): `test_correcao_abre_e_esc_fecha`; `test_sheet_correcao_botoes_visiveis`: janela de 1024×560, sheet de correção aberto; os botões do sheet estão inteiros dentro da janela e o corpo do sheet rola (E17); `test_pagina_propria_a_600px`: janela de 600×900, `/vagas/{id}`; a caixa do link de volta termina acima da caixa do `h1`, a caixa do `h1` termina acima da linha da empresa (sem sobrepor), e os botões de ação não quebram texto por dentro.
+- [x] **Ver falhar:** `uv run pytest tests/integracao/test_rota_detalhe.py tests/integracao/test_erros.py -q`.
+- [x] **Implementar** os itens de Interfaces.
+- [x] **Ver passar:** os mesmos arquivos; ruff; `-m tela` no CI.
 
 ### T265: paleta de comandos e atalhos globais
 `depende_de: T262` · desenho 5.4 (Paleta de comandos), 5.5, D143.15, D143.38, E5, E6
@@ -661,14 +661,14 @@ Não é código. A branch `feat/visual-mac` só entra na `dev` depois do ok do d
 - `sistema/abrir.py`: `def abrir_janela(endereco: str, env: Mapping[str, str], *, sistema: str, existe: Callable[[str], bool], chromium: Callable[[], Path | None], pasta_dados: Path, lancar: Callable[[Sequence[str]], bool] = _lancar) -> bool`: tenta o navegador do sistema pelo `lancar`; senão chama `chromium()` e lança com `--app=<endereço>` e `--user-data-dir=<pasta_dados>/janela`; senão `abrir_navegador(endereco, env)`. A pasta `<dados>/janela/` nunca é a do login. `_SEM_BOAS_VINDAS = ("--no-first-run", "--no-default-browser-check")` vai no comando de Linux, Mac (depois de `--args --app=...`), Windows e do Chromium do joBot; a aba comum de reserva (`abrir_navegador`) não leva essas opções.
 - `cli/abrir.py`: `def executar(args: argparse.Namespace) -> int`, o mesmo de hoje (`abrir` e `sair`, `OSError` numa linha e código 1), mas montando o abridor com `functools.partial(abrir_janela, sistema=sys.platform, existe=..., chromium=lambda: asyncio.run(chromium_do_jobot()), pasta_dados=dados)` e passando-o como `navegador` ao `abrir_painel`. `sistema` não importa `navegador`; o `cli` pode importar os dois.
 
-- [ ] **Primeiro, valor errado:** `abrir_janela` chama sempre `abrir_navegador`; `achar_navegador_do_sistema` devolve `None`; `chromium_do_jobot` devolve um `Path` fixo; `_lancar` delega a `_rodar`.
-- [ ] **Testes que falham** em `tests/unidade/test_abrir.py` (lançador, `existe` e `chromium` injetados): `test_chrome_do_sistema_abre_com_app`; `test_so_chromium_do_jobot_usa_perfil_da_janela` (`--user-data-dir` termina em `janela`, nunca na pasta do login); `test_nada_achado_cai_na_aba`; `test_chromium_nao_e_chamado_quando_o_sistema_tem_navegador`; `test_mac_usa_open_na` (pelo mesmo lançador); `test_distrobox_usa_o_prefixo` (com `CONTAINER_ID`, o comando começa pelo prefixo do host); `test_lancador_nao_espera_o_navegador`: um `Popen` falso (aceita `with`; `wait` e `communicate` marcam `esperou`) trocado por `monkeypatch`; `_lancar(["chrome"]) is True`, `esperou is False`, e o falso recebeu `start_new_session=True` e `DEVNULL` nas três saídas; com `OSError` no `Popen`, `False`.
-- [ ] **Testes que falham** em `tests/unidade/test_navegador_abrir.py`: `test_chromium_do_jobot_sem_arquivo_da_none`; `test_chromium_do_jobot_ignora_o_chrome_do_sistema`.
-- [ ] **Testes que falham** em `tests/unidade/test_cli_abrir.py`: os três testes de `executar` que saem de `test_abrir.py`, e `test_abrir_passa_a_janela_ao_painel` (com `abrir_painel` trocado, o `navegador` recebido é um `partial` de `abrir_janela`).
-- [ ] **Ver falhar:** `uv run pytest tests/unidade/test_abrir.py tests/unidade/test_navegador_abrir.py tests/unidade/test_cli_abrir.py tests/unidade/test_repositorio.py -q`.
-- [ ] **Implementar** os itens de Interfaces.
-- [ ] **Ver passar:** os mesmos arquivos, `tests/unidade/test_camadas.py`, `tests/unidade/test_navegador_ast.py`, `tests/unidade/test_cli_erros.py`, `tests/unidade/test_atualizar.py` e `tests/integracao/test_servir.py`; ruff; mypy no CI.
-- [ ] **Verificação manual** (dono): `jobot` abre a janela sem abas nem barra de endereço; sem Chrome nem Chromium, cai na aba.
+- [x] **Primeiro, valor errado:** `abrir_janela` chama sempre `abrir_navegador`; `achar_navegador_do_sistema` devolve `None`; `chromium_do_jobot` devolve um `Path` fixo; `_lancar` delega a `_rodar`.
+- [x] **Testes que falham** em `tests/unidade/test_abrir.py` (lançador, `existe` e `chromium` injetados): `test_chrome_do_sistema_abre_com_app`; `test_so_chromium_do_jobot_usa_perfil_da_janela` (`--user-data-dir` termina em `janela`, nunca na pasta do login); `test_nada_achado_cai_na_aba`; `test_chromium_nao_e_chamado_quando_o_sistema_tem_navegador`; `test_mac_usa_open_na` (pelo mesmo lançador); `test_distrobox_usa_o_prefixo` (com `CONTAINER_ID`, o comando começa pelo prefixo do host); `test_lancador_nao_espera_o_navegador`: um `Popen` falso (aceita `with`; `wait` e `communicate` marcam `esperou`) trocado por `monkeypatch`; `_lancar(["chrome"]) is True`, `esperou is False`, e o falso recebeu `start_new_session=True` e `DEVNULL` nas três saídas; com `OSError` no `Popen`, `False`.
+- [x] **Testes que falham** em `tests/unidade/test_navegador_abrir.py`: `test_chromium_do_jobot_sem_arquivo_da_none`; `test_chromium_do_jobot_ignora_o_chrome_do_sistema`.
+- [x] **Testes que falham** em `tests/unidade/test_cli_abrir.py`: os três testes de `executar` que saem de `test_abrir.py`, e `test_abrir_passa_a_janela_ao_painel` (com `abrir_painel` trocado, o `navegador` recebido é um `partial` de `abrir_janela`).
+- [x] **Ver falhar:** `uv run pytest tests/unidade/test_abrir.py tests/unidade/test_navegador_abrir.py tests/unidade/test_cli_abrir.py tests/unidade/test_repositorio.py -q`.
+- [x] **Implementar** os itens de Interfaces.
+- [x] **Ver passar:** os mesmos arquivos, `tests/unidade/test_camadas.py`, `tests/unidade/test_navegador_ast.py`, `tests/unidade/test_cli_erros.py`, `tests/unidade/test_atualizar.py` e `tests/integracao/test_servir.py`; ruff; mypy no CI.
+- [x] **Verificação manual** (dono): `jobot` abre a janela sem abas nem barra de endereço; sem Chrome nem Chromium, cai na aba.
 
 ### T268: documentos de quem usa
 `depende_de: T259 a T267` · `registros/padroes.md` («Doc»)
@@ -710,9 +710,9 @@ A conferência da T258 foi feita por fotos, com o dono fora (D157). Os dez itens
 9. **Sugeridas.** O item Sugeridas da lateral mostra a contagem de pendentes (`lado.sugeridas_pendentes`) num `<span class="contagem">`, como as contagens da T253. Em Sugeridas, o texto de apoio do título tem espaço até o cartão (um token de espaço, não número solto).
 10. **CSP na troca da lista.** Hoje cada troca da lista pelo HTMX (depois de Desfazer, ao trocar a busca escolhida) gera 5 violações `style-src-attr`, de `static/vendor/htmx.min.js` fazendo `setAttribute('style', '')` em `#filtro-sal-de`, `#filtro-sal-ate`, `#filtro-cidade`, `#filtro-empresa` e `#filtro-excluir`. Pista: no assentamento, o htmx copia os atributos de `attributesToSettle` (entre eles `style`) do nó velho de mesmo id para o novo; algo dá um atributo `style` (mesmo vazio) aos campos velhos. Achar quem dá e tirar a causa. Se a causa for só o assentamento, acrescentar ao `htmx-config` de `base.html` (que hoje só tem `allowEval`, `selfRequestsOnly` e `includeIndicatorStyles`) a lista inteira `"attributesToSettle": ["class", "width", "height"]` (o padrão do htmx sem `style`) também serve. A CSP não muda: nada de `'unsafe-inline'` nem `style-src-attr` mais frouxo.
 
-- [ ] **Primeiro, valor errado:** a contagem de Sugeridas nasce com o número errado (por exemplo, sempre 0 no `span`), para o teste falhar por asserção.
-- [ ] **Testes que falham** em `tests/integracao/test_rota_vagas.py`: `test_barra_da_lista_numa_linha_com_filtros_no_mais` (os grupos de chips estão dentro do `details.mais-filtros`, e o `details` vem sem `open` com um chip ativo); `test_mais_filtros_conta_os_ativos` (com dois chips na URL, por exemplo `modalidade` e `nivel`, e nenhum campo, o resumo traz "Mais filtros (2)" em pt e "More Filters (2)" em en; com chips, e não com campos, ele falha por asserção contra o código de hoje, que só conta os campos). Teste que muda: `test_mais_filtros_fechado_sem_filtro_e_aberto_com_contador` (`tests/integracao/test_rota_vagas.py`) prende o `open` com filtro ativo; passa a exigir `<details class="mais-filtros">` sem `open` com cidade e sal_de, mantendo "Mais filtros (2)" no resumo (e muda de nome para `test_mais_filtros_fechado_com_contador`); `test_encaixe_da_linha_e_icone` (a linha tem a caixa do encaixe com `data-icone` e nenhum dos glifos "●◐○", com e sem encaixe); em `tests/integracao/test_casca_menu.py`: `test_sugeridas_mostra_a_contagem_de_pendentes` (com uma sugestão pendente, o link de Sugeridas traz `<span class="contagem">1</span>`).
-- [ ] **Testes de tela** (CI):
+- [x] **Primeiro, valor errado:** a contagem de Sugeridas nasce com o número errado (por exemplo, sempre 0 no `span`), para o teste falhar por asserção.
+- [x] **Testes que falham** em `tests/integracao/test_rota_vagas.py`: `test_barra_da_lista_numa_linha_com_filtros_no_mais` (os grupos de chips estão dentro do `details.mais-filtros`, e o `details` vem sem `open` com um chip ativo); `test_mais_filtros_conta_os_ativos` (com dois chips na URL, por exemplo `modalidade` e `nivel`, e nenhum campo, o resumo traz "Mais filtros (2)" em pt e "More Filters (2)" em en; com chips, e não com campos, ele falha por asserção contra o código de hoje, que só conta os campos). Teste que muda: `test_mais_filtros_fechado_sem_filtro_e_aberto_com_contador` (`tests/integracao/test_rota_vagas.py`) prende o `open` com filtro ativo; passa a exigir `<details class="mais-filtros">` sem `open` com cidade e sal_de, mantendo "Mais filtros (2)" no resumo (e muda de nome para `test_mais_filtros_fechado_com_contador`); `test_encaixe_da_linha_e_icone` (a linha tem a caixa do encaixe com `data-icone` e nenhum dos glifos "●◐○", com e sem encaixe); em `tests/integracao/test_casca_menu.py`: `test_sugeridas_mostra_a_contagem_de_pendentes` (com uma sugestão pendente, o link de Sugeridas traz `<span class="contagem">1</span>`).
+- [x] **Testes de tela** (CI):
   - `test_lista_na_primeira_dobra` (1280×800): o topo da primeira `.linha` fica acima de 320px; a barra da lista tem a altura de uma linha de controles.
   - `test_mais_filtros_no_mesmo_lugar` (1280, 800 e 600 de largura): o resumo de "Mais filtros" tem o centro vertical do select de ordem (±4px) e fica à direita dele.
   - `test_sobreposto_preso_a_janela` (800×700): abre a segunda linha; a caixa do sobreposto começa no pé da barra de ferramentas e termina dentro da janela; Salvar e Ocultar estão inteiros na viewport; o corpo rola (E17).
@@ -723,9 +723,9 @@ A conferência da T258 foi feita por fotos, com o dono fora (D157). Os dez itens
   - `test_texto_maior_sem_corte` (1280×800, tamanho Maior, detalhe em coluna): a largura de conteúdo da busca do topo (`clientWidth` menos o padding) é ≥ a largura do placeholder medida por `canvas.measureText` com a fonte calculada do campo; os botões de ação do detalhe têm a mesma altura e o espaço entre fileiras é o mesmo entre botões (±1px).
   - `test_sugeridas_apoio_longe_do_cartao` (1280×800): entre o pé do texto de apoio e o topo do primeiro cartão há pelo menos 12px.
   - `test_troca_da_lista_sem_violacao_de_csp`: `add_init_script` conta os `securitypolicyviolation` do `document`; ocultar uma vaga, Desfazer, e trocar a busca escolhida; a conta é 0.
-- [ ] **Ver falhar:** `uv run pytest tests/integracao/test_rota_vagas.py tests/integracao/test_casca_menu.py -q`. E o vermelho do `test_troca_da_lista_sem_violacao_de_csp` no CI do lote, antes da correção, com a contagem de violações maior que 0 no log: a causa ainda não foi achada, e um teste que não reproduz o atributo `style` no nó velho nasce verde e não prova nada.
-- [ ] **Implementar** os itens de Interfaces, com as Restrições globais (tokens com `light-dark`, contraste comentado, `forced-colors`, movimento reduzido, CSP sem estilo inline, texto novo em pt e en).
-- [ ] **Ver passar:** os mesmos arquivos e `tests/unidade/test_i18n.py`, `tests/unidade/test_css.py`; ruff; `-m tela` e mypy no CI.
+- [x] **Ver falhar:** `uv run pytest tests/integracao/test_rota_vagas.py tests/integracao/test_casca_menu.py -q`. E o vermelho do `test_troca_da_lista_sem_violacao_de_csp` no CI do lote, antes da correção, com a contagem de violações maior que 0 no log: a causa ainda não foi achada, e um teste que não reproduz o atributo `style` no nó velho nasce verde e não prova nada.
+- [x] **Implementar** os itens de Interfaces, com as Restrições globais (tokens com `light-dark`, contraste comentado, `forced-colors`, movimento reduzido, CSP sem estilo inline, texto novo em pt e en).
+- [x] **Ver passar:** os mesmos arquivos e `tests/unidade/test_i18n.py`, `tests/unidade/test_css.py`; ruff; `-m tela` e mypy no CI.
 
 ## Espera o dono
 
