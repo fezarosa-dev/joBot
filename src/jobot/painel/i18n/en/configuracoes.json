@@ -172,5 +172,10 @@
   "configuracoes.contas.gmail.erro.cofre": "The system password vault did not respond.",
   "configuracoes.contas.gmail.erro.nao_apagou": "The password was not removed. Try again.",
   "configuracoes.contas.gmail.nao_guardou": "The password was not saved.",
-  "configuracoes.contas.gmail.no_arquivo": "No system password vault: the password is in a file only your user can read."
+  "configuracoes.contas.gmail.no_arquivo": "No system password vault: the password is in a file only your user can read.",
+  "configuracoes.geral.versao.titulo": "Update joBot",
+  "configuracoes.geral.versao.atual": "Installed version: {versao}",
+  "configuracoes.geral.versao.ultima": "Latest known version: {versao}",
+  "configuracoes.geral.versao.nao_conferida": "Latest known version: not checked yet. With the version notice on (Settings › Privacy), joBot checks once a day.",
+  "configuracoes.geral.versao.em_dia": "You have the newest version joBot knows about."
 }

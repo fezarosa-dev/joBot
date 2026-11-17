@@ -58,3 +58,22 @@
     </div>
   </form>
 </div>
+{#- Atualizar o joBot (T332; desenho 6.3): a versão instalada e a última que a checagem diária
+    trouxe; o botão só com uma versão mais nova conhecida. A espera aparece na faixa #aviso-versao -#}
+<section class="config-bloco" aria-labelledby="geral-versao">
+  <h2 id="geral-versao">{{ t("configuracoes.geral.versao.titulo") }}</h2>
+  <p class="config-texto">{{ t("configuracoes.geral.versao.atual", versao=versao_atual) }}</p>
+  {%- if versao_ultima %}
+  <p class="config-texto">{{ t("configuracoes.geral.versao.ultima", versao=versao_ultima) }}</p>
+  {%- else %}
+  <p class="config-texto">{{ t("configuracoes.geral.versao.nao_conferida") }}</p>
+  {%- endif %}
+  {%- if tem_versao_nova %}
+  <form method="post" action="/atualizar" hx-post="/atualizar" hx-target="#aviso-versao" class="acoes">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <button type="submit" class="botao">{{ t("aviso_versao.atualizar") }}</button>
+  </form>
+  {%- elif versao_ultima %}
+  <p class="config-texto">{{ t("configuracoes.geral.versao.em_dia") }}</p>
+  {%- endif %}
+</section>

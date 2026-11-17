@@ -1245,6 +1245,57 @@
     }).catch(() => {});
   });
 
+  // "Atualizar agora" (T332; desenho 6.3): o `jobot atualizar` para e religa o servidor. A caixa
+  // [data-atualizando] pergunta ao /saude-local a cada 2 s e recarrega quando a versão no ar deixa de
+  // ser a data-de; com o servidor fora no meio da troca, pergunta de novo. Passados 120 s, esconde a
+  // barra e mostra a explicação com "Tentar de novo". data-perguntas conta as perguntas agendadas
+  const PASSO_ATUALIZAR_MS = 2000;
+  const PRAZO_ATUALIZAR_MS = 120000;
+  const esperarAtualizacao = (caixa) => {
+    if (caixa.dataset.perguntas) return;
+    const inicio = Date.now();
+    let perguntas = 0;
+    const agendar = () => {
+      perguntas += 1;
+      caixa.dataset.perguntas = String(perguntas);
+      setTimeout(perguntar, PASSO_ATUALIZAR_MS);
+    };
+    const perguntar = async () => {
+      if (!caixa.isConnected) return;
+      try {
+        const resposta = await fetch("/saude-local", {
+          cache: "no-store",
+          signal: AbortSignal.timeout(5000),
+        });
+        const saude = resposta.ok ? await resposta.json() : null;
+        if (saude?.app === "jobot" && saude.versao !== caixa.dataset.de) {
+          window.location.reload();
+          return;
+        }
+      } catch {
+        // servidor fora (parado para a troca) ou resposta estranha: pergunta de novo
+      }
+      if (Date.now() - inicio < PRAZO_ATUALIZAR_MS) {
+        agendar();
+        return;
+      }
+      const barra = caixa.querySelector("[data-atualizar-barra]");
+      const demorou = caixa.querySelector("[data-atualizar-demorou]");
+      if (barra) barra.hidden = true;
+      if (demorou) demorou.hidden = false;
+      // o foco na caixa (ou solto) vai ao "Tentar de novo"; em outro lugar, fica onde está
+      const ativo = document.activeElement;
+      if (!ativo || ativo === document.body || ativo === caixa || barra?.contains(ativo)) {
+        demorou?.querySelector("button")?.focus();
+      }
+    };
+    agendar();
+  };
+  const procurarAtualizacao = () => {
+    for (const caixa of document.querySelectorAll("[data-atualizando]")) esperarAtualizacao(caixa);
+  };
+  document.addEventListener("htmx:afterSettle", procurarAtualizacao);
+
   // "Copiar endereço" do e-mail de candidatura (desenho 5.7): vem hidden e só aparece com
   // JavaScript (sem ele o endereço continua à vista). A troca do #estado-da-vaga traz o botão de
   // novo hidden: o afterSettle o mostra outra vez

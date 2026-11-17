@@ -11,7 +11,7 @@ import os
 import re
 import subprocess
 import sys
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Literal
 
@@ -19,10 +19,11 @@ import httpx
 
 import jobot
 from jobot.nucleo.quebra import URL_REPOSITORIO
-from jobot.sistema import casca
+from jobot.sistema import casca, processo
 from jobot.sistema.abrir import sair_do_servidor, subir_servidor
 from jobot.sistema.instancia import AVISO_CAPTURA, captura_em_andamento, pid_do_servidor
 from jobot.sistema.segundo_plano_linux import (
+    SERVICO,
     Recusa,
     Resultado,
     Rodar,
@@ -308,3 +309,37 @@ def atualizar(
         return 1
     _novidades(rodar, raiz, tipo, antigo)
     return 0
+
+
+def _sob_o_servico(cgroup: Path) -> bool:
+    """O servidor roda no cgroup do jobot.service (segundo plano ligado, fora da distrobox)."""
+    try:
+        return any(linha.endswith("/" + SERVICO) for linha in cgroup.read_text().splitlines())
+    except OSError:  # Mac, Windows ou /proc fora do ar
+        return False
+
+
+def lancar_atualizacao(
+    dados: Path, ambiente: Mapping[str, str], *, cgroup: Path = Path("/proc/self/cgroup")
+) -> subprocess.Popen[bytes]:
+    """`jobot atualizar` destacado, pedido pelo painel (T332): ele para o servidor que o chamou,
+    então vive num grupo próprio. A saída vai para `<dados>/logs/atualizar.log` (0600), que a
+    tela cita quando a versão nova demora; `JOBOT_DADOS` leva a pasta do painel que pediu.
+    Sob o jobot.service, o `disable --now` do `desligar()` mataria o cgroup inteiro, filho junto:
+    aí ele roda num scope próprio do systemd-run (D176.10)."""
+    comando = [sys.executable, "-m", "jobot", "atualizar"]
+    if _sob_o_servico(cgroup):
+        fora = ["systemd-run", "--user", "--scope", "--collect", "--quiet"]
+        comando = [*fora, "--unit", "jobot-atualizar", "--", *comando]
+    pasta = dados / "logs"
+    pasta.mkdir(mode=0o700, parents=True, exist_ok=True)
+    abertura = os.O_WRONLY | os.O_CREAT | os.O_APPEND | getattr(os, "O_NOFOLLOW", 0)
+    with os.fdopen(os.open(pasta / "atualizar.log", abertura, 0o600), "ab") as log:
+        return subprocess.Popen(
+            comando,
+            **processo.destacar(),
+            stdin=subprocess.DEVNULL,
+            stdout=log,
+            stderr=subprocess.STDOUT,
+            env={**ambiente, "JOBOT_DADOS": str(dados)},
+        )

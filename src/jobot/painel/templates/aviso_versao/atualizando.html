@@ -1,0 +1,23 @@
+{#- "Atualizando…" sem JavaScript (T332; desenho 6.3): recarrega a cada 5 s com a versão de antes;
+    a rota volta ao painel quando a versão no ar muda. Com erro, não recarrega e oferece de novo -#}
+{% extends "base.html" %}
+{% block titulo %}{{ t("aviso_versao.atualizando_titulo") }} · joBot{% endblock %}
+{% block estilos %}
+{%- if not erro %}<meta http-equiv="refresh" content="5;url=/atualizando?de={{ de }}">{% endif %}
+<link rel="stylesheet" href="/static/css/vagas.css"><link rel="stylesheet" href="/static/css/detalhe.css">
+{%- endblock %}
+{% block conteudo %}
+<div class="vazio">
+  <span class="icone" data-icone="hourglass" aria-hidden="true"></span>
+  <h1>{{ t("aviso_versao.atualizando_titulo") }}</h1>
+  {%- if erro %}
+  <p>{{ t(erro) }}</p>
+  <form method="post" action="/atualizar">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <button type="submit" class="botao">{{ t("aviso_versao.tentar") }}</button>
+  </form>
+  {%- else %}
+  <p>{{ t("aviso_versao.sem_js") }}</p>
+  {%- endif %}
+</div>
+{% endblock %}

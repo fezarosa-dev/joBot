@@ -172,5 +172,10 @@
   "configuracoes.contas.gmail.erro.cofre": "O cofre do sistema não respondeu.",
   "configuracoes.contas.gmail.erro.nao_apagou": "A senha não foi apagada. Tente de novo.",
   "configuracoes.contas.gmail.nao_guardou": "A senha não foi guardada.",
-  "configuracoes.contas.gmail.no_arquivo": "Sem cofre do sistema: a senha ficou num arquivo que só o seu usuário lê."
+  "configuracoes.contas.gmail.no_arquivo": "Sem cofre do sistema: a senha ficou num arquivo que só o seu usuário lê.",
+  "configuracoes.geral.versao.titulo": "Atualizar o joBot",
+  "configuracoes.geral.versao.atual": "Versão instalada: {versao}",
+  "configuracoes.geral.versao.ultima": "Última versão conhecida: {versao}",
+  "configuracoes.geral.versao.nao_conferida": "Última versão conhecida: ainda não conferida. Com o aviso de versão ligado (Configurações › Privacidade), o joBot confere uma vez por dia.",
+  "configuracoes.geral.versao.em_dia": "Você está na versão mais nova que o joBot conhece."
 }
