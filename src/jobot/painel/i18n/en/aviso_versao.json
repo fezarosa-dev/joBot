@@ -1,3 +1,14 @@
 {
-  "aviso_versao.texto": "A new joBot version is available: {versao}. To update, run jobot atualizar in a terminal."
+  "aviso_versao.texto": "A new joBot version is available: {versao}.",
+  "aviso_versao.janela": "The joBot window has a new version too.",
+  "aviso_versao.atualizar": "Update now",
+  "aviso_versao.baixar_janela": "Download the new window",
+  "aviso_versao.janela_aberta": "The new version's page opened in your browser.",
+  "aviso_versao.janela_falhou": "Could not open the browser. Download the new window at {endereco}",
+  "aviso_versao.atualizando": "Updating joBot. The panel reloads by itself when the new version opens.",
+  "aviso_versao.demorou": "Two minutes went by and the new version did not open. What happened is in the file logs/atualizar.log, in the data folder (Settings › Privacy).",
+  "aviso_versao.tentar": "Try again",
+  "aviso_versao.nao_comecou": "Could not start the update. The reason is in the joBot log, in the data folder (Settings › Privacy).",
+  "aviso_versao.atualizando_titulo": "Updating…",
+  "aviso_versao.sem_js": "This page checks again every 5 seconds and goes back to the panel when the new version opens. If it takes more than two minutes, see the file logs/atualizar.log in the data folder (Settings › Privacy)."
 }
