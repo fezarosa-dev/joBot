@@ -1,0 +1,5 @@
+{#- motivo "chave" ou "chave:valor" (a regra do executor): o valor serve ao {tipo} ou ao {n} da chave -#}
+{%- macro motivo_texto(m) -%}
+  {%- set partes = m.partition(":") -%}
+  {{ t(partes[0], tipo=partes[2], n=partes[2]) }}
+{%- endmacro -%}

@@ -27,29 +27,35 @@ _TIPO = {
 }
 
 
-def _idioma_e_tema(request: Request) -> tuple[str, str]:
-    """O idioma e o tema salvos; com o banco ilegível, o do `Accept-Language` e o padrão."""
+def _aparencia(request: Request) -> tuple[str, str, str]:
+    """O idioma, o tema e o tamanho do texto salvos; com o banco ilegível, o do `Accept-Language`
+    e os padrões. Tudo lido no mesmo `try`: um valor torto não derruba a página de erro."""
     try:
-        return seguranca.idioma_do_pedido(request), seguranca._tema(request)
+        return (seguranca.idioma_do_pedido(request), *seguranca.tema_e_texto(request))
     except Exception:  # o erro pode ser o do próprio banco: a página sai mesmo assim
-        return idioma_inicial(request.headers.get("accept-language")), "sistema"
+        return idioma_inicial(request.headers.get("accept-language")), "sistema", "padrao"
 
 
-def _minima(idioma: str, tema: str, titulo: str, texto: str, inicio: str) -> str:
+def _minima(
+    idioma: str, tema: str, tamanho_texto: str, titulo: str, texto: str, inicio: str
+) -> str:
     """A página sem a casca, no mesmo visual, para quando montar a casca também falha."""
     return (
-        f'<!doctype html><html lang="{escape(idioma)}" data-tema="{escape(tema)}"><head>'
+        f'<!doctype html><html lang="{escape(idioma)}" data-tema="{escape(tema)}"'
+        f' data-texto="{escape(tamanho_texto)}"><head>'
         '<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
         f'<title>{escape(titulo)} · joBot</title><link rel="icon" href="data:,">'
         '<link rel="stylesheet" href="/static/css/base.css">'
-        '<link rel="stylesheet" href="/static/css/vagas.css"></head><body>'
-        f'<main id="conteudo"><h1 class="titulo-pagina">{escape(titulo)}</h1>'
-        f'<p>{escape(texto)}</p><p><a href="/">{escape(inicio)}</a></p></main></body></html>'
+        '<link rel="stylesheet" href="/static/css/vagas.css">'
+        '<link rel="stylesheet" href="/static/css/detalhe.css"></head><body>'
+        f'<main id="conteudo"><div class="vazio"><h1>{escape(titulo)}</h1>'
+        f'<p>{escape(texto)}</p><a class="primario" href="/">{escape(inicio)}</a>'
+        "</div></main></body></html>"
     )
 
 
 def _responder(request: Request, status: int, cabecalhos: Mapping[str, str] | None) -> Response:
-    idioma, tema = _idioma_e_tema(request)
+    idioma, tema, tamanho_texto = _aparencia(request)
     tipo = _TIPO.get(status, "outro")
     if status == 403:  # o único 403 é o do CSRF: o texto é o do `detail`, sem lê-lo da exceção
         texto = t(idioma, "seguranca.recarregue")
@@ -64,6 +70,7 @@ def _responder(request: Request, status: int, cabecalhos: Mapping[str, str] | No
         "t": lambda chave, **params: t(idioma, chave, **params),
         "idioma": idioma,
         "tema": tema,
+        "tamanho_texto": tamanho_texto,
         "csrf_token": seguranca.csrf_token(request),
         "titulo": titulo,
         "texto": texto,
@@ -76,7 +83,9 @@ def _responder(request: Request, status: int, cabecalhos: Mapping[str, str] | No
         _LOG.exception("a casca da página de erro falhou em %r", request.url.path)
         inicio = t(idioma, "erro.inicio")
         return HTMLResponse(
-            _minima(idioma, tema, titulo, texto, inicio), status_code=status, headers=cabecalhos
+            _minima(idioma, tema, tamanho_texto, titulo, texto, inicio),
+            status_code=status,
+            headers=cabecalhos,
         )
 
 

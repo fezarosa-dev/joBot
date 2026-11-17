@@ -1,0 +1,33 @@
+{#- Alerta (T259; desenho 5.4): um <dialog> modal de 260px para confirmar uma ação que não volta
+    (Apagar busca, Remover site, Esquecer logins). Um por ação, escrito depois da lista; quem abre é
+    um botão com `data-alerta-abre="<id do alerta>"`, que sem JavaScript é o submit de um formulário
+    GET para a página de confirmação (`confirmar.html`, T307): o alerta é a camada de cima, não a única
+    via, e o POST da `acao` só sai do botão do alerta ou do da página. Importe com contexto:
+        {% from "_alerta.html" import alerta with context %}
+        {{ alerta("alerta-busca-1", titulo, texto, t("comum.apagar"), "/buscas/1/apagar") }}
+    - `id`: o mesmo do `data-alerta-abre`; o título e o texto levam `<id>-titulo` e `<id>-texto`;
+    - `titulo`: pergunta terminada em "?", com o nome do que será afetado; `texto`: o que continua;
+    - `rotulo_acao`: o verbo da ação (`comum.apagar`, `comum.remover`, `comum.esquecer`), em cima;
+    - `acao`: o `action` do POST; `campos`: dicionário de campos ocultos a mais (o csrf_token já vai);
+    - `alvo_htmx`: seletor onde a resposta entra (HTMX, no lugar de abrir a página); sem ele, é um POST comum;
+    - `indicador`: seletor do componente de progresso que o HTMX mostra enquanto o pedido espera (só com `alvo_htmx`).
+    - `troca`: o `hx-swap` da resposta (ex.: "outerHTML" quando o alvo é o próprio cartão; só com `alvo_htmx`).
+    O foco abre no próprio <dialog> (E13): Return logo depois de abrir não aperta nenhum botão. -#}
+{% macro alerta(id, titulo, texto, rotulo_acao, acao, campos=None, alvo_htmx=None, indicador=None, troca=None) -%}
+<dialog id="{{ id }}" class="alerta vidro-grande vidro-elevado" role="alertdialog" aria-labelledby="{{ id }}-titulo" aria-describedby="{{ id }}-texto" tabindex="-1" autofocus data-alerta>
+  <form method="post" action="{{ acao }}"{% if alvo_htmx %} hx-post="{{ acao }}" hx-target="{{ alvo_htmx }}"{% if indicador %} hx-indicator="{{ indicador }}"{% endif %}{% if troca %} hx-swap="{{ troca }}"{% endif %}{% endif %}>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    {%- for nome, valor in (campos or {}).items() %}
+    <input type="hidden" name="{{ nome }}" value="{{ valor }}">
+    {%- endfor %}
+    <div class="alerta-corpo">
+      <h2 id="{{ id }}-titulo" class="alerta-titulo">{{ titulo }}</h2>
+      <p id="{{ id }}-texto" class="alerta-texto">{{ texto }}</p>
+    </div>
+    <div class="alerta-acoes">
+      <button type="submit">{{ rotulo_acao }}</button>
+      <button type="button" data-alerta-fecha>{{ t("comum.cancelar") }}</button>
+    </div>
+  </form>
+</dialog>
+{%- endmacro %}

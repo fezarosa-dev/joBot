@@ -17,9 +17,9 @@ A mesma vaga aparece em vários sites e cidades, salários vêm em formatos dife
 - Vaga com prazo vencido sai das listas.
 - Nenhuma vaga é apagada, nem fechada nem antiga. O ciclo de vida marca; não apaga.
 
-### O que fica guardado para a fase 6
+### O que fica guardado para a fase 7
 
-Decisão de 2026-11-13. A fase 6 treina modelos (ADR 0015) e precisa destes dados desde o primeiro dia:
+Decisão de 2026-11-13. A fase 7 treina modelos (ADR 0015) e precisa destes dados desde o primeiro dia:
 
 - O texto completo de toda vaga: o texto puro e o HTML bruto da descrição, quando houver.
 - O histórico das ações da pessoa no painel (salvou, descartou, ocultou, mudou de status, desfez), com data. Fica numa tabela de eventos só de acréscimo: nada nela é alterado nem apagado.
@@ -44,18 +44,18 @@ Decisão de 2026-11-13. A fase 6 treina modelos (ADR 0015) e precisa destes dado
 ### Onde ficam as regras e como medir
 
 - As regras ficam em arquivos de dados lidos pelo Python (versão local) e pelo JavaScript (versão Pages).
-- Os casos de teste das regras ficam em JSON desde a fase 1. O teste em JavaScript chega com a versão Pages (fase 7).
+- Os casos de teste das regras ficam em JSON desde a fase 1. O teste em JavaScript chega com a versão Pages (fase 8).
 - Conjunto de ouro (gabarito): 329 vagas reais, de 30 fontes, já coletadas em 2026-11-13.
 - Rotulagem do gabarito em duas passadas: agentes do modelo Sonnet rotulam; o modelo Fable rotula de novo, às cegas (sem ver a primeira resposta). Onde discordam, o Fable decide e registra o porquê. O dono não confere amostra do gabarito.
 - O gabarito fica só no computador de quem desenvolve, fora do repositório. O comando que mede recebe o caminho dele. No repositório vão só as regras e os números medidos.
 - O gabarito nunca entra em dados de treino.
 - O painel da fase 1 não tem tela para conferir rótulos. Ela existia para o dono avaliar as regras; em 2026-11-13 o dono trocou essa avaliação pelo gabarito rotulado por modelos, e a tela saiu.
 - A fase 1 mede e registra o acerto de cada rótulo.
-- Se algum rótulo ficar abaixo de 90% de acerto, só esse rótulo passa a usar o modelo gratuito multilingual-e5-small (cerca de 120 MB, licença MIT). Isso fica para a fase 3, junto com a IA local.
+- Se algum rótulo ficar abaixo de 90% de acerto, só esse rótulo passa a usar o modelo gratuito multilingual-e5-small (cerca de 120 MB, licença MIT). Isso fica para a fase 4, junto com a IA local.
 
 ## Consequências
 
-- Mudança de regra exige rodar os testes em Python e, a partir da fase 7, também em JavaScript.
+- Mudança de regra exige rodar os testes em Python e, a partir da fase 8, também em JavaScript.
 - A precisão dos rótulos é medida, não suposta.
 - O banco cresce com o tempo, porque nenhuma vaga é apagada.
 
@@ -64,4 +64,4 @@ Decisão de 2026-11-13. A fase 6 treina modelos (ADR 0015) e precisa destes dado
 - [0002. Duas versões, um núcleo](0002-duas-versoes-um-nucleo.md)
 - [0004. Fontes públicas de vagas e coleta educada](0004-fontes-publicas.md)
 - [0008. Painel e visual](0008-painel-e-visual.md)
-- [0015. Treino de modelos (fase 6)](0015-treino.md)
+- [0015. Treino de modelos (fase 7)](0015-treino.md)

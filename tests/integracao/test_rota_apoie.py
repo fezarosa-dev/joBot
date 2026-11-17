@@ -68,9 +68,11 @@ def test_link_apoie_sem_rastreio(cliente: TestClient) -> None:
         assert {"noopener", "noreferrer"} <= set(rel.group(1).split())
         assert "ping" not in atributos
         assert "onclick" not in atributos
-        assert "<dialog" not in html
-        assert 'role="dialog"' not in html
-        assert "popover" not in html
+        # a casca tem <dialog> e popover (detalhe da vaga, menus): o Apoie não pode abrir nenhum
+        assert "popover" not in atributos and "command" not in atributos
+        rodape = RODAPE.search(html)
+        assert rodape is not None
+        assert not re.search(r"<dialog\b|\brole=\"dialog\"|\bpopover\b", rodape.group(1))
 
 
 @pytest.mark.parametrize("rota", ["/vagas", "/buscas", "/fontes"])

@@ -19,7 +19,7 @@
 | 🌐 **httpx** (0.28.1) | Pedir as páginas e APIs das fontes de vagas. | É o único cliente HTTP do joBot, onde mora a coleta educada (identificação e intervalo entre pedidos). |
 | 🔍 **selectolax** (1.0.2) | Ler o HTML das páginas de vagas. | Separar os dados da vaga do resto da página. |
 | 🔐 **keyring** (25.7.0) | Guardar a chave do 2Captcha no cofre de senhas do sistema. | A chave não fica num arquivo comum; sem cofre, vai a um arquivo que só você lê (ADR 0014). |
-| 🎭 **Playwright** (1.65.1) | Controlar um navegador. | Abre um Chrome visível para você fazer login e resolver CAPTCHA (fase 2). Também roda os testes de tela. |
+| 🎭 **Playwright** (1.65.1) | Controlar um navegador. | Lê os sites com login, usando a sessão que você abriu (fase 2). Também roda os testes de tela. |
 
 ## ✅ Qualidade
 
@@ -28,7 +28,7 @@
 | 🧪 **pytest** (9.2.0) | Rodar os testes. | TDD em todo código: escrever o teste, ver falhar, implementar, ver passar. |
 | 🧹 **ruff** (0.17.5) | Estilo e erros comuns. | Um estilo só em todo o projeto. |
 | 🔎 **mypy** strict (2.4.1) | Conferir os tipos. | No modo estrito, erros de tipo aparecem antes de rodar. |
-| 🤖 **GitHub Actions** | Tarefas automáticas no GitHub. | Roda os testes em todo PR (pedido de integração), inclusive de fork, de graça em repositório público. Também copia esta wiki e vai gerar a versão GitHub Pages (fase 7). |
+| 🤖 **GitHub Actions** | Tarefas automáticas no GitHub. | Roda os testes em todo PR (pedido de integração), inclusive de fork, de graça em repositório público. Também copia esta wiki e vai gerar a versão GitHub Pages (fase 8). |
 
 > [!NOTE]
 > As versões entre parênteses são as que o [`pyproject.toml`](https://github.com/fezarosa-dev/joBot/blob/main/pyproject.toml) fixa hoje.
@@ -58,12 +58,12 @@ A IA é opcional. Sem ela, o joBot funciona com regras e palavras-chave ([ADR 00
 A instalação é nativa ([ADR 0003](https://github.com/fezarosa-dev/joBot/blob/main/docs/decisions/0003-stack-e-instalacao-nativa.md)):
 
 - O Docker Desktop é pesado e, no Windows e no macOS, roda dentro de uma máquina virtual.
-- Um Chrome visível para login manual e CAPTCHA fica difícil dentro de um container.
+- Abrir uma janela do navegador para você fazer o login fica difícil dentro de um container.
 - Microfone, início com o sistema e atalho são coisas do sistema operacional.
 - O login do Claude Code teria de ser feito de novo dentro do container (no macOS ele fica no Keychain, que o container não enxerga).
 
 ## 💻 Onde roda
 
-- **Sistemas:** Linux, Windows e macOS. O desenvolvimento acontece no Linux; os instaladores de Windows e macOS chegam na fase 8.
+- **Sistemas:** Linux, Windows e macOS. O desenvolvimento acontece no Linux; os instaladores chegam na fase 3: Windows e Linux primeiro, macOS depois.
 - **Memória:** 8 GB de RAM (16 GB deixam tudo mais folgado).
 - **Placa de vídeo:** não precisa.

@@ -1,0 +1,12 @@
+{#- resposta HTMX de Ocultar e de Desfazer/Refazer (T256): a faixa nova por hx-swap-oob, no mesmo nó
+    da região viva, e a seção Vagas da lateral com a contagem nova. A linha sai (ou volta) pelo
+    app.js, avisado pelo cabeçalho HX-Trigger-After-Settle da rota. -#}
+{%- from "_faixa_desfazer.html" import faixa_desfazer with context %}
+{%- if com_faixa %}
+<div id="faixa-desfazer" role="status" hx-swap-oob="innerHTML">
+{{ faixa_desfazer(texto, acao, rota, vaga_id, voltar, busca, antes) }}
+</div>
+{%- endif %}
+{%- with oob = true, lado = lateral_oob.lado, caminho = lateral_oob.caminho, aba_atual = lateral_oob.aba %}
+{%- include "lateral_vagas.html" %}
+{%- endwith %}

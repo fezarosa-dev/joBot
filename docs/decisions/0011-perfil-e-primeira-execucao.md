@@ -22,7 +22,7 @@ Sem um perfil bom, a IA não tem com o que trabalhar, e preencher formulário lo
 ### Primeira execução, em passos
 
 - Na fase 1, o assistente tem só dois passos: preferências de busca (cargos ou palavras-chave, cidades, remoto/híbrido/presencial, nível, salário mínimo e idiomas) e segundo plano.
-- Os passos abaixo entram nas fases deles: logins na fase 2; IA, currículo e questionário na fase 3; Gmail e áudio na fase 5.
+- Os passos abaixo entram nas fases deles: logins na fase 2; IA, currículo e questionário na fase 4; Gmail e áudio na fase 6.
 - Passo 0: escolher a IA (o Claude Code é detectado sozinho).
 - Passo 1: currículo.
 - Passo 2: questionário.

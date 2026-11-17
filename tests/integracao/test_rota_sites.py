@@ -3,9 +3,10 @@
 Sem rede: o painel não faz pedido nenhum aqui (só o DNS, trocado por `app.state.resolvedor`).
 """
 
+import re
 from contextlib import closing
 from datetime import UTC, datetime
-from html import escape
+from html import escape, unescape
 from pathlib import Path
 from typing import Any
 
@@ -302,3 +303,124 @@ def test_outras_abas_nao_mostram_paginas(painel: Painel) -> None:
     painel.leitura(id_, "a", None)
     painel.leitura(id_, "b", "-a\n+b")
     assert "Trainee Alfa" not in painel.http.get("/vagas?aba=todas").text
+
+
+def _dialogo(html: str, id_: int) -> str:
+    achou = re.search(rf'<dialog\b[^>]*\bid="alerta-site-{id_}".*?</dialog>', html, re.DOTALL)
+    assert achou, f"sem alerta para o site {id_}"
+    return achou.group(0)
+
+
+def test_remover_tem_alerta(painel: Painel) -> None:
+    """T261: o alerta é um <dialog> com o nome escapado, o form de hoje, o foco no próprio dialog
+    (E13: nenhum botão com autofocus) e o Cancelar fora do envio."""
+    id_ = painel.semear(nome='Dados <b>&"x"')
+    html = painel.http.get("/sites").text
+    dialogo = _dialogo(html, id_)
+    abertura = re.match(r"<dialog\b[^>]*>", dialogo)
+    assert abertura
+    assert 'role="alertdialog"' in abertura.group(0)
+    assert re.search(r"\bautofocus\b", abertura.group(0))
+    assert 'tabindex="-1"' in abertura.group(0)
+    assert "<b>" not in html  # o nome entrou escapado
+    titulo = re.search(r'<h2[^>]*class="alerta-titulo"[^>]*>(.*?)</h2>', dialogo, re.DOTALL)
+    assert titulo
+    assert unescape(titulo.group(1)).strip() == 'Remover o site «Dados <b>&"x"»?'
+    form = re.search(
+        rf'<form[^>]*action="/sites/{id_}/remover"[^>]*>(.*?)</form>', dialogo, re.DOTALL
+    )
+    assert form and 'method="post"' in form.group(0)
+    assert f'name="{CAMPO_CSRF}" value="{painel.token}"' in form.group(1)
+    botoes = re.findall(r"<button\b[^>]*>", dialogo)
+    assert len(botoes) == 2
+    assert not any(re.search(r"\bautofocus\b", b) for b in botoes)
+    cancelar = [b for b in botoes if 'type="button"' in b]
+    assert len(cancelar) == 1 and "data-alerta-fecha" in cancelar[0]
+    assert "O texto guardado e as mudanças dele serão apagados." in dialogo
+    assert re.search(r">\s*Remover\s*</button>", dialogo)
+
+
+def test_remover_site_sem_js_vai_para_confirmar(painel: Painel) -> None:
+    """T307: o botão Remover da linha, lido sem JavaScript, leva à página de confirmação (GET que
+    não muda nada); o texto é o do alerta, o botão faz o POST de hoje e o Cancelar volta. A
+    pergunta em dois cliques (`<details>` e "Remover mesmo") continua fora."""
+    id_ = painel.semear(nome='Dados <b>&"x"')
+    html = painel.http.get("/sites").text
+    fora = re.sub(r"<dialog\b.*?</dialog>", "", html, flags=re.DOTALL)
+    (form,) = re.findall(
+        rf'<form[^>]*action="/sites/{id_}/remover/confirmar"[^>]*>.*?</form>', fora, re.DOTALL
+    )
+    assert 'method="get"' in form and CAMPO_CSRF not in form
+    assert re.search(rf'<button[^>]*type="submit"[^>]*data-alerta-abre="alerta-site-{id_}"', form)
+    assert f'action="/sites/{id_}/remover"' not in fora
+    assert "Remover mesmo" not in html and 'class="apagar"' not in html
+
+    for _ in range(2):  # GET repetido: nada muda
+        r = painel.http.get(f"/sites/{id_}/remover/confirmar")
+        assert r.status_code == 200
+        assert painel.sql("SELECT count(*) FROM pagina_acompanhada") == [(1,)]
+    pagina = r.text
+    assert "<b>" not in pagina
+    titulo = re.search(r'<h1[^>]*class="alerta-titulo"[^>]*>(.*?)</h1>', pagina, re.DOTALL)
+    assert titulo and unescape(titulo.group(1)).strip() == 'Remover o site «Dados <b>&"x"»?'
+    assert "O texto guardado e as mudanças dele serão apagados." in pagina
+    (post,) = re.findall(
+        rf'<form[^>]*action="/sites/{id_}/remover"[^>]*>(.*?)</form>', pagina, re.DOTALL
+    )
+    assert f'name="{CAMPO_CSRF}" value="{painel.token}"' in post
+    assert re.search(r'<button[^>]*type="submit"[^>]*>\s*Remover\s*</button>', post)
+    assert re.search(r'<a\b[^>]*href="/sites"[^>]*>\s*Cancelar\s*</a>', pagina)
+    sem_paleta = re.sub(r'<dialog\b[^>]*\bid="paleta".*?</dialog>', "", pagina, flags=re.S)
+    assert "<dialog" not in sem_paleta and "autofocus" not in sem_paleta
+
+
+@pytest.mark.parametrize(("id_", "status"), [("999", 404), (str(2**63 - 1), 404), ("0", 422)])
+def test_remover_site_confirmar_de_pagina_que_nao_existe(
+    painel: Painel, id_: str, status: int
+) -> None:
+    assert painel.http.get(f"/sites/{id_}/remover/confirmar").status_code == status
+
+
+def test_remover_site_post_direto_continua(painel: Painel) -> None:
+    """O POST de hoje (o do alerta e o do botão da página de confirmação) remove como antes."""
+    id_ = painel.semear()
+    r = painel.post(f"/sites/{id_}/remover")
+    assert (r.status_code, r.headers["location"]) == (303, "/sites")
+    assert painel.sql("SELECT count(*) FROM pagina_acompanhada") == [(0,)]
+
+
+def test_desativar_continua_sem_pergunta(painel: Painel) -> None:
+    id_ = painel.semear()
+    fora = re.sub(r"<dialog\b.*?</dialog>", "", painel.http.get("/sites").text, flags=re.DOTALL)
+    (form,) = re.findall(
+        rf'<form[^>]*action="/sites/{id_}/desativar"[^>]*>(.*?)</form>', fora, re.DOTALL
+    )
+    assert "data-alerta-abre" not in form
+
+
+def test_lista_e_agrupada_e_a_linha_leva_o_menu_de_contexto(painel: Painel) -> None:
+    ativa = painel.semear()
+    parada = painel.semear("https://outro.exemplo.test/estagio", "Estágio Beta")
+    painel.post(f"/sites/{parada}/desativar")
+    html = painel.http.get("/sites").text
+    assert '<ul class="lista-agrupada" id="lista-sites">' in html
+    assert '<li class="cartao' not in html
+    linha_ativa = re.search(rf'<li[^>]*id="site-{ativa}"[^>]*>', html)
+    linha_parada = re.search(rf'<li[^>]*id="site-{parada}"[^>]*>', html)
+    assert linha_ativa and linha_parada
+    assert 'data-menu="menu-site"' in linha_ativa.group(0)
+    assert f'data-id="{ativa}"' in linha_ativa.group(0)
+    assert re.search(r"\bdata-ativa\b", linha_ativa.group(0))
+    assert not re.search(r"\bdata-ativa\b", linha_parada.group(0))
+    menu = re.search(
+        r'<div id="menu-site"[^>]*data-menu-contexto>.*?</div>\s*<div id="menu-site-aviso"',
+        html,
+        re.DOTALL,
+    )
+    assert menu
+    assert 'data-modelo-acao="/sites/{id}/desativar"' in menu.group(0)
+    assert 'data-requer="ativa"' in menu.group(0)
+    assert 'data-acionar="remover"' in menu.group(0)
+    assert 'data-modelo-acao="/sites/{id}/remover"' not in menu.group(
+        0
+    )  # remover passa pelo alerta

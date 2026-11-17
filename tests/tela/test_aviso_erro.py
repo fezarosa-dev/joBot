@@ -274,6 +274,22 @@ def test_aviso_nao_cobre_a_navegacao_nem_o_link_de_pular(page: Page, painel: str
     )
 
 
+def test_aviso_fica_logo_abaixo_da_barra(page: Page, painel: str) -> None:
+    """Desenho 5.2 (T251): faixa no fluxo, colada à barra, na coluna ao lado da lateral."""
+    page.set_viewport_size({"width": 1200, "height": 800})
+    _abrir(page, painel)
+    _clicar(page, "b500")
+    expect(page.locator(REGIAO)).to_be_visible()
+    caixas = page.evaluate(
+        """() => {
+          const r = s => document.querySelector(s).getBoundingClientRect().toJSON();
+          return {aviso: r('#aviso-erro'), topo: r('.topo'), lateral: r('aside.lateral')};
+        }"""
+    )
+    assert caixas["aviso"]["top"] == pytest.approx(caixas["topo"]["bottom"], abs=1)
+    assert caixas["aviso"]["left"] >= caixas["lateral"]["right"] - 1
+
+
 @pytest.mark.parametrize("esquema", ["light", "dark"])
 def test_aviso_tem_contraste_nos_dois_temas(page: Page, painel: str, esquema: str) -> None:
     page.emulate_media(color_scheme="light" if esquema == "light" else "dark")
@@ -356,7 +372,7 @@ def test_carga_e_polling_avisam_mas_nao_insistem_depois_de_fechado(page: Page, p
           htmx.process(main);
         }"""
     )
-    page.wait_for_function("window.pedidos >= 1")
+    page.wait_for_function("() => window.pedidos >= 1")
     expect(regiao).to_contain_text(GENERICO_REDE)  # o pedido de carga avisou
     _fechar(page)
     visto = page.evaluate("window.pedidos")

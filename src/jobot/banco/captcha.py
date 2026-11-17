@@ -10,6 +10,7 @@ from datetime import date
 from jobot.banco.cadastros import ler_config
 
 TETO_DIA = 30
+NOME_NO_COFRE = "2captcha"  # nome da chave do 2Captcha no cofre
 
 # Um comando só: o contador vale `{"dia": "AAAA-MM-DD", "n": N}`. Valor que não é JSON, ou sem
 # `dia` igual ao de hoje e `n` inteiro, recomeça em 1;

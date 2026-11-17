@@ -1,7 +1,6 @@
 import json
 import logging
-import time
-from collections.abc import Callable, Iterator
+from collections.abc import Callable
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from typing import Any
@@ -521,16 +520,7 @@ async def test_teto_recusa_antes_do_pedido() -> None:
     assert (fila.n("/createTask"), fila.n("/getTaskResult")) == (0, 0)
 
 
-@pytest.fixture
-def fuso_sao_paulo(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    monkeypatch.setenv("TZ", "America/Sao_Paulo")
-    time.tzset()
-    yield
-    monkeypatch.undo()
-    time.tzset()
-
-
-async def test_reserva_usa_o_dia_local(fuso_sao_paulo: None) -> None:
+async def test_reserva_usa_o_dia_local(fuso_de_sao_paulo: None) -> None:
     dias: list[date] = []
     relogio = RelogioFalso(datetime(2026, 11, 16, 2, 30, tzinfo=UTC))  # 23h30 do dia 15 em Brasília
     await _resolver(Fila([_aberta()], [_pronta()]), relogio=relogio, dias=dias)

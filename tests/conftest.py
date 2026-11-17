@@ -6,10 +6,13 @@ O fixture `laco_versao_parado` (T85, T104) é pedido só pelas suítes que sobem
 import asyncio
 import os
 import socket
+import time
 from collections.abc import Iterator
 from typing import Any
 
 import pytest
+
+from apoio.partes import parte_dos_itens
 
 # antes de qualquer import do jobot: os testes nunca tocam o cofre de senhas real (T180)
 os.environ["PYTHON_KEYRING_BACKEND"] = "keyring.backends.fail.Keyring"
@@ -21,6 +24,23 @@ def _confere(endereco: Any) -> None:
     host = endereco[0] if isinstance(endereco, tuple) else endereco
     if host not in _LOCAIS:
         raise RuntimeError(f"rede bloqueada nos testes: {endereco!r}")
+
+
+@pytest.hookimpl(trylast=True)  # depois do filtro `-m`: divide só o que sobrou
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    """`JOBOT_PARTE=i/n` mantém só a parte i dos n pedaços da coleta (o CI roda um job por parte).
+    Sem a variável, nada muda."""
+    parte = os.environ.get("JOBOT_PARTE")
+    if parte is None:
+        return
+    try:
+        fica = parte_dos_itens(items, parte)
+    except ValueError as erro:
+        raise pytest.UsageError(str(erro)) from erro
+    fica_ids = {id(item) for item in fica}
+    saem = [item for item in items if id(item) not in fica_ids]
+    config.hook.pytest_deselected(items=saem)
+    items[:] = fica
 
 
 @pytest.fixture(autouse=True)
@@ -59,3 +79,13 @@ def laco_versao_parado(monkeypatch: pytest.MonkeyPatch) -> None:
         await asyncio.Event().wait()
 
     monkeypatch.setattr(servir, "laco_versao", parado)
+
+
+@pytest.fixture
+def fuso_de_sao_paulo(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """Roda o teste com TZ=America/Sao_Paulo (dia local, DP8) e devolve o fuso depois."""
+    monkeypatch.setenv("TZ", "America/Sao_Paulo")
+    time.tzset()
+    yield
+    monkeypatch.undo()  # volta o TZ antes do tzset: sem isso o fuso vaza para os outros testes
+    time.tzset()

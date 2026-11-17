@@ -1,15 +1,23 @@
 """O que as rotas do painel leem do sistema: ambiente, executor de comando e plataforma.
 
-O teste troca os quatro em `app.state` (`ambiente`, `rodar_comando`, `plataforma`, `cofre`); sem
-troca, vale o real.
+O teste troca os oito em `app.state` (`ambiente`, `rodar_comando`, `plataforma`, `cofre`,
+`abrir_processo`, `ler_navegador`, `leitores` e `abrir_imap`); sem troca, vale o real. Os grupos de
+Configurações moram aqui, abaixo das rotas, porque a lateral também os lê (T265).
 """
 
 import os
 import sys
-from collections.abc import Mapping
+from collections.abc import Awaitable, Callable, Mapping, Sequence
+from typing import Literal
 
 from fastapi import Request
 
+from jobot.navegador import abrir, instalador
+from jobot.navegador.janela_comum import AbrirJanela
+from jobot.nucleo import gmail
+from jobot.nucleo.gmail import AbrirImap
+from jobot.nucleo.leitores.base import LeitorComLogin
+from jobot.nucleo.leitores.registro import leitores
 from jobot.sistema import segundo_plano_linux
 from jobot.sistema.cofre import Cofre
 from jobot.sistema.segundo_plano_linux import Rodar
@@ -32,3 +40,51 @@ def no_linux(request: Request) -> bool:
 def cofre_do_painel(request: Request) -> Cofre:
     cofre: Cofre | None = getattr(request.app.state, "cofre", None)
     return Cofre(request.app.state.banco.parent) if cofre is None else cofre
+
+
+def imap_do_painel(request: Request) -> AbrirImap:
+    """Quem abre a conexão IMAP do Gmail (T278); o teste põe um falso, a rede está fechada."""
+    abrir_imap: AbrirImap | None = getattr(request.app.state, "abrir_imap", None)
+    return gmail.abrir_imap_ssl if abrir_imap is None else abrir_imap
+
+
+def abrir_instalador_do_painel(request: Request) -> AbrirJanela:
+    """Quem abre o processo do instalador do navegador (T240)."""
+    abridor: AbrirJanela | None = getattr(request.app.state, "abrir_processo", None)
+    return instalador.abrir_instalador if abridor is None else abridor
+
+
+LerNavegador = Callable[[], Awaitable[Literal["chrome", "chromium"] | None]]
+
+
+def ler_navegador_do_painel(request: Request) -> LerNavegador:
+    """Quem lê do disco qual navegador as janelas usam (sobe o driver do Playwright)."""
+    ler: LerNavegador | None = getattr(request.app.state, "ler_navegador", None)
+    return abrir.navegador_instalado if ler is None else ler
+
+
+GRUPOS = (
+    "geral",
+    "fontes",
+    "funcoes",
+    "segundo-plano",
+    "privacidade",
+    "servicos",
+    "contas",
+    "ferramentas",
+)
+COM_LOGIN = "contas"
+FERRAMENTAS = "ferramentas"
+SO_COM_LEITOR = (FERRAMENTAS,)  # hoje a única ferramenta é o navegador do login
+
+
+def grupos_visiveis(leitores: Sequence[LeitorComLogin]) -> tuple[str, ...]:
+    """Os grupos da página: "Ferramentas" só existe com leitor registrado (D137.12); "Contas"
+    sempre, porque o Gmail mora lá (E13), mas as ações dos sites pedem leitor (`_exige_leitor`)."""
+    return GRUPOS if leitores else tuple(g for g in GRUPOS if g not in SO_COM_LEITOR)
+
+
+def leitores_do_painel(request: Request) -> Sequence[LeitorComLogin]:
+    # o teste põe os leitores em `app.state` (E2); sem eles vale o registro
+    registrados: Sequence[LeitorComLogin] = getattr(request.app.state, "leitores", leitores())
+    return registrados

@@ -12,7 +12,6 @@ from jobot.banco.migrar import MIGRACOES, migrar
 
 ARQUIVO = MIGRACOES / "0006_ocorrencia_fonte_vaga.sql"
 INDICE = "ocorrencia_fonte_vaga"
-ULTIMA = len(list(MIGRACOES.glob("*.sql")))
 
 
 def _sql_da_0006() -> str:
@@ -25,7 +24,7 @@ def _nomes(con: sqlite3.Connection, tipo: str) -> set[str]:
     return {n for (n,) in con.execute("SELECT name FROM sqlite_master WHERE type = ?", (tipo,))}
 
 
-def _na_versao_cinco(tmp_path: Path) -> tuple[sqlite3.Connection, Path]:
+def _na_versao_cinco(tmp_path: Path) -> tuple[sqlite3.Connection, Path, Path]:
     pasta = tmp_path / "ate_a_quinta"
     pasta.mkdir()
     for arquivo in sorted(MIGRACOES.glob("*.sql"))[:5]:
@@ -33,7 +32,7 @@ def _na_versao_cinco(tmp_path: Path) -> tuple[sqlite3.Connection, Path]:
     caminho = tmp_path / "jobot.db"
     con = abrir(caminho)
     assert migrar(con, caminho, pasta) == 5
-    return con, caminho
+    return con, caminho, pasta
 
 
 def test_0006_so_cria_o_indice() -> None:
@@ -46,13 +45,14 @@ def test_0006_so_cria_o_indice() -> None:
 
 def test_0006_sobe_a_versao_e_mantem_o_resto(tmp_path: Path) -> None:
     _sql_da_0006()
-    con, caminho = _na_versao_cinco(tmp_path)
+    con, caminho, pasta = _na_versao_cinco(tmp_path)
     with closing(con):
         inserir_vaga(con)
         antes = (_nomes(con, "trigger"), _nomes(con, "table"), _nomes(con, "index"))
         assert INDICE not in antes[2]
-        assert migrar(con, caminho) == ULTIMA
-        assert con.execute("PRAGMA user_version").fetchone()[0] == ULTIMA
+        shutil.copy(ARQUIVO, pasta)
+        assert migrar(con, caminho, pasta) == 6
+        assert con.execute("PRAGMA user_version").fetchone()[0] == 6
         gatilhos, tabelas, indices = (_nomes(con, t) for t in ("trigger", "table", "index"))
         assert (gatilhos, tabelas) == antes[:2]
         assert {"vaga_sem_delete", "evento_sem_update", "evento_sem_delete"} <= gatilhos

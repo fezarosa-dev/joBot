@@ -1,24 +1,31 @@
 {%- set tema_atual = tema -%}
-{%- set voltar = url_de_volta(request) -%}
-{#- menu: (chave, href, começo do caminho da área); "/" conta como Vagas; a área é o começo do caminho,
-    inteiro ou seguido de "/", para "/vagasx" não marcar Vagas -#}
+{#- casca (desenho 5.2; T251): barra lateral, barra de ferramentas e as faixas logo abaixo dela.
+    O Sair (sem_barra) e o assistente (sem_lateral) ficam sem a lateral. A rota que já leu a
+    lateral na conexão dela a passa em `lateral_lida` (o Panorama, T313): não conta duas vezes. -#}
+{%- set com_lateral = not (sem_barra or sem_lateral) -%}
+{%- set lado = (lateral_lida if lateral_lida is defined else lateral(request)) if com_lateral else none -%}
+{#- "/" conta como Vagas; a área é o começo do caminho, inteiro ou seguido de "/" ("/vagasx" não é Vagas) -#}
 {%- set caminho = "/vagas" if request.url.path == "/" else request.url.path -%}
-{#- a área marcada é a de caminho mais longo: "/empresas/sugeridas" marca Sugeridas e não Empresas -#}
-{%- set ns = namespace(atual="") -%}
-{%- set areas = (
-  ("vagas", "/vagas", "/vagas"),
-  ("buscas", "/buscas", "/buscas"),
-  ("fontes", "/fontes", "/fontes"),
-  ("empresas", "/empresas", "/empresas"),
-  ("sugeridas", "/empresas/sugeridas", "/empresas/sugeridas"),
-  ("sites", "/sites", "/sites"),
-  ("configuracoes", "/configuracoes/fontes", "/configuracoes"),
-) -%}
-{%- for _, _, area in areas -%}
-  {%- if (caminho == area or caminho.startswith(area ~ "/")) and area|length > ns.atual|length %}{% set ns.atual = area %}{% endif -%}
+{%- from "_onde.html" import onde, config -%}
+{#- a área do título é a de caminho mais longo entre todas; a marcada, entre as que aparecem:
+    sem sugestão pendente, "/empresas/sugeridas" marca Empresas. O item marcado leva
+    aria-current="page" só quando a página aberta é a dele; numa página filha (detalhe da vaga,
+    outro grupo de Configurações), "true": marca a área sem dizer que é aquela página -#}
+{%- set ns = namespace(area="", titulo="", atual="") -%}
+{%- for chave, _, area, _, _ in (("panorama", "", "/panorama", "", false), ("vagas", "", "/vagas", "", false)) + onde + (config,) -%}
+  {%- if (caminho == area or caminho.startswith(area ~ "/")) and area|length > ns.area|length -%}
+    {%- set ns.area = area %}{% set ns.titulo = chave -%}
+    {%- if chave != "sugeridas" or (lado and lado.sugeridas_pendentes) %}{% set ns.atual = area %}{% endif -%}
+  {%- endif -%}
 {%- endfor -%}
+{%- if ns.titulo == "sugeridas" and ns.atual != "/empresas/sugeridas" %}{% set ns.atual = "/empresas" %}{% endif -%}
+{%- if lado and ns.area == "/vagas" -%}
+  {%- set aba_pedida = request.query_params.get("aba") -%}
+  {#- na lista sem aba válida vale a primeira; no detalhe da vaga, só a aba de origem na URL, senão nenhuma -#}
+  {%- set aba_atual = aba_pedida if aba_pedida in lado.abas else (lado.abas[0] if caminho == "/vagas" else "") -%}
+{%- endif -%}
 <!doctype html>
-<html lang="{{ idioma }}" data-tema="{{ tema_atual }}">
+<html lang="{{ idioma }}" data-tema="{{ tema_atual }}" data-texto="{{ tamanho_texto }}"{% if com_lateral %} data-lateral="aberta"{% endif %}>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -26,54 +33,87 @@
       exigir_csrf recusa; same-origin manda a origem certa ao próprio painel e nada para fora #}
   <meta name="referrer" content="same-origin">
   <meta name="csrf-token" content="{{ csrf_token }}">
-  <meta name="htmx-config" content='{"allowEval": false, "selfRequestsOnly": true, "includeIndicatorStyles": false}'>
+  {#- attributesToSettle sem "style" (T301): o painel não usa o atributo style (o CSP barra), mas um
+      style vazio deixado no nó velho por quem não é o painel (a foto do Playwright esconde o cursor
+      assim) era copiado pelo htmx com setAttribute e virava violação de style-src-attr na troca #}
+  <meta name="htmx-config" content='{"allowEval": false, "selfRequestsOnly": true, "includeIndicatorStyles": false, "attributesToSettle": ["class", "width", "height"]}'>
   <title>{% block titulo %}joBot{% endblock %}</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/static/css/base.css">
+  <link rel="stylesheet" href="/static/css/casca.css">
   {% block estilos %}{% endblock %}
   <script src="/static/vendor/htmx.min.js" defer></script>
   <script src="/static/js/app.js" defer></script>
 </head>
 <body>
   <a class="pular" href="#conteudo">{{ t("casca.pular") }}</a>
-  <header class="topo">
+  {%- if com_lateral %}
+  <aside id="lateral" class="lateral vidro">
     <a class="marca" href="/">joBot</a>
     <nav class="menu" aria-label="{{ t('casca.menu') }}">
-      {%- for chave, href, area in areas %}
-      <a href="{{ href }}"{% if area == ns.atual %} aria-current="page"{% endif %}>{{ t("casca.menu." ~ chave) }}</a>
-      {%- endfor %}
+      <ul>
+        <li><a data-icone="layout-dashboard" href="/panorama"{% if caminho == "/panorama" %} aria-current="page"{% endif %}>{{ t("casca.lateral.panorama") }}</a></li>
+      </ul>
+      <p class="menu-secao" id="secao-vagas">{{ t("casca.lateral.vagas") }}</p>
+      {%- include "lateral_vagas.html" %}
+      <p class="menu-secao" id="secao-onde">{{ t("casca.lateral.onde_buscar") }}</p>
+      {%- set onde_atual = ns.atual %}
+      {%- include "lateral_onde.html" %}
+      <ul>
+        <li><a data-icone="{{ config[3] }}" data-abre-configuracoes href="{{ config[1] }}"{% if config[2] == ns.atual %} aria-current="{{ 'page' if caminho == config[1] else 'true' }}"{% endif %}>{{ t("casca.menu." ~ config[0]) }}</a></li>
+      </ul>
     </nav>
-    <nav class="preferencias" aria-label="{{ t('casca.preferencias') }}">
-      <form method="post" action="/preferencias/tema" class="segmentos" role="group" aria-label="{{ t('casca.tema') }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <input type="hidden" name="voltar" value="{{ voltar }}">
-        {%- for opcao in ("sistema", "claro", "escuro") %}
-        <button type="submit" name="tema" value="{{ opcao }}" aria-pressed="{{ 'true' if opcao == tema_atual else 'false' }}">{{ t("casca.tema." ~ opcao) }}</button>
-        {%- endfor %}
-      </form>
-      <form method="post" action="/preferencias/idioma" class="segmentos" role="group" aria-label="{{ t('casca.idioma') }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <input type="hidden" name="voltar" value="{{ voltar }}">
-        {%- for opcao in ("pt", "en") %}
-        <button type="submit" name="idioma" value="{{ opcao }}" lang="{{ opcao }}" aria-pressed="{{ 'true' if opcao == idioma else 'false' }}">{{ t("casca.idioma." ~ opcao) }}</button>
-        {%- endfor %}
-      </form>
-    </nav>
-    {% include "execucao/barra.html" %}
+    <div class="divisor" role="separator" aria-orientation="vertical" aria-valuemin="180" aria-valuemax="320" aria-valuenow="240" tabindex="0" aria-controls="lateral" aria-label="{{ t('casca.lateral.divisor') }}" data-divisor></div>
+  </aside>
+  {%- endif %}
+  <header class="topo vidro">
+    <div class="topo-inicio">
+      {%- if com_lateral %}
+      <button type="button" class="botao-barra" data-recolher aria-controls="lateral" aria-expanded="true" aria-label="{{ t('casca.lateral.recolher') }}" data-recolher-rotulo="{{ t('casca.lateral.recolher') }}" data-mostrar="{{ t('casca.lateral.mostrar') }}"><span class="icone" data-icone="panel-left" aria-hidden="true"></span></button>
+      {%- else %}
+      <a class="marca" href="/">joBot</a>
+      {%- endif %}
+      {%- if ns.titulo %}
+      <p class="topo-titulo">{{ t("casca.menu." ~ ns.titulo) }}</p>
+      {%- endif %}
+    </div>
+    <div class="topo-fim">
+      {%- if tem_busca %}
+      <input class="topo-busca" type="search" form="busca" name="q" value="{{ q }}" maxlength="100" autocomplete="off" placeholder="{{ t('casca.busca.campo') }}" aria-label="{{ t('casca.busca.campo') }}" title="{{ t('casca.busca.dica') }}" data-busca>
+      {%- endif %}
+      {%- if com_lateral %}
+      <button type="button" class="botao-paleta" aria-haspopup="dialog" aria-controls="paleta" aria-label="{{ t('casca.paleta.titulo') }}" title="{{ t('casca.paleta.titulo') }}" data-paleta-abre><span class="icone" data-icone="command" aria-hidden="true"></span></button>
+      {%- endif %}
+      {% include "execucao/barra.html" %}
+    </div>
   </header>
-  <div id="aviso-versao" role="status" hx-get="/aviso-versao" hx-trigger="load" hx-swap="innerHTML"></div>
-  {#- erro de um clique do HTMX (T151; D106): região fixa, fora do que o HTMX troca; o app.js preenche.
-      O role leva aspas simples de propósito: os testes de rota procuram o alerta da página por
-      `role="alert"` e a casca, que está em toda página, os faria passar à toa -#}
+  {#- erro de um clique do HTMX (T151; D106): faixa logo abaixo da barra, fora do que o HTMX troca;
+      o app.js preenche. O role leva aspas simples de propósito: os testes de rota procuram o alerta
+      da página por `role="alert"` e a casca, que está em toda página, os faria passar à toa -#}
   <div id="aviso-erro" role='alert' hidden data-msg-4xx="{{ t('casca.erro.4xx') }}" data-msg-5xx="{{ t('casca.erro.5xx') }}" data-msg-rede="{{ t('casca.erro.rede') }}">
     <p data-aviso-texto></p>
     <button type="button" data-aviso-fechar aria-label="{{ t('casca.erro.fechar') }}"><span aria-hidden="true">&times;</span></button>
   </div>
-  <main id="conteudo" tabindex="-1">
-    {% block conteudo %}{% endblock %}
-  </main>
-  <footer class="rodape">
-    <a href="{{ t('apoie.url') }}" target="_blank" rel="noopener noreferrer">{{ t("apoie.texto") }}</a>
-  </footer>
+  <div id="aviso-versao" role="status" hx-get="/aviso-versao" hx-trigger="load" hx-swap="innerHTML"></div>
+  {#- faixa de queda de sessão (T276); a de Desfazer vem da tarefa dela -#}
+  <div id="aviso-contas" role="status" hx-get="/aviso-contas" hx-trigger="load, contas-mudou from:body" hx-swap="innerHTML"></div>
+  {#- "Você se candidatou?" (T285; desenho 5.6): pergunta de novo ao voltar à janela; a chave
+      `mostrando` faz a rota responder 204 quando nada mudou. Não escuta candidatura-mudou: o
+      HX-Trigger sai antes da troca e levaria a chave velha -#}
+  <div id="aviso-candidatura" role="status" hx-get="/aviso-candidatura" hx-trigger="load, focus from:window" hx-include="find input[name=mostrando]" hx-swap="innerHTML"><input type="hidden" name="mostrando" value=""></div>
+  <div id="faixa-desfazer" role="status"></div>
+  {#- a coluna do conteúdo rola sozinha: o body nunca rola por baixo do vidro -#}
+  <div class="coluna">
+    <main id="conteudo" tabindex="-1">
+      {% block conteudo %}{% endblock %}
+    </main>
+    <footer class="rodape">
+      <a href="{{ t('apoie.url') }}" target="_blank" rel="noopener noreferrer">{{ t("apoie.texto") }}</a>
+    </footer>
+  </div>
+  {#- a paleta fica fora do que o HTMX troca e depois das faixas (as faixas ficam logo abaixo da barra) -#}
+  {%- if com_lateral %}
+  {% include "_paleta.html" %}
+  {%- endif %}
 </body>
 </html>

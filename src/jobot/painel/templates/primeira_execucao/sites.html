@@ -1,0 +1,9 @@
+<h1 class="assistente-titulo">{{ t("primeira_execucao.sites.titulo") }}</h1>
+<p class="assistente-texto">{{ t("primeira_execucao.sites.texto") }}</p>
+{% include "configuracoes/_ferramenta_navegador.html" %}
+{% with assistente = True %}{% include "configuracoes/_sites_cartoes.html" %}{% endwith %}
+{#- sem campo visível: os botões do pé apontam para ele por `form=` (Continuar leva a busca) -#}
+<form id="assistente-form" method="post" action="/primeira-execucao/sites">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  {% if busca_id %}<input type="hidden" name="busca" value="{{ busca_id }}">{% endif %}
+</form>

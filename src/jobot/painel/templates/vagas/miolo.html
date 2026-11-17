@@ -1,71 +1,68 @@
+{%- from "_seletor_busca.html" import seletor_busca with context -%}
 <a class="pular" href="#lista-vagas">{{ t("vagas.pular_lista") }}</a>
-{% if sem_criterio %}
-<aside class="aviso" data-aviso="sem-criterio">
-  <p>{{ t("vagas.aviso.sem_criterio") }} <a href="/buscas">{{ t("vagas.aviso.configurar") }}</a></p>
-</aside>
-{% endif %}
-{% if seletor %}
-<nav class="seletor-busca" aria-label="{{ t('vagas.seletor') }}">
-  {%- for b in seletor %}
-  <a class="chip" href="{{ b.url }}" hx-get="{{ b.url }}" hx-target="#vagas-miolo" hx-swap="innerHTML" hx-push-url="true"{% if b.atual %} aria-current="true"{% endif %}>{{ b.nome }}</a>
-  {%- endfor %}
-</nav>
-{% endif %}
-<nav class="abas" aria-label="{{ t('vagas.abas') }}">
-  <ul>
-    {%- for aba in abas %}
-    <li><a id="aba-{{ aba.chave }}" href="{{ aba.url }}" hx-get="{{ aba.url }}" hx-target="#vagas-miolo" hx-swap="innerHTML" hx-push-url="true"{% if aba.atual %} aria-current="page"{% endif %}>{{ t("vagas.aba." ~ aba.chave) }} <span class="contagem">{{ aba.n }}</span></a></li>
-    {%- endfor %}
-  </ul>
-</nav>
-<form class="busca" role="search" method="get" action="/vagas" hx-get="/vagas" hx-target="#vagas-miolo" hx-swap="innerHTML" hx-push-url="true" hx-trigger="submit, change from:#ordem">
-  <input type="hidden" name="aba" value="{{ aba_da_busca }}">
-  {%- if busca_na_url %}
-  <input type="hidden" name="busca" value="{{ busca_id }}">
-  {%- endif %}
-  {%- for grupo, valor in campos_ocultos %}
-  <input type="hidden" name="{{ grupo }}" value="{{ valor }}">
-  {%- endfor %}
-  <label class="so-leitor" for="busca-q">{{ t("vagas.busca.rotulo") }}</label>
-  <input id="busca-q" type="search" name="q" value="{{ q }}" maxlength="100" autocomplete="off" placeholder="{{ t('vagas.busca.dica') }}" data-busca>
-  <button type="submit" class="primario">{{ t("vagas.busca.botao") }}</button>
+{#- barra da lista (T254, T301; desenho 5.2, D143.52): busca escolhida, ordem e "Mais filtros",
+    numa linha; os chips e os campos ficam dentro do "Mais filtros". O form#busca fica nela; o campo
+    da barra de ferramentas e a ordem entram por form="busca". -#}
+<div class="barra-lista">
+  {{- seletor_busca(seletor, campos_do_seletor, "/vagas", "#vagas-miolo") }}
   {%- if not e_destaques %}
-  <label for="ordem">{{ t("vagas.ordem.rotulo") }}</label>
-  <select id="ordem" name="ordem">
+  <label class="rotulo-ordem" for="ordem">{{ t("vagas.ordem.rotulo") }}</label>
+  <select id="ordem" name="ordem" form="busca">
     {%- for o in ordens %}
     <option value="{{ o }}"{% if o == ordem %} selected{% endif %}>{{ t("vagas.ordem." ~ o) }}</option>
     {%- endfor %}
   </select>
   {%- endif %}
-  <details class="mais-filtros"{% if n_mais_filtros %} open{% endif %}>
-    <summary>{{ t("vagas.mais_filtros_n", n=n_mais_filtros) if n_mais_filtros else t("vagas.mais_filtros") }}</summary>
-    <div class="mais-filtros-campos">
-      <div class="campo-salario">
-        <label for="filtro-sal-de">{{ t("vagas.filtro.sal_de") }}</label>
-        <input id="filtro-sal-de" type="number" min="1" step="1" inputmode="numeric" name="sal_de" value="{{ sal_de if sal_de is not none else '' }}">
-        <label for="filtro-sal-ate">{{ t("vagas.filtro.sal_ate") }}</label>
-        <input id="filtro-sal-ate" type="number" min="1" step="1" inputmode="numeric" name="sal_ate" value="{{ sal_ate if sal_ate is not none else '' }}">
-        <span class="moeda-filtro">{{ t("vagas.filtro.por_mes", moeda=exibicao.moeda) }}</span>
+  <form id="busca" class="busca" role="search" method="get" action="/vagas" hx-get="/vagas" hx-target="#vagas-miolo" hx-swap="innerHTML" hx-push-url="true" hx-trigger="submit, change from:#ordem">
+    <input type="hidden" name="aba" value="{{ aba_da_busca }}">
+    {%- if busca_na_url %}
+    <input type="hidden" name="busca" value="{{ busca_id }}">
+    {%- endif %}
+    {%- for grupo, valor in campos_ocultos %}
+    <input type="hidden" name="{{ grupo }}" value="{{ valor }}">
+    {%- endfor %}
+    {#- T301: vem fechado mesmo com filtro ativo; o resumo conta os filtros que valem. O app.js
+        mantém aberto entre as trocas do miolo (clique num chip, envio, troca da busca). -#}
+    <details class="mais-filtros">
+      <summary>{{ t("vagas.mais_filtros_n", n=n_mais_filtros) if n_mais_filtros else t("vagas.mais_filtros") }}</summary>
+      {%- if chips_url %}
+      {#- o form#busca passa hx-target e hx-push-url aos de dentro: o recipiente troca a si mesmo
+          e não mexe na URL. GET não leva os campos do form (htmx 2). -#}
+      <div id="filtros-chips" class="filtros" role="group" aria-label="{{ t('vagas.filtros') }}" aria-busy="true" hx-get="{{ chips_url }}" hx-trigger="load" hx-target="this" hx-swap="outerHTML" hx-push-url="false">
+        <span class="grupo-titulo" data-espera>{{ t("vagas.filtros_carregando") }}</span>
       </div>
-      <div class="campo-texto">
-        <label for="filtro-cidade">{{ t("vagas.filtro.cidade") }}</label>
-        <input id="filtro-cidade" type="text" name="cidade" value="{{ cidade }}" maxlength="100" autocomplete="off">
+      {%- endif %}
+      <div class="mais-filtros-campos">
+        <div class="campo-salario">
+          <label for="filtro-sal-de">{{ t("vagas.filtro.sal_de") }}</label>
+          <input id="filtro-sal-de" type="number" min="1" step="1" inputmode="numeric" name="sal_de" value="{{ sal_de if sal_de is not none else '' }}">
+          <label for="filtro-sal-ate">{{ t("vagas.filtro.sal_ate") }}</label>
+          <input id="filtro-sal-ate" type="number" min="1" step="1" inputmode="numeric" name="sal_ate" value="{{ sal_ate if sal_ate is not none else '' }}">
+          <span class="moeda-filtro">{{ t("vagas.filtro.por_mes", moeda=exibicao.moeda) }}</span>
+        </div>
+        <div class="campo-texto">
+          <label for="filtro-cidade">{{ t("vagas.filtro.cidade") }}</label>
+          <input id="filtro-cidade" type="text" name="cidade" value="{{ cidade }}" maxlength="100" autocomplete="off">
+        </div>
+        <div class="campo-texto">
+          <label for="filtro-empresa">{{ t("vagas.filtro.empresa") }}</label>
+          <input id="filtro-empresa" type="text" name="empresa" value="{{ empresa }}" maxlength="100" autocomplete="off">
+        </div>
+        <div class="campo-texto">
+          <label for="filtro-excluir">{{ t("vagas.filtro.excluir") }}</label>
+          <input id="filtro-excluir" type="text" name="excluir" value="{{ excluir }}" maxlength="100" autocomplete="off">
+        </div>
+        {#- o Enter no campo da barra de ferramentas envia por este botão (envio implícito) -#}
+        <button type="submit" class="primario">{{ t("vagas.busca.botao") }}</button>
       </div>
-      <div class="campo-texto">
-        <label for="filtro-empresa">{{ t("vagas.filtro.empresa") }}</label>
-        <input id="filtro-empresa" type="text" name="empresa" value="{{ empresa }}" maxlength="100" autocomplete="off">
-      </div>
-      <div class="campo-texto">
-        <label for="filtro-excluir">{{ t("vagas.filtro.excluir") }}</label>
-        <input id="filtro-excluir" type="text" name="excluir" value="{{ excluir }}" maxlength="100" autocomplete="off">
-      </div>
-    </div>
-  </details>
-</form>
-{% if chips_url %}
-<div id="filtros-chips" class="filtros" role="group" aria-label="{{ t('vagas.filtros') }}" aria-busy="true" hx-get="{{ chips_url }}" hx-trigger="load" hx-swap="outerHTML">
-  <span class="grupo-titulo" data-espera>{{ t("vagas.filtros_carregando") }}</span>
+    </details>
+  </form>
 </div>
+{#- os avisos ficam logo abaixo da barra, no estilo das faixas e sem fechar -#}
+{% if sem_criterio %}
+<aside class="aviso" data-aviso="sem-criterio">
+  <p>{{ t("vagas.aviso.sem_criterio") }} <a href="/buscas">{{ t("vagas.aviso.configurar") }}</a></p>
+</aside>
 {% endif %}
 {% if aviso_salario or fora_sem_salario or fora_sem_valor %}
 <div class="avisos-filtro aviso">
@@ -82,42 +79,62 @@
   {%- endif %}
 </div>
 {% endif %}
+<div class="vagas-colunas">
+<div class="coluna-lista">
 {% if itens %}
-<ul id="lista-vagas" class="lista" tabindex="-1">
+<div id="lista-vagas" class="lista-linhas" role="listbox" aria-label="{{ t('vagas.lista') }}" tabindex="-1">
   {%- include "vagas/lista.html" %}
-</ul>
+</div>
+{% include "vagas/proximo.html" %}
 {% else %}
-<p id="lista-vagas" class="vazio" tabindex="-1">{{ t("vagas.vazio_destaques" if e_destaques else "vagas.vazio") }}</p>
+{#- estado vazio (desenho 5.8): o botão faz o mesmo que o "Buscar agora" da barra -#}
+<div id="lista-vagas" class="vazio" tabindex="-1">
+  <span class="icone" data-icone="search-x" aria-hidden="true"></span>
+  <h2>{{ t("vagas.vazio.titulo") }}</h2>
+  <p>{{ t("vagas.vazio_destaques" if e_destaques else "vagas.vazio") }}</p>
+  <form method="post" action="/buscar-agora" hx-post="/buscar-agora" hx-target="#andamento" hx-swap="innerHTML">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="voltar" value="{{ url_de_volta(request) }}">
+    <button type="submit" class="primario">{{ t("vagas.vazio.buscar") }}</button>
+  </form>
+</div>
 {% endif %}
+</div>
+{% include "vagas/detalhe_lado.html" %}
+</div>
 {% if paginas_programas %}
-<section class="painel" aria-labelledby="programas-paginas">
+{#- as páginas acompanhadas (desenho 5.2): a linha das vagas, fora do listbox, cada uma um link
+    para Sites; a diferença abre logo abaixo da linha -#}
+<section class="programas" aria-labelledby="programas-paginas">
   <h2 id="programas-paginas">{{ t("vagas.programas.titulo") }}</h2>
-  <ul class="lista" id="lista-programas-paginas">
+  <ul class="lista-linhas" id="lista-programas-paginas">
     {%- for r in paginas_programas %}
     {%- set p = r.p %}
-    <li class="cartao">
-      <div class="cartao-cabeca">
-        <h3 class="cartao-titulo">{{ p.nome }}</h3>
-        {%- if p.mudou_em %}
-        <span class="selo">{{ t("vagas.programas.mudou_em", data=data_completa(p.mudou_em.isoformat(), idioma)) }}</span>
-        {%- endif %}
-      </div>
-      {%- if not p.mudou_em or p.estado == "falhou" %}
-      <p class="situacao">
-        {%- if p.estado == "falhou" %}{{ t("vagas.programas.falhou", motivo=t("sites.motivo." ~ (p.motivo or "desconhecido"))) }}
-        {%- elif p.estado == "ok" %}{{ t("vagas.programas.sem_mudanca") }}
-        {%- else %}{{ t("vagas.programas.nova") }}{% endif %}</p>
-      {%- endif %}
+    {%- set mudou = t("vagas.programas.mudou_em", data=data_completa(p.mudou_em.isoformat(), idioma)) if p.mudou_em else "" %}
+    {%- if p.estado == "falhou" %}{% set estado = t("vagas.programas.falhou", motivo=t("sites.motivo." ~ (p.motivo or "desconhecido"))) %}
+    {%- elif p.mudou_em %}{% set estado = "" %}
+    {%- elif p.estado == "ok" %}{% set estado = t("vagas.programas.sem_mudanca") %}
+    {%- else %}{% set estado = t("vagas.programas.nova") %}{% endif %}
+    {%- set situacao = [mudou, estado] | select | join(" · ") %}
+    <li>
+      <a class="linha" href="/sites#site-{{ p.id }}">
+        <span class="linha-1"><span class="linha-titulo" title="{{ p.nome }}">{{ p.nome }}</span></span>
+        <span class="linha-2" title="{{ situacao }}">{{ situacao }}</span>
+      </a>
       {%- if r.diferenca %}
       <details class="apagar">
         <summary>{{ t("vagas.programas.diferenca") }}</summary>
         <pre class="diferenca">{{ r.diferenca }}</pre>
       </details>
       {%- endif %}
-      <p><a href="/sites#site-{{ p.id }}">{{ t("vagas.programas.ver") }}</a></p>
     </li>
     {%- endfor %}
   </ul>
 </section>
 {% endif %}
-{% include "vagas/proximo.html" %}
+{#- só nas respostas HTMX: a lateral da casca troca a seção Vagas no lugar, com a contagem nova -#}
+{%- if lateral_oob %}
+{%- with oob = true, lado = lateral_oob.lado, caminho = lateral_oob.caminho, aba_atual = lateral_oob.aba %}
+{%- include "lateral_vagas.html" %}
+{%- endwith %}
+{%- endif %}

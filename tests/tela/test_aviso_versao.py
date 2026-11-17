@@ -83,6 +83,22 @@ def test_aviso_de_versao_aparece_na_casca_com_role_status(
     expect(regiao.get_by_role("link")).to_have_count(0)
 
 
+def test_aviso_de_versao_logo_abaixo_da_barra(page: Page, painel: str, aviso_ligado: None) -> None:
+    """Desenho 5.2 (T251): a faixa fica colada à barra de ferramentas, na coluna do conteúdo."""
+    page.set_viewport_size({"width": 1200, "height": 800})
+    _abrir_casca(page, painel)
+    regiao = page.get_by_role("status").filter(has=page.locator(".aviso-versao"))
+    expect(regiao).to_have_id("aviso-versao")
+    caixas = page.evaluate(
+        """() => {
+          const r = s => document.querySelector(s).getBoundingClientRect().toJSON();
+          return {topo: r('header.topo'), regiao: r('#aviso-versao'), lateral: r('aside.lateral')};
+        }"""
+    )
+    assert caixas["regiao"]["top"] == pytest.approx(caixas["topo"]["bottom"], abs=1)
+    assert caixas["regiao"]["left"] >= caixas["lateral"]["right"] - 1
+
+
 @pytest.mark.parametrize("esquema", ["light", "dark"])
 def test_aviso_de_versao_tem_contraste_nos_dois_temas(
     page: Page, painel: str, aviso_ligado: None, esquema: str

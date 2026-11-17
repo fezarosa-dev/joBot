@@ -1,9 +1,10 @@
-"""Comandos `abrir` e `sair` (desenho 12.6)."""
+"""Abrir o painel (aba ou janela do modo app) e encerrar o servidor (desenho 12.6)."""
 
-import argparse
 import http.client
 import json
+import logging
 import os
+import shutil
 import signal
 import socket
 import subprocess
@@ -14,10 +15,25 @@ from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 
 from jobot.sistema.caso import prefixo_host
-from jobot.sistema.instancia import pid_do_servidor, pid_e_porta_do_servidor, porta
-from jobot.sistema.pastas import pasta_de_dados
+from jobot.sistema.instancia import (
+    AVISO_CAPTURA,
+    pid_do_servidor,
+    pid_e_porta_do_servidor,
+    porta,
+)
 
+_LOG = logging.getLogger(__name__)
 _ESPERA_PASSO_S = 0.2
+_NAVEGADORES_LINUX = (
+    "google-chrome",
+    "google-chrome-stable",
+    "microsoft-edge",
+    "chromium",
+    "chromium-browser",
+)
+_APPS_MAC = ("Google Chrome", "Microsoft Edge", "Chromium")
+# `chrome.exe` e `msedge.exe` sob cada pasta de programas (a por usuário é a `LOCALAPPDATA`)
+_EXES_WINDOWS = (r"Google\Chrome\Application\chrome.exe", r"Microsoft\Edge\Application\msedge.exe")
 
 
 def e_o_jobot(porta: int) -> bool:
@@ -58,6 +74,71 @@ def _rodar(comando: Sequence[str]) -> bool:
     return feito.returncode == 0
 
 
+def _lancar(comando: Sequence[str]) -> bool:
+    """Lança sem esperar: o navegador vive à parte (o `_rodar` o mataria em 10 s)."""
+    try:
+        subprocess.Popen(
+            comando,
+            start_new_session=True,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    except OSError:
+        return False
+    return True
+
+
+def existe_do_sistema(
+    prefixo: Sequence[str],
+    *,
+    rodar: Callable[[Sequence[str]], bool] = _rodar,
+    procurar: Callable[[str], str | None] = shutil.which,
+) -> Callable[[str], bool]:
+    """Caminho absoluto: o arquivo existe; nome solto: `which` (no host, se há prefixo)."""
+
+    def existe(nome: str) -> bool:
+        if os.path.isabs(nome):
+            return Path(nome).exists()
+        if prefixo:
+            return rodar((*prefixo, "which", nome))
+        return procurar(nome) is not None
+
+    return existe
+
+
+# perfil novo não mostra a tela de boas-vindas nem pergunta do navegador padrão antes da janela
+_SEM_BOAS_VINDAS = ("--no-first-run", "--no-default-browser-check")
+
+
+def achar_navegador_do_sistema(
+    endereco: str, sistema: str, existe: Callable[[str], bool], prefixo: Sequence[str]
+) -> list[str] | None:
+    """O comando que abre `--app=<endereço>` no primeiro Chrome, Edge ou Chromium achado."""
+    app = f"--app={endereco}"
+    if sistema == "darwin":
+        # shortcut: só /Applications, não ~/Applications; acrescentar se aparecer quem instala lá
+        for nome in _APPS_MAC:
+            if existe(f"/Applications/{nome}.app"):
+                return ["open", "-na", nome, "--args", app, *_SEM_BOAS_VINDAS]
+    elif sistema == "win32":
+        pastas = (
+            os.environ.get("ProgramFiles", r"C:\Program Files"),
+            os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)"),
+            os.environ.get("LOCALAPPDATA", ""),
+        )
+        for exe in _EXES_WINDOWS:
+            for pasta in filter(None, pastas):
+                caminho = f"{pasta}\\{exe}"
+                if existe(caminho):
+                    return [caminho, app, *_SEM_BOAS_VINDAS]
+    else:
+        for nome in _NAVEGADORES_LINUX:
+            if existe(nome):
+                return [*prefixo, nome, app, *_SEM_BOAS_VINDAS]
+    return None
+
+
 def _web(endereco: str) -> bool:
     try:
         return webbrowser.open(endereco)
@@ -77,6 +158,32 @@ def abrir_navegador(
     if prefixo:
         return rodar((*prefixo, "xdg-open", endereco))
     return web(endereco)
+
+
+def abrir_janela(
+    endereco: str,
+    env: Mapping[str, str],
+    *,
+    sistema: str,
+    existe: Callable[[str], bool],
+    chromium: Callable[[], Path | None],
+    pasta_dados: Path,
+    lancar: Callable[[Sequence[str]], bool] = _lancar,
+) -> bool:
+    """Janela do modo app: navegador do sistema, senão o Chromium do joBot, senão uma aba."""
+    comando = achar_navegador_do_sistema(endereco, sistema, existe, prefixo_host(env))
+    if comando and lancar(comando):
+        return True
+    try:
+        exe = chromium()
+    except Exception:  # driver do Playwright que não sobe não pode impedir a aba
+        _LOG.debug("Chromium do joBot indisponível", exc_info=True)
+        exe = None
+    # `janela/` é só desta janela: nunca a pasta do navegador de login (D132)
+    perfil = f"--user-data-dir={pasta_dados / 'janela'}"
+    if exe and lancar([str(exe), f"--app={endereco}", perfil, *_SEM_BOAS_VINDAS]):
+        return True
+    return abrir_navegador(endereco, env)
 
 
 def _esperar_jobot(porta: int, esperar_s: float) -> bool:
@@ -101,6 +208,9 @@ def abrir_painel(
     # com o servidor no ar vale a porta que ele gravou na trava: o serviço não herda o env do shell
     # PID e porta saem da mesma leitura da trava, senão dois donos diferentes poderiam se misturar
     pid, porta_gravada = pid_e_porta_do_servidor(dados)
+    if pid is not None and porta_gravada is None:  # trava sem porta: captura com login no ar
+        saida(AVISO_CAPTURA)
+        return 1
     p = porta_gravada or porta(env)
     endereco = f"http://127.0.0.1:{p}"
     ocupada = (
@@ -131,7 +241,10 @@ def sair_do_servidor(
     dados: Path, *, saida: Callable[[str], None] = print, esperar_s: float = 10.0
 ) -> int:
     """SIGTERM ao PID da trava (só se ela está presa) e espera a trava soltar."""
-    pid = pid_do_servidor(dados)
+    pid, p = pid_e_porta_do_servidor(dados)  # uma leitura só: o PID e a porta são do mesmo dono
+    if pid is not None and p is None:  # a trava é da captura, não do servidor: nada de SIGTERM
+        saida(AVISO_CAPTURA)
+        return 1
     if pid is None:
         saida("O joBot não está rodando.")
         return 0
@@ -162,15 +275,3 @@ def subir_servidor() -> None:
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
-
-
-def executar(args: argparse.Namespace) -> int:
-    env = os.environ
-    dados = pasta_de_dados(env)
-    try:
-        if getattr(args, "comando", "abrir") == "sair":
-            return sair_do_servidor(dados)
-        return abrir_painel(env, dados, subir=subir_servidor)
-    except OSError as erro:  # ex.: o Python que sobe o servidor não existe mais
-        print(f"Não consegui concluir o comando: {erro}", file=sys.stderr)
-        return 1

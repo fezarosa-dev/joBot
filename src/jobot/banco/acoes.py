@@ -7,7 +7,7 @@ Contrato de exceções com a T45 (as rotas traduzem em resposta HTTP, nunca em 5
 `LookupError` = vaga inexistente (404); `ValueError` = status, campo ou estado
 inválido (422) (`mostrar` em vaga ocultada à mão, `trazer_de_volta` em vaga não ocultada à mão,
 `desfazer_status` em "nova"). `trazer_de_volta` zera `oculta_manual` para 0 e não
-restaura um -1 anterior.
+restaura um -1 anterior; só o Desfazer da faixa (T256) pede `oculta=-1`, porque sabe que era -1.
 `RuntimeError` = conexão já em transação (erro de quem chama, não de entrada).
 """
 
@@ -17,7 +17,7 @@ from contextlib import contextmanager
 from datetime import datetime
 
 # Ordem do fluxo (ADR 0008). `recusada` e `oferta` saem de `entrevista` e valem o mesmo degrau.
-_DEGRAU = {"nova": 0, "salva": 1, "candidatei": 2, "entrevista": 3, "recusada": 4, "oferta": 4}
+DEGRAU = {"nova": 0, "salva": 1, "candidatei": 2, "entrevista": 3, "recusada": 4, "oferta": 4}
 _ANTERIOR = {"salva": "nova", "candidatei": "salva", "entrevista": "candidatei"} | {
     "recusada": "entrevista",
     "oferta": "entrevista",
@@ -84,13 +84,13 @@ def mudar_status(con: sqlite3.Connection, vaga_id: int, novo: str, agora: dateti
 
     Status igual ao de agora não faz nada e não grava evento.
     """
-    if novo not in _DEGRAU:
+    if novo not in DEGRAU:
         raise ValueError(f"status inválido: {novo!r}")
     with _transacao(con):
         atual, _ = _estado(con, vaga_id)
         if novo == atual:
             return
-        if _DEGRAU[novo] < _DEGRAU[atual]:
+        if DEGRAU[novo] < DEGRAU[atual]:
             acao = "desfez"
         elif (atual, novo) == ("nova", "salva"):
             acao = "salvou"
@@ -130,13 +130,20 @@ def mostrar(con: sqlite3.Connection, vaga_id: int, agora: datetime) -> None:
         _evento(con, vaga_id, "mostrou", agora)
 
 
-def trazer_de_volta(con: sqlite3.Connection, vaga_id: int, agora: datetime) -> None:
-    """Traz de volta uma vaga ocultada à mão: as regras voltam a decidir (grava `desfez`)."""
+def trazer_de_volta(
+    con: sqlite3.Connection, vaga_id: int, agora: datetime, oculta: int = 0
+) -> None:
+    """Traz de volta uma vaga ocultada à mão: as regras voltam a decidir (grava `desfez`).
+
+    `oculta=-1` volta ao "mostrar mesmo assim" que havia antes do ocultar (Desfazer da faixa, T256).
+    """
+    if oculta not in (0, -1):
+        raise ValueError(f"oculta_manual inválido para trazer de volta: {oculta!r}")
     with _transacao(con):
-        _, oculta = _estado(con, vaga_id)
-        if oculta != 1:
+        _, atual = _estado(con, vaga_id)
+        if atual != 1:
             raise ValueError("vaga não estava ocultada à mão")
-        con.execute("UPDATE vaga SET oculta_manual=0 WHERE id=?", (vaga_id,))
+        con.execute("UPDATE vaga SET oculta_manual=? WHERE id=?", (oculta, vaga_id))
         _evento(con, vaga_id, "desfez", agora)
 
 
@@ -169,3 +176,65 @@ def corrigir(
             " criada_em) VALUES (?, ?, ?, ?, ?, ?)",
             (vaga_id, campo, antigo, valor_novo, comentario, agora.isoformat()),
         )
+
+
+_ABERTOS = ("nova", "salva")  # status em que a pergunta "Você se candidatou?" faz sentido
+
+
+def abriu_candidatura(con: sqlite3.Connection, vaga_id: int, agora: datetime) -> bool:
+    """Registra que a pessoa abriu a candidatura e reabre a pergunta. Só com `nova` ou `salva`."""
+    with _transacao(con):
+        atual, _ = _estado(con, vaga_id)
+        if atual not in _ABERTOS:
+            return False
+        con.execute(
+            "INSERT INTO candidatura (vaga_id, abriu_em, perguntar) VALUES (?, ?, 1)"
+            " ON CONFLICT(vaga_id) DO UPDATE SET abriu_em = excluded.abriu_em, perguntar = 1",
+            (vaga_id, agora.isoformat()),
+        )
+        return True
+
+
+def responder_candidatura(
+    con: sqlite3.Connection, vaga_id: int, sim: bool, agora: datetime
+) -> str | None:
+    """Responde a pergunta pendente. Com `sim`, vai a `candidatei` e devolve o status de antes.
+
+    Pergunta já respondida ou vaga fora de `nova`/`salva`: nada muda e devolve `None`.
+    """
+    with _transacao(con):
+        atual, _ = _estado(con, vaga_id)
+        linha = con.execute(
+            "SELECT perguntar FROM candidatura WHERE vaga_id = ?", (vaga_id,)
+        ).fetchone()
+        if linha is None or linha[0] != 1 or atual not in _ABERTOS:
+            return None
+        con.execute("UPDATE candidatura SET perguntar = 0 WHERE vaga_id = ?", (vaga_id,))
+        if not sim:
+            return None
+        _trocar_status(con, vaga_id, atual, "candidatei", "mudou_status", agora)
+        return atual
+
+
+def desfazer_candidatura(con: sqlite3.Connection, vaga_id: int, agora: datetime) -> bool:
+    """Desfaz o Sim: volta ao `de` do último evento de status, se ele foi o Sim (E18).
+
+    Não lê o status de antes do formulário e não reabre a pergunta.
+    """
+    with _transacao(con):
+        atual, _ = _estado(con, vaga_id)
+        # o `desfez` de `trazer_de_volta` não tem `para`: não é troca de status; `id` é a ordem
+        # real de gravação (o instante erra quando o relógio volta, D151)
+        ultimo = con.execute(
+            "SELECT acao, de, para FROM evento WHERE vaga_id = ?"
+            " AND acao IN ('salvou', 'mudou_status', 'desfez') AND para IS NOT NULL"
+            " ORDER BY id DESC LIMIT 1",
+            (vaga_id,),
+        ).fetchone()
+        if atual != "candidatei" or ultimo is None:
+            return False
+        acao, de, para = ultimo
+        if acao != "mudou_status" or para != "candidatei" or de not in _ABERTOS:
+            return False
+        _trocar_status(con, vaga_id, atual, de, "desfez", agora)
+        return True

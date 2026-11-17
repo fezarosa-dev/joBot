@@ -22,8 +22,8 @@ from jobot.banco.cadastros import ler_config
 from jobot.nucleo.cambio import MOEDAS
 from jobot.nucleo.modelo import Busca, Idioma, Local, Modalidade, Nivel
 from jobot.nucleo.tratamento.locais import ler_locais, nome_em_ingles
+from jobot.painel.consultas import relogio_do_painel
 from jobot.painel.formulario import campo_unico
-from jobot.painel.rotas.vagas import relogio_do_painel
 from jobot.painel.seguranca import Con, renderizar
 
 router = APIRouter(prefix="/buscas")
@@ -306,6 +306,21 @@ async def ligar(request: Request, con: Con, busca_id: BuscaId) -> Response:
 @router.post("/{busca_id}/desligar")
 async def desligar(request: Request, con: Con, busca_id: BuscaId) -> Response:
     return await _ligar(request, con, busca_id, False)
+
+
+@router.get("/{busca_id}/apagar/confirmar")
+async def apagar_confirmar(request: Request, con: Con, busca_id: BuscaId) -> Response:
+    """Sem JavaScript: a pergunta do alerta numa página; o GET não muda nada (T307)."""
+    atual = _achar(con, busca_id)
+    return renderizar(
+        request,
+        "confirmar.html",
+        titulo=("buscas.apagar_titulo", {"nome": atual.nome}),
+        texto="buscas.apagar_texto",
+        rotulo="comum.apagar",
+        acao=f"/buscas/{busca_id}/apagar",
+        voltar="/buscas",
+    )
 
 
 @router.post("/{busca_id}/apagar")

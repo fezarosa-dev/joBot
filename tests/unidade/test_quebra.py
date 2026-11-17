@@ -30,6 +30,13 @@ CONTADORES_E_LIMITES = (
     "saude.limite_atingido",
     "saude.orcamento",
 )
+# paradas da navegação com login: problema do lado de quem usa, não do coletor
+PARADAS_DO_NAVEGADOR = (
+    "saude.precisa_login",
+    "saude.captcha",
+    "saude.sem_tela",
+    "saude.sem_navegador",
+)
 
 
 def _consulta(url: str) -> dict[str, list[str]]:
@@ -65,7 +72,7 @@ def test_link_com_identificador_malicioso_leva_so_os_tres_parametros() -> None:
 
 
 def test_estados_de_limite_e_contadores_nao_geram_link() -> None:
-    assert set(CONTADORES_E_LIMITES) == FORA_DO_LINK
+    assert set(CONTADORES_E_LIMITES) | set(PARADAS_DO_NAVEGADOR) == FORA_DO_LINK
     for chave in sorted(FORA_DO_LINK):
         assert link_reportar("remotive", chave) is None, chave
     assert link_reportar("remotive", "saude.inventada") is None

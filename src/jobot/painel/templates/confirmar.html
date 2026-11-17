@@ -1,0 +1,22 @@
+{#- Pergunta de uma ação que não volta, numa página (T307): é o que quem está sem JavaScript vê no
+    lugar do alerta (_alerta.html). O GET que traz aqui não muda nada; o botão faz o mesmo POST
+    do alerta, com o csrf_token, e o Cancelar é um link de volta à página de origem.
+    Recebe: `titulo` (chave de i18n e seus parâmetros), `texto` (chave), `rotulo` (chave do verbo da
+    ação), `acao` (o `action` do POST) e `voltar` (a página de origem). -#}
+{% extends "base.html" %}
+{% block titulo %}{{ t(titulo[0], **titulo[1]) }} · joBot{% endblock %}
+{% block conteudo %}
+<section class="confirmar" aria-labelledby="confirmar-titulo" aria-describedby="confirmar-texto">
+  <div class="alerta-corpo">
+    <h1 id="confirmar-titulo" class="alerta-titulo">{{ t(titulo[0], **titulo[1]) }}</h1>
+    <p id="confirmar-texto" class="alerta-texto">{{ t(texto) }}</p>
+  </div>
+  <form method="post" action="{{ acao }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div class="alerta-acoes">
+      <button type="submit" class="botao-destrutivo">{{ t(rotulo) }}</button>
+      <a class="confirmar-cancelar" href="{{ voltar }}">{{ t("comum.cancelar") }}</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

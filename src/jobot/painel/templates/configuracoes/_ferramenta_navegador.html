@@ -1,0 +1,25 @@
+{#- o navegador dos sites com login em Ferramentas (T240): trocado inteiro pelo HTMX; enquanto baixa ou remove, pergunta de novo a cada 5 s -#}
+{%- set rodando = estado in ("baixando", "removendo") %}
+<div id="ferramenta-navegador" aria-live="polite"{% if rodando %} hx-get="/configuracoes/ferramentas/navegador" hx-trigger="every 5s" hx-target="#ferramenta-navegador" hx-swap="outerHTML"{% endif %}>
+  <p class="config-texto"><strong>{{ t("configuracoes.ferramentas.navegador.nome") }}</strong></p>
+  <p class="config-texto">{{ t("configuracoes.ferramentas.estado." ~ estado) }}</p>
+  {%- if estado != "chrome" %}
+  <p class="config-texto"><small>{{ t("configuracoes.ferramentas.navegador.tamanho") }}</small></p>
+  {%- endif %}
+  {%- if estado == "baixando" %}
+  <p class="config-texto">{{ t("configuracoes.ferramentas.dica_baixando") }}</p>
+  {%- endif %}
+  {%- if resultado in ("pronto", "removido", "continua", "em_uso", "falhou_baixar", "falhou_remover") %}
+  <p class="config-texto" role="status">{{ t("configuracoes.ferramentas.aviso." ~ resultado) }}</p>
+  {%- endif %}
+  {%- if estado == "nao_instalado" or resultado == "falhou_baixar" %}
+  <div class="acoes">
+    <button type="button" class="botao botao-primario" hx-post="/configuracoes/ferramentas/navegador/baixar" hx-target="#ferramenta-navegador" hx-swap="outerHTML">{{ t("configuracoes.ferramentas.baixar") }}</button>
+  </div>
+  {%- elif navegador == "chromium" and not rodando %}
+  <div class="acoes">
+    <button type="button" class="botao botao-secundario" hx-post="/configuracoes/ferramentas/navegador/remover" hx-target="#ferramenta-navegador" hx-swap="outerHTML">{{ t("configuracoes.ferramentas.remover") }}</button>
+  </div>
+  {%- endif %}
+</div>
+{%- if cartoes_oob is defined %}{% with cartoes = cartoes_oob, oob = True, assistente = True %}{% include "configuracoes/_sites_cartoes.html" %}{% endwith %}{%- endif %}

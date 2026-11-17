@@ -56,6 +56,19 @@ def test_casca_tem_a_regiao_do_aviso_de_erro_com_os_textos(
     assert f'aria-label="{i18n.t(idioma, "casca.erro.fechar")}"' in botao.group(1)
 
 
+@pytest.mark.parametrize("caminho", ["/vagas", "/fontes", "/nao-existe-mesmo"])
+def test_aviso_de_erro_logo_depois_da_barra_e_fora_do_rodape(
+    cliente: TestClient, caminho: str
+) -> None:
+    html = cliente.get(caminho).text
+    fim_da_barra = html.index("</header>")
+    regiao = html.index('<div id="aviso-erro"')
+    assert html[fim_da_barra + len("</header>") : regiao].strip() == ""
+    rodape = re.search(r"<footer\b.*?</footer>", html, re.S)
+    assert rodape is None or 'id="aviso-erro"' not in rodape.group(0)
+    assert re.search(r"<div id=\"aviso-erro\" role='alert'", html)
+
+
 def test_textos_em_portugues_sao_os_do_brief(cliente: TestClient) -> None:
     for chave, texto in TEXTOS["pt"].items():
         assert i18n.t("pt", f"casca.erro.{chave}") == texto

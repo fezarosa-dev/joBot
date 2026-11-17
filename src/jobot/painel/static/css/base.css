@@ -1,4 +1,4 @@
-/* Casca do painel: fonte, cores dos dois temas, barra do topo e movimento (desenho 13.11). */
+/* Casca do painel: fonte, tokens (cor, tipo, raio, vidro, movimento), controles e movimento reduzido (desenho 5.1 e 5.3). */
 
 @font-face {
   font-family: "Inter";
@@ -19,33 +19,92 @@
 /*
  * Cores num lugar só: cada uma é light-dark(<claro>, <escuro>) e o color-scheme escolhe.
  * Sem data-tema manual, segue o prefers-color-scheme do sistema.
- * O teste do contraste (critério 29) lê a lista abaixo: cada par é <texto>/<fundo>.
- * Par novo de texto sobre fundo entra nesta lista, com as duas cores em hex de 6 dígitos.
+ * O teste do contraste (critério 29) lê as duas listas abaixo, cada par é <frente>/<fundo>:
+ * a de texto confere 4,5:1; a de objeto gráfico (barra sobre o trilho), 3:1.
+ * Par novo sobre fundo entra numa delas, com as duas cores em hex de 6 dígitos.
+ * Se um par de texto reprovar, o tom do texto muda, nunca o fundo; se o par do progresso reprovar,
+ * muda só o --trilho-progresso. Tokens com alfa (rgb com barra) ficam fora das listas.
  */
-/* contraste: texto/fundo texto-2/fundo texto/superficie texto-2/superficie link/fundo link/superficie sobre-destaque/destaque texto/trilho texto/segmento alerta/superficie alerta/fundo sucesso/superficie sucesso/fundo */
+/* contraste: texto/fundo texto-2/fundo texto-2/sob-pagina texto/superficie texto-2/superficie texto/solido-barra texto-2/solido-barra texto/solido-elevado texto-2/solido-elevado link/fundo link/superficie sobre-destaque/destaque texto/trilho texto/segmento alerta/superficie alerta/fundo sucesso/superficie sucesso/fundo */
+/* contraste-grafico: destaque/trilho-progresso */
 :root {
   color-scheme: light dark;
-  --fundo: light-dark(#f5f5f7, #000000);
-  --superficie: light-dark(#ffffff, #1c1c1e);
+  --fundo: light-dark(#ececec, #1e1e1e);
+  --superficie: light-dark(#ffffff, #1e1e1e);
+  --sob-pagina: light-dark(#e5e5e5, #282828);
+  --solido-barra: light-dark(#f6f6f6, #282828);
+  --solido-elevado: light-dark(#ffffff, #2c2c2e);
   --texto: light-dark(#1d1d1f, #f5f5f7);
-  --texto-2: light-dark(#6e6e73, #a1a1a6);
+  --texto-2: light-dark(#636366, #a1a1a6);
+  --texto-3: light-dark(#aeaeb2, #636366); /* só texto desativado: fora da lista */
   --link: light-dark(#0066cc, #2997ff);
   --destaque: light-dark(#0071e3, #0071e3);
   --sobre-destaque: light-dark(#ffffff, #ffffff);
   --trilho: light-dark(#e8e8ed, #2c2c2e);
-  --segmento: light-dark(#ffffff, #48484a);
+  --trilho-progresso: light-dark(#e8e8ed, #1e1e1e);
+  --segmento: light-dark(#ffffff, #5a5a5e);
   --alerta: light-dark(#d70015, #ff453a);
   --sucesso: light-dark(#1e7b34, #30d158);
   --foco: light-dark(#0071e3, #2997ff);
+  --separador: light-dark(rgb(0 0 0 / 0.1), rgb(255 255 255 / 0.1));
+  --hover: light-dark(rgb(0 0 0 / 0.06), rgb(255 255 255 / 0.08));
+  --pressionado: light-dark(rgb(0 0 0 / 0.13), rgb(255 255 255 / 0.16));
+  --selecao-inativa: light-dark(rgb(0 0 0 / 0.08), rgb(255 255 255 / 0.14));
+  --veu: light-dark(rgb(0 0 0 / 0.25), rgb(0 0 0 / 0.5));
+  --fundo-controle: light-dark(rgb(255 255 255 / 0.7), rgb(255 255 255 / 0.12));
+  --borda-controle: light-dark(rgb(0 0 0 / 0.15), rgb(255 255 255 / 0.15));
   --borda: light-dark(rgb(0 0 0 / 0.08), rgb(255 255 255 / 0.12));
-  --barra: light-dark(rgb(245 245 247 / 0.72), rgb(22 22 23 / 0.72));
   --sombra: light-dark(rgb(0 0 0 / 0.12), rgb(0 0 0 / 0.5));
+  --sombra-cor: light-dark(rgb(0 0 0 / 0.25), rgb(0 0 0 / 0.55));
+  --sombra-cor-forte: light-dark(rgb(0 0 0 / 0.3), rgb(0 0 0 / 0.6));
+  --borda-elevada: light-dark(transparent, rgb(255 255 255 / 0.12));
+  --sombra-menu: 0 8px 30px var(--sombra-cor);
+  --sombra-sheet: 0 12px 40px var(--sombra-cor-forte);
+  --sombra-alerta: 0 20px 60px var(--sombra-cor-forte);
 
-  /* mola feita em CSS: passa um pouco do ponto e assenta */
-  --mola: linear(0, 0.25 6%, 0.66 13%, 0.98 21%, 1.08 28%, 1.07 35%, 1.01 46%, 0.99 58%, 1);
-  --duracao: 420ms;
-  --raio: 14px;
+  /* escala do Mac, peso tamanho/entrelinha (13px = 0.8125rem sobre 16px) e a família no fim: o
+     `font` abreviado exige a família, e sem ela vira `unset` (corpo em 16px) */
+  --familia: -apple-system, BlinkMacSystemFont, "Inter", system-ui, sans-serif;
+  --t-large: 700 1.625rem/2rem var(--familia);
+  --t-title1: 700 1.375rem/1.625rem var(--familia);
+  --t-title2: 600 1.0625rem/1.375rem var(--familia);
+  --t-title3: 600 0.9375rem/1.25rem var(--familia);
+  --t-headline: 700 0.8125rem/1rem var(--familia);
+  --t-body: 400 0.8125rem/1rem var(--familia);
+  --t-callout: 400 0.75rem/0.9375rem var(--familia);
+  --t-sub: 400 0.6875rem/0.875rem var(--familia);
+  --t-foot: 400 0.625rem/0.8125rem var(--familia);
+  --t-cap1: 400 0.625rem/0.8125rem var(--familia);
+  --t-cap2: 500 0.625rem/0.8125rem var(--familia);
+
+  /* vidro: só as classes .vidro e .vidro-grande usam estes números */
+  --vidro-blur: 24px;
+  --vidro-blur-grande: 40px;
+  --vidro-sat: 1.4;
+  --vidro-fundo: color-mix(in srgb, var(--solido-barra) 72%, transparent);
+  --vidro-fundo-grande: color-mix(in srgb, var(--solido-barra) 85%, transparent);
+  --vidro-borda: light-dark(rgb(255 255 255 / 0.45), rgb(255 255 255 / 0.12));
+
+  /* molas em linear(): suave sem rebote (padrão), leve com rebote de 0,5% (sheet e detalhe) */
+  --mola-suave: linear(0, 0.059 4.3%, 0.185 8.7%, 0.328 13%, 0.464 17.4%, 0.582 21.7%, 0.68 26.1%, 0.758 30.4%, 0.82 34.8%, 0.866 39.1%, 0.902 43.5%, 0.928 47.8%, 0.948 52.2%, 0.962 56.5%, 0.973 60.9%, 0.981 65.2%, 0.986 69.6%, 0.99 73.9%, 0.993 78.3%, 0.995 82.6%, 0.996 87%, 0.998 91.3%, 0.998 95.7%, 1);
+  --mola-leve: linear(0, 0.061 4.3%, 0.196 8.7%, 0.353 13%, 0.504 17.4%, 0.636 21.7%, 0.743 26.1%, 0.826 30.4%, 0.888 34.8%, 0.931 39.1%, 0.961 43.5%, 0.981 47.8%, 0.993 52.2%, 1 56.5%, 1.003 60.9%, 1.005 65.2%, 1.005 68.4%, 1.005 69.6%, 1.005 73.9%, 1.004 78.3%, 1.003 82.6%, 1.002 87%, 1.002 91.3%, 1.001 95.7%, 1);
+  --mola-reserva: cubic-bezier(0.22, 1, 0.36, 1);
+  --mola: var(--mola-suave);
+  --duracao: 190ms;
+  --raio-controle: 6px;
+  --raio-grande: 10px;
+  --raio: 10px;
+  --raio-sheet: 18px;
   --espaco: clamp(1rem, 3vw, 2rem);
+  --barra-altura: 52px; /* barra de ferramentas (T251); a lateral sobreposta começa abaixo dela */
+}
+
+/* navegador sem linear() no easing: a curva de reserva */
+@supports not (transition-timing-function: linear(0, 1)) {
+  :root {
+    --mola-suave: var(--mola-reserva);
+    --mola-leve: var(--mola-reserva);
+  }
 }
 
 :root[data-tema="claro"] {
@@ -63,8 +122,18 @@
 }
 
 html {
+  font-size: 100%;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+}
+
+/* tamanho do texto (Configurações > Geral): tudo está em rem, e o corpo de 13px vira 15px e 17px */
+html[data-texto="grande"] {
+  font-size: 115.4%;
+}
+
+html[data-texto="maior"] {
+  font-size: 130.8%;
 }
 
 body {
@@ -72,10 +141,7 @@ body {
   min-height: 100vh;
   background-color: var(--fundo);
   color: var(--texto);
-  font-family: -apple-system, BlinkMacSystemFont, "Inter", system-ui, sans-serif;
-  font-size: 1.0625rem;
-  line-height: 1.47;
-  letter-spacing: -0.01em;
+  font: var(--t-body);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -83,6 +149,10 @@ body {
 a {
   color: var(--link);
   text-underline-offset: 0.15em;
+}
+
+a[href] {
+  cursor: pointer;
 }
 
 :focus-visible {
@@ -95,24 +165,22 @@ main:focus:not(:focus-visible) {
   outline: none;
 }
 
-/* link de pular: fora da tela até receber o foco */
+/* link de pular: invisível até receber o foco */
 .pular {
   position: absolute;
-  top: 0.75rem;
-  left: var(--espaco);
-  z-index: 20;
+  inset-block-start: 0.75rem;
+  inset-inline-start: var(--espaco);
+  /* acima de toda barra (a .topo chega a 31 na janela média): o primeiro foco nunca fica coberto */
+  z-index: 40;
   padding: 0.5rem 1rem;
   border-radius: 999px;
   background-color: var(--destaque);
   color: var(--sobre-destaque);
   font-weight: 600;
   text-decoration: none;
-  transform: translateY(-300%);
-  /* o do miolo cai atrás da barra do topo (translúcida): fora da tela não basta, some até o foco */
+  /* some sem sair do lugar (T146): invisível e sem pegar o mouse até receber o foco */
   opacity: 0;
-  transition:
-    transform var(--duracao) var(--mola),
-    opacity var(--duracao) var(--mola);
+  transition: opacity var(--duracao) var(--mola);
 }
 
 .pular:not(:focus) {
@@ -120,113 +188,231 @@ main:focus:not(:focus-visible) {
 }
 
 .pular:focus {
-  transform: none;
   opacity: 1;
 }
 
-/* barra do topo translúcida */
+/* barra de ferramentas (T251): 52px, o material (vidro) vem da classe .vidro no template e a borda
+   separa do conteúdo; o arranjo na grade da casca fica no casca.css */
 .topo {
-  position: sticky;
-  top: 0;
-  z-index: 10;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.75rem var(--espaco);
-  background-color: var(--barra);
-  border-bottom: 1px solid var(--borda);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
-  backdrop-filter: saturate(180%) blur(20px);
+  gap: 8px;
+  min-block-size: var(--barra-altura);
+  padding-block: 8px;
+  padding-inline: var(--espaco);
+  border-block-end: 1px solid var(--separador);
+}
+
+/*
+ * Vidro (desenho 5.1): o único lugar com backdrop-filter. Nunca vidro sobre vidro, nunca animar o
+ * filtro. Menu, paleta, alerta e sheet somam .vidro-elevado para o caminho sólido usar o tom deles.
+ */
+.vidro,
+.vidro-grande {
+  --fundo-solido: var(--solido-barra);
+  box-shadow: inset 0 1px 0 var(--vidro-borda);
+}
+
+.vidro {
+  background-color: var(--vidro-fundo);
+  -webkit-backdrop-filter: saturate(var(--vidro-sat)) blur(var(--vidro-blur));
+  backdrop-filter: saturate(var(--vidro-sat)) blur(var(--vidro-blur));
+}
+
+.vidro-grande {
+  background-color: var(--vidro-fundo-grande);
+  -webkit-backdrop-filter: saturate(var(--vidro-sat)) blur(var(--vidro-blur-grande));
+  backdrop-filter: saturate(var(--vidro-sat)) blur(var(--vidro-blur-grande));
+}
+
+.vidro-elevado {
+  --fundo-solido: var(--solido-elevado);
+}
+
+/*
+ * Alerta, base (T259): fica ANTES dos blocos sólidos do vidro de propósito. `.alerta` e `.vidro-grande`
+ * têm a mesma especificidade, então a regra escrita depois vence: aqui o reset do UA (border: 0) e a
+ * sombra grande valem no caminho normal, e a borda de 1px do caminho sólido (mais contraste, menos
+ * transparência, sem backdrop-filter, janela inativa) vem depois e prevalece. O resto do alerta
+ * (aberto, entrada, véu, corpo, ações) está mais abaixo.
+ */
+.alerta {
+  inline-size: 16.25rem;
+  max-inline-size: calc(100vw - 2rem);
+  margin: auto;
+  padding: 0;
+  border: 0;
+  border-radius: var(--raio-sheet);
+  box-shadow:
+    inset 0 1px 0 var(--vidro-borda),
+    var(--sombra-alerta);
+  color: var(--texto);
+  font: var(--t-body);
+  overflow: hidden;
+}
+
+/*
+ * Paleta de comandos, base (T265; desenho 5.4): como o alerta, escrita ANTES dos blocos sólidos do
+ * vidro, para o reset de borda do UA valer no caminho normal e a borda de 1px do sólido prevalecer.
+ * 560px, no alto, raio de 10px. O resto (aberta, campo, itens, atalhos) está mais abaixo.
+ */
+.paleta {
+  inline-size: 35rem;
+  max-inline-size: calc(100vw - 2rem);
+  margin-block: 12vh auto;
+  margin-inline: auto;
+  padding: 0;
+  border: 0;
+  border-radius: var(--raio-grande);
+  box-shadow:
+    inset 0 1px 0 var(--vidro-borda),
+    var(--sombra-alerta);
+  color: var(--texto);
+  font: var(--t-body);
+  overflow: hidden;
+}
+
+/* caminho sólido: sem filtro, fundo opaco e borda de 1px (com mais contraste, a cor do texto) */
+@media (prefers-reduced-transparency: reduce) {
+  .vidro,
+  .vidro-grande {
+    background-color: var(--fundo-solido);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    border: 1px solid var(--separador);
+    box-shadow: none;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .vidro,
+  .vidro-grande {
+    background-color: var(--fundo-solido);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    border: 1px solid var(--texto);
+    box-shadow: none;
+  }
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .vidro,
+  .vidro-grande {
+    background-color: var(--fundo-solido);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    border: 1px solid var(--separador);
+    box-shadow: none;
+  }
+}
+
+/* janela inativa (o app.js põe data-janela no <html>): sem vidro, com o sólido */
+:root[data-janela="inativa"] .vidro,
+:root[data-janela="inativa"] .vidro-grande {
+  background-color: var(--fundo-solido);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  border: 1px solid var(--separador);
+  box-shadow: none;
 }
 
 .marca {
   color: var(--texto);
-  font-size: 1.3rem;
-  font-weight: 700;
-  letter-spacing: -0.025em;
+  font: var(--t-title2);
   text-decoration: none;
 }
 
-/* menu principal: quebra de linha em tela estreita ou com zoom, sem rolagem nem JavaScript */
-.menu {
-  display: flex;
-  flex: 1 1 auto;
-  flex-wrap: wrap;
-  gap: 0.25rem;
-}
-
-.menu a {
-  padding: 0.3rem 0.8rem;
-  border-radius: 8px;
+/*
+ * Controles (desenho 5.3): 28px de altura, cursor de seta (a mão só em link) e sem escala ao
+ * pressionar. Variantes: principal, comum (o próprio button), simples e destrutivo. O :where baixa a
+ * especificidade do hover para as classes de cada tela continuarem mandando no próprio fundo.
+ */
+button {
+  appearance: none;
+  min-block-size: 1.75rem;
+  margin: 0;
+  padding-block: 0;
+  padding-inline: 0.75rem;
+  border: 0.5px solid var(--borda-controle);
+  border-radius: var(--raio-controle);
+  background-color: var(--fundo-controle);
   color: var(--texto);
-  font-size: 0.9375rem;
+  font: inherit;
   font-weight: 500;
-  text-decoration: none;
+  cursor: default;
   transition:
-    background-color var(--duracao) var(--mola),
-    box-shadow var(--duracao) var(--mola);
+    background-color 120ms ease-out,
+    color 120ms ease-out,
+    opacity 120ms ease-out;
 }
 
-.menu a:hover {
-  background-color: var(--trilho);
+:where(button:not(:disabled)):hover {
+  background-color: color-mix(in srgb, var(--fundo-controle), var(--hover));
 }
 
-/* área aberta: mesmo tom do segmento escolhido (pares texto/segmento e texto/trilho da lista) */
-.menu a[aria-current="page"] {
-  background-color: var(--segmento);
-  box-shadow: 0 1px 3px var(--sombra);
+:where(button:not(:disabled)):active {
+  background-color: color-mix(in srgb, var(--fundo-controle), var(--pressionado));
+}
+
+/* desativado: opacidade e o motivo escrito ao lado (a tela diz o porquê) */
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.botao-principal {
+  border-color: transparent;
+  background-color: var(--destaque);
+  color: var(--sobre-destaque);
   font-weight: 600;
 }
 
-/* barra alta demais cobriria o conteúdo com zoom de 200%: em tela estreita ela rola junto */
-@media (max-width: 40rem) {
-  .topo {
-    position: static;
-  }
+.botao-principal:hover:not(:disabled) {
+  background-color: color-mix(in srgb, var(--destaque), black 12%);
 }
 
-.preferencias {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+.botao-principal:active:not(:disabled) {
+  background-color: color-mix(in srgb, var(--destaque), black 22%);
 }
 
-/* controle segmentado: um formulário, um botão por opção */
-.segmentos {
-  display: inline-flex;
-  margin: 0;
-  padding: 2px;
-  border-radius: 10px;
-  background-color: var(--trilho);
-}
-
-.segmentos button {
-  appearance: none;
-  border: 0;
-  margin: 0;
-  padding: 0.3rem 0.8rem;
-  border-radius: 8px;
+.botao-simples {
+  border-color: transparent;
   background-color: transparent;
+}
+
+.botao-simples:hover:not(:disabled) {
+  background-color: var(--hover);
+}
+
+.botao-simples:active:not(:disabled) {
+  background-color: var(--pressionado);
+}
+
+.botao-destrutivo {
+  color: var(--alerta);
+}
+
+input[type="text"],
+input[type="search"],
+input[type="number"],
+input[type="email"],
+input[type="url"],
+input[type="password"] {
+  min-block-size: 1.75rem;
+  padding-block: 0;
+  padding-inline: 0.5rem;
+  border: 1px solid var(--borda-controle);
+  border-radius: var(--raio-controle);
+  background-color: var(--superficie);
   color: var(--texto);
   font: inherit;
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition:
-    background-color var(--duracao) var(--mola),
-    box-shadow var(--duracao) var(--mola),
-    transform var(--duracao) var(--mola);
 }
 
-.segmentos button[aria-pressed="true"] {
-  background-color: var(--segmento);
-  box-shadow: 0 1px 3px var(--sombra);
-}
-
-.segmentos button:active {
-  transform: scale(0.96);
+::placeholder {
+  color: var(--texto-2);
+  opacity: 1;
 }
 
 main {
@@ -237,76 +423,13 @@ main {
   animation: surgir var(--duracao) var(--mola) both;
 }
 
-/* aviso de versão nova (T85): a div é fixa e some sem altura; só o parágrafo tem caixa */
-#aviso-versao {
-  max-width: 72rem;
-  margin: 0 auto;
-  padding: 0 var(--espaco);
-}
-
-.aviso-versao {
-  margin: 0.75rem 0 0;
-  padding: 0.6rem 1rem;
-  border: 1px solid var(--borda);
-  border-radius: var(--raio);
-  background-color: var(--superficie);
-  color: var(--texto);
-  font-size: 0.9375rem;
-}
-
-/* aviso de erro de clique (T151): fixo embaixo, abaixo da barra do topo e do link de pular; some com [hidden] */
-#aviso-erro:not([hidden]) {
-  position: fixed;
-  right: var(--espaco);
-  bottom: var(--espaco);
-  left: var(--espaco);
-  z-index: 15;
-  display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-  max-width: 36rem;
-  margin: 0 auto;
-  padding: 0.75rem 1rem;
-  border: 1px solid var(--alerta);
-  border-radius: var(--raio);
-  background-color: var(--superficie);
-  color: var(--texto);
-  font-size: 0.9375rem;
-  box-shadow: 0 8px 24px var(--sombra);
-}
-
-#aviso-erro p {
-  flex: 1;
-  margin: 0;
-  overflow-wrap: anywhere;
-}
-
-#aviso-erro button {
-  flex: none;
-  min-width: 2rem;
-  min-height: 2rem;
-  padding: 0 0.5rem;
-  border: 0;
-  border-radius: 999px;
-  background-color: transparent;
-  color: var(--texto);
-  font: inherit;
-  font-size: 1.25rem;
-  line-height: 1;
-  cursor: pointer;
-}
-
-#aviso-erro button:hover {
-  background-color: var(--trilho);
-}
-
 /* rodapé: link discreto "Apoie o projeto" (T87), texto-2 sobre o fundo (par da lista) */
 .rodape {
   max-width: 72rem;
   margin: 0 auto;
   padding: 0 var(--espaco) var(--espaco);
   color: var(--texto-2);
-  font-size: 0.875rem;
+  font: var(--t-callout);
   text-align: center;
 }
 
@@ -318,16 +441,122 @@ main {
   color: var(--texto);
 }
 
-/* painel: superfície com cantos arredondados, para as telas usarem */
+/* painel: cartão de conteúdo, opaco (vidro só na camada funcional: barra, lateral, menus) */
 .painel {
   padding: var(--espaco);
-  border: 1px solid var(--borda);
+  border: 1px solid var(--separador);
+  border-radius: var(--raio-grande);
+  background-color: var(--superficie);
+}
+
+/* lista agrupada (desenho 5.8; T309): um bloco opaco sobre --superficie, linhas separadas por
+   filete. Buscas, Fontes, Sites, Empresas e Sugeridas; cada tela só estiliza a linha dela */
+.lista-agrupada {
+  margin: 0 0 1rem;
+  padding: 0;
   border-radius: var(--raio);
-  /* translúcido sobre o --fundo: a cor que aparece fica entre --fundo e --superficie,
-     e os dois pares do contraste já cobrem esse intervalo */
-  background-color: color-mix(in srgb, var(--superficie) 72%, transparent);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
-  backdrop-filter: saturate(180%) blur(20px);
+  background-color: var(--superficie);
+  box-shadow: inset 0 0 0 0.5px var(--separador);
+  list-style: none;
+  overflow: hidden;
+}
+
+/*
+ * Menu de contexto (T257; desenho 5.4): no ponteiro (o app.js dá --menu-x e --menu-y), raio de 10px,
+ * itens de 24px e o item realçado em --destaque com texto branco. O realce é o foco: o ponteiro e as
+ * setas movem o foco. Posição física de propósito: o ponteiro dá coordenadas físicas. O :where só
+ * tira a borda do popover do navegador e perde para a borda dos caminhos sólidos do .vidro.
+ */
+:where(.menu-contexto) {
+  border: 0;
+}
+
+.menu-contexto {
+  position: fixed;
+  inset: auto;
+  top: var(--menu-y, 0);
+  left: var(--menu-x, 0);
+  min-inline-size: 11rem;
+  max-inline-size: min(20rem, 100vw);
+  margin: 0;
+  padding: 5px;
+  border-radius: var(--raio-grande);
+  box-shadow:
+    inset 0 1px 0 var(--vidro-borda),
+    var(--sombra-menu);
+  color: var(--texto);
+  font: var(--t-body);
+}
+
+.menu-contexto:focus {
+  outline: none;
+}
+
+.menu-contexto [role="group"]:not([hidden]) ~ [role="group"]:not([hidden]) {
+  margin-block-start: 5px;
+  padding-block-start: 5px;
+  border-block-start: 1px solid var(--separador);
+}
+
+.menu-contexto form {
+  margin: 0;
+}
+
+.menu-contexto [role="menuitem"] {
+  display: block;
+  inline-size: 100%;
+  min-block-size: 1.5rem;
+  margin: 0;
+  padding-block: 0.25rem;
+  padding-inline: 0.625rem;
+  border: 0;
+  border-radius: calc(var(--raio-grande) - 5px);
+  background-color: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: default;
+  transition: none;
+}
+
+/* o item que não vale para o alvo ganha [hidden] (data-requer); o display acima o venceria */
+.menu-contexto [role="menuitem"][hidden] {
+  display: none;
+}
+
+.menu-contexto [role="menuitem"]:focus {
+  outline: none;
+  background-color: var(--destaque);
+  color: var(--sobre-destaque);
+}
+
+/* nos caminhos sólidos do .vidro o menu perde o brilho de cima, mas segue com a sombra */
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  .menu-contexto {
+    box-shadow: var(--sombra-menu);
+  }
+}
+
+/* o aviso curto do "Copiar link", embaixo e no meio da janela, sem pegar clique */
+.menu-aviso {
+  position: fixed;
+  inset-block-end: 1.5rem;
+  inset-inline: 0;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.menu-aviso p {
+  margin: 0;
+  padding-block: 0.375rem;
+  padding-inline: 0.875rem;
+  border-radius: var(--raio-grande);
+  background-color: var(--texto);
+  color: var(--superficie);
+  font: var(--t-body);
 }
 
 @keyframes surgir {
@@ -337,16 +566,497 @@ main {
   }
 }
 
-/* com movimento reduzido, nada se mexe */
+/*
+ * Alerta (T259; desenho 5.4): <dialog> modal de 260px, raio de sheet, véu --veu. O vidro vem da
+ * classe .vidro-grande no HTML. O display só vale com [open] (fechado, o dialog segue escondido) e a
+ * coluna prende os botões no pé: só o texto rola (E17). Entra com fade e scale(.96) em 200ms; o
+ * bloco de movimento reduzido, no fim do arquivo, tira o transform e deixa o fundido.
+ */
+.alerta[open] {
+  display: flex;
+  flex-direction: column;
+  max-block-size: min(30rem, calc(100dvh - 2rem));
+  opacity: 1;
+  transform: scale(1);
+  transition:
+    opacity 200ms var(--mola),
+    transform 200ms var(--mola);
+}
+
+@starting-style {
+  .alerta[open] {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+.alerta:focus {
+  outline: none;
+}
+
+.alerta::backdrop {
+  background-color: var(--veu);
+}
+
+.alerta form {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-block-size: 0;
+  margin: 0;
+}
+
+.alerta-corpo {
+  flex: 1 1 auto;
+  min-block-size: 0;
+  padding: 1.25rem 1rem 0.75rem;
+  overflow-y: auto;
+  text-align: center;
+}
+
+.alerta-titulo {
+  margin: 0 0 0.25rem;
+  font: var(--t-body);
+  font-weight: 600;
+}
+
+.alerta-texto {
+  margin: 0;
+  color: var(--texto-2);
+  font: var(--t-sub);
+}
+
+.alerta-acoes {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 0.5rem 1rem 1rem;
+}
+
+.alerta-acoes button {
+  inline-size: 100%;
+}
+
+/*
+ * Paleta de comandos (T265): <dialog> modal, véu --veu, entra com fade e scale(.96) em 200ms (o bloco
+ * de movimento reduzido, no fim, tira o transform). O campo é o único foco; a marca (aria-selected)
+ * anda pela lista e o foco fica no campo (aria-activedescendant). O atalho escrito vem em duas
+ * formas e o app.js põe data-sistema no <html>: sem ele (ou fora do Mac), vale a de Ctrl.
+ */
+.paleta[open] {
+  display: flex;
+  flex-direction: column;
+  max-block-size: min(26rem, calc(100dvh - 12vh - 1rem));
+  opacity: 1;
+  transform: scale(1);
+  transition:
+    opacity 200ms var(--mola),
+    transform 200ms var(--mola);
+}
+
+@starting-style {
+  .paleta[open] {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+.paleta::backdrop {
+  background-color: var(--veu);
+}
+
+.paleta .paleta-campo {
+  flex: none;
+  inline-size: 100%;
+  min-block-size: 2.75rem;
+  padding-block: 0;
+  padding-inline: 1rem;
+  border: 0;
+  border-block-end: 1px solid var(--separador);
+  border-radius: 0;
+  background-color: transparent;
+  color: var(--texto);
+  font: var(--t-title2);
+  font-weight: 400;
+  outline-offset: -2px;
+}
+
+.paleta-lista {
+  flex: 1 1 auto;
+  min-block-size: 0;
+  padding: 5px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.paleta-lista form {
+  margin: 0;
+}
+
+/* o filtro põe [hidden] na própria opção (link) ou no form; o !important vence o display de
+   .paleta-lista [role="option"], de mesma especificidade e que vem depois */
+.paleta-lista [hidden] {
+  display: none !important;
+}
+
+.paleta-lista [role="option"] {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  box-sizing: border-box;
+  inline-size: 100%;
+  min-block-size: 1.75rem;
+  margin: 0;
+  padding-block: 0.25rem;
+  padding-inline: 0.625rem;
+  border: 0;
+  border-radius: calc(var(--raio-grande) - 5px);
+  background-color: transparent;
+  color: var(--texto);
+  font: inherit;
+  text-align: start;
+  text-decoration: none;
+  cursor: default;
+}
+
+.paleta-lista [role="option"][aria-selected="true"] {
+  background-color: var(--destaque);
+  color: var(--sobre-destaque);
+}
+
+.paleta-atalho {
+  color: var(--texto-2);
+  font: var(--t-sub);
+  white-space: nowrap;
+}
+
+.paleta-lista [aria-selected="true"] .paleta-atalho {
+  color: inherit;
+}
+
+.paleta kbd {
+  font: inherit;
+}
+
+:root:not([data-sistema="mac"]) .paleta kbd[data-sistema="mac"],
+:root[data-sistema="mac"] .paleta kbd[data-sistema="outro"] {
+  display: none;
+}
+
+.paleta-vazio {
+  margin: 0;
+  padding: 1rem;
+  color: var(--texto-2);
+  text-align: center;
+}
+
+/* a contagem para o leitor de tela (região viva); o texto visível é o do .paleta-vazio */
+.paleta-estado {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/*
+ * Confirmação em página (T307): o que o alerta vira sem JavaScript (confirmar.html). Reaproveita o
+ * corpo e as ações do alerta; a página é um cartão de 260px, o texto é --texto e --texto-2 sobre
+ * --superficie (pares já conferidos), o Cancelar é um link com a cara do botão comum.
+ */
+.confirmar {
+  inline-size: 16.25rem;
+  max-inline-size: 100%;
+  margin: 2rem auto;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-sheet);
+  background-color: var(--superficie);
+  overflow: hidden;
+}
+
+.confirmar form {
+  margin: 0;
+}
+
+.confirmar-cancelar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-block-size: 1.75rem;
+  padding-inline: 0.75rem;
+  border: 0.5px solid var(--borda-controle);
+  border-radius: var(--raio-controle);
+  background-color: var(--fundo-controle);
+  color: var(--texto);
+  font-weight: 500;
+  text-decoration: none;
+  transition:
+    background-color 120ms ease-out,
+    color 120ms ease-out;
+}
+
+.confirmar-cancelar:hover {
+  background-color: color-mix(in srgb, var(--fundo-controle), var(--hover));
+}
+
+.confirmar-cancelar:active {
+  background-color: color-mix(in srgb, var(--fundo-controle), var(--pressionado));
+}
+
+/* A chave (desenho 5.3): um checkbox sem a aparência do sistema, 38x22px (a .chave-mini, 30x18px),
+   com a bolinha que corre. Ao apertar, a bolinha estica; ligada, ela cresce para a esquerda (a
+   borda direita fica no lugar). A bolinha anda por inset-inline-start, sem transform, para o
+   movimento reduzido (que zera o transform) mudar de posição sem animar. */
+.chave {
+  --larg: 2.375rem;
+  --alt: 1.375rem;
+  --bolinha: 1.125rem;
+  --folga: 0.125rem;
+  appearance: none;
+  position: relative;
+  flex: none;
+  width: var(--larg);
+  height: var(--alt);
+  margin: 0;
+  border-radius: 999px;
+  background-color: var(--trilho);
+  cursor: default;
+  transition: background-color var(--duracao) var(--mola);
+}
+
+.chave-mini {
+  --larg: 1.875rem;
+  --alt: 1.125rem;
+  --bolinha: 0.875rem;
+}
+
+.chave::after {
+  content: "";
+  position: absolute;
+  inset-block-start: var(--folga);
+  inset-inline-start: var(--folga);
+  width: var(--bolinha);
+  height: var(--bolinha);
+  border-radius: 999px;
+  background-color: var(--segmento);
+  box-shadow: 0 1px 3px var(--sombra);
+  transition:
+    inset-inline-start var(--duracao) var(--mola),
+    width var(--duracao) var(--mola);
+}
+
+.chave:checked {
+  background-color: var(--destaque);
+}
+
+.chave:checked::after {
+  inset-inline-start: calc(var(--larg) - var(--bolinha) - var(--folga));
+  background-color: var(--sobre-destaque);
+}
+
+.chave:active:not(:disabled)::after {
+  width: calc(var(--bolinha) + 0.25rem);
+}
+
+.chave:checked:active:not(:disabled)::after {
+  inset-inline-start: calc(var(--larg) - var(--bolinha) - 0.25rem - var(--folga));
+}
+
+.chave:focus-visible {
+  outline: 2px solid var(--foco);
+  outline-offset: 2px;
+}
+
+/* desativada: trilho neutro, sem a cor de destaque e sem sombra na bolinha; não é só a opacidade */
+.chave:disabled,
+.chave:disabled:checked {
+  background-color: var(--trilho);
+  box-shadow: inset 0 0 0 1px var(--borda);
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.chave:disabled::after {
+  background-color: var(--segmento);
+  box-shadow: none;
+}
+
+/* A caixa de marcar (desenho 5.3): 14px, raio 4px, visto branco sobre --destaque. O interruptor
+   (.chave) fica só onde a opção comanda um grupo. A borda desmarcada é --texto-2 sobre --superficie
+   (3:1 de objeto gráfico, WCAG 1.4.11; o par texto-2/superficie está na lista de contraste do topo)
+   e o visto é --sobre-destaque sobre --destaque (par sobre-destaque/destaque, também na lista).
+   O visto é um ::after recortado por clip-path: sem transform (o movimento reduzido o zera) e sem
+   url(data:) (o CSP só aceita 'self'). */
+input[type="checkbox"]:not(.chave) {
+  appearance: none;
+  position: relative;
+  flex: none;
+  inline-size: 0.875rem;
+  block-size: 0.875rem;
+  margin: 0;
+  border: 1px solid var(--texto-2);
+  border-radius: 4px;
+  background-color: var(--superficie);
+  cursor: default;
+  transition:
+    background-color var(--duracao) var(--mola),
+    border-color var(--duracao) var(--mola);
+}
+
+input[type="checkbox"]:not(.chave)::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-color: var(--sobre-destaque);
+  clip-path: polygon(20% 52%, 28% 44%, 42% 58%, 74% 24%, 82% 32%, 42% 74%);
+  opacity: 0;
+}
+
+input[type="checkbox"]:not(.chave):checked {
+  border-color: var(--destaque);
+  background-color: var(--destaque);
+}
+
+input[type="checkbox"]:not(.chave):checked::after {
+  opacity: 1;
+}
+
+input[type="checkbox"]:not(.chave):focus-visible {
+  outline: 2px solid var(--foco);
+  outline-offset: 2px;
+}
+
+input[type="checkbox"]:not(.chave):disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* cores forçadas: o navegador troca as cores; o que só o fundo dizia ganha contorno */
+@media (forced-colors: active) {
+  button,
+  input[type="text"],
+  input[type="search"],
+  input[type="number"],
+  input[type="email"],
+  input[type="url"],
+  input[type="password"] {
+    border: 1px solid ButtonText;
+  }
+
+  .confirmar,
+  .confirmar-cancelar {
+    border: 1px solid ButtonText;
+  }
+
+  .menu a[aria-current] {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+
+  .menu-contexto [role="menuitem"]:focus {
+    background-color: Highlight;
+    color: HighlightText;
+  }
+
+  .paleta-lista [role="option"][aria-selected="true"] {
+    forced-color-adjust: none;
+    background-color: Highlight;
+    color: HighlightText;
+  }
+
+  .menu-aviso p {
+    border: 1px solid CanvasText;
+  }
+
+  .vidro,
+  .vidro-grande {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    border: 1px solid CanvasText;
+  }
+  .chave {
+    border: 2px solid ButtonText;
+    background-color: Canvas;
+    forced-color-adjust: none;
+  }
+
+  .chave::after {
+    inset-block-start: 0;
+    inset-inline-start: 0;
+    width: calc(var(--alt) - 4px);
+    height: calc(var(--alt) - 4px);
+    background-color: ButtonText;
+    box-shadow: none;
+  }
+
+  .chave:checked {
+    background-color: Highlight;
+  }
+
+  .chave:checked::after {
+    inset-inline-start: calc(var(--larg) - var(--alt));
+    background-color: HighlightText;
+  }
+
+  .chave:disabled,
+  .chave:disabled:checked {
+    border-color: GrayText;
+    background-color: Canvas;
+    box-shadow: none;
+    opacity: 1;
+  }
+
+  .chave:disabled::after {
+    background-color: GrayText;
+  }
+
+  input[type="checkbox"]:not(.chave) {
+    border: 1px solid ButtonText;
+    background-color: Canvas;
+    forced-color-adjust: none;
+  }
+
+  input[type="checkbox"]:not(.chave)::after {
+    background-color: HighlightText;
+  }
+
+  input[type="checkbox"]:not(.chave):checked {
+    border-color: Highlight;
+    background-color: Highlight;
+  }
+
+  input[type="checkbox"]:not(.chave):disabled {
+    border-color: GrayText;
+    opacity: 1;
+  }
+
+  input[type="checkbox"]:not(.chave):disabled:checked {
+    background-color: GrayText;
+  }
+}
+
+/* movimento reduzido, sempre por último: sem transform nem laço; só cor, fundo e opacidade, em 120ms */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
-    animation-duration: 0s !important;
-    animation-delay: 0s !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0s !important;
+    animation: none !important;
+    transform: none !important;
+    transition-property: opacity, color, background-color, border-color, box-shadow !important;
+    transition-duration: 120ms !important;
     transition-delay: 0s !important;
     scroll-behavior: auto !important;
+  }
+
+  /* a chave e a bolinha não correm: mudam de posição na hora (vence o fundido de 120ms acima) */
+  .chave,
+  .chave::after {
+    transition: none !important;
   }
 }

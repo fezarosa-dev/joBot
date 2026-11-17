@@ -1,65 +1,88 @@
 {% extends "base.html" %}
+{% from "_alerta.html" import alerta with context %}
+{% from "_menu_contexto.html" import menu_contexto with context %}
 {% block titulo %}{{ t("buscas.titulo") }} · joBot{% endblock %}
 {% block estilos %}<link rel="stylesheet" href="/static/css/vagas.css"><link rel="stylesheet" href="/static/css/buscas.css">{% endblock %}
 {% block conteudo %}
 <h1 class="titulo-pagina">{{ t("buscas.titulo") }}</h1>
 {% if buscas %}
-<ul class="lista" id="lista-buscas">
+<ul class="lista-agrupada" id="lista-buscas">
   {%- for r in buscas %}
   {%- set b = r.busca %}
-  <li class="cartao{% if not b.ativa %} cartao-oculta{% endif %}" id="busca-{{ b.id }}">
-    <div class="cartao-cabeca">
-      <h2 class="cartao-titulo">{{ b.nome }}</h2>
-      {%- if not b.ativa %}
-      <span class="selo">{{ t("buscas.desligada") }}</span>
-      {%- endif %}
+  <li class="linha-busca{% if not b.ativa %} linha-desligada{% endif %}" id="busca-{{ b.id }}" tabindex="-1" data-menu="menu-busca" data-id="{{ b.id }}" data-{{ "ligada" if b.ativa else "desligada" }}>
+    <div class="linha-busca-texto">
+      <div class="cartao-cabeca">
+        <h2 class="cartao-titulo">{{ b.nome }}</h2>
+        {%- if not b.ativa %}
+        <span class="selo">{{ t("buscas.desligada") }}</span>
+        {%- endif %}
+      </div>
+      <ul class="meta">
+        {%- if b.cargos %}
+        <li><span class="rotulo">{{ t("buscas.campo.cargos") }}:</span> {{ b.cargos | join(", ") }}</li>
+        {%- endif %}
+        {%- if r.cidades %}
+        <li><span class="rotulo">{{ t("buscas.campo.cidades") }}:</span> {{ r.cidades | join(" · ") }}</li>
+        {%- endif %}
+        {%- if b.modalidades %}
+        <li><span class="rotulo">{{ t("buscas.campo.modalidades") }}:</span>
+          {%- for m in b.modalidades %} {{ t("modalidade." ~ m.value) }}{{ "," if not loop.last }}{% endfor %}</li>
+        {%- endif %}
+        {%- if b.niveis %}
+        <li><span class="rotulo">{{ t("buscas.campo.niveis") }}:</span>
+          {%- for n in b.niveis %} {{ t("nivel." ~ n.value) }}{{ "," if not loop.last }}{% endfor %}</li>
+        {%- endif %}
+        {%- if b.salario_min_centavos %}
+        <li><span class="rotulo">{{ t("buscas.campo.salario") }}:</span> {{ dinheiro(b.salario_min_centavos, b.salario_moeda or "BRL", idioma) }}</li>
+        {%- endif %}
+        {%- if b.idiomas %}
+        <li><span class="rotulo">{{ t("buscas.campo.idiomas") }}:</span>
+          {%- for i in b.idiomas %} {{ t("buscas.idioma." ~ i) }}{{ "," if not loop.last }}{% endfor %}</li>
+        {%- endif %}
+        {%- if r.desligadas %}
+        <li><span class="rotulo">{{ t("buscas.regras_desligadas") }}:</span>
+          {%- for d in r.desligadas %} {{ t("vagas.motivo." ~ d) }}{{ "," if not loop.last }}{% endfor %}</li>
+        {%- endif %}
+      </ul>
     </div>
-    <ul class="meta">
-      {%- if b.cargos %}
-      <li><span class="rotulo">{{ t("buscas.campo.cargos") }}:</span> {{ b.cargos | join(", ") }}</li>
-      {%- endif %}
-      {%- if r.cidades %}
-      <li><span class="rotulo">{{ t("buscas.campo.cidades") }}:</span> {{ r.cidades | join(" · ") }}</li>
-      {%- endif %}
-      {%- if b.modalidades %}
-      <li><span class="rotulo">{{ t("buscas.campo.modalidades") }}:</span>
-        {%- for m in b.modalidades %} {{ t("modalidade." ~ m.value) }}{{ "," if not loop.last }}{% endfor %}</li>
-      {%- endif %}
-      {%- if b.niveis %}
-      <li><span class="rotulo">{{ t("buscas.campo.niveis") }}:</span>
-        {%- for n in b.niveis %} {{ t("nivel." ~ n.value) }}{{ "," if not loop.last }}{% endfor %}</li>
-      {%- endif %}
-      {%- if b.salario_min_centavos %}
-      <li><span class="rotulo">{{ t("buscas.campo.salario") }}:</span> {{ dinheiro(b.salario_min_centavos, b.salario_moeda or "BRL", idioma) }}</li>
-      {%- endif %}
-      {%- if b.idiomas %}
-      <li><span class="rotulo">{{ t("buscas.campo.idiomas") }}:</span>
-        {%- for i in b.idiomas %} {{ t("buscas.idioma." ~ i) }}{{ "," if not loop.last }}{% endfor %}</li>
-      {%- endif %}
-      {%- if r.desligadas %}
-      <li><span class="rotulo">{{ t("buscas.regras_desligadas") }}:</span>
-        {%- for d in r.desligadas %} {{ t("vagas.motivo." ~ d) }}{{ "," if not loop.last }}{% endfor %}</li>
-      {%- endif %}
-    </ul>
-    <div class="acoes">
+    <div class="linha-busca-acoes">
       <a href="/vagas?aba=todas&amp;busca={{ b.id }}">{{ t("buscas.ver_vagas") }}</a>
       <a href="/buscas/{{ b.id }}">{{ t("buscas.editar") }}</a>
-      <form method="post" action="/buscas/{{ b.id }}/{{ 'desligar' if b.ativa else 'ligar' }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <button type="submit" class="secundario">{{ t("buscas.desligar" if b.ativa else "buscas.ligar") }}</button>
+      <form method="get" action="/buscas/{{ b.id }}/apagar/confirmar">
+        <button type="submit" class="botao-simples" data-alerta-abre="alerta-busca-{{ b.id }}">{{ t("comum.apagar") }}</button>
       </form>
-      <details class="apagar">
-        <summary>{{ t("buscas.apagar") }}</summary>
-        <form method="post" action="/buscas/{{ b.id }}/apagar">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-          <p>{{ t("buscas.apagar_aviso", nome=b.nome) }}</p>
-          <button type="submit" class="secundario">{{ t("buscas.apagar_confirmar") }}</button>
-        </form>
-      </details>
+      <form method="post" action="/buscas/{{ b.id }}/{{ 'desligar' if b.ativa else 'ligar' }}" data-envia-ao-mudar>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="checkbox" class="chave chave-mini" role="switch" name="ativa"{% if b.ativa %} checked{% endif %} aria-label="{{ t('buscas.chave_rotulo', nome=b.nome) }}">
+        <noscript><button type="submit" class="botao-simples">{{ t("buscas.desligar" if b.ativa else "buscas.ligar") }}</button></noscript>
+      </form>
     </div>
   </li>
   {%- endfor %}
 </ul>
+{%- for r in buscas %}
+{{ alerta("alerta-busca-" ~ r.busca.id, t("buscas.apagar_titulo", nome=r.busca.nome), t("buscas.apagar_texto"), t("comum.apagar"), "/buscas/" ~ r.busca.id ~ "/apagar") }}
+{%- endfor %}
+{#- o menu mora fora da lista, como o da Vagas: nada o troca nem o duplica -#}
+{% call menu_contexto("menu-busca", t("buscas.menu.rotulo")) %}
+<div role="group">
+<a role="menuitem" tabindex="-1" href="#" data-modelo-href="/vagas?aba=todas&amp;busca={id}">{{ t("buscas.ver_vagas") }}</a>
+<a role="menuitem" tabindex="-1" href="#" data-modelo-href="/buscas/{id}">{{ t("buscas.editar") }}</a>
+</div>
+<div role="group">
+<form method="post" action="/buscas" data-modelo-acao="/buscas/{id}/ligar" data-requer="desligada">
+<input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<button type="submit" role="menuitem" tabindex="-1">{{ t("buscas.ligar") }}</button>
+</form>
+<form method="post" action="/buscas" data-modelo-acao="/buscas/{id}/desligar" data-requer="ligada">
+<input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<button type="submit" role="menuitem" tabindex="-1">{{ t("buscas.desligar") }}</button>
+</form>
+</div>
+<div role="group">
+<button type="button" role="menuitem" tabindex="-1" data-acionar="apagar">{{ t("buscas.menu.apagar") }}</button>
+</div>
+{% endcall %}
 {% else %}
 <p class="vazio">{{ t("buscas.vazio") }}</p>
 {% endif %}

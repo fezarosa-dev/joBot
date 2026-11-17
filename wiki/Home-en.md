@@ -11,7 +11,7 @@ It gathers, filters and organizes jobs from many sites into a dashboard that run
 
 [![MIT license](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](https://github.com/fezarosa-dev/joBot/blob/main/LICENSE)
 [![status: in development](https://img.shields.io/badge/status-in%20development-orange?style=flat-square)](Roadmap)
-[![phase 1 of 8](https://img.shields.io/badge/phase-1%20of%208-yellow?style=flat-square)](Roadmap)
+[![phase 1 of 8](https://img.shields.io/badge/phase-1%20of%209-yellow?style=flat-square)](Roadmap)
 [![Python 3.14](https://img.shields.io/badge/Python-3.14-3776AB?style=flat-square&logo=python&logoColor=white)](Technologies)
 [![platforms: Linux | Windows | macOS](https://img.shields.io/badge/platforms-Linux%20%7C%20Windows%20%7C%20macOS-lightgrey?style=flat-square)](Technologies)
 <br>
@@ -47,7 +47,7 @@ joBot was born to help young university students find their first job.
 Then the idea grew and became an assistant for everyone looking for a job, in any field. [Read the full story](The-idea-and-the-story).
 
 > [!NOTE]
-> **joBot is under development.** Phase 1 of 8 (the base) is complete: you can already [install and use](https://github.com/fezarosa-dev/joBot/blob/main/README.en.md#requirements-and-installation) version 0.2.1. Phases 2 to 8 are planned. See the [roadmap](Roadmap).
+> **joBot is under development.** Phases 1 and 2 of 9 (the base and the browser with login) are complete: you can already [install and use](https://github.com/fezarosa-dev/joBot/blob/main/README.en.md#requirements-and-installation) version 0.3.0. Phases 3 to 9 are planned. See the [roadmap](Roadmap).
 
 ## ✨ Highlights
 
@@ -70,9 +70,10 @@ It works for every kind of job and every field: full-time employment (CLT), cont
 |---|---|
 | 💡 [The idea and the story](The-idea-and-the-story) | Why joBot exists, what it does, what it does not do and its principles. |
 | ⚙️ [How it works](How-it-works) | The path of a job, from the source to the dashboard, and the two versions. |
+| ⌨️ [Keyboard shortcuts](Keyboard-shortcuts) | The dashboard's keys: command palette, job list, Undo and help. |
 | 🧰 [Technologies](Technologies) | The tools used and the reason for each one. |
 | 📚 [Decisions](Decisions) | Every project decision, each in one line. |
-| 🗺️ [Roadmap](Roadmap) | The 8 phases and which one we are in. |
+| 🗺️ [Roadmap](Roadmap) | The 9 phases and which one we are in. |
 | 💛 [Support the project](Support-the-project) | How to help the project, with or without money. |
 | ❓ [Frequently asked questions](Frequently-asked-questions) | The most common questions, answered. |
 | 🙋 [Ask a question](Ask-a-question) | How to ask what is not here. |

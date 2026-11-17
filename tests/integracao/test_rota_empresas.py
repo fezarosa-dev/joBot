@@ -5,6 +5,7 @@ relógio falso; o servidor falso responde com os exemplos capturados em `tests/f
 """
 
 import json
+import re
 from collections.abc import Mapping, Sequence
 from contextlib import closing
 from pathlib import Path
@@ -15,6 +16,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from apoio.faixa import faixa, form_da_faixa
 from apoio.relogio import RelogioFalso
 from jobot.banco import cadastros
 from jobot.banco.conexao import abrir
@@ -32,6 +34,7 @@ AGIBANK = "Agibank (quadro de vagas futuras)"
 AVISO_ZERO = "O identificador pode estar errado"
 ETIQUETA = "Banco de talentos"
 JSON_HDR = {"Content-Type": "application/json"}
+HX = {"HX-Request": "true"}
 
 
 def _arquivo(caminho: str) -> str:
@@ -313,7 +316,7 @@ def test_readicionar_o_agibank_sem_nome_mantem_a_etiqueta(tmp_path: Path) -> Non
     painel.post(f"/empresas/{id_}/remover")
     painel.adicionar("greenhouse", "agibankvagasfuturas")
     do_agibank = [
-        c for c in painel.get("/empresas").text.split('<li class="cartao')[1:] if AGIBANK in c
+        c for c in painel.get("/empresas").text.split('<li class="linha-busca')[1:] if AGIBANK in c
     ]
     assert len(do_agibank) == 1 and ETIQUETA in do_agibank[0]
 
@@ -426,7 +429,7 @@ def test_id_inexistente_404_e_fora_da_faixa_422(painel: Painel) -> None:
     painel.adicionar("greenhouse", "vitta")
     id_ = int(painel.sql("SELECT id FROM empresa")[0][0])
     painel.post(f"/empresas/{id_}/remover")
-    for acao in ("ligar", "desligar", "remover"):
+    for acao in ("ligar", "desligar", "remover", "restaurar"):
         assert painel.post(f"/empresas/999/{acao}").status_code == 404
         assert painel.post(f"/empresas/{2**63 - 1}/{acao}").status_code == 404
         assert painel.post(f"/empresas/0/{acao}").status_code == 422
@@ -438,7 +441,7 @@ def test_id_inexistente_404_e_fora_da_faixa_422(painel: Painel) -> None:
 def test_agibank_mostra_etiqueta_de_banco_de_talentos(tmp_path: Path) -> None:
     painel = Painel(tmp_path, semeado=True)
     html = painel.get("/empresas").text
-    cartoes = html.split('<li class="cartao')[1:]
+    cartoes = html.split('<li class="linha-busca')[1:]
     do_agibank = [c for c in cartoes if AGIBANK in c]
     assert len(do_agibank) == 1 and ETIQUETA in do_agibank[0]
     outros = [c for c in cartoes if AGIBANK not in c]
@@ -462,3 +465,152 @@ def test_lista_vazia_mostra_o_formulario(painel: Painel) -> None:
     assert 'name="endereco"' in html and 'formaction="/empresas/testar"' in html
     assert '<option value="greenhouse"' in html and '<option value="gupy"' in html
     assert '<option value="remotive"' not in html
+
+
+def _id_da(painel: Painel, identificador: str) -> int:
+    return int(painel.sql("SELECT id FROM empresa WHERE identificador = ?", identificador)[0][0])
+
+
+def _por_htmx(painel: Painel, acao: str, id_: int, idioma: str = "pt") -> Any:
+    return painel.http.post(
+        f"/empresas/{id_}/{acao}",
+        data={CAMPO_CSRF: painel.token, "voltar": "/empresas"},
+        headers={**HX, "Accept-Language": idioma},
+    )
+
+
+def _corpo(html: str) -> str:
+    """A lista que veio por OOB (`#corpo-empresas`, trocado por dentro)."""
+    achou = re.search(r'<div\b[^>]*\bid="corpo-empresas"[^>]*>.*', html, re.S)
+    assert achou, "sem a lista na resposta"
+    abertura = re.match(r"<div\b[^>]*>", achou.group(0))
+    assert abertura and 'hx-swap-oob="innerHTML"' in abertura.group(0)
+    return achou.group(0)
+
+
+def test_remover_e_restaurar_avisam_o_app_depois_do_settle(painel: Painel) -> None:
+    # o app.js devolve o foco ao botão da faixa ou à lista só com este aviso (depois do settle)
+    painel.adicionar("greenhouse", "vitta", nome="Vitta")
+    id_ = _id_da(painel, "vitta")
+    r = _por_htmx(painel, "remover", id_)
+    assert json.loads(r.headers["HX-Trigger-After-Settle"]) == {"lista-mudou": {"linha": ""}}
+    r = _por_htmx(painel, "restaurar", id_)
+    assert json.loads(r.headers["HX-Trigger-After-Settle"]) == {
+        "lista-mudou": {"linha": f"empresa-{id_}"}
+    }
+
+
+def test_a_lista_marca_o_foco_a_devolver(painel: Painel) -> None:
+    painel.adicionar("greenhouse", "vitta", nome="Vitta")
+    assert 'id="corpo-empresas" data-lista-desfazer' in painel.http.get("/empresas").text
+
+
+def test_remover_traz_a_faixa_com_restaurar(painel: Painel) -> None:
+    painel.adicionar("greenhouse", "vitta", nome="Vitta")
+    painel.adicionar("greenhouse", "outra", nome="Outra")
+    id_ = _id_da(painel, "vitta")
+
+    r = _por_htmx(painel, "remover", id_)
+
+    assert r.status_code == 200
+    f = faixa(r.text)
+    assert "Empresa removida" in f
+    form = form_da_faixa(f, f"/empresas/{id_}/restaurar")
+    assert f'name="{CAMPO_CSRF}" value="{painel.token}"' in form and ">Desfazer<" in form
+    assert 'hx-target="this"' in form and 'hx-swap="none"' in form
+    assert f"/empresas/{id_}/remover" not in f  # o Refazer só aparece depois do Desfazer
+    corpo = _corpo(r.text)  # a lista volta sem a empresa, sem recarregar a página
+    assert "Vitta" not in corpo and "Outra" in corpo
+    assert painel.sql("SELECT removida_em IS NOT NULL FROM empresa WHERE id = ?", id_) == [(1,)]
+
+
+def test_remover_em_ingles_traz_a_faixa_em_ingles(painel: Painel) -> None:
+    painel.adicionar("greenhouse", "vitta", nome="Vitta")
+    f = faixa(_por_htmx(painel, "remover", _id_da(painel, "vitta"), "en").text)
+    assert "Company removed" in f and ">Undo<" in f
+
+
+def test_remover_sem_htmx_volta_para_a_lista_sem_faixa(painel: Painel) -> None:
+    painel.adicionar("greenhouse", "vitta", nome="Vitta")
+    r = painel.post(f"/empresas/{_id_da(painel, 'vitta')}/remover")
+    assert (r.status_code, r.headers["location"]) == (303, "/empresas")
+
+
+def test_restaurar_limpa_removida_em_e_traz_a_faixa_com_remover(painel: Painel) -> None:
+    painel.adicionar("greenhouse", "vitta", nome="Vitta")
+    id_ = _id_da(painel, "vitta")
+    painel.post(f"/empresas/{id_}/remover")
+
+    r = _por_htmx(painel, "restaurar", id_)
+
+    assert r.status_code == 200
+    assert painel.sql("SELECT removida_em FROM empresa WHERE id = ?", id_) == [(None,)]
+    f = faixa(r.text)
+    assert "Empresa restaurada" in f
+    form = form_da_faixa(f, f"/empresas/{id_}/remover")  # o Refazer é a ação de hoje
+    assert ">Refazer<" in form and f"/empresas/{id_}/restaurar" not in f
+    achou = re.search(rf'<li\b[^>]*id="empresa-{id_}"[^>]*>', _corpo(r.text))
+    assert achou and "linha-volta" in achou.group(0)  # a linha volta destacada por 1 s (CSS)
+    assert painel.sql("SELECT count(*) FROM empresa") == [(1,)]  # mesma linha, sem cópia
+
+
+def test_restaurar_sem_htmx_volta_para_a_lista(painel: Painel) -> None:
+    painel.adicionar("greenhouse", "vitta", nome="Vitta")
+    id_ = _id_da(painel, "vitta")
+    painel.post(f"/empresas/{id_}/remover")
+    r = painel.post(f"/empresas/{id_}/restaurar")
+    assert (r.status_code, r.headers["location"]) == (303, "/empresas")
+    assert "Vitta" in painel.get("/empresas").text
+
+
+def test_restaurar_sem_csrf_da_403(painel: Painel) -> None:
+    painel.adicionar("greenhouse", "vitta", nome="Vitta")
+    id_ = _id_da(painel, "vitta")
+    painel.post(f"/empresas/{id_}/remover")
+    assert painel.http.post(f"/empresas/{id_}/restaurar", headers=HX).status_code == 403
+    assert painel.sql("SELECT removida_em IS NULL FROM empresa WHERE id = ?", id_) == [(0,)]
+
+
+def test_restaurar_id_que_nao_existe_da_404_tambem_por_htmx(painel: Painel) -> None:
+    assert _por_htmx(painel, "restaurar", 999).status_code == 404
+
+
+def test_lista_agrupada_com_o_alvo_do_menu_e_remover_por_htmx(painel: Painel) -> None:
+    painel.adicionar("greenhouse", "vitta", nome="Vitta")
+    id_ = _id_da(painel, "vitta")
+    html = painel.get("/empresas").text
+
+    assert 'class="lista-agrupada" id="lista-empresas"' in html and 'id="corpo-empresas"' in html
+    linha = re.search(rf'<li\b[^>]*id="empresa-{id_}"[^>]*>', html)
+    assert linha and 'class="linha-busca"' in linha.group(0)
+    assert 'data-menu="menu-empresa"' in linha.group(0) and f'data-id="{id_}"' in linha.group(0)
+    assert "data-ligada" in linha.group(0)
+    form = re.search(rf'<form\b[^>]*action="/empresas/{id_}/remover"[^>]*>', html)
+    assert form and f'hx-post="/empresas/{id_}/remover"' in form.group(0)  # sem pergunta
+    assert 'hx-target="this"' in form.group(0) and 'hx-swap="none"' in form.group(0)
+    assert '<li class="cartao' not in html and "<details" not in html
+
+
+def test_empresa_desligada_marca_a_linha_e_o_menu_a_acha(painel: Painel) -> None:
+    painel.adicionar("greenhouse", "vitta", nome="Vitta")
+    id_ = _id_da(painel, "vitta")
+    painel.post(f"/empresas/{id_}/desligar")
+    linha = re.search(rf'<li\b[^>]*id="empresa-{id_}"[^>]*>', painel.get("/empresas").text)
+    assert linha and "linha-desligada" in linha.group(0) and "data-desligada" in linha.group(0)
+
+
+def test_menu_da_lista_tem_as_acoes_da_linha(painel: Painel) -> None:
+    painel.adicionar("greenhouse", "vitta", nome="Vitta")
+    html = painel.get("/empresas").text
+    menu = re.search(
+        r'<div id="menu-empresa"[^>]*data-menu-contexto.*?</div>\s*<div id="menu-empresa-aviso"',
+        html,
+        re.DOTALL,
+    )
+    assert menu
+    for modelo in ("/empresas/{id}/ligar", "/empresas/{id}/desligar", "/empresas/{id}/remover"):
+        assert f'data-modelo-acao="{modelo}"' in menu.group(0), modelo
+    assert re.search(r'data-modelo-acao="/empresas/\{id\}/remover"[^>]*hx-post=', menu.group(0))
+    assert 'data-requer="ligada"' in menu.group(0) and 'data-requer="desligada"' in menu.group(0)
+    assert len(re.findall(r'role="group"', menu.group(0))) <= 3
+    assert 'aria-label="Ações da empresa"' in menu.group(0)

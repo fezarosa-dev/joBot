@@ -12,22 +12,29 @@ escopo grava a saúde junto com as vagas (desenho 12.4, passo 3), então ela só
 quando não há transação aberta; havendo, quem abriu confirma.
 """
 
+import logging
 import sqlite3
 from collections.abc import Iterator, Sequence, Set
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Literal
 
+from jobot.banco.conexao import abrir
 from jobot.nucleo.coletores.executor import Historico
+from jobot.nucleo.modelo import VagaColetada
 from jobot.nucleo.relogio import Relogio
 from jobot.nucleo.url import canonica, hash_url
 
-Tipo = Literal["busca", "descoberta", "paginas"]
+log = logging.getLogger(__name__)
+
+Tipo = Literal["busca", "descoberta", "paginas", "login"]
 Motivo = Literal["agenda", "agora", "recuperacao"]
 # por que a execução parou antes do fim (coluna `execucao.parada`, T153)
 Parada = Literal["fechado", "sem_batimento", "banco", "erro"]
 EstadoSaude = Literal["ok", "sem_mudanca", "parcial", "falhou", "desligada", "no_limite"]
 
+BATIMENTO_S = 30.0  # de quanto em quanto tempo uma execução que roda bate
 BATIMENTO_VELHO = timedelta(minutes=5)  # processo morto (desenho 12.3)
 JANELA_DETALHE = timedelta(days=30)  # cache de `enriquecimento` (desenho 8.1, DR-70)
 _LOTE = 500  # URLs por consulta, bem abaixo do limite de variáveis do SQLite
@@ -42,7 +49,7 @@ class Andamento:
     motivo: str
     iniciada_em: datetime
     batimento_em: datetime
-    escopos_prontos: int  # linhas de `saude` já gravadas nesta execução
+    escopos_prontos: int  # linhas de `saude` já gravadas nesta execução, fora as desligadas
     fontes_rodando: tuple[str, ...] = ()  # começaram e não terminaram, na ordem de começo
     coleta_acabou: bool = False  # toda fonte ligada começou e terminou: seguem detalhes e encaixe
 
@@ -236,11 +243,28 @@ def inicio_da_ultima_completa(con: sqlite3.Connection, tipo: Tipo) -> datetime |
     return _data_ou_none(linha[0])
 
 
+def inicio_da_ultima_leitura_login(con: sqlite3.Connection) -> datetime | None:
+    """Início da última execução "login" concluída ou interrompida; rodando não conta."""
+    linha = con.execute(
+        "SELECT MAX(iniciada_em) FROM execucao"
+        " WHERE tipo='login' AND estado IN ('concluida','interrompida')"
+    ).fetchone()
+    return _data_ou_none(linha[0])
+
+
+def leitura_login_rodando(con: sqlite3.Connection) -> bool:
+    """Há uma execução "login" rodando agora (só a tela de Configurações pergunta)."""
+    return (
+        con.execute("SELECT 1 FROM execucao WHERE tipo='login' AND estado='rodando'").fetchone()
+        is not None
+    )
+
+
 def execucao_atual(con: sqlite3.Connection) -> Andamento | None:
     """A execução que roda; havendo mais de uma (tipos diferentes), a busca vem primeiro."""
     linha = con.execute(
         "SELECT e.id, e.tipo, e.motivo, e.iniciada_em, e.batimento_em,"
-        " (SELECT count(*) FROM saude WHERE execucao_id = e.id)"
+        " (SELECT count(*) FROM saude WHERE execucao_id = e.id AND estado <> 'desligada')"
         " FROM execucao e WHERE e.estado='rodando'"
         " ORDER BY e.tipo = 'busca' DESC, e.iniciada_em DESC LIMIT 1"
     ).fetchone()
@@ -254,7 +278,8 @@ def execucao_atual(con: sqlite3.Connection) -> Andamento | None:
     # a fila do semáforo do executor deixa fonte ligada sem linha: só acabou quando nenhuma falta
     sem_fim_nem_fila = con.execute(
         "SELECT (SELECT count(*) FROM execucao_fonte WHERE execucao_id = ?) > 0"
-        " AND NOT EXISTS (SELECT 1 FROM fonte f WHERE f.ligada = 1 AND NOT EXISTS"
+        " AND NOT EXISTS (SELECT 1 FROM fonte f WHERE f.ligada = 1 AND f.com_login = 0"
+        "  AND NOT EXISTS"
         "  (SELECT 1 FROM execucao_fonte x WHERE x.execucao_id = ? AND x.fonte = f.chave))",
         (linha[0], linha[0]),
     ).fetchone()[0]
@@ -396,3 +421,92 @@ class HistoricoDoBanco(Historico):
                 if _data(buscado_em) >= desde:
                     recentes.update(por_hash[h])
         return recentes
+
+
+def parada_de(erro: BaseException) -> Parada:
+    """O motivo da parada que a exceção grava: cancelamento, Ctrl+C e saída valem "fechado"."""
+    if not isinstance(erro, Exception):  # CancelledError, KeyboardInterrupt, SystemExit
+        return "fechado"
+    if isinstance(erro, sqlite3.Error):
+        return "banco"
+    return "erro"
+
+
+def interromper(
+    con: sqlite3.Connection, execucao_id: int, erro: BaseException, agora: datetime
+) -> None:
+    """Desfaz a transação aberta e marca a execução interrompida com o motivo de `erro`.
+
+    Quem chama segue com `raise`: se marcar falhar (banco quebrado), a falha só vai ao log e a
+    exceção original é a que sobe, nunca esta. O traceback de `erro` fica com quem pega a
+    exceção (o `rodar` da agenda, o `jobot buscar`), para não sair duas vezes no log.
+    """
+    try:
+        if con.in_transaction:  # o passo que quebrou pode ter deixado a sua aberta
+            con.rollback()
+        interromper_execucao(con, execucao_id, agora, parada=parada_de(erro))
+    except Exception:
+        log.exception("não deu para marcar a execução %s como interrompida", execucao_id)
+
+
+async def manter_batimento(con: sqlite3.Connection, execucao_id: int, relogio: Relogio) -> None:
+    """Batimento numa conexão própria: duas tarefas não dividem uma `sqlite3.Connection`."""
+    caminho = con.execute("PRAGMA database_list").fetchone()[2]
+    if not caminho:  # banco em memória não tem outra conexão; fica sem batimento
+        return
+    con2 = abrir(Path(caminho))
+    try:
+        while True:
+            await relogio.dormir(BATIMENTO_S)
+            try:
+                bater(con2, execucao_id, relogio.agora())
+            except sqlite3.Error:
+                log.exception("batimento da execução %s falhou", execucao_id)
+    finally:
+        con2.close()
+
+
+@dataclass(frozen=True)
+class Candidata:
+    """Ocorrência aberta que ainda pede o detalhe da vaga (passo 4 da busca)."""
+
+    ocorrencia_id: int
+    fonte: str
+    escopo: str
+    vaga: VagaColetada
+
+
+def candidatas_a_detalhe(
+    con: sqlite3.Connection, fontes: Sequence[str], inicio: datetime, relogio: Relogio
+) -> list[Candidata]:
+    """Ocorrências abertas das `fontes`, sem descrição, de vaga vista pela primeira vez desde
+    `inicio` menos 30 dias e sem tentativa no cache de 30 dias; as mais novas primeiro.
+
+    Todos os escopos; quem chama filtra os que rodaram e aplica os tetos dela.
+    """
+    if not fontes:
+        return []
+    marcas = ",".join("?" * len(fontes))
+    # o SQL já descarta a maioria (as que têm descrição); o `strip()` abaixo fecha o resto
+    linhas = con.execute(
+        "SELECT o.id, o.fonte, o.escopo, o.coletada"
+        " FROM ocorrencia o JOIN vaga v ON v.id = o.vaga_id"
+        f" WHERE v.primeira_vista_em >= ? AND o.sumiu_em IS NULL AND o.fonte IN ({marcas})"
+        " AND trim(coalesce(json_extract(o.coletada, '$.descricao'), ''), char(32, 9, 10, 13))"
+        " = ''"
+        " ORDER BY v.primeira_vista_em DESC, o.id",
+        (_iso(inicio - JANELA_DETALHE), *fontes),
+    ).fetchall()
+    sem_descricao: list[Candidata] = []
+    for oid, fonte, escopo, coletada in linhas:
+        v = VagaColetada.de_json(coletada)
+        if not v.descricao.strip():
+            sem_descricao.append(Candidata(oid, fonte, escopo, v))
+    historico = HistoricoDoBanco(con, relogio)
+    recentes = {
+        fonte: historico.detalhe_recente(
+            fonte, [c.vaga.url for c in sem_descricao if c.fonte == fonte]
+        )
+        for fonte in {c.fonte for c in sem_descricao}
+    }
+    return [c for c in sem_descricao if c.vaga.url not in recentes[c.fonte]]

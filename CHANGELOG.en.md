@@ -8,6 +8,42 @@ The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-16
+
+Phase 2 arrives: the browser with login and LinkedIn, the first site with login. The dashboard gets a new look, the Accounts tab (with the Gmail card), the Overview and the application queue, and the roadmap now puts the Installer in phase 3.
+
+### Added
+
+- LinkedIn, the first site with login. The reader comes off: you turn it on in Settings, Accounts. It searches for each job title in your searches, with the city and remote, and reads only the last week, sorted by relevance. Because the list is not complete, a LinkedIn job only closes after 30 days without being seen, and reopens if it comes back.
+- The Accounts tab shows whether joBot is still signed in to each site, checks on demand and warns when the session ends.
+- Gmail card in the Accounts tab: paste an app password, and joBot checks the sign-in read-only. Reading emails comes in phase 6.
+- The Tools screen in Settings, to download and remove the browser for sites with login (about 210 MB), with no terminal.
+- The optional "Sites with login" step in the first-run assistant: turn on the sites, check the browser and download it, before you see the jobs.
+- Login in a regular browser window, with no automation: you sign in however you like (Google, email and password) and close the window. joBot checks the session by itself and never types the password.
+- ADR 0023: everything through the dashboard. External tools, updating and quitting get a button, no terminal needed.
+- Guide "How to add a new site" (`docs/site-novo.en.md`), with a collector template for a public site and a reader template for a site with login, and a CI guard that checks each site's test, example and name.
+- The Overview, a new item in the sidebar: the day on one screen, with what closes soon, the applications and the search, with shortcuts to the jobs and the sources.
+- The job timeline, with the date of each step (found, saved, application opened, applied), and the "since" in the Applied tab.
+- The "Did you apply?" question after you open a job's application link, with "Yes, I Applied", "Not Yet" and Undo.
+- Application by email: when the description has an address, the "Apply by Email" button opens your email app with the job title. joBot sends nothing.
+- ADR 0024: Gmail will be read over IMAP with an app password pasted into the dashboard (the card is in Settings, Accounts; reading the emails, in phase 6). The wiki gets the step-by-step guide.
+- A window of its own for the dashboard: if the computer has Chrome, Edge or Chromium, `jobot` opens the dashboard with no tabs or address bar, like an app; without them, it opens in a tab.
+- Undo and Redo: hiding a job, discarding a suggestion and removing a company happen right away, with an Undo bar (`⌘Z`, `Ctrl+Z` outside the Mac) and a Redo. Deleting a search, removing a site and forgetting logins ask for confirmation in an alert.
+- Command palette (`⌘K`, `Ctrl+K` outside the Mac): goes to any screen and changes theme, language and text size, with no mouse.
+- Keyboard shortcuts: `/` for search, arrows, `J`, `K`, `Home` and `End` in the list, `⌘,` for Settings, `⌘?` for help and the menu key for the job menu. The "Keyboard shortcuts" wiki page lists them all.
+- Text size (Default, Large or Larger) in Settings, General.
+- Search progress with steps: the top shows which step joBot is on (for example, "Reading Greenhouse · 13 of 20 queries") and "Show Details".
+
+### Changed
+
+- The job list and the Overview open faster with many jobs: the tabs are counted in a single pass, and the Overview counts only what it shows.
+- New roadmap: version 0.3.0 came out after phase 2 ("Overview" screen and complete application queue); phase 3 becomes the Installer and the later phases move up one number, up to phase 9 (release).
+- New look for the dashboard, in the style of a Mac app: sidebar with Jobs and Where to Look, job list with the detail beside it, translucent windows and alerts, and the English title of the correction in Title Case ("Something Wrong with This Job?").
+
+### Fixed
+
+- Focus returns to the right chip after changing the filter, even when two values differ only by a space and an `_`.
+
 ## [0.2.1] - 2026-11-15
 
 ### Changed

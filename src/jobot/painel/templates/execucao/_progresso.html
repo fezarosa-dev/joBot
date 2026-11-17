@@ -1,0 +1,89 @@
+{#- componente de progresso (desenho 5.9; plano T252): trilho, linha da etapa e "Ver detalhes".
+    `texto` troca a linha; com `nomeia`, a linha visível é o nome do trilho (aria-labelledby, sem repetir
+    o texto num aria-label; a espera de "Esquecer logins", T266).
+    Na barra do topo (240px) com base "andamento"; no corpo de uma tela (320px) com corpo=True e
+    outra base, para os ids não se repetirem. A largura vem de data-valor pelo app.js: o CSP
+    barra o atributo style -#}
+{%- from "_motivo.html" import motivo_texto with context -%}
+
+{%- macro tempo(s) -%}
+  {%- if s > 60 %}{{ t("execucao.etapa.minutos", n=(s + 59) // 60) }}{% else %}{{ t("execucao.etapa.segundos", n=s) }}{% endif -%}
+{%- endmacro -%}
+
+{%- macro contagem(p) -%}
+  {{- t("execucao.etapa.coleta_um" if p.total == 1 else "execucao.etapa.coleta", feitas=p.feitas, total=p.total) -}}
+{%- endmacro -%}
+
+{%- macro sites(nomes) -%}
+  {%- set r = [] %}{% for n in nomes %}{% set _ = r.append(rotulo("fonte." ~ n, n)) %}{% endfor -%}
+  {%- if r|length == 1 %}{{ r[0] }}
+  {%- elif r|length == 2 %}{{ t("execucao.etapa.sites_dois", a=r[0], b=r[1]) }}
+  {%- else %}{{ t("execucao.etapa.sites_mais", nomes=r[:2]|join(", "), n=r|length - 2) }}{% endif -%}
+{%- endmacro -%}
+
+{#- a linha visível; texto puro, sem marcação dentro do <p> -#}
+{%- macro linha(p) -%}
+  {%- if p.etapa == "coleta" -%}
+    {%- if p.espera -%}
+      {{- t("execucao.etapa.nova_tentativa" if p.espera[2] == "erro" else "execucao.etapa.espera", site=rotulo("fonte." ~ p.espera[0], p.espera[0]), tempo=tempo(p.espera[1])) -}}
+    {%- elif p.lendo -%}
+      {{- t("execucao.etapa.lendo_sites", sites=sites(p.lendo)) -}}
+    {%- else -%}
+      {{- t("execucao.etapa.lendo_fontes") -}}
+    {%- endif %} · {{ contagem(p) -}}
+  {%- elif p.etapa == "detalhes" -%}
+    {{- t("execucao.etapa.detalhes_um" if p.total == 1 else "execucao.etapa.detalhes") -}}
+    {%- if p.total is not none %} · {{ t("execucao.etapa.contagem", feitas=p.feitas, total=p.total) }}{% endif -%}
+  {%- elif p.etapa in ("regras", "cotacoes", "encaixe") -%}
+    {{- t("execucao.etapa." ~ p.etapa) -}}
+  {%- elif p.etapa == "fim" -%}
+    {{- t("execucao.etapa.encaixe") -}}
+  {%- else -%}
+    {{- t("execucao.etapa.preparando") -}}
+  {%- endif -%}
+{%- endmacro -%}
+
+{#- o texto da região viva, só o nome da etapa (sem contagem, que muda a cada pergunta) -#}
+{%- macro etapa_viva(p) -%}
+  {%- if p.etapa == "coleta" %}{{ t("execucao.etapa.lendo_fontes") }}
+  {%- elif p.etapa in ("detalhes", "regras", "cotacoes", "encaixe") %}{{ t("execucao.etapa." ~ p.etapa) }}
+  {%- elif p.etapa == "fim" %}{{ t("execucao.etapa.encaixe") }}
+  {%- else %}{{ t("execucao.etapa.preparando") }}{% endif -%}
+{%- endmacro -%}
+
+{%- macro progresso(p, restam={}, motivos={}, corpo=False, base="andamento", texto=None, nomeia=False) -%}
+{%- set visivel = texto if texto is not none else linha(p) -%}
+{%- set icones = {"fila": "circle-dashed", "lendo": "book-open", "pronto": "circle-check", "falhou": "circle-x", "esperando": "clock"} -%}
+<div class="progresso{{ ' progresso-corpo' if corpo else ' progresso-barra' }}">
+  <div class="progresso-trilho" role="progressbar" {% if nomeia %}aria-labelledby="{{ base }}-linha"{% else %}aria-label="{{ t('execucao.andamento') }}"{% endif %} aria-valuemin="0" aria-valuemax="100"
+    {%- if not p.indeterminado %} aria-valuenow="{{ p.valor }}"{% if p.etapa == "coleta" and p.total %} aria-valuetext="{{ contagem(p) }}"{% elif p.etapa == "detalhes" and p.total is not none %} aria-valuetext="{{ t('execucao.etapa.contagem', feitas=p.feitas, total=p.total) }}"{% endif %}{% endif %}>
+    <div id="{{ base }}-preenchimento" class="progresso-preenchimento{{ ' indeterminado' if p.indeterminado }}"{% if not p.indeterminado %} data-valor="{{ p.valor }}"{% endif %}></div>
+  </div>
+  <p class="progresso-linha" id="{{ base }}-linha" title="{{ visivel }}">{{ visivel }}</p>
+  {%- if p.fontes %}
+  {%- if corpo %}
+  <button type="button" id="{{ base }}-ver" class="progresso-ver-texto" popovertarget="{{ base }}-detalhes" data-ver="{{ t('execucao.etapa.ver_detalhes') }}" data-ocultar="{{ t('execucao.etapa.ocultar_detalhes') }}">{{ t("execucao.etapa.ver_detalhes") }}</button>
+  {%- else %}
+  {#- irmão do trilho, por cima de tudo: um botão faz os filhos virarem apresentação -#}
+  <button type="button" id="{{ base }}-ver" class="progresso-ver" popovertarget="{{ base }}-detalhes" aria-label="{{ t('execucao.etapa.ver_detalhes_andamento') }}"></button>
+  {%- endif %}
+  <div id="{{ base }}-detalhes" popover class="progresso-detalhes vidro vidro-elevado">
+    <ul class="progresso-fontes">
+      {%- for f in p.fontes %}
+      <li>
+        <span class="progresso-fonte">{{ rotulo("fonte." ~ f.fonte, f.fonte) }}</span>
+        <span class="progresso-estado"><span class="icone" data-icone="{{ icones.get(f.estado, 'circle-dot') }}" aria-hidden="true"></span>
+          {%- if f.estado == "esperando" and f.fonte in restam %}{{ t("execucao.etapa.esperando", tempo=tempo(restam[f.fonte])) }}
+          {%- elif f.estado in icones %}{{ t("execucao.etapa." ~ f.estado) }}{% else %}{{ f.estado }}{% endif -%}
+        </span>
+        <span class="progresso-conta">{{ t("execucao.etapa.contagem", feitas=f.feitas, total=f.total) }}</span>
+        {%- if f.estado == "falhou" and motivos.get(f.fonte) %}
+        <span class="progresso-motivo">{{ motivo_texto(motivos[f.fonte]) }}</span>
+        {%- endif %}
+      </li>
+      {%- endfor %}
+    </ul>
+  </div>
+  {%- endif %}
+</div>
+{%- endmacro -%}

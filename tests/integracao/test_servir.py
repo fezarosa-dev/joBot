@@ -6,17 +6,20 @@ pelo nome importado em `cli/servir.py` e `cli/buscar.py`, para nenhum teste ir �
 
 import argparse
 import asyncio
+import contextlib
 import importlib
 import logging
 import os
 import socket
 import sqlite3
 import time
-from collections.abc import Awaitable, Callable, Iterator, Mapping
+from collections.abc import AsyncIterator, Awaitable, Callable, Iterator, Mapping
 from contextlib import closing
 from datetime import UTC, date, datetime, timedelta
+from datetime import time as hora
 from pathlib import Path
-from typing import Any
+from types import SimpleNamespace
+from typing import Any, cast
 
 import pytest
 from fastapi.testclient import TestClient
@@ -24,15 +27,18 @@ from fastapi.testclient import TestClient
 import jobot
 from apoio.relogio import RelogioFalso
 from jobot.agenda.agendador import o_que_roda
-from jobot.banco.cadastros import gravar_config
+from jobot.agenda.login import Login
+from jobot.banco.cadastros import gravar_config, ligar_fonte, semear_leitores
 from jobot.banco.conexao import abrir
 from jobot.banco.execucoes import abrir_execucao, fechar_execucao, gravar_saude
 from jobot.banco.migrar import migrar
 from jobot.cli import COMANDOS, buscar, servir
 from jobot.nucleo.http import ClienteEducado
+from jobot.nucleo.leitores import registro
+from jobot.nucleo.leitores.base import LeitorComLogin
 from jobot.nucleo.relogio import Relogio
 from jobot.painel.app import criar_app
-from jobot.sistema.instancia import Trava, pid_do_servidor
+from jobot.sistema.instancia import AVISO_CAPTURA, Trava, pid_do_servidor
 
 pytestmark = pytest.mark.usefixtures("laco_versao_parado")
 
@@ -209,6 +215,79 @@ def test_estado_so_liga_a_agenda_com_a_primeira_execucao_concluida(
     assert vencidos == (["busca", "descoberta", "paginas"] if valor is True else [])
 
 
+def _com_leitor(monkeypatch: pytest.MonkeyPatch, con: sqlite3.Connection, ligada: bool) -> None:
+    leitor = cast(LeitorComLogin, SimpleNamespace(chave="teste_logado"))
+    monkeypatch.setattr(registro, "LEITORES", (leitor,))
+    semear_leitores(con, [leitor])
+    ligar_fonte(con, "teste_logado", ligada)
+
+
+def test_horarios_tortos_no_banco_valem_o_padrao(
+    dados: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    with closing(_banco(dados)) as con:
+        _com_leitor(monkeypatch, con, True)
+        gravar_config(con, "login_horarios", "x")
+    with caplog.at_level(logging.WARNING, logger="jobot.cli.servir"):
+        login = servir._EstadoDoBanco(dados / "jobot.db").login()
+    assert login == Login((hora(9), hora(18)), None)
+    chave = "configuracoes.sites_com_login.horarios.formato"
+    assert [r.getMessage() for r in caplog.records if chave in r.getMessage()]
+
+
+def test_horarios_tortos_avisam_uma_vez_por_valor(
+    dados: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    # o laço lê o estado a cada 60 s: o mesmo valor torto não enche o log
+    with closing(_banco(dados)) as con:
+        _com_leitor(monkeypatch, con, True)
+        gravar_config(con, "login_horarios", "x")
+    estado = servir._EstadoDoBanco(dados / "jobot.db")
+    with caplog.at_level(logging.WARNING, logger="jobot.cli.servir"):
+        estado.login()
+        estado.login()
+        with closing(abrir(dados / "jobot.db")) as con:
+            gravar_config(con, "login_horarios", "y")
+        estado.login()
+    avisos = [r for r in caplog.records if "login_horarios" in r.getMessage()]
+    assert len(avisos) == 2
+
+
+def test_estado_login_le_horarios_e_ultima_do_banco(
+    dados: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    with closing(_banco(dados)) as con:
+        _com_leitor(monkeypatch, con, True)
+        gravar_config(con, "login_horarios", ["20:00", "08:00"])
+        id_ = abrir_execucao(con, "login", "agenda", AGORA)
+        assert id_ is not None
+        fechar_execucao(con, id_, AGORA + timedelta(minutes=5))
+    login = servir._EstadoDoBanco(dados / "jobot.db").login()
+    assert login == Login((hora(8), hora(20)), AGORA)
+
+
+def test_estado_login_none_sem_site_ligado(dados: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    caminho = dados / "jobot.db"
+    with closing(_banco(dados)) as con:
+        _com_leitor(monkeypatch, con, False)
+    assert servir._EstadoDoBanco(caminho).login() is None
+    # fonte com login ligada no banco, mas sem leitor registrado: também não roda
+    with closing(abrir(caminho)) as con:
+        ligar_fonte(con, "teste_logado", True)
+    monkeypatch.setattr(registro, "LEITORES", ())
+    assert servir._EstadoDoBanco(caminho).login() is None
+
+
+def test_login_parado_antes_da_primeira_execucao(dados: Path) -> None:
+    caminho = dados / "jobot.db"
+    with closing(_banco(dados)):
+        pass
+    assert servir._EstadoDoBanco(caminho).interruptores().get("login", True) is False
+    with closing(abrir(caminho)) as con:
+        gravar_config(con, "primeira_execucao_concluida", True)
+    assert servir._EstadoDoBanco(caminho).interruptores().get("login", True) is True
+
+
 def test_laco_e_rota_buscar_agora_dividem_as_mesmas_travas(
     dados: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -229,9 +308,111 @@ def test_laco_e_rota_buscar_agora_dividem_as_mesmas_travas(
     with TestClient(app, base_url=BASE):
         assert _esperar(lambda: bool(recebidas))
     travas: dict[str, asyncio.Lock] = app.state.travas
-    assert set(travas) == {"busca", "descoberta", "paginas"}
+    assert set(travas) == {"busca", "descoberta", "paginas", "login"}
     assert all(isinstance(trava, asyncio.Lock) for trava in travas.values())
     assert recebidas[0] is travas  # o mesmo objeto, não uma cópia (D55)
+
+
+def test_travas_tem_login_e_e_o_mesmo_objeto_do_laco(
+    dados: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    recebidas: list[
+        tuple[Mapping[str, Callable[[], Awaitable[None]]], Mapping[str, asyncio.Lock] | None]
+    ] = []
+
+    async def laco_falso(
+        tarefas: Mapping[str, Callable[[], Awaitable[None]]],
+        estado: object,
+        relogio: Relogio,
+        *,
+        travas: Mapping[str, asyncio.Lock] | None = None,
+    ) -> None:
+        recebidas.append((tarefas, travas))
+        await asyncio.Event().wait()
+
+    monkeypatch.setattr(servir, "laco", laco_falso)
+    app, _ = servir.montar(dados, PORTA, relogio=RelogioFalso(AGORA))
+    with TestClient(app, base_url=BASE):
+        assert _esperar(lambda: bool(recebidas))
+    tarefas, travas = recebidas[0]
+    assert travas is app.state.travas  # o mesmo objeto que o "Buscar agora" usa (D55)
+    assert travas is not None
+    assert isinstance(travas.get("login"), asyncio.Lock)
+    assert "login" in tarefas
+    assert app.state.tarefa_login is tarefas["login"]  # a rota dispara a mesma tarefa do laço
+
+
+def test_tarefa_login_usa_as_dependencias_de_producao(
+    dados: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    deps = object()
+    eventos: list[str] = []
+    chamadas: list[dict[str, Any]] = []
+
+    @contextlib.asynccontextmanager
+    async def producao_falsa(pasta: Path, env: Mapping[str, str]) -> AsyncIterator[object]:
+        eventos.append(f"abriu:{pasta == dados}:{env.get('JOBOT_TESTE')}")
+        yield deps
+        eventos.append("fechou")
+
+    async def login_falso(
+        con: sqlite3.Connection, cliente: Any, relogio: Any, motivo: str, **kw: Any
+    ) -> None:
+        con.execute("SELECT 1")  # a conexão própria está aberta durante a leitura
+        chamadas.append({"cliente": cliente, "relogio": relogio, "motivo": motivo, **kw})
+
+    leitor = cast(LeitorComLogin, SimpleNamespace(chave="teste_logado"))
+    monkeypatch.setattr(registro, "LEITORES", (leitor,))
+    monkeypatch.setattr(servir, "navegador_instalado", _instalado_falso([]))
+    monkeypatch.setattr(servir, "laco", _parado)
+    monkeypatch.setattr(servir, "dependencias_de_producao", producao_falsa)
+    monkeypatch.setattr(servir, "executar_login", login_falso)
+    relogio = RelogioFalso(AGORA)
+    app, _ = servir.montar(dados, PORTA, relogio=relogio, env={"JOBOT_TESTE": "sim"})
+    with TestClient(app, base_url=BASE) as http:
+        tarefa = getattr(app.state, "tarefa_login", None)
+        assert tarefa is not None, "o lifespan não guardou a tarefa login"
+        portal = http.portal
+        assert portal is not None  # dentro do `with` o TestClient tem o laço do app
+        portal.call(tarefa)
+        portal.call(tarefa, "agora")
+        cliente = app.state.cliente
+    assert eventos == ["abriu:True:sim", "fechou", "abriu:True:sim", "fechou"]
+    assert [c["motivo"] for c in chamadas] == ["agenda", "agora"]
+    assert all(c["deps"] is deps and c["cliente"] is cliente for c in chamadas)
+    assert all(c["relogio"] is relogio and c["leitores"] == (leitor,) for c in chamadas)
+
+
+async def _parado(*_: object, **__: object) -> None:
+    await asyncio.Event().wait()
+
+
+def _instalado_falso(chamadas: list[str]) -> Callable[[], Awaitable[str | None]]:
+    async def instalado() -> str | None:
+        chamadas.append("x")
+        return "chrome"
+
+    return instalado
+
+
+def test_servir_so_sobe_o_driver_com_leitor(dados: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    chamadas: list[str] = []
+    monkeypatch.setattr(servir, "navegador_instalado", _instalado_falso(chamadas))
+    monkeypatch.setattr(servir, "laco", _parado)
+    monkeypatch.setattr(registro, "LEITORES", ())
+    app, _ = servir.montar(dados, PORTA, relogio=RelogioFalso(AGORA))
+    with TestClient(app, base_url=BASE):
+        pass
+    assert chamadas == []  # sem leitor registrado, o driver do Playwright nem sobe
+    assert not hasattr(app.state, "navegador_instalado")
+    # controle: com um leitor registrado, calcula uma vez ao subir e guarda em app.state
+    leitor = cast(LeitorComLogin, SimpleNamespace(chave="teste_logado"))
+    monkeypatch.setattr(registro, "LEITORES", (leitor,))
+    app, _ = servir.montar(dados, PORTA, relogio=RelogioFalso(AGORA))
+    with TestClient(app, base_url=BASE) as http:
+        http.get("/saude-local")
+    assert chamadas == ["x"]
+    assert app.state.navegador_instalado == "chrome"
 
 
 @pytest.fixture
@@ -345,6 +526,25 @@ def test_serve_com_outro_jobot_aberto_avisa_e_sai_com_1(
     finally:
         outro.soltar()
     assert "já está aberto" in capsys.readouterr().err
+
+
+def test_serve_com_captura_no_ar_diz_qual_e(
+    isolado: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    def montar_proibido(*args: object, **kwargs: object) -> None:
+        raise AssertionError("não sobe nada com a trava presa")
+
+    monkeypatch.setattr(servir, "montar", montar_proibido)
+    monkeypatch.setenv("JOBOT_PORTA", str(PORTA))
+    captura = Trava(isolado, 0)  # porta 0: é o `capturar_logado.py` quem prende (T215)
+    assert captura.pegar()
+    try:
+        assert servir.executar(argparse.Namespace(comando="serve")) == 1
+    finally:
+        captura.soltar()
+    erro = capsys.readouterr().err
+    assert AVISO_CAPTURA in erro
+    assert "já está aberto" not in erro
 
 
 def test_serve_com_porta_ocupada_avisa_e_solta_a_trava(

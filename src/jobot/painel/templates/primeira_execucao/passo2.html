@@ -27,7 +27,7 @@
 <p class="assistente-texto">{{ t("primeira_execucao.p2.explicacao") }}</p>
 {% if container %}<p class="assistente-texto" data-container="{{ container }}">{{ t("primeira_execucao.p2.container", container=container) }}</p>{% endif %}
 {% if not linux %}<p class="assistente-texto" data-desativado>{{ t("primeira_execucao.p2.nao_linux") }}</p>{% endif %}
-<form method="post" action="/primeira-execucao/2" class="assistente-form">
+<form id="assistente-form" method="post" action="/primeira-execucao/2" class="assistente-form">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   {% if busca_id %}<input type="hidden" name="busca" value="{{ busca_id }}">{% endif %}
   <fieldset class="campo"{% if not linux %} disabled{% endif %}>
@@ -38,8 +38,4 @@
     </div>
   </fieldset>
   {% if not linux %}<input type="hidden" name="segundo_plano" value="desligar">{% endif %}
-  <div class="acoes">
-    <button type="submit" class="botao botao-primario">{{ t("primeira_execucao.p2.concluir") }}</button>
-    <a class="botao botao-secundario" href="/primeira-execucao/1{% if resumo %}?busca={{ busca_id }}{% endif %}">{{ t("primeira_execucao.p2.voltar") }}</a>
-  </div>
 </form>

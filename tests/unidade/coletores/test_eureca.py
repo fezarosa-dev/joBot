@@ -1,7 +1,7 @@
 import copy
 import json
 import time
-from collections.abc import AsyncIterator, Callable, Iterator
+from collections.abc import AsyncIterator, Callable
 from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
@@ -17,7 +17,8 @@ from jobot.nucleo.http import ClienteEducado, HttpEducado, Validadores
 from jobot.nucleo.modelo import Empresa, SalarioBruto, VagaColetada
 from jobot.nucleo.relogio import Relogio
 
-pytestmark = pytest.mark.anyio
+# o fuso de São Paulo vem da fixture do conftest (DP8: o prazo é o dia local)
+pytestmark = [pytest.mark.anyio, pytest.mark.usefixtures("fuso_de_sao_paulo")]
 
 PASTA = Path(__file__).resolve().parents[2] / "fixtures" / "eureca"
 API = "https://candidate-api.eureca.me/opportunities"
@@ -27,15 +28,6 @@ Responder = Callable[[httpx.Request], httpx.Response]
 
 def _fuso(monkeypatch: pytest.MonkeyPatch, nome: str) -> None:
     monkeypatch.setenv("TZ", nome)
-    time.tzset()
-
-
-@pytest.fixture(autouse=True)
-def fuso_de_sao_paulo(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    """O prazo é o dia local (DP8): os testes rodam no fuso de São Paulo."""
-    _fuso(monkeypatch, "America/Sao_Paulo")
-    yield
-    monkeypatch.undo()
     time.tzset()
 
 

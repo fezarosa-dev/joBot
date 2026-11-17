@@ -4,13 +4,17 @@ A rota usa a trava e o cliente que o lifespan de `cli/servir.py` põe em `app.st
 com a trava `busca` presa (pela agenda ou por outro clique), não dispara outra e mostra o
 andamento da que roda. A busca roda numa tarefa asyncio, com conexão própria, como a da agenda,
 e o pedido volta na hora. O dia local (DP8) é calculado por `executar_busca`, com o `Relogio`
-do app.
+do app. Com a tarefa `login` do lifespan, a rota também dispara a leitura dos sites com login
+(D132.25), com a trava `login` do laço; essa leitura não aparece no andamento.
 """
 
 import asyncio
+import hashlib
 import sqlite3
+from collections.abc import Awaitable, Callable
 from contextlib import closing
 from dataclasses import dataclass
+from functools import partial
 from pathlib import Path
 from typing import Annotated
 
@@ -19,10 +23,15 @@ from fastapi.responses import HTMLResponse, Response
 
 from jobot.agenda.agendador import rodar
 from jobot.agenda.execucao import executar_busca
+from jobot.agenda.login import pode_ler_agora
+from jobot.banco.andamento import ler_andamento
+from jobot.banco.cadastros import fontes_com_login_ligadas
 from jobot.banco.conexao import abrir
-from jobot.banco.execucoes import execucao_atual
+from jobot.banco.execucoes import execucao_atual, inicio_da_ultima_leitura_login
 from jobot.nucleo.http import ClienteEducado
-from jobot.painel.rotas.vagas import relogio_do_painel
+from jobot.nucleo.leitores.registro import leitores
+from jobot.painel.consultas import relogio_do_painel
+from jobot.painel.progresso import Progresso, montar_progresso, segundos_ate
 from jobot.painel.seguranca import Con, de_volta, renderizar
 
 router = APIRouter()
@@ -61,6 +70,33 @@ def _tarefas(request: Request) -> set[asyncio.Task[None]]:
     return tarefas
 
 
+def _motivos(con: sqlite3.Connection, execucao_id: int) -> dict[str, str]:
+    """O motivo `saude.*` mais grave de cada fonte da execução, para "Falhou" nos detalhes."""
+    linhas = con.execute(
+        "SELECT fonte, motivo FROM saude WHERE execucao_id = ? AND motivo IS NOT NULL"
+        " ORDER BY CASE estado WHEN 'falhou' THEN 0 WHEN 'parcial' THEN 1 ELSE 2 END, escopo",
+        (execucao_id,),
+    ).fetchall()
+    motivos: dict[str, str] = {}
+    for fonte, motivo in linhas:
+        motivos.setdefault(fonte, motivo)
+    return motivos
+
+
+def _marca(prog: Progresso, restam: dict[str, int]) -> str:
+    # o que está na tela: etapa, valor, contagem, espera e estado de cada fonte; mudou um, troca.
+    # A etapa vem na frente, legível: a pergunta seguinte sabe se a região viva fala de novo
+    tela = (
+        prog.valor,
+        prog.feitas,
+        prog.total,
+        prog.lendo,
+        prog.espera,
+        tuple((f.fonte, f.estado, f.feitas, f.total, restam.get(f.fonte)) for f in prog.fontes),
+    )
+    return f"{prog.etapa}.{hashlib.blake2b(repr(tela).encode(), digest_size=6).hexdigest()}"
+
+
 def _andamento(
     request: Request,
     con: sqlite3.Connection,
@@ -68,6 +104,7 @@ def _andamento(
     ja_rodava: bool,
     visto: str | None = None,
     so_rodando: bool = False,
+    entrada: bool = False,
 ) -> Response:
     # a casca pergunta em toda página: app sem o lifespan (sem travas) não pode dar 500
     trava: asyncio.Lock | None = getattr(request.app.state, "travas", {}).get("busca")
@@ -76,24 +113,35 @@ def _andamento(
         atual = None  # descoberta e páginas não seguram a busca nem aparecem aqui (12.3)
     # trava presa sem execução no banco: a tarefa acabou de nascer e ainda não abriu a sua
     rodando = (trava is not None and trava.locked()) or atual is not None
-    # o que está na tela: consultas prontas, fontes que rodam e fase de detalhes; mudou um, troca
-    marca = f"{atual.escopos_prontos}:{','.join(atual.fontes_rodando)}" if atual else "-1"
-    if atual and atual.coleta_acabou:
-        marca += ":detalhes"
-    # 204: o HTMX não troca nada. A pergunta de 2 s que já mostra este andamento não reinsere
-    # nós na região viva (o leitor de tela não repete o anúncio), e a carga da casca não
-    # repete em toda página o fim de uma busca velha
+    agora = relogio_do_painel(request).agora()  # o mesmo relógio em toda aba: o mesmo valor
+    etapa, fontes = ler_andamento(con, atual.id) if atual else (None, ())
+    prog = montar_progresso(etapa, fontes, agora, fechada=False)
+    restam = {
+        f.fonte: segundos_ate(f.espera_ate, agora)
+        for f in prog.fontes
+        if f.estado == "esperando" and f.espera_ate is not None
+    }
+    marca = _marca(prog, restam)
+    # 204: o HTMX não troca nada. A pergunta de 2 s que já mostra este andamento não troca a
+    # barra à toa, e a carga da casca não repete em toda página o fim de uma busca velha;
     # quem veio do redirect com o aviso vê o fim da busca, mesmo que ela já tenha acabado
     if (rodando and visto == marca) or (so_rodando and not rodando and not ja_rodava):
         return Response(status_code=204)
+    ultima = None if rodando else _ultima(con)
     return renderizar(
         request,
         "execucao/andamento.html",
         rodando=rodando,
         ja_rodava=ja_rodava,
-        atual=atual,
+        prog=prog,
+        restam=restam,
+        motivos=_motivos(con, atual.id) if atual else {},
         marca=marca,
-        ultima=None if rodando else _ultima(con),
+        # a região viva fala na primeira carga e quando a etapa muda (E12)
+        anunciar=visto is None or visto.partition(".")[0] != prog.etapa,
+        entrada=entrada,
+        ultima=ultima,
+        fim=montar_progresso(None, (), agora, fechada=True),
     )
 
 
@@ -106,11 +154,37 @@ def _disparar(request: Request, trava: asyncio.Lock) -> None:
         with closing(abrir(banco)) as con:  # conexão própria: nunca dividida entre tarefas
             await executar_busca(con, cliente, relogio, "agora")
 
+    criar_tarefa(request, "busca", trava, busca)
+
+
+def criar_tarefa(
+    request: Request, tipo: str, trava: asyncio.Lock, tarefa: Callable[[], Awaitable[None]]
+) -> None:
     # o `rodar` da agenda: registra o erro e solta a trava no fim, como na busca da agenda
-    tarefa = asyncio.create_task(rodar("busca", trava, busca))
+    criada = asyncio.create_task(rodar(tipo, trava, tarefa))
     tarefas = _tarefas(request)
-    tarefas.add(tarefa)
-    tarefa.add_done_callback(tarefas.discard)
+    tarefas.add(criada)
+    criada.add_done_callback(tarefas.discard)
+
+
+async def _disparar_login(request: Request, con: sqlite3.Connection) -> None:
+    """Lê os sites com login junto, se há site ligado, passou o intervalo e nenhuma roda (D132.25).
+
+    Não espera a leitura; o andamento da casca continua só da busca.
+    """
+    tarefa: Callable[[str], Awaitable[None]] | None = getattr(
+        request.app.state, "tarefa_login", None
+    )
+    trava: asyncio.Lock | None = request.app.state.travas.get("login")
+    if tarefa is None or trava is None or trava.locked():
+        return
+    # cruza com os leitores registrados, como o laço: fonte órfã não sobe o navegador à toa
+    if not {leitor.chave for leitor in leitores()}.intersection(fontes_com_login_ligadas(con)):
+        return
+    if not pode_ler_agora(relogio_do_painel(request).agora(), inicio_da_ultima_leitura_login(con)):
+        return
+    await trava.acquire()  # livre: não suspende, então a checagem acima vale (como no laço)
+    criar_tarefa(request, "login", trava, partial(tarefa, "agora"))
 
 
 @router.post("/buscar-agora")
@@ -128,6 +202,7 @@ async def buscar_agora(
     if not ja_rodava:
         await trava.acquire()  # livre: não suspende, então a checagem acima vale (como no laço)
         _disparar(request, trava)
+    await _disparar_login(request, con)
     if not htmx:
         resposta = de_volta(voltar)  # sem HTMX: volta para a página de onde veio
         if ja_rodava:
@@ -135,7 +210,8 @@ async def buscar_agora(
             # do andamento apaga
             resposta.set_cookie(_AVISO, "1", max_age=60, httponly=True, samesite="strict")
         return resposta
-    return _andamento(request, con, ja_rodava=ja_rodava)
+    # o limiar de 1 s vale para a busca que este clique começou; a que já rodava já está na tela
+    return _andamento(request, con, ja_rodava=ja_rodava, entrada=not ja_rodava)
 
 
 @router.get("/execucao/atual")

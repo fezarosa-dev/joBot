@@ -1,9 +1,34 @@
 {% extends "base.html" %}
+{% from "_menu_contexto.html" import menu_contexto with context %}
 {% block titulo %}{{ t("vagas.titulo") }} · joBot{% endblock %}
-{% block estilos %}<link rel="stylesheet" href="/static/css/vagas.css"><link rel="stylesheet" href="/static/css/sites.css">{% endblock %}
+{% block estilos %}<link rel="stylesheet" href="/static/css/vagas.css"><link rel="stylesheet" href="/static/css/sites.css"><link rel="stylesheet" href="/static/css/detalhe.css">{% endblock %}
 {% block conteudo %}
 <h1 class="titulo-pagina">{{ t("vagas.titulo") }}</h1>
 <div id="vagas-miolo">
 {% include "vagas/miolo.html" %}
 </div>
+{#- o menu mora fora do #vagas-miolo: a troca da lista por HTMX não o duplica nem o apaga -#}
+{% call menu_contexto("menu-vaga", t("vagas.menu.rotulo")) %}
+<div role="group">
+<a role="menuitem" tabindex="-1" href="#" data-modelo-href="/vagas/{id}" data-abrir>{{ t("vagas.menu.abrir") }}</a>
+<a role="menuitem" tabindex="-1" href="#" data-modelo-href="{site}" data-requer="site" target="_blank" rel="noopener noreferrer">{{ t("vagas.menu.abrir_no_site") }}</a>
+</div>
+<div role="group">
+<form method="post" action="/vagas" data-modelo-acao="/vagas/{id}/status" data-requer="salvar">
+<input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<input type="hidden" name="voltar" value="{{ retorno }}">
+<input type="hidden" name="busca" value="{{ busca_id or '' }}">
+<button type="submit" role="menuitem" tabindex="-1" name="status" value="salva">{{ t("vagas.acao.para.salva") }}</button>
+</form>
+<form method="post" action="/vagas" data-modelo-acao="/vagas/{id}/ocultar" hx-post="/vagas" hx-target="this" hx-swap="none" data-requer="ocultar">
+<input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<input type="hidden" name="voltar" value="{{ retorno }}">
+<input type="hidden" name="busca" value="{{ busca_id or '' }}">
+<button type="submit" role="menuitem" tabindex="-1">{{ t("vagas.acao.ocultar") }}</button>
+</form>
+</div>
+<div role="group">
+<button type="button" role="menuitem" tabindex="-1" data-modelo-copiar="{site}" data-requer="site" data-copiado="{{ t('vagas.menu.copiado') }}" data-nao-copiou="{{ t('vagas.menu.nao_copiou') }}">{{ t("vagas.menu.copiar_link") }}</button>
+</div>
+{% endcall %}
 {% endblock %}

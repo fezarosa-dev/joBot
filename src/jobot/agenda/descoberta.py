@@ -20,9 +20,8 @@ import logging
 import sqlite3
 from datetime import UTC, datetime, time, timedelta
 
-from jobot.agenda.execucao import bater, interromper
 from jobot.banco.cadastros import gravar_config, ler_config
-from jobot.banco.execucoes import abrir_execucao, fechar_execucao
+from jobot.banco.execucoes import abrir_execucao, fechar_execucao, interromper, manter_batimento
 from jobot.banco.sugeridas import conhecidas, gravar_sugestoes
 from jobot.nucleo.coletores.descoberta_cc import indice_mais_novo, sugerir, testar
 from jobot.nucleo.http import ClienteEducado, LimiteAtingido, OrcamentoGasto
@@ -49,7 +48,7 @@ async def executar_descoberta(
     execucao_id = abrir_execucao(con, "descoberta", "agenda", relogio.agora())
     if execucao_id is None:
         return
-    batimento = asyncio.create_task(bater(con, execucao_id, relogio))
+    batimento = asyncio.create_task(manter_batimento(con, execucao_id, relogio))
     try:
         indice = await indice_mais_novo(cliente)
         if indice != ler_config(con, CHAVE_INDICE, None):

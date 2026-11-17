@@ -22,8 +22,9 @@ from jobot.agenda import descoberta as agenda_descoberta
 from jobot.agenda import execucao as agenda_execucao
 from jobot.agenda import paginas as agenda_paginas
 from jobot.agenda.descoberta import executar_descoberta
-from jobot.agenda.execucao import executar_busca, parada_de
+from jobot.agenda.execucao import executar_busca
 from jobot.agenda.paginas import executar_paginas
+from jobot.banco import execucoes as banco_execucoes
 from jobot.banco.cadastros import gravar_config, semear
 from jobot.banco.conexao import abrir
 from jobot.banco.execucoes import (
@@ -31,6 +32,7 @@ from jobot.banco.execucoes import (
     fechar_execucao,
     interromper_execucao,
     marcar_interrompidas,
+    parada_de,
 )
 from jobot.banco.migrar import MIGRACOES, migrar
 from jobot.cli import buscar
@@ -255,7 +257,7 @@ async def test_excecao_original_sobe_quando_interromper_falha(
     def banco_quebrado(*_: object, **__: object) -> None:
         raise sqlite3.OperationalError("database disk image is malformed")
 
-    monkeypatch.setattr(agenda_execucao, "interromper_execucao", banco_quebrado)
+    monkeypatch.setattr(banco_execucoes, "interromper_execucao", banco_quebrado)
     monkeypatch.setattr(agenda_descoberta, "gravar_config", banco_quebrado)
     with caplog.at_level(logging.ERROR, logger="jobot"):
         with pytest.raises(RuntimeError) as pego:

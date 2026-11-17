@@ -8,6 +8,42 @@ O formato segue o [Keep a Changelog 1.1.0](https://keepachangelog.com/pt-BR/1.1.
 
 ## [Não lançado]
 
+## [0.3.0] - 2026-11-16
+
+A fase 2 chega: o navegador com login e o LinkedIn, o primeiro site com login. O painel ganha um visual novo, a aba Contas (com o cartão do Gmail), o Panorama e a fila de candidaturas, e o roteiro passa a pôr o Instalador na fase 3.
+
+### Adicionado
+
+- LinkedIn, o primeiro site com login. O leitor vem desligado: você liga em Configurações, Contas. Ele busca por cada cargo das suas buscas, com a cidade e o remoto, e lê só a última semana, ordenada por relevância. Como a lista não é completa, uma vaga do LinkedIn só fecha depois de 30 dias sem ser vista, e reabre se voltar.
+- A aba Contas mostra se o joBot ainda está conectado em cada site, confere na hora e avisa quando a sessão cai.
+- Cartão do Gmail na aba Contas: cole a senha de app, e o joBot confere o login só para leitura. A leitura dos e-mails vem na fase 6.
+- A tela Ferramentas em Configurações, para baixar e remover o navegador dos sites com login (uns 210 MB), sem terminal.
+- O passo opcional "Sites com login" no assistente de primeira execução: ligar os sites, ver o navegador e baixá-lo, tudo antes de ver as vagas.
+- Login numa janela comum do navegador, sem automação: você entra como quiser (Google, e-mail e senha) e fecha a janela. O joBot confere a sessão sozinho e nunca digita a senha.
+- ADR 0023: tudo pelo painel. Ferramentas externas, atualização e encerramento passam a ter botão, sem terminal.
+- Guia "Como acrescentar um site novo" (`docs/site-novo.md`), com um molde de coletor para site público e um de leitor para site com login, e uma guarda no CI que confere o teste, o exemplo e o nome de cada site.
+- O Panorama, um item novo na barra lateral: o dia numa tela, com o que fecha logo, as candidaturas e a busca, com atalhos para as vagas e as fontes.
+- A linha do tempo da vaga, com a data de cada passo (vista, salva, candidatura aberta, candidatei), e o "desde" na aba Candidatei.
+- A pergunta "Você se candidatou?" depois que você abre o link de candidatura de uma vaga, com "Sim, me candidatei", "Ainda não" e Desfazer.
+- Candidatura por e-mail: quando a descrição traz um endereço, o botão "Candidatar-se por e-mail" abre o seu programa de e-mail com o título da vaga. O joBot não envia nada.
+- ADR 0024: o Gmail será lido por IMAP com uma senha de app colada no painel (o cartão está em Configurações, Contas; a leitura dos e-mails, na fase 6). A wiki ganha o passo a passo.
+- Uma janela própria para o painel: se o computador tem Chrome, Edge ou Chromium, o `jobot` abre o painel sem abas nem barra de endereço, como um aplicativo; sem eles, abre numa aba.
+- Desfazer e Refazer: ocultar uma vaga, descartar uma sugestão e remover uma empresa acontecem na hora, com uma faixa de Desfazer (`⌘Z`, `Ctrl+Z` fora do Mac) e de Refazer. Apagar uma busca, remover um site e esquecer logins pedem confirmação num alerta.
+- Paleta de comandos (`⌘K`, `Ctrl+K` fora do Mac): vai a qualquer tela e troca tema, idioma e tamanho do texto, sem mouse.
+- Atalhos de teclado: `/` para a busca, setas, `J`, `K`, `Home` e `End` na lista, `⌘,` para Configurações, `⌘?` para a ajuda e a tecla de menu para o menu da vaga. A página "Atalhos de teclado" na wiki lista todos.
+- Tamanho do texto (Padrão, Grande ou Maior) em Configurações, Geral.
+- Progresso da busca com etapas: o topo mostra em que passo o joBot está (por exemplo, "Lendo Greenhouse · 13 de 20 consultas") e o "Ver detalhes".
+
+### Alterado
+
+- A lista de vagas e o Panorama abrem mais rápido com muitas vagas: as abas são contadas numa passada só, e o Panorama conta só o que mostra.
+- Novo roteiro: a versão 0.3.0 saiu depois da fase 2 (tela "Panorama" e fila de candidaturas completa); a fase 3 vira o Instalador e as seguintes andam um número, até a fase 9 (publicação).
+- Visual novo do painel, no estilo de um aplicativo do Mac: barra lateral com Vagas e Onde buscar, lista de vagas com o detalhe ao lado, janelas e alertas translúcidos, e o título em inglês da correção em Title Case ("Something Wrong with This Job?").
+
+### Corrigido
+
+- O foco volta ao chip certo depois de trocar o filtro, mesmo quando dois valores diferem só por um espaço e um `_`.
+
 ## [0.2.1] - 2026-11-15
 
 ### Alterado

@@ -1,0 +1,540 @@
+/*
+ * Casca (desenho 5.2; T251): barra lateral, barra de ferramentas, faixas e a coluna do conteúdo.
+ * Só propriedades lógicas, na grade de 4px. O vidro vem da classe .vidro (base.css): aqui nada de
+ * backdrop-filter. A coluna do conteúdo rola sozinha; o body nunca rola por baixo do vidro.
+ */
+:root {
+  --lateral-largura: 240px;
+}
+
+body {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto auto auto auto minmax(0, 1fr);
+  grid-template-areas:
+    "lateral topo"
+    "lateral erro"
+    "lateral versao"
+    "lateral contas"
+    "lateral candidatura"
+    "lateral desfazer"
+    "lateral coluna";
+  block-size: 100vh;
+  block-size: 100dvh;
+  overflow: hidden;
+}
+
+.lateral {
+  grid-area: lateral;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  inline-size: var(--lateral-largura);
+  min-block-size: 0;
+  border-inline-end: 1px solid var(--separador);
+}
+
+/* a âncora --topo deixa o detalhe sobreposto (vagas.css) começar no pé real da barra */
+.topo {
+  grid-area: topo;
+  anchor-name: --topo;
+}
+
+#aviso-erro {
+  grid-area: erro;
+}
+
+#aviso-versao {
+  grid-area: versao;
+}
+
+#aviso-contas {
+  grid-area: contas;
+}
+
+#aviso-candidatura {
+  grid-area: candidatura;
+}
+
+#faixa-desfazer {
+  grid-area: desfazer;
+}
+
+.coluna {
+  grid-area: coluna;
+  min-block-size: 0;
+  overflow: auto;
+}
+
+/* janela larga, a pessoa escondeu a barra lateral */
+:root[data-lateral="recolhida"] .lateral {
+  display: none;
+}
+
+.lateral .marca {
+  padding-block: 16px 8px;
+  padding-inline: 16px;
+  font: var(--t-headline);
+}
+
+/* o menu rola sozinho; o divisor fica fora dele para não ser cortado */
+.menu {
+  flex: 1 1 auto;
+  min-block-size: 0;
+  overflow-y: auto;
+  padding-block-end: 12px;
+}
+
+.menu ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* título de seção: 11px, peso 600, texto secundário, sem caixa alta */
+.menu-secao {
+  margin-block: 12px 4px;
+  margin-inline: 0;
+  padding-inline: 16px;
+  color: var(--texto-2);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1rem;
+}
+
+.menu ul:last-child {
+  margin-block-start: 12px;
+}
+
+.menu a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-block-size: 28px;
+  margin-inline: 8px;
+  padding-inline: 8px;
+  border-radius: var(--raio-controle);
+  color: var(--texto);
+  font-size: 0.8125rem;
+  line-height: 1rem;
+  text-decoration: none;
+}
+
+.menu .segundo-nivel a {
+  padding-inline-start: 32px;
+}
+
+.menu a:hover:not([aria-current]) {
+  background-color: var(--hover);
+}
+
+/* item aberto: cor de destaque e texto branco; com a janela sem foco, cinza */
+.menu a[aria-current] {
+  background-color: var(--destaque);
+  color: var(--sobre-destaque);
+}
+
+:root[data-janela="inativa"] .menu a[aria-current] {
+  background-color: var(--selecao-inativa);
+  color: var(--texto);
+}
+
+/* contagem à direita, em texto simples (sem pílula); no item aberto herda a cor do texto dele */
+.menu .contagem {
+  margin-inline-start: auto;
+  color: var(--texto-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.menu a[aria-current] .contagem {
+  color: inherit;
+}
+
+/* ícones: o <a> só tem texto; o desenho vem de uma máscara pintada na cor do texto */
+.menu a::before,
+.icone {
+  content: "";
+  display: block;
+  flex: none;
+  inline-size: 16px;
+  block-size: 16px;
+  background-color: currentColor;
+  -webkit-mask: var(--icone) center / contain no-repeat;
+  mask: var(--icone) center / contain no-repeat;
+}
+
+/* encaixe (T301): caixa de 1em, também vazia, para os títulos da lista começarem no mesmo x; fica
+   na linha do texto (no detalhe, dentro de um <p>) */
+.icone-encaixe {
+  display: inline-block;
+  flex: none;
+  inline-size: 1em;
+  block-size: 1em;
+  vertical-align: -0.125em;
+}
+
+[data-icone="circle"] { --icone: url("/static/icones/circle.svg"); }
+[data-icone="contrast"] { --icone: url("/static/icones/contrast.svg"); }
+[data-icone="circle-check"] { --icone: url("/static/icones/circle-check.svg"); }
+[data-icone="circle-dashed"] { --icone: url("/static/icones/circle-dashed.svg"); }
+[data-icone="sparkles"] { --icone: url("/static/icones/sparkles.svg"); }
+[data-icone="inbox"] { --icone: url("/static/icones/inbox.svg"); }
+[data-icone="circle-dot"] { --icone: url("/static/icones/circle-dot.svg"); }
+[data-icone="hourglass"] { --icone: url("/static/icones/hourglass.svg"); }
+[data-icone="bookmark"] { --icone: url("/static/icones/bookmark.svg"); }
+[data-icone="send"] { --icone: url("/static/icones/send.svg"); }
+[data-icone="circle-help"] { --icone: url("/static/icones/circle-help.svg"); }
+[data-icone="layout-dashboard"] { --icone: url("/static/icones/layout-dashboard.svg"); }
+[data-icone="graduation-cap"] { --icone: url("/static/icones/graduation-cap.svg"); }
+[data-icone="eye-off"] { --icone: url("/static/icones/eye-off.svg"); }
+[data-icone="search"] { --icone: url("/static/icones/search.svg"); }
+[data-icone="building-2"] { --icone: url("/static/icones/building-2.svg"); }
+[data-icone="lightbulb"] { --icone: url("/static/icones/lightbulb.svg"); }
+[data-icone="rss"] { --icone: url("/static/icones/rss.svg"); }
+[data-icone="globe"] { --icone: url("/static/icones/globe.svg"); }
+[data-icone="command"] { --icone: url("/static/icones/command.svg"); }
+[data-icone="settings"] { --icone: url("/static/icones/settings.svg"); }
+[data-icone="panel-left"] { --icone: url("/static/icones/panel-left.svg"); }
+[data-icone="search-x"] { --icone: url("/static/icones/search-x.svg"); }
+[data-icone="circle-x"] { --icone: url("/static/icones/circle-x.svg"); }
+[data-icone="clock"] { --icone: url("/static/icones/clock.svg"); }
+[data-icone="triangle-alert"] { --icone: url("/static/icones/triangle-alert.svg"); }
+[data-icone="log-out"] { --icone: url("/static/icones/log-out.svg"); }
+
+/* divisor: a linha é a borda da lateral; aqui só a área de pegar, 8px sobre ela */
+.divisor {
+  position: absolute;
+  z-index: 2;
+  inset-block: 0;
+  inset-inline-end: -4px;
+  inline-size: 8px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+/* barra de ferramentas: 52px; título no começo, busca e ações no fim */
+.topo-inicio,
+.topo-fim {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-inline-size: 0;
+}
+
+.topo-fim {
+  justify-content: flex-end;
+}
+
+.topo .marca {
+  font: var(--t-headline);
+}
+
+.topo-titulo {
+  margin: 0;
+  font: var(--t-headline);
+}
+
+.botao-barra,
+.botao-paleta {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  inline-size: 28px;
+  block-size: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--raio-controle);
+  background-color: transparent;
+  color: var(--texto-2);
+}
+
+.botao-barra:hover,
+.botao-paleta:hover {
+  background-color: var(--hover);
+}
+
+/* busca: 180px, cresce para 280px com o foco; nunca mais larga que a barra. Em em (T301): no
+   tamanho Maior o campo cresce com a letra e o placeholder (casca.busca.campo) cabe inteiro */
+.topo-busca {
+  inline-size: 14em;
+  min-inline-size: 12em;
+  max-inline-size: 100%;
+  min-block-size: 28px;
+  transition: inline-size var(--duracao) var(--mola);
+}
+
+.topo-busca:focus {
+  inline-size: 21.5em;
+}
+
+/* faixas logo abaixo da barra; vazias, não ocupam altura */
+#aviso-versao,
+#aviso-contas,
+#aviso-candidatura {
+  padding-inline: var(--espaco);
+}
+
+.aviso-versao,
+.aviso-contas,
+.aviso-candidatura {
+  margin-block: 12px 0;
+  margin-inline: 0;
+  padding-block: 8px;
+  padding-inline: 16px;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  background-color: var(--superficie);
+  color: var(--texto);
+  font-size: 0.8125rem;
+}
+
+.aviso-contas {
+  border-color: var(--alerta);
+}
+
+/* faixa "Você se candidatou?" (T285): a mesma caixa das outras; o campo escondido `mostrando` fica
+   sempre lá, então a faixa vazia não tem altura por não ter caixa, não por `:empty` */
+.aviso-candidatura,
+.aviso-candidatura .pergunta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.aviso-candidatura .pergunta {
+  flex: 1;
+}
+
+.aviso-candidatura p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.aviso-candidatura > p,
+.aviso-candidatura .pergunta-texto {
+  flex: 1;
+  min-inline-size: 12em;
+}
+
+.aviso-candidatura .pergunta-quando {
+  color: var(--texto-2);
+}
+
+.aviso-candidatura form {
+  display: contents;
+}
+
+#aviso-erro:not([hidden]) {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding-block: 8px;
+  padding-inline: var(--espaco);
+  border-block-end: 1px solid var(--alerta);
+  background-color: var(--superficie);
+  color: var(--texto);
+  font-size: 0.8125rem;
+}
+
+#aviso-erro p {
+  flex: 1;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+#aviso-erro button {
+  flex: none;
+  min-inline-size: 28px;
+  padding-block: 0;
+  padding-inline: 8px;
+  border: 0;
+  border-radius: 999px;
+  background-color: transparent;
+  color: var(--texto);
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+#aviso-erro button:hover {
+  background-color: var(--hover);
+}
+
+/* faixa de desfazer (T256): a mesma régua do aviso de erro, sem a cor de alerta. O botão da ação
+   leva o nome por extenso; o de fechar é o × do aviso. Vazia, a faixa não ocupa altura. */
+#faixa-desfazer .faixa {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-block: 8px;
+  padding-inline: var(--espaco);
+  border-block-end: 1px solid var(--separador);
+  background-color: var(--superficie);
+  color: var(--texto);
+  font-size: 0.8125rem;
+}
+
+#faixa-desfazer p {
+  flex: 1;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+#faixa-desfazer form {
+  display: contents;
+}
+
+#faixa-desfazer [data-faixa-fechar] {
+  flex: none;
+  min-inline-size: 28px;
+  padding-block: 0;
+  padding-inline: 8px;
+  border: 0;
+  border-radius: 999px;
+  background-color: transparent;
+  color: var(--texto);
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+#faixa-desfazer [data-faixa-fechar]:hover {
+  background-color: var(--hover);
+}
+
+/*
+ * Janela média (640 a 900px), com JavaScript: a lateral fica recolhida e abre por cima do
+ * conteúdo (sobreposta), abaixo da barra: nunca vidro sobre vidro, e o botão de recolher fica à
+ * vista. Ela ocupa na grade as linhas abaixo da barra, por cima das faixas e da coluna, e assim
+ * segue a altura real da barra mesmo quando ela quebra linha; a barra fica por cima da sombra.
+ * Sem JavaScript vale a janela larga.
+ */
+@media (max-width: 899.98px) and (min-width: 640px) {
+  :root[data-js] .topo {
+    position: relative;
+    z-index: 31;
+  }
+
+  :root[data-js] .lateral {
+    z-index: 30;
+    grid-row: 2 / -1;
+    grid-column: 1 / -1;
+    justify-self: start;
+    display: none;
+    box-shadow: var(--sombra-menu);
+  }
+
+  :root[data-js][data-lateral="sobreposta"] .lateral {
+    display: flex;
+  }
+
+  :root[data-js] .divisor {
+    display: none;
+  }
+}
+
+/* janela estreita: a navegação vira uma faixa no topo, sem JavaScript; o body volta a rolar */
+@media (max-width: 639.98px) {
+  body {
+    display: block;
+    block-size: auto;
+    overflow: visible;
+  }
+
+  .lateral {
+    inline-size: auto;
+    border-inline-end: 0;
+    border-block-end: 1px solid var(--separador);
+  }
+
+  .lateral .marca,
+  .menu-secao,
+  .divisor,
+  .botao-barra {
+    display: none;
+  }
+
+  /* a faixa de navegação é uma linha só que rola de lado dentro dela; a página não (RF6, T301) */
+  .menu {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 4px;
+    padding-block: 8px;
+    padding-inline: 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-inline: contain;
+  }
+
+  .menu a {
+    flex: none;
+    white-space: nowrap;
+  }
+
+  .menu ul {
+    display: contents;
+  }
+
+  .menu a,
+  .menu ul:last-child {
+    margin: 0;
+  }
+
+  .menu .segundo-nivel a {
+    padding-inline-start: 8px;
+  }
+
+  .coluna {
+    overflow: visible;
+  }
+
+  /* topo numa linha (T301): título, busca, Buscar agora e Sair; a busca encolhe primeiro */
+  .topo,
+  .topo-fim {
+    flex-wrap: nowrap;
+  }
+
+  .topo-inicio {
+    flex: none;
+  }
+
+  .topo-fim {
+    flex: 1 1 auto;
+  }
+
+  .topo-busca,
+  .topo-busca:focus {
+    flex: 1 1000 auto;
+    inline-size: auto;
+    min-inline-size: 0;
+  }
+
+  .topo-fim .execucao {
+    flex: 0 1 auto;
+    min-inline-size: 0;
+  }
+}
+
+/* cores forçadas: o item aberto ganha contorno (base.css) e o ícone segue a cor do texto */
+@media (forced-colors: active) {
+  .menu a::before,
+  .icone {
+    forced-color-adjust: none;
+    background-color: CanvasText;
+  }
+
+  .menu a[aria-current]::before {
+    background-color: HighlightText;
+  }
+
+  .menu a[aria-current] {
+    forced-color-adjust: none;
+    background-color: Highlight;
+    color: HighlightText;
+  }
+
+  #aviso-erro:not([hidden]),
+  #faixa-desfazer .faixa {
+    border-block-end-color: CanvasText;
+  }
+}

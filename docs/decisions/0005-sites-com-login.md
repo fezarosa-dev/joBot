@@ -2,7 +2,7 @@
 
 - **Status:** aceita
 - **Data:** 2026-11-13
-- **Atualizada:** 2026-11-15 (CAPTCHA pode ser resolvido pelo serviço que a pessoa liga; ver [0022](0022-captcha-pelo-servico-da-pessoa.md))
+- **Atualizada:** 2026-11-15 (CAPTCHA pode ser resolvido pelo serviço que a pessoa liga; ver [0022](0022-captcha-pelo-servico-da-pessoa.md); o login acontece numa janela comum e a ordem de mapeamento mudou, ver a nota abaixo)
 
 ## Contexto
 
@@ -35,6 +35,12 @@ LinkedIn, Indeed e outros só mostram vagas completas para quem está logado. Au
 - Feito no navegador do próprio joBot, com a pessoa logada.
 - Captura do HTML e das respostas JSON da rede; dados pessoais removidos das fixtures (amostras de teste).
 - Testes offline com TDD.
+
+## Nota de 2026-11-15: janela comum e nova ordem (D136)
+
+- O login passa a acontecer numa janela comum do navegador, sem automação: o joBot só abre o navegador no endereço de login, a pessoa entra como quiser (Google, e-mail e senha) e fecha a janela, e o joBot confere a sessão sozinho. Isto vale no lugar de "Chrome visível controlado pelo Playwright" na seção "Como acessar" para o login; a leitura das vagas segue como está. O joBot continua sem digitar senha.
+- A ordem de mapeamento passa a ser LinkedIn, Gupy, Vagas.com, Catho, Indeed, com os sites só de tecnologia por último. Isto troca a ordem "Gupy → LinkedIn → ..." de "Quais sites e em que ordem".
+- A regra de não disfarçar a automação não vem desta ADR (que trata de senha e CAPTCHA): vem do desenho da fase 2, seção 2 (`docs/superpowers/specs/2026-11-15-fase-2-design.md:45`), e da D132.15.
 
 ## Consequências
 

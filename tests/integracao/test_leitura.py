@@ -1,5 +1,6 @@
 """Leitura e busca do painel (desenho 13.3 e 13.4; plano T20)."""
 
+import ast
 import sqlite3
 import time
 from collections.abc import Iterator
@@ -11,9 +12,12 @@ from typing import Any
 import pytest
 
 from apoio.semear import AGORA, inserir_vaga, semear
+from jobot.banco import acoes
 from jobot.banco import migrar as modulo_migrar
 from jobot.banco.conexao import abrir
 from jobot.banco.leitura import (
+    ABAS,
+    POR_PAGINA,
     Filtros,
     Pagina,
     contar_abas,
@@ -21,6 +25,7 @@ from jobot.banco.leitura import (
     contar_fora_do_salario,
     detalhe,
     listar,
+    tem_vaga,
 )
 from jobot.banco.migrar import migrar
 
@@ -208,6 +213,46 @@ def test_abas(con: sqlite3.Connection, ids: dict[str, int]) -> None:
     assert _lista(con, aba="novas", busca_id=b) == []
 
 
+@pytest.mark.parametrize("qual", ["escolhida", "nenhuma", "sem_encaixe"])
+def test_contar_abas_igual_a_lista_de_cada_aba(
+    con: sqlite3.Connection, ids: dict[str, int], qual: str
+) -> None:
+    """Cada aba conta o que a lista dela mostra, com a busca, sem busca e com uma sem encaixe."""
+    # candidaturas em três status (uma fechada) e mais uma salva
+    con.execute("UPDATE vaga SET status = 'candidatei' WHERE id = ?", (ids["usd"],))
+    con.execute(
+        "UPDATE vaga SET status = 'entrevista', fechada_em = ? WHERE id = ?",
+        (AGORA.isoformat(), ids["brl"]),
+    )
+    con.execute("UPDATE vaga SET status = 'recusada' WHERE id = ?", (ids["himalayas"],))
+    con.execute("UPDATE vaga SET status = 'salva' WHERE id = ?", (ids["prazo_3_dias"],))
+    outra = con.execute(
+        "INSERT INTO busca (nome, cargos, criada_em) VALUES ('Outra', '[]', ?)",
+        (AGORA.isoformat(),),
+    ).lastrowid
+    busca = {"escolhida": ids["busca"], "nenhuma": None, "sem_encaixe": outra}[qual]
+    esperado = {aba: len(_lista(con, aba=aba, busca_id=busca)) for aba in ABAS}
+    assert max(esperado.values()) < POR_PAGINA  # cada lista cabe numa página
+    assert len(set(esperado.values())) >= 3, esperado  # abas com números diferentes
+    assert contar_abas(con, busca, AGORA) == esperado
+
+
+def test_contar_abas_sem_vaga_da_zero(con: sqlite3.Connection) -> None:
+    """Sem vaga nenhuma, cada aba conta 0, não `None`."""
+    assert contar_abas(con, None, AGORA) == dict.fromkeys(ABAS, 0)
+
+
+def test_contar_abas_numa_varredura_so(con: sqlite3.Connection, ids: dict[str, int]) -> None:
+    """As 7 abas saem de um SELECT só sobre `vaga` (o valor de cada uma, no teste de cima)."""
+    vistos: list[str] = []
+    con.set_trace_callback(vistos.append)
+    contagens = contar_abas(con, ids["busca"], AGORA)
+    con.set_trace_callback(None)
+    assert contagens.keys() == ABAS.keys()
+    varreduras = [sql for sql in vistos if "FROM vaga v" in sql]
+    assert len(varreduras) == 1, varreduras
+
+
 def test_chips_contam_com_os_outros_filtros(con: sqlite3.Connection, ids: dict[str, int]) -> None:
     b = ids["busca"]
     f = Filtros(busca_id=b, modalidade="presencial")
@@ -231,6 +276,30 @@ def test_chips_contam_com_os_outros_filtros(con: sqlite3.Connection, ids: dict[s
                 so_um: dict[str, Any] = {dim: valor}
                 filtrada = listar(con, replace(f, **so_um), AGORA)
                 assert len(filtrada.itens) == n, (dim, valor)
+
+
+@pytest.mark.parametrize(
+    ("filtros", "grupos"),
+    [
+        ({"aba": "candidatei"}, ("status",)),  # o que o Panorama conta das candidaturas
+        ({"aba": "ocultas"}, ("motivo", "area")),
+        ({"modalidade": "presencial"}, ("encaixe", "modalidade", "area", "fonte")),
+        ({"uf": "SP"}, ("publicada", "uf", "contrato")),
+    ],
+)
+def test_contar_chips_so_os_grupos_pedidos(
+    con: sqlite3.Connection,
+    ids: dict[str, int],
+    filtros: dict[str, Any],
+    grupos: tuple[str, ...],
+) -> None:
+    """T312: cada grupo pedido conta igual à chamada completa, e os outros não vêm."""
+    for vaga, status in (("brl", "entrevista"), ("usd", "oferta"), ("nova", "candidatei")):
+        con.execute("UPDATE vaga SET status = ? WHERE id = ?", (status, ids[vaga]))
+    f = Filtros(busca_id=ids["busca"], **filtros)
+    completo = contar_chips(con, f, AGORA)
+    assert all(completo.get(g) for g in grupos), completo  # cada grupo pedido tem contagem
+    assert contar_chips(con, f, AGORA, grupos) == {g: completo[g] for g in grupos}
 
 
 def test_ordens(con: sqlite3.Connection, ids: dict[str, int]) -> None:
@@ -734,3 +803,34 @@ def test_contar_fora_do_salario_na_moeda_nao_conta_o_sem_valor(con: sqlite3.Conn
 def test_sem_salario_so_pela_ausencia_de_minimo_e_maximo(con: sqlite3.Connection) -> None:
     inserir_vaga(con, sal_moeda="USD", sal_periodo="mes")  # moeda sem valor nenhum
     assert contar_fora_do_salario(con, Filtros(sal_de_brl=1), AGORA) == (1, 0)
+
+
+def test_status_em_na_listagem(con: sqlite3.Connection) -> None:
+    vaga = inserir_vaga(con, status="nova")
+    quando = datetime(2026, 11, 13, 10, 30, tzinfo=UTC)
+    acoes.mudar_status(con, vaga, "salva", quando)
+    item = next(i for i in _pagina(con, aba="salvas").itens if i.id == vaga)
+    assert item.status_em == quando.isoformat()
+    d = detalhe(con, vaga, None, AGORA)
+    assert d is not None and d.status_em == quando.isoformat()
+
+
+def test_tem_vaga(con: sqlite3.Connection) -> None:
+    assert tem_vaga(con) is False  # guarda: o banco vazio nasce verde
+    inserir_vaga(con, oculta_manual=1, fechada_em="2026-11-01T00:00:00+00:00")
+    assert tem_vaga(con) is True
+
+
+def test_degrau_definido_uma_vez() -> None:
+    pasta = Path(__file__).parents[2] / "src" / "jobot" / "banco"
+    definem: list[str] = []
+    for arquivo in sorted(pasta.glob("*.py")):
+        for no in ast.walk(ast.parse(arquivo.read_text(encoding="utf-8"))):
+            alvos = no.targets if isinstance(no, ast.Assign) else []
+            if isinstance(no, ast.AnnAssign):
+                alvos = [no.target]
+            nomes = [a.id for a in alvos if isinstance(a, ast.Name)]
+            assert "_DEGRAU" not in nomes, f"{arquivo.name} define _DEGRAU"
+            if "DEGRAU" in nomes:
+                definem.append(arquivo.name)
+    assert len(definem) == 1, definem

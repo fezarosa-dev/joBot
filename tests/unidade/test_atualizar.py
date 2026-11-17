@@ -424,3 +424,28 @@ def test_desligar_recusado_nao_repete_a_saida_do_systemctl_no_stderr(
     codigo = atualizar(rodar, tmp_path, parar=parar, subir=subir, raiz=_clone_falso(tmp_path / "c"))
     assert codigo == 1
     assert capsys.readouterr().err.count("Failed to connect to bus") == 1
+
+
+# --- captura de exemplos com login: trava presa sem porta (T220) ---
+
+
+def test_atualizar_com_captura_recusa_e_nao_sobe_servidor(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    trava = Trava(tmp_path, 0)  # o capturar_logado.py segura a trava sem porta
+    assert trava.pegar()
+    registro: list[str] = []
+    rodar = _Sistema(registro)
+    parar, subir = _falsos(registro, None)
+    try:
+        codigo = atualizar(
+            rodar, tmp_path, parar=parar, subir=subir, raiz=_clone_falso(tmp_path / "clone")
+        )
+    finally:
+        trava.soltar()
+    assert codigo == 1
+    assert registro == []  # nem parar, nem subir, nem git ou systemctl
+    assert (
+        "Uma captura de exemplos com login está em andamento. "
+        "Encerre-a no terminal dela e tente de novo."
+    ) in capsys.readouterr().err

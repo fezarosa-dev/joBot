@@ -20,6 +20,8 @@ from jobot.painel.i18n import idioma_inicial, t
 
 Tema = Literal["sistema", "claro", "escuro"]
 TEMAS: tuple[Tema, ...] = ("sistema", "claro", "escuro")
+TamanhoTexto = Literal["padrao", "grande", "maior"]
+TAMANHOS_TEXTO: tuple[TamanhoTexto, ...] = ("padrao", "grande", "maior")
 CAMPO_CSRF = "csrf_token"
 CABECALHO_CSRF = "X-CSRF-Token"
 METODOS_SEGUROS = frozenset({"GET", "HEAD", "OPTIONS"})
@@ -82,15 +84,27 @@ def idioma_do_pedido(request: Request) -> str:
     return idioma_inicial(request.headers.get("accept-language"))
 
 
-def _tema(request: Request) -> str:
-    """O tema salvo na configuração; sem ele, `sistema` (segue o `prefers-color-scheme`)."""
+def tema_e_texto(request: Request) -> tuple[str, str]:
+    """O tema e o tamanho do texto salvos na configuração, lidos numa conexão só.
+
+    Sem a chave, `sistema` (segue o `prefers-color-scheme`) e `padrao`.
+    """
     banco: Path = request.app.state.banco
+    tema, texto = "sistema", "padrao"
     if banco.exists():  # sem banco ainda, não cria um arquivo vazio só para ler
         with closing(abrir(banco)) as con:
-            linha = con.execute("SELECT valor FROM config WHERE chave = 'tema'").fetchone()
-        if linha is not None and (salvo := json.loads(linha[0])) in TEMAS:
-            return str(salvo)
-    return "sistema"
+            linhas = dict(
+                con.execute(
+                    "SELECT chave, valor FROM config WHERE chave IN ('tema', 'tamanho_texto')"
+                ).fetchall()
+            )
+        if "tema" in linhas and (salvo := json.loads(linhas["tema"])) in TEMAS:
+            tema = str(salvo)
+        if "tamanho_texto" in linhas and (salvo := json.loads(linhas["tamanho_texto"])) in (
+            TAMANHOS_TEXTO
+        ):
+            texto = str(salvo)
+    return tema, texto
 
 
 async def exigir_csrf(request: Request) -> None:
@@ -110,21 +124,30 @@ async def exigir_csrf(request: Request) -> None:
         raise HTTPException(403, detail=t(idioma_do_pedido(request), "seguranca.recarregue"))
 
 
+def caminho_do_painel(voltar: str) -> str:
+    """Caminho e consulta de `voltar` se for caminho do próprio painel; senão, `/` (E21).
+
+    Sem esquema, sem host, começa com `/`, não com `//`, e sem `\\` (sem open redirect).
+    """
+    partes = urlsplit(voltar)  # o urlsplit já tira tab e quebra de linha, como o navegador
+    local = not partes.scheme and not partes.netloc and partes.path.startswith("/")
+    if not local or partes.path.startswith("//") or "\\" in partes.path:
+        return "/"
+    return urlunsplit(("", "", partes.path, partes.query, ""))
+
+
 def de_volta(voltar: str) -> RedirectResponse:
     """Volta para a página de onde veio, só se for caminho do próprio painel (sem open redirect).
 
     O `Referrer-Policy: no-referrer` tira o `Referer`, por isso a página manda `voltar`.
     """
-    partes = urlsplit(voltar)  # o urlsplit já tira tab e quebra de linha, como o navegador
-    local = not partes.scheme and not partes.netloc and partes.path.startswith("/")
-    if not local or partes.path.startswith("//") or "\\" in partes.path:
-        return RedirectResponse("/", status_code=303)
-    return RedirectResponse(urlunsplit(("", "", partes.path, partes.query, "")), status_code=303)
+    return RedirectResponse(caminho_do_painel(voltar), status_code=303)
 
 
 def renderizar(request: Request, modelo: str, **ctx: Any) -> HTMLResponse:
-    """Página do template com `t(chave, **params)`, o idioma, o tema salvo e o token CSRF."""
+    """Página do template com `t(chave, **params)`, o idioma, o tema, o tamanho do texto, o CSRF."""
     idioma = idioma_do_pedido(request)
+    tema, tamanho_texto = tema_e_texto(request)
 
     def traduzir(chave: str, **params: object) -> str:
         return t(idioma, chave, **params)
@@ -132,7 +155,8 @@ def renderizar(request: Request, modelo: str, **ctx: Any) -> HTMLResponse:
     contexto = {
         "t": traduzir,
         "idioma": idioma,
-        "tema": _tema(request),
+        "tema": tema,
+        "tamanho_texto": tamanho_texto,
         "csrf_token": csrf_token(request),
         **ctx,
     }

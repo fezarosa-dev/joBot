@@ -7,14 +7,17 @@ import time
 from collections.abc import Iterator
 from contextlib import closing
 from datetime import UTC, datetime
+from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
+from urllib.parse import parse_qs, urlsplit
 
 import pytest
 from fastapi.testclient import TestClient
 
 from apoio.relogio import RelogioFalso
 from apoio.semear import semear
+from jobot.banco import acoes
 from jobot.banco.conexao import abrir
 from jobot.banco.migrar import migrar
 from jobot.painel import seguranca
@@ -70,15 +73,6 @@ class Painel:
 @pytest.fixture
 def painel(tmp_path: Path) -> Painel:
     return Painel(tmp_path)
-
-
-@pytest.fixture
-def fuso_sao_paulo(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    monkeypatch.setenv("TZ", "America/Sao_Paulo")
-    time.tzset()
-    yield
-    monkeypatch.undo()  # volta o TZ antes do tzset: sem isso o fuso vaza para os outros testes
-    time.tzset()
 
 
 FAIXA = r'<section class="[^"]*\bfaixa\b[^"]*".*?</section>'
@@ -154,6 +148,18 @@ def test_botao_de_candidatura_usa_o_link_da_fonte_sem_mudar(painel: Painel) -> N
     assert 'target="_blank"' in botao
     assert 'rel="noopener noreferrer"' in botao
     assert "/apply" not in botao
+
+
+def test_link_de_candidatura_tem_data_candidatura(painel: Painel) -> None:
+    vaga = painel.ids["himalayas"]
+    ancora = _ancora(painel.detalhe("himalayas"), 'class="primario"')
+    assert f'data-candidatura="/vagas/{vaga}/candidatura"' in ancora
+    # continua um link normal
+    assert 'href="https://himalayas.app/companies/beta/jobs/42/apply"' in ancora
+    assert 'target="_blank"' in ancora
+    assert 'rel="noopener noreferrer"' in ancora
+    # o link "Abrir no site" não registra candidatura
+    assert "data-candidatura" not in _ancora(painel.detalhe("himalayas"), 'class="secundario"')
 
 
 def test_sem_nenhum_link_http_nao_ha_botao_de_candidatura(painel: Painel) -> None:
@@ -261,6 +267,71 @@ def test_detalhe_mostra_encaixe_e_ocultar_volta_para_o_detalhe(painel: Painel) -
     assert f'href="/vagas/{vaga}/correcao"' in html
 
 
+def test_pagina_propria_embrulha_o_detalhe_para_a_leitura(painel: Painel) -> None:
+    html = painel.detalhe("usd")
+    # T264: a página própria tem o seu invólucro (título e largura de leitura vêm dele)
+    assert re.search(
+        r'<div class="detalhe-pagina">\s*<p class="voltar"><a href="/vagas">[^<]+</a></p>\s*'
+        r'<article class="detalhe">',
+        html,
+    )
+    assert html.count('class="detalhe-pagina"') == 1
+
+
+def test_acoes_de_estado_ficam_num_grupo_so(painel: Painel) -> None:
+    """Salvar e Ocultar formam um grupo: quebra de linha inteiro, nunca um botão só. A situação
+    fica fora dele, antes de toda a fileira (T301 item 8: numa linha própria, acima)."""
+    html = painel.detalhe("usd")
+    achou = re.search(r'<div class="acoes-estado">(.*?)</div>\s*</div>\s*<section', html, re.S)
+    assert achou is not None
+    grupo = achou.group(1)
+    vaga = painel.ids["usd"]
+    assert 'class="situacao"' not in grupo
+    assert f'action="/vagas/{vaga}/status"' in grupo
+    assert f'action="/vagas/{vaga}/ocultar"' in grupo
+    grupo_acoes = re.search(r'<div class="acoes".*?<div class="acoes-estado">', html, re.S)
+    assert grupo_acoes is not None
+    antes = grupo_acoes.group(0)
+    assert 'class="primario"' in antes  # os links de fora ficam antes do grupo
+    assert antes.index('class="situacao"') < antes.index('class="primario"')
+
+
+def _aba_marcada(html: str) -> list[str]:
+    """Os `href` dos itens da seção Vagas da lateral que levam `aria-current`."""
+    lista = re.search(r'<ul id="lateral-vagas".*?</ul>', html, re.S)
+    assert lista is not None
+    itens = re.findall(r"<a\b[^>]*>", lista.group(0))
+    assert itens
+    marcados = re.findall(r'href="([^"]*)"[^>]*aria-current', "".join(itens))
+    return [href.split("&amp;")[0] for href in marcados]  # sem o `&busca=` da busca escolhida
+
+
+def test_detalhe_sem_aba_na_url_nao_marca_aba_nenhuma(painel: Painel) -> None:
+    assert _aba_marcada(painel.detalhe("usd")) == []
+
+
+def test_detalhe_com_aba_na_url_marca_a_de_origem(painel: Painel) -> None:
+    resposta = painel.get(f"/vagas/{painel.ids['usd']}?aba=salvas")
+    assert resposta.status_code == 200
+    assert _aba_marcada(resposta.text) == ["/vagas?aba=salvas"]
+    assert 'aria-current="true"' in resposta.text  # área marcada, não a página dela
+
+
+def test_detalhe_com_aba_que_nao_existe_nao_marca_aba_nenhuma(painel: Painel) -> None:
+    resposta = painel.get(f"/vagas/{painel.ids['usd']}?aba=inventada")
+    assert resposta.status_code == 200
+    assert _aba_marcada(resposta.text) == []
+
+
+def test_lista_de_vagas_sem_aba_na_url_marca_a_primeira(painel: Painel) -> None:
+    """Guarda: só o detalhe perde a aba padrão; a lista segue marcando a primeira."""
+    resposta = painel.get("/vagas")
+    assert resposta.status_code == 200
+    marcadas = _aba_marcada(resposta.text)
+    assert len(marcadas) == 1
+    assert marcadas[0].startswith("/vagas?aba=")
+
+
 # ---------------------------------------------------------------- correção
 
 
@@ -364,7 +435,7 @@ def test_correcao_vaga_inexistente_404_valor_invalido_422(painel: Painel) -> Non
     assert painel.sql("SELECT COUNT(*) FROM correcao") == [(0,)]
 
 
-def test_correcao_passa_o_dia_local_como_hoje(painel: Painel, fuso_sao_paulo: None) -> None:
+def test_correcao_passa_o_dia_local_como_hoje(painel: Painel, fuso_de_sao_paulo: None) -> None:
     # 14/11 02:00 UTC é 13/11 23:00 em São Paulo: a cotação vale 7 dias a partir do dia LOCAL
     painel.app.state.relogio = RelogioFalso(datetime(2026, 11, 14, 2, 0, tzinfo=UTC))
     painel.sql("UPDATE cotacao SET data = '2026-11-06', venda = '5.50'")  # 7 dias antes de 13/11
@@ -409,3 +480,306 @@ def test_erro_depois_de_gravar_nao_vira_422(
     with pytest.raises(ValueError, match="reprocesso quebrou"):
         painel.corrigir("usd", "nivel", "junior")
     assert painel.sql("SELECT COUNT(*) FROM correcao") == [(1,)]  # a correção já estava guardada
+
+
+def test_correcao_em_dialog_com_formulario_de_hoje(painel: Painel) -> None:
+    vaga = painel.ids["usd"]
+    resposta = painel.http.get(f"/vagas/{vaga}/correcao", headers={"HX-Request": "true"})
+    assert resposta.status_code == 200
+    html = resposta.text
+    # só o sheet: sem a casca da página
+    assert "<html" not in html
+    assert "<aside" not in html
+    abre = re.search(r"<dialog\b[^>]*>", html)
+    assert abre is not None
+    tag = abre.group(0)
+    for classe in ("sheet", "vidro", "vidro-grande", "vidro-elevado"):
+        assert re.search(rf'class="[^"]*\b{classe}\b', tag), classe
+    assert 'aria-labelledby="correcao-titulo"' in tag
+    assert 'id="correcao-titulo"' in html
+    # o formulário de hoje: um por item, com os mesmos campos, ação e botão
+    assert html.count(f'action="/vagas/{vaga}/correcao"') == 8
+    for campo in ("area", "nivel", "modalidade", "contrato", "uf", "salario", "fechada", "outro"):
+        assert f'name="valor_{campo}"' in html
+        assert f'name="campo" value="{campo}"' in html
+    assert html.count('name="comentario"') == 8
+    # o pé do sheet: o botão de fechar, fora do corpo que rola
+    corpo = re.search(r'<div class="sheet-corpo">(.*?)</div>\s*<footer', html, re.S)
+    assert corpo is not None
+    assert "data-fechar-sheet" not in corpo.group(1)
+    pe = r"<footer\b[^>]*>\s*<button\b[^>]*data-fechar-sheet[^>]*>Fechar</button>"
+    assert re.search(pe, html)
+    assert "Vary" in resposta.headers and "HX-Request" in resposta.headers["Vary"]
+
+
+def test_correcao_sem_htmx_segue_a_pagina_de_hoje(painel: Painel) -> None:
+    resposta = painel.get(f"/vagas/{painel.ids['usd']}/correcao")
+    assert resposta.status_code == 200
+    assert "<html" in resposta.text
+    assert "<dialog" not in re.sub(
+        r'<dialog\b[^>]*\bid="paleta".*?</dialog>', "", resposta.text, flags=re.S
+    )
+    assert 'class="painel correcoes"' in resposta.text
+
+
+def test_restauracao_de_historico_do_htmx_recebe_a_pagina_inteira(painel: Painel) -> None:
+    """Voltar no navegador (HX-History-Restore-Request) precisa da página toda."""
+    cabecalhos = {"HX-Request": "true", "HX-History-Restore-Request": "true"}
+    resposta = painel.http.get(f"/vagas/{painel.ids['usd']}/correcao", headers=cabecalhos)
+    assert resposta.status_code == 200
+    assert "<html" in resposta.text
+    assert "<dialog" not in re.sub(
+        r'<dialog\b[^>]*\bid="paleta".*?</dialog>', "", resposta.text, flags=re.S
+    )
+    assert "HX-History-Restore-Request" in resposta.headers["Vary"]
+
+
+def _regra(css: str, seletor: str) -> str:
+    """O corpo da primeira regra cujo seletor é exatamente `seletor` (CSS plano, sem aninhar)."""
+    achou = re.search(rf"(?:^|[}}/])\s*{re.escape(seletor)}\s*{{([^}}]*)}}", css)
+    assert achou is not None, seletor
+    return achou.group(1)
+
+
+def test_sheet_estiliza_os_campos_que_a_pagina_hospedeira_nao_estiliza(painel: Painel) -> None:
+    """O sheet entra em páginas sem o buscas.css: o detalhe.css cobre textarea e texto."""
+    css = painel.http.get("/static/css/detalhe.css").text
+    for seletor in (".sheet-corpo textarea", '.sheet-corpo input[type="text"]'):
+        assert seletor in css, seletor
+    regra = _regra(css, '.sheet-corpo input[type="text"],\n.sheet-corpo textarea')
+    for declaracao in ("width: 100%", "border: 1px solid var(--borda)", "border-radius:"):
+        assert declaracao in regra, declaracao
+
+
+def test_sheet_fica_no_alto_e_nao_redefine_borda_nem_sombra_do_vidro(painel: Painel) -> None:
+    css = painel.http.get("/static/css/detalhe.css").text
+    regra = _regra(css, ".sheet")
+    # `margin: auto` centra o <dialog> na vertical; o desenho pede o sheet no alto
+    assert not re.search(r"margin:\s*auto\s*;", regra)
+    assert "margin-block" in regra
+    # borda e sombra do vidro são do base.css (inclusive o caminho sólido): a regra de base do
+    # sheet só põe o raio; o vidro o enfeita dentro da media do caminho com transparência
+    assert "border:" not in regra
+    assert "box-shadow" not in regra
+
+
+def test_sheet_tem_borda_base_sem_disputar_com_o_base_css(painel: Painel) -> None:
+    """`<dialog>` traz `border: 3px solid`; fora dos blocos de media (contraste menor, navegador sem
+    `prefers-reduced-transparency`) o sheet precisa de uma borda própria, de especificidade zero."""
+    css = painel.http.get("/static/css/detalhe.css").text
+    regra = _regra(css, ":where(.sheet)")
+    assert "border: 1px solid var(--separador)" in regra
+
+
+def test_link_da_correcao_abre_o_sheet_e_sem_js_leva_a_pagina(painel: Painel) -> None:
+    html = painel.detalhe("usd")
+    vaga = painel.ids["usd"]
+    link = _ancora(html, f'href="/vagas/{vaga}/correcao"')
+    assert f'hx-get="/vagas/{vaga}/correcao"' in link  # com JavaScript abre o sheet
+    assert "data-correcao" in link
+    assert 'class="correcao-slot"' in html  # onde o sheet entra
+
+
+# ---------------------------------------------------------------- T286: linha do tempo e e-mail
+
+
+@pytest.fixture
+def fuso_menos_tres(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """TZ `<-03>3`: o dia mostrado é o local (E16); o fuso volta antes do último `tzset`."""
+    monkeypatch.setenv("TZ", "<-03>3")
+    time.tzset()
+    yield
+    monkeypatch.undo()
+    time.tzset()
+
+
+COM_EMAIL = "Envie o currículo para rh@example.com."
+
+
+def _descricao(painel: Painel, nome: str, texto: str) -> None:
+    painel.sql("UPDATE vaga SET descricao_texto = ? WHERE id = ?", texto, painel.ids[nome])
+
+
+def _href(ancora: str) -> str:
+    achou = re.search(r'href="([^"]*)"', ancora)
+    assert achou, ancora
+    return html_lib.unescape(achou.group(1))
+
+
+def _mailtos(html: str) -> list[str]:
+    return [m for m in re.findall(r"<a\b[^>]*>", html) if 'href="mailto:' in m]
+
+
+def _mailto(html: str) -> str:
+    """O único link de e-mail da página."""
+    achados = _mailtos(html)
+    assert len(achados) == 1, achados
+    return achados[0]
+
+
+def test_linha_do_tempo(painel: Painel, fuso_menos_tres: None) -> None:
+    vaga = painel.ids["usd"]
+    painel.sql("UPDATE vaga SET primeira_vista_em = '2026-11-03T12:00:00+00:00' WHERE id = ?", vaga)
+    with closing(abrir(painel.banco)) as con:
+        acoes.mudar_status(con, vaga, "salva", datetime(2026, 11, 10, 12, 0, tzinfo=UTC))
+        assert acoes.abriu_candidatura(con, vaga, datetime(2026, 11, 14, 12, 0, tzinfo=UTC))
+        # 01:30 UTC de 17/11 ainda é 16/11 no fuso -03 (E16)
+        sim = datetime(2026, 11, 17, 1, 30, tzinfo=UTC)
+        assert acoes.responder_candidatura(con, vaga, True, sim) == "salva"
+    achou = re.search(r'<section class="bloco passos".*?</section>', painel.detalhe("usd"), re.S)
+    assert achou is not None
+    assert "Linha do tempo" in _texto(achou.group(0))
+    itens = [_texto(li).strip() for li in re.findall(r"<li>(.*?)</li>", achou.group(0), re.S)]
+    assert itens == [
+        "Vista em 03/11",
+        "Abriu a candidatura em 14/11",
+        "Salva em 10/11",
+        "Candidatei em 16/11",
+    ]
+
+
+def test_email_vira_secundario_com_link_http(painel: Painel) -> None:
+    _descricao(painel, "himalayas", COM_EMAIL)
+    html = painel.detalhe("himalayas")
+    assert _href(_ancora(html, 'class="primario"')) == (
+        "https://himalayas.app/companies/beta/jobs/42/apply"
+    )
+    email = _mailto(html)
+    assert 'class="secundario"' in email
+    assert _href(email) == "mailto:rh@example.com?subject=Backend%20Engineer"
+
+
+def test_email_vira_principal_sem_link_http(painel: Painel) -> None:
+    _descricao(painel, "usd", COM_EMAIL)
+    html = painel.detalhe("usd")
+    vaga = painel.ids["usd"]
+    principal = _ancora(html, 'class="primario"')
+    assert _href(principal) == "mailto:rh@example.com?subject=Desenvolvedor%20Python"
+    assert "Candidatar-se por e-mail" in _texto(html)
+    assert len(_mailtos(html)) == 1  # sem o secundário repetido
+    # a vaga na fonte continua no "Abrir no site" e na lista de fontes
+    assert _href(_ancora(html, 'class="secundario"')) == f"https://exemplo.test/vagas/{vaga}"
+    assert "via Remotive" in _texto(html)
+
+
+def test_mailto_com_assunto_codificado(painel: Painel) -> None:
+    _descricao(painel, "usd", COM_EMAIL)
+    painel.sql("UPDATE vaga SET titulo = 'Dev & Ops São Paulo' WHERE id = ?", painel.ids["usd"])
+    email = _mailto(painel.detalhe("usd"))
+    partes = urlsplit(_href(email))
+    assert partes.query == "subject=Dev%20%26%20Ops%20S%C3%A3o%20Paulo"
+    assert parse_qs(partes.query) == {"subject": ["Dev & Ops São Paulo"]}
+
+
+@pytest.mark.parametrize(
+    "texto",
+    [
+        "Envie o currículo para rh@example.com?cc=outro@example.org",
+        "Envie o currículo para rh@example.com&bcc=outro@example.org",
+        "Envie o currículo para rh@example.com%0A",
+        "Envie o currículo para rh%0A@example.com",
+    ],
+)
+def test_mailto_sem_parametro_injetado(painel: Painel, texto: str) -> None:
+    _descricao(painel, "usd", texto)
+    assert "mailto:" not in painel.detalhe("usd")
+    # controle na mesma montagem: endereço válido com gatilho vira mailto só com o subject
+    _descricao(painel, "usd", COM_EMAIL)
+    email = _mailto(painel.detalhe("usd"))
+    partes = urlsplit(_href(email))
+    assert (partes.scheme, partes.path) == ("mailto", "rh@example.com")
+    assert set(parse_qs(partes.query)) == {"subject"}
+
+
+def test_sem_email_fica_como_hoje(painel: Painel) -> None:
+    """Guarda: sem endereço na descrição, nada de e-mail; o principal abre a vaga na fonte."""
+    html = painel.detalhe("usd")
+    assert "mailto:" not in html
+    assert "data-copiar" not in html
+    assert "email-candidatura" not in html
+    vaga = painel.ids["usd"]
+    assert _href(_ancora(html, 'class="primario"')) == f"https://exemplo.test/vagas/{vaga}"
+
+
+def test_copiar_vem_hidden(painel: Painel) -> None:
+    _descricao(painel, "usd", COM_EMAIL)
+    html = painel.detalhe("usd")
+    botao = re.search(r"<button\b[^>]*data-copiar[^>]*>([^<]*)</button>", html)
+    assert botao is not None
+    tag = botao.group(0)
+    assert re.search(r"\shidden[\s>]", tag)
+    assert 'type="button"' in tag
+    assert 'data-copiar="rh@example.com"' in tag
+    assert 'data-copiado="Endereço copiado."' in tag
+    assert 'data-nao-copiou="Não deu para copiar. Selecione o endereço e copie."' in tag
+    assert botao.group(1) == "Copiar endereço"
+    # sem JavaScript o endereço continua à vista, com a região viva e o aviso ao lado
+    texto = _texto(html)
+    assert "Endereço para candidatura: rh@example.com" in texto
+    assert "O joBot não envia nada: o e-mail sai do seu programa de e-mail." in texto
+    assert re.search(r'data-copiar[^>]*>[^<]*</button>\s*<span role="status"></span>', html)
+
+
+def test_email_tem_data_candidatura(painel: Painel) -> None:
+    for nome in ("usd", "himalayas"):  # principal e secundário
+        _descricao(painel, nome, COM_EMAIL)
+        email = _mailto(painel.detalhe(nome))
+        assert f'data-candidatura="/vagas/{painel.ids[nome]}/candidatura"' in email
+        assert "target=" not in email  # o mailto abre o programa de e-mail, não uma aba
+        assert 'aria-label="Candidatar-se por e-mail (abre o seu programa de e-mail)"' in email
+
+
+class _Bloco(HTMLParser):
+    """As tags de abertura dentro do elemento com `id` (ele incluído), contando os `div`."""
+
+    def __init__(self, id_: str) -> None:
+        super().__init__()
+        self.id_ = id_
+        self.tags: list[tuple[str, dict[str, str | None]]] = []
+        self.fundo = 0  # divs abertos dentro do bloco; 0 fora dele
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        dados = dict(attrs)
+        if self.fundo == 0 and dados.get("id") == self.id_ and not self.tags:
+            self.fundo = 1
+            self.tags.append((tag, dados))
+        elif self.fundo:
+            self.tags.append((tag, dados))
+            self.fundo += tag == "div"
+
+    def handle_endtag(self, tag: str) -> None:
+        if self.fundo and tag == "div":
+            self.fundo -= 1
+
+
+def _bloco(html: str, id_: str) -> list[tuple[str, dict[str, str | None]]]:
+    leitor = _Bloco(id_)
+    leitor.feed(html)
+    assert leitor.tags, f"sem #{id_}"
+    return leitor.tags
+
+
+@pytest.mark.parametrize("onde", ["pagina", "lado"])
+def test_detalhe_estado_escuta_a_vaga(painel: Painel, onde: str) -> None:
+    vaga, busca = painel.ids["usd"], painel.ids["busca"]
+    url = (
+        f"/vagas/{vaga}?busca={busca}" if onde == "pagina" else f"/vagas?busca={busca}&vaga={vaga}"
+    )
+    html = painel.get(url).text
+    assert html.count('id="estado-da-vaga"') == 1
+    (_, raiz), *dentro = _bloco(html, "estado-da-vaga")
+    voltar = {d.get("value") for t, d in dentro if t == "input" and d.get("name") == "voltar"}
+    assert len(voltar) == 1  # o retorno da página, o mesmo nos forms
+    assert raiz.get("hx-get") is not None
+    assert {raiz.get("hx-get")} == voltar
+    assert raiz.get("hx-trigger") == f"vaga-mudou-{vaga} from:body"
+    assert raiz.get("hx-select") == "#estado-da-vaga"
+    assert raiz.get("hx-swap") == "outerHTML"
+    classes = {c for _, d in dentro for c in (d.get("class") or "").split()}
+    assert {"situacao", "passos"} <= classes
+    acoes_ = {d.get("action") for t, d in dentro if t == "form"}
+    assert f"/vagas/{vaga}/status" in acoes_
+    # o hx-select é herdado: filho com hx-* (o Ocultar do detalhe ao lado) o desliga
+    for _, d in dentro:
+        if any(k in d for k in ("hx-get", "hx-post")):
+            assert d.get("hx-select") == "unset", d

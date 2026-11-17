@@ -1,9 +1,25 @@
 /* Detalhe da vaga e correção (plano T46): só as cores e medidas da base.css, as cores vêm dos tokens da base.css.
    Cartão, selos, botões e formulário vêm do vagas.css e do buscas.css, carregados junto. */
 
+/* a página própria da vaga e da correção: coluna de leitura de 680px (T264) */
+.detalhe-pagina {
+  max-inline-size: 680px;
+}
+
 .voltar {
   margin: 0 0 1rem;
   font-size: 0.9375rem;
+  line-height: 1.25rem;
+}
+
+/* o título leva a entrelinha do Large Title: com a do corpo (1rem) as letras de 2rem passavam da
+   caixa e o nome da empresa e o "Voltar" encostavam nelas */
+.detalhe-pagina .titulo-pagina {
+  font: var(--t-large);
+}
+
+.detalhe-pagina .voltar {
+  margin-block-end: 1.25rem;
 }
 
 .detalhe {
@@ -23,10 +39,73 @@
 
 .detalhe .salario {
   font-size: 1.0625rem;
+  line-height: 1.375rem;
 }
 
+/* ações (T301): uma fileira que quebra, com o mesmo espaço nas duas direções; os forms saem da
+   caixa (display: contents não mexe no envio) para todos os botões dividirem a fileira, sem quebra
+   de texto por dentro e com a mesma altura. "Situação" fica numa linha própria, acima. */
 .detalhe .acoes {
   align-items: center;
+  gap: 0.5rem;
+}
+
+.detalhe .acoes form {
+  display: contents;
+}
+
+.detalhe .acoes :is(a, button) {
+  line-height: 1.25rem;
+  white-space: nowrap;
+}
+
+.detalhe .acoes .situacao {
+  flex: 1 1 100%;
+  order: -1;
+}
+
+/* Salvar e Ocultar quebram de linha juntos (o botão nunca fica sozinho na de baixo), com o mesmo
+   espaço da fileira (T301) nas duas direções */
+.acoes-estado {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.acoes-estado button {
+  white-space: nowrap;
+}
+
+/* T286: o bloco que se pede de novo depois da faixa (ações, e-mail e Linha do tempo) segue o
+   espaço do .detalhe */
+#estado-da-vaga {
+  display: grid;
+  gap: 0.75rem;
+}
+
+#estado-da-vaga > *,
+.email-candidatura p {
+  margin: 0;
+}
+
+.email-candidatura {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.email-candidatura .aviso-email {
+  color: var(--texto-2);
+  font-size: 0.8125rem;
+}
+
+.passos ol {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.detalhe .cartao-empresa {
+  line-height: 1.25rem;
 }
 
 a.primario {
@@ -36,11 +115,17 @@ a.primario {
   text-decoration: none;
 }
 
-.bloco h2 {
+a.secundario {
+  display: inline-flex;
+  align-items: center;
+  color: var(--texto);
+  text-decoration: none;
+}
+
+.bloco :is(h2, h3) {
   margin: 0 0 0.5rem;
   font-size: 1.125rem;
   font-weight: 600;
-  letter-spacing: -0.01em;
 }
 
 .motivos,
@@ -82,9 +167,11 @@ a.primario {
 }
 
 .descricao {
+  max-inline-size: 70ch;
+  font-size: 0.9375rem;
+  line-height: 1.5;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  line-height: 1.55;
 }
 
 /* faixa de 12 meses: só desenho, o texto ao lado diz o mesmo */
@@ -121,12 +208,15 @@ a.primario {
 
 .meses .marcas {
   min-height: 1em;
-  letter-spacing: 0.1em;
 }
 
 .corrigir {
   padding-top: 0.5rem;
   border-top: 1px solid var(--borda);
+}
+
+.correcao-slot:empty {
+  display: none;
 }
 
 .correcoes {
@@ -160,4 +250,133 @@ a.primario {
 
 .linha-correcao button {
   justify-self: start;
+}
+
+/* erro e despedida: título de h1 dentro do estado vazio (o h2 do vagas.css é o da lista) */
+.vazio h1 {
+  color: var(--texto);
+  font: var(--t-title1);
+}
+
+/* sheet da correção (T264; desenho 5.8): <dialog> modal de 520px no alto da janela. O corpo rola
+   e o pé fica fixo (E17): a altura vem do teto da janela, o miolo recebe o resto (flex +
+   min-height: 0). Borda e sombra do vidro (e do caminho sólido) são do base.css: aqui só o raio */
+/* <dialog> traz `border: 3px solid`: a borda base (especificidade zero, não disputa com o base.css)
+   cobre o que nenhum bloco de media cobre (prefers-contrast: less, navegador sem a media) */
+:where(.sheet) {
+  border: 1px solid var(--separador);
+}
+
+.sheet {
+  box-sizing: border-box;
+  inline-size: min(520px, calc(100vw - 2rem));
+  max-block-size: min(40rem, calc(100dvh - 4rem));
+  margin-block: 2rem auto;
+  margin-inline: auto;
+  padding: 0;
+  border-radius: var(--raio-sheet);
+  color: var(--texto);
+  overflow: hidden;
+}
+
+/* com vidro (sem pedido de menos transparência nem de mais contraste, com backdrop-filter) o
+   sheet ganha a borda e a sombra de camada que flutua; fora disso vale o sólido do base.css */
+@media (prefers-reduced-transparency: no-preference) and (prefers-contrast: no-preference) {
+  @supports (backdrop-filter: blur(1px)) {
+    .sheet {
+      border: 1px solid var(--borda-elevada);
+      box-shadow: var(--sombra-sheet), inset 0 1px 0 var(--vidro-borda);
+    }
+  }
+}
+
+/* entra descendo do alto em 280ms com a mola leve (desenho 5.1, T305 j); o bloco de movimento
+   reduzido do base.css tira o transform e deixa só o fundido de 120ms */
+.sheet[open] {
+  display: flex;
+  flex-direction: column;
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 280ms var(--mola-leve),
+    transform 280ms var(--mola-leve);
+}
+
+@starting-style {
+  .sheet[open] {
+    opacity: 0;
+    transform: translateY(-1rem);
+  }
+}
+
+.sheet::backdrop {
+  background-color: var(--veu);
+}
+
+.sheet-cab {
+  flex: none;
+  padding: 1.25rem 1.25rem 0.75rem;
+  border-block-end: 1px solid var(--separador);
+}
+
+.sheet-cab > * {
+  margin: 0;
+}
+
+.sheet-cab h2 {
+  font: var(--t-title1);
+}
+
+.sheet-corpo {
+  display: grid;
+  flex: 1 1 auto;
+  gap: 0.75rem;
+  align-content: start;
+  min-block-size: 0;
+  overflow: auto;
+  padding: 1rem 1.25rem;
+}
+
+/* o sheet entra em páginas que não carregam o buscas.css (detalhe e lista): os campos do formulário
+   levam a mesma aparência daqui */
+.sheet-corpo input[type="text"],
+.sheet-corpo textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-block-size: 1.75rem;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-controle);
+  background-color: var(--superficie);
+  color: var(--texto);
+  font: inherit;
+  font-size: 0.9375rem;
+}
+
+.sheet-corpo textarea {
+  resize: vertical;
+}
+
+.sheet-corpo > .dica {
+  margin: 0;
+}
+
+.sheet-pe {
+  display: flex;
+  flex: none;
+  justify-content: flex-end;
+  padding: 0.75rem 1.25rem;
+  border-block-start: 1px solid var(--separador);
+}
+
+@media (forced-colors: active) {
+  .sheet {
+    border: 1px solid CanvasText;
+    box-shadow: none;
+    background-color: Canvas;
+  }
+
+  .sheet::backdrop {
+    background-color: transparent;
+  }
 }

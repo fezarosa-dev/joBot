@@ -1,4 +1,4 @@
-"""Captura de exemplos das fontes (desenho 9.2): o único script que fala com a rede de propósito.
+"""Captura de exemplos das fontes públicas (desenho 9.2); site com login: `capturar_logado.py`.
 
 Uso: uv run python scripts/capturar.py <fonte> [--escopo <id>] --caso <nome>
 
@@ -118,7 +118,7 @@ _SCRIPT_JSON = re.compile(
 )
 # o id (UUID) tem trechos de dígitos que casam com telefone ("27-9261-8931"): fica fora da busca
 _UUID = re.compile(r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b", re.I)
-_CASO = re.compile(r"[a-z0-9_]+(?:-[a-z0-9_]+)*")
+CASO = re.compile(r"[a-z0-9_]+(?:-[a-z0-9_]+)*")
 
 
 # ---- limpeza de dado pessoal -------------------------------------------------------------
@@ -532,7 +532,7 @@ async def capturar(
     versao: str,
 ) -> Path:
     """Grava a primeira resposta do escopo, reduzida e limpa, em `base/<fonte>` com o meta."""
-    if not _CASO.fullmatch(caso):
+    if not CASO.fullmatch(caso):
         raise ValueError(f"caso inválido: {caso!r} (minúsculas, dígitos, _ e -)")
     if escopo is None:
         todos = coletor.escopos(ContextoColeta((), (), ()))
