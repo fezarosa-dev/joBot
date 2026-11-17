@@ -33,9 +33,10 @@ DO_BACKEND = {
 }
 DO_PEDIDO = {"recusa", "formato", "contexto"}
 
-# Lista permitida de cada backend, escrita aqui à parte do código (desenho 5.1). A da OpenAI vale
-# para o Gemini e o compatível e é conferida na documentação na T405; o llama.cpp aceita mais, mas
-# repetição acima de 2000 quebra a gramática.
+# Lista permitida de cada backend, escrita aqui à parte do código (desenho 5.1), conferida na
+# documentação em 2026-11-17 (T405): a do `strict` da OpenAI e a da saída estruturada do Gemini,
+# que não cita `pattern`, `multipleOf` nem os `exclusive*`. O compatível leva a do Gemini, a mais
+# estreita; o llama.cpp aceita mais, mas repetição acima de 2000 quebra a gramática.
 _STRICT = {
     "type",
     "properties",
@@ -57,8 +58,9 @@ _STRICT = {
     "minItems",
     "maxItems",
 }
+_GEMINI = _STRICT - {"pattern", "multipleOf", "exclusiveMinimum", "exclusiveMaximum"}
 _LOCAL = _STRICT | {"title", "default", "const", "minLength", "maxLength"}
-PERMITIDAS = {"openai": _STRICT, "gemini": _STRICT, "compativel": _STRICT, "local": _LOCAL}
+PERMITIDAS = {"openai": _STRICT, "gemini": _GEMINI, "compativel": _GEMINI, "local": _LOCAL}
 REPETICAO = ("minLength", "maxLength", "minItems", "maxItems")
 
 
@@ -137,8 +139,44 @@ def test_esquema_enviado_so_leva_palavras_permitidas(backend: str) -> None:
     enviado = esquema_para(backend, _Exemplo)
     assert sorted(_palavras(enviado) - PERMITIDAS[backend]) == []
     assert enviado["properties"].keys() == completo["properties"].keys()
-    assert enviado["required"] == completo["required"]
+    # o `strict` da OpenAI pede todo campo em `required` (o opcional vai como união com `null`)
+    obrigatorios = list(completo["properties"]) if backend == "openai" else completo["required"]
+    assert enviado["required"] == obrigatorios
     assert enviado["additionalProperties"] is False
+
+
+class _Folha(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    nome: str
+    apelido: str = ""
+
+
+class _Restrito(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    codigo: str = Field(pattern="^[a-z]+$")
+    peso: float = Field(gt=0, lt=10, multiple_of=0.5)
+    folha: _Folha | None = None
+
+
+@pytest.mark.parametrize("backend", ["compativel", "gemini", "openai"])
+def test_esquema_do_gemini_e_do_compativel_sem_as_palavras_que_o_gemini_nao_cita(
+    backend: str,
+) -> None:
+    sem_no_gemini = {"pattern", "multipleOf", "exclusiveMinimum", "exclusiveMaximum"}
+    assert _palavras(_Restrito.model_json_schema()) >= sem_no_gemini  # controle
+    enviado = esquema_para(backend, _Restrito)
+    assert _palavras(enviado) & sem_no_gemini == (sem_no_gemini if backend == "openai" else set())
+
+
+def test_esquema_da_openai_poe_todo_campo_em_required_tambem_nos_defs() -> None:
+    completo = _Restrito.model_json_schema()
+    # controle: `folha` e `apelido` têm padrão
+    assert completo["required"] == ["codigo", "peso"]
+    assert completo["$defs"]["_Folha"]["required"] == ["nome"]
+    enviado = esquema_para("openai", _Restrito)
+    assert enviado["required"] == ["codigo", "peso", "folha"]
+    assert enviado["$defs"]["_Folha"]["required"] == ["nome", "apelido"]
+    assert esquema_para("gemini", _Restrito)["required"] == ["codigo", "peso"]
 
 
 def _repeticoes(esquema: dict[str, Any]) -> list[int]:
