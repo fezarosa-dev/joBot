@@ -72,8 +72,8 @@ def raiz_da_instalacao() -> Path:
 
 def rodar_atualizacao(comando: Sequence[str]) -> Resultado:
     """Executor real: lista de argumentos, sem shell, sem terminal e sem git pedir senha. Em
-    sessão própria: no prazo, a árvore inteira sai (`processo.encerrar_arvore`), também o
-    download do navegador que o `jobot ferramentas baixar navegador` sobe (D183.24)."""
+    sessão própria: no prazo e no Ctrl+C, a árvore inteira sai (`processo.encerrar_arvore`),
+    também o download do navegador que o `jobot ferramentas baixar navegador` sobe (D183.24)."""
     try:
         filho = subprocess.Popen(
             list(comando),
@@ -91,6 +91,9 @@ def rodar_atualizacao(comando: Sequence[str]) -> Resultado:
     except subprocess.TimeoutExpired:
         processo.encerrar_arvore(filho)
         return Resultado(124)
+    except BaseException:  # Ctrl+C: em sessão própria, o filho não recebe o SIGINT do terminal
+        processo.encerrar_arvore(filho)
+        raise
     return Resultado(filho.returncode, saida, erro)
 
 

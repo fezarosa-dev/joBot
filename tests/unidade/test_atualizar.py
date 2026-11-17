@@ -7,6 +7,7 @@ mexem em `~/.config/systemd/user`.
 """
 
 import argparse
+import contextlib
 import hashlib
 import importlib
 import io
@@ -14,10 +15,12 @@ import json
 import logging
 import os
 import re
+import signal
 import sqlite3
 import subprocess
 import sys
 import tarfile
+import time
 import zipfile
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from pathlib import Path
@@ -318,6 +321,53 @@ def test_prazo_do_executor_encerra_a_arvore_e_cabe_o_download_do_navegador(
     assert visto[0].kwargs["start_new_session"] is True
     assert visto[0].prazos == [modulo._TEMPO_S]
     assert modulo._TEMPO_S > limites.PRAZO_BAIXAR_S + limites.ESPERA_SAIR_JANELA_S
+
+
+# quem chama o executor real; o filho (em sessão própria) sobe um neto em outra sessão, como o
+# `jobot ferramentas baixar navegador` sobe o `playwright install`, e o encerra no SIGTERM
+_PAI = """
+import sys
+from jobot.sistema.atualizar import rodar_atualizacao
+rodar_atualizacao([sys.executable, "-c", sys.argv[1], sys.argv[2]])
+"""
+_FILHO = """
+import os, signal, subprocess, sys, time
+neto = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(300)"],
+                        start_new_session=True)
+def sair(*_):
+    neto.terminate(); neto.wait(); sys.exit(1)
+signal.signal(signal.SIGTERM, sair)
+with open(sys.argv[1] + ".tmp", "w") as f:
+    f.write(f"{os.getpid()} {neto.pid}")
+os.replace(sys.argv[1] + ".tmp", sys.argv[1])
+time.sleep(300)
+"""
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="no Windows o Ctrl+C chega à árvore toda")
+def test_ctrl_c_no_executor_encerra_o_filho_e_o_neto(tmp_path: Path) -> None:
+    """D183.24 (revisão 4): o filho nasce em sessão própria e não recebe o SIGINT do terminal;
+    o Ctrl+C de quem chama encerra a árvore, sem deixar o download órfão."""
+    pids = tmp_path / "pids"
+    pai = subprocess.Popen([sys.executable, "-c", _PAI, _FILHO, str(pids)], start_new_session=True)
+    filho = neto = 0
+    try:
+        prazo = time.monotonic() + 30
+        while not pids.exists() and time.monotonic() < prazo and pai.poll() is None:
+            time.sleep(0.05)
+        filho, neto = map(int, pids.read_text().split())
+        os.killpg(pai.pid, signal.SIGINT)
+        pai.wait(timeout=30)
+        for pid in (filho, neto):
+            with pytest.raises(ProcessLookupError):
+                os.kill(pid, 0)
+    finally:
+        for pid in (filho, neto):
+            if pid:
+                with contextlib.suppress(ProcessLookupError):
+                    os.kill(pid, signal.SIGKILL)
+        pai.kill()
+        pai.wait()
 
 
 def test_todo_comando_da_tabela_resolve() -> None:
