@@ -365,10 +365,18 @@ CITA: Mapping[str, Mapping[str, tuple[str, ...]]] = {
         "páginas": (r"páginas que você manda acompanhar",),
         "endereço": (r"cola o endereço", r"só quando você"),
         "versão": (r"GitHub",),
-        "atualização": (r"pelo git e pelo uv", r"só quando você pede para atualizar"),
+        "atualização": (
+            r"pelo git e pelo uv",
+            r"só quando você pede para atualizar",
+            r"Atualizar agora",
+        ),
         "2captcha": (r"2Captcha", r"testa a chave"),
         "sites com login": (r"sites com login que você liga", r"vêm desligados", r"pelo navegador"),
-        "navegador": (r"servidores do Playwright", r"só quando você"),
+        "navegador": (
+            r"servidores do Playwright",
+            r"release do joBot no GitHub",
+            r"só quando você",
+        ),
     },
     "en": {
         "fontes": (r"public job sources",),
@@ -377,10 +385,10 @@ CITA: Mapping[str, Mapping[str, tuple[str, ...]]] = {
         "páginas": (r"pages you ask it to follow",),
         "endereço": (r"paste an address", r"only when you"),
         "versão": (r"GitHub",),
-        "atualização": (r"through git and uv", r"only when you ask to update"),
+        "atualização": (r"through git and uv", r"only when you ask to update", r"Update now"),
         "2captcha": (r"2Captcha", r"test the key"),
         "sites com login": (r"sites with login you turn on", r"come off", r"through the browser"),
-        "navegador": (r"Playwright's servers", r"only when you"),
+        "navegador": (r"Playwright's servers", r"joBot release on GitHub", r"only when you"),
     },
 }
 CONDICAO: Mapping[str, Mapping[bool, str]] = {
@@ -818,6 +826,16 @@ def test_changelog_traz_a_fase_3_em_nao_lancado(lingua: str) -> None:
     faltam = [termo for termo in FASE_3_NO_CHANGELOG[lingua] if termo not in nao_lancado]
     assert faltam == [], (CHANGELOG[lingua], faltam)
     assert UV_EMBUTIDO[lingua] not in conteudo, CHANGELOG[lingua]
+
+
+DECISOES_DA_WIKI = {"pt": "wiki/Decisoes.md", "en": "wiki/Decisions.md"}
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_wiki_de_decisoes_sem_o_uv_embutido(lingua: str) -> None:
+    """O resumo da ADR 0025 na wiki fala do instalador completo, não do `uv` embutido (D174)."""
+    conteudo = texto(DECISOES_DA_WIKI[lingua])
+    assert UV_EMBUTIDO[lingua] not in conteudo, DECISOES_DA_WIKI[lingua]
 
 
 CONTRIBUTING = {"pt": ".github/CONTRIBUTING.md", "en": ".github/CONTRIBUTING.en.md"}

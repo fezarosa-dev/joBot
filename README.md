@@ -365,7 +365,7 @@ Detalhes na [ADR 0010](docs/decisions/0010-claude-code-da-pessoa.md).
 - **Programas, pelo código:** [git](https://git-scm.com/) e [uv](https://docs.astral.sh/uv/). O uv baixa sozinho o Python 3.14 e as bibliotecas. O instalador não precisa de nada disso: ele já traz tudo.
 - **Memória:** um computador comum serve. Os 8 GB de RAM só contam quando a IA local chegar (fase 4).
 - **Placa de vídeo e Docker:** não precisa. A instalação é nativa.
-- **Espaço em disco:** cerca de 350 MB para o instalador; a tela de instalação mostra quanto a instalação vai usar.
+- **Espaço em disco:** cerca de 350 MB para baixar o instalador, e a instalação ocupa bem mais (só o navegador fica com cerca de 420 MB); a tela de instalação mostra quanto ela vai usar.
 - **Internet:** para baixar o instalador (ou o código) e para buscar as vagas. A instalação pelo instalador não usa a internet.
 
 ### Pelo instalador
@@ -377,7 +377,7 @@ Baixe o arquivo do seu sistema na [página da versão mais nova](https://github.
 | Windows | o que termina em `-setup.exe` | Dois cliques. Instala só para o seu usuário, sem pedir senha de administrador. |
 | Linux, qualquer distro | o que termina em `.AppImage` | Marque como executável (`chmod +x` no arquivo, ou Propriedades, Permissões) e abra. |
 | Linux, Debian e Ubuntu | o que termina em `.deb` | `sudo apt install ./` e o nome do arquivo. |
-| Linux, Fedora | o que termina em `.rpm` | `sudo dnf install ./` e o nome do arquivo. |
+| Linux, Fedora | o que termina em `.rpm` | `sudo dnf install ./` e o nome do arquivo. Experimental: o `.rpm` ainda não foi testado no CI. |
 | Mac com Apple Silicon (M1 ou mais novo) | o que termina em `_aarch64.dmg` | Abra o `.dmg` e arraste o joBot para Aplicativos. Experimental. |
 | Mac com Intel | o que termina em `_x64.dmg` | Abra o `.dmg` e arraste o joBot para Aplicativos. Experimental. |
 
@@ -393,7 +393,7 @@ No Windows, a janela usa o WebView2 da Microsoft, que o Windows 11 e o Windows 1
 
 ### Avisos do Windows e do Mac
 
-Os instaladores ainda não têm selo (assinatura de código), então o sistema avisa que não reconhece o programa. O arquivo é o mesmo que o GitHub Actions gerou a partir deste código, e o `SHA256SUMS` da versão traz o sha256 de cada um.
+Os instaladores ainda não têm selo (assinatura de código), então o sistema avisa que não reconhece o programa. Os arquivos são gerados pelo GitHub Actions a partir deste código. O `SHA256SUMS` da versão traz o sha256 de cada um: ele confere que o download não veio quebrado, mas, como sai da mesma release, não prova a origem. Isso fica para a assinatura de código, quando vier.
 
 - **Windows:** aparece "O Windows protegeu o computador". Clique em **Mais informações** e depois em **Executar assim mesmo**.
 - **Mac:** aparece que a Apple não conseguiu verificar o joBot. Feche o aviso, abra Ajustes do Sistema › Privacidade e Segurança, desça até a mensagem sobre o joBot e clique em **Abrir Mesmo Assim**. Confirme com a sua senha. Isso só acontece na primeira vez.

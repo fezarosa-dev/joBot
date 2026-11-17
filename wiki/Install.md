@@ -18,13 +18,13 @@ On the [latest version page](https://github.com/fezarosa-dev/joBot/releases/late
 | Windows 10 or 11 (64-bit) | the file ending in `-setup.exe` |
 | Linux (any 64-bit distro) | the one ending in `.AppImage` |
 | Debian and Ubuntu | the one ending in `.deb` |
-| Fedora | the one ending in `.rpm` |
+| Fedora | the one ending in `.rpm` (experimental: not tested in CI yet) |
 | Mac with Apple Silicon (M1 or newer) | the one ending in `_aarch64.dmg` (experimental) |
 | Mac with Intel | the one ending in `_x64.dmg` (experimental) |
 
 Each file is about 350 MB, because it already brings everything: Python 3.14, the libraries, joBot and the browser for sites with login. The other files on the page (`jobot-atualizacao-...zip`, `chromium-...tar.gz`, the wheel and `restricoes.txt`) are for updates and for developers: you do not need them.
 
-**Want to check the file?** Also download `SHA256SUMS` to the same folder. On Linux and on the Mac, run `sha256sum --ignore-missing -c SHA256SUMS` (on the Mac, `shasum -a 256 --ignore-missing -c SHA256SUMS`); on Windows, `Get-FileHash` in PowerShell and compare with the file's line.
+**Want to check the file?** Also download `SHA256SUMS` to the same folder. On Linux and on the Mac, run `sha256sum --ignore-missing -c SHA256SUMS` (on the Mac, `shasum -a 256 --ignore-missing -c SHA256SUMS`); on Windows, `Get-FileHash` in PowerShell and compare with the file's line. This checks that the download did not arrive broken; since `SHA256SUMS` comes from the same release, it does not prove where the file came from (that is left to code signing, when it comes).
 
 ## 2. Open it
 

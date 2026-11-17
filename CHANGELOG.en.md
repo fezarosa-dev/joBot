@@ -12,7 +12,7 @@ Phase 3 arrives: joBot gets a window of its own and an installer for Windows, Li
 
 ### Added
 
-- Installer for Windows (`-setup.exe`), Linux (AppImage, `.deb` and `.rpm`) and Mac (`.dmg`, experimental). Each one is about 350 MB, because it already brings Python 3.14, the libraries, joBot and the browser for sites with login: the installation works without internet and checks the sha256 of every file. No seal (code signing) for now: the README explains how to open it on Windows and on the Mac.
+- Installer for Windows (`-setup.exe`), Linux (AppImage, `.deb` and `.rpm`, the latter experimental) and Mac (`.dmg`, experimental). Each one is about 350 MB, because it already brings Python 3.14, the libraries, joBot and the browser for sites with login: the installation works without internet and checks the sha256 of every file. No seal (code signing) for now: the README explains how to open it on Windows and on the Mac.
 - A window of joBot's own, with an icon, around the same dashboard, which still stays only on your computer. On Windows and Linux the close, minimize and maximize buttons are drawn by joBot; on the Mac, they are the system's. Closing the window closes only the window: with the background service on, the searches go on.
 - Install screen on the window's first launch: joBot and Python come locked, the browser comes ticked and can be unticked (it downloads later in Settings › Tools), and the bar shows each step. If something fails, what was done is undone.
 - joBot now runs on Windows and on the Mac, each with its own data folder.
