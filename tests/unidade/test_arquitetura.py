@@ -240,3 +240,16 @@ def test_pagina_linkada_do_readme_da_como_funciona_e_da_barra(lingua: str) -> No
     barra = (RAIZ / "wiki" / "_Sidebar.md").read_text(encoding="utf-8").splitlines()
     depois = barra.index(next(x for x in barra if f"]({COMO_FUNCIONA[lingua]})" in x)) + 1
     assert f"]({pagina})" in barra[depois]
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_camadas_tem_a_casca_fora_do_pacote(lingua: str) -> None:
+    """A casca `desktop/` é processo à parte: nó no diagrama, só com seta pontilhada (T341)."""
+    pagina = _pagina(lingua)
+    camadas = _bloco(pagina, "flowchart", "camadas")
+    assert camadas, "a página não tem o diagrama de camadas (flowchart com '%% camadas')"
+    assert re.search(r"^\s*desktop\[", camadas, re.M), "falta o nó desktop"
+    assert re.search(r"^\s*desktop\s*-\.", camadas, re.M), "a casca fala com o joBot por fora"
+    assert not [s for s in SETA.findall(camadas) if "desktop" in s], "a casca não importa nada"
+    arvores = [b for b in BLOCO_TEXTO.findall(pagina) if "src/jobot" in b]
+    assert arvores and re.search(r"^desktop/", arvores[0], re.M), "a árvore não tem desktop/"
