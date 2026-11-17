@@ -9,19 +9,32 @@
 //! `uv python install --mirror` lê), `restricoes.txt`, `wheels/*.whl` e
 //! `chromium-<alvo>.tar.gz`.
 
-#![allow(dead_code, unused_imports)] // esqueleto: a implementação vem no commit seguinte
-
+use crate::servidor;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::fmt::Write as _;
 use std::fs::{self, File, OpenOptions};
-use std::io::{self, Read, Write};
+use std::io::{self, BufRead, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
-use std::process::Command;
-use std::sync::atomic::AtomicBool;
+use std::process::{Command, Stdio};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc;
+use std::time::Duration;
 
 pub const MANIFESTO: &str = "manifesto.json";
 pub const INSTALACAO: &str = "instalacao.json";
+
+/// Variáveis que levariam o `uv` a um índice ou espelho de fora; saem do ambiente dele.
+const DE_FORA: [&str; 8] = [
+    "UV_INDEX",
+    "UV_INDEX_URL",
+    "UV_DEFAULT_INDEX",
+    "UV_EXTRA_INDEX_URL",
+    "UV_FIND_LINKS",
+    "UV_PYTHON_INSTALL_MIRROR",
+    "UV_PYPY_INSTALL_MIRROR",
+    "UV_PYTHON_DOWNLOADS_JSON_URL",
+];
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Entrada {
@@ -34,6 +47,16 @@ pub struct Entrada {
 pub struct Manifesto {
     pub versao: String,
     pub arquivos: Vec<Entrada>,
+}
+
+impl Manifesto {
+    fn achar(&self, aceita: impl Fn(&str) -> bool, o_que: &str) -> Result<&Entrada, Erro> {
+        let mut achados = self.arquivos.iter().filter(|e| aceita(&e.nome));
+        match (achados.next(), achados.next()) {
+            (Some(entrada), None) => Ok(entrada),
+            _ => Err(Erro::Arquivo(o_que.into())),
+        }
+    }
 }
 
 /// Por que a instalação parou; o `codigo` vira o motivo da tela de falha.
@@ -112,9 +135,52 @@ fn e_chromium(nome: &str) -> bool {
     nome.starts_with("chromium-") && nome.ends_with(".tar.gz") && !nome.contains('/')
 }
 
+/// A versão do Python pelo nome do arquivo no espelho (`python/<tag>/cpython-<versão>+<tag>-...`).
+fn versao_do_python(nome: &str) -> Option<&str> {
+    let (tag, arquivo) = nome.strip_prefix("python/")?.split_once('/')?;
+    let (versao, resto) = arquivo.strip_prefix("cpython-")?.split_once('+')?;
+    let numeros = versao
+        .split('.')
+        .all(|p| !p.is_empty() && p.bytes().all(|b| b.is_ascii_digit()));
+    (numeros && resto.starts_with(tag) && arquivo.ends_with(".tar.gz")).then_some(versao)
+}
+
 pub fn ler_manifesto(bytes: &[u8]) -> Result<Manifesto, Erro> {
-    let _ = bytes;
-    Err(Erro::Arquivo(MANIFESTO.into()))
+    let ruim = || Erro::Arquivo(MANIFESTO.into());
+    let conteudo: Value = serde_json::from_slice(bytes).map_err(|_| ruim())?;
+    let versao = conteudo
+        .get("versao")
+        .and_then(Value::as_str)
+        .ok_or_else(ruim)?;
+    let lista = conteudo
+        .get("arquivos")
+        .and_then(Value::as_array)
+        .ok_or_else(ruim)?;
+    let mut arquivos: Vec<Entrada> = Vec::new();
+    for item in lista {
+        let nome = item.get("nome").and_then(Value::as_str);
+        let nome = nome
+            .filter(|n| nome_valido(n) && *n != MANIFESTO)
+            .ok_or_else(ruim)?;
+        let tamanho = item
+            .get("tamanho")
+            .and_then(Value::as_u64)
+            .ok_or_else(ruim)?;
+        let sha256 = item.get("sha256").and_then(Value::as_str);
+        let sha256 = sha256.filter(|s| e_hex(s)).ok_or_else(ruim)?;
+        if arquivos.iter().any(|e| e.nome == nome) {
+            return Err(ruim());
+        }
+        arquivos.push(Entrada {
+            nome: nome.into(),
+            tamanho,
+            sha256: sha256.into(),
+        });
+    }
+    Ok(Manifesto {
+        versao: versao.into(),
+        arquivos,
+    })
 }
 
 /// Uma linha JSON do `jobot ferramentas baixar navegador` (T330).
@@ -125,36 +191,246 @@ pub enum Linha {
 }
 
 pub fn ler_linha(linha: &str) -> Option<Linha> {
-    let _ = linha;
-    None
+    let conteudo: Value = serde_json::from_str(linha.trim()).ok()?;
+    if let Some(fim) = conteudo.get("fim").and_then(Value::as_str) {
+        return Some(Linha::Fim(fim == "pronto"));
+    }
+    if conteudo.get("etapa")?.as_str()? != "navegador" {
+        return None;
+    }
+    Some(Linha::Progresso {
+        feito: conteudo.get("feito")?.as_u64()?,
+        total: conteudo.get("total").and_then(Value::as_u64),
+    })
 }
 
 /// A pasta da casca (desenho 6.2): `<dados>/app` no Windows e no Mac (e com `JOBOT_DADOS`);
 /// no Linux a vizinha `jobot-app` da pasta de dados (`~/.local/share/jobot-app`).
 pub fn pasta_da_casca(env: impl Fn(&str) -> Option<String>, so: &str) -> PathBuf {
-    let _ = (env, so);
-    PathBuf::new()
+    let com_dados = env("JOBOT_DADOS").is_some_and(|v| !v.is_empty());
+    let dados = servidor::pasta_de_dados(env, so);
+    if com_dados || so == "windows" || so == "macos" {
+        dados.join("app")
+    } else {
+        dados.with_file_name("jobot-app")
+    }
+}
+
+fn manifesto_da_versao(recursos: &Path, versao: &str) -> Option<Manifesto> {
+    let bruto = fs::read(recursos.join(MANIFESTO)).ok()?;
+    ler_manifesto(&bruto).ok().filter(|m| m.versao == versao)
 }
 
 /// Para a tela: se os recursos estão completos e quanto ocupam (o navegador à parte).
 pub fn estado(recursos: &Path, sha_manifesto: Option<&str>, versao: &str) -> Value {
-    let _ = (recursos, sha_manifesto, versao);
-    json!({})
+    let manifesto = sha_manifesto
+        .filter(|s| e_hex(s))
+        .and_then(|_| manifesto_da_versao(recursos, versao));
+    let Some(manifesto) = manifesto else {
+        return json!({"completo": false});
+    };
+    let tamanho = |chromium: bool| -> u64 {
+        let do_lado = manifesto
+            .arquivos
+            .iter()
+            .filter(|e| e_chromium(&e.nome) == chromium);
+        do_lado.map(|e| e.tamanho).sum()
+    };
+    json!({"completo": true, "base": tamanho(false), "navegador": tamanho(true)})
 }
 
 /// Escrita atômica (`.tmp` na mesma pasta, `fsync` e troca), 0600 no Linux e no Mac.
 pub fn gravar_atomico(destino: &Path, conteudo: &[u8]) -> io::Result<()> {
-    fs::write(destino, conteudo)
+    let pasta = destino.parent().expect("arquivo dentro de uma pasta");
+    fs::create_dir_all(pasta)?;
+    let nome = destino
+        .file_name()
+        .expect("nome do arquivo")
+        .to_string_lossy();
+    let tmp = pasta.join(format!(".{nome}.tmp"));
+    let _ = fs::remove_file(&tmp);
+    let mut opcoes = OpenOptions::new();
+    opcoes.write(true).create_new(true);
+    #[cfg(unix)]
+    std::os::unix::fs::OpenOptionsExt::mode(&mut opcoes, 0o600);
+    let gravado = opcoes.open(&tmp).and_then(|mut arquivo| {
+        arquivo.write_all(conteudo)?;
+        arquivo.sync_all()?;
+        fs::rename(&tmp, destino)
+    });
+    if gravado.is_err() {
+        let _ = fs::remove_file(&tmp);
+    }
+    gravado
 }
 
 /// Roda o comando sem janela nem entrada, avisa cada linha do stdout e o mata se `cancelado`.
 pub fn rodar(
-    comando: Command,
+    mut comando: Command,
     cancelado: &AtomicBool,
     linha: &mut dyn FnMut(&str),
 ) -> Result<Saida, Erro> {
-    let _ = (comando, cancelado, linha);
-    Ok(Saida::default())
+    comando
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    #[cfg(windows)]
+    std::os::windows::process::CommandExt::creation_flags(&mut comando, 0x0800_0000); // sem console
+    let mut filho = comando.spawn()?;
+    let (envia, recebe) = mpsc::channel();
+    let stdout = filho.stdout.take().expect("stdout com pipe");
+    std::thread::spawn(move || {
+        for texto in BufReader::new(stdout).lines().map_while(Result::ok) {
+            if envia.send(texto).is_err() {
+                break;
+            }
+        }
+    });
+    let mut stderr = filho.stderr.take().expect("stderr com pipe");
+    let erro = std::thread::spawn(move || {
+        let mut texto = String::new();
+        let _ = stderr.read_to_string(&mut texto);
+        texto
+    });
+    let mut saida = String::new();
+    loop {
+        if cancelado.load(Ordering::SeqCst) {
+            let _ = filho.kill();
+            let _ = filho.wait();
+            return Err(Erro::Cancelado);
+        }
+        match recebe.recv_timeout(Duration::from_millis(100)) {
+            Ok(texto) => {
+                linha(&texto);
+                saida.push_str(&texto);
+                saida.push('\n');
+            }
+            Err(mpsc::RecvTimeoutError::Timeout) => {}
+            Err(mpsc::RecvTimeoutError::Disconnected) => break,
+        }
+    }
+    let status = filho.wait()?;
+    Ok(Saida {
+        codigo: status.code(),
+        saida,
+        erro: erro.join().unwrap_or_default(),
+    })
+}
+
+/// O sha256 de um arquivo, avisando os bytes lidos; para se `cancelado`.
+fn sha256_de(
+    caminho: &Path,
+    cancelado: &AtomicBool,
+    andou: &mut dyn FnMut(u64),
+) -> Result<(String, u64), Erro> {
+    let mut arquivo = File::open(caminho)?;
+    let mut soma = Sha256::new();
+    let mut bloco = vec![0u8; 1 << 20];
+    let mut lidos = 0u64;
+    loop {
+        if cancelado.load(Ordering::SeqCst) {
+            return Err(Erro::Cancelado);
+        }
+        let n = arquivo.read(&mut bloco)?;
+        if n == 0 {
+            return Ok((hex(&soma.finalize()), lidos));
+        }
+        soma.update(&bloco[..n]);
+        lidos += n as u64;
+        andou(n as u64);
+    }
+}
+
+/// Os arquivos de `pasta`, relativos a `raiz` e com `/`.
+fn arquivos_em(raiz: &Path, pasta: &Path, achados: &mut Vec<String>) -> io::Result<()> {
+    for item in fs::read_dir(pasta)? {
+        let item = item?;
+        let caminho = item.path();
+        if item.file_type()?.is_dir() {
+            arquivos_em(raiz, &caminho, achados)?;
+        } else {
+            let relativo = caminho.strip_prefix(raiz).expect("dentro da raiz");
+            let partes: Vec<_> = relativo.iter().map(|p| p.to_string_lossy()).collect();
+            achados.push(partes.join("/"));
+        }
+    }
+    Ok(())
+}
+
+/// O manifesto conferido contra a constante do build e cada arquivo contra o manifesto: nome,
+/// tamanho e sha256, sem faltar nem sobrar arquivo. Devolve também os bytes do manifesto.
+pub fn conferir(
+    recursos: &Path,
+    sha_manifesto: &str,
+    versao: &str,
+    cancelado: &AtomicBool,
+    progresso: &mut dyn FnMut(Value),
+) -> Result<(Manifesto, Vec<u8>), Erro> {
+    let ruim = || Erro::Arquivo(MANIFESTO.into());
+    let bruto = fs::read(recursos.join(MANIFESTO)).map_err(|_| ruim())?;
+    if !e_hex(sha_manifesto) || hex(&Sha256::digest(&bruto)) != sha_manifesto {
+        return Err(ruim());
+    }
+    let manifesto = ler_manifesto(&bruto)?;
+    if manifesto.versao != versao {
+        return Err(ruim());
+    }
+    let mut achados = Vec::new();
+    arquivos_em(recursos, recursos, &mut achados)?;
+    let conhecido =
+        |nome: &String| nome == MANIFESTO || manifesto.arquivos.iter().any(|e| &e.nome == nome);
+    if let Some(sobra) = achados.into_iter().find(|n| !conhecido(n)) {
+        return Err(Erro::Arquivo(sobra));
+    }
+    let total: u64 = manifesto.arquivos.iter().map(|e| e.tamanho).sum();
+    let mut feito = 0u64;
+    progresso(json!({"etapa": "conferir", "feito": 0, "total": total}));
+    for entrada in &manifesto.arquivos {
+        let mut andou = |n: u64| {
+            feito += n;
+            progresso(json!({"etapa": "conferir", "feito": feito, "total": total}));
+        };
+        let lido = sha256_de(&recursos.join(&entrada.nome), cancelado, &mut andou);
+        match lido {
+            Ok((sha, lidos)) if sha == entrada.sha256 && lidos == entrada.tamanho => {}
+            Err(Erro::Cancelado) => return Err(Erro::Cancelado),
+            _ => return Err(Erro::Arquivo(entrada.nome.clone())),
+        }
+    }
+    Ok((manifesto, bruto))
+}
+
+/// Tira um caminho (pasta, arquivo ou atalho) sem seguir atalho.
+fn apagar(caminho: &Path) {
+    match caminho.symlink_metadata() {
+        Ok(m) if m.is_dir() => {
+            let _ = fs::remove_dir_all(caminho);
+        }
+        Ok(_) => {
+            // atalho de pasta no Windows (junção) sai com remove_dir
+            let _ = fs::remove_file(caminho).or_else(|_| fs::remove_dir(caminho));
+        }
+        Err(_) => {}
+    }
+}
+
+fn itens(pasta: &Path) -> Vec<PathBuf> {
+    fs::read_dir(pasta)
+        .map(|lista| lista.flatten().map(|i| i.path()).collect())
+        .unwrap_or_default()
+}
+
+/// O texto de um comando que falhou: o stderr (ou o stdout) e o código.
+fn falhou(o_que: &str, saida: &Saida) -> Erro {
+    let texto = if saida.erro.trim().is_empty() {
+        saida.saida.trim()
+    } else {
+        saida.erro.trim()
+    };
+    if texto.contains("No space left on device") || texto.contains("os error 112") {
+        return Erro::Espaco;
+    }
+    Erro::Outro(format!("{o_que} ({:?}): {texto}", saida.codigo))
 }
 
 /// As pastas e a versão de uma instalação.
@@ -185,6 +461,85 @@ impl Instalador<'_> {
             .join(format!("venv-{}", self.versao))
     }
 
+    fn python_do_venv(&self) -> PathBuf {
+        if self.so == "windows" {
+            self.venv().join("Scripts").join("python.exe")
+        } else {
+            self.venv().join("bin").join("python")
+        }
+    }
+
+    /// O `uv` da pasta da casca, offline, com as pastas da casca e sem índice nem espelho de fora.
+    fn comando_uv(&self, argumentos: &[&str]) -> Command {
+        let mut comando = Command::new(self.uv());
+        for nome in DE_FORA {
+            comando.env_remove(nome);
+        }
+        comando
+            .env("UV_OFFLINE", "1")
+            .env("UV_NO_CONFIG", "1")
+            .env("UV_CACHE_DIR", self.pasta.join("cache"))
+            .env("UV_PYTHON_INSTALL_DIR", self.pasta.join("python"))
+            .args(argumentos);
+        comando
+    }
+
+    fn comando_jobot(&self, argumentos: &[&str]) -> Command {
+        let mut comando = Command::new(servidor::jobot_do_venv(&self.venv(), self.so));
+        comando.args(argumentos);
+        comando
+    }
+
+    /// O interpretador que o `uv python install` pôs em `<pasta>/python/cpython-<versão>-...`,
+    /// depois de tirar os atalhos `cpython-<maior>.<menor>-...`: com eles o `uv venv` grava o
+    /// atalho no `pyvenv.cfg`, e a limpeza do canal `casca` (`casca.limpar`) apagaria a pasta
+    /// de verdade (D181).
+    fn preparar_interpretador(&self, versao_python: &str) -> Result<PathBuf, Erro> {
+        let pythons = self.pasta.join("python");
+        let prefixo = format!("cpython-{versao_python}-");
+        let mut achado = None;
+        for caminho in itens(&pythons) {
+            let nome = caminho
+                .file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .into_owned();
+            let atalho = caminho
+                .symlink_metadata()
+                .is_ok_and(|m| m.file_type().is_symlink());
+            if atalho && nome.starts_with("cpython-") {
+                apagar(&caminho);
+            } else if !atalho && nome.starts_with(&prefixo) && caminho.is_dir() {
+                achado = Some(caminho);
+            }
+        }
+        let pasta =
+            achado.ok_or_else(|| Erro::Outro(format!("Python {versao_python} não apareceu")))?;
+        Ok(if self.so == "windows" {
+            pasta.join("python.exe")
+        } else {
+            pasta.join("bin").join("python3")
+        })
+    }
+
+    fn passo(
+        &self,
+        rodar: &mut Rodar,
+        comando: Command,
+        o_que: &str,
+        cancelado: &AtomicBool,
+    ) -> Result<Saida, Erro> {
+        if cancelado.load(Ordering::SeqCst) {
+            return Err(Erro::Cancelado);
+        }
+        let saida = rodar(comando, &mut |_| {})?;
+        if saida.codigo == Some(0) {
+            Ok(saida)
+        } else {
+            Err(falhou(o_que, &saida))
+        }
+    }
+
     /// Confere, instala e grava; com erro, desfaz o que criou.
     pub fn instalar(
         &self,
@@ -194,7 +549,155 @@ impl Instalador<'_> {
         rodar: &mut Rodar,
         progresso: &mut dyn FnMut(Value),
     ) -> Result<(), Erro> {
-        let _ = (sha_manifesto, navegador, cancelado, rodar, progresso);
+        let existia = self.pasta.exists();
+        let pythons_antes = itens(&self.pasta.join("python"));
+        let feito =
+            self.instalar_sem_desfazer(sha_manifesto, navegador, cancelado, rodar, progresso);
+        if feito.is_err() {
+            if existia {
+                apagar(&self.venv());
+                for python in itens(&self.pasta.join("python")) {
+                    if !pythons_antes.contains(&python) {
+                        apagar(&python);
+                    }
+                }
+            } else {
+                apagar(self.pasta);
+            }
+        }
+        feito
+    }
+
+    fn instalar_sem_desfazer(
+        &self,
+        sha_manifesto: &str,
+        navegador: bool,
+        cancelado: &AtomicBool,
+        rodar: &mut Rodar,
+        progresso: &mut dyn FnMut(Value),
+    ) -> Result<(), Erro> {
+        let (manifesto, bruto) = conferir(
+            self.recursos,
+            sha_manifesto,
+            self.versao,
+            cancelado,
+            progresso,
+        )?;
+        let uv = manifesto.achar(|n| n == format!("bin/{}", self.exe("uv")), "uv")?;
+        let python = manifesto.achar(|n| versao_do_python(n).is_some(), "python")?;
+        let versao_python = versao_do_python(&python.nome).unwrap_or_default();
+        let chromium = manifesto.achar(e_chromium, "chromium")?;
+        if cancelado.load(Ordering::SeqCst) {
+            return Err(Erro::Cancelado);
+        }
+
+        progresso(json!({"etapa": "python"}));
+        fs::create_dir_all(self.pasta.join("bin"))?;
+        fs::copy(self.recursos.join(&uv.nome), self.uv())?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(self.uv(), fs::Permissions::from_mode(0o755))?;
+        }
+        let espelho = tauri::Url::from_file_path(self.recursos.join("python"))
+            .map_err(|_| Erro::Outro("caminho dos recursos".into()))?;
+        let instalar_python = self.comando_uv(&[
+            "python",
+            "install",
+            "--no-bin",
+            "--mirror",
+            espelho.as_str(),
+            versao_python,
+        ]);
+        self.passo(rodar, instalar_python, "uv python install", cancelado)?;
+        let interpretador = self.preparar_interpretador(versao_python)?;
+        apagar(&self.venv());
+        let interpretador = interpretador.to_string_lossy();
+        let venv = self.venv();
+        let criar_venv = self.comando_uv(&[
+            "venv",
+            "--offline",
+            "--python",
+            &interpretador,
+            &venv.to_string_lossy(),
+        ]);
+        self.passo(rodar, criar_venv, "uv venv", cancelado)?;
+
+        progresso(json!({"etapa": "jobot"}));
+        let python_do_venv = self.python_do_venv();
+        let rodas = self.recursos.join("wheels");
+        let restricoes = self.recursos.join("restricoes.txt");
+        let instalar_jobot = self.comando_uv(&[
+            "pip",
+            "install",
+            "--offline",
+            "--python",
+            &python_do_venv.to_string_lossy(),
+            "--no-index",
+            "--find-links",
+            &rodas.to_string_lossy(),
+            "--require-hashes",
+            "-r",
+            &restricoes.to_string_lossy(),
+        ]);
+        self.passo(rodar, instalar_jobot, "uv pip install", cancelado)?;
+
+        if navegador {
+            progresso(json!({"etapa": "navegador", "feito": 0, "total": chromium.tamanho}));
+            let arquivo = self.recursos.join(&chromium.nome);
+            let comando = self.comando_jobot(&[
+                "ferramentas",
+                "baixar",
+                "navegador",
+                "--arquivo",
+                &arquivo.to_string_lossy(),
+                "--sha256",
+                &chromium.sha256,
+            ]);
+            if cancelado.load(Ordering::SeqCst) {
+                return Err(Erro::Cancelado);
+            }
+            let mut pronto = false;
+            let saida = rodar(comando, &mut |texto| match ler_linha(texto) {
+                Some(Linha::Progresso { feito, total }) => {
+                    let total = total.unwrap_or(chromium.tamanho);
+                    progresso(json!({"etapa": "navegador", "feito": feito, "total": total}));
+                }
+                Some(Linha::Fim(ok)) => pronto = ok,
+                None => {}
+            })?;
+            if saida.codigo != Some(0) || !pronto {
+                return Err(falhou("jobot ferramentas baixar navegador", &saida));
+            }
+        }
+
+        let prova = self.comando_jobot(&["--version"]);
+        let saida = self
+            .passo(rodar, prova, "jobot --version", cancelado)
+            .map_err(|erro| match erro {
+                Erro::Outro(texto) => Erro::Prova(texto),
+                outro => outro,
+            })?;
+        if saida.saida.trim() != format!("jobot {}", self.versao) {
+            return Err(Erro::Prova(saida.saida.trim().to_string()));
+        }
+        if cancelado.load(Ordering::SeqCst) {
+            return Err(Erro::Cancelado);
+        }
+
+        let copia = self.pasta.join(format!("manifesto-{}.json", self.versao));
+        gravar_atomico(&copia, &bruto)?;
+        let texto = |p: &Path| p.to_string_lossy().into_owned();
+        let instalacao = json!({
+            "canal": "casca",
+            "pasta": texto(self.pasta),
+            "uv": texto(&self.uv()),
+            "venv": texto(&self.venv()),
+            "anterior": null,
+            "manifesto": texto(&copia),
+        });
+        let bytes = serde_json::to_vec_pretty(&instalacao).expect("JSON fixo");
+        gravar_atomico(&self.dados.join(INSTALACAO), &bytes)?;
         Ok(())
     }
 }
