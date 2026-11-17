@@ -89,7 +89,8 @@ jobs:
           name: wheel
           path: dist
       - name: wheels do alvo
-        run: uvx --python 3.14 pip==26.2 download --only-binary=:all: --require-hashes -r dist/dependencias.txt -d "$RUNNER_TEMP/rodas"
+        run: |
+          uvx --python 3.14 pip==26.2 download --only-binary=:all: --require-hashes -r dist/dependencias.txt -d "$RUNNER_TEMP/rodas"
       - name: chromium
         run: |
           uv sync --locked --no-dev
