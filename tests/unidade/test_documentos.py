@@ -227,6 +227,19 @@ def test_instalacao_traz_o_caso_distrobox(lingua: str) -> None:
     assert prefixo_host({}) == ()
 
 
+def test_casca_tem_a_mesma_versao_do_pacote() -> None:
+    projeto = tomllib.loads(texto("pyproject.toml"))["project"]["version"]
+    cargo = tomllib.loads(texto("desktop/Cargo.toml"))["package"]["version"]
+    tauri = json.loads(texto("desktop/tauri.conf.json")).get("version")
+    assert (cargo, tauri) == (projeto, projeto), "versão única nos três (desenho 8)"
+
+
+def test_gitignore_tem_as_pastas_geradas_da_casca() -> None:
+    linhas = {linha.strip() for linha in texto(".gitignore").splitlines()}
+    pastas = {"desktop/target/", "desktop/ui/painel/", "desktop/binaries/", "desktop/recursos/"}
+    assert pastas <= linhas, sorted(pastas - linhas)
+
+
 @pytest.mark.parametrize("lingua", LINGUAS)
 def test_aviso_de_versao_diz_o_que_vai_no_pedido(lingua: str) -> None:
     privacidade = secao(texto(README[lingua]), SECAO_PRIVACIDADE[lingua])
