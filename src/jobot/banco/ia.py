@@ -107,3 +107,31 @@ def chamadas_do_dia(con: sqlite3.Connection, backend: str, agora: datetime) -> i
         {"b": backend, "ini": inicio.isoformat(), "fim": fim.isoformat()},
     ).fetchone()[0]
     return contagem
+
+
+@dataclass(frozen=True)
+class PedeVaga:
+    pede: list[str]
+    backend: str
+    modelo: str
+
+
+def pedes(con: sqlite3.Connection, vaga_id: int | None = None) -> dict[int, PedeVaga]:
+    """O `pede` gravado de cada vaga (ou só de `vaga_id`) e de onde veio.
+
+    Linha só com falha (`pede` NULL) ou com JSON estranho fica de fora: o critério é neutro.
+    """
+    onde, params = ("", ()) if vaga_id is None else (" AND vaga_id = ?", (vaga_id,))
+    achados: dict[int, PedeVaga] = {}
+    for vid, texto, backend, modelo in con.execute(
+        "SELECT vaga_id, pede, backend, modelo FROM habilidades_vaga WHERE pede IS NOT NULL" + onde,
+        params,
+    ):
+        try:
+            valor = json.loads(texto)
+        except ValueError:
+            continue
+        if isinstance(valor, list):
+            lista = [h for h in valor if isinstance(h, str)]
+            achados[vid] = PedeVaga(pede=lista, backend=backend or "", modelo=modelo or "")
+    return achados
