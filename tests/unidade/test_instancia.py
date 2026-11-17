@@ -9,7 +9,7 @@ from types import ModuleType
 
 import pytest
 
-from jobot.sistema import instancia
+from jobot.sistema import instancia, processo
 from jobot.sistema.instancia import (
     Trava,
     pid_do_servidor,
@@ -17,6 +17,8 @@ from jobot.sistema.instancia import (
     porta,
     porta_do_servidor,
 )
+
+_SO_POSIX = pytest.mark.skipif(sys.platform == "win32", reason="modo, symlink e /proc do POSIX")
 
 
 def test_segunda_instancia_nao_pega_a_trava(tmp_path: Path) -> None:
@@ -29,6 +31,7 @@ def test_segunda_instancia_nao_pega_a_trava(tmp_path: Path) -> None:
     segunda.soltar()
 
 
+@_SO_POSIX
 def test_trava_guarda_pid_e_porta_com_modo_0600(tmp_path: Path) -> None:
     trava = Trava(tmp_path, 50000)
     assert trava.pegar() is True
@@ -77,6 +80,7 @@ def test_porta_do_servidor_ignora_porta_estragada(tmp_path: Path, lixo: str) -> 
     trava.soltar()
 
 
+@_SO_POSIX
 def test_trava_na_ponta_alheia_nao_segue_symlink(tmp_path: Path) -> None:
     alvo = tmp_path / "alheio"
     alvo.write_text("x")
@@ -91,11 +95,11 @@ def test_trava_na_ponta_alheia_nao_segue_symlink(tmp_path: Path) -> None:
 
 def test_trava_presa_por_outro_processo(tmp_path: Path) -> None:
     codigo = (
-        "import sys, time\n"
+        "import os, sys, time\n"
         "from pathlib import Path\n"
         "from jobot.sistema.instancia import Trava\n"
         "assert Trava(Path(sys.argv[1]), 1234).pegar()\n"
-        "print('pronto', flush=True)\n"
+        "print(os.getpid(), flush=True)\n"
         "time.sleep(60)\n"
     )
     filho = subprocess.Popen(
@@ -103,14 +107,16 @@ def test_trava_presa_por_outro_processo(tmp_path: Path) -> None:
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,
         text=True,
+        **processo.destacar(),
     )
     try:
         assert filho.stdout is not None
-        assert filho.stdout.readline().strip() == "pronto"
+        # No Windows o python.exe do venv é um lançador: quem pega a trava é o filho dele.
+        pid = int(filho.stdout.readline())
         assert Trava(tmp_path, 47615).pegar() is False
-        assert pid_do_servidor(tmp_path) == filho.pid
+        assert pid_do_servidor(tmp_path) == pid
     finally:
-        filho.kill()
+        processo.encerrar_grupo(filho, forcar=True)
         filho.wait()
     assert pid_do_servidor(tmp_path) is None  # morreu: a trava se solta sozinha
 
@@ -126,6 +132,7 @@ def test_jobot_porta_invalida_cai_no_padrao(valor: str) -> None:
     assert porta({"JOBOT_PORTA": valor}) == 47615
 
 
+@_SO_POSIX
 @pytest.mark.parametrize("chamada", ["fchmod", "ftruncate", "pwrite"])
 def test_falha_ao_gravar_solta_a_trava_e_nao_vaza_fd(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, chamada: str
