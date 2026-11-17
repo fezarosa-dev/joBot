@@ -3093,13 +3093,13 @@ Do item 2 (T305 h), aceito e documentado. Sem JavaScript, o detalhe sobreposto f
 
 ## D171. Fase 3: app de desktop e instalador
 
-**Status:** itens 1 a 8 decididos pelo dono em 2026-11-17; itens 9 a 18 são escolhas da sessão, para confirmar.
+**Status:** itens 1 a 8 decididos pelo dono em 2026-11-17; itens 9 a 18 são escolhas da sessão, para confirmar. O item 1 e a parte do item 9 sobre o que os pacotes levam foram superados em 2026-11-17 pela [D174](#d174-instalador-completo-e-sem-rede).
 
 **Contexto:** começo da fase 3 (ADR [0017](docs/decisions/0017-fases.md)). A D142 já tinha escolhido o Tauri e os botões da janela; faltavam a distribuição, a assinatura, os pacotes, o Mac, onde fica o código, o que acontece ao fechar a janela e como a janela se atualiza. Desenho em `docs/superpowers/specs/2026-11-17-fase-3-design.md` (seção 13 traz a mesma lista); plano em `docs/superpowers/plans/2026-11-17-fase-3.md`.
 
 **Decisões do dono:**
 
-1. O instalador traz o `uv` embutido e instala o joBot da release do GitHub da mesma versão, com o sha256 conferido.
+1. ~~O instalador traz o `uv` embutido e instala o joBot da release do GitHub da mesma versão, com o sha256 conferido.~~ (superado em 2026-11-17 pela [D174](#d174-instalador-completo-e-sem-rede): o instalador traz tudo e nada é baixado na instalação)
 2. Linux: AppImage, `.deb` e `.rpm`.
 3. Mac: `.dmg` experimental, gerado e testado só no CI.
 4. O projeto Tauri fica na pasta `desktop/` do mesmo repositório (muda o "projeto à parte" da ADR 0003).
@@ -3110,7 +3110,7 @@ Do item 2 (T305 h), aceito e documentado. Sem JavaScript, o detalhe sobreposto f
 
 **Escolhas da sessão (para confirmar):**
 
-9. A tela de instalação é a primeira abertura da própria casca, igual nos três sistemas; o NSIS e os pacotes do Linux levam só a casca e o `uv` (os `.deb`/`.rpm` instalam como root e o `uv tool` é por usuário).
+9. A tela de instalação é a primeira abertura da própria casca, igual nos três sistemas; ~~o NSIS e os pacotes do Linux levam só a casca e o `uv`~~ (superado em 2026-11-17 pela D174.1: levam também o Python, as wheels, o joBot e o Chromium) (os `.deb`/`.rpm` instalam como root e o venv é por usuário).
 10. Essenciais travadas: joBot e Python. O navegador vem marcado e dá para desmarcar (confirma a D138.15).
 11. Uma checagem de versão só, a do painel; a casca não consulta o GitHub (mantém a ADR 0014 e o interruptor de Privacidade).
 12. Segundo plano no Windows (Agendador de Tarefas) e no Mac (LaunchAgent, experimental) entram na fase 3, para o item 7 valer em todo sistema.
@@ -3125,7 +3125,7 @@ Do item 2 (T305 h), aceito e documentado. Sem JavaScript, o detalhe sobreposto f
 
 **Como desfazer:** cada item mora numa seção do desenho (13 lista as seções); trocar é editar o desenho antes da tarefa correspondente. Depois de construído: 7 e 12 são a `segundo_plano` e a casca (T328, T329, T337); 11 é tirar o aviso da casca na faixa (T332); 15 é tirar a conferência de recursos (T335). Nenhum dado muda.
 
-**Ver também:** D138, D139.10, D140, D142, D143, ADR 0003, 0017, 0018, 0023 e [0025](docs/decisions/0025-app-de-desktop-e-instalador.md).
+**Ver também:** D138, D139.10, D140, D142, D143, D173, D174, ADR 0003, 0017, 0018, 0023 e [0025](docs/decisions/0025-app-de-desktop-e-instalador.md).
 
 ## D172. Todo PR passa pela aprovação do dono
 
@@ -3142,9 +3142,9 @@ Do item 2 (T305 h), aceito e documentado. Sem JavaScript, o detalhe sobreposto f
 
 **Como desfazer:** Settings › Rules › Rulesets (`proteger-main`, `proteger-dev`) e Settings › Actions › General › Fork pull request workflows. Nada no código muda; ADR 0016 e 0018 e o guia de contribuição citam esta decisão.
 
-## D173. Hash das dependências na instalação pela casca (para decidir)
+## D173. Hash das dependências na instalação pela casca
 
-**Status:** aberta, o dono decide antes da T336 (tela de instalação) e da T337.
+**Status:** decidida pelo dono em 2026-11-17: opção 2.
 
 **Contexto:** a T322 mediu (`uv 0.12.3`, `scripts/provar_uv.py`) que o `uv tool install` não confere o hash de cada dependência, nem com `--constraints` nem com `--with-requirements` e `UV_REQUIRE_HASHES=1`. O `uv pip install --require-hashes -r restricoes.txt` recusa o mesmo arquivo adulterado. Desenho 6.2 e 6.3.
 
@@ -3155,6 +3155,40 @@ Do item 2 (T305 h), aceito e documentado. Sem JavaScript, o detalhe sobreposto f
 
 **Recomendada:** 2. O instalador é a porta de entrada de quem não usa terminal, e o custo fica em código da casca que ainda não existe.
 
+**Decisão do dono (2026-11-17):** 2. venv + `uv pip install --require-hashes`, com cada biblioteca conferida pelo hash. A D174 leva isso adiante: a instalação é offline, a partir das wheels que vêm no instalador.
+
 **Como desfazer:** 1 para 2 é mudar o comando em `desktop/src/instalar.rs`, no canal `casca` do `atualizar.py` e no hook do desinstalador (T336, T337), sem mexer nos dados. 2 para 1 é o mesmo caminho ao contrário; o `instalacao.json` ganha o caminho do executável, que fica sem uso.
 
-**Ver também:** D171 (itens 1 e 17), T322, desenho 6.2.
+**Ver também:** D171 (itens 1 e 17), D174, T322, T344, desenho 6.2.
+
+## D174. Instalador completo e sem rede
+
+**Status:** itens 1 a 5 decididos pelo dono em 2026-11-17; itens 6 a 14 são escolhas da sessão, para confirmar.
+
+**Contexto:** o dono pediu um instalador "o menos quebrável possível". A D171.1 baixava o joBot da release na hora de instalar e o `uv` baixava o Python e as dependências da internet: qualquer falha de rede, de índice ou de CDN quebrava a instalação. A D173 já trocou o `uv tool install` por venv + `uv pip install --require-hashes`. Desenho 5.2, 6.2, 6.3, 7.2, 8, 9, 10 e 11; plano T344.
+
+**Decisões do dono:**
+
+1. Instalador completo por sistema: casca + Python 3.14 (python-build-standalone gerenciado pelo `uv`, versão e sha256 fixos) + wheel do joBot + todas as wheels das dependências daquela plataforma (exportadas do `uv.lock` com hashes) + o Chromium do Playwright da versão fixada (arquivo compactado com sha256). Tudo conferido no build e de novo na instalação; nada é baixado na instalação (`uv venv --python <python embutido>` e `uv pip install --offline --no-index --find-links <wheels> --require-hashes -r restricoes.txt <wheel do joBot>`). Supera a D171.1.
+2. Navegador desmarcado não é copiado. Depois, a tela Ferramentas baixa o mesmo arquivo da release do joBot da versão instalada, com o sha256 conferido contra um manifesto gravado na instalação (não do CDN do Playwright). O Chromium vai para a pasta padrão que o Playwright já usa em cada sistema, sem env nova. Quem instalou sem a casca (clone ou `uv tool`) segue com `playwright install`.
+3. Atualizar (canal `casca`): baixa o pacote de atualização da plataforma (Python + wheels + joBot + manifesto), confere tudo contra o `SHA256SUMS` da release, monta um venv novo ao lado (`venv-<versão>`), só troca o ponteiro no `instalacao.json` quando o novo passa num teste rápido (`jobot --version` do venv novo), guarda a versão anterior para voltar e apaga as mais velhas que a anterior. Falhou: nada muda.
+4. CI: os instaladores são instalados numa máquina limpa e sem rede (Linux: contêiner `--network none`; Windows: regra de firewall bloqueando a saída) e passam no `--verificar`.
+5. Tamanho aceito: cerca de 350 MB por instalador (como apps que levam o próprio motor).
+
+**Escolhas da sessão (para confirmar):**
+
+6. A casca copia o `uv` e o Python para a pasta dela (`bin/`, `python/`), porque o caminho de dentro do AppImage muda a cada abertura; os venvs ficam em `venvs/venv-<versão>` na mesma pasta (desenho 6.2).
+7. O sha256 do `manifesto.json` entra no binário da casca no build (`JOBOT_MANIFESTO_SHA256`); o manifesto traz o sha256 de cada arquivo dos recursos.
+8. O pacote de atualização (`jobot-atualizacao-<versão>-<alvo>.zip`) não leva o Chromium, mas o `manifesto.json` dele lista o `chromium-<alvo>.tar.gz` (nome, tamanho e sha256) sem o arquivo estar dentro, e a conferência aceita essa entrada que falta; assim o navegador ainda baixa pela tela Ferramentas depois de qualquer atualização.
+9. O canal `casca` refaz o segundo plano a cada troca de venv (o serviço aponta para o executável do venv).
+10. Desinstalar apaga a pasta da casca inteira (venvs, Python, `uv`, manifestos) e não apaga o Chromium da pasta padrão do Playwright, que pode servir a outro programa; o README diz como tirar pela tela Ferramentas.
+11. Mac `x86_64` gerado no runner Intel `macos-15-intel`, para o Chromium e as wheels saírem da máquina do alvo. O GitHub está tirando os runners Intel do macOS (o `macos-13` já saiu): quando o último sumir, o `.dmg` `x86_64` (já experimental) sai da release. A outra saída, montar os recursos `x86_64` no runner ARM com `pip download --platform macosx_..._x86_64` e o Chromium mac-x64, fica anotada e não entra agora.
+12. O arquivo do Chromium é um `.tar.gz` gerado com `tarfile` a partir da pasta temporária do próprio `playwright install chromium` da versão fixada, e extraído com `tarfile` e `filter="data"` (guarda o modo e os symlinks e recusa caminho para fora da pasta). ~~É um `.zip` (o `zipfile` extrai nos três sistemas).~~ (superado em 2026-11-17 na revisão: o `zipfile` não restaura os bits de permissão Unix nem os symlinks; o `chrome` sairia sem `+x` e o `Chromium.app` quebraria.)
+13. Navegador desatualizado: com o Chromium instalado e o sha256 dele diferente entre o manifesto antigo e o novo, a atualização do canal `casca` baixa o arquivo novo pelo caminho da tela Ferramentas antes da troca; se esse download falhar, a troca segue e a tela Ferramentas marca "navegador desatualizado" (desenho 6.3; T331).
+14. Banco ao voltar à versão anterior: a troca grava o `user_version` do SQLite no `instalacao.json`, e voltar só acontece se ele não mudou desde a troca (senão recusa e diz por quê; restaurar a cópia `.antes-vN` perderia as vagas coletadas depois); e o `banco/migrar.py` passa a recusar abrir um esquema maior que a última migração que conhece (desenho 6.3; T331).
+
+**O que o dono faz:** confirmar 6 a 14 ou trocar algum. Se a T336 mostrar que o `uv` não instala o Python local sem rede, decidir a dependência nova do Rust (`tar` e `flate2`) antes de seguir (risco 7 do desenho).
+
+**Como desfazer:** voltar à D171.1 é tirar `desktop/recursos/` do build e trocar o caminho local pelo download da release em `desktop/src/instalar.rs` (T336) e no canal `casca` do `atualizar.py` (T331); a fumaça sem rede da T339 sai junto. O navegador (2) volta para o `playwright install` tirando os caminhos (a) e (b) do subcomando da T330. Nenhum dado da pessoa muda.
+
+**Ver também:** D138.15, D171 (itens 1, 9 e 17), D173, T330, T331, T336, T337, T338, T339, T344, ADR [0025](docs/decisions/0025-app-de-desktop-e-instalador.md).

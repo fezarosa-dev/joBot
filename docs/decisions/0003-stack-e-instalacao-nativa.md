@@ -36,7 +36,7 @@ O público é leigo e usa computadores médios. O app precisa abrir um Chrome vi
 ## Tauri na fase 3 (2026-11-15)
 
 - Na fase 3 entra o Tauri (Rust e HTML) como casca do app de desktop e como tela do instalador (D138, decisão 16; D142). A casca dá ao joBot ícone e janela própria em volta do mesmo painel, que continua em 127.0.0.1 e não é reescrito. A janela usa o navegador embutido do sistema (WebKitGTK, WebView2 ou WKWebView).
-- O joBot em si continua instalado pelo `uv tool install`, chamado pelo instalador. A lista de tecnologias acima não muda: o Rust fica só na casca, ~~num projeto à parte~~ na pasta `desktop/` do mesmo repositório (superado em 2026-11-17, ver abaixo).
+- O joBot em si continua instalado ~~pelo `uv tool install`, chamado pelo instalador~~ (superado em 2026-11-17: num venv montado pelo `uv` com `uv pip install --require-hashes`, a partir dos arquivos que vêm no instalador; D173 e D174). A lista de tecnologias acima não muda: o Rust fica só na casca, ~~num projeto à parte~~ na pasta `desktop/` do mesmo repositório (superado em 2026-11-17, ver abaixo).
 - Como toda dependência, o Tauri entra com a licença conferida (regra acima).
 
 ## Pasta `desktop/` no mesmo repositório (2026-11-17)
