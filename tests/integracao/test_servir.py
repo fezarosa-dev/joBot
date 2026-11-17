@@ -39,6 +39,7 @@ from jobot.nucleo.leitores import registro
 from jobot.nucleo.leitores.base import LeitorComLogin
 from jobot.nucleo.relogio import Relogio
 from jobot.painel.app import criar_app
+from jobot.sistema import llama
 from jobot.sistema.instancia import AVISO_CAPTURA, Trava, pid_do_servidor
 
 pytestmark = pytest.mark.usefixtures("laco_versao_parado")
@@ -407,6 +408,20 @@ def test_tarefa_login_usa_as_dependencias_de_producao(
 
 async def _parado(*_: object, **__: object) -> None:
     await asyncio.Event().wait()
+
+
+def test_servidor_encerra_a_sobra_do_llama_ao_subir_e_ao_parar(
+    dados: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # desenho 7: a subida do servidor encerra a sobra; a instância cai quando ele para (D194.4)
+    chamadas: list[Path] = []
+    monkeypatch.setattr(llama, "encerrar_sobra", chamadas.append)
+    monkeypatch.setattr(servir, "laco", _parado)
+    app, _ = servir.montar(dados, PORTA, relogio=RelogioFalso(AGORA))
+    assert chamadas == []
+    with TestClient(app, base_url=BASE):
+        assert chamadas == [dados]
+    assert chamadas == [dados, dados]
 
 
 def _instalado_falso(chamadas: list[str]) -> Callable[[], Awaitable[str | None]]:

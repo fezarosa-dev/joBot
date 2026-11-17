@@ -51,6 +51,7 @@ from jobot.nucleo.http import ClienteEducado
 from jobot.nucleo.leitores.registro import leitores
 from jobot.nucleo.relogio import Relogio, RelogioReal
 from jobot.painel.app import criar_app
+from jobot.sistema import llama
 from jobot.sistema.instancia import AVISO_CAPTURA, Trava, captura_em_andamento, porta
 from jobot.sistema.pastas import configurar_log, pasta_de_dados, preparar_pasta
 from jobot.sistema.sair import apagar_token, gravar_token
@@ -164,6 +165,8 @@ def montar(
 
     @contextlib.asynccontextmanager
     async def vida(app: FastAPI) -> AsyncIterator[None]:
+        # desenho 7: o `llama-server` de um servidor que morreu sai já na subida (D194.3)
+        llama.encerrar_sobra(dados)
         with closing(abrir(caminho)) as leitura:  # só lê os validadores do `cache_http`
             # um cliente para todos os tipos: o ritmo por host vale entre eles (12.3)
             cliente = ClienteEducado(None, relogio, ValidadoresDoBanco(leitura), __version__)
@@ -216,6 +219,7 @@ def montar(
                     tarefa.cancel()
                 await asyncio.gather(*todas, return_exceptions=True)
                 await cliente.fechar()
+                llama.encerrar_sobra(dados)  # a instância cai com o servidor (D194.4)
 
     app.router.lifespan_context = vida
     config = uvicorn.Config(

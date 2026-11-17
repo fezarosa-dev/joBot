@@ -1,10 +1,14 @@
 """`sistema/llama.py`: subida do `llama-server` com lançador injetado e o falso em thread em
-`127.0.0.1` (T408; desenho 7; D194). Sem processo de verdade, sem rede, sem tempo real."""
+`127.0.0.1` (T408; desenho 7; D194). Sem rede e sem tempo real; só os testes `de_verdade` abrem
+processos (um Python que dorme) para provar o lançador e os encerradores de produção."""
 
 import contextlib
 import json
+import logging
 import os
 import socket
+import stat
+import subprocess
 import sys
 from collections.abc import Iterator
 from pathlib import Path
@@ -13,7 +17,7 @@ import httpx
 import pytest
 
 from apoio.llama_falso import FilhoFalso, LancadorFalso, RelogioSincrono, ServidorLlamaFalso
-from jobot.sistema import llama
+from jobot.sistema import llama, processo
 from jobot.sistema.llama import FalhaLlama, Llama
 
 
@@ -37,6 +41,7 @@ class Montagem:
         self.sobras: list[int] = []
         self.comando = ""
         self.erro_ao_lancar: OSError | None = None
+        self.erro_ao_encerrar: Exception | None = None
 
     def _lancar(self, argv: list[str], env: dict[str, str]) -> FilhoFalso:
         self.ordem.append("lancar")
@@ -46,6 +51,8 @@ class Montagem:
 
     def _encerrar(self, filho: llama.Filho) -> None:
         assert isinstance(filho, FilhoFalso)
+        if self.erro_ao_encerrar is not None:
+            raise self.erro_ao_encerrar
         self.encerrados.append(filho)
 
     def _encerrar_pid(self, pid: int) -> None:
@@ -265,13 +272,15 @@ def test_registro_estragado_e_ignorado(tmp_path: Path, servidor: ServidorLlamaFa
     assert json.loads(m.registro.read_text(encoding="utf-8"))["porta"] == servidor.porta
 
 
-def test_e_o_nosso_no_windows_pelo_nome_da_imagem() -> None:
+def test_e_o_nosso_no_windows_pelo_caminho_do_executavel() -> None:
+    # no Windows, `comando_de` dá o caminho completo da imagem (QueryFullProcessImageNameW)
     programa = Path("C:/d/ferramentas/llama/b12359/llama-server.exe")
-    linha = '"llama-server.exe","777","Console","1","812.300 K"\r\n'
-    assert llama.e_o_nosso(linha, programa, 5555, "win32")
-    assert not llama.e_o_nosso("INFO: No tasks are running.\r\n", programa, 5555, "win32")
-    assert not llama.e_o_nosso('"cmd.exe","777","Console","1","1 K"', programa, 5555, "win32")
-    outro = '"x-llama-server.exe","777","Console","1","1 K"'
+    nosso = "C:\\D\\Ferramentas\\llama\\b12359\\llama-server.exe"
+    assert llama.e_o_nosso(nosso, programa, 5555, "win32")
+    assert not llama.e_o_nosso("", programa, 5555, "win32")
+    assert not llama.e_o_nosso("C:\\Windows\\System32\\cmd.exe", programa, 5555, "win32")
+    # outro llama-server.exe da pessoa (Jan, llama.cpp próprio) não é o nosso
+    outro = "C:\\Program Files\\Jan\\llama-server.exe"
     assert not llama.e_o_nosso(outro, programa, 5555, "win32")
 
 
@@ -301,3 +310,150 @@ def test_saude_nao_passa_pelo_proxy_do_ambiente(
         subiu = m.llama().subir()
     assert subiu is not None and subiu[0] == f"http://127.0.0.1:{servidor.porta}/v1"
     assert servidor.caminhos == ["/health"]
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="ps só no POSIX")
+def test_comando_de_aguenta_saida_fora_de_utf8(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # PID reusado por processo com argv fora de UTF-8: `subir` não pode estourar fora de FalhaLlama
+    ps = tmp_path / "ps"
+    ps.write_bytes(b"#!/bin/sh\nprintf '/x/llama-server \\377 --port 5555\\n'\n")
+    ps.chmod(ps.stat().st_mode | stat.S_IXUSR)
+    monkeypatch.setenv("PATH", str(tmp_path))
+    saida = None
+    with contextlib.suppress(UnicodeDecodeError):
+        saida = llama.comando_de(777)
+    assert saida == "/x/llama-server \ufffd --port 5555\n"
+
+
+def test_encerrar_sobra_pela_pasta_de_dados(tmp_path: Path, servidor: ServidorLlamaFalso) -> None:
+    # a mesma função que o servidor do joBot chama ao subir e ao parar (`vida`, cli/servir.py)
+    m = Montagem(tmp_path, servidor)
+    _sobra(m)
+    llama.encerrar_sobra(
+        tmp_path,
+        comando_de=lambda pid: f"{m.programa} --port 5555\n",
+        encerrar_pid=m._encerrar_pid,
+    )
+    assert m.sobras == [777]
+    assert not m.registro.exists()
+
+
+def test_falha_ao_encerrar_na_limpeza_mantem_a_falha_e_o_registro(
+    tmp_path: Path, servidor: ServidorLlamaFalso, caplog: pytest.LogCaptureFixture
+) -> None:
+    servidor.saude = [503]
+    m = Montagem(tmp_path, servidor)
+    m.erro_ao_encerrar = RuntimeError("taskkill falhou")
+    with caplog.at_level(logging.ERROR, logger="jobot"):
+        with pytest.raises((FalhaLlama, RuntimeError)) as erro:
+            m.llama().subir()
+    assert isinstance(erro.value, FalhaLlama)  # a original, não a da limpeza
+    assert erro.value.motivo == "tempo_esgotado"
+    # o filho pode seguir vivo: o registro fica para a próxima subida encerrar a sobra
+    assert m.registro.exists()
+    assert "não consegui encerrar o llama-server" in caplog.text
+
+
+def test_encerrar_pid_engole_qualquer_oserror(monkeypatch: pytest.MonkeyPatch) -> None:
+    # no Windows, o processo que sai entre o `comando_de` e o `taskkill` dá WinError 87 no
+    # `os.kill`: a sobra é melhor esforço e não derruba a subida
+    vistos: list[int] = []
+
+    def quebra(proc: processo.Processo, **_: object) -> None:
+        vistos.append(proc.pid)
+        raise OSError(22, "parâmetro incorreto")
+
+    monkeypatch.setattr(processo, "encerrar_grupo", quebra)
+    escapou: OSError | None = None
+    try:
+        llama._encerrar_pid(777)
+    except OSError as erro:
+        escapou = erro
+    assert vistos == [777]
+    assert escapou is None
+
+
+_DORME = [sys.executable, "-c", "import time; time.sleep(60)"]
+
+
+def _morreu(p: subprocess.Popen[bytes], s: float = 10.0) -> bool:
+    try:
+        p.wait(timeout=s)
+    except subprocess.TimeoutExpired:
+        return False
+    return True
+
+
+def _derrubar(*processos: subprocess.Popen[bytes]) -> None:
+    for p in processos:
+        if p.poll() is None:
+            p.kill()
+            p.wait()
+
+
+_RETRATO = """import json, os, sys
+nulo = os.stat(os.devnull)
+retrato = {
+    "nulos": [os.path.samestat(os.fstat(f), nulo) for f in (0, 1, 2)],
+    "sessao": os.getsid(0) == os.getpid(),
+    "chave": os.environ.get("LLAMA_API_KEY"),
+}
+with open(sys.argv[1], "w") as f:
+    json.dump(retrato, f)
+"""
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="sessão do POSIX")
+def test_lancar_de_verdade_abre_sessao_propria_sem_saida(tmp_path: Path) -> None:
+    # desenho 7: pelo `processo.py` (sessão própria: o Ctrl+C do joBot não pega o filho e o
+    # `killpg` da sobra acerta o grupo dele) e saída em DEVNULL
+    retrato = tmp_path / "retrato.json"
+    p = llama._lancar([sys.executable, "-c", _RETRATO, str(retrato)], llama.ambiente("k"))
+    try:
+        assert p.wait(timeout=30) == 0
+    finally:
+        _derrubar(p)
+    assert json.loads(retrato.read_text(encoding="utf-8")) == {
+        "nulos": [True, True, True],
+        "sessao": True,
+        "chave": "k",
+    }
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="grupo de processos do POSIX")
+def test_encerrar_pid_de_verdade_derruba_o_grupo_da_sobra() -> None:
+    lider = subprocess.Popen(_DORME, process_group=0)
+    membro = subprocess.Popen(_DORME, process_group=lider.pid)
+    try:
+        llama._encerrar_pid(lider.pid)
+        assert _morreu(lider)
+        assert _morreu(membro)  # o grupo inteiro, não só o PID
+    finally:
+        _derrubar(lider, membro)
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="ps só no POSIX")
+def test_encerrar_sobra_de_verdade_com_ps(tmp_path: Path) -> None:
+    # os padrões de produção (`comando_de` com `ps -ww` e `_encerrar_pid`) de ponta a ponta
+    p = llama._lancar([*_DORME, "--port", "5555"], llama.ambiente("k"))
+    try:
+        registro = tmp_path / "ferramentas" / "llama.json"
+        registro.parent.mkdir()
+        texto = json.dumps({"pid": p.pid, "porta": 5555, "programa": sys.executable})
+        registro.write_text(texto, encoding="utf-8")
+        llama.encerrar_sobra(tmp_path)
+        assert _morreu(p)
+        assert not registro.exists()
+    finally:
+        _derrubar(p)
+
+
+def test_encerrar_arvore_de_verdade_derruba_o_filho() -> None:
+    p = llama._lancar(_DORME, llama.ambiente("k"))
+    try:
+        llama._encerrar_arvore(p)
+        assert p.poll() is not None
+    finally:
+        _derrubar(p)
