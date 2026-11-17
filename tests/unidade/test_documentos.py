@@ -189,7 +189,7 @@ def test_changelog_tem_as_mesmas_secoes_nas_duas_linguas() -> None:
 
 def test_changelog_traz_a_versao_do_pacote() -> None:
     projeto = tomllib.loads(texto("pyproject.toml"))["project"]["version"]
-    assert projeto == __version__ == "0.3.0"
+    assert projeto == __version__ == "0.4.0"
     for caminho in CHANGELOG.values():
         conteudo = texto(caminho)
         for versao in (projeto, "0.1.0"):
@@ -534,14 +534,31 @@ CITA_0_2_1 = {"pt": ("chips", "0006", "5 segundos"), "en": ("chips", "0006", "5 
 # o resumo da 0.3.0 cobre tudo o que estava em "Não lançado", não só o último lote
 V0_3_0 = "## [0.3.0] - 2026-11-16"
 RESUMO_0_3_0 = {"pt": ("Panorama", "LinkedIn"), "en": ("Overview", "LinkedIn")}
+# a 0.4.0 fecha a fase 3: o resumo cita a janela e o instalador
+V0_4_0 = "## [0.4.0] - 2026-11-18"
+RESUMO_0_4_0 = {"pt": ("fase 3", "janela", "instalador"), "en": ("Phase 3", "window", "installer")}
 
 
 @pytest.mark.parametrize("lingua", LINGUAS)
-def test_changelog_fecha_a_0_3_0(lingua: str) -> None:
-    """A 0.3.0 é a primeira seção de versão, e a linha de resumo dela cobre o lote inteiro."""
+def test_changelog_fecha_a_0_4_0(lingua: str) -> None:
+    """A 0.4.0 é a primeira seção de versão, "Não lançado" fica vazio e o resumo cobre a fase 3."""
     conteudo = texto(CHANGELOG[lingua])
     assert NAO_LANCADO[lingua] in conteudo, CHANGELOG[lingua]
     inicio = conteudo.index(NAO_LANCADO[lingua])
+    fim = conteudo.index("\n## [", inicio + 1)
+    assert conteudo[inicio:fim].strip() == NAO_LANCADO[lingua], CHANGELOG[lingua]
+    assert conteudo[fim + 1 :].startswith(V0_4_0), CHANGELOG[lingua]
+    secao = conteudo[fim + 1 :]
+    resumo = secao[: secao.index("###")]
+    for termo in RESUMO_0_4_0[lingua]:
+        assert termo in resumo, (CHANGELOG[lingua], termo)
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_changelog_mantem_o_resumo_da_0_3_0(lingua: str) -> None:
+    """A 0.3.0 vem logo depois da 0.4.0, e a linha de resumo dela cobre o lote inteiro."""
+    conteudo = texto(CHANGELOG[lingua])
+    inicio = conteudo.index(V0_4_0)
     fim = conteudo.index("\n## [", inicio + 1)
     assert conteudo[fim + 1 :].startswith(V0_3_0), CHANGELOG[lingua]
     # só o resumo: os itens movidos já trazem "LinkedIn" e deixariam passar um resumo do último lote
@@ -634,23 +651,31 @@ def test_rede_fala_da_cotacao_das_moedas(lingua: str) -> None:
 
 # o que cada documento diz da fase 1 (T132): concluída, e não mais "em andamento"
 FASE_1_CONCLUIDA = {
-    ".github/CONTRIBUTING.md": r"fases 1 e 2 \(base e navegador com login\) estão concluídas",
-    ".github/CONTRIBUTING.en.md": (
-        r"Phases 1 and 2 \(foundation and browser with login\) are complete"
+    ".github/CONTRIBUTING.md": (
+        r"fases 1, 2 e 3 \(base, navegador com login e instalador\) estão concluídas"
     ),
-    ".github/SECURITY.md": r"(?i)só a versão mais recente \(hoje a 0\.3\.0\)",
-    ".github/SECURITY.en.md": r"(?i)only the latest version \(currently 0\.3\.0\)",
+    ".github/CONTRIBUTING.en.md": (
+        r"Phases 1, 2 and 3 \(foundation, browser with login and installer\) are complete"
+    ),
+    ".github/SECURITY.md": r"(?i)só a versão mais recente \(hoje a 0\.4\.0\)",
+    ".github/SECURITY.en.md": r"(?i)only the latest version \(currently 0\.4\.0\)",
     ".github/SUPPORT.md": r"formulário de bug",
     ".github/SUPPORT.en.md": r"bug form",
-    "docs/decisions/0017-fases.md": r"fases 1 e 2 estão concluídas",
-    "docs/decisions/README.md": r"fases 1 e 2 estão concluídas",
-    "wiki/Home.md": r"fases 1 e 2 de 9 \(a base e o navegador com login\) estão concluídas",
-    "wiki/Home-en.md": r"Phases 1 and 2 of 9 \(the base and the browser with login\) are complete",
+    "docs/decisions/0017-fases.md": r"fases 1, 2 e 3 estão concluídas",
+    "docs/decisions/README.md": r"fases 1, 2 e 3 estão concluídas",
+    "wiki/Home.md": (
+        r"fases 1, 2 e 3 de 9 \(a base, o navegador com login e o instalador\) estão concluídas"
+    ),
+    "wiki/Home-en.md": (
+        r"Phases 1, 2 and 3 of 9 \(the base, the browser with login and the installer\)"
+        r" are complete"
+    ),
     "wiki/A-ideia-e-a-historia.md": (
-        r"fases 1 e 2 de 9 \(a base e o navegador com login\) estão concluídas"
+        r"fases 1, 2 e 3 de 9 \(a base, o navegador com login e o instalador\) estão concluídas"
     ),
     "wiki/The-idea-and-the-story.md": (
-        r"Phases 1 and 2 of 9 \(the base and the browser with login\) are complete"
+        r"Phases 1, 2 and 3 of 9 \(the base, the browser with login and the installer\)"
+        r" are complete"
     ),
     "wiki/Roteiro.md": r"\*\*1\. Base\*\*.*Concluída",
     "wiki/Roadmap.md": r"\*\*1\. Base\*\*.*Complete",
@@ -726,21 +751,31 @@ def test_privacidade_cita_a_abertura(lingua: str) -> None:
     assert CITA_ABERTURA[lingua] in secao, README[lingua]
 
 
-# o que cada documento de estado vivo diz da fase 3 (T320): sendo construída
-FASE_3_SENDO_CONSTRUIDA = {
-    "docs/decisions/0017-fases.md": r"Fase 3, Instalador:.*sendo construída",
-    "docs/decisions/README.md": r"fase 3 está sendo construída",
-    "wiki/Roteiro.md": r"🟡 \| \*\*3\. Instalador\*\*.*Sendo construída",
-    "wiki/Roadmap.md": r"🟡 \| \*\*3\. Installer\*\*.*Being built",
-    ".github/CONTRIBUTING.md": r"fase 3 \(instalador\) está sendo construída",
-    ".github/CONTRIBUTING.en.md": r"Phase 3 \(installer\) is being built",
+# o que cada documento de estado vivo diz da fase 3 (T342): concluída na 0.4.0
+FASE_3_CONCLUIDA = {
+    "docs/decisions/0017-fases.md": r"Fase 3, Instalador:.*concluída na 0\.4\.0",
+    "docs/decisions/README.md": r"fases 1, 2 e 3 estão concluídas \(versão 0\.4\.0\)",
+    "wiki/Roteiro.md": r"✅ \| \*\*3\. Instalador\*\*.*Concluída na 0\.4\.0",
+    "wiki/Roadmap.md": r"✅ \| \*\*3\. Installer\*\*.*Complete in 0\.4\.0",
+    "README.md": r"\*\*3\. Instalador\*\*.*🟢 Pronta \(versão 0\.4\.0\)",
+    "README.en.md": r"\*\*3\. Installer\*\*.*🟢 Done \(version 0\.4\.0\)",
+    ".github/CONTRIBUTING.md": r"fases 1, 2 e 3 .*estão concluídas: o joBot 0\.4\.0",
+    ".github/CONTRIBUTING.en.md": r"Phases 1, 2 and 3 .*are complete: joBot 0\.4\.0",
 }
+# sobra do tempo em que a fase 3 estava em obras
+FASE_3_EM_OBRAS = re.compile(
+    r"fase 3[^.\n]*sendo construída|phase 3[^.\n]*being built|🟡 Fase 3|🟡 Phase 3"
+    r"|instalador ainda vai chegar|installer is not here yet",
+    re.IGNORECASE,
+)
 
 
-@pytest.mark.parametrize("caminho", sorted(FASE_3_SENDO_CONSTRUIDA))
+@pytest.mark.parametrize("caminho", sorted(FASE_3_CONCLUIDA))
 def test_status_da_fase_3_igual_nos_documentos(caminho: str) -> None:
-    """A fase 3 consta como sendo construída em todo documento de estado vivo (T320)."""
-    assert re.search(FASE_3_SENDO_CONSTRUIDA[caminho], texto(caminho)), caminho
+    """A fase 3 consta como concluída na 0.4.0 em todo documento de estado vivo (T342)."""
+    conteudo = texto(caminho)
+    assert re.search(FASE_3_CONCLUIDA[caminho], conteudo), caminho
+    assert FASE_3_EM_OBRAS.search(conteudo) is None, caminho
 
 
 # T341: a instalação pelo instalador da fase 3, por língua; cada termo só o texto novo tem
@@ -815,7 +850,7 @@ def test_readme_atualiza_pelo_painel_quem_usa_o_instalador(lingua: str) -> None:
         assert PELO_CODIGO[lingua] in linha.lower(), (README[lingua], linha)
 
 
-# o que a fase 3 entrega, em "Não lançado"; e a frase velha do `uv` embutido, que a D174 superou
+# o que a fase 3 entrega, na 0.4.0; e a frase velha do `uv` embutido, que a D174 superou
 FASE_3_NO_CHANGELOG = {
     "pt": ("instalador", "Windows", "Atualizar agora", "Encerrar o joBot", "sem internet"),
     "en": ("installer", "Windows", "Update now", "Quit joBot", "without internet"),
@@ -824,12 +859,12 @@ UV_EMBUTIDO = {"pt": "com o `uv` embutido", "en": "with `uv` bundled"}
 
 
 @pytest.mark.parametrize("lingua", LINGUAS)
-def test_changelog_traz_a_fase_3_em_nao_lancado(lingua: str) -> None:
+def test_changelog_traz_a_fase_3_na_0_4_0(lingua: str) -> None:
     conteudo = texto(CHANGELOG[lingua])
-    assert NAO_LANCADO[lingua] in conteudo, CHANGELOG[lingua]
-    inicio = conteudo.index(NAO_LANCADO[lingua])
-    nao_lancado = conteudo[inicio : conteudo.index("\n## [", inicio + 1)]
-    faltam = [termo for termo in FASE_3_NO_CHANGELOG[lingua] if termo not in nao_lancado]
+    assert V0_4_0 in conteudo, CHANGELOG[lingua]
+    inicio = conteudo.index(V0_4_0)
+    secao_0_4_0 = conteudo[inicio : conteudo.index("\n## [", inicio + 1)]
+    faltam = [termo for termo in FASE_3_NO_CHANGELOG[lingua] if termo not in secao_0_4_0]
     assert faltam == [], (CHANGELOG[lingua], faltam)
     assert UV_EMBUTIDO[lingua] not in conteudo, CHANGELOG[lingua]
 
