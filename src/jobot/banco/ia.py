@@ -135,3 +135,32 @@ def pedes(con: sqlite3.Connection, vaga_id: int | None = None) -> dict[int, Pede
             lista = [h for h in valor if isinstance(h, str)]
             achados[vid] = PedeVaga(pede=lista, backend=backend or "", modelo=modelo or "")
     return achados
+
+
+@dataclass(frozen=True)
+class Candidata:
+    vaga_id: int
+    titulo: str
+    descricao: str
+    chave: str | None  # a do `pede` gravado
+    falha_chave: str | None
+    tentativas: int  # falhas seguidas com `falha_chave`
+
+
+def candidatas(con: sqlite3.Connection) -> list[Candidata]:
+    """As vagas que a fila do laço olha (desenho 5.4): abertas e, em alguma busca ativa, visíveis e
+    com `nivel_base` bom ou médio; das mais novas para as mais velhas. A chave é conferida por quem
+    chama, que sabe o texto enviado, o backend e o modelo."""
+    return [
+        Candidata(*linha)
+        for linha in con.execute(
+            "SELECT v.id, v.titulo, v.descricao_texto, h.chave, h.falha_chave,"
+            " COALESCE(h.tentativas, 0)"
+            " FROM vaga v LEFT JOIN habilidades_vaga h ON h.vaga_id = v.id"
+            " WHERE v.fechada_em IS NULL AND v.oculta_manual <> 1 AND EXISTS ("
+            "  SELECT 1 FROM encaixe e JOIN busca b ON b.id = e.busca_id"
+            "  WHERE e.vaga_id = v.id AND b.ativa = 1 AND e.nivel_base IN ('bom', 'medio')"
+            "  AND (v.oculta_manual = -1 OR e.oculta_motivo IS NULL))"
+            " ORDER BY v.primeira_vista_em DESC, v.id DESC"
+        )
+    ]

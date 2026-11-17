@@ -68,10 +68,12 @@ async def executar_busca(
     motivo: Literal["agenda", "agora", "recuperacao"],
     *,
     coletores: Mapping[str, Coletor] | None = None,
+    ao_fim: asyncio.Event | None = None,
 ) -> int | None:
     """Roda uma busca inteira e devolve o id da execução; `None` se outra já está rodando.
 
     Um erro no meio marca a execução "interrompida" na hora, com o motivo, e sobe (D54, T153).
+    `ao_fim` é marcado quando a busca termina bem (o laço das habilidades, `agenda/ia.py`).
     """
     inicio = relogio.agora()
     execucao_id = abrir_execucao(con, "busca", motivo, inicio)
@@ -110,6 +112,8 @@ async def executar_busca(
         with contextlib.suppress(asyncio.CancelledError):
             await batimento
     fechar_execucao(con, execucao_id, relogio.agora())
+    if ao_fim is not None:
+        ao_fim.set()  # acorda o laço das habilidades (desenho 5.4); a busca não espera por ele
     return execucao_id
 
 

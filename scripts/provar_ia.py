@@ -29,7 +29,7 @@ from typing import Any
 
 import httpx
 
-from jobot.cli.ferramentas import ler_anotacao
+from jobot.cli.ferramentas import caminhos_local
 from jobot.nucleo.ia.anthropic import ClienteAnthropic
 from jobot.nucleo.ia.compativel_openai import ENDERECOS, ClienteCompativel
 from jobot.nucleo.ia.contrato import Backend, Falha
@@ -37,7 +37,7 @@ from jobot.nucleo.ia.pedidos import pedido_encaixe, texto_encaixe
 from jobot.nucleo.ia.tarefas import pede_da_vaga
 from jobot.nucleo.texto import normalizar
 from jobot.sistema.llama import FalhaLlama, Llama
-from jobot.sistema.pastas import PASTA_FERRAMENTAS, pasta_de_dados
+from jobot.sistema.pastas import pasta_de_dados
 
 OURO = Path(__file__).resolve().parents[1] / "tests" / "fixtures" / "ia" / "ouro_habilidades.json"
 META = 0.8
@@ -94,17 +94,6 @@ def avaliar(
             resultado.faltas.append((vaga["titulo"], faltou))
             print(f"{vaga['titulo']}: faltou {faltou}; veio {pede}", flush=True)
     return resultado
-
-
-def caminhos_local(dados: Path) -> tuple[Path, Path, str]:
-    """O `llama-server`, o GGUF e o nome do modelo anotados por `jobot ferramentas baixar
-    ia-local`; sem anotação: `Falha("modelo_ausente")`."""
-    anotacao = ler_anotacao(dados)
-    if not {"modelo", "arquivo", "programa"} <= anotacao.keys():
-        raise Falha("modelo_ausente")
-    ferramentas = dados / PASTA_FERRAMENTAS
-    nome = Path(anotacao["arquivo"]).stem
-    return ferramentas / anotacao["programa"], ferramentas / "modelos" / anotacao["arquivo"], nome
 
 
 def subir_local(dados: Path, cliente: httpx.Client | None = None) -> tuple[Montado, float]:

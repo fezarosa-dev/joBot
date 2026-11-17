@@ -168,6 +168,8 @@ def test_buscar_agora_usa_a_mesma_trava_do_agendador(
         assert _esperar(lambda: not trava.locked()), "a trava não foi solta no fim"
         assert chamadas[0]["cliente"] is app.state.cliente  # o cliente do lifespan (D58)
         assert chamadas[0]["motivo"] == "agora"
+        # no fim, acorda o laço das habilidades (desenho 5.4)
+        assert chamadas[0]["kw"].get("ao_fim") is app.state.ia_acordar
 
 
 def test_buscar_agora_nao_bloqueia_o_pedido(

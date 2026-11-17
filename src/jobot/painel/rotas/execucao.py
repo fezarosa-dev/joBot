@@ -149,10 +149,12 @@ def _disparar(request: Request, trava: asyncio.Lock) -> None:
     banco: Path = request.app.state.banco
     cliente: ClienteEducado = request.app.state.cliente
     relogio = relogio_do_painel(request)  # o `montar` do serve põe em app.state o relógio da agenda
+    # o laço das habilidades acorda no fim da busca (desenho 5.4); fora do serve não há laço
+    acordar: asyncio.Event | None = getattr(request.app.state, "ia_acordar", None)
 
     async def busca() -> None:
         with closing(abrir(banco)) as con:  # conexão própria: nunca dividida entre tarefas
-            await executar_busca(con, cliente, relogio, "agora")
+            await executar_busca(con, cliente, relogio, "agora", ao_fim=acordar)
 
     criar_tarefa(request, "busca", trava, busca)
 
