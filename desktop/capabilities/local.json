@@ -1,9 +1,14 @@
 {
   "identifier": "local",
-  "description": "As páginas locais da casca (ui/) só arrastam a janela pela faixa do topo.",
-  "windows": ["main"],
+  "description": "As páginas locais da casca (ui/) arrastam a janela pela faixa do topo e a tela de instalação chama os comandos dela.",
+  "windows": [
+    "main"
+  ],
   "permissions": [
     "core:window:allow-start-dragging",
-    "core:window:allow-internal-toggle-maximize"
+    "core:window:allow-internal-toggle-maximize",
+    "allow-estado-instalador",
+    "allow-instalar",
+    "allow-fechar-instalador"
   ]
 }
