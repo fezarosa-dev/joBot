@@ -17,7 +17,7 @@ from fastapi.responses import RedirectResponse, Response
 
 from jobot.banco import buscas, perfil
 from jobot.banco.cadastros import ler_config
-from jobot.banco.ia import tarefa_ia
+from jobot.banco.ia import TarefaIA, tarefa_ia
 from jobot.nucleo.texto import normalizar, sem_pontas
 from jobot.painel.consultas import relogio_do_painel
 from jobot.painel.seguranca import Con, renderizar
@@ -71,16 +71,20 @@ def salvar_habilidades(request: Request, con: sqlite3.Connection, lista: Sequenc
     perfil.gravar_habilidades(con, lista, relogio_do_painel(request).agora())
 
 
-def _privacidade(con: sqlite3.Connection) -> dict[str, str | None]:
-    """A frase de privacidade (desenho 8) pelo estado da tarefa `encaixe`."""
-    tarefa = tarefa_ia(con, "encaixe")
-    base = "configuracoes.perfil.privacidade."
+def frase_de_privacidade(tarefa: TarefaIA, base: str) -> dict[str, str | None]:
+    """A chave da frase (`<base>desligada`, `local` ou `fora`) e, fora, o nome do serviço; a aba
+    IA usa a mesma regra com as frases dela (T415)."""
     if not tarefa.ligada:
         return {"chave": base + "desligada", "servico": None}
     if tarefa.backend == "local":
         return {"chave": base + "local", "servico": None}
     nome = tarefa.backend if tarefa.backend in SERVICOS else "outro"
     return {"chave": base + "fora", "servico": "configuracoes.perfil.servico." + nome}
+
+
+def _privacidade(con: sqlite3.Connection) -> dict[str, str | None]:
+    """A frase de privacidade (desenho 8) pelo estado da tarefa `encaixe`."""
+    return frase_de_privacidade(tarefa_ia(con, "encaixe"), "configuracoes.perfil.privacidade.")
 
 
 async def contexto_perfil(request: Request, con: Con) -> dict[str, Any]:

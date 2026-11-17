@@ -7,7 +7,7 @@ seguidas com a mesma `falha_chave` e recomeça com chave nova.
 
 import json
 import sqlite3
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -35,6 +35,15 @@ def tarefa_ia(con: sqlite3.Connection, tarefa: str) -> TarefaIA:
     modelo = modelo if isinstance(modelo, str) else ""
     ligada = item.get("ligada") is True and bool(backend) and bool(modelo)
     return TarefaIA(ligada=ligada, backend=backend, modelo=modelo)
+
+
+def gravar_tarefas_ia(con: sqlite3.Connection, tarefas: Mapping[str, TarefaIA]) -> None:
+    """Grava as tarefas dadas em `ia_tarefas`; as outras do dicionário ficam como estão."""
+    valor = ler_config(con, "ia_tarefas")
+    todas = dict(valor) if isinstance(valor, dict) else {}
+    for nome, t in tarefas.items():
+        todas[nome] = {"ligada": t.ligada, "backend": t.backend, "modelo": t.modelo}
+    gravar_config(con, "ia_tarefas", todas)
 
 
 def gravar_pede(
