@@ -118,6 +118,8 @@ def test_sonnet_usa_auto_sem_pensar_antes() -> None:
     assert corpo["tool_choice"] == {"type": "auto"}
     assert corpo["thinking"] == {"type": "between_tools"}
     assert [f["name"] for f in corpo["tools"]] == ["responder"]
+    keys = {"model", "max_tokens", "system", "messages", "tools", "tool_choice", "thinking"}
+    assert set(corpo) == keys
 
 
 def test_le_o_input_do_tool_use_entre_outros_blocos() -> None:
@@ -150,6 +152,7 @@ def test_sem_bloco_responder_e_recusa(blocos: list[object]) -> None:
     [
         (400, "esquema_recusado"),
         (401, "chave_recusada"),
+        (402, "limite"),
         (403, "chave_recusada"),
         (404, "modelo_ausente"),
         (413, "contexto"),
@@ -267,3 +270,43 @@ def test_chave_nunca_no_log_nem_na_falha(caplog: pytest.LogCaptureFixture) -> No
     assert CHAVE not in caplog.text
     assert CHAVE not in str(erro.value)
     assert CHAVE not in repr(erro.value.__cause__) + repr(erro.value.__context__)
+
+
+def test_chave_sem_workspace_e_chave_recusada() -> None:
+    # 400 de chave sem workspace (manage-claude/authentication): a pessoa troca a chave (D192.3)
+    corpo = {
+        "type": "error",
+        "error": {
+            "type": "invalid_request_error",
+            "message": "This API key is not scoped to a workspace, so this request must include "
+            "the anthropic-workspace-id header with the ID of the workspace to use.",
+        },
+    }
+    cliente, _ = _cliente(lambda _: httpx.Response(400, json=corpo))
+    assert _motivo(cliente) == "chave_recusada"
+
+
+@pytest.mark.parametrize("chave", ["é" + CHAVE, CHAVE[:5] + " " + CHAVE[5:], "a\nb", "a\x00b"])
+def test_chave_invalida_nao_manda(chave: str) -> None:
+    # (guarda) chave que não é ASCII visível não vira cabeçalho: nem pedido, nem chave no repr
+    cliente, vistos = _cliente(lambda _: _resposta([_uso(BOA)]), chave=chave)
+    with pytest.raises(Falha) as erro:
+        cliente.pedir(_pedido())
+    assert erro.value.motivo == "chave_recusada"
+    assert vistos == []
+    assert chave not in repr(erro.value.__cause__) + repr(erro.value.__context__)
+
+
+def test_chave_colada_com_quebra_de_linha_vale_sem_ela() -> None:
+    cliente, vistos = _cliente(lambda _: _resposta([_uso(BOA)]), chave=f"  {CHAVE}\n")
+    assert cliente.pedir(_pedido()).dados == BOA
+    assert vistos[0].headers["authorization"] == f"Bearer {CHAVE}"
+
+
+def test_close_fecha_so_o_cliente_proprio() -> None:
+    http = httpx.Client(transport=httpx.MockTransport(lambda _: _resposta([])))
+    ClienteAnthropic(CHAVE, http).close()
+    assert not http.is_closed
+    proprio = ClienteAnthropic(CHAVE)
+    proprio.close()
+    assert proprio._cliente.is_closed
