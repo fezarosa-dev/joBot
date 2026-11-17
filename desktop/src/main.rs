@@ -70,16 +70,27 @@ fn agente(so: &str) -> String {
 }
 
 /// O que as páginas locais (`ui/`) pedem à casca, navegando para `/__jobot/...` da própria
-/// origem do app. O painel (http://127.0.0.1) não alcança isso.
+/// origem do app. Vale só se a página que pede também é local (`tratar`): o painel não pede.
 #[derive(Debug, PartialEq)]
 enum Aviso {
     Janela { ok: bool },
     Tentar,
+    Fechar,
+}
+
+/// A origem do app: `tauri://localhost` (Linux e Mac) ou `http(s)://tauri.localhost` (Windows).
+fn e_local(url: &Url) -> bool {
+    let host = url.host_str();
+    url.port().is_none()
+        && match url.scheme() {
+            "tauri" => host == Some("localhost"),
+            "http" | "https" => host == Some("tauri.localhost"),
+            _ => false,
+        }
 }
 
 fn aviso_local(url: &Url) -> Option<Aviso> {
-    let local = url.scheme() == "tauri" || url.host_str() == Some("tauri.localhost");
-    if !local {
+    if !e_local(url) {
         return None;
     }
     match url.path() {
@@ -87,6 +98,7 @@ fn aviso_local(url: &Url) -> Option<Aviso> {
             ok: url.query_pairs().any(|(k, _)| k == "ok"),
         }),
         "/__jobot/tentar" => Some(Aviso::Tentar),
+        "/__jobot/fechar" => Some(Aviso::Fechar),
         _ => None,
     }
 }
@@ -154,10 +166,19 @@ fn tratar(app: &AppHandle, destino: &Url) -> bool {
     };
     // fora do tratador da navegação: navegar de dentro dele pode travar o WebKitGTK
     let base = destino.clone();
-    std::thread::spawn(move || match aviso {
-        Aviso::Janela { ok: true } => abrir_painel(janela, base),
-        Aviso::Janela { ok: false } => cair_no_navegador(janela, base),
-        Aviso::Tentar => ir(&janela, base.join("/verificar.html").expect("caminho fixo")),
+    std::thread::spawn(move || {
+        // quem navega é a página aberta agora: se não for local (o painel), nada acontece
+        if !janela.url().is_ok_and(|atual| e_local(&atual)) {
+            return;
+        }
+        match aviso {
+            Aviso::Janela { ok: true } => abrir_painel(janela, base),
+            Aviso::Janela { ok: false } => cair_no_navegador(janela, base),
+            Aviso::Tentar => ir(&janela, base.join("/verificar.html").expect("caminho fixo")),
+            Aviso::Fechar => {
+                let _ = janela.close();
+            }
+        }
     });
     false
 }
@@ -316,6 +337,28 @@ mod testes {
             None
         );
         assert_eq!(aviso_local(&url("tauri://localhost/verificar.html")), None);
+        assert_eq!(
+            aviso_local(&url("tauri://localhost/__jobot/fechar")),
+            Some(Aviso::Fechar)
+        );
+        for de_fora in [
+            "tauri://outro/__jobot/tentar",
+            "http://tauri.localhost:8080/__jobot/tentar",
+            "http://tauri.localhost.exemplo/__jobot/tentar",
+            "file://localhost/__jobot/tentar",
+        ] {
+            assert_eq!(aviso_local(&url(de_fora)), None, "{de_fora}");
+        }
+    }
+
+    #[test]
+    fn so_a_pagina_local_pede() {
+        assert!(e_local(&url("tauri://localhost/erro.html?motivo=porta")));
+        assert!(e_local(&url("http://tauri.localhost/verificar.html")));
+        assert!(e_local(&url("https://tauri.localhost/erro.html")));
+        assert!(!e_local(&url("http://127.0.0.1:47615/")));
+        assert!(!e_local(&url("http://localhost/")));
+        assert!(!e_local(&url("tauri://outro/")));
     }
 
     #[test]

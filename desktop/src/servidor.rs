@@ -119,7 +119,14 @@ pub fn ler_trava(dados: &Path) -> (Option<u32>, Option<u16>) {
     };
     match arquivo.try_lock_shared() {
         Err(TryLockError::WouldBlock) => {}
-        _ => return (None, None), // ninguém prende (a trava solta ao fechar) ou erro
+        Ok(()) => {
+            // ninguém prende. No Windows a trava cobre o arquivo todo (o byte da trava do
+            // `instancia.py` também) e fechar só a solta "um dia": soltar já, como o `_fechar`,
+            // senão o `jobot serve` que vem logo depois não pega a trava dele
+            let _ = arquivo.unlock();
+            return (None, None);
+        }
+        Err(_) => return (None, None),
     }
     let mut texto = [0u8; 64];
     let lidos = arquivo.read(&mut texto).unwrap_or(0);
@@ -236,11 +243,29 @@ pub fn achar_ou_subir(
     jobot: &Path,
     env: impl Fn(&str) -> Option<String>,
 ) -> Result<u16, Falha> {
+    let inicio = std::time::Instant::now();
+    achar_ou_subir_com(
+        dados,
+        jobot,
+        porta(env),
+        || inicio.elapsed(),
+        std::thread::sleep,
+    )
+}
+
+/// O miolo de `achar_ou_subir`, com a porta padrão, o relógio e a espera injetados.
+fn achar_ou_subir_com(
+    dados: &Path,
+    jobot: &Path,
+    padrao: u16,
+    agora: impl Fn() -> Duration,
+    dormir: impl FnMut(Duration),
+) -> Result<u16, Falha> {
     let (pid, gravada) = ler_trava(dados);
     if pid.is_some() && gravada.is_none() {
         return Err(Falha::Captura); // trava sem porta: captura com login no ar
     }
-    let p = gravada.unwrap_or_else(|| porta(env));
+    let p = gravada.unwrap_or(padrao);
     let mut filho: Option<Child> = None;
     if pid.is_none() {
         if porta_ocupada(p) {
@@ -251,24 +276,19 @@ pub fn achar_ou_subir(
             .map_err(|e| Falha::NaoSubiu(e.to_string()))?;
         filho = Some(c);
     }
-    let inicio = std::time::Instant::now();
     let mut saiu = None;
-    let pronto = esperar(
-        || inicio.elapsed(),
-        std::thread::sleep,
-        || {
-            if perguntar_saude(p) {
-                return Sonda::Pronto;
+    let pronto = esperar(agora, dormir, || {
+        if perguntar_saude(p) {
+            return Sonda::Pronto;
+        }
+        match filho.as_mut().and_then(|c| c.try_wait().ok().flatten()) {
+            Some(status) => {
+                saiu = Some(status.code());
+                Sonda::Desiste
             }
-            match filho.as_mut().and_then(|c| c.try_wait().ok().flatten()) {
-                Some(status) => {
-                    saiu = Some(status.code());
-                    Sonda::Desiste
-                }
-                None => Sonda::Espera,
-            }
-        },
-    );
+            None => Sonda::Espera,
+        }
+    });
     if let Some(mut c) = filho.filter(|_| saiu.is_none()) {
         std::thread::spawn(move || c.wait()); // colhe o processo quando ele sair
     }
@@ -500,6 +520,137 @@ mod testes {
         let c = comando_destacado(Path::new("/v/bin/jobot"), "serve");
         assert_eq!(c.get_program(), "/v/bin/jobot");
         assert_eq!(c.get_args().collect::<Vec<_>>(), ["serve"]);
+    }
+
+    /// Um filho de verdade conta onde ficaram a entrada, as saídas e o grupo de processos.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn comando_destacado_roda_em_grupo_proprio_e_mudo() {
+        let pasta = temporaria("destacado");
+        let script = pasta.join("conta.sh");
+        // `$(...)` lê os descritores do próprio sh ($$) antes de qualquer redirecionamento
+        let conta = "x=$(for n in 0 1 2; do readlink /proc/$$/fd/$n; done; \
+                     cut -d' ' -f5 /proc/$$/stat)\necho \"$x\" > \"$0.out\"\n";
+        std::fs::write(&script, conta).unwrap();
+        // `sh <script>` em vez de rodar o script: sem o "text file busy" de teste em paralelo
+        let mut filho = comando_destacado(Path::new("/bin/sh"), script.to_str().unwrap())
+            .spawn()
+            .unwrap();
+        assert!(filho.wait().unwrap().success());
+        let saida = std::fs::read_to_string(pasta.join("conta.sh.out")).unwrap();
+        let linhas: Vec<&str> = saida.lines().collect();
+        assert_eq!(linhas[..3], ["/dev/null"; 3]);
+        assert_eq!(linhas[3], filho.id().to_string()); // líder do próprio grupo
+    }
+
+    fn trava_presa(dados: &Path, texto: &str) -> File {
+        std::fs::write(dados.join("jobot.lock"), texto).unwrap();
+        let dono = File::open(dados.join("jobot.lock")).unwrap();
+        dono.lock().unwrap();
+        dono
+    }
+
+    fn porta_livre() -> u16 {
+        TcpListener::bind("127.0.0.1:0")
+            .unwrap()
+            .local_addr()
+            .unwrap()
+            .port()
+    }
+
+    /// Responde `resposta` a todo pedido, numa linha à parte que vive até o fim dos testes.
+    fn servidor_falso(resposta: &'static [u8]) -> u16 {
+        let ouvinte = TcpListener::bind("127.0.0.1:0").unwrap();
+        let p = ouvinte.local_addr().unwrap().port();
+        std::thread::spawn(move || {
+            for mut s in ouvinte.incoming().flatten() {
+                let mut pedido = [0u8; 512];
+                let _ = s.read(&mut pedido);
+                let _ = s.write_all(resposta);
+            }
+        });
+        p
+    }
+
+    fn subir_com_relogio_falso(dados: &Path, jobot: &Path, padrao: u16) -> Result<u16, Falha> {
+        let relogio = Cell::new(Duration::ZERO);
+        achar_ou_subir_com(
+            dados,
+            jobot,
+            padrao,
+            || relogio.get(),
+            |d| relogio.set(relogio.get() + d),
+        )
+    }
+
+    const NAO_EXISTE: &str = "/nao/existe/jobot";
+
+    #[test]
+    fn trava_sem_porta_e_captura() {
+        let dados = temporaria("captura");
+        let _dono = trava_presa(&dados, "42\n");
+        let r = subir_com_relogio_falso(&dados, Path::new(NAO_EXISTE), porta_livre());
+        assert_eq!(r, Err(Falha::Captura));
+    }
+
+    #[test]
+    fn porta_ocupada_sem_trava_nem_tenta_subir() {
+        let dados = temporaria("ocupada");
+        let ouvinte = TcpListener::bind("127.0.0.1:0").unwrap();
+        let p = ouvinte.local_addr().unwrap().port();
+        // com `jobot` que não existe, subir daria NaoSubiu
+        let r = subir_com_relogio_falso(&dados, Path::new(NAO_EXISTE), p);
+        assert_eq!(r, Err(Falha::Porta(p)));
+    }
+
+    #[test]
+    fn trava_com_porta_acha_o_servidor_sem_subir() {
+        let dados = temporaria("acha");
+        let p = servidor_falso(b"HTTP/1.1 200 OK\r\n\r\n{\"app\":\"jobot\"}");
+        let _dono = trava_presa(&dados, &format!("42\n{p}\n"));
+        let r = subir_com_relogio_falso(&dados, Path::new(NAO_EXISTE), porta_livre());
+        assert_eq!(r, Ok(p));
+    }
+
+    #[test]
+    fn jobot_que_nao_roda_nao_subiu() {
+        let dados = temporaria("nao-roda");
+        let r = subir_com_relogio_falso(&dados, Path::new(NAO_EXISTE), porta_livre());
+        assert!(matches!(r, Err(Falha::NaoSubiu(_))), "{r:?}");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn filho_que_sai_vira_saiu() {
+        let dados = temporaria("saiu");
+        // `sh serve` sai logo com erro: não há arquivo `serve` para ler
+        let inicio = std::time::Instant::now();
+        let r = achar_ou_subir_com(
+            &dados,
+            Path::new("/bin/sh"),
+            porta_livre(),
+            || inicio.elapsed(),
+            std::thread::sleep,
+        );
+        assert!(matches!(r, Err(Falha::Saiu(Some(c))) if c != 0), "{r:?}");
+    }
+
+    #[test]
+    fn sem_saude_no_prazo_com_a_porta_de_outro_e_porta() {
+        let dados = temporaria("outro");
+        let p = servidor_falso(b"HTTP/1.1 404 Not Found\r\n\r\n");
+        let _dono = trava_presa(&dados, &format!("42\n{p}\n"));
+        let r = subir_com_relogio_falso(&dados, Path::new(NAO_EXISTE), porta_livre());
+        assert_eq!(r, Err(Falha::Porta(p)));
+    }
+
+    #[test]
+    fn sem_saude_no_prazo_e_porta_vazia_e_sem_resposta() {
+        let dados = temporaria("vazia");
+        let p = porta_livre();
+        let _dono = trava_presa(&dados, &format!("42\n{p}\n"));
+        let r = subir_com_relogio_falso(&dados, Path::new(NAO_EXISTE), porta_livre());
+        assert_eq!(r, Err(Falha::SemResposta(p)));
     }
 
     #[test]
