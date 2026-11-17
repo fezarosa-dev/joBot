@@ -3298,3 +3298,23 @@ Do item 2 (T305 h), aceito e documentado. Sem JavaScript, o detalhe sobreposto f
 **Como desfazer:** 1 é tirar o plugin (perde a instância única) ou trocar o `serde_json` por leitura de texto; 2 é trocar os avisos por comandos do Tauri com capability só da origem local; 3 é montar o user agent no Windows pelo WebView2; 4 é mudar os números nos dois `tauri*.conf.json`; 7 é pôr o `setsid` com a crate `libc`.
 
 **Ver também:** D142, D171, D174, D178, desenho 5.1, 5.4 e 7.1, T321, T334, T336, T337.
+
+## D182. Fechar a janela e desinstalar: escolhas da T337 (para confirmar)
+
+**Status:** escolhas da sessão, para confirmar.
+
+**Contexto:** a T337 faz o fechar da janela (desenho 5.5) e o desinstalar do Windows (desenho 7.2). O desenho diz que, com o segundo plano desligado, a casca roda `jobot sair` ao fechar; o plano pede também que ela nunca pare processo que não subiu. O desenho deixou aberto como o NSIS, que não lê JSON, acha o venv e a pasta da casca.
+
+1. Ao fechar, a casca roda `jobot sair` só se **ela subiu** o `jobot serve` nesta abertura **e** o `/saude-local` responde `"segundo_plano": false`. Servidor que ela achou no ar (o do segundo plano, um `jobot abrir` do terminal, outra janela), resposta que não vem, sem o campo ou com outro tipo: nada é parado. Depois do "Atualizar agora", que para e religa o servidor, a casca ainda o trata como dela (a troca foi pedida dentro da janela). O "Encerrar" do painel continua parando tudo.
+2. "Subiu" é um booleano guardado quando o `achar_ou_subir` sobe o filho (`Servidor { porta, subiu }`), não o PID: no Windows o `jobot.exe` do venv é um lançador que sobe o `python.exe`, então o PID do filho não é o do `jobot.lock`.
+3. O `jobot sair` do fechar sobe destacado (como o `serve`): termina o trabalho mesmo com a casca já fechada. Roda no `RunEvent::Exit` do Tauri, depois que a última janela fecha.
+4. O gancho do NSIS (`desktop/windows/ganchos.nsh`, ligado em `bundle.windows.nsis.installerHooks`) só chama `"$INSTDIR\<casca>.exe" --desinstalar` com `ExecWait`; quem faz o trabalho é o Rust (`desktop/src/fechar.rs`), com teste: lê o `instalacao.json`, roda `jobot segundo-plano desligar` e `jobot sair` do venv (esperando, sem janela de console), apaga a pasta da casca e o `instalacao.json`. Sem plugin de JSON no NSIS e sem regra de pasta repetida em NSIS.
+5. Na troca de versão (o instalador novo roda o desinstalador velho com `/UPDATE`), o gancho não roda: o venv, o segundo plano e o servidor continuam; a casca nova acha o `instalacao.json` de antes.
+6. O desligar roda sempre, sem perguntar o estado antes: desligar sem tarefa também vale (`segundo_plano.desligar`). Para isso, `jobot segundo-plano ligar|desligar|status` passou a ir pela função que escolhe o sistema (`sistema/segundo_plano.py`); antes a linha de comando chamava o systemd mesmo no Windows e no Mac. A config `segundo_plano` do banco não muda (os dados ficam).
+7. A pasta apagada é a do campo `pasta` do `instalacao.json`, só se for caminho absoluto e, depois de resolver `..` e symlinks, não for a pasta de dados nem a contiver (no Windows e no Mac a pasta da casca fica dentro da de dados, `<dados>/app`). Sem `instalacao.json`, nada é rodado nem apagado. `remove_dir_all` tenta 10 vezes, de meio em meio segundo, porque o Windows prende os arquivos do venv logo depois que o servidor sai.
+8. O Chromium da pasta padrão do Playwright fica (D174, para confirmar). A caixa "apagar os dados do app" do NSIS do Tauri só apaga a pasta da WebView (`%LOCALAPPDATA%\io.github.fezarosa-dev.jobot`), nunca a pasta de dados do joBot.
+9. Limite: o gancho supõe a instalação por usuário (o padrão `currentUser` do NSIS do Tauri); numa instalação para todos, o `--desinstalar` rodaria como administrador e não acharia a pasta da pessoa. O gancho só se prova na fumaça do Windows (T339). No Linux e no Mac não há gancho: o README da T341 explica como apagar `~/.local/share/jobot-app/`.
+
+**Como desfazer:** 1 é tirar o `subiu` do `ao_fechar` (volta ao desenho 5.5 ao pé da letra); 4 é tirar o `installerHooks` do `tauri.conf.json`; 6 é a linha de comando voltar a chamar o `segundo_plano_linux`.
+
+**Ver também:** D171 (item 7), D173, D174, D175, D179, desenho 5.5, 6.2 e 7.2, T327, T328, T336, T339, T341.
