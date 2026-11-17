@@ -5,17 +5,17 @@ Script do CI (`.github/workflows/pacotes.yml`), fora do pacote `jobot`. Três co
 
 - `restricoes --dependencias D --wheel W --saida R`: o `restricoes.txt` da release, o
   `uv export` com hash de toda dependência mais a linha `jobot==<versão> --hash=sha256:<sha>`.
-- `recursos --alvo A --wheel W --restricoes R --rodas DIR --navegadores DIR --saida S
-  --pacotes DIR`: baixa o `uv`, o texto das licenças dele e o Python da versão do
-  `desktop/uv.meta.json` e confere o sha256 de cada um; monta em `S` o `bin/uv.tar` (o `uv` num
-  tar sem compressão), as `licencas/uv/`, o `python/<tag>/<arquivo>` (o espelho que o
-  `uv python install --mirror` lê), as `wheels/` (as do alvo, já baixadas com
-  `--require-hashes`, e a do joBot), o `restricoes.txt` e o `chromium-<alvo>.tar.gz`
-  (reproduzível, da pasta do `playwright install --no-shell chromium`, sem o Widevine), e por
-  fim o `manifesto.json`, cujo sha256 sai no stdout (o `JOBOT_MANIFESTO_SHA256` do build). Em
-  `DIR` grava o `jobot-atualizacao-<versão>-<alvo>.zip`.
-- `exes --recursos S --instalacao I --playwright P`: todo `.exe` que a instalação no Windows vai
-  ter, um por linha, para a fumaça sem rede criar as regras de firewall antes do `/S`.
+- `recursos --alvo A --wheel W --restricoes R --rodas DIR --saida S --pacotes DIR`: baixa o
+  `uv`, o texto das licenças dele e o Python da versão do `desktop/uv.meta.json` e confere o
+  sha256 de cada um; monta em `S` o `bin/uv.tar` (o `uv` num tar sem compressão), as
+  `licencas/uv/`, o `python/<tag>/<arquivo>` (o espelho que o `uv python install --mirror`
+  lê), as `wheels/` (as do alvo, já baixadas com `--require-hashes`, e a do joBot) e o
+  `restricoes.txt`, e por fim o `manifesto.json`, cujo sha256 sai no stdout (o
+  `JOBOT_MANIFESTO_SHA256` do build). Em `DIR` grava o `jobot-atualizacao-<versão>-<alvo>.zip`.
+  O navegador não entra: o joBot não redistribui o Chrome for Testing que o Playwright baixa
+  (D183.24).
+- `exes --recursos S --instalacao I`: todo `.exe` que a instalação no Windows vai ter, um por
+  linha, para a fumaça sem rede criar as regras de firewall antes do `/S`.
 - `ferramentas --saida DIR`: baixa e confere, pelo `desktop/appimage.meta.json`, o AppRun, o
   linuxdeploy e o plugin dele que o Tauri usa no AppImage, e os põe no cache que o bundler lê
   antes de baixar (D183.21).
@@ -23,7 +23,6 @@ Script do CI (`.github/workflows/pacotes.yml`), fora do pacote `jobot`. Três co
 
 import argparse
 import configparser
-import gzip
 import hashlib
 import json
 import shutil
@@ -127,30 +126,6 @@ def _tar_do_uv(binario: Path, destino: Path) -> None:
     shutil.rmtree(binario.parent)
 
 
-def _sem_hora_nem_dono(info: tarfile.TarInfo) -> tarfile.TarInfo | None:
-    # o Widevine do Chrome for Testing não pode ser redistribuído; o joBot não usa DRM (D183.24)
-    if "WidevineCdm" in info.name.split("/"):
-        return None
-    info.mtime, info.uid, info.gid, info.uname, info.gname = 0, 0, 0, "", ""
-    return info
-
-
-def tar_do_navegador(pasta: Path, destino: Path) -> None:
-    """O `chromium-<alvo>.tar.gz` com as pastas do `playwright install --no-shell chromium`
-    (D174.12): o `tarfile` guarda o modo e os symlinks; as pastas ocultas (`.links`) e toda
-    pasta `WidevineCdm` ficam de fora (D183.24). Reproduzível (D183): sem hora no gzip nem hora
-    e dono nos membros, e o `tar.add` já percorre as pastas em ordem; o canal `casca` compara o
-    sha256 entre versões (D174.13)."""
-    with (
-        destino.open("wb") as bruto,
-        gzip.GzipFile(filename="", mode="wb", fileobj=bruto, mtime=0) as comprimido,
-        tarfile.open(fileobj=comprimido, mode="w") as tar,
-    ):
-        for item in sorted(pasta.iterdir()):
-            if not item.name.startswith("."):
-                tar.add(item, arcname=item.name, filter=_sem_hora_nem_dono)
-
-
 def _entradas(raiz: Path, nomes: list[str]) -> list[dict[str, object]]:
     return [
         {"nome": n, "tamanho": (raiz / n).stat().st_size, "sha256": _sha256(raiz / n)}
@@ -166,7 +141,6 @@ def _json(versao: str, arquivos: list[dict[str, object]]) -> bytes:
 def montar(
     *,
     saida: Path,
-    alvo: str,
     versao: str,
     uv: Path,
     python: Path,
@@ -174,7 +148,6 @@ def montar(
     rodas: Path,
     roda: Path,
     restricoes: Path,
-    navegadores: Path,
     licencas: list[Path],
 ) -> str:
     """Recursos completos em `saida` (apagada antes: arquivo fora do manifesto recusa tudo);
@@ -191,7 +164,6 @@ def montar(
     for whl in [*rodas.glob("*.whl"), roda]:
         shutil.copyfile(whl, saida / "wheels" / whl.name)
     shutil.copyfile(restricoes, saida / "restricoes.txt")
-    tar_do_navegador(navegadores, saida / f"chromium-{alvo}.tar.gz")
     nomes = [p.relative_to(saida).as_posix() for p in saida.rglob("*") if p.is_file()]
     bruto = _json(versao, _entradas(saida, nomes))
     (saida / MANIFESTO).write_bytes(bruto)
@@ -200,15 +172,12 @@ def montar(
 
 def pacote_de_atualizacao(recursos: Path, pasta: Path, versao: str, alvo: str) -> Path:
     """O `jobot-atualizacao-<versão>-<alvo>.zip` que o canal `casca` lê (D174.16): o Python em
-    `python/<arquivo>`, as wheels e o `restricoes.txt`; o Chromium só listado (D174.8)."""
+    `python/<arquivo>`, as wheels e o `restricoes.txt`."""
     lista = json.loads((recursos / MANIFESTO).read_bytes())["arquivos"]
     dentro: dict[str, Path] = {}
-    chromium = []
     for entrada in lista:
         nome = entrada["nome"]
-        if nome.startswith("chromium-"):
-            chromium.append(entrada)
-        elif nome.startswith("python/"):
+        if nome.startswith("python/"):
             dentro[f"python/{nome.rsplit('/', 1)[-1]}"] = recursos / nome
         elif nome.startswith("wheels/") or nome == "restricoes.txt":
             dentro[nome] = recursos / nome
@@ -218,9 +187,7 @@ def pacote_de_atualizacao(recursos: Path, pasta: Path, versao: str, alvo: str) -
     pasta.mkdir(parents=True, exist_ok=True)
     destino = pasta / f"jobot-atualizacao-{versao}-{alvo}.zip"
     with zipfile.ZipFile(destino, "w") as z:
-        z.writestr(
-            MANIFESTO, _json(versao, sorted(arquivos + chromium, key=lambda e: str(e["nome"])))
-        )
+        z.writestr(MANIFESTO, _json(versao, sorted(arquivos, key=lambda e: str(e["nome"]))))
         for nome, caminho in sorted(dentro.items()):
             z.write(caminho, nome)
     return destino
@@ -240,10 +207,10 @@ def _scripts_da_roda(roda: Path) -> tuple[list[str], list[str]]:
     return scripts, [n for n in nomes if n.lower().endswith(".exe")]
 
 
-def exes_do_windows(recursos: Path, instalacao: str, playwright: str, versao: str) -> list[str]:
+def exes_do_windows(recursos: Path, instalacao: str, versao: str) -> list[str]:
     """Todo `.exe` da instalação no Windows (desenho 6.2 e 10): a casca e o desinstalador, o
-    `uv` dos recursos e o copiado, o Python, o venv (com os scripts e os `.exe` das wheels, como
-    o `node.exe` do driver) e o Chromium extraído na pasta do Playwright."""
+    `uv` dos recursos e o copiado, o Python e o venv (com os scripts e os `.exe` das wheels, como
+    o `node.exe` do driver). O Chromium vem depois, da internet (D183.24)."""
     manifesto = json.loads((recursos / MANIFESTO).read_bytes())["arquivos"]
     nomes = [e["nome"] for e in manifesto]
     casca = f"{instalacao}\\app"
@@ -266,13 +233,6 @@ def exes_do_windows(recursos: Path, instalacao: str, playwright: str, versao: st
             seus, de_dentro = _scripts_da_roda(arquivo)
             scripts += seus
             exes += [f"{venv}\\Lib\\site-packages\\" + n.replace("/", "\\") for n in de_dentro]
-        elif nome.startswith("chromium-"):
-            with tarfile.open(arquivo) as tar:
-                exes += [
-                    f"{playwright}\\" + t.replace("/", "\\")
-                    for t in tar.getnames()
-                    if t.lower().endswith(".exe")
-                ]
     exes += [f"{venv}\\Scripts\\{s}.exe" for s in scripts]
     return list(dict.fromkeys(exes))
 
@@ -298,13 +258,12 @@ def main(argv: list[str]) -> None:
     r.add_argument("--wheel", type=Path, required=True)
     r.add_argument("--saida", type=Path, required=True)
     m = comandos.add_parser("recursos")
-    for nome in ("wheel", "restricoes", "rodas", "navegadores", "saida", "pacotes"):
+    for nome in ("wheel", "restricoes", "rodas", "saida", "pacotes"):
         m.add_argument(f"--{nome}", type=Path, required=True)
     m.add_argument("--alvo", required=True)
     e = comandos.add_parser("exes")
     e.add_argument("--recursos", type=Path, required=True)
     e.add_argument("--instalacao", required=True)
-    e.add_argument("--playwright", required=True)
     f = comandos.add_parser("ferramentas")
     f.add_argument("--saida", type=Path, required=True)
     args = analisador.parse_args(argv)
@@ -314,9 +273,7 @@ def main(argv: list[str]) -> None:
     elif args.comando == "ferramentas":
         ferramentas(json.loads(APPIMAGE.read_text(encoding="utf-8")), args.saida)
     elif args.comando == "exes":
-        print(
-            "\n".join(exes_do_windows(args.recursos, args.instalacao, args.playwright, _versao()))
-        )
+        print("\n".join(exes_do_windows(args.recursos, args.instalacao, _versao())))
     else:
         meta = json.loads(META.read_text(encoding="utf-8"))
         baixados = args.pacotes / "baixados"
@@ -333,7 +290,6 @@ def main(argv: list[str]) -> None:
         versao = _versao()
         sha_manifesto = montar(
             saida=args.saida,
-            alvo=args.alvo,
             versao=versao,
             uv=uv,
             python=python,
@@ -341,7 +297,6 @@ def main(argv: list[str]) -> None:
             rodas=args.rodas,
             roda=args.wheel,
             restricoes=args.restricoes,
-            navegadores=args.navegadores,
             licencas=licencas,
         )
         shutil.rmtree(baixados)

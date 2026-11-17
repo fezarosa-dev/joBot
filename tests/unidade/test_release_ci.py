@@ -292,7 +292,9 @@ def test_fumaca_sem_rede_no_linux_no_windows_e_no_mac() -> None:
     # (conferida: só a interface lo) e, depois, com rede, o --verificar-navegador (D183.24)
     assert texto.count("docker run") == 1  # dentro da função, chamada três vezes
     assert "useradd -m pessoa" in texto
-    linux = texto[texto.index("fumaça (Linux)") : texto.index("fumaça sem rede (Windows)")]
+    linux = texto[
+        texto.index("fumaça (Linux)") : texto.index("fumaça sem rede e navegador (Windows)")
+    ]
     ordem = [linux.index('docker network disconnect bridge "$c"')]
     for passo in (
         'test "$(ls /sys/class/net)" = lo',
@@ -353,7 +355,7 @@ def test_fumaca_sem_rede_no_linux_no_windows_e_no_mac() -> None:
     # Mac: o .app de dentro do .dmg, com rede, nos dois passos
     assert "hdiutil attach" in texto
     mac = texto[texto.index("fumaça (Mac, com rede)") :]
-    assert mac.index("jobot-app\" --verificar\n") < mac.index('jobot-app" --verificar-navegador')
+    assert mac.index('jobot-app" --verificar\n') < mac.index('jobot-app" --verificar-navegador')
 
 
 def test_instalador_do_windows_nao_baixa_o_webview2_e_confere_antes() -> None:
@@ -565,7 +567,6 @@ def test_montar_gera_recursos_com_manifesto_de_tudo(tmp_path: Path) -> None:
     (saida / "sobra.txt").write_text("de um build velho", encoding="utf-8")
     sha = m.montar(
         saida=saida,
-        alvo=alvo,
         versao="0.3.0",
         uv=c["uv"],
         python=c["python"],
@@ -608,7 +609,6 @@ def test_pacote_de_atualizacao_no_formato_do_canal_casca(tmp_path: Path) -> None
     saida = tmp_path / "recursos"
     m.montar(
         saida=saida,
-        alvo=alvo,
         versao="0.3.0",
         uv=c["uv"],
         python=c["python"],
@@ -663,7 +663,6 @@ def test_exes_do_windows_cobrem_a_instalacao(tmp_path: Path) -> None:
     saida = tmp_path / "recursos"
     m.montar(
         saida=saida,
-        alvo=alvo,
         versao="0.3.0",
         uv=c["uv"],
         python=python,

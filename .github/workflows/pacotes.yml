@@ -7,25 +7,29 @@ name: Pacotes
 #   dependencias.txt (uv export do uv.lock, com hash) e o restricoes.txt (o mesmo mais a linha
 #   jobot==<versão> --hash=..., D174.16).
 # casca (um runner por alvo, D174.11): baixa as wheels do alvo, só binárias e com
-#   --require-hashes; gera o Chromium pelo playwright install --no-shell da versão do uv.lock
-#   (sem o headless shell: o joBot só abre com janela, D183); monta
-#   desktop/recursos/ com o scripts/montar_recursos.py (uv, licenças do uv e Python conferidos
-#   contra o desktop/uv.meta.json, Chromium sem o Widevine, D183.24, manifesto.json com o
-#   sha256 de cada arquivo) e o pacote de atualização; no Linux, põe no cache do Tauri as
-#   ferramentas do AppImage conferidas pelo desktop/appimage.meta.json; compila com
-#   JOBOT_MANIFESTO_SHA256 e o Cargo.lock; e roda a fumaça (jobot-app --verificar instala dos
-#   recursos, sobe o servidor e abre o Chromium completo, channel="chromium", em headless):
-#   Linux: imagem ubuntu:22.04 com as bibliotecas que o .deb declara e as do Chromium (o único
-#     passo com rede), depois o .deb (dpkg -i) e o AppImage em docker run --network none, o
-#     --verificar como usuário comum; o AppImage de novo numa ubuntu:24.04.
+#   --require-hashes; monta desktop/recursos/ com o scripts/montar_recursos.py (uv, licenças do
+#   uv e Python conferidos contra o desktop/uv.meta.json, manifesto.json com o sha256 de cada
+#   arquivo) e o pacote de atualização; sem o navegador: o joBot não redistribui o Chrome for
+#   Testing que o Playwright baixa (D183.24); no Linux, põe no cache do Tauri as ferramentas do
+#   AppImage conferidas pelo desktop/appimage.meta.json; compila com JOBOT_MANIFESTO_SHA256 e
+#   o Cargo.lock; e roda a fumaça em dois passos: jobot-app --verificar, sem rede, instala dos
+#   recursos sem o navegador, sobe o servidor e confere a saúde; depois, com rede, jobot-app
+#   --verificar-navegador baixa o Chromium como a tela de instalação (jobot ferramentas baixar
+#   navegador, o playwright install --no-shell) e o abre completo, channel="chromium", em
+#   headless:
+#   Linux: imagem ubuntu:22.04 com as bibliotecas que o .deb declara e as do Chromium; cada
+#     pacote (o .deb e o AppImage, e o AppImage de novo numa ubuntu:24.04) num contêiner que
+#     sai da rede (docker network disconnect, conferido: só a interface lo) para o dpkg -i e o
+#     --verificar, como usuário comum, e volta para o --verificar-navegador.
 #   Windows: regra de firewall de saída por caminho para o instalador e todo .exe que a
-#     instalação vai ter, criadas antes do /S; todo .exe da instalação e do Chromium precisa
-#     de regra (antes e depois do --verificar); controle: o Python do venv não sai e o do
-#     runner sai. Depois, a troca pela tela normal (o desinstalador velho no lugar, _?=, que
-#     não apaga o venv, D182.5) e a reinstalação; por fim desinstala (a pasta da casca e o
-#     instalacao.json saem, a pasta de dados fica).
-#   Mac: o .app de dentro do .dmg, com rede (limite: o runner não deixa isolar um processo).
-# juntar: os anexos da release (16 arquivos), o SHA256SUMS e as notas (a seção da versão dos
+#     instalação vai ter, criadas antes do /S; todo .exe da instalação precisa de regra (antes
+#     e depois do --verificar); controle: o Python do venv não sai e o do runner sai. Então as
+#     regras saem e roda o --verificar-navegador. Depois, a troca pela tela normal (o
+#     desinstalador velho no lugar, _?=, que não apaga o venv, D182.5) e a reinstalação; por
+#     fim desinstala (a pasta da casca e o instalacao.json saem, a pasta de dados fica).
+#   Mac: o .app de dentro do .dmg, os dois passos com rede (limite: o runner não deixa isolar
+#     um processo).
+# juntar: os anexos da release (12 arquivos), o SHA256SUMS e as notas (a seção da versão dos
 #   dois CHANGELOGs) num artefato release; o publicar do release.yml só cria a release com ele,
 #   então o ensaio pelo casca.yml prova tudo menos o gh release create.
 on:
@@ -113,16 +117,15 @@ jobs:
       - name: wheels do alvo
         run: |
           uvx --python 3.14 pip==26.2 download --only-binary=:all: --require-hashes -r dist/dependencias.txt -d "$RUNNER_TEMP/rodas"
-      - name: chromium
-        run: |
-          uv sync --locked --no-dev
-          PLAYWRIGHT_BROWSERS_PATH="$RUNNER_TEMP/navegadores" uv run --no-dev playwright install --no-shell chromium
+      # o driver do Playwright do uv.lock instala as bibliotecas do Chromium na imagem da fumaça
+      - name: driver do Playwright
+        if: runner.os == 'Linux'
+        run: uv sync --locked --no-dev
       - name: recursos
         run: |
           sha=$(uv run --no-project --python 3.14.10 python scripts/montar_recursos.py recursos \
             --alvo "$ALVO" --wheel dist/jobot-*.whl --restricoes dist/restricoes.txt \
-            --rodas "$RUNNER_TEMP/rodas" --navegadores "$RUNNER_TEMP/navegadores" \
-            --saida desktop/recursos --pacotes saida | tr -d '\r')
+            --rodas "$RUNNER_TEMP/rodas" --saida desktop/recursos --pacotes saida | tr -d '\r')
           test "${#sha}" = 64
           echo "JOBOT_MANIFESTO_SHA256=$sha" >> "$GITHUB_ENV"
           echo "$ALVO: manifesto.json $sha" >> "$GITHUB_STEP_SUMMARY"
@@ -143,7 +146,6 @@ jobs:
             *windows*) cp "$b"/nsis/*-setup.exe saida/ ;;
             *) cp "$b"/dmg/*.dmg saida/ ;;
           esac
-          cp desktop/recursos/chromium-*.tar.gz saida/
           ls -la saida
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -153,7 +155,7 @@ jobs:
           compression-level: 0
           retention-days: 2
 
-      - name: fumaça sem rede (Linux)
+      - name: fumaça (Linux)
         if: runner.os == 'Linux'
         run: |
           imagem="$RUNNER_TEMP/imagem"
@@ -176,26 +178,34 @@ jobs:
           docker build -t jobot-fumaca --build-arg BASE=ubuntu:22.04 --build-arg DEPS="$deps" "$imagem"
           # na 24.04 só o WebKitGTK do sistema (os nomes t64 não casam com o Depends da 22.04)
           docker build -t jobot-fumaca-nova --build-arg BASE=ubuntu:24.04 --build-arg DEPS=libwebkit2gtk-4.1-0 "$imagem"
-          # dpkg -i como root; o --verificar como usuário comum, que não lê o que não é dele
-          docker run --rm --network none -v "$PWD/saida:/saida:ro" jobot-fumaca \
-            sh -c 'dpkg -i /saida/*.deb && runuser -u pessoa -- jobot-app --verificar'
-          appimage='cp /saida/*.AppImage /tmp/jobot.AppImage && chmod 755 /tmp/jobot.AppImage && cd /tmp \
+          # cada pacote num contêiner: sem rede (só a lo), o preparo como root e o --verificar
+          # como usuário comum, que não lê o que não é dele; de volta à rede, o navegador
+          fumaca() {  # imagem, preparo, a casca
+            local c
+            c=$(docker run -d -v "$PWD/saida:/saida:ro" -e APPIMAGE_EXTRACT_AND_RUN=1 -w /tmp "$1" sleep infinity)
+            docker network disconnect bridge "$c"
+            docker exec "$c" sh -c 'test "$(ls /sys/class/net)" = lo'
+            docker exec "$c" sh -c "$2 && runuser -u pessoa -- $3 --verificar"
+            docker network connect bridge "$c"
+            docker exec "$c" runuser -u pessoa -- $3 --verificar-navegador
+            docker rm -f "$c"
+          }
+          appimage='cp /saida/*.AppImage /tmp/jobot.AppImage && chmod 755 /tmp/jobot.AppImage \
             && ./jobot.AppImage --appimage-extract "AppRun*" >/dev/null && ls squashfs-root \
             && ld=$(grep -aho "LD_LIBRARY_PATH=[^[:cntrl:]]*" squashfs-root/AppRun* | head -n 1) \
-            && test -n "$ld" && echo "o AppRun exporta: $ld" \
-            && rm -rf squashfs-root && runuser -u pessoa -- ./jobot.AppImage --verificar'
-          docker run --rm --network none -v "$PWD/saida:/saida:ro" -e APPIMAGE_EXTRACT_AND_RUN=1 jobot-fumaca sh -c "$appimage"
-          docker run --rm --network none -v "$PWD/saida:/saida:ro" -e APPIMAGE_EXTRACT_AND_RUN=1 jobot-fumaca-nova sh -c "$appimage"
+            && test -n "$ld" && echo "o AppRun exporta: $ld" && rm -rf squashfs-root'
+          fumaca jobot-fumaca 'dpkg -i /saida/*.deb' jobot-app
+          fumaca jobot-fumaca "$appimage" ./jobot.AppImage
+          fumaca jobot-fumaca-nova "$appimage" ./jobot.AppImage
 
-      - name: fumaça sem rede (Windows)
+      - name: fumaça sem rede e navegador (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           $inst = Join-Path $env:LOCALAPPDATA 'joBot'
-          $pw = Join-Path $env:LOCALAPPDATA 'ms-playwright'
           $setup = (Get-ChildItem saida -Filter '*-setup.exe').FullName
-          $exes = @(uv run --no-project --python 3.14.10 python scripts/montar_recursos.py exes --recursos desktop/recursos --instalacao $inst --playwright $pw)
+          $exes = @(uv run --no-project --python 3.14.10 python scripts/montar_recursos.py exes --recursos desktop/recursos --instalacao $inst)
           if ($LASTEXITCODE -ne 0 -or $exes.Count -eq 0) { throw 'não deu para listar os .exe' }
           # o próprio instalador também: é ele que baixaria o WebView2 (D183)
           $exes = @($setup) + $exes
@@ -206,7 +216,6 @@ jobs:
           $com = $exes | ForEach-Object { $_.ToLowerInvariant() }
           function Conferir-Regras {
             $achados = @(Get-ChildItem $inst -Recurse -Filter '*.exe' -File)
-            if (Test-Path $pw) { $achados += @(Get-ChildItem $pw -Recurse -Filter '*.exe' -File) }
             # o cache do uv guarda cópias que ninguém roda
             $conferidos = @($achados | Where-Object { $_.FullName -notlike "$inst\app\cache\*" })
             $sem = @($conferidos | Where-Object { $com -notcontains $_.FullName.ToLowerInvariant() })
@@ -236,6 +245,12 @@ jobs:
           uv run --no-project --python 3.14 python -c $teste
           if ($LASTEXITCODE -ne 0) { throw 'o Python do runner, sem regra, não saiu: o controle não vale' }
           Write-Output 'controle: o Python do venv não sai, o do runner sai'
+          # o navegador vem da internet (D183.24): sem as regras, o passo da tela de instalação
+          Get-NetFirewallRule -DisplayName 'jobot-fumaca *' | Remove-NetFirewallRule
+          $v = Start-Process (Join-Path $inst 'jobot-app.exe') -ArgumentList '--verificar-navegador' -Wait -PassThru `
+            -RedirectStandardOutput "$saida-navegador.out" -RedirectStandardError "$saida-navegador.err"
+          Get-Content "$saida-navegador.out", "$saida-navegador.err"
+          if ($v.ExitCode -ne 0) { throw "--verificar-navegador: $($v.ExitCode)" }
           # troca pela tela normal: a PageLeaveReinstall do Tauri roda o desinstalador velho no
           # lugar (_?=), o gancho não chama o --desinstalar e o venv fica (D182.5). Em /S o
           # instalador pula essa página, então a fumaça faz o mesmo passo à mão.
@@ -266,6 +281,7 @@ jobs:
           cp -R "$RUNNER_TEMP/dmg/joBot.app" "$RUNNER_TEMP/"
           hdiutil detach "$RUNNER_TEMP/dmg"
           "$RUNNER_TEMP/joBot.app/Contents/MacOS/jobot-app" --verificar
+          "$RUNNER_TEMP/joBot.app/Contents/MacOS/jobot-app" --verificar-navegador
 
   juntar:
     needs: [wheel, casca]
@@ -284,9 +300,9 @@ jobs:
           shopt -s failglob
           mkdir -p release/anexos
           cd baixados
-          anexos=(*-setup.exe *.dmg *.deb *.rpm *.AppImage jobot-atualizacao-*.zip chromium-*.tar.gz jobot-*.whl restricoes.txt)
-          # 1 .exe, 2 .dmg, .deb, .rpm, AppImage, 4 pacotes, 4 Chromium, a wheel e o restricoes.txt
-          test "${#anexos[@]}" = 16
+          anexos=(*-setup.exe *.dmg *.deb *.rpm *.AppImage jobot-atualizacao-*.zip jobot-*.whl restricoes.txt)
+          # 1 .exe, 2 .dmg, .deb, .rpm, AppImage, 4 pacotes, a wheel e o restricoes.txt
+          test "${#anexos[@]}" = 12
           mv -- "${anexos[@]}" ../release/anexos/
           cd ../release/anexos
           sha256sum -- "${anexos[@]}" > SHA256SUMS
