@@ -47,7 +47,7 @@
   --sucesso: light-dark(#1e7b34, #30d158);
   --foco: light-dark(#0071e3, #2997ff);
   /* círculos da janela na casca (T334; desenho 5.3): no escuro, os tons do Mac; no claro, mais
-     escuros para chegar a 3:1 sobre a barra e o fundo (o amarelo do Mac dá 1,56:1, D176) */
+     escuros para chegar a 3:1 sobre a barra e o fundo (o amarelo do Mac dá 1,56:1, D178) */
   --janela-fechar: light-dark(#e0443e, #ff5f57);
   --janela-minimizar: light-dark(#b07a00, #febc2e);
   --janela-maximizar: light-dark(#1f8a3a, #28c840);
