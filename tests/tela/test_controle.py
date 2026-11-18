@@ -68,7 +68,13 @@ def ui() -> Iterator[str]:
 
 
 def _abrir(page: Page, ui: str, **respostas: dict[str, Any]) -> None:
-    todas = {"estado_controle": PARADO, "ligar": LIGADO, "parar": PARADO, "abrir_jobot": LIGADO}
+    todas = {
+        "estado_controle": PARADO,
+        "ligar": LIGADO,
+        "parar": PARADO,
+        "abrir_jobot": LIGADO,
+        "abrir_release": LIGADO,
+    }
     todas.update(respostas)
     page.clock.install()
     page.add_init_script(PONTE + f"window.__respostas = {json.dumps(todas)};")
@@ -173,6 +179,48 @@ def test_motivo_desconhecido_vira_a_falha_generica(page: Page, ui: str) -> None:
     _botao(page, "Ligar").click()
     expect(page.get_by_role("alert")).to_contain_text("Não consegui concluir")
     expect(page.locator("#falha-log")).to_be_hidden()
+
+
+def test_avisa_que_fechar_para_o_jobot_sem_segundo_plano(page: Page, ui: str) -> None:
+    # D207.5: a casca ligou o painel e o segundo plano está desligado
+    _abrir(page, ui, estado_controle={**LIGADO, "fecha_junto": True})
+    nota = page.get_by_text("Fechar esta janela para o joBot.")
+    expect(nota).to_be_visible()
+    # a resposta do Abrir joBot não traz os avisos: o da consulta fica
+    _botao(page, "Abrir joBot").click()
+    page.clock.run_for(5000)
+    expect(nota).to_be_visible()
+    page.evaluate(
+        f"window.__respostas.estado_controle = {json.dumps(LIGADO | {'fecha_junto': False})}"
+    )
+    page.clock.run_for(5000)
+    expect(nota).to_be_hidden()
+
+
+def test_sem_aviso_de_fechar_com_o_painel_parado(page: Page, ui: str) -> None:
+    _abrir(page, ui, estado_controle={**PARADO, "fecha_junto": True, "janela_velha": True})
+    expect(page.get_by_role("status").first).to_have_text("Parado")
+    expect(page.get_by_text("Fechar esta janela para o joBot.")).to_be_hidden()
+    expect(_botao(page, "Baixar a janela nova")).to_be_hidden()
+    expect(_botao(page, "Ligar")).to_be_enabled()  # controle: a página desenhou o estado
+
+
+def test_janela_nova_abre_a_pagina_da_release(page: Page, ui: str) -> None:
+    # D207.12: o painel no ar é mais novo que esta casca
+    _abrir(page, ui, estado_controle={**LIGADO, "janela_velha": True})
+    expect(page.get_by_text("Há uma versão nova desta janela.")).to_be_visible()
+    _botao(page, "Baixar a janela nova").click()
+    expect(_botao(page, "Baixar a janela nova")).to_be_focused()
+    assert [c for c in _chamadas(page) if c != "estado_controle"] == ["abrir_release"]
+
+
+def test_janela_nova_que_nao_abre_mostra_o_endereco(page: Page, ui: str) -> None:
+    falha = {**LIGADO, "janela_velha": True, "falha": "release", "detalhe": "sem xdg-open"}
+    _abrir(page, ui, estado_controle={**LIGADO, "janela_velha": True}, abrir_release=falha)
+    _botao(page, "Baixar a janela nova").click()
+    alerta = page.get_by_role("alert")
+    expect(alerta).to_contain_text("sem xdg-open")
+    expect(alerta).to_contain_text("https://github.com/fezarosa-dev/joBot/releases/latest")
 
 
 def test_copiar_o_endereco(page: Page, ui: str) -> None:

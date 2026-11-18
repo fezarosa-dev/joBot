@@ -44,6 +44,7 @@ fn main() {
         "ligar",
         "parar",
         "abrir_jobot",
+        "abrir_release",
     ]);
     tauri_build::try_build(tauri_build::Attributes::new().app_manifest(comandos))
         .expect("tauri-build");

@@ -145,7 +145,15 @@ fn fechar_instalador(app: AppHandle) {
 
 /// O estado do painel agora, pela `/saude-local` (no máximo uns 2 s, fora da linha da janela).
 fn estado_agora(dados: &Path) -> Value {
-    controle::estado(controle::porta(dados, ambiente), servidor::perguntar_saude)
+    let porta = controle::porta(dados, ambiente);
+    let saude = servidor::perguntar(porta);
+    avisos(controle::estado(porta, |_| saude.is_some()), saude)
+}
+
+/// O estado com os avisos do controle: painel mais novo que a casca e fechar que para o painel.
+fn avisos(estado: Value, saude: Option<Value>) -> Value {
+    let subiu = SUBIU.load(Ordering::Relaxed);
+    controle::com_avisos(estado, saude.as_ref(), VERSAO, subiu)
 }
 
 /// O controle pergunta o estado ao abrir e de tempos em tempos: só lê, nunca liga nem abre.
@@ -168,7 +176,10 @@ fn ligar() -> Value {
         SUBIU.store(true, Ordering::Relaxed);
     }
     match resultado {
-        Ok(achado) => controle::estado(achado.porta, |_| true),
+        Ok(achado) => avisos(
+            controle::estado(achado.porta, |_| true),
+            servidor::perguntar(achado.porta),
+        ),
         Err(falha) => controle::com_falha(
             estado_agora(&dados),
             falha.codigo(),
@@ -202,16 +213,32 @@ fn abrir_jobot() -> Value {
     controle::abrir(
         controle::porta(&dados, ambiente),
         servidor::perguntar_saude,
-        |endereco| {
-            let vars: Vec<_> = std::env::vars().collect();
-            controle::comando_abridor(std::env::consts::OS, &vars, endereco)
-        },
-        |mut comando| {
-            let mut filho = comando.spawn()?;
-            std::thread::spawn(move || filho.wait()); // colhe o abridor quando ele sair
-            Ok(())
-        },
+        abridor,
+        lancar,
     )
+}
+
+/// A página da release no navegador padrão, pelo mesmo abridor (D207.12): o controle oferece
+/// quando o painel no ar é mais novo que esta casca.
+#[tauri::command(async)]
+fn abrir_release() -> Value {
+    let estado = estado_agora(&dados());
+    match lancar(abridor(controle::URL_RELEASE)) {
+        Ok(()) => estado,
+        Err(erro) => controle::com_falha(estado, "release", &erro.to_string(), ""),
+    }
+}
+
+fn abridor(endereco: &str) -> std::process::Command {
+    let vars: Vec<_> = std::env::vars().collect();
+    controle::comando_abridor(std::env::consts::OS, &vars, endereco)
+}
+
+/// Lança o abridor sem esperar o navegador.
+fn lancar(mut comando: std::process::Command) -> std::io::Result<()> {
+    let mut filho = comando.spawn()?;
+    std::thread::spawn(move || filho.wait()); // colhe o abridor quando ele sair
+    Ok(())
 }
 
 fn em_curso(app: &AppHandle) -> bool {
@@ -328,7 +355,8 @@ fn main() {
             estado_controle,
             ligar,
             parar,
-            abrir_jobot
+            abrir_jobot,
+            abrir_release
         ])
         .on_window_event(|janela, evento| {
             if let WindowEvent::CloseRequested { api, .. } = evento

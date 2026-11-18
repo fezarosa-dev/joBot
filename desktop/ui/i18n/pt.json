@@ -59,6 +59,10 @@
   "controle.falha.saiu": "O joBot fechou logo ao ligar. Tente de novo.",
   "controle.falha.subir": "Não consegui ligar o joBot. O sistema respondeu: {detalhe}. Instale o joBot de novo pelo instalador.",
   "controle.falha.abrir": "Não consegui abrir o navegador. O sistema respondeu: {detalhe}. Copie o endereço e abra no seu navegador.",
+  "controle.fecha_junto": "Fechar esta janela para o joBot. Para ele seguir no ar com a janela fechada, ligue o Segundo plano em Configurações, no painel.",
+  "controle.janela_nova": "Há uma versão nova desta janela.",
+  "controle.baixar": "Baixar a janela nova",
+  "controle.falha.release": "Não consegui abrir o navegador. O sistema respondeu: {detalhe}. A janela nova fica em https://github.com/fezarosa-dev/joBot/releases/latest",
   "controle.falha.parar": "O joBot não parou a tempo. Ele pode estar terminando um trabalho. Espere um pouco e tente de novo.",
   "controle.falha.outro": "Não consegui concluir. Tente de novo."
 }
