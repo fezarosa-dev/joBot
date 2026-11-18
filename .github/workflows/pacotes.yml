@@ -203,7 +203,8 @@ jobs:
       # APPIMAGE_EXTRACT_AND_RUN=1, em $TMPDIR/appimage_extracted_<md5>, e só apaga a pasta se
       # ele mesmo sobreviver. O /tmp tem de voltar ao que era: depois de uma saída normal e
       # depois de matar à força (SIGKILL) o grupo do runtime e da casca, quando quem apaga é o
-      # vigia da casca. Controle: matando o vigia junto, a pasta fica.
+      # vigia da casca. Controle: matando o vigia junto, a pasta fica. O pid 1 do contêiner (o
+      # sleep) não recolhe zumbis: o vigia não pode esperá-los.
       - name: AppImage sem lixo no /tmp (Linux)
         if: runner.os == 'Linux'
         run: |
@@ -223,10 +224,13 @@ jobs:
           sleep 3
           ls -d /tmp/appimage_extracted_* || { echo "sem extração no /tmp"; exit 1; }
           if [ "$1" = controle ]; then
+            n=0
             for f in /proc/[0-9]*/cmdline; do
               tr '\0' ' ' <"$f" 2>/dev/null | grep -q jobot-vigia || continue
-              p=${f#/proc/}; kill -KILL "${p%/cmdline}"
+              p=${f#/proc/}; kill -KILL "${p%/cmdline}" && n=$((n + 1))
             done
+            # a casca lançou o vigia: sem ele, o controle não diria nada
+            [ "$n" -ge 1 ] || { echo "nenhum vigia rodando"; exit 1; }
           fi
           kill -KILL -- "-$grupo"
           for i in $(seq 20); do [ "$(ls -A /tmp)" = "$antes" ] && break; sleep 1; done

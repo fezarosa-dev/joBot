@@ -33,9 +33,18 @@ pub fn pasta_a_limpar(
 }
 
 /// `$1` é a pasta e o resto são os pids. Ignora o HUP de fechar o terminal e o INT do Ctrl+C.
+/// Zumbi conta como morto: um pai que não o recolhe (no contêiner, o `sleep` como pid 1)
+/// prenderia o vigia para sempre.
 const VIGIA: &str = r#"trap '' HUP INT
 d=$1; shift
-vivo() { for p in "$@"; do kill -0 "$p" 2>/dev/null && return 0; done; return 1; }
+vivo() {
+  for p in "$@"; do
+    s=$(cat "/proc/$p/stat" 2>/dev/null) || continue
+    e=${s##*) }
+    case $e in Z*) ;; *) return 0 ;; esac
+  done
+  return 1
+}
 while vivo "$@"; do sleep 1; done
 rm -rf -- "$d""#;
 
@@ -176,6 +185,33 @@ mod testes {
                 Some(std::ffi::OsStr::new("/usr/bin:/bin"))
             )]
         );
+    }
+
+    /// Um processo que saiu e ninguém recolheu (zumbi) não prende o vigia.
+    #[test]
+    fn vigia_nao_espera_zumbi() {
+        let pasta = std::env::temp_dir().join(format!("jobot-zumbi-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&pasta);
+        std::fs::create_dir_all(&pasta).unwrap();
+        let mut zumbi = Command::new("true").spawn().unwrap();
+        // sem wait: o `true` sai e fica zumbi, filho deste teste
+        let fim = Instant::now() + Duration::from_secs(5);
+        let zumbi_ja = || {
+            std::fs::read_to_string(format!("/proc/{}/stat", zumbi.id()))
+                .is_ok_and(|s| s.rsplit_once(") ").unwrap().1.starts_with('Z'))
+        };
+        while !zumbi_ja() && Instant::now() < fim {
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        assert!(zumbi_ja(), "o processo não virou zumbi");
+        let mut v = vigia(&pasta, &[zumbi.id()]).spawn().unwrap();
+        let fim = Instant::now() + Duration::from_secs(10);
+        while pasta.exists() && Instant::now() < fim {
+            std::thread::sleep(Duration::from_millis(100));
+        }
+        assert!(!pasta.exists(), "o vigia esperou o zumbi");
+        assert!(v.wait().unwrap().success());
+        zumbi.wait().unwrap();
     }
 
     /// Um vigia de verdade: a pasta fica enquanto um dos processos vive e sai depois.

@@ -420,6 +420,7 @@ def test_appimage_sem_fuse_nao_deixa_lixo_no_tmp() -> None:
         'kill -KILL -- "-$grupo"',
         "grep -q jobot-vigia",
         'echo "o controle não deixou lixo"; exit 1',
+        'echo "nenhum vigia rodando"; exit 1',
         'echo "sobrou lixo no /tmp"; exit 1',
     ):
         assert trecho in passo, trecho
