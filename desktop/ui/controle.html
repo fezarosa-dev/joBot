@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="pt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>joBot</title>
+<!-- O controle da casca (T350; D206, ADR 0027): o estado do painel, o endereço e Ligar, Parar e
+     Abrir joBot. O painel abre no navegador padrão da pessoa, nunca nesta janela. Página
+     simples, sem efeitos: sem vidro, sem animação e sem o CSS do painel. Os textos vêm de
+     i18n/{pt,en}.json e a conversa com a casca fica no controle.js. -->
+<link rel="stylesheet" href="controle.css">
+</head>
+<body>
+<main class="controle">
+  <header class="cabeca">
+    <img class="marca" src="painel/icone.png" alt="" width="40" height="40">
+    <div>
+      <h1>joBot</h1>
+      <p class="estado"><span class="ponto" aria-hidden="true"></span><span role="status" id="estado"></span></p>
+    </div>
+  </header>
+
+  <div class="linha-endereco">
+    <label for="endereco" data-t="controle.endereco"></label>
+    <input id="endereco" type="text" readonly spellcheck="false" autocomplete="off">
+    <button type="button" id="copiar" class="botao" data-t="controle.copiar"></button>
+  </div>
+  <p class="copiado" role="status" id="copiado"></p>
+
+  <div class="acoes">
+    <button type="button" id="ligar" class="botao" data-t="controle.ligar"></button>
+    <button type="button" id="parar" class="botao" data-t="controle.parar"></button>
+    <button type="button" id="abrir" class="botao botao-principal" data-t="controle.abrir" hidden></button>
+  </div>
+
+  <div class="falha" id="falha" role="alert" hidden>
+    <p id="falha-texto"></p>
+    <details id="falha-registro" hidden>
+      <summary data-t="controle.registro"></summary>
+      <pre id="falha-log"></pre>
+    </details>
+  </div>
+</main>
+<script src="controle.js"></script>
+</body>
+</html>

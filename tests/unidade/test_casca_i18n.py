@@ -73,3 +73,19 @@ def test_o_que_a_tela_pede_de_painel_o_build_copia() -> None:
     build = (RAIZ / "desktop" / "build.rs").read_text(encoding="utf-8")
     copiados = set(re.findall(r'"([^"]+)",?\s*\)', build))
     assert pedidos <= copiados, pedidos - copiados
+
+
+def test_toda_chave_usada_pelo_controle_existe() -> None:
+    # o controle da casca (T350; D206): os textos também vêm de desktop/ui/i18n
+    html = _ler(UI / "controle.html")
+    js = _ler(UI / "controle.js")
+    usadas = set(re.findall(r'data-t(?:-rotulo)?="([^"]+)"', html))
+    usadas |= set(re.findall(r't\("([\w.]+)"', js))
+    motivos = set(re.findall(r'"(\w+)"', js.split("const MOTIVOS = [", 1)[1].split("]", 1)[0]))
+    esperados = {"instalar", "porta", "captura", "sem_resposta", "saiu", "subir", "abrir", "parar"}
+    assert esperados <= motivos
+    usadas |= {f"controle.falha.{m}" for m in motivos}
+    assert "t(`controle.${nome}`)" in js
+    usadas |= {f"controle.{e}" for e in ("ligado", "parado", "ligando", "parando")}
+    assert {"controle.ligado", "controle.parado", "controle.ligar", "controle.abrir"} <= usadas
+    assert usadas <= _catalogo("pt").keys(), usadas - _catalogo("pt").keys()

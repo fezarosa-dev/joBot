@@ -1,23 +1,24 @@
-// A casca do joBot (desenho 5.1 a 5.4): instância única, confere a janela, acha ou sobe o
-// `jobot serve` e abre o painel em http://127.0.0.1:<porta>/; sem o joBot instalado, a tela de
-// instalação (5.2). Com --verificar-janela <url>, a prova da ponte da T321 (a IPC do Tauri numa
-// origem http://127.0.0.1 remota). Com --verificar e --verificar-navegador, a fumaça sem janela
-// da release (desenho 10).
+// A casca do joBot (D206, ADR 0027): instância única e uma janela pequena de controle, com o
+// estado do painel, o endereço e os botões Ligar, Parar e Abrir joBot; o painel abre no
+// navegador padrão da pessoa, nunca dentro da janela. Sem o joBot instalado, a janela mostra a
+// tela de instalação (desenho 5.2) e, no fim, o controle. Com --verificar e
+// --verificar-navegador, a fumaça sem janela da release (desenho 10).
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod controle;
 mod fechar;
 mod instalar;
 mod servidor;
 
 use serde_json::{Value, json};
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::Duration;
+use std::sync::{Arc, Mutex};
 use tauri::ipc::Channel;
-use tauri::webview::PageLoadEvent;
+use tauri::utils::config::WindowConfig;
 use tauri::{
-    AppHandle, Manager, RunEvent, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent,
+    AppHandle, LogicalSize, Manager, RunEvent, Url, WebviewUrl, WebviewWindow,
+    WebviewWindowBuilder, WindowEvent,
 };
 
 /// O sha256 do `manifesto.json` dos recursos, gravado no build (desenho 6.2; D174.7). Sem ele
@@ -25,47 +26,15 @@ use tauri::{
 const SHA_MANIFESTO: Option<&str> = option_env!("JOBOT_MANIFESTO_SHA256");
 const VERSAO: &str = env!("CARGO_PKG_VERSION");
 
-/// Se esta abertura da casca subiu o servidor (desenho 5.5): só esse ela pode parar.
+/// Se esta abertura da casca subiu o servidor (desenho 5.5): só esse ela pode parar ao fechar.
 static SUBIU: AtomicBool = AtomicBool::new(false);
 
-/// Tempo que a tela "o joBot abriu no navegador" fica antes de a janela fechar (desenho 5.4).
-const AVISO_DA_JANELA: Duration = Duration::from_secs(10);
+/// Ligar e Parar, um de cada vez: dois `jobot serve` ao mesmo tempo brigariam pela porta.
+static ACAO: Mutex<()> = Mutex::new(());
 
-/// Caminho para onde o script da prova navega com o resultado. A navegação de
-/// topo não passa pela CSP da página, então o aviso chega mesmo com a IPC barrada.
-const CAMINHO_RESULTADO: &str = "/__jobot_resultado";
-const PRAZO: Duration = Duration::from_secs(60);
-
-const SCRIPT: &str = r#"
-(() => {
-  const violacoes = [];
-  document.addEventListener("securitypolicyviolation", (e) => {
-    violacoes.push(e.violatedDirective + " " + e.blockedURI);
-  });
-  const avisar = (chave, valor) => {
-    const u = new URL("/__jobot_resultado", location.href);
-    u.searchParams.set(chave, String(valor));
-    if (violacoes.length) u.searchParams.set("csp", violacoes.join(" | "));
-    location.href = u.href;
-  };
-  try {
-    window.__TAURI__.core
-      .invoke("plugin:window|is_maximized")
-      .then((r) => avisar("ok", r), (e) => avisar("erro", e));
-  } catch (e) {
-    avisar("erro", e);
-  }
-})();
-"#;
-
-/// Código de saída pelo endereço que o script abriu: 0 se a IPC respondeu, 2 se foi barrada.
-fn resultado(url: &Url) -> Option<i32> {
-    if url.path() != CAMINHO_RESULTADO {
-        return None;
-    }
-    let tem = |chave: &str| url.query_pairs().any(|(k, _)| k == chave);
-    Some(if tem("ok") { 0 } else { 2 })
-}
+/// A tela de instalação precisa de mais espaço que o controle do `tauri.conf.json` (D207).
+const INSTALADOR: (f64, f64) = (760.0, 580.0);
+const INSTALADOR_MINIMO: (f64, f64) = (640.0, 480.0);
 
 fn ambiente(nome: &str) -> Option<String> {
     std::env::var(nome).ok()
@@ -75,96 +44,10 @@ fn dados() -> PathBuf {
     servidor::pasta_de_dados(ambiente, std::env::consts::OS)
 }
 
-/// User agent da janela com a marca ` joBot-casca/<versão> (<so>)` que o painel lê
-/// (`marca_da_casca`, desenho 5.3). A base é fixa por sistema (D179).
-fn agente(so: &str) -> String {
-    let (base, marca) = match so {
-        "windows" => ("Mozilla/5.0 (Windows NT 10.0; Win64; x64)", "windows"),
-        "macos" => ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)", "macos"),
-        _ => ("Mozilla/5.0 (X11; Linux x86_64)", "linux"),
-    };
-    let versao = env!("CARGO_PKG_VERSION");
-    format!("{base} AppleWebKit/605.1.15 (KHTML, like Gecko) joBot-casca/{versao} ({marca})")
-}
-
-/// O que as páginas locais (`ui/`) pedem à casca, navegando para `/__jobot/...` da própria
-/// origem do app. Vale só se a página que pede também é local (`tratar`): o painel não pede.
-#[derive(Debug, PartialEq)]
-enum Aviso {
-    Janela { ok: bool },
-    Tentar,
-    Fechar,
-}
-
-/// A origem do app: `tauri://localhost` (Linux e Mac) ou `http(s)://tauri.localhost` (Windows).
-fn e_local(url: &Url) -> bool {
-    let host = url.host_str();
-    url.port().is_none()
-        && match url.scheme() {
-            "tauri" => host == Some("localhost"),
-            "http" | "https" => host == Some("tauri.localhost"),
-            _ => false,
-        }
-}
-
-fn aviso_local(url: &Url) -> Option<Aviso> {
-    if !e_local(url) {
-        return None;
-    }
-    match url.path() {
-        "/__jobot/janela" => Some(Aviso::Janela {
-            ok: url.query_pairs().any(|(k, _)| k == "ok"),
-        }),
-        "/__jobot/tentar" => Some(Aviso::Tentar),
-        "/__jobot/fechar" => Some(Aviso::Fechar),
-        _ => None,
-    }
-}
-
-/// `ui/erro.html` com o motivo, o detalhe e o fim do log, na origem local de `base`.
-fn pagina_de_erro(base: &Url, motivo: &str, detalhe: &str, log: &str) -> Url {
-    let mut url = base.join("/erro.html").expect("caminho fixo");
-    url.query_pairs_mut()
-        .append_pair("motivo", motivo)
-        .append_pair("detalhe", detalhe)
-        .append_pair("log", log);
-    url
-}
-
 fn ir(janela: &WebviewWindow, url: Url) {
     if let Err(erro) = janela.navigate(url) {
         eprintln!("jobot-app: não consegui navegar: {erro}");
     }
-}
-
-/// Para onde a janela vai depois da conferência: o painel, a tela de instalação (sem o joBot
-/// instalado) ou a tela de erro com o fim do log.
-fn destino_do_arranque(base: &Url, resultado: Result<u16, servidor::Falha>, dados: &Path) -> Url {
-    match resultado {
-        Ok(porta) => servidor::url_do_painel(porta).parse().expect("URL fixa"),
-        Err(servidor::Falha::SemInstalacao) => base.join("/index.html").expect("caminho fixo"),
-        Err(falha) => pagina_de_erro(
-            base,
-            falha.codigo(),
-            &falha.detalhe(),
-            &servidor::fim_do_log(dados),
-        ),
-    }
-}
-
-/// Janela conferida: acha ou sobe o servidor e navega ao painel (roda fora da linha da janela).
-fn abrir_painel(janela: WebviewWindow, base: Url) {
-    let dados = dados();
-    let resultado = servidor::jobot_instalado(&dados, std::env::consts::OS)
-        .ok_or(servidor::Falha::SemInstalacao)
-        .and_then(|jobot| servidor::achar_ou_subir(&dados, &jobot, ambiente))
-        .map(|achado| {
-            if achado.subiu {
-                SUBIU.store(true, Ordering::Relaxed);
-            }
-            achado.porta
-        });
-    ir(&janela, destino_do_arranque(&base, resultado, &dados));
 }
 
 /// A instalação em curso (desenho 5.2): fechar a janela no meio pede confirmação na página, e
@@ -234,12 +117,7 @@ fn instalar(app: AppHandle, navegador: bool, progresso: Channel<Value>) -> Resul
             Ok(()) => {
                 let _ = progresso.send(json!({"etapa": "abrir"}));
                 let _ = progresso.send(json!({"fim": "pronto"}));
-                if let Ok(atual) = janela.url() {
-                    ir(
-                        &janela,
-                        atual.join("/verificar.html").expect("caminho fixo"),
-                    );
-                }
+                ir_ao_controle(&app, &janela);
             }
             Err(erro) => {
                 let falha =
@@ -263,6 +141,77 @@ fn fechar_instalador(app: AppHandle) {
     }
 }
 
+/// O estado do painel agora, pela `/saude-local` (no máximo uns 2 s, fora da linha da janela).
+fn estado_agora(dados: &Path) -> Value {
+    controle::estado(controle::porta(dados, ambiente), servidor::perguntar_saude)
+}
+
+/// O controle pergunta o estado ao abrir e de tempos em tempos: só lê, nunca liga nem abre.
+/// `async`: a pergunta roda fora da linha da janela, que não trava.
+#[tauri::command(async)]
+fn estado_controle() -> Value {
+    estado_agora(&dados())
+}
+
+/// Ligar: o `servidor::achar_ou_subir` do joBot instalado (até 15 s, fora da linha da janela).
+#[tauri::command(async)]
+fn ligar() -> Value {
+    let _vez = ACAO.lock().unwrap_or_else(|e| e.into_inner());
+    let dados = dados();
+    let trava_solta = servidor::ler_trava(&dados).0.is_none();
+    let resultado = controle::ligar(&dados, std::env::consts::OS, |jobot| {
+        servidor::achar_ou_subir(&dados, jobot, ambiente)
+    });
+    if controle::subiu(trava_solta, &resultado) {
+        SUBIU.store(true, Ordering::Relaxed);
+    }
+    match resultado {
+        Ok(achado) => controle::estado(achado.porta, |_| true),
+        Err(falha) => controle::com_falha(
+            estado_agora(&dados),
+            falha.codigo(),
+            &falha.detalhe(),
+            &servidor::fim_do_log(&dados),
+        ),
+    }
+}
+
+/// Parar: `jobot sair`, esperando o servidor sair (o `sair` espera até 10 s).
+#[tauri::command(async)]
+fn parar() -> Value {
+    let _vez = ACAO.lock().unwrap_or_else(|e| e.into_inner());
+    let dados = dados();
+    let estado = controle::parar(
+        &dados,
+        std::env::consts::OS,
+        |jobot| fechar::rodar_esperando(jobot, &["sair"]),
+        || estado_agora(&dados),
+    );
+    if estado["ligado"] != true {
+        SUBIU.store(false, Ordering::Relaxed); // só quando parou: no ar, fechar ainda o para
+    }
+    estado
+}
+
+/// Abrir joBot: o endereço do painel no navegador padrão da pessoa, só com o painel no ar.
+#[tauri::command(async)]
+fn abrir_jobot() -> Value {
+    let dados = dados();
+    controle::abrir(
+        controle::porta(&dados, ambiente),
+        servidor::perguntar_saude,
+        |endereco| {
+            let vars: Vec<_> = std::env::vars().collect();
+            controle::comando_abridor(std::env::consts::OS, &vars, endereco)
+        },
+        |mut comando| {
+            let mut filho = comando.spawn()?;
+            std::thread::spawn(move || filho.wait()); // colhe o abridor quando ele sair
+            Ok(())
+        },
+    )
+}
+
 fn em_curso(app: &AppHandle) -> bool {
     app.state::<Arc<Instalacao>>()
         .em_curso
@@ -276,68 +225,50 @@ fn pedir_fechar(app: &AppHandle) {
     }
 }
 
-/// Janela velha (5.4): abre o modo app de hoje (`jobot abrir`), avisa e fecha a janela.
-fn cair_no_navegador(janela: WebviewWindow, base: Url) {
-    let dados = dados();
-    let Some(jobot) = servidor::jobot_instalado(&dados, std::env::consts::OS) else {
-        ir(&janela, pagina_de_erro(&base, "instalar", "", ""));
-        return;
-    };
-    if let Err(erro) = servidor::comando_destacado(&jobot, "abrir").spawn() {
-        let log = servidor::fim_do_log(&dados);
-        ir(
-            &janela,
-            pagina_de_erro(&base, "subir", &erro.to_string(), &log),
-        );
-        return;
-    }
-    ir(&janela, pagina_de_erro(&base, "janela", "", ""));
-    std::thread::sleep(AVISO_DA_JANELA);
-    let _ = janela.close();
-}
-
-fn tratar(app: &AppHandle, destino: &Url) -> bool {
-    let Some(aviso) = aviso_local(destino) else {
-        return true;
-    };
-    let Some(janela) = app.get_webview_window("main") else {
-        return false;
-    };
-    // fora do tratador da navegação: navegar de dentro dele pode travar o WebKitGTK
-    let base = destino.clone();
-    std::thread::spawn(move || {
-        // quem navega é a página aberta agora: se não for local (o painel), nada acontece
-        if !janela.url().is_ok_and(|atual| e_local(&atual)) {
-            return;
-        }
-        match aviso {
-            Aviso::Janela { ok: true } => abrir_painel(janela, base),
-            Aviso::Janela { ok: false } => cair_no_navegador(janela, base),
-            Aviso::Tentar => ir(&janela, base.join("/verificar.html").expect("caminho fixo")),
-            Aviso::Fechar => {
-                let _ = janela.close();
-            }
-        }
-    });
-    false
-}
-
-/// A janela `main` do `tauri.conf.json` (`tauri.macos.conf.json` no Mac: `Overlay`), que abre
-/// em `ui/verificar.html`.
-fn abrir_janela(app: &AppHandle) -> tauri::Result<()> {
-    let config = app
-        .config()
+/// A janela `main` do `tauri.conf.json`: o controle, pequeno e com as decorações do sistema.
+fn janela_do_controle(app: &AppHandle) -> WindowConfig {
+    app.config()
         .app
         .windows
         .iter()
         .find(|j| j.label == "main")
         .expect("janela main no tauri.conf.json")
-        .clone();
-    let dono = app.clone();
-    WebviewWindowBuilder::from_config(app, &config)?
-        .user_agent(&agente(std::env::consts::OS))
-        .on_navigation(move |destino| tratar(&dono, destino))
-        .build()?;
+        .clone()
+}
+
+/// Sem o joBot instalado, a mesma janela abre na tela de instalação, maior.
+fn para_o_instalador(mut config: WindowConfig) -> WindowConfig {
+    config.url = WebviewUrl::App("index.html".into());
+    (config.width, config.height) = INSTALADOR;
+    (config.min_width, config.min_height) = (Some(INSTALADOR_MINIMO.0), Some(INSTALADOR_MINIMO.1));
+    config
+}
+
+/// Instalação pronta: a janela volta ao tamanho do controle e mostra o controle.
+fn ir_ao_controle(app: &AppHandle, janela: &WebviewWindow) {
+    let config = janela_do_controle(app);
+    let minimo = config
+        .min_width
+        .zip(config.min_height)
+        .map(|(l, a)| LogicalSize::new(l, a));
+    let _ = janela.set_min_size(minimo);
+    let _ = janela.set_size(LogicalSize::new(config.width, config.height));
+    let _ = janela.center();
+    if let Ok(atual) = janela.url() {
+        ir(janela, atual.join("/controle.html").expect("caminho fixo"));
+    }
+}
+
+/// Abre a janela no controle (joBot instalado) ou na tela de instalação (sem ele).
+fn abrir_janela(app: &AppHandle) -> tauri::Result<()> {
+    let config = janela_do_controle(app);
+    let instalado = servidor::jobot_instalado(&dados(), std::env::consts::OS).is_some();
+    let config = if instalado {
+        config
+    } else {
+        para_o_instalador(config)
+    };
+    WebviewWindowBuilder::from_config(app, &config)?.build()?;
     Ok(())
 }
 
@@ -368,12 +299,6 @@ fn ao_sair() {
 fn main() {
     let contexto = tauri::generate_context!();
     let args: Vec<String> = std::env::args().skip(1).collect();
-    if let [flag, url] = args.as_slice()
-        && flag == "--verificar-janela"
-    {
-        verificar_janela(url, contexto);
-        return;
-    }
     if args.first().is_some_and(|a| a == "--verificar") {
         std::process::exit(verificar(contexto.package_info()));
     }
@@ -394,7 +319,11 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             estado_instalador,
             instalar,
-            fechar_instalador
+            fechar_instalador,
+            estado_controle,
+            ligar,
+            parar,
+            abrir_jobot
         ])
         .on_window_event(|janela, evento| {
             if let WindowEvent::CloseRequested { api, .. } = evento
@@ -419,39 +348,6 @@ fn main() {
             RunEvent::Exit => ao_sair(),
             _ => {}
         });
-}
-
-/// Prova da ponte (T321): abre a URL sem moldura e sai com 0 se a IPC respondeu, 2 se não.
-fn verificar_janela(alvo: &str, contexto: tauri::Context) {
-    let url: Url = alvo.parse().expect("URL inválida");
-    tauri::Builder::default()
-        .setup(move |app| {
-            WebviewWindowBuilder::new(app, "main", WebviewUrl::External(url))
-                .title("joBot")
-                .decorations(false)
-                .on_page_load(|webview, carga| {
-                    if carga.event() == PageLoadEvent::Finished && resultado(carga.url()).is_none()
-                    {
-                        webview.eval(SCRIPT).expect("eval do script da prova");
-                    }
-                })
-                .on_navigation(|destino| match resultado(destino) {
-                    Some(codigo) => {
-                        println!("verificar-janela: {destino} -> {codigo}");
-                        std::process::exit(codigo);
-                    }
-                    None => true,
-                })
-                .build()?;
-            std::thread::spawn(|| {
-                std::thread::sleep(PRAZO);
-                eprintln!("verificar-janela: sem resposta em {PRAZO:?}");
-                std::process::exit(2);
-            });
-            Ok(())
-        })
-        .run(contexto)
-        .expect("erro ao rodar a janela");
 }
 
 /// Abre o Chromium de verdade pelo Python do venv e lê uma página (desenho 10): só conferir a
@@ -608,27 +504,50 @@ fn verificar_navegador(info: &tauri::PackageInfo) -> i32 {
 mod testes {
     use super::*;
 
-    fn url(texto: &str) -> Url {
-        texto.parse().unwrap()
+    fn conf(texto: &str) -> Value {
+        serde_json::from_str(texto).unwrap()
+    }
+
+    fn main_do_conf() -> WindowConfig {
+        let c = conf(include_str!("../tauri.conf.json"));
+        let main = c["app"]["windows"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|j| j["label"] == "main")
+            .unwrap()
+            .clone();
+        serde_json::from_value(main).unwrap()
     }
 
     #[test]
-    fn ok_da_zero() {
+    fn janela_main_e_o_controle_pequeno_com_as_decoracoes_do_sistema() {
+        let main = main_do_conf();
+        assert!(!main.create, "a casca cria a janela (abrir_janela)");
+        assert_eq!(main.url, WebviewUrl::App("controle.html".into()));
+        assert!((380.0..=480.0).contains(&main.width), "{}", main.width);
+        assert!((260.0..=360.0).contains(&main.height), "{}", main.height);
+        assert!(main.decorations);
+        // no Mac também: sem a barra própria (Overlay) que o painel desenhava
+        let mac = conf(include_str!("../tauri.macos.conf.json"));
+        assert!(mac["app"]["windows"].is_null(), "{mac}");
+    }
+
+    #[test]
+    fn sem_instalacao_a_mesma_janela_abre_a_tela_de_instalacao_maior() {
+        let main = main_do_conf();
+        let instalador = para_o_instalador(main.clone());
+        assert_eq!(instalador.url, WebviewUrl::App("index.html".into()));
+        assert_eq!((instalador.width, instalador.height), INSTALADOR);
         assert_eq!(
-            resultado(&url("http://127.0.0.1:8765/__jobot_resultado?ok=false")),
-            Some(0)
+            (instalador.min_width, instalador.min_height),
+            (Some(INSTALADOR_MINIMO.0), Some(INSTALADOR_MINIMO.1))
         );
-    }
-
-    #[test]
-    fn erro_da_dois() {
-        let u = url("http://127.0.0.1:8765/__jobot_resultado?erro=x&csp=connect-src");
-        assert_eq!(resultado(&u), Some(2));
-    }
-
-    #[test]
-    fn outra_pagina_nao_e_resultado() {
-        assert_eq!(resultado(&url("http://127.0.0.1:8765/?ok=1")), None);
+        assert!(instalador.width > main.width && instalador.height > main.height);
+        assert_eq!(
+            (instalador.label, instalador.decorations),
+            (main.label, main.decorations)
+        );
     }
 
     #[test]
@@ -664,109 +583,5 @@ mod testes {
     #[test]
     fn script_abre_o_chromium_completo_e_nao_o_headless_shell() {
         assert!(SCRIPT_CHROMIUM.contains("p.chromium.launch(channel=\"chromium\")"));
-    }
-
-    #[test]
-    fn script_usa_o_mesmo_caminho() {
-        assert!(SCRIPT.contains(CAMINHO_RESULTADO));
-    }
-
-    #[test]
-    fn agente_leva_a_marca_da_casca() {
-        let versao = env!("CARGO_PKG_VERSION");
-        for (so, marca) in [
-            ("linux", "linux"),
-            ("windows", "windows"),
-            ("macos", "macos"),
-        ] {
-            let ua = agente(so);
-            assert!(ua.starts_with("Mozilla/5.0 ("), "{ua}");
-            assert!(
-                ua.ends_with(&format!(" joBot-casca/{versao} ({marca})")),
-                "{ua}"
-            );
-        }
-    }
-
-    #[test]
-    fn so_a_origem_local_fala_com_a_casca() {
-        let ok = Some(Aviso::Janela { ok: true });
-        assert_eq!(
-            aviso_local(&url("tauri://localhost/__jobot/janela?ok=1")),
-            ok
-        );
-        assert_eq!(
-            aviso_local(&url("http://tauri.localhost/__jobot/janela?ok=1")),
-            ok
-        );
-        assert_eq!(
-            aviso_local(&url("tauri://localhost/__jobot/janela?falta=popover")),
-            Some(Aviso::Janela { ok: false })
-        );
-        assert_eq!(
-            aviso_local(&url("tauri://localhost/__jobot/tentar")),
-            Some(Aviso::Tentar)
-        );
-        assert_eq!(
-            aviso_local(&url("http://127.0.0.1:47615/__jobot/tentar")),
-            None
-        );
-        assert_eq!(aviso_local(&url("tauri://localhost/verificar.html")), None);
-        assert_eq!(
-            aviso_local(&url("tauri://localhost/__jobot/fechar")),
-            Some(Aviso::Fechar)
-        );
-        for de_fora in [
-            "tauri://outro/__jobot/tentar",
-            "http://tauri.localhost:8080/__jobot/tentar",
-            "http://tauri.localhost.exemplo/__jobot/tentar",
-            "file://localhost/__jobot/tentar",
-        ] {
-            assert_eq!(aviso_local(&url(de_fora)), None, "{de_fora}");
-        }
-    }
-
-    #[test]
-    fn so_a_pagina_local_pede() {
-        assert!(e_local(&url("tauri://localhost/erro.html?motivo=porta")));
-        assert!(e_local(&url("http://tauri.localhost/verificar.html")));
-        assert!(e_local(&url("https://tauri.localhost/erro.html")));
-        assert!(!e_local(&url("http://127.0.0.1:47615/")));
-        assert!(!e_local(&url("http://localhost/")));
-        assert!(!e_local(&url("tauri://outro/")));
-    }
-
-    #[test]
-    fn sem_instalacao_vai_para_a_tela_de_instalacao() {
-        let base = url("tauri://localhost/__jobot/janela?ok=1");
-        let dados = Path::new("/nao/existe");
-        let destino = destino_do_arranque(&base, Err(servidor::Falha::SemInstalacao), dados);
-        assert_eq!(destino.as_str(), "tauri://localhost/index.html");
-        let painel = destino_do_arranque(&base, Ok(47615), dados);
-        assert_eq!(painel.as_str(), "http://127.0.0.1:47615/");
-        let erro = destino_do_arranque(&base, Err(servidor::Falha::Porta(8000)), dados);
-        assert_eq!(erro.path(), "/erro.html");
-    }
-
-    #[test]
-    fn erro_leva_motivo_detalhe_e_log_na_origem_local() {
-        let u = pagina_de_erro(
-            &url("tauri://localhost/__jobot/janela?ok=1"),
-            "porta",
-            "47615",
-            "a&b\nc",
-        );
-        assert_eq!(u.path(), "/erro.html");
-        assert_eq!(u.scheme(), "tauri");
-        let pares: Vec<(String, String)> =
-            u.query_pairs().map(|(k, v)| (k.into(), v.into())).collect();
-        assert_eq!(
-            pares,
-            [
-                ("motivo".into(), "porta".into()),
-                ("detalhe".into(), "47615".into()),
-                ("log".into(), "a&b\nc".into())
-            ]
-        );
     }
 }
