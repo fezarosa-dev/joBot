@@ -17,3 +17,4 @@
 - [ ] Commits no formato `tipo(escopo): descrição`, em português. / Commits in the format `type(scope): description`, in Portuguese.
 - [ ] Não copiei código nem dados de terceiros. / I did not copy third-party code or data.
 - [ ] Atualizei a documentação em português e inglês quando mudou algo visível. / I updated the docs in Portuguese and English when something visible changed.
+- [ ] PR de release (`dev` → `main`): antes da tag, olhei as capturas da casca (artefato `capturas-casca`) e do painel nos três motores e anotei aqui. / Release PR (`dev` → `main`): before the tag, I looked at the shell captures (`capturas-casca` artifact) and the panel captures in the three engines and noted it here.
