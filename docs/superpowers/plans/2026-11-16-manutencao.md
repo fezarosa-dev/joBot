@@ -340,3 +340,11 @@ Itens pequenos e independentes entre si.
 - [ ] **Achar a causa** (arredondamento de sub-pixel da entrelinha do título, fonte que ainda não carregou, quebra de linha diferente) com sonda, sem `sleep`.
 - [ ] **Teste que falha** pela causa provada e **corrigir** na causa (CSS ou espera certa no teste), sem só afrouxar a tolerância.
 - [ ] **Ver passar:** o laço no CI sem falha.
+
+### T346: menos transparência nos testes de tela do Firefox e do WebKit
+`depende_de: —` · D209
+
+**O que se viu.** Na T352 o `-m tela` passou a rodar nos três motores. `tests/tela/test_casca.py::test_sem_vidro_com_menos_transparencia` emula `prefers-reduced-transparency: reduce` pelo CDP (`Emulation.setEmulatedMedia`), que só existe no Chromium; o Playwright 1.65 não emula essa media no `emulate_media`. No Firefox e no WebKit o teste pula com o motivo e o número desta tarefa. O `test_sem_vidro_com_mais_contraste_ou_cores_forcadas[contrast]` tem a mesma guarda (pula se o motor não emular `prefers-contrast`), que no CI da T352 não disparou.
+
+- [ ] Quando o Playwright emular `prefers-reduced-transparency` em `emulate_media` (ou o motor aceitar outro caminho sem CDP), trocar o CDP por ele e tirar o pulo por motor.
+- [ ] Ver passar nos três motores no CI.

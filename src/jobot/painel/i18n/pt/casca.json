@@ -55,10 +55,5 @@
   "casca.aviso_candidatura.sim": "Sim, me candidatei",
   "casca.aviso_candidatura.ainda_nao": "Ainda não",
   "casca.aviso_candidatura.mais": "e mais {n} para responder",
-  "casca.aviso_candidatura.marcada": "{titulo} marcada como Candidatei.",
-  "casca.janela.botoes": "Botões da janela",
-  "casca.janela.fechar": "Fechar",
-  "casca.janela.minimizar": "Minimizar",
-  "casca.janela.maximizar": "Maximizar",
-  "casca.janela.restaurar": "Restaurar"
+  "casca.aviso_candidatura.marcada": "{titulo} marcada como Candidatei."
 }

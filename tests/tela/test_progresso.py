@@ -17,6 +17,7 @@ import pytest
 from fastapi import FastAPI
 from playwright.sync_api import Page, expect
 
+from apoio.console import anotar_erros
 from apoio.relogio import RelogioFalso
 from jobot.banco.andamento import abrir_andamento, marcar_fonte, mudar_etapa, planejar
 from jobot.banco.cadastros import semear as semear_fontes
@@ -310,9 +311,7 @@ def test_um_clique_acompanha_ate_o_fim(
         return id_
 
     monkeypatch.setattr(rota, "executar_busca", lenta)
-    erros: list[str] = []
-    page.on("console", lambda m: erros.append(m.text) if m.type == "error" else None)
-    page.on("pageerror", lambda e: erros.append(str(e)))
+    erros = anotar_erros(page)
     page.clock.install()
     page.goto(f"{painel}/vagas?aba=todas")
     page.get_by_role("banner").get_by_role("button", name="Buscar agora").click()
