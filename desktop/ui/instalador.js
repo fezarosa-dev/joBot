@@ -173,7 +173,13 @@
     instalar();
   });
   $("ferramenta-navegador").addEventListener("change", desenharRodape);
-  $("idioma").addEventListener("change", (evento) => carregarTextos(evento.target.value));
+  $("idioma").addEventListener("change", (evento) => {
+    // fica para o controle, que abre depois na mesma origem (D207.9); sem armazenamento, tudo bem
+    try {
+      localStorage.setItem("jobot.idioma", evento.target.value);
+    } catch {}
+    carregarTextos(evento.target.value);
+  });
   $("fechar-janela").addEventListener("click", () => window.__jobotPedirFechar());
   $("alerta-continuar").addEventListener("click", () => $("alerta-fechar").close());
   $("alerta-parar").addEventListener("click", () => {
@@ -186,8 +192,6 @@
     }
     fechar();
   });
-  // no Mac a janela tem os botões do sistema (Overlay): o "Fechar" da faixa sairia repetido
-  $("fechar-janela").hidden = / \(macos\)$/.test(navigator.userAgent);
 
   (async () => {
     await carregarTextos(/^pt\b/i.test(navigator.language || "") ? "pt" : "en");

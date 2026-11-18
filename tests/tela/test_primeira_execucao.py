@@ -8,6 +8,7 @@ import pytest
 from fastapi import FastAPI
 from playwright.sync_api import Page, expect
 
+from apoio.console import anotar_erros
 from apoio.relogio import RelogioFalso
 from apoio.segundo_plano_falso import FalsoSistema
 from apoio.site_falso import LeitorFalso
@@ -46,9 +47,7 @@ def _passo_1(page: Page) -> None:
 def test_fluxo_completo_vai_do_passo_1_ao_fim_e_para_nos_destaques(
     page: Page, painel: str, sistema: FalsoSistema
 ) -> None:
-    erros: list[str] = []  # violação do CSP aparece como erro no console
-    page.on("console", lambda m: erros.append(m.text) if m.type == "error" else None)
-    page.on("pageerror", lambda e: erros.append(str(e)))
+    erros = anotar_erros(page)  # violação do CSP aparece como erro no console
 
     page.goto(f"{painel}/")
     expect(page).to_have_url(f"{painel}/primeira-execucao/1")

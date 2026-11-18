@@ -7,6 +7,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from playwright.sync_api import Locator, Page, ViewportSize, expect
 
+from apoio.console import anotar_erros
 from jobot.painel.seguranca import renderizar
 
 pytestmark = pytest.mark.tela
@@ -73,10 +74,8 @@ def _fundo(page: Page) -> str:
 
 def test_nenhum_pedido_sai_de_127(page: Page, painel: str, _so_127: list[str]) -> None:
     respostas: list[tuple[str, int]] = []
-    erros: list[str] = []  # violação do CSP aparece como erro no console
+    erros = anotar_erros(page)  # violação do CSP aparece como erro no console
     page.on("response", lambda r: respostas.append((r.url, r.status)))
-    page.on("console", lambda m: erros.append(m.text) if m.type == "error" else None)
-    page.on("pageerror", lambda e: erros.append(str(e)))
     page.goto(painel + CASCA)
     page.wait_for_load_state("networkidle")
     page.goto(painel + GERAL)
@@ -166,7 +165,8 @@ def test_link_no_texto_tem_sublinhado(page: Page, painel: str) -> None:
     assert page.locator("a.marca").evaluate(decoracao) == "none"
 
 
-# a cor do vidro e o filtro da barra e da lateral (.vidro) e de um .painel colocado no main
+# a cor e o filtro da barra e da lateral (sólidas desde a T353), da paleta (.vidro, camada
+# passageira) e de um .painel colocado no main
 ESTILO_VIDRO = """() => {
   const main = document.querySelector('main');
   const painel = Object.assign(document.createElement('div'), {className: 'painel'});
@@ -178,6 +178,7 @@ ESTILO_VIDRO = """() => {
   return {
     topo: lido(document.querySelector('header.topo')),
     lateral: lido(document.querySelector('aside.lateral')),
+    paleta: lido(document.querySelector('#paleta')),
     painel: lido(painel),
   };
 }"""
@@ -188,34 +189,43 @@ def _opaco(fundo: str) -> bool:
     return "/" not in fundo and not (fundo.startswith("rgba(") and not fundo.endswith(", 1)"))
 
 
-def test_painel_e_translucido(page: Page, painel: str) -> None:
-    # desenho 5.1: vidro só na barra (.vidro); o .painel é conteúdo e fica opaco, sem filtro
+def test_vidro_so_na_camada_passageira(page: Page, painel: str) -> None:
+    # T353 (D206): vidro só na camada que abre e fecha (a paleta); a barra e a lateral, grandes e
+    # fixas, ficam sólidas e sem filtro; o .painel é conteúdo e fica opaco, sem filtro
     page.goto(painel + CASCA)
     estilo = page.evaluate(ESTILO_VIDRO)
-    for vidro in ("topo", "lateral"):
-        assert "blur" in estilo[vidro]["filtro"], vidro
-        assert not _opaco(estilo[vidro]["fundo"]), vidro
+    for fixa in ("topo", "lateral"):
+        assert estilo[fixa]["filtro"] == "none", fixa
+        assert _opaco(estilo[fixa]["fundo"]), fixa
+    assert "blur" in estilo["paleta"]["filtro"]
+    assert not _opaco(estilo["paleta"]["fundo"])
     assert estilo["painel"]["filtro"] == "none"
     assert _opaco(estilo["painel"]["fundo"])
 
 
-def test_sem_vidro_com_mais_contraste_ou_cores_forcadas(page: Page, painel: str) -> None:
+@pytest.mark.parametrize("emulacao", ["contrast", "forced_colors"])
+def test_sem_vidro_com_mais_contraste_ou_cores_forcadas(
+    page: Page, painel: str, emulacao: str
+) -> None:
+    # a preferência vem antes da página, como na máquina de quem usa (T352: no Firefox, trocada com
+    # a página já aberta, o <dialog> fechado ainda saía com o vidro no estilo calculado)
+    if emulacao == "contrast":
+        page.emulate_media(contrast="more")
+    else:
+        page.emulate_media(forced_colors="active")
     page.goto(painel + CASCA)
-    for emulacao in ("contrast", "forced_colors"):
-        if emulacao == "contrast":
-            page.emulate_media(contrast="more")
-        else:
-            page.emulate_media(forced_colors="active")
-        estilo = page.evaluate(ESTILO_VIDRO)
-        assert estilo["topo"]["filtro"] == "none", emulacao
-        assert estilo["lateral"]["filtro"] == "none", emulacao
-        assert estilo["painel"]["filtro"] == "none", emulacao
-        page.emulate_media(contrast="no-preference", forced_colors="none")
-        page.locator("main .painel").evaluate("el => el.remove()")
+    contraste = page.evaluate("matchMedia('(prefers-contrast: more)').matches")
+    if emulacao == "contrast" and not contraste:
+        pytest.skip("este motor não emula prefers-contrast (T346)")
+    estilo = page.evaluate(ESTILO_VIDRO)
+    for vidro in ("topo", "lateral", "paleta", "painel"):
+        assert estilo[vidro]["filtro"] == "none", vidro
 
 
-def test_sem_vidro_com_menos_transparencia(page: Page, painel: str) -> None:
+def test_sem_vidro_com_menos_transparencia(page: Page, painel: str, browser_name: str) -> None:
     """O Playwright não emula `prefers-reduced-transparency`: vai pelo protocolo do Chromium."""
+    if browser_name != "chromium":
+        pytest.skip("só o Chromium emula prefers-reduced-transparency, pelo CDP (T346)")
     page.goto(painel + CASCA)
     sessao = page.context.new_cdp_session(page)
     sessao.send(
@@ -225,7 +235,7 @@ def test_sem_vidro_com_menos_transparencia(page: Page, painel: str) -> None:
     if not page.evaluate("matchMedia('(prefers-reduced-transparency: reduce)').matches"):
         pytest.skip("este Chromium não emula prefers-reduced-transparency")
     estilo = page.evaluate(ESTILO_VIDRO)
-    for vidro in ("topo", "lateral"):
+    for vidro in ("topo", "lateral", "paleta"):
         assert estilo[vidro]["filtro"] == "none", vidro
         assert _opaco(estilo[vidro]["fundo"]), vidro
 
@@ -251,8 +261,10 @@ def test_htmx_manda_o_token_csrf(page: Page, painel: str) -> None:
     status = page.evaluate(
         """() => new Promise(fim => {
           if (!window.htmx) return fim(null);
-          document.body.addEventListener('htmx:afterRequest', e => fim(e.detail.xhr.status),
-            {once: true});
+          // só o pedido do tema: outro pedido da página (204) pode terminar antes (T352, WebKit)
+          document.body.addEventListener('htmx:afterRequest', e => {
+            if (e.detail.requestConfig.path === '/preferencias/tema') fim(e.detail.xhr.status);
+          });
           htmx.ajax('POST', '/preferencias/tema',
             {source: document.body, swap: 'none', values: {tema: 'escuro', voltar: '/_casca'}});
         })"""
@@ -277,7 +289,7 @@ LARGA: ViewportSize = {"width": 1200, "height": 800}
 ROLA_DE_LADO = "document.documentElement.scrollWidth > window.innerWidth"
 
 
-def test_lateral_e_barra_com_vidro(page: Page, painel: str) -> None:
+def test_lateral_e_barra_sem_vidro(page: Page, painel: str) -> None:
     page.set_viewport_size(LARGA)
     page.goto(painel + "/vagas")
     ordem = page.evaluate(
@@ -291,8 +303,8 @@ def test_lateral_e_barra_com_vidro(page: Page, painel: str) -> None:
     altura = page.locator("header.topo").evaluate("el => el.getBoundingClientRect().height")
     assert altura == pytest.approx(52, abs=0.5)
     estilo = page.evaluate(ESTILO_VIDRO)
-    for vidro in ("topo", "lateral"):
-        assert "blur" in estilo[vidro]["filtro"], vidro
+    for fixa in ("topo", "lateral"):
+        assert estilo[fixa]["filtro"] == "none", fixa
     menu = page.get_by_role("complementary").get_by_role("navigation", name="Principal")
     expect(menu).to_be_visible()
 
@@ -384,7 +396,7 @@ def test_janela_inativa_tira_o_vidro(page: Page, painel: str) -> None:
     page.evaluate("window.dispatchEvent(new Event('blur'))")
     expect(html).to_have_attribute("data-janela", "inativa")
     estilo = page.evaluate(ESTILO_VIDRO)
-    for vidro in ("topo", "lateral"):
+    for vidro in ("topo", "lateral", "paleta"):
         assert estilo[vidro]["filtro"] == "none", vidro
         assert _opaco(estilo[vidro]["fundo"]), vidro
     page.evaluate("window.dispatchEvent(new Event('focus'))")

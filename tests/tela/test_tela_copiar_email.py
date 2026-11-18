@@ -29,14 +29,22 @@ def app_painel(app_painel: FastAPI, tmp_path: Path) -> FastAPI:
     return app_painel
 
 
-def test_copiar_aparece_com_js_e_copia(page: Page, painel: str) -> None:
-    page.context.grant_permissions(["clipboard-read", "clipboard-write"])
+def test_copiar_aparece_com_js_e_copia(page: Page, painel: str, browser_name: str) -> None:
+    # as permissões da área de transferência só existem no Chromium do Playwright; Firefox e WebKit
+    # deixam o writeText no clique. O que foi escrito se lê pelo próprio writeText, que segue o real
+    if browser_name == "chromium":
+        page.context.grant_permissions(["clipboard-write"])
+    page.add_init_script(
+        "const escrever = navigator.clipboard.writeText.bind(navigator.clipboard);"
+        "navigator.clipboard.writeText = (texto) => { window.__copiado = texto;"
+        " return escrever(texto); };"
+    )
     page.goto(f"{painel}/vagas/{USD}")
     botao = page.get_by_role("button", name="Copiar endereço", exact=True)
     expect(botao).to_be_visible()
     botao.click()
     expect(page.locator(REGIAO)).to_have_text("Endereço copiado.")
-    assert page.evaluate("() => navigator.clipboard.readText()") == "rh@example.com"
+    assert page.evaluate("() => window.__copiado") == "rh@example.com"
 
 
 def test_copiar_que_falha_avisa(page: Page, painel: str) -> None:
