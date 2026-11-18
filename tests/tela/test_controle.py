@@ -163,7 +163,7 @@ def test_falha_sem_log_nao_manda_ver_o_registro(page: Page, ui: str) -> None:
 def test_parar_que_falha_diz_e_segue_ligado(page: Page, ui: str) -> None:
     _abrir(page, ui, estado_controle=LIGADO, parar={**LIGADO, "falha": "parar", "detalhe": ""})
     _botao(page, "Parar").click()
-    expect(page.get_by_role("alert")).to_contain_text("O joBot não parou")
+    expect(page.get_by_role("alert")).to_contain_text("O joBot não parou a tempo")
     expect(page.get_by_role("status").first).to_have_text("Ligado")
     expect(_botao(page, "Parar")).to_be_enabled()
 

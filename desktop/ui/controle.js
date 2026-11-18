@@ -4,9 +4,11 @@
 // "log"}. Ao abrir, só pergunta o estado: não liga nem abre nada sozinho.
 (() => {
   "use strict";
-  // o mesmo `codigo` de servidor::Falha, o `abrir` do abridor do navegador e o `outro`, para
-  // resposta que não veio ou motivo que a página não conhece
-  const MOTIVOS = ["instalar", "porta", "captura", "sem_resposta", "saiu", "subir", "abrir", "outro"];
+  // o mesmo `codigo` de servidor::Falha, o `abrir` do abridor do navegador, o `parar` do Parar
+  // que não parou e o `outro`, para resposta que não veio ou motivo que a página não conhece
+  const MOTIVOS = [
+    "instalar", "porta", "captura", "sem_resposta", "saiu", "subir", "abrir", "parar", "outro",
+  ];
   const INTERVALO = 3000; // de quanto em quanto tempo o controle confere se o painel caiu
 
   const core = window.__TAURI__ && window.__TAURI__.core;
@@ -56,7 +58,9 @@
     if (ocupado || document.hidden) return;
     const novo = await chamar("estado_controle");
     if (novo && !ocupado) {
-      estado = novo;
+      // o painel mudou sozinho (o Ligar que estourou o prazo terminou de subir): a falha velha sai
+      if (Boolean(novo.ligado) !== estado.ligado) falha = null;
+      estado = { ligado: Boolean(novo.ligado), endereco: novo.endereco || estado.endereco };
       desenhar();
     }
   }
@@ -91,6 +95,16 @@
     setTimeout(() => ($("copiado").textContent = ""), INTERVALO);
   }
 
+  // o idioma escolhido na tela de instalação, que abre na mesma origem (D207.9)
+  function idiomaGuardado() {
+    try {
+      const idioma = localStorage.getItem("jobot.idioma");
+      return ["pt", "en"].includes(idioma) ? idioma : null;
+    } catch {
+      return null;
+    }
+  }
+
   async function carregarTextos(idioma) {
     const resposta = await fetch(`i18n/${idioma}.json`);
     textos = await resposta.json();
@@ -106,7 +120,8 @@
   document.addEventListener("visibilitychange", consultar);
 
   (async () => {
-    await carregarTextos(/^pt\b/i.test(navigator.language || "") ? "pt" : "en");
+    const doSistema = /^pt\b/i.test(navigator.language || "") ? "pt" : "en";
+    await carregarTextos(idiomaGuardado() || doSistema);
     await consultar();
     setInterval(consultar, INTERVALO);
   })();

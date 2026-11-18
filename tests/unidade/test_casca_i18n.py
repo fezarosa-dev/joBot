@@ -82,7 +82,8 @@ def test_toda_chave_usada_pelo_controle_existe() -> None:
     usadas = set(re.findall(r'data-t(?:-rotulo)?="([^"]+)"', html))
     usadas |= set(re.findall(r't\("([\w.]+)"', js))
     motivos = set(re.findall(r'"(\w+)"', js.split("const MOTIVOS = [", 1)[1].split("]", 1)[0]))
-    assert {"instalar", "porta", "captura", "sem_resposta", "saiu", "subir", "abrir"} <= motivos
+    esperados = {"instalar", "porta", "captura", "sem_resposta", "saiu", "subir", "abrir", "parar"}
+    assert esperados <= motivos
     usadas |= {f"controle.falha.{m}" for m in motivos}
     assert "t(`controle.${nome}`)" in js
     usadas |= {f"controle.{e}" for e in ("ligado", "parado", "ligando", "parando")}
