@@ -186,8 +186,6 @@
     }
     fechar();
   });
-  // no Mac a janela tem os botões do sistema (Overlay): o "Fechar" da faixa sairia repetido
-  $("fechar-janela").hidden = / \(macos\)$/.test(navigator.userAgent);
 
   (async () => {
     await carregarTextos(/^pt\b/i.test(navigator.language || "") ? "pt" : "en");

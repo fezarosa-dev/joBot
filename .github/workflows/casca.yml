@@ -4,10 +4,10 @@ name: Casca
 # todo pull request, push em lote/** e workflow_dispatch. Gatilho pull_request,
 # nunca pull_request_target; sem segredos.
 # O job casca roda no ubuntu-22.04 (WebKitGTK mais velho que se espera achar): fmt,
-# clippy, testes e, sob xvfb, confere se a IPC do Tauri responde no painel em
-# http://127.0.0.1 com a CSP real do painel (T321); se não, tenta com a origem da IPC
-# no connect-src. O job windows roda os testes de sistema no Windows (desenho 10) e o
-# clippy e os testes da casca, que passam pelos ramos #[cfg(windows)].
+# clippy, testes e build. O painel não abre mais na janela (D206, ADR 0027): a prova da
+# IPC no painel em http://127.0.0.1 (T321) saiu. O job windows roda os testes de sistema
+# no Windows (desenho 10) e o clippy e os testes da casca, que passam pelos ramos
+# #[cfg(windows)].
 # Só no workflow_dispatch: o job uv (prova do uv com hash, T322 e D173) nos três
 # sistemas e, com a entrada pacotes, o job pacotes: o mesmo pacotes.yml da release
 # (instaladores e fumaça sem rede, T339), sem publicar; com a entrada ia, o job ia: o ia.yml
@@ -45,7 +45,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xvfb
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
       - run: |
           canal=$(sed -n 's/^channel = "\(.*\)"$/\1/p' rust-toolchain.toml)
           test -n "$canal"
@@ -61,25 +61,6 @@ jobs:
       - run: cargo clippy --locked --all-targets -- -D warnings
       - run: cargo test --locked
       - run: cargo build --locked
-      - name: verificar-janela
-        env:
-          WEBKIT_DISABLE_DMABUF_RENDERER: '1'
-          WEBKIT_DISABLE_COMPOSITING_MODE: '1'
-        run: |
-          prova() {
-            python3 ../scripts/prova_janela.py "$1" $2 &
-            servidor=$!
-            sleep 1
-            codigo=0
-            xvfb-run -a timeout 120 ./target/debug/jobot-app --verificar-janela "http://127.0.0.1:$1/" || codigo=$?
-            kill "$servidor"
-            return "$codigo"
-          }
-          painel=0; prova 8765 || painel=$?
-          ipc=0; prova 8766 --com-ipc || ipc=$?
-          echo "CSP do painel: $painel; com a origem da IPC: $ipc"
-          echo "CSP do painel: $painel; com a origem da IPC: $ipc" >> "$GITHUB_STEP_SUMMARY"
-          [ "$painel" = 0 ] || [ "$ipc" = 0 ]
 
   windows:
     runs-on: windows-latest

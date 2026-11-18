@@ -12,14 +12,13 @@
       {
         "label": "main",
         "create": false,
-        "url": "verificar.html",
+        "url": "controle.html",
         "title": "joBot",
-        "width": 1200,
-        "height": 800,
-        "minWidth": 800,
-        "minHeight": 560,
-        "center": true,
-        "decorations": false
+        "width": 420,
+        "height": 300,
+        "minWidth": 360,
+        "minHeight": 260,
+        "center": true
       }
     ],
     "security": {
