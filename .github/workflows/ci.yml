@@ -81,13 +81,14 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: ${{ matrix.motor }}-${{ runner.os }}-${{ steps.playwright.outputs.versao }}
-      # o apt do runner às vezes trava no "Installing dependencies" até o fim do job: cada tentativa
-      # tem 5 min, e são três (só a instalação; teste que falha nunca se repete)
+      # o apt do runner às vezes para num espelho lento e segura o job até o fim: com prazo por
+      # conexão, o próprio apt larga e tenta de novo (só a instalação; teste nunca se repete)
+      - run: printf 'Acquire::Retries "5";\nAcquire::http::Timeout "20";\nAcquire::https::Timeout "20";\n' | sudo tee /etc/apt/apt.conf.d/80-jobot-rede
       - if: steps.cache-motor.outputs.cache-hit != 'true'
-        run: for i in 1 2 3; do timeout 5m uv run playwright install --with-deps ${{ matrix.motor }} && exit 0; done; exit 1
+        run: uv run playwright install --with-deps ${{ matrix.motor }}
       # o cache guarda só o navegador; Firefox e WebKit pedem bibliotecas do sistema que o runner não traz
       - if: steps.cache-motor.outputs.cache-hit == 'true' && matrix.motor != 'chromium'
-        run: for i in 1 2 3; do timeout 5m uv run playwright install-deps ${{ matrix.motor }} && exit 0; done; exit 1
+        run: uv run playwright install-deps ${{ matrix.motor }}
       # tests/navegador usa o Chromium do próprio joBot (a janela do login), não o motor do painel:
       # roda só no job do Chromium
       - run: uv run pytest -m tela --browser ${{ matrix.motor }} --durations=5 ${{ matrix.motor != 'chromium' && 'tests/tela' || '' }}
@@ -104,7 +105,8 @@ jobs:
         with:
           enable-cache: true
       - run: uv sync --locked
-      - run: for i in 1 2 3; do timeout 8m uv run playwright install --with-deps chromium firefox webkit && exit 0; done; exit 1
+      - run: printf 'Acquire::Retries "5";\nAcquire::http::Timeout "20";\nAcquire::https::Timeout "20";\n' | sudo tee /etc/apt/apt.conf.d/80-jobot-rede
+      - run: uv run playwright install --with-deps chromium firefox webkit
       - run: uv run pytest -m tela tests/tela/test_capturas.py --browser chromium --browser firefox --browser webkit
         env:
           JOBOT_CAPTURAS: ${{ runner.temp }}/capturas
