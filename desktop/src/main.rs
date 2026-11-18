@@ -6,6 +6,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod controle;
+#[cfg(target_os = "linux")]
+mod extraido;
 mod fechar;
 mod instalar;
 mod servidor;
@@ -297,6 +299,9 @@ fn ao_sair() {
 }
 
 fn main() {
+    // antes de tudo, até das fumaças: o AppImage sem FUSE não deixa a extração no /tmp (T354)
+    #[cfg(target_os = "linux")]
+    extraido::vigiar();
     let contexto = tauri::generate_context!();
     let args: Vec<String> = std::env::args().skip(1).collect();
     if args.first().is_some_and(|a| a == "--verificar") {

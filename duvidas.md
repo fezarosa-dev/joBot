@@ -3874,6 +3874,28 @@ A sessão propôs abrir o painel no Chrome da pessoa como janela de app. O dono 
 
 **Ver também:** D206, ADR 0027, desenho do visual do Mac (5.1), T352, T356.
 
+## D211. AppImage sem lixo no `/tmp`: escolhas da T354 (para confirmar)
+
+**Status:** decidido pela sessão em 2026-11-18, para confirmar. Vem do item 5 da D206.
+
+**Contexto:** a T354 investigou por que a 0.4.0 deixou duas pastas `/tmp/appimage_extracted_<md5>` (uns 400 MB cada, no `/tmp` que o Fedora guarda na RAM) no PC do dono.
+
+- **Por que extraiu em vez de montar.** O runtime do AppImage (o `type2-runtime` que o `appimagetool` põe no arquivo) não troca a montagem pela extração sozinho: sem FUSE, ele falha e sugere o `--appimage-extract`. O Fedora do dono tem FUSE (`fusermount3` com setuid e `/dev/fuse`). A extração veio do comando que a própria sessão passou ao dono no teste da T343: `./joBot_0.4.0_amd64.AppImage --appimage-extract-and-run`. Abrindo o AppImage normalmente, ele monta em `/tmp/.mount_*`, que o runtime desmonta e apaga ao sair, mesmo se a casca for morta (o processo do FUSE percebe que o pai sumiu).
+- **Por que a pasta ficou.** No modo extraído, quem apaga a pasta é o processo do runtime, depois que a casca sai, e só se ele mesmo sobreviver. Ele não trata sinais: Ctrl+C, fechar o terminal ou matar o grupo (o PC travado) o derrubam junto com a casca, e a pasta fica até o próximo boot.
+
+**Escolhas da sessão (para confirmar):**
+
+1. **A casca vigia a própria extração.** No começo do `main` (antes até das fumaças), se o `APPDIR` é `appimage_extracted_<32 hex>`, o `APPIMAGE` está definido e o executável da casca está dentro da pasta (`desktop/src/extraido.rs`), a casca lança um vigia: um `sh` em grupo de processos próprio, na raiz, só com `PATH=/usr/bin:/bin` (o `LD_LIBRARY_PATH` do AppImage aponta para a pasta que ele apaga), que ignora HUP e INT, espera a casca e o pai dela (o runtime) saírem e apaga a pasta. Processo zumbi conta como morto: a primeira rodada do CI mostrou que, num contêiner cujo pid 1 não recolhe zumbis, o vigia esperava a casca morta para sempre. Numa saída normal o runtime apaga primeiro e o vigia não acha nada; à força, o vigia apaga. **Motivo:** é o único ponto que o joBot controla sem trocar o runtime do AppImage, e cobre Ctrl+C, terminal fechado e SIGKILL na casca e no runtime. Desfazer: tirar a chamada `extraido::vigiar()` do `main`.
+2. **Extrair para o disco é escolha da pessoa, pela variável `TMPDIR`.** A wiki (`Instalar`/`Install`) diz: sem FUSE, prefira o `.deb` ou o `.rpm`; querendo o AppImage, `TMPDIR=~/.cache ./joBot_<versão>_amd64.AppImage --appimage-extract-and-run`. O vigia vale para qualquer `TMPDIR`. **Motivo:** quem escolhe a pasta é o runtime, antes de a casca existir. A outra saída, a casca se relançar com `TMPDIR` no disco, extrairia duas vezes a cada abertura e espalharia o `TMPDIR` pelos filhos. Desfazer: tirar a frase da wiki.
+3. **Nunca mais recomendar `--appimage-extract-and-run` para teste no PC do dono.** Teste do AppImage em PC com FUSE abre o arquivo normalmente; a extração fica para contêiner sem FUSE (o CI). **Motivo:** foi o conselho da sessão que encheu a RAM.
+4. **Teste no `pacotes.yml`, passo próprio "AppImage sem lixo no /tmp (Linux)".** Num contêiner `ubuntu:22.04` sem `/dev/fuse`, como usuário comum: sem a variável, o AppImage tem de falhar (o runtime não extrai sozinho; na rodada do CI, a montagem que falhou não deixou nada no `/tmp`); com `APPIMAGE_EXTRACT_AND_RUN=1`, o `--verificar` sai normal e o `/tmp` volta ao que era; depois, com `setsid`, o teste espera o vigia aparecer, congela (SIGSTOP) o grupo do runtime e da casca no meio do `--verificar`, para ela não terminar sozinha (na segunda rodada do CI ela terminou antes do `kill` e o teste passou sem provar nada), mata o grupo com SIGKILL e o `/tmp` tem de voltar ao que era em até 20 s. Provado na rodada 44273685993 do `casca.yml` com pacotes (os quatro alvos verdes). Controle: a casca tem de ter lançado ao menos um vigia, e, matando-o também, a pasta tem de ficar (senão a conferência não enxerga o lixo). Desfazer: tirar o passo.
+
+**Tetos conhecidos (marcados aqui, sem código):** o vigia não sobrevive a quem mata a sessão inteira (sair da sessão do desktop mata o escopo do app, e o vigia junto); duas aberturas extraídas do mesmo AppImage usam a mesma pasta e a segunda, ao sair, a apaga debaixo da primeira (é do runtime, e o `single-instance` faz a segunda sair logo); pid reaproveitado faz o vigia esperar um processo alheio. Se algum aparecer de verdade: varrer na abertura as extrações do joBot sem processo vivo.
+
+**Como desfazer:** cada item diz o seu.
+
+**Ver também:** D206 (item 5), ADR 0027, T343, T354.
+
 ## D212. A casca aberta de verdade antes de publicar: escolhas da T355 (para confirmar)
 
 **Status:** decidido pela sessão em 2026-11-18, para confirmar.
