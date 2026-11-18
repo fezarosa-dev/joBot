@@ -21,6 +21,9 @@ class _Pagina:
     def on(self, evento: str, ouvinte: Callable[[Any], None]) -> None:
         self.ouvintes[evento] = ouvinte
 
+    def add_init_script(self, script: str) -> None:
+        self.script = script
+
     def console(self, tipo: str, texto: str) -> None:
         self.ouvintes["console"](SimpleNamespace(type=tipo, text=texto))
 
@@ -46,3 +49,10 @@ def test_ignorar_tira_so_o_trecho_pedido() -> None:
     pagina.console("error", "Failed to load resource: 422")
     pagina.console("error", "Failed to load resource: 500")
     assert erros == ["Failed to load resource: 500"]
+
+
+def test_erro_do_htmx_so_vira_aviso_com_a_pagina_saindo() -> None:
+    pagina = _Pagina()
+    anotar_erros(cast(Page, pagina))
+    assert "window.__jobotSaindo && String(partes[0]).startsWith('htmx:');" in pagina.script
+    assert "addEventListener('pageshow', () => { window.__jobotSaindo = false; })" in pagina.script
