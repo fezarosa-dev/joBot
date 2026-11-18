@@ -27,7 +27,7 @@
   "casca.busca.dica": "Focus Search (/)",
   "casca.erro.4xx": "That could not be done. Reload the page and try again.",
   "casca.erro.5xx": "Something went wrong in joBot. Try again; if it keeps happening, check the joBot log file.",
-  "casca.erro.rede": "joBot did not answer. It may have been closed: open it again with jobot abrir (or from the menu shortcut).",
+  "casca.erro.rede": "joBot did not answer. It may have been closed: start it again with the Start button in the joBot window (the menu shortcut), or with jobot abrir.",
   "casca.erro.fechar": "Close notice",
   "casca.desfazer.ocultada": "Job hidden",
   "casca.desfazer.mostrada": "Job shown again",
