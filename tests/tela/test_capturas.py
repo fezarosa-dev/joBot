@@ -27,6 +27,11 @@ TELAS = {
     "configuracoes": "/configuracoes/geral",
 }
 
+# as animações com fim (as sem fim só existem com trabalho em curso, D210.3)
+_FIM_DAS_ANIMACOES = """() => Promise.all(document.getAnimations()
+  .filter((a) => a.effect && a.effect.getComputedTiming().endTime !== Infinity)
+  .map((a) => a.finished.catch(() => null)))"""
+
 
 @pytest.fixture
 def app_painel(app_painel: FastAPI, tmp_path: Path) -> FastAPI:
@@ -57,6 +62,9 @@ def test_captura(
     page.wait_for_load_state("load")
     expect(page.locator(".htmx-request")).to_have_count(0)
     expect(page.locator("main")).to_be_visible()
+    # a entrada do `main` (fundido de opacidade) termina antes da foto: o `animations="disabled"`
+    # às vezes pegava o meio dela no Chromium, e a tela saía mais clara (D210.8)
+    page.evaluate(_FIM_DAS_ANIMACOES)
     pasta = Path(os.environ.get("JOBOT_CAPTURAS") or tmp_path)
     pasta.mkdir(parents=True, exist_ok=True)
     foto = pasta / f"{browser_name}-{tela}-{tema}-{largura}.png"
