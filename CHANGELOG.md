@@ -11,6 +11,7 @@ O formato segue o [Keep a Changelog 1.1.0](https://keepachangelog.com/pt-BR/1.1.
 ### Adicionado
 
 - ADR 0026 (proposta): IA da fase 4. A IA chegará em duas versões, a 0.5.0 e a 0.6.0, desligada por padrão; o modelo local será baixado da fonte oficial, a pedido da pessoa, e a IA só listará o que a vaga pede, sem dar nota. O roteiro passa a mostrar a fase 4 sendo construída.
+- ADR 0027: a casca só controla. A janela do joBot vira um controle com Ligar, Parar e Abrir joBot, e o painel abre no navegador padrão da pessoa. Troca a parte "Casca" da ADR 0025.
 
 ## [0.4.0] - 2026-11-17
 

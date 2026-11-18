@@ -550,6 +550,7 @@ Each important decision is recorded in a short document called an ADR (architect
 | 0024 | [Gmail with an app password](docs/decisions/0024-gmail-por-senha-de-app.md) |
 | 0025 | [Desktop app and installer](docs/decisions/0025-app-de-desktop-e-instalador.md) |
 | 0026 | [Phase 4 AI: tasks, backends and local model](docs/decisions/0026-ia-da-fase-4.md) |
+| 0027 | [The shell only controls; the dashboard opens in the person's browser](docs/decisions/0027-casca-so-controla.md) |
 
 <a id="how-to-contribute"></a>
 ## 🤝 How to contribute
