@@ -11,6 +11,7 @@ import pytest
 from fastapi import FastAPI
 from playwright.sync_api import Browser, Locator, Page, Route, expect
 
+from apoio.console import anotar_erros
 from apoio.relogio import RelogioFalso
 from apoio.semear import AGORA, inserir_vaga
 from jobot.banco.conexao import abrir
@@ -77,9 +78,7 @@ def _abrir_mais_filtros(page: Page) -> None:
 
 
 def test_abas_marcam_a_atual_e_a_url_reabre_a_tela(page: Page, painel: str) -> None:
-    erros: list[str] = []  # violação do CSP aparece como erro no console
-    page.on("console", lambda m: erros.append(m.text) if m.type == "error" else None)
-    page.on("pageerror", lambda e: erros.append(str(e)))
+    erros = anotar_erros(page)  # violação do CSP aparece como erro no console
     page.goto(f"{painel}/vagas?aba=todas")
     # as abas moram só na lateral (T254, D150 item 1): a tela não repete a fileira
     expect(page.locator("main nav.abas")).to_have_count(0)
@@ -1184,7 +1183,9 @@ def test_troca_da_lista_sem_violacao_de_csp(page: Page, painel: str, banco: Path
     page.set_viewport_size({"width": 1280, "height": 800})
     page.goto(f"{painel}/vagas?aba=todas")
     _aguardar_lista(page)
-    page.screenshot()  # antes das trocas, como numa conferência visual
+    # antes das trocas, como numa conferência visual; `caret="initial"` porque o WebKit do
+    # Playwright esconde o cursor com um <style> posto na página, e o CSP o barra (T352)
+    page.screenshot(caret="initial")
     # o que a foto faz, sem depender dela: style vazio nos campos, posto pelo CSSOM (o CSP deixa)
     marcados = page.locator('[id^="filtro-"]').evaluate_all(
         "es => es.map(e => { e.style.caretColor = 'transparent'; e.style.caretColor = '';"
