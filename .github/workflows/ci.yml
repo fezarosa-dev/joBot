@@ -5,7 +5,7 @@ name: CI
 # Gatilho pull_request, nunca pull_request_target; sem segredos.
 # O push em lote/** serve a quem mantém testar um lote no Actions antes de
 # juntar, sem abrir PR; workflow_dispatch roda o CI à mão.
-# Os testes se dividem em jobs paralelos (lint, comuns em 2 partes, tela em 16): cada parte
+# Os testes se dividem em jobs paralelos (lint, comuns em 2 partes, tela em 16, capturas): cada parte
 # recebe JOBOT_PARTE=i/n, que o tests/conftest.py usa para manter só a sua fatia da coleta.
 # O job `ok` junta tudo: é o único que precisa ser olhado (ou exigido) no PR.
 on:
@@ -82,14 +82,37 @@ jobs:
         run: uv run playwright install --with-deps chromium
       - run: uv run pytest -m tela --durations=5
 
+  # Conferência visual (T353, D206): panorama, vagas, detalhe e configurações nos três motores,
+  # nos temas claro e escuro, em 1280 e 800 px. As fotos ficam como artefato para quem publica
+  # olhar antes da tag.
+  capturas:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          enable-cache: true
+      - run: uv sync --locked
+      - run: uv run playwright install --with-deps chromium firefox webkit
+      - run: uv run pytest -m tela tests/tela/test_capturas.py --browser chromium --browser firefox --browser webkit
+        env:
+          JOBOT_CAPTURAS: ${{ runner.temp }}/capturas
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: capturas
+          path: ${{ runner.temp }}/capturas
+          if-no-files-found: error
+
   ok:
-    needs: [lint, comuns, tela]
+    needs: [lint, comuns, tela, capturas]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
-      RESULTADOS: ${{ needs.lint.result }} ${{ needs.comuns.result }} ${{ needs.tela.result }}
+      RESULTADOS: ${{ needs.lint.result }} ${{ needs.comuns.result }} ${{ needs.tela.result }} ${{ needs.capturas.result }}
     steps:
       - run: |
-          echo "lint comuns tela: $RESULTADOS"
-          [ "$RESULTADOS" = "success success success" ]
+          echo "lint comuns tela capturas: $RESULTADOS"
+          [ "$RESULTADOS" = "success success success success" ]

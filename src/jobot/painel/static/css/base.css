@@ -198,9 +198,11 @@ main:focus:not(:focus-visible) {
   opacity: 1;
 }
 
-/* barra de ferramentas (T251): 52px, o material (vidro) vem da classe .vidro no template e a borda
-   separa do conteúdo; o arranjo na grade da casca fica no casca.css */
+/* barra de ferramentas (T251): 52px, fundo sólido da barra (sem vidro desde a T353: backdrop-filter
+   em área grande e fixa pesa fora do Chromium) e a borda separa do conteúdo; o arranjo na grade da
+   casca fica no casca.css */
 .topo {
+  background-color: var(--solido-barra);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -214,7 +216,8 @@ main:focus:not(:focus-visible) {
 
 /*
  * Vidro (desenho 5.1): o único lugar com backdrop-filter. Nunca vidro sobre vidro, nunca animar o
- * filtro. Menu, paleta, alerta e sheet somam .vidro-elevado para o caminho sólido usar o tom deles.
+ * filtro. Só em camada pequena e passageira (<dialog> ou popover), nunca na lateral nem na barra
+ * (T353, D206). Menu, paleta, alerta e sheet somam .vidro-elevado para o caminho sólido usar o tom deles.
  */
 .vidro,
 .vidro-grande {

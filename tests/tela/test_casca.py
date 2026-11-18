@@ -166,7 +166,8 @@ def test_link_no_texto_tem_sublinhado(page: Page, painel: str) -> None:
     assert page.locator("a.marca").evaluate(decoracao) == "none"
 
 
-# a cor do vidro e o filtro da barra e da lateral (.vidro) e de um .painel colocado no main
+# a cor e o filtro da barra e da lateral (sólidas desde a T353), da paleta (.vidro, camada
+# passageira) e de um .painel colocado no main
 ESTILO_VIDRO = """() => {
   const main = document.querySelector('main');
   const painel = Object.assign(document.createElement('div'), {className: 'painel'});
@@ -178,6 +179,7 @@ ESTILO_VIDRO = """() => {
   return {
     topo: lido(document.querySelector('header.topo')),
     lateral: lido(document.querySelector('aside.lateral')),
+    paleta: lido(document.querySelector('#paleta')),
     painel: lido(painel),
   };
 }"""
@@ -188,13 +190,16 @@ def _opaco(fundo: str) -> bool:
     return "/" not in fundo and not (fundo.startswith("rgba(") and not fundo.endswith(", 1)"))
 
 
-def test_painel_e_translucido(page: Page, painel: str) -> None:
-    # desenho 5.1: vidro só na barra (.vidro); o .painel é conteúdo e fica opaco, sem filtro
+def test_vidro_so_na_camada_passageira(page: Page, painel: str) -> None:
+    # T353 (D206): vidro só na camada que abre e fecha (a paleta); a barra e a lateral, grandes e
+    # fixas, ficam sólidas e sem filtro; o .painel é conteúdo e fica opaco, sem filtro
     page.goto(painel + CASCA)
     estilo = page.evaluate(ESTILO_VIDRO)
-    for vidro in ("topo", "lateral"):
-        assert "blur" in estilo[vidro]["filtro"], vidro
-        assert not _opaco(estilo[vidro]["fundo"]), vidro
+    for fixa in ("topo", "lateral"):
+        assert estilo[fixa]["filtro"] == "none", fixa
+        assert _opaco(estilo[fixa]["fundo"]), fixa
+    assert "blur" in estilo["paleta"]["filtro"]
+    assert not _opaco(estilo["paleta"]["fundo"])
     assert estilo["painel"]["filtro"] == "none"
     assert _opaco(estilo["painel"]["fundo"])
 
@@ -209,6 +214,7 @@ def test_sem_vidro_com_mais_contraste_ou_cores_forcadas(page: Page, painel: str)
         estilo = page.evaluate(ESTILO_VIDRO)
         assert estilo["topo"]["filtro"] == "none", emulacao
         assert estilo["lateral"]["filtro"] == "none", emulacao
+        assert estilo["paleta"]["filtro"] == "none", emulacao
         assert estilo["painel"]["filtro"] == "none", emulacao
         page.emulate_media(contrast="no-preference", forced_colors="none")
         page.locator("main .painel").evaluate("el => el.remove()")
@@ -225,7 +231,7 @@ def test_sem_vidro_com_menos_transparencia(page: Page, painel: str) -> None:
     if not page.evaluate("matchMedia('(prefers-reduced-transparency: reduce)').matches"):
         pytest.skip("este Chromium não emula prefers-reduced-transparency")
     estilo = page.evaluate(ESTILO_VIDRO)
-    for vidro in ("topo", "lateral"):
+    for vidro in ("topo", "lateral", "paleta"):
         assert estilo[vidro]["filtro"] == "none", vidro
         assert _opaco(estilo[vidro]["fundo"]), vidro
 
@@ -277,7 +283,7 @@ LARGA: ViewportSize = {"width": 1200, "height": 800}
 ROLA_DE_LADO = "document.documentElement.scrollWidth > window.innerWidth"
 
 
-def test_lateral_e_barra_com_vidro(page: Page, painel: str) -> None:
+def test_lateral_e_barra_sem_vidro(page: Page, painel: str) -> None:
     page.set_viewport_size(LARGA)
     page.goto(painel + "/vagas")
     ordem = page.evaluate(
@@ -291,8 +297,8 @@ def test_lateral_e_barra_com_vidro(page: Page, painel: str) -> None:
     altura = page.locator("header.topo").evaluate("el => el.getBoundingClientRect().height")
     assert altura == pytest.approx(52, abs=0.5)
     estilo = page.evaluate(ESTILO_VIDRO)
-    for vidro in ("topo", "lateral"):
-        assert "blur" in estilo[vidro]["filtro"], vidro
+    for fixa in ("topo", "lateral"):
+        assert estilo[fixa]["filtro"] == "none", fixa
     menu = page.get_by_role("complementary").get_by_role("navigation", name="Principal")
     expect(menu).to_be_visible()
 
@@ -384,7 +390,7 @@ def test_janela_inativa_tira_o_vidro(page: Page, painel: str) -> None:
     page.evaluate("window.dispatchEvent(new Event('blur'))")
     expect(html).to_have_attribute("data-janela", "inativa")
     estilo = page.evaluate(ESTILO_VIDRO)
-    for vidro in ("topo", "lateral"):
+    for vidro in ("topo", "lateral", "paleta"):
         assert estilo[vidro]["filtro"] == "none", vidro
         assert _opaco(estilo[vidro]["fundo"]), vidro
     page.evaluate("window.dispatchEvent(new Event('focus'))")
