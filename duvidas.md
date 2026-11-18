@@ -3793,6 +3793,22 @@ A sessão propôs abrir o painel no Chrome da pessoa como janela de app. O dono 
 
 **Ver também:** ADR 0025, ADR 0027, D171, D183, T343.
 
+## D208. Painel sem a moldura da casca: escolhas da T351 (para confirmar)
+
+**Status:** decidido pela sessão em 2026-11-18, para confirmar.
+
+**Contexto:** com a casca só controlando (D206, ADR 0027), o painel abre no navegador da pessoa e não roda mais na janela do Tauri. A T351 tira do painel o que só existia lá dentro. O plano listou a marca no user agent, o `data-casca`, a fileira de três círculos e o arraste; ficou aberto o que fazer com o resto que olhava para a janela.
+
+1. **O que saiu.** `marca_da_casca` (`globais.py`), o `data-casca` do `<html>` e a fileira `janela-botoes` (`base.html`), as regras de `.janela-botoes` e `:root[data-casca]` (`casca.css`, inclusive em cores forçadas), os tokens `--janela-*` e os pares deles no `contraste-grafico` (`base.css`), o arraste e os botões pela ponte do Tauri (`app.js`), as chaves `casca.janela.*` (pt e en) e os testes `tests/integracao/test_janela_casca.py` e `tests/tela/test_janela_casca.py`. Desfazer: `git revert` do commit da T351.
+2. **O Encerrar também saiu da ponte.** Ele não estava na lista do plano, mas também dependia da janela: na despedida, o `app.js` fechava a janela do Tauri ao ver o `data-encerrado`. Saíram esse trecho, o atributo (ninguém mais o lê) e o teste de tela da janela que fecha junto; a página de despedida continua dizendo que dá para fechar. Desfazer: devolver o trecho e o `data-encerrado` em `saiu.html`.
+3. **A janela inativa fica.** O `data-janela="inativa"` que o `app.js` põe no `blur` da janela não depende da casca: qualquer janela de navegador perde o foco, e a lateral e a barra perdem o destaque como num app do Mac. Desfazer: tirar os dois ouvintes e as regras `[data-janela="inativa"]`.
+4. **O aviso "Baixar a janela nova" fica no código, parado.** O `aviso_versao.py` ainda lê a marca `joBot-casca/<versão>` no user agent para oferecer a página da release quando a casca é mais velha que a versão nova (D176). A ADR 0027 diz que esse aviso fica, mas no navegador comum a marca nunca chega, então o botão não aparece mais. Para confirmar na T350 ou na T356: o controle da casca mostra ele mesmo que há versão nova da janela, ou o painel oferece o link da release a quem instalou pelo app. Até lá o caminho continua testado e não quebra nada. Desfazer: nada a desfazer; se a escolha for tirar, saem `_janela_velha`, `/abrir-release` e as chaves `aviso_versao.janela*` e `aviso_versao.baixar_janela`.
+5. **A guarda.** `tests/integracao/test_painel_sem_janela.py` prova que a página com a marca no user agent (Linux, Windows e Mac, com e sem lateral) sai igual à sem marca e sem os restos, que o CSS e o JS do painel não têm mais os nomes da janela nem da ponte, e que os globais e os catálogos não têm a marca nem as chaves `casca.janela.*`. Mutação em cópia (`PYTHONPATH`): oito mutantes (atributo e fileira condicionados à marca, regra e token no CSS, ponte e arraste no JS, `marca_da_casca` nos globais e chave no catálogo en), todos reprovam por asserção. Desfazer: tirar o arquivo.
+
+**Como desfazer:** cada item diz o seu.
+
+**Ver também:** D176, D178, D206, ADR 0027, desenho da fase 3 (5.3), T350, T356.
+
 ## D210. Visual leve: escolhas da T353 (para confirmar)
 
 **Status:** decidido pela sessão em 2026-11-18, para confirmar.
