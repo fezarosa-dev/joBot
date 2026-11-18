@@ -172,7 +172,7 @@ def test_casca_velha_baixa_a_janela_nova_pelo_python(
     page.set_extra_http_headers({"User-Agent": f"{agente} joBot-casca/0.4.0 (linux)"})
     _abrir_casca(page, painel)
     regiao = page.locator(REGIAO)
-    expect(regiao).to_contain_text("A janela do joBot também tem versão nova.")
+    expect(regiao).to_contain_text("Esta janela é de uma versão antiga do joBot")
     expect(regiao.get_by_role("button", name="Atualizar agora")).to_be_visible()
     rolagem = page.evaluate(
         "() => document.documentElement.scrollWidth - document.documentElement.clientWidth"
