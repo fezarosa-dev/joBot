@@ -384,6 +384,11 @@ jobs:
             sed "s#$appdir#<APPDIR>#g" "$aberto/dentro" >&2
             false
           fi
+          # e lista de caminhos vazia, que no GStreamer desliga os plugins do sistema (D212.6)
+          if grep -E '^(GST_PLUGIN_SYSTEM_PATH(_1_0)?|GST_PLUGIN_PATH|PERLLIB|QT_PLUGIN_PATH|GTK_PATH|GIO_EXTRA_MODULES|XDG_DATA_DIRS|PATH|LD_LIBRARY_PATH)=$' "$aberto/ambiente" >&2; then
+            echo "o navegador recebeu essas variáveis vazias em vez de sem elas" >&2
+            false
+          fi
           # do Abrir joBot, um passo para trás é o Parar
           xdotool key --delay 300 shift+Tab Return
           esperar 30 parado

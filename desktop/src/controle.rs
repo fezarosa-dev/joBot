@@ -94,22 +94,24 @@ pub fn abridor(so: &str, distrobox: bool, endereco: &str) -> (&'static str, Vec<
 /// O ambiente que o abridor não leva para o navegador dentro de um AppImage (há `APPDIR`): o
 /// AppRun aponta `GTK_PATH`, `GIO_EXTRA_MODULES`, `XDG_DATA_DIRS`, `PATH` e outras para dentro
 /// dele, e um navegador que nasce do Abrir joBot seguiria vivo com a casca fechada (D207.1).
-/// Lista de caminhos perde só os pedaços de dentro (`Some`); o resto que aponta para lá sai.
+/// Lista de caminhos perde os pedaços de dentro e os vazios (`Some`); o resto que aponta para
+/// lá sai.
 pub fn fora_do_appimage(vars: &[(String, String)]) -> Vec<(String, Option<String>)> {
     let Some((_, appdir)) = vars.iter().find(|(k, v)| k == "APPDIR" && !v.is_empty()) else {
         return Vec::new();
     };
     vars.iter()
         .filter_map(|(k, v)| {
-            let partes: Vec<&str> = v.split(':').collect();
-            let fora: Vec<&str> = partes
-                .iter()
-                .copied()
-                .filter(|p| !Path::new(p).starts_with(appdir))
-                .collect();
-            if fora.len() == partes.len() {
+            let dentro = |p: &&str| Path::new(p).starts_with(appdir);
+            if !v.split(':').any(|p| dentro(&p)) {
                 return None; // nada aponta para dentro
             }
+            // o AppRun monta "$APPDIR/...:$ORIGINAL": sem original sobra um pedaço vazio, e
+            // `GST_PLUGIN_SYSTEM_PATH=` vazio desliga os plugins do sistema (D212.6)
+            let fora: Vec<&str> = v
+                .split(':')
+                .filter(|p| !p.is_empty() && !dentro(p))
+                .collect();
             Some((k.clone(), (!fora.is_empty()).then(|| fora.join(":"))))
         })
         .collect()
@@ -123,15 +125,18 @@ pub fn comando_abridor(so: &str, vars: &[(String, String)], endereco: &str) -> C
     let (programa, args) = abridor(so, em_distrobox(env), endereco);
     let mut comando = Command::new(programa);
     let fora = fora_do_appimage(vars);
-    if !fora.is_empty() {
-        // o AppRun deixa a casca em `$APPDIR/usr`: o navegador nasce na casa da pessoa (T355)
-        comando.current_dir(env("HOME").filter(|c| !c.is_empty()).unwrap_or("/".into()));
-    }
+    let no_appimage = !fora.is_empty();
     for (nome, valor) in fora {
         match valor {
             Some(valor) => comando.env(nome, valor),
             None => comando.env_remove(nome),
         };
+    }
+    if no_appimage {
+        // o AppRun deixa a casca em `$APPDIR/usr`: o navegador nasce na casa da pessoa (T355),
+        // e o `PWD` (que saiu acima) diz a mesma pasta, para um abridor que não seja shell
+        let casa = env("HOME").filter(|c| !c.is_empty()).unwrap_or("/".into());
+        comando.current_dir(&casa).env("PWD", casa);
     }
     servidor::sem_python_de_fora(&mut comando)
         .args(args)
@@ -408,6 +413,7 @@ mod testes {
             ("CONTAINER_ID", "fedora"),
             ("APPDIR", "/tmp/.mount_j"),
             ("GIO_EXTRA_MODULES", "/tmp/.mount_j/usr/lib/gio"),
+            ("PWD", "/tmp/.mount_j/usr"),
             ("HOME", "/home/p"),
         ]);
         let c = comando_abridor("linux", &ambiente, "http://127.0.0.1:47615/");
