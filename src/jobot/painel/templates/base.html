@@ -59,7 +59,7 @@
   </div>
   {%- endif %}
   {%- if com_lateral %}
-  <aside id="lateral" class="lateral vidro">
+  <aside id="lateral" class="lateral">
     <a class="marca" href="/">joBot</a>
     <nav class="menu" aria-label="{{ t('casca.menu') }}">
       <ul>
@@ -77,7 +77,7 @@
     <div class="divisor" role="separator" aria-orientation="vertical" aria-valuemin="180" aria-valuemax="320" aria-valuenow="240" tabindex="0" aria-controls="lateral" aria-label="{{ t('casca.lateral.divisor') }}" data-divisor></div>
   </aside>
   {%- endif %}
-  <header class="topo vidro">
+  <header class="topo">
     <div class="topo-inicio">
       {%- if com_lateral %}
       <button type="button" class="botao-barra" data-recolher aria-controls="lateral" aria-expanded="true" aria-label="{{ t('casca.lateral.recolher') }}" data-recolher-rotulo="{{ t('casca.lateral.recolher') }}" data-mostrar="{{ t('casca.lateral.mostrar') }}"><span class="icone" data-icone="panel-left" aria-hidden="true"></span></button>
@@ -113,7 +113,7 @@
       HX-Trigger sai antes da troca e levaria a chave velha -#}
   <div id="aviso-candidatura" role="status" hx-get="/aviso-candidatura" hx-trigger="load, focus from:window" hx-include="find input[name=mostrando]" hx-swap="innerHTML"><input type="hidden" name="mostrando" value=""></div>
   <div id="faixa-desfazer" role="status"></div>
-  {#- a coluna do conteúdo rola sozinha: o body nunca rola por baixo do vidro -#}
+  {#- a coluna do conteúdo rola sozinha: o body nunca rola por baixo da barra -#}
   <div class="coluna">
     <main id="conteudo" tabindex="-1">
       {% block conteudo %}{% endblock %}
