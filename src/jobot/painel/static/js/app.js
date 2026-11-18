@@ -168,10 +168,10 @@
     const texto = doc.querySelector("[data-aviso-erro]")?.textContent.trim();
     mostrarAviso(xhr.status < 500 ? "data-msg-4xx" : "data-msg-5xx", texto);
   });
-  // o WebKit dá `error` (o htmx: sendError) ao pedido que a saída da página corta, e o Safari
+  // o WebKit dá `error` (`htmx:sendError`) ao pedido que a saída da página corta, e o Safari
   // pode devolver a página pelo Voltar (bfcache): com a página saindo, o "sem rede" não liga, e a
   // página que volta chega sem aviso (T352; D209.5)
-  // ponytail: um beforeunload sem saída (link mailto:) deixa `saindo` preso até o pageshow
+  // shortcut: um beforeunload sem saída (link mailto:) deixa `saindo` preso até o pageshow
   let saindo = false;
   const sair = () => {
     saindo = true;
