@@ -162,6 +162,7 @@ pub fn abrir(
 mod testes {
     use super::*;
     use std::cell::RefCell;
+    use std::ffi::OsStr;
     use std::path::PathBuf;
 
     fn temporaria(nome: &str) -> PathBuf {
@@ -376,6 +377,12 @@ mod testes {
             ("GTK_PATH", "/tmp/.mount_jobotX/usr/lib/gtk-3.0"),
             ("PATH", "/tmp/.mount_jobotX/usr/bin:/usr/local/bin:/usr/bin"),
             ("XDG_DATA_DIRS", "/tmp/.mount_jobotX/usr/share"),
+            // o AppRun monta "$APPDIR/...:$ORIGINAL"; sem original, sobra "" (desliga o sistema)
+            (
+                "GST_PLUGIN_SYSTEM_PATH",
+                "/tmp/.mount_jobotX/usr/lib/gstreamer-1.0:",
+            ),
+            ("QT_PLUGIN_PATH", "/tmp/.mount_jobotX/usr/qt::/usr/lib/qt"),
             ("HOME", "/home/p"),
             ("VIZINHO", "/tmp/.mount_jobotXY/x"), // outra pasta, só o começo igual
         ]);
@@ -385,8 +392,10 @@ mod testes {
             fora,
             [
                 ("APPDIR".to_string(), None),
+                ("GST_PLUGIN_SYSTEM_PATH".into(), None),
                 ("GTK_PATH".into(), None),
                 ("PATH".into(), Some("/usr/local/bin:/usr/bin".into())),
+                ("QT_PLUGIN_PATH".into(), Some("/usr/lib/qt".into())),
                 ("XDG_DATA_DIRS".into(), None),
             ]
         );
@@ -404,6 +413,11 @@ mod testes {
         let c = comando_abridor("linux", &ambiente, "http://127.0.0.1:47615/");
         // o AppRun deixa a casca em `$APPDIR/usr`: o navegador nasce na casa da pessoa (T355)
         assert_eq!(c.get_current_dir(), Some(Path::new("/home/p")));
+        // e o `PWD` herdado diz a mesma pasta, para um abridor que não seja shell
+        assert!(
+            c.get_envs()
+                .any(|(k, v)| k == "PWD" && v == Some(OsStr::new("/home/p")))
+        );
         assert_eq!(c.get_program(), "distrobox-host-exec");
         assert_eq!(
             c.get_args().collect::<Vec<_>>(),
@@ -433,6 +447,10 @@ mod testes {
         // sem a casa: a raiz, que nunca está dentro do AppImage
         let c = comando_abridor("linux", &vars(&[("APPDIR", "/tmp/.mount_j")]), "u");
         assert_eq!(c.get_current_dir(), Some(Path::new("/")));
+        assert!(
+            c.get_envs()
+                .any(|(k, v)| k == "PWD" && v == Some(OsStr::new("/")))
+        );
     }
 
     #[test]
