@@ -139,6 +139,35 @@ def test_falha_ao_ligar_diz_o_que_houve(page: Page, ui: str) -> None:
     expect(_botao(page, "Ligar")).to_be_enabled()
 
 
+def test_falha_some_quando_a_consulta_ve_o_painel_no_ar(page: Page, ui: str) -> None:
+    # o Ligar estourou o prazo, mas o servidor terminou de subir depois
+    falha = {**PARADO, "falha": "sem_resposta", "detalhe": "47615", "log": ""}
+    _abrir(page, ui, ligar=falha)
+    _botao(page, "Ligar").click()
+    expect(page.get_by_role("alert")).to_contain_text("não respondeu na porta 47615")
+    page.evaluate(f"window.__respostas.estado_controle = {json.dumps(LIGADO)}")
+    page.clock.run_for(5000)
+    expect(page.get_by_role("status").first).to_have_text("Ligado")
+    expect(page.get_by_role("alert")).to_be_hidden()
+
+
+def test_falha_sem_log_nao_manda_ver_o_registro(page: Page, ui: str) -> None:
+    falha = {**PARADO, "falha": "saiu", "detalhe": "", "log": ""}
+    _abrir(page, ui, ligar=falha)
+    _botao(page, "Ligar").click()
+    expect(page.locator("#falha-texto")).to_contain_text("fechou logo ao ligar")
+    expect(page.locator("#falha-texto")).not_to_contain_text("registro")
+    expect(page.locator("#falha-registro")).to_be_hidden()
+
+
+def test_parar_que_falha_diz_e_segue_ligado(page: Page, ui: str) -> None:
+    _abrir(page, ui, estado_controle=LIGADO, parar={**LIGADO, "falha": "parar", "detalhe": ""})
+    _botao(page, "Parar").click()
+    expect(page.get_by_role("alert")).to_contain_text("O joBot não parou")
+    expect(page.get_by_role("status").first).to_have_text("Ligado")
+    expect(_botao(page, "Parar")).to_be_enabled()
+
+
 def test_motivo_desconhecido_vira_a_falha_generica(page: Page, ui: str) -> None:
     _abrir(page, ui, ligar={**PARADO, "falha": "<b>x</b>", "detalhe": "y", "log": ""})
     _botao(page, "Ligar").click()
@@ -171,6 +200,14 @@ def test_em_ingles(page: Page, ui: str) -> None:
     expect(page.get_by_role("status").first).to_have_text("Stopped")
     expect(_botao(page, "Start")).to_be_enabled()
     expect(page.get_by_label("Address")).to_have_value(ENDERECO)
+
+
+def test_idioma_escolhido_na_instalacao(page: Page, ui: str) -> None:
+    # sistema em português, mas a pessoa escolheu English na tela de instalação
+    page.add_init_script("localStorage.setItem('jobot.idioma', 'en')")
+    _abrir(page, ui)
+    expect(page.locator("html")).to_have_attribute("lang", "en")
+    expect(page.get_by_role("status").first).to_have_text("Stopped")
 
 
 def test_cores_do_sistema_no_modo_de_alto_contraste(page: Page, ui: str) -> None:
