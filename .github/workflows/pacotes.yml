@@ -201,6 +201,77 @@ jobs:
           fumaca jobot-fumaca "$appimage" ./jobot.AppImage
           fumaca jobot-fumaca-nova "$appimage" ./jobot.AppImage
 
+      # T354 (D211): sem FUSE, o runtime do AppImage só se extrai com
+      # APPIMAGE_EXTRACT_AND_RUN=1, em $TMPDIR/appimage_extracted_<md5>, e só apaga a pasta se
+      # ele mesmo sobreviver. O /tmp tem de voltar ao que era: depois de uma saída normal e
+      # depois de matar à força (SIGKILL) o grupo do runtime e da casca, quando quem apaga é o
+      # vigia da casca. Controle: matando o vigia junto, a pasta fica. O pid 1 do contêiner (o
+      # sleep) não recolhe zumbis: o vigia não pode esperá-los.
+      - name: AppImage sem lixo no /tmp (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          lixo="$RUNNER_TEMP/lixo"
+          mkdir -p "$lixo"
+          cat > "$lixo/forcar.sh" <<'FIM'
+          #!/bin/bash
+          # $1: vigia (só o grupo da casca morre) ou controle (o vigia morre antes)
+          set -u
+          cd "$HOME"
+          vigias() {
+            for f in /proc/[0-9]*/cmdline; do
+              tr '\0' ' ' <"$f" 2>/dev/null | grep -q jobot-vigia || continue
+              p=${f#/proc/}; echo "${p%/cmdline}"
+            done
+          }
+          antes=$(ls -A /tmp)
+          JOBOT_DADOS="$HOME/dados-$1" APPIMAGE_EXTRACT_AND_RUN=1 setsid ./jobot.AppImage --verificar >"$HOME/$1.log" 2>&1 &
+          grupo=$!
+          # a casca lança o vigia no começo do main: sem ele, o teste não diria nada
+          for i in $(seq 240); do [ -n "$(vigias)" ] && break; sleep 0.5; done
+          [ -n "$(vigias)" ] || { echo "nenhum vigia rodando"; cat "$HOME/$1.log"; exit 1; }
+          sleep 1
+          # congela o grupo: a casca não pode terminar sozinha antes da morte forçada
+          kill -STOP -- "-$grupo" || { echo "a casca saiu antes da morte forçada"; exit 1; }
+          ls -d /tmp/appimage_extracted_* || { echo "sem extração no /tmp"; exit 1; }
+          if [ "$1" = controle ]; then
+            for p in $(vigias); do kill -KILL "$p"; done
+          fi
+          kill -KILL -- "-$grupo"
+          for i in $(seq 20); do [ "$(ls -A /tmp)" = "$antes" ] && break; sleep 1; done
+          echo "/tmp depois ($1):"; ls -A /tmp
+          if [ "$1" = controle ]; then
+            # sem o vigia a pasta fica: é ele que limpa, e a conferência enxerga o lixo
+            ls -d /tmp/appimage_extracted_* || { echo "o controle não deixou lixo"; exit 1; }
+            rm -rf /tmp/appimage_extracted_*
+          else
+            [ "$(ls -A /tmp)" = "$antes" ] || { echo "sobrou lixo no /tmp"; exit 1; }
+          fi
+          FIM
+          c=$(docker run -d -v "$PWD/saida:/saida:ro" -v "$lixo:/lixo:ro" -w /home/pessoa jobot-fumaca sleep infinity)
+          docker exec "$c" sh -c 'test ! -e /dev/fuse && cp /saida/*.AppImage /home/pessoa/jobot.AppImage \
+            && chown pessoa /home/pessoa/jobot.AppImage && chmod 755 /home/pessoa/jobot.AppImage'
+          antes=$(docker exec "$c" ls -A /tmp)
+          echo "/tmp antes: [$antes]"
+          # sem FUSE e sem a variável, o runtime não se extrai sozinho: falha e diz o que fazer
+          if docker exec "$c" runuser -u pessoa -- ./jobot.AppImage --verificar; then
+            echo "o AppImage rodou sem FUSE e sem extrair"; exit 1
+          fi
+          depois=$(docker exec "$c" ls -A /tmp)
+          if [ "$depois" != "$antes" ]; then
+            echo "::warning::o runtime sem FUSE deixou no /tmp: $depois"
+            docker exec "$c" sh -c 'rmdir /tmp/.mount_* 2>/dev/null; true'
+          fi
+          # saída normal: o próprio runtime apaga
+          docker exec "$c" runuser -u pessoa -- env APPIMAGE_EXTRACT_AND_RUN=1 ./jobot.AppImage --verificar
+          sleep 3
+          depois=$(docker exec "$c" ls -A /tmp)
+          echo "/tmp depois da saída normal: [$depois]"
+          test "$depois" = "$antes"
+          # à força: o vigia apaga; o controle mostra que, sem ele, a pasta fica
+          docker exec "$c" runuser -u pessoa -- bash /lixo/forcar.sh controle
+          docker exec "$c" runuser -u pessoa -- bash /lixo/forcar.sh vigia
+          docker rm -f "$c"
+
       - name: fumaça sem rede e navegador (Windows)
         if: runner.os == 'Windows'
         shell: pwsh

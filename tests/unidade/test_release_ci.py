@@ -292,11 +292,9 @@ def test_fumaca_sem_rede_no_linux_no_windows_e_no_mac() -> None:
     # o .deb e o AppImage na 22.04 e o AppImage de novo na 24.04, cada um no seu contêiner e
     # como usuário comum (root leria qualquer arquivo dos recursos): o --verificar sem rede
     # (conferida: só a interface lo) e, depois, com rede, o --verificar-navegador (D183.24)
-    assert texto.count("docker run") == 1  # dentro da função, chamada três vezes
     assert "useradd -m pessoa" in texto
-    linux = texto[
-        texto.index("fumaça (Linux)") : texto.index("fumaça sem rede e navegador (Windows)")
-    ]
+    linux = texto[texto.index("fumaça (Linux)") : texto.index("AppImage sem lixo no /tmp (Linux)")]
+    assert linux.count("docker run") == 1  # dentro da função, chamada três vezes
     ordem = [linux.index('docker network disconnect bridge "$c"')]
     for passo in (
         'test "$(ls /sys/class/net)" = lo',
@@ -449,6 +447,39 @@ _GANCHO_WEBVIEW2 = [
     'Abort "$R8"',
     "${EndIf}",
 ]
+
+
+def test_appimage_sem_fuse_nao_deixa_lixo_no_tmp() -> None:
+    # T354 (D211): num contêiner sem FUSE, o /tmp volta ao que era depois da saída normal e
+    # depois do SIGKILL no grupo do runtime e da casca; o controle mata também o vigia e
+    # precisa deixar a pasta, senão a conferência não enxergaria o lixo
+    texto = _job(PACOTES, "casca")
+    passo = texto[
+        texto.index("AppImage sem lixo no /tmp (Linux)") : texto.index(
+            "fumaça sem rede e navegador (Windows)"
+        )
+    ]
+    assert "if: runner.os == 'Linux'" in passo
+    assert "test ! -e /dev/fuse" in passo
+    ordem = [passo.index('antes=$(docker exec "$c" ls -A /tmp)')]
+    for trecho in (
+        "env APPIMAGE_EXTRACT_AND_RUN=1 ./jobot.AppImage --verificar\n",
+        'test "$depois" = "$antes"',
+        "bash /lixo/forcar.sh controle",
+        "bash /lixo/forcar.sh vigia",
+    ):
+        ordem.append(passo.index(trecho, ordem[-1]))
+    assert ordem == sorted(ordem)
+    for trecho in (
+        "APPIMAGE_EXTRACT_AND_RUN=1 setsid ./jobot.AppImage --verificar",
+        'kill -STOP -- "-$grupo" || { echo "a casca saiu antes da morte forçada"; exit 1; }',
+        'kill -KILL -- "-$grupo"',
+        "grep -q jobot-vigia",
+        'echo "o controle não deixou lixo"; exit 1',
+        'echo "nenhum vigia rodando"; cat',
+        'echo "sobrou lixo no /tmp"; exit 1',
+    ):
+        assert trecho in passo, trecho
 
 
 def test_instalador_do_windows_nao_baixa_o_webview2_e_confere_antes() -> None:
