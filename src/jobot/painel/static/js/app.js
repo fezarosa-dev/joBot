@@ -266,7 +266,11 @@
   const lado = () => document.getElementById("detalhe-vaga");
   const modo = () => {
     const no = lado();
-    return no ? getComputedStyle(no).getPropertyValue("--detalhe-modo").trim() : "pagina";
+    if (!no) return "pagina";
+    // o WebKit só reavalia a container query no layout: medir antes o força, senão o estilo vem
+    // da largura antiga (T352)
+    no.getBoundingClientRect();
+    return getComputedStyle(no).getPropertyValue("--detalhe-modo").trim();
   };
   // clique com tecla (nova aba, nova janela) e o modo página ficam com o navegador: a captura no
   // document para o clique antes do ouvinte do htmx no <a>, sem impedir o link
@@ -654,14 +658,30 @@
   );
   // o botão direito do Mac escolhe a palavra no mousedown: o que estava escolhido é lido antes
   let haviaSelecao = false;
+  // Firefox e Safari mandam o contextmenu com o botão ainda apertado (direito ou Ctrl+clique), e o
+  // pointerup que vem depois fecha o popover recém-aberto (light dismiss do HTML: apertou e soltou
+  // fora dele). Com o ponteiro apertado, o menu espera o pointerup (ou o pointercancel do toque
+  // longo) e abre logo depois dele (T352)
+  let apertado = false;
+  let menuPendente = null;
   document.addEventListener(
     "pointerdown",
     (evento) => {
       const selecao = getSelection();
       haviaSelecao = evento.button === 2 && !!selecao && !selecao.isCollapsed && selecao.toString().trim() !== "";
+      apertado = true;
+      menuPendente = null;
     },
     true,
   );
+  const soltou = () => {
+    apertado = false;
+    const pendente = menuPendente;
+    menuPendente = null;
+    if (pendente) setTimeout(() => pendente.alvo.isConnected && abrirMenu(...pendente.args), 0);
+  };
+  document.addEventListener("pointerup", soltou, true);
+  document.addEventListener("pointercancel", soltou, true);
   document.addEventListener("contextmenu", (evento) => {
     if (evento.target.closest?.("[data-menu-contexto]")) {
       evento.preventDefault();
@@ -680,7 +700,11 @@
     if (haviaSelecao && selecao && !selecao.isCollapsed && selecao.containsNode(alvo, true)) return;
     const link = evento.target.closest("a[href]");
     if (link && link !== alvo) return;
-    if (abrirMenu(alvo, evento.clientX, evento.clientY, evento.clientY, false)) evento.preventDefault();
+    if (!document.getElementById(alvo.dataset.menu)?.matches("[data-menu-contexto]")) return;
+    evento.preventDefault();
+    const args = [alvo, evento.clientX, evento.clientY, evento.clientY, false];
+    if (apertado) menuPendente = { alvo, args };
+    else abrirMenu(...args);
   });
   document.addEventListener("keydown", (evento) => {
     const pediu = evento.key === "ContextMenu" || (evento.key === "F10" && evento.shiftKey);
