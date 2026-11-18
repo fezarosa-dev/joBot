@@ -168,7 +168,22 @@
     const texto = doc.querySelector("[data-aviso-erro]")?.textContent.trim();
     mostrarAviso(xhr.status < 500 ? "data-msg-4xx" : "data-msg-5xx", texto);
   });
-  document.addEventListener("htmx:sendError", () => mostrarAviso("data-msg-rede"));
+  // o WebKit dá `error` (o htmx: sendError) ao pedido que a saída da página corta, e o Safari
+  // pode devolver a página pelo Voltar (bfcache): com a página saindo, o "sem rede" não liga, e a
+  // página que volta chega sem aviso (T352; D209.5)
+  // ponytail: um beforeunload sem saída (link mailto:) deixa `saindo` preso até o pageshow
+  let saindo = false;
+  const sair = () => {
+    saindo = true;
+  };
+  addEventListener("beforeunload", sair);
+  addEventListener("pagehide", sair);
+  addEventListener("pageshow", (evento) => {
+    saindo = false;
+    const aviso = document.getElementById("aviso-erro");
+    if (evento.persisted && aviso) aviso.hidden = true;
+  });
+  document.addEventListener("htmx:sendError", () => saindo || mostrarAviso("data-msg-rede"));
   document.addEventListener("htmx:beforeHistorySave", () => {
     const aviso = document.getElementById("aviso-erro");
     if (aviso) aviso.hidden = true;
@@ -683,6 +698,9 @@
   document.addEventListener("pointerup", soltou, true);
   document.addEventListener("pointercancel", soltou, true);
   document.addEventListener("contextmenu", (evento) => {
+    // o menu do navegador que abre daqui pode engolir o pointerup: a marca não fica presa (T352)
+    const segurando = apertado;
+    apertado = false;
     if (evento.target.closest?.("[data-menu-contexto]")) {
       evento.preventDefault();
       return;
@@ -703,7 +721,7 @@
     if (!document.getElementById(alvo.dataset.menu)?.matches("[data-menu-contexto]")) return;
     evento.preventDefault();
     const args = [alvo, evento.clientX, evento.clientY, evento.clientY, false];
-    if (apertado) menuPendente = { alvo, args };
+    if (segurando) menuPendente = { alvo, args };
     else abrirMenu(...args);
   });
   document.addEventListener("keydown", (evento) => {
