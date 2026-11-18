@@ -1165,7 +1165,9 @@ def test_primeira_linha_sem_marca(page: Page, painel: str) -> None:
 VIOLACOES = """
 window.__violacoes = [];
 document.addEventListener('securitypolicyviolation', (e) => {
-  window.__violacoes.push(e.violatedDirective);
+  // a diretiva e de onde veio, para a falha dizer o que o CSP barrou
+  const onde = `${e.sourceFile}:${e.lineNumber}`;
+  window.__violacoes.push(`${e.violatedDirective} ${e.blockedURI} ${onde} ${e.sample}`);
 });
 """
 
@@ -1183,9 +1185,7 @@ def test_troca_da_lista_sem_violacao_de_csp(page: Page, painel: str, banco: Path
     page.set_viewport_size({"width": 1280, "height": 800})
     page.goto(f"{painel}/vagas?aba=todas")
     _aguardar_lista(page)
-    # antes das trocas, como numa conferência visual; `caret="initial"` porque o WebKit do
-    # Playwright esconde o cursor com um <style> posto na página, e o CSP o barra (T352)
-    page.screenshot(caret="initial")
+    page.screenshot()  # antes das trocas, como numa conferência visual
     # o que a foto faz, sem depender dela: style vazio nos campos, posto pelo CSSOM (o CSP deixa)
     marcados = page.locator('[id^="filtro-"]').evaluate_all(
         "es => es.map(e => { e.style.caretColor = 'transparent'; e.style.caretColor = '';"

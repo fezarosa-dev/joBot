@@ -207,14 +207,16 @@ def test_vidro_so_na_camada_passageira(page: Page, painel: str) -> None:
 def test_sem_vidro_com_mais_contraste_ou_cores_forcadas(
     page: Page, painel: str, emulacao: str
 ) -> None:
-    page.goto(painel + CASCA)
+    # a preferência vem antes da página, como na máquina de quem usa (T352: no Firefox, trocada com
+    # a página já aberta, o <dialog> fechado ainda saía com o vidro no estilo calculado)
     if emulacao == "contrast":
         page.emulate_media(contrast="more")
-        if not page.evaluate("matchMedia('(prefers-contrast: more)').matches"):
-            # T352: o Firefox do Playwright 1.65 não emula prefers-contrast; volta com a T346
-            pytest.skip("este motor não emula prefers-contrast (T346)")
     else:
         page.emulate_media(forced_colors="active")
+    page.goto(painel + CASCA)
+    contraste = page.evaluate("matchMedia('(prefers-contrast: more)').matches")
+    if emulacao == "contrast" and not contraste:
+        pytest.skip("este motor não emula prefers-contrast (T346)")
     estilo = page.evaluate(ESTILO_VIDRO)
     for vidro in ("topo", "lateral", "paleta", "painel"):
         assert estilo[vidro]["filtro"] == "none", vidro
