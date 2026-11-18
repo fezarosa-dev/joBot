@@ -81,14 +81,24 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: ${{ matrix.motor }}-${{ runner.os }}-${{ steps.playwright.outputs.versao }}
-      # o apt do runner às vezes para num espelho lento e segura o job até o fim: com prazo por
-      # conexão, o próprio apt larga e tenta de novo (só a instalação; teste nunca se repete)
-      - run: printf 'Acquire::Retries "5";\nAcquire::http::Timeout "20";\nAcquire::https::Timeout "20";\n' | sudo tee /etc/apt/apt.conf.d/80-jobot-rede
+      # Firefox e WebKit pedem bibliotecas do sistema que o runner não traz. O espelho do apt às vezes
+      # entrega um pacote a cada 10 s e o job passa do tempo: os .deb baixados ficam em cache, e o
+      # apt tem prazo por conexão para largar e tentar de novo (só a instalação; teste nunca se repete)
+      - id: cache-apt
+        if: matrix.motor != 'chromium'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/apt-debs
+          key: apt-${{ matrix.motor }}-${{ runner.os }}-${{ steps.playwright.outputs.versao }}
+      - run: |
+          printf 'Acquire::Retries "5";\nAcquire::http::Timeout "20";\nAcquire::https::Timeout "20";\nAPT::Keep-Downloaded-Packages "true";\nBinary::apt::APT::Keep-Downloaded-Packages "true";\n' | sudo tee /etc/apt/apt.conf.d/80-jobot-rede
+          if ls ~/apt-debs/*.deb >/dev/null 2>&1; then sudo cp ~/apt-debs/*.deb /var/cache/apt/archives/; fi
       - if: steps.cache-motor.outputs.cache-hit != 'true'
         run: uv run playwright install --with-deps ${{ matrix.motor }}
-      # o cache guarda só o navegador; Firefox e WebKit pedem bibliotecas do sistema que o runner não traz
       - if: steps.cache-motor.outputs.cache-hit == 'true' && matrix.motor != 'chromium'
         run: uv run playwright install-deps ${{ matrix.motor }}
+      - if: matrix.motor != 'chromium' && steps.cache-apt.outputs.cache-hit != 'true'
+        run: mkdir -p ~/apt-debs && cp /var/cache/apt/archives/*.deb ~/apt-debs/
       # tests/navegador usa o Chromium do próprio joBot (a janela do login), não o motor do painel:
       # roda só no job do Chromium
       - run: uv run pytest -m tela --browser ${{ matrix.motor }} --durations=5 ${{ matrix.motor != 'chromium' && 'tests/tela' || '' }}
