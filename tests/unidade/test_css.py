@@ -281,9 +281,63 @@ def test_painel_e_topo_sem_vidro_proprio() -> None:
     assert "backdrop-filter" not in regras[".topo"].corpo
 
 
-def test_topo_usa_a_classe_vidro() -> None:
-    template = (ESTATICOS.parent / "templates" / "base.html").read_text(encoding="utf-8")
-    assert '<header class="topo vidro">' in template
+TEMPLATES = ESTATICOS.parent / "templates"
+
+
+def _tags_com_vidro() -> list[tuple[str, str]]:
+    achadas = []
+    for arquivo in sorted(TEMPLATES.rglob("*.html")):
+        for tag in re.findall(r"<\w+\b[^>]*>", arquivo.read_text(encoding="utf-8")):
+            classe = re.search(r'\bclass="([^"]*)"', tag)
+            if classe and re.search(r"(?<![\w-])vidro(-grande)?(?![\w-])", classe.group(1)):
+                achadas.append((arquivo.name, tag))
+    return achadas
+
+
+def test_vidro_so_em_camada_pequena_e_passageira() -> None:
+    """T353 (D206): `backdrop-filter` pesa fora do Chromium. O vidro fica só no que abre e fecha
+    (`<dialog>` ou `popover`: menu, paleta, alerta, sheet); a lateral e a barra, grandes e fixas,
+    não o usam."""
+    tags = _tags_com_vidro()
+    assert len(tags) >= 5  # menu, alerta, paleta, detalhes do progresso, sheet
+    fixas = [
+        f"{nome}: {tag}"
+        for nome, tag in tags
+        if not tag.startswith("<dialog") and not re.search(r"\spopover\b", tag)
+    ]
+    assert fixas == []
+
+
+def test_lateral_e_topo_com_fundo_solido() -> None:
+    """Sem vidro, a lateral e a barra levam o fundo sólido da barra, nos dois temas (o token traz
+    o par claro e escuro), e nenhum filtro."""
+    regras = [
+        r
+        for nome in ("base.css", "casca.css")
+        for r in _regras(_sem_comentarios((PASTA / nome).read_text(encoding="utf-8")))
+        if not r.contexto
+    ]
+    for seletor in (".topo", ".lateral"):
+        corpos = [r.corpo for r in regras if seletor in _seletores(r)]
+        assert any(re.search(r"background-color\s*:\s*var\(--solido-barra\)", c) for c in corpos), (
+            seletor
+        )
+        assert not any("backdrop-filter" in c for c in corpos), seletor
+
+
+def test_animacao_infinita_so_com_trabalho_em_curso() -> None:
+    """T353 (D206): nada gira ou pulsa com a tela parada. Animação sem fim só em seletor de
+    trabalho em curso: `.htmx-request` (o pedido saiu) ou `.indeterminado` (a barra de espera,
+    que só existe enquanto a busca prepara ou o pedido corre). O bloco de movimento reduzido do
+    base.css desliga todas."""
+    infinitas = [(nome, r) for nome, r in _todas() if re.search(r"\binfinite\b", r.corpo)]
+    assert len(infinitas) >= 2  # o ponto do botão e a barra indeterminada
+    paradas = [
+        f"{nome}: {r.seletor}"
+        for nome, r in infinitas
+        if not all(re.search(r"\.(htmx-request|indeterminado)(?![\w-])", s) for s in _seletores(r))
+    ]
+    assert paradas == []
 
 
 def test_raios_e_sombras_novos() -> None:

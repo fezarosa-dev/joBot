@@ -168,7 +168,22 @@
     const texto = doc.querySelector("[data-aviso-erro]")?.textContent.trim();
     mostrarAviso(xhr.status < 500 ? "data-msg-4xx" : "data-msg-5xx", texto);
   });
-  document.addEventListener("htmx:sendError", () => mostrarAviso("data-msg-rede"));
+  // o WebKit dá `error` (`htmx:sendError`) ao pedido que a saída da página corta, e o Safari
+  // pode devolver a página pelo Voltar (bfcache): com a página saindo, o "sem rede" não liga, e a
+  // página que volta chega sem aviso (T352; D209.5)
+  // shortcut: um beforeunload sem saída (link mailto:) deixa `saindo` preso até o pageshow
+  let saindo = false;
+  const sair = () => {
+    saindo = true;
+  };
+  addEventListener("beforeunload", sair);
+  addEventListener("pagehide", sair);
+  addEventListener("pageshow", (evento) => {
+    saindo = false;
+    const aviso = document.getElementById("aviso-erro");
+    if (evento.persisted && aviso) aviso.hidden = true;
+  });
+  document.addEventListener("htmx:sendError", () => saindo || mostrarAviso("data-msg-rede"));
   document.addEventListener("htmx:beforeHistorySave", () => {
     const aviso = document.getElementById("aviso-erro");
     if (aviso) aviso.hidden = true;
@@ -266,7 +281,11 @@
   const lado = () => document.getElementById("detalhe-vaga");
   const modo = () => {
     const no = lado();
-    return no ? getComputedStyle(no).getPropertyValue("--detalhe-modo").trim() : "pagina";
+    if (!no) return "pagina";
+    // o WebKit só reavalia a container query no layout: medir antes o força, senão o estilo vem
+    // da largura antiga (T352)
+    no.getBoundingClientRect();
+    return getComputedStyle(no).getPropertyValue("--detalhe-modo").trim();
   };
   // clique com tecla (nova aba, nova janela) e o modo página ficam com o navegador: a captura no
   // document para o clique antes do ouvinte do htmx no <a>, sem impedir o link
@@ -654,15 +673,34 @@
   );
   // o botão direito do Mac escolhe a palavra no mousedown: o que estava escolhido é lido antes
   let haviaSelecao = false;
+  // Firefox e Safari mandam o contextmenu com o botão ainda apertado (direito ou Ctrl+clique), e o
+  // pointerup que vem depois fecha o popover recém-aberto (light dismiss do HTML: apertou e soltou
+  // fora dele). Com o ponteiro apertado, o menu espera o pointerup (ou o pointercancel do toque
+  // longo) e abre logo depois dele (T352)
+  let apertado = false;
+  let menuPendente = null;
   document.addEventListener(
     "pointerdown",
     (evento) => {
       const selecao = getSelection();
       haviaSelecao = evento.button === 2 && !!selecao && !selecao.isCollapsed && selecao.toString().trim() !== "";
+      apertado = true;
+      menuPendente = null;
     },
     true,
   );
+  const soltou = () => {
+    apertado = false;
+    const pendente = menuPendente;
+    menuPendente = null;
+    if (pendente) setTimeout(() => pendente.alvo.isConnected && abrirMenu(...pendente.args), 0);
+  };
+  document.addEventListener("pointerup", soltou, true);
+  document.addEventListener("pointercancel", soltou, true);
   document.addEventListener("contextmenu", (evento) => {
+    // o menu do navegador que abre daqui pode engolir o pointerup: a marca não fica presa (T352)
+    const segurando = apertado;
+    apertado = false;
     if (evento.target.closest?.("[data-menu-contexto]")) {
       evento.preventDefault();
       return;
@@ -680,7 +718,11 @@
     if (haviaSelecao && selecao && !selecao.isCollapsed && selecao.containsNode(alvo, true)) return;
     const link = evento.target.closest("a[href]");
     if (link && link !== alvo) return;
-    if (abrirMenu(alvo, evento.clientX, evento.clientY, evento.clientY, false)) evento.preventDefault();
+    if (!document.getElementById(alvo.dataset.menu)?.matches("[data-menu-contexto]")) return;
+    evento.preventDefault();
+    const args = [alvo, evento.clientX, evento.clientY, evento.clientY, false];
+    if (segurando) menuPendente = { alvo, args };
+    else abrirMenu(...args);
   });
   document.addEventListener("keydown", (evento) => {
     const pediu = evento.key === "ContextMenu" || (evento.key === "F10" && evento.shiftKey);
@@ -942,48 +984,6 @@
     delete raiz.dataset.janela;
   });
 
-  // dentro da casca (T334; desenho 5.3): os círculos e o arraste chamam a ponte do Tauri, e só se
-  // ela existir (no navegador comum, ou com a marca forjada no user agent, nada acontece)
-  const janelaDaCasca = () =>
-    raiz.dataset.casca ? window.__TAURI__?.window?.getCurrentWindow?.() : undefined;
-  const rotularMaximizar = async () => {
-    const botao = document.querySelector('[data-janela-acao="toggleMaximize"]');
-    const janela = janelaDaCasca();
-    if (!botao || !janela) return;
-    try {
-      const maximizada = await janela.isMaximized();
-      botao.setAttribute("aria-label", maximizada ? botao.dataset.restaurar : botao.dataset.maximizar);
-    } catch {
-      // ponte recusou: fica o rótulo que veio do servidor
-    }
-  };
-  const pedirJanela = async (acao) => {
-    const janela = janelaDaCasca();
-    if (!janela) return;
-    try {
-      await janela[acao]();
-    } catch {
-      return; // ponte recusou: a janela fica como está
-    }
-    if (acao === "toggleMaximize") rotularMaximizar();
-  };
-  document.addEventListener("click", (evento) => {
-    const botao = evento.target.closest?.("[data-janela-acao]");
-    if (botao) pedirJanela(botao.dataset.janelaAcao);
-  });
-  // a barra e o topo vazio da lateral arrastam a janela; o segundo clique de um duplo maximiza
-  document.addEventListener("mousedown", (evento) => {
-    const alvo = evento.target;
-    if (evento.button !== 0 || !janelaDaCasca()) return;
-    const zona = alvo.closest?.(".topo, #lateral");
-    if (!zona || (zona.id === "lateral" && alvo !== zona)) return;
-    if (alvo.closest("a[href], button, input, select, textarea, label, summary, [tabindex]")) return;
-    pedirJanela(evento.detail === 2 ? "toggleMaximize" : "startDragging");
-  });
-  window.addEventListener("resize", rotularMaximizar);
-  document.addEventListener("htmx:historyRestore", rotularMaximizar);
-  rotularMaximizar();
-
   // menus de Configurações > Geral e o interruptor de cada busca: enviam ao mudar; o botão do
   // <noscript> cobre quem não tem JS
   document.addEventListener("change", (evento) => {
@@ -1061,12 +1061,6 @@
     },
     true, // close não sobe: só a captura o vê no document
   );
-
-  // despedida do Encerrar (T333; desenho 6.4): dentro da casca (Tauri, com withGlobalTauri) a
-  // janela fecha junto; no navegador, a página diz que pode fechar
-  if (document.querySelector("[data-encerrado]")) {
-    window.__TAURI__?.window?.getCurrentWindow?.()?.close?.();
-  }
 
   // paleta de comandos (T265; desenho 5.4): o <dialog id="paleta"> de _paleta.html. Os comandos são
   // links e formulários que já existem; aqui só abre (botão, ⌘K / Ctrl+K), filtra, move a marca

@@ -129,7 +129,8 @@ def test_release_monta_pelo_pacotes_e_publica_so_na_tag() -> None:
 
 def test_juntar_monta_os_anexos_o_sha256sums_e_as_notas() -> None:
     juntar = _job(PACOTES, "juntar")
-    assert "needs: [wheel, casca]" in juntar
+    # a release só sai com a casca aberta de verdade (T355)
+    assert "needs: [wheel, casca, aberta]" in juntar
     assert "merge-multiple: true" in juntar
     assert "shopt -s failglob" in juntar
     assert "sha256sum --" in juntar and "> SHA256SUMS" in juntar
@@ -159,7 +160,7 @@ def test_pacotes_so_chamado_e_sem_escrita() -> None:
     assert _secao(texto, "on") == ["workflow_call:"]
     assert _secao(texto, "permissions") == ["contents: read"]
     assert texto.count("permissions:") == 1
-    assert _jobs(PACOTES) == ["wheel", "casca", "juntar"]
+    assert _jobs(PACOTES) == ["wheel", "casca", "aberta", "juntar"]
     for nome in _jobs(PACOTES):
         assert "timeout-minutes:" in _job(PACOTES, nome), nome
     # sem segredo, nem herdado de quem chama
@@ -209,7 +210,7 @@ def test_versoes_do_build_fixadas_como_no_uv_meta() -> None:
 def test_artefatos_do_pacotes_vivem_pouco() -> None:
     # os instaladores são grandes (D183.23): o artefato do ensaio some em dois dias
     texto = _codigo(PACOTES)
-    assert texto.count("actions/upload-artifact@") == texto.count("retention-days: 2") == 3
+    assert texto.count("actions/upload-artifact@") == texto.count("retention-days: 2") == 4
 
 
 def test_job_casca_monta_os_recursos_e_compila_com_o_sha_do_manifesto() -> None:
@@ -291,11 +292,9 @@ def test_fumaca_sem_rede_no_linux_no_windows_e_no_mac() -> None:
     # o .deb e o AppImage na 22.04 e o AppImage de novo na 24.04, cada um no seu contêiner e
     # como usuário comum (root leria qualquer arquivo dos recursos): o --verificar sem rede
     # (conferida: só a interface lo) e, depois, com rede, o --verificar-navegador (D183.24)
-    assert texto.count("docker run") == 1  # dentro da função, chamada três vezes
     assert "useradd -m pessoa" in texto
-    linux = texto[
-        texto.index("fumaça (Linux)") : texto.index("fumaça sem rede e navegador (Windows)")
-    ]
+    linux = texto[texto.index("fumaça (Linux)") : texto.index("AppImage sem lixo no /tmp (Linux)")]
+    assert linux.count("docker run") == 1  # dentro da função, chamada três vezes
     ordem = [linux.index('docker network disconnect bridge "$c"')]
     for passo in (
         'test "$(ls /sys/class/net)" = lo',
@@ -364,6 +363,60 @@ def test_fumaca_sem_rede_no_linux_no_windows_e_no_mac() -> None:
     assert mac.index('jobot-app" --verificar\n') < mac.index('jobot-app" --verificar-navegador')
 
 
+def test_casca_aberta_no_xvfb_liga_abre_e_para_pelo_teclado() -> None:
+    # T355: a casca instalada aberta de verdade, sem rede, num Xvfb com gerenciador de janelas
+    texto = _job(PACOTES, "aberta")
+    assert "needs: casca" in texto
+    assert "runs-on: ubuntu-22.04" in texto
+    assert "name: casca-x86_64-unknown-linux-gnu" in texto
+    for passo in (
+        "FROM ubuntu:22.04",
+        "dpkg-deb -f saida/*.deb Depends",
+        "xvfb openbox xdotool imagemagick dbus curl",
+        "--network none",
+        "docker exec -u pessoa",
+        "Xvfb :99",
+        "openbox &",
+        "dbus-run-session --",
+    ):
+        assert passo in texto, passo
+    # o .deb e o AppImage, cada um no seu contêiner
+    assert "aberta deb 'dpkg -i /saida/*.deb' jobot-app " in texto
+    assert "aberta appimage " in texto and "./jobot.AppImage " in texto
+    # instala antes (sem o joBot a janela é a da instalação); ao abrir, o controle só mostra o
+    # estado; então Ligar, Abrir joBot e Parar pelo teclado, e o painel responde no endereço
+    ordem = [texto.index("$casca --verificar")]
+    for passo in (
+        "foto 1-parado",
+        "xdotool key --delay 300 Tab Tab Tab Return",
+        "esperar 60 no_ar",
+        "foto 2-ligado",
+        "xdotool key Return",
+        'esperar 20 test -s "$aberto/endereco"',
+        'test "$(cat "$aberto/endereco")" = "http://127.0.0.1:$porta/"',
+        'curl -fsS -o /dev/null "http://127.0.0.1:$porta/"',
+        "xdotool key --delay 300 shift+Tab Return",
+        "esperar 30 parado",
+        "foto 3-parado",
+    ):
+        ordem.append(texto.index(passo, ordem[-1]))
+    assert ordem == sorted(ordem)
+    # ao abrir, nada liga sozinho
+    abrir = texto[texto.index("$casca --verificar") : texto.index("foto 1-parado")]
+    assert re.search(r"^\s+parado$", abrir, re.MULTILINE), abrir
+    # navegador falso no lugar do xdg-open: grava o endereço, o ambiente e o APPDIR da casca, que
+    # o chamou; no AppImage o APPDIR tem de existir e nenhuma variável aponta para ele (D207.1)
+    assert "/usr/local/bin/xdg-open" in texto
+    assert '"/proc/$PPID/environ"' in texto
+    assert 'test -n "$appdir"' in texto
+    assert 'grep -F "$appdir" "$aberto/ambiente"' in texto
+    # as capturas (e o log da casca) ficam também quando falha
+    envio = texto[texto.index("- if: always()\n        uses: actions/upload-artifact@") :]
+    assert "name: capturas-casca" in envio
+    assert "path: capturas/" in envio
+    assert "trap 'foto falha" in texto
+
+
 # o gancho, instrução por instrução (sem comentários): o ramo "falta o WebView2" só se prova aqui,
 # porque o runner do Windows tem o runtime
 _SEM_WEBVIEW2 = (
@@ -394,6 +447,39 @@ _GANCHO_WEBVIEW2 = [
     'Abort "$R8"',
     "${EndIf}",
 ]
+
+
+def test_appimage_sem_fuse_nao_deixa_lixo_no_tmp() -> None:
+    # T354 (D211): num contêiner sem FUSE, o /tmp volta ao que era depois da saída normal e
+    # depois do SIGKILL no grupo do runtime e da casca; o controle mata também o vigia e
+    # precisa deixar a pasta, senão a conferência não enxergaria o lixo
+    texto = _job(PACOTES, "casca")
+    passo = texto[
+        texto.index("AppImage sem lixo no /tmp (Linux)") : texto.index(
+            "fumaça sem rede e navegador (Windows)"
+        )
+    ]
+    assert "if: runner.os == 'Linux'" in passo
+    assert "test ! -e /dev/fuse" in passo
+    ordem = [passo.index('antes=$(docker exec "$c" ls -A /tmp)')]
+    for trecho in (
+        "env APPIMAGE_EXTRACT_AND_RUN=1 ./jobot.AppImage --verificar\n",
+        'test "$depois" = "$antes"',
+        "bash /lixo/forcar.sh controle",
+        "bash /lixo/forcar.sh vigia",
+    ):
+        ordem.append(passo.index(trecho, ordem[-1]))
+    assert ordem == sorted(ordem)
+    for trecho in (
+        "APPIMAGE_EXTRACT_AND_RUN=1 setsid ./jobot.AppImage --verificar",
+        'kill -STOP -- "-$grupo" || { echo "a casca saiu antes da morte forçada"; exit 1; }',
+        'kill -KILL -- "-$grupo"',
+        "grep -q jobot-vigia",
+        'echo "o controle não deixou lixo"; exit 1',
+        'echo "nenhum vigia rodando"; cat',
+        'echo "sobrou lixo no /tmp"; exit 1',
+    ):
+        assert trecho in passo, trecho
 
 
 def test_instalador_do_windows_nao_baixa_o_webview2_e_confere_antes() -> None:

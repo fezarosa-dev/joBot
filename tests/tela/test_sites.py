@@ -13,6 +13,7 @@ import pytest
 from fastapi import FastAPI
 from playwright.sync_api import Browser, Locator, Page, expect
 
+from apoio.console import anotar_erros
 from jobot.banco.conexao import abrir
 from jobot.banco.paginas import adicionar_pagina, gravar_leitura
 from jobot.nucleo.coletores.paginas import Mudanca
@@ -57,9 +58,7 @@ def _adicionar(page: Page, nome: str, url: str) -> None:
 
 
 def test_lista_as_paginas_com_estado_e_mudanca(page: Page, painel: str) -> None:
-    erros: list[str] = []  # violação do CSP aparece como erro no console
-    page.on("console", lambda m: erros.append(m.text) if m.type == "error" else None)
-    page.on("pageerror", lambda e: erros.append(str(e)))
+    erros = anotar_erros(page)  # violação do CSP aparece como erro no console
     page.goto(f"{painel}/sites")
 
     expect(page.get_by_role("heading", level=1)).to_have_text("Sites")

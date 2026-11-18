@@ -1,11 +1,7 @@
-"""Prende o `casca.yml` (gatilhos, permissões, jobs, actions) e a página da prova da janela."""
+"""Prende o `casca.yml` (gatilhos, permissões, jobs, actions)."""
 
-import importlib.util
 import re
 from pathlib import Path
-from types import ModuleType
-
-from jobot.painel.app import CABECALHOS
 
 RAIZ = Path(__file__).resolve().parents[2]
 CASCA = RAIZ / ".github" / "workflows" / "casca.yml"
@@ -80,7 +76,7 @@ def test_jobs_da_casca() -> None:
         assert "timeout-minutes:" in _job(nome), nome
 
 
-def test_job_casca_confere_rust_e_a_janela_sob_xvfb() -> None:
+def test_job_casca_confere_o_rust() -> None:
     texto = _job("casca")
     assert "runs-on: ubuntu-22.04" in texto
     for passo in (
@@ -89,11 +85,10 @@ def test_job_casca_confere_rust_e_a_janela_sob_xvfb() -> None:
         "cargo fmt --check",
         "cargo clippy --locked --all-targets -- -D warnings",
         "cargo test --locked",
-        "xvfb-run",
-        "--verificar-janela",
-        "scripts/prova_janela.py",
     ):
         assert passo in texto, passo
+    # a prova da IPC do painel na janela (T321) saiu com a casca que só controla (D206, D207)
+    assert "--verificar-janela" not in texto
 
 
 def test_job_windows_roda_os_testes_de_sistema() -> None:
@@ -129,27 +124,3 @@ def test_job_ia_so_com_a_entrada() -> None:
     assert "if: github.event_name == 'workflow_dispatch' && inputs.ia" in texto
     assert "uses: ./.github/workflows/ia.yml" in texto
     assert "secrets" not in texto
-
-
-def _prova() -> ModuleType:
-    caminho = RAIZ / "scripts" / "prova_janela.py"
-    spec = importlib.util.spec_from_file_location("prova_janela", caminho)
-    assert spec is not None and spec.loader is not None
-    modulo = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(modulo)
-    return modulo
-
-
-def test_prova_manda_os_cabecalhos_reais_do_painel() -> None:
-    assert _prova().cabecalhos(com_ipc=False) == CABECALHOS
-
-
-def test_prova_com_ipc_so_acrescenta_a_origem_ao_connect_src() -> None:
-    com = _prova().cabecalhos(com_ipc=True)
-    csp = com.pop("Content-Security-Policy", "")
-    original = CABECALHOS["Content-Security-Policy"]
-    assert com == {k: v for k, v in CABECALHOS.items() if k != "Content-Security-Policy"}
-    assert csp == original.replace(
-        "connect-src 'self';", "connect-src 'self' ipc: http://ipc.localhost;"
-    )
-    assert csp != original

@@ -9,6 +9,7 @@ import pytest
 from fastapi import FastAPI
 from playwright.sync_api import Locator, Page, expect
 
+from apoio.console import anotar_erros
 from apoio.relogio import RelogioFalso
 from jobot.banco.cadastros import semear
 from jobot.banco.conexao import abrir
@@ -44,9 +45,7 @@ def _caixa(page: Page, chave: str) -> Locator:
 
 
 def test_desligar_e_ligar_muda_o_estado_na_tela(page: Page, painel: str) -> None:
-    erros: list[str] = []  # violação do CSP aparece como erro no console
-    page.on("console", lambda m: erros.append(m.text) if m.type == "error" else None)
-    page.on("pageerror", lambda e: erros.append(str(e)))
+    erros = anotar_erros(page)  # violação do CSP aparece como erro no console
     page.goto(f"{painel}/fontes")
     expect(_cartao(page, "remotive")).to_be_visible()
     expect(_caixa(page, "remotive")).to_be_checked()

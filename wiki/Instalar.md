@@ -29,7 +29,7 @@ Cada arquivo tem de cerca de 100 a 200 MB (o do Windows uns 120 MB, os do Mac un
 ## 2. Abra
 
 - **Windows:** dois cliques no `-setup.exe`. Se aparecer "O Windows protegeu o computador", clique em **Mais informações** e depois em **Executar assim mesmo**. O aviso aparece porque o instalador ainda não tem selo (assinatura de código). Ele instala só para o seu usuário, sem senha de administrador.
-- **Linux, AppImage:** marque o arquivo como executável (`chmod +x` no arquivo, ou Propriedades, Permissões) e abra.
+- **Linux, AppImage:** marque o arquivo como executável (`chmod +x` no arquivo, ou Propriedades, Permissões) e abra. Se ele reclamar de FUSE, prefira o `.deb` ou o `.rpm`. Se quiser o AppImage mesmo assim, rode `TMPDIR=~/.cache ./joBot_<versão>_amd64.AppImage --appimage-extract-and-run`: ele se desempacota na pasta `~/.cache`, no disco, e não no `/tmp`, que em muitos Linux fica na memória. Ao fechar, a pasta é apagada.
 - **Linux, `.deb` ou `.rpm`:** `sudo apt install ./` ou `sudo dnf install ./` seguido do nome do arquivo. Depois abra o joBot pelo menu de aplicativos.
 - **Mac:** abra o `.dmg` e arraste o joBot para Aplicativos. Na primeira vez, aparece que a Apple não conseguiu verificar o joBot: feche o aviso, abra Ajustes do Sistema › Privacidade e Segurança, desça até a mensagem sobre o joBot e clique em **Abrir Mesmo Assim**, confirmando com a sua senha.
 

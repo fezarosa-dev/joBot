@@ -340,3 +340,5 @@ def test_em_ingles_e_troca_de_idioma(page: Page, ui: str) -> None:
     page.get_by_label("Language").select_option("pt")
     expect(page.get_by_role("button", name="Continuar", exact=True)).to_be_visible()
     expect(page.locator("html")).to_have_attribute("lang", "pt")
+    # a escolha fica para o controle, que abre logo depois na mesma origem (D207.9)
+    assert page.evaluate("localStorage.getItem('jobot.idioma')") == "pt"

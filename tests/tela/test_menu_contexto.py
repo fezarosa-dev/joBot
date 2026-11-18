@@ -8,6 +8,7 @@ import pytest
 from fastapi import FastAPI
 from playwright.sync_api import Locator, Page, expect
 
+from apoio.console import anotar_erros
 from apoio.relogio import RelogioFalso
 from apoio.semear import inserir_vaga
 from jobot.banco.conexao import abrir
@@ -255,12 +256,27 @@ def test_letra_repetida_depressa_cicla_como_no_finder(page: Page, painel: str) -
     expect(_item(page, "Abrir no site da vaga")).to_be_focused()
 
 
+def test_menu_do_navegador_que_engole_o_pointerup_nao_prende_o_nosso(
+    page: Page, painel: str
+) -> None:
+    """Clique direito fora de vaga abre o menu do navegador, que pode engolir o `pointerup`; o
+    `contextmenu` seguinte sem ponteiro (leitor de tela) abre o nosso na hora (T352)."""
+    page.goto(f"{painel}/vagas?aba=todas")
+    _linha(page, NOVA).evaluate(
+        """linha => {
+          const h1 = document.querySelector('h1');
+          h1.dispatchEvent(new PointerEvent('pointerdown', {bubbles: true, button: 2}));
+          h1.dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, cancelable: true}));
+          linha.dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, cancelable: true}));
+        }"""
+    )
+    expect(page.locator(MENU)).to_be_visible()
+
+
 def test_copiar_link_negado_mostra_nao_copiou(page: Page, painel: str) -> None:
     """T305 (f): a cópia recusada (ou sem `clipboard`) cai no `catch` do `copiarLink` e a região
     viva do menu diz que não copiou, sem erro no console."""
-    erros: list[str] = []
-    page.on("console", lambda m: erros.append(m.text) if m.type == "error" else None)
-    page.on("pageerror", lambda e: erros.append(str(e)))
+    erros = anotar_erros(page)
     page.add_init_script(
         "navigator.clipboard.writeText = () => Promise.reject(new Error('negado'))"
     )
