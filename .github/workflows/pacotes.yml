@@ -363,9 +363,9 @@ jobs:
           "$RUNNER_TEMP/joBot.app/Contents/MacOS/jobot-app" --verificar-navegador
 
   # A casca instalada aberta de verdade (T355; D212): o .deb (em português) e o AppImage (em
-  # inglês), cada um num contêiner sem rede, como usuário comum, num Xvfb com o openbox. O
-  # --verificar instala dos recursos (sem o joBot a janela é a da instalação); ao abrir, o
-  # controle só mostra "Parado"; pelo teclado, Ligar, Abrir joBot e Parar. O navegador é falso:
+  # inglês), cada um num contêiner sem rede, como usuário comum, num Xvfb com o openbox. Sem o
+  # joBot, a janela abre na tela de instalação: pelo teclado, instala sem o navegador do login
+  # e cai no controle, que só mostra "Parado"; depois, Ligar, Abrir joBot e Parar. O navegador é falso:
   # um xdg-open que grava o endereço, o próprio ambiente e o APPDIR da casca que o chamou; no
   # AppImage nenhuma variável pode apontar para dentro dele (D207.1). As capturas da janela
   # (parado, ligado, parado de novo, ou a da falha) e o log da casca ficam no artefato
@@ -413,6 +413,7 @@ jobs:
           # como a pessoa, no contêiner sem rede: o nome do pacote e a casca
           set -Eeuo pipefail
           nome=$1 casca=$2 porta=47615 aberto=/home/pessoa/aberto janela=
+          dados=/home/pessoa/.local/share/jobot
           foto() { import -window "${janela:-root}" -frame "/capturas/$nome-$1.png"; }
           trap 'foto falha || true; tail -n 40 "/capturas/$nome-casca.log" || true' ERR
           esperar() {  # segundos, a condição
@@ -424,7 +425,6 @@ jobs:
           }
           no_ar() { curl -fsS --max-time 2 -o /dev/null "http://127.0.0.1:$porta/saude-local"; }
           parado() { ! no_ar; }
-          $casca --verificar
           export DISPLAY=:99
           Xvfb :99 -screen 0 800x600x24 -nolisten tcp &
           esperar 30 xdotool getdisplaygeometry
@@ -434,7 +434,20 @@ jobs:
             dbus-run-session -- $casca > "/capturas/$nome-casca.log" 2>&1 &
           esperar 60 xdotool search --onlyvisible --name '^joBot$'
           janela=$(xdotool search --onlyvisible --name '^joBot$' | head -n 1)
-          sleep 10  # a página carrega os textos e pergunta o estado
+          # sem o joBot, a mesma janela é a da instalação (D207.2): instala por ela, pelo teclado,
+          # sem o navegador do login (não há rede), e ela tem de cair no controle (D212.10)
+          sleep 10  # a página carrega os textos e confere os recursos
+          test ! -e "$dados/instalacao.json"
+          foto 0-instalar
+          xdotool windowactivate --sync "$janela"
+          # boas-vindas: o foco está no título; o Idioma e o Continuar
+          xdotool key --delay 300 Tab Tab Return
+          sleep 3
+          foto 0-ferramentas
+          # ferramentas: do título, a caixa do navegador (a do joBot é fixa), o Voltar e o Instalar
+          xdotool key --delay 300 Tab space Tab Tab Return
+          esperar 300 test -s "$dados/instalacao.json"
+          sleep 10  # a janela encolhe, vai ao controle, carrega os textos e pergunta o estado
           parado
           foto 1-parado
           xdotool windowactivate --sync "$janela"
@@ -453,6 +466,11 @@ jobs:
           if [ -n "$appdir" ] && grep -F "$appdir" "$aberto/ambiente" > "$aberto/dentro"; then
             echo "o navegador herdou caminhos de dentro do AppImage ($appdir):" >&2
             sed "s#$appdir#<APPDIR>#g" "$aberto/dentro" >&2
+            false
+          fi
+          # nem o que o AppRun cria sem ser caminho: o GTK_THEME força o tema claro (D207.1)
+          if [ "$nome" = appimage ] && grep -E '^(GTK_THEME|GDK_BACKEND|PYTHONDONTWRITEBYTECODE|APPIMAGE|ARGV0|OWD)=' "$aberto/ambiente" >&2; then
+            echo "o navegador herdou essas variáveis do AppRun" >&2
             false
           fi
           # e lista de caminhos vazia, que no GStreamer desliga os plugins do sistema (D212.6)
