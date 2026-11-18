@@ -3,6 +3,7 @@
 - **Status:** aceita (as escolhas da sessão listadas na D171, itens 9 a 18, seguem para confirmar; no texto, cada frase que vem delas leva a marca "para confirmar")
 - **Data:** 2026-11-17
 - **Atualizada:** 2026-11-17, pela D173 e pela D174 do `duvidas.md` (instalador completo e sem rede; o texto por extenso entrou na T341, no item "Instalador completo e sem rede") e pela D183 (itens 20 e 24, decididos pela sessão, para o dono confirmar: o instalador do Windows não baixa o WebView2, e o navegador não vai no instalador nem na release, vem do `playwright install`)
+- **Atualizada:** 2026-11-18, pela [0027](0027-casca-so-controla.md) (D206, decisão do dono): a casca deixa de mostrar o painel e vira um controle (Ligar, Parar, Abrir joBot), e o painel abre no navegador padrão da pessoa. O item "Casca" abaixo vale com essa troca.
 
 ## Contexto
 
