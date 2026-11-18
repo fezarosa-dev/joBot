@@ -8,6 +8,7 @@ import pytest
 from fastapi import FastAPI
 from playwright.sync_api import Locator, Page, expect
 
+from apoio.console import anotar_erros
 from apoio.relogio import RelogioFalso
 from apoio.semear import inserir_vaga
 from jobot.banco.conexao import abrir
@@ -258,9 +259,7 @@ def test_letra_repetida_depressa_cicla_como_no_finder(page: Page, painel: str) -
 def test_copiar_link_negado_mostra_nao_copiou(page: Page, painel: str) -> None:
     """T305 (f): a cópia recusada (ou sem `clipboard`) cai no `catch` do `copiarLink` e a região
     viva do menu diz que não copiou, sem erro no console."""
-    erros: list[str] = []
-    page.on("console", lambda m: erros.append(m.text) if m.type == "error" else None)
-    page.on("pageerror", lambda e: erros.append(str(e)))
+    erros = anotar_erros(page)
     page.add_init_script(
         "navigator.clipboard.writeText = () => Promise.reject(new Error('negado'))"
     )

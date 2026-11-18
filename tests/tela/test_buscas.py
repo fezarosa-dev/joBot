@@ -6,6 +6,7 @@ import pytest
 from fastapi import FastAPI
 from playwright.sync_api import Locator, Page, expect
 
+from apoio.console import anotar_erros
 from apoio.relogio import RelogioFalso
 
 pytestmark = pytest.mark.tela
@@ -38,13 +39,8 @@ def _criar(page: Page, painel: str, nome: str, *, remoto: bool = False, salario:
 
 
 def test_criar_busca_com_erro_de_digitacao_e_depois_certo(page: Page, painel: str) -> None:
-    erros: list[str] = []  # violação do CSP aparece como erro no console
-    page.on(
-        "console",
-        # o 422 do primeiro envio é esperado e o navegador o registra no console
-        lambda m: erros.append(m.text) if m.type == "error" and "422" not in m.text else None,
-    )
-    page.on("pageerror", lambda e: erros.append(str(e)))
+    # o 422 do primeiro envio é esperado e o navegador o registra no console
+    erros = anotar_erros(page, ignorar="422")
     page.goto(f"{painel}/buscas")
     expect(_cartoes(page)).to_have_count(1)
 

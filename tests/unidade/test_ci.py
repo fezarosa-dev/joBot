@@ -105,3 +105,6 @@ def test_tela_roda_nos_tres_motores() -> None:
     comando = re.search(r"run: (uv run pytest -m tela[^\n]*)", bloco)
     assert comando is not None
     assert "--browser ${{ matrix.motor }}" in comando[1]
+    # tests/navegador usa o Chromium do próprio joBot (a janela do login), não o motor do painel:
+    # roda só no job do Chromium
+    assert "${{ matrix.motor != 'chromium' && 'tests/tela' || '' }}" in comando[1]

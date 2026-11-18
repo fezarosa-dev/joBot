@@ -86,7 +86,9 @@ jobs:
       # o cache guarda só o navegador; Firefox e WebKit pedem bibliotecas do sistema que o runner não traz
       - if: steps.cache-motor.outputs.cache-hit == 'true' && matrix.motor != 'chromium'
         run: uv run playwright install-deps ${{ matrix.motor }}
-      - run: uv run pytest -m tela --browser ${{ matrix.motor }} --durations=5
+      # tests/navegador usa o Chromium do próprio joBot (a janela do login), não o motor do painel:
+      # roda só no job do Chromium
+      - run: uv run pytest -m tela --browser ${{ matrix.motor }} --durations=5 ${{ matrix.motor != 'chromium' && 'tests/tela' || '' }}
 
   # Conferência visual (T353, D206): panorama, vagas, detalhe e configurações nos três motores,
   # nos temas claro e escuro, em 1280 e 800 px. As fotos ficam como artefato para quem publica

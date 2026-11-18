@@ -9,6 +9,7 @@ from fastapi import FastAPI
 from playwright.sync_api import Page, expect
 
 from apoio.cofre_falso import CofreFalso
+from apoio.console import anotar_erros
 from apoio.relogio import RelogioFalso
 from apoio.segundo_plano_falso import FalsoSistema
 from jobot.sistema.cofre import Cofre
@@ -35,9 +36,7 @@ def app_painel(app_painel: FastAPI, sistema: FalsoSistema, tmp_path: Path) -> Fa
 
 @pytest.fixture(autouse=True)
 def _sem_erro_no_console(page: Page) -> list[str]:
-    erros: list[str] = []  # violação do CSP aparece como erro no console
-    page.on("console", lambda m: erros.append(m.text) if m.type == "error" else None)
-    page.on("pageerror", lambda e: erros.append(str(e)))
+    erros = anotar_erros(page)  # violação do CSP aparece como erro no console
     return erros
 
 
@@ -79,6 +78,9 @@ def test_desligar_destaques_tira_a_aba_e_o_painel_abre_em_todas(
     expect(page).to_have_url(f"{painel}/configuracoes/funcoes")  # o app.js já tirou ?salvo=1
     expect(page.get_by_role("status").filter(has_text="Salvo.")).to_be_visible()
     expect(page.get_by_label("Destaques de hoje", exact=True)).not_to_be_checked()
+    # o WebKit dá `htmx:sendError` (erro no console) ao pedido que a navegação corta: as cargas
+    # da página terminam antes de sair dela (T352)
+    expect(page.locator(".htmx-request")).to_have_count(0)
 
     page.goto(f"{painel}/vagas")
     lateral = page.get_by_role("navigation", name="Principal")

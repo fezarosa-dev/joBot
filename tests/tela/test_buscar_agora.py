@@ -11,6 +11,7 @@ import pytest
 from fastapi import FastAPI
 from playwright.sync_api import Page, expect
 
+from apoio.console import anotar_erros
 from apoio.relogio import RelogioFalso
 from apoio.semear import inserir_vaga
 from jobot.banco.cadastros import gravar_config
@@ -85,9 +86,7 @@ def test_buscar_agora_mostra_o_andamento_e_as_vagas_novas(
     terminou: threading.Event,
     chamadas: list[str],
 ) -> None:
-    erros: list[str] = []  # violação do CSP aparece como erro no console
-    page.on("console", lambda m: erros.append(m.text) if m.type == "error" else None)
-    page.on("pageerror", lambda e: erros.append(str(e)))
+    erros = anotar_erros(page)  # violação do CSP aparece como erro no console
     page.clock.install()  # o tempo corre; só o fast_forward pula a espera da pergunta
     page.goto(f"{painel}/vagas?aba=todas")
     viva = page.locator("#andamento-etapa")  # a região viva fixa, fora do #andamento (T252)
