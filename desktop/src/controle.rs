@@ -116,13 +116,18 @@ pub fn fora_do_appimage(vars: &[(String, String)]) -> Vec<(String, Option<String
 }
 
 /// O abridor pronto para rodar, com o ambiente da casca (`vars`): sem o ambiente do Python e
-/// sem o do AppImage (o `LD_LIBRARY_PATH` e os módulos dele chegariam ao navegador) e sem
-/// entrada nem saída.
+/// sem o do AppImage (o `LD_LIBRARY_PATH` e os módulos dele chegariam ao navegador), fora da
+/// pasta do AppImage e sem entrada nem saída.
 pub fn comando_abridor(so: &str, vars: &[(String, String)], endereco: &str) -> Command {
     let env = |nome: &str| vars.iter().find(|(k, _)| k == nome).map(|(_, v)| v.clone());
     let (programa, args) = abridor(so, em_distrobox(env), endereco);
     let mut comando = Command::new(programa);
-    for (nome, valor) in fora_do_appimage(vars) {
+    let fora = fora_do_appimage(vars);
+    if !fora.is_empty() {
+        // o AppRun deixa a casca em `$APPDIR/usr`: o navegador nasce na casa da pessoa (T355)
+        comando.current_dir(env("HOME").filter(|c| !c.is_empty()).unwrap_or("/".into()));
+    }
+    for (nome, valor) in fora {
         match valor {
             Some(valor) => comando.env(nome, valor),
             None => comando.env_remove(nome),
