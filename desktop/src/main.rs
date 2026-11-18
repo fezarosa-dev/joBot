@@ -158,16 +158,15 @@ fn estado_controle() -> Value {
 fn ligar() -> Value {
     let _vez = ACAO.lock().unwrap_or_else(|e| e.into_inner());
     let dados = dados();
+    let trava_solta = servidor::ler_trava(&dados).0.is_none();
     let resultado = controle::ligar(&dados, std::env::consts::OS, |jobot| {
         servidor::achar_ou_subir(&dados, jobot, ambiente)
     });
+    if controle::subiu(trava_solta, &resultado) {
+        SUBIU.store(true, Ordering::Relaxed);
+    }
     match resultado {
-        Ok(achado) => {
-            if achado.subiu {
-                SUBIU.store(true, Ordering::Relaxed);
-            }
-            controle::estado(achado.porta, |_| true)
-        }
+        Ok(achado) => controle::estado(achado.porta, |_| true),
         Err(falha) => controle::com_falha(
             estado_agora(&dados),
             falha.codigo(),
@@ -182,11 +181,16 @@ fn ligar() -> Value {
 fn parar() -> Value {
     let _vez = ACAO.lock().unwrap_or_else(|e| e.into_inner());
     let dados = dados();
-    controle::parar(&dados, std::env::consts::OS, |jobot| {
-        fechar::rodar_esperando(jobot, &["sair"])
-    });
-    SUBIU.store(false, Ordering::Relaxed);
-    estado_agora(&dados)
+    let estado = controle::parar(
+        &dados,
+        std::env::consts::OS,
+        |jobot| fechar::rodar_esperando(jobot, &["sair"]),
+        || estado_agora(&dados),
+    );
+    if estado["ligado"] != true {
+        SUBIU.store(false, Ordering::Relaxed); // só quando parou: no ar, fechar ainda o para
+    }
+    estado
 }
 
 /// Abrir joBot: o endereço do painel no navegador padrão da pessoa, só com o painel no ar.
@@ -196,7 +200,10 @@ fn abrir_jobot() -> Value {
     controle::abrir(
         controle::porta(&dados, ambiente),
         servidor::perguntar_saude,
-        |endereco| controle::comando_abridor(std::env::consts::OS, ambiente, endereco),
+        |endereco| {
+            let vars: Vec<_> = std::env::vars().collect();
+            controle::comando_abridor(std::env::consts::OS, &vars, endereco)
+        },
         |mut comando| {
             let mut filho = comando.spawn()?;
             std::thread::spawn(move || filho.wait()); // colhe o abridor quando ele sair

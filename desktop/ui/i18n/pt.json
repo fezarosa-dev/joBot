@@ -55,9 +55,10 @@
   "controle.falha.instalar": "O joBot não está instalado nesta conta. Instale o joBot de novo pelo instalador.",
   "controle.falha.porta": "A porta {detalhe} está ocupada por outro programa. Feche esse programa ou defina JOBOT_PORTA com outra porta e tente de novo.",
   "controle.falha.captura": "Uma captura de exemplos com login está em andamento. Encerre-a no terminal dela e tente de novo.",
-  "controle.falha.sem_resposta": "O joBot não respondeu na porta {detalhe}. Veja o fim do registro abaixo e tente de novo.",
-  "controle.falha.saiu": "O joBot fechou logo ao ligar. Veja o fim do registro abaixo e tente de novo.",
+  "controle.falha.sem_resposta": "O joBot não respondeu na porta {detalhe}. Tente de novo.",
+  "controle.falha.saiu": "O joBot fechou logo ao ligar. Tente de novo.",
   "controle.falha.subir": "Não consegui ligar o joBot. O sistema respondeu: {detalhe}. Instale o joBot de novo pelo instalador.",
   "controle.falha.abrir": "Não consegui abrir o navegador. O sistema respondeu: {detalhe}. Copie o endereço e abra no seu navegador.",
+  "controle.falha.parar": "O joBot não parou a tempo. Ele pode estar terminando um trabalho. Espere um pouco e tente de novo.",
   "controle.falha.outro": "Não consegui concluir. Tente de novo."
 }

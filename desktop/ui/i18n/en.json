@@ -55,9 +55,10 @@
   "controle.falha.instalar": "joBot is not installed for this account. Install joBot again with the installer.",
   "controle.falha.porta": "Port {detalhe} is in use by another program. Close that program or set JOBOT_PORTA to another port and try again.",
   "controle.falha.captura": "A sample capture with login is running. Stop it in its terminal and try again.",
-  "controle.falha.sem_resposta": "joBot did not answer on port {detalhe}. See the end of the log below and try again.",
-  "controle.falha.saiu": "joBot closed right after starting. See the end of the log below and try again.",
+  "controle.falha.sem_resposta": "joBot did not answer on port {detalhe}. Try again.",
+  "controle.falha.saiu": "joBot closed right after starting. Try again.",
   "controle.falha.subir": "Could not start joBot. The system said: {detalhe}. Install joBot again with the installer.",
   "controle.falha.abrir": "Could not open the browser. The system said: {detalhe}. Copy the address and open it in your browser.",
+  "controle.falha.parar": "joBot did not stop in time. It may be finishing a task. Wait a moment and try again.",
   "controle.falha.outro": "Could not finish. Try again."
 }

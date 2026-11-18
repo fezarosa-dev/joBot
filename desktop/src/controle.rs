@@ -39,11 +39,34 @@ pub fn ligar(
         .and_then(|jobot| achar(&jobot))
 }
 
-/// Parar: `jobot sair` pelo joBot instalado (`sair` espera o fim); sem instalação, nada.
-pub fn parar(dados: &Path, so: &str, sair: impl FnOnce(&Path)) {
+/// Se fechar a janela pode parar este servidor (`SUBIU`): a casca o subiu agora, ou a trava
+/// estava solta e o `jobot serve` lançado não respondeu a tempo (ele pode terminar de subir
+/// depois; o `fechar::ao_fechar` reconfere a trava e o segundo plano). A `Porta` de antes de
+/// lançar também entra: com outro programa na porta, ninguém prende a trava e nada é parado.
+pub fn subiu(trava_solta: bool, ligar: &Result<servidor::Servidor, servidor::Falha>) -> bool {
+    match ligar {
+        Ok(achado) => achado.subiu,
+        Err(servidor::Falha::SemResposta(_) | servidor::Falha::Porta(_)) => trava_solta,
+        Err(_) => false,
+    }
+}
+
+/// Parar: `jobot sair` pelo joBot instalado (`sair` espera o fim) e o estado depois (`agora`).
+/// Painel ainda no ar é a falha `parar`: o `sair` não encerrou (prazo de 10 s ou permissão).
+pub fn parar(
+    dados: &Path,
+    so: &str,
+    sair: impl FnOnce(&Path),
+    agora: impl FnOnce() -> Value,
+) -> Value {
     if let Some(jobot) = servidor::jobot_instalado(dados, so) {
         sair(&jobot);
     }
+    let estado = agora();
+    if estado["ligado"] == true {
+        return com_falha(estado, "parar", "", &servidor::fim_do_log(dados));
+    }
+    estado
 }
 
 /// Dentro de uma distrobox, a mesma regra do `sistema/caso.py`: há `CONTAINER_ID`.
@@ -68,11 +91,43 @@ pub fn abridor(so: &str, distrobox: bool, endereco: &str) -> (&'static str, Vec<
     }
 }
 
-/// O abridor pronto para rodar: sem o ambiente do Python do AppImage (o `LD_LIBRARY_PATH`
-/// dele chegaria ao navegador) e sem entrada nem saída.
-pub fn comando_abridor(so: &str, env: impl Fn(&str) -> Option<String>, endereco: &str) -> Command {
+/// O ambiente que o abridor não leva para o navegador dentro de um AppImage (há `APPDIR`): o
+/// AppRun aponta `GTK_PATH`, `GIO_EXTRA_MODULES`, `XDG_DATA_DIRS`, `PATH` e outras para dentro
+/// dele, e um navegador que nasce do Abrir joBot seguiria vivo com a casca fechada (D207.1).
+/// Lista de caminhos perde só os pedaços de dentro (`Some`); o resto que aponta para lá sai.
+pub fn fora_do_appimage(vars: &[(String, String)]) -> Vec<(String, Option<String>)> {
+    let Some((_, appdir)) = vars.iter().find(|(k, v)| k == "APPDIR" && !v.is_empty()) else {
+        return Vec::new();
+    };
+    vars.iter()
+        .filter_map(|(k, v)| {
+            let partes: Vec<&str> = v.split(':').collect();
+            let fora: Vec<&str> = partes
+                .iter()
+                .copied()
+                .filter(|p| !Path::new(p).starts_with(appdir))
+                .collect();
+            if fora.len() == partes.len() {
+                return None; // nada aponta para dentro
+            }
+            Some((k.clone(), (!fora.is_empty()).then(|| fora.join(":"))))
+        })
+        .collect()
+}
+
+/// O abridor pronto para rodar, com o ambiente da casca (`vars`): sem o ambiente do Python e
+/// sem o do AppImage (o `LD_LIBRARY_PATH` e os módulos dele chegariam ao navegador) e sem
+/// entrada nem saída.
+pub fn comando_abridor(so: &str, vars: &[(String, String)], endereco: &str) -> Command {
+    let env = |nome: &str| vars.iter().find(|(k, _)| k == nome).map(|(_, v)| v.clone());
     let (programa, args) = abridor(so, em_distrobox(env), endereco);
     let mut comando = Command::new(programa);
+    for (nome, valor) in fora_do_appimage(vars) {
+        match valor {
+            Some(valor) => comando.env(nome, valor),
+            None => comando.env_remove(nome),
+        };
+    }
     servidor::sem_python_de_fora(&mut comando)
         .args(args)
         .stdin(Stdio::null())
@@ -202,16 +257,57 @@ mod testes {
     fn parar_roda_jobot_sair_so_com_instalacao() {
         let dados = temporaria("parar");
         let chamadas = RefCell::new(Vec::new());
-        parar(&dados, "linux", |j| {
-            chamadas.borrow_mut().push(j.to_path_buf())
-        });
+        let parado = || estado(8000, |_| false);
+        let e = parar(
+            &dados,
+            "linux",
+            |j| chamadas.borrow_mut().push(j.to_path_buf()),
+            parado,
+        );
         assert!(chamadas.borrow().is_empty());
+        assert!(e.get("falha").is_none());
         let jobot = instalado(&dados);
-        parar(&dados, "linux", |j| {
-            chamadas.borrow_mut().push(j.to_path_buf())
-        });
+        let e = parar(
+            &dados,
+            "linux",
+            |j| chamadas.borrow_mut().push(j.to_path_buf()),
+            parado,
+        );
         assert_eq!(chamadas.into_inner(), [jobot]);
+        assert_eq!(e["ligado"], false);
+        assert!(e.get("falha").is_none());
         let _ = std::fs::remove_dir_all(&dados);
+    }
+
+    #[test]
+    fn parar_que_nao_parou_diz_por_que() {
+        let dados = temporaria("parar-falha");
+        instalado(&dados);
+        let e = parar(&dados, "linux", |_| {}, || estado(8000, |_| true));
+        assert_eq!(e["ligado"], true);
+        assert_eq!(e["falha"], "parar");
+        let _ = std::fs::remove_dir_all(&dados);
+    }
+
+    #[test]
+    fn subiu_tambem_quando_o_serve_lancado_nao_respondeu_a_tempo() {
+        use servidor::{Falha, Servidor};
+        let achado = |subiu| Ok(Servidor { porta: 1, subiu });
+        assert!(subiu(true, &achado(true)));
+        assert!(!subiu(true, &achado(false)));
+        for falha in [Falha::SemResposta(1), Falha::Porta(1)] {
+            assert!(subiu(true, &Err(falha)));
+        }
+        // a trava já estava presa: o servidor é de outro (segundo plano, `jobot abrir`)
+        assert!(!subiu(false, &Err(Falha::SemResposta(1))));
+        for falha in [
+            Falha::SemInstalacao,
+            Falha::Captura,
+            Falha::Saiu(Some(1)),
+            Falha::NaoSubiu("x".into()),
+        ] {
+            assert!(!subiu(true, &Err(falha)));
+        }
     }
 
     #[test]
@@ -260,10 +356,46 @@ mod testes {
         assert!(!em_distrobox(sem_env));
     }
 
+    fn vars(pares: &[(&str, &str)]) -> Vec<(String, String)> {
+        pares
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect()
+    }
+
+    #[test]
+    fn fora_do_appimage_tira_o_que_aponta_para_dentro() {
+        let d = "/tmp/.mount_jobotX";
+        let ambiente = vars(&[
+            ("APPDIR", d),
+            ("GTK_PATH", "/tmp/.mount_jobotX/usr/lib/gtk-3.0"),
+            ("PATH", "/tmp/.mount_jobotX/usr/bin:/usr/local/bin:/usr/bin"),
+            ("XDG_DATA_DIRS", "/tmp/.mount_jobotX/usr/share"),
+            ("HOME", "/home/p"),
+            ("VIZINHO", "/tmp/.mount_jobotXY/x"), // outra pasta, só o começo igual
+        ]);
+        let mut fora = fora_do_appimage(&ambiente);
+        fora.sort();
+        assert_eq!(
+            fora,
+            [
+                ("APPDIR".to_string(), None),
+                ("GTK_PATH".into(), None),
+                ("PATH".into(), Some("/usr/local/bin:/usr/bin".into())),
+                ("XDG_DATA_DIRS".into(), None),
+            ]
+        );
+        assert!(fora_do_appimage(&vars(&[("GTK_PATH", "/x"), ("APPDIR", "")])).is_empty());
+    }
+
     #[test]
     fn comando_abridor_sem_o_ambiente_do_appimage() {
-        let env = |n: &str| (n == "CONTAINER_ID").then(|| "fedora".to_string());
-        let c = comando_abridor("linux", env, "http://127.0.0.1:47615/");
+        let ambiente = vars(&[
+            ("CONTAINER_ID", "fedora"),
+            ("APPDIR", "/tmp/.mount_j"),
+            ("GIO_EXTRA_MODULES", "/tmp/.mount_j/usr/lib/gio"),
+        ]);
+        let c = comando_abridor("linux", &ambiente, "http://127.0.0.1:47615/");
         assert_eq!(c.get_program(), "distrobox-host-exec");
         assert_eq!(
             c.get_args().collect::<Vec<_>>(),
@@ -274,7 +406,16 @@ mod testes {
             .filter(|(_, v)| v.is_none())
             .map(|(k, _)| k)
             .collect();
-        assert_eq!(fora, ["LD_LIBRARY_PATH", "PYTHONHOME", "PYTHONPATH"]);
+        assert_eq!(
+            fora,
+            [
+                "APPDIR",
+                "GIO_EXTRA_MODULES",
+                "LD_LIBRARY_PATH",
+                "PYTHONHOME",
+                "PYTHONPATH"
+            ]
+        );
     }
 
     #[test]
