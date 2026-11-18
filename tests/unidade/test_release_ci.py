@@ -417,6 +417,7 @@ def test_appimage_sem_fuse_nao_deixa_lixo_no_tmp() -> None:
     assert ordem == sorted(ordem)
     for trecho in (
         "APPIMAGE_EXTRACT_AND_RUN=1 setsid ./jobot.AppImage --verificar",
+        'kill -STOP -- "-$grupo" || { echo "a casca saiu antes da morte forçada"; exit 1; }',
         'kill -KILL -- "-$grupo"',
         "grep -q jobot-vigia",
         'echo "o controle não deixou lixo"; exit 1',

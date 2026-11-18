@@ -215,22 +215,24 @@ jobs:
           # $1: vigia (só o grupo da casca morre) ou controle (o vigia morre antes)
           set -u
           cd "$HOME"
-          casca() { grep -lx jobot-app /proc/[0-9]*/comm 2>/dev/null; }
+          vigias() {
+            for f in /proc/[0-9]*/cmdline; do
+              tr '\0' ' ' <"$f" 2>/dev/null | grep -q jobot-vigia || continue
+              p=${f#/proc/}; echo "${p%/cmdline}"
+            done
+          }
           antes=$(ls -A /tmp)
           JOBOT_DADOS="$HOME/dados-$1" APPIMAGE_EXTRACT_AND_RUN=1 setsid ./jobot.AppImage --verificar >"$HOME/$1.log" 2>&1 &
           grupo=$!
-          for i in $(seq 120); do casca >/dev/null && break; sleep 1; done
-          casca >/dev/null || { echo "a casca não subiu"; cat "$HOME/$1.log"; exit 1; }
-          sleep 3
+          # a casca lança o vigia no começo do main: sem ele, o teste não diria nada
+          for i in $(seq 240); do [ -n "$(vigias)" ] && break; sleep 0.5; done
+          [ -n "$(vigias)" ] || { echo "nenhum vigia rodando"; cat "$HOME/$1.log"; exit 1; }
+          sleep 1
+          # congela o grupo: a casca não pode terminar sozinha antes da morte forçada
+          kill -STOP -- "-$grupo" || { echo "a casca saiu antes da morte forçada"; exit 1; }
           ls -d /tmp/appimage_extracted_* || { echo "sem extração no /tmp"; exit 1; }
           if [ "$1" = controle ]; then
-            n=0
-            for f in /proc/[0-9]*/cmdline; do
-              tr '\0' ' ' <"$f" 2>/dev/null | grep -q jobot-vigia || continue
-              p=${f#/proc/}; kill -KILL "${p%/cmdline}" && n=$((n + 1))
-            done
-            # a casca lançou o vigia: sem ele, o controle não diria nada
-            [ "$n" -ge 1 ] || { echo "nenhum vigia rodando"; exit 1; }
+            for p in $(vigias); do kill -KILL "$p"; done
           fi
           kill -KILL -- "-$grupo"
           for i in $(seq 20); do [ "$(ls -A /tmp)" = "$antes" ] && break; sleep 1; done
