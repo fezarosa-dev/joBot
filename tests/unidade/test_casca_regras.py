@@ -91,3 +91,25 @@ def test_desinstalar_no_windows_chama_a_casca_fora_da_atualizacao() -> None:
     assert "${AndIf} $EXEDIR != $INSTDIR" in corpo
     assert "ExecWait '\"$INSTDIR\\${MAINBINARYNAME}.exe\" --desinstalar'" in corpo
     assert '"--desinstalar"' in (desktop / "src" / "main.rs").read_text(encoding="utf-8")
+
+
+def test_comandos_das_paginas_estao_nas_quatro_listas() -> None:
+    # T350: o comando que a página chama precisa estar no build.rs (AppManifest), no
+    # generate_handler! do main.rs e como allow-<kebab> no local.json; faltar em um deles
+    # compila e passa nos testes, mas a janela de verdade só responde com erro
+    desktop = RAIZ / "desktop"
+    ui = desktop / "ui"
+    js = (ui / "controle.js").read_text(encoding="utf-8")
+    chamados = set(re.findall(r'(?:chamar|agir)\("(\w+)"', js))
+    chamados |= set(
+        re.findall(r'invoke\("(\w+)"', (ui / "instalador.js").read_text(encoding="utf-8"))
+    )
+    assert {"estado_controle", "ligar", "parar", "abrir_jobot", "instalar"} <= chamados
+    build = (desktop / "build.rs").read_text(encoding="utf-8")
+    manifesto = set(re.findall(r'"(\w+)"', build.split(".commands(&[", 1)[1].split("]", 1)[0]))
+    main = (desktop / "src" / "main.rs").read_text(encoding="utf-8")
+    handler = set(re.findall(r"\w+", main.split("generate_handler![", 1)[1].split("]", 1)[0]))
+    local = json.loads((desktop / "capabilities" / "local.json").read_text(encoding="utf-8"))
+    permitidos = {p.removeprefix("allow-").replace("-", "_") for p in local["permissions"]}
+    assert chamados == manifesto == handler, (chamados, manifesto, handler)
+    assert chamados <= permitidos, chamados - permitidos
