@@ -24,11 +24,8 @@
   {#- na lista sem aba válida vale a primeira; no detalhe da vaga, só a aba de origem na URL, senão nenhuma -#}
   {%- set aba_atual = aba_pedida if aba_pedida in lado.abas else (lado.abas[0] if caminho == "/vagas" else "") -%}
 {%- endif -%}
-{#- dentro da casca (T334; desenho 5.3) o user agent traz ` joBot-casca/<versão> (<so>)`: o <html>
-    ganha data-casca e, fora do Mac (que tem os botões do sistema), a fileira de três círculos -#}
-{%- set marca = marca_da_casca(request.headers.get("user-agent")) -%}
 <!doctype html>
-<html lang="{{ idioma }}" data-tema="{{ tema_atual }}" data-texto="{{ tamanho_texto }}"{% if com_lateral %} data-lateral="aberta"{% endif %}{% if marca %} data-casca="{{ marca[1] }}"{% endif %}>
+<html lang="{{ idioma }}" data-tema="{{ tema_atual }}" data-texto="{{ tamanho_texto }}"{% if com_lateral %} data-lateral="aberta"{% endif %}>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -50,14 +47,6 @@
 </head>
 <body>
   <a class="pular" href="#conteudo">{{ t("casca.pular") }}</a>
-  {%- if marca and marca[1] != "macos" %}
-  {#- filho do body, fixo no canto: o vidro da lateral e da barra prenderia o position: fixed -#}
-  <div class="janela-botoes" role="group" aria-label="{{ t('casca.janela.botoes') }}" data-janela-botoes>
-    <button type="button" class="janela-fechar" aria-label="{{ t('casca.janela.fechar') }}" data-janela-acao="close"><span aria-hidden="true">&times;</span></button>
-    <button type="button" class="janela-minimizar" aria-label="{{ t('casca.janela.minimizar') }}" data-janela-acao="minimize"><span aria-hidden="true">&minus;</span></button>
-    <button type="button" class="janela-maximizar" aria-label="{{ t('casca.janela.maximizar') }}" data-janela-acao="toggleMaximize" data-maximizar="{{ t('casca.janela.maximizar') }}" data-restaurar="{{ t('casca.janela.restaurar') }}"><span aria-hidden="true">+</span></button>
-  </div>
-  {%- endif %}
   {%- if com_lateral %}
   <aside id="lateral" class="lateral">
     <a class="marca" href="/">joBot</a>
