@@ -5,6 +5,7 @@
 // da release (desenho 10).
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+#[cfg(target_os = "linux")]
 mod extraido;
 mod fechar;
 mod instalar;
@@ -367,6 +368,9 @@ fn ao_sair() {
 }
 
 fn main() {
+    // antes de tudo, até das fumaças: o AppImage sem FUSE não deixa a extração no /tmp (T354)
+    #[cfg(target_os = "linux")]
+    extraido::vigiar();
     let contexto = tauri::generate_context!();
     let args: Vec<String> = std::env::args().skip(1).collect();
     if let [flag, url] = args.as_slice()
