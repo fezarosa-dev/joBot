@@ -550,6 +550,7 @@ Cada decisão importante está registrada num documento curto, chamado ADR (regi
 | 0024 | [Gmail por senha de app](docs/decisions/0024-gmail-por-senha-de-app.md) |
 | 0025 | [App de desktop e instalador](docs/decisions/0025-app-de-desktop-e-instalador.md) |
 | 0026 | [IA da fase 4: tarefas, backends e modelo local](docs/decisions/0026-ia-da-fase-4.md) |
+| 0027 | [A casca só controla; o painel abre no navegador da pessoa](docs/decisions/0027-casca-so-controla.md) |
 
 <a id="como-contribuir"></a>
 ## 🤝 Como contribuir
