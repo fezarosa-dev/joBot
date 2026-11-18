@@ -30,6 +30,8 @@ name: Pacotes
 #     o instalacao.json saem, a pasta de dados fica).
 #   Mac: o .app de dentro do .dmg, os dois passos com rede (limite: o runner não deixa isolar
 #     um processo).
+# aberta: a casca instalada (o .deb e o AppImage) aberta num Xvfb, operada pelo teclado; as
+#   capturas da janela no artefato capturas-casca (T355; detalhes no job).
 # juntar: os anexos da release (12 arquivos), o SHA256SUMS e as notas (a seção da versão dos
 #   dois CHANGELOGs) num artefato release; o publicar do release.yml só cria a release com ele,
 #   então o ensaio pelo casca.yml prova tudo menos o gh release create.
@@ -289,8 +291,125 @@ jobs:
           "$RUNNER_TEMP/joBot.app/Contents/MacOS/jobot-app" --verificar
           "$RUNNER_TEMP/joBot.app/Contents/MacOS/jobot-app" --verificar-navegador
 
+  # A casca instalada aberta de verdade (T355; D212): o .deb (em português) e o AppImage (em
+  # inglês), cada um num contêiner sem rede, como usuário comum, num Xvfb com o openbox. O
+  # --verificar instala dos recursos (sem o joBot a janela é a da instalação); ao abrir, o
+  # controle só mostra "Parado"; pelo teclado, Ligar, Abrir joBot e Parar. O navegador é falso:
+  # um xdg-open que grava o endereço, o próprio ambiente e o APPDIR da casca que o chamou; no
+  # AppImage nenhuma variável pode apontar para dentro dele (D207.1). As capturas da janela
+  # (parado, ligado, parado de novo, ou a da falha) e o log da casca ficam no artefato
+  # capturas-casca, que quem publica olha antes da tag.
+  aberta:
+    needs: casca
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: casca-x86_64-unknown-linux-gnu
+          path: saida
+      - name: imagem com o Xvfb e o navegador falso
+        run: |
+          imagem="$RUNNER_TEMP/aberta"
+          mkdir -p "$imagem"
+          cat > "$imagem/xdg-open" <<'FIM'
+          #!/bin/sh
+          # o navegador falso: o endereço por último, porque é por ele que o teste espera
+          d=/home/pessoa/aberto
+          mkdir -p "$d"
+          env > "$d/ambiente"
+          tr '\0' '\n' < "/proc/$PPID/environ" | sed -n 's/^APPDIR=//p' > "$d/appdir"
+          printf '%s\n' "$*" > "$d/endereco"
+          FIM
+          chmod 755 "$imagem/xdg-open"
+          cat > "$imagem/Dockerfile" <<'FIM'
+          FROM ubuntu:22.04
+          ARG DEPS
+          ENV DEBIAN_FRONTEND=noninteractive
+          RUN apt-get update \
+           && apt-get satisfy -y --no-install-recommends "$DEPS" \
+           && apt-get install -y --no-install-recommends xvfb openbox xdotool imagemagick dbus curl fonts-dejavu-core \
+           && rm -rf /var/lib/apt/lists/* \
+           && useradd -m pessoa
+          COPY xdg-open /usr/local/bin/xdg-open
+          FIM
+          docker build -t jobot-aberta --build-arg DEPS="$(dpkg-deb -f saida/*.deb Depends)" "$imagem"
+      - name: ligar, abrir e parar pelo controle
+        run: |
+          cat > "$RUNNER_TEMP/aberta/operar.sh" <<'FIM'
+          #!/bin/bash
+          # como a pessoa, no contêiner sem rede: o nome do pacote e a casca
+          set -Eeuo pipefail
+          nome=$1 casca=$2 porta=47615 aberto=/home/pessoa/aberto janela=
+          foto() { import -window "${janela:-root}" -frame "/capturas/$nome-$1.png"; }
+          trap 'foto falha || true; tail -n 40 "/capturas/$nome-casca.log" || true' ERR
+          esperar() {  # segundos, a condição
+            local s=$1
+            shift
+            for _ in $(seq "$s"); do "$@" && return 0; sleep 1; done
+            echo "não aconteceu em $s s: $*" >&2
+            return 1
+          }
+          no_ar() { curl -fsS --max-time 2 -o /dev/null "http://127.0.0.1:$porta/saude-local"; }
+          parado() { ! no_ar; }
+          $casca --verificar
+          export DISPLAY=:99
+          Xvfb :99 -screen 0 800x600x24 -nolisten tcp &
+          esperar 30 xdotool getdisplaygeometry
+          openbox &
+          # sem GPU no Xvfb: o WebKitGTK desenha sem DMA-BUF e sem composição
+          WEBKIT_DISABLE_DMABUF_RENDERER=1 WEBKIT_DISABLE_COMPOSITING_MODE=1 \
+            dbus-run-session -- $casca > "/capturas/$nome-casca.log" 2>&1 &
+          esperar 60 xdotool search --onlyvisible --name '^joBot$'
+          janela=$(xdotool search --onlyvisible --name '^joBot$' | head -n 1)
+          sleep 10  # a página carrega os textos e pergunta o estado
+          parado
+          foto 1-parado
+          xdotool windowactivate --sync "$janela"
+          # o endereço, o Copiar e o Ligar; depois de ligar, o foco vai para o Abrir joBot
+          xdotool key --delay 300 Tab Tab Tab Return
+          esperar 60 no_ar
+          sleep 3
+          foto 2-ligado
+          xdotool key Return
+          esperar 20 test -s "$aberto/endereco"
+          test "$(cat "$aberto/endereco")" = "http://127.0.0.1:$porta/"
+          curl -fsS -o /dev/null "http://127.0.0.1:$porta/"
+          appdir=$(cat "$aberto/appdir")
+          if [ "$nome" = appimage ]; then test -n "$appdir"; fi
+          if [ -n "$appdir" ] && grep -F "$appdir" "$aberto/ambiente"; then
+            echo "o navegador herdou caminhos de dentro do AppImage" >&2
+            false
+          fi
+          # do Abrir joBot, um passo para trás é o Parar
+          xdotool key --delay 300 shift+Tab Return
+          esperar 30 parado
+          sleep 3
+          foto 3-parado
+          FIM
+          mkdir -p capturas
+          chmod 777 capturas
+          aberta() {  # nome, o preparo (como root), a casca, o idioma
+            local c
+            c=$(docker run -d --network none -v "$PWD/saida:/saida:ro" -v "$RUNNER_TEMP/aberta:/aberta:ro" \
+              -v "$PWD/capturas:/capturas" -e APPIMAGE_EXTRACT_AND_RUN=1 -w /tmp jobot-aberta sleep infinity)
+            docker exec "$c" sh -c "$2"
+            docker exec -u pessoa -w /tmp -e LANG="$4" -e LANGUAGE="$4" "$c" bash /aberta/operar.sh "$1" "$3"
+            docker rm -f "$c"
+          }
+          aberta deb 'dpkg -i /saida/*.deb' jobot-app pt_BR.UTF-8
+          aberta appimage 'cp /saida/*.AppImage /tmp/jobot.AppImage && chmod 755 /tmp/jobot.AppImage' ./jobot.AppImage C.UTF-8
+          ls -la capturas
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: capturas-casca
+          path: capturas/
+          if-no-files-found: error
+          retention-days: 2
+
   juntar:
-    needs: [wheel, casca]
+    needs: [wheel, casca, aberta]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:

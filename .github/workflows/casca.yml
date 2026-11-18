@@ -10,7 +10,7 @@ name: Casca
 # #[cfg(windows)].
 # Só no workflow_dispatch: o job uv (prova do uv com hash, T322 e D173) nos três
 # sistemas e, com a entrada pacotes, o job pacotes: o mesmo pacotes.yml da release
-# (instaladores e fumaça sem rede, T339), sem publicar; com a entrada ia, o job ia: o ia.yml
+# (instaladores, fumaça sem rede, T339, e a casca aberta num Xvfb, T355), sem publicar; com a entrada ia, o job ia: o ia.yml
 # (o modelo local de verdade nos três sistemas, T410).
 on:
   pull_request:
