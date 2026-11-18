@@ -59,6 +59,10 @@
   "controle.falha.saiu": "joBot closed right after starting. Try again.",
   "controle.falha.subir": "Could not start joBot. The system said: {detalhe}. Install joBot again with the installer.",
   "controle.falha.abrir": "Could not open the browser. The system said: {detalhe}. Copy the address and open it in your browser.",
+  "controle.fecha_junto": "Closing this window stops joBot. To keep it running with the window closed, turn on Background in Settings, in the panel.",
+  "controle.janela_nova": "There is a new version of this window.",
+  "controle.baixar": "Download the new window",
+  "controle.falha.release": "Could not open the browser. The system said: {detalhe}. The new window is at https://github.com/fezarosa-dev/joBot/releases/latest",
   "controle.falha.parar": "joBot did not stop in time. It may be finishing a task. Wait a moment and try again.",
   "controle.falha.outro": "Could not finish. Try again."
 }

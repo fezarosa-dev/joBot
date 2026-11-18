@@ -13,6 +13,7 @@
     "allow-estado-controle",
     "allow-ligar",
     "allow-parar",
-    "allow-abrir-jobot"
+    "allow-abrir-jobot",
+    "allow-abrir-release"
   ]
 }
