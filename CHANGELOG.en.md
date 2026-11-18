@@ -12,6 +12,7 @@ The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/
 
 - ADR 0026 (proposed): phase 4 AI. The AI will arrive in two versions, 0.5.0 and 0.6.0, off by default; the local model will be downloaded from the official source, when the person asks, and the AI will only list what the job asks for, without giving a score. The roadmap now shows phase 4 being built.
 - ADR 0027: the shell only controls. joBot's window becomes a control with Start, Stop and Open joBot, and the dashboard opens in the person's default browser. It replaces the "Shell" part of ADR 0025.
+- The base of the phase 4 AI already ships in this version, off and with no screen to turn it on: the database migration that stores the profile, the skills the AI extracts from each job and the match level, the pydantic dependency, the clients for the Anthropic API and for OpenAI-compatible services, and `jobot ferramentas baixar ia-local`, which downloads llama-server and a model with a checked sha256. None of it runs unless the person turns it on.
 
 ## [0.4.0] - 2026-11-17
 

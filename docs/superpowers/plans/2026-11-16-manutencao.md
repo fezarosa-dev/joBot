@@ -348,3 +348,13 @@ Itens pequenos e independentes entre si.
 
 - [ ] Quando o Playwright emular `prefers-reduced-transparency` em `emulate_media` (ou o motor aceitar outro caminho sem CDP), trocar o CDP por ele e tirar o pulo por motor.
 - [ ] Ver passar nos três motores no CI.
+
+### T347: acertos de visual vistos nas capturas da 0.4.1
+`depende_de: —` · D209.10
+
+**O que se viu.** Na verificação da 0.4.1, as capturas do CI 44315135931 (painel nos três motores) e do 44315218953 (casca) mostraram defeitos antigos, que não vieram da 0.4.1 (os tokens não mudaram desde a v0.4.0).
+
+- [ ] Em Configurações › Geral, o botão "Salvar" fica colado no título "Atualizar o joBot" (folga de 1 a 2 px, medida nos três motores): margem acima do título que vem depois do formulário (`configuracoes.css`).
+- [ ] Os botões secundários ("Abrir no site", "Salvar", "Ocultar", "Encerrar o joBot") têm fundo (232,232,237) sobre o fundo (236,236,236): 1,03:1 no claro e 1,20:1 no escuro; o "Sair" sobre a barra dá 1,13:1 e 1,06:1. O texto passa, mas o botão parece texto solto: borda ou fundo mais distinto, conferido no `contraste-grafico` (`base.css`).
+- [ ] O `<select>` nativo do WebKit sai cinza e mais alto (D209.10): `appearance: none` com seta própria nos três motores, ou deixar anotado de vez.
+- [ ] O ícone do app ainda é o provisório do esqueleto (`desktop/icons/icon.png`, um quadrado azul de 32×32), que aparece na marca do controle, na barra de título, no `.deb` e no AppImage: um ícone de verdade (o `build.rs` já o copia para o controle) e as variantes que cada pacote pede.

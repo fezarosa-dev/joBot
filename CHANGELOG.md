@@ -12,6 +12,7 @@ O formato segue o [Keep a Changelog 1.1.0](https://keepachangelog.com/pt-BR/1.1.
 
 - ADR 0026 (proposta): IA da fase 4. A IA chegará em duas versões, a 0.5.0 e a 0.6.0, desligada por padrão; o modelo local será baixado da fonte oficial, a pedido da pessoa, e a IA só listará o que a vaga pede, sem dar nota. O roteiro passa a mostrar a fase 4 sendo construída.
 - ADR 0027: a casca só controla. A janela do joBot vira um controle com Ligar, Parar e Abrir joBot, e o painel abre no navegador padrão da pessoa. Troca a parte "Casca" da ADR 0025.
+- A base da IA da fase 4 já vem nesta versão, desligada e sem tela para ligar: a migração do banco que guarda o perfil, as habilidades que a IA tirar de cada vaga e o nível de encaixe, a dependência pydantic, os clientes da API da Anthropic e de serviços compatíveis com a OpenAI e o `jobot ferramentas baixar ia-local`, que baixa o llama-server e um modelo com sha256 conferido. Nada disso roda sem a pessoa ligar.
 
 ## [0.4.0] - 2026-11-17
 
