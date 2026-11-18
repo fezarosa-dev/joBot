@@ -328,7 +328,8 @@ jobs:
           ENV DEBIAN_FRONTEND=noninteractive
           RUN apt-get update \
            && apt-get satisfy -y --no-install-recommends "$DEPS" \
-           && apt-get install -y --no-install-recommends xvfb openbox xdotool imagemagick dbus curl fonts-dejavu-core \
+           && apt-get install -y --no-install-recommends xvfb openbox xdotool imagemagick dbus curl fonts-dejavu-core locales \
+           && locale-gen pt_BR.UTF-8 \
            && rm -rf /var/lib/apt/lists/* \
            && useradd -m pessoa
           COPY xdg-open /usr/local/bin/xdg-open
@@ -377,8 +378,10 @@ jobs:
           curl -fsS -o /dev/null "http://127.0.0.1:$porta/"
           appdir=$(cat "$aberto/appdir")
           if [ "$nome" = appimage ]; then test -n "$appdir"; fi
-          if [ -n "$appdir" ] && grep -F "$appdir" "$aberto/ambiente"; then
-            echo "o navegador herdou caminhos de dentro do AppImage" >&2
+          cp "$aberto/ambiente" "/capturas/$nome-ambiente-do-navegador.txt"
+          if [ -n "$appdir" ] && grep -F "$appdir" "$aberto/ambiente" > "$aberto/dentro"; then
+            echo "o navegador herdou caminhos de dentro do AppImage ($appdir):" >&2
+            sed "s#$appdir#<APPDIR>#g" "$aberto/dentro" >&2
             false
           fi
           # do Abrir joBot, um passo para trás é o Parar
