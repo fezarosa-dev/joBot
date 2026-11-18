@@ -32,6 +32,7 @@ Estas decisões vieram de 9 rodadas de perguntas e respostas feitas em 2026-11-1
 | 0024 | [Gmail por senha de app](0024-gmail-por-senha-de-app.md) | aceita |
 | 0025 | [App de desktop e instalador](0025-app-de-desktop-e-instalador.md) | aceita |
 | 0026 | [IA da fase 4: tarefas, backends e modelo local](0026-ia-da-fase-4.md) | proposta |
+| 0027 | [A casca só controla; o painel abre no navegador da pessoa](0027-casca-so-controla.md) | aceita |
 
 ## Como registrar uma nova decisão
 
