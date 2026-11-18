@@ -1172,7 +1172,9 @@ document.addEventListener('securitypolicyviolation', (e) => {
 """
 
 
-def test_troca_da_lista_sem_violacao_de_csp(page: Page, painel: str, banco: Path) -> None:
+def test_troca_da_lista_sem_violacao_de_csp(
+    page: Page, painel: str, banco: Path, browser_name: str
+) -> None:
     """A captura de tela do Playwright deixa style="" nos campos; o htmx copiava esse style para
     os campos novos na troca e o CSP barrava (style-src-attr). Item 10 da T301."""
     _sql(
@@ -1187,11 +1189,13 @@ def test_troca_da_lista_sem_violacao_de_csp(page: Page, painel: str, banco: Path
     _aguardar_lista(page)
     page.screenshot()  # antes das trocas, como numa conferência visual
     # no WebKit a própria foto põe um <style> na página (o Playwright, para esconder o cursor) e o
-    # CSP o barra; a conta das violações começa depois dela, quando o aviso já chegou (T352)
-    page.evaluate(
-        "() => new Promise(fim => requestAnimationFrame(() => setTimeout(() => {"
-        " window.__violacoes = []; fim(); })))"
-    )
+    # CSP o barra; lá a conta das violações começa depois dela, quando o aviso já chegou (T352).
+    # Nos outros motores a conta vem desde a carga.
+    if browser_name == "webkit":
+        page.evaluate(
+            "() => new Promise(fim => requestAnimationFrame(() => setTimeout(() => {"
+            " window.__violacoes = []; fim(); })))"
+        )
     # o que a foto faz, sem depender dela: style vazio nos campos, posto pelo CSSOM (o CSP deixa)
     marcados = page.locator('[id^="filtro-"]').evaluate_all(
         "es => es.map(e => { e.style.caretColor = 'transparent'; e.style.caretColor = '';"

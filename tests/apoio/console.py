@@ -7,15 +7,17 @@ from playwright.sync_api import ConsoleMessage, Page
 _FONTE_CORTADA = ("downloadable font: download failed", "status=2152398850")
 
 # O WebKit dá `error` (não `abort`) ao pedido do htmx que a navegação corta, e o htmx escreve
-# `htmx:sendError` no console. A página já está saindo, ninguém vê; vira aviso só nesse intervalo
-# (do beforeunload ou pagehide ao pageshow), e o resto do htmx continua contando como erro.
+# `htmx:afterRequest` e `htmx:sendError` no console. O `app.js` não liga o aviso com a página
+# saindo (T352); esses dois viram aviso só nesse intervalo (do beforeunload ou pagehide ao
+# pageshow), e todo outro erro do htmx continua contando.
 _SAINDO = """
 addEventListener('beforeunload', () => { window.__jobotSaindo = true; });
 addEventListener('pagehide', () => { window.__jobotSaindo = true; });
 addEventListener('pageshow', () => { window.__jobotSaindo = false; });
 const __jobotErro = console.error.bind(console);
+const __jobotCortado = ['htmx:afterRequest', 'htmx:sendError'];
 console.error = (...partes) => {
-  const saindo = window.__jobotSaindo && String(partes[0]).startsWith('htmx:');
+  const saindo = window.__jobotSaindo && __jobotCortado.includes(partes[0]);
   (saindo ? console.warn : __jobotErro)(...partes);
 };
 """
