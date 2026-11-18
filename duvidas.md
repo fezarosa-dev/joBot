@@ -3768,7 +3768,7 @@ Do item 2 (T305 h), aceito e documentado. Sem JavaScript, o detalhe sobreposto f
 **Contexto:** o dono abriu o AppImage da 0.4.0 no Fedora dele. O PC ficou lento até travar e o visual apareceu quebrado, com partes cortadas e fora do lugar. Na 0.4.0, a casca mostrava o painel dentro da janela do Tauri, e no Linux esse motor é o WebKitGTK; os testes de tela só rodavam no Chromium. A sessão achou três causas no joBot e uma fora dele:
 
 - os efeitos do visual, como vidro desfocado, animações contínuas e ícones por máscara SVG, pesam e quebram no WebKitGTK;
-- o AppImage se extrai no `/tmp`, que no Fedora fica na RAM: uns 400 MB por abertura, deixados lá ao fechar;
+- o AppImage deixou duas cópias extraídas no `/tmp`, que no Fedora fica na RAM, de uns 400 MB cada. Aberto normalmente ele só monta em `/tmp/.mount_*` e desmonta ao sair; a extração veio do `--appimage-extract-and-run` que a sessão passou ao dono no teste, e nesse modo a pasta fica se o processo for morto;
 - ninguém abriu a casca de verdade antes da release;
 - fora do joBot, os temporários dos testes da sessão também enchiam o `/tmp`, e a RAM e o swap acabaram.
 
@@ -3784,8 +3784,8 @@ A sessão propôs abrir o painel no Chrome da pessoa como janela de app. O dono 
 **Escolhas da sessão que vêm com a decisão (para confirmar):**
 
 3. Os testes de tela rodam no Chromium, no Firefox e no WebKit do Playwright, porque o navegador padrão pode ser o Firefox, que é o padrão do Fedora. Desfazer: voltar a só o Chromium.
-4. O visual troca os efeitos que pesam fora do Chromium (`backdrop-filter` em áreas grandes, animações infinitas, ícones por máscara SVG) por versões leves com a mesma cara. Desfazer: reverter o CSS.
-5. O AppImage não deixa nada no `/tmp`: a extração vai para o disco ou é apagada ao fechar. Desfazer: voltar ao padrão do AppImage.
+4. O visual troca os efeitos que pesam fora do Chromium (`backdrop-filter` em áreas grandes, animações infinitas) por versões leves com a mesma cara. Os ícones por máscara SVG ficam enquanto as capturas do WebKit os mostrarem certos; o que falhar troca-se ícone a ícone. Desfazer: reverter o CSS.
+5. O AppImage não deixa nada no `/tmp`: se rodar extraído, a pasta é apagada ao fechar, mesmo depois de uma saída à força. Desfazer: voltar ao padrão do AppImage.
 6. Antes de cada release, alguém abre a casca de verdade num desktop, e o CI ganha um teste que abre a janela do controle. Desfazer: tirar o passo do fluxo de release.
 7. A correção sai na 0.4.1, porque a 0.4.0 não pode ser trocada (releases imutáveis). A 0.4.1 vem antes da onda 5 da fase 4. Quando ela sair, a sessão pergunta ao dono se põe nas notas da 0.4.0 um aviso apontando para a 0.4.1.
 
