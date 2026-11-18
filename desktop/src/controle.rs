@@ -394,8 +394,11 @@ mod testes {
             ("CONTAINER_ID", "fedora"),
             ("APPDIR", "/tmp/.mount_j"),
             ("GIO_EXTRA_MODULES", "/tmp/.mount_j/usr/lib/gio"),
+            ("HOME", "/home/p"),
         ]);
         let c = comando_abridor("linux", &ambiente, "http://127.0.0.1:47615/");
+        // o AppRun deixa a casca em `$APPDIR/usr`: o navegador nasce na casa da pessoa (T355)
+        assert_eq!(c.get_current_dir(), Some(Path::new("/home/p")));
         assert_eq!(c.get_program(), "distrobox-host-exec");
         assert_eq!(
             c.get_args().collect::<Vec<_>>(),
@@ -416,6 +419,15 @@ mod testes {
                 "PYTHONPATH"
             ]
         );
+    }
+
+    #[test]
+    fn abridor_fora_do_appimage_nao_muda_a_pasta() {
+        let c = comando_abridor("linux", &vars(&[("HOME", "/home/p")]), "u");
+        assert_eq!(c.get_current_dir(), None);
+        // sem a casa: a raiz, que nunca está dentro do AppImage
+        let c = comando_abridor("linux", &vars(&[("APPDIR", "/tmp/.mount_j")]), "u");
+        assert_eq!(c.get_current_dir(), Some(Path::new("/")));
     }
 
     #[test]
