@@ -90,3 +90,18 @@ def test_capturas_nos_tres_motores_viram_artefato() -> None:
     assert "if: always()" in bloco[: bloco.index("upload-artifact@")].rsplit("- ", 1)[-1]
     assert "path: ${{ runner.temp }}/capturas" in artefato
     assert "if-no-files-found: error" in artefato
+
+
+def test_tela_roda_nos_tres_motores() -> None:
+    """T352 (D206): o `-m tela` inteiro roda no Chromium, no Firefox e no WebKit, cada motor em
+    16 partes; a parte conta por motor (o `job-total` somaria os três)."""
+    bloco = _jobs(CI.read_text(encoding="utf-8"))["tela"]
+    achou = re.search(r"^        motor: \[([a-z, ]+)\]$", bloco, re.MULTILINE)
+    assert achou is not None
+    assert [x.strip() for x in achou[1].split(",")] == ["chromium", "firefox", "webkit"]
+    assert "      JOBOT_PARTE: ${{ matrix.parte }}/16\n" in bloco
+    assert "key: ${{ matrix.motor }}-${{ runner.os }}-" in bloco
+    assert "playwright install --with-deps ${{ matrix.motor }}" in bloco
+    comando = re.search(r"run: (uv run pytest -m tela[^\n]*)", bloco)
+    assert comando is not None
+    assert "--browser ${{ matrix.motor }}" in comando[1]

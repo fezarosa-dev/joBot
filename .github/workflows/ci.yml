@@ -5,7 +5,7 @@ name: CI
 # Gatilho pull_request, nunca pull_request_target; sem segredos.
 # O push em lote/** serve a quem mantém testar um lote no Actions antes de
 # juntar, sem abrir PR; workflow_dispatch roda o CI à mão.
-# Os testes se dividem em jobs paralelos (lint, comuns em 2 partes, tela em 16, capturas): cada parte
+# Os testes se dividem em jobs paralelos (lint, comuns em 2 partes, tela em 16 por motor, capturas): cada parte
 # recebe JOBOT_PARTE=i/n, que o tests/conftest.py usa para manter só a sua fatia da coleta.
 # O job `ok` junta tudo: é o único que precisa ser olhado (ou exigido) no PR.
 on:
@@ -52,35 +52,41 @@ jobs:
       - run: uv sync --locked
       - run: uv run pytest -m 'not tela'
 
+  # T352 (D206): o painel abre no navegador da pessoa, então a tela roda nos três motores.
+  # A parte conta por motor: `strategy.job-total` somaria os três.
   tela:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
+        motor: [chromium, firefox, webkit]
         parte: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
     env:
-      JOBOT_PARTE: ${{ matrix.parte }}/${{ strategy.job-total }}
+      JOBOT_PARTE: ${{ matrix.parte }}/16
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
           enable-cache: true
       - run: uv sync --locked
-      # Chromium em cache pela versão do playwright no uv.lock; sem segredo, o cache de PR fica isolado no próprio ref.
+      # Navegador em cache pela versão do playwright no uv.lock; sem segredo, o cache de PR fica isolado no próprio ref.
       - id: playwright
         run: |
           v=$(grep -A1 '^name = "playwright"$' uv.lock | sed -n 's/^version = "\(.*\)"$/\1/p')
           test -n "$v"
           echo "versao=$v" >> "$GITHUB_OUTPUT"
-      - id: cache-chromium
+      - id: cache-motor
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/ms-playwright
-          key: chromium-${{ runner.os }}-${{ steps.playwright.outputs.versao }}
-      - if: steps.cache-chromium.outputs.cache-hit != 'true'
-        run: uv run playwright install --with-deps chromium
-      - run: uv run pytest -m tela --durations=5
+          key: ${{ matrix.motor }}-${{ runner.os }}-${{ steps.playwright.outputs.versao }}
+      - if: steps.cache-motor.outputs.cache-hit != 'true'
+        run: uv run playwright install --with-deps ${{ matrix.motor }}
+      # o cache guarda só o navegador; Firefox e WebKit pedem bibliotecas do sistema que o runner não traz
+      - if: steps.cache-motor.outputs.cache-hit == 'true' && matrix.motor != 'chromium'
+        run: uv run playwright install-deps ${{ matrix.motor }}
+      - run: uv run pytest -m tela --browser ${{ matrix.motor }} --durations=5
 
   # Conferência visual (T353, D206): panorama, vagas, detalhe e configurações nos três motores,
   # nos temas claro e escuro, em 1280 e 800 px. As fotos ficam como artefato para quem publica
