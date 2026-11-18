@@ -22,7 +22,7 @@ pub struct Servidor {
     pub subiu: bool,
 }
 
-/// Por que o painel não abriu; o `codigo` vira o `motivo` da `ui/erro.html`.
+/// Por que o painel não ligou; o `codigo` vira o motivo da falha na página do controle.
 #[derive(Debug, PartialEq)]
 pub enum Falha {
     SemInstalacao,
@@ -45,7 +45,7 @@ impl Falha {
         }
     }
 
-    /// O que a `ui/erro.html` põe no lugar de `{detalhe}`: a porta, o código de saída ou o erro.
+    /// O que a página do controle põe no lugar de `{detalhe}`: a porta, a saída ou o erro.
     pub fn detalhe(&self) -> String {
         match self {
             Falha::Porta(p) | Falha::SemResposta(p) => p.to_string(),
