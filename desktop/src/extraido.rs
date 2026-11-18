@@ -5,8 +5,9 @@
 //! grupo de processos próprio e sem o ambiente do AppImage, que espera a casca e o runtime
 //! saírem e apaga a pasta. Com FUSE, o próprio runtime desmonta e apaga o `.mount_*`.
 
-use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::os::unix::process::CommandExt;
+use std::path::{Component, Path, PathBuf};
+use std::process::{Command, Stdio};
 
 /// A pasta extraída que a casca deve limpar: o `APPDIR` absoluto chamado
 /// `appimage_extracted_<32 hex>`, com o `APPIMAGE` definido e o executável da casca dentro
@@ -17,14 +18,63 @@ pub fn pasta_a_limpar(
     appimage: Option<&Path>,
     exe: &Path,
 ) -> Option<PathBuf> {
-    let _ = (appdir, appimage, exe);
-    None
+    appimage?;
+    let pasta = appdir?;
+    let hex = pasta
+        .file_name()?
+        .to_str()?
+        .strip_prefix("appimage_extracted_")?;
+    let nome = hex.len() == 32 && hex.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'));
+    let limpo = pasta.is_absolute()
+        && pasta
+            .components()
+            .all(|c| matches!(c, Component::RootDir | Component::Normal(_)));
+    (nome && limpo && exe.starts_with(pasta)).then(|| pasta.to_path_buf())
 }
 
-/// O vigia: espera todos os `pids` saírem e apaga a `pasta`.
+/// `$1` é a pasta e o resto são os pids. Ignora o HUP de fechar o terminal e o INT do Ctrl+C.
+const VIGIA: &str = r#"trap '' HUP INT
+d=$1; shift
+vivo() { for p in "$@"; do kill -0 "$p" 2>/dev/null && return 0; done; return 1; }
+while vivo "$@"; do sleep 1; done
+rm -rf -- "$d""#;
+
+/// O vigia: espera todos os `pids` saírem e apaga a `pasta`. Grupo de processos próprio (o
+/// Ctrl+C e o `kill` do grupo da casca não o alcançam), na raiz (não prende a pasta) e sem
+/// o ambiente do AppImage, cujo `LD_LIBRARY_PATH` aponta para a pasta que ele apaga.
 pub fn vigia(pasta: &Path, pids: &[u32]) -> Command {
-    let _ = (pasta, pids);
-    Command::new("true")
+    let mut c = Command::new("sh");
+    c.arg("-c")
+        .arg(VIGIA)
+        .arg("jobot-vigia")
+        .arg(pasta)
+        .args(pids.iter().map(u32::to_string))
+        .env_clear()
+        .env("PATH", "/usr/bin:/bin")
+        .current_dir("/")
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .process_group(0);
+    c
+}
+
+/// No começo da casca: se ela roda de uma extração do AppImage, lança o vigia da pasta. Espera
+/// a casca e o pai dela, o runtime (o AppRun do AppImage troca de programa sem criar outro
+/// processo), que apaga a pasta numa saída normal; o vigia só age quando o runtime não pôde.
+pub fn vigiar() {
+    let appdir = std::env::var_os("APPDIR").and_then(|p| PathBuf::from(p).canonicalize().ok());
+    let appimage = std::env::var_os("APPIMAGE").map(PathBuf::from);
+    let Ok(exe) = std::env::current_exe() else {
+        return;
+    };
+    let Some(pasta) = pasta_a_limpar(appdir.as_deref(), appimage.as_deref(), &exe) else {
+        return;
+    };
+    let pids = [std::process::id(), std::os::unix::process::parent_id()];
+    if let Err(erro) = vigia(&pasta, &pids).spawn() {
+        eprintln!("jobot-app: não consegui vigiar {}: {erro}", pasta.display());
+    }
 }
 
 #[cfg(test)]
@@ -79,10 +129,16 @@ mod testes {
         assert_eq!(limpar(&rel, img, &format!("{rel}/usr/bin/jobot-app")), None);
         let volta = format!("/tmp/{NOME}/..");
         assert_eq!(limpar(&volta, img, &format!("{volta}/x/jobot-app")), None);
+        let meio = format!("/tmp/../tmp/{NOME}");
+        assert_eq!(
+            limpar(&meio, img, &format!("{meio}/usr/bin/jobot-app")),
+            None
+        );
         for nome in [
             "appimage_extracted_",
             "appimage_extracted_56fe70d7183c4a60aa470ea7cf3c62f",
             "appimage_extracted_56fe70d7183c4a60aa470ea7cf3c62f2x",
+            "appimage_extracted_56fe70d7183c4a60aa470ea7cf3c62f2a",
             "appimage_extracted_56FE70D7183C4A60AA470EA7CF3C62F2",
             "appimage_extracted_zzfe70d7183c4a60aa470ea7cf3c62f2",
         ] {
@@ -111,6 +167,7 @@ mod testes {
         let args: Vec<_> = c.get_args().map(|a| a.to_str().unwrap()).collect();
         assert_eq!(args[0], "-c");
         assert_eq!(&args[2..], ["jobot-vigia", "/tmp/x", "10", "20"]);
+        assert_eq!(c.get_current_dir(), Some(Path::new("/")));
         let envs: Vec<_> = c.get_envs().collect();
         assert_eq!(
             envs,
@@ -131,6 +188,35 @@ mod testes {
         let mut curto = Command::new("sleep").arg("1").spawn().unwrap();
         let mut longo = Command::new("sleep").arg("4").spawn().unwrap();
         let mut v = vigia(&pasta, &[curto.id(), longo.id()]).spawn().unwrap();
+        // grupo próprio (o kill do grupo da casca não o alcança) e só o PATH no ambiente
+        let stat = std::fs::read_to_string(format!("/proc/{}/stat", v.id())).unwrap();
+        let campos: Vec<_> = stat
+            .rsplit_once(')')
+            .unwrap()
+            .1
+            .split_whitespace()
+            .collect();
+        assert_eq!(
+            campos[2],
+            v.id().to_string(),
+            "o vigia não tem grupo próprio"
+        );
+        let ambiente = std::fs::read(format!("/proc/{}/environ", v.id())).unwrap();
+        assert_eq!(ambiente, b"PATH=/usr/bin:/bin\0");
+        // fechar o terminal (HUP) e o Ctrl+C (INT) não o derrubam, depois do `trap`
+        std::thread::sleep(Duration::from_millis(300));
+        for sinal in ["-HUP", "-INT"] {
+            let pid = v.id().to_string();
+            assert!(
+                Command::new("kill")
+                    .args([sinal, &pid])
+                    .status()
+                    .unwrap()
+                    .success()
+            );
+        }
+        std::thread::sleep(Duration::from_millis(300));
+        assert!(v.try_wait().unwrap().is_none(), "um sinal derrubou o vigia");
         curto.wait().unwrap();
         std::thread::sleep(Duration::from_millis(1500));
         assert!(pasta.exists(), "apagou com um processo ainda vivo");

@@ -29,7 +29,7 @@ Each file is about 100 to 200 MB (the Windows one about 120 MB, the Mac ones abo
 ## 2. Open it
 
 - **Windows:** double-click the `-setup.exe`. If "Windows protected your PC" appears, click **More info** and then **Run anyway**. The warning appears because the installer has no seal (code signing) yet. It installs for your user only, without an administrator password.
-- **Linux, AppImage:** mark the file as executable (`chmod +x` on the file, or Properties, Permissions) and open it.
+- **Linux, AppImage:** mark the file as executable (`chmod +x` on the file, or Properties, Permissions) and open it. If it complains about FUSE, prefer the `.deb` or the `.rpm`. If you want the AppImage anyway, run `TMPDIR=~/.cache ./joBot_<version>_amd64.AppImage --appimage-extract-and-run`: it unpacks into the `~/.cache` folder, on disk, and not into `/tmp`, which many Linux systems keep in memory. When you close it, the folder is deleted.
 - **Linux, `.deb` or `.rpm`:** `sudo apt install ./` or `sudo dnf install ./` followed by the file name. Then open joBot from the applications menu.
 - **Mac:** open the `.dmg` and drag joBot to Applications. The first time, a message says Apple could not verify joBot: close it, open System Settings › Privacy & Security, scroll down to the message about joBot and click **Open Anyway**, confirming with your password.
 
