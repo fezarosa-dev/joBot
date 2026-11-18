@@ -52,7 +52,10 @@ def test_captura(
     page.emulate_media(color_scheme=tema)  # o tema padrão segue o sistema
     resposta = page.goto(painel + TELAS[tela])
     assert resposta is not None and resposta.ok
-    page.wait_for_load_state("networkidle")
+    # sem "networkidle": no Firefox ele às vezes não chega em 30 s (D208.6); basta não haver
+    # pedido do htmx no ar depois do load
+    page.wait_for_load_state("load")
+    expect(page.locator(".htmx-request")).to_have_count(0)
     expect(page.locator("main")).to_be_visible()
     pasta = Path(os.environ.get("JOBOT_CAPTURAS") or tmp_path)
     pasta.mkdir(parents=True, exist_ok=True)
