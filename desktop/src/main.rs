@@ -5,6 +5,7 @@
 // da release (desenho 10).
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod extraido;
 mod fechar;
 mod instalar;
 mod servidor;
