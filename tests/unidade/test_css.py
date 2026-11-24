@@ -327,15 +327,15 @@ def test_lateral_e_topo_com_fundo_solido() -> None:
 
 def test_animacao_infinita_so_com_trabalho_em_curso() -> None:
     """T353 (D206): nada gira ou pulsa com a tela parada. Animação sem fim só em seletor de
-    trabalho em curso: `.htmx-request` (o pedido saiu) ou `.indeterminado` (a barra de espera,
-    que só existe enquanto a busca prepara ou o pedido corre). O bloco de movimento reduzido do
-    base.css desliga todas."""
+    trabalho em curso: `.htmx-request` (o pedido saiu), `.esperando` (o formulário comum saiu e
+    espera a IA, T437) ou `.indeterminado` (a barra de espera, que só existe enquanto a busca
+    prepara ou o pedido corre). O bloco de movimento reduzido do base.css desliga todas."""
     infinitas = [(nome, r) for nome, r in _todas() if re.search(r"\binfinite\b", r.corpo)]
     assert len(infinitas) >= 2  # o ponto do botão e a barra indeterminada
     paradas = [
         f"{nome}: {r.seletor}"
         for nome, r in infinitas
-        if not all(re.search(r"\.(htmx-request|indeterminado)(?![\w-])", s) for s in _seletores(r))
+        if not all(re.search(r"\.(htmx-request|esperando|indeterminado)(?![\w-])", s) for s in _seletores(r))
     ]
     assert paradas == []
 

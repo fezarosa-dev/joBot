@@ -582,6 +582,19 @@ def test_modelo_local_nao_mostra_contagem(painel: Painel) -> None:
     assert "9 de 200 hoje" in _texto(painel.get().text)
 
 
+def test_contagem_do_dia_so_nas_tarefas_do_laco(painel: Painel) -> None:
+    """O teto do dia é do laço (`encaixe`): a linha Perguntas, sob pedido, não mostra a contagem
+    que não é dela. Controle: com o encaixe no mesmo serviço, a contagem aparece uma vez."""
+    painel.cofre.gravar("ia_openai", CHAVE)
+    dia = painel.app.state.relogio.agora().astimezone().date().isoformat()
+    painel.config("ia_chamadas", {"dia": dia, "por_backend": {"openai": 7}})
+    perguntas = {"ligada": True, "backend": "openai", "modelo": "gpt-x"}
+    painel.config("ia_tarefas", {"perguntas": perguntas})
+    assert "de 200 hoje" not in _texto(painel.get().text)
+    painel.config("ia_tarefas", {"perguntas": perguntas, "encaixe": perguntas})
+    assert _texto(painel.get().text).count("7 de 200 hoje") == 1
+
+
 def test_chave_nunca_volta_a_pagina_nem_ao_log(
     painel: Painel, caplog: pytest.LogCaptureFixture
 ) -> None:

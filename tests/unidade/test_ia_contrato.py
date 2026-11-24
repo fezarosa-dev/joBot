@@ -257,6 +257,8 @@ def test_ia_json_traz_prazos_limites_e_cortes() -> None:
             # sob pedido, no questionário do perfil (T437; D233)
             "perguntas": {
                 "max_tokens": {"fora": 1024, "local": 512},
+                # as listas que só crescem e o bloco PERFIL (cabe no `-c 8192` do local)
+                "corte": {"respostas": 30, "perguntas_feitas": 60, "caracteres": 12000},
                 "claude": "claude-sonnet-5-5",
             },
         },

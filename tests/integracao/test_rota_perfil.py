@@ -357,48 +357,49 @@ def test_post_sem_csrf_e_recusado(painel: Painel, url: str) -> None:
         (
             "pt",
             None,
-            "Suas habilidades ficam no seu computador. A IA está desligada: nada sai dele.",
+            "No encaixe, suas habilidades ficam no seu computador: a IA do encaixe está desligada.",
         ),
         (
             "pt",
             {"ligada": False, "backend": "anthropic", "modelo": "m"},
-            "Suas habilidades ficam no seu computador. A IA está desligada: nada sai dele.",
+            "No encaixe, suas habilidades ficam no seu computador: a IA do encaixe está desligada.",
         ),
         (
             "pt",
             {"ligada": True, "backend": "local", "modelo": "qwen"},
-            "Suas habilidades ficam no seu computador, e o texto da vaga também: "
+            "No encaixe, suas habilidades ficam no seu computador, e o texto da vaga também: "
             "o encaixe usa o modelo local.",
         ),
         (
             "pt",
             {"ligada": True, "backend": "anthropic", "modelo": "m"},
-            "Suas habilidades ficam no seu computador; só o texto da vaga vai para "
+            "No encaixe, suas habilidades ficam no seu computador; só o texto da vaga vai para "
             "a API da Anthropic.",
         ),
         (
             "pt",
             {"ligada": True, "backend": "compativel", "modelo": "m"},
-            "Suas habilidades ficam no seu computador; só o texto da vaga vai para "
+            "No encaixe, suas habilidades ficam no seu computador; só o texto da vaga vai para "
             "o serviço compatível com a OpenAI.",
         ),
         (
             "pt",
             {"ligada": True, "backend": "xyz", "modelo": "m"},
-            "Suas habilidades ficam no seu computador; só o texto da vaga vai para "
+            "No encaixe, suas habilidades ficam no seu computador; só o texto da vaga vai para "
             "um serviço de fora.",
         ),
-        ("en", None, "Your skills stay on your computer. AI is off: nothing leaves it."),
+        ("en", None, "In matching, your skills stay on your computer: matching AI is off."),
         (
             "en",
             {"ligada": True, "backend": "local", "modelo": "qwen"},
-            "Your skills stay on your computer, and so does the job text: "
+            "In matching, your skills stay on your computer, and so does the job text: "
             "matching uses the local model.",
         ),
         (
             "en",
             {"ligada": True, "backend": "gemini", "modelo": "m"},
-            "Your skills stay on your computer; only the job text goes to Google Gemini.",
+            "In matching, your skills stay on your computer; only the job text goes to "
+            "Google Gemini.",
         ),
     ],
 )
@@ -407,6 +408,44 @@ def test_frase_de_privacidade(painel: Painel, idioma: str, tarefa: object, frase
     if tarefa is not None:
         painel.tarefa(tarefa)
     assert frase in _texto(painel.get(PERFIL).text)
+
+
+@pytest.mark.parametrize(
+    ("encaixe", "perguntas", "frase"),
+    [
+        (
+            None,
+            {"ligada": True, "backend": "openai", "modelo": "m"},
+            "Ao pedir perguntas, o seu perfil, sem nome, contato e cidade, vai para a OpenAI.",
+        ),
+        (
+            {"ligada": True, "backend": "local", "modelo": "m"},
+            {"ligada": True, "backend": "local", "modelo": "m"},
+            "O seu perfil fica no seu computador: as perguntas usam o modelo local.",
+        ),
+    ],
+)
+def test_frase_de_privacidade_conta_a_tarefa_perguntas(
+    painel: Painel, encaixe: object, perguntas: object, frase: str
+) -> None:
+    """As habilidades vão no pedido das perguntas (D233): com `perguntas` ligada, a aba diz para
+    onde o perfil vai, e nada diz que nada sai. Controle: com `perguntas` desligada, a frase das
+    perguntas não aparece."""
+    tarefas: dict[str, object] = {"perguntas": perguntas}
+    if encaixe is not None:
+        tarefas["encaixe"] = encaixe
+    with closing(abrir(painel.banco)) as con:
+        cadastros.gravar_config(con, "ia_tarefas", tarefas)
+    texto = _texto(painel.get(PERFIL).text)
+    assert frase in texto
+    assert "nada sai" not in texto
+    with closing(abrir(painel.banco)) as con:
+        cadastros.gravar_config(
+            con, "ia_tarefas", tarefas | {"perguntas": {"ligada": False, "backend": "openai"}}
+        )
+    texto = _texto(painel.get(PERFIL).text)
+    assert frase not in texto
+    assert "nada sai" not in texto  # a frase da tarefa desligada é da página do questionário
 
 
 @pytest.mark.parametrize("backend", ["anthropic", "openai", "gemini", "compativel", "outro"])

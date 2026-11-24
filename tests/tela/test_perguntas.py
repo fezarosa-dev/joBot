@@ -1,11 +1,13 @@
 """Questionário do perfil no navegador (plano T437; desenho 8 da fase 4; D233).
 
-Da aba Perfil ao questionário, responder e salvar pelo teclado, o erro com o foco no campo e,
-sem JavaScript, "Salvar e sugerir perguntas" com a IA falsa (`app.state.ia`). Nenhum teste espera
-tempo real: `expect_navigation` e `expect`.
+Da aba Perfil ao questionário, responder e salvar pelo teclado, o erro com o foco no campo,
+a espera do "Salvar e sugerir perguntas" (com JavaScript, sem segundo envio) e, sem JavaScript, o
+mesmo botão com a IA falsa (`app.state.ia`). Nenhum teste espera tempo real: `expect_navigation`,
+`expect` e um `Event` que solta a IA.
 """
 
 import re
+import threading
 from collections.abc import Iterator
 from contextlib import closing
 from pathlib import Path
@@ -115,3 +117,44 @@ def test_sugerir_perguntas_sem_javascript(
     expect(pagina_sem_js.get_by_role("textbox", name="Você tem certificações?")).to_have_value(
         "AWS Cloud Practitioner"
     )
+
+
+class _Presa(_Fabrica):
+    """A IA falsa que só responde quando o teste solta."""
+
+    def __init__(self, prontas: list[dict[str, object]]) -> None:
+        super().__init__(prontas)
+        self.soltar = threading.Event()
+        self.pedidos = 0
+
+    def pedir(self, pedido: Pedido) -> Resposta:
+        self.pedidos += 1
+        assert self.soltar.wait(30)
+        return super().pedir(pedido)
+
+
+def test_sugerir_mostra_a_espera_e_nao_envia_duas_vezes(
+    page: Page, painel: str, app_painel: FastAPI, tmp_path: Path
+) -> None:
+    with closing(abrir(tmp_path / "jobot.db")) as con:
+        gravar_config(
+            con, "ia_tarefas", {"perguntas": {"ligada": True, "backend": "local", "modelo": "m"}}
+        )
+    pergunta = {"pergunta": "Você tem certificações?", "por_que": "Ajudam na triagem."}
+    fabrica = _Presa([{"perguntas": [pergunta]}])
+    app_painel.state.ia = fabrica
+    page.goto(f"{painel}{PAGINA}")
+    botao = page.locator('button[name="sugerir"]')
+    try:
+        botao.click(no_wait_after=True)
+        expect(botao).to_have_class(re.compile(r"\besperando\b"))
+        expect(botao).to_have_attribute("aria-disabled", "true")
+        expect(botao.locator(".botao-espera")).to_have_text("Sugerindo perguntas…")
+        # o segundo envio não sai: o primeiro segue e a página não vira a do "ainda sugerindo"
+        botao.evaluate("b => b.form.requestSubmit(b)")
+    finally:
+        fabrica.soltar.set()
+    page.wait_for_url(re.compile(r"sugeridas=1"))
+    ia = page.get_by_role("region", name="Perguntas da IA")
+    expect(ia.get_by_role("status")).to_have_text("1 pergunta nova.")
+    assert fabrica.pedidos == 1
