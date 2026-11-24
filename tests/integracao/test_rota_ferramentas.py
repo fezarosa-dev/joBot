@@ -34,6 +34,7 @@ from jobot.navegador.instalador import (
     comando_de_baixar,
     comando_de_remover,
 )
+from jobot.nucleo.ia.contrato import Pedido, Resposta, conferir
 from jobot.painel import i18n
 from jobot.painel.app import criar_app
 from jobot.painel.rotas.configuracoes import MOTIVOS_IA, argumentos_ia_local
@@ -723,6 +724,63 @@ def test_trocar_baixa_o_outro_e_leva_as_tarefas_locais(sem_leitor: Painel) -> No
         painel.comando.liberar.set()
         assert _esperar(lambda: _ia_livre(painel))
     assert painel.comandos == [(["baixar", "ia-local", "--modelo", "2b"], painel.dados)]
+    assert _tarefas(painel) == {"encaixe": local | {"modelo": MODELOS["2b"]["nome"]}}
+
+
+class _FabricaIA:
+    """`app.state.ia` falsa (teste ao ligar, T416): anota os pares e responde no formato."""
+
+    def __init__(self) -> None:
+        self.pares: list[tuple[str, str]] = []
+
+    def __call__(self, backend: str, modelo: str) -> _FabricaIA:
+        self.pares.append((backend, modelo))
+        return self
+
+    def pedir(self, pedido: Pedido) -> Resposta:
+        return conferir(pedido, {"pede": ["Python"]}, "local")
+
+    def fechar(self) -> None:
+        pass
+
+
+def test_trocar_testa_o_modelo_novo_das_tarefas_ligadas(sem_leitor: Painel) -> None:
+    """O par (local, modelo) mudou com as tarefas ligadas: o teste ao ligar roda no novo, com o
+    laço esperando por ele (T416, desenho 6.1)."""
+    painel = sem_leitor
+    _anotar(painel, "4b")
+    local = {"ligada": True, "backend": "local", "modelo": MODELOS["4b"]["nome"]}
+    _tarefas(painel, {"encaixe": local})
+    fabrica = _FabricaIA()
+    painel.app.state.ia = fabrica
+    painel.app.state.ia_pessoa = set()
+    painel.app.state.ia_acordar = asyncio.Event()
+    novo = ("local", MODELOS["2b"]["nome"])
+    with TestClient(painel.app, base_url=BASE) as http:
+        assert _post_ia(painel, "trocar", http).status_code == 200
+        _anotar(painel, "2b")
+        painel.comando.liberar.set()
+        assert _esperar(lambda: _ia_livre(painel))
+        assert _esperar(lambda: not getattr(painel.app.state, "ia_fila", []))
+        assert fabrica.pares == [novo]
+        assert painel.app.state.ia_testes[novo].estado == "ok"
+        assert painel.app.state.ia_acordar.is_set()
+        assert painel.app.state.ia_pessoa == set()
+
+
+def test_trocar_sem_tarefa_ligada_nao_testa(sem_leitor: Painel) -> None:
+    painel = sem_leitor
+    _anotar(painel, "4b")
+    local = {"ligada": False, "backend": "local", "modelo": MODELOS["4b"]["nome"]}
+    _tarefas(painel, {"encaixe": local})
+    fabrica = _FabricaIA()
+    painel.app.state.ia = fabrica
+    with TestClient(painel.app, base_url=BASE) as http:
+        assert _post_ia(painel, "trocar", http).status_code == 200
+        _anotar(painel, "2b")
+        painel.comando.liberar.set()
+        assert _esperar(lambda: _ia_livre(painel))
+    assert fabrica.pares == []
     assert _tarefas(painel) == {"encaixe": local | {"modelo": MODELOS["2b"]["nome"]}}
 
 
