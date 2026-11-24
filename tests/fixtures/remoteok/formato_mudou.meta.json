@@ -5,8 +5,9 @@
   "cabecalhos": {
     "Content-Type": "application/json"
   },
-  "sha256": "079ac5267f378224040587e84d3ed4e3a87913fbb5ade6365ac10b0610c77d9e",
+  "sha256": "9f5690a521285c091b1d2a63c8563ef3d3ed7aeb4c3187422bc9c2b1f38888d3",
   "versao": "0.1.0",
   "metodo": "GET",
-  "montado_a_mao": "montado à mão a partir de normal.json, reduzido: elemento legal e duas vagas; a segunda troca position por title (formato mudou)"
+  "montado_a_mao": "montado à mão a partir de normal.json, reduzido: elemento legal e duas vagas; a segunda troca position por title (formato mudou)",
+  "limpo_depois": "2026-11-24: a tag com o IP de quem capturou (base64) virou a de 192.0.2.1 (D221)"
 }

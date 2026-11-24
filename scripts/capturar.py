@@ -24,13 +24,17 @@ shortcut: o limite de 5 itens vale para a maior lista (JSON) ou o elemento mais 
 XML); só o tamanho em bytes é conferido depois, então a primeira captura também é lida por gente.
 shortcut: HTML só é reduzido por corte da lista repetida; página que ainda passa de 50 KB é
 recusada (`ValueError`), e a captura dessa fonte precisa de um pedido mais estreito.
+shortcut: IP só sai quando vem em base64 (o RemoteOK põe o de quem captura assim, com um "R" na
+frente; D221) e vira o de documentação 192.0.2.1; IP escrito por extenso não é procurado.
 """
 
 import argparse
 import asyncio
+import base64
 import hashlib
 import html
 import io
+import ipaddress
 import json
 import re
 import sys
@@ -59,6 +63,7 @@ EXEMPLO = "exemplo"
 EMAIL_EXEMPLO = "exemplo@exemplo.invalid"
 TEL_EXEMPLO = "+55 11 90000-0000"
 CPF_EXEMPLO = "000.000.000-00"
+IP_EXEMPLO_BASE64 = base64.b64encode(b"192.0.2.1").decode()  # IP de documentação (RFC 5737)
 CAMPOS_NOME = frozenset(
     {
         "login",
@@ -118,6 +123,7 @@ _SCRIPT_JSON = re.compile(
 )
 # o id (UUID) tem trechos de dígitos que casam com telefone ("27-9261-8931"): fica fora da busca
 _UUID = re.compile(r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b", re.I)
+_BASE64 = re.compile(r"(?<![\w+/])[A-Za-z0-9+/]{8,}={0,2}(?![\w+/=])")
 CASO = re.compile(r"[a-z0-9_]+(?:-[a-z0-9_]+)*")
 
 
@@ -132,6 +138,24 @@ def _cpf_valido(digitos: str) -> bool:
         if (soma * 10 % 11) % 10 != int(digitos[n]):
             return False
     return True
+
+
+def _ip_em_base64(token: str) -> int | None:
+    """Onde começa o IP em base64 no token (0, ou 1 depois do "R" do RemoteOK); `None` sem IP."""
+    for inicio in (0, 1):
+        parte = token[inicio:]
+        try:
+            texto = base64.b64decode(parte + "=" * (-len(parte) % 4), validate=True)
+            ipaddress.ip_address(texto.decode("ascii"))
+        except ValueError:  # binascii.Error e UnicodeDecodeError também são ValueError
+            continue
+        return inicio
+    return None
+
+
+def _trocar_ip(m: re.Match[str]) -> str:
+    inicio = _ip_em_base64(m[0])
+    return m[0] if inicio is None else m[0][:inicio] + IP_EXEMPLO_BASE64
 
 
 def _numero(no: object) -> bool:
@@ -191,6 +215,7 @@ def _limpar_texto(texto: str) -> str:
     texto = _TAG_NOME.sub(lambda m: f"{m[1]}{EXEMPLO}{m[4]}", texto)
     texto = _EMAIL.sub(EMAIL_EXEMPLO, texto)
     texto = _CPF_PONTOS.sub(CPF_EXEMPLO, texto)
+    texto = _BASE64.sub(_trocar_ip, texto)
     texto = _CPF_SOLTO.sub(lambda m: "0" * 11 if _cpf_valido(m[0]) else m[0], texto)
     partes = re.split(f"({_UUID.pattern})", texto, flags=re.I)  # índices ímpares são os UUID
     return "".join(p if i % 2 else _TEL.sub(TEL_EXEMPLO, p) for i, p in enumerate(partes))
@@ -257,6 +282,11 @@ def achar_pessoais(texto: str) -> list[str]:
         achados += [f"email: {m[0]}" for m in _EMAIL.finditer(t) if m[0] != EMAIL_EXEMPLO]
         achados += [f"cpf: {m[0]}" for m in _CPF_PONTOS.finditer(t) if m[0] != CPF_EXEMPLO]
         achados += [f"cpf: {m[0]}" for m in _CPF_SOLTO.finditer(t) if _cpf_valido(m[0])]
+        achados += [
+            "ip em base64"  # sem o valor: o aviso vai para o terminal e para o log do CI
+            for m in _BASE64.finditer(t)
+            if (i := _ip_em_base64(m[0])) is not None and m[0][i:] != IP_EXEMPLO_BASE64
+        ]
         sem_id = _UUID.sub(" ", t)
         achados += [f"telefone: {m[0]}" for m in _TEL.finditer(sem_id) if m[0] != TEL_EXEMPLO]
         achados += [

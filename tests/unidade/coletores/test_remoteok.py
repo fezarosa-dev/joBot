@@ -1,3 +1,4 @@
+import base64
 import json
 from collections.abc import AsyncIterator, Callable
 from datetime import UTC, datetime, timedelta
@@ -18,6 +19,7 @@ pytestmark = pytest.mark.anyio
 
 PASTA = Path(__file__).resolve().parents[2] / "fixtures" / "remoteok"
 URL_API = "https://remoteok.com/api"
+IP_DOC = base64.b64encode(b"192.0.2.1").decode()  # IP de documentação (RFC 5737)
 Responder = Callable[[httpx.Request], httpx.Response]
 
 
@@ -279,6 +281,34 @@ async def test_campo_opcional_estranho_nao_derruba_a_vaga() -> None:
     vaga = _unica(resultado)
     assert (vaga.locais, vaga.descricao, vaga.etiquetas) == ((), "", ())
     assert vaga.url_candidatura is None
+
+
+async def test_tira_a_tag_com_o_ip_de_quem_pede() -> None:
+    # o RemoteOK põe na descrição o IP de quem pede, em base64 (D221); a palavra-chave fica
+    descricao = (
+        f"<p>Vaga.</p>Please mention the word **RECLAIM** and tag R{IP_DOC} when applying to "
+        f"show you read the job post completely (#R{IP_DOC}). This is a beta feature."
+    )
+    resultado, _ = await _coletar(_com_vaga(description=descricao))
+    assert _unica(resultado).descricao == (
+        "<p>Vaga.</p>Please mention the word **RECLAIM** when applying to "
+        "show you read the job post completely. This is a beta feature."
+    )
+
+
+async def test_tag_que_nao_e_ip_fica() -> None:
+    # controle: "R" seguido de texto que não decodifica para IP não é a tag
+    descricao = "Use Rust and tag Rustaceans (#Refactoring) and tag RTAGRTAGRTAG"
+    resultado, _ = await _coletar(_com_vaga(description=descricao))
+    assert _unica(resultado).descricao == descricao
+
+
+async def test_fixtures_sem_tag_de_ip_depois_da_coleta() -> None:
+    resultado, _ = await _coletar(_json("normal"))
+    descricoes = [v.descricao for v in _vagas(resultado)]
+    assert len(descricoes) == 4
+    assert all("and tag R" not in d and IP_DOC not in d for d in descricoes)
+    assert IP_DOC in _texto("normal")  # a fixture traz a tag (de 192.0.2.1): o teste vale
 
 
 async def test_url_candidatura_vai_sem_mudanca() -> None:

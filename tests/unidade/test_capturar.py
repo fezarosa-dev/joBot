@@ -1,3 +1,4 @@
+import base64
 import hashlib
 import importlib.util
 import json
@@ -193,6 +194,27 @@ def test_limpar_xml_e_texto_solto() -> None:
     for sobra in ("Maria", "Joao", "joao@", "98765", "rh@"):
         assert sobra not in saida, sobra
     assert "<description>" in saida and capturar.achar_pessoais(saida) == []
+
+
+def test_limpar_e_achar_ip_em_base64() -> None:
+    # o RemoteOK põe na descrição o IP de quem captura, em base64 com um "R" na frente (D221)
+    ip = base64.b64encode(b"203.0.113.7").decode()  # outro IP de documentação (RFC 5737)
+    ipv6 = base64.b64encode(b"2001:db8::1").decode()
+    exemplo = base64.b64encode(b"192.0.2.1").decode()
+    texto = json.dumps(
+        [{"description": f"mention the word **X** and tag R{ip} when applying (#R{ip}) {ipv6}"}]
+    )
+    assert capturar.achar_pessoais(texto) == ["ip em base64"]  # o aviso não repete o IP
+    saida: str = capturar.limpar_pessoais(texto)
+    assert ip not in saida and ipv6 not in saida
+    assert json.loads(saida)[0]["description"] == (
+        f"mention the word **X** and tag R{exemplo} when applying (#R{exemplo}) {exemplo}"
+    )
+    assert capturar.achar_pessoais(saida) == []
+    # controle: palavra comum e base64 que não é IP ficam
+    comum = json.dumps([{"d": "Refactoring developers aGVsbG8gbXVuZG8="}])
+    assert capturar.limpar_pessoais(comum) == json.dumps(json.loads(comum), indent=2)
+    assert capturar.achar_pessoais(comum) == []
 
 
 def test_limpar_nao_estraga_numeros_comuns() -> None:
