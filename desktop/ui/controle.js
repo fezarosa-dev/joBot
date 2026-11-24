@@ -137,7 +137,14 @@
   const fechar = (desligar) => chamar("fechar_controle", { desligar });
   window.__jobotPedirFechar = () => {
     if (!estado.ligado) fechar(false);
-    else if (!pergunta.open) pergunta.showModal();
+    else if (!pergunta.open) {
+      // sem `showModal` (WebView antigo) ou se ele lançar, fecha sem perguntar (D217)
+      try {
+        pergunta.showModal();
+      } catch {
+        fechar(false);
+      }
+    }
   };
   $("deixar-ligado").addEventListener("click", () => {
     pergunta.close();
