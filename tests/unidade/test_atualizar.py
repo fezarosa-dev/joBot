@@ -24,6 +24,7 @@ import time
 import zipfile
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from pathlib import Path
+from typing import Any, Protocol
 
 import httpx
 import pytest
@@ -33,12 +34,18 @@ from jobot.cli import COMANDOS, main
 from jobot.navegador import limites
 from jobot.sistema import atualizar as modulo
 from jobot.sistema import casca, processo
-from jobot.sistema.atualizar import atualizar, tipo_de_instalacao
+from jobot.sistema.atualizar import tipo_de_instalacao
 from jobot.sistema.instancia import Trava
 from jobot.sistema.pastas import pasta_do_playwright
 from jobot.sistema.segundo_plano_linux import Resultado
 
 PORTA = 47997
+
+
+def atualizar(rodar: Callable[[Sequence[str]], Resultado], dados: Path, **opcoes: Any) -> int:
+    """Os sistemas falsos respondem ao systemctl: o caminho do Linux em qualquer CI. O Windows e
+    o Mac têm testes próprios, com a `plataforma` deles."""
+    return modulo.atualizar(rodar, dados, **{"plataforma": "linux", **opcoes})
 
 
 @pytest.fixture(autouse=True)
@@ -53,12 +60,34 @@ def _clone_falso(raiz: Path) -> Path:
     return raiz
 
 
+class _ComServico(Protocol):
+    plano_ligado: bool
+    plataforma: str
+
+
+def _servico_falso(sistema: _ComServico, nome: str) -> Resultado | None:
+    """O serviço de cada sistema: fora do Linux o systemctl não existe (127, como o
+    `rodar_atualizacao`); no Windows responde o schtasks, no Mac o launchctl."""
+    if nome.startswith("systemctl ") and sistema.plataforma != "linux":
+        return Resultado(127)
+    if nome in ("schtasks /Query", "launchctl print"):
+        return Resultado(0 if sistema.plano_ligado else 1)
+    if nome in ("schtasks /Delete", "launchctl bootout"):
+        sistema.plano_ligado = False
+    if nome in ("schtasks /Create", "launchctl bootstrap"):
+        sistema.plano_ligado = True
+    return None
+
+
 class _Sistema:
     """Executor falso: git num clone atrás do remoto, uv e systemctl saudáveis."""
 
-    def __init__(self, registro: list[str], *, plano_ligado: bool = False) -> None:
+    def __init__(
+        self, registro: list[str], *, plano_ligado: bool = False, plataforma: str = "linux"
+    ) -> None:
         self.registro = registro
         self.plano_ligado = plano_ligado
+        self.plataforma = plataforma
         self.comandos: list[tuple[str, ...]] = []
         self.falha_em: dict[str, Resultado] = {}
 
@@ -69,6 +98,9 @@ class _Sistema:
         self.registro.append(nome)
         if nome in self.falha_em:
             return self.falha_em[nome]
+        servico = _servico_falso(self, nome)
+        if servico is not None:
+            return servico
         if nome == "systemctl is-enabled":
             return Resultado(0 if self.plano_ligado else 1)
         if nome == "systemctl enable":
@@ -85,6 +117,8 @@ class _Sistema:
     def _nome(c: tuple[str, ...]) -> str:
         if c[0] == "systemctl":
             return f"systemctl {c[2]}"
+        if c[0] in ("schtasks", "launchctl"):
+            return f"{c[0]} {c[1]}"
         if c[0] == "git":
             assert c[1] == "-C"
             return f"git {c[3]}"
@@ -121,6 +155,8 @@ def _resumo(registro: list[str]) -> list[str]:
     passos = {
         "systemctl disable": "desligar",
         "systemctl enable": "ligar",
+        "schtasks /Delete": "desligar",
+        "schtasks /Create": "ligar",
         "git pull": "pull",
         "uv sync": "sync",
         "uv tool": "upgrade",
@@ -208,6 +244,35 @@ def test_uv_tool_atualiza_com_uv_tool_upgrade(
     assert ("uv", "tool", "upgrade", "jobot") in rodar.comandos
     assert not any(c[0] == "git" for c in rodar.comandos)
     assert "https://github.com/fezarosa-dev/joBot/releases" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    ("servidor_rodando", "esperado"),
+    [
+        (True, ["desligar", "parar", "upgrade", "ligar", "subir"]),
+        (False, ["desligar", "upgrade", "ligar"]),
+    ],
+    ids=["com_servidor", "sem_servidor"],
+)
+def test_windows_para_e_religa_a_tarefa_do_agendador(
+    tmp_path: Path, servidor_rodando: bool, esperado: list[str]
+) -> None:
+    registro: list[str] = []
+    rodar = _Sistema(registro, plano_ligado=True, plataforma="win32")
+    ferramenta = tmp_path / "ferramenta"
+    ferramenta.mkdir()
+    (ferramenta / "uv-receipt.toml").write_text("[tool]\n")
+    trava = _rodando(tmp_path) if servidor_rodando else None
+    parar, subir = _falsos(registro, trava)
+    try:
+        codigo = atualizar(
+            rodar, tmp_path, parar=parar, subir=subir, raiz=ferramenta, plataforma="win32"
+        )
+    finally:
+        if trava is not None:
+            trava.soltar()
+    assert codigo == 0
+    assert _resumo(registro) == esperado
 
 
 def test_falha_na_atualizacao_religa_o_que_parou_e_sai_com_1(tmp_path: Path) -> None:
@@ -621,11 +686,14 @@ class _Release:
 
 
 class _Casca:
-    """Executor falso do canal casca: uv, o jobot do venv novo e o systemctl."""
+    """Executor falso do canal casca: uv, o jobot do venv novo e o serviço de cada sistema."""
 
-    def __init__(self, registro: list[str], *, plano_ligado: bool = False) -> None:
+    def __init__(
+        self, registro: list[str], *, plano_ligado: bool = False, plataforma: str = "linux"
+    ) -> None:
         self.registro = registro
         self.plano_ligado = plano_ligado
+        self.plataforma = plataforma
         self.comandos: list[tuple[str, ...]] = []
         self.falha_em: dict[str, Resultado] = {}
         self.versao_nova = VERSAO
@@ -640,6 +708,9 @@ class _Casca:
         self.registro.append(nome)
         if nome in self.falha_em:
             return self.falha_em[nome]
+        servico = _servico_falso(self, nome)
+        if servico is not None:
+            return servico
         if nome == "systemctl is-enabled":
             return Resultado(0 if self.plano_ligado else 1)
         if nome == "systemctl disable":
@@ -716,6 +787,7 @@ def _atualizar_casca(
         subir_em=lambda python: registro.append(f"subir_em {python}"),
         cliente=release.cliente,
         raiz=dados / "nao_e_clone",
+        plataforma=rodar.plataforma,
     )
 
 
@@ -792,6 +864,37 @@ def test_casca_sem_plano_sobe_o_servidor_do_venv_novo(tmp_path: Path, sem_playwr
         trava.soltar()
     assert registro[-1] == f"subir_em {_no_venv(pasta / 'venvs' / f'venv-{VERSAO}', 'python')}"
     assert "subir" not in registro and "jobot segundo-plano" not in registro
+
+
+@pytest.mark.parametrize(
+    ("plataforma", "desligar"),
+    [
+        ("win32", "schtasks /Delete"),
+        pytest.param(
+            "darwin",
+            "launchctl bootout",
+            marks=pytest.mark.skipif(sys.platform == "win32", reason="o launchd pede os.getuid"),
+        ),
+    ],
+)
+def test_casca_fora_do_linux_refaz_o_servico_pelo_venv_novo(
+    tmp_path: Path, sem_playwright: None, plataforma: str, desligar: str
+) -> None:
+    pasta = _instalada(tmp_path)
+    registro: list[str] = []
+    rodar = _Casca(registro, plano_ligado=True, plataforma=plataforma)
+    trava = _rodando(tmp_path)
+    try:
+        assert _atualizar_casca(tmp_path, _Release(_pacote()), rodar, registro, trava) == 0
+    finally:
+        trava.soltar()
+    novo = pasta / "venvs" / f"venv-{VERSAO}"
+    # o serviço do venv velho sai antes da troca e quem o grava de novo é o joBot novo (D174.9)
+    assert desligar in registro and registro.index(desligar) < registro.index("parar")
+    assert (str(_no_venv(novo, "jobot")), "segundo-plano", "ligar") in rodar.comandos
+    # a tarefa do Agendador só sobe no próximo login: o servidor que estava no ar volta já
+    subiu = [r for r in registro if r.startswith("subir")]
+    assert subiu == ([f"subir_em {_no_venv(novo, 'python')}"] if plataforma == "win32" else [])
 
 
 def _intacta(tmp_path: Path, pasta: Path, antes: bytes, registro: list[str]) -> None:
