@@ -26,7 +26,7 @@
  * muda só o --trilho-progresso. Tokens com alfa (rgb com barra) ficam fora das listas.
  */
 /* contraste: texto/fundo texto-2/fundo texto-2/sob-pagina texto/superficie texto-2/superficie texto/solido-barra texto-2/solido-barra texto/solido-elevado texto-2/solido-elevado link/fundo link/superficie sobre-destaque/destaque texto/trilho texto/segmento alerta/superficie alerta/fundo sucesso/superficie sucesso/fundo */
-/* contraste-grafico: destaque/trilho-progresso janela-fechar/solido-barra janela-fechar/fundo janela-minimizar/solido-barra janela-minimizar/fundo janela-maximizar/solido-barra janela-maximizar/fundo janela-inativa/solido-barra janela-inativa/fundo */
+/* contraste-grafico: destaque/trilho-progresso */
 :root {
   color-scheme: light dark;
   --fundo: light-dark(#ececec, #1e1e1e);
@@ -46,13 +46,6 @@
   --alerta: light-dark(#d70015, #ff453a);
   --sucesso: light-dark(#1e7b34, #30d158);
   --foco: light-dark(#0071e3, #2997ff);
-  /* círculos da janela na casca (T334; desenho 5.3): no escuro, os tons do Mac; no claro, mais
-     escuros para chegar a 3:1 sobre a barra e o fundo (o amarelo do Mac dá 1,56:1, D178) */
-  --janela-fechar: light-dark(#e0443e, #ff5f57);
-  --janela-minimizar: light-dark(#b07a00, #febc2e);
-  --janela-maximizar: light-dark(#1f8a3a, #28c840);
-  --janela-inativa: light-dark(#7c7c80, #8e8e93);
-  --janela-simbolo: light-dark(rgb(0 0 0 / 0.6), rgb(0 0 0 / 0.6));
   --separador: light-dark(rgb(0 0 0 / 0.1), rgb(255 255 255 / 0.1));
   --hover: light-dark(rgb(0 0 0 / 0.06), rgb(255 255 255 / 0.08));
   --pressionado: light-dark(rgb(0 0 0 / 0.13), rgb(255 255 255 / 0.16));
@@ -198,9 +191,11 @@ main:focus:not(:focus-visible) {
   opacity: 1;
 }
 
-/* barra de ferramentas (T251): 52px, o material (vidro) vem da classe .vidro no template e a borda
-   separa do conteúdo; o arranjo na grade da casca fica no casca.css */
+/* barra de ferramentas (T251): 52px, fundo sólido da barra (sem vidro desde a T353: backdrop-filter
+   em área grande e fixa pesa fora do Chromium) e a borda separa do conteúdo; o arranjo na grade da
+   casca fica no casca.css */
 .topo {
+  background-color: var(--solido-barra);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -214,7 +209,8 @@ main:focus:not(:focus-visible) {
 
 /*
  * Vidro (desenho 5.1): o único lugar com backdrop-filter. Nunca vidro sobre vidro, nunca animar o
- * filtro. Menu, paleta, alerta e sheet somam .vidro-elevado para o caminho sólido usar o tom deles.
+ * filtro. Só em camada pequena e passageira (<dialog> ou popover), nunca na lateral nem na barra
+ * (T353, D206). Menu, paleta, alerta e sheet somam .vidro-elevado para o caminho sólido usar o tom deles.
  */
 .vidro,
 .vidro-grande {

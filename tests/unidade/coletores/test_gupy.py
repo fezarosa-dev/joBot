@@ -502,3 +502,10 @@ def test_empresas_json_traz_o_career_page_name_das_nove() -> None:
     assert {i: p for i, p in gupy_.items() if p} == {
         i: {"careerPageName": n} for i, n in NOVE.items()
     }
+
+
+async def test_id_bool_nao_vira_id_externo() -> None:
+    dados = json.loads(_texto("normal"))
+    dados["data"][0]["id"] = True
+    resultado, _ = await _coletar(httpx.Response(200, json=dados))
+    assert _vagas(resultado)[0].id_externo is None

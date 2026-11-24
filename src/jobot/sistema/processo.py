@@ -11,7 +11,7 @@ from typing import Any, Protocol
 _CREATE_NEW_PROCESS_GROUP = 0x200
 _DETACHED_PROCESS = 0x8
 # CREATE_NO_WINDOW: o `taskkill` chamado do `pythonw` não pisca um console.
-_SEM_JANELA: dict[str, Any] = {"creationflags": 0x08000000} if sys.platform == "win32" else {}
+SEM_JANELA: dict[str, Any] = {"creationflags": 0x08000000} if sys.platform == "win32" else {}
 
 
 class Processo(Protocol):
@@ -36,7 +36,7 @@ def encerrar_grupo(proc: Processo, *, forcar: bool = False, plataforma: str = sy
         if getattr(proc, "returncode", None) is not None:
             return
         args = ["taskkill", "/T", "/F", "/PID", str(proc.pid)]
-        feito = subprocess.run(args, capture_output=True, check=False, **_SEM_JANELA)
+        feito = subprocess.run(args, capture_output=True, check=False, **SEM_JANELA)
         if feito.returncode == 0:
             return
         if forcar:

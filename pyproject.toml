@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "jobot"
-version = "0.4.0"
+version = "0.4.1"
 description = "Busca vagas em fontes públicas e mostra num painel local."
 readme = "README.md"
 license = "MIT"
@@ -19,6 +19,7 @@ dependencies = [
   "selectolax==1.0.2",
   "keyring==25.7.0",
   "playwright==1.65.1",
+  "pydantic==2.14.3",
 ]
 
 [project.scripts]

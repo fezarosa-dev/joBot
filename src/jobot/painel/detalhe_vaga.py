@@ -9,8 +9,12 @@ import sqlite3
 from datetime import date
 from typing import Any
 
+from jobot.banco.ia import pedes
 from jobot.banco.leitura import Detalhe, abertura_da_candidatura, datas_dos_passos
+from jobot.banco.perfil import habilidades
 from jobot.nucleo.candidatura import email_de_candidatura
+from jobot.nucleo.encaixe import casar
+from jobot.nucleo.ia.pedidos import texto_encaixe
 from jobot.painel.consultas import utc_do_banco
 from jobot.painel.moeda import exibicao_do_painel
 
@@ -81,6 +85,24 @@ def _passos(con: sqlite3.Connection, vaga: Detalhe) -> list[tuple[str, str]]:
     return passos + list(datas_dos_passos(con, vaga.id).items())
 
 
+def _habilidades(con: sqlite3.Connection, vaga: Detalhe) -> dict[str, Any] | None:
+    """O que a vaga pede segundo a IA, inteiro, separado pelo perfil (desenho 5.5); sem, `None`.
+
+    O corte é o do texto de hoje da vaga, o mesmo `texto_encaixe` que o laço manda (T412).
+    """
+    achado = pedes(con, vaga.id).get(vaga.id)
+    if achado is None or not achado.pede:
+        return None
+    tem, faltam = casar(achado.pede, habilidades(con))
+    return {
+        "tem": ", ".join(tem),
+        "faltam": ", ".join(faltam),
+        "backend": achado.backend,
+        "modelo": achado.modelo,
+        "cortado": texto_encaixe(vaga.titulo, vaga.descricao_texto).cortados > 0,
+    }
+
+
 def contexto_do_detalhe(
     con: sqlite3.Connection, vaga: Detalhe, hoje: date, retorno: str
 ) -> dict[str, Any]:
@@ -109,4 +131,5 @@ def contexto_do_detalhe(
         "email": email,
         # o botão principal: link próprio de candidatura, senão o e-mail, senão a vaga na fonte
         "principal": principal,
+        "habilidades": _habilidades(con, vaga),
     }

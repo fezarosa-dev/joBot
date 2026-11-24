@@ -117,10 +117,9 @@ def test_confirmacao_nao_volta_para_fora_do_painel(app: SimpleNamespace) -> None
     assert cancelar and 'href="/"' in cancelar.group(0)
 
 
-def test_despedida_marca_o_encerrado_para_a_janela_fechar(app: SimpleNamespace) -> None:
+def test_despedida_encerra(app: SimpleNamespace) -> None:
     resposta = app.http.post("/sair", data={"csrf_token": app.token})
     assert resposta.status_code == 200
     assert app.app.state.servidor.should_exit is True
-    assert "data-encerrado" in resposta.text
     assert t("pt", "execucao.saiu") in unescape(resposta.text)
     assert 'id="alerta-encerrar"' not in resposta.text  # sem lateral, sem paleta e sem alerta

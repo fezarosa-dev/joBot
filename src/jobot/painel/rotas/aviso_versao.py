@@ -4,8 +4,11 @@
 desligado pela pessoa ou sem versão maior que a instalada, o fragmento sai vazio. A faixa não manda
 abrir o terminal (ADR 0023): `POST /atualizar` dispara o `jobot atualizar` destacado, que para e
 religa o servidor, e o app.js pergunta ao `/saude-local` até a versão mudar; sem HTMX, a página
-"Atualizando…" se recarrega a cada 5 s. Na casca com a janela mais velha que a versão nova (pelo
-user agent), `POST /abrir-release` abre a página da release no navegador da pessoa pelo Python.
+"Atualizando…" se recarrega a cada 5 s. Dentro da janela de uma casca antiga (a marca no user
+agent só vem da casca até a 0.4.0, que mostrava o painel nela), a faixa diz sempre que a janela é
+velha, com ou sem versão nova do Python, e `POST /abrir-release` abre a página da release no
+navegador da pessoa pelo Python (D208.4). A casca nova não mostra o painel: o controle avisa ele
+mesmo (D207.12).
 """
 
 import logging
@@ -31,9 +34,9 @@ router = APIRouter()
 _LOG = logging.getLogger(__name__)
 
 URL_RELEASE = f"{URL_REPOSITORIO}/releases/latest"
-# a marca que a casca acrescenta ao user agent (desenho 5.3)
+# a marca que a casca até a 0.4.0 acrescentava ao user agent (desenho 5.3); a 0.4.1 não a põe
 _MARCA_CASCA = re.compile(
-    r" joBot-casca/([0-9]{1,9}\.[0-9]{1,9}\.[0-9]{1,9}) \((?:linux|windows|macos)\)"
+    r" joBot-casca/[0-9]{1,9}\.[0-9]{1,9}\.[0-9]{1,9} \((?:linux|windows|macos)\)"
 )
 _ERROS = {"nao_comecou": "aviso_versao.nao_comecou"}
 
@@ -45,21 +48,17 @@ class _Disparando:
         return None
 
 
-def _janela_velha(request: Request, versao: str) -> bool:
-    """A casca (pelo user agent) é mais velha que a versão nova; fora da casca, não."""
-    achado = _MARCA_CASCA.search(request.headers.get("user-agent", ""))
-    casca = versao_da_etiqueta(achado.group(1)) if achado else None
-    nova = versao_da_etiqueta(versao)
-    return casca is not None and nova is not None and casca < nova
+def _janela_velha(request: Request) -> bool:
+    """O painel está dentro da janela de uma casca antiga: só ela põe a marca no user agent."""
+    return _MARCA_CASCA.search(request.headers.get("user-agent", "")) is not None
 
 
 def _faixa(request: Request, con: Con, janela: str | None = None) -> HTMLResponse:
-    versao = versao_para_avisar(con)
     return renderizar(
         request,
         "aviso_versao/aviso.html",
-        versao=versao,
-        janela_nova=versao is not None and _janela_velha(request, versao),
+        versao=versao_para_avisar(con),
+        janela_nova=_janela_velha(request),
         janela=janela,
         endereco=URL_RELEASE,
         voltar=voltar_da_pagina(request),

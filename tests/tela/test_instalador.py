@@ -189,6 +189,34 @@ def test_progresso_determinado_nao_volta_e_para_no_teto(page: Page, ui: str) -> 
     assert _valor(page) == 100
 
 
+def _largura(page: Page) -> float:
+    return page.evaluate(  # type: ignore[no-any-return]
+        """() => document.getElementById("instalador-preenchimento").getBoundingClientRect().width
+          / document.getElementById("trilho").getBoundingClientRect().width * 100"""
+    )
+
+
+def test_barra_anda_fluida_dentro_da_etapa_e_sem_salto_na_troca(page: Page, ui: str) -> None:
+    """D216: sem aviso novo a largura segue andando, rápida no começo e freando, sem passar do
+    fim da fatia; o valor real (aria-valuenow) não muda; trocar de etapa não dá salto."""
+    page.clock.install()
+    _ate_instalando(page, ui)
+    _aviso(page, {"etapa": "python"})  # fatia do Python: de 10 a 30
+    larguras = []
+    for _ in range(8):
+        page.clock.run_for(1000)
+        larguras.append(_largura(page))
+    assert _valor(page) == 10
+    passos = [b - a for a, b in zip(larguras, larguras[1:], strict=False)]
+    assert all(p > 0 for p in passos), larguras  # nunca para
+    assert all(a > b for a, b in zip(passos[1:], passos[2:], strict=False)), larguras  # freando
+    assert 10 < larguras[-1] < 30, larguras
+    antes = _largura(page)
+    _aviso(page, {"etapa": "jobot"})
+    page.clock.run_for(100)
+    assert 0 <= _largura(page) - antes < 2  # a troca de etapa não pula
+
+
 def test_sem_navegador_as_outras_etapas_dividem_a_barra(page: Page, ui: str) -> None:
     _ate_instalando(page, ui, navegador=False)
     _aviso(page, {"etapa": "abrir"})
@@ -255,6 +283,22 @@ def test_tab_segue_a_ordem_visual_do_pe(page: Page, ui: str) -> None:
     voltar.focus()
     page.keyboard.press("Tab")
     expect(instalar).to_be_focused()
+
+
+def test_titulo_com_foco_sem_anel_e_controles_com(page: Page, ui: str) -> None:
+    # D217: o título recebe o foco por script (leitor de tela) e não ganha o anel azul
+    _abrir(page, ui)
+    titulo = page.get_by_role("heading", name="joBot", exact=True)
+    titulo.focus()
+    expect(titulo).to_be_focused()
+    assert titulo.evaluate("e => getComputedStyle(e).outlineStyle") == "none"
+    continuar = page.get_by_role("button", name="Continuar", exact=True)
+    for _ in range(5):
+        page.keyboard.press("Tab")
+        if continuar.evaluate("e => e === document.activeElement"):
+            break
+    expect(continuar).to_be_focused()
+    assert continuar.evaluate("e => getComputedStyle(e).outlineStyle") != "none"
 
 
 def test_falha_mostra_o_detalhe_para_diagnostico(page: Page, ui: str) -> None:
@@ -340,3 +384,5 @@ def test_em_ingles_e_troca_de_idioma(page: Page, ui: str) -> None:
     page.get_by_label("Language").select_option("pt")
     expect(page.get_by_role("button", name="Continuar", exact=True)).to_be_visible()
     expect(page.locator("html")).to_have_attribute("lang", "pt")
+    # a escolha fica para o controle, que abre logo depois na mesma origem (D207.9)
+    assert page.evaluate("localStorage.getItem('jobot.idioma')") == "pt"

@@ -494,7 +494,23 @@ def test_padroes_de_config(con: sqlite3.Connection) -> None:
         "moeda_exibicao",
         "captcha_ligado",
         "login_horarios",
+        "ia_tarefas",
+        "ia_compativel",
     }
+    assert ler_config(con, "login_horarios") == ["09:00", "18:00"]
+    # IA desligada por padrão (D185.2): nada sai da máquina sem a pessoa ligar
+    assert ler_config(con, "ia_tarefas") == {
+        "encaixe": {"ligada": False, "backend": "", "modelo": ""}
+    }
+    assert ler_config(con, "ia_compativel") == {"endereco": ""}
+
+
+def test_padrao_lido_nao_muda_o_padrao(con: sqlite3.Connection) -> None:
+    """Quem lê o padrão e mexe no valor (para gravar depois) não muda o padrão dos outros."""
+    tarefas = ler_config(con, "ia_tarefas")
+    tarefas["encaixe"]["ligada"] = True
+    ler_config(con, "login_horarios").append("12:00")
+    assert ler_config(con, "ia_tarefas")["encaixe"]["ligada"] is False
     assert ler_config(con, "login_horarios") == ["09:00", "18:00"]
 
 

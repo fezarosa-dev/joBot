@@ -453,3 +453,11 @@ async def test_detalhar_nao_tem_o_que_detalhar(http_proibido: HttpEducado) -> No
         descricao_formato="html",
     )
     assert await jobicy.COLETOR.detalhar(item, http_proibido) is None
+
+
+async def test_id_bool_nao_vira_id_externo() -> None:
+    dados = _dados()
+    dados["hasMore"] = False
+    dados["jobs"][0]["id"] = True
+    resultado, _ = await _coletar(_pagina(dados))
+    assert _vagas(resultado)[0].id_externo is None

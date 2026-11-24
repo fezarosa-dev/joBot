@@ -11,9 +11,11 @@ on:
     - cron: "23 6 * * 1"
   workflow_dispatch:
 
+# actions: write só serve ao último passo, que reativa este agendamento (D218)
 permissions:
   contents: read
   issues: write
+  actions: write
 
 concurrency:
   group: vigia
@@ -35,3 +37,10 @@ jobs:
       - run: uv run python scripts/vigia.py
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # O GitHub desliga agendamento de repositório público depois de 60 dias sem atividade.
+      # Reativar pela API em toda execução, mesmo quando o vigia falha, mantém o vigia vivo
+      # sem commit de "batimento" e sem action de terceiros (D218).
+      - if: always()
+        run: gh api -X PUT "repos/$GITHUB_REPOSITORY/actions/workflows/vigia.yml/enable"
+        env:
+          GH_TOKEN: ${{ github.token }}

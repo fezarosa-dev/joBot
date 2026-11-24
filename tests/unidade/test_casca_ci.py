@@ -1,11 +1,7 @@
-"""Prende o `casca.yml` (gatilhos, permissões, jobs, actions) e a página da prova da janela."""
+"""Prende o `casca.yml` (gatilhos, permissões, jobs, actions)."""
 
-import importlib.util
 import re
 from pathlib import Path
-from types import ModuleType
-
-from jobot.painel.app import CABECALHOS
 
 RAIZ = Path(__file__).resolve().parents[2]
 CASCA = RAIZ / ".github" / "workflows" / "casca.yml"
@@ -40,6 +36,10 @@ def test_casca_roda_em_pr_em_lote_e_a_mao_sem_segredo() -> None:
         "description: Gera os instaladores, sem publicar",
         "type: boolean",
         "default: false",
+        "ia:",
+        "description: Prova o modelo local de verdade (T410)",
+        "type: boolean",
+        "default: false",
     ]
     assert "pull_request_target" not in texto
     assert _secao(texto, "permissions") == ["contents: read"]
@@ -51,7 +51,7 @@ def test_actions_fixadas_por_hash_com_versao() -> None:
     usos = re.findall(r"^\s*(?:- )?uses: (.+)$", CASCA.read_text(encoding="utf-8"), re.MULTILINE)
     assert usos
     for uso in usos:
-        if uso == "./.github/workflows/pacotes.yml":
+        if uso in ("./.github/workflows/pacotes.yml", "./.github/workflows/ia.yml"):
             continue
         assert re.fullmatch(r"[\w.-]+/[\w.-]+@[0-9a-f]{40} # v\d+\.\d+\.\d+", uso), uso
 
@@ -70,13 +70,13 @@ def _job(nome: str) -> str:
 
 def test_jobs_da_casca() -> None:
     jobs = re.findall(r"^  (\w+):$", _codigo().split("\njobs:\n", 1)[1], re.MULTILINE)
-    assert jobs == ["casca", "windows", "uv", "pacotes"]
-    # o pacotes chama o pacotes.yml, que tem os prazos dele
-    for nome in jobs[:-1]:
+    assert jobs == ["casca", "windows", "uv", "pacotes", "ia"]
+    # o pacotes e o ia chamam o pacotes.yml e o ia.yml, que têm os prazos deles
+    for nome in jobs[:-2]:
         assert "timeout-minutes:" in _job(nome), nome
 
 
-def test_job_casca_confere_rust_e_a_janela_sob_xvfb() -> None:
+def test_job_casca_confere_o_rust() -> None:
     texto = _job("casca")
     assert "runs-on: ubuntu-22.04" in texto
     for passo in (
@@ -85,18 +85,19 @@ def test_job_casca_confere_rust_e_a_janela_sob_xvfb() -> None:
         "cargo fmt --check",
         "cargo clippy --locked --all-targets -- -D warnings",
         "cargo test --locked",
-        "xvfb-run",
-        "--verificar-janela",
-        "scripts/prova_janela.py",
     ):
         assert passo in texto, passo
+    # a prova da IPC do painel na janela (T321) saiu com a casca que só controla (D206, D207)
+    assert "--verificar-janela" not in texto
 
 
 def test_job_windows_roda_os_testes_de_sistema() -> None:
     texto = _job("windows")
     assert "runs-on: windows-latest" in texto
     assert "uv sync --locked" in texto
-    filtro = '-k "pastas or instancia or processo or segundo_plano or atualizar"'
+    filtro = (
+        '-k "pastas or instancia or processo or segundo_plano or atualizar or cofre or nofollow"'
+    )
     assert f"uv run pytest tests/unidade {filtro}" in texto
     # os ramos #[cfg(windows)] da casca (nota da revisão da T337)
     assert "--component clippy" in texto
@@ -120,25 +121,8 @@ def test_job_pacotes_so_com_a_entrada_e_sem_publicar() -> None:
     assert "release" not in texto
 
 
-def _prova() -> ModuleType:
-    caminho = RAIZ / "scripts" / "prova_janela.py"
-    spec = importlib.util.spec_from_file_location("prova_janela", caminho)
-    assert spec is not None and spec.loader is not None
-    modulo = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(modulo)
-    return modulo
-
-
-def test_prova_manda_os_cabecalhos_reais_do_painel() -> None:
-    assert _prova().cabecalhos(com_ipc=False) == CABECALHOS
-
-
-def test_prova_com_ipc_so_acrescenta_a_origem_ao_connect_src() -> None:
-    com = _prova().cabecalhos(com_ipc=True)
-    csp = com.pop("Content-Security-Policy", "")
-    original = CABECALHOS["Content-Security-Policy"]
-    assert com == {k: v for k, v in CABECALHOS.items() if k != "Content-Security-Policy"}
-    assert csp == original.replace(
-        "connect-src 'self';", "connect-src 'self' ipc: http://ipc.localhost;"
-    )
-    assert csp != original
+def test_job_ia_so_com_a_entrada() -> None:
+    texto = _job("ia")
+    assert "if: github.event_name == 'workflow_dispatch' && inputs.ia" in texto
+    assert "uses: ./.github/workflows/ia.yml" in texto
+    assert "secrets" not in texto

@@ -43,9 +43,7 @@ def con(tmp_path: Path) -> Iterator[sqlite3.Connection]:
 
 
 def _vaga(con: sqlite3.Connection, status: str = "salva") -> int:
-    vaga_id = inserir_vaga(con, status=status)
-    con.commit()
-    return vaga_id
+    return inserir_vaga(con, status=status)
 
 
 def _aberta(con: sqlite3.Connection, status: str = "salva", hora: int = 0) -> int:

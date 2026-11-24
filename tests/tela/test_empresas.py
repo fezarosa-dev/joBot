@@ -12,6 +12,7 @@ import pytest
 from fastapi import FastAPI
 from playwright.sync_api import Locator, Page, expect
 
+from apoio.console import anotar_erros
 from apoio.relogio import RelogioFalso
 from jobot.banco.conexao import abrir
 
@@ -56,9 +57,7 @@ def _preencher(page: Page, endereco: str) -> Locator:
 def test_testar_mostra_a_contagem_antes_de_salvar_e_depois_adiciona(
     page: Page, painel: str
 ) -> None:
-    erros: list[str] = []  # violação do CSP aparece como erro no console
-    page.on("console", lambda m: erros.append(m.text) if m.type == "error" else None)
-    page.on("pageerror", lambda e: erros.append(str(e)))
+    erros = anotar_erros(page)  # violação do CSP aparece como erro no console
     page.goto(f"{painel}/empresas")
     expect(page.locator(".vazio")).to_be_visible()
 

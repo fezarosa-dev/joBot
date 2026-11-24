@@ -257,7 +257,7 @@ def test_tamanho_do_texto_estragado_traz_o_padrao(tmp_path: Path) -> None:
 def test_pagina_de_erro_traz_a_lateral(cliente: TestClient) -> None:
     resposta = cliente.get("/nao-existe-mesmo", headers={"Accept-Language": "en"})
     assert resposta.status_code == 404
-    assert re.search(r'<aside\b[^>]*class="lateral vidro"', resposta.text)
+    assert re.search(r'<aside\b[^>]*class="lateral"', resposta.text)
     assert 'aria-label="Main"' in resposta.text
     assert _texto("en", "erro.nao_existe.titulo") in resposta.text
 

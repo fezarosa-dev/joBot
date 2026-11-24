@@ -108,6 +108,6 @@ def desligar(rodar: Rodar) -> None:
 
 
 def status(rodar: Rodar) -> Estado:
-    # ponytail: "rodando" segue o "instalado"; o estado do schtasks vem na língua do sistema
+    # shortcut: "rodando" segue o "instalado"; o estado do schtasks vem na língua do sistema
     existe = _schtasks(rodar, "/Query").codigo == 0
     return Estado(habilitado=existe, ativo=existe)

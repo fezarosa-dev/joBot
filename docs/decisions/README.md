@@ -2,7 +2,7 @@
 
 Um ADR (registro de decisão de arquitetura) é um texto curto que guarda uma decisão: o contexto em que ela foi tomada, o que ficou decidido e as consequências. Assim, quem chegar depois entende o porquê das escolhas.
 
-Estas decisões vieram de 9 rodadas de perguntas e respostas feitas em 2026-11-13, mais ajustes depois. O projeto está em desenvolvimento: as fases 1, 2 e 3 estão concluídas (versão 0.4.0); parte das decisões descreve fases que ainda não existem.
+Estas decisões vieram de 9 rodadas de perguntas e respostas feitas em 2026-11-13, mais ajustes depois. O projeto está em desenvolvimento: as fases 1, 2 e 3 estão concluídas (versão 0.4.0) e a fase 4 está sendo construída (rumo à 0.5.0); parte das decisões descreve fases que ainda não existem.
 
 | Nº | Decisão | Status |
 |---|---|---|
@@ -31,11 +31,13 @@ Estas decisões vieram de 9 rodadas de perguntas e respostas feitas em 2026-11-1
 | 0023 | [Tudo pelo painel](0023-tudo-pelo-painel.md) | aceita |
 | 0024 | [Gmail por senha de app](0024-gmail-por-senha-de-app.md) | aceita |
 | 0025 | [App de desktop e instalador](0025-app-de-desktop-e-instalador.md) | aceita |
+| 0026 | [IA da fase 4: tarefas, backends e modelo local](0026-ia-da-fase-4.md) | proposta |
+| 0027 | [A casca só controla; o painel abre no navegador da pessoa](0027-casca-so-controla.md) | aceita |
 
 ## Como registrar uma nova decisão
 
 1. Copie o formato de uma ADR existente.
-2. Use o próximo número livre, com quatro dígitos, e um nome de arquivo curto (por exemplo, `0026-assunto.md`).
+2. Use o próximo número livre, com quatro dígitos, e um nome de arquivo curto (por exemplo, `0027-assunto.md`).
 3. Comece com o status `proposta`. Quando a decisão for confirmada, mude para `aceita`. Se outra decisão a trocar, mude para `substituída por NNNN`, com o número da nova.
 4. Acrescente a linha na tabela acima.
 

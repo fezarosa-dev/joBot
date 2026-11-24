@@ -3,6 +3,7 @@
 import logging
 import os
 import re
+import sys
 from collections.abc import Mapping
 
 from jobot.sistema.caso import prefixo_host
@@ -33,12 +34,20 @@ def _validas(origem: Mapping[str, str]) -> dict[str, str]:
     return {n: origem[n] for n in VARIAVEIS if n in origem and _valida(n, origem[n])}
 
 
-def ambiente_da_tela(env: Mapping[str, str], rodar: Rodar) -> dict[str, str]:
+def ambiente_da_tela(
+    env: Mapping[str, str], rodar: Rodar, plataforma: str | None = None
+) -> dict[str, str]:
     """Vazio quer dizer sem tela. Só os nomes aceitos vão ao log, nunca os valores.
 
     Sem DISPLAY nem WAYLAND_DISPLAY válido o retorno é vazio, mesmo com XAUTHORITY ou
-    XDG_RUNTIME_DIR: sem um dos dois não há tela.
+    XDG_RUNTIME_DIR: sem um dos dois não há tela. No Windows e no Mac o servidor roda na sessão
+    de quem entrou, que sempre tem a área de trabalho: volta só `JOBOT_TELA` (sem segredo, vai ao
+    navegador junto), porque a tela de lá não pede variável nenhuma.
     """
+    qual = sys.platform if plataforma is None else plataforma
+    if qual in ("win32", "darwin"):
+        _LOG.info("tela: a da sessão do sistema (%s)", qual)
+        return {"JOBOT_TELA": qual}
     achadas = _validas(env)
     if "DISPLAY" not in achadas and "WAYLAND_DISPLAY" not in achadas:
         resultado = rodar([*prefixo_host(env), "systemctl", "--user", "show-environment"])

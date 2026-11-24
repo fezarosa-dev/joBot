@@ -15,14 +15,13 @@ pub const PRAZO: Duration = Duration::from_secs(15);
 pub const PASSO: Duration = Duration::from_millis(200);
 const LINHAS_DO_LOG: usize = 20;
 
-/// O servidor achado ou subido; `subiu` diz se foi a casca que o subiu nesta abertura.
+/// O servidor achado ou subido.
 #[derive(Debug, PartialEq)]
 pub struct Servidor {
     pub porta: u16,
-    pub subiu: bool,
 }
 
-/// Por que o painel não abriu; o `codigo` vira o `motivo` da `ui/erro.html`.
+/// Por que o painel não ligou; o `codigo` vira o motivo da falha na página do controle.
 #[derive(Debug, PartialEq)]
 pub enum Falha {
     SemInstalacao,
@@ -45,7 +44,7 @@ impl Falha {
         }
     }
 
-    /// O que a `ui/erro.html` põe no lugar de `{detalhe}`: a porta, o código de saída ou o erro.
+    /// O que a página do controle põe no lugar de `{detalhe}`: a porta, a saída ou o erro.
     pub fn detalhe(&self) -> String {
         match self {
             Falha::Porta(p) | Falha::SemResposta(p) => p.to_string(),
@@ -205,11 +204,6 @@ pub fn e_o_jobot(resposta: &[u8]) -> bool {
     saude(resposta).is_some()
 }
 
-/// O `segundo_plano` do `/saude-local` (desenho 5.5); sem o joBot ou sem o booleano: `None`.
-pub fn segundo_plano(resposta: &[u8]) -> Option<bool> {
-    saude(resposta)?.get("segundo_plano")?.as_bool()
-}
-
 fn conectar(porta: u16, prazo: Duration) -> Option<TcpStream> {
     TcpStream::connect_timeout(&SocketAddr::from(([127, 0, 0, 1], porta)), prazo).ok()
 }
@@ -233,8 +227,9 @@ pub fn perguntar_saude(porta: u16) -> bool {
     e_o_jobot(&pedir_saude(porta))
 }
 
-pub fn perguntar_segundo_plano(porta: u16) -> Option<bool> {
-    segundo_plano(&pedir_saude(porta))
+/// A resposta da `/saude-local` (o joBot no ar), para o estado e os avisos do controle.
+pub fn perguntar(porta: u16) -> Option<serde_json::Value> {
+    saude(&pedir_saude(porta))
 }
 
 pub fn porta_ocupada(porta: u16) -> bool {
@@ -299,9 +294,16 @@ pub fn sem_python_de_fora(comando: &mut Command) -> &mut Command {
 }
 
 /// `jobot <subcomando>` destacado (sessão própria no POSIX, grupo próprio sem console no
-/// Windows, como `processo.destacar`): o servidor nunca é filho preso à casca.
+/// Windows, como `processo.destacar`): o servidor nunca é filho preso à casca. Com o ambiente
+/// da casca: dentro de um AppImage, o servidor que fica ligado depois dela sai dele (D217).
 pub fn comando_destacado(jobot: &Path, subcomando: &str) -> Command {
+    comando_destacado_em(jobot, subcomando, &crate::controle::ambiente_da_casca())
+}
+
+/// O miolo de `comando_destacado`, com o ambiente da casca (`vars`) injetado.
+fn comando_destacado_em(jobot: &Path, subcomando: &str, vars: &[(String, String)]) -> Command {
     let mut comando = Command::new(jobot);
+    crate::controle::fora_da_pasta_do_appimage(&mut comando, vars);
     sem_python_de_fora(&mut comando)
         .arg(subcomando)
         .stdin(Stdio::null())
@@ -366,12 +368,11 @@ fn achar_ou_subir_com(
             None => Sonda::Espera,
         }
     });
-    let subiu = filho.is_some();
     if let Some(mut c) = filho.filter(|_| saiu.is_none()) {
         std::thread::spawn(move || c.wait()); // colhe o processo quando ele sair
     }
     match (pronto, saiu) {
-        (true, _) => Ok(Servidor { porta: p, subiu }),
+        (true, _) => Ok(Servidor { porta: p }),
         (false, Some(codigo)) => Err(Falha::Saiu(codigo)),
         (false, None) if porta_ocupada(p) && !perguntar_saude(p) => Err(Falha::Porta(p)),
         _ => Err(Falha::SemResposta(p)),
@@ -503,30 +504,6 @@ mod testes {
     }
 
     #[test]
-    fn segundo_plano_vem_da_saude_do_jobot() {
-        let com = |corpo: &str| format!("HTTP/1.1 200 OK\r\n\r\n{corpo}").into_bytes();
-        let ligado = com(r#"{"app":"jobot","versao":"0.4.0","segundo_plano":true}"#);
-        let desligado = com(r#"{"app":"jobot","versao":"0.4.0","segundo_plano":false}"#);
-        assert_eq!(segundo_plano(&ligado), Some(true));
-        assert_eq!(segundo_plano(&desligado), Some(false));
-        // sem o campo, com outro tipo ou de outro programa: não se sabe, e a casca não para nada
-        assert_eq!(segundo_plano(&com(r#"{"app":"jobot"}"#)), None);
-        let texto = com(r#"{"app":"jobot","segundo_plano":"false"}"#);
-        assert_eq!(segundo_plano(&texto), None);
-        let outro = com(r#"{"app":"outro","segundo_plano":false}"#);
-        assert_eq!(segundo_plano(&outro), None);
-        assert_eq!(segundo_plano(b"lixo"), None);
-    }
-
-    #[test]
-    fn pergunta_o_segundo_plano_pela_rede_local() {
-        let p =
-            servidor_falso(b"HTTP/1.1 200 OK\r\n\r\n{\"app\":\"jobot\",\"segundo_plano\":false}");
-        assert_eq!(perguntar_segundo_plano(p), Some(false));
-        assert_eq!(perguntar_segundo_plano(porta_livre()), None);
-    }
-
-    #[test]
     fn pergunta_a_saude_pela_rede_local() {
         let ouvinte = TcpListener::bind("127.0.0.1:0").unwrap();
         let p = ouvinte.local_addr().unwrap().port();
@@ -630,6 +607,41 @@ mod testes {
         assert_eq!(fora, ["LD_LIBRARY_PATH", "PYTHONHOME", "PYTHONPATH"]);
     }
 
+    /// D217: o `serve` que fica ligado depois da casca não fica preso ao AppImage: sem as
+    /// variáveis do AppRun e na casa da pessoa, não em `$APPDIR/usr`.
+    #[test]
+    fn comando_destacado_dentro_do_appimage_sai_dele() {
+        let vars: Vec<(String, String)> = [
+            ("APPDIR", "/tmp/.mount_jobot1"),
+            ("APPIMAGE", "/home/p/joBot.AppImage"),
+            ("HOME", "/home/p"),
+            ("PATH", "/tmp/.mount_jobot1/usr/bin:/usr/bin"),
+            ("LANG", "pt_BR.UTF-8"),
+        ]
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .into();
+        let c = comando_destacado_em(Path::new("/v/bin/jobot"), "serve", &vars);
+        assert_eq!(c.get_current_dir(), Some(Path::new("/home/p")));
+        let envs: std::collections::HashMap<_, _> = c
+            .get_envs()
+            .map(|(k, v)| (k.to_str().unwrap(), v.map(|v| v.to_str().unwrap())))
+            .collect();
+        assert_eq!(envs["APPDIR"], None);
+        assert_eq!(envs["APPIMAGE"], None);
+        assert_eq!(envs["PATH"], Some("/usr/bin"));
+        assert_eq!(envs["PWD"], Some("/home/p"));
+        assert_eq!(envs["PYTHONHOME"], None);
+        assert!(
+            !envs.contains_key("LANG"),
+            "o que não é do AppImage fica como está"
+        );
+        assert!(!envs.contains_key("HOME"));
+        // fora de um AppImage, nada muda: nem a pasta
+        let fora = comando_destacado_em(Path::new("/v/bin/jobot"), "sair", &vars[2..]);
+        assert_eq!(fora.get_current_dir(), None);
+        assert_eq!(fora.get_args().collect::<Vec<_>>(), ["sair"]);
+    }
+
     /// Um filho de verdade conta onde ficaram a entrada, as saídas e o grupo de processos.
     #[cfg(target_os = "linux")]
     #[test]
@@ -717,13 +729,7 @@ mod testes {
         let p = servidor_falso(b"HTTP/1.1 200 OK\r\n\r\n{\"app\":\"jobot\"}");
         let _dono = trava_presa(&dados, &format!("42\n{p}\n"));
         let r = subir_com_relogio_falso(&dados, Path::new(NAO_EXISTE), porta_livre());
-        assert_eq!(
-            r,
-            Ok(Servidor {
-                porta: p,
-                subiu: false
-            })
-        );
+        assert_eq!(r, Ok(Servidor { porta: p }));
     }
 
     #[test]
@@ -786,13 +792,7 @@ mod testes {
         .take(3)
         .find(|r| !matches!(r, Err(Falha::NaoSubiu(e)) if e.contains("busy")))
         .unwrap();
-        assert_eq!(
-            r,
-            Ok(Servidor {
-                porta: p,
-                subiu: true
-            })
-        );
+        assert_eq!(r, Ok(Servidor { porta: p }));
     }
 
     #[test]

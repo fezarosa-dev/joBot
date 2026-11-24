@@ -618,6 +618,16 @@ def test_buscando_agora(painel: Painel) -> None:
     assert "Próxima busca" not in texto
 
 
+@pytest.mark.parametrize("tipo", ["descoberta", "paginas", "login"])
+def test_outra_execucao_rodando_nao_e_busca(painel: Painel, tipo: str) -> None:
+    """Descoberta, páginas e login rodando não são "Buscando agora." (como no `_andamento`)."""
+    painel.execucao(HORA - timedelta(hours=1))
+    painel.execucao(HORA - timedelta(minutes=1), tipo=tipo, concluir=False)
+    texto = painel.texto()
+    assert "Buscando agora." not in texto
+    assert "Próxima busca automática" in texto
+
+
 def test_proxima_com_relogio_que_voltou(painel: Painel) -> None:
     painel.execucao(HORA + timedelta(days=1))  # a última busca está no futuro
     texto = painel.texto()

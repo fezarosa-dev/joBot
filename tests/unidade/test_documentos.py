@@ -189,7 +189,7 @@ def test_changelog_tem_as_mesmas_secoes_nas_duas_linguas() -> None:
 
 def test_changelog_traz_a_versao_do_pacote() -> None:
     projeto = tomllib.loads(texto("pyproject.toml"))["project"]["version"]
-    assert projeto == __version__ == "0.4.0"
+    assert projeto == __version__ == "0.4.1"
     for caminho in CHANGELOG.values():
         conteudo = texto(caminho)
         for versao in (projeto, "0.1.0"):
@@ -377,6 +377,7 @@ CITA: Mapping[str, Mapping[str, tuple[str, ...]]] = {
             r"só quando você",
             r"o marca na instalação",
         ),
+        "gmail": (r"Gmail", r"senha de app", r"só quando você"),
     },
     "en": {
         "fontes": (r"public job sources",),
@@ -393,6 +394,7 @@ CITA: Mapping[str, Mapping[str, tuple[str, ...]]] = {
             r"only when you",
             r"check it during installation",
         ),
+        "gmail": (r"Gmail", r"app password", r"only when you"),
     },
 }
 CONDICAO: Mapping[str, Mapping[bool, str]] = {
@@ -411,7 +413,7 @@ CHAVE_DO_PADRAO = {
 FONTES_LIGADAS = {"pt": r"vêm todas ligadas", "en": r"all come on"}
 # pedidos que só saem quando a pessoa age, sem padrão ligado ou desligado: a frase diz quando
 # (os sites com login são vários, cada um com a sua chave, sempre desligada: a frase diz isso)
-SO_QUANDO_PEDE = {"endereço", "atualização", "sites com login", "navegador"}
+SO_QUANDO_PEDE = {"endereço", "atualização", "sites com login", "navegador", "gmail"}
 
 
 def test_condicao_aceita_os_dois_generos() -> None:
@@ -539,14 +541,37 @@ V0_4_0 = "## [0.4.0] - 2026-11-17"
 RESUMO_0_4_0 = {"pt": ("fase 3", "janela", "instalador"), "en": ("Phase 3", "window", "installer")}
 
 
+# a 0.4.1 corrige o Linux; no topo, o aviso a quem tem a janela 0.4.0 (D214.3)
+V0_4_1 = "## [0.4.1] - 2026-11-24"
+RESUMO_0_4_1 = {"pt": ("Linux", "controle", "navegador"), "en": ("Linux", "control", "browser")}
+AVISO_0_4_1 = {
+    "pt": "**Quem tem a janela 0.4.0:** instale a janela 0.4.1 antes de usar o Atualizar agora",
+    "en": "**If you have the 0.4.0 window:** install the 0.4.1 window before using Update now",
+}
+
+
 @pytest.mark.parametrize("lingua", LINGUAS)
-def test_changelog_fecha_a_0_4_0(lingua: str) -> None:
-    """A 0.4.0 é a primeira seção de versão, "Não lançado" fica vazio e o resumo cobre a fase 3."""
+def test_changelog_fecha_a_0_4_1(lingua: str) -> None:
+    """A 0.4.1 é a primeira seção de versão, logo depois de "Não lançado", e abre com o aviso a
+    quem tem a janela 0.4.0, antes do resumo."""
     conteudo = texto(CHANGELOG[lingua])
     assert NAO_LANCADO[lingua] in conteudo, CHANGELOG[lingua]
     inicio = conteudo.index(NAO_LANCADO[lingua])
     fim = conteudo.index("\n## [", inicio + 1)
-    assert conteudo[inicio:fim].strip() == NAO_LANCADO[lingua], CHANGELOG[lingua]
+    assert conteudo[fim + 1 :].startswith(V0_4_1), CHANGELOG[lingua]
+    secao = conteudo[fim + 1 :]
+    resumo = secao[: secao.index("###")]
+    assert resumo.split("\n\n")[1].startswith(AVISO_0_4_1[lingua]), CHANGELOG[lingua]
+    for termo in RESUMO_0_4_1[lingua]:
+        assert termo in resumo, (CHANGELOG[lingua], termo)
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_changelog_fecha_a_0_4_0(lingua: str) -> None:
+    """A 0.4.0 vem logo depois da 0.4.1, e o resumo dela cobre a fase 3."""
+    conteudo = texto(CHANGELOG[lingua])
+    inicio = conteudo.index(V0_4_1)
+    fim = conteudo.index("\n## [", inicio + 1)
     assert conteudo[fim + 1 :].startswith(V0_4_0), CHANGELOG[lingua]
     secao = conteudo[fim + 1 :]
     resumo = secao[: secao.index("###")]
@@ -657,8 +682,8 @@ FASE_1_CONCLUIDA = {
     ".github/CONTRIBUTING.en.md": (
         r"Phases 1, 2 and 3 \(foundation, browser with login and installer\) are complete"
     ),
-    ".github/SECURITY.md": r"(?i)só a versão mais recente \(hoje a 0\.4\.0\)",
-    ".github/SECURITY.en.md": r"(?i)only the latest version \(currently 0\.4\.0\)",
+    ".github/SECURITY.md": r"(?i)só a versão mais recente \(hoje a 0\.4\.1\)",
+    ".github/SECURITY.en.md": r"(?i)only the latest version \(currently 0\.4\.1\)",
     ".github/SUPPORT.md": r"formulário de bug",
     ".github/SUPPORT.en.md": r"bug form",
     "docs/decisions/0017-fases.md": r"fases 1, 2 e 3 estão concluídas",
@@ -776,6 +801,88 @@ def test_status_da_fase_3_igual_nos_documentos(caminho: str) -> None:
     conteudo = texto(caminho)
     assert re.search(FASE_3_CONCLUIDA[caminho], conteudo), caminho
     assert FASE_3_EM_OBRAS.search(conteudo) is None, caminho
+
+
+# o que cada documento de estado vivo diz da fase 4 (T400, D185.26): sendo construída
+FASE_4_EM_OBRAS = {
+    "docs/decisions/0017-fases.md": r"Fase 4, IA local:.*Status: sendo construída, rumo à 0\.5\.0",
+    "docs/decisions/README.md": r"a fase 4 está sendo construída \(rumo à 0\.5\.0\)",
+    "wiki/Roteiro.md": r"🟡 \| \*\*4\. IA local\*\*.*\| Sendo construída \(rumo à 0\.5\.0\) \|",
+    "wiki/Roadmap.md": r"🟡 \| \*\*4\. Local AI\*\*.*\| Being built \(toward 0\.5\.0\) \|",
+    "README.md": r"\*\*4\. IA local\*\*.*\| 🟡 Sendo construída \(rumo à 0\.5\.0\) \|",
+    "README.en.md": r"\*\*4\. Local AI\*\*.*\| 🟡 Being built \(toward 0\.5\.0\) \|",
+    ".github/CONTRIBUTING.md": r"A fase 4 \(IA local\) está sendo construída, rumo à 0\.5\.0",
+    ".github/CONTRIBUTING.en.md": r"Phase 4 \(local AI\) is being built, toward 0\.5\.0",
+}
+# sobra do tempo em que a fase 4 estava só planejada
+FASE_4_PLANEJADA = re.compile(
+    r"4\. IA local\*\*[^\n]*Planejada|4\. Local AI\*\*[^\n]*Planned"
+    r"|Fase 4, IA local:[^\n]*planejada|⚪ Fase 4|⚪ Phase 4"
+    r"|fases 4 a 9 estão planejadas|Phases 4 to 9 are planned",
+    re.IGNORECASE,
+)
+
+
+@pytest.mark.parametrize("caminho", sorted(FASE_4_EM_OBRAS))
+def test_status_da_fase_4_igual_nos_documentos(caminho: str) -> None:
+    """A fase 4 consta como sendo construída em todo documento de estado vivo, e nenhum deles
+    ainda a chama de planejada (T400)."""
+    conteudo = texto(caminho)
+    assert re.search(FASE_4_EM_OBRAS[caminho], conteudo), caminho
+    assert FASE_4_PLANEJADA.search(conteudo) is None, caminho
+
+
+def test_fase_4_planejada_pega_as_frases_antigas() -> None:
+    """Controle positivo: o regex reconhece cada frase de "planejada" que a T400 trocou."""
+    antigas = (
+        "| ⚪ | **4. IA local** | Pacote offline (llama-server + Qwen) | Planejada |",
+        "| ⚪ | **4. Local AI** | Offline package (llama-server + Qwen) | Planned |",
+        "- Fase 4, IA local: pacote offline (llama-server + Qwen). Status: planejada.",
+        'F3 --> F4["⚪ Fase 4 · IA local"]',
+        "<summary><strong>⚪ Phase 4, Local AI</strong></summary>",
+        "As fases 4 a 9 estão planejadas.",
+        "Phases 4 to 9 are planned.",
+    )
+    assert [a for a in antigas if FASE_4_PLANEJADA.search(a) is None] == []
+
+
+# o ajuste do Laya antes da fase 4 (D141): adiado em 2026-11-17 (D185.8), autorizado pelo dono em
+# 2026-11-24 (D219)
+LAYA_AUTORIZADO = ("docs/decisions/0015-treino.md", "docs/decisions/0017-fases.md")
+
+
+@pytest.mark.parametrize("caminho", LAYA_AUTORIZADO)
+def test_laya_antes_da_fase_4_diz_autorizado(caminho: str) -> None:
+    linhas = [
+        linha
+        for linha in texto(caminho).splitlines()
+        if linha.startswith("- ")
+        and not linha.startswith(("- [", "- **"))
+        and "Laya" in linha
+        and "antes da fase 4" in linha
+    ]
+    assert linhas, caminho  # controle: achou a linha do Laya
+    assert [linha for linha in linhas if "autorizou o treino" not in linha] == [], caminho
+    assert [linha for linha in linhas if "2026-11-24 (D219" not in linha] == [], caminho
+
+
+def test_indice_das_adrs_lista_todas() -> None:
+    numeros = sorted(
+        p.name[:4] for p in (RAIZ / "docs/decisions").glob("[0-9][0-9][0-9][0-9]-*.md")
+    )
+    assert "0026" in numeros  # controle: a ADR da fase 4 existe
+    conteudo = texto("docs/decisions/README.md")
+    assert [n for n in numeros if f"| {n} | [" not in conteudo] == []
+
+
+def test_adr_0026_marca_para_confirmar_cada_escolha() -> None:
+    """Toda frase da decisão vem da D185, que o dono ainda não confirmou (padrões «Dúvidas»)."""
+    conteudo = texto("docs/decisions/0026-ia-da-fase-4.md")
+    assert "## Decisão" in conteudo
+    decisao = conteudo[conteudo.index("## Decisão") : conteudo.index("## Consequências")]
+    itens = [linha for linha in decisao.splitlines() if linha.startswith("- ")]
+    assert len(itens) >= 5  # controle: achou os itens
+    assert [i for i in itens if "para confirmar" not in i] == []
 
 
 # T341: a instalação pelo instalador da fase 3, por língua; cada termo só o texto novo tem

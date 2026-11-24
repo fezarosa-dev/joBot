@@ -115,7 +115,7 @@
   background-color: var(--trilho-progresso);
 }
 
-/* a largura vem de data-valor pelo app.js, numa animação linear de 2 s */
+/* a largura vem de data-valor pelo app.js, numa animação fluida de 2 s (D216) */
 .progresso-preenchimento {
   block-size: 100%;
   inline-size: 0;
@@ -235,6 +235,11 @@
 }
 
 @media (forced-colors: active) {
+  .botao-buscar,
+  .botao-sair {
+    border: 1px solid ButtonText;
+  }
+
   .progresso-trilho {
     border: 1px solid CanvasText;
   }

@@ -176,7 +176,8 @@ def salario_texto(item: Item, idioma: str, exibicao: Exibicao | None = None) -> 
             texto = "R$ " + taxa(str(venda_x), idioma)
             cotacao = _cotacao(idioma, moeda, texto, dia_x.isoformat())
         return SalarioTexto(original, _convertido(item, idioma, "BRL", None), cotacao)
-    if ex.cotacao is None:  # sem a cotação de Y: o valor em reais, com a nota
+    # sem a cotação de Y (ou com uma inválida): o valor em reais, com a nota
+    if ex.cotacao is None or _venda(str(ex.cotacao.venda)) is None:
         convertido = None if moeda == "BRL" else _convertido(item, idioma, "BRL", None)
         nota = t(idioma, "vagas.sem_cotacao_exibicao", moeda=ex.moeda) if convertido else None
         return SalarioTexto(original, convertido, nota)

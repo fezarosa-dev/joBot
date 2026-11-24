@@ -281,9 +281,63 @@ def test_painel_e_topo_sem_vidro_proprio() -> None:
     assert "backdrop-filter" not in regras[".topo"].corpo
 
 
-def test_topo_usa_a_classe_vidro() -> None:
-    template = (ESTATICOS.parent / "templates" / "base.html").read_text(encoding="utf-8")
-    assert '<header class="topo vidro">' in template
+TEMPLATES = ESTATICOS.parent / "templates"
+
+
+def _tags_com_vidro() -> list[tuple[str, str]]:
+    achadas = []
+    for arquivo in sorted(TEMPLATES.rglob("*.html")):
+        for tag in re.findall(r"<\w+\b[^>]*>", arquivo.read_text(encoding="utf-8")):
+            classe = re.search(r'\bclass="([^"]*)"', tag)
+            if classe and re.search(r"(?<![\w-])vidro(-grande)?(?![\w-])", classe.group(1)):
+                achadas.append((arquivo.name, tag))
+    return achadas
+
+
+def test_vidro_so_em_camada_pequena_e_passageira() -> None:
+    """T353 (D206): `backdrop-filter` pesa fora do Chromium. O vidro fica só no que abre e fecha
+    (`<dialog>` ou `popover`: menu, paleta, alerta, sheet); a lateral e a barra, grandes e fixas,
+    não o usam."""
+    tags = _tags_com_vidro()
+    assert len(tags) >= 5  # menu, alerta, paleta, detalhes do progresso, sheet
+    fixas = [
+        f"{nome}: {tag}"
+        for nome, tag in tags
+        if not tag.startswith("<dialog") and not re.search(r"\spopover\b", tag)
+    ]
+    assert fixas == []
+
+
+def test_lateral_e_topo_com_fundo_solido() -> None:
+    """Sem vidro, a lateral e a barra levam o fundo sólido da barra, nos dois temas (o token traz
+    o par claro e escuro), e nenhum filtro."""
+    regras = [
+        r
+        for nome in ("base.css", "casca.css")
+        for r in _regras(_sem_comentarios((PASTA / nome).read_text(encoding="utf-8")))
+        if not r.contexto
+    ]
+    for seletor in (".topo", ".lateral"):
+        corpos = [r.corpo for r in regras if seletor in _seletores(r)]
+        assert any(re.search(r"background-color\s*:\s*var\(--solido-barra\)", c) for c in corpos), (
+            seletor
+        )
+        assert not any("backdrop-filter" in c for c in corpos), seletor
+
+
+def test_animacao_infinita_so_com_trabalho_em_curso() -> None:
+    """T353 (D206): nada gira ou pulsa com a tela parada. Animação sem fim só em seletor de
+    trabalho em curso: `.htmx-request` (o pedido saiu) ou `.indeterminado` (a barra de espera,
+    que só existe enquanto a busca prepara ou o pedido corre). O bloco de movimento reduzido do
+    base.css desliga todas."""
+    infinitas = [(nome, r) for nome, r in _todas() if re.search(r"\binfinite\b", r.corpo)]
+    assert len(infinitas) >= 2  # o ponto do botão e a barra indeterminada
+    paradas = [
+        f"{nome}: {r.seletor}"
+        for nome, r in infinitas
+        if not all(re.search(r"\.(htmx-request|indeterminado)(?![\w-])", s) for s in _seletores(r))
+    ]
+    assert paradas == []
 
 
 def test_raios_e_sombras_novos() -> None:
@@ -447,20 +501,70 @@ def test_alerta_nao_anula_o_caminho_solido_do_vidro() -> None:
     assert alerta < solido.start(), "base.css: .alerta depois dos blocos sólidos do vidro"
 
 
-def test_toda_tela_com_apagar_em_details_liga_o_css_que_o_estiliza() -> None:
-    """Empresas e Sites ainda usam <details class="apagar">; a regra só sai com o último uso."""
+def test_diferenca_dos_programas_usa_o_estilo_que_a_pagina_liga() -> None:
+    """A diferença dos Programas (vagas/miolo.html, parcial de vagas/pagina.html) usa o
+    `.ver-mudancas` do sites.css, que a página liga; o `.apagar` saiu com o último uso."""
     modelos = ESTATICOS.parent / "templates"
-    for modelo in modelos.rglob("*.html"):
-        if 'class="apagar"' not in modelo.read_text(encoding="utf-8"):
+    miolo = (modelos / "vagas" / "miolo.html").read_text(encoding="utf-8")
+    pagina = (modelos / "vagas" / "pagina.html").read_text(encoding="utf-8")
+    assert '<details class="ver-mudancas">' in miolo
+    ligados = set(re.findall(r"/static/css/([\w-]+)\.css", pagina))
+    assert any(r.seletor == ".ver-mudancas summary" for arq, r in _todas() if arq[:-4] in ligados)
+    com_apagar = [
+        m.name for m in modelos.rglob("*.html") if 'class="apagar"' in m.read_text("utf-8")
+    ]
+    assert not com_apagar, com_apagar
+    assert not [arq for arq, r in _todas() if ".apagar" in r.seletor]
+
+
+FORCADAS = "@media (forced-colors: active)"
+
+
+def test_controle_sem_aparencia_tem_borda_nas_cores_forcadas() -> None:
+    """Controle com `appearance: none` (e `border: 0`) vence o `button` do bloco de cores forçadas
+    do base.css: o próprio arquivo devolve a borda a cada seletor (padroes-tela, «CSS e
+    template»)."""
+    forcadas: dict[str, list[Regra]] = {}
+    for arq, r in _todas():
+        if FORCADAS in r.contexto:
+            forcadas.setdefault(arq, []).append(r)
+    sem_borda = []
+    for arq, r in _todas():
+        if r.contexto or _valor(r, "appearance") != "none":
             continue
-        texto = modelo.read_text(encoding="utf-8")
-        if modelo.name != "lista.html" and "{% extends" not in texto:
-            continue  # parcial: o CSS vem da página que a inclui
-        ligados = {m for m in re.findall(r"/static/css/([\w-]+)\.css", texto)}
-        estilizado = any(
-            r.seletor == ".apagar summary" for arq, r in _todas() if arq[:-4] in ligados
-        )
-        assert estilizado, f'{modelo.name}: class="apagar" sem .apagar summary no CSS ligado'
+        for seletor in _seletores(r):
+            bordas = [
+                _valor(f, "border") or "" for f in forcadas.get(arq, []) if seletor in _seletores(f)
+            ]
+            if not any("ButtonText" in b for b in bordas):
+                sem_borda.append(f"{arq}: {seletor}")
+    assert not sem_borda, sem_borda
+
+
+def test_chip_ligado_usa_a_selecao_do_sistema_nas_cores_forcadas() -> None:
+    """O chip ligado só difere pelo fundo, que as cores forçadas trocam: lá ele usa Highlight."""
+    css = _sem_comentarios((PASTA / "vagas.css").read_text(encoding="utf-8"))
+    for seletor in ('.chip[aria-pressed="true"]', '.chip[aria-current="true"]'):
+        regras = [r for r in _regras(css) if FORCADAS in r.contexto and seletor in _seletores(r)]
+        corpo = " ".join(r.corpo for r in regras)
+        assert "Highlight" in corpo and "forced-color-adjust: none" in corpo, seletor
+
+
+@pytest.mark.parametrize(
+    ("arquivo", "seletor", "cor"),
+    [
+        ("vagas.css", ".chip-info", "CanvasText"),
+        ("configuracoes.css", ".config .botao:disabled", "GrayText"),
+    ],
+)
+def test_nas_cores_forcadas_so_controle_ativo_tem_borda_de_botao(
+    arquivo: str, seletor: str, cor: str
+) -> None:
+    """O chip só informativo não é controle e o botão desligado não está ativo: nas cores forçadas
+    a borda deles não é a ButtonText do botão que se clica."""
+    css = _sem_comentarios((PASTA / arquivo).read_text(encoding="utf-8"))
+    regras = [r for r in _regras(css) if FORCADAS in r.contexto and seletor in _seletores(r)]
+    assert any(_valor(r, "border-color") == cor for r in regras), seletor
 
 
 def test_interruptor_mora_na_base_e_buscas_nao_liga_o_css_de_configuracoes() -> None:

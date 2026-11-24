@@ -1,5 +1,5 @@
 {
-  "pesos": {"cargo": 40, "local": 20, "nivel": 15, "salario": 15, "idioma": 10},
+  "pesos": {"cargo": 40, "local": 20, "nivel": 15, "salario": 15, "idioma": 10, "habilidades": 25},
   "pontos": {
     "cargo_titulo": 40,
     "cargo_descricao": 20,

@@ -398,7 +398,7 @@ wheels = [
 
 [[package]]
 name = "jobot"
-version = "0.4.0"
+version = "0.4.1"
 source = { editable = "." }
 dependencies = [
     { name = "fastapi" },
@@ -406,6 +406,7 @@ dependencies = [
     { name = "jinja2" },
     { name = "keyring" },
     { name = "playwright" },
+    { name = "pydantic" },
     { name = "python-multipart" },
     { name = "selectolax" },
     { name = "uvicorn" },
@@ -426,6 +427,7 @@ requires-dist = [
     { name = "jinja2", specifier = "==3.1.6" },
     { name = "keyring", specifier = "==25.7.0" },
     { name = "playwright", specifier = "==1.65.1" },
+    { name = "pydantic", specifier = "==2.14.3" },
     { name = "python-multipart", specifier = "==0.0.33" },
     { name = "selectolax", specifier = "==1.0.2" },
     { name = "uvicorn", specifier = "==0.54.0" },

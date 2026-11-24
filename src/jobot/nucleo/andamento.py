@@ -1,12 +1,10 @@
 """Curva e pesos do progresso da busca (puro, sem relógio próprio)."""
 
-import math
 from collections.abc import Mapping, Sequence
 
 PESOS: Mapping[str, int] = {"coleta": 80, "detalhes": 12, "cotacoes": 3, "encaixe": 5}
-EXPOENTE = 1.25
+EXPOENTE = 1.5  # D216: rápida no começo, freando aos poucos
 TETO = 0.99
-PARADA_S = 3.0
 PASSO_S = 2.0
 RESTO = 0.9
 
@@ -55,20 +53,23 @@ def fracao(
 
 
 def curva(p: float) -> float:
-    return float(p**EXPOENTE)
+    """Rápida no começo e freando sem degrau até o fim (D216, pedido do dono)."""
+    return float(1 - (1 - p) ** EXPOENTE)
 
 
 def valor_mostrado(
     p: float, fim_da_etapa: float, partida: float, parado_s: float, *, fechada: bool
 ) -> float:
-    """Valor da barra: nunca desce e, com a etapa parada, só se aproxima do fim dela."""
+    """Valor da barra: nunca desce e, com a etapa parada, só se aproxima do fim dela.
+
+    O avanço lento é contínuo desde o primeiro instante (D216): a cada `PASSO_S` o que falta
+    até o fim da etapa cai a `RESTO`, sem espera antes nem degrau entre um passo e outro.
+    """
     if fechada:
         return 1.0
     limite = curva(fim_da_etapa)
-    v = max(curva(p), partida)
-    if parado_s >= PARADA_S:
-        n = math.floor((parado_s - PARADA_S) / PASSO_S)
-        v = max(v, limite - (limite - partida) * RESTO**n)
+    resto = float(RESTO ** (parado_s / PASSO_S))
+    v = max(curva(p), partida, limite - (limite - partida) * resto)
     return min(v, limite, TETO)
 
 

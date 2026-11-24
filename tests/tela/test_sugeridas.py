@@ -14,6 +14,7 @@ import pytest
 from fastapi import FastAPI
 from playwright.sync_api import Locator, Page, expect
 
+from apoio.console import anotar_erros
 from apoio.relogio import RelogioFalso
 from jobot.banco.cadastros import adicionar_empresa, remover_empresa
 from jobot.banco.conexao import abrir
@@ -62,9 +63,7 @@ def _cartao(page: Page, nome: str) -> Locator:
 
 
 def test_lista_as_pendentes_e_avisa_da_removida(page: Page, painel: str) -> None:
-    erros: list[str] = []  # violação do CSP aparece como erro no console
-    page.on("console", lambda m: erros.append(m.text) if m.type == "error" else None)
-    page.on("pageerror", lambda e: erros.append(str(e)))
+    erros = anotar_erros(page)  # violação do CSP aparece como erro no console
     page.goto(f"{painel}/empresas/sugeridas")
 
     expect(page.get_by_role("heading", level=1)).to_have_text("Empresas sugeridas")
