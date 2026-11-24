@@ -3,12 +3,12 @@
     Tirar, e um para o novo, até `teto_itens`) e "Apagar perfil" com o alerta de confirmação (sem
     JavaScript, a página `confirmar.html`). Todo formulário posta em /configuracoes/perfil; o campo
     `secao` diz o que grava (sem ele, as habilidades). No erro, `erro_campo` é o `id` do controle
-    marcado e `item_digitado` volta ao item `erro_item`. A frase de privacidade diz para onde vai o
+    marcado (com o foco, sem JavaScript) e `item_digitado` volta ao item `erro_item`. A frase de privacidade diz para onde vai o
     texto da vaga, pelo estado da tarefa `encaixe`. -#}
 {% from "_alerta.html" import alerta with context %}
 {% macro descrito(id, ajuda=none) -%}
   {%- set ids = ([id ~ "-ajuda"] if ajuda else []) + (["config-erro"] if erro_campo == id else []) -%}
-  {%- if ids %} aria-describedby="{{ ids|join(' ') }}"{% endif %}{% if erro_campo == id %} aria-invalid="true"{% endif %}
+  {%- if ids %} aria-describedby="{{ ids|join(' ') }}"{% endif %}{% if erro_campo == id %} aria-invalid="true" autofocus{% endif %}
 {%- endmacro %}
 {% macro entrada(id, nome, rotulo, valor, tipo="text", teto=200, ajuda=none, autocomplete="off", mes=false, obrigatorio=false) -%}
 <div class="campo">
@@ -41,11 +41,15 @@
   </select>
 </div>
 {%- endmacro %}
-{% macro botoes(novo) -%}
+{#- os botões de um item salvo dizem qual item no nome acessível ("Tirar Analista"): todo item tem os
+    seus, e o Tirar apaga na hora (D230.2) -#}
+{% macro botoes(novo, item) -%}
 <div class="acoes">
-  <button type="submit" class="botao botao-primario">{{ t("configuracoes.perfil.adicionar") if novo else t("configuracoes.salvar") }}</button>
-  {%- if not novo %}
-  <button type="submit" name="tirar" value="1" class="botao botao-secundario" formnovalidate>{{ t("configuracoes.perfil.tirar") }}</button>
+  {%- if novo %}
+  <button type="submit" class="botao botao-primario">{{ t("configuracoes.perfil.adicionar") }}</button>
+  {%- else %}
+  <button type="submit" class="botao botao-primario" aria-label="{{ t('configuracoes.perfil.salvar_item', item=item) }}">{{ t("configuracoes.salvar") }}</button>
+  <button type="submit" name="tirar" value="1" class="botao botao-secundario" formnovalidate aria-label="{{ t('configuracoes.perfil.tirar_item', item=item) }}">{{ t("configuracoes.perfil.tirar") }}</button>
   {%- endif %}
 </div>
 {%- endmacro %}
@@ -63,7 +67,7 @@
     {{ entrada(prefixo ~ "-fim", "fim", t("configuracoes.perfil.experiencia.fim"), v.fim, mes=true, ajuda=t("configuracoes.perfil.experiencia.fim.ajuda")) }}
     {{ caixa(prefixo ~ "-descricao", "descricao", t("configuracoes.perfil.experiencia.descricao"), v.descricao, linhas=3) }}
   </fieldset>
-  {{ botoes(novo) }}
+  {{ botoes(novo, e.cargo) }}
 </form>
 {%- endmacro %}
 {% macro curso(c, prefixo, novo=false) -%}
@@ -79,7 +83,7 @@
     {{ lista(prefixo ~ "-situacao", "situacao", t("configuracoes.perfil.curso.situacao"), situacoes, v.situacao, "configuracoes.perfil.situacao.") }}
     {{ entrada(prefixo ~ "-previsao", "previsao", t("configuracoes.perfil.curso.previsao"), v.previsao, mes=true) }}
   </fieldset>
-  {{ botoes(novo) }}
+  {{ botoes(novo, c.nome) }}
 </form>
 {%- endmacro %}
 {% if apagado %}
@@ -135,7 +139,7 @@
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <div class="campo">
       <label for="campo-habilidades">{{ t("configuracoes.perfil.habilidades") }}</label>
-      <textarea class="campo-texto" id="campo-habilidades" name="habilidades" rows="8" autocomplete="off" spellcheck="false" aria-describedby="habilidades-ajuda perfil-privacidade{% if erro_campo == 'campo-habilidades' %} config-erro{% endif %}"{% if erro_campo == "campo-habilidades" %} aria-invalid="true"{% endif %}>{{ habilidades_texto }}</textarea>
+      <textarea class="campo-texto" id="campo-habilidades" name="habilidades" rows="8" autocomplete="off" spellcheck="false" aria-describedby="habilidades-ajuda perfil-privacidade{% if erro_campo == 'campo-habilidades' %} config-erro{% endif %}"{% if erro_campo == "campo-habilidades" %} aria-invalid="true" autofocus{% endif %}>{{ habilidades_texto }}</textarea>
       <small id="habilidades-ajuda">{{ t("configuracoes.perfil.habilidades.ajuda") }}</small>
     </div>
     <div class="acoes">

@@ -581,6 +581,11 @@
   border-color: var(--alerta);
 }
 
+/* Perfil (T434): o controle recusado ganha a borda de alerta (e o foco, pelo `autofocus`) */
+.config-form [aria-invalid="true"] {
+  border-color: var(--alerta);
+}
+
 .cartao-gmail .campo-erro {
   color: var(--alerta);
 }

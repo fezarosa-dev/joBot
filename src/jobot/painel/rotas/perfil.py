@@ -103,6 +103,7 @@ IDIOMAS_FIXOS = ("pt", "en", "es")  # A9 do mapa do perfil; o resto vai em "outr
 NIVEIS = ("basico", "intermediario", "avancado", "fluente")  # vazio = não informar (não grava)
 TETO_ITENS = 10  # experiências e, à parte, cursos (A5)
 TETO_LINKS = 10
+TETO_OUTROS = 10  # outros idiomas; a tela desenha até um a mais, vazio
 _TETO = {"email": 254, "telefone": 40, "resumo": 2000, "descricao": 2000, "link": 500, "idioma": 60}
 _TETO_PADRAO = 200
 _MES = re.compile(r"\d{4}-(0[1-9]|1[0-2])")
@@ -125,6 +126,7 @@ _CAMPOS_ITEM = {
     "curso": ("nome", "instituicao", "situacao", "previsao"),
 }
 _PREFIXO = {"experiencia": "exp", "curso": "curso"}
+_ANCORA = {None: "habilidades", "dados": "sobre", "experiencia": "experiencias", "curso": "cursos"}
 
 
 class _Recusa(ValueError):
@@ -183,7 +185,10 @@ def _links(valor: str) -> tuple[str, ...]:
         link = _linha(linha)
         if not link or link in lista:
             continue
-        partes = urlsplit(link)
+        try:
+            partes = urlsplit(link)
+        except ValueError:  # "http://[abc", endereço que muda com NFKC: recusa, nunca 500
+            raise _Recusa("configuracoes.perfil.erro.links", "perfil-links") from None
         if partes.scheme not in ("http", "https") or not partes.netloc or len(link) > _TETO["link"]:
             raise _Recusa("configuracoes.perfil.erro.links", "perfil-links")
         lista.append(link)
@@ -202,12 +207,17 @@ def _anos(valor: str) -> int | None:
 
 
 def _idiomas(form: FormData) -> tuple[tuple[str, str], ...]:
-    """Os três fixos pelo código e os outros pelo nome digitado, cada um com o nível."""
+    """Os três fixos pelo código e os outros pelo nome digitado, cada um com o nível. Nome igual
+    a um código fixo sai (o fixo tem a sua lista); mais de `TETO_OUTROS`, recusa."""
     pares = [(c, n) for c in IDIOMAS_FIXOS if (n := _da_lista(_bruto(form, "idioma_" + c), NIVEIS))]
     nomes, niveis = form.getlist("outro_nome"), form.getlist("outro_nivel")
-    if len(nomes) != len(niveis) or not all(isinstance(v, str) for v in (*nomes, *niveis)):
+    if (
+        len(nomes) != len(niveis)
+        or len(nomes) > TETO_OUTROS + 1  # a tela nunca manda mais linhas que isso
+        or not all(isinstance(v, str) for v in (*nomes, *niveis))
+    ):
         raise HTTPException(422)
-    vistos: set[str] = set()
+    vistos = set(IDIOMAS_FIXOS)
     for posicao, (bruto, nivel_bruto) in enumerate(zip(nomes, niveis, strict=True), start=1):
         campo_id = f"perfil-outro-{posicao}"
         nome = _texto(str(bruto), campo_id, _TETO["idioma"])
@@ -215,10 +225,12 @@ def _idiomas(form: FormData) -> tuple[tuple[str, str], ...]:
         if nome is None:
             continue
         if nivel is None:
-            raise _Recusa("configuracoes.perfil.erro.nivel", campo_id)
+            raise _Recusa("configuracoes.perfil.erro.nivel", campo_id + "-nivel")
         if normalizar(nome) not in vistos:
             vistos.add(normalizar(nome))
             pares.append((nome, nivel))
+            if len(vistos) > len(IDIOMAS_FIXOS) + TETO_OUTROS:
+                raise _Recusa("configuracoes.perfil.erro.outros", campo_id)
     return tuple(pares)
 
 
@@ -246,12 +258,13 @@ def dados_do_form(form: FormData) -> perfil.Dados:
 def _dados_na_tela(dados: perfil.Dados) -> dict[str, Any]:
     """Os dados gravados como a tela os mostra: textos, os três idiomas fixos e os outros."""
     fixos = {c: n for c, n in dados.idiomas_falados if c in IDIOMAS_FIXOS}
+    outros = [(c, n) for c, n in dados.idiomas_falados if c not in IDIOMAS_FIXOS]
     return {
         **{c: "" for c in _IDS_DADOS},
         **{c: str(v) for c in _IDS_DADOS if (v := getattr(dados, c, None)) is not None},
         "links": "\n".join(dados.links),
         "idiomas": {c: fixos.get(c, "") for c in IDIOMAS_FIXOS},
-        "outros": [(c, n) for c, n in dados.idiomas_falados if c not in IDIOMAS_FIXOS] + [("", "")],
+        "outros": outros + ([("", "")] if len(outros) < TETO_OUTROS else []),
     }
 
 
@@ -306,7 +319,8 @@ def _curso(form: FormData, id_: int | None, prefixo: str) -> perfil.Curso:
 
 
 def _gravar_item(con: sqlite3.Connection, secao: str, form: FormData) -> None:
-    """Nova, editada ou tirada (o botão `tirar`). Editar a que já saiu: 404, não a traz de volta."""
+    """Nova, editada ou tirada (o botão `tirar`). Editar a que já saiu: 404, não a traz de volta.
+    O item que saiu e o teto vêm antes da conferência dos campos (duas abas abertas)."""
     id_ = _id_do_item(form)
     experiencia = secao == "experiencia"
     if "tirar" in form:
@@ -315,14 +329,15 @@ def _gravar_item(con: sqlite3.Connection, secao: str, form: FormData) -> None:
         (perfil.apagar_experiencia if experiencia else perfil.apagar_curso)(con, id_)
         return
     prefixo = f"{_PREFIXO[secao]}-{id_ if id_ is not None else 'nova'}"
+    ids = [i.id for i in (perfil.experiencias(con) if experiencia else perfil.cursos(con))]
+    if id_ is not None and id_ not in ids:
+        raise HTTPException(404)
+    if id_ is None and len(ids) >= TETO_ITENS:
+        raise _Recusa("configuracoes.perfil.erro.itens", prefixo + "-" + _CAMPOS_ITEM[secao][0])
     if experiencia:
         exp = _experiencia(form, id_, prefixo)
-        tem = len(perfil.experiencias(con))
     else:
         curso = _curso(form, id_, prefixo)
-        tem = len(perfil.cursos(con))
-    if id_ is None and tem >= TETO_ITENS:
-        raise _Recusa("configuracoes.perfil.erro.itens", prefixo + "-" + _CAMPOS_ITEM[secao][0])
     gravado = (
         perfil.gravar_experiencia(con, exp) if experiencia else perfil.gravar_curso(con, curso)
     )
@@ -360,7 +375,8 @@ async def gravar_perfil(
         prefixo = recusa.campo_id.rsplit("-", 1)[0]
         digitado = {c: str(form.get(c) or "").strip() for c in _CAMPOS_ITEM[str(secao)]}
         return 422, contexto | {"erro_item": prefixo, "item_digitado": digitado}
-    return PERFIL + "?salvo=1"
+    ancora = _ANCORA[None if secao is None else str(secao)]  # volta à seção, não ao alto (D230.1)
+    return f"{PERFIL}?salvo=1#perfil-{ancora}"
 
 
 def _item_na_tela(item: perfil.Experiencia | perfil.Curso) -> dict[str, str]:

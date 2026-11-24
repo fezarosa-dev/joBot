@@ -366,6 +366,8 @@ async def _pagina(
     contexto |= await _CONTEXTOS[grupo](request, con)
     resposta = renderizar(request, "configuracoes/pagina.html", **(contexto | ctx))
     resposta.status_code = status
+    if grupo == "perfil":  # nome, contato e resumo: o navegador não guarda cópia em disco (D230.7)
+        resposta.headers["Cache-Control"] = "no-store"
     return resposta
 
 
