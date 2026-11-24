@@ -33,6 +33,7 @@ from jobot.sistema.pastas import preparar_pasta
 PROGRAMA = b"#!/bin/sh\necho 'version: b1'\n"
 GGUF_2B = b"GGUF-2b" * 100
 GGUF_4B = b"GGUF-4b" * 150
+GGUF_LAYA = b"GGUF-laya" * 90
 
 
 def _tar(membros: dict[str, bytes]) -> bytes:
@@ -78,9 +79,11 @@ class Rede:
         build: str = "b1",
         servidor: bytes | None = None,
         modelos: dict[str, bytes] | None = None,
+        padrao: str = "laya",
     ) -> dict[str, Any]:
         servidor = _tar({f"llama-{build}/llama-server": PROGRAMA}) if servidor is None else servidor
-        modelos = {"2b": GGUF_2B, "4b": GGUF_4B} if modelos is None else modelos
+        if modelos is None:
+            modelos = {"laya": GGUF_LAYA, "2b": GGUF_2B, "4b": GGUF_4B}
         arquivo = f"llama-{build}-bin-ubuntu-x64.tar.gz"
         url = f"https://exemplo.test/releases/download/{build}/{arquivo}"
         self.arquivos[url] = servidor
@@ -94,6 +97,7 @@ class Rede:
                 "build": build,
                 "alvos": {"ubuntu-x64": _item(url, servidor, arquivo)},
             },
+            "padrao": padrao,
             "modelos": itens,
         }
 
@@ -238,27 +242,32 @@ def test_versao_que_falha_para_antes_do_modelo(
 
 
 @pytest.mark.parametrize(
-    ("gib", "modelo", "lento"),
-    [(11.5, "4b", False), (7.7, "2b", False), (6.5, "2b", True)],  # PC de 12 GB, de 8 GB e menos
+    ("gib", "lento"),
+    [(11.5, False), (7.7, False), (6.5, True)],  # PC de 12 GB, de 8 GB e menos
 )
-def test_auto_imprime_a_memoria_lida_e_o_modelo(
+@pytest.mark.parametrize("padrao", ["laya", "4b"])
+def test_auto_baixa_o_padrao_do_manifesto_e_avisa_pela_memoria(
     tmp_path: Path,
     rede: Rede,
     capsys: pytest.CaptureFixture[str],
     gib: float,
-    modelo: str,
     lento: bool,
+    padrao: str,
 ) -> None:
-    manifesto = rede.manifesto()
+    """D219.20: o modelo do `auto` é o `padrao` do manifesto em todo computador; a memória lida
+    só decide o aviso de lentidão."""
+    manifesto = rede.manifesto(padrao=padrao)
     total = int(gib * GIB)
     assert _baixar(tmp_path, rede, manifesto, "auto", memoria=lambda: total) == 0
     primeira = _linhas(capsys.readouterr().out)[:1]
-    assert primeira == [{"memoria": total, "modelo": modelo, "lento": lento}]
-    assert rede.pedidos[-1:] == [manifesto["modelos"][modelo]["url"]]
+    assert primeira == [{"memoria": total, "modelo": padrao, "lento": lento}]
+    assert rede.pedidos[-1:] == [manifesto["modelos"][padrao]["url"]]
+    assert ferramentas.ler_anotacao(tmp_path)["modelo"] == padrao
 
 
 def test_modelo_escolhido_nao_le_a_memoria(tmp_path: Path, rede: Rede) -> None:
-    """(guarda) controle: `test_auto_imprime_a_memoria_lida_e_o_modelo` lê a memória."""
+    """(guarda) controle: `test_auto_baixa_o_padrao_do_manifesto_e_avisa_pela_memoria` lê a
+    memória."""
 
     def memoria() -> int:
         raise AssertionError("leu a memória")
@@ -592,10 +601,17 @@ def test_main_chega_no_ia_local(monkeypatch: pytest.MonkeyPatch, tmp_path: Path)
     monkeypatch.setattr(ferramentas, "atualizar_ia_local", gravar("a"))
     monkeypatch.setattr(ferramentas, "remover_ia_local", gravar("r"))
     assert jobot.cli.main(["ferramentas", "baixar", "ia-local", "--modelo", "4b"]) == 0
+    assert jobot.cli.main(["ferramentas", "baixar", "ia-local", "--modelo", "laya"]) == 0
     assert jobot.cli.main(["ferramentas", "baixar", "ia-local"]) == 0
     assert jobot.cli.main(["ferramentas", "atualizar", "ia-local"]) == 0
     assert jobot.cli.main(["ferramentas", "remover", "ia-local"]) == 0
-    assert chamadas == [("b", "4b"), ("b", "auto"), ("a", tmp_path), ("r", tmp_path)]
+    assert chamadas == [
+        ("b", "4b"),
+        ("b", "laya"),
+        ("b", "auto"),
+        ("a", tmp_path),
+        ("r", tmp_path),
+    ]
     assert jobot.cli.main(["ferramentas", "baixar", "ia-local", "--modelo", "9b"]) == 2
     assert jobot.cli.main(["ferramentas", "remover", "navegador"]) == 2
 

@@ -768,7 +768,7 @@ def test_montar_gera_recursos_com_manifesto_de_tudo(tmp_path: Path) -> None:
 
 def test_manifesto_traz_os_tamanhos_do_modelo_local_de_cada_alvo(tmp_path: Path) -> None:
     """T418 (desenho 10.1): a tela do instalador mostra o tamanho do Modelo local antes de o
-    venv existir; o build copia do `ia_local.json` o `llama-server` do alvo e os dois modelos."""
+    venv existir; o build copia do `ia_local.json` o `llama-server` do alvo e o modelo padrão."""
     m = _script()
     ia = json.loads(IA_LOCAL.read_text(encoding="utf-8"))
     do_alvo = {
@@ -798,7 +798,8 @@ def test_manifesto_traz_os_tamanhos_do_modelo_local_de_cada_alvo(tmp_path: Path)
         servidor = ia["llama_server"]["alvos"][do_alvo[alvo]]["tamanho"]
         assert conteudo.get("ia_local") == {
             "servidor": servidor,
-            "modelos": {"2b": 1_280_835_840, "4b": 2_740_937_888},
+            # só o padrão: o instalador baixa o `auto`, que é o Laya em todo computador (D219.20)
+            "modelos": {"laya": 1_285_207_680},
         }, alvo
         # o manifesto do pacote de atualização (canal casca) segue só com os arquivos
         pacote = m.pacote_de_atualizacao(pasta / "recursos", pasta / "dist", "0.3.0", alvo)
