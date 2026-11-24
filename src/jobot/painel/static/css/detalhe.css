@@ -357,6 +357,37 @@ a.secundario {
   resize: vertical;
 }
 
+/* T438: o preparo de candidatura, com o espaço dos outros blocos do detalhe; as caixas com a
+   aparência das do sheet (a página da vaga não carrega o buscas.css) */
+.preparo textarea {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-controle);
+  background-color: var(--superficie);
+  color: var(--texto);
+  font: inherit;
+  font-size: 0.9375rem;
+  resize: vertical;
+}
+
+.preparo,
+.preparo-resultado,
+.preparo .campo {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.preparo :is(p, ul, form, details) {
+  margin: 0;
+}
+
+.preparo :is(.preparo-privacidade, .preparo-nota) {
+  color: var(--texto-2);
+  font-size: 0.8125rem;
+}
+
 .sheet-corpo > .dica {
   margin: 0;
 }

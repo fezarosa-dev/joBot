@@ -74,7 +74,8 @@ def test_tudo_offline_pelo_teclado(page: Page, painel: str, tmp_path: Path) -> N
     expect(page).to_have_url(re.compile(r"/configuracoes/ia(\?salvo=1)?$"))
     expect(page.get_by_role("status").filter(has_text="Salvo.")).to_be_visible()
     expect(page.get_by_text("Agora: Tudo offline.")).to_be_visible()
-    assert _tarefas(tmp_path) == {"encaixe": {"ligada": True, "backend": "local", "modelo": LOCAL}}
+    no_local = {"ligada": True, "backend": "local", "modelo": LOCAL}
+    assert _tarefas(tmp_path) == {"encaixe": no_local, "candidatura": no_local}
 
 
 def test_custo_pede_confirmacao_e_voltar_nao_liga(
@@ -116,9 +117,9 @@ def test_custo_confirmado_sem_javascript(
         expect(pagina.get_by_text("Agora: Tudo Claude.")).to_be_visible()
     finally:
         contexto.close()
-    modelo = "claude-haiku-5-5"
     assert _tarefas(tmp_path) == {
-        "encaixe": {"ligada": True, "backend": "anthropic", "modelo": modelo}
+        "encaixe": {"ligada": True, "backend": "anthropic", "modelo": "claude-haiku-5-5"},
+        "candidatura": {"ligada": True, "backend": "anthropic", "modelo": "claude-sonnet-5-5"},
     }
 
 
@@ -139,7 +140,8 @@ def test_tabela_com_modelo_invalido_marca_o_campo(
     with page.expect_navigation():
         page.get_by_role("button", name="Salvar", exact=True).click()
     expect(page.get_by_role("alert").filter(has_text="sem espaço")).to_be_visible()
-    modelo = page.get_by_role("combobox", name="Modelo", exact=True)
+    tarefa = page.get_by_role("group", name="Encaixe: o que cada vaga pede")
+    modelo = tarefa.get_by_role("combobox", name="Modelo", exact=True)
     expect(modelo).to_have_attribute("aria-invalid", "true")
     expect(modelo).to_have_value("gpt x")
     assert _tarefas(tmp_path) == {"encaixe": {"ligada": False, "backend": "", "modelo": ""}}
@@ -148,11 +150,12 @@ def test_tabela_com_modelo_invalido_marca_o_campo(
 def test_campo_e_select_com_foco_visivel_em_cores_forcadas(page: Page, painel: str) -> None:
     page.emulate_media(forced_colors="active")
     page.goto(f"{painel}{IA}")
-    modelo = page.get_by_role("combobox", name="Modelo", exact=True)
+    tarefa = page.get_by_role("group", name="Encaixe: o que cada vaga pede")
+    modelo = tarefa.get_by_role("combobox", name="Modelo", exact=True)
     modelo.focus()
     expect(modelo).to_be_focused()
     page.keyboard.press("Shift+Tab")  # pelo teclado: o select ganha o anel de foco
-    onde = page.get_by_role("combobox", name="Onde roda")
+    onde = tarefa.get_by_role("combobox", name="Onde roda")
     expect(onde).to_be_focused()
     for campo in (modelo, onde):
         borda = campo.evaluate("e => getComputedStyle(e).borderTopWidth")
@@ -196,8 +199,10 @@ def test_teste_ao_ligar_pergunta_e_mostra_a_falha_com_a_tarefa_desligada(
     expect(tarefa.get_by_role("checkbox", name="Ligada", exact=True)).to_be_checked()
     fabrica.soltar.set()
     fim = time.monotonic() + 5
+    desligada = {"ligada": False, "backend": "local", "modelo": LOCAL}
     while _tarefas(tmp_path) != {
-        "encaixe": {"ligada": False, "backend": "local", "modelo": LOCAL}
+        "encaixe": desligada,
+        "candidatura": desligada,  # o mesmo par: o teste é um só e as duas caem (T438)
     }:  # o resultado chega só pela pergunta periódica, depois do servidor terminar
         assert time.monotonic() < fim
         time.sleep(0.01)

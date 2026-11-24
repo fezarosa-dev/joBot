@@ -357,48 +357,49 @@ def test_post_sem_csrf_e_recusado(painel: Painel, url: str) -> None:
         (
             "pt",
             None,
-            "Suas habilidades ficam no seu computador. A IA está desligada: nada sai dele.",
+            "No encaixe, suas habilidades ficam no seu computador: a IA do encaixe está desligada.",
         ),
         (
             "pt",
             {"ligada": False, "backend": "anthropic", "modelo": "m"},
-            "Suas habilidades ficam no seu computador. A IA está desligada: nada sai dele.",
+            "No encaixe, suas habilidades ficam no seu computador: a IA do encaixe está desligada.",
         ),
         (
             "pt",
             {"ligada": True, "backend": "local", "modelo": "qwen"},
-            "Suas habilidades ficam no seu computador, e o texto da vaga também: "
+            "No encaixe, suas habilidades ficam no seu computador, e o texto da vaga também: "
             "o encaixe usa o modelo local.",
         ),
         (
             "pt",
             {"ligada": True, "backend": "anthropic", "modelo": "m"},
-            "Suas habilidades ficam no seu computador; só o texto da vaga vai para "
+            "No encaixe, suas habilidades ficam no seu computador; só o texto da vaga vai para "
             "a API da Anthropic.",
         ),
         (
             "pt",
             {"ligada": True, "backend": "compativel", "modelo": "m"},
-            "Suas habilidades ficam no seu computador; só o texto da vaga vai para "
+            "No encaixe, suas habilidades ficam no seu computador; só o texto da vaga vai para "
             "o serviço compatível com a OpenAI.",
         ),
         (
             "pt",
             {"ligada": True, "backend": "xyz", "modelo": "m"},
-            "Suas habilidades ficam no seu computador; só o texto da vaga vai para "
+            "No encaixe, suas habilidades ficam no seu computador; só o texto da vaga vai para "
             "um serviço de fora.",
         ),
-        ("en", None, "Your skills stay on your computer. AI is off: nothing leaves it."),
+        ("en", None, "In matching, your skills stay on your computer: matching AI is off."),
         (
             "en",
             {"ligada": True, "backend": "local", "modelo": "qwen"},
-            "Your skills stay on your computer, and so does the job text: "
+            "In matching, your skills stay on your computer, and so does the job text: "
             "matching uses the local model.",
         ),
         (
             "en",
             {"ligada": True, "backend": "gemini", "modelo": "m"},
-            "Your skills stay on your computer; only the job text goes to Google Gemini.",
+            "In matching, your skills stay on your computer; only the job text goes to "
+            "Google Gemini.",
         ),
     ],
 )

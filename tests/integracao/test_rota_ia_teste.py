@@ -237,14 +237,15 @@ def test_pedido_do_teste_e_curto_com_exemplo_ficticio(painel: Painel) -> None:
 def test_tudo_offline_faz_um_teste_so_e_as_tarefas_dividem_o_resultado(
     painel: Painel, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Duas tarefas no mesmo par (a segunda só existe na 0.6.0: posta no `ia.json` aqui)."""
+    """Três tarefas no mesmo par (o `encaixe`, a `candidatura` da T438 e uma posta no `ia.json`
+    aqui): um teste só, e as três caem juntas."""
     monkeypatch.setitem(limites()["tarefas"], "outra", limites()["tarefas"]["encaixe"])
     painel.fabrica.erros[("local", LOCAL)] = Falha("contexto")
     assert painel.post({"atalho": "offline"}).status_code == 303
     assert _esperar(painel.parado)
     assert [par for par, _ in painel.fabrica.pedidos] == [("local", LOCAL)]
     desligada = {"ligada": False, "backend": "local", "modelo": LOCAL}
-    assert painel.tarefas() == {"encaixe": desligada, "outra": desligada}  # as duas caem juntas
+    assert painel.tarefas() == {"encaixe": desligada, "candidatura": desligada, "outra": desligada}
 
 
 def test_sem_fabrica_nada_e_testado(tmp_path: Path) -> None:

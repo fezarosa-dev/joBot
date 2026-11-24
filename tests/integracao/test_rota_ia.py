@@ -172,7 +172,8 @@ def test_desligar_a_ia_mantem_o_backend_e_o_modelo(painel: Painel) -> None:
     painel.tarefa(True, "openai", "gpt-x")
     assert _destino(painel.post({"atalho": "desligada"})) == (303, IA + "?salvo=1")
     assert painel.tarefas() == {
-        "encaixe": {"ligada": False, "backend": "openai", "modelo": "gpt-x"}
+        "encaixe": {"ligada": False, "backend": "openai", "modelo": "gpt-x"},
+        "candidatura": DESLIGADA,  # o atalho grava todas as tarefas do `ia.json` (T438)
     }
     assert not painel.acordar.is_set()  # desligar não acorda o laço
 
@@ -181,7 +182,8 @@ def test_tudo_offline_grava_o_modelo_local_e_acorda_o_laco(painel: Painel) -> No
     painel.local()
     assert "offline" in _atalhos(painel.get().text)
     assert _destino(painel.post({"atalho": "offline"})) == (303, IA + "?salvo=1")
-    assert painel.tarefas() == {"encaixe": {"ligada": True, "backend": "local", "modelo": LOCAL}}
+    no_local = {"ligada": True, "backend": "local", "modelo": LOCAL}
+    assert painel.tarefas() == {"encaixe": no_local, "candidatura": no_local}
     assert painel.acordar.is_set()
     texto = _texto(painel.get().text)
     assert pt("configuracoes.ia.modo", modo=pt("configuracoes.ia.modo.offline")) in texto
@@ -210,6 +212,7 @@ def test_atalhos_preservam_tarefa_desconhecida(painel: Painel) -> None:
     painel.post({"atalho": "offline"})
     assert painel.tarefas() == {
         "encaixe": {"ligada": True, "backend": "local", "modelo": LOCAL},
+        "candidatura": {"ligada": True, "backend": "local", "modelo": LOCAL},
         "futura": outra,
     }
 
@@ -257,7 +260,8 @@ def test_tudo_claude_pede_confirmacao_do_custo_antes_de_gravar(painel: Painel) -
 
     assert _destino(painel.post({"atalho": "claude", "confirmar": "1"})) == (303, IA + "?salvo=1")
     assert painel.tarefas() == {
-        "encaixe": {"ligada": True, "backend": "anthropic", "modelo": "claude-haiku-5-5"}
+        "encaixe": {"ligada": True, "backend": "anthropic", "modelo": "claude-haiku-5-5"},
+        "candidatura": {"ligada": True, "backend": "anthropic", "modelo": "claude-sonnet-5-5"},
     }
     assert painel.acordar.is_set()
     modo = pt("configuracoes.ia.modo", modo=pt("configuracoes.ia.modo.claude"))
