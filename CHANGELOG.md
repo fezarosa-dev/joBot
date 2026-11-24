@@ -42,6 +42,11 @@ A 0.4.1 corrige o que a 0.4.0 quebrou no Linux: a janela do joBot vira um contro
 - No Firefox e no Safari, o menu de contexto das vagas abre pelo mouse.
 - No Safari, voltar a uma página do painel não mostra mais o aviso falso de que a internet caiu.
 - No painel: o detalhe ao lado da lista mostra as habilidades da IA, como a página da vaga; o Panorama não diz mais "Buscando agora." durante a descoberta de empresas, a leitura de páginas ou a leitura com login; no alto contraste, os botões de Vagas e de Configurações e o chip ligado ficam visíveis; o cartão do 2Captcha não diz mais que a navegação com login ainda não existe; e um valor estragado de idioma, tema ou tamanho do texto no banco não derruba mais o painel. A lista de pedidos de rede de Privacidade passa a citar o Gmail.
+- No Windows e no Mac, o Atualizar agora religa o joBot do jeito certo: refaz o início automático de cada sistema e põe o painel de volta no ar. No Windows, o painel volta mesmo quando a tarefa de início não é regravada, e a atualização não pisca mais janelas pretas de terminal.
+- No Windows e no Mac, a leitura com login acha a tela e abre a janela do navegador. No Windows, o navegador dessa leitura abre o perfil e recebe as pastas do sistema de que precisa para entrar na internet.
+- No Windows, Configurações, Serviços guarda e lê a chave do 2Captcha: o cofre não abria o arquivo.
+- Nas fontes: o RemoteOK não guarda mais, na descrição da vaga, o endereço IP de quem fez a busca; um salário gigante no RemoteOK ou no Super Estágios não derruba mais a busca; a data das vagas do Oracle HCM e do Workday que vem sem hora não aparece mais um dia antes; o SmartRecruiters, sem país na busca, pede as vagas do Brasil; e um sitemap do Abler ou do Super Estágios que mudou de formato marca a fonte como falha em vez de trazer zero vagas sem aviso.
+- Uma cotação de moeda estragada no banco não aparece mais na tela nem entra na conversão do salário.
 
 ## [0.4.0] - 2026-11-17
 
