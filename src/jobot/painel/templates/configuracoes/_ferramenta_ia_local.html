@@ -13,11 +13,10 @@
 <section id="ferramenta-ia-local" class="config-bloco" aria-labelledby="ia-local-titulo"{% if rodando %} hx-get="/configuracoes/ferramentas/ia-local" hx-trigger="every 5s" hx-target="#ferramenta-ia-local" hx-swap="outerHTML"{% endif %}>
   <h2 id="ia-local-titulo">{{ t(p ~ "nome") }}</h2>
   <p class="config-texto">{{ t(p ~ "frase") }}</p>
-  {%- set marca = ' data-foco-se-livre tabindex="-1"' | safe %}
   <div aria-live="polite">
-    <p class="config-texto"{% if ia_foco and not ia_resultado %}{{ marca }}{% endif %}>{{ t(p ~ "estado." ~ ia_estado) }}</p>
+    <p class="config-texto"{% if ia_foco and not ia_resultado %} data-foco-se-livre tabindex="-1"{% endif %}>{{ t(p ~ "estado." ~ ia_estado) }}</p>
     {%- if ia_resultado %}
-    <p class="config-texto" role="status"{{ marca }}>{{ t(p ~ "aviso." ~ ia_resultado, motivo=t(p ~ "motivo." ~ ia_motivo)) }}</p>
+    <p class="config-texto" role="status" data-foco-se-livre tabindex="-1">{{ t(p ~ "aviso." ~ ia_resultado, motivo=t(p ~ "motivo." ~ ia_motivo)) }}</p>
     {%- endif %}
   </div>
   {%- if ia_estado == "baixando" %}
