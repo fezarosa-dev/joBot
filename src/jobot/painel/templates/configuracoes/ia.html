@@ -1,0 +1,79 @@
+{#- Aba IA (T415; desenho 5.6, 6 e 10.3 da fase 4): os atalhos no topo e uma linha por tarefa
+    (`_ia_tarefa.html`). Ligar o encaixe num serviço pago passa antes pela confirmação do custo
+    (`ia_custo`): um formulário com os mesmos campos e `confirmar=1`, que funciona sem JavaScript.
+    A chave nunca chega aqui, só quais serviços têm onde rodar (`ia_backends`). -#}
+{% if ia_custo %}
+{#- o foco abre no aviso, não no botão que liga: o Return repetido de quem apertou o atalho não
+    confirma a cobrança sem ler (como o <dialog> de `_alerta.html`) #}
+<section class="config-bloco config-aviso" aria-labelledby="ia-custo-titulo" tabindex="-1" autofocus>
+  <h2 id="ia-custo-titulo">{{ t("configuracoes.ia.custo.titulo") }}</h2>
+  <p class="config-texto" role="alert">{{ t("configuracoes.ia.custo.texto", servico=t("configuracoes.servicos.ia." ~ ia_custo.servico ~ ".titulo"), teto=ia_teto) }}</p>
+  <form method="post" action="/configuracoes/ia" class="config-form" data-confirmar-custo>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    {%- for nome, valor in ia_custo.campos %}
+    <input type="hidden" name="{{ nome }}" value="{{ valor }}">
+    {%- endfor %}
+    <input type="hidden" name="confirmar" value="1">
+    <div class="acoes">
+      <button type="submit" class="botao botao-primario">{{ t("configuracoes.ia.custo.ligar") }}</button>
+      <a class="botao botao-secundario" href="/configuracoes/ia">{{ t("configuracoes.ia.custo.voltar") }}</a>
+    </div>
+  </form>
+</section>
+{% endif %}
+<p class="config-texto">{{ t("configuracoes.ia.explicacao") }}</p>
+{% if ia_cofre_falhou %}
+<div class="config-alerta" role="alert">
+  <p>{{ t("configuracoes.servicos.erro.cofre") }}</p>
+</div>
+{% endif %}
+<section class="config-bloco" aria-labelledby="ia-atalhos-titulo">
+  <h2 id="ia-atalhos-titulo">{{ t("configuracoes.ia.atalhos") }}</h2>
+  <p class="config-texto">{{ t("configuracoes.ia.modo", modo=t("configuracoes.ia.modo." ~ ia_modo)) }}</p>
+  <form method="post" action="/configuracoes/ia" class="config-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div class="campo">
+      <div class="acoes"><button type="submit" name="atalho" value="desligada" class="botao botao-secundario" aria-describedby="ia-atalho-desligada">{{ t("configuracoes.ia.atalho.desligada") }}</button></div>
+      <small id="ia-atalho-desligada">{{ t("configuracoes.ia.atalho.desligada.ajuda") }}</small>
+    </div>
+    <div class="campo">
+      <div class="acoes">
+        {%- if ia_local %}
+        <button type="submit" name="atalho" value="offline" class="botao botao-secundario" aria-describedby="ia-atalho-offline">{{ t("configuracoes.ia.atalho.offline") }}</button>
+        {%- else %}
+        <a class="botao botao-secundario" href="/configuracoes/ferramentas" aria-describedby="ia-atalho-offline">{{ t("configuracoes.ia.atalho.offline.baixar") }}</a>
+        {%- endif %}
+      </div>
+      <small id="ia-atalho-offline">{{ t("configuracoes.ia.atalho.offline.ajuda") }}</small>
+    </div>
+    <div class="campo">
+      <div class="acoes">
+        {%- if "anthropic" in ia_backends %}
+        <button type="submit" name="atalho" value="claude" class="botao botao-secundario" aria-describedby="ia-atalho-claude">{{ t("configuracoes.ia.atalho.claude") }}</button>
+        {%- else %}
+        <a class="botao botao-secundario" href="/configuracoes/servicos" aria-describedby="ia-atalho-claude">{{ t("configuracoes.ia.atalho.claude.chave") }}</a>
+        {%- endif %}
+      </div>
+      <small id="ia-atalho-claude">{{ t("configuracoes.ia.atalho.claude.ajuda") }}</small>
+    </div>
+  </form>
+</section>
+<section class="config-bloco" aria-labelledby="ia-personalizado-titulo">
+  <h2 id="ia-personalizado-titulo">{{ t("configuracoes.ia.personalizado") }}</h2>
+  <p class="config-texto">{{ t("configuracoes.ia.personalizado.explicacao") }}</p>
+  <form method="post" action="/configuracoes/ia" class="config-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    {%- for linha in ia_linhas %}
+    {% include "configuracoes/_ia_tarefa.html" %}
+    {%- endfor %}
+    <datalist id="ia-modelos-claude">
+      {%- for modelo in ia_modelos_claude %}
+      <option value="{{ modelo }}"></option>
+      {%- endfor %}
+    </datalist>
+    <div class="acoes">
+      {#- um botão principal por tela: na confirmação do custo, ele é o "Ligar mesmo assim" #}
+      <button type="submit" class="botao {{ 'botao-secundario' if ia_custo else 'botao-primario' }}">{{ t("configuracoes.salvar") }}</button>
+    </div>
+  </form>
+</section>
