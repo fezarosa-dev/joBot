@@ -21,7 +21,7 @@ src/jobot/
 │   │   └── (root)            base, executor, registro, paginas, descoberta_cc
 │   ├── leitores/             the sites with login: what to read on each (one file per site)
 │   ├── tratamento/           duplicates, salary, labels, places, life cycle
-│   ├── ia/                   AI contract, schema per service, tasks and request building
+│   ├── ia/                   AI contract, schema per service, tasks, requests and manual AI
 │   └── dados/                JSON lists: sources, companies, labels, salary
 ├── banco/                    SQLite: connection, migrations (migracoes/), writing and queries
 ├── agenda/                   scheduler and search runs
