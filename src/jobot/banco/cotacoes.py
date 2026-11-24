@@ -68,9 +68,11 @@ def cotacao_mais_recente(
     if linha is None:
         return None
     try:
-        return Cotacao(moeda=moeda, data=date.fromisoformat(linha[0]), venda=Decimal(linha[1]))
+        dia, venda = date.fromisoformat(linha[0]), Decimal(linha[1])
     except ValueError, InvalidOperation:
         return None
+    # a gravação já recusa, mas o banco pode vir corrompido de fora (padroes «Decimal de fora»)
+    return Cotacao(moeda=moeda, data=dia, venda=venda) if venda.is_finite() and venda > 0 else None
 
 
 _INTEGER_MAX = 2**63 - 1  # maior INTEGER do SQLite
