@@ -4025,3 +4025,21 @@ A sessão propôs abrir o painel no Chrome da pessoa como janela de app. O dono 
 **Como desfazer:** tirar o último passo do `vigia.yml` e o `actions: write`.
 
 **Ver também:** ADR 0002, ADR 0016, ADR 0018, D31.
+
+## D220. Correções da code-ultrareview do repositório inteiro
+
+**Status:** escolhas da sessão em 2026-11-24, a pedido do dono ("pode corrigir essas coisas"; "decisões, tente tomar você mesmo"), para discutir com o dono. Cada lote da revisão escreve aqui os seus itens.
+
+**Lote "sistema"** (branch `fix/rev-sistema`):
+
+1. **O `jobot atualizar` passa pela fachada do segundo plano** (escolha da sessão, para discutir com o dono). `status`, `desligar` e `ligar` vêm de `segundo_plano` (o despachante por sistema), não mais de `segundo_plano_linux`: no Windows e no Mac o systemctl não existe, o segundo plano parecia sempre desligado e a tarefa do Agendador ou o LaunchAgent seguiam apontando para o venv velho (que o `casca.limpar` apaga na atualização seguinte). Agora o serviço velho sai antes da troca e o joBot novo o grava de novo (D174.9). `atualizar` ganhou `plataforma` (o `sys.platform` quando falta), para os testes. Desfazer: voltar os três imports para `segundo_plano_linux`.
+2. **No Windows, o servidor que estava no ar volta já** (escolha da sessão, para discutir com o dono). A tarefa do Agendador só roda no próximo login (o systemd `enable --now` e o launchd `RunAtLoad` sobem o servidor na hora): com o segundo plano ligado e o servidor no ar antes da atualização, o joBot sobe o servidor do venv novo além de refazer a tarefa (`segundo_plano.sobe_ao_ligar`). Desfazer: `sobe_ao_ligar` devolve sempre `True`.
+3. **No Windows e no Mac a tela é a da sessão** (escolha da sessão, para discutir com o dono). `ambiente_da_tela` devolve `{"JOBOT_TELA": "win32"}` ou `{"JOBOT_TELA": "darwin"}` sem perguntar ao systemctl: vazio quer dizer "sem tela", e o login, o "Conferir agora" e o "Fazer login agora" acabavam sempre em `sem_tela` lá. A variável não carrega nada e vai ao navegador junto com as outras. O DISPLAY/WAYLAND_DISPLAY segue só no Linux. Desfazer: tirar o ramo do `win32`/`darwin`.
+4. **O cofre abre arquivo sem `os.O_CLOEXEC` no Windows.** `_O_CLOEXEC` vem por `getattr` (o `O_NOINHERIT` no Windows, que faz o mesmo), nas três aberturas: ler sem segredo no cofre do sistema, gravar o arquivo de reserva e o fsync da pasta não estouram mais `AttributeError`. O job `windows` da `casca.yml` passou a rodar `test_cofre.py`; lá ficam de fora os testes dos bits 0600 do POSIX e o do fsync da pasta (o Windows não abre pasta com `os.open`). Desfazer: tirar `or cofre` do `-k` e as marcas `skipif`.
+
+**Pontos abertos, não mexidos neste lote** (para discutir com o dono):
+
+- O ambiente do navegador (`VARIAVEIS_DO_NAVEGADOR`, D135.10) só tem nomes do Linux. No Windows faltam `SYSTEMROOT`, `TEMP`, `LOCALAPPDATA` e parecidas; sem o `SYSTEMROOT` o Chrome do Windows costuma não abrir a rede. Não dá para provar aqui (o CI do Windows não abre navegador): com o item 3 a tela passa, e pode aparecer `sem_navegador` no lugar do `sem_tela`.
+- `navegador/perfil.py` usa `os.O_NOFOLLOW` sem `getattr` (não existe no Windows), fora do lote "sistema".
+
+**Ver também:** D174.9, D135.10, T337.
