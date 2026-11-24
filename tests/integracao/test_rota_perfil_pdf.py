@@ -950,3 +950,44 @@ def test_nada_escolhido_avisa(painel: Painel) -> None:
     errado = _salvar(painel, campos)
     assert errado.status_code == 422
     assert i18n.t("pt", CV_CHAVE + "nada") in _texto(errado.text)
+
+
+# --- no passo Perfil da primeira execução (T439; D235) ----------------------------------------
+
+ASSISTENTE = "/primeira-execucao/perfil/curriculo"
+
+
+def _enviar_no_assistente(painel: Painel) -> Any:
+    return painel.http.post(
+        CURRICULO + "?de=assistente",
+        files={"curriculo": ("curriculo.pdf", montar_pdf([*PAGINAS_CV]), "application/pdf")},
+        headers={CABECALHO_CSRF: painel.token, "HX-Request": "true"},
+    )
+
+
+def test_revisao_aberta_no_assistente_grava_pelo_assistente(painel: Painel) -> None:
+    na_aba = _form_revisao(painel.enviar(montar_pdf([*PAGINAS_CV])).text)
+    assert na_aba is not None and na_aba.attributes.get("action") == PERFIL  # controle
+    resposta = _enviar_no_assistente(painel)
+    assert resposta.status_code == 200
+    form = _form_revisao(resposta.text)
+    assert form is not None and form.attributes.get("action") == ASSISTENTE
+
+
+def test_ia_manual_no_assistente_cola_e_revisa_pelo_assistente(painel: Painel) -> None:
+    _ligar(painel, "manual", "manual")
+    _fabrica(painel, [])
+    resposta = _enviar_no_assistente(painel)
+    colar = LexborHTMLParser(resposta.text).css_first(
+        f'form[action="{CURRICULO}/resposta?de=assistente"]'
+    )
+    assert colar is not None
+    assert colar.attributes.get("hx-post") == f"{CURRICULO}/resposta?de=assistente"
+    campos = [(n, v) for n, v in _campos(colar) if n != "colado"]
+    colado = json.dumps(RESPOSTA_IA)
+    lida = _postar(painel, f"{CURRICULO}/resposta?de=assistente", [*campos, ("colado", colado)])
+    form = _form_revisao(lida.text)
+    assert form is not None and form.attributes.get("action") == ASSISTENTE
+    sem = _postar(painel, f"{CURRICULO}/resposta", [*campos, ("colado", colado)])
+    controle = _form_revisao(sem.text)
+    assert controle is not None and controle.attributes.get("action") == PERFIL

@@ -1,4 +1,4 @@
-"""Assistente de primeira execução no navegador: dois passos, recusa e fim (plano T53)."""
+"""Assistente de primeira execução no navegador: IA, perfil, busca, recusa e fim (T53, T439)."""
 
 import re
 from contextlib import closing
@@ -8,12 +8,15 @@ import pytest
 from fastapi import FastAPI
 from playwright.sync_api import Page, expect
 
+from apoio.cofre_falso import CofreFalso
 from apoio.console import anotar_erros
+from apoio.pdf import montar_pdf
 from apoio.relogio import RelogioFalso
 from apoio.segundo_plano_falso import FalsoSistema
 from apoio.site_falso import LeitorFalso
 from jobot.banco import cadastros
 from jobot.banco.conexao import abrir
+from jobot.sistema.cofre import Cofre
 
 pytestmark = pytest.mark.tela
 
@@ -32,7 +35,8 @@ def app_painel(app_painel: FastAPI, sistema: FalsoSistema, tmp_path: Path) -> Fa
     app_painel.state.rodar_comando = sistema
     app_painel.state.ambiente = {"HOME": str(casa)}
     app_painel.state.plataforma = "linux"
-    app_painel.state.leitores = ()  # sem leitor o assistente tem dois passos; o caso novo liga um
+    app_painel.state.leitores = ()  # sem leitor, sem o passo dos sites; o caso novo liga um
+    app_painel.state.cofre = Cofre(tmp_path, CofreFalso())  # a chave do passo IA não sai daqui
     return app_painel
 
 
@@ -50,6 +54,10 @@ def test_fluxo_completo_vai_do_passo_1_ao_fim_e_para_nos_destaques(
     erros = anotar_erros(page)  # violação do CSP aparece como erro no console
 
     page.goto(f"{painel}/")
+    expect(page).to_have_url(f"{painel}/primeira-execucao/ia")
+    page.get_by_role("button", name="Continuar", exact=True).click()  # "Agora não" vem marcado
+    expect(page).to_have_url(f"{painel}/primeira-execucao/perfil")
+    page.get_by_role("link", name="Pular este passo", exact=True).click()
     expect(page).to_have_url(f"{painel}/primeira-execucao/1")
     expect(page.get_by_role("heading", name="O que você procura?")).to_be_visible()
     _passo_1(page)
@@ -95,7 +103,7 @@ def test_pular_no_passo_2_vai_as_vagas_sem_ligar_o_segundo_plano(
 def test_voltar_do_passo_2_leva_ao_passo_1(page: Page, painel: str) -> None:
     page.goto(f"{painel}/primeira-execucao/1")
     _passo_1(page)
-    page.get_by_role("link", name="Voltar ao passo 1").click()
+    page.get_by_role("link", name="Voltar ao passo 3").click()
     expect(page).to_have_url(re.compile(r"/primeira-execucao/1(\?.*)?$"))
 
 
@@ -112,7 +120,7 @@ def _pe_dentro_da_janela(page: Page, nomes: tuple[str, ...]) -> None:
 
 
 @pytest.mark.parametrize("texto", ["16px", "24px"])
-@pytest.mark.parametrize("passo", ["1", "sites", "2"])
+@pytest.mark.parametrize("passo", ["ia", "perfil", "1", "sites", "2"])
 def test_botoes_visiveis_com_janela_baixa(
     page: Page, painel: str, app_painel: FastAPI, tmp_path: Path, texto: str, passo: str
 ) -> None:
@@ -130,16 +138,17 @@ def test_botoes_visiveis_com_janela_baixa(
     for i in range(caixas.count()):
         caixas.nth(i).check()
     nomes = {
-        "1": ("Continuar", "Pular"),
-        "sites": ("Continuar", "Pular", "Voltar ao passo 1"),
-        "2": ("Concluir", "Pular", "Voltar ao passo 2"),
+        "ia": ("Continuar", "Pular"),
+        "perfil": ("Continuar", "Pular este passo", "Pular", "Voltar ao passo 1"),
+        "1": ("Continuar", "Pular", "Voltar ao passo 2"),
+        "sites": ("Continuar", "Pular", "Voltar ao passo 3"),
+        "2": ("Concluir", "Pular", "Voltar ao passo 4"),
     }[passo]
     _pe_dentro_da_janela(page, nomes)
     corpo = page.locator(".assistente-corpo")
     if texto == "24px":  # o corpo rola e o pé continua à vista
-        if (
-            passo == "1"
-        ):  # só o passo mais longo tem conteúdo de sobra; nos outros o corpo pode caber
+        # só os passos mais longos têm conteúdo de sobra; nos outros o corpo pode caber
+        if passo in ("1", "perfil"):
             assert corpo.evaluate("el => el.scrollHeight > el.clientHeight")
         corpo.evaluate("el => { el.scrollTop = el.scrollHeight; }")
         _pe_dentro_da_janela(page, nomes)
@@ -197,16 +206,75 @@ def test_passo_dos_sites_liga_o_site_e_segue(
     app_painel.state.navegador_instalado = "chrome"
 
     page.goto(f"{painel}/primeira-execucao/1")
-    expect(page.get_by_text("Passo 1 de 3")).to_be_visible()
+    expect(page.get_by_text("Passo 3 de 5")).to_be_visible()
     _passo_1(page)
     expect(page).to_have_url(re.compile(r"/primeira-execucao/sites\?busca=\d+$"))
-    expect(page.get_by_text("Passo 2 de 3")).to_be_visible()
+    expect(page.get_by_text("Passo 4 de 5")).to_be_visible()
 
     with page.expect_response("**/configuracoes/contas/falso_logado/interruptor"):
         page.get_by_role("switch", name="Site falso").click()
     expect(page.locator("#status-sites")).to_contain_text("Salvo")
     page.get_by_role("button", name="Continuar").click()
     expect(page).to_have_url(re.compile(r"/primeira-execucao/2\?busca=\d+$"))
-    expect(page.get_by_text("Passo 3 de 3")).to_be_visible()
+    expect(page.get_by_text("Passo 5 de 5")).to_be_visible()
     with closing(abrir(tmp_path / "jobot.db")) as con:
         assert cadastros.fontes_com_login_ligadas(con) == ["falso_logado"]
+
+
+# --- passos IA e Perfil (T439; desenho 10.4 da fase 4; D235) ------------------------------------
+
+
+def test_ia_e_perfil_levam_o_cargo_e_a_cidade_a_busca(page: Page, painel: str) -> None:
+    erros = anotar_erros(page)
+    page.goto(f"{painel}/primeira-execucao/ia")
+    expect(page.get_by_text("Passo 1 de 4")).to_be_visible()
+    local = page.get_by_role("radio", name="Modelo local (grátis, roda no seu PC)", exact=True)
+    expect(local).to_be_disabled()  # sem o modelo baixado
+    pago = page.get_by_role("radio", name="Serviço pago (sua chave)", exact=True)
+    expect(pago).to_have_accessible_description(re.compile("até 200 pedidos por dia"))
+    expect(page.get_by_role("radio", name="Agora não: seguir sem IA", exact=True)).to_be_checked()
+    page.get_by_role("button", name="Continuar", exact=True).click()
+
+    expect(page).to_have_url(f"{painel}/primeira-execucao/perfil")
+    expect(page.get_by_text("Passo 2 de 4")).to_be_visible()
+    cargo = page.get_by_label("Qual é o seu cargo hoje (ou o último que você teve)?")
+    cargo.fill("Analista de dados")
+    page.get_by_label("Em que cidade você mora?").fill("Curitiba")
+    cargo.press("Enter")  # o Enter aciona o Continuar
+
+    expect(page).to_have_url(f"{painel}/primeira-execucao/1")
+    expect(page.get_by_label("Cargos ou palavras-chave")).to_have_value("Analista de dados")
+    expect(page.get_by_label("Cidade 1")).to_have_value("Curitiba")
+    expect(page.locator("select[name=uf]").first).to_have_value("PR")
+    assert erros == []
+
+
+def test_ia_paga_guarda_a_chave_e_o_perfil_oferece_sugerir(page: Page, painel: str) -> None:
+    page.goto(f"{painel}/primeira-execucao/ia")
+    page.get_by_role("radio", name="Serviço pago (sua chave)", exact=True).check()
+    page.get_by_label("Chave da API da Anthropic").fill("sk-ant-teste-0123456789")
+    page.get_by_role("button", name="Continuar", exact=True).click()
+    expect(page).to_have_url(f"{painel}/primeira-execucao/perfil")
+    sugerir = page.get_by_role("button", name="Salvar e sugerir perguntas")
+    expect(sugerir).to_be_visible()
+    expect(sugerir).to_have_accessible_description(re.compile("Anthropic"))
+    page.get_by_role("link", name="Voltar ao passo 1").click()
+    expect(page.get_by_role("radio", name="Serviço pago (sua chave)", exact=True)).to_be_checked()
+    expect(page.get_by_label("Chave da API da Anthropic")).to_have_value("")
+
+
+def test_curriculo_lido_no_assistente_volta_ao_passo(page: Page, painel: str) -> None:
+    page.goto(f"{painel}/primeira-execucao/perfil")
+    secao = page.get_by_role("region", name="Currículo em PDF")
+    dados = montar_pdf(["Analista de dados", "contato@exemplo.invalid"])
+    secao.get_by_label("Arquivo do currículo (PDF)").set_input_files(
+        {"name": "curriculo.pdf", "mimeType": "application/pdf", "buffer": dados}
+    )
+    secao.get_by_role("button", name="Ler currículo", exact=True).click()
+    revisao = page.get_by_role("form", name="Confira o que foi lido")
+    expect(revisao).to_be_visible()
+    with page.expect_navigation():
+        revisao.get_by_role("button", name="Aprovar todas", exact=True).click()
+    expect(page).to_have_url(f"{painel}/primeira-execucao/perfil?curriculo=1")
+    expect(page.get_by_role("status").filter(has_text="Currículo salvo no perfil")).to_be_visible()
+    expect(page.get_by_label("Qual é o seu e-mail?")).to_have_value("contato@exemplo.invalid")

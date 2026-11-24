@@ -517,7 +517,7 @@ def test_antes_da_primeira_execucao_redireciona(tmp_path: Path) -> None:
     resposta = painel.get()
     assert (resposta.status_code, resposta.headers.get("location")) == (
         303,
-        "/primeira-execucao/1",
+        "/primeira-execucao/ia",
     )
     with painel.con() as con:  # controle: concluída, a página abre
         gravar_config(con, "primeira_execucao_concluida", True)
