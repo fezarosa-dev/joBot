@@ -1226,11 +1226,14 @@
   });
 
   // componente de progresso (T252; desenho 5.9). O CSP barra o atributo style, então a largura vem
-  // de data-valor e anda numa animação linear de 2 s a partir da largura que estava na tela antes
+  // de data-valor e anda numa animação de 2 s a partir da largura que estava na tela antes
   // da troca (a animação não escreve no style). A pergunta de 2 s recria o "Ver detalhes": aberto
   // antes da troca, reabre depois. O texto de "Ver detalhes"/"Ocultar detalhes" segue o popover.
+  // Fluida (D216): cada trecho começa na velocidade em que o anterior terminou e termina na média
+  // dele, então a junta entre duas perguntas não tem corte seco; parada, a barra recomeça do zero.
   const movimentoReduzido = window.matchMedia("(prefers-reduced-motion: reduce)");
   const larguras = new Map();
+  const velocidades = new Map(); // id -> velocidade no fim do último trecho, em % por segundo
   const animados = new WeakSet();
   let detalhesAbertos = null;
   document.addEventListener("htmx:beforeSwap", () => {
@@ -1246,10 +1249,22 @@
     for (const p of document.querySelectorAll(".progresso-preenchimento[data-valor]")) {
       if (animados.has(p)) continue;
       animados.add(p);
-      const ate = `${p.dataset.valor}%`;
-      const de = larguras.has(p.id) ? `${larguras.get(p.id)}%` : ate;
-      const duration = movimentoReduzido.matches || de === ate ? 0 : 2000;
-      p.animate([{ width: de }, { width: ate }], { duration, easing: "linear", fill: "forwards" });
+      const ate = Number(p.dataset.valor);
+      const de = larguras.has(p.id) ? larguras.get(p.id) : ate;
+      const salto = ate - de;
+      const quadros = [{ width: `${de}%` }, { width: `${ate}%` }];
+      if (movimentoReduzido.matches || !(salto > 0)) {
+        velocidades.set(p.id, 0);
+        p.animate(quadros, { duration: 0, fill: "forwards" });
+        continue;
+      }
+      const media = salto / 2; // % por segundo nos 2 s até a próxima pergunta
+      // inclinação de saída da curva = velocidade de antes / média deste trecho (teto 3, para o
+      // trecho curto depois de um longo não disparar); a de chegada é 1, a média
+      const comeco = Math.min((velocidades.get(p.id) ?? 0) / media, 3);
+      velocidades.set(p.id, media);
+      const easing = `cubic-bezier(0.25, ${(0.25 * comeco).toFixed(4)}, 0.75, 0.75)`;
+      p.animate(quadros, { duration: 2000, easing, fill: "forwards" });
     }
   };
   // a página que volta do histórico traz o data-valor sem a animação que punha a largura
