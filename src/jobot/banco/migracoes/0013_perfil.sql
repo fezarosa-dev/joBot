@@ -3,7 +3,7 @@
 -- Só colunas novas em `perfil` e tabelas novas: nenhum gatilho novo, e nada aqui toca `vaga`,
 -- `evento` nem o FTS5. Sem CPF, data de nascimento e projetos; o texto do currículo nunca é
 -- guardado (só serve à extração). Tudo isto é dado da pessoa: "Apagar perfil" apaga as cinco
--- tabelas, e tirar uma experiência ou um curso apaga a linha.
+-- tabelas (também nas cópias `.antes-vN`), e tirar uma experiência ou um curso apaga a linha.
 
 -- Colunas novas da linha única. Listas em JSON; vazio = NULL.
 ALTER TABLE perfil ADD COLUMN nome TEXT;
@@ -20,8 +20,9 @@ ALTER TABLE perfil ADD COLUMN idiomas_falados TEXT;  -- JSON: lista de [idioma, 
 ALTER TABLE perfil ADD COLUMN links TEXT;            -- JSON: lista de textos
 
 -- Uma linha por experiência (A5). Sem chave para `perfil`: "Apagar perfil" apaga as duas juntas.
+-- AUTOINCREMENT: o id de uma linha tirada não volta, e um formulário velho não grava noutra.
 CREATE TABLE experiencia (
-  id        INTEGER PRIMARY KEY,
+  id        INTEGER PRIMARY KEY AUTOINCREMENT,
   cargo     TEXT NOT NULL CHECK (cargo <> ''),
   empresa   TEXT,
   inicio    TEXT,                -- AAAA-MM
@@ -31,7 +32,7 @@ CREATE TABLE experiencia (
 
 -- Uma linha por curso (A7) ou curso avulso.
 CREATE TABLE curso (
-  id          INTEGER PRIMARY KEY,
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
   nome        TEXT NOT NULL CHECK (nome <> ''),
   instituicao TEXT,
   situacao    TEXT CHECK (situacao IS NULL OR situacao IN ('concluido', 'cursando', 'trancado')),

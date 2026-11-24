@@ -13,6 +13,7 @@ from dataclasses import asdict, dataclass, fields
 from datetime import datetime
 
 from jobot.banco.cadastros import gravar_config, ler_config
+from jobot.banco.perfil import textos_json
 
 
 @dataclass(frozen=True)
@@ -226,15 +227,6 @@ def gravar_preparo(con: sqlite3.Connection, vaga_id: int, preparo: Preparo) -> N
         )
 
 
-def _textos_json(texto: str) -> tuple[str, ...]:
-    """Só os textos da lista em JSON; estragado ou outro tipo, tupla vazia."""
-    try:
-        valor = json.loads(texto)
-    except ValueError:
-        return ()
-    return tuple(v for v in valor if isinstance(v, str)) if isinstance(valor, list) else ()
-
-
 def preparo(con: sqlite3.Connection, vaga_id: int) -> Preparo | None:
     """O preparo gravado da vaga, ou `None`. Listas estragadas viram vazias."""
     linha = con.execute(
@@ -244,5 +236,5 @@ def preparo(con: sqlite3.Connection, vaga_id: int) -> Preparo | None:
         return None
     lido = dict(zip(_PREPARO, linha, strict=True))
     for c in _LISTAS_DO_PREPARO:
-        lido[c] = _textos_json(lido[c])
+        lido[c] = textos_json(lido[c])
     return Preparo(**lido)

@@ -183,6 +183,12 @@ def test_pergunta_perfil_origem_base_ou_ia_e_chave_unica(con: sqlite3.Connection
     assert _recusa(con, sql, ("d", None, AGORA)) is True
     con.execute(sql, ("e", "ia", AGORA))
     assert _recusa(con, sql, ("e", "base", AGORA)) is True  # chave repetida
+    assert _recusa(con, sql, ("f", "ia", None)) is True  # criada_em obrigatória
+    assert _recusa(con, sql, (None, "ia", AGORA)) is True  # chave obrigatória
+    sem_texto = (
+        "INSERT INTO pergunta_perfil (chave, pergunta, origem, criada_em) VALUES (?, ?, ?, ?)"
+    )
+    assert _recusa(con, sem_texto, ("g", None, "ia", AGORA)) is True  # pergunta obrigatória
 
 
 def test_preparo_candidatura_uma_linha_por_vaga(con: sqlite3.Connection) -> None:
@@ -209,6 +215,32 @@ def test_preparo_candidatura_uma_linha_por_vaga(con: sqlite3.Connection) -> None
     assert _recusa(con, sql, (999, AGORA)) is True  # vaga_id referencia vaga
     con.execute(sql, (1, AGORA))
     assert _recusa(con, sql, (1, AGORA)) is True  # uma linha por vaga
+
+
+_PREPARO_OK = {
+    "idioma": "pt",
+    "carta": "c",
+    "resumo": "r",
+    "tem": "[]",
+    "faltam": "[]",
+    "perguntar": "[]",
+    "usou": "[]",
+    "backend": "local",
+    "modelo": "m",
+    "versao": 1,
+    "feito_em": AGORA,
+}
+
+
+@pytest.mark.parametrize("coluna", list(_PREPARO_OK))
+def test_preparo_candidatura_toda_coluna_obrigatoria(con: sqlite3.Connection, coluna: str) -> None:
+    sql = (
+        f"INSERT INTO preparo_candidatura (vaga_id, {', '.join(_PREPARO_OK)})"
+        f" VALUES (2, {', '.join('?' * len(_PREPARO_OK))})"
+    )
+    assert _recusa(con, sql, tuple(_PREPARO_OK.values())) is False  # controle
+    com_nulo = {**_PREPARO_OK, coluna: None}
+    assert _recusa(con, sql, tuple(com_nulo.values())) is True, coluna
 
 
 def test_antes_nada_se_perde(antes: tuple[sqlite3.Connection, Path, Path]) -> None:
@@ -279,6 +311,20 @@ def test_dados_gravados_duas_vezes_ficam_uma_linha_e_guardam_as_habilidades(
     assert hora == (T0 + timedelta(hours=2)).isoformat()
 
 
+def test_dados_limpos_somem_do_banco(con: sqlite3.Connection) -> None:
+    """Quem apaga o telefone ou o e-mail no formulário e salva vê o valor sumir do banco."""
+    perfil.gravar_habilidades(con, ["Python"], T0)
+    perfil.gravar_dados(con, _dados(), T0)
+    perfil.gravar_dados(con, perfil.Dados(), T0 + timedelta(hours=1))
+    assert perfil.dados(con) == perfil.Dados()
+    colunas = ", ".join(
+        c for c in _colunas(con, "perfil") if c not in ("id", "habilidades", "atualizado_em")
+    )
+    linha = con.execute(f"SELECT {colunas} FROM perfil").fetchone()
+    assert linha == (None,) * len(linha)  # vazio = NULL, também nas listas
+    assert perfil.habilidades(con) == ["Python"]
+
+
 def test_habilidades_gravadas_depois_guardam_os_dados(con: sqlite3.Connection) -> None:
     perfil.gravar_dados(con, _dados(), T0)
     assert perfil.habilidades(con) == []  # dados sem habilidades: lista vazia
@@ -319,7 +365,7 @@ def test_experiencia_gravada_editada_e_tirada(con: sqlite3.Connection) -> None:
     exp = perfil.Experiencia(cargo="Analista", empresa="ACME", inicio="2020-01", descricao="SQL")
     primeira = perfil.gravar_experiencia(con, exp)
     segunda = perfil.gravar_experiencia(con, perfil.Experiencia(cargo="Estagiário"))
-    assert primeira != segunda
+    assert primeira is not None and segunda is not None and primeira != segunda
     editada = perfil.Experiencia(cargo="Analista Sênior", empresa="ACME", id=primeira)
     assert perfil.gravar_experiencia(con, editada) == primeira  # mesma linha, no lugar
     assert perfil.experiencias(con) == [editada, perfil.Experiencia(cargo="Estagiário", id=segunda)]
@@ -328,10 +374,32 @@ def test_experiencia_gravada_editada_e_tirada(con: sqlite3.Connection) -> None:
     assert _conta(con, "experiencia") == 1  # a linha some, não fica marcada
 
 
+def test_experiencia_e_curso_tirados_nao_voltam_nem_cedem_o_id(con: sqlite3.Connection) -> None:
+    """Formulário velho (outra aba) não traz de volta a linha tirada nem grava por cima de outra."""
+    a = perfil.gravar_experiencia(con, perfil.Experiencia(cargo="A"))
+    b = perfil.gravar_experiencia(con, perfil.Experiencia(cargo="B"))
+    assert a is not None and b is not None
+    perfil.apagar_experiencia(con, b)
+    c = perfil.gravar_experiencia(con, perfil.Experiencia(cargo="C"))
+    assert c is not None and c > b  # o id da tirada não volta
+    assert perfil.gravar_experiencia(con, perfil.Experiencia(cargo="B velho", id=b)) is None
+    assert [e.cargo for e in perfil.experiencias(con)] == ["A", "C"]
+
+    x = perfil.gravar_curso(con, perfil.Curso(nome="X"))
+    y = perfil.gravar_curso(con, perfil.Curso(nome="Y"))
+    assert x is not None and y is not None
+    perfil.apagar_curso(con, y)
+    z = perfil.gravar_curso(con, perfil.Curso(nome="Z"))
+    assert z is not None and z > y
+    assert perfil.gravar_curso(con, perfil.Curso(nome="Y velho", id=y)) is None
+    assert [k.nome for k in perfil.cursos(con)] == ["X", "Z"]
+
+
 def test_curso_gravado_editado_e_tirado(con: sqlite3.Connection) -> None:
     curso = perfil.Curso(nome="ADS", instituicao="Fatec", situacao="cursando", previsao="2027-12")
     cid = perfil.gravar_curso(con, curso)
     outro = perfil.gravar_curso(con, perfil.Curso(nome="Inglês"))
+    assert cid is not None and outro is not None
     concluido = perfil.Curso(nome="ADS", instituicao="Fatec", situacao="concluido", id=cid)
     assert perfil.gravar_curso(con, concluido) == cid
     assert perfil.cursos(con) == [concluido, perfil.Curso(nome="Inglês", id=outro)]
@@ -358,6 +426,25 @@ def test_pergunta_sugerida_de_novo_nao_apaga_a_resposta(con: sqlite3.Connection)
     ]
     respondida = con.execute("SELECT criada_em, respondida_em FROM pergunta_perfil").fetchone()
     assert respondida == (T0.isoformat(), (T0 + timedelta(hours=1)).isoformat())
+
+
+def test_pergunta_sugerida_de_novo_troca_a_origem(con: sqlite3.Connection) -> None:
+    perfil.gravar_pergunta(con, "base:links", "Seus links?", "base", T0)
+    perfil.gravar_pergunta(con, "base:links", "Seus links?", "ia", T0 + timedelta(hours=1))
+    assert [p.origem for p in perfil.perguntas(con)] == ["ia"]
+
+
+def test_responder_pergunta_so_grava_na_chave_pedida(con: sqlite3.Connection) -> None:
+    perfil.gravar_pergunta(con, "ia:docker", "Já usou Docker?", "ia", T0)
+    perfil.gravar_pergunta(con, "base:links", "Seus links?", "base", T0)
+    perfil.responder_pergunta(con, "ia:docker", "Sim.", T0 + timedelta(hours=1))
+    linhas = con.execute(
+        "SELECT chave, resposta, respondida_em FROM pergunta_perfil ORDER BY id"
+    ).fetchall()
+    assert linhas == [
+        ("ia:docker", "Sim.", (T0 + timedelta(hours=1)).isoformat()),
+        ("base:links", None, None),
+    ]
 
 
 def test_responder_pergunta_que_nao_existe_nao_cria(con: sqlite3.Connection) -> None:
@@ -392,7 +479,22 @@ def _preparo(**mudar: Any) -> ia.Preparo:
 def test_preparo_refeito_substitui_a_linha(con: sqlite3.Connection) -> None:
     assert ia.preparo(con, 1) is None
     ia.gravar_preparo(con, 1, _preparo())
-    novo = _preparo(carta="Outra carta", faltam=(), feito_em=(T0 + timedelta(hours=1)).isoformat())
+    novo = ia.Preparo(
+        idioma="en",
+        carta="Another letter",
+        resumo="Other summary.",
+        tem=("SQL",),
+        faltam=(),
+        perguntar=("Kubernetes?",),
+        usou=("resumo",),
+        backend="anthropic",
+        modelo="haiku",
+        versao=2,
+        feito_em=(T0 + timedelta(hours=1)).isoformat(),
+    )
+    antigo = _preparo()
+    for campo in ia.Preparo.__dataclass_fields__:  # controle: o novo muda todo campo
+        assert getattr(novo, campo) != getattr(antigo, campo), campo
     ia.gravar_preparo(con, 1, novo)
     assert _conta(con, "preparo_candidatura") == 1
     assert ia.preparo(con, 1) == novo
@@ -436,3 +538,55 @@ def test_apagar_perfil_apaga_tudo_do_perfil(con: sqlite3.Connection) -> None:
     assert _conta(con, "habilidades_vaga") == 1
     assert _conta(con, "candidatura") == 1
     assert _conta(con, "vaga") == 2
+
+
+MARCAS = (
+    "MARCA-NOME-q7",
+    "MARCA-MAIL-q7",
+    "MARCA-FONE-q7",
+    "MARCA-RESUMO-q7",
+    "MARCA-EXP-q7",
+    "MARCA-CURSO-q7",
+    "MARCA-RESPOSTA-q7",
+    "MARCA-CARTA-q7",
+)
+
+
+def _arquivos_com_marca(pasta: Path) -> dict[str, list[str]]:
+    achados: dict[str, list[str]] = {}
+    for arquivo in sorted(pasta.glob("jobot.db*")):
+        conteudo = arquivo.read_bytes()
+        presentes = [m for m in MARCAS if m.encode() in conteudo]
+        if presentes:
+            achados[arquivo.name] = presentes
+    return achados
+
+
+def test_apagar_perfil_nao_deixa_os_bytes_nem_nas_copias(
+    con: sqlite3.Connection, tmp_path: Path
+) -> None:
+    """O texto apagado some do arquivo, do -wal e das cópias de antes das migrações."""
+    nome, mail, fone, resumo, exp, curso, resposta, carta = MARCAS
+    perfil.gravar_dados(con, _dados(nome=nome, email=mail, telefone=fone, resumo=resumo), T0)
+    perfil.gravar_experiencia(con, perfil.Experiencia(cargo="Analista", descricao=exp))
+    perfil.gravar_curso(con, perfil.Curso(nome=curso))
+    perfil.gravar_pergunta(con, "ia:x", "x?", "ia", T0)
+    perfil.responder_pergunta(con, "ia:x", resposta, T0)
+    ia.gravar_preparo(con, 1, _preparo(carta=carta))
+    copia = sqlite3.connect(tmp_path / "jobot.db.antes-v13")  # a cópia da próxima migração
+    con.backup(copia)
+    copia.close()
+    achados = _arquivos_com_marca(tmp_path)
+    assert set(achados.get("jobot.db.antes-v13", [])) == set(MARCAS)  # controle
+    assert set().union(*achados.values()) == set(MARCAS)
+
+    perfil.apagar_perfil(con)
+
+    assert _arquivos_com_marca(tmp_path) == {}
+    for nome_copia in ("jobot.db.antes-v12", "jobot.db.antes-v13"):  # a v12 nem tem experiencia
+        velha = sqlite3.connect(tmp_path / nome_copia)
+        try:
+            assert _conta(velha, "perfil") == 0, nome_copia
+            assert _conta(velha, "vaga") == (2 if nome_copia.endswith("13") else 0), nome_copia
+        finally:
+            velha.close()
