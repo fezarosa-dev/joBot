@@ -135,9 +135,9 @@ def ler_anotacao(dados: Path) -> dict[str, Any]:
 
 def caminhos_local(dados: Path) -> tuple[Path, Path, str]:
     """O `llama-server`, o GGUF e o nome do modelo anotados por `jobot ferramentas baixar
-    ia-local`; sem anotação: `Falha("modelo_ausente")`."""
+    ia-local`; sem anotação, ou com valor que não é texto: `Falha("modelo_ausente")`."""
     anotacao = ler_anotacao(dados)
-    if not {"modelo", "arquivo", "programa"} <= anotacao.keys():
+    if not all(isinstance(anotacao.get(c), str) for c in ("modelo", "arquivo", "programa")):
         raise Falha("modelo_ausente")
     ferramentas = dados / PASTA_FERRAMENTAS
     nome = Path(anotacao["arquivo"]).stem
