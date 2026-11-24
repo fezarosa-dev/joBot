@@ -10,6 +10,7 @@ import html as html_lib
 import json
 import re
 import threading
+from collections.abc import Mapping
 from contextlib import closing
 from pathlib import Path
 from typing import Any
@@ -58,14 +59,14 @@ class Fabrica:
     """`app.state.ia` falsa: um `BackendFalso` com as respostas prontas; guarda os pares pedidos
     e conta os `fechar`. Com `soltar`, o pedido espera por ele (clique duplo)."""
 
-    def __init__(self, prontas: list[dict[str, object] | Falha]) -> None:
+    def __init__(self, prontas: list[Any]) -> None:
         self.falso = BackendFalso(prontas)
         self.pares: list[tuple[str, str]] = []
         self.fechados = 0
         self.soltar: threading.Event | None = None
         self.entrou = threading.Event()
 
-    def __call__(self, backend: str, modelo: str) -> "Fabrica":
+    def __call__(self, backend: str, modelo: str) -> Fabrica:
         self.pares.append((backend, modelo))
         return self
 
@@ -90,6 +91,13 @@ class Painel:
         self.http = TestClient(
             self.app, base_url=f"http://127.0.0.1:{PORTA}", follow_redirects=False
         )
+        # erro do servidor vira 500, para a falta de uma conferência reprovar por asserção
+        self.http_500 = TestClient(
+            self.app,
+            base_url=f"http://127.0.0.1:{PORTA}",
+            follow_redirects=False,
+            raise_server_exceptions=False,
+        )
         self.token: str = self.app.state.csrf
 
     def con(self) -> Any:
@@ -104,14 +112,14 @@ class Painel:
             "ia_tarefas", {"perguntas": {"ligada": True, "backend": backend, "modelo": modelo}}
         )
 
-    def fabrica(self, prontas: list[dict[str, object] | Falha]) -> Fabrica:
+    def fabrica(self, prontas: list[Any]) -> Fabrica:
         fabrica = Fabrica(prontas)
         self.app.state.ia = fabrica
         return fabrica
 
     def post(self, dados: dict[str, Any], *, csrf: bool = True) -> Any:
         token = {CAMPO_CSRF: self.token} if csrf else {}
-        return self.http.post(PAGINA, data=token | VAZIO | dados)
+        return self.http_500.post(PAGINA, data=token | VAZIO | dados)
 
     def perguntas(self) -> list[tuple[Any, ...]]:
         with self.con() as con:
@@ -133,7 +141,7 @@ def _texto(html: str) -> str:
     return re.sub(r"\s+", " ", html_lib.unescape(re.sub(r"<[^>]+>", " ", html)))
 
 
-def _catalogo(idioma: str) -> dict[str, str]:
+def _catalogo(idioma: str) -> Mapping[str, str]:
     return i18n.carregar()[idioma]
 
 
@@ -368,12 +376,14 @@ def test_pedido_leva_respostas_sem_contato_nem_nome(painel: Painel) -> None:
     )
     assert len(fabrica.falso.pedidos) == 1
     usuario = fabrica.falso.pedidos[0].mensagens[1].texto
-    for fora in ("Ana Lima", "ana@exemplo", "Campinas", "Aceita viajar"):
+    for fora in ("Ana Lima", "ana@exemplo", "Campinas"):
         assert fora not in usuario
-    assert "Uso Power BI, fale em [contato removido]" in usuario
-    assert "Usa BI?" in usuario  # feita e respondida
     dados = json.loads(usuario.removeprefix("<<<PERFIL\n").removesuffix("\nPERFIL>>>"))
-    assert set(dados) <= {"cargo_atual", "respostas", "perguntas_feitas"}
+    assert set(dados) == {"cargo_atual", "respostas", "perguntas_feitas"}
+    # só a respondida vai em `respostas` (D227.6), com o contato tirado
+    assert dados["respostas"] == [
+        {"pergunta": "Usa BI?", "resposta": "Uso Power BI, fale em [contato removido]"}
+    ]
     # as perguntas base e as já feitas vão como feitas, para a IA não repetir
     assert next(p["pt"] for p in perguntas_base() if p["id"] == "A2") in dados["perguntas_feitas"]
     assert "Aceita viajar?" in dados["perguntas_feitas"]
@@ -395,10 +405,15 @@ def test_resposta_longa_volta_com_o_digitado(painel: Painel) -> None:
     with painel.con() as con:
         perfil.gravar_pergunta(con, "ia:bi", "Usa BI?", "ia", RelogioFalso().agora())
     longa = "a" * 2001
-    resposta = painel.post({"pergunta_chave": "ia:bi", "pergunta_resposta": longa})
+    resposta = painel.post(
+        {"cidade_moradia": "Campinas", "pergunta_chave": "ia:bi", "pergunta_resposta": longa}
+    )
     assert resposta.status_code == 422
-    assert longa in resposta.text
+    assert longa in resposta.text and 'value="Campinas"' in resposta.text
+    assert re.search(r'id="pergunta-1"[^>]*aria-invalid="true"', resposta.text)
     assert painel.perguntas() == [("ia:bi", "Usa BI?", None, "ia", None)]
+    with painel.con() as con:  # nada grava, nem o que estava certo
+        assert perfil.dados(con) == perfil.Dados()
 
 
 def test_respostas_tortas_sao_422(painel: Painel) -> None:
@@ -429,13 +444,15 @@ def test_clique_duplo_nao_pede_de_novo(painel: Painel) -> None:
         dados = {CAMPO_CSRF: painel.token} | VAZIO | {"sugerir": "1"}
         primeiro = threading.Thread(target=lambda: respostas.append(http.post(PAGINA, data=dados)))
         primeiro.start()
-        assert fabrica.entrou.wait(5)
+        entrou = fabrica.entrou.wait(5)
         segundo = threading.Thread(target=lambda: respostas.append(http.post(PAGINA, data=dados)))
         segundo.start()
         segundo.join(5)  # volta sem esperar o primeiro, que segue preso
-        assert len(respostas) == 1
-        fabrica.soltar.set()
+        antes_de_soltar = len(respostas)
+        fabrica.soltar.set()  # sempre, para nenhum pedido ficar preso
         primeiro.join(5)
+        segundo.join(5)
+    assert entrou and antes_de_soltar == 1
     assert len(fabrica.falso.pedidos) == 1
     assert [r.headers.get("location") for r in respostas] == [
         PAGINA + "?salvo=1#perguntas-ia",

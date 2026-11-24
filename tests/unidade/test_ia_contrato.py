@@ -255,7 +255,10 @@ def test_ia_json_traz_prazos_limites_e_cortes() -> None:
                 "claude": "claude-haiku-5-5",  # o modelo do "Tudo Claude" (T415; desenho 5.2)
             },
             # sob pedido, no questionário do perfil (T437; D233)
-            "perguntas": {"max_tokens": {"fora": 1024, "local": 512}, "claude": "claude-sonnet-5-5"},
+            "perguntas": {
+                "max_tokens": {"fora": 1024, "local": 512},
+                "claude": "claude-sonnet-5-5",
+            },
         },
         "laco": {"max_por_rodada": 20, "max_tentativas": 2, "max_por_dia_fora": 200},
         "memoria_gib": {"modelo_4b_desde": 11, "aviso_lento_abaixo": 7},

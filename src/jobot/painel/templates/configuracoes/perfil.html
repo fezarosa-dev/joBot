@@ -6,41 +6,7 @@
     marcado (com o foco, sem JavaScript) e `item_digitado` volta ao item `erro_item`. A frase de privacidade diz para onde vai o
     texto da vaga, pelo estado da tarefa `encaixe`. -#}
 {% from "_alerta.html" import alerta with context %}
-{% macro descrito(id, ajuda=none) -%}
-  {%- set ids = ([id ~ "-ajuda"] if ajuda else []) + (["config-erro"] if erro_campo == id else []) -%}
-  {%- if ids %} aria-describedby="{{ ids|join(' ') }}"{% endif %}{% if erro_campo == id %} aria-invalid="true" autofocus{% endif %}
-{%- endmacro %}
-{% macro entrada(id, nome, rotulo, valor, tipo="text", teto=200, ajuda=none, autocomplete="off", mes=false, obrigatorio=false) -%}
-<div class="campo">
-  <label for="{{ id }}">{{ rotulo }}</label>
-  <input class="campo-texto" type="{{ tipo }}" id="{{ id }}" name="{{ nome }}" value="{{ valor }}" autocomplete="{{ autocomplete }}"
-    {%- if mes %} maxlength="7" pattern="\d{4}-(0[1-9]|1[0-2])" placeholder="{{ t('configuracoes.perfil.mes.formato') }}" inputmode="numeric"{% else %} maxlength="{{ teto }}"{% endif %}
-    {%- if obrigatorio %} required{% endif %}{{ descrito(id, ajuda) }}>
-  {%- if ajuda %}
-  <small id="{{ id }}-ajuda">{{ ajuda }}</small>
-  {%- endif %}
-</div>
-{%- endmacro %}
-{% macro caixa(id, nome, rotulo, valor, linhas=4, teto=2000, ajuda=none) -%}
-<div class="campo">
-  <label for="{{ id }}">{{ rotulo }}</label>
-  <textarea class="campo-texto" id="{{ id }}" name="{{ nome }}" rows="{{ linhas }}" maxlength="{{ teto }}" autocomplete="off"{{ descrito(id, ajuda) }}>{{ valor }}</textarea>
-  {%- if ajuda %}
-  <small id="{{ id }}-ajuda">{{ ajuda }}</small>
-  {%- endif %}
-</div>
-{%- endmacro %}
-{% macro lista(id, nome, rotulo, opcoes, valor, prefixo) -%}
-<div class="campo">
-  <label for="{{ id }}">{{ rotulo }}</label>
-  <select id="{{ id }}" name="{{ nome }}"{{ descrito(id) }}>
-    <option value=""{% if not valor %} selected{% endif %}>{{ t("configuracoes.perfil.nao_informar") }}</option>
-    {%- for opcao in opcoes %}
-    <option value="{{ opcao }}"{% if opcao == valor %} selected{% endif %}>{{ t(prefixo ~ opcao) }}</option>
-    {%- endfor %}
-  </select>
-</div>
-{%- endmacro %}
+{% from "configuracoes/_campos_perfil.html" import descrito, entrada, caixa, lista with context %}
 {#- os botões de um item salvo dizem qual item no nome acessível ("Tirar Analista"): todo item tem os
     seus, e o Tirar apaga na hora (D230.2) -#}
 {% macro botoes(novo, item) -%}
@@ -90,6 +56,7 @@
 <p role="status" class="config-salvo" aria-live="polite"><span data-some-sozinho>{{ t("configuracoes.perfil.apagado") }}</span></p>
 {% endif %}
 <p class="config-texto">{{ t("configuracoes.perfil.explicacao") }}</p>
+<p class="config-texto"><a href="/configuracoes/perfil/perguntas">{{ t("configuracoes.perfil.perguntas.abrir") }}</a></p>
 <p class="config-texto" id="perfil-privacidade">
   {%- if privacidade.servico %}{{ t(privacidade.chave, servico=t(privacidade.servico)) }}{% else %}{{ t(privacidade.chave) }}{% endif -%}
 </p>
