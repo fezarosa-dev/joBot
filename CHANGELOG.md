@@ -8,6 +8,10 @@ O formato segue o [Keep a Changelog 1.1.0](https://keepachangelog.com/pt-BR/1.1.
 
 ## [Não lançado]
 
+## [0.4.1] - 2026-11-24
+
+**Quem tem a janela 0.4.0:** instale a janela 0.4.1 antes de usar o Atualizar agora do painel. Atualizado só o painel, a janela 0.4.0 fica sem os botões de fechar e de arrastar (feche com Alt+F4) e mostra o aviso para baixar a janela nova.
+
 A 0.4.1 corrige o que a 0.4.0 quebrou no Linux: a janela do joBot vira um controle pequeno, e o painel abre no seu navegador.
 
 ### Adicionado
