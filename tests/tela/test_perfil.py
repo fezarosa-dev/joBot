@@ -1,8 +1,8 @@
 """Aba Perfil no navegador (planos T413 e T434; desenho 8 da fase 4; D200, D230).
 
 Salvar pelo teclado, "Sobre você", experiências entrando e saindo (também sem JavaScript),
-"Apagar perfil" pelo alerta e sem JavaScript, foco e cores forçadas. Nenhum teste espera tempo
-real: `expect_navigation` e `expect`.
+"Apagar perfil" pelo alerta e sem JavaScript, foco e cores forçadas, o currículo em PDF (T435).
+Nenhum teste espera tempo real: `expect_navigation` e `expect`.
 """
 
 import re
@@ -14,6 +14,7 @@ import pytest
 from playwright.sync_api import Browser, Page, expect
 
 from apoio.console import anotar_erros
+from apoio.pdf import montar_pdf
 from apoio.semear import AGORA
 from jobot.banco.conexao import abrir
 from jobot.banco.perfil import dados, experiencias, gravar_habilidades, habilidades
@@ -199,5 +200,40 @@ def test_experiencia_entra_e_sai_sem_javascript(
     contexto = browser.new_context(java_script_enabled=False, locale="pt-BR")
     try:
         _adicionar_e_tirar(contexto.new_page(), painel, tmp_path)
+    finally:
+        contexto.close()
+
+
+def _enviar_curriculo(page: Page, painel: str, dados: bytes) -> None:
+    page.goto(f"{painel}/configuracoes/perfil")
+    secao = page.get_by_role("region", name="Currículo em PDF")
+    campo = secao.get_by_label("Arquivo do currículo (PDF)")
+    expect(campo).to_have_accessible_description(re.compile("Até 5 MB"))
+    campo.set_input_files({"name": "curriculo.pdf", "mimeType": "application/pdf", "buffer": dados})
+    secao.get_by_role("button", name="Ler currículo", exact=True).click()
+
+
+def test_curriculo_lido_pelo_navegador(page: Page, painel: str) -> None:
+    _enviar_curriculo(page, painel, montar_pdf(["Analista de dados", "Curso de SQL"]))
+    expect(page.get_by_role("status").filter(has_text="Currículo lido")).to_have_text(
+        "Currículo lido: 2 de 2 páginas. Nada foi guardado."
+    )
+
+
+def test_curriculo_com_senha_mostra_o_aviso(page: Page, painel: str) -> None:
+    _enviar_curriculo(page, painel, montar_pdf(["segredo"], senha="abre-te"))
+    expect(page.get_by_role("alert").filter(has_text="senha")).to_have_text(
+        "Este PDF pede senha para abrir. Salve uma cópia sem senha e tente de novo."
+    )
+
+
+def test_curriculo_sem_javascript_explica(browser: Browser, painel: str) -> None:
+    contexto = browser.new_context(java_script_enabled=False, locale="pt-BR")
+    try:
+        pagina = contexto.new_page()
+        pagina.goto(f"{painel}/configuracoes/perfil")
+        secao = pagina.get_by_role("region", name="Currículo em PDF")
+        expect(secao.get_by_text("precisa do JavaScript ligado")).to_be_visible()
+        expect(secao.get_by_role("button", name="Ler currículo", exact=True)).to_be_hidden()
     finally:
         contexto.close()

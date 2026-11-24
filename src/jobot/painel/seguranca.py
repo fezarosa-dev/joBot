@@ -93,7 +93,9 @@ def tema_e_texto(request: Request) -> tuple[str, str]:
 async def exigir_csrf(request: Request) -> None:
     """Todo método que muda dados: origem do próprio painel e token certo, senão 403.
 
-    Exceção: o `POST /sair` com o cabeçalho `X-Jobot-Sair` decide só pelo segredo local.
+    Exceção: o `POST /sair` com o cabeçalho `X-Jobot-Sair` decide só pelo segredo local. Upload
+    (`multipart/form-data`) só vale com o token no cabeçalho: sem ele, a recusa vem sem ler o
+    corpo (o arquivo; desenho 8 da fase 4, T435).
     """
     if request.method in METODOS_SEGUROS:
         return
@@ -111,7 +113,10 @@ async def exigir_csrf(request: Request) -> None:
         raise HTTPException(403, detail=t(idioma_do_pedido(request), "seguranca.recarregue"))
     origem = request.headers.get("origin")
     enviado = request.headers.get(CABECALHO_CSRF)
-    if enviado is None:
+    tipo = request.headers.get("content-type", "").split(";")[0].strip().lower()
+    if enviado is None and tipo == "multipart/form-data":
+        enviado = ""
+    elif enviado is None:
         campo = (await request.form()).get(CAMPO_CSRF)
         enviado = campo if isinstance(campo, str) else ""
     if (
