@@ -8,6 +8,7 @@ import argparse
 import asyncio
 import contextlib
 import importlib
+import json
 import logging
 import os
 import socket
@@ -134,6 +135,19 @@ def test_escuta_so_em_127(dados: Path) -> None:
     assert config.server_header is False
     assert config.proxy_headers is False
     assert config.app is app
+
+
+def test_montar_le_o_modelo_local_para_a_aba_ia(dados: Path) -> None:
+    """A aba IA (T415) sabe do modelo baixado pelo leitor que o `montar` põe em `app.state`."""
+    app, _ = servir.montar(dados, PORTA, relogio=RelogioFalso(AGORA))
+    ler = getattr(app.state, "modelo_local", None)
+    assert callable(ler)
+    assert ler() is None  # sem anotação, sem modelo
+    pasta = dados / "ferramentas"
+    pasta.mkdir(exist_ok=True)
+    anotacao = {"programa": "llama/b1/llama-server", "modelo": "4b", "arquivo": "Qwen-4B.gguf"}
+    (pasta / "ia_local.json").write_text(json.dumps(anotacao), encoding="utf-8")
+    assert ler() == "Qwen-4B"  # lido a cada chamada: baixar com o serve no ar aparece
 
 
 def test_monta_sem_console_como_no_pythonw(dados: Path, monkeypatch: pytest.MonkeyPatch) -> None:

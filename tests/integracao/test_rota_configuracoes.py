@@ -190,6 +190,8 @@ ICONE_DO_GRUPO = {
     "geral": "sliders-horizontal",
     "fontes": "rss",
     "funcoes": "toggle-right",
+    "perfil": "graduation-cap",
+    "ia": "sparkles",
     "segundo-plano": "timer",
     "privacidade": "shield",
     "servicos": "plug",
