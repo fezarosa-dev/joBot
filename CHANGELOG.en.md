@@ -42,6 +42,11 @@ The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/
 - In Firefox and Safari, the job context menu opens with the mouse.
 - In Safari, going back to a dashboard page no longer shows the false notice that the internet dropped.
 - In the dashboard: the detail next to the list shows the AI skills, like the job page; the Overview no longer says "Searching now." during company discovery, page reading or login reading; in high contrast, the Jobs and Settings buttons and the selected chip stay visible; the 2Captcha card no longer says browsing with a login does not exist yet; and a broken language, theme or text size value in the database no longer brings the dashboard down. The network request list in Privacy now names Gmail.
+- On Windows and Mac, Update now restarts joBot the right way: it redoes each system's automatic start and brings the dashboard back up. On Windows, the dashboard comes back even when the startup task is not rewritten, and the update no longer flashes black terminal windows.
+- On Windows and Mac, login reading finds the screen and opens the browser window. On Windows, the browser for that reading opens its profile and gets the system folders it needs to reach the internet.
+- On Windows, Settings, Services saves and reads the 2Captcha key: the vault could not open its file.
+- In the sources: RemoteOK no longer stores, in the job description, the IP address of whoever ran the search; a huge salary on RemoteOK or Super Estágios no longer brings the search down; the date of Oracle HCM and Workday jobs that comes without a time no longer shows one day early; SmartRecruiters, with no country in the search, asks for jobs in Brazil; and an Abler or Super Estágios sitemap that changed format marks the source as failed instead of bringing zero jobs without notice.
+- A broken currency rate in the database no longer shows on screen or goes into the salary conversion.
 
 ## [0.4.0] - 2026-11-17
 
