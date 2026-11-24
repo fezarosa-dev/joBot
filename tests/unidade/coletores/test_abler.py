@@ -604,10 +604,21 @@ async def test_detalhar_vaga_coletada_nao_faz_pedido(http_proibido: HttpEducado)
     assert await abler.COLETOR.detalhar(vaga, http_proibido) is None
 
 
-async def test_sitemap_so_com_filho_desconhecido_falhou() -> None:
-    # tag renomeada: "ok" vazio fecharia todas as vagas (padroes «JSON e XML externos»)
+@pytest.mark.parametrize("lista", [False, True])
+async def test_sitemap_so_com_filho_desconhecido_falhou(lista: bool) -> None:
+    # tag renomeada: "ok" vazio fecharia todas as vagas (padroes «JSON e XML externos»),
+    # mesmo com a <url> da página da lista, que o laço pula sem contar
     loc = "<loc>https://candidatos.abler.com.br/vagas/dev-1</loc>"
-    corpo = _sitemap().replace("</urlset>", f"<link>{loc}</link><link>{loc}</link></urlset>")
+    entradas = [("https://candidatos.abler.com.br/vagas", None)] if lista else []
+    links = f"<link>{loc}</link><link>{loc}</link>"
+    corpo = _sitemap(*entradas).replace("</urlset>", f"{links}</urlset>")
     resultado, _ = await _coletar(_xml(corpo))
     assert (resultado.vagas, resultado.estado) == ((), "falhou")
     assert resultado.motivo == "saude.formato_mudou"
+
+
+async def test_sitemap_so_com_a_pagina_da_lista_e_ok_vazio() -> None:
+    # empresa sem vaga: a <url> da lista sozinha não é formato mudado
+    corpo = _sitemap(("https://candidatos.abler.com.br/vagas", None))
+    resultado, _ = await _coletar(_xml(corpo))
+    assert (resultado.vagas, resultado.estado) == ((), "ok")

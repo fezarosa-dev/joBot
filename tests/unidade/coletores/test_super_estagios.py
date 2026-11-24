@@ -522,6 +522,7 @@ def _salario(valor: object, unidade: object = "MONTH", moeda: object = "BRL") ->
         (_salario(True), None),
         (_salario("350"), None),
         (_salario(float("inf")), None),
+        (_salario(10**400), None),  # float() estoura: OverflowError
         ({"currency": "BRL"}, None),
         ([1, 2], None),
     ],

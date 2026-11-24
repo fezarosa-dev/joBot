@@ -125,8 +125,8 @@ def _ler_sitemap(texto: str) -> tuple[list[UrlListada], int, bool]:
             pulados += 1
     if (pulados or sem_loc) and not urls:
         raise _FormatoMudou  # nenhuma <url> deu vaga: "ok" vazio fecharia todas as vagas
-    if desconhecidos == len(raiz) > 0:
-        raise _FormatoMudou  # só filho desconhecido (tag renomeada): idem
+    if desconhecidos and not urls:
+        raise _FormatoMudou  # filho desconhecido (tag renomeada) sem vaga: idem
     return urls, pulados, sem_loc
 
 
