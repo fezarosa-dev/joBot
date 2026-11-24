@@ -71,3 +71,22 @@ def pedido_encaixe(texto: TextoVaga, backend: str, modelo: str) -> Pedido:
         temperatura=0,
         seed=SEED,
     )
+
+
+# esqueleto para o vermelho
+CAMPOS: dict[str, tuple[str, ...]] = dict.fromkeys(("encaixe", "curriculo", "perguntas", "candidatura"), ())
+NUNCA: frozenset[str] = frozenset()
+
+
+def limpar_contato(texto: str) -> str:
+    return texto
+
+
+def dados_para(tarefa: str, fontes: object) -> dict[str, object]:
+    return dict(fontes)  # type: ignore[call-overload]
+
+
+def bloco_perfil(dados: object) -> str:
+    import json
+
+    return json.dumps(dados)
