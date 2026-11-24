@@ -246,6 +246,7 @@ def test_ia_json_traz_prazos_limites_e_cortes() -> None:
     assert limites() == {
         "prazo_s": {"fora": 60, "local": 180},
         "prazo_teste_s": {"fora": 30, "local": 180},
+        "max_tokens_teste": 256,  # o pedido curto do teste ao ligar (T416; desenho 5.6)
         "resposta_max_bytes": 1048576,
         "tarefas": {
             "encaixe": {

@@ -1,6 +1,7 @@
 {
   "prazo_s": {"fora": 60, "local": 180},
   "prazo_teste_s": {"fora": 30, "local": 180},
+  "max_tokens_teste": 256,
   "resposta_max_bytes": 1048576,
   "tarefas": {
     "encaixe": {

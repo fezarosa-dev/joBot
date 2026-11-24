@@ -6,24 +6,42 @@ endereço e o local com o modelo baixado (`app.state.modelo_local`, que o `serve
 há modelo). Ligar o `encaixe` num serviço pago pede antes a confirmação do custo (desenho 5.6), em
 dois passos e sem JavaScript. A chave nunca entra no contexto: só se ela existe. O formulário
 (`POST /configuracoes/ia`) fica em `configuracoes.py`, que já tem a página; este módulo não importa
-aquele. O teste ao ligar (T416) vem morar aqui.
+aquele.
+
+Teste ao ligar (desenho 6.1, T416, D203): gravar uma tarefa ligada num par (backend, modelo) novo
+põe o par numa fila (`app.state.ia_fila`), testada por uma tarefa de fundo, um par por vez, com um
+pedido curto de exemplo fictício. O resultado fica em `app.state.ia_testes[par]`; falhou, a tarefa
+desliga. Enquanto o par espera ou roda, ele fica em `app.state.ia_pessoa` e o laço espera.
 """
 
+import asyncio
+import functools
+import logging
 import re
-from collections.abc import Callable, Mapping
-from dataclasses import replace
-from typing import Any, Final
+from collections.abc import Callable, Iterable, Mapping
+from contextlib import closing
+from dataclasses import dataclass, replace
+from pathlib import Path
+from typing import Any, Final, Literal
 
 from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import Response
 from starlette.datastructures import FormData
 
+from jobot.agenda.ia import Obter
+from jobot.banco.conexao import abrir
 from jobot.banco.ia import TarefaIA, chamadas_do_dia, gravar_tarefas_ia, tarefa_ia
 from jobot.nucleo.ia.anthropic import MODELOS
-from jobot.nucleo.ia.contrato import limites
+from jobot.nucleo.ia.contrato import Falha, Motivo, Pedido, limites
+from jobot.nucleo.ia.pedidos import pedido_encaixe, texto_encaixe
+from jobot.nucleo.relogio import Relogio
 from jobot.painel.consultas import relogio_do_painel
+from jobot.painel.rotas.execucao import criar_tarefa
 from jobot.painel.rotas.perfil import frase_de_privacidade
 from jobot.painel.rotas.servicos import SERVICOS_IA, contexto_chaves_ia
-from jobot.painel.seguranca import CAMPO_CSRF, Con
+from jobot.painel.seguranca import CAMPO_CSRF, Con, renderizar
+
+log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/configuracoes/ia")
 
@@ -74,6 +92,7 @@ async def contexto_ia(request: Request, con: Con) -> dict[str, Any]:
     configurados, cofre_falhou = await _configurados(request, con)
     agora = relogio_do_painel(request).agora()
     atuais = {nome: tarefa_ia(con, nome) for nome in tarefas()}
+    testes = _testes(request)
     linhas = [
         {
             "nome": nome,
@@ -86,6 +105,7 @@ async def contexto_ia(request: Request, con: Con) -> dict[str, Any]:
             "hoje": chamadas_do_dia(con, t.backend, agora)
             if t.backend not in ("", LOCAL)
             else None,
+            "teste": testes.get((t.backend, t.modelo)),
         }
         for nome, t in atuais.items()
     ]
@@ -191,6 +211,8 @@ async def gravar_ia(request: Request, con: Con, form: FormData) -> str | tuple[i
         custo = {"campos": campos, "servico": caras[0]}
         return 200, {"ia_custo": custo, "ia_digitado": None if atalho else _digitado(novas)}
     gravar_tarefas_ia(con, novas)
+    # antes de acordar o laço: ele já acorda esperando o teste (desenho 5.4, item 6)
+    await _enfileirar(request, _pares_novos(novas, atuais, _testes(request)))
     acordar = getattr(request.app.state, "ia_acordar", None)
     if acordar is not None and any(t.ligada for t in novas.values()):
         acordar.set()  # o laço lê a tarefa nova já (D198.5)
@@ -201,3 +223,194 @@ def _digitado(novas: Mapping[str, TarefaIA]) -> dict[str, dict[str, Any]]:
     return {
         n: {"ligada": t.ligada, "backend": t.backend, "modelo": t.modelo} for n, t in novas.items()
     }
+
+
+# --- teste ao ligar (desenho 6.1; T416, D203) -----------------------------------------------
+
+Par = tuple[str, str]
+# o exemplo do teste: fictício e fixo, nenhuma vaga do banco sai daqui
+_EXEMPLO: Final = ("Pessoa desenvolvedora Python", "Buscamos quem trabalhe com Python e SQL.")
+
+
+@dataclass(frozen=True)
+class Teste:
+    estado: Literal["testando", "ok", "falhou"]
+    motivo: Motivo | None = None
+
+
+_OK: Final = Teste("ok")
+# por cima do prazo do pedido, o teste inteiro ainda espera a leitura do cofre e a subida do
+# `llama-server` (`llama.ESPERA_S`, 120 s); passou disso, `tempo_esgotado` e a fila anda
+FOLGA_TESTE_S: Final = 150.0
+
+
+def _no_estado(request: Request, nome: str, novo: Callable[[], Any]) -> Any:
+    estado = request.app.state
+    if getattr(estado, nome, None) is None:
+        setattr(estado, nome, novo())
+    return getattr(estado, nome)
+
+
+def _testes(request: Request) -> dict[Par, Teste]:
+    testes: dict[Par, Teste] = _no_estado(request, "ia_testes", dict)
+    return testes
+
+
+def pedido_de_teste(backend: str, modelo: str) -> Pedido:
+    """Um pedido curto da tarefa, com o prazo do teste (30 s fora, 180 s local; `ia.json`)."""
+    lim = limites()
+    lugar = "local" if backend == LOCAL else "fora"
+    pedido = pedido_encaixe(texto_encaixe(*_EXEMPLO), backend, modelo)
+    return replace(pedido, prazo_s=lim["prazo_teste_s"][lugar], max_tokens=lim["max_tokens_teste"])
+
+
+def _pares_novos(
+    novas: Mapping[str, TarefaIA], atuais: Mapping[str, TarefaIA], testes: Mapping[Par, Teste]
+) -> list[Par]:
+    """Os pares das tarefas que ligaram agora ou trocaram de par, sem os que já passaram."""
+    pares: list[Par] = []
+    for nome, t in novas.items():
+        par, antes = (t.backend, t.modelo), atuais[nome]
+        mudou = not antes.ligada or (antes.backend, antes.modelo) != par
+        if t.ligada and mudou and testes.get(par) != _OK and par not in pares:
+            pares.append(par)
+    return pares
+
+
+async def _enfileirar(request: Request, pares: Iterable[Par], *, de_novo: bool = False) -> None:
+    """Põe os pares na fila (o que já espera fica onde está; `de_novo` refaz o que roda agora,
+    porque a chave mudou no meio) e sobe a tarefa de fundo, se ela não roda. Sem a fábrica do
+    `serve` (`app.state.ia`), não há como testar."""
+    obter: Obter | None = getattr(request.app.state, "ia", None)
+    if obter is None:
+        return
+    fila: list[Par] = _no_estado(request, "ia_fila", list)
+    testes = _testes(request)
+    pessoa: set[object] = _no_estado(request, "ia_pessoa", set)
+    for par in pares:
+        if par in fila[1:] or (par in fila[:1] and not de_novo):
+            continue
+        fila.append(par)
+        testes[par] = Teste("testando")
+        pessoa.add(par)
+    trava: asyncio.Lock = _no_estado(request, "ia_trava_teste", asyncio.Lock)
+    if fila and not trava.locked():
+        await trava.acquire()  # livre: não suspende, então a checagem acima vale (como no laço)
+        banco: Path = request.app.state.banco
+        tarefa = functools.partial(
+            _testar_fila, fila, testes, pessoa, obter, banco, relogio_do_painel(request)
+        )
+        criar_tarefa(request, "teste da IA", trava, tarefa)
+
+
+async def _testar_fila(
+    fila: list[Par],
+    testes: dict[Par, Teste],
+    pessoa: set[object],
+    obter: Obter,
+    banco: Path,
+    relogio: Relogio,
+) -> None:
+    """Um par por vez, na ordem da fila. Erro de qualquer tipo vai ao log e a fila anda: o par
+    nunca fica em "testando" com o laço esperando para sempre."""
+    while fila:
+        par = fila[0]
+        resultado = Teste("falhou", "servico_fora")  # começa em falha (padrões «Serve»)
+        try:
+            try:
+                resultado = await _um_teste(obter, par, relogio)
+            except Exception:
+                log.exception("ia teste %s %s: erro fora do contrato", *par)
+            # pedido de novo no meio (a chave mudou): vale o resultado do seguinte
+            if resultado != _OK and par not in fila[1:]:
+                _desligar(banco, par)
+        finally:
+            # o cancelamento (fim do servidor) passa só por aqui: a tarefa gravada fica
+            fila.pop(0)
+            if par not in fila:
+                testes[par] = resultado
+                pessoa.discard(par)
+
+
+async def _um_teste(obter: Obter, par: Par, relogio: Relogio) -> Teste:
+    """O teste de um par, com o prazo contado do próprio começo."""
+    inicio = relogio.agora()
+    pedido = pedido_de_teste(*par)
+    passo = asyncio.ensure_future(_testar(obter, par, pedido))
+    try:
+        feitas, _ = await asyncio.wait({passo}, timeout=pedido.prazo_s + FOLGA_TESTE_S)
+        if not feitas:  # a thread presa segue até o próprio prazo; a fila não espera
+            raise Falha("tempo_esgotado")
+        passo.result()
+        resultado = _OK
+    except Falha as falha:
+        resultado = Teste("falhou", falha.motivo)
+    finally:
+        passo.cancel()  # terminado, não faz nada; senão fecha o cliente (o `finally` dele)
+    segundos = (relogio.agora() - inicio).total_seconds()
+    log.info("ia teste %s %s: %s em %.1f s", *par, resultado.motivo or "ok", segundos)
+    return resultado
+
+
+async def _testar(obter: Obter, par: Par, pedido: Pedido) -> None:
+    backend = await asyncio.to_thread(obter, *par)
+    try:
+        await asyncio.to_thread(backend.pedir, pedido)
+    finally:
+        backend.fechar()
+
+
+def _desligar(banco: Path, par: Par) -> None:
+    """Desliga as tarefas ligadas no par que falhou; backend e modelo ficam (desenho 6.1). Erro
+    (banco, disco) vai ao log: a fila segue com os outros pares."""
+    try:
+        with closing(abrir(banco)) as con:  # conexão própria: a do pedido já fechou
+            atuais = {nome: tarefa_ia(con, nome) for nome in tarefas()}
+            caidas = {
+                n: replace(t, ligada=False)
+                for n, t in atuais.items()
+                if t.ligada and (t.backend, t.modelo) == par
+            }
+            if caidas:
+                gravar_tarefas_ia(con, caidas)
+    except Exception:
+        log.exception("ia teste %s %s: não consegui desligar a tarefa", *par)
+
+
+async def servico_trocou(request: Request, con: Con, servico: str) -> None:
+    """A chave ou o endereço do serviço mudou (aba Serviços): os pares ligados nele testam de
+    novo."""
+    await refazer_testes(request, servico, [tarefa_ia(con, nome) for nome in tarefas()])
+
+
+async def refazer_testes(request: Request, servico: str, atuais: Iterable[TarefaIA]) -> None:
+    """O serviço mudou (chave, endereço, ou o modelo local trocado em Ferramentas): os testes dele
+    valem de novo, os pares ligados nele voltam à fila e o laço acorda, porque a rodada em curso
+    montou o cliente com o que era antes (ela para sozinha na falha)."""
+    testes = _testes(request)
+    for par in [p for p, t in testes.items() if p[0] == servico and t.estado != "testando"]:
+        del testes[par]
+    pares = dict.fromkeys(
+        (t.backend, t.modelo) for t in atuais if t.ligada and t.backend == servico
+    )
+    await _enfileirar(request, pares, de_novo=True)
+    acordar = getattr(request.app.state, "ia_acordar", None)
+    if acordar is not None and pares:
+        acordar.set()
+
+
+@router.get("/teste/{tarefa}")
+async def estado_do_teste(request: Request, con: Con, tarefa: str) -> Response:
+    """O HTMX pergunta a cada 2 s; enquanto o par da tarefa testa, 204 (nada troca). Depois, a
+    tarefa inteira com o resultado, que puxa o foco se ele estava solto."""
+    if tarefa not in tarefas():
+        raise HTTPException(404)
+    atual = tarefa_ia(con, tarefa)
+    teste = _testes(request).get((atual.backend, atual.modelo))
+    if teste is not None and teste.estado == "testando":
+        return Response(status_code=204)
+    contexto = await contexto_ia(request, con)
+    (linha,) = [linha for linha in contexto["ia_linhas"] if linha["nome"] == tarefa]
+    return renderizar(
+        request, "configuracoes/_ia_tarefa.html", linha=linha, ia_foco_teste=True, **contexto
+    )

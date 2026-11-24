@@ -45,7 +45,7 @@ from jobot.banco.cadastros import PADROES, gravar_config, ler_config, ligar_font
 from jobot.banco.captcha import NOME_NO_COFRE
 from jobot.banco.conexao import abrir
 from jobot.banco.execucoes import LinhaSaude, leitura_login_rodando, ultimas_que_rodaram
-from jobot.banco.ia import gravar_tarefas_ia, tarefa_ia
+from jobot.banco.ia import TarefaIA, gravar_tarefas_ia, tarefa_ia
 from jobot.banco.sessoes import gravar_sessao, ler_sessoes
 from jobot.navegador import limites
 from jobot.navegador.conferir import conferir_sessao
@@ -77,7 +77,14 @@ from jobot.painel.consultas import relogio_do_painel
 from jobot.painel.formatos import conferido_texto, gigabytes, opcoes_de_pais
 from jobot.painel.rotas.execucao import criar_tarefa
 from jobot.painel.rotas.gmail import contexto_gmail
-from jobot.painel.rotas.ia import LOCAL, contexto_ia, gravar_ia, tarefas
+from jobot.painel.rotas.ia import (
+    LOCAL,
+    contexto_ia,
+    gravar_ia,
+    refazer_testes,
+    servico_trocou,
+    tarefas,
+)
 from jobot.painel.rotas.perfil import contexto_perfil, habilidades_do_texto, salvar_habilidades
 from jobot.painel.rotas.servicos import (
     contexto_captcha,
@@ -489,8 +496,13 @@ async def _gravar_privacidade(request: Request, con: Con) -> Response:
 async def _gravar_servicos(request: Request, con: Con) -> Response:
     form = await request.form()
     if "servico" in form:  # o cartão de uma chave de IA (T414)
+        antes = ler_config(con, "ia_compativel")
         falhou = await gravar_chave_ia(request, con, form)
         if falhou is None:
+            # chave digitada ou endereço novo: o teste ao ligar dos pares do serviço vale de novo
+            servico = str(form.get("servico"))
+            if str(form.get("chave") or "").strip() or ler_config(con, "ia_compativel") != antes:
+                await servico_trocou(request, con, servico)
             return _volta("servicos", salvo=True)
         status, ctx = falhou
         return await _pagina(request, con, "servicos", status, **ctx)
@@ -1138,7 +1150,8 @@ async def comando_do_modelo_local(request: Request, con: Con, acao: str) -> Resp
                     comando.kill()  # o `.parcial` fica para a retomada
                 raise
             if fim == "pronto" and novo is not None:
-                await run_in_threadpool(_renomear_local, banco, novo)
+                trocadas = await run_in_threadpool(_renomear_local, banco, novo)
+                await refazer_testes(request, LOCAL, trocadas)  # o par mudou: testa (T416)
         finally:
             ok = fim == "pronto"
             removeu = acao == "remover"
@@ -1166,10 +1179,11 @@ def _desligar_local(con: sqlite3.Connection) -> None:
         gravar_tarefas_ia(con, desligar)
 
 
-def _renomear_local(banco: Path, nome: str) -> None:
-    """Depois do "Trocar modelo", as tarefas no local levam o nome do modelo novo."""
+def _renomear_local(banco: Path, nome: str) -> list[TarefaIA]:
+    """Depois do "Trocar modelo", as tarefas no local levam o nome do modelo novo (devolvidas)."""
     with closing(abrir(banco)) as con:
         locais = {n: tarefa_ia(con, n) for n in tarefas()}
         trocar = {n: replace(t, modelo=nome) for n, t in locais.items() if t.backend == LOCAL}
         if trocar:
             gravar_tarefas_ia(con, trocar)
+        return list(trocar.values())

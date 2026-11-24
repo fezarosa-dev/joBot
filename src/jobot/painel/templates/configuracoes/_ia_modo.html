@@ -1,0 +1,3 @@
+{#- O modo da aba IA no topo; a resposta final do teste ao ligar (`ia_foco_teste`, T416) o manda
+    de novo em OOB, porque a tarefa pode ter desligado. -#}
+<p class="config-texto" id="ia-modo"{% if ia_foco_teste %} hx-swap-oob="true"{% endif %}>{{ t("configuracoes.ia.modo", modo=t("configuracoes.ia.modo." ~ ia_modo)) }}</p>

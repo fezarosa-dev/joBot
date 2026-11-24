@@ -1,10 +1,12 @@
 {#- Uma tarefa da aba IA (T415): ligar, onde roda (só os backends configurados), o modelo, a frase
     de privacidade, o aviso de serviço que sumiu, as marcas do serviço pago e os pedidos de hoje.
-    `v` é o digitado que voltou (erro ou confirmação do custo); senão, o gravado. -#}
+    `v` é o digitado que voltou (erro ou confirmação do custo); senão, o gravado. Enquanto o par
+    testa (T416), a tarefa pergunta a cada 2 s e é trocada inteira quando o resultado chega. -#}
 {%- set n = linha.nome -%}
 {%- set v = ia_digitado[n] if ia_digitado and n in ia_digitado else linha -%}
 {%- set errado = ia_erro_campo if ia_erro_tarefa == n else none -%}
-<fieldset class="grupo-leva" aria-describedby="ia-{{ n }}-ajuda ia-{{ n }}-privacidade">
+<fieldset id="ia-{{ n }}" class="grupo-leva" aria-describedby="ia-{{ n }}-ajuda ia-{{ n }}-privacidade"
+  {%- if linha.teste and linha.teste.estado == "testando" %} hx-get="/configuracoes/ia/teste/{{ n }}" hx-trigger="every 2s" hx-target="this" hx-swap="outerHTML"{% endif %}>
   <legend>{{ t("configuracoes.ia.tarefa." ~ n) }}</legend>
   <p class="config-texto" id="ia-{{ n }}-ajuda">{{ t("configuracoes.ia.tarefa." ~ n ~ ".ajuda") }}</p>
   <div class="interruptor">
@@ -30,6 +32,7 @@
   {%- else %}
   <p class="config-texto">{{ t("configuracoes.ia.sem_backend") }}</p>
   {%- endif %}
+  {%- include "configuracoes/_ia_teste.html" %}
   <p class="config-texto" id="ia-{{ n }}-privacidade">
     {%- if linha.privacidade.servico %}{{ t(linha.privacidade.chave, servico=t(linha.privacidade.servico)) }}{% else %}{{ t(linha.privacidade.chave) }}{% endif -%}
   </p>
@@ -46,3 +49,8 @@
   <p class="config-texto">{{ t("configuracoes.ia.hoje", n=linha.hoje, teto=ia_teto) }}</p>
   {%- endif %}
 </fieldset>
+{%- if ia_foco_teste and linha.teste %}
+{#- resposta final do polling (T416): o anúncio numa região que não é trocada e o modo do topo #}
+<p hx-swap-oob="innerHTML:#status-ia"><span>{% include "configuracoes/_ia_teste_texto.html" %}</span></p>
+{% include "configuracoes/_ia_modo.html" %}
+{%- endif %}
