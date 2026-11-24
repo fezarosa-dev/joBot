@@ -103,10 +103,11 @@ def _ler_sitemap(texto: str) -> tuple[list[UrlListada], int, bool]:
     if _local(raiz.tag) != "urlset":
         raise _FormatoMudou
     urls: list[UrlListada] = []
-    pulados = 0
+    pulados = desconhecidos = 0
     sem_loc = False
     for no in raiz:
         if _local(no.tag) != "url":
+            desconhecidos += 1
             continue
         campos = {_local(f.tag): (f.text or "").strip() for f in no}
         loc = campos.get("loc")
@@ -124,6 +125,8 @@ def _ler_sitemap(texto: str) -> tuple[list[UrlListada], int, bool]:
             pulados += 1
     if (pulados or sem_loc) and not urls:
         raise _FormatoMudou  # nenhuma <url> deu vaga: "ok" vazio fecharia todas as vagas
+    if desconhecidos == len(raiz) > 0:
+        raise _FormatoMudou  # só filho desconhecido (tag renomeada): idem
     return urls, pulados, sem_loc
 
 
