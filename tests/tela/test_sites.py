@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 from fastapi import FastAPI
-from playwright.sync_api import Browser, Locator, Page, expect
+from playwright.sync_api import Locator, Page, expect
 
 from apoio.console import anotar_erros
 from jobot.banco.conexao import abrir
@@ -124,35 +124,29 @@ def test_remover_site_abre_o_alerta_e_cancelar_nao_remove(page: Page, painel: st
     expect(page.locator("#lista-sites > li")).to_have_count(1)
 
 
-def test_remover_site_sem_js_pede_confirmacao(browser: Browser, painel: str) -> None:
+def test_remover_site_sem_js_pede_confirmacao(pagina_sem_js: Page, painel: str) -> None:
     """T307: sem JavaScript, Remover abre a página de confirmação e só o botão dela remove;
     Cancelar volta à lista com tudo no lugar."""
-    contexto = browser.new_context(java_script_enabled=False, locale="pt-BR")
-    try:
-        pagina = contexto.new_page()
-        pagina.goto(f"{painel}/sites")
-        lista = pagina.locator("#lista-sites > li")
-        expect(lista).to_have_count(2)
-        _cartao(pagina, "Trainee Alfa").get_by_role("button", name="Remover", exact=True).click()
+    pagina = pagina_sem_js
+    pagina.goto(f"{painel}/sites")
+    lista = pagina.locator("#lista-sites > li")
+    expect(lista).to_have_count(2)
+    _cartao(pagina, "Trainee Alfa").get_by_role("button", name="Remover", exact=True).click()
 
-        expect(pagina).to_have_url(re.compile(r"/sites/\d+/remover/confirmar\??$"))
-        expect(pagina.get_by_role("heading", level=1)).to_have_text(
-            "Remover o site «Trainee Alfa»?"
-        )
-        expect(pagina.locator("main")).to_contain_text(
-            "O texto guardado e as mudanças dele serão apagados."
-        )
-        pagina.get_by_role("link", name="Cancelar", exact=True).click()
-        expect(pagina).to_have_url(re.compile(r"/sites$"))
-        expect(lista).to_have_count(2)  # abrir e cancelar não removeu nada
+    expect(pagina).to_have_url(re.compile(r"/sites/\d+/remover/confirmar\??$"))
+    expect(pagina.get_by_role("heading", level=1)).to_have_text("Remover o site «Trainee Alfa»?")
+    expect(pagina.locator("main")).to_contain_text(
+        "O texto guardado e as mudanças dele serão apagados."
+    )
+    pagina.get_by_role("link", name="Cancelar", exact=True).click()
+    expect(pagina).to_have_url(re.compile(r"/sites$"))
+    expect(lista).to_have_count(2)  # abrir e cancelar não removeu nada
 
-        _cartao(pagina, "Trainee Alfa").get_by_role("button", name="Remover", exact=True).click()
-        pagina.locator("main").get_by_role("button", name="Remover", exact=True).click()
-        expect(pagina).to_have_url(re.compile(r"/sites$"))
-        expect(lista).to_have_count(1)
-        expect(_cartao(pagina, "Trainee Alfa")).to_have_count(0)
-    finally:
-        contexto.close()
+    _cartao(pagina, "Trainee Alfa").get_by_role("button", name="Remover", exact=True).click()
+    pagina.locator("main").get_by_role("button", name="Remover", exact=True).click()
+    expect(pagina).to_have_url(re.compile(r"/sites$"))
+    expect(lista).to_have_count(1)
+    expect(_cartao(pagina, "Trainee Alfa")).to_have_count(0)
 
 
 def test_desativar_nao_pergunta_nada(page: Page, painel: str) -> None:
