@@ -263,7 +263,9 @@ def contexto_do_preparo(
         "citados": ", ".join(citados(gravado.faltam, f"{gravado.carta}\n{gravado.resumo}"))
         if gravado
         else "",
-        "texto_manual": manual.texto_para_copiar(feito.pedido) if no_manual and feito else None,
+        "texto_manual": manual.texto_para_copiar(feito.pedido, idioma_painel)
+        if no_manual and feito
+        else None,
     }
 
 

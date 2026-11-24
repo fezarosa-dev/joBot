@@ -14,14 +14,21 @@ from pathlib import Path
 
 import pytest
 from fastapi import FastAPI
-from playwright.sync_api import Browser, Page, expect
+from playwright.sync_api import Browser, Locator, Page, expect
 
 from apoio.console import anotar_erros
 from apoio.pdf import montar_pdf
 from apoio.semear import AGORA
 from jobot.banco.cadastros import gravar_config
 from jobot.banco.conexao import abrir
-from jobot.banco.perfil import dados, experiencias, gravar_habilidades, habilidades
+from jobot.banco.perfil import (
+    dados,
+    experiencias,
+    gravar_habilidades,
+    gravar_pergunta,
+    habilidades,
+    perguntas,
+)
 from jobot.nucleo.ia.contrato import Pedido, Resposta
 from jobot.nucleo.ia.falso import BackendFalso
 
@@ -60,11 +67,11 @@ def test_salvar_pelo_teclado_grava_sem_repetidos(page: Page, painel: str, tmp_pa
         "button", name="Salvar", exact=True
     )
     expect(salvar).to_be_focused()
-    with page.expect_navigation():
-        page.keyboard.press("Enter")
-    # o app.js tira o ?salvo= da URL depois de mostrar a mensagem; a âncora volta à seção
-    expect(page).to_have_url(re.compile(r"/configuracoes/perfil(\?salvo=1)?#perfil-habilidades$"))
-    expect(page.get_by_role("status").filter(has_text="Salvo.")).to_be_visible()
+    page.keyboard.press("Enter")
+    # com JavaScript, o HTMX troca só a seção (D230): a página não navega e o "Salvo." vem nela
+    regiao = page.get_by_role("region", name="Habilidades")
+    expect(regiao.get_by_role("status").filter(has_text="Salvo.")).to_be_visible()
+    expect(page).to_have_url(re.compile(r"/configuracoes/perfil$"))
     expect(page.get_by_role("textbox", name="Suas habilidades")).to_have_value("Python\nGo")
     assert _lidas(tmp_path) == (1, ["Python", "Go"])
 
@@ -133,13 +140,12 @@ def test_erro_de_teto_marca_o_campo(page: Page, painel: str, tmp_path: Path) -> 
     page.goto(f"{painel}/configuracoes/perfil")
     campo = page.get_by_role("textbox", name="Suas habilidades")
     campo.fill("x" * 101)
-    with page.expect_navigation():
-        page.get_by_role("region", name="Habilidades").get_by_role(
-            "button", name="Salvar", exact=True
-        ).click()
-    expect(page.get_by_role("alert")).to_contain_text("Até 200 habilidades")
+    regiao = page.get_by_role("region", name="Habilidades")
+    regiao.get_by_role("button", name="Salvar", exact=True).click()
+    # o 422 troca a seção com o alerta dentro dela (D230); o HTMX segue o `autofocus`
+    expect(regiao.get_by_role("alert")).to_contain_text("Até 200 habilidades")
     expect(campo).to_have_attribute("aria-invalid", "true")
-    expect(campo).to_be_focused()  # o `autofocus` leva ao campo errado, sem JavaScript
+    expect(campo).to_be_focused()
     expect(campo).to_have_value("x" * 101)
     assert _lidas(tmp_path) == (0, [])
 
@@ -157,9 +163,8 @@ def test_sobre_voce_grava_e_volta_preenchido(page: Page, painel: str, tmp_path: 
     sobre.get_by_role("combobox", name="Português").select_option(label="Fluente")
     sobre.get_by_role("textbox", name="Outro idioma 1").fill("Alemão")
     sobre.get_by_role("combobox", name="Nível do outro idioma 1").select_option(label="Básico")
-    with page.expect_navigation():
-        sobre.get_by_role("button", name="Salvar", exact=True).click()
-    expect(page.get_by_role("status").filter(has_text="Salvo.")).to_be_visible()
+    sobre.get_by_role("button", name="Salvar", exact=True).click()
+    expect(sobre.get_by_role("status").filter(has_text="Salvo.")).to_be_visible()
     sobre = page.get_by_role("region", name="Sobre você")
     expect(sobre.get_by_role("textbox", name="Nome")).to_have_value("Maria Exemplo")
     expect(sobre.get_by_role("combobox", name="Português")).to_have_value("fluente")
@@ -175,22 +180,29 @@ def test_sobre_voce_grava_e_volta_preenchido(page: Page, painel: str, tmp_path: 
     assert gravados.idiomas_falados == (("pt", "fluente"), ("Alemão", "basico"))
 
 
-def _adicionar_e_tirar(pagina: Page, painel: str, tmp_path: Path) -> None:
+def _clicar(pagina: Page, botao: Locator, navega: bool) -> None:
+    """Sem JavaScript, o formulário recarrega a página; com ele, o HTMX troca a seção (D230)."""
+    if navega:
+        with pagina.expect_navigation():
+            botao.click()
+    else:
+        botao.click()
+
+
+def _adicionar_e_tirar(pagina: Page, painel: str, tmp_path: Path, navega: bool) -> None:
     pagina.goto(f"{painel}/configuracoes/perfil")
     secao = pagina.get_by_role("region", name="Experiências")
     nova = secao.get_by_role("group", name="Nova experiência")
     nova.get_by_role("textbox", name="Cargo").fill("Analista")
     nova.get_by_role("textbox", name="Início").fill("2019-03")
-    with pagina.expect_navigation():
-        secao.get_by_role("button", name="Adicionar", exact=True).click()
+    _clicar(pagina, secao.get_by_role("button", name="Adicionar", exact=True), navega)
     item = pagina.get_by_role("region", name="Experiências").get_by_role("group", name="Analista")
     expect(item.get_by_role("textbox", name="Início")).to_have_value("2019-03")
     with closing(abrir(tmp_path / "jobot.db")) as con:
         assert [e.cargo for e in experiencias(con)] == ["Analista"]
     # cada item tem o seu Tirar, com o item no nome acessível
     secao = pagina.get_by_role("region", name="Experiências")
-    with pagina.expect_navigation():
-        secao.get_by_role("button", name="Tirar Analista", exact=True).click()
+    _clicar(pagina, secao.get_by_role("button", name="Tirar Analista", exact=True), navega)
     secao = pagina.get_by_role("region", name="Experiências")
     expect(secao.get_by_role("group", name="Analista")).to_have_count(0)
     with closing(abrir(tmp_path / "jobot.db")) as con:
@@ -198,7 +210,7 @@ def _adicionar_e_tirar(pagina: Page, painel: str, tmp_path: Path) -> None:
 
 
 def test_experiencia_entra_e_sai(page: Page, painel: str, tmp_path: Path) -> None:
-    _adicionar_e_tirar(page, painel, tmp_path)
+    _adicionar_e_tirar(page, painel, tmp_path, navega=False)
 
 
 def test_experiencia_entra_e_sai_sem_javascript(
@@ -206,9 +218,79 @@ def test_experiencia_entra_e_sai_sem_javascript(
 ) -> None:
     contexto = browser.new_context(java_script_enabled=False, locale="pt-BR")
     try:
-        _adicionar_e_tirar(contexto.new_page(), painel, tmp_path)
+        _adicionar_e_tirar(contexto.new_page(), painel, tmp_path, navega=True)
     finally:
         contexto.close()
+
+
+def test_salvar_uma_secao_nao_apaga_o_digitado_nas_outras(
+    page: Page, painel: str, tmp_path: Path
+) -> None:
+    """D230 (decidido pelo dono): o Salvar das habilidades troca só a seção dele."""
+    page.goto(f"{painel}/configuracoes/perfil")
+    sobre = page.get_by_role("region", name="Sobre você")
+    sobre.get_by_role("textbox", name="Nome").fill("Maria Exemplo")  # digitado, sem salvar
+    nova = page.get_by_role("region", name="Experiências").get_by_role(
+        "group", name="Nova experiência"
+    )
+    nova.get_by_role("textbox", name="Cargo").fill("Analista")
+    regiao = page.get_by_role("region", name="Habilidades")
+    regiao.get_by_role("textbox", name="Suas habilidades").fill("Python")
+    regiao.get_by_role("button", name="Salvar", exact=True).click()
+    expect(regiao.get_by_role("status").filter(has_text="Salvo.")).to_be_visible()
+    expect(sobre.get_by_role("textbox", name="Nome")).to_have_value("Maria Exemplo")
+    expect(nova.get_by_role("textbox", name="Cargo")).to_have_value("Analista")
+    with closing(abrir(tmp_path / "jobot.db")) as con:
+        assert (habilidades(con), dados(con).nome) == (["Python"], None)
+
+
+def test_sem_javascript_a_aba_avisa_antes_de_salvar(browser: Browser, painel: str) -> None:
+    contexto = browser.new_context(java_script_enabled=False, locale="pt-BR")
+    try:
+        pagina = contexto.new_page()
+        pagina.goto(f"{painel}/configuracoes/perfil")
+        expect(pagina.get_by_text("Sem JavaScript, cada Salvar recarrega a página")).to_be_visible()
+    finally:
+        contexto.close()
+
+
+def _sugerir(tmp_path: Path, chave: str, texto: str) -> None:
+    with closing(abrir(tmp_path / "jobot.db")) as con:
+        gravar_pergunta(con, chave, texto, "ia", AGORA, sugerida=True)
+
+
+def _aceitas(tmp_path: Path) -> list[str]:
+    with closing(abrir(tmp_path / "jobot.db")) as con:
+        return [p.pergunta for p in perguntas(con)]
+
+
+def test_aceitar_e_descartar_sugeridas(page: Page, painel: str, tmp_path: Path) -> None:
+    """D234 (decidido pelo dono): com JavaScript, a seção troca sozinha."""
+    _sugerir(tmp_path, "ia:k8s", "Usa Kubernetes?")
+    _sugerir(tmp_path, "ia:gerente", "Qual o nome do seu gerente?")
+    page.goto(f"{painel}/configuracoes/perfil")
+    secao = page.get_by_role("region", name="Perguntas sugeridas")
+    secao.get_by_role("button", name="Aceitar: Usa Kubernetes?", exact=True).click()
+    expect(secao.get_by_role("status").filter(has_text="Salvo.")).to_be_visible()
+    expect(secao.get_by_text("Usa Kubernetes?")).to_have_count(0)
+    secao.get_by_role("button", name="Descartar: Qual o nome do seu gerente?").click()
+    expect(secao.get_by_text("Qual o nome do seu gerente?")).to_have_count(0)
+    assert _aceitas(tmp_path) == ["Usa Kubernetes?"]
+
+
+def test_aceitar_sugerida_sem_javascript(browser: Browser, painel: str, tmp_path: Path) -> None:
+    _sugerir(tmp_path, "ia:k8s", "Usa Kubernetes?")
+    contexto = browser.new_context(java_script_enabled=False, locale="pt-BR")
+    try:
+        pagina = contexto.new_page()
+        pagina.goto(f"{painel}/configuracoes/perfil")
+        secao = pagina.get_by_role("region", name="Perguntas sugeridas")
+        with pagina.expect_navigation():
+            secao.get_by_role("button", name="Aceitar: Usa Kubernetes?").click()
+        expect(pagina.get_by_role("region", name="Perguntas sugeridas")).to_contain_text("Salvo.")
+    finally:
+        contexto.close()
+    assert _aceitas(tmp_path) == ["Usa Kubernetes?"]
 
 
 def _enviar_curriculo(page: Page, painel: str, dados: bytes) -> None:

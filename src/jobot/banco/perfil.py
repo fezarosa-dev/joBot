@@ -232,7 +232,10 @@ class PerguntaPerfil:
     resposta: str | None = None  # None = ainda sem resposta
 
 
-def perguntas(con: sqlite3.Connection) -> list[PerguntaPerfil]:
+TETO_SUGERIDAS = 20  # stub do vermelho
+
+
+def perguntas(con: sqlite3.Connection, *, sugeridas: bool = False) -> list[PerguntaPerfil]:
     """As perguntas do perfil, na ordem em que entraram."""
     return [
         PerguntaPerfil(*linha)
@@ -250,6 +253,7 @@ def gravar_pergunta(
     agora: datetime,
     *,
     por_que: str | None = None,
+    sugerida: bool = False,
 ) -> None:
     """Grava a pergunta pela `chave`. A mesma chave troca o texto e o porquê, nunca a resposta."""
     with con:
@@ -259,6 +263,14 @@ def gravar_pergunta(
             " pergunta = excluded.pergunta, por_que = excluded.por_que, origem = excluded.origem",
             (chave, pergunta, por_que, origem, agora.isoformat()),
         )
+
+
+def aceitar_pergunta(con: sqlite3.Connection, chave: str) -> None:
+    """stub do vermelho"""
+
+
+def descartar_pergunta(con: sqlite3.Connection, chave: str) -> None:
+    """stub do vermelho"""
 
 
 def responder_pergunta(

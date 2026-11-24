@@ -834,7 +834,8 @@ def test_ia_manual_mostra_o_pedido_para_copiar_sem_chamar_ninguem(painel: Painel
     assert pedido is not None and "readonly" in pedido.attributes
     lido = "\n".join(PAGINAS_CV)
     texto = pedidos.texto_curriculo(lido, "manual")
-    esperado = manual.texto_para_copiar(pedidos.pedido_curriculo(texto, "manual", "manual"))
+    pedido_cv = pedidos.pedido_curriculo(texto, "manual", "manual")
+    esperado = manual.texto_para_copiar(pedido_cv, "pt")  # a instrução no idioma do painel (D229)
     assert pedido.text() == esperado
     for contato in ("contato@exemplo", "98765", "529.982"):
         assert contato not in esperado

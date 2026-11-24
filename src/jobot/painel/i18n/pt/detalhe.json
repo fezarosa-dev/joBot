@@ -110,7 +110,7 @@
   "detalhe.candidatura.usou_nada": "A IA não disse quais dados do seu perfil usou.",
   "detalhe.candidatura.aviso": "Confira antes de usar: a IA pode errar.",
   "detalhe.candidatura.citado": "A carta cita algo que não está no seu perfil: {lista}",
-  "detalhe.candidatura.perguntas": "Perguntas novas para o seu perfil (responda em Configurações › Perfil):",
+  "detalhe.candidatura.perguntas": "Perguntas sugeridas para o seu perfil (aceite ou descarte em Configurações › Perfil):",
   "detalhe.candidatura.feito": "Preparado em {data}, com {backend}.",
   "detalhe.candidatura.feito_manual": "Preparado em {data}, com a IA manual.",
   "detalhe.candidatura.nao_envia": "O joBot não envia nada: copie e use onde quiser.",

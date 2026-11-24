@@ -15,10 +15,13 @@ BACKEND = "manual"
 TAREFAS = frozenset({"curriculo", "perguntas", "candidatura"})
 
 # Em inglês, como o resto do pedido (D190). Vem depois do bloco de dados, fora das marcas.
-PEDE_JSON = (
-    "Answer with only one JSON object that follows the JSON Schema below, with no text before or "
-    "after it."
-)
+PEDE_JSON = {
+    "en": (
+        "Answer with only one JSON object that follows the JSON Schema below, with no text before "
+        "or after it."
+    ),
+    "pt": "stub",
+}
 # Sem `\s*` em volta do miolo: com ele, "```" seguido de muito espaço e sem fim fica cúbico. O
 # `json.loads` já aceita os espaços das pontas.
 _BLOCO = re.compile(r"```(?:json)?(.*?)```", re.DOTALL | re.IGNORECASE)
@@ -29,12 +32,12 @@ def _so_sob_pedido(tarefa: str) -> None:
         raise ValueError(f"a tarefa {tarefa!r} não aceita a IA manual")
 
 
-def texto_para_copiar(pedido: Pedido) -> str:
+def texto_para_copiar(pedido: Pedido, idioma: str) -> str:
     """As mensagens do pedido em ordem (a de sistema primeiro) e o esquema inteiro da tarefa, com os
     tetos: a pessoa cola em qualquer chat, então não há backend para filtrar (`esquema_para`)."""
     _so_sob_pedido(pedido.tarefa)
     esquema = json.dumps(pedido.esquema.model_json_schema(), ensure_ascii=False, indent=1)
-    return "\n\n".join([*(m.texto for m in pedido.mensagens), PEDE_JSON, esquema])
+    return "\n\n".join([*(m.texto for m in pedido.mensagens), PEDE_JSON["en"], esquema])
 
 
 def ler_resposta(pedido: Pedido, colado: str) -> Resposta:

@@ -600,7 +600,7 @@ async def extrair_curriculo(
     pedido = pedido_curriculo(texto, tarefa.backend, tarefa.modelo)
     contexto["cortado"] = texto.cortados > 0
     if tarefa.backend == manual.BACKEND:  # a pessoa copia e cola: nada sai daqui
-        return contexto | {"manual": _manual(pedido, texto.texto, email, telefone)}
+        return contexto | {"manual": _manual(request, pedido, texto.texto, email, telefone)}
     trava = _trava_curriculo(request)
     if trava.locked():  # clique duplo: o primeiro pedido segue e traz a revisão
         return contexto | {"motivo_ia": _CV + "em_curso"}
@@ -615,12 +615,12 @@ async def extrair_curriculo(
 
 
 def _manual(
-    pedido: Pedido, enviado: str, email: str | None, telefone: str | None
+    request: Request, pedido: Pedido, enviado: str, email: str | None, telefone: str | None
 ) -> dict[str, str]:
     """O texto para copiar e o que o formulário de colar leva de volta (o texto enviado, para o
     "não achei", e o contato do regex local): fica na página, nunca no servidor."""
     return {
-        "texto": texto_para_copiar(pedido),
+        "texto": texto_para_copiar(pedido, idioma_do_pedido(request)),
         "enviado": enviado,
         "email": email or "",
         "telefone": telefone or "",
@@ -643,7 +643,7 @@ async def colar_curriculo(request: Request, con: Con) -> Response:
     try:
         resposta = manual.ler_resposta(pedido, colado)
     except Falha as falha:
-        dados = _manual(pedido, enviado, email, telefone)
+        dados = _manual(request, pedido, enviado, email, telefone)
         falhou = chave_da_falha(falha.motivo, manual.BACKEND)
         return renderizar(request, _CURRICULO, manual=dados, falha_ia=falhou, **contexto)
     gravado = perfil.dados(con)

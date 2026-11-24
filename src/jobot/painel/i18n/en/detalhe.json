@@ -110,7 +110,7 @@
   "detalhe.candidatura.usou_nada": "The AI didn't say which data from your profile it used.",
   "detalhe.candidatura.aviso": "Check before using: the AI can be wrong.",
   "detalhe.candidatura.citado": "The cover letter mentions something that isn't in your profile: {lista}",
-  "detalhe.candidatura.perguntas": "New questions for your profile (answer them in Settings › Profile):",
+  "detalhe.candidatura.perguntas": "Suggested questions for your profile (accept or discard them in Settings › Profile):",
   "detalhe.candidatura.feito": "Prepared on {data}, with {backend}.",
   "detalhe.candidatura.feito_manual": "Prepared on {data}, with manual AI.",
   "detalhe.candidatura.nao_envia": "joBot doesn't send anything: copy and use it wherever you want.",

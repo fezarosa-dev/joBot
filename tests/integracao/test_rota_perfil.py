@@ -34,9 +34,10 @@ APAGAR = PERFIL + "/apagar"
 CONFIRMAR = APAGAR + "/confirmar"
 HOJE = date(2026, 11, 13)
 RECALCULAR = "jobot.painel.rotas.perfil.buscas.recalcular_encaixe"
-# o 303 volta à seção que gravou (D230.1): a página não pula para o alto
+# o 303 volta à seção que gravou (D230.1): a página não pula para o alto, e o "Salvo." fica dentro
+# da seção (D230, decidido pelo dono), para a troca do HTMX trazê-lo
 SALVO = {
-    secao: (303, f"{PERFIL}?salvo=1#perfil-{ancora}")
+    secao: (303, f"{PERFIL}?salvo={ancora}#perfil-{ancora}")
     for secao, ancora in (
         (None, "habilidades"),
         ("dados", "sobre"),
