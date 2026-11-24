@@ -3,6 +3,7 @@ leitura da resposta colada, que passa pelo mesmo esquema e pelas mesmas conferê
 backends. Só nas tarefas sob pedido: o `encaixe` recusa."""
 
 import json
+from dataclasses import replace
 from typing import Any
 
 import pytest
@@ -96,6 +97,14 @@ def test_vaga_que_tenta_fechar_a_marca_fica_dentro_dela_no_texto_para_copiar() -
 # -- a resposta colada
 
 
+def _lido(colado: str, pedido: Pedido | None = None) -> object:
+    """Os dados lidos, o motivo da `Falha` ou o nome de outro erro: tudo vira asserção."""
+    try:
+        return ler_resposta(pedido or _candidatura(), colado).dados
+    except Exception as erro:
+        return erro.motivo if isinstance(erro, Falha) else type(erro).__name__
+
+
 def test_resposta_em_json_puro() -> None:
     resposta = ler_resposta(_candidatura(), json.dumps(CARTA))
     assert resposta.dados == CARTA
@@ -103,7 +112,7 @@ def test_resposta_em_json_puro() -> None:
 
 
 def test_resposta_em_json_puro_com_espacos_em_volta() -> None:
-    assert ler_resposta(_candidatura(), f"\n  {json.dumps(CARTA)}\n\n").dados == CARTA
+    assert _lido(f"\n  {json.dumps(CARTA)}\n\n") == CARTA
 
 
 @pytest.mark.parametrize(
@@ -116,13 +125,12 @@ def test_resposta_em_json_puro_com_espacos_em_volta() -> None:
     ],
 )
 def test_resposta_em_bloco_de_codigo(colado: str) -> None:
-    resposta = ler_resposta(_candidatura(), colado.replace("{dados}", json.dumps(CARTA, indent=2)))
-    assert resposta.dados == CARTA
+    assert _lido(colado.replace("{dados}", json.dumps(CARTA, indent=2))) == CARTA
 
 
 def test_json_puro_com_crases_dentro_do_texto_vale_inteiro() -> None:
     carta = CARTA | {"carta": "Uso ```git``` todo dia."}
-    assert ler_resposta(_candidatura(), json.dumps(carta)).dados == carta
+    assert _lido(json.dumps(carta)) == carta
 
 
 @pytest.mark.parametrize(
@@ -137,12 +145,11 @@ def test_json_puro_com_crases_dentro_do_texto_vale_inteiro() -> None:
         "```json\nnão é json\n```",
         "[{dados}]",  # lista, não objeto
         "[" * 100_000,  # aninhado demais
+        "```" + " " * 50_000 + "x",  # bloco sem fim (a regex não pode voltar atrás demais)
     ],
 )
 def test_resposta_que_nao_e_json_e_falha_formato(colado: str) -> None:
-    with pytest.raises(Falha) as erro:
-        ler_resposta(_candidatura(), colado.replace("{dados}", json.dumps(CARTA)))
-    assert erro.value.motivo == "formato"
+    assert _lido(colado.replace("{dados}", json.dumps(CARTA))) == "formato"
 
 
 @pytest.mark.parametrize(
@@ -156,26 +163,23 @@ def test_resposta_que_nao_e_json_e_falha_formato(colado: str) -> None:
     ],
 )
 def test_resposta_fora_do_esquema_e_falha_formato(trocas: dict[str, Any]) -> None:
-    with pytest.raises(Falha) as erro:
-        ler_resposta(_candidatura(), json.dumps(CARTA | trocas))
-    assert erro.value.motivo == "formato"
+    assert _lido(json.dumps(CARTA | trocas)) == "formato"
 
 
 def test_resposta_sem_campo_obrigatorio_e_falha_formato() -> None:
     sem_carta = {k: v for k, v in CARTA.items() if k != "carta"}
-    with pytest.raises(Falha) as erro:
-        ler_resposta(_candidatura(), json.dumps(sem_carta))
-    assert erro.value.motivo == "formato"
+    assert _lido(json.dumps(sem_carta)) == "formato"
 
 
 def test_resposta_maior_que_o_teto_e_falha_formato() -> None:
+    # o teto é em bytes: o espaço ideográfico (3 bytes em UTF-8) sai no `strip` como o comum
     teto = limites()["resposta_max_bytes"]
     no_teto = json.dumps(CARTA)
-    no_teto += " " * (teto - len(no_teto.encode()))
-    assert ler_resposta(_candidatura(), no_teto).dados == CARTA
-    with pytest.raises(Falha) as erro:
-        ler_resposta(_candidatura(), no_teto + " ")
-    assert erro.value.motivo == "formato"
+    sobra = teto - len(no_teto.encode())
+    no_teto += "\u3000" * (sobra // 3) + " " * (sobra % 3)
+    assert len(no_teto.encode()) == teto
+    assert _lido(no_teto) == CARTA
+    assert _lido(no_teto + " ") == "formato"
 
 
 def test_falha_de_formato_nao_leva_o_texto_colado() -> None:
@@ -212,7 +216,11 @@ def test_candidatura_colada_passa_pela_conferencia_do_codigo() -> None:
     feito = conferir_candidatura(resposta.dados, ENVIADOS, ["Python", "Kubernetes"], [])
     assert feito.usou == ("habilidades",)
     assert feito.perguntar == ("Você tem CNH?",)
-    assert (feito.tem, feito.faltam, feito.citados) == (("Python",), ("Kubernetes",), ("Kubernetes",))
+    assert (feito.tem, feito.faltam, feito.citados) == (
+        ("Python",),
+        ("Kubernetes",),
+        ("Kubernetes",),
+    )
 
 
 def test_curriculo_colado_marca_o_que_nao_esta_no_texto() -> None:
@@ -235,13 +243,18 @@ def test_encaixe_recusa_a_ia_manual() -> None:
         ler_resposta(pedido, '{"pede": ["Python"]}')
 
 
-@pytest.mark.parametrize("tarefa", ["curriculo", "perguntas", "candidatura"])
-def test_tarefas_sob_pedido_aceitam_a_ia_manual(tarefa: str) -> None:
+@pytest.mark.parametrize(
+    ("tarefa", "esquema", "dados"),
+    [
+        ("curriculo", SaidaCurriculo, {}),
+        ("perguntas", SaidaPerguntas, {"perguntas": []}),
+        ("candidatura", SaidaCandidatura, CARTA),
+    ],
+)
+def test_tarefas_sob_pedido_aceitam_a_ia_manual(
+    tarefa: str, esquema: type[BaseModel], dados: dict[str, Any]
+) -> None:
     assert manual.TAREFAS == {"curriculo", "perguntas", "candidatura"}
-    esquema = {"curriculo": SaidaCurriculo, "perguntas": SaidaPerguntas}.get(
-        tarefa, SaidaCandidatura
-    )
-    dados = {"curriculo": {}, "perguntas": {"perguntas": []}}.get(tarefa, CARTA)
     pedido = _pedido(tarefa, esquema, bloco("PERFIL", "{}"))
     assert texto_para_copiar(pedido)
     assert ler_resposta(pedido, json.dumps(dados)).backend == "manual"
@@ -249,6 +262,8 @@ def test_tarefas_sob_pedido_aceitam_a_ia_manual(tarefa: str) -> None:
 
 def test_tarefa_desconhecida_recusa_a_ia_manual() -> None:
     pedido = _pedido("candidatura", SaidaCandidatura, "x")
-    estranho = Pedido(**{**pedido.__dict__, "tarefa": "outra"})
+    estranho = replace(pedido, tarefa="outra")
     with pytest.raises(ValueError, match="outra"):
         texto_para_copiar(estranho)
+    with pytest.raises(ValueError, match="outra"):
+        ler_resposta(estranho, json.dumps(CARTA))
