@@ -1,6 +1,7 @@
 {#- O modelo local em Ferramentas (T417; desenho 10.2 da fase 4): trocado inteiro pelo HTMX; enquanto
     o comando roda, pergunta de novo a cada 5 s e a barra anda pelos bytes. Cada botão é um
-    formulário com o CSRF: sem JavaScript, o POST volta à página inteira. -#}
+    formulário com o CSRF: sem JavaScript, o POST volta à página inteira. O botão apertado some na
+    troca: o foco vai ao estado (`ia_foco`) ou ao aviso do fim, só se estiver solto (app.js). -#}
 {%- set p = "configuracoes.ferramentas.ia_local." -%}
 {%- set rodando = ia_estado in ("baixando", "removendo") -%}
 {%- macro acao(nome, rotulo, classe="botao-secundario", ajuda=none) -%}
@@ -12,16 +13,20 @@
 <section id="ferramenta-ia-local" class="config-bloco" aria-labelledby="ia-local-titulo"{% if rodando %} hx-get="/configuracoes/ferramentas/ia-local" hx-trigger="every 5s" hx-target="#ferramenta-ia-local" hx-swap="outerHTML"{% endif %}>
   <h2 id="ia-local-titulo">{{ t(p ~ "nome") }}</h2>
   <p class="config-texto">{{ t(p ~ "frase") }}</p>
+  {%- set marca = ' data-foco-se-livre tabindex="-1"' | safe %}
   <div aria-live="polite">
-    <p class="config-texto">{{ t(p ~ "estado." ~ ia_estado) }}</p>
+    <p class="config-texto"{% if ia_foco and not ia_resultado %}{{ marca }}{% endif %}>{{ t(p ~ "estado." ~ ia_estado) }}</p>
     {%- if ia_resultado %}
-    <p class="config-texto" role="status">{{ t(p ~ "aviso." ~ ia_resultado, motivo=t(p ~ "motivo." ~ ia_motivo)) }}</p>
+    <p class="config-texto" role="status"{{ marca }}>{{ t(p ~ "aviso." ~ ia_resultado, motivo=t(p ~ "motivo." ~ ia_motivo)) }}</p>
     {%- endif %}
   </div>
-  {%- if rodando %}
+  {%- if ia_estado == "baixando" %}
   <progress id="ia-local-barra" aria-label="{{ t(p ~ 'barra') }}"{% if ia_total %} max="{{ ia_total }}" value="{{ ia_feito }}"{% endif %}></progress>
   {%- if ia_total %}<p class="config-texto"><small>{{ t(p ~ "andamento", pct=ia_pct) }}</small></p>{% endif %}
   <p class="config-texto">{{ t("configuracoes.ferramentas.dica_baixando") }}</p>
+  {%- endif %}
+  {%- if rodando %}
+  <noscript><p class="config-texto"><a href="/configuracoes/ferramentas">{{ t(p ~ "recarregar") }}</a></p></noscript>
   {%- endif %}
   {%- if ia_modelo %}
   <p class="config-texto">{{ t(p ~ "modelo", nome=ia_modelo.nome, tamanho=ia_modelo.tamanho) }}</p>

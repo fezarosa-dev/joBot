@@ -10,6 +10,7 @@ import asyncio
 import html as html_lib
 import json
 import re
+import sys
 import threading
 import time
 from collections.abc import Callable, Mapping, Sequence
@@ -21,6 +22,7 @@ from typing import Any, get_args
 import pytest
 from fastapi.testclient import TestClient
 
+import jobot.cli
 from apoio.comando_falso import AbrirFalso, ComandoFalso
 from apoio.relogio import RelogioFalso
 from apoio.site_falso import LeitorFalso
@@ -34,7 +36,7 @@ from jobot.navegador.instalador import (
 )
 from jobot.painel import i18n
 from jobot.painel.app import criar_app
-from jobot.painel.rotas.configuracoes import MOTIVOS_IA
+from jobot.painel.rotas.configuracoes import MOTIVOS_IA, argumentos_ia_local
 from jobot.painel.seguranca import CAMPO_CSRF
 from jobot.sistema import casca, ia_local
 from jobot.sistema.baixar import Motivo
@@ -605,20 +607,29 @@ def _ia(chave: str, idioma: str = "pt", **params: object) -> str:
     return i18n.carregar()[idioma][f"configuracoes.ferramentas.ia_local.{chave}"].format(**params)
 
 
-def _anotar(painel: Painel, chave: str, **mudar: str) -> None:
-    """A anotação que o `jobot ferramentas baixar ia-local` deixa, com o manifesto de hoje."""
+def _anotar(painel: Painel, chave: str, *, sem: object = None, **mudar: object) -> None:
+    """A anotação que o `jobot ferramentas baixar ia-local` deixa, com o manifesto de hoje, e os
+    dois arquivos que ela aponta (menos o de `sem`: `programa` ou `modelo`)."""
     alvo = SERVIDOR["alvos"]["ubuntu-x64"]
+    programa = f"llama/{SERVIDOR['build']}/llama-server"
     anotacao = {
         "build": SERVIDOR["build"],
         "alvo": "ubuntu-x64",
-        "programa": f"llama/{SERVIDOR['build']}/llama-server",
+        "programa": programa,
         "servidor_sha256": alvo["sha256"],
         "modelo": chave,
         "arquivo": MODELOS[chave]["arquivo"],
         "modelo_sha256": MODELOS[chave]["sha256"],
     } | mudar
     pasta = painel.dados / "ferramentas"
-    pasta.mkdir(exist_ok=True)
+    arquivos = {
+        "programa": pasta / programa,
+        "modelo": pasta / "modelos" / MODELOS[chave]["arquivo"],
+    }
+    for nome, arquivo in arquivos.items():
+        if nome != sem:
+            arquivo.parent.mkdir(parents=True, exist_ok=True)
+            arquivo.write_bytes(b"x")
     (pasta / ia_local.ANOTACAO).write_text(json.dumps(anotacao))
 
 
@@ -870,6 +881,169 @@ def test_post_sem_csrf_nao_roda(sem_leitor: Painel) -> None:
     http = TestClient(sem_leitor.app, base_url=BASE, raise_server_exceptions=False)
     assert http.post(f"{IA_LOCAL}/baixar", headers=HTMX).status_code == 403
     assert sem_leitor.comandos == []
+
+
+def _falhou_e_voltou(painel: Painel, http: TestClient) -> None:
+    """O cartão depois de uma falha: aviso, trava solta e "Baixar" de volta."""
+    assert _esperar(lambda: _ia_livre(painel))
+    html = http.get(IA_LOCAL, headers=HTMX).text
+    assert _ia("aviso.falhou_baixar", motivo=_ia("motivo.outro")) in _texto(html)
+    assert _acoes_ia(html) == ["baixar"]
+    assert 'hx-trigger="every 5s"' not in html
+
+
+def test_comando_que_nao_abre_vira_falha(sem_leitor: Painel) -> None:
+    painel = sem_leitor
+    painel.abrir_ia.erro = OSError("sem python")
+    with TestClient(painel.app, base_url=BASE) as http:
+        _post_ia(painel, "baixar", http)
+        _falhou_e_voltou(painel, http)
+
+
+def test_saida_que_levanta_no_meio_mata_o_comando(sem_leitor: Painel) -> None:
+    painel = sem_leitor
+    painel.comando.erro = OSError("cano")
+    painel.comando.liberar.set()
+    with TestClient(painel.app, base_url=BASE) as http:
+        _post_ia(painel, "baixar", http)
+        _falhou_e_voltou(painel, http)
+    assert painel.comando.sinais == ["kill"]
+
+
+def test_tarefa_cancelada_mata_o_comando(sem_leitor: Painel) -> None:
+    """`/sair` e o fim do servidor cancelam a tarefa: o filho não segue baixando sozinho."""
+    painel = sem_leitor
+    with TestClient(painel.app, base_url=BASE) as http:
+        _post_ia(painel, "baixar", http)
+        assert _esperar(lambda: len(painel.comandos) == 1)
+        assert painel.comando.sinais == []
+        assert http.portal is not None
+        for tarefa in list(painel.app.state.tarefas):
+            http.portal.call(tarefa.cancel)
+        assert _esperar(lambda: _ia_livre(painel))
+    assert painel.comando.sinais == ["kill"]
+
+
+def test_comando_que_termina_nao_e_morto(sem_leitor: Painel) -> None:
+    """(controle) O `kill` é só do caminho de erro."""
+    painel = sem_leitor
+    painel.comando.liberar.set()
+    with TestClient(painel.app, base_url=BASE) as http:
+        _post_ia(painel, "baixar", http)
+        assert _esperar(lambda: _ia_livre(painel))
+    assert painel.comando.sinais == []
+
+
+@pytest.mark.parametrize(
+    "torta",
+    [{"modelo": ["2b"]}, {"modelo": {"2b": 1}}, {"alvo": ["ubuntu-x64"]}, {"arquivo": ["m.gguf"]}],
+)
+def test_anotacao_torta_nao_derruba_a_pagina(sem_leitor: Painel, torta: dict[str, object]) -> None:
+    painel = sem_leitor
+    _anotar(painel, "2b", **torta)
+    resposta = TestClient(painel.app, base_url=BASE, raise_server_exceptions=False).get(GRUPO)
+    assert resposta.status_code == 200
+    assert _ia("estado.nao_baixado") in _texto(resposta.text)
+    assert _acoes_ia(resposta.text) == ["baixar"]
+    with TestClient(painel.app, base_url=BASE) as http:
+        assert _post_ia(painel, "baixar", http).status_code == 200
+        painel.comando.liberar.set()
+        assert _esperar(lambda: _ia_livre(painel))
+    assert painel.comandos == [(["baixar", "ia-local"], painel.dados)]
+    _anotar(painel, "2b")  # controle: a anotação boa mostra "Baixado"
+    assert _ia("estado.baixado") in _texto(painel.http.get(GRUPO).text)
+
+
+@pytest.mark.parametrize("sem", ["programa", "modelo"])
+def test_arquivo_anotado_que_sumiu_oferece_atualizar(sem_leitor: Painel, sem: str) -> None:
+    """Apagado à mão: o `atualizar ia-local` baixa o que falta."""
+    painel = sem_leitor
+    _anotar(painel, "2b", sem=sem)
+    html = painel.http.get(GRUPO).text
+    assert _ia("desatualizado") in _texto(html)
+    assert _acoes_ia(html) == ["atualizar", "trocar", "remover"]
+    _anotar(painel, "2b")  # controle: com os dois arquivos, nada a atualizar
+    assert _acoes_ia(painel.http.get(GRUPO).text) == ["trocar", "remover"]
+
+
+def test_removendo_sem_barra_nem_dica_de_download(sem_leitor: Painel) -> None:
+    painel = sem_leitor
+    with TestClient(painel.app, base_url=BASE) as http:
+        baixando = _post_ia(painel, "baixar", http).text  # controle: no baixando, tem
+        painel.comando.liberar.set()
+        assert _esperar(lambda: _ia_livre(painel))
+        _anotar(painel, "2b")
+        painel.comando = ComandoFalso()
+        removendo = _post_ia(painel, "remover", http).text
+        painel.comando.liberar.set()
+        assert _esperar(lambda: _ia_livre(painel))
+    dica = _t("dica_baixando")
+    assert "<progress" in baixando and dica in _texto(baixando)
+    assert _ia("estado.removendo") in _texto(removendo)
+    assert "<progress" not in removendo and dica not in _texto(removendo)
+
+
+def test_sem_javascript_rodando_tem_link_para_recarregar(sem_leitor: Painel) -> None:
+    painel = sem_leitor
+    with TestClient(painel.app, base_url=BASE) as http:
+        assert "<noscript" not in http.get(GRUPO).text  # parado: nada a recarregar
+        _post_ia(painel, "baixar", http)
+        html = http.get(GRUPO).text
+        painel.comando.liberar.set()
+        assert _esperar(lambda: _ia_livre(painel))
+    trecho = re.search(r"<noscript>(.*?)</noscript>", html, re.S)
+    assert trecho is not None
+    assert f'href="{GRUPO}"' in trecho.group(1)
+    assert _ia("recarregar") in _texto(trecho.group(1))
+
+
+_FOCO = "data-foco-se-livre"
+
+
+def _com_foco(html: str) -> list[str]:
+    """O texto de cada elemento marcado para receber o foco depois da troca."""
+    return [_texto(m).strip() for m in re.findall(rf"<p\b[^>]*{_FOCO}[^>]*>(.*?)</p>", html)]
+
+
+def test_foco_no_estado_depois_do_botao_e_no_aviso_do_fim(sem_leitor: Painel) -> None:
+    """O botão apertado some na troca: o foco vai ao estado; o polling não o rouba; o fim vai
+    ao aviso."""
+    painel = sem_leitor
+    with TestClient(painel.app, base_url=BASE) as http:
+        assert _com_foco(_post_ia(painel, "baixar", http).text) == [_ia("estado.baixando")]
+        assert _com_foco(http.get(IA_LOCAL, headers=HTMX).text) == []
+        painel.comando.liberar.set()
+        assert _esperar(lambda: _ia_livre(painel))
+        assert _com_foco(http.get(IA_LOCAL, headers=HTMX).text) == [_ia("aviso.pronto")]
+        assert _com_foco(http.get(IA_LOCAL, headers=HTMX).text) == []
+
+
+@pytest.mark.parametrize(("chave", "mudou"), [(None, False), ("2b", True), ("4b", True)])
+def test_argumentos_passam_pelo_parser_do_cli(chave: str | None, mudou: bool) -> None:
+    """Cada lista que a rota roda é um `jobot ferramentas ... ia-local` que o CLI aceita."""
+    listas = [a for a in argumentos_ia_local(chave, mudou).values() if a is not None]
+    assert listas
+    for lista in listas:
+        inteiro = ia_local.comando(lista)
+        assert inteiro[:3] == [sys.executable, "-m", "jobot"]
+        lido = jobot.cli._parser().parse_args(inteiro[3:])
+        assert (lido.comando, lido.ferramenta) == ("ferramentas", "ia-local")
+        assert lido.acao == lista[0]
+        if "--modelo" in lista:
+            assert lido.modelo == lista[-1]
+
+
+def test_remover_de_verdade_numa_pasta_vazia(tmp_path: Path) -> None:
+    """O comando real, sem rede: `remover ia-local` sem nada baixado sai pronto."""
+
+    async def rodar() -> tuple[list[dict[str, Any]], int]:
+        comando = await ia_local.abrir_comando(["remover", "ia-local"], tmp_path)
+        assert comando.stdout is not None
+        linhas = [json.loads(linha) async for linha in comando.stdout]
+        return linhas, await comando.wait()
+
+    linhas, codigo = asyncio.run(rodar())
+    assert (linhas[-1], codigo) == ({"fim": "pronto"}, 0)
 
 
 @pytest.mark.parametrize("idioma", ["pt", "en"])

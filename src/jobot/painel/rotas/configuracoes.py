@@ -27,7 +27,7 @@ import logging
 import re
 import sqlite3
 from collections.abc import Awaitable, Callable, Mapping
-from contextlib import closing
+from contextlib import closing, suppress
 from dataclasses import replace
 from datetime import date
 from pathlib import Path
@@ -88,6 +88,7 @@ from jobot.painel.rotas.servicos import (
 from jobot.painel.saude_das_fontes import estado_dos_escopos, motivo_mais_grave
 from jobot.painel.seguranca import Con, idioma_do_pedido, renderizar
 from jobot.sistema import casca, caso, ia_local, segundo_plano
+from jobot.sistema.pastas import PASTA_FERRAMENTAS
 from jobot.sistema.segundo_plano_linux import Recusa
 
 router = APIRouter(prefix="/configuracoes")
@@ -999,19 +1000,28 @@ def _andamento_ia(request: Request) -> dict[str, Any]:
 
 
 def _no_disco(request: Request) -> tuple[dict[str, Any], dict[str, Any], str | None, bool]:
-    """O manifesto, a anotação, a chave do modelo baixado (`2b`, `4b`) e se o manifesto mudou
-    desde o download (programa ou modelo, D195)."""
+    """O manifesto, a anotação, a chave do modelo baixado (`2b`, `4b`) e se há o que atualizar:
+    o manifesto mudou desde o download (programa ou modelo, D195) ou um dos arquivos anotados
+    sumiu. Anotação torta (valor que não é texto) é "não baixado", como na aba IA (D202.13)."""
     manifesto = ia_local.manifesto_local()
-    anotacao = ia_local.ler_anotacao(_dados(request))
-    chave = anotacao.get("modelo")
-    if chave not in manifesto["modelos"] or not isinstance(anotacao.get("arquivo"), str):
+    dados = _dados(request)
+    anotacao = ia_local.ler_anotacao(dados)
+    chave, alvo, arquivo = anotacao.get("modelo"), anotacao.get("alvo"), anotacao.get("arquivo")
+    if not (isinstance(chave, str) and isinstance(alvo, str) and isinstance(arquivo, str)):
+        return manifesto, anotacao, None, False
+    if chave not in manifesto["modelos"]:
         return manifesto, anotacao, None, False
     servidor = manifesto["llama_server"]
-    item = servidor["alvos"].get(anotacao.get("alvo")) or {}
+    item = servidor["alvos"].get(alvo) or {}
+    ferramentas = dados / PASTA_FERRAMENTAS
+    programa = anotacao.get("programa")
     mudou = (
         anotacao.get("build") != servidor["build"]
         or anotacao.get("servidor_sha256") != item.get("sha256")
         or anotacao.get("modelo_sha256") != manifesto["modelos"][chave]["sha256"]
+        or not isinstance(programa, str)
+        or not (ferramentas / programa).is_file()
+        or not (ferramentas / "modelos" / arquivo).is_file()
     )
     return manifesto, anotacao, chave, mudou
 
@@ -1020,8 +1030,10 @@ def _outro(chave: str) -> str:
     return "2b" if chave == "4b" else "4b"
 
 
-def contexto_ferramenta_ia_local(request: Request) -> dict[str, Any]:
-    """O cartão do modelo local; resultado terminal aparece uma vez só, como no navegador."""
+def contexto_ferramenta_ia_local(request: Request, *, foco: bool = False) -> dict[str, Any]:
+    """O cartão do modelo local; resultado terminal aparece uma vez só, como no navegador.
+    `foco`: a resposta do botão, que some na troca; o foco vai ao estado (o aviso do fim o puxa
+    sozinho, o polling não)."""
     idioma = idioma_do_pedido(request)
     manifesto, anotacao, chave, mudou = _no_disco(request)
     modelos = manifesto["modelos"]
@@ -1043,6 +1055,7 @@ def contexto_ferramenta_ia_local(request: Request) -> dict[str, Any]:
     tamanhos = sorted(m["tamanho"] for m in modelos.values())
     return {
         "ia_estado": resultado if rodando else "baixado" if chave else "nao_baixado",
+        "ia_foco": foco,
         "ia_resultado": resultado if resultado in _TERMINAIS_IA else None,
         "ia_motivo": motivo if motivo in MOTIVOS_IA else "outro",
         "ia_feito": feito,
@@ -1057,10 +1070,11 @@ def contexto_ferramenta_ia_local(request: Request) -> dict[str, Any]:
     }
 
 
-def _cartao_ia_local(request: Request) -> Response:
+def _cartao_ia_local(request: Request, *, foco: bool = False) -> Response:
     if request.headers.get("hx-request") != "true":  # sem JavaScript: a página inteira de novo
         return _volta("ferramentas")
-    return renderizar(request, _CARTAO_IA_LOCAL, **contexto_ferramenta_ia_local(request))
+    contexto = contexto_ferramenta_ia_local(request, foco=foco)
+    return renderizar(request, _CARTAO_IA_LOCAL, **contexto)
 
 
 @router.get(_IA_LOCAL)
@@ -1069,50 +1083,60 @@ async def estado_do_modelo_local(request: Request) -> Response:
     return _cartao_ia_local(request)
 
 
-@router.post(_IA_LOCAL + "/{acao}")
-async def comando_do_modelo_local(request: Request, con: Con, acao: str) -> Response:
-    """Baixar (o modelo pela memória), Trocar (2B ↔ 4B), Atualizar e Remover rodam o
-    `jobot ferramentas ... ia-local` em segundo plano, um por vez (D195.12)."""
-    manifesto, _, chave, mudou = _no_disco(request)
-    argumentos = {
+def argumentos_ia_local(chave: str | None, mudou: bool) -> dict[str, list[str] | None]:
+    """O `jobot ferramentas ...` de cada botão; `None`: o botão não vale agora."""
+    return {
         "baixar": ["baixar", "ia-local"] if chave is None else None,
         "trocar": ["baixar", "ia-local", "--modelo", _outro(chave)] if chave else None,
         "atualizar": ["atualizar", "ia-local"] if chave and mudou else None,
         "remover": ["remover", "ia-local"] if chave else None,
     }
+
+
+@router.post(_IA_LOCAL + "/{acao}")
+async def comando_do_modelo_local(request: Request, con: Con, acao: str) -> Response:
+    """Baixar (o modelo pela memória), Trocar (2B ↔ 4B), Atualizar e Remover rodam o
+    `jobot ferramentas ... ia-local` em segundo plano, um por vez (D195.12)."""
+    manifesto, _, chave, mudou = _no_disco(request)
+    argumentos = argumentos_ia_local(chave, mudou)
     if acao not in argumentos:
         raise HTTPException(404)
     trava = _trava(request, "ia_local")
     pedido = argumentos[acao]
     if pedido is None or trava.locked():  # nada a fazer, ou outro comando já roda
-        return _cartao_ia_local(request)
+        return _cartao_ia_local(request, foco=True)
     abrir_ia = abrir_ia_local_do_painel(request)
     dados = _dados(request)
     if acao == "remover":
         # as tarefas no local desligam já, sem esperar o comando (que também desliga, D195)
         _desligar_local(con)
     andamento = _andamento_ia(request)
-    await trava.acquire()  # livre: não suspende
-    andamento.clear()
-    andamento["estado"] = "removendo" if acao == "remover" else "baixando"
     novo = manifesto["modelos"][_outro(chave)]["nome"] if acao == "trocar" and chave else None
     banco: Path = request.app.state.banco
+    await trava.acquire()  # livre: não suspende; tudo que pode falhar vem antes
+    andamento.clear()
+    andamento["estado"] = "removendo" if acao == "remover" else "baixando"
 
     async def rodar_comando() -> None:
         fim: object = None
         motivo: object = None
         try:
             comando = await abrir_ia(pedido, dados)
-            linhas = comando.stdout
-            if linhas is not None:
-                async for linha in linhas:
-                    lida = _linha_json(linha)
-                    feito, total = lida.get("feito"), lida.get("total")
-                    if isinstance(feito, int) and isinstance(total, int):
-                        andamento["feito"], andamento["total"] = feito, total
-                    fim, motivo = lida.get("fim", fim), lida.get("motivo", motivo)
-            if await comando.wait() != 0:
-                fim = "falhou"
+            try:
+                linhas = comando.stdout
+                if linhas is not None:
+                    async for linha in linhas:
+                        lida = _linha_json(linha)
+                        feito, total = lida.get("feito"), lida.get("total")
+                        if isinstance(feito, int) and isinstance(total, int):
+                            andamento["feito"], andamento["total"] = feito, total
+                        fim, motivo = lida.get("fim", fim), lida.get("motivo", motivo)
+                if await comando.wait() != 0:
+                    fim = "falhou"
+            except BaseException:  # cancelado (`/sair`, fim do servidor) ou erro na leitura
+                with suppress(ProcessLookupError):
+                    comando.kill()  # o `.parcial` fica para a retomada
+                raise
             if fim == "pronto" and novo is not None:
                 await run_in_threadpool(_renomear_local, banco, novo)
         finally:
@@ -1124,7 +1148,7 @@ async def comando_do_modelo_local(request: Request, con: Con, acao: str) -> Resp
             andamento["motivo"] = None if ok else motivo
 
     criar_tarefa(request, "modelo local", trava, rodar_comando)
-    return _cartao_ia_local(request)
+    return _cartao_ia_local(request, foco=True)
 
 
 def _linha_json(linha: bytes) -> dict[str, Any]:

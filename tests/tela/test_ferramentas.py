@@ -57,7 +57,9 @@ def _anotar(dados: Path, chave: str) -> None:
         "arquivo": modelo["arquivo"],
         "modelo_sha256": modelo["sha256"],
     }
-    (dados / "ferramentas").mkdir(exist_ok=True)
+    for arquivo in ("llama/b/llama-server", f"modelos/{modelo['arquivo']}"):  # senão, "Atualizar"
+        (dados / "ferramentas" / arquivo).parent.mkdir(parents=True, exist_ok=True)
+        (dados / "ferramentas" / arquivo).write_bytes(b"x")
     (dados / "ferramentas" / ia_local.ANOTACAO).write_text(json.dumps(anotacao))
 
 
@@ -74,6 +76,7 @@ def test_baixar_pelo_teclado_sem_leitor(page: Page, painel: str, abrir_ia: Abrir
     expect(baixar).to_be_focused()
     page.keyboard.press("Enter")
     expect(page.get_by_text("Baixando", exact=True)).to_be_visible()
+    expect(page.get_by_text("Baixando", exact=True)).to_be_focused()  # o botão sumiu na troca
     expect(page.get_by_role("progressbar", name="Andamento do download")).to_be_visible()
     expect(page).to_have_url(re.compile(rf"{FERRAMENTAS}$"))  # o HTMX trocou só o cartão
     assert abrir_ia.comandos[0][0] == ["baixar", "ia-local"]
@@ -85,6 +88,8 @@ def test_baixar_sem_javascript(pagina_sem_js: Page, painel: str, abrir_ia: Abrir
     expect(pagina_sem_js).to_have_url(re.compile(rf"{FERRAMENTAS}$"))
     expect(pagina_sem_js.get_by_text("Baixando", exact=True)).to_be_visible()
     expect(pagina_sem_js.get_by_role("progressbar", name="Andamento do download")).to_be_visible()
+    recarregar = pagina_sem_js.get_by_role("link", name="Atualizar a página para ver o andamento")
+    expect(recarregar).to_have_attribute("href", FERRAMENTAS)
     assert abrir_ia.comandos[0][0] == ["baixar", "ia-local"]
 
 
