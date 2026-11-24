@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 from playwright.sync_api import Browser, Page, expect
 
+from apoio.console import anotar_erros
 from apoio.semear import AGORA
 from jobot.banco.conexao import abrir
 from jobot.banco.perfil import gravar_habilidades, habilidades
@@ -21,13 +22,8 @@ pytestmark = pytest.mark.tela
 
 @pytest.fixture(autouse=True)
 def _sem_erro_no_console(page: Page) -> Iterator[None]:
-    erros: list[str] = []  # violação do CSP aparece como erro no console
-    # o 422 do teto é a resposta esperada da página, não erro de script
-    page.on(
-        "console",
-        lambda m: erros.append(m.text) if m.type == "error" and "422" not in m.text else None,
-    )
-    page.on("pageerror", lambda e: erros.append(str(e)))
+    # violação do CSP aparece como erro; o 422 do teto é a resposta esperada da página
+    erros = anotar_erros(page, ignorar="422")
     yield
     assert erros == []
 
