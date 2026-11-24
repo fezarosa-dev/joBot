@@ -3969,3 +3969,20 @@ A sessão propôs abrir o painel no Chrome da pessoa como janela de app. O dono 
 **Como desfazer:** item 1, `EXPOENTE` e `curva` de volta a `p^1,25`; item 2, o `PARADA_S` e o `math.floor`; itens 3 e 4, a animação linear de 2 s e a largura igual ao valor.
 
 **Ver também:** D143.55, D143.62, D143.63, D181.11, T252, T336, T358.
+
+## D218. O vigia se reativa sozinho (regra dos 60 dias)
+
+**Status:** decidido pela sessão em 2026-11-24, a pedido do dono ("não conseguimos fazer o nosso bot sempre commitar o estado dele ou algo do tipo para que não dê problema?"), para confirmar.
+
+**Contexto:** o GitHub desliga agendamento de repositório público depois de 60 dias sem atividade. O único agendamento do joBot é o vigia semanal (`vigia.yml`, ADR 0018). Ele não tem estado para guardar: o estado são as issues, uma por fonte. O joBot em si guarda tudo no SQLite de cada pessoa. A ADR 0002 já previa, para a versão Pages, que o workflow se reativasse pela API a cada execução.
+
+1. **Reativar pela API no último passo, sempre.** `gh api -X PUT repos/<repo>/actions/workflows/vigia.yml/enable`, com `if: always()` (mesmo quando o vigia falha) e o `github.token`. A permissão `actions: write` entra só por isso. Guarda em `test_vigia.py`.
+2. **Sem commit de estado nem de "batimento".** Commit de robô num repositório público é ruído, e a `main` e a `dev` são protegidas (ADR 0016); o vigia não tem o que guardar.
+3. **Sem action de terceiros** (como a `gh-workflow-immortality`): seria código de outra pessoa rodando com o token do repositório, para o que uma linha resolve.
+4. **O repositório segue público:** o projeto é aberto (MIT) e o Actions é grátis por isso.
+
+**Teto conhecido:** o GitHub não documenta que reativar pela API zera a contagem dos 60 dias; é o que relatam quem usa a técnica. Se o vigia for desligado mesmo assim, o dono o religa em Actions › Vigia › Enable workflow, e a próxima execução volta a se reativar.
+
+**Como desfazer:** tirar o último passo do `vigia.yml` e o `actions: write`.
+
+**Ver também:** ADR 0002, ADR 0016, ADR 0018, D31.
