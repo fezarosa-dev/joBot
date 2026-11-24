@@ -335,6 +335,7 @@ def test_curriculo_na_ia_manual_copia_e_cola(page: Page, painel: str, tmp_path: 
     expect(pedido).to_have_attribute("readonly", "")
     expect(pedido).to_have_value(re.compile("<<<CURRICULO"))
     expect(pedido).not_to_have_value(re.compile("contato@exemplo"))
+    expect(page.get_by_text("A IA não achou nada para preencher.")).to_have_count(0)
     page.get_by_role("textbox", name="Resposta do chat").fill(
         "```json\n" + json.dumps(_LIDO) + "\n```"
     )

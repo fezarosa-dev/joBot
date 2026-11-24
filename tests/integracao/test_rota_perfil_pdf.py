@@ -531,9 +531,8 @@ def test_nao_achei_no_curriculo_fica_fora_do_aprovar_todas(painel: Painel) -> No
         for d in descrito
         if (no := form.css_first(f"#{d}")) is not None
     )
-    # "Aprovar todas" ignora as caixas: grava só o que a IA achou no texto
-    campos = [(n, v) for n, v in _campos(form) if n != "usar"]
-    salvo = _salvar(painel, campos, aprovar="1")
+    # "Aprovar todas" grava o que a IA achou no texto e segue com a caixa marcada
+    salvo = _salvar(painel, _campos(form), aprovar="1")
     assert (salvo.status_code, salvo.headers["location"]) == (303, PERFIL + "?salvo=1#perfil-sobre")
     with closing(abrir(painel.banco)) as con:
         dados = perfil.dados(con)
@@ -546,6 +545,90 @@ def test_nao_achei_no_curriculo_fica_fora_do_aprovar_todas(painel: Painel) -> No
     assert (dados.cargo_atual, dados.formacao_nivel) == ("Analista de dados", "graduacao")
     assert dados.anos_de_experiencia is None
     assert dados.idiomas_falados == (("en", "avancado"),)
+
+
+def test_aprovar_todas_respeita_a_caixa_desmarcada(painel: Painel) -> None:
+    """Desmarcar um valor achado e apertar "Aprovar todas" (ou Enter num campo) não o grava; o
+    valor para conferir marcado também fica fora do "Aprovar todas"."""
+    resposta, _ = _ler_cv(painel)
+    form = _form_revisao(resposta.text)
+    assert form is not None
+    tirados = {"telefone", "habilidades.1", "experiencias.0"}
+    campos = [(n, v) for n, v in _campos(form) if not (n == "usar" and v in tirados)]
+    campos.append(("usar", "habilidades.2"))  # para conferir, marcado: só o "Salvar" o leva
+    assert _salvar(painel, campos, aprovar="1").status_code == 303
+    with closing(abrir(painel.banco)) as con:
+        dados = perfil.dados(con)
+        assert perfil.habilidades(con) == ["Python"]
+        assert perfil.experiencias(con) == []
+    assert (dados.email, dados.telefone) == ("contato@exemplo.invalid", None)
+
+
+@pytest.mark.parametrize("modo", ["ia", "manual"])
+def test_contato_diferente_do_gravado_fica_para_conferir(painel: Painel, modo: str) -> None:
+    """O regex local pega o primeiro número que parece telefone ("Matrícula 2019123456"): o
+    e-mail ou o telefone que trocaria o gravado vem desmarcado, com o motivo; o igual (mesmos
+    algarismos) segue achado."""
+    with closing(abrir(painel.banco)) as con:
+        gravado = perfil.Dados(email="antigo@exemplo.invalid", telefone="11 987654321")
+        perfil.gravar_dados(con, gravado, painel.app.state.relogio.agora())
+    if modo == "ia":
+        resposta, _ = _ler_cv(painel)
+    else:
+        colar = _form_colar(_ler_manual(painel)[0].text)
+        assert colar is not None
+        campos = [(n, v) for n, v in _campos(colar) if n != "colado"]
+        colado = ("colado", json.dumps(RESPOSTA_IA))
+        resposta = _postar(painel, CURRICULO + "/resposta", [*campos, colado])
+    form = _form_revisao(resposta.text)
+    assert form is not None
+    assert "email" in _valores(form, "marcado") and "email" not in _valores(form, "usar")
+    assert "telefone" not in _valores(form, "marcado") and "telefone" in _valores(form, "usar")
+    assert i18n.t("pt", CV_CHAVE + "troca") in _texto(form.html)
+    assert _salvar(painel, _campos(form), aprovar="1").status_code == 303
+    with closing(abrir(painel.banco)) as con:
+        assert perfil.dados(con).email == "antigo@exemplo.invalid"
+
+
+def test_idioma_sem_nivel_fica_para_conferir(painel: Painel) -> None:
+    """ "Idiomas: Inglês, Espanhol" é comum: o idioma sem nível vem desmarcado, com o motivo, e
+    o "Aprovar todas" não trava nele."""
+    _ligar(painel)
+    lido = {
+        **RESPOSTA_IA,
+        "idiomas_falados": [*RESPOSTA_IA["idiomas_falados"], {"idioma": "Espanhol"}],
+    }
+    _fabrica(painel, [lido])
+    resposta = painel.enviar(montar_pdf([*PAGINAS_CV, "Espanhol"]))
+    form = _form_revisao(resposta.text)
+    assert form is not None
+    assert "idiomas_falados.1" in _valores(form, "marcado")
+    assert "idiomas_falados.1" not in _valores(form, "usar")
+    assert i18n.t("pt", CV_CHAVE + "sem_nivel") in _texto(form.html)
+    assert _salvar(painel, _campos(form), aprovar="1").status_code == 303
+    with closing(abrir(painel.banco)) as con:
+        assert perfil.dados(con).idiomas_falados == (("en", "avancado"),)
+
+
+def test_aprovar_de_novo_nao_repete_experiencia_nem_curso(painel: Painel) -> None:
+    """Voltar no navegador e salvar de novo, ou enviar o currículo atualizado: a experiência e o
+    curso iguais aos gravados (sem caixa, acento e espaço a mais) não entram outra vez, e o teto
+    conta só os novos."""
+    resposta, _ = _ler_cv(painel)
+    form = _form_revisao(resposta.text)
+    assert form is not None
+    campos = [*_campos(form), ("usar", "cursos.0")]
+    assert _salvar(painel, campos).status_code == 303
+    assert _salvar(painel, campos).status_code == 303
+    with closing(abrir(painel.banco)) as con:
+        assert len(perfil.experiencias(con)) == 1 and len(perfil.cursos(con)) == 1
+        for n in range(perfil_rota.TETO_ITENS - 1):
+            perfil.gravar_experiencia(con, perfil.Experiencia(f"Cargo {n}", None, None, None, None))
+    outra = [(n, " ANALISTA  de dados " if n == "experiencias.0.cargo" else v) for n, v in campos]
+    assert _salvar(painel, outra).status_code == 303  # no teto, mas nada novo
+    with closing(abrir(painel.banco)) as con:
+        assert len(perfil.experiencias(con)) == perfil_rota.TETO_ITENS
+        assert len(perfil.cursos(con)) == 1
 
 
 def test_salvar_grava_so_os_marcados_inclusive_o_que_a_ia_nao_achou(painel: Painel) -> None:
@@ -761,6 +844,8 @@ def test_ia_manual_mostra_o_pedido_para_copiar_sem_chamar_ninguem(painel: Painel
     assert campos["texto"] == texto.texto
     assert (campos["email"], campos["telefone"]) == ("contato@exemplo.invalid", "(11) 98765-4321")
     assert campos[CAMPO_CSRF] == painel.token
+    # nada foi colado ainda: a tela não diz que a IA não achou nada
+    assert i18n.t("pt", CV_CHAVE + "nada_achado") not in _texto(resposta.text)
 
 
 def test_ia_manual_le_a_resposta_colada_com_as_mesmas_conferencias(painel: Painel) -> None:
