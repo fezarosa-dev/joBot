@@ -176,7 +176,10 @@ def _adicionar_e_tirar(pagina: Page, painel: str, tmp_path: Path) -> None:
     expect(item.get_by_role("textbox", name="Início")).to_have_value("2019-03")
     with closing(abrir(tmp_path / "jobot.db")) as con:
         assert [e.cargo for e in experiencias(con)] == ["Analista"]
-    form = pagina.locator("form", has=item)
+    # o `has` procura dentro do formulário: o grupo vem sem a região
+    form = pagina.get_by_role("region", name="Experiências").locator(
+        "form", has=pagina.get_by_role("group", name="Analista")
+    )
     with pagina.expect_navigation():
         form.get_by_role("button", name="Tirar", exact=True).click()
     secao = pagina.get_by_role("region", name="Experiências")
