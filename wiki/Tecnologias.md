@@ -20,6 +20,7 @@
 | 🔍 **selectolax** (1.0.2) | Ler o HTML das páginas de vagas. | Separar os dados da vaga do resto da página. |
 | 🔐 **keyring** (25.7.0) | Guardar a chave do 2Captcha no cofre de senhas do sistema. | A chave não fica num arquivo comum; sem cofre, vai a um arquivo que só você lê (ADR 0014). |
 | 🎭 **Playwright** (1.65.1) | Controlar um navegador. | Lê os sites com login, usando a sessão que você abriu (fase 2). Também roda os testes de tela. |
+| 📄 **pypdf** (7.1.1) | Ler o texto do currículo em PDF na aba Perfil (0.6.0). | Roda num processo à parte, com prazo e limite de páginas; o PDF e o texto não são guardados. |
 
 ## ✅ Qualidade
 

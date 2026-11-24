@@ -2,6 +2,8 @@
 perfil" (desenho 8 da fase 4; T413, T434; D200, D230).
 
 Tudo aqui é dado da pessoa e fica no computador: nenhuma rota deste módulo manda nada para fora.
+O currículo em PDF (`POST /configuracoes/perfil/curriculo`, T435) é lido no processo filho de
+`sistema/pdf.py` e não é guardado: nem o PDF nem o texto vão ao banco ou à pasta de dados.
 As habilidades vão ao banco limpas e sem repetidos (`habilidades_do_texto`); mudar a lista
 recalcula o encaixe **antes** de gravar, com a lista nova (padrões «Config»): se o recálculo
 falhar, nada muda. Todo formulário da aba posta em `POST /configuracoes/perfil` (rota de
@@ -17,8 +19,9 @@ from typing import Any, get_args
 from urllib.parse import urlsplit
 
 from fastapi import APIRouter, HTTPException, Request
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import RedirectResponse, Response
-from starlette.datastructures import FormData
+from starlette.datastructures import FormData, UploadFile
 
 from jobot.banco import buscas, perfil
 from jobot.banco.cadastros import ler_config
@@ -26,6 +29,7 @@ from jobot.banco.ia import TarefaIA, tarefa_ia
 from jobot.nucleo.texto import normalizar, sem_pontas
 from jobot.painel.consultas import relogio_do_painel
 from jobot.painel.seguranca import Con, renderizar
+from jobot.sistema import pdf
 
 router = APIRouter(prefix="/configuracoes/perfil")
 
@@ -425,3 +429,43 @@ async def apagar(request: Request, con: Con) -> Response:
     _recalcular(request, con, [])
     perfil.apagar_perfil(con)
     return RedirectResponse(PERFIL + "?apagado=1", 303)
+
+
+# --- o currículo em PDF (T435; D231) ----------------------------------------------------------
+
+_CURRICULO = "configuracoes/_curriculo.html"
+
+
+def extrair_curriculo(lido: pdf.Lido) -> None:
+    """Onde o texto lido entra na extração dos campos (tarefa `curriculo`, T436). O texto só vive
+    neste pedido: nada aqui o guarda."""
+
+
+def _aviso(request: Request, chave: str, status: int = 200) -> Response:
+    resposta = renderizar(request, _CURRICULO, aviso="configuracoes.perfil.curriculo." + chave)
+    resposta.status_code = status
+    return resposta
+
+
+@router.post("/curriculo")
+async def ler_curriculo(request: Request) -> Response:
+    """Lê o PDF enviado. O token CSRF veio no cabeçalho (`exigir_csrf` não lê o corpo de um
+    upload); o tamanho se confere pelo `Content-Length` antes de ler o corpo, e o temporário do
+    Starlette (acima de 1 MB vai ao disco) fecha ao sair do `async with`."""
+    tamanho = request.headers.get("content-length", "")
+    # chunked manda sobre o Content-Length (o h11 aceita os dois): o tamanho declarado não vale
+    if "transfer-encoding" in request.headers or not (tamanho.isascii() and tamanho.isdigit()):
+        return _aviso(request, "sem_tamanho", 411)
+    if int(tamanho) > pdf.TETO_BYTES:
+        return _aviso(request, "grande", 413)
+    async with request.form(max_files=1, max_fields=0) as form:
+        arquivo = form.get("curriculo")
+        if not isinstance(arquivo, UploadFile):
+            raise HTTPException(422)
+        dados = await arquivo.read()
+    try:
+        lido = await run_in_threadpool(pdf.ler, dados)
+    except pdf.AvisoPdf as aviso:
+        return _aviso(request, "aviso." + aviso.aviso)
+    extrair_curriculo(lido)
+    return renderizar(request, _CURRICULO, lido=lido)

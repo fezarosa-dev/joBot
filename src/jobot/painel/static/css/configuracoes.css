@@ -108,6 +108,11 @@
   gap: 1.25rem;
 }
 
+/* o display: grid acima venceria o [hidden] do navegador (o upload do currículo sem JavaScript) */
+.config-form[hidden] {
+  display: none;
+}
+
 .config-alerta {
   margin: 0 0 1rem;
   padding: 0.75rem 1rem;
