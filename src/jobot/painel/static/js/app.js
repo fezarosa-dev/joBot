@@ -43,6 +43,18 @@
     }
   });
 
+  // seção que troca sozinha (aba Perfil, D230): o 422 que traz a seção (campo marcado e alerta)
+  // troca como o 200; o 422 seco, sem a seção, fica com o aviso de erro de sempre
+  document.addEventListener("htmx:beforeSwap", (evento) => {
+    const d = evento.detail;
+    const seletor = d.elt?.closest?.("[data-troca-422]")?.getAttribute("hx-select");
+    if (d.xhr?.status !== 422 || !seletor) return;
+    const doc = new DOMParser().parseFromString(d.xhr.responseText ?? "", "text/html");
+    if (!doc.querySelector(seletor)) return;
+    d.shouldSwap = true;
+    d.isError = false;
+  });
+
   // depois de uma troca, o foco vai para o [data-foco] do trecho novo, se ele tiver um;
   // trecho sem [data-foco] (ex.: andamento que atualiza sozinho) não rouba o foco.
   // Com hx-swap="outerHTML" o alvo é o nó antigo, já fora do DOM: aí vale o nó do evento.

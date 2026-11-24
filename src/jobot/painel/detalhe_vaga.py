@@ -191,7 +191,8 @@ def gravar_resposta(
     con: sqlite3.Connection, vaga_id: int, feito: PedidoDaVaga, resposta: Resposta, agora: datetime
 ) -> None:
     """Confere a resposta (já validada pelo esquema) e grava o preparo, que substitui o anterior;
-    as perguntas que passaram viram perguntas do perfil, com origem `ia`."""
+    as perguntas que passaram viram perguntas sugeridas do perfil, com origem `ia`: esperam o
+    aceite da pessoa na aba Perfil antes de entrar no questionário e nos pedidos (D234)."""
     c = conferir_candidatura(resposta.dados, feito.enviados, feito.pede, feito.feitas)
     novo = Preparo(
         idioma=feito.idioma,
@@ -208,7 +209,8 @@ def gravar_resposta(
     )
     gravar_preparo(con, vaga_id, novo)
     for pergunta in c.perguntar:
-        perfil.gravar_pergunta(con, "ia:" + normalizar(pergunta), pergunta, "ia", agora)
+        chave = "ia:" + normalizar(pergunta)
+        perfil.gravar_pergunta(con, chave, pergunta, "ia", agora, sugerida=True)
 
 
 def chave_da_falha(motivo: Motivo, backend: str) -> str:
@@ -263,7 +265,9 @@ def contexto_do_preparo(
         "citados": ", ".join(citados(gravado.faltam, f"{gravado.carta}\n{gravado.resumo}"))
         if gravado
         else "",
-        "texto_manual": manual.texto_para_copiar(feito.pedido) if no_manual and feito else None,
+        "texto_manual": manual.texto_para_copiar(feito.pedido, idioma_painel)
+        if no_manual and feito
+        else None,
     }
 
 

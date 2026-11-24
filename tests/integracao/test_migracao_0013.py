@@ -408,53 +408,6 @@ def test_curso_gravado_editado_e_tirado(con: sqlite3.Connection) -> None:
     assert _conta(con, "curso") == 1
 
 
-def test_pergunta_sugerida_de_novo_nao_apaga_a_resposta(con: sqlite3.Connection) -> None:
-    perfil.gravar_pergunta(con, "ia:docker", "Já usou Docker?", "ia", T0, por_que="A vaga pede.")
-    perfil.responder_pergunta(con, "ia:docker", "Sim, dois anos.", T0 + timedelta(hours=1))
-    perfil.gravar_pergunta(
-        con, "ia:docker", "Você já usou Docker?", "ia", T0 + timedelta(hours=2), por_que="Outra."
-    )
-    assert _conta(con, "pergunta_perfil") == 1
-    assert perfil.perguntas(con) == [
-        perfil.PerguntaPerfil(
-            chave="ia:docker",
-            pergunta="Você já usou Docker?",
-            origem="ia",
-            por_que="Outra.",
-            resposta="Sim, dois anos.",
-        )
-    ]
-    respondida = con.execute("SELECT criada_em, respondida_em FROM pergunta_perfil").fetchone()
-    assert respondida == (T0.isoformat(), (T0 + timedelta(hours=1)).isoformat())
-
-
-def test_pergunta_sugerida_de_novo_troca_a_origem(con: sqlite3.Connection) -> None:
-    perfil.gravar_pergunta(con, "base:links", "Seus links?", "base", T0)
-    perfil.gravar_pergunta(con, "base:links", "Seus links?", "ia", T0 + timedelta(hours=1))
-    assert [p.origem for p in perfil.perguntas(con)] == ["ia"]
-
-
-def test_responder_pergunta_so_grava_na_chave_pedida(con: sqlite3.Connection) -> None:
-    perfil.gravar_pergunta(con, "ia:docker", "Já usou Docker?", "ia", T0)
-    perfil.gravar_pergunta(con, "base:links", "Seus links?", "base", T0)
-    perfil.responder_pergunta(con, "ia:docker", "Sim.", T0 + timedelta(hours=1))
-    linhas = con.execute(
-        "SELECT chave, resposta, respondida_em FROM pergunta_perfil ORDER BY id"
-    ).fetchall()
-    assert linhas == [
-        ("ia:docker", "Sim.", (T0 + timedelta(hours=1)).isoformat()),
-        ("base:links", None, None),
-    ]
-
-
-def test_responder_pergunta_que_nao_existe_nao_cria(con: sqlite3.Connection) -> None:
-    perfil.responder_pergunta(con, "nao:existe", "x", T0)
-    assert _conta(con, "pergunta_perfil") == 0
-    perfil.gravar_pergunta(con, "base:links", "Seus links?", "base", T0)  # controle
-    perfil.responder_pergunta(con, "base:links", "https://a.test", T0)
-    assert [p.resposta for p in perfil.perguntas(con)] == ["https://a.test"]
-
-
 # preparo
 
 
@@ -508,6 +461,16 @@ def test_preparo_com_json_adulterado_le_listas_vazias(con: sqlite3.Connection) -
     assert ia.preparo(con, 1) == _preparo(tem=(), faltam=(), usou=("a",))
 
 
+def _pergunta(con: sqlite3.Connection, chave: str) -> None:
+    """Pergunta pelo SQL: as funções de `banco/perfil.py` já leem as colunas das migrações novas
+    (as delas ficam no teste da migração que as trouxe, `test_migracao_0014.py`)."""
+    con.execute(
+        "INSERT INTO pergunta_perfil (chave, pergunta, origem, criada_em)"
+        " VALUES (?, 'x?', 'ia', ?)",
+        (chave, AGORA),
+    )
+
+
 # Apagar perfil
 
 
@@ -516,7 +479,7 @@ def _tudo(con: sqlite3.Connection) -> None:
     perfil.gravar_dados(con, _dados(), T0)
     perfil.gravar_experiencia(con, perfil.Experiencia(cargo="Analista"))
     perfil.gravar_curso(con, perfil.Curso(nome="ADS"))
-    perfil.gravar_pergunta(con, "ia:x", "x?", "ia", T0)
+    _pergunta(con, "ia:x")
     ia.gravar_preparo(con, 1, _preparo())
     con.execute(
         "INSERT INTO habilidades_vaga (vaga_id, pede, feito_em) VALUES (1, '[\"SQL\"]', ?)",
@@ -570,7 +533,7 @@ def test_apagar_perfil_nao_deixa_os_bytes_nem_nas_copias(
     perfil.gravar_dados(con, _dados(nome=nome, email=mail, telefone=fone, resumo=resumo), T0)
     perfil.gravar_experiencia(con, perfil.Experiencia(cargo="Analista", descricao=exp))
     perfil.gravar_curso(con, perfil.Curso(nome=curso))
-    perfil.gravar_pergunta(con, "ia:x", "x?", "ia", T0)
+    _pergunta(con, "ia:x")
     perfil.responder_pergunta(con, "ia:x", resposta, T0)
     ia.gravar_preparo(con, 1, _preparo(carta=carta))
     copia = sqlite3.connect(tmp_path / "jobot.db.antes-v13")  # a cópia da próxima migração

@@ -394,6 +394,24 @@ def test_pedido_leva_respostas_sem_contato_nem_nome(painel: Painel) -> None:
     assert "Aceita viajar?" in dados["perguntas_feitas"]
 
 
+def test_sugerida_da_candidatura_nao_vai_no_pedido(painel: Painel) -> None:
+    """D234 (decidido pelo dono): a pergunta que espera o aceite não vai nem como já feita nem na
+    página; controle: a aceita vai."""
+    painel.ligar()
+    with painel.con() as con:
+        agora = RelogioFalso().agora()
+        perfil.gravar_pergunta(con, "ia:viagem", "Aceita viajar?", "ia", agora)
+        plantada = "Qual o nome do seu gerente?"
+        perfil.gravar_pergunta(con, "ia:plantada", plantada, "ia", agora, sugerida=True)
+    fabrica = painel.fabrica([{"perguntas": []}])
+    painel.post({"sugerir": "1"})
+    usuario = fabrica.falso.pedidos[0].mensagens[1].texto
+    assert "Aceita viajar?" in usuario
+    assert plantada not in usuario
+    pagina = painel.http.get(PAGINA).text
+    assert "Aceita viajar?" in pagina and plantada not in pagina
+
+
 def test_responder_grava_e_limpar_apaga_a_resposta(painel: Painel) -> None:
     with painel.con() as con:
         perfil.gravar_pergunta(con, "ia:bi", "Usa BI?", "ia", RelogioFalso().agora())

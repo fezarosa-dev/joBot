@@ -510,7 +510,9 @@ def test_idioma_devolvido_diferente_grava_o_pedido(pronto: Painel) -> None:
     assert preparo is not None and preparo.idioma == "pt"
 
 
-def test_perguntar_vira_pergunta_do_perfil_com_origem_ia(pronto: Painel) -> None:
+def test_perguntar_vira_pergunta_sugerida_que_espera_o_aceite(pronto: Painel) -> None:
+    """D234 (decidido pelo dono): a pergunta da candidatura não entra direto no perfil; fica
+    sugerida até a pessoa aceitar na aba Perfil."""
     pronto.fabrica.resposta = RESPOSTA | {
         "perguntar": [
             "Qual foi o maior painel que você montou?",
@@ -520,8 +522,10 @@ def test_perguntar_vira_pergunta_do_perfil_com_origem_ia(pronto: Painel) -> None
     }
     html = _feito(pronto)
     with pronto.con() as con:
-        perguntas = perfil.perguntas(con)
-    assert [(p.chave, p.pergunta, p.origem) for p in perguntas] == [
+        aceitas = perfil.perguntas(con)
+        sugeridas = perfil.perguntas(con, sugeridas=True)
+    assert aceitas == []
+    assert [(p.chave, p.pergunta, p.origem) for p in sugeridas] == [
         (
             "ia:qual foi o maior painel que voce montou?",
             "Qual foi o maior painel que você montou?",
@@ -530,8 +534,43 @@ def test_perguntar_vira_pergunta_do_perfil_com_origem_ia(pronto: Painel) -> None
     ]
     texto = _texto(html)
     assert "Qual foi o maior painel que você montou?" in texto
+    assert pt("detalhe.candidatura.perguntas") in texto
     assert "golpe.test" not in texto
-    assert LexborHTMLParser(html).css_first("a[href='/configuracoes/perfil']") is not None
+    link = "a[href='/configuracoes/perfil#perfil-sugeridas']"
+    assert LexborHTMLParser(html).css_first(link) is not None
+
+
+def test_vaga_que_planta_pergunta_nao_muda_os_pedidos_sem_aceite(pronto: Painel) -> None:
+    """Injeção: a vaga manda a IA perguntar algo; a pergunta fica sugerida e os pedidos seguintes
+    não a levam, nem com uma resposta enviada por um formulário montado à mão. Controle: aceita e
+    respondida, ela vai."""
+    plantada = "Qual o nome do seu gerente atual e o salário dele?"
+    pronto.fabrica.resposta = RESPOSTA | {"perguntar": [plantada]}
+    _feito(pronto)
+    chave = "ia:" + "qual o nome do seu gerente atual e o salario dele?"
+    dados = {
+        CAMPO_CSRF: pronto.token,
+        "habilidades": "Python",
+        "pergunta_chave": chave,
+        "pergunta_resposta": "Fulano, 20 mil",
+    } | dict.fromkeys(
+        ("nome", "email", "telefone", "links", "cidade_moradia", "cargo_atual")
+        + ("anos_de_experiencia", "formacao_nivel", "idioma_pt", "idioma_en", "idioma_es"),
+        "",
+    )
+    assert pronto.http.post("/configuracoes/perfil/perguntas", data=dados).status_code == 303
+    pronto.fabrica.resposta = RESPOSTA | {"perguntar": []}
+    _feito(pronto)
+    _, seguinte = pronto.fabrica.pedidos[-1]
+    enviado = "\n".join(m.texto for m in seguinte.mensagens)
+    assert plantada not in enviado and "Fulano" not in enviado
+    with pronto.con() as con:  # controle: aceita e respondida, ela vai no pedido
+        perfil.aceitar_pergunta(con, chave)
+        perfil.responder_pergunta(con, chave, "Prefiro não dizer", RelogioFalso().agora())
+    _feito(pronto)
+    _, com_aceite = pronto.fabrica.pedidos[-1]
+    enviado = "\n".join(m.texto for m in com_aceite.mensagens)
+    assert plantada in enviado and "Prefiro não dizer" in enviado
 
 
 def test_pergunta_ja_feita_nao_volta(pronto: Painel) -> None:

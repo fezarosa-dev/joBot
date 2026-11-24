@@ -232,12 +232,19 @@ class PerguntaPerfil:
     resposta: str | None = None  # None = ainda sem resposta
 
 
-def perguntas(con: sqlite3.Connection) -> list[PerguntaPerfil]:
-    """As perguntas do perfil, na ordem em que entraram."""
+# As sugeridas que esperam o aceite (D234): passou disso, a mais velha sai.
+TETO_SUGERIDAS = 20
+
+
+def perguntas(con: sqlite3.Connection, *, sugeridas: bool = False) -> list[PerguntaPerfil]:
+    """As perguntas aceitas do perfil, na ordem em que entraram; com `sugeridas`, só as que a IA
+    sugeriu numa candidatura e esperam o aceite (D234), que nunca vão a um pedido."""
     return [
         PerguntaPerfil(*linha)
         for linha in con.execute(
-            "SELECT chave, pergunta, origem, por_que, resposta FROM pergunta_perfil ORDER BY id"
+            "SELECT chave, pergunta, origem, por_que, resposta FROM pergunta_perfil"
+            " WHERE sugerida = ? ORDER BY id",
+            (int(sugeridas),),
         )
     ]
 
@@ -250,15 +257,37 @@ def gravar_pergunta(
     agora: datetime,
     *,
     por_que: str | None = None,
+    sugerida: bool = False,
 ) -> None:
-    """Grava a pergunta pela `chave`. A mesma chave troca o texto e o porquê, nunca a resposta."""
+    """Grava a pergunta pela `chave`. A mesma chave troca o texto e o porquê, nunca a resposta;
+    a aceita fica aceita, e a pedida sem `sugerida` aceita a que esperava. Com `sugerida`, só
+    as `TETO_SUGERIDAS` mais novas que esperam ficam."""
     with con:
         con.execute(
-            "INSERT INTO pergunta_perfil (chave, pergunta, por_que, origem, criada_em)"
-            " VALUES (?, ?, ?, ?, ?) ON CONFLICT(chave) DO UPDATE SET"
-            " pergunta = excluded.pergunta, por_que = excluded.por_que, origem = excluded.origem",
-            (chave, pergunta, por_que, origem, agora.isoformat()),
+            "INSERT INTO pergunta_perfil (chave, pergunta, por_que, origem, criada_em, sugerida)"
+            " VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(chave) DO UPDATE SET"
+            " pergunta = excluded.pergunta, por_que = excluded.por_que, origem = excluded.origem,"
+            " sugerida = min(sugerida, excluded.sugerida)",
+            (chave, pergunta, por_que, origem, agora.isoformat(), int(sugerida)),
         )
+        if sugerida:
+            con.execute(
+                "DELETE FROM pergunta_perfil WHERE sugerida = 1 AND id NOT IN"
+                " (SELECT id FROM pergunta_perfil WHERE sugerida = 1 ORDER BY id DESC LIMIT ?)",
+                (TETO_SUGERIDAS,),
+            )
+
+
+def aceitar_pergunta(con: sqlite3.Connection, chave: str) -> None:
+    """A sugerida entra no perfil (no questionário e, respondida, nos pedidos)."""
+    with con:
+        con.execute("UPDATE pergunta_perfil SET sugerida = 0 WHERE chave = ?", (chave,))
+
+
+def descartar_pergunta(con: sqlite3.Connection, chave: str) -> None:
+    """A sugerida sai; a aceita não sai por aqui."""
+    with con:
+        con.execute("DELETE FROM pergunta_perfil WHERE chave = ? AND sugerida = 1", (chave,))
 
 
 def responder_pergunta(
