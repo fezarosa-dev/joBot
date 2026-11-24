@@ -39,14 +39,15 @@ On first launch, the joBot window shows the install screen.
 
 1. **Tools:** joBot and Python 3.14 come ticked and locked. The browser for sites with login (LinkedIn and others you sign in to) comes ticked and is the only thing that comes from the internet: joBot downloads it through Playwright, from Playwright's servers (about 210 MB). If you untick it, the sites with login stay off until you download the browser in Settings › Tools.
 2. **Installing:** nothing is downloaded, except the browser, if ticked. joBot checks the sha256 of every file and every library; if any does not match, nothing is installed and the screen asks you to download the installer again. The browser is left out of this check: Playwright does not publish its sha256, and the download comes over HTTPS. Without internet, the installation works the same without the browser: if its download fails, the screen offers to go on without it.
-3. **Done:** the window opens the dashboard, with the first-run questions.
+3. **Done:** the window becomes the joBot control. Press **Start** and then **Open joBot**: the dashboard opens in your default browser, with the first-run questions.
 
 If the installation fails midway, what it did is undone, and "Try again" starts from scratch.
 
 ## 4. After installing
 
-- **Closing the window** closes only the window. With the background service on (Settings › Background), the searches go on; to stop everything, use **Quit joBot** in Settings › General.
-- **Updating:** when a new version comes out, the dashboard tells you in a banner; press **Update now**. The new version is built next to the current one and only goes in if it opens. If the window has a new version too, **Download the new window** opens the version page: download and open the installer again, and your data stays.
+- **The joBot window is a control.** It shows whether joBot is **Running** or **Stopped**, the dashboard address (with **Copy**) and the **Start**, **Stop** and **Open joBot** buttons. Open joBot, which only shows while joBot is running, opens the dashboard in your default browser. When the window opens, it only shows the state: it does not start or open anything by itself.
+- **Closing the window** while joBot is running asks **Keep joBot running?**. **Keep running** closes only the window, and the dashboard stays on in your browser until you open the window and press **Stop**; **Turn off** stops joBot and closes. With joBot stopped, it closes right away. The background service (Settings › Background) is for joBot to start by itself when the computer starts. From the dashboard, **Quit joBot**, in Settings › General, also stops everything.
+- **Updating:** when a new version comes out, the dashboard tells you in a banner; press **Update now**. The new version is built next to the current one and only goes in if it opens. The update replaces only joBot, not the window. When the window has a new version too, it shows **Download the new window**, which opens the version page: download and open the installer again, and your data stays.
 - **Your data** lives in `~/.local/share/jobot` on Linux, `%LOCALAPPDATA%\joBot` on Windows and `~/Library/Application Support/joBot` on the Mac.
 
 ## 5. Uninstall
@@ -60,6 +61,6 @@ Uninstalling never deletes your data. The browser stays too, in the Playwright f
 ## 🛠️ If something goes wrong
 
 - **"A file in the installer is not the expected one":** the download came broken. Download the installer again.
-- **The window did not open and the dashboard showed up in the browser:** the system has an old version of the window component (common on older Linux). joBot works the same in the browser.
+- **Open joBot did not open the browser:** the window shows the reason. Press **Copy** and paste the address into your browser. On Linux, joBot opens the browser with `xdg-open`, from the `xdg-utils` package.
 - **Windows without WebView2:** Windows 11 and an up-to-date Windows 10 already have WebView2, which the window needs. Without it, the installer downloads nothing: it warns you, with Microsoft's official link (https://developer.microsoft.com/microsoft-edge/webview2/), and cancels. Install WebView2 from that link and open the installer again.
 - **Another question:** see the [frequently asked questions](Frequently-asked-questions) or [ask a question](Ask-a-question).

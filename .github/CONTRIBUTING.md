@@ -29,7 +29,7 @@ As fases 1, 2 e 3 (base, navegador com login e instalador) estão concluídas: o
 
 ## Compilar a janela (casca)
 
-A janela do joBot é um app Tauri 2, em Rust, na pasta `desktop/` ([ADR 0025](../docs/decisions/0025-app-de-desktop-e-instalador.md)). Ela fica fora do pacote Python: só fala HTTP com o painel e chama o `jobot` e o `uv`. Para mexer nela:
+A janela do joBot é um app Tauri 2, em Rust, na pasta `desktop/` ([ADR 0025](../docs/decisions/0025-app-de-desktop-e-instalador.md)). Desde a 0.4.1 ela só mostra a tela de instalação e o controle (Ligar, Parar, Abrir joBot), e o painel abre no navegador da pessoa ([ADR 0027](../docs/decisions/0027-casca-so-controla.md)). Ela fica fora do pacote Python: só fala HTTP com o painel e chama o `jobot` e o `uv`. Para mexer nela:
 
 1. Instale o Rust pelo [rustup](https://rustup.rs/). A versão fica fixada em `desktop/rust-toolchain.toml`, e o rustup a escolhe sozinho dentro de `desktop/`.
 2. No Linux, instale as bibliotecas do WebKitGTK. No Debian e no Ubuntu: `sudo apt install libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf`. Em outras distros os nomes mudam; veja os pré-requisitos do [Tauri](https://v2.tauri.app/start/prerequisites/).
