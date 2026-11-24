@@ -35,7 +35,14 @@ PORTA = 47619
 PERFIL = "/configuracoes/perfil"
 CURRICULO = PERFIL + "/curriculo"
 MARCA = "Analista Quixotesco Zebrino"  # o texto de teste: só aparece onde o PDF foi parar
-AVISOS: tuple[pdf.Aviso, ...] = ("nao_pdf", "senha", "corrompido", "so_imagem", "prazo")
+AVISOS: tuple[pdf.Aviso, ...] = (
+    "nao_pdf",
+    "senha",
+    "protegido",
+    "corrompido",
+    "so_imagem",
+    "prazo",
+)
 CHAVE_AVISO = "configuracoes.perfil.curriculo.aviso."
 
 
@@ -148,6 +155,7 @@ def test_texto_lido_chega_a_extracao_e_a_tela_diz_quanto(
     esperado = i18n.t("pt", "configuracoes.perfil.curriculo.lido", paginas=2, total=2)
     assert esperado in _texto(resposta.text)
     assert 'role="status"' in resposta.text
+    assert "data-foco-se-livre" in resposta.text  # o foco solto vai ao resultado
 
 
 @pytest.mark.parametrize("idioma", ["pt", "en"])
@@ -169,6 +177,7 @@ def test_aviso_proprio_na_tela(
     assert resposta.status_code == 200
     assert _texto(resposta.text) == i18n.t(idioma, CHAVE_AVISO + aviso)
     assert 'role="alert"' in resposta.text
+    assert "data-foco-se-livre" in resposta.text
     assert extraidos == []
 
 
@@ -190,6 +199,19 @@ def test_todo_aviso_tem_texto_proprio(idioma: str) -> None:
     assert all(not texto.startswith(CHAVE_AVISO) for texto in textos)
     assert len(set(textos)) == len(AVISOS)
     assert set(AVISOS) == set(get_args(pdf.Aviso))
+
+
+def test_formulario_do_curriculo_mostra_a_espera(painel: Painel) -> None:
+    html = painel.http.get(PERFIL).text
+    achado = re.search(r'<form[^>]*hx-post="/configuracoes/perfil/curriculo".*?</form>', html, re.S)
+    assert achado is not None
+    form = achado.group(0)
+    # a leitura leva até 30 s: o botão diz que está lendo (o HTMX marca o botão, não o form)
+    assert 'hx-indicator="find button"' in form
+    assert '<span class="botao-espera">Lendo o currículo…</span>' in form
+    assert "data-limpar-alvo" in form  # envio novo tira o resultado do anterior
+    # os filhos já têm role="status" e role="alert": sem aria-live em volta, nada se lê duas vezes
+    assert '<div id="perfil-curriculo-resultado"></div>' in html
 
 
 def test_sem_o_arquivo_e_422(painel: Painel, extraidos: list[pdf.Lido]) -> None:
@@ -230,6 +252,9 @@ def test_sem_content_length_recusado_antes_de_ler_o_corpo(painel: Painel) -> Non
     cabecalhos = {"content-type": tipo, CABECALHO_CSRF: painel.token}
     assert _chamar(painel.app, cabecalhos, corpo) == (411, 0)
     assert _chamar(painel.app, cabecalhos | {"content-length": "1e3"}, corpo) == (411, 0)
+    # chunked com Content-Length: o h11 aceita, o chunked manda e o tamanho declarado não vale
+    chunked = cabecalhos | {"content-length": str(len(corpo)), "transfer-encoding": "chunked"}
+    assert _chamar(painel.app, chunked, corpo) == (411, 0)
 
 
 def test_sem_cabecalho_csrf_recusado_sem_ler_o_formulario(painel: Painel) -> None:
@@ -239,8 +264,46 @@ def test_sem_cabecalho_csrf_recusado_sem_ler_o_formulario(painel: Painel) -> Non
     assert _chamar(painel.app, cabecalhos, corpo) == (403, 0)
     errado = cabecalhos | {CABECALHO_CSRF: "outro"}
     assert _chamar(painel.app, errado, corpo) == (403, 0)
+    maiusculas = cabecalhos | {
+        "content-type": tipo.replace("multipart/form-data", "Multipart/Form-Data")
+    }
+    assert _chamar(painel.app, maiusculas, corpo) == (403, 0)
     # controle: com o cabeçalho, o mesmo pedido lê o corpo
     assert _chamar(painel.app, cabecalhos | {CABECALHO_CSRF: painel.token}, corpo)[1] == 1
+
+
+def test_outro_site_recusado_sem_ler_o_corpo(painel: Painel) -> None:
+    # vale para todo POST, também o urlencoded: a origem se confere antes do `request.form()`
+    corpo = f"{CAMPO_CSRF}={painel.token}".encode()
+    cabecalhos = {
+        "content-type": "application/x-www-form-urlencoded",
+        "content-length": str(len(corpo)),
+    }
+    assert _chamar(painel.app, cabecalhos | {"sec-fetch-site": "cross-site"}, corpo) == (403, 0)
+    assert _chamar(painel.app, cabecalhos | {"origin": "http://outro.example"}, corpo) == (403, 0)
+    # controle: do próprio painel, o mesmo pedido lê o corpo
+    proprio = cabecalhos | {"origin": f"http://127.0.0.1:{PORTA}", "sec-fetch-site": "same-origin"}
+    assert _chamar(painel.app, proprio, corpo)[1] >= 1
+
+
+def test_campo_ou_arquivo_a_mais_e_400(painel: Painel, extraidos: list[pdf.Lido]) -> None:
+    dados = montar_pdf([MARCA])
+    corpo, tipo = _multipart(dados, {"outro": "x"})
+    com_campo = painel.http.post(
+        CURRICULO, content=corpo, headers={"content-type": tipo, CABECALHO_CSRF: painel.token}
+    )
+    assert com_campo.status_code == 400
+    dois = painel.http.post(
+        CURRICULO,
+        files=[
+            ("curriculo", ("a.pdf", dados, "application/pdf")),
+            ("curriculo", ("b.pdf", dados, "application/pdf")),
+        ],
+        headers={CABECALHO_CSRF: painel.token},
+    )
+    assert dois.status_code == 400
+    assert extraidos == []
+    assert painel.enviar(dados).status_code == 200  # controle: um arquivo só passa
 
 
 def test_formulario_comum_segue_com_o_token_no_corpo(painel: Painel) -> None:

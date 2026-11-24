@@ -227,6 +227,23 @@ def test_curriculo_com_senha_mostra_o_aviso(page: Page, painel: str) -> None:
     )
 
 
+def test_curriculo_grande_avisa_e_limpa_o_resultado(page: Page, painel: str) -> None:
+    # o 413 sai sem ler o corpo; o aviso de erro mostra o motivo e o resultado anterior não fica
+    _enviar_curriculo(page, painel, montar_pdf(["Analista de dados"]))
+    resultado = page.locator("#perfil-curriculo-resultado")
+    expect(resultado).to_contain_text("Currículo lido")
+    secao = page.get_by_role("region", name="Currículo em PDF")
+    grande = b"%PDF-1.7\n" + b"0" * (5 * 1024 * 1024 + 1)
+    secao.get_by_label("Arquivo do currículo (PDF)").set_input_files(
+        {"name": "grande.pdf", "mimeType": "application/pdf", "buffer": grande}
+    )
+    secao.get_by_role("button", name="Ler currículo", exact=True).click()
+    expect(page.locator("#aviso-erro")).to_contain_text(
+        "O arquivo passa de 5 MB. Envie um PDF menor."
+    )
+    expect(resultado).to_be_empty()
+
+
 def test_curriculo_sem_javascript_explica(browser: Browser, painel: str) -> None:
     contexto = browser.new_context(java_script_enabled=False, locale="pt-BR")
     try:
