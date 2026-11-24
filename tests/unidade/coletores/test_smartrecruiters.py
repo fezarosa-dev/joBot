@@ -135,9 +135,13 @@ def test_escopos_um_por_empresa_e_pais() -> None:
     ]
 
 
-def test_escopos_sem_pais_valido_ou_sem_pais_nao_pedem_nada() -> None:
-    assert list(smartrecruiters.COLETOR.escopos(_ctx([], "NielsenIQ"))) == []
+def test_escopos_sem_pais_valido_nao_pedem_nada() -> None:
     assert list(smartrecruiters.COLETOR.escopos(_ctx(["", "bra", "b1", "b|"], "NielsenIQ"))) == []
+
+
+def test_escopos_sem_pais_nas_buscas_pedem_o_brasil() -> None:
+    # o "testar" do painel passa `paises=()`: como no Workday e no Oracle HCM (A21)
+    assert list(smartrecruiters.COLETOR.escopos(_ctx([], "NielsenIQ"))) == ["NielsenIQ|br"]
 
 
 async def test_normal() -> None:

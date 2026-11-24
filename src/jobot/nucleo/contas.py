@@ -21,7 +21,6 @@ NaTela = Literal["desligado", "nunca_entrou", "conectado", "precisa_entrar", "na
 ESTADOS: Final = get_args(EstadoSessao)
 MOTIVOS: Final = get_args(MotivoSessao)
 NA_TELA: Final = get_args(NaTela)
-MOTIVOS_CONTA: Final = frozenset({"sem_rede", "bloqueio", "erro", "esquecido"})
 
 
 @dataclass(frozen=True)

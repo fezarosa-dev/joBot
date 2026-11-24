@@ -241,3 +241,11 @@ def test_de_reais_eur_e_jpy() -> None:
 def test_taxa_cruzada_divisao_que_nao_termina() -> None:
     assert taxa_cruzada(Decimal("0.0368"), Decimal("5.65")) == Decimal("0.0065")
     assert taxa_cruzada(Decimal("5.65"), Decimal("6.25")) == Decimal("0.9040")
+
+
+@pytest.mark.parametrize("ruim", ["NaN", "Infinity", "0", "-5.65"])
+def test_taxa_cruzada_recusa_cotacao_invalida(ruim: str) -> None:
+    with pytest.raises(ValueError, match="cotação inválida"):
+        taxa_cruzada(Decimal(ruim), Decimal("5.65"))
+    with pytest.raises(ValueError, match="cotação inválida"):
+        taxa_cruzada(Decimal("5.65"), Decimal(ruim))

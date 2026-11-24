@@ -448,3 +448,10 @@ async def test_resolver_aceita_url_do_quadro_e_devolve_o_site(
 async def test_resolver_recusa_o_que_nao_e_quadro(entrada: str, http_proibido: HttpEducado) -> None:
     with pytest.raises(ValueError):
         await lever.COLETOR.resolver(entrada, http_proibido)
+
+
+async def test_id_bool_nao_vira_id_externo() -> None:
+    dados = _normal()
+    dados[0]["id"] = True
+    resultado, _ = await _coletar(httpx.Response(200, json=dados))
+    assert _vagas(resultado)[0].id_externo is None
