@@ -11,10 +11,11 @@ O `playwright install` vive em sessão própria (`abrir_instalador`): o sinal de
 cancelando, o `jobot atualizar` no prazo) não chega a ele. No POSIX o SIGTERM cancela o download e
 encerra o grupo dele antes de sair; no Windows quem chama mata a árvore (`taskkill /T`).
 
-Modelo local: `baixar ia-local [--modelo auto|2b|4b]` baixa da fonte oficial o `llama-server` do
-`nucleo/dados/ia_local.json` para este computador, roda `llama-server --version` e só então baixa
-o modelo (falha em 23 MB, não em 2,7 GB). `auto` escolhe pela memória, com os cortes do `ia.json`,
-e escreve antes de tudo `{"memoria": <bytes>, "modelo": "2b"|"4b", "lento": <bool>}`. O que baixou
+Modelo local: `baixar ia-local [--modelo auto|laya|2b|4b]` baixa da fonte oficial o `llama-server`
+do `nucleo/dados/ia_local.json` para este computador, roda `llama-server --version` e só então
+baixa o modelo (falha em 23 MB, não em 2,7 GB). `auto` baixa o `padrao` do manifesto (o Laya, em
+todo computador, D219.20) e escreve antes de tudo `{"memoria": <bytes>, "modelo": "laya",
+"lento": <bool>}`, com o aviso pelo corte do `ia.json`. O que baixou
 fica anotado em `<dados>/ferramentas/ia_local.json`; `atualizar ia-local` baixa só o que mudou no
 manifesto, com o mesmo modelo; os dois derrubam o `llama-server` antes de trocar ou apagar o
 anterior (D195.6); `remover ia-local` desliga as tarefas no backend `local`, derruba o
@@ -65,7 +66,7 @@ from jobot.sistema.casca import gravar_atomico
 from jobot.sistema.ia_local import ANOTACAO as ANOTACAO
 from jobot.sistema.ia_local import ler_anotacao as ler_anotacao
 from jobot.sistema.ia_local import manifesto_local as manifesto_local
-from jobot.sistema.memoria import escolher_modelo, memoria_total
+from jobot.sistema.memoria import memoria_curta, memoria_total
 from jobot.sistema.pastas import PASTA_FERRAMENTAS, configurar_log, pasta_de_dados, preparar_pasta
 
 _LOG = logging.getLogger(__name__)
@@ -165,6 +166,7 @@ def baixar_ia_local(
     dormir: Callable[[float], None] = time.sleep,
 ) -> int:
     """`jobot ferramentas baixar ia-local`: 0 pronto, 1 falhou (a linha `fim` diz o motivo)."""
+    manifesto = manifesto_local() if manifesto is None else manifesto
     modelo = escolha
     if escolha == "auto":
         try:
@@ -173,10 +175,8 @@ def baixar_ia_local(
             _LOG.exception("a memória não foi lida")
             _escrever({"fim": "falhou", "motivo": "arquivo"})
             return 1
-        cortes = limites()["memoria_gib"]
-        modelo, lento = escolher_modelo(
-            total, desde_4b_gib=cortes["modelo_4b_desde"], aviso_gib=cortes["aviso_lento_abaixo"]
-        )
+        modelo = manifesto["padrao"]
+        lento = memoria_curta(total, aviso_gib=limites()["memoria_gib"]["aviso_lento_abaixo"])
         _escrever({"memoria": total, "modelo": modelo, "lento": lento})
     return _instalar(dados, modelo, manifesto, cliente, versao, alvo, encerrar_sobra, dormir)
 

@@ -274,7 +274,7 @@ def test_ia_json_traz_prazos_limites_e_cortes() -> None:
             },
         },
         "laco": {"max_por_rodada": 20, "max_tentativas": 2, "max_por_dia_fora": 200},
-        "memoria_gib": {"modelo_4b_desde": 11, "aviso_lento_abaixo": 7},
+        "memoria_gib": {"aviso_lento_abaixo": 7},
     }
 
 

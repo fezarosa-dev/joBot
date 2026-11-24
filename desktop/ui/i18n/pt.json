@@ -70,7 +70,7 @@
   "controle.falha.outro": "Não consegui concluir. Tente de novo.",
   "ferramentas.grupo_ia": "Inteligência artificial (opcional)",
   "ferramentas.ia_local": "Modelo local",
-  "ferramentas.ia_local_frase": "Para usar IA sem internet e sem pagar. Se você marcar, baixa da internet de {de} a {ate}, conforme a memória do computador; dá para baixar depois em Configurações › Ferramentas.",
+  "ferramentas.ia_local_frase": "Para usar IA sem internet e sem pagar. Se você marcar, baixa da internet o modelo Laya, ajustado para as vagas ({tamanho}); dá para baixar depois, ou trocar de modelo, em Configurações › Ferramentas.",
   "ferramentas.tamanho_ate": "até {tamanho}",
   "etapa.ia_local": "Baixando o modelo local",
   "pronto.ia_local": "O joBot está instalado, mas o modelo local não baixou: {motivo}. Baixe depois em Configurações › Ferramentas.",

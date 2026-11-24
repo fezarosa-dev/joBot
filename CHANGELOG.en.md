@@ -8,6 +8,11 @@ The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/
 
 ## [Unreleased]
 
+### Changed
+
+- The default local model is now Laya 2B, a fine-tune of Qwen3.5 2B for jobs, trained only on jobs from public sources. On the gold set it gets 96.3% right, against 84% to 91% for the original Qwen3.5 2B and the same as 4B and 9B at Q4, while being 2 to 3.5 times faster than them. The local model card in Settings › Tools and the installer download Laya (1.3 GB, from joBot's releases on GitHub) on every computer; memory only decides the slowness warning. Qwen3.5 2B and 4B stay on the card, with a "Switch to" button for each, and whoever already downloaded one keeps it until switching. The list of network requests in Privacy and in the README mentions Laya.
+- For contributors: `scripts/treino_laya/treinar.py` merges the LoRA through Qwen3.5's image-and-text class and copies the tokenizer from the original repository, and training leaves the vision tower out; the training `requirements.txt` gains `torchvision`, `pillow` and `flash-linear-attention`.
+
 ## [0.5.0] - 2026-11-24
 
 AI arrives, optional and off by default: it lists the skills each job asks for, and joBot compares them with the ones in your profile. It runs on the local model, free and without internet once downloaded, or on a service with your key.

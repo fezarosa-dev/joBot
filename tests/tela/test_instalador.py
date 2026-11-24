@@ -23,8 +23,9 @@ UI = RAIZ / "desktop" / "ui"
 ESTATICOS = RAIZ / "src" / "jobot" / "painel" / "static"
 ICONE = RAIZ / "desktop" / "icons" / "icon.png"
 DADOS = "/home/ana/.local/share/jobot"
-# os tamanhos do Modelo local, como o build os copia do `ia_local.json` (T418)
-IA_LOCAL = {"servidor": 20_000_000, "modelos": {"2b": 1_280_835_840, "4b": 2_740_937_888}}
+# os tamanhos do Modelo local, como o build os copia do `ia_local.json` (T418): o servidor e o
+# modelo padrão, o Laya (D219.20)
+IA_LOCAL = {"servidor": 20_000_000, "modelos": {"laya": 1_285_207_680}}
 ESTADO = {
     "completo": True,
     "dados": DADOS,
@@ -449,8 +450,9 @@ def test_em_ingles_e_troca_de_idioma(page: Page, ui: str) -> None:
 # --- Modelo local (T418; desenho 10.1; D185.17) ---
 
 FRASE_IA = (
-    "Para usar IA sem internet e sem pagar. Se você marcar, baixa da internet de 1,3 a 2,7 GB, "
-    "conforme a memória do computador; dá para baixar depois em Configurações › Ferramentas."
+    "Para usar IA sem internet e sem pagar. Se você marcar, baixa da internet o modelo Laya, "
+    "ajustado para as vagas (1,3 GB); dá para baixar depois, ou trocar de modelo, em "
+    "Configurações › Ferramentas."
 )
 
 
@@ -470,7 +472,7 @@ def test_grupo_de_ia_so_com_o_modelo_local_desmarcado(page: Page, ui: str) -> No
     expect(modelo).not_to_be_checked()
     expect(modelo).to_be_enabled()
     expect(modelo).to_have_accessible_description(FRASE_IA)
-    expect(grupo).to_contain_text("até 2,8 GB")
+    expect(grupo).to_contain_text("até 1,3 GB")
     corpo = page.locator("body").inner_text()
     for nome in ("Claude", "Codex", "vem com", "inclui"):
         assert nome not in corpo, nome
@@ -489,8 +491,8 @@ def test_rodape_soma_o_modelo_marcado(page: Page, ui: str) -> None:
     expect(espaco).to_have_text("cerca de 750 MB")
     expect(page.get_by_label("Modelo local", exact=True)).to_be_visible()
     page.get_by_label("Modelo local", exact=True).check()
-    # 750 MB + o llama-server compactado x 3 (60 MB) + o modelo maior (2 741 MB): 3,6 GB
-    expect(espaco).to_have_text("cerca de 3,6 GB")
+    # 750 MB + o llama-server compactado x 3 (60 MB) + o Laya (1 285 MB): 2,1 GB
+    expect(espaco).to_have_text("cerca de 2,1 GB")
     page.get_by_label("Modelo local", exact=True).press("Space")  # desmarca pelo teclado
     expect(espaco).to_have_text("cerca de 750 MB")
     page.get_by_label("Modelo local", exact=True).check()
@@ -603,7 +605,7 @@ def test_modelo_local_em_ingles(page: Page, ui: str) -> None:
     modelo = grupo.get_by_role("checkbox", name="Local model", exact=True)
     expect(modelo).not_to_be_checked()
     expect(modelo).to_have_accessible_description(
-        "To use AI offline and for free. If you check it, it downloads 1.3 to 2.7 GB from the "
-        "internet, depending on the computer's memory; you can download it later in "
+        "To use AI offline and for free. If you check it, it downloads the Laya model, fine-tuned "
+        "for jobs (1.3 GB), from the internet; you can download it later, or switch models, in "
         "Settings › Tools."
     )
