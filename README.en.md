@@ -32,7 +32,7 @@ It gathers, filters and organizes jobs from many sites into a nice dashboard tha
 
 > [!IMPORTANT]
 > **joBot phases 1, 2 and 3 (the foundation, the browser with login and the installer) have been done since version 0.4.0; the version to install now is 0.4.1.** It searches public sources for jobs, keeps everything on your computer and shows it in a dashboard. You can already [install and use it](#requirements-and-installation).
-> LinkedIn is the site with login today (others can come through the [new site template](docs/site-novo.en.md)); it has been here since version 0.3.0 and comes off (you turn it on in Settings, Accounts). The Gmail card is already in Settings, Accounts; reading the emails, audio and the rest (the other sites with login, AI and browser extension) are still a plan. See the [roadmap](#roadmap). Before you turn on the sources, read the [usage and terms notices](#license-and-notices).
+> LinkedIn is the site with login today (others can come through the [new site template](docs/site-novo.en.md)); it has been here since version 0.3.0 and comes off (you turn it on in Settings, Accounts). The Gmail card is already in Settings, Accounts. AI arrives in version 0.5.0, off by default, to list the skills each job asks for ([details](#artificial-intelligence)); reading the emails, audio and the rest (the other sites with login, the other AI tasks and browser extension) are still a plan. See the [roadmap](#roadmap). Before you turn on the sources, read the [usage and terms notices](#license-and-notices).
 
 ## 📑 Contents
 
@@ -147,7 +147,7 @@ One search cycle, step by step:
 3. **The core** merges duplicate jobs, understands the salary, adds labels and marks as closed the jobs that disappeared.
 4. **Everything goes to the SQLite database**, a file that stays on your computer.
 5. **The dashboard** shows the result in your browser. It only works on your computer (address 127.0.0.1).
-6. **When the AI arrives** (phase 4) and you turn it on, it will calculate the match with your profile and help prepare applications. Until then, the match comes from the rules of your search.
+6. **If you turn on the AI** (from version 0.5.0), it lists the skills each job asks for, and joBot compares them with the ones in your profile and adds that to the match. The AI does not give a score. In 0.6.0, it will help prepare applications. Without AI, the match comes from the rules of your search.
 
 If one source fails, the others keep going. If the computer was off at the scheduled time, the missed search runs when it turns on.
 
@@ -163,7 +163,7 @@ joBot will have a single core and two "faces". The **local version** is the focu
 | **Installation** | Native, with uv ([how to install](#requirements-and-installation)) | None: just open the site |
 | **Sources** | All | Public sources only |
 | **Sites with login** | Yes, you sign in in a regular browser window | No |
-| **AI** | Automatic (Claude, local model) or manual | Manual (copy and paste); labels by rules only |
+| **AI** | Automatic (local model or a service with your key: Anthropic, OpenAI, Gemini or a compatible address) or manual | Manual (copy and paste); labels by rules only |
 | **Browser extension** | Yes | No |
 | **Gmail** | Yes (optional) | No |
 | **Audio** | Yes, transcription on your computer | No |
@@ -233,24 +233,39 @@ The dashboard runs at `http://127.0.0.1:47615`. When joBot finds Chrome, Edge or
 <a id="artificial-intelligence"></a>
 ## 🧠 Artificial intelligence
 
-The AI is **optional** and arrives in phase 4. Without it, joBot works with rules and keywords, and that is how phase 1 works.
+The AI is **optional** and arrives in version 0.5.0 (phase 4), **off by default**. Without it, joBot works with rules and keywords, as it has since phase 1.
 
-> **Golden rule:** the AI only uses the data in your profile. It never invents experience, courses or skills, and it shows which data it used.
-> If information is missing, it asks a question, and your answer is saved in the profile.
+> **Golden rule:** the AI never invents. In 0.5.0 it does not even receive your profile: each skill it lists has to be written in the job.
+> From 0.6.0 on, in the tasks that use the profile (résumé, questionnaire, application), it only uses the data in your profile, shows which data it used and, if information is missing, asks a question, and your answer is saved in the profile.
+
+### What 0.5.0 brings
+
+- **The skills of each job.** With the **Matching** task on in Settings › AI and at least one skill in your profile, after each search the AI reads up to 20 jobs not yet read that already match a search, newest first, and lists what each one asks for. Switching the service or the model makes the AI read everything again, 20 per round. Each item has to be written in the job. The AI does not see your profile and does not give a score: joBot compares the list with the skills you put in Settings › Profile, shows in the job details the ones you have and the ones you are missing, and adds that to the match, next to the title, the location and the rest.
+- **Where the AI runs:** on the local model (free, on your computer) or on a service with your key: the Anthropic API, OpenAI, Google Gemini or an OpenAI-compatible address (Ollama, LM Studio, OpenRouter and others). The keys stay in the system password vault, in Settings › Services.
+- **Test when you turn it on.** Turning the task on or switching the service sends a short request, with a sample job. If it fails, the task stays off and the screen says why.
+- **Cost in plain sight.** A paid service shows as "billed per use", turning Matching on with it asks for confirmation, and joBot makes at most 200 requests a day to each outside service, not counting the test when you turn it on.
+
+The résumé, the questionnaire, the gap questions, manual AI and "Prepare application" arrive in 0.6.0. The Claude Code and Codex sessions wait for the owner's decision on the terms of use and have not been built yet. Laya (the local model fine-tuned for jobs) does not ship in 0.5.0 either: it comes in a later version, after the training.
 
 ### Options
 
-| Option | Cost | Where it runs | Where the data goes | Needs internet? |
-|---|---|---|---|---|
-| **Claude Code session** ([details](#using-claude-code)) | Uses your Claude subscription | At Anthropic | Anthropic | Yes |
-| **Anthropic API key** | Pay per use | At Anthropic | Anthropic | Yes |
-| **Local model (Qwen)** | Free | On your computer | Does not leave the computer | No (after downloading) |
-| **Keywords** (no AI) | Free | On your computer | Does not leave the computer | No |
-| **Manual AI** (copy and paste) | Free in joBot; depends on the chat AI you use | In the chat AI you choose | Wherever you paste it | Depends on the chat AI |
+| Option | Cost | Where it runs | Where the data goes | Needs internet? | Status |
+|---|---|---|---|---|---|
+| **Local model (Qwen)** | Free | On your computer | Does not leave the computer | No (after downloading) | In 0.5.0 |
+| **Anthropic API key** | Pay per use | At Anthropic | Anthropic | Yes | In 0.5.0, experimental |
+| **OpenAI key** | Pay per use | At OpenAI | OpenAI | Yes | In 0.5.0, experimental |
+| **Google Gemini key** | May be billed per use, depending on your Google AI Studio account plan | At Google | Google | Yes | In 0.5.0, experimental |
+| **OpenAI-compatible address** (Ollama, LM Studio, OpenRouter) | Depends on the service | Wherever the address points | To that address | Depends on the address | In 0.5.0, experimental |
+| **Keywords** (no AI) | Free | On your computer | Does not leave the computer | No | Since 0.1.0 |
+| **Manual AI** (copy and paste) | Free in joBot; depends on the chat AI you use | In the chat AI you choose | Wherever you paste it | Depends on the chat AI | In 0.6.0 |
+| **Claude Code session** ([details](#using-claude-code)) | Uses your Claude subscription | At Anthropic | Anthropic | Yes | Waiting for the owner |
 
-So you don't have to set up task by task, there are three shortcuts:
+**Experimental, not yet proven:** joBot's CI has no key for a paid service, so the Anthropic API, OpenAI and Gemini were only tested against a fake service. They carry that mark in the AI tab until they are proven with a real key. The local model was only proven in CI: it ran on GitHub's computers (Linux, Windows and Mac, on the processor only), with up to 55 s for the longest job. Not yet proven: the compatible address against a real Ollama, LM Studio or OpenRouter (the same client only ran against the local model's `llama-server`, in CI), the installer really downloading the Local model, resuming a cut download against the real servers, the Windows Defender and SmartScreen warnings on `llama-server.exe` and the speed on an ordinary computer.
 
-- **All Claude**: uses Claude for every task.
+So you don't have to set up task by task, there are shortcuts in the AI tab:
+
+- **Turn AI off**: nothing leaves your computer. This is the default.
+- **All Claude**: uses Claude, through the Anthropic API (billed per use), for every task.
 - **All offline**: uses Qwen, which runs on your computer, for every task.
 - **Custom**: you choose the option and the model for each task.
 
@@ -262,7 +277,7 @@ The app uses only two models: Haiku 5.5 (`claude-haiku-5-5`), faster and cheaper
 | Task | Model |
 |---|---|
 | Read the résumé and build the profile | Sonnet 5.5 |
-| Match score with the job | Haiku 5.5 |
+| Skills the job asks for (Matching, already in 0.5.0) | Haiku 5.5 |
 | Prepare the application | Sonnet 5.5 |
 | Browser extension | Sonnet 5.5 |
 | Extra questionnaire questions | Sonnet 5.5 |
@@ -271,22 +286,34 @@ The app uses only two models: Haiku 5.5 (`claude-haiku-5-5`), faster and cheaper
 
 ### Offline package
 
-The installer arrived in phase 3 (version 0.4.0), and the offline package comes in phase 4. The installer shows a list of tools for you to tick, and the offline package will appear in it. It will let you use AI without internet and without paying anything. Whatever you leave unticked, you can download later in the panel, in Settings, on the Tools screen. There you can also change your choice.
+Since version 0.5.0, the offline package is the **Local model**: llama.cpp's `llama-server` and a Qwen3.5 model. It does not come inside the installer: joBot downloads it from the official source, only when you ask, and checks the checksum of each file. There are two ways to ask: tick **Local model** in the installer's Tools step (it comes unticked) or press **Download** on the model card in Settings › Tools. joBot picks the model by the computer's memory (the 4B from 11 GiB, which a 12 GB computer reaches, and the 2B below that), and on the same card you switch models, update or remove. Once downloaded, it works without internet and without paying anything.
 
-| Item | Size | Note |
-|---|---|---|
-| llama-server (llama.cpp program that runs the model) | ~23 MB Linux · ~25 MB Windows · ~17 MB macOS with Apple chip | Pinned version, checked by checksum |
-| Qwen3.5-2B (AI model) | 1.28 GB | For computers with 8 GB of RAM |
-| Qwen3.5-4B (AI model) | 2.74 GB | For computers with 12 GB or more |
-| Audio transcription (faster-whisper "small") | 484 MB | To answer by speaking |
-| Audio transcription "medium" | 1.53 GB | Optional, more accurate |
+| Item | Size | Where it comes from | Note |
+|---|---|---|---|
+| llama-server (llama.cpp program that runs the model) | ~23 MB Linux · ~25 MB Windows · ~17 MB macOS with Apple chip · ~13 MB Mac with Intel | GitHub, llama.cpp release | Pinned version, checked by checksum; MIT license |
+| Qwen3.5-2B (AI model) | 1.28 GB | Hugging Face, from Unsloth | For computers with less than 12 GB of RAM; Apache-2.0 license |
+| Qwen3.5-4B (AI model) | 2.74 GB | Hugging Face, from Unsloth | For computers with 12 GB or more; Apache-2.0 license |
+
+Audio (the transcription to answer by speaking) is not in the offline package: it is left for phase 6.
 
 A "checksum" is a fingerprint of the file: joBot checks that the downloaded file is exactly the expected one.
+
+### What works without internet
+
+| What | Without internet? |
+|---|---|
+| See the jobs already saved, filter, set the status and change the settings | Yes |
+| Match by the rules of your search | Yes |
+| Job skills through the local model (All offline) | Yes, after downloading the model |
+| Job skills through a service (Anthropic, OpenAI, Gemini) | No |
+| Search for new jobs, check companies and pages, get the currency rates | No |
+| Read the sites with login | No |
+| Download the local model, the browser or a new joBot version | No |
 
 <a id="using-claude-code"></a>
 ## ✨ Using the Claude Code you already have
 
-> This section describes phase 4. Phase 1 does not use AI.
+> This section describes an option that still waits for the owner's decision on Anthropic's terms of use: it does not ship in 0.5.0. Until then, Claude comes in through the Anthropic API key.
 
 If you already use Claude Code on your computer, joBot can use Claude **with no extra login**.
 You do not log in to Claude inside joBot. Ever.
@@ -336,21 +363,22 @@ Details in [ADR 0010](docs/decisions/0010-claude-code-da-pessoa.md) (in Portugue
 <a id="privacy-and-security"></a>
 ## 🔒 Privacy and security
 
-> These rules apply to phase 1 and to what phase 2 has already brought. The ones that talk about AI, Telegram, extension and audio describe the next phases. For Gmail, the card in Settings, Accounts already applies: it keeps the app password in the system password vault and only opens the inbox read-only, to check the sign-in; reading emails comes in phase 6.
+> These rules apply to what phases 1 and 2 brought and to the AI of version 0.5.0. The ones that talk about Telegram, extension and audio describe the next phases. For Gmail, the card in Settings, Accounts already applies: it keeps the app password in the system password vault and only opens the inbox read-only, to check the sign-in; reading emails comes in phase 6.
 
 - **There is no joBot server.** Your data stays on your computer.
 - **No telemetry.** No usage data is sent.
 - **Local record of opening.** joBot keeps, only on your computer, when you opened the application for each job; it never leaves here.
-- **Search and check requests only.** joBot only makes network requests in these cases: to the public job sources you leave on (they all come on), including each job's page; to the Central Bank of Brazil, to get the exchange rates of the currencies in the jobs and show salaries in the display currency you choose, with currency conversion on (it comes on); to Common Crawl, once a week, to discover new companies, and then to those companies' job boards, to check them (it comes on); to the pages you ask it to follow (it comes on, but with no pages on the list there is no request); to the sites with login you turn on (they come off), through the browser, with your account; to Playwright's servers, to download the browser, only when you press "Download" in Tools or, in the desktop app, check it during installation (joBot does not distribute the browser; it comes from Playwright) or update joBot with it already downloaded; to 2Captcha, only when you test the key in Settings, Services, or, while browsing with login, with the key saved and the switch on (comes off); to Gmail (Google), over a read-only IMAP connection, only when you save or check the app password in Settings, Accounts (with no app password there is no request); to a company's website, only when you paste an address, test it or accept a suggestion; to the internet through git and uv (or to GitHub, when joBot came from the installer), to download the new joBot version, only when you ask to update (the Update now button or the jobot atualizar command). With the version notice (next item) on, it also asks GitHub (it comes on; you can turn it off). Whoever receives a request sees your computer's IP address, as with any internet request.
+- **Search and check requests only.** joBot only makes network requests in these cases: to the public job sources you leave on (they all come on), including each job's page; to the Central Bank of Brazil, to get the exchange rates of the currencies in the jobs and show salaries in the display currency you choose, with currency conversion on (it comes on); to Common Crawl, once a week, to discover new companies, and then to those companies' job boards, to check them (it comes on); to the pages you ask it to follow (it comes on, but with no pages on the list there is no request); to the sites with login you turn on (they come off), through the browser, with your account; to Playwright's servers, to download the browser, only when you press "Download" in Tools or, in the desktop app, check it during installation (joBot does not distribute the browser; it comes from Playwright) or update joBot with it already downloaded; to 2Captcha, only when you test the key in Settings, Services, or, while browsing with login, with the key saved and the switch on (comes off); to Gmail (Google), over a read-only IMAP connection, only when you save or check the app password in Settings, Accounts (with no app password there is no request); to the AI services you set up (Anthropic API, OpenAI, Google Gemini or the compatible address you type), with the title and text of the jobs, only when you turn on an AI task on one of them in Settings, AI (the tasks come off), and in the test when you turn it on; the local model makes no network request; to GitHub and Hugging Face, with their CDNs, to download the local model (llama-server and the Qwen model), only when you press "Download", "Switch" or "Update" on the model card in Tools, check it during installation or run jobot ferramentas baixar (or atualizar) ia-local; to a company's website, only when you paste an address, test it or accept a suggestion; to the internet through git and uv (or to GitHub, when joBot came from the installer), to download the new joBot version, only when you ask to update (the Update now button or the jobot atualizar command). With the version notice (next item) on, it also asks GitHub (it comes on; you can turn it off). Whoever receives a request sees your computer's IP address, as with any internet request.
 - **Version notice on by default.** Once a day joBot asks `api.github.com` which version is the newest. The request carries only joBot's fixed user agent (which includes the version number) and your computer's IP, like any request on the internet. It carries no search and no data of yours. To turn it off, go to Settings, Privacy; off, it makes no request at all.
-- **Secrets in the system vault.** The Gmail app password, the API key and the Telegram token stay in the operating system's password vault. Without a vault, they go to a file that only your user can read, and the dashboard warns you.
+- **The AI only gets the job text.** The Matching task sends the service only the title and text of the job (the beginning and the end, when it is long), never your profile or any other data of yours. The local model runs on your computer and only serves your own computer (127.0.0.1).
+- **Secrets in the system vault.** The Gmail app password, the AI service keys and the Telegram token stay in the operating system's password vault. Without a vault, they go to a file that only your user can read, and the dashboard warns you.
 - **Protected personal data.** CPF (Brazilian tax ID) and date of birth stay in the database, in a folder that only your user can access and that is not synced to the cloud. The dashboard recommends turning on disk encryption (LUKS, BitLocker or FileVault).
 - **Exporting the profile does not include documents** such as the CPF, unless you check that option.
 - **Dashboard closed to the outside.** It only accepts connections from your own computer (127.0.0.1) and checks every request.
 - **Paired extension.** The extension only talks to joBot after pairing. It never touches password or card fields.
 - **Audio deleted.** The recording is transcribed on your computer and deleted right after.
 - **Gmail read-only.** joBot opens the mailbox read-only, with an app password that you create in your Google account and paste into the dashboard. Note that the app password itself gives full access to your email (read, delete and send) to whoever has it; only joBot limits itself to reading. See the [step-by-step guide](https://github.com/fezarosa-dev/joBot/wiki/Gmail-app-password).
-- **Your data only leaves** for the services you turn on: Anthropic, Google or Telegram, and other optional services (see ADRs [0009](docs/decisions/0009-ia-backends-e-modelos.md) and [0014](docs/decisions/0014-seguranca-e-privacidade.md)).
+- **Your data only leaves** for the services you turn on: Anthropic, OpenAI, Google (Gemini or Gmail), the AI address you type or Telegram, and other optional services (see ADRs [0009](docs/decisions/0009-ia-backends-e-modelos.md), [0014](docs/decisions/0014-seguranca-e-privacidade.md) and [0026](docs/decisions/0026-ia-da-fase-4.md)).
 - **Found a security flaw?** Do not open a public issue. Follow the [security policy](.github/SECURITY.en.md).
 
 <a id="requirements-and-installation"></a>
@@ -363,10 +391,10 @@ Details in [ADR 0010](docs/decisions/0010-claude-code-da-pessoa.md) (in Portugue
 - **System, with the installer:** 64-bit Windows 10 or 11, 64-bit Linux (Ubuntu 22.04 or newer, or a distro from the same time) or a Mac with Apple Silicon or Intel. The Mac is experimental: its installer was only tested in CI.
 - **System, from the code:** Linux. Windows and macOS run joBot, but this path has not been tested on them yet.
 - **Programs, from the code:** [git](https://git-scm.com/) and [uv](https://docs.astral.sh/uv/). uv downloads Python 3.14 and the libraries by itself. The installer needs none of this: it already brings everything.
-- **Memory:** an ordinary computer is enough. The 8 GB of RAM only matter when the local AI arrives (phase 4).
+- **Memory:** an ordinary computer is enough. The local AI model (optional, since 0.5.0) runs with 8 GB of RAM and uses the larger model from 12 GB.
 - **Graphics card and Docker:** not needed. The installation is native.
-- **Disk space:** about 100 to 200 MB to download the installer, depending on the system, and the installation takes much more (the browser, if you tick it, takes about 420 MB on its own); the install screen shows how much it will use.
-- **Internet:** to download the installer (or the code) and to search for jobs. Installing with the installer only uses the internet to download the browser, if you tick it.
+- **Disk space:** about 100 to 200 MB to download the installer, depending on the system, and the installation takes much more (the browser, if you tick it, takes about 420 MB on its own, and the local model up to about 2.8 GB); the install screen shows how much it will use.
+- **Internet:** to download the installer (or the code) and to search for jobs. Installing with the installer only uses the internet to download the browser and the local model, if you tick them.
 
 ### With the installer
 
@@ -383,8 +411,8 @@ Download the file for your system from the [latest version page](https://github.
 
 The first time you open it, the joBot window shows the install screen:
 
-1. **Tools.** joBot and Python 3.14 come ticked and locked (they are required). The browser for sites with login comes ticked and is the only thing that comes from the internet: joBot downloads it through Playwright, from Playwright's servers (about 210 MB). If you untick it, you can download it later in Settings › Tools.
-2. **Installing.** Everything comes from inside the installer: nothing is downloaded during the installation, except the browser, if ticked. joBot checks the sha256 of every file against the list recorded when the installer was built, and that of every library; if any does not match, nothing is installed. The browser is left out of this check: Playwright does not publish its sha256, and the download comes over HTTPS. Without internet, the installation works the same without the browser: if its download fails, the screen offers to go on without it.
+1. **Tools.** joBot and Python 3.14 come ticked and locked (they are required). Only two items come from the internet: the browser for sites with login, which comes ticked, and the AI **Local model**, which comes unticked. joBot downloads the browser through Playwright, from Playwright's servers (about 210 MB), and the Local model from GitHub and Hugging Face (up to about 2.8 GB, depending on the computer's memory), with its sha256 checked. If you untick the browser, or leave the model unticked, you can download them later in Settings › Tools.
+2. **Installing.** The rest comes from inside the installer: nothing else is downloaded during the installation besides the browser and the Local model, if ticked. joBot checks the sha256 of every file against the list recorded when the installer was built, and that of every library; if any does not match, nothing is installed. The browser is left out of this check: Playwright does not publish its sha256, and the download comes over HTTPS. Without internet, the installation works the same without the browser: if its download fails, the screen offers to go on without it. The Local model is downloaded after joBot is already installed: if its download fails, joBot stays installed and the screen says why.
 3. **Done.** The window becomes the joBot control. Press **Start** and then **Open joBot**: the dashboard opens in your default browser, with the first-run questions (below).
 
 From then on, the joBot window is always the control. It shows whether joBot is **Running** or **Stopped**, the dashboard address (with a **Copy** button) and the **Start**, **Stop** and **Open joBot** buttons; Open joBot only shows while joBot is running. When it opens, it only shows the state: it does not start or open anything by itself. If the background service already started joBot, it shows Running.
@@ -443,7 +471,7 @@ The browser for sites with login lives in the folder Playwright uses: `~/.cache/
 
 ### Uninstalling
 
-Uninstalling never deletes your data: the jobs, the searches and the settings stay in the data folder, and come back if you install again. The browser stays too, because the Playwright folder may serve another program; to remove it, press **Remove** in Settings › Tools before uninstalling.
+Uninstalling never deletes your data: the jobs, the searches and the settings stay in the data folder, and come back if you install again. The browser stays too, because the Playwright folder may serve another program; to remove it, press **Remove** in Settings › Tools before uninstalling. The local model stays too, in the `ferramentas` folder inside the data folder, and takes up to about 2.8 GB (the larger model alone is 2.7 GB); to remove it, press **Remove** on the model card, on the same screen, before uninstalling, or delete the `ferramentas` folder afterwards.
 
 - **Windows:** in Settings › Apps (or in Control Panel), choose joBot and **Uninstall**. The uninstaller turns off the background service, quits joBot and deletes the window folder.
 - **Linux:** first turn off the background service (Settings › Background) and use **Quit joBot**. Then remove the package with your package manager (`sudo apt remove` or `sudo dnf remove`) or delete the `.AppImage` file. The package does not reach your home folder: delete the `~/.local/share/jobot-app` folder by hand.
@@ -486,11 +514,10 @@ When a new version comes out, the dashboard tells you in a banner at the top. Th
 | Item | Size | When |
 |---|---|---|
 | Browser controlled by Playwright (Chromium, optional) | about 210 MB to download and 420 MB on disk | Phase 2, only for sites with login; download and remove it in Settings, Tools |
-| llama-server | ~17 to 25 MB, depending on the system | Phase 4 (offline package) |
-| Qwen3.5-2B **or** Qwen3.5-4B model | 1.28 GB or 2.74 GB | Phase 4 (offline package) |
+| llama-server | ~13 to 25 MB, depending on the system | Since 0.5.0, only if you ask for the Local model; download and remove it in Settings, Tools |
+| Qwen3.5-2B **or** Qwen3.5-4B model | 1.28 GB or 2.74 GB | Since 0.5.0, together with llama-server |
 | Audio transcription "small" | 484 MB | Phase 6 |
 | Audio transcription "medium" | 1.53 GB | Phase 6, optional |
-| multilingual-e5-small model | ~120 MB | Only if some label falls below 90% accuracy |
 
 <a id="roadmap"></a>
 ## 🗺️ Roadmap
