@@ -118,7 +118,10 @@ def _numero(valor: object) -> float | None:
     """Valor positivo e finito; `bool` (que é `int`), texto e zero não valem."""
     if isinstance(valor, bool) or not isinstance(valor, int | float):
         return None
-    return valor if math.isfinite(valor) and valor > 0 else None
+    try:
+        return valor if math.isfinite(valor) and valor > 0 else None
+    except OverflowError:  # inteiro maior que um float
+        return None
 
 
 def _salario(base: object) -> SalarioBruto | None:
