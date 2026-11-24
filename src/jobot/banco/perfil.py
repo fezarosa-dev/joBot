@@ -273,6 +273,11 @@ def responder_pergunta(con: sqlite3.Connection, chave: str, resposta: str, agora
 _PESSOAIS = ("perfil", "experiencia", "curso", "pergunta_perfil", "preparo_candidatura")
 
 
+def existe(con: sqlite3.Connection) -> bool:
+    """Há alguma linha do perfil (o que "Apagar perfil" apagaria)."""
+    return any(con.execute(f"SELECT EXISTS (SELECT 1 FROM {t})").fetchone()[0] for t in _PESSOAIS)
+
+
 def apagar_perfil(con: sqlite3.Connection) -> None:
     """ "Apagar perfil": a linha, as experiências, os cursos, as perguntas e os preparos.
 

@@ -1,7 +1,87 @@
-{#- Aba Perfil (T413; desenho 8 da fase 4): as habilidades, uma por linha, e "Apagar perfil" com o
-    alerta de confirmação (sem JavaScript, a página `confirmar.html`). A frase de privacidade diz
-    para onde vai o texto da vaga, pelo estado da tarefa `encaixe`. -#}
+{#- Aba Perfil (T413, T434; desenho 8 da fase 4): "Sobre você" (contato, trabalho e estudo, idiomas),
+    as habilidades (uma por linha), as experiências e os cursos (um formulário por item, com Salvar e
+    Tirar, e um para o novo, até `teto_itens`) e "Apagar perfil" com o alerta de confirmação (sem
+    JavaScript, a página `confirmar.html`). Todo formulário posta em /configuracoes/perfil; o campo
+    `secao` diz o que grava (sem ele, as habilidades). No erro, `erro_campo` é o `id` do controle
+    marcado e `item_digitado` volta ao item `erro_item`. A frase de privacidade diz para onde vai o
+    texto da vaga, pelo estado da tarefa `encaixe`. -#}
 {% from "_alerta.html" import alerta with context %}
+{% macro descrito(id, ajuda=none) -%}
+  {%- set ids = ([id ~ "-ajuda"] if ajuda else []) + (["config-erro"] if erro_campo == id else []) -%}
+  {%- if ids %} aria-describedby="{{ ids|join(' ') }}"{% endif %}{% if erro_campo == id %} aria-invalid="true"{% endif %}
+{%- endmacro %}
+{% macro entrada(id, nome, rotulo, valor, tipo="text", teto=200, ajuda=none, autocomplete="off", mes=false, obrigatorio=false) -%}
+<div class="campo">
+  <label for="{{ id }}">{{ rotulo }}</label>
+  <input class="campo-texto" type="{{ tipo }}" id="{{ id }}" name="{{ nome }}" value="{{ valor }}" autocomplete="{{ autocomplete }}"
+    {%- if mes %} maxlength="7" pattern="\d{4}-(0[1-9]|1[0-2])" placeholder="{{ t('configuracoes.perfil.mes.formato') }}" inputmode="numeric"{% else %} maxlength="{{ teto }}"{% endif %}
+    {%- if obrigatorio %} required{% endif %}{{ descrito(id, ajuda) }}>
+  {%- if ajuda %}
+  <small id="{{ id }}-ajuda">{{ ajuda }}</small>
+  {%- endif %}
+</div>
+{%- endmacro %}
+{% macro caixa(id, nome, rotulo, valor, linhas=4, teto=2000, ajuda=none) -%}
+<div class="campo">
+  <label for="{{ id }}">{{ rotulo }}</label>
+  <textarea class="campo-texto" id="{{ id }}" name="{{ nome }}" rows="{{ linhas }}" maxlength="{{ teto }}" autocomplete="off"{{ descrito(id, ajuda) }}>{{ valor }}</textarea>
+  {%- if ajuda %}
+  <small id="{{ id }}-ajuda">{{ ajuda }}</small>
+  {%- endif %}
+</div>
+{%- endmacro %}
+{% macro lista(id, nome, rotulo, opcoes, valor, prefixo) -%}
+<div class="campo">
+  <label for="{{ id }}">{{ rotulo }}</label>
+  <select id="{{ id }}" name="{{ nome }}"{{ descrito(id) }}>
+    <option value=""{% if not valor %} selected{% endif %}>{{ t("configuracoes.perfil.nao_informar") }}</option>
+    {%- for opcao in opcoes %}
+    <option value="{{ opcao }}"{% if opcao == valor %} selected{% endif %}>{{ t(prefixo ~ opcao) }}</option>
+    {%- endfor %}
+  </select>
+</div>
+{%- endmacro %}
+{% macro botoes(novo) -%}
+<div class="acoes">
+  <button type="submit" class="botao botao-primario">{{ t("configuracoes.perfil.adicionar") if novo else t("configuracoes.salvar") }}</button>
+  {%- if not novo %}
+  <button type="submit" name="tirar" value="1" class="botao botao-secundario" formnovalidate>{{ t("configuracoes.perfil.tirar") }}</button>
+  {%- endif %}
+</div>
+{%- endmacro %}
+{% macro experiencia(e, prefixo, novo=false) -%}
+{%- set v = item_digitado if erro_item == prefixo else e %}
+<form method="post" action="/configuracoes/perfil" class="config-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <input type="hidden" name="secao" value="experiencia">
+  <input type="hidden" name="id" value="{{ e.id }}">
+  <fieldset class="grupo-leva grupo-campos">
+    <legend>{{ t("configuracoes.perfil.experiencia.nova") if novo else e.cargo }}</legend>
+    {{ entrada(prefixo ~ "-cargo", "cargo", t("configuracoes.perfil.experiencia.cargo"), v.cargo, obrigatorio=true) }}
+    {{ entrada(prefixo ~ "-empresa", "empresa", t("configuracoes.perfil.experiencia.empresa"), v.empresa) }}
+    {{ entrada(prefixo ~ "-inicio", "inicio", t("configuracoes.perfil.experiencia.inicio"), v.inicio, mes=true) }}
+    {{ entrada(prefixo ~ "-fim", "fim", t("configuracoes.perfil.experiencia.fim"), v.fim, mes=true, ajuda=t("configuracoes.perfil.experiencia.fim.ajuda")) }}
+    {{ caixa(prefixo ~ "-descricao", "descricao", t("configuracoes.perfil.experiencia.descricao"), v.descricao, linhas=3) }}
+  </fieldset>
+  {{ botoes(novo) }}
+</form>
+{%- endmacro %}
+{% macro curso(c, prefixo, novo=false) -%}
+{%- set v = item_digitado if erro_item == prefixo else c %}
+<form method="post" action="/configuracoes/perfil" class="config-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <input type="hidden" name="secao" value="curso">
+  <input type="hidden" name="id" value="{{ c.id }}">
+  <fieldset class="grupo-leva grupo-campos">
+    <legend>{{ t("configuracoes.perfil.curso.novo") if novo else c.nome }}</legend>
+    {{ entrada(prefixo ~ "-nome", "nome", t("configuracoes.perfil.curso.nome"), v.nome, obrigatorio=true) }}
+    {{ entrada(prefixo ~ "-instituicao", "instituicao", t("configuracoes.perfil.curso.instituicao"), v.instituicao) }}
+    {{ lista(prefixo ~ "-situacao", "situacao", t("configuracoes.perfil.curso.situacao"), situacoes, v.situacao, "configuracoes.perfil.situacao.") }}
+    {{ entrada(prefixo ~ "-previsao", "previsao", t("configuracoes.perfil.curso.previsao"), v.previsao, mes=true) }}
+  </fieldset>
+  {{ botoes(novo) }}
+</form>
+{%- endmacro %}
 {% if apagado %}
 <p role="status" class="config-salvo" aria-live="polite"><span data-some-sozinho>{{ t("configuracoes.perfil.apagado") }}</span></p>
 {% endif %}
@@ -9,17 +89,84 @@
 <p class="config-texto" id="perfil-privacidade">
   {%- if privacidade.servico %}{{ t(privacidade.chave, servico=t(privacidade.servico)) }}{% else %}{{ t(privacidade.chave) }}{% endif -%}
 </p>
-<form method="post" action="/configuracoes/perfil" class="config-form">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-  <div class="campo">
-    <label for="campo-habilidades">{{ t("configuracoes.perfil.habilidades") }}</label>
-    <textarea class="campo-texto" id="campo-habilidades" name="habilidades" rows="8" autocomplete="off" spellcheck="false" aria-describedby="habilidades-ajuda perfil-privacidade{% if erro %} config-erro{% endif %}"{% if erro %} aria-invalid="true"{% endif %}>{{ habilidades_texto }}</textarea>
-    <small id="habilidades-ajuda">{{ t("configuracoes.perfil.habilidades.ajuda") }}</small>
+{%- set d = dados_tela %}
+<section class="config-bloco" aria-labelledby="perfil-sobre">
+  <h2 id="perfil-sobre">{{ t("configuracoes.perfil.sobre") }}</h2>
+  <form method="post" action="/configuracoes/perfil" class="config-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="secao" value="dados">
+    <fieldset class="grupo-leva grupo-campos" aria-describedby="perfil-contato-ajuda">
+      <legend>{{ t("configuracoes.perfil.contato") }}</legend>
+      <small id="perfil-contato-ajuda">{{ t("configuracoes.perfil.contato.ajuda") }}</small>
+      {{ entrada("perfil-nome", "nome", t("configuracoes.perfil.nome"), d.nome, autocomplete="name") }}
+      {{ entrada("perfil-email", "email", t("configuracoes.perfil.email"), d.email, tipo="email", teto=teto.email, autocomplete="email") }}
+      {{ entrada("perfil-telefone", "telefone", t("configuracoes.perfil.telefone"), d.telefone, tipo="tel", teto=teto.telefone, autocomplete="tel") }}
+      {{ entrada("perfil-cidade", "cidade_moradia", t("configuracoes.perfil.cidade"), d.cidade_moradia, autocomplete="address-level2") }}
+    </fieldset>
+    <fieldset class="grupo-leva grupo-campos">
+      <legend>{{ t("configuracoes.perfil.trabalho") }}</legend>
+      {{ entrada("perfil-cargo", "cargo_atual", t("configuracoes.perfil.cargo"), d.cargo_atual, autocomplete="organization-title") }}
+      <div class="campo">
+        <label for="perfil-anos">{{ t("configuracoes.perfil.anos") }}</label>
+        <input type="number" id="perfil-anos" name="anos_de_experiencia" value="{{ d.anos_de_experiencia }}" min="0" max="60" step="1" inputmode="numeric"{{ descrito("perfil-anos") }}>
+      </div>
+      {{ lista("perfil-formacao", "formacao_nivel", t("configuracoes.perfil.formacao"), formacoes, d.formacao_nivel, "configuracoes.perfil.formacao.") }}
+      {{ caixa("perfil-resumo", "resumo", t("configuracoes.perfil.resumo"), d.resumo, teto=teto.resumo, ajuda=t("configuracoes.perfil.resumo.ajuda")) }}
+      {{ caixa("perfil-links", "links", t("configuracoes.perfil.links"), d.links, linhas=3, teto=5100, ajuda=t("configuracoes.perfil.links.ajuda")) }}
+    </fieldset>
+    <fieldset class="grupo-leva grupo-campos">
+      <legend>{{ t("configuracoes.perfil.idiomas") }}</legend>
+      {%- for codigo in idiomas_fixos %}
+      {{ lista("perfil-idioma-" ~ codigo, "idioma_" ~ codigo, t("configuracoes.perfil.idioma." ~ codigo), niveis, d.idiomas[codigo], "configuracoes.perfil.nivel.") }}
+      {%- endfor %}
+      {%- for nome, nivel in d.outros %}
+      {{ entrada("perfil-outro-" ~ loop.index, "outro_nome", t("configuracoes.perfil.outro", n=loop.index), nome, teto=teto.idioma) }}
+      {{ lista("perfil-outro-" ~ loop.index ~ "-nivel", "outro_nivel", t("configuracoes.perfil.outro.nivel", n=loop.index), niveis, nivel, "configuracoes.perfil.nivel.") }}
+      {%- endfor %}
+    </fieldset>
+    <div class="acoes">
+      <button type="submit" class="botao botao-primario">{{ t("configuracoes.salvar") }}</button>
+    </div>
+  </form>
+</section>
+<section class="config-bloco" aria-labelledby="perfil-habilidades">
+  <h2 id="perfil-habilidades">{{ t("configuracoes.perfil.habilidades.titulo") }}</h2>
+  <form method="post" action="/configuracoes/perfil" class="config-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div class="campo">
+      <label for="campo-habilidades">{{ t("configuracoes.perfil.habilidades") }}</label>
+      <textarea class="campo-texto" id="campo-habilidades" name="habilidades" rows="8" autocomplete="off" spellcheck="false" aria-describedby="habilidades-ajuda perfil-privacidade{% if erro_campo == 'campo-habilidades' %} config-erro{% endif %}"{% if erro_campo == "campo-habilidades" %} aria-invalid="true"{% endif %}>{{ habilidades_texto }}</textarea>
+      <small id="habilidades-ajuda">{{ t("configuracoes.perfil.habilidades.ajuda") }}</small>
+    </div>
+    <div class="acoes">
+      <button type="submit" class="botao botao-primario">{{ t("configuracoes.salvar") }}</button>
+    </div>
+  </form>
+</section>
+<section class="config-bloco" aria-labelledby="perfil-experiencias">
+  <h2 id="perfil-experiencias">{{ t("configuracoes.perfil.experiencias") }}</h2>
+  <p class="config-texto">{{ t("configuracoes.perfil.experiencias.explicacao") }}</p>
+  <div class="config-form">
+  {%- for e in experiencias %}
+  {{ experiencia(e, "exp-" ~ e.id) }}
+  {%- endfor %}
+  {%- if experiencias|length < teto_itens %}
+  {{ experiencia({"id": "", "cargo": "", "empresa": "", "inicio": "", "fim": "", "descricao": ""}, "exp-nova", novo=true) }}
+  {%- endif %}
   </div>
-  <div class="acoes">
-    <button type="submit" class="botao botao-primario">{{ t("configuracoes.salvar") }}</button>
+</section>
+<section class="config-bloco" aria-labelledby="perfil-cursos">
+  <h2 id="perfil-cursos">{{ t("configuracoes.perfil.cursos") }}</h2>
+  <p class="config-texto">{{ t("configuracoes.perfil.cursos.explicacao") }}</p>
+  <div class="config-form">
+  {%- for c in cursos %}
+  {{ curso(c, "curso-" ~ c.id) }}
+  {%- endfor %}
+  {%- if cursos|length < teto_itens %}
+  {{ curso({"id": "", "nome": "", "instituicao": "", "situacao": "", "previsao": ""}, "curso-nova", novo=true) }}
+  {%- endif %}
   </div>
-</form>
+</section>
 {%- if tem_perfil %}
 <form method="get" action="/configuracoes/perfil/apagar/confirmar">
   <div class="acoes">

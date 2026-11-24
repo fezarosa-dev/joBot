@@ -3,16 +3,15 @@
 Os grupos em `/configuracoes/{grupo}`: geral (tema, idioma e tamanho do texto pelas rotas
 `/preferencias`; Meu país e moeda de exibição pelo próprio `/configuracoes/geral`; o
 `/configuracoes/aparencia` de antes só redireciona no GET), fontes (uma chave por fonte, por leva),
-funções (as chaves da 13.7 e o N dos destaques), perfil (as habilidades; o contexto, o salvar e o
-"Apagar perfil" moram em `perfil.py`, T413), IA (os atalhos e a tarefa por tarefa; o contexto e a
-gravação moram em `ia.py`, T415), segundo plano, privacidade (onde ficam
-os dados, a recomendação de disco cifrado e o aviso de versão), serviços (a chave do 2Captcha e as
-de IA, que ficam no cofre; o interruptor, os apagar e a gravação das de IA moram em `servicos.py`,
-T184 e T414) e contas (T218 e T275: só
-existe com leitor registrado; o interruptor de cada site grava na hora, o cartão mostra o estado da
-sessão e os horários são um campo só). "Fazer login agora" e "Esquecer logins" (T219) usam o
-`jobot.navegador` e a trava `login` do `serve`: nunca abrem o navegador nem apagam o perfil enquanto
-uma leitura com login roda.
+funções (as chaves da 13.7 e o N dos destaques), perfil (dados, habilidades, experiências e cursos;
+o contexto, a gravação e o "Apagar perfil" moram em `perfil.py`, T413 e T434), IA (os atalhos e a
+tarefa por tarefa; o contexto e a gravação moram em `ia.py`, T415), segundo plano, privacidade (onde
+ficam os dados, a recomendação de disco cifrado e o aviso de versão), serviços (a chave do 2Captcha
+e as de IA, que ficam no cofre; o interruptor, os apagar e a gravação das de IA moram em
+`servicos.py`, T184 e T414) e contas (T218 e T275: só existe com leitor registrado; o interruptor de
+cada site grava na hora, o cartão mostra o estado da sessão e os horários são um campo só). "Fazer
+login agora" e "Esquecer logins" (T219) usam o `jobot.navegador` e a trava `login` do `serve`: nunca
+abrem o navegador nem apagam o perfil enquanto uma leitura com login roda.
 
 Checkbox sem marca é chave desligada: o formulário de cada grupo manda o estado inteiro. Ligar ou
 desligar a conversão de moeda chama `aplicar_cotacoes` e, com ela ou com as regras de ocultar
@@ -85,7 +84,7 @@ from jobot.painel.rotas.ia import (
     servico_trocou,
     tarefas,
 )
-from jobot.painel.rotas.perfil import contexto_perfil, habilidades_do_texto, salvar_habilidades
+from jobot.painel.rotas.perfil import contexto_perfil, gravar_perfil
 from jobot.painel.rotas.servicos import (
     contexto_captcha,
     contexto_servicos,
@@ -526,22 +525,11 @@ async def _gravar_servicos(request: Request, con: Con) -> Response:
 
 
 async def _gravar_perfil(request: Request, con: Con) -> Response:
-    texto = (await request.form()).get("habilidades")
-    if not isinstance(texto, str):
-        raise HTTPException(422)
-    try:
-        lista = habilidades_do_texto(texto)
-    except ValueError:  # a página volta com o que foi digitado, e nada é gravado
-        return await _pagina(
-            request,
-            con,
-            "perfil",
-            422,
-            habilidades_texto=texto,
-            erro="configuracoes.perfil.erro.grande",
-        )
-    salvar_habilidades(request, con, lista)
-    return _volta("perfil", salvo=True)
+    feito = await gravar_perfil(request, con, await request.form())
+    if isinstance(feito, str):
+        return RedirectResponse(feito, 303)
+    status, ctx = feito
+    return await _pagina(request, con, "perfil", status, **ctx)
 
 
 async def _gravar_ia(request: Request, con: Con) -> Response:

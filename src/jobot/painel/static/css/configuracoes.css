@@ -186,6 +186,11 @@
   font-size: 0.875rem;
 }
 
+/* fieldset de campos de texto (Perfil): mais ar entre um campo e outro que entre as opções */
+.grupo-campos {
+  gap: 0.75rem;
+}
+
 .grupo-leva .opcao {
   justify-content: flex-start;
   min-height: 2.25rem;
