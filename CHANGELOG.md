@@ -37,6 +37,7 @@ A 0.4.1 corrige o que a 0.4.0 quebrou no Linux: a janela do joBot vira um contro
 - O joBot deixado ligado pela janela e o navegador aberto pelo Abrir joBot não ficam mais presos ao AppImage depois que a janela fecha: não herdam a pasta, os arquivos abertos nem as configurações de dentro dele, como o tema claro forçado no navegador.
 - No Firefox e no Safari, o menu de contexto das vagas abre pelo mouse.
 - No Safari, voltar a uma página do painel não mostra mais o aviso falso de que a internet caiu.
+- No painel: o detalhe ao lado da lista mostra as habilidades da IA, como a página da vaga; o Panorama não diz mais "Buscando agora." durante a descoberta de empresas, a leitura de páginas ou a leitura com login; no alto contraste, os botões de Vagas e de Configurações e o chip ligado ficam visíveis; o cartão do 2Captcha não diz mais que a navegação com login ainda não existe; e um valor estragado de idioma, tema ou tamanho do texto no banco não derruba mais o painel. A lista de pedidos de rede de Privacidade passa a citar o Gmail.
 
 ## [0.4.0] - 2026-11-17
 

@@ -377,6 +377,7 @@ CITA: Mapping[str, Mapping[str, tuple[str, ...]]] = {
             r"só quando você",
             r"o marca na instalação",
         ),
+        "gmail": (r"Gmail", r"senha de app", r"só quando você"),
     },
     "en": {
         "fontes": (r"public job sources",),
@@ -393,6 +394,7 @@ CITA: Mapping[str, Mapping[str, tuple[str, ...]]] = {
             r"only when you",
             r"check it during installation",
         ),
+        "gmail": (r"Gmail", r"app password", r"only when you"),
     },
 }
 CONDICAO: Mapping[str, Mapping[bool, str]] = {
@@ -411,7 +413,7 @@ CHAVE_DO_PADRAO = {
 FONTES_LIGADAS = {"pt": r"vêm todas ligadas", "en": r"all come on"}
 # pedidos que só saem quando a pessoa age, sem padrão ligado ou desligado: a frase diz quando
 # (os sites com login são vários, cada um com a sua chave, sempre desligada: a frase diz isso)
-SO_QUANDO_PEDE = {"endereço", "atualização", "sites com login", "navegador"}
+SO_QUANDO_PEDE = {"endereço", "atualização", "sites com login", "navegador", "gmail"}
 
 
 def test_condicao_aceita_os_dois_generos() -> None:

@@ -144,6 +144,24 @@ def test_aba_servicos_abre_com_o_cartao_do_2captcha(painel: Painel) -> None:
     assert "botao" in str(link["class"]).split()
 
 
+CAPTCHA_NO_FUTURO = {
+    "pt": ("versão futura", "ainda não existe"),
+    "en": ("future version", "does not exist yet"),
+}
+CAPTCHA_ONDE = {"pt": "Configurações, Contas", "en": "Settings, Accounts"}
+
+
+@pytest.mark.parametrize("lingua", ["pt", "en"])
+def test_cartao_do_2captcha_trata_a_navegacao_com_login_como_presente(lingua: str) -> None:
+    """A navegação com login já existe (LinkedIn em Contas): o cartão não a promete para depois."""
+    catalogo = carregar()[lingua]
+    frase = catalogo["configuracoes.servicos.captcha.frase"]
+    aviso = catalogo["configuracoes.servicos.captcha.aviso.login"]
+    for velho in CAPTCHA_NO_FUTURO[lingua]:
+        assert velho not in frase and velho not in aviso, velho
+    assert CAPTCHA_ONDE[lingua] in aviso
+
+
 def test_sem_chave_o_interruptor_vem_desativado_e_explica(painel: Painel) -> None:
     resposta = painel.get(SERVICOS)
     atributos = _interruptor(resposta.text)
