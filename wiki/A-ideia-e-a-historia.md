@@ -48,7 +48,7 @@ Um painel pessoal que junta e organiza as vagas para você.
 > - **Não se candidata em massa.** Não existe "aplicar em 200 vagas com um clique".
 > - **Não envia nada sozinho.** Quem envia a candidatura é sempre você.
 > - **Não digita a sua senha.** Nos sites com login, você entra com as próprias mãos.
-> **Não contorna CAPTCHA sozinho.** Se aparecer um, ele para e avisa você. Nas fontes públicas, é sempre assim. Na navegação com login, a única exceção é o seu 2Captcha: só se você puser a sua chave e ligar o interruptor em Configurações, Serviços (vem desligado).
+> - **Não contorna CAPTCHA sozinho.** Se aparecer um, ele para e avisa você. Nas fontes públicas, é sempre assim. Na navegação com login, a única exceção é o seu 2Captcha: só se você puser a sua chave e ligar o interruptor em Configurações, Serviços (vem desligado).
 > - **Não manda telemetria.** O joBot não envia dados de uso para ninguém.
 > - **Não inventa experiência.** A IA só usa o que está no seu perfil.
 

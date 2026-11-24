@@ -48,7 +48,7 @@ A personal dashboard that gathers and organizes jobs for you.
 > - **It does not mass-apply.** There is no "apply to 200 jobs with one click".
 > - **It does not send anything on its own.** You are always the one who sends the application.
 > - **It does not type your password.** On sites with login, you sign in with your own hands.
-> **It does not get past a CAPTCHA on its own.** If one shows up, it stops and warns you. On the public sources, that is always the case. In the browsing with login, the only exception is your own 2Captcha: only if you save your key and turn on the switch in Settings, Services (it comes off).
+> - **It does not get past a CAPTCHA on its own.** If one shows up, it stops and warns you. On the public sources, that is always the case. In the browsing with login, the only exception is your own 2Captcha: only if you save your key and turn on the switch in Settings, Services (it comes off).
 > - **It does not send telemetry.** joBot does not send usage data to anyone.
 > - **It does not invent experience.** The AI only uses what is in your profile.
 
