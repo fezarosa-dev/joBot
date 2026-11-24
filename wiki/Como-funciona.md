@@ -122,7 +122,7 @@ Cada fonte tem uma chave liga/desliga.
 
 ## 📋 O painel
 
-O painel roda no seu computador, em `127.0.0.1`. Se o joBot acha o Chrome, o Edge ou o Chromium no sistema, ele abre numa janela própria, sem abas nem barra de endereço; senão usa o Chromium que ele instalou, e só então uma aba comum.
+O painel roda no seu computador, em `127.0.0.1`. Se o joBot acha o Chrome, o Edge ou o Chromium no sistema, ele abre numa janela própria, sem abas nem barra de endereço; senão usa o Chromium que ele instalou, e só então uma aba comum. Pelo instalador, o botão **Abrir joBot** da janela do joBot abre o painel no seu navegador padrão.
 
 - **Barra lateral:** a seção Vagas (Destaques de hoje e as abas, com a contagem de cada uma), a seção Onde buscar (Buscas, Empresas, Sugeridas, Fontes e Sites) e Configurações. Dá para recolhê-la e mudar a largura.
 - **Lista com detalhe:** a lista de vagas de um lado, o detalhe da vaga escolhida do outro; em janela estreita o detalhe sobe por cima da lista.

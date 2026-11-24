@@ -122,7 +122,7 @@ Each source has an on/off switch.
 
 ## 📋 The dashboard
 
-The dashboard runs on your computer, at `127.0.0.1`. If joBot finds Chrome, Edge or Chromium on the system, it opens in its own window, with no tabs or address bar; otherwise it uses the Chromium it installed, and only then a regular tab.
+The dashboard runs on your computer, at `127.0.0.1`. If joBot finds Chrome, Edge or Chromium on the system, it opens in its own window, with no tabs or address bar; otherwise it uses the Chromium it installed, and only then a regular tab. With the installer, the **Open joBot** button in the joBot window opens the dashboard in your default browser.
 
 - **Sidebar:** the Jobs section (Today's Highlights and the tabs, with the count of each), the Where to Look section (Searches, Companies, Suggested, Sources and Sites) and Settings. You can hide it and change its width.
 - **List with detail:** the job list on one side, the detail of the chosen job on the other; in a narrow window the detail slides over the list.

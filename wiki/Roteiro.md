@@ -32,7 +32,7 @@ flowchart LR
 
 <sub>✅ concluída · 🟡 sendo construída · ⚪ planejada</sub>
 
-A versão 0.3.0 saiu entre a fase 2 e a fase 3, com a tela "Panorama" (visão geral das vagas e da busca) e a fila de candidaturas completa. A versão 0.4.0 fecha a fase 3, com a janela própria e o instalador.
+A versão 0.3.0 saiu entre a fase 2 e a fase 3, com a tela "Panorama" (visão geral das vagas e da busca) e a fila de candidaturas completa. A versão 0.4.0 fecha a fase 3, com a janela própria e o instalador. A versão 0.4.1 corrige o Linux: a janela vira um controle e o painel abre no seu navegador.
 
 ## 🔍 Um pouco mais sobre cada fase
 

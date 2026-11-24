@@ -8,15 +8,35 @@ O formato segue o [Keep a Changelog 1.1.0](https://keepachangelog.com/pt-BR/1.1.
 
 ## [Não lançado]
 
+A 0.4.1 corrige o que a 0.4.0 quebrou no Linux: a janela do joBot vira um controle pequeno, e o painel abre no seu navegador.
+
 ### Adicionado
 
 - ADR 0026 (proposta): IA da fase 4. A IA chegará em duas versões, a 0.5.0 e a 0.6.0, desligada por padrão; o modelo local será baixado da fonte oficial, a pedido da pessoa, e a IA só listará o que a vaga pede, sem dar nota. O roteiro passa a mostrar a fase 4 sendo construída.
 - ADR 0027: a casca só controla. A janela do joBot vira um controle com Ligar, Parar e Abrir joBot, e o painel abre no navegador padrão da pessoa. Troca a parte "Casca" da ADR 0025.
 - A base da IA da fase 4 já vem nesta versão, desligada e sem tela para ligar: a migração do banco que guarda o perfil, as habilidades que a IA tirar de cada vaga e o nível de encaixe, a dependência pydantic, os clientes da API da Anthropic e de serviços compatíveis com a OpenAI e o `jobot ferramentas baixar ia-local`, que baixa o llama-server e um modelo com sha256 conferido. Nada disso roda sem a pessoa ligar.
+- Os testes de tela do painel rodam no Chromium, no Firefox e no WebKit, porque o navegador padrão pode ser qualquer um deles. Antes de cada versão, o CI instala a janela do joBot num desktop virtual, instala o joBot por ela, liga, abre e para pelo controle e guarda as capturas.
 
 ### Alterado
 
+- A janela do joBot vira um controle pequeno. Ela mostra se o joBot está Ligado ou Parado e o endereço do painel, com o botão Copiar, e tem os botões Ligar, Parar e Abrir joBot. Abrir joBot abre o painel no seu navegador padrão (Firefox, Chrome, Edge, Safari ou outro). Ao abrir, a janela só mostra o estado: não liga nem abre nada sozinha. A tela de instalação continua na primeira abertura e, no fim, leva ao controle.
+- Fechar a janela com o joBot ligado pergunta "Deixar o joBot ligado?". Deixar ligado fecha só a janela, e o painel segue no navegador até você apertar Parar; Desligar para o joBot e fecha. Com o joBot parado, a janela fecha direto. O segundo plano passa a servir só para o joBot ligar sozinho quando o computador inicia.
+- O botão "Baixar a janela nova" sai da faixa do painel e vai para o controle, que o mostra quando o joBot no ar é mais novo que a janela (o "Atualizar agora" troca só o joBot). Quem ainda tem a janela 0.4.0 e atualiza só o joBot vê, dentro dela, uma faixa que manda instalar a janela nova.
+- O visual do painel fica mais leve: a barra lateral e a barra do topo têm fundo sólido em vez de vidro desfocado, e o vidro fica só em menus e diálogos.
 - A barra de progresso anda de forma fluida, no painel e na instalação: começa rápida e vai freando aos poucos, sem pular nem parar de repente entre uma etapa e outra.
+- O vigia semanal das fontes se reativa a cada execução, para o GitHub não desligá-lo depois de 60 dias sem atividade no repositório.
+
+### Removido
+
+- O painel não roda mais dentro da janela do joBot. Saem os botões de fechar, minimizar e maximizar que o joBot desenhava e a área de arrastar a janela.
+
+### Corrigido
+
+- No Linux, a janela da 0.4.0 deixava o computador lento e mostrava o painel cortado e fora do lugar. Agora o painel roda no seu navegador.
+- O AppImage não deixa mais cópias de uns 400 MB no `/tmp`, que em muitos Linux fica na memória: rodando desempacotado (sem FUSE), a pasta é apagada ao fechar, mesmo depois de uma saída à força, e sem apagar a de outra abertura que ainda está em uso.
+- O joBot deixado ligado pela janela e o navegador aberto pelo Abrir joBot não ficam mais presos ao AppImage depois que a janela fecha: não herdam a pasta, os arquivos abertos nem as configurações de dentro dele, como o tema claro forçado no navegador.
+- No Firefox e no Safari, o menu de contexto das vagas abre pelo mouse.
+- No Safari, voltar a uma página do painel não mostra mais o aviso falso de que a internet caiu.
 
 ## [0.4.0] - 2026-11-17
 

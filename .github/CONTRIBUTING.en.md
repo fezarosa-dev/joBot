@@ -29,7 +29,7 @@ Phases 1, 2 and 3 (foundation, browser with login and installer) are complete: j
 
 ## Building the window (shell)
 
-The joBot window is a Tauri 2 app, in Rust, in the `desktop/` folder ([ADR 0025](../docs/decisions/0025-app-de-desktop-e-instalador.md), in Portuguese). It stays outside the Python package: it only talks HTTP to the dashboard and calls `jobot` and `uv`. To work on it:
+The joBot window is a Tauri 2 app, in Rust, in the `desktop/` folder ([ADR 0025](../docs/decisions/0025-app-de-desktop-e-instalador.md), in Portuguese). Since 0.4.1 it only shows the install screen and the control (Start, Stop, Open joBot), and the dashboard opens in the person's browser ([ADR 0027](../docs/decisions/0027-casca-so-controla.md), in Portuguese). It stays outside the Python package: it only talks HTTP to the dashboard and calls `jobot` and `uv`. To work on it:
 
 1. Install Rust with [rustup](https://rustup.rs/). The version is pinned in `desktop/rust-toolchain.toml`, and rustup picks it by itself inside `desktop/`.
 2. On Linux, install the WebKitGTK libraries. On Debian and Ubuntu: `sudo apt install libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf`. On other distros the names change; see the [Tauri](https://v2.tauri.app/start/prerequisites/) prerequisites.
