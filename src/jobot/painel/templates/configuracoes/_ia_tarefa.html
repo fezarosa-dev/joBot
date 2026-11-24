@@ -49,3 +49,8 @@
   <p class="config-texto">{{ t("configuracoes.ia.hoje", n=linha.hoje, teto=ia_teto) }}</p>
   {%- endif %}
 </fieldset>
+{%- if ia_foco_teste and linha.teste %}
+{#- resposta final do polling (T416): o anúncio numa região que não é trocada e o modo do topo #}
+<p hx-swap-oob="innerHTML:#status-ia"><span>{% include "configuracoes/_ia_teste_texto.html" %}</span></p>
+{% include "configuracoes/_ia_modo.html" %}
+{%- endif %}
