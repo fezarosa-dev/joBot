@@ -545,6 +545,21 @@ small.convertido {
 }
 
 @media (forced-colors: active) {
+  /* sem `appearance` e com `border: 0`, os botões e chips perdem o contorno do base.css; o chip
+     ligado só difere pelo fundo, que as cores forçadas trocam */
+  .primario,
+  .secundario,
+  .chip {
+    border: 1px solid ButtonText;
+  }
+
+  .chip[aria-pressed="true"],
+  .chip[aria-current="true"] {
+    forced-color-adjust: none;
+    background-color: Highlight;
+    color: HighlightText;
+  }
+
   .linha.linha-volta {
     outline: 2px solid Highlight;
     outline-offset: -2px;
