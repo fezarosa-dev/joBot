@@ -154,6 +154,18 @@ def test_instrucao_vem_na_lingua_da_pessoa(idioma: str, outro: str) -> None:
     assert "JSON" in manual.PEDE_JSON["pt"] and "esquema" in manual.PEDE_JSON["pt"]
 
 
+def test_campo_chamado_description_fica_no_esquema() -> None:
+    class ComCampo(BaseModel):
+        """Docstring que sai."""
+
+        description: str
+
+    pedido = replace(_pedido("candidatura", SaidaCandidatura, "x"), esquema=ComCampo)
+    esquema = json.loads(texto_para_copiar(pedido, "pt").split("\n\n")[-1])
+    assert "description" not in esquema
+    assert esquema["properties"].get("description") == {"title": "Description", "type": "string"}
+
+
 def test_vaga_que_tenta_fechar_a_marca_fica_dentro_dela_no_texto_para_copiar() -> None:
     # A vaga tenta fechar o bloco e dar a sua própria regra de resposta; o texto para copiar leva
     # o pedido como `pedidos` o montou, e o que vem depois da marca de fim é só nosso.
