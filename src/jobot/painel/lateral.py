@@ -12,7 +12,7 @@ from starlette.requests import Request
 from jobot.banco.cadastros import PADROES, ler_config
 from jobot.banco.conexao import abrir
 from jobot.banco.leitura import ABAS, contar_abas
-from jobot.painel.ambiente import grupos_visiveis, leitores_do_painel
+from jobot.painel.ambiente import GRUPOS
 from jobot.painel.consultas import (
     MAX_ID,
     busca_efetiva,
@@ -61,7 +61,4 @@ def lateral(request: Request) -> Lateral:
 
 def grupos_configuracoes(request: Request) -> tuple[tuple[str, str], ...]:
     """Os grupos de Configurações da página, (slug, chave do nome), para a paleta (T265)."""
-    return tuple(
-        (g, "configuracoes.grupo." + g.replace("-", "_"))
-        for g in grupos_visiveis(leitores_do_painel(request))
-    )
+    return tuple((g, "configuracoes.grupo." + g.replace("-", "_")) for g in GRUPOS)

@@ -1,2 +1,3 @@
 <p class="config-texto">{{ t("configuracoes.ferramentas.explicacao") }}</p>
-{% include "configuracoes/_ferramenta_navegador.html" %}
+{% if com_navegador %}{% include "configuracoes/_ferramenta_navegador.html" %}{% endif %}
+{% include "configuracoes/_ferramenta_ia_local.html" %}

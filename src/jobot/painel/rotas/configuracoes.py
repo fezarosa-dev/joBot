@@ -22,11 +22,13 @@ Todo comando do sistema passa pelo executor de `app.state.rodar_comando`, o ambi
 """
 
 import asyncio
+import json
 import logging
 import re
 import sqlite3
 from collections.abc import Awaitable, Callable, Mapping
-from contextlib import closing
+from contextlib import closing, suppress
+from dataclasses import replace
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -43,6 +45,7 @@ from jobot.banco.cadastros import PADROES, gravar_config, ler_config, ligar_font
 from jobot.banco.captcha import NOME_NO_COFRE
 from jobot.banco.conexao import abrir
 from jobot.banco.execucoes import LinhaSaude, leitura_login_rodando, ultimas_que_rodaram
+from jobot.banco.ia import gravar_tarefas_ia, tarefa_ia
 from jobot.banco.sessoes import gravar_sessao, ler_sessoes
 from jobot.navegador import limites
 from jobot.navegador.conferir import conferir_sessao
@@ -59,24 +62,22 @@ from jobot.nucleo.leitores.base import LeitorComLogin
 from jobot.nucleo.tratamento.locais import codigos_de_pais
 from jobot.painel.ambiente import (
     COM_LOGIN,
-    FERRAMENTAS,
     GRUPOS,
-    SO_COM_LEITOR,
+    abrir_ia_local_do_painel,
     abrir_instalador_do_painel,
     ambiente_do_painel,
     cofre_do_painel,
     com_segundo_plano,
-    grupos_visiveis,
     leitores_do_painel,
     ler_navegador_do_painel,
     plataforma_do_painel,
     rodar_do_painel,
 )
 from jobot.painel.consultas import relogio_do_painel
-from jobot.painel.formatos import conferido_texto, opcoes_de_pais
+from jobot.painel.formatos import conferido_texto, gigabytes, opcoes_de_pais
 from jobot.painel.rotas.execucao import criar_tarefa
 from jobot.painel.rotas.gmail import contexto_gmail
-from jobot.painel.rotas.ia import contexto_ia, gravar_ia
+from jobot.painel.rotas.ia import LOCAL, contexto_ia, gravar_ia, tarefas
 from jobot.painel.rotas.perfil import contexto_perfil, habilidades_do_texto, salvar_habilidades
 from jobot.painel.rotas.servicos import (
     contexto_captcha,
@@ -86,7 +87,8 @@ from jobot.painel.rotas.servicos import (
 )
 from jobot.painel.saude_das_fontes import estado_dos_escopos, motivo_mais_grave
 from jobot.painel.seguranca import Con, idioma_do_pedido, renderizar
-from jobot.sistema import casca, caso, segundo_plano
+from jobot.sistema import casca, caso, ia_local, segundo_plano
+from jobot.sistema.pastas import PASTA_FERRAMENTAS
 from jobot.sistema.segundo_plano_linux import Recusa
 
 router = APIRouter(prefix="/configuracoes")
@@ -325,7 +327,9 @@ def _dados(request: Request) -> Path:
 
 
 async def _contexto_ferramentas(request: Request, con: Con) -> dict[str, Any]:
-    return contexto_ferramenta_navegador(request)
+    # o cartão do navegador só com leitor com login, como antes (desenho 10.2 da fase 4)
+    navegador = contexto_ferramenta_navegador(request) if leitores_do_painel(request) else {}
+    return {"com_navegador": bool(navegador)} | navegador | contexto_ferramenta_ia_local(request)
 
 
 _CONTEXTOS: dict[str, Contexto] = {
@@ -347,10 +351,7 @@ async def _pagina(
 ) -> Response:
     contexto: dict[str, Any] = {
         "grupo": grupo,
-        "abas": [
-            (g, "configuracoes.grupo." + g.replace("-", "_"), _ICONES[g])
-            for g in grupos_visiveis(leitores_do_painel(request))
-        ],
+        "abas": [(g, "configuracoes.grupo." + g.replace("-", "_"), _ICONES[g]) for g in GRUPOS],
         "parcial": f"configuracoes/{_PARCIAIS[grupo]}.html",
         "erro": None,
         "motivo": None,
@@ -363,7 +364,7 @@ async def _pagina(
 
 
 def _grupo_valido(request: Request, grupo: str) -> str:
-    if grupo not in grupos_visiveis(leitores_do_painel(request)):
+    if grupo not in GRUPOS:
         raise HTTPException(404)
     return grupo
 
@@ -588,9 +589,6 @@ async def sites_com_login_de_antes() -> RedirectResponse:
 
 @router.get("/{grupo}")
 async def mostrar(request: Request, con: Con, grupo: str) -> Response:
-    if grupo in SO_COM_LEITOR and grupo not in grupos_visiveis(leitores_do_painel(request)):
-        # o navegador guarda o último grupo (T262): sem leitor ele sumiu, e a pessoa cai em Geral
-        return _volta(GRUPOS[0])
     salvo = request.query_params.get("salvo") == "1"
     ctx: dict[str, Any] = {"salvo": salvo}
     if grupo == COM_LOGIN and (
@@ -898,7 +896,7 @@ _PASSO_SITES = "/primeira-execucao/sites"  # o passo do assistente que mostra es
 @router.get(_NAVEGADOR)
 async def estado_do_navegador(request: Request, con: Con) -> Response:
     """O HTMX pergunta a cada 5 s; enquanto baixa ou remove, 204 (nada troca na tela)."""
-    _grupo_valido(request, FERRAMENTAS)
+    _exige_leitor(request)  # Ferramentas existe sem leitor (D185.20); o navegador, não
     if _ferramentas(request).get("navegador") in _RODANDO:
         return Response(status_code=204)
     if urlsplit(request.headers.get("HX-Current-URL", "")).path == _PASSO_SITES:
@@ -910,7 +908,7 @@ async def estado_do_navegador(request: Request, con: Con) -> Response:
 @router.post(_NAVEGADOR + "/baixar")
 async def baixar_navegador(request: Request) -> Response:
     """Baixa o Chromium do Playwright em segundo plano; um download por vez (D137.4)."""
-    _grupo_valido(request, FERRAMENTAS)
+    _exige_leitor(request)  # Ferramentas existe sem leitor (D185.20); o navegador, não
     trava = _trava(request, "navegador")
     instalado = getattr(request.app.state, "navegador_instalado", None)
     desatualizado = instalado == "chromium" and casca.navegador_desatualizado(_dados(request))
@@ -943,7 +941,7 @@ async def baixar_navegador(request: Request) -> Response:
 @router.post(_NAVEGADOR + "/remover")
 async def remover_navegador(request: Request) -> Response:
     """Remove o Chromium do Playwright, nunca com o navegador aberto num site (D137.13)."""
-    _grupo_valido(request, FERRAMENTAS)
+    _exige_leitor(request)  # Ferramentas existe sem leitor (D185.20); o navegador, não
     trava = _trava(request, "navegador")
     login = _trava_de_login(request)
     if getattr(request.app.state, "navegador_instalado", None) != "chromium" or trava.locked():
@@ -971,3 +969,207 @@ async def remover_navegador(request: Request) -> Response:
 
     criar_tarefa(request, "remover navegador", trava, remover)
     return _fragmento_do_navegador(request)
+
+
+# --- ferramentas: o modelo local (T417; desenho 10.2 da fase 4; D185.20) ---
+
+_IA_LOCAL = "/ferramentas/ia-local"
+_CARTAO_IA_LOCAL = "configuracoes/_ferramenta_ia_local.html"
+_RODANDO_IA = ("baixando", "removendo")
+_TERMINAIS_IA = ("pronto", "removido", "falhou_baixar", "falhou_remover")
+# os motivos da linha `fim` do `jobot ferramentas`: os de `baixar.Motivo` mais os do contrato
+MOTIVOS_IA = (
+    "sem_rede",
+    "espaco",
+    "arquivo",
+    "cancelado",
+    "ocupado",
+    "programa_ausente",
+    "modelo_ausente",
+)
+
+
+def _andamento_ia(request: Request) -> dict[str, Any]:
+    """O comando do modelo local que roda (`estado`, `feito`, `total`) ou o último resultado
+    (`estado` terminal e `motivo`)."""
+    estado = request.app.state
+    if getattr(estado, "ia_local", None) is None:
+        estado.ia_local = {}
+    andamento: dict[str, Any] = estado.ia_local
+    return andamento
+
+
+def _no_disco(request: Request) -> tuple[dict[str, Any], dict[str, Any], str | None, bool]:
+    """O manifesto, a anotação, a chave do modelo baixado (`2b`, `4b`) e se há o que atualizar:
+    o manifesto mudou desde o download (programa ou modelo, D195) ou um dos arquivos anotados
+    sumiu. Anotação torta (valor que não é texto) é "não baixado", como na aba IA (D202.13)."""
+    manifesto = ia_local.manifesto_local()
+    dados = _dados(request)
+    anotacao = ia_local.ler_anotacao(dados)
+    chave, alvo, arquivo = anotacao.get("modelo"), anotacao.get("alvo"), anotacao.get("arquivo")
+    if not (isinstance(chave, str) and isinstance(alvo, str) and isinstance(arquivo, str)):
+        return manifesto, anotacao, None, False
+    if chave not in manifesto["modelos"]:
+        return manifesto, anotacao, None, False
+    servidor = manifesto["llama_server"]
+    item = servidor["alvos"].get(alvo) or {}
+    ferramentas = dados / PASTA_FERRAMENTAS
+    programa = anotacao.get("programa")
+    mudou = (
+        anotacao.get("build") != servidor["build"]
+        or anotacao.get("servidor_sha256") != item.get("sha256")
+        or anotacao.get("modelo_sha256") != manifesto["modelos"][chave]["sha256"]
+        or not isinstance(programa, str)
+        or not (ferramentas / programa).is_file()
+        or not (ferramentas / "modelos" / arquivo).is_file()
+    )
+    return manifesto, anotacao, chave, mudou
+
+
+def _outro(chave: str) -> str:
+    return "2b" if chave == "4b" else "4b"
+
+
+def contexto_ferramenta_ia_local(request: Request, *, foco: bool = False) -> dict[str, Any]:
+    """O cartão do modelo local; resultado terminal aparece uma vez só, como no navegador.
+    `foco`: a resposta do botão, que some na troca; o foco vai ao estado (o aviso do fim o puxa
+    sozinho, o polling não)."""
+    idioma = idioma_do_pedido(request)
+    manifesto, anotacao, chave, mudou = _no_disco(request)
+    modelos = manifesto["modelos"]
+    andamento = _andamento_ia(request)
+    resultado, motivo = andamento.get("estado"), andamento.get("motivo")
+    if resultado in _TERMINAIS_IA:
+        andamento.clear()
+    rodando = resultado in _RODANDO_IA
+    feito, total = (andamento.get("feito", 0), andamento.get("total", 0)) if rodando else (0, 0)
+    modelo = programa = outro = None
+    if chave is not None:
+        m = modelos[chave]
+        modelo = m | {"tamanho": gigabytes(m["tamanho"], idioma)}
+        o = modelos[_outro(chave)]
+        outro = {"nome": o["nome"], "tamanho": gigabytes(o["tamanho"], idioma)}
+        servidor = manifesto["llama_server"]
+        if alvo := servidor["alvos"].get(anotacao.get("alvo")):
+            programa = alvo | {"build": anotacao.get("build")}
+    tamanhos = sorted(m["tamanho"] for m in modelos.values())
+    return {
+        "ia_estado": resultado if rodando else "baixado" if chave else "nao_baixado",
+        "ia_foco": foco,
+        "ia_resultado": resultado if resultado in _TERMINAIS_IA else None,
+        "ia_motivo": motivo if motivo in MOTIVOS_IA else "outro",
+        "ia_feito": feito,
+        "ia_total": total,
+        "ia_pct": feito * 100 // total if total else 0,
+        "ia_modelo": modelo,
+        "ia_programa": programa,
+        "ia_outro": outro,
+        "ia_desatualizado": mudou and not rodando,
+        "ia_menor": gigabytes(tamanhos[0], idioma),
+        "ia_maior": gigabytes(tamanhos[-1], idioma),
+    }
+
+
+def _cartao_ia_local(request: Request, *, foco: bool = False) -> Response:
+    if request.headers.get("hx-request") != "true":  # sem JavaScript: a página inteira de novo
+        return _volta("ferramentas")
+    contexto = contexto_ferramenta_ia_local(request, foco=foco)
+    return renderizar(request, _CARTAO_IA_LOCAL, **contexto)
+
+
+@router.get(_IA_LOCAL)
+async def estado_do_modelo_local(request: Request) -> Response:
+    """O HTMX pergunta a cada 5 s enquanto o comando roda: a barra anda pelos bytes."""
+    return _cartao_ia_local(request)
+
+
+def argumentos_ia_local(chave: str | None, mudou: bool) -> dict[str, list[str] | None]:
+    """O `jobot ferramentas ...` de cada botão; `None`: o botão não vale agora."""
+    return {
+        "baixar": ["baixar", "ia-local"] if chave is None else None,
+        "trocar": ["baixar", "ia-local", "--modelo", _outro(chave)] if chave else None,
+        "atualizar": ["atualizar", "ia-local"] if chave and mudou else None,
+        "remover": ["remover", "ia-local"] if chave else None,
+    }
+
+
+@router.post(_IA_LOCAL + "/{acao}")
+async def comando_do_modelo_local(request: Request, con: Con, acao: str) -> Response:
+    """Baixar (o modelo pela memória), Trocar (2B ↔ 4B), Atualizar e Remover rodam o
+    `jobot ferramentas ... ia-local` em segundo plano, um por vez (D195.12)."""
+    manifesto, _, chave, mudou = _no_disco(request)
+    argumentos = argumentos_ia_local(chave, mudou)
+    if acao not in argumentos:
+        raise HTTPException(404)
+    trava = _trava(request, "ia_local")
+    pedido = argumentos[acao]
+    if pedido is None or trava.locked():  # nada a fazer, ou outro comando já roda
+        return _cartao_ia_local(request, foco=True)
+    abrir_ia = abrir_ia_local_do_painel(request)
+    dados = _dados(request)
+    if acao == "remover":
+        # as tarefas no local desligam já, sem esperar o comando (que também desliga, D195)
+        _desligar_local(con)
+    andamento = _andamento_ia(request)
+    novo = manifesto["modelos"][_outro(chave)]["nome"] if acao == "trocar" and chave else None
+    banco: Path = request.app.state.banco
+    await trava.acquire()  # livre: não suspende; tudo que pode falhar vem antes
+    andamento.clear()
+    andamento["estado"] = "removendo" if acao == "remover" else "baixando"
+
+    async def rodar_comando() -> None:
+        fim: object = None
+        motivo: object = None
+        try:
+            comando = await abrir_ia(pedido, dados)
+            try:
+                linhas = comando.stdout
+                if linhas is not None:
+                    async for linha in linhas:
+                        lida = _linha_json(linha)
+                        feito, total = lida.get("feito"), lida.get("total")
+                        if isinstance(feito, int) and isinstance(total, int):
+                            andamento["feito"], andamento["total"] = feito, total
+                        fim, motivo = lida.get("fim", fim), lida.get("motivo", motivo)
+                if await comando.wait() != 0:
+                    fim = "falhou"
+            except BaseException:  # cancelado (`/sair`, fim do servidor) ou erro na leitura
+                with suppress(ProcessLookupError):
+                    comando.kill()  # o `.parcial` fica para a retomada
+                raise
+            if fim == "pronto" and novo is not None:
+                await run_in_threadpool(_renomear_local, banco, novo)
+        finally:
+            ok = fim == "pronto"
+            removeu = acao == "remover"
+            falha = "falhou_remover" if removeu else "falhou_baixar"
+            andamento.clear()
+            andamento["estado"] = ("removido" if removeu else "pronto") if ok else falha
+            andamento["motivo"] = None if ok else motivo
+
+    criar_tarefa(request, "modelo local", trava, rodar_comando)
+    return _cartao_ia_local(request, foco=True)
+
+
+def _linha_json(linha: bytes) -> dict[str, Any]:
+    try:
+        lida = json.loads(linha)
+    except ValueError:
+        return {}
+    return lida if isinstance(lida, dict) else {}
+
+
+def _desligar_local(con: sqlite3.Connection) -> None:
+    locais = {n: tarefa_ia(con, n) for n in tarefas()}
+    desligar = {n: replace(t, ligada=False) for n, t in locais.items() if t.backend == LOCAL}
+    if desligar:
+        gravar_tarefas_ia(con, desligar)
+
+
+def _renomear_local(banco: Path, nome: str) -> None:
+    """Depois do "Trocar modelo", as tarefas no local levam o nome do modelo novo."""
+    with closing(abrir(banco)) as con:
+        locais = {n: tarefa_ia(con, n) for n in tarefas()}
+        trocar = {n: replace(t, modelo=nome) for n, t in locais.items() if t.backend == LOCAL}
+        if trocar:
+            gravar_tarefas_ia(con, trocar)

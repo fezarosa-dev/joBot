@@ -579,3 +579,9 @@
 .cartao-gmail .campo-erro {
   color: var(--alerta);
 }
+
+/* a barra do modelo local em Ferramentas (T417): a nativa, só na largura do texto */
+.config-bloco progress {
+  inline-size: 100%;
+  max-inline-size: 32rem;
+}
