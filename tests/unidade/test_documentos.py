@@ -1244,6 +1244,17 @@ def test_velho_0_6_0_pega_as_frases_antigas() -> None:
     assert VELHO_0_6_0.search("| **Local model (Qwen)** | Free |")
     assert VELHO_NA_WIKI.search("| **IA manual** (copiar e colar), na 0.6.0 | Grátis |")
     assert SO_A_VAGA.search("vai só o texto da vaga, nunca o seu perfil")
+    assert NUNCA_ENTRAM.search("e nome, e-mail, telefone e cidade nunca entram nos pedidos.")
+    assert NUNCA_ENTRAM.search("Name, email, phone and city never go into the requests.")
+    assert CPF_PREENCHIDO.search(
+        "O e-mail, o telefone e o CPF são tirados do texto antes de ir à IA e preenchidos"
+    )
+    assert CPF_PREENCHIDO.search(
+        "Email, phone and CPF are taken out of the text before it goes to the AI and filled in"
+    )
+    assert VELHO_NA_0014.search("- CPF e data de nascimento ficam no SQLite (banco)")
+    assert VELHO_NA_0014.search("- Exportar o perfil não leva documentos pessoais (como o CPF)")
+    assert VELHO_NA_0014.search("Nome, e-mail, telefone e cidade nunca vão; e-mail")
 
 
 # cada tarefa diz o que manda (a lista permitida da T431 e as frases das abas IA e Perfil)
@@ -1292,10 +1303,28 @@ def test_changelog_traz_a_0_6_0_em_nao_lancado(lingua: str) -> None:
 
 # wiki: o que cada página precisa dizer da 0.6.0, e o que ela dizia no futuro
 WIKI_0_6_0 = {
-    "wiki/Tecnologias.md": ("Laya", "IA manual"),
-    "wiki/Technologies.md": ("Laya", "Manual AI"),
-    "wiki/Como-funciona.md": ("Preparar candidatura", "IA manual"),
-    "wiki/How-it-works.md": ("Prepare Application", "manual AI"),
+    "wiki/Tecnologias.md": (
+        "Laya",
+        "IA manual",
+        "o nome e a cidade escritos nele vão junto",
+        "das versões do llama.cpp",
+    ),
+    "wiki/Technologies.md": (
+        "Laya",
+        "Manual AI",
+        "the name and city written in it go along",
+        "from llama.cpp's releases",
+    ),
+    "wiki/Como-funciona.md": (
+        "Preparar candidatura",
+        "IA manual",
+        "o nome e a cidade escritos nele vão junto",
+    ),
+    "wiki/How-it-works.md": (
+        "Prepare Application",
+        "manual AI",
+        "the name and city written in it go along",
+    ),
     "wiki/Perguntas-frequentes.md": ("sem nome, e-mail, telefone e cidade",),
     "wiki/Frequently-asked-questions.md": ("without name, email, phone and city",),
     "wiki/Roteiro.md": ("Laya",),
@@ -1305,6 +1334,8 @@ VELHO_NA_WIKI = re.compile(
     r"versão seguinte|later version|na 0\.6\.0 \||in 0\.6\.0 \||vai ajudar a preparar"
     r"|will help prepare|chega na 0\.6\.0|comes in 0\.6\.0|\(Qwen, grátis|\(Qwen, free"
 )
+# o absoluto que a tarefa curriculo não cumpre: o nome e a cidade escritos no PDF vão (D230.5)
+NUNCA_ENTRAM = re.compile(r"nunca entram nos pedidos|never go into the requests")
 
 
 @pytest.mark.parametrize("caminho", sorted(WIKI_0_6_0))
@@ -1313,6 +1344,41 @@ def test_wiki_traz_a_0_6_0(caminho: str) -> None:
     for termo in WIKI_0_6_0[caminho]:
         assert termo in conteudo, (caminho, termo)
     assert VELHO_NA_WIKI.findall(conteudo) == [], caminho
+    assert NUNCA_ENTRAM.findall(conteudo) == [], caminho
+
+
+# o CPF sai do texto do currículo, mas não é preenchido nem guardado (D185.13, D236.3)
+CPF_PREENCHIDO = re.compile(
+    r"CPF são tirados do texto antes de ir à IA e preenchidos"
+    r"|CPF are taken out of the text before it goes to the AI and filled in"
+)
+CPF_NAO_GUARDADO = {"pt": "o CPF não é guardado", "en": "the CPF is not kept"}
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_cpf_do_curriculo_nao_e_preenchido(lingua: str) -> None:
+    """O README e o CHANGELOG dizem que o e-mail e o telefone são preenchidos no computador e
+    que o CPF, tirado do texto, não é guardado: o perfil não tem CPF."""
+    for caminho in (README[lingua], CHANGELOG[lingua]):
+        conteudo = texto(caminho)
+        assert CPF_NAO_GUARDADO[lingua] in conteudo, caminho
+        assert CPF_PREENCHIDO.findall(conteudo) == [], caminho
+
+
+# ADR 0014: o que ela dizia do CPF guardado e o absoluto do contato, fora do riscado
+VELHO_NA_0014 = re.compile(
+    r"CPF e data de nascimento ficam no SQLite|não leva documentos pessoais \(como o CPF\)"
+    r"|cidade nunca vão"
+)
+
+
+def test_adr_0014_sem_cpf_guardado_e_com_a_regra_por_tarefa() -> None:
+    """D236.3: o perfil não guarda CPF nem data de nascimento, e o texto do currículo leva o
+    nome e a cidade escritos nele; fora do riscado, a ADR 0014 não diz o contrário."""
+    vivo = re.sub(r"~~.*?~~", "", texto("docs/decisions/0014-seguranca-e-privacidade.md"))
+    assert "keyring" in vivo  # controle: achou a ADR
+    assert VELHO_NA_0014.findall(vivo) == []
+    assert "o nome e a cidade escritos nele vão junto" in vivo
 
 
 LAYA_NA_0_6_0 = (
