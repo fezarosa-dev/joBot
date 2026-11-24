@@ -886,6 +886,18 @@ def _secao(texto: str, chave: str) -> list[str]:
     return corpo
 
 
+def test_workflow_se_reativa_a_cada_execucao() -> None:
+    """D218: o GitHub desliga agendamento de repositório público depois de 60 dias sem atividade;
+    o vigia se reativa pela API em toda execução, mesmo quando falha, sem commit nem action de
+    terceiros."""
+    texto = WORKFLOW.read_text(encoding="utf-8")
+    passo = texto[texto.index("actions/workflows/vigia.yml/enable") - 400 :]
+    assert "if: always()" in passo.split("actions/workflows/vigia.yml/enable")[0]
+    assert 'gh api -X PUT "repos/$GITHUB_REPOSITORY/actions/workflows/vigia.yml/enable"' in texto
+    assert "GH_TOKEN: ${{ github.token }}" in texto
+    assert texto.rstrip().endswith("GH_TOKEN: ${{ github.token }}")  # o último passo do job
+
+
 def test_workflow_so_em_schedule_e_dispatch_com_permissoes_minimas() -> None:
     assert WORKFLOW.exists()
     texto = WORKFLOW.read_text(encoding="utf-8")
@@ -895,7 +907,8 @@ def test_workflow_so_em_schedule_e_dispatch_com_permissoes_minimas() -> None:
     assert '- cron: "23 6 * * 1"' in gatilhos
     assert len(gatilhos) == 3
     assert texto.count("permissions:") == 1
-    assert _secao(texto, "permissions") == ["contents: read", "issues: write"]
+    # actions: write só para o passo que reativa o próprio agendamento (D218)
+    assert _secao(texto, "permissions") == ["contents: read", "issues: write", "actions: write"]
     assert set(re.findall(r"secrets\.(\w+)", texto)) <= {"GITHUB_TOKEN"}
     assert "uv run python scripts/vigia.py" in texto
     assert "persist-credentials: false" in texto
