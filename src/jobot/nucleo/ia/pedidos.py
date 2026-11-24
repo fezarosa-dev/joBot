@@ -217,3 +217,11 @@ def dados_para(tarefa: str, fontes: Mapping[str, object]) -> dict[str, object]:
 def bloco_perfil(dados: Mapping[str, object]) -> str:
     """Os dados de `dados_para` em JSON, entre as marcas PERFIL."""
     return bloco("PERFIL", json.dumps(dados, ensure_ascii=False, indent=1))
+
+
+def perguntas_base() -> tuple[dict[str, str], ...]:  # stub do vermelho
+    return ()
+
+
+def pedido_perguntas(fontes: Mapping[str, object], idioma: str, backend: str, modelo: str) -> Pedido:
+    return pedido_encaixe(texto_encaixe("", ""), backend, modelo)  # stub do vermelho
