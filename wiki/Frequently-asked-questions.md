@@ -18,13 +18,13 @@ And the Claude Code login would have to be done again in there (on macOS it live
 <summary><strong>Do I need to log in to Claude inside joBot?</strong></summary>
 
 No. You sign in once to Claude Code, through the terminal, in Anthropic's own flow. joBot only detects that it is ready and uses it.
-It never sees your password or your token. See [Using the Claude Code you already have](https://github.com/fezarosa-dev/joBot/blob/main/README.en.md#using-claude-code) and [ADR 0010](https://github.com/fezarosa-dev/joBot/blob/main/docs/decisions/0010-claude-code-da-pessoa.md).
+It never sees your password or your token. That session still waits for the owner's decision on the terms of use; in 0.5.0, Claude comes in through the Anthropic API key, added in Settings › Services. See [Using the Claude Code you already have](https://github.com/fezarosa-dev/joBot/blob/main/README.en.md#using-claude-code) and [ADR 0010](https://github.com/fezarosa-dev/joBot/blob/main/docs/decisions/0010-claude-code-da-pessoa.md).
 </details>
 
 <details>
 <summary><strong>Do I have to pay for anything?</strong></summary>
 
-joBot is free and open source. Claude is optional and paid, by subscription or through the API.
+joBot is free and open source. Claude, OpenAI and Gemini are optional, with your key: Claude and OpenAI are paid per use, and Gemini may be billed per use, depending on your Google AI Studio account plan.
 The local model, keywords and manual AI are free.
 </details>
 
@@ -32,7 +32,7 @@ The local model, keywords and manual AI are free.
 <summary><strong>Does it work without AI? And without internet?</strong></summary>
 
 Without AI, yes: joBot uses rules and keywords.
-Without internet, new jobs don't arrive. But the dashboard keeps working, and so does the local model.
+Without internet, new jobs don't arrive. But the dashboard keeps working, and so does the local model, once downloaded. The README has the [table of what works without internet](https://github.com/fezarosa-dev/joBot/blob/main/README.en.md#what-works-without-internet).
 </details>
 
 <details>
@@ -76,7 +76,7 @@ The Gmail card is in Settings, Accounts, and reading the emails stays in phase 6
 <summary><strong>Does my data go to any server?</strong></summary>
 
 There is no joBot server. Your data stays on your computer.
-It only goes to the services you turn on: Anthropic (if you use Claude), Google (if you turn on Gmail) and Telegram (if you turn on the daily summary). It may also go to Jev (if you choose that option in email classification) and to RunPod (only in the phase 7 training). With manual AI, it goes to the chat AI where you paste it.
+It only goes to the services you turn on: Anthropic, OpenAI or Google (if you turn on an AI task on one of them; only the job text goes, never your profile), the AI address you type, Google (if you turn on Gmail) and Telegram (if you turn on the daily summary). It may also go to Jev (if you choose that option in email classification). RunPod never gets your data: the Laya training runs outside the app, only with jobs from public sources. With manual AI, it goes to the chat AI where you paste it.
 </details>
 
 <details>

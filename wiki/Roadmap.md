@@ -66,7 +66,7 @@ Version 0.3.0 came out between phase 2 and phase 3, with the "Overview" screen (
 - Offline package: llama-server and a Qwen model, to use AI without internet and without paying.
 - The AI choice, the résumé and the questionnaire join the assistant.
 - The phase comes out in two versions: 0.5.0 brings the local model and the match by skills; 0.6.0, the résumé, the questionnaire and help with the application (still being decided).
-- The multilingual-e5-small model, for labels below 90% accuracy, is left for later, together with the Laya fine-tuning (still being decided).
+- The multilingual-e5-small model, for labels below 90% accuracy, is left for later (still being decided). The Laya fine-tuning was approved: 0.5.0 ships without it, and it comes in a later version, after the training.
 </details>
 
 <details>

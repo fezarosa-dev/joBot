@@ -32,7 +32,7 @@ Ele junta, filtra e organiza vagas de muitos sites num painel bonito que roda no
 
 > [!IMPORTANT]
 > **As fases 1, 2 e 3 do joBot (a base, o navegador com login e o instalador) estão prontas desde a versão 0.4.0; a versão para instalar agora é a 0.4.1.** Ele busca vagas em fontes públicas, guarda tudo no seu computador e mostra num painel. Já dá para [instalar e usar](#requisitos-e-instalacao).
-> O LinkedIn é o site com login de hoje (outros podem vir pelo [molde de site novo](docs/site-novo.md)); já está aqui desde a versão 0.3.0 e vem desligado (você liga em Configurações, Contas). O cartão do Gmail já está em Configurações, Contas; a leitura dos e-mails, o áudio e o resto (os outros sites com login, IA e extensão do navegador) ainda são plano. Veja o [roteiro](#roteiro). Antes de ligar as fontes, leia os [avisos de uso e de termos](#licenca-e-avisos).
+> O LinkedIn é o site com login de hoje (outros podem vir pelo [molde de site novo](docs/site-novo.md)); já está aqui desde a versão 0.3.0 e vem desligado (você liga em Configurações, Contas). O cartão do Gmail já está em Configurações, Contas. A IA chega na versão 0.5.0, desligada por padrão, para listar as habilidades que cada vaga pede ([detalhes](#inteligencia-artificial)); a leitura dos e-mails, o áudio e o resto (os outros sites com login, as outras tarefas de IA e a extensão do navegador) ainda são plano. Veja o [roteiro](#roteiro). Antes de ligar as fontes, leia os [avisos de uso e de termos](#licenca-e-avisos).
 
 ## 📑 Sumário
 
@@ -147,7 +147,7 @@ Um ciclo de busca, passo a passo:
 3. **O núcleo** junta vagas repetidas, entende o salário, coloca rótulos e marca como fechadas as vagas que sumiram.
 4. **Tudo vai para o banco** SQLite, um arquivo que fica no seu computador.
 5. **O painel** mostra o resultado no seu navegador. Ele só funciona no seu computador (endereço 127.0.0.1).
-6. **Quando a IA chegar** (fase 4) e você ligá-la, ela vai calcular o encaixe com o seu perfil e ajudar a preparar candidaturas. Até lá, o encaixe vem das regras da sua busca.
+6. **Se você ligar a IA** (a partir da versão 0.5.0), ela lista as habilidades que cada vaga pede, e o joBot compara com as do seu perfil e soma isso ao encaixe. A IA não dá nota. Na 0.6.0, ela vai ajudar a preparar candidaturas. Sem IA, o encaixe vem das regras da sua busca.
 
 Se uma fonte falhar, as outras continuam. Se o computador estava desligado na hora marcada, a busca perdida roda quando ele liga.
 
@@ -163,7 +163,7 @@ O joBot vai ter um núcleo só e duas "caras". A **versão local** é o foco. A 
 | **Instalação** | Nativa, com o uv ([como instalar](#requisitos-e-instalacao)) | Nenhuma: é só abrir o site |
 | **Fontes** | Todas | Só fontes públicas |
 | **Sites com login** | Sim, você entra numa janela comum do navegador | Não |
-| **IA** | Automática (Claude, modelo local) ou manual | Manual (copiar e colar); rótulos só por regras |
+| **IA** | Automática (modelo local ou serviço com a sua chave: Anthropic, OpenAI, Gemini ou um endereço compatível) ou manual | Manual (copiar e colar); rótulos só por regras |
 | **Extensão do navegador** | Sim | Não |
 | **Gmail** | Sim (opcional) | Não |
 | **Áudio** | Sim, transcrição no seu computador | Não |
@@ -233,24 +233,39 @@ O painel roda em `http://127.0.0.1:47615`. Quando o joBot acha o Chrome, o Edge 
 <a id="inteligencia-artificial"></a>
 ## 🧠 Inteligência artificial
 
-A IA é **opcional** e chega na fase 4. Sem ela, o joBot funciona com regras e palavras-chave, e é assim que a fase 1 funciona.
+A IA é **opcional** e chega na versão 0.5.0 (fase 4), **desligada por padrão**. Sem ela, o joBot funciona com regras e palavras-chave, como desde a fase 1.
 
-> **Regra de ouro:** a IA só usa os dados do seu perfil. Ela nunca inventa experiência, curso ou habilidade, e mostra quais dados usou.
-> Se faltar informação, ela faz uma pergunta, e a sua resposta fica salva no perfil.
+> **Regra de ouro:** a IA nunca inventa. Na 0.5.0 ela nem recebe o seu perfil: cada habilidade que ela lista precisa estar escrita na vaga.
+> A partir da 0.6.0, nas tarefas que usam o perfil (currículo, questionário, candidatura), ela só usa os dados do seu perfil, mostra quais usou e, se faltar informação, faz uma pergunta, e a sua resposta fica salva no perfil.
+
+### O que a 0.5.0 traz
+
+- **As habilidades de cada vaga.** Com a tarefa **Encaixe** ligada em Configurações › IA e ao menos uma habilidade no seu perfil, depois de cada busca a IA lê até 20 vagas ainda não lidas que já combinam com uma busca, das mais novas para as mais velhas, e lista o que cada uma pede. Trocar de serviço ou de modelo faz a IA ler tudo de novo, 20 por rodada. Cada item precisa estar escrito na vaga. A IA não vê o seu perfil e não dá nota: o joBot compara a lista com as habilidades que você põe em Configurações › Perfil, mostra no detalhe da vaga as que você tem e as que faltam, e soma isso ao encaixe, ao lado do cargo, do local e do resto.
+- **Onde a IA roda:** no modelo local (grátis, no seu computador) ou num serviço com a sua chave: a API da Anthropic, a OpenAI, o Google Gemini ou um endereço compatível com a OpenAI (Ollama, LM Studio, OpenRouter e outros). As chaves ficam no cofre do sistema, em Configurações › Serviços.
+- **Teste ao ligar.** Ligar a tarefa ou trocar o serviço manda um pedido curto, com uma vaga de exemplo. Se falhar, a tarefa fica desligada e a tela diz o motivo.
+- **Custo à vista.** Serviço pago aparece como "cobrado por uso", ligar o Encaixe nele pede confirmação, e o joBot faz no máximo 200 pedidos por dia a cada serviço de fora, fora o teste ao ligar.
+
+O currículo, o questionário, as perguntas de lacuna, a IA manual e "Preparar candidatura" chegam na 0.6.0. A sessão do Claude Code e a do Codex esperam a decisão do dono sobre os termos de uso e ainda não foram construídas. O Laya (o modelo local ajustado para as vagas) também não vem na 0.5.0: ele entra numa versão seguinte, depois do treino.
 
 ### Opções
 
-| Opção | Custo | Onde roda | Para onde vão os dados | Precisa de internet? |
-|---|---|---|---|---|
-| **Sessão do Claude Code** ([detalhes](#usando-o-claude-code)) | Usa a sua assinatura do Claude | Na Anthropic | Anthropic | Sim |
-| **Chave da API da Anthropic** | Pago por uso | Na Anthropic | Anthropic | Sim |
-| **Modelo local (Qwen)** | Grátis | No seu computador | Não saem do computador | Não (depois de baixar) |
-| **Palavras-chave** (sem IA) | Grátis | No seu computador | Não saem do computador | Não |
-| **IA manual** (copiar e colar) | Grátis no joBot; depende da IA de chat que você usar | Na IA de chat que você escolher | Para onde você colar | Depende da IA de chat |
+| Opção | Custo | Onde roda | Para onde vão os dados | Precisa de internet? | Situação |
+|---|---|---|---|---|---|
+| **Modelo local (Qwen)** | Grátis | No seu computador | Não saem do computador | Não (depois de baixar) | Na 0.5.0 |
+| **Chave da API da Anthropic** | Pago por uso | Na Anthropic | Anthropic | Sim | Na 0.5.0, experimental |
+| **Chave da OpenAI** | Pago por uso | Na OpenAI | OpenAI | Sim | Na 0.5.0, experimental |
+| **Chave do Google Gemini** | Pode ser cobrado por uso, conforme o plano da sua conta no Google AI Studio | No Google | Google | Sim | Na 0.5.0, experimental |
+| **Endereço compatível com a OpenAI** (Ollama, LM Studio, OpenRouter) | Depende do serviço | Onde o endereço apontar | Para esse endereço | Depende do endereço | Na 0.5.0, experimental |
+| **Palavras-chave** (sem IA) | Grátis | No seu computador | Não saem do computador | Não | Desde a 0.1.0 |
+| **IA manual** (copiar e colar) | Grátis no joBot; depende da IA de chat que você usar | Na IA de chat que você escolher | Para onde você colar | Depende da IA de chat | Na 0.6.0 |
+| **Sessão do Claude Code** ([detalhes](#usando-o-claude-code)) | Usa a sua assinatura do Claude | Na Anthropic | Anthropic | Sim | Espera o dono |
 
-Para não ter de configurar tarefa por tarefa, há três atalhos:
+**Experimental, ainda não provado:** o CI do joBot não tem chave de serviço pago, então a API da Anthropic, a OpenAI e o Gemini só foram testados com um serviço falso. Eles aparecem com essa marca na aba IA até serem provados com uma chave de verdade. O modelo local só foi provado no CI: ele rodou nos computadores do GitHub (Linux, Windows e Mac, só no processador), com até 55 s pela vaga mais longa. Ainda não foram provados: o endereço compatível contra um Ollama, um LM Studio ou um OpenRouter de verdade (o mesmo cliente só rodou contra o `llama-server` do modelo local, no CI), o instalador baixando o Modelo local de verdade, a retomada de um download cortado contra os servidores de verdade, os avisos do Windows Defender e do SmartScreen no `llama-server.exe` e a velocidade num computador comum.
 
-- **Tudo Claude**: usa o Claude em todas as tarefas.
+Para não ter de configurar tarefa por tarefa, há atalhos na aba IA:
+
+- **Desligar a IA**: nada sai do seu computador. É o padrão.
+- **Tudo Claude**: usa o Claude, pela API da Anthropic (cobrada por uso), em todas as tarefas.
 - **Tudo offline**: usa o Qwen, que roda no seu computador, em todas as tarefas.
 - **Personalizado**: você escolhe a opção e o modelo de cada tarefa.
 
@@ -262,7 +277,7 @@ O app usa só dois modelos: Haiku 5.5 (`claude-haiku-5-5`), mais rápido e barat
 | Tarefa | Modelo |
 |---|---|
 | Ler o currículo e montar o perfil | Sonnet 5.5 |
-| Nota de encaixe com a vaga | Haiku 5.5 |
+| Habilidades que a vaga pede (Encaixe, já na 0.5.0) | Haiku 5.5 |
 | Preparar candidatura | Sonnet 5.5 |
 | Extensão do navegador | Sonnet 5.5 |
 | Perguntas extras do questionário | Sonnet 5.5 |
@@ -271,22 +286,34 @@ O app usa só dois modelos: Haiku 5.5 (`claude-haiku-5-5`), mais rápido e barat
 
 ### Pacote offline
 
-O instalador chegou na fase 3 (versão 0.4.0) e o pacote offline é da fase 4. O instalador mostra uma lista de ferramentas para você marcar, e o pacote offline vai aparecer nela. Ele vai permitir usar IA sem internet e sem pagar nada. O que você não marcar, dá para baixar depois no painel, em Configurações, na tela Ferramentas. Lá você também pode mudar a sua escolha.
+Desde a versão 0.5.0, o pacote offline é o **Modelo local**: o `llama-server` do llama.cpp e um modelo Qwen3.5. Ele não vem dentro do instalador: o joBot o baixa da fonte oficial, só quando você pede, e confere o checksum de cada arquivo. Há dois jeitos de pedir: marcar **Modelo local** no passo Ferramentas do instalador (vem desmarcado) ou apertar **Baixar** no cartão do modelo em Configurações › Ferramentas. O joBot escolhe o modelo pela memória do computador (o 4B a partir de 11 GiB, que um computador de 12 GB alcança, e o 2B abaixo disso), e no mesmo cartão você troca de modelo, atualiza ou remove. Depois de baixado, ele funciona sem internet e sem pagar nada.
 
-| Item | Tamanho | Observação |
-|---|---|---|
-| llama-server (programa do llama.cpp que roda o modelo) | ~23 MB Linux · ~25 MB Windows · ~17 MB macOS com chip Apple | Versão fixa, conferida por checksum |
-| Qwen3.5-2B (modelo de IA) | 1,28 GB | Para computadores com 8 GB de RAM |
-| Qwen3.5-4B (modelo de IA) | 2,74 GB | Para computadores com 12 GB ou mais |
-| Transcrição de áudio (faster-whisper "small") | 484 MB | Para responder falando |
-| Transcrição de áudio "medium" | 1,53 GB | Opcional, mais precisa |
+| Item | Tamanho | De onde vem | Observação |
+|---|---|---|---|
+| llama-server (programa do llama.cpp que roda o modelo) | ~23 MB Linux · ~25 MB Windows · ~17 MB macOS com chip Apple · ~13 MB Mac com Intel | GitHub, release do llama.cpp | Versão fixa, conferida por checksum; licença MIT |
+| Qwen3.5-2B (modelo de IA) | 1,28 GB | Hugging Face, da Unsloth | Para computadores com menos de 12 GB de RAM; licença Apache-2.0 |
+| Qwen3.5-4B (modelo de IA) | 2,74 GB | Hugging Face, da Unsloth | Para computadores com 12 GB ou mais; licença Apache-2.0 |
+
+O áudio (a transcrição para responder falando) não entra no pacote offline: ele fica para a fase 6.
 
 Um "checksum" é uma impressão digital do arquivo: o joBot confere se o arquivo baixado é exatamente o esperado.
+
+### O que funciona sem internet
+
+| O que | Sem internet? |
+|---|---|
+| Ver as vagas já salvas, filtrar, marcar o status e mudar as configurações | Sim |
+| Encaixe pelas regras da sua busca | Sim |
+| Habilidades das vagas pelo modelo local (Tudo offline) | Sim, depois de baixar o modelo |
+| Habilidades das vagas por um serviço (Anthropic, OpenAI, Gemini) | Não |
+| Buscar vagas novas, conferir empresas e páginas, pegar a cotação das moedas | Não |
+| Ler os sites com login | Não |
+| Baixar o modelo local, o navegador ou uma versão nova do joBot | Não |
 
 <a id="usando-o-claude-code"></a>
 ## ✨ Usando o Claude Code que você já tem
 
-> Esta seção descreve a fase 4. A fase 1 não usa IA.
+> Esta seção descreve uma opção que ainda espera a decisão do dono sobre os termos de uso da Anthropic: ela não vem na 0.5.0. Até lá, o Claude entra pela chave da API da Anthropic.
 
 Se você já usa o Claude Code no seu computador, o joBot pode usar o Claude **sem nenhum login extra**.
 Você não faz login do Claude dentro do joBot. Nunca.
@@ -336,21 +363,22 @@ Detalhes na [ADR 0010](docs/decisions/0010-claude-code-da-pessoa.md).
 <a id="privacidade-e-seguranca"></a>
 ## 🔒 Privacidade e segurança
 
-> Estas regras valem para a fase 1 e para o que a fase 2 já trouxe. As que falam de IA, Telegram, extensão e áudio descrevem as próximas fases. Do Gmail, já vale o cartão em Configurações, Contas, que guarda a senha de app no cofre do sistema e só abre a caixa para leitura, para conferir o login; a leitura dos e-mails vem na fase 6.
+> Estas regras valem para o que as fases 1 e 2 trouxeram e para a IA da versão 0.5.0. As que falam de Telegram, extensão e áudio descrevem as próximas fases. Do Gmail, já vale o cartão em Configurações, Contas, que guarda a senha de app no cofre do sistema e só abre a caixa para leitura, para conferir o login; a leitura dos e-mails vem na fase 6.
 
 - **Não existe servidor do joBot.** Seus dados ficam no seu computador.
 - **Sem telemetria.** Nenhum dado de uso é enviado.
 - **Registro local da abertura.** O joBot guarda, só no seu computador, quando você abriu a candidatura de cada vaga; isso não sai daqui.
-- **Só pedidos de busca e conferência.** O joBot só faz pedidos de rede nestes casos: às fontes públicas de vagas que você deixa ligadas (vêm todas ligadas), incluindo a página de cada vaga; ao Banco Central, para pegar a cotação das moedas das vagas e mostrar o salário na moeda de exibição que você escolhe, com a conversão de moeda ligada (vem ligada); ao Common Crawl, uma vez por semana, para descobrir empresas novas, e depois aos quadros de vagas dessas empresas, para conferir (vem ligada); às páginas que você manda acompanhar (vem ligada, mas sem páginas na lista não há pedido); aos sites com login que você liga (vêm desligados), pelo navegador, com a sua conta; aos servidores do Playwright, para baixar o navegador, só quando você aperta "Baixar" em Ferramentas ou, no app de desktop, o marca na instalação (o joBot não distribui o navegador; ele vem do Playwright) ou atualiza o joBot com ele já baixado; ao 2Captcha, só quando você testa a chave em Configurações, Serviços, ou, na navegação com login, com a chave posta e o interruptor ligado (vem desligado); ao Gmail (Google), pela conexão IMAP só de leitura, só quando você salva ou confere a senha de app em Configurações, Contas (sem senha de app, não há pedido); ao site de uma empresa, só quando você cola o endereço dela, testa ou aceita uma sugestão; à internet pelo git e pelo uv (ou ao GitHub, quando o joBot veio pelo instalador), para baixar a versão nova do joBot, só quando você pede para atualizar (botão Atualizar agora ou comando jobot atualizar). Com o aviso de versão (próximo item) ligado, também pergunta ao GitHub (vem ligado; você pode desligar). Quem recebe o pedido vê o IP do seu computador, como em qualquer pedido na internet.
+- **Só pedidos de busca e conferência.** O joBot só faz pedidos de rede nestes casos: às fontes públicas de vagas que você deixa ligadas (vêm todas ligadas), incluindo a página de cada vaga; ao Banco Central, para pegar a cotação das moedas das vagas e mostrar o salário na moeda de exibição que você escolhe, com a conversão de moeda ligada (vem ligada); ao Common Crawl, uma vez por semana, para descobrir empresas novas, e depois aos quadros de vagas dessas empresas, para conferir (vem ligada); às páginas que você manda acompanhar (vem ligada, mas sem páginas na lista não há pedido); aos sites com login que você liga (vêm desligados), pelo navegador, com a sua conta; aos servidores do Playwright, para baixar o navegador, só quando você aperta "Baixar" em Ferramentas ou, no app de desktop, o marca na instalação (o joBot não distribui o navegador; ele vem do Playwright) ou atualiza o joBot com ele já baixado; ao 2Captcha, só quando você testa a chave em Configurações, Serviços, ou, na navegação com login, com a chave posta e o interruptor ligado (vem desligado); ao Gmail (Google), pela conexão IMAP só de leitura, só quando você salva ou confere a senha de app em Configurações, Contas (sem senha de app, não há pedido); aos serviços de IA que você configura (API da Anthropic, OpenAI, Google Gemini ou o endereço compatível que você digita), com o título e o texto das vagas, só quando você liga uma tarefa de IA num deles em Configurações, IA (as tarefas vêm desligadas), e no teste ao ligar; o modelo local não faz pedido de rede; ao GitHub e ao Hugging Face, com os CDNs deles, para baixar o modelo local (o llama-server e o modelo Qwen), só quando você aperta "Baixar", "Trocar" ou "Atualizar" no cartão do modelo em Ferramentas, o marca na instalação ou roda jobot ferramentas baixar (ou atualizar) ia-local; ao site de uma empresa, só quando você cola o endereço dela, testa ou aceita uma sugestão; à internet pelo git e pelo uv (ou ao GitHub, quando o joBot veio pelo instalador), para baixar a versão nova do joBot, só quando você pede para atualizar (botão Atualizar agora ou comando jobot atualizar). Com o aviso de versão (próximo item) ligado, também pergunta ao GitHub (vem ligado; você pode desligar). Quem recebe o pedido vê o IP do seu computador, como em qualquer pedido na internet.
 - **Aviso de versão ligado por padrão.** Uma vez por dia o joBot pergunta ao `api.github.com` qual é a versão mais nova. O pedido leva só o user agent fixo do joBot (que traz o número da versão) e o IP do seu computador, como todo pedido na internet. Não leva busca nem dado seu. Para desligar, vá em Configurações, Privacidade; desligado, não faz pedido nenhum.
-- **Segredos no cofre do sistema.** A senha de app do Gmail, a chave da API e o token do Telegram ficam no cofre de senhas do sistema operacional. Sem cofre, vão para um arquivo que só o seu usuário lê, e o painel avisa.
+- **A IA só recebe o texto da vaga.** A tarefa Encaixe manda ao serviço só o título e o texto da vaga (o começo e o fim, quando ele é longo), nunca o seu perfil nem outro dado seu. O modelo local roda no seu computador e só atende o próprio computador (127.0.0.1).
+- **Segredos no cofre do sistema.** A senha de app do Gmail, as chaves dos serviços de IA e o token do Telegram ficam no cofre de senhas do sistema operacional. Sem cofre, vão para um arquivo que só o seu usuário lê, e o painel avisa.
 - **Dados pessoais protegidos.** CPF e data de nascimento ficam no banco, numa pasta que só o seu usuário acessa e que não é sincronizada com nuvem. O painel recomenda ligar a criptografia de disco (LUKS, BitLocker ou FileVault).
 - **Exportar o perfil não leva documentos** como o CPF, a menos que você marque essa opção.
 - **Painel fechado para fora.** Ele só aceita conexões do próprio computador (127.0.0.1) e confere cada pedido.
 - **Extensão pareada.** A extensão só conversa com o joBot depois de um pareamento. Ela nunca toca em campos de senha ou de cartão.
 - **Áudio apagado.** A gravação é transcrita no seu computador e apagada logo depois.
 - **Gmail só leitura.** O joBot abre a caixa só para leitura, com uma senha de app que você cria na sua conta Google e cola no painel. Atenção: a senha de app em si dá acesso total ao e-mail (ler, apagar e enviar) a quem a tiver; só o joBot se limita a ler. Veja o [passo a passo](https://github.com/fezarosa-dev/joBot/wiki/Gmail-senha-de-app).
-- **Seus dados só saem** para os serviços que você ligar: Anthropic, Google ou Telegram, e outros serviços opcionais (veja as ADRs [0009](docs/decisions/0009-ia-backends-e-modelos.md) e [0014](docs/decisions/0014-seguranca-e-privacidade.md)).
+- **Seus dados só saem** para os serviços que você ligar: Anthropic, OpenAI, Google (Gemini ou Gmail), o endereço de IA que você digitar ou Telegram, e outros serviços opcionais (veja as ADRs [0009](docs/decisions/0009-ia-backends-e-modelos.md), [0014](docs/decisions/0014-seguranca-e-privacidade.md) e [0026](docs/decisions/0026-ia-da-fase-4.md)).
 - **Achou uma falha de segurança?** Não abra issue pública. Siga a [política de segurança](.github/SECURITY.md).
 
 <a id="requisitos-e-instalacao"></a>
@@ -363,10 +391,10 @@ Detalhes na [ADR 0010](docs/decisions/0010-claude-code-da-pessoa.md).
 - **Sistema, pelo instalador:** Windows 10 ou 11 de 64 bits, Linux de 64 bits (Ubuntu 22.04 ou mais novo, ou uma distro da mesma época) ou Mac com Apple Silicon ou Intel. O Mac é experimental: o instalador dele só foi testado no CI.
 - **Sistema, pelo código:** Linux. O Windows e o macOS rodam o joBot, mas por esse caminho ainda não foram testados.
 - **Programas, pelo código:** [git](https://git-scm.com/) e [uv](https://docs.astral.sh/uv/). O uv baixa sozinho o Python 3.14 e as bibliotecas. O instalador não precisa de nada disso: ele já traz tudo.
-- **Memória:** um computador comum serve. Os 8 GB de RAM só contam quando a IA local chegar (fase 4).
+- **Memória:** um computador comum serve. O modelo local de IA (opcional, desde a 0.5.0) roda com 8 GB de RAM e usa o modelo maior a partir de 12 GB.
 - **Placa de vídeo e Docker:** não precisa. A instalação é nativa.
-- **Espaço em disco:** de cerca de 100 a 200 MB para baixar o instalador, conforme o sistema, e a instalação ocupa bem mais (o navegador, se você o marcar, fica sozinho com cerca de 420 MB); a tela de instalação mostra quanto ela vai usar.
-- **Internet:** para baixar o instalador (ou o código) e para buscar as vagas. A instalação pelo instalador só usa a internet para baixar o navegador, se você o marcar.
+- **Espaço em disco:** de cerca de 100 a 200 MB para baixar o instalador, conforme o sistema, e a instalação ocupa bem mais (o navegador, se você o marcar, fica sozinho com cerca de 420 MB, e o modelo local, com até uns 2,8 GB); a tela de instalação mostra quanto ela vai usar.
+- **Internet:** para baixar o instalador (ou o código) e para buscar as vagas. A instalação pelo instalador só usa a internet para baixar o navegador e o modelo local, se você os marcar.
 
 ### Pelo instalador
 
@@ -383,8 +411,8 @@ Baixe o arquivo do seu sistema na [página da versão mais nova](https://github.
 
 Na primeira vez que você abre, a janela do joBot mostra a tela de instalação:
 
-1. **Ferramentas.** joBot e Python 3.14 vêm marcados e travados (são necessários). O navegador para sites com login vem marcado e é o único que vem da internet: o joBot o baixa pelo Playwright, dos servidores do Playwright (uns 210 MB). Se você desmarcar, dá para baixar depois em Configurações › Ferramentas.
-2. **Instalando.** Tudo sai de dentro do instalador: nada é baixado na instalação, exceto o navegador, se marcado. O joBot confere o sha256 de cada arquivo contra a lista gravada quando o instalador foi feito, e o de cada biblioteca; se algum não bater, nada é instalado. O navegador fica fora dessa conferência: o Playwright não publica o sha256 dele, e o download vem por HTTPS. Sem internet, a instalação funciona igual sem o navegador: se o download dele falhar, a tela oferece seguir sem ele.
+1. **Ferramentas.** joBot e Python 3.14 vêm marcados e travados (são necessários). Só dois itens vêm da internet: o navegador para sites com login, que vem marcado, e o **Modelo local** de IA, que vem desmarcado. O joBot baixa o navegador pelo Playwright, dos servidores do Playwright (uns 210 MB), e o Modelo local do GitHub e do Hugging Face (até uns 2,8 GB, conforme a memória do computador), com o sha256 conferido. Se você desmarcar o navegador, ou não marcar o modelo, dá para baixar depois em Configurações › Ferramentas.
+2. **Instalando.** O resto sai de dentro do instalador: nada mais é baixado na instalação além do navegador e do Modelo local, se marcados. O joBot confere o sha256 de cada arquivo contra a lista gravada quando o instalador foi feito, e o de cada biblioteca; se algum não bater, nada é instalado. O navegador fica fora dessa conferência: o Playwright não publica o sha256 dele, e o download vem por HTTPS. Sem internet, a instalação funciona igual sem o navegador: se o download dele falhar, a tela oferece seguir sem ele. O Modelo local é baixado depois que o joBot já está instalado: se o download dele falhar, o joBot fica instalado e a tela diz o motivo.
 3. **Pronto.** A janela vira o controle do joBot. Aperte **Ligar** e depois **Abrir joBot**: o painel abre no seu navegador padrão, com as perguntas da primeira execução (abaixo).
 
 Depois disso, a janela do joBot é sempre o controle. Ela mostra se o joBot está **Ligado** ou **Parado**, o endereço do painel (com o botão **Copiar**) e os botões **Ligar**, **Parar** e **Abrir joBot**, que só aparece com o joBot ligado. Ao abrir, ela só mostra o estado: não liga nem abre nada sozinha. Se o segundo plano já ligou o joBot, ela aparece como Ligado.
@@ -443,7 +471,7 @@ O navegador dos sites com login fica na pasta que o Playwright usa: `~/.cache/ms
 
 ### Desinstalar
 
-Desinstalar nunca apaga os seus dados: as vagas, as buscas e as configurações ficam na pasta de dados, e voltam se você instalar de novo. O navegador também fica, porque a pasta do Playwright pode servir a outro programa; para tirá-lo, aperte **Remover** em Configurações › Ferramentas antes de desinstalar.
+Desinstalar nunca apaga os seus dados: as vagas, as buscas e as configurações ficam na pasta de dados, e voltam se você instalar de novo. O navegador também fica, porque a pasta do Playwright pode servir a outro programa; para tirá-lo, aperte **Remover** em Configurações › Ferramentas antes de desinstalar. O modelo local também fica, na pasta `ferramentas` dentro da pasta de dados, e ocupa até uns 2,8 GB (o modelo maior sozinho tem 2,7 GB); para tirá-lo, aperte **Remover** no cartão do modelo, na mesma tela, antes de desinstalar, ou apague a pasta `ferramentas` depois.
 
 - **Windows:** em Configurações › Aplicativos (ou no Painel de Controle), escolha joBot e **Desinstalar**. O desinstalador desliga o segundo plano, encerra o joBot e apaga a pasta da janela.
 - **Linux:** primeiro desligue o segundo plano (Configurações › Segundo plano) e use **Encerrar o joBot**. Depois remova o pacote pelo gerenciador de programas (`sudo apt remove` ou `sudo dnf remove`) ou apague o arquivo `.AppImage`. O pacote não alcança a sua pasta pessoal: apague à mão a pasta `~/.local/share/jobot-app`.
@@ -486,11 +514,10 @@ O `uv sync` só baixa o Python 3.14 (se faltar) e as bibliotecas do joBot. Ele n
 | Item | Tamanho | Quando |
 |---|---|---|
 | Navegador controlado pelo Playwright (Chromium, opcional) | uns 210 MB de download e 420 MB no disco | Fase 2, só para sites com login; baixa e remove em Configurações, Ferramentas |
-| llama-server | ~17 a 25 MB, conforme o sistema | Fase 4 (pacote offline) |
-| Modelo Qwen3.5-2B **ou** Qwen3.5-4B | 1,28 GB ou 2,74 GB | Fase 4 (pacote offline) |
+| llama-server | ~13 a 25 MB, conforme o sistema | Desde a 0.5.0, só se você pedir o Modelo local; baixa e remove em Configurações, Ferramentas |
+| Modelo Qwen3.5-2B **ou** Qwen3.5-4B | 1,28 GB ou 2,74 GB | Desde a 0.5.0, junto do llama-server |
 | Transcrição de áudio "small" | 484 MB | Fase 6 |
 | Transcrição de áudio "medium" | 1,53 GB | Fase 6, opcional |
-| Modelo multilingual-e5-small | ~120 MB | Só se algum rótulo ficar abaixo de 90% de acerto |
 
 <a id="roteiro"></a>
 ## 🗺️ Roteiro
