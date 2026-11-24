@@ -1,32 +1,38 @@
-"""Aba Serviços: a chave do 2Captcha e o interruptor (plano T184; ADR 0014 e 0022).
+"""Aba Serviços: a chave do 2Captcha e o interruptor (plano T184; ADR 0014 e 0022) e as chaves de
+IA (T414; desenho 10.3 da fase 4): Anthropic, OpenAI, Gemini e o compatível com OpenAI (endereço e
+chave opcional). Guardar uma chave de IA não liga nada: só a aba IA liga uma tarefa.
 
 A chave mora no cofre (`sistema/cofre.py`) e nunca volta ao HTML, à URL, ao log nem à mensagem de
 erro: a tela mostra a máscara. Toda chamada ao cofre passa por `no_cofre`: roda numa thread e tem
 prazo, porque o cofre do sistema pode travar (cofre trancado esperando senha).
 O formulário da chave (`POST /configuracoes/servicos`) fica em `configuracoes.py`, que já tem a
-página; este módulo não importa aquele.
+página; este módulo não importa aquele. Com o campo `servico`, o formulário é de uma chave de IA e
+`gravar_chave_ia` faz o trabalho.
 """
 
 import asyncio
 import logging
-from collections.abc import Callable
-from typing import Any
+import re
+from collections.abc import Callable, Sequence
+from typing import Any, Final
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse, Response
 from starlette.concurrency import run_in_threadpool
+from starlette.datastructures import FormData
 
 from jobot.banco.cadastros import gravar_config, ler_config
 from jobot.banco.captcha import NOME_NO_COFRE, TETO_DIA
 from jobot.navegador import limites
 from jobot.nucleo.captcha import ErroCaptcha, Falha, mascarar, saldo, validar_chave
+from jobot.nucleo.ia.compativel_openai import conferir_endereco
 from jobot.painel.ambiente import cofre_do_painel
 from jobot.painel.cliente import cliente_do_painel
 from jobot.painel.formatos import decimal_curto
 from jobot.painel.i18n import t
 from jobot.painel.seguranca import Con, idioma_do_pedido, renderizar
 
-router = APIRouter(prefix="/configuracoes/servicos/captcha")
+router = APIRouter(prefix="/configuracoes/servicos")
 _LOG = logging.getLogger(__name__)
 
 PRAZO_TESTE_S = 30.0
@@ -47,27 +53,37 @@ async def no_cofre[T](func: Callable[..., T], *args: object) -> T:
         raise OSError("o cofre não respondeu a tempo") from None
 
 
-async def contexto_captcha(request: Request, con: Con) -> dict[str, Any]:
-    """O que o cartão mostra; a chave em si nunca entra no contexto."""
-    mascara = local = None
-    falhou = request.query_params.get("erro") == "cofre"
+# a máscara e onde a chave está (ou `None, None`) e se o cofre falhou
+type Lida = tuple[str | None, str | None, bool]
+
+
+async def _ler_mascara(request: Request, nome: str) -> Lida:
+    """Lê a chave `nome` do cofre sem tocar no banco: pode correr num `asyncio.gather`."""
     try:
-        achado = await no_cofre(cofre_do_painel(request).ler, NOME_NO_COFRE)
+        achado = await no_cofre(cofre_do_painel(request).ler, nome)
     except OSError as erro:
-        _LOG.warning("2captcha: não consegui ler a chave: %s", type(erro).__name__)
-        falhou = True
-    else:
-        if achado is not None:
-            mascara, local = mascarar(achado[0]), achado[1]
+        _LOG.warning("cofre: não consegui ler %s: %s", nome, type(erro).__name__)
+        return None, None, True
+    return (None, None, False) if achado is None else (mascarar(achado[0]), achado[1], False)
+
+
+def _captcha(request: Request, ligado: bool, lida: Lida) -> dict[str, Any]:
+    """O que o cartão mostra; a chave em si nunca entra no contexto."""
+    mascara, local, falhou = lida
     return {
         "captcha": {
-            "ligado": mascara is not None and ler_config(con, "captcha_ligado") is True,
+            "ligado": mascara is not None and ligado,
             "mascara": mascara,
             "local": local,
-            "falhou": falhou,
+            "falhou": falhou or request.query_params.get("erro") == "cofre",
             "teto": TETO_DIA,
         }
     }
+
+
+async def contexto_captcha(request: Request, con: Con) -> dict[str, Any]:
+    ligado = ler_config(con, "captcha_ligado") is True
+    return _captcha(request, ligado, await _ler_mascara(request, NOME_NO_COFRE))
 
 
 def _cartao(
@@ -81,7 +97,7 @@ def _cartao(
     return renderizar(request, _CARTAO, **ctx, cartao_salvo=salvo, foco=foco, foco_chave=foco_chave)
 
 
-@router.post("/interruptor")
+@router.post("/captcha/interruptor")
 async def interruptor(request: Request, con: Con) -> Response:
     ligar = "captcha_ligado" in await request.form()
     ctx = await contexto_captcha(request, con)
@@ -92,7 +108,7 @@ async def interruptor(request: Request, con: Con) -> Response:
     return _cartao(request, ctx, foco=True)
 
 
-@router.post("/apagar")
+@router.post("/captcha/apagar")
 async def apagar(request: Request, con: Con) -> Response:
     gravar_config(con, "captcha_ligado", False)  # antes: sem chave não fica ligado
     falhou = False
@@ -116,7 +132,7 @@ def _resultado(request: Request, ok: bool, chave: str, **params: object) -> Resp
     return renderizar(request, _RESULTADO, ok=ok, texto=texto)
 
 
-@router.post("/testar")
+@router.post("/captcha/testar")
 async def testar(request: Request) -> Response:
     """Consulta o saldo com a chave digitada, ou com a salva se o campo veio vazio; não grava."""
     bruto = (await request.form()).get("chave")
@@ -148,3 +164,126 @@ async def testar(request: Request) -> Response:
         return _resultado(request, False, "captcha.erro." + Falha.TEMPO_ESGOTADO.value)
     saldo_texto = decimal_curto(valor, idioma_do_pedido(request))
     return _resultado(request, True, "configuracoes.servicos.captcha.ok", saldo=saldo_texto)
+
+
+# --- chaves de IA (T414) -------------------------------------------------------------------
+
+# a ordem dos cartões na aba; no cofre, `ia_<servico>`, que a `FabricaIA` do `serve` lê
+SERVICOS_IA: Final = ("anthropic", "openai", "gemini", "compativel")
+# a chave vai no cabeçalho `Authorization`: só ASCII visível, sem espaço (D201.3)
+_CHAVE_IA: Final = re.compile(r"[!-~]{8,512}")
+TETO_ENDERECO: Final = 2048
+_CARTAO_IA = "configuracoes/_cartao_chave_ia.html"
+
+
+def _endereco_salvo(con: Con) -> str:
+    valor = ler_config(con, "ia_compativel", {})
+    endereco = valor.get("endereco") if isinstance(valor, dict) else None
+    return endereco if isinstance(endereco, str) else ""
+
+
+def _cartao_ia(request: Request, servico: str, lida: Lida, endereco: str) -> dict[str, Any]:
+    """O que um cartão de IA mostra; a chave em si nunca entra no contexto."""
+    mascara, local, falhou = lida
+    endereco = endereco if servico == "compativel" else ""
+    return {
+        "servico": servico,
+        "mascara": mascara,
+        "local": local,
+        "falhou": falhou or request.query_params.get("erro") == f"cofre-ia-{servico}",
+        "endereco": endereco,
+        "apagavel": mascara is not None or bool(endereco),
+    }
+
+
+def _chaves_ia(request: Request, lidas: Sequence[Lida], endereco: str) -> dict[str, Any]:
+    pares = zip(SERVICOS_IA, lidas, strict=True)
+    return {"chaves_ia": [_cartao_ia(request, s, lida, endereco) for s, lida in pares]}
+
+
+def _nomes_ia() -> list[str]:
+    return [f"ia_{s}" for s in SERVICOS_IA]
+
+
+async def contexto_chaves_ia(request: Request, con: Con) -> dict[str, Any]:
+    # o banco é lido antes, na tarefa do pedido (a conexão não se divide entre tarefas); só as
+    # leituras do cofre correm juntas: com o cofre travado, a página espera um prazo, não quatro
+    endereco = _endereco_salvo(con)
+    lidas = await asyncio.gather(*(_ler_mascara(request, n) for n in _nomes_ia()))
+    return _chaves_ia(request, lidas, endereco)
+
+
+async def contexto_servicos(request: Request, con: Con) -> dict[str, Any]:
+    # as 5 leituras do cofre (2Captcha e 4 de IA) correm juntas: um prazo, não dois (D201.7)
+    # shortcut: com o cofre travado, cada abertura da aba deixa presas 5 threads no threadpool
+    # do anyio (40); se pesar, uma leitura só do cofre ou um semáforo (D201.7)
+    ligado = ler_config(con, "captcha_ligado") is True
+    endereco = _endereco_salvo(con)
+    nomes = [NOME_NO_COFRE, *_nomes_ia()]
+    lidas = await asyncio.gather(*(_ler_mascara(request, n) for n in nomes))
+    return _captcha(request, ligado, lidas[0]) | _chaves_ia(request, lidas[1:], endereco)
+
+
+async def gravar_chave_ia(
+    request: Request, con: Con, form: FormData
+) -> tuple[int, dict[str, Any]] | None:
+    """Grava a chave (e o endereço do compatível) de `form`; `None` deu certo. Senão, o status e o
+    `erro_ia` da página (o cartão, a chave i18n, o campo e o endereço digitado). Nada é gravado
+    com erro."""
+    servico = form.get("servico")
+    if not isinstance(servico, str) or servico not in SERVICOS_IA:
+        raise HTTPException(422)
+    bruto, digitado = form.get("chave"), form.get("endereco")
+    chave = bruto.strip() if isinstance(bruto, str) else ""
+    endereco = digitado if isinstance(digitado, str) else ""
+
+    def volta(status: int, erro: str, campo: str | None) -> tuple[int, dict[str, Any]]:
+        # o endereço digitado volta para corrigir; a chave nunca volta, nem o endereço com `@`,
+        # que pode trazer usuário e senha (desenho 11; D201.2)
+        de_volta = "" if "@" in endereco else endereco
+        return status, {
+            "erro_ia": {"servico": servico, "erro": erro, "campo": campo, "endereco": de_volta}
+        }
+
+    if chave and not _CHAVE_IA.fullmatch(chave):
+        return volta(422, "configuracoes.servicos.ia.erro.chave", "chave")
+    if servico == "compativel":
+        try:
+            if len(endereco) > TETO_ENDERECO:
+                raise ValueError("endereço da IA longo demais")
+            endereco = conferir_endereco(endereco)
+        except ValueError:  # a mensagem não vai a lugar nenhum: pode trazer uma senha
+            return volta(422, "configuracoes.servicos.ia.erro.endereco", "endereco")
+    if chave:
+        try:
+            # shortcut: com o cofre travado espera até 2 prazos, como a chave do 2Captcha
+            await no_cofre(cofre_do_painel(request).gravar, f"ia_{servico}", chave)
+        except OSError as erro:  # só o tipo vai ao log, nunca a chave
+            _LOG.warning("ia: não consegui gravar a chave de %s: %s", servico, type(erro).__name__)
+            return volta(200, "configuracoes.servicos.erro.cofre", None)
+    if servico == "compativel":  # depois da chave: cofre que falhou não deixa meio gravado
+        gravar_config(con, "ia_compativel", {"endereco": endereco})
+    return None
+
+
+@router.post("/ia/{servico}/apagar")
+async def apagar_ia(request: Request, con: Con, servico: str) -> Response:
+    """Apaga a chave do serviço; no compatível, também o endereço (antes da chave: sem endereço,
+    nada sai)."""
+    if servico not in SERVICOS_IA:
+        raise HTTPException(404)
+    if servico == "compativel":
+        gravar_config(con, "ia_compativel", {"endereco": ""})
+    falhou = False
+    try:
+        await no_cofre(cofre_do_painel(request).apagar, f"ia_{servico}")
+    except OSError as erro:
+        _LOG.warning("ia: não consegui apagar a chave de %s: %s", servico, type(erro).__name__)
+        falhou = True
+    if request.headers.get("hx-request") != "true":
+        sufixo = f"?erro=cofre-ia-{servico}" if falhou else "?salvo=1"
+        return RedirectResponse(_VOLTA + sufixo, 303)
+    endereco = _endereco_salvo(con)
+    cartao = _cartao_ia(request, servico, await _ler_mascara(request, f"ia_{servico}"), endereco)
+    cartao["falhou"] = falhou or cartao["falhou"]
+    return renderizar(request, _CARTAO_IA, cartao=cartao, cartao_salvo=not falhou, foco_chave=True)

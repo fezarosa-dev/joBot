@@ -24,6 +24,7 @@ RELEASE = FLUXOS / "release.yml"
 PACOTES = FLUXOS / "pacotes.yml"
 META = RAIZ / "desktop" / "uv.meta.json"
 APPIMAGE = RAIZ / "desktop" / "appimage.meta.json"
+IA_LOCAL = RAIZ / "src" / "jobot" / "nucleo" / "dados" / "ia_local.json"
 ALVOS = [
     "x86_64-unknown-linux-gnu",
     "x86_64-pc-windows-msvc",
@@ -393,8 +394,17 @@ def test_casca_aberta_no_xvfb_liga_abre_e_para_pelo_teclado() -> None:
         "foto 0-instalar",
         "xdotool key --delay 300 Tab Tab Return",
         "foto 0-ferramentas",
-        "xdotool key --delay 300 Tab space Tab Tab Return",
+        # o Tab a mais é a caixa do Modelo local (D205.8): marcada só no AppImage
+        'if [ "$nome" = appimage ]; then modelo=space; else modelo=; fi',
+        "xdotool key --delay 300 Tab space Tab $modelo Tab Tab Return",
         'esperar 300 test -s "$dados/instalacao.json"',
+        # sem rede o modelo falha: a janela fica no Pronto e o Continuar leva ao controle
+        "esperar 120 parou",
+        'test "$(largura)" -gt 600',
+        'test ! -e "$dados/ferramentas/ia_local.json"',
+        "foto 0-pronto-sem-modelo",
+        "xdotool key --delay 300 Tab Return",
+        'test "$(largura)" -lt 600',
         "foto 1-parado",
         "xdotool key --delay 300 Tab Tab Tab Return",
         "esperar 60 no_ar",
@@ -728,6 +738,7 @@ def test_montar_gera_recursos_com_manifesto_de_tudo(tmp_path: Path) -> None:
         roda=c["roda"],
         restricoes=c["restricoes"],
         licencas=sorted(c["licencas"].iterdir()),
+        alvo=alvo,
     )
     bruto = (saida / "manifesto.json").read_bytes()
     assert sha == _sha(bruto)
@@ -755,6 +766,46 @@ def test_montar_gera_recursos_com_manifesto_de_tudo(tmp_path: Path) -> None:
     )
 
 
+def test_manifesto_traz_os_tamanhos_do_modelo_local_de_cada_alvo(tmp_path: Path) -> None:
+    """T418 (desenho 10.1): a tela do instalador mostra o tamanho do Modelo local antes de o
+    venv existir; o build copia do `ia_local.json` o `llama-server` do alvo e os dois modelos."""
+    m = _script()
+    ia = json.loads(IA_LOCAL.read_text(encoding="utf-8"))
+    do_alvo = {
+        "x86_64-unknown-linux-gnu": "ubuntu-x64",
+        "x86_64-pc-windows-msvc": "win-cpu-x64",
+        "aarch64-apple-darwin": "macos-arm64",
+        "x86_64-apple-darwin": "macos-x64",
+    }
+    assert sorted(do_alvo) == sorted(ALVOS)
+    for alvo in ALVOS:
+        pasta = tmp_path / alvo
+        pasta.mkdir()
+        c = _cenario(pasta, alvo)
+        m.montar(
+            saida=pasta / "recursos",
+            versao="0.3.0",
+            uv=c["uv"],
+            python=c["python"],
+            tag="20261110",
+            rodas=c["rodas"],
+            roda=c["roda"],
+            restricoes=c["restricoes"],
+            licencas=sorted(c["licencas"].iterdir()),
+            alvo=alvo,
+        )
+        conteudo = json.loads((pasta / "recursos" / "manifesto.json").read_bytes())
+        servidor = ia["llama_server"]["alvos"][do_alvo[alvo]]["tamanho"]
+        assert conteudo.get("ia_local") == {
+            "servidor": servidor,
+            "modelos": {"2b": 1_280_835_840, "4b": 2_740_937_888},
+        }, alvo
+        # o manifesto do pacote de atualização (canal casca) segue só com os arquivos
+        pacote = m.pacote_de_atualizacao(pasta / "recursos", pasta / "dist", "0.3.0", alvo)
+        with zipfile.ZipFile(pacote) as z:
+            assert "ia_local" not in json.loads(z.read("manifesto.json"))
+
+
 def test_pacote_de_atualizacao_no_formato_do_canal_casca(tmp_path: Path) -> None:
     m = _script()
     alvo = "x86_64-pc-windows-msvc"
@@ -770,6 +821,7 @@ def test_pacote_de_atualizacao_no_formato_do_canal_casca(tmp_path: Path) -> None
         roda=c["roda"],
         restricoes=c["restricoes"],
         licencas=sorted(c["licencas"].iterdir()),
+        alvo=alvo,
     )
     # o uv vai num tar ustar sem compressão, de um arquivo só, que a casca abre (D183)
     assert (saida / "bin" / "uv.tar").read_bytes()[257:263] == b"ustar\x00"
@@ -824,6 +876,7 @@ def test_exes_do_windows_cobrem_a_instalacao(tmp_path: Path) -> None:
         roda=c["roda"],
         restricoes=c["restricoes"],
         licencas=sorted(c["licencas"].iterdir()),
+        alvo=alvo,
     )
     inst = "C:\\U\\AppData\\Local\\joBot"
     exes = m.exes_do_windows(saida, inst, "0.3.0")

@@ -192,6 +192,7 @@
 }
 
 .config-form .campo input.campo-texto,
+.config-form .campo textarea.campo-texto,
 .config-form .campo input[type="number"] {
   box-sizing: border-box;
   width: 7rem;
@@ -204,7 +205,8 @@
   font: inherit;
 }
 
-.config-form .campo input.campo-texto {
+.config-form .campo input.campo-texto,
+.config-form .campo textarea.campo-texto {
   width: 100%;
   max-width: 24rem;
   transition:
@@ -214,10 +216,16 @@
 
 /* o anel do foco é uma sombra que entra com a borda; o contorno transparente fica para o modo de
    alto contraste, que o troca por uma linha visível */
-.config-form .campo input.campo-texto:focus-visible {
+.config-form .campo input.campo-texto:focus-visible,
+.config-form .campo textarea.campo-texto:focus-visible {
   border-color: var(--foco);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--foco) 35%, transparent);
   outline: 2px solid transparent;
+}
+
+/* as habilidades do Perfil: uma por linha, a altura cresce só para baixo */
+.config-form .campo textarea.campo-texto {
+  resize: vertical;
 }
 
 .campo-texto::-ms-reveal {
@@ -460,7 +468,8 @@
 /* a regra do base.css já zera tudo; aqui o cartão do 2Captcha fica explícito: o indicador de
    espera para num ponto fixo e o resultado aparece sem subir */
 @media (prefers-reduced-motion: reduce) {
-  .config-form .campo input.campo-texto {
+  .config-form .campo input.campo-texto,
+  .config-form .campo textarea.campo-texto {
     transition: none !important; /* vence o fundido de 120ms do base.css (!important, seletor menor) */
   }
 
@@ -569,4 +578,10 @@
 
 .cartao-gmail .campo-erro {
   color: var(--alerta);
+}
+
+/* a barra do modelo local em Ferramentas (T417): a nativa, só na largura do texto */
+.config-bloco progress {
+  inline-size: 100%;
+  max-inline-size: 32rem;
 }

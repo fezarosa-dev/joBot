@@ -8,6 +8,27 @@ The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-24
+
+AI arrives, optional and off by default: it lists the skills each job asks for, and joBot compares them with the ones in your profile. It runs on the local model, free and without internet once downloaded, or on a service with your key.
+
+### Added
+
+- Settings › AI: turns on the Matching task and chooses where it runs (the local model, the Anthropic API, OpenAI, Google Gemini or an OpenAI-compatible address, such as Ollama, LM Studio and OpenRouter) and with which model. The Turn AI off, All offline and All Claude shortcuts set everything at once. Everything comes off.
+- With Matching on and at least one skill in the profile, after each search the AI reads up to 20 jobs not yet read that already match a search, newest first, and lists what each one asks for (switching the service or the model makes it read everything again); each item has to be written in the job. The AI does not see your profile and does not give a score: joBot compares the list with your skills, shows in the job details the ones you have and the ones you are missing, and skills now count in the match.
+- Settings › Profile: your skills, one per line, and the Delete profile button.
+- Settings › Services: cards for the Anthropic, OpenAI and Google Gemini keys and for the address of an OpenAI-compatible service. The keys stay in the system password vault, and saving a key turns nothing on.
+- Test when you turn it on: turning a task on or switching the service, the key or the address sends a short request, with a sample job. If it fails, the task stays off and the AI tab says why.
+- Cost in plain sight: paid services show as "billed per use", turning Matching on with one of them asks for confirmation, and joBot makes at most 200 requests a day to each outside service (not counting the test when you turn it on), with the day's count in the AI tab. The Anthropic API, OpenAI and Gemini come marked "experimental, not yet proven": they were only tested against a fake service.
+- Settings › Tools: the local model card downloads llama.cpp's `llama-server` (from GitHub) and a Qwen3.5 2B or 4B (from Hugging Face), with the sha256 checked, and picks the model by the computer's memory (1.3 GB to 2.7 GB). The same card has the download bar, the license and origin of each file and the buttons to switch models, Update when a new version comes out and Remove.
+- The installer has the Local model box in the Tools step, unticked. Ticked, it downloads the model after installing joBot; if the download fails, joBot stays installed and the screen says to download it later in Settings › Tools.
+- For contributors: the scripts in `scripts/treino_laya/` build the set of public jobs, label, train and export Laya, a fine-tune of Qwen3.5 2B for jobs, and calculate the training cost. Laya does not ship in this version yet: it comes in a later version, after the training, if it scores better than the original model.
+
+### Changed
+
+- The Tools tab in Settings always shows, even with no site with login turned on.
+- The network request list in Privacy and in the README now names the AI services and the local model downloads (GitHub and Hugging Face, with their CDNs), with the condition of each one. The README gets the table of what works without internet, and the offline package no longer lists audio, which is left for phase 6.
+
 ## [0.4.1] - 2026-11-24
 
 **If you have the 0.4.0 window:** install the 0.4.1 window before using Update now in the dashboard. With only the dashboard updated, the 0.4.0 window has no close buttons and no drag area (close it with Alt+F4) and shows the notice to download the new window.
@@ -42,6 +63,11 @@ The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/
 - In Firefox and Safari, the job context menu opens with the mouse.
 - In Safari, going back to a dashboard page no longer shows the false notice that the internet dropped.
 - In the dashboard: the detail next to the list shows the AI skills, like the job page; the Overview no longer says "Searching now." during company discovery, page reading or login reading; in high contrast, the Jobs and Settings buttons and the selected chip stay visible; the 2Captcha card no longer says browsing with a login does not exist yet; and a broken language, theme or text size value in the database no longer brings the dashboard down. The network request list in Privacy now names Gmail.
+- On Windows and Mac, Update now restarts joBot the right way: it redoes each system's automatic start and brings the dashboard back up. On Windows, the dashboard comes back even when the startup task is not rewritten, and the update no longer flashes black terminal windows.
+- On Windows and Mac, login reading finds the screen and opens the browser window. On Windows, the browser for that reading opens its profile and gets the system folders it needs to reach the internet.
+- On Windows, Settings, Services saves and reads the 2Captcha key: the vault could not open its file.
+- In the sources: RemoteOK no longer stores, in the job description, the IP address of whoever ran the search; a huge salary on RemoteOK or Super Estágios no longer brings the search down; the date of Oracle HCM and Workday jobs that comes without a time no longer shows one day early; SmartRecruiters, with no country in the search, asks for jobs in Brazil; and an Abler or Super Estágios sitemap that changed format marks the source as failed instead of bringing zero jobs without notice.
+- A broken currency rate in the database no longer shows on screen or goes into the salary conversion.
 
 ## [0.4.0] - 2026-11-17
 

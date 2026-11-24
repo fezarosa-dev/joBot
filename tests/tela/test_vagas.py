@@ -98,14 +98,19 @@ def test_abas_marcam_a_atual_e_a_url_reabre_a_tela(page: Page, painel: str) -> N
     todas = lateral.locator('[href^="/vagas?aba=todas"]')
     novas = lateral.locator('[href^="/vagas?aba=novas"]')
     expect(todas).to_have_attribute("aria-current", "page")
+    # os cinco pedidos `load` do htmx assentam antes de cada saída: no WebKit, o pedido que a
+    # navegação corta dá `htmx:sendError` fora do intervalo que o `anotar_erros` perdoa
+    page.wait_for_load_state("networkidle")
     novas.click()
     expect(page).to_have_url(re.compile(r"[?&]aba=novas"))
     expect(lateral.locator("[aria-current]")).to_have_count(1)
     expect(novas).to_have_attribute("aria-current", "page")
     expect(todas).not_to_have_attribute("aria-current", "page")
 
+    page.wait_for_load_state("networkidle")
     page.reload()
     expect(novas).to_have_attribute("aria-current", "page")
+    page.wait_for_load_state("networkidle")
     page.go_back()
     expect(todas).to_have_attribute("aria-current", "page")
     assert erros == []

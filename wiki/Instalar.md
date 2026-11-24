@@ -37,8 +37,8 @@ Cada arquivo tem de cerca de 100 a 200 MB (o do Windows uns 120 MB, os do Mac un
 
 Na primeira abertura, a janela do joBot mostra a tela de instalação.
 
-1. **Ferramentas:** joBot e Python 3.14 vêm marcados e travados. O navegador para sites com login (LinkedIn e outros em que você entra) vem marcado e é o único que vem da internet: o joBot o baixa pelo Playwright, dos servidores do Playwright (uns 210 MB). Se você desmarcar, os sites com login ficam desligados até você baixar o navegador em Configurações › Ferramentas.
-2. **Instalando:** nada é baixado, exceto o navegador, se marcado. O joBot confere o sha256 de cada arquivo e de cada biblioteca; se algum não bater, nada é instalado e a tela pede para baixar o instalador de novo. O navegador fica fora dessa conferência: o Playwright não publica o sha256 dele, e o download vem por HTTPS. Sem internet, a instalação funciona igual sem o navegador: se o download dele falhar, a tela oferece seguir sem ele.
+1. **Ferramentas:** joBot e Python 3.14 vêm marcados e travados. Só dois itens vêm da internet: o navegador para sites com login (LinkedIn e outros em que você entra), que vem marcado, e o **Modelo local** de IA, que vem desmarcado. O joBot baixa o navegador pelo Playwright, dos servidores do Playwright (uns 210 MB), e o Modelo local do GitHub e do Hugging Face (até uns 2,8 GB, conforme a memória do computador), com o sha256 conferido. Se você desmarcar o navegador, os sites com login ficam desligados até você baixá-lo em Configurações › Ferramentas; o modelo também dá para baixar lá depois.
+2. **Instalando:** nada mais é baixado além do navegador e do Modelo local, se marcados. O joBot confere o sha256 de cada arquivo e de cada biblioteca; se algum não bater, nada é instalado e a tela pede para baixar o instalador de novo. O navegador fica fora dessa conferência: o Playwright não publica o sha256 dele, e o download vem por HTTPS. Sem internet, a instalação funciona igual sem o navegador: se o download dele falhar, a tela oferece seguir sem ele. O Modelo local é baixado depois que o joBot já está instalado: se o download dele falhar, o joBot fica instalado e a tela diz o motivo.
 3. **Pronto:** a janela vira o controle do joBot. Aperte **Ligar** e depois **Abrir joBot**: o painel abre no seu navegador padrão, com as perguntas da primeira execução.
 
 Se a instalação falhar no meio, o que ela fez é desfeito, e "Tentar de novo" começa do zero.
@@ -52,7 +52,7 @@ Se a instalação falhar no meio, o que ela fez é desfeito, e "Tentar de novo" 
 
 ## 5. Desinstalar
 
-Desinstalar nunca apaga os seus dados. O navegador também fica, na pasta do Playwright; para tirá-lo, aperte **Remover** em Configurações › Ferramentas antes.
+Desinstalar nunca apaga os seus dados. O navegador também fica, na pasta do Playwright; para tirá-lo, aperte **Remover** em Configurações › Ferramentas antes. O modelo local também fica, na pasta `ferramentas` dentro da pasta de dados, e ocupa até uns 2,8 GB (o modelo maior sozinho tem 2,7 GB); para tirá-lo, aperte **Remover** no cartão do modelo, na mesma tela, antes de desinstalar, ou apague a pasta `ferramentas` depois.
 
 - **Windows:** Configurações › Aplicativos, joBot, **Desinstalar**. O desinstalador desliga o segundo plano, encerra o joBot e apaga a pasta `%LOCALAPPDATA%\joBot\app`.
 - **Linux:** desligue o segundo plano e use **Encerrar o joBot**; remova o pacote (`sudo apt remove` ou `sudo dnf remove`) ou apague o `.AppImage`; apague à mão a pasta `~/.local/share/jobot-app`.
