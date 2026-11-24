@@ -1,7 +1,9 @@
 """O painel é um site comum (T351; D206, ADR 0027): nada dele depende de estar na janela da casca.
 
 Saíram a marca da casca no user agent virando `data-casca`, a fileira de três círculos, o arraste
-da janela e o fechar pela ponte do Tauri. Com a marca no user agent, a página sai igual.
+da janela e o fechar pela ponte do Tauri. Com a marca no user agent, a página sai igual: só a faixa
+`/aviso-versao`, que chega depois, diz que a janela da casca antiga é velha (D208.4, em
+`test_rota_atualizar.py`).
 """
 
 import json

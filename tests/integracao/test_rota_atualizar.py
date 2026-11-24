@@ -1,8 +1,8 @@
 """Atualizar pelo painel (plano T332; desenho 5.6 e 6.3; ADR 0023; D176).
 
 A faixa `#aviso-versao` não manda mais abrir o terminal: traz "Atualizar agora", que dispara o
-`jobot atualizar` destacado (`app.state.lancar_atualizacao`, falso aqui), e, na casca com a janela
-mais velha que a versão nova, "Baixar a janela nova" (`app.state.abrir_endereco`, falso aqui).
+`jobot atualizar` destacado (`app.state.lancar_atualizacao`, falso aqui), e, dentro da janela de
+uma casca antiga (D208.4), "Baixar a janela nova" (`app.state.abrir_endereco`, falso aqui).
 Nada roda de verdade e nada vai à rede.
 """
 
@@ -266,7 +266,6 @@ def test_casca_mais_velha_traz_baixar_a_janela_nova(painel: Painel, idioma: str)
     "agente",
     [
         UA,
-        f"{UA} joBot-casca/99.0.0 (macos)",
         f"{UA} joBot-casca/0.4 (linux)",
         f"{UA} joBot-casca/0.4.0 (bsd)",
     ],
@@ -276,6 +275,27 @@ def test_sem_casca_velha_nao_oferece_a_janela_nova(painel: Painel, agente: str) 
     assert 'action="/atualizar"' in texto  # controle: a faixa está lá
     assert _texto("pt", "aviso_versao.baixar_janela") not in texto
     assert "/abrir-release" not in texto
+
+
+@pytest.mark.parametrize("so", ["linux", "windows", "macos"])
+@pytest.mark.parametrize(
+    "config", [("aviso_versao_ligada", False), ("versao_nova", f"v{__version__}")]
+)
+def test_casca_antiga_avisa_mesmo_sem_versao_nova(
+    painel: Painel, so: str, config: tuple[str, object]
+) -> None:
+    # D208.4: a casca até a 0.4.0 mostra o painel na janela dela, que perdeu os botões (T351);
+    # o "Atualizar agora" só troca o Python, então a faixa fica mesmo sem versão nova
+    painel.config(*config)
+    comum = painel.cliente.get("/aviso-versao", headers={"User-Agent": UA}).text
+    assert "aviso-versao" not in comum  # controle: sem a marca, nada a avisar
+    velha = painel.cliente.get(
+        "/aviso-versao", headers={"User-Agent": f"{UA} joBot-casca/0.4.0 ({so})"}
+    ).text
+    assert _texto("pt", "aviso_versao.janela") in velha
+    assert 'action="/abrir-release"' in velha
+    assert 'action="/atualizar"' not in velha
+    assert _texto("pt", "aviso_versao.texto", versao="v99.0.0") not in velha
 
 
 def test_abrir_release_abre_a_pagina_pelo_python(painel: Painel) -> None:

@@ -383,10 +383,18 @@ def test_casca_aberta_no_xvfb_liga_abre_e_para_pelo_teclado() -> None:
     # o .deb e o AppImage, cada um no seu contêiner
     assert "aberta deb 'dpkg -i /saida/*.deb' jobot-app " in texto
     assert "aberta appimage " in texto and "./jobot.AppImage " in texto
-    # instala antes (sem o joBot a janela é a da instalação); ao abrir, o controle só mostra o
-    # estado; então Ligar, Abrir joBot e Parar pelo teclado, e o painel responde no endereço
-    ordem = [texto.index("$casca --verificar")]
+    # sem o joBot a janela é a da instalação: instala por ela, pelo teclado e sem o navegador do
+    # login, e cai no controle (D212.10), que só mostra o estado; então Ligar, Abrir joBot e
+    # Parar pelo teclado, e o painel responde no endereço
+    assert "$casca --verificar" not in texto
+    ordem = [texto.index("dbus-run-session -- $casca")]
     for passo in (
+        'test ! -e "$dados/instalacao.json"',
+        "foto 0-instalar",
+        "xdotool key --delay 300 Tab Tab Return",
+        "foto 0-ferramentas",
+        "xdotool key --delay 300 Tab space Tab Tab Return",
+        'esperar 300 test -s "$dados/instalacao.json"',
         "foto 1-parado",
         "xdotool key --delay 300 Tab Tab Tab Return",
         "esperar 60 no_ar",
@@ -402,7 +410,7 @@ def test_casca_aberta_no_xvfb_liga_abre_e_para_pelo_teclado() -> None:
         ordem.append(texto.index(passo, ordem[-1]))
     assert ordem == sorted(ordem)
     # ao abrir, nada liga sozinho
-    abrir = texto[texto.index("$casca --verificar") : texto.index("foto 1-parado")]
+    abrir = texto[texto.index('esperar 300 test -s "$dados') : texto.index("foto 1-parado")]
     assert re.search(r"^\s+parado$", abrir, re.MULTILINE), abrir
     # navegador falso no lugar do xdg-open: grava o endereço, o ambiente e o APPDIR da casca, que
     # o chamou; no AppImage o APPDIR tem de existir e nenhuma variável aponta para ele (D207.1)
@@ -410,6 +418,16 @@ def test_casca_aberta_no_xvfb_liga_abre_e_para_pelo_teclado() -> None:
     assert '"/proc/$PPID/environ"' in texto
     assert 'test -n "$appdir"' in texto
     assert 'grep -F "$appdir" "$aberto/ambiente"' in texto
+    # nem o que o AppRun cria sem ser caminho (D207.1)
+    for chave in (
+        "GTK_THEME",
+        "GDK_BACKEND",
+        "PYTHONDONTWRITEBYTECODE",
+        "APPIMAGE",
+        "ARGV0",
+        "OWD",
+    ):
+        assert chave in texto[texto.index('if [ "$nome" = appimage ] && grep -E') :], chave
     # as capturas (e o log da casca) ficam também quando falha
     envio = texto[texto.index("- if: always()\n        uses: actions/upload-artifact@") :]
     assert "name: capturas-casca" in envio

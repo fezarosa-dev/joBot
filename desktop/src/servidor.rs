@@ -233,6 +233,11 @@ pub fn perguntar_saude(porta: u16) -> bool {
     e_o_jobot(&pedir_saude(porta))
 }
 
+/// A resposta da `/saude-local` (o joBot no ar), para o estado e os avisos do controle.
+pub fn perguntar(porta: u16) -> Option<serde_json::Value> {
+    saude(&pedir_saude(porta))
+}
+
 pub fn perguntar_segundo_plano(porta: u16) -> Option<bool> {
     segundo_plano(&pedir_saude(porta))
 }

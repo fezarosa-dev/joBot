@@ -1,20 +1,24 @@
 // O controle da casca (T350; D206, ADR 0027). Fala com a casca pelos comandos
-// `estado_controle`, `ligar`, `parar` e `abrir_jobot` (window.__TAURI__.core), que só as páginas
-// locais alcançam. Cada um devolve {"ligado", "endereco"} e, se deu errado, {"falha", "detalhe",
-// "log"}. Ao abrir, só pergunta o estado: não liga nem abre nada sozinho.
+// `estado_controle`, `ligar`, `parar`, `abrir_jobot` e `abrir_release` (window.__TAURI__.core), que
+// só as páginas locais alcançam. Cada um devolve {"ligado", "endereco"} e, se deu errado,
+// {"falha", "detalhe", "log"}; a consulta traz também os avisos `janela_velha` (o painel no ar é
+// mais novo que esta casca, D207.12) e `fecha_junto` (fechar a janela para o painel, D207.5).
+// Ao abrir, só pergunta o estado: não liga nem abre nada sozinho.
 (() => {
   "use strict";
-  // o mesmo `codigo` de servidor::Falha, o `abrir` do abridor do navegador, o `parar` do Parar
-  // que não parou e o `outro`, para resposta que não veio ou motivo que a página não conhece
+  // o mesmo `codigo` de servidor::Falha, o `abrir` do abridor do navegador, o `release` da
+  // página da janela nova, o `parar` do Parar que não parou e o `outro`, para resposta que não
+  // veio ou motivo que a página não conhece
   const MOTIVOS = [
-    "instalar", "porta", "captura", "sem_resposta", "saiu", "subir", "abrir", "parar", "outro",
+    "instalar", "porta", "captura", "sem_resposta", "saiu", "subir", "abrir", "release", "parar",
+    "outro",
   ];
   const INTERVALO = 3000; // de quanto em quanto tempo o controle confere se o painel caiu
 
   const core = window.__TAURI__ && window.__TAURI__.core;
   const $ = (id) => document.getElementById(id);
   let textos = {};
-  let estado = { ligado: false, endereco: "" };
+  let estado = { ligado: false, endereco: "", janelaVelha: false, fechaJunto: false };
   let ocupado = null; // "ligando" ou "parando" enquanto a casca trabalha
   let falha = null;
 
@@ -37,6 +41,8 @@
     $("ligar").disabled = Boolean(ocupado) || estado.ligado;
     $("parar").disabled = Boolean(ocupado) || !estado.ligado;
     $("abrir").hidden = Boolean(ocupado) || !estado.ligado;
+    $("fecha-junto").hidden = !estado.ligado || !estado.fechaJunto;
+    $("janela-nova").hidden = !estado.ligado || !estado.janelaVelha;
     $("falha").hidden = !falha;
     if (falha) {
       const motivo = MOTIVOS.includes(falha.falha) ? falha.falha : "outro";
@@ -45,6 +51,14 @@
       $("falha-registro").hidden = !falha.log;
     }
   }
+
+  // a resposta sem os avisos (a do Abrir joBot) mantém os da última consulta
+  const ler = (r) => ({
+    ligado: Boolean(r.ligado),
+    endereco: r.endereco || estado.endereco,
+    janelaVelha: Boolean(r.janela_velha ?? estado.janelaVelha),
+    fechaJunto: Boolean(r.fecha_junto ?? estado.fechaJunto),
+  });
 
   async function chamar(comando) {
     try {
@@ -60,7 +74,7 @@
     if (novo && !ocupado) {
       // o painel mudou sozinho (o Ligar que estourou o prazo terminou de subir): a falha velha sai
       if (Boolean(novo.ligado) !== estado.ligado) falha = null;
-      estado = { ligado: Boolean(novo.ligado), endereco: novo.endereco || estado.endereco };
+      estado = ler(novo);
       desenhar();
     }
   }
@@ -73,7 +87,7 @@
     const resposta = await chamar(comando);
     ocupado = null;
     if (resposta) {
-      estado = { ligado: Boolean(resposta.ligado), endereco: resposta.endereco || estado.endereco };
+      estado = ler(resposta);
       falha = resposta.falha ? resposta : null;
     } else {
       falha = { falha: "outro" };
@@ -116,6 +130,7 @@
   $("ligar").addEventListener("click", () => agir("ligar", "ligando", () => "abrir"));
   $("parar").addEventListener("click", () => agir("parar", "parando", () => "ligar"));
   $("abrir").addEventListener("click", () => agir("abrir_jobot", null, () => "abrir"));
+  $("baixar").addEventListener("click", () => agir("abrir_release", null, () => "baixar"));
   $("copiar").addEventListener("click", copiar);
   document.addEventListener("visibilitychange", consultar);
 
