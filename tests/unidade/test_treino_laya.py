@@ -826,7 +826,7 @@ def test_treino_nem_comeca_com_exemplo_do_ouro(tmp_path: Path) -> None:
     assert len(montados) == 1
 
 
-# --- juntar_lora: o merge e o tokenizador (D219.18) ---------------------------------------------
+# --- juntar_lora: o merge e o tokenizador (D219.19) ---------------------------------------------
 # Falsos do torch, do peft, do transformers e do huggingface_hub: o Qwen3.5 é multimodal e o
 # LoRA do SFTTrainer tem as chaves da classe de imagem e texto (`model.language_model.layers`).
 

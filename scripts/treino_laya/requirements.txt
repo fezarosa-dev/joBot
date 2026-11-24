@@ -9,7 +9,7 @@ trl==1.17.1
 accelerate==1.15.0
 datasets==5.1.0
 # a classe de imagem e texto do Qwen3.5 (o merge do LoRA) pede o processador de imagem e o
-# kernel de atenção linear; faltaram na primeira rodada no pod (D219.18)
+# kernel de atenção linear; faltaram na primeira rodada no pod (D219.19)
 torchvision==0.29.2
 pillow==13.0.0
 flash-linear-attention==0.6.0
