@@ -186,6 +186,11 @@
   font-size: 0.875rem;
 }
 
+/* fieldset de campos de texto (Perfil): mais ar entre um campo e outro que entre as opções */
+.grupo-campos {
+  gap: 0.75rem;
+}
+
 .grupo-leva .opcao {
   justify-content: flex-start;
   min-height: 2.25rem;
@@ -573,6 +578,11 @@
 /* Gmail (T278): o campo recusado ganha a borda de alerta e a frase logo abaixo; a frase diz o erro,
    a cor só reforça (E15) */
 .cartao-gmail .campo-texto[aria-invalid="true"] {
+  border-color: var(--alerta);
+}
+
+/* Perfil (T434): o controle recusado ganha a borda de alerta (e o foco, pelo `autofocus`) */
+.config-form [aria-invalid="true"] {
   border-color: var(--alerta);
 }
 
