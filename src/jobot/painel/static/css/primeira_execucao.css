@@ -46,6 +46,7 @@
 }
 
 .campo input[type="text"],
+.campo input[type="password"],
 .campo select,
 .campo textarea {
   box-sizing: border-box;
@@ -57,6 +58,26 @@
   background-color: var(--superficie);
   color: var(--texto);
   font: inherit;
+}
+
+/* passo IA (T439): cada escolha com a explicação embaixo, alinhada ao texto do rádio */
+.ia-escolhas {
+  display: grid;
+  gap: 1rem;
+}
+
+.ia-escolha {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.ia-escolha > small,
+.ia-chave {
+  margin-inline-start: 1.6rem;
+}
+
+.ia-chave {
+  margin-block-start: 0.4rem;
 }
 
 .linha-cidade {

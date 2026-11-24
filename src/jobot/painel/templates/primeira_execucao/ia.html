@@ -1,0 +1,41 @@
+{#- Passo IA (T439; desenho 10.4 da fase 4; D235): os atalhos da aba IA em três escolhas. O local
+    só se escolhe com o modelo baixado; o pago leva a chave da Anthropic (que nunca volta à tela) e
+    mostra o custo ao lado, então escolhê-lo já confirma o custo; "Agora não" deixa a IA como está. -#}
+{%- set chave_errada = erro_campo == "ia-chave" %}
+<h1 class="assistente-titulo">{{ t("primeira_execucao.ia.titulo") }}</h1>
+<p class="assistente-texto">{{ t("primeira_execucao.ia.intro") }}</p>
+{% if erro %}
+<div class="assistente-alerta" id="config-erro" role="alert">
+  <strong>{{ t("primeira_execucao.erro.titulo") }}</strong>
+  <p>{{ t(erro) }}</p>
+</div>
+{% endif %}
+<form id="assistente-form" method="post" action="/primeira-execucao/ia" class="assistente-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  {% if busca_id %}<input type="hidden" name="busca" value="{{ busca_id }}">{% endif %}
+  <fieldset class="campo">
+    <legend>{{ t("primeira_execucao.ia.escolha") }}</legend>
+    <div class="ia-escolhas">
+      <div class="ia-escolha">
+        <label class="opcao"><input type="radio" name="ia" value="local"{% if not ia_local %} disabled{% elif ia_escolha == "local" %} checked{% endif %} aria-describedby="ia-local-ajuda ia-local-estado"> <strong>{{ t("primeira_execucao.ia.local") }}</strong></label>
+        <small id="ia-local-ajuda">{{ t("primeira_execucao.ia.local.ajuda") }}</small>
+        <small id="ia-local-estado">{% if ia_local %}{{ t("primeira_execucao.ia.local.pronto", modelo=ia_local) }}{% else %}{{ t("primeira_execucao.ia.local.falta") }}{% endif %}</small>
+      </div>
+      <div class="ia-escolha">
+        <label class="opcao"><input type="radio" name="ia" value="pago"{% if ia_escolha == "pago" %} checked{% endif %} aria-describedby="ia-pago-ajuda ia-pago-custo ia-pago-privacidade"> <strong>{{ t("primeira_execucao.ia.pago") }}</strong></label>
+        <small id="ia-pago-ajuda">{{ t("primeira_execucao.ia.pago.ajuda") }}</small>
+        <small id="ia-pago-custo">{{ t("primeira_execucao.ia.pago.custo", teto=ia_teto) }}</small>
+        <small id="ia-pago-privacidade">{{ t("primeira_execucao.ia.pago.privacidade") }}</small>
+        <div class="campo ia-chave">
+          <label for="ia-chave">{{ t("primeira_execucao.ia.chave") }}</label>
+          <input type="password" id="ia-chave" name="chave" maxlength="512" autocomplete="new-password" spellcheck="false" aria-describedby="ia-chave-ajuda{% if chave_errada %} config-erro{% endif %}"{% if chave_errada %} aria-invalid="true" autofocus{% endif %}>
+          <small id="ia-chave-ajuda">{{ t("primeira_execucao.ia.chave.ajuda") }}{% if ia_tem_chave %} {{ t("primeira_execucao.ia.chave.guardada") }}{% endif %}</small>
+        </div>
+      </div>
+      <div class="ia-escolha">
+        <label class="opcao"><input type="radio" name="ia" value="nenhum"{% if ia_escolha == "nenhum" %} checked{% endif %} aria-describedby="ia-nenhum-ajuda"> <strong>{{ t("primeira_execucao.ia.nenhum") }}</strong></label>
+        <small id="ia-nenhum-ajuda">{{ t("primeira_execucao.ia.nenhum.ajuda") }}</small>
+      </div>
+    </div>
+  </fieldset>
+</form>

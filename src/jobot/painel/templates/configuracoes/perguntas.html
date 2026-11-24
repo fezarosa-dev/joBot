@@ -5,9 +5,6 @@
     formulário só: "Salvar" e, com a tarefa `perguntas` ligada, "Salvar e sugerir perguntas" (com
     JavaScript, o [data-espera] mostra a espera e segura o segundo envio). O texto da IA só é
     mostrado (o Jinja escapa). -#}
-{% from "configuracoes/_campos_perfil.html" import descrito, entrada, caixa, lista with context %}
-{%- set d = dados_tela %}
-{%- set onde = {"geral": "/configuracoes/geral", "experiencias": "/configuracoes/perfil#perfil-experiencias", "cursos": "/configuracoes/perfil#perfil-cursos"} %}
 <section class="config-bloco" aria-labelledby="perguntas-titulo">
   <h2 id="perguntas-titulo">{{ t("configuracoes.perfil.perguntas.titulo") }}</h2>
   <p class="config-texto">{{ t("configuracoes.perfil.perguntas.explicacao") }}</p>
@@ -15,65 +12,7 @@
 </section>
 <form method="post" action="/configuracoes/perfil/perguntas" class="config-form">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-  <section class="config-bloco" aria-labelledby="perguntas-base">
-    <h2 id="perguntas-base">{{ t("configuracoes.perfil.perguntas.base") }}</h2>
-    {%- for p in perguntas_base %}
-    {%- if p.onde %}
-    <div class="campo">
-      <p class="config-texto"><strong>{{ p.texto }}</strong> <a href="{{ onde[p.onde] }}">{{ t("configuracoes.perfil.perguntas.onde." ~ p.onde) }}</a></p>
-    </div>
-    {%- elif p.campo == "nome" %}
-    {{ entrada("perfil-nome", "nome", p.texto, d.nome, autocomplete="name") }}
-    {%- elif p.campo == "email" %}
-    {{ entrada("perfil-email", "email", p.texto, d.email, tipo="email", teto=teto.email, autocomplete="email") }}
-    {%- elif p.campo == "telefone" %}
-    {{ entrada("perfil-telefone", "telefone", p.texto, d.telefone, tipo="tel", teto=teto.telefone, autocomplete="tel") }}
-    {%- elif p.campo == "cidade_moradia" %}
-    {{ entrada("perfil-cidade", "cidade_moradia", p.texto, d.cidade_moradia, autocomplete="address-level2") }}
-    {%- elif p.campo == "cargo_atual" %}
-    {{ entrada("perfil-cargo", "cargo_atual", p.texto, d.cargo_atual, autocomplete="organization-title") }}
-    {%- elif p.campo == "anos_de_experiencia" %}
-    <div class="campo">
-      <label for="perfil-anos">{{ p.texto }}</label>
-      <input type="number" id="perfil-anos" name="anos_de_experiencia" value="{{ d.anos_de_experiencia }}" min="0" max="60" step="1" inputmode="numeric"{{ descrito("perfil-anos") }}>
-    </div>
-    {%- elif p.campo == "formacao_nivel" %}
-    {{ lista("perfil-formacao", "formacao_nivel", p.texto, formacoes, d.formacao_nivel, "configuracoes.perfil.formacao.") }}
-    {%- elif p.campo == "habilidades" %}
-    {{ caixa("campo-habilidades", "habilidades", p.texto, habilidades_texto, linhas=6, teto=21000, ajuda=t("configuracoes.perfil.habilidades.ajuda")) }}
-    {%- elif p.campo == "idiomas_falados" %}
-    <fieldset class="grupo-leva grupo-campos" aria-describedby="perguntas-idiomas-ajuda">
-      <legend>{{ p.texto }}</legend>
-      <small id="perguntas-idiomas-ajuda">{{ t("configuracoes.perfil.perguntas.idiomas.ajuda") }}</small>
-      {%- for codigo in idiomas_fixos %}
-      {{ lista("perfil-idioma-" ~ codigo, "idioma_" ~ codigo, t("configuracoes.perfil.idioma." ~ codigo), niveis, d.idiomas[codigo], "configuracoes.perfil.nivel.") }}
-      {%- endfor %}
-    </fieldset>
-    {%- elif p.campo == "links" %}
-    {{ caixa("perfil-links", "links", p.texto, d.links, linhas=3, teto=5100, ajuda=t("configuracoes.perfil.links.ajuda")) }}
-    {%- endif %}
-    {%- endfor %}
-  </section>
-  <section class="config-bloco" aria-labelledby="perguntas-ia">
-    <h2 id="perguntas-ia">{{ t("configuracoes.perfil.perguntas.ia") }}</h2>
-    <p class="config-texto">{{ t("configuracoes.perfil.perguntas.ia.explicacao") }}</p>
-    <p class="config-texto" id="perguntas-privacidade">
-      {%- if perguntas_privacidade.servico %}{{ t(perguntas_privacidade.chave, servico=t(perguntas_privacidade.servico)) }}{% else %}{{ t(perguntas_privacidade.chave) }}{% endif -%}
-    </p>
-    {%- if perguntas_falha %}
-    <p class="config-alerta" id="perguntas-falha" role="alert">{{ t("configuracoes.perfil.perguntas.falha") }} {{ t(perguntas_falha, teto=teto_perguntas) }}</p>
-    {%- elif em_curso %}
-    <p class="config-texto" role="status">{{ t("configuracoes.perfil.perguntas.em_curso") }}</p>
-    {%- elif sugeridas is not none %}
-    <p class="config-texto" role="status">{% if sugeridas == 0 %}{{ t("configuracoes.perfil.perguntas.sugeridas.zero") }}{% elif sugeridas == 1 %}{{ t("configuracoes.perfil.perguntas.sugeridas.uma") }}{% else %}{{ t("configuracoes.perfil.perguntas.sugeridas", n=sugeridas) }}{% endif %}</p>
-    {%- endif %}
-    {%- for q in perguntas_ia %}
-    <input type="hidden" name="pergunta_chave" value="{{ q.chave }}">
-    {{ caixa("pergunta-" ~ loop.index, "pergunta_resposta", q.pergunta, q.resposta, linhas=3, teto=teto.resumo, ajuda=t("configuracoes.perfil.perguntas.por_que", texto=q.por_que) if q.por_que else none) }}
-    {%- else %}
-    <p class="config-texto">{{ t("configuracoes.perfil.perguntas.ia.vazio") }}</p>
-    {%- endfor %}
-  </section>
+  {% include "configuracoes/_perguntas_campos.html" %}
   <div class="acoes">
     <button type="submit" class="botao botao-primario">{{ t("configuracoes.salvar") }}</button>
     {%- if perguntas_ligada %}

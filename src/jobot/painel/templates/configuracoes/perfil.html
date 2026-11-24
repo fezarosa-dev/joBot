@@ -63,27 +63,7 @@
   {%- set pp = privacidade_perguntas %}
   {%- if pp %} {% if pp.servico %}{{ t(pp.chave, servico=t(pp.servico)) }}{% else %}{{ t(pp.chave) }}{% endif %}{% endif -%}
 </p>
-{#- currículo em PDF (T435; D231): o upload manda o token CSRF no cabeçalho, então só funciona com
-    JavaScript; sem ele, o formulário fica escondido e o <noscript> explica -#}
-<section class="config-bloco" aria-labelledby="perfil-curriculo">
-  <h2 id="perfil-curriculo">{{ t("configuracoes.perfil.curriculo.titulo") }}</h2>
-  <noscript><p class="config-texto">{{ t("configuracoes.perfil.curriculo.sem_js") }}</p></noscript>
-  {#- para onde vai o texto do currículo, pelo estado da tarefa `curriculo` (desenho 8; T436) #}
-  <p class="config-texto" id="perfil-curriculo-privacidade">
-    {%- if curriculo_privacidade.servico %}{{ t(curriculo_privacidade.chave, servico=t(curriculo_privacidade.servico)) }}{% else %}{{ t(curriculo_privacidade.chave) }}{% endif -%}
-  </p>
-  <form class="config-form" hx-post="/configuracoes/perfil/curriculo" hx-encoding="multipart/form-data" hx-target="#perfil-curriculo-resultado" hx-swap="innerHTML" hx-disabled-elt="find button" hx-indicator="find button" data-limpar-alvo data-com-js hidden>
-    <div class="campo">
-      <label for="perfil-curriculo-arquivo">{{ t("configuracoes.perfil.curriculo.arquivo") }}</label>
-      <input type="file" id="perfil-curriculo-arquivo" name="curriculo" accept="application/pdf,.pdf" required aria-describedby="perfil-curriculo-ajuda perfil-curriculo-privacidade">
-      <small id="perfil-curriculo-ajuda">{{ t("configuracoes.perfil.curriculo.ajuda") }}</small>
-    </div>
-    <div class="acoes">
-      <button type="submit" class="botao botao-primario"><span class="botao-rotulo">{{ t("configuracoes.perfil.curriculo.ler") }}</span><span class="botao-espera">{{ t("configuracoes.perfil.curriculo.lendo") }}</span></button>
-    </div>
-  </form>
-  <div id="perfil-curriculo-resultado">{% if revisao %}{% include "configuracoes/_curriculo.html" %}{% endif %}</div>
-</section>
+{% include "configuracoes/_curriculo_envio.html" %}
 {%- set d = dados_tela %}
 <section class="config-bloco" aria-labelledby="perfil-sobre">
   <h2 id="perfil-sobre">{{ t("configuracoes.perfil.sobre") }}</h2>

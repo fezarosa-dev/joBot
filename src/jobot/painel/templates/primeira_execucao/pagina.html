@@ -5,7 +5,7 @@
 {% set sem_lateral = true %}
 {% set sem_barra = etapa != "pronto" %}
 {% block titulo %}{{ t("primeira_execucao.titulo") }} · joBot{% endblock %}
-{% block estilos %}<link rel="stylesheet" href="/static/css/primeira_execucao.css">{% if passo == "sites" %}<link rel="stylesheet" href="/static/css/configuracoes.css">{% endif %}{% endblock %}
+{% block estilos %}<link rel="stylesheet" href="/static/css/primeira_execucao.css">{% if passo in ("sites", "perfil") %}<link rel="stylesheet" href="/static/css/configuracoes.css">{% endif %}{% endblock %}
 {% block conteudo %}
 {% if etapa == "pronto" %}
 <section class="assistente">
@@ -18,10 +18,13 @@
 <section class="assistente assistente-fixo">
   <div class="assistente-corpo">
     <p class="assistente-passo">{{ t("primeira_execucao.passo", n=n, total=total) }}</p>
-    {% if passo == "1" %}{% include "primeira_execucao/passo1.html" %}{% elif passo == "sites" %}{% include "primeira_execucao/sites.html" %}{% else %}{% include "primeira_execucao/passo2.html" %}{% endif %}
+    {% if passo == "ia" %}{% include "primeira_execucao/ia.html" %}{% elif passo == "perfil" %}{% include "primeira_execucao/perfil.html" %}{% elif passo == "1" %}{% include "primeira_execucao/passo1.html" %}{% elif passo == "sites" %}{% include "primeira_execucao/sites.html" %}{% else %}{% include "primeira_execucao/passo2.html" %}{% endif %}
   </div>
   <div class="assistente-pe">
     <button type="submit" form="assistente-form" class="botao botao-primario">{{ t("primeira_execucao.concluir" if passo == "2" else "primeira_execucao.continuar") }}</button>
+    {#- no Perfil, depois do Continuar (o Enter nunca manda o perfil à IA): T439, D235 -#}
+    {% if passo == "perfil" and perguntas_ligada %}<button type="submit" form="assistente-form" name="sugerir" value="1" class="botao botao-secundario" aria-describedby="perguntas-privacidade" data-espera><span class="botao-rotulo">{{ t("configuracoes.perfil.perguntas.sugerir") }}</span><span class="botao-espera">{{ t("configuracoes.perfil.perguntas.sugerindo") }}</span></button>{% endif %}
+    {% if passo == "perfil" %}<a class="botao botao-simples" href="/primeira-execucao/1{% if busca_id %}?busca={{ busca_id }}{% endif %}">{{ t("primeira_execucao.perfil.pular_passo") }}</a>{% endif %}
     <button type="submit" form="assistente-form" formaction="/primeira-execucao/pular" formnovalidate class="botao botao-simples">{{ t("primeira_execucao.pular") }}</button>
     {% if voltar_url %}<a class="botao botao-simples assistente-voltar" href="{{ voltar_url }}{% if voltar_busca %}?busca={{ voltar_busca }}{% endif %}">{{ t("primeira_execucao.p2.voltar", n=voltar_n) }}</a>{% endif %}
   </div>

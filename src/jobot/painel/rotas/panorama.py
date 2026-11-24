@@ -122,7 +122,7 @@ def _busca(con: sqlite3.Connection, busca_id: int | None) -> dict[str, Any] | No
 @router.get("")
 async def panorama(request: Request, con: Con) -> Response:
     if not ler_config(con, "primeira_execucao_concluida", False):
-        return RedirectResponse("/primeira-execucao/1", status_code=303)
+        return RedirectResponse("/primeira-execucao/ia", status_code=303)
     agora = relogio_do_painel(request).agora()
     # a lateral na conexão do pedido: a casca e "Hoje" usam a mesma contagem das abas (T313)
     lado = ler_lateral(con, agora, inteiro_da_url(request.query_params.get("busca"), MAX_ID))
