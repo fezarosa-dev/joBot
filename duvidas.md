@@ -4318,3 +4318,20 @@ A sessão propôs abrir o painel no Chrome da pessoa como janela de app. O dono 
 **Como desfazer:** cada item diz o seu; migração que entrou na `dev` não muda, então cada troca vira migração nova.
 
 **Ver também:** D185.13, desenho 8 e 9 da fase 4, mapa do perfil (`docs/superpowers/specs/2026-11-15-perguntas-do-perfil.md`), T430, T434, T437, T438.
+
+## D230. Perfil completo na tela: escolhas da T434 (escolha da sessão, para discutir com o dono)
+
+**Status:** decidido pela sessão em 2026-11-24, escolha da sessão, para discutir com o dono. Só tela e gravação local; nada sai do computador.
+
+**Contexto:** a T434 põe na aba Configurações › Perfil o que a migração 0013 guarda (D226): contato, trabalho e estudo, idiomas, experiências e cursos, e faz o "Apagar perfil" dizer tudo o que sai. O desenho 8 deu os campos e deixou aberto como a tela os mostra e confere.
+
+1. **Quatro seções, cada uma com o seu formulário.** "Sobre você" (fieldsets Contato, Trabalho e estudo e Idiomas, um Salvar só), "Habilidades" (o formulário da 0.5.0, sem mudar), "Experiências" e "Cursos" (um formulário por item, com Salvar e Tirar, e um para o novo, com Adicionar). Tudo posta em `POST /configuracoes/perfil`; o campo oculto `secao` (`dados`, `experiencia`, `curso`) escolhe o que grava e sem ele são as habilidades, como antes. Funciona sem JavaScript (formulários comuns, 303 e `?salvo=1`). Cada seção é uma região com título (`<section aria-labelledby>`), então os vários "Salvar" têm contexto para o leitor de tela e para os testes. Desfazer: juntar "Sobre você" e "Habilidades" num formulário só.
+2. **Tirar uma experiência ou um curso é um clique, sem alerta.** O botão Tirar (com `formnovalidate`) apaga a linha na hora; o item é pequeno e se digita de novo. Editar um item que outra aba já tirou dá 404 e não o traz de volta (D226.2). Desfazer: o Tirar abre o alerta, como o "Apagar perfil".
+3. **O que a tela confere.** Anos de 0 a 60 (só algarismos ASCII); e-mail com `@` e domínio; links um por linha, só `http://` ou `https://` com endereço (nunca `javascript:`), até 500 caracteres e até 10, repetidos saem; textos de uma linha até 200 caracteres (e-mail 254, telefone 40, idioma 60), resumo e descrição até 2000, com a mesma limpeza das habilidades (controle vira espaço, invisível sai); datas `AAAA-MM` em campo de texto com `pattern` (o `type="month"` não existe no Firefox) e o início antes do fim; experiências e cursos até 10 cada (A5). Valor digitado errado volta com a mensagem e o campo marcado (`aria-invalid` e `aria-describedby` para o alerta); valor de lista fechada fora da lista (formação, nível, situação, `secao`) é 422 seco, como em outras abas. Desfazer: trocar os tetos nas constantes de `painel/rotas/perfil.py`.
+4. **Idiomas.** Português, inglês e espanhol têm uma lista de nível cada (Básico, Intermediário, Avançado, Fluente ou "Não informar", que não grava); os outros entram por nome, cada um na sua linha, e sempre sobra uma linha vazia para mais um. Nome sem nível é recusado com mensagem; o mesmo idioma escrito duas vezes fica uma vez. O banco guarda `[código, nível]` para os três fixos e `[nome, nível]` para os outros (D226.1). Desfazer: lista fechada de idiomas no lugar do nome livre.
+5. **Contato à parte, com a frase "nunca vai para a IA".** Nome, e-mail, telefone e cidade ficam no fieldset Contato com a frase "O contato fica no seu computador e nunca vai para a IA", que vale pela lista permitida do desenho 5.2 (T431). Os links ficam em "Trabalho e estudo", porque a lista permitida não os barra. A explicação do alto da aba diz que tudo fica no computador e só sai para a IA que a pessoa ligar. Desfazer: são texto.
+6. **"Apagar perfil" aparece com qualquer parte do perfil** (não só com habilidades) e o texto da confirmação diz tudo o que sai: dados, idiomas, habilidades, experiências, cursos, respostas e candidaturas preparadas (D226.5). Desfazer: são texto e a função `perfil.existe`.
+
+**Como desfazer:** cada item diz o seu.
+
+**Ver também:** D200, D226, desenho 8 da fase 4, mapa do perfil (`docs/superpowers/specs/2026-11-15-perguntas-do-perfil.md`), T413, T431, T434.
