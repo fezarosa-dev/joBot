@@ -275,6 +275,26 @@ def test_windows_para_e_religa_a_tarefa_do_agendador(
     assert _resumo(registro) == esperado
 
 
+def test_windows_sobe_o_servidor_mesmo_sem_regravar_a_tarefa(tmp_path: Path) -> None:
+    # o servidor do Windows não depende da tarefa do Agendador: a falha dela não o deixa fora
+    registro: list[str] = []
+    rodar = _Sistema(registro, plano_ligado=True, plataforma="win32")
+    rodar.falha_em["schtasks /Create"] = Resultado(1, erro="Acesso negado.")
+    ferramenta = tmp_path / "ferramenta"
+    ferramenta.mkdir()
+    (ferramenta / "uv-receipt.toml").write_text("[tool]\n")
+    trava = _rodando(tmp_path)
+    parar, subir = _falsos(registro, trava)
+    try:
+        codigo = atualizar(
+            rodar, tmp_path, parar=parar, subir=subir, raiz=ferramenta, plataforma="win32"
+        )
+    finally:
+        trava.soltar()
+    assert codigo == 1
+    assert _resumo(registro) == ["desligar", "parar", "upgrade", "ligar", "subir"]
+
+
 def test_falha_na_atualizacao_religa_o_que_parou_e_sai_com_1(tmp_path: Path) -> None:
     registro: list[str] = []
     rodar = _Sistema(registro, plano_ligado=True)
@@ -386,6 +406,15 @@ def test_prazo_do_executor_encerra_a_arvore_e_cabe_o_download_do_navegador(
     assert visto[0].kwargs["start_new_session"] is True
     assert visto[0].prazos == [modulo._TEMPO_S]
     assert modulo._TEMPO_S > limites.PRAZO_BAIXAR_S + limites.ESPERA_SAIR_JANELA_S
+
+
+def test_executor_no_windows_nao_pisca_console(monkeypatch: pytest.MonkeyPatch) -> None:
+    # o atualizador destacado não tem console: cada schtasks abriria e fecharia uma janela
+    visto: list[_PopenFalso] = []
+    monkeypatch.setattr(subprocess, "CREATE_NO_WINDOW", 0x08000000, raising=False)
+    monkeypatch.setattr(subprocess, "Popen", lambda args, **kw: _guardar(visto, args, kw))
+    modulo.rodar_atualizacao(["schtasks", "/Query"])
+    assert visto[0].kwargs["creationflags"] == 0x08000000
 
 
 # quem chama o executor real; o filho (em sessão própria) sobe um neto em outra sessão, como o
@@ -895,6 +924,22 @@ def test_casca_fora_do_linux_refaz_o_servico_pelo_venv_novo(
     # a tarefa do Agendador só sobe no próximo login: o servidor que estava no ar volta já
     subiu = [r for r in registro if r.startswith("subir")]
     assert subiu == ([f"subir_em {_no_venv(novo, 'python')}"] if plataforma == "win32" else [])
+
+
+def test_casca_no_windows_sobe_o_servidor_mesmo_sem_regravar_a_tarefa(
+    tmp_path: Path, sem_playwright: None
+) -> None:
+    pasta = _instalada(tmp_path)
+    registro: list[str] = []
+    rodar = _Casca(registro, plano_ligado=True, plataforma="win32")
+    rodar.falha_em["jobot segundo-plano"] = Resultado(1, erro="Acesso negado.")
+    trava = _rodando(tmp_path)
+    try:
+        assert _atualizar_casca(tmp_path, _Release(_pacote()), rodar, registro, trava) == 1
+    finally:
+        trava.soltar()
+    novo = pasta / "venvs" / f"venv-{VERSAO}"
+    assert registro[-1] == f"subir_em {_no_venv(novo, 'python')}"
 
 
 def _intacta(tmp_path: Path, pasta: Path, antes: bytes, registro: list[str]) -> None:

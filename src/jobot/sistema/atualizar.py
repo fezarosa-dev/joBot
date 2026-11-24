@@ -80,6 +80,8 @@ def rodar_atualizacao(comando: Sequence[str]) -> Resultado:
             text=True,
             env={**os.environ, "GIT_TERMINAL_PROMPT": "0"},
             start_new_session=True,  # o grupo do POSIX; no Windows o taskkill /T acha a árvore
+            # o atualizador destacado não tem console: sem isto cada schtasks pisca uma janela
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         )
     except OSError:  # programa que não existe ou não abre
         return Resultado(127)
@@ -185,20 +187,29 @@ def _religar(
     plataforma: str | None,
     ligar_plano: Callable[[], None] | None = None,
 ) -> bool:
+    religado = True
     try:
         if plano:
             with sem_eco_no_terminal():
                 (ligar_plano or (lambda: segundo_plano.ligar(rodar, plataforma=plataforma)))()
-        subiu = plano and segundo_plano.sobe_ao_ligar(plataforma)
-        if servidor and not subiu and pid_do_servidor(dados) is None:  # o que não caiu fica
-            subir()
     except Recusa as recusa:
         print(f"Não consegui religar o segundo plano: {_motivo(recusa)}", file=sys.stderr)
+        religado = False
+    except OSError as erro:
+        print(f"Não consegui religar o joBot: {erro}", file=sys.stderr)
+        religado = False
+    # no Linux e no Mac o serviço põe o servidor no ar; a tarefa do Windows não, e a falha dela
+    # não deixa fora o servidor que estava no ar
+    pelo_servico = plano and segundo_plano.sobe_ao_ligar(plataforma)
+    if pelo_servico and not religado:
         return False
+    try:
+        if servidor and not pelo_servico and pid_do_servidor(dados) is None:  # o que não caiu fica
+            subir()
     except OSError as erro:
         print(f"Não consegui religar o joBot: {erro}", file=sys.stderr)
         return False
-    return True
+    return religado
 
 
 def _novidades(rodar: Rodar, raiz: Path, tipo: Tipo, antigo: str | None) -> None:
