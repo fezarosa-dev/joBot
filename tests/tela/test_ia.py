@@ -15,6 +15,7 @@ from fastapi import FastAPI
 from playwright.sync_api import Browser, Page, expect
 
 from apoio.cofre_falso import CofreFalso
+from apoio.console import anotar_erros
 from apoio.relogio import RelogioFalso
 from jobot.banco.cadastros import ler_config
 from jobot.banco.conexao import abrir
@@ -42,13 +43,8 @@ def app_painel(app_painel: FastAPI, cofre: Cofre) -> FastAPI:
 
 @pytest.fixture(autouse=True)
 def _sem_erro_no_console(page: Page) -> Iterator[None]:
-    erros: list[str] = []  # violação do CSP aparece como erro no console
-    # o 422 do modelo inválido é a resposta esperada da página, não erro de script
-    page.on(
-        "console",
-        lambda m: erros.append(m.text) if m.type == "error" and "422" not in m.text else None,
-    )
-    page.on("pageerror", lambda e: erros.append(str(e)))
+    # violação do CSP aparece como erro; o 422 do modelo inválido é a resposta esperada da página
+    erros = anotar_erros(page, ignorar="422")
     yield
     assert erros == []
 
