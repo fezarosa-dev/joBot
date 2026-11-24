@@ -25,6 +25,12 @@ def suportado(plataforma: str | None = None) -> bool:
     return _qual(plataforma) in ("linux", "windows", "darwin")
 
 
+def sobe_ao_ligar(plataforma: str | None = None) -> bool:
+    """O `ligar` já põe o servidor no ar (systemd `enable --now`, launchd `RunAtLoad`); a tarefa
+    do Agendador do Windows só roda no próximo login."""
+    return _qual(plataforma) != "windows"
+
+
 def ligar(rodar: Rodar, *, env: Ambiente = None, plataforma: str | None = None) -> None:
     qual = _qual(plataforma)
     if qual == "linux":

@@ -41,8 +41,8 @@ def pasta_do_perfil(dados: Path) -> Path:
 def _lido(arquivo: Path) -> tuple[dict[str, object], bool]:
     """Conteúdo atual e se ele estava ilegível (será reescrito)."""
     try:
-        # O_NOFOLLOW fecha a janela entre o is_symlink e a leitura
-        fd = os.open(arquivo, os.O_RDONLY | os.O_NOFOLLOW)
+        # O_NOFOLLOW fecha a janela entre o is_symlink e a leitura (o Windows não o tem)
+        fd = os.open(arquivo, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
     except FileNotFoundError:
         return {}, False
     with os.fdopen(fd, "rb") as entrada:

@@ -126,3 +126,13 @@ def test_display_com_digito_unicode_e_ignorado() -> None:
 @pytest.mark.parametrize("nome", [".", ".."])
 def test_wayland_display_ponto_e_ignorado(nome: str) -> None:
     assert ambiente_da_tela({}, _Executor(f"WAYLAND_DISPLAY={nome}\n")) == {}
+
+
+@pytest.mark.parametrize("plataforma", ["win32", "darwin"])
+def test_windows_e_mac_tem_a_tela_de_quem_entrou(plataforma: str) -> None:
+    # sem DISPLAY nem systemctl: vazio seria "sem tela" e o login nunca abriria
+    assert ambiente_da_tela({}, _nao_roda, plataforma=plataforma) == {"JOBOT_TELA": plataforma}
+
+
+def test_linux_sem_display_segue_sem_tela() -> None:
+    assert ambiente_da_tela({}, _Executor("", 1), plataforma="linux") == {}

@@ -23,6 +23,8 @@ _LOG = logging.getLogger(__name__)
 _NOME = re.compile(r"[a-z0-9_]{1,32}", re.ASCII)
 _MODO = 0o600
 _O_NOFOLLOW = getattr(os, "O_NOFOLLOW", 0)
+# o Windows não tem O_CLOEXEC; lá o O_NOINHERIT faz o mesmo (o filho não herda o descritor)
+_O_CLOEXEC = getattr(os, "O_CLOEXEC", getattr(os, "O_NOINHERIT", 0))
 
 
 class Backend(Protocol):
@@ -73,7 +75,7 @@ class Cofre:
         try:
             if caminho.is_symlink():
                 return None
-            fd = os.open(caminho, os.O_RDONLY | _O_NOFOLLOW | os.O_CLOEXEC)
+            fd = os.open(caminho, os.O_RDONLY | _O_NOFOLLOW | _O_CLOEXEC)
             with os.fdopen(fd, encoding="utf-8") as arquivo:
                 texto = arquivo.read().strip()
         except OSError, ValueError:  # ausente, ilegível ou fora de UTF-8
@@ -99,7 +101,7 @@ class Cofre:
         # grava num .tmp 0600 e troca por rename: queda ou disco cheio no meio não apaga a chave
         # antiga. O umask só tira bits; o fchmod garante o 0600.
         tmp.unlink(missing_ok=True)  # resto de queda anterior (um link sai ele mesmo)
-        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | _O_NOFOLLOW | os.O_CLOEXEC, _MODO)
+        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | _O_NOFOLLOW | _O_CLOEXEC, _MODO)
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as arquivo:
                 os.fchmod(fd, _MODO)
@@ -120,7 +122,7 @@ class Cofre:
         # a troca só sobrevive à queda depois do fsync da pasta; onde não dá (sem O_DIRECTORY,
         # outro sistema de arquivos) a gravação já valeu: não derruba
         try:
-            fd = os.open(self._pasta, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | os.O_CLOEXEC)
+            fd = os.open(self._pasta, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | _O_CLOEXEC)
             try:
                 os.fsync(fd)
             finally:
