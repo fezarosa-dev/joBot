@@ -37,6 +37,7 @@ The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/
 - joBot left running by the window and the browser opened by Open joBot are no longer tied to the AppImage after the window closes: they do not inherit its folder, its open files or the settings from inside it, such as the forced light theme in the browser.
 - In Firefox and Safari, the job context menu opens with the mouse.
 - In Safari, going back to a dashboard page no longer shows the false notice that the internet dropped.
+- In the dashboard: the detail next to the list shows the AI skills, like the job page; the Overview no longer says "Searching now." during company discovery, page reading or login reading; in high contrast, the Jobs and Settings buttons and the selected chip stay visible; the 2Captcha card no longer says browsing with a login does not exist yet; and a broken language, theme or text size value in the database no longer brings the dashboard down. The network request list in Privacy now names Gmail.
 
 ## [0.4.0] - 2026-11-17
 
