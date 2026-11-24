@@ -104,6 +104,16 @@ def test_so_navegador_importa_playwright() -> None:
     assert _playwright_fora_do_navegador(RAIZ) == []
 
 
+def test_pypdf_so_no_leitor_do_pdf() -> None:
+    # desenho 8 da fase 4 (T435): o PDF só se abre no processo filho de `sistema/pdf.py`
+    assert _ruins_fora_de(FONTE, ("pypdf",), ("sistema/pdf.py",)) == []
+    assert _ruins_fora_de(FONTE, ("pypdf",), ()) == [
+        "pdf.py: pypdf",
+        "pdf.py: pypdf.PasswordType",
+        "pdf.py: pypdf.PdfReader",
+    ]
+
+
 def test_captcha_so_em_navegador_e_painel() -> None:
     # ADR 0022: o 2Captcha só age na navegação com login da fase 2; fonte pública não o importa.
     assert _ruins_fora_de(FONTE, ("jobot.nucleo.captcha",), ("navegador", "painel")) == []
