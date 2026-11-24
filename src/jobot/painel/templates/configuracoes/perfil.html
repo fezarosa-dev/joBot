@@ -9,7 +9,8 @@
     Cada seção que grava troca sozinha com HTMX (D230): o `hx-select` dela tira da resposta só ela,
     e o resto da aba, digitado e não salvo, fica. Por isso o "Salvo." (`salvo_secao`) e o alerta do
     erro (`erro_secao`) moram na seção, e o 422 com a seção também troca (`data-troca-422`, no
-    app.js). Sem JavaScript, o formulário comum recarrega a página, e o <noscript> avisa antes.
+    app.js); o "Apagar perfil", fora delas, vem junto pelo `hx-select-oob`. Sem JavaScript, o
+    formulário comum recarrega a página, e o <noscript> avisa antes.
     As perguntas que a IA sugeriu numa candidatura esperam aqui o aceite (D234). -#}
 {% from "_alerta.html" import alerta with context %}
 {% from "configuracoes/_campos_perfil.html" import descrito, entrada, caixa, lista with context %}
@@ -81,12 +82,12 @@
 </p>
 {#- as perguntas que a IA sugeriu ao preparar candidaturas esperam o aceite (D234): só a aceita
     entra no questionário e, respondida, nos pedidos. O botão diz qual pergunta no nome acessível -#}
-{%- if sugeridas or salvo_secao == "sugeridas" %}
-<section class="config-bloco" aria-labelledby="perfil-sugeridas" id="bloco-sugeridas" hx-target="this" hx-select="#bloco-sugeridas" hx-swap="outerHTML" data-troca-422>
+{%- if perguntas_sugeridas or salvo_secao == "sugeridas" %}
+<section class="config-bloco" aria-labelledby="perfil-sugeridas" id="bloco-sugeridas" hx-target="this" hx-select="#bloco-sugeridas" hx-swap="outerHTML" hx-select-oob="#perfil-apagar" data-troca-422>
   <h2 id="perfil-sugeridas">{{ t("configuracoes.perfil.sugeridas.titulo") }}</h2>
   {{ aviso_da_secao("sugeridas") }}
   <p class="config-texto">{{ t("configuracoes.perfil.sugeridas.explicacao", teto=teto_sugeridas) }}</p>
-  {%- for p in sugeridas %}
+  {%- for p in perguntas_sugeridas %}
   <form method="post" action="/configuracoes/perfil" hx-post="/configuracoes/perfil" class="config-form">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <input type="hidden" name="secao" value="sugerida">
@@ -124,7 +125,7 @@
   <div id="perfil-curriculo-resultado">{% if revisao %}{% include "configuracoes/_curriculo.html" %}{% endif %}</div>
 </section>
 {%- set d = dados_tela %}
-<section class="config-bloco" aria-labelledby="perfil-sobre" id="bloco-sobre" hx-target="this" hx-select="#bloco-sobre" hx-swap="outerHTML" data-troca-422>
+<section class="config-bloco" aria-labelledby="perfil-sobre" id="bloco-sobre" hx-target="this" hx-select="#bloco-sobre" hx-swap="outerHTML" hx-select-oob="#perfil-apagar" data-troca-422>
   <h2 id="perfil-sobre">{{ t("configuracoes.perfil.sobre") }}</h2>
   {{ aviso_da_secao("sobre") }}
   <form method="post" action="/configuracoes/perfil" hx-post="/configuracoes/perfil" class="config-form">
@@ -164,7 +165,7 @@
     </div>
   </form>
 </section>
-<section class="config-bloco" aria-labelledby="perfil-habilidades" id="bloco-habilidades" hx-target="this" hx-select="#bloco-habilidades" hx-swap="outerHTML" data-troca-422>
+<section class="config-bloco" aria-labelledby="perfil-habilidades" id="bloco-habilidades" hx-target="this" hx-select="#bloco-habilidades" hx-swap="outerHTML" hx-select-oob="#perfil-apagar" data-troca-422>
   <h2 id="perfil-habilidades">{{ t("configuracoes.perfil.habilidades.titulo") }}</h2>
   {{ aviso_da_secao("habilidades") }}
   <form method="post" action="/configuracoes/perfil" hx-post="/configuracoes/perfil" class="config-form">
@@ -179,7 +180,7 @@
     </div>
   </form>
 </section>
-<section class="config-bloco" aria-labelledby="perfil-experiencias" id="bloco-experiencias" hx-target="this" hx-select="#bloco-experiencias" hx-swap="outerHTML" data-troca-422>
+<section class="config-bloco" aria-labelledby="perfil-experiencias" id="bloco-experiencias" hx-target="this" hx-select="#bloco-experiencias" hx-swap="outerHTML" hx-select-oob="#perfil-apagar" data-troca-422>
   <h2 id="perfil-experiencias">{{ t("configuracoes.perfil.experiencias") }}</h2>
   {{ aviso_da_secao("experiencias") }}
   <p class="config-texto">{{ t("configuracoes.perfil.experiencias.explicacao") }}</p>
@@ -192,7 +193,7 @@
   {%- endif %}
   </div>
 </section>
-<section class="config-bloco" aria-labelledby="perfil-cursos" id="bloco-cursos" hx-target="this" hx-select="#bloco-cursos" hx-swap="outerHTML" data-troca-422>
+<section class="config-bloco" aria-labelledby="perfil-cursos" id="bloco-cursos" hx-target="this" hx-select="#bloco-cursos" hx-swap="outerHTML" hx-select-oob="#perfil-apagar" data-troca-422>
   <h2 id="perfil-cursos">{{ t("configuracoes.perfil.cursos") }}</h2>
   {{ aviso_da_secao("cursos") }}
   <p class="config-texto">{{ t("configuracoes.perfil.cursos.explicacao") }}</p>
@@ -205,6 +206,8 @@
   {%- endif %}
   </div>
 </section>
+{#- o alvo fica mesmo sem perfil: a seção que grava o traz por troca fora de banda (D230.8) -#}
+<div id="perfil-apagar">
 {%- if tem_perfil %}
 <form method="get" action="/configuracoes/perfil/apagar/confirmar">
   <div class="acoes">
@@ -213,3 +216,4 @@
 </form>
 {{ alerta("alerta-perfil", t("configuracoes.perfil.apagar.pergunta"), t("configuracoes.perfil.apagar.explicacao"), t("comum.apagar"), "/configuracoes/perfil/apagar") }}
 {%- endif %}
+</div>

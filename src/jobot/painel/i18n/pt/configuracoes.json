@@ -302,6 +302,7 @@
   "configuracoes.perfil.sugeridas.vazio": "Nenhuma pergunta esperando.",
   "configuracoes.perfil.sugeridas.aceitar": "Aceitar",
   "configuracoes.perfil.sugeridas.descartar": "Descartar",
+  "configuracoes.perfil.sugeridas.cheio": "O questionário já tem o máximo de perguntas, e esta não cabe. Ela continua aqui; descarte-a se não precisar.",
   "configuracoes.perfil.perguntas.titulo": "Questionário do perfil",
   "configuracoes.perfil.perguntas.explicacao": "Responda o que quiser: o que ficar em branco não conta contra você. As respostas gravam o seu perfil, que fica no seu computador.",
   "configuracoes.perfil.perguntas.voltar": "Voltar ao perfil",

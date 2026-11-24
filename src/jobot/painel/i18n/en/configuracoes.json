@@ -302,6 +302,7 @@
   "configuracoes.perfil.sugeridas.vazio": "No questions waiting.",
   "configuracoes.perfil.sugeridas.aceitar": "Accept",
   "configuracoes.perfil.sugeridas.descartar": "Discard",
+  "configuracoes.perfil.sugeridas.cheio": "The questionnaire already has the most questions it can hold, so this one does not fit. It stays here; discard it if you do not need it.",
   "configuracoes.perfil.perguntas.titulo": "Profile questionnaire",
   "configuracoes.perfil.perguntas.explicacao": "Answer what you want: what you leave blank does not count against you. The answers save your profile, which stays on your computer.",
   "configuracoes.perfil.perguntas.voltar": "Back to the profile",

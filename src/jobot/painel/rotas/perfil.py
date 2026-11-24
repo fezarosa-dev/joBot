@@ -426,6 +426,8 @@ async def gravar_perfil(
         }
         if secao == "dados":
             return 422, contexto | {"dados_tela": _dados_digitados(form)}
+        if secao == "sugerida":
+            return 422, contexto
         prefixo = recusa.campo_id.rsplit("-", 1)[0]
         digitado = {c: str(form.get(c) or "").strip() for c in _CAMPOS_ITEM[str(secao)]}
         return 422, contexto | {"erro_item": prefixo, "item_digitado": digitado}
@@ -441,6 +443,9 @@ def _decidir_sugerida(con: sqlite3.Connection, form: FormData) -> None:
     if acao not in ("aceitar", "descartar"):
         raise HTTPException(422)
     chave = _bruto(form, "chave")
+    if acao == "aceitar" and len(perfil.perguntas(con)) >= TETO_PERGUNTAS:
+        # D233.5: a aceita além do teto não aparece no questionário e não seria respondida
+        raise _Recusa("configuracoes.perfil.sugeridas.cheio", "")
     (perfil.aceitar_pergunta if acao == "aceitar" else perfil.descartar_pergunta)(con, chave)
 
 
@@ -455,7 +460,7 @@ async def contexto_perfil(request: Request, con: Con) -> dict[str, Any]:
         # a seção que gravou mostra o "Salvo." (D230); o `?salvo=1` da revisão do currículo, no alto
         "salvo_secao": salvo if salvo in _ANCORA.values() else None,
         "erro_secao": None,
-        "sugeridas": perfil.perguntas(con, sugeridas=True),
+        "perguntas_sugeridas": perfil.perguntas(con, sugeridas=True),
         "teto_sugeridas": perfil.TETO_SUGERIDAS,
         "habilidades_texto": "\n".join(atuais),
         "tem_perfil": perfil.existe(con),
