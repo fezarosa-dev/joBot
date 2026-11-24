@@ -602,3 +602,12 @@ async def test_detalhar_vaga_coletada_nao_faz_pedido(http_proibido: HttpEducado)
         fonte="abler", escopo="", url=VAGA, titulo="x", empresa="y", descricao_formato="html"
     )
     assert await abler.COLETOR.detalhar(vaga, http_proibido) is None
+
+
+async def test_sitemap_so_com_filho_desconhecido_falhou() -> None:
+    # tag renomeada: "ok" vazio fecharia todas as vagas (padroes «JSON e XML externos»)
+    loc = "<loc>https://candidatos.abler.com.br/vagas/dev-1</loc>"
+    corpo = _sitemap().replace("</urlset>", f"<link>{loc}</link><link>{loc}</link></urlset>")
+    resultado, _ = await _coletar(_xml(corpo))
+    assert (resultado.vagas, resultado.estado) == ((), "falhou")
+    assert resultado.motivo == "saude.formato_mudou"
