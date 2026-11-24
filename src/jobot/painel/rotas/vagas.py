@@ -32,7 +32,7 @@ from jobot.painel.consultas import (
     inteiro_da_url,
     relogio_do_painel,
 )
-from jobot.painel.detalhe_vaga import contexto_do_detalhe
+from jobot.painel.detalhe_vaga import contexto_do_detalhe, preparos_de
 from jobot.painel.lateral import ler_lateral
 from jobot.painel.moeda import (
     INTEGER_MAX,
@@ -41,7 +41,7 @@ from jobot.painel.moeda import (
     exibicao_do_painel,
     filtro_salario,
 )
-from jobot.painel.seguranca import Con, de_volta, renderizar
+from jobot.painel.seguranca import Con, de_volta, idioma_do_pedido, renderizar
 
 router = APIRouter()
 
@@ -428,7 +428,8 @@ async def vagas(request: Request, con: Con) -> HTMLResponse:
     detalhe: dict[str, Any] | None = None
     if vaga is not None:
         retorno = estado.url(extras=[("vaga", str(vaga.id))])
-        detalhe = contexto_do_detalhe(con, vaga, agora.astimezone().date(), retorno)
+        hoje, preparos = agora.astimezone().date(), preparos_de(request)
+        detalhe = contexto_do_detalhe(con, vaga, hoje, retorno, preparos, idioma_do_pedido(request))
     if parcial and cabecalho.get("hx-target") == "detalhe-vaga":
         # o clique na linha troca só o detalhe: sem refazer a lista, os Destaques e a lateral
         return com_vary(renderizar(request, "vagas/detalhe_lado.html", detalhe=detalhe))

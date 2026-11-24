@@ -6,17 +6,27 @@ Mora fora de `rotas/` porque as duas rotas usam (T255): `rotas/detalhe.py` já i
 
 import json
 import sqlite3
-from datetime import date
-from typing import Any
+from collections.abc import MutableMapping
+from dataclasses import asdict, dataclass
+from datetime import date, datetime
+from typing import Any, Literal
 
-from jobot.banco.ia import pedes
+from fastapi import Request
+
+from jobot.banco import perfil
+from jobot.banco.ia import Preparo, gravar_preparo, pedes, preparo, tarefa_ia
 from jobot.banco.leitura import Detalhe, abertura_da_candidatura, datas_dos_passos
 from jobot.banco.perfil import habilidades
 from jobot.nucleo.candidatura import email_de_candidatura
 from jobot.nucleo.encaixe import casar
-from jobot.nucleo.ia.pedidos import texto_encaixe
+from jobot.nucleo.ia import manual
+from jobot.nucleo.ia.contrato import Motivo, Pedido, Resposta
+from jobot.nucleo.ia.pedidos import dados_para, pedido_candidatura, texto_encaixe
+from jobot.nucleo.ia.tarefas import citados, conferir_candidatura
+from jobot.nucleo.texto import normalizar
 from jobot.painel.consultas import utc_do_banco
 from jobot.painel.moeda import exibicao_do_painel
+from jobot.painel.rotas.perfil import frase_de_privacidade
 
 _MESES = 12
 _URGENTE_DIAS = 7  # prazo urgente: faltam menos de 7 dias (o selo "Fecha logo" vai até 7)
@@ -103,10 +113,155 @@ def _habilidades(con: sqlite3.Connection, vaga: Detalhe) -> dict[str, Any] | Non
     }
 
 
-def contexto_do_detalhe(
-    con: sqlite3.Connection, vaga: Detalhe, hoje: date, retorno: str
+# --- preparar candidatura (desenho 9; T438, D234) ---------------------------------------------
+
+IDIOMAS_DA_CARTA = ("pt", "en", "es")  # os do esquema da `candidatura` (D228.1)
+
+
+@dataclass(frozen=True)
+class Preparando:
+    """O preparo de uma vaga em `app.state.ia_preparos` (desenho 5): a IA trabalhando, ou a falha,
+    que a primeira leitura mostra e tira (padrões «Serve»). O acerto só fica no banco."""
+
+    estado: Literal["preparando", "falhou"]
+    backend: str
+    motivo: Motivo | None = None
+
+
+Preparos = MutableMapping[int, Preparando]
+
+
+def preparos_de(request: Request) -> Preparos:
+    """`app.state.ia_preparos`, criado na primeira vez (o app de teste não passa pelo `serve`)."""
+    estado = request.app.state
+    if getattr(estado, "ia_preparos", None) is None:
+        estado.ia_preparos = {}
+    preparos: Preparos = estado.ia_preparos
+    return preparos
+
+
+@dataclass(frozen=True)
+class PedidoDaVaga:
+    """O pedido montado e o que a conferência precisa dele (`conferir_candidatura`)."""
+
+    pedido: Pedido
+    enviados: dict[str, object]  # o bloco PERFIL: o que a lista permitida deixou
+    pede: list[str] | None  # o que a vaga pede, do `encaixe`; sem resultado, `None`
+    feitas: list[str]  # as perguntas do perfil que já existem
+    idioma: str  # o pedido, que é o gravado (D228.4)
+
+
+def fontes_do_perfil(con: sqlite3.Connection) -> dict[str, object]:
+    """Tudo o que o perfil sabe, como `dados_para` recebe (D227.7); a lista permitida escolhe."""
+    return asdict(perfil.dados(con)) | {
+        "habilidades": perfil.habilidades(con),
+        "experiencias": perfil.experiencias(con),
+        "cursos": perfil.cursos(con),
+        "respostas": [p for p in perfil.perguntas(con) if p.resposta],  # só as respondidas
+    }
+
+
+def pedido_da_vaga(
+    con: sqlite3.Connection, vaga_id: int, backend: str, modelo: str, idioma_painel: str
+) -> PedidoDaVaga | None:
+    """O pedido da `candidatura` da vaga, ou `None` sem perfil: nada que a lista permitida deixe ir
+    (nome, e-mail, telefone e cidade nunca vão). O texto sai no idioma da vaga; sem ele (ou
+    `outro`), no do painel."""
+    fontes = fontes_do_perfil(con)
+    enviados = dados_para("candidatura", fontes)
+    linha = con.execute(
+        "SELECT titulo, descricao_texto, idioma FROM vaga WHERE id = ?", (vaga_id,)
+    ).fetchone()
+    if not enviados or linha is None:
+        return None
+    titulo, descricao, da_vaga = linha
+    idioma = da_vaga if da_vaga in IDIOMAS_DA_CARTA else idioma_painel
+    texto = texto_encaixe(titulo or "", descricao or "")
+    achado = pedes(con, vaga_id).get(vaga_id)
+    return PedidoDaVaga(
+        pedido=pedido_candidatura(texto, fontes, idioma, backend, modelo),
+        enviados=enviados,
+        pede=None if achado is None else achado.pede,
+        feitas=[p.pergunta for p in perfil.perguntas(con)],
+        idioma=idioma,
+    )
+
+
+def gravar_resposta(
+    con: sqlite3.Connection, vaga_id: int, feito: PedidoDaVaga, resposta: Resposta, agora: datetime
+) -> None:
+    """Confere a resposta (já validada pelo esquema) e grava o preparo, que substitui o anterior;
+    as perguntas que passaram viram perguntas do perfil, com origem `ia`."""
+    c = conferir_candidatura(resposta.dados, feito.enviados, feito.pede, feito.feitas)
+    novo = Preparo(
+        idioma=feito.idioma,
+        carta=c.carta,
+        resumo=c.resumo,
+        tem=c.tem,
+        faltam=c.faltam,
+        perguntar=c.perguntar,
+        usou=c.usou,
+        backend=resposta.backend,
+        modelo=resposta.modelo,
+        versao=resposta.versao,
+        feito_em=agora.isoformat(),
+    )
+    gravar_preparo(con, vaga_id, novo)
+    for pergunta in c.perguntar:
+        perfil.gravar_pergunta(con, "ia:" + normalizar(pergunta), pergunta, "ia", agora)
+
+
+def chave_da_falha(motivo: Motivo, backend: str) -> str:
+    """O texto do motivo, com o da Anthropic à parte (D192.3), como no teste ao ligar; na IA
+    manual, o da resposta colada."""
+    if backend == manual.BACKEND:
+        return "detalhe.candidatura.falha_manual"
+    especial = motivo == "chave_recusada" and backend == "anthropic"
+    return "configuracoes.ia.falha." + motivo + (".anthropic" if especial else "")
+
+
+def contexto_do_preparo(
+    con: sqlite3.Connection, vaga_id: int, preparos: Preparos | None, idioma_painel: str
 ) -> dict[str, Any]:
-    """As variáveis de `detalhe/corpo.html`; `retorno` é para onde Salvar e Ocultar voltam."""
+    """O que `detalhe/_preparo.html` precisa. A falha guardada sai na primeira leitura."""
+    tarefa = tarefa_ia(con, "candidatura")
+    em_curso = None if preparos is None else preparos.get(vaga_id)
+    falha = None
+    if preparos is not None and em_curso is not None and em_curso.estado == "falhou":
+        del preparos[vaga_id]
+        falha = chave_da_falha(em_curso.motivo or "servico_fora", em_curso.backend)
+    no_manual = tarefa.backend == manual.BACKEND
+    feito = (
+        pedido_da_vaga(con, vaga_id, tarefa.backend, tarefa.modelo, idioma_painel)
+        if tarefa.ligada
+        else None
+    )
+    gravado = preparo(con, vaga_id)
+    return {
+        "ligada": tarefa.ligada,
+        "manual": no_manual,
+        "privacidade": frase_de_privacidade(tarefa, "detalhe.candidatura.privacidade."),
+        "sem_perfil": tarefa.ligada and feito is None,
+        "preparando": em_curso is not None and em_curso.estado == "preparando",
+        "falha": falha,
+        "gravado": gravado,
+        "citados": ", ".join(citados(gravado.faltam, f"{gravado.carta}\n{gravado.resumo}"))
+        if gravado
+        else "",
+        "texto_manual": manual.texto_para_copiar(feito.pedido) if no_manual and feito else None,
+    }
+
+
+def contexto_do_detalhe(
+    con: sqlite3.Connection,
+    vaga: Detalhe,
+    hoje: date,
+    retorno: str,
+    preparos: Preparos | None = None,
+    idioma: str = "pt",
+) -> dict[str, Any]:
+    """As variáveis de `detalhe/corpo.html`; `retorno` é para onde Salvar e Ocultar voltam;
+    `preparos` e `idioma` (o do painel) são do preparo de candidatura."""
     # uma fonte pode mostrar a vaga em mais de um escopo, com URLs diferentes: todos os links
     unicas: dict[tuple[str, str], Any] = {}
     for f in vaga.fontes:
@@ -132,4 +287,5 @@ def contexto_do_detalhe(
         # o botão principal: link próprio de candidatura, senão o e-mail, senão a vaga na fonte
         "principal": principal,
         "habilidades": _habilidades(con, vaga),
+        "preparo": contexto_do_preparo(con, vaga.id, preparos, idioma),
     }

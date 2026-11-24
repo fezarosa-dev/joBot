@@ -29,10 +29,10 @@ from jobot.painel.consultas import (
     inteiro_da_url,
     relogio_do_painel,
 )
-from jobot.painel.detalhe_vaga import contexto_do_detalhe
+from jobot.painel.detalhe_vaga import contexto_do_detalhe, preparos_de
 from jobot.painel.formulario import campo_unico
 from jobot.painel.rotas.vagas import VagaId, com_vary
-from jobot.painel.seguranca import Con, renderizar
+from jobot.painel.seguranca import Con, idioma_do_pedido, renderizar
 
 router = APIRouter()
 
@@ -76,7 +76,8 @@ def _contexto(
 ) -> dict[str, Any]:
     hoje = relogio_do_painel(request).agora().astimezone().date()
     retorno = f"/vagas/{vaga.id}" + (f"?busca={busca_url}" if busca_url else "")
-    return contexto_do_detalhe(con, vaga, hoje, retorno)
+    idioma = idioma_do_pedido(request)
+    return contexto_do_detalhe(con, vaga, hoje, retorno, preparos_de(request), idioma)
 
 
 @router.get("/vagas/{vaga_id}")

@@ -92,6 +92,7 @@ class Painel:
         self.banco = tmp_path / "jobot.db"
         self.http, self.app = http, app
         self.fabrica: Fabrica = app.state.ia
+        self.cofre: Cofre = app.state.cofre
         self.token: str = app.state.csrf
         with closing(abrir(self.banco)) as con:
             self.vaga = inserir_vaga(con, titulo="Pessoa analista", descricao_texto=DESCRICAO)
@@ -172,7 +173,6 @@ def painel(tmp_path: Path) -> Iterator[Painel]:
         app, base_url=BASE, follow_redirects=False, headers={"Accept-Language": "pt"}
     ) as http:
         p = Painel(tmp_path, http, app)
-        p.cofre = app.state.cofre
         p.cofre.gravar("ia_gemini", "chave-gemini-1234567890")
         yield p
         if p.fabrica.soltar is not None:
@@ -330,6 +330,8 @@ def test_clique_duplo_nao_dispara_outro(pronto: Painel) -> None:
 
 def test_resultado_mostra_carta_resumo_tem_falta_usou_e_avisos(pronto: Painel) -> None:
     pronto.fabrica.resposta = RESPOSTA | {"carta": "Trabalho com Python e domino Kubernetes."}
+    with pronto.con() as con:
+        perfil.gravar_dados(con, perfil.Dados(cargo_atual="Analista"), RelogioFalso().agora())
     html = _feito(pronto)
     secao = _secao(html)
     carta = secao.css_first("textarea[name='carta']")
@@ -605,7 +607,7 @@ def test_ia_manual_mostra_o_pedido_para_copiar_e_o_campo_para_colar(painel: Pain
     painel.habilidades("Python")
     secao = _secao(painel.pagina())
     pedido = secao.css_first("textarea[name='pedido']")
-    assert pedido is not None and pedido.attributes.get("readonly") is not None
+    assert pedido is not None and "readonly" in pedido.attributes
     texto = pedido.text()
     assert "<<<VAGA" in texto and "<<<PERFIL" in texto and '"carta"' in texto
     form = secao.css_first(f"form[action='/vagas/{painel.vaga}/candidatura/colar']")

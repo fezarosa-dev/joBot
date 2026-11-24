@@ -1357,19 +1357,22 @@
 
   // "Copiar endereço" do e-mail de candidatura (desenho 5.7): vem hidden e só aparece com
   // JavaScript (sem ele o endereço continua à vista). A troca do #estado-da-vaga traz o botão de
-  // novo hidden: o afterSettle o mostra outra vez
+  // novo hidden: o afterSettle o mostra outra vez. `data-copiar-de` (T438) copia o texto de hoje
+  // da caixa com aquele id (a carta e o resumo, que a pessoa pode ter editado)
+  const COPIAR = "button[data-copiar], button[data-copiar-de]";
   const mostrarCopiar = () => {
-    for (const botao of document.querySelectorAll("button[data-copiar][hidden]")) botao.hidden = false;
+    for (const botao of document.querySelectorAll(`:is(${COPIAR})[hidden]`)) botao.hidden = false;
   };
   mostrarCopiar();
   document.addEventListener("htmx:afterSettle", mostrarCopiar);
   document.addEventListener("click", async (evento) => {
-    const botao = evento.target.closest?.("button[data-copiar]");
+    const botao = evento.target.closest?.(COPIAR);
     if (!botao) return;
+    const caixa = botao.dataset.copiarDe ? document.getElementById(botao.dataset.copiarDe) : null;
     let copiou = false;
     try {
       // sem permissão (ou sem clipboard) cai no catch
-      await navigator.clipboard.writeText(botao.dataset.copiar);
+      await navigator.clipboard.writeText(caixa ? caixa.value : botao.dataset.copiar);
       copiou = true;
     } catch {
       copiou = false;

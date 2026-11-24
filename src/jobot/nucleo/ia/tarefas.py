@@ -283,7 +283,6 @@ def conferir_candidatura(
         else []
     )
     tem, faltam = casar(pede or (), meu)
-    texto = normalizar(f"{dados['carta']}\n{dados['resumo']}")
     usou = dict.fromkeys(c for c in dados["usou"] if not _vazio(enviados.get(c)))
     perguntar = perguntas_que_ficam([{"pergunta": p} for p in dados["perguntar"]], feitas)
     return Candidatura(
@@ -294,9 +293,12 @@ def conferir_candidatura(
         faltam=faltam,
         perguntar=tuple(p["pergunta"] for p in perguntar),
         usou=tuple(usou),
-        citados=tuple(f for f in faltam if _aparece(normalizar(f), texto)),
+        citados=citados(faltam, f"{dados['carta']}\n{dados['resumo']}"),
     )
 
 
-def citados(faltam: Sequence[str], texto: str) -> tuple[str, ...]:  # stub do vermelho
-    return ()
+def citados(faltam: Sequence[str], texto: str) -> tuple[str, ...]:
+    """Os itens de `faltam` que o texto (carta e resumo) cita como palavra inteira, normalizados:
+    o aviso "A carta cita algo que não está no seu perfil" (desenho 9)."""
+    alvo = normalizar(texto)
+    return tuple(f for f in faltam if _aparece(normalizar(f), alvo))
