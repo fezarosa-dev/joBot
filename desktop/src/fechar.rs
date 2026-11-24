@@ -264,19 +264,62 @@ mod testes {
 
     #[test]
     fn desinstalar_nunca_apaga_a_pasta_de_dados() {
-        for (nome, pasta) in [("igual", "."), ("acima", ".."), ("relativa", "rel")] {
+        // a pasta candidata tem `bin/`: só a guarda de cada caso a separa de ser apagada
+        for (nome, pasta) in [("igual", "."), ("acima", "..")] {
             let raiz = temporaria(nome);
             let dados = raiz.join("dados");
             std::fs::create_dir_all(&dados).unwrap();
-            let pasta = if pasta == "rel" {
-                PathBuf::from("rel")
-            } else {
-                dados.join(pasta).canonicalize().unwrap()
-            };
-            let instalacao = serde_json::json!({"canal": "casca", "pasta": pasta, "venv": ""});
-            std::fs::write(dados.join("instalacao.json"), instalacao.to_string()).unwrap();
-            std::fs::write(dados.join("jobot.db"), "banco").unwrap();
+            let pasta = dados.join(pasta).canonicalize().unwrap();
+            std::fs::create_dir_all(pasta.join("bin")).unwrap();
+            gravar_instalacao(&dados, &pasta);
+            assert_eq!(pasta_da_casca(&dados), None, "{nome}");
             desinstalar_contando(&dados);
+            assert!(dados.join("jobot.db").is_file(), "{nome}");
+        }
+    }
+
+    fn gravar_instalacao(dados: &Path, pasta: &Path) {
+        let instalacao = serde_json::json!({"canal": "casca", "pasta": pasta, "venv": ""});
+        std::fs::write(dados.join("instalacao.json"), instalacao.to_string()).unwrap();
+        std::fs::write(dados.join("jobot.db"), "banco").unwrap();
+    }
+
+    #[test]
+    fn desinstalar_nunca_apaga_pasta_relativa() {
+        // relativa ao diretório atual, não à pasta de dados: fica, mesmo com cara de casca
+        let dados = temporaria("relativa");
+        let rel = PathBuf::from(format!("jobot-fechar-rel-{}", std::process::id()));
+        std::fs::create_dir_all(rel.join("bin")).unwrap();
+        gravar_instalacao(&dados, &rel);
+        let achada = pasta_da_casca(&dados);
+        desinstalar_contando(&dados);
+        let ficou = rel.join("bin").is_dir();
+        let _ = std::fs::remove_dir_all(&rel);
+        assert_eq!(achada, None);
+        assert!(ficou);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn desinstalar_nunca_apaga_a_pasta_de_dados_por_symlink() {
+        // a pasta por link (com `/` no fim, que o segue) até os dados ou acima; ou os dados
+        // chamados por link
+        for nome in ["link-igual", "link-acima", "dados-por-link"] {
+            let raiz = temporaria(nome);
+            let dados = raiz.join("dados");
+            std::fs::create_dir_all(dados.join("bin")).unwrap();
+            std::fs::create_dir_all(raiz.join("bin")).unwrap();
+            let link = raiz.join("link");
+            let alvo = if nome == "link-acima" { &raiz } else { &dados };
+            std::os::unix::fs::symlink(alvo, &link).unwrap();
+            let (chamada, pasta) = if nome == "dados-por-link" {
+                (link.clone(), dados.canonicalize().unwrap())
+            } else {
+                (dados.clone(), PathBuf::from(format!("{}/", link.display())))
+            };
+            gravar_instalacao(&chamada, &pasta);
+            assert_eq!(pasta_da_casca(&chamada), None, "{nome}");
+            desinstalar_contando(&chamada);
             assert!(dados.join("jobot.db").is_file(), "{nome}");
         }
     }

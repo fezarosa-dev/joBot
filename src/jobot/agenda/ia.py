@@ -62,7 +62,7 @@ def _fila(
     con: sqlite3.Connection, backend: str, modelo: str, lim: Mapping[str, int]
 ) -> list[tuple[int, TextoVaga, str]]:
     fila = []
-    # ponytail: monta o texto e o hash de toda vaga aberta a cada rodada; guardar a chave na vaga
+    # shortcut: monta o texto e o hash de toda vaga aberta a cada rodada; guardar a chave na vaga
     # se a base crescer a ponto de pesar
     for c in candidatas(con):
         texto = texto_encaixe(c.titulo, c.descricao)
@@ -143,7 +143,7 @@ async def rodada(
             hoje = agora.astimezone().date()  # DP8: o dia é o local
             recalcular_encaixe(con, None, regras, hoje=hoje, vaga_id=vaga_id)
     finally:
-        # ponytail: fechar o cliente `httpx` não corta a leitura já em curso na outra thread (medido
+        # shortcut: fechar o cliente `httpx` não corta a leitura já em curso na outra thread (medido
         # na T412); no local, o `Llama.encerrar` do fim de `vida` derruba o servidor e a conexão
         backend.fechar()
 

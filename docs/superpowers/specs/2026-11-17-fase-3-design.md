@@ -182,7 +182,7 @@ Botão "Encerrar o joBot" em Configurações › Geral e na paleta de comandos, 
 
 ### 7.1 Regra de pasta compartilhada
 
-A casca calcula a pasta de dados com a mesma regra de `pastas.py` (6.1). Para não haver duas regras, `pastas.py` vira a fonte, e um teste Python lê `desktop/src/servidor.rs` como texto e confere que os três caminhos e o `JOBOT_DADOS` aparecem iguais (ponytail: conferência por texto; se divergir muito, a casca passa a perguntar `jobot dados --json`, um subcomando de uma linha).
+A casca calcula a pasta de dados com a mesma regra de `pastas.py` (6.1). Para não haver duas regras, `pastas.py` vira a fonte, e um teste Python lê `desktop/src/servidor.rs` como texto e confere que os três caminhos e o `JOBOT_DADOS` aparecem iguais (shortcut: conferência por texto; se divergir muito, a casca passa a perguntar `jobot dados --json`, um subcomando de uma linha).
 
 ### 7.2 O que a casca grava
 
