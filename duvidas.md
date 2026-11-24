@@ -4025,3 +4025,21 @@ A sessão propôs abrir o painel no Chrome da pessoa como janela de app. O dono 
 **Como desfazer:** tirar o último passo do `vigia.yml` e o `actions: write`.
 
 **Ver também:** ADR 0002, ADR 0016, ADR 0018, D31.
+
+## D220. Correções da code-ultrareview do repositório inteiro
+
+**Status:** escolhas da sessão em 2026-11-24, a pedido do dono ("pode corrigir essas coisas"; "decisões, tente tomar você mesmo"), para discutir com o dono. Cada lote da revisão escreve aqui os seus itens.
+
+**Contexto:** a revisão olhou a `dev` em 6421277; cada lote conferiu os achados contra a `dev` atual antes de mexer.
+
+**Lote "nucleo"** (branch `fix/rev-nucleo`):
+
+1. **SmartRecruiters sem país nas buscas pede o Brasil** (escolha da sessão, para discutir com o dono). O "testar" do painel passa `paises=()` e dava sempre "zero vagas". Em vez de o painel passar os países das buscas ativas, o coletor faz como o Workday, o Oracle HCM e o Eightfold (A21): lista vazia vira `br`; só país inválido segue sem escopo. Isso vale também na execução agendada sem busca com país. Desfazer: tirar o `_PADRAO` de `smartrecruiters.escopos` e voltar o teste `test_escopos_sem_pais_nas_buscas_pedem_o_brasil` a `[]`.
+2. **Data sem hora do Oracle HCM e do Workday é meia-noite de Brasília** (escolha da sessão, para discutir com o dono). Era meia-noite UTC, que no painel (UTC-3) caía no dia anterior. Vale para todo país do escopo, não só o Brasil, porque o painel mostra no fuso de quem usa. `PostedDate` com hora (Oracle) agora vale como o instante que veio. A data da lista segue ganhando do instante do detalhe (`item.publicada_em or inicio`), como antes. Desfazer: `tzinfo=UTC` em `oracle_hcm._publicada` e no `detalhar` do Workday, e os testes de volta.
+3. **Guarda de `bool` no `id` repetida em cada coletor, também fora do lote** (escolha da sessão, para discutir com o dono). Além de RemoteOK, Jobicy, Ashby e Gupy (achados da revisão), Remotive, Lever e Greenhouse tinham o mesmo `isinstance(id, int | str)` sem a guarda e ganharam a guarda e o teste com `True`. Sem ajudante compartilhado, como pede «Molde de coletor». Desfazer: tirar o `and not isinstance(..., bool)` de cada um.
+4. **Cotação inválida no banco vale como ausente** (escolha da sessão, para discutir com o dono). `cotacao_mais_recente` devolve `None` para venda não finita, zero ou negativa (banco corrompido de fora); `taxa_cruzada` levanta `ValueError` como as irmãs; o painel trata uma cotação de exibição inválida como "ainda não temos a cotação" (o valor em reais, com a nota), em vez de dar erro 500. Desfazer: tirar as três guardas e os testes `test_venda_invalida_no_banco_e_ausente`, `test_taxa_cruzada_recusa_cotacao_invalida` e `test_cotacao_de_exibicao_invalida_vale_como_ausente`.
+5. **Sitemap só com filho desconhecido falha; misturado com `<url>` segue** (escolha da sessão, para discutir com o dono). Abler e Super Estágios: `urlset` com filhos e nenhum `<url>` é `formato_mudou`; filho desconhecido ao lado de `<url>` boas é ignorado, sem deixar "parcial". O JSON-LD do Super Estágios para de descer depois de 100 níveis (como o `_PROFUNDIDADE` do Abler). Desfazer: tirar as guardas novas de `_ler_sitemap` e o `fundo` de `_candidatos`.
+
+**Como desfazer:** cada item diz o seu.
+
+**Ver também:** A21, D45, D57, DR-53, `registros/padroes.md` («Molde de coletor», «JSON e XML externos», «Decimal de fora», «Dia de calendário»).
