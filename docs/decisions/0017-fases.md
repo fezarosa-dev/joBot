@@ -2,7 +2,7 @@
 
 - **Status:** aceita
 - **Data:** 2026-11-13
-- **Atualizada:** 2026-11-16 (versões 0.1.1, 0.2.0 e 0.2.1 entre a fase 1 e a fase 2; fase 3 vira o Instalador, as seguintes andam um número, e a versão 0.3.0 traz o Panorama e a fila, D138; fase 3 com o app de desktop, D142, e o ajuste do Laya antes da fase 4, D141; fase 2 concluída e 0.3.0); 2026-11-17 (fase 3 começa a ser construída, D171 e [0025](0025-app-de-desktop-e-instalador.md); fase 3 concluída na 0.4.0; fase 4 começa a ser construída, rumo à 0.5.0, e o ajuste do Laya antes da fase 4 fica adiado, para confirmar, D185 e [0026](0026-ia-da-fase-4.md)); 2026-11-24 (o dono autoriza o treino do Laya antes da fase 4, e a 0.5.0 sai sem o Laya treinado, D219; a 0.5.0 sai com a primeira parte da fase 4, rumo à 0.6.0, T421)
+- **Atualizada:** 2026-11-16 (versões 0.1.1, 0.2.0 e 0.2.1 entre a fase 1 e a fase 2; fase 3 vira o Instalador, as seguintes andam um número, e a versão 0.3.0 traz o Panorama e a fila, D138; fase 3 com o app de desktop, D142, e o ajuste do Laya antes da fase 4, D141; fase 2 concluída e 0.3.0); 2026-11-17 (fase 3 começa a ser construída, D171 e [0025](0025-app-de-desktop-e-instalador.md); fase 3 concluída na 0.4.0; fase 4 começa a ser construída, rumo à 0.5.0, e o ajuste do Laya antes da fase 4 fica adiado, para confirmar, D185 e [0026](0026-ia-da-fase-4.md)); 2026-11-24 (o dono autoriza o treino do Laya antes da fase 4, e a 0.5.0 sai sem o Laya treinado, D219; a 0.5.0 sai com a primeira parte da fase 4, rumo à 0.6.0, T421; o Laya é o modelo local padrão da 0.6.0, D219 e D237)
 
 ## Contexto
 
@@ -25,7 +25,7 @@ O projeto é grande. Ir por fases deixa cada entrega testada antes da próxima. 
 ## App de desktop na fase 3 e Laya antes da fase 4 (2026-11-15)
 
 - A fase 3 inclui, além do instalador, o app de desktop: uma casca Tauri com ícone e janela própria em volta do mesmo painel, que continua em 127.0.0.1. O mesmo projeto Tauri gera o instalador (D142). O visual de app do Mac vem da D140.
-- ~~O ajuste fino do Laya (ADR 0015) acontece antes da fase 4, e o Laya ajustado entra no encaixe junto com o Qwen local (D141).~~ ~~O ajuste do Laya antes da fase 4 está adiado, para confirmar (2026-11-17, D185.8): o treino custa, e o dono decide se autoriza o gasto ou adia; até lá, a fase 4 segue com as habilidades pela IA escolhida ([0026](0026-ia-da-fase-4.md)).~~ O dono autorizou o treino do Laya antes da fase 4 em 2026-11-24 (D219, [0015](0015-treino.md)), no RunPod, só na Community Cloud e pela GPU de menor custo total. A 0.5.0 sai sem o Laya treinado, que entra numa versão seguinte (escolha da sessão, para discutir com o dono, D219). Os outros treinos seguem na fase 7.
+- ~~O ajuste fino do Laya (ADR 0015) acontece antes da fase 4, e o Laya ajustado entra no encaixe junto com o Qwen local (D141).~~ ~~O ajuste do Laya antes da fase 4 está adiado, para confirmar (2026-11-17, D185.8): o treino custa, e o dono decide se autoriza o gasto ou adia; até lá, a fase 4 segue com as habilidades pela IA escolhida ([0026](0026-ia-da-fase-4.md)).~~ O dono autorizou o treino do Laya antes da fase 4 em 2026-11-24 (D219, [0015](0015-treino.md)), no RunPod, só na Community Cloud e pela GPU de menor custo total. A 0.5.0 sai sem o Laya treinado, ~~que entra numa versão seguinte~~ e ele é o modelo local padrão da 0.6.0 (D219, confirmada pelo dono em 2026-11-24, D237). Os outros treinos seguem na fase 7.
 - Nenhuma fase muda de número nem de nome.
 
 ## Consequências

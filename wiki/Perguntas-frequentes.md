@@ -18,7 +18,7 @@ E o login do Claude Code teria de ser feito de novo lá dentro (no macOS ele fic
 <summary><strong>Preciso fazer login do Claude dentro do joBot?</strong></summary>
 
 Não. Você entra uma vez no Claude Code, pelo terminal, no fluxo da própria Anthropic. O joBot só detecta que está pronto e usa.
-Ele nunca vê a sua senha nem o seu token. Essa sessão ainda espera a decisão do dono sobre os termos de uso; na 0.5.0, o Claude entra pela chave da API da Anthropic, posta em Configurações › Serviços. Veja [Usando o Claude Code que você já tem](https://github.com/fezarosa-dev/joBot#usando-o-claude-code) e a [ADR 0010](https://github.com/fezarosa-dev/joBot/blob/main/docs/decisions/0010-claude-code-da-pessoa.md).
+Ele nunca vê a sua senha nem o seu token. Essa sessão ainda espera a decisão do dono sobre os termos de uso; na 0.5.0 e na 0.6.0, o Claude entra pela chave da API da Anthropic, posta em Configurações › Serviços. Veja [Usando o Claude Code que você já tem](https://github.com/fezarosa-dev/joBot#usando-o-claude-code) e a [ADR 0010](https://github.com/fezarosa-dev/joBot/blob/main/docs/decisions/0010-claude-code-da-pessoa.md).
 </details>
 
 <details>
@@ -76,7 +76,7 @@ O cartão do Gmail está em Configurações, Contas, e a leitura dos e-mails con
 <summary><strong>Meus dados vão para algum servidor?</strong></summary>
 
 Não existe servidor do joBot. Seus dados ficam no seu computador.
-Eles só vão para os serviços que você ligar: Anthropic, OpenAI ou Google (se ligar uma tarefa de IA num deles; vai só o texto da vaga, nunca o seu perfil), o endereço de IA que você digitar, Google (se ligar o Gmail) e Telegram (se ligar o resumo diário). Também podem ir para o Jev (se escolher essa opção na classificação de e-mail). O RunPod nunca recebe dado seu: o treino do Laya roda fora do app, só com vagas de fontes públicas. Na IA manual, vão para a IA de chat onde você colar.
+Eles só vão para os serviços que você ligar: Anthropic, OpenAI ou Google (se ligar uma tarefa de IA num deles; conforme a tarefa, vai o texto da vaga, o seu perfil sem nome, e-mail, telefone e cidade, ou o texto do currículo sem e-mail, telefone e CPF), o endereço de IA que você digitar, Google (se ligar o Gmail) e Telegram (se ligar o resumo diário). Também podem ir para o Jev (se escolher essa opção na classificação de e-mail). O RunPod nunca recebe dado seu: o treino do Laya roda fora do app, só com vagas de fontes públicas. Na IA manual, vão para a IA de chat onde você colar.
 </details>
 
 <details>

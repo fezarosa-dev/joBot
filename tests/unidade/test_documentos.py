@@ -386,6 +386,8 @@ CITA: Mapping[str, Mapping[str, tuple[str, ...]]] = {
             r"endereço compatível",
             r"só quando você liga",
             r"as tarefas vêm desligadas",
+            r"seu perfil",
+            r"currículo",
         ),
         "modelo local": (r"GitHub", r"Hugging Face", r"CDNs", r"modelo local", r"só quando você"),
     },
@@ -413,6 +415,8 @@ CITA: Mapping[str, Mapping[str, tuple[str, ...]]] = {
             r"compatible address",
             r"only when you turn on",
             r"the tasks come off",
+            r"your profile",
+            r"résumé",
         ),
         "modelo local": (r"GitHub", r"Hugging Face", r"CDNs", r"local model", r"only when you"),
     },
@@ -1203,3 +1207,193 @@ def test_tela_de_instalacao_cita_o_modelo_local(lingua: str) -> None:
         assert f"**{rotulo}**" in conteudo, (arquivo, rotulo)
         assert "Hugging Face" in conteudo, arquivo
         assert not SO_O_NAVEGADOR.search(conteudo), arquivo
+
+
+# T440: a 0.6.0 nos documentos. Os rótulos vêm do catálogo do painel (o documento copia a tela);
+# os outros termos só o texto novo tem.
+IA_0_6_0 = {"pt": ("O que a 0.6.0 traz", "IA manual"), "en": ("What 0.6.0 brings", "Manual AI")}
+ROTULOS_0_6_0 = (
+    "configuracoes.perfil.curriculo.aprovar",
+    "configuracoes.perfil.sugeridas.titulo",
+    "detalhe.candidatura.preparar",
+    "detalhe.candidatura.aviso",
+)
+# o que a 0.5.0 dizia da 0.6.0 e do Laya no futuro; com a 0.6.0 construída, não pode sobrar
+VELHO_0_6_0 = re.compile(
+    r"chegam na 0\.6\.0|arrive in 0\.6\.0|vai ajudar a preparar|will help prepare"
+    r"|Modelo local \(Qwen\)|Local model \(Qwen\)|versão seguinte|later version|next version"
+)
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_readme_traz_a_ia_da_0_6_0(lingua: str) -> None:
+    """A seção de IA diz o que a 0.6.0 traz, com os rótulos da tela; o README não fala mais da
+    0.6.0 e do Laya no futuro (desenho 14 da fase 4)."""
+    conteudo = texto(README[lingua])
+    ia = secao(conteudo, SECAO_IA[lingua])
+    assert "Qwen3.5-4B" in ia, README[lingua]  # controle: achou a seção
+    catalogo = i18n.carregar()[lingua]
+    for termo in (*IA_0_6_0[lingua], *(catalogo[c] for c in ROTULOS_0_6_0)):
+        assert termo in ia, (README[lingua], termo)
+    assert VELHO_0_6_0.findall(conteudo) == [], README[lingua]
+
+
+def test_velho_0_6_0_pega_as_frases_antigas() -> None:
+    """Controle das regex: as frases que a 0.5.0 deixou no README e na wiki casam."""
+    assert VELHO_0_6_0.search("ele entra numa versão seguinte, depois do treino")
+    assert VELHO_0_6_0.search("| **Local model (Qwen)** | Free |")
+    assert VELHO_NA_WIKI.search("| **IA manual** (copiar e colar), na 0.6.0 | Grátis |")
+    assert SO_A_VAGA.search("vai só o texto da vaga, nunca o seu perfil")
+    assert NUNCA_ENTRAM.search("e nome, e-mail, telefone e cidade nunca entram nos pedidos.")
+    assert NUNCA_ENTRAM.search("Name, email, phone and city never go into the requests.")
+    assert CPF_PREENCHIDO.search(
+        "O e-mail, o telefone e o CPF são tirados do texto antes de ir à IA e preenchidos"
+    )
+    assert CPF_PREENCHIDO.search(
+        "Email, phone and CPF are taken out of the text before it goes to the AI and filled in"
+    )
+    assert VELHO_NA_0014.search("- CPF e data de nascimento ficam no SQLite (banco)")
+    assert VELHO_NA_0014.search("- Exportar o perfil não leva documentos pessoais (como o CPF)")
+    assert VELHO_NA_0014.search("Nome, e-mail, telefone e cidade nunca vão; e-mail")
+
+
+# cada tarefa diz o que manda (a lista permitida da T431 e as frases das abas IA e Perfil)
+CADA_TAREFA = {
+    "pt": ("sem nome, e-mail, telefone e cidade", "sem e-mail, telefone e CPF", "IA manual"),
+    "en": ("without name, email, phone and city", "without email, phone and CPF", "manual AI"),
+}
+# o que a 0.5.0 dizia (só o texto da vaga sai) e o CPF guardado, que a 0.6.0 não guarda
+SO_A_VAGA = re.compile(
+    r"A IA só recebe o texto da vaga|The AI only gets the job text|nunca o seu perfil"
+    r"|never your profile|CPF e data de nascimento ficam"
+    r"|CPF \(Brazilian tax ID\) and date of birth stay"
+)
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_privacidade_diz_o_que_cada_tarefa_manda(lingua: str) -> None:
+    """Com a 0.6.0 o perfil e o texto do currículo saem para o serviço escolhido: a privacidade
+    do README diz o que vai em cada tarefa, e nem ela nem o FAQ dizem que só a vaga sai."""
+    privacidade = secao(texto(README[lingua]), SECAO_PRIVACIDADE[lingua])
+    assert "Common Crawl" in privacidade, README[lingua]  # controle: achou a seção
+    for termo in CADA_TAREFA[lingua]:
+        assert termo in privacidade, (README[lingua], termo)
+    for nome, conteudo in ((README[lingua], privacidade), (FAQ[lingua], texto(FAQ[lingua]))):
+        assert SO_A_VAGA.findall(conteudo) == [], nome
+
+
+NA_0_6_0 = {
+    "pt": ("Configurações › Perfil", "IA manual", "pypdf"),
+    "en": ("Settings › Profile", "Manual AI", "pypdf"),
+}
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_changelog_traz_a_0_6_0_em_nao_lancado(lingua: str) -> None:
+    """O "Não lançado" traz o perfil completo, o currículo, a IA manual e Preparar candidatura,
+    com o rótulo do botão (padrões «ADR e CHANGELOG»)."""
+    conteudo = texto(CHANGELOG[lingua])
+    assert NAO_LANCADO[lingua] in conteudo, CHANGELOG[lingua]
+    inicio = conteudo.index(NAO_LANCADO[lingua])
+    nao_lancado = conteudo[inicio : conteudo.index("\n## [", inicio + 1)]
+    preparar = i18n.carregar()[lingua]["detalhe.candidatura.preparar"]
+    for termo in (*NA_0_6_0[lingua], preparar):
+        assert termo in nao_lancado, (CHANGELOG[lingua], termo)
+
+
+# wiki: o que cada página precisa dizer da 0.6.0, e o que ela dizia no futuro
+WIKI_0_6_0 = {
+    "wiki/Tecnologias.md": (
+        "Laya",
+        "IA manual",
+        "o nome e a cidade escritos nele vão junto",
+        "das versões do llama.cpp",
+    ),
+    "wiki/Technologies.md": (
+        "Laya",
+        "Manual AI",
+        "the name and city written in it go along",
+        "from llama.cpp's releases",
+    ),
+    "wiki/Como-funciona.md": (
+        "Preparar candidatura",
+        "IA manual",
+        "o nome e a cidade escritos nele vão junto",
+    ),
+    "wiki/How-it-works.md": (
+        "Prepare Application",
+        "manual AI",
+        "the name and city written in it go along",
+    ),
+    "wiki/Perguntas-frequentes.md": ("sem nome, e-mail, telefone e cidade",),
+    "wiki/Frequently-asked-questions.md": ("without name, email, phone and city",),
+    "wiki/Roteiro.md": ("Laya",),
+    "wiki/Roadmap.md": ("Laya",),
+}
+VELHO_NA_WIKI = re.compile(
+    r"versão seguinte|later version|na 0\.6\.0 \||in 0\.6\.0 \||vai ajudar a preparar"
+    r"|will help prepare|chega na 0\.6\.0|comes in 0\.6\.0|\(Qwen, grátis|\(Qwen, free"
+)
+# o absoluto que a tarefa curriculo não cumpre: o nome e a cidade escritos no PDF vão (D230.5)
+NUNCA_ENTRAM = re.compile(r"nunca entram nos pedidos|never go into the requests")
+
+
+@pytest.mark.parametrize("caminho", sorted(WIKI_0_6_0))
+def test_wiki_traz_a_0_6_0(caminho: str) -> None:
+    conteudo = texto(caminho)
+    for termo in WIKI_0_6_0[caminho]:
+        assert termo in conteudo, (caminho, termo)
+    assert VELHO_NA_WIKI.findall(conteudo) == [], caminho
+    assert NUNCA_ENTRAM.findall(conteudo) == [], caminho
+
+
+# o CPF sai do texto do currículo, mas não é preenchido nem guardado (D185.13, D236.3)
+CPF_PREENCHIDO = re.compile(
+    r"CPF são tirados do texto antes de ir à IA e preenchidos"
+    r"|CPF are taken out of the text before it goes to the AI and filled in"
+)
+CPF_NAO_GUARDADO = {"pt": "o CPF não é guardado", "en": "the CPF is not kept"}
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_cpf_do_curriculo_nao_e_preenchido(lingua: str) -> None:
+    """O README e o CHANGELOG dizem que o e-mail e o telefone são preenchidos no computador e
+    que o CPF, tirado do texto, não é guardado: o perfil não tem CPF."""
+    for caminho in (README[lingua], CHANGELOG[lingua]):
+        conteudo = texto(caminho)
+        assert CPF_NAO_GUARDADO[lingua] in conteudo, caminho
+        assert CPF_PREENCHIDO.findall(conteudo) == [], caminho
+
+
+# ADR 0014: o que ela dizia do CPF guardado e o absoluto do contato, fora do riscado
+VELHO_NA_0014 = re.compile(
+    r"CPF e data de nascimento ficam no SQLite|não leva documentos pessoais \(como o CPF\)"
+    r"|cidade nunca vão"
+)
+
+
+def test_adr_0014_sem_cpf_guardado_e_com_a_regra_por_tarefa() -> None:
+    """D236.3: o perfil não guarda CPF nem data de nascimento, e o texto do currículo leva o
+    nome e a cidade escritos nele; fora do riscado, a ADR 0014 não diz o contrário."""
+    vivo = re.sub(r"~~.*?~~", "", texto("docs/decisions/0014-seguranca-e-privacidade.md"))
+    assert "keyring" in vivo  # controle: achou a ADR
+    assert VELHO_NA_0014.findall(vivo) == []
+    assert "o nome e a cidade escritos nele vão junto" in vivo
+
+
+LAYA_NA_0_6_0 = (
+    "docs/decisions/0015-treino.md",
+    "docs/decisions/0017-fases.md",
+    "docs/decisions/0026-ia-da-fase-4.md",
+)
+
+
+@pytest.mark.parametrize("caminho", LAYA_NA_0_6_0)
+def test_adr_diz_o_laya_padrao_na_0_6_0(caminho: str) -> None:
+    """D219.20: o Laya é o modelo local padrão da 0.6.0; fora do riscado, nenhuma linha diz que
+    ele entra numa versão seguinte."""
+    linhas = [linha for linha in texto(caminho).splitlines() if linha.startswith("- ")]
+    vivas = [re.sub(r"~~.*?~~", "", linha) for linha in linhas if "Laya" in linha]
+    assert vivas, caminho  # controle: achou as linhas do Laya
+    assert [linha for linha in vivas if "versão seguinte" in linha] == [], caminho
+    assert any("0.6.0" in linha for linha in vivas), caminho

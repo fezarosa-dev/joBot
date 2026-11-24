@@ -2,7 +2,7 @@
 
 - **Status:** aceita
 - **Data:** 2026-11-13
-- **Atualizada:** 2026-11-15 (seção do modelo leve na máquina da pessoa, D122; seção do Laya antes da fase 4, D141); antes, em 2026-11-13; 2026-11-17 (o Laya antes da fase 4 fica adiado, para confirmar, e o Laya público é um modelo de decisão, D185.8 e [0026](0026-ia-da-fase-4.md)); 2026-11-24 (o dono autoriza o treino do Laya no RunPod, só na Community Cloud e pela GPU de menor custo total; o Laya passa a ser o Qwen3.5 2B ajustado por LoRA, e a 0.5.0 sai sem ele treinado, D219)
+- **Atualizada:** 2026-11-15 (seção do modelo leve na máquina da pessoa, D122; seção do Laya antes da fase 4, D141); antes, em 2026-11-13; 2026-11-17 (o Laya antes da fase 4 fica adiado, para confirmar, e o Laya público é um modelo de decisão, D185.8 e [0026](0026-ia-da-fase-4.md)); 2026-11-24 (o dono autoriza o treino do Laya no RunPod, só na Community Cloud e pela GPU de menor custo total; o Laya passa a ser o Qwen3.5 2B ajustado por LoRA, e a 0.5.0 sai sem ele treinado, D219); 2026-11-24 (o Laya treinado vira o modelo local padrão da 0.6.0, D219 confirmada pelo dono na D237)
 
 ## Contexto
 
@@ -69,7 +69,7 @@ Nunca entra dado pessoal: currículo real e ações da pessoa no painel ficam fo
 - O que é treinado: um ajuste LoRA do Qwen3.5 2B do modelo local (o mesmo do `ia_local.json`), para a tarefa `encaixe` (as habilidades da vaga, no esquema de `nucleo/ia`) e para perguntas "verdadeiro ou falso" sobre a vaga. O nome Laya passa a ser esse modelo; o encoder mmBERT da seção "O que é treinado" fica de fora (escolha da sessão, para discutir com o dono, D219).
 - As respostas certas vêm de um modelo professor aberto e maior (um Qwen3.5 de 27 a 32B) rodando no próprio pod, não do Claude. Continuam valendo: só vagas de fontes públicas, sem e-mail, telefone e nome; o gabarito nunca entra (o conjunto de ouro público da T410 mede, e uma lista de hashes que o dono gera fora do repositório tira as vagas do gabarito dele).
 - O Laya só substitui o Qwen3.5 2B original se acertar mais no conjunto de ouro. A saída é um GGUF Q4_K_M com sha256, no formato do `ia_local.json`.
-- A 0.5.0 sai sem o Laya treinado: o treino espera uma GPU barata da Community Cloud, e o Laya entra numa versão seguinte, pelo manifesto `ia_local.json` (escolha da sessão, para discutir com o dono, D219).
+- A 0.5.0 sai sem o Laya treinado: o treino espera uma GPU barata da Community Cloud. ~~O Laya entra numa versão seguinte, pelo manifesto `ia_local.json`.~~ Treinado e medido, o Laya acertou mais que o 2B original no conjunto de ouro e é o modelo local padrão da 0.6.0, pelo manifesto `ia_local.json` (D219, confirmada pelo dono em 2026-11-24, D237).
 
 ## Consequências
 

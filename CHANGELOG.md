@@ -8,9 +8,24 @@ O formato segue o [Keep a Changelog 1.1.0](https://keepachangelog.com/pt-BR/1.1.
 
 ## [Não lançado]
 
+A segunda parte da IA chega, opcional e desligada por padrão: o perfil completo, a leitura do currículo, as perguntas sobre o que falta no perfil e a preparação de candidaturas. O modelo local padrão passa a ser o Laya.
+
+### Adicionado
+
+- Configurações › Perfil completo: contato, cargo, anos de experiência, formação, resumo, links, idiomas com o nível, habilidades e até 10 experiências e 10 cursos, cada parte com o seu Salvar. Com JavaScript, salvar uma parte não apaga o que foi digitado nas outras. Os campos de contato nunca entram nos pedidos à IA, e Apagar perfil apaga também as experiências, os cursos, as respostas e as candidaturas preparadas.
+- Ler o currículo em PDF na aba Perfil: até 5 MB e 20 páginas, lidas no seu computador. Com a tarefa Currículo ligada, a IA preenche o formulário para você conferir; o que não está escrito no currículo vem marcado "Não achei no currículo" e fica fora do Aprovar todas. O e-mail, o telefone e o CPF são tirados do texto antes de ir à IA; o e-mail e o telefone são preenchidos no seu computador, e o CPF não é guardado. Nada é gravado antes de você salvar, e o PDF e o texto dele não são guardados. PDF com senha, corrompido, só de imagem ou que não é PDF ganha um aviso próprio.
+- Questionário do perfil, com perguntas sobre você que gravam o perfil. Com a tarefa Perguntas ligada, a IA sugere até 5 perguntas sobre o que falta, cada uma com o porquê.
+- Preparar candidatura, no detalhe da vaga: com a tarefa ligada, a IA escreve a carta de apresentação e um resumo do perfil para a vaga, no idioma dela. A tela mostra o que você tem e o que falta do que a vaga pede, os dados do perfil que a IA usou, o aviso "Confira antes de usar: a IA pode errar." e um aviso quando a carta cita algo que não está no seu perfil. A carta e o resumo vêm em caixas que você edita e copia; o joBot não envia nada.
+- Perguntas sugeridas: as perguntas que a IA sugere ao preparar uma candidatura esperam você aceitar ou descartar na aba Perfil (até 20 esperam), e só a resposta de uma pergunta aceita vai nos pedidos seguintes.
+- IA manual no currículo e na candidatura: o joBot mostra o pedido, você copia e cola no chat de IA que quiser e cola a resposta de volta, que passa pelas mesmas conferências. O joBot não manda nada a ninguém.
+- Configurações › IA ganha as tarefas Currículo, Perguntas e Preparar candidatura, cada uma com a frase do que vai e para onde. Elas só rodam quando você pede e não entram no teto de 200 pedidos por dia.
+- A primeira execução ganha dois passos opcionais antes da busca: onde a IA roda e o seu perfil. Os dois têm Pular, e a busca chega com o cargo e a cidade do perfil.
+- Para quem contribui: a dependência `pypdf`, que lê o currículo num processo à parte, e as migrações do banco do perfil completo e das perguntas sugeridas.
+
 ### Alterado
 
 - O modelo local padrão passa a ser o Laya 2B, um ajuste do Qwen3.5 2B para as vagas, treinado com vagas públicas de quatro fontes (Greenhouse, Lever, We Work Remotely e Jobicy), sem vaga de site com login e sem o conjunto de ouro. No conjunto de ouro ele acerta 96,3%, contra 84% a 91% do Qwen3.5 2B original e o mesmo que o 4B e o 9B em Q4, sendo de 2 a 3,5 vezes mais rápido que eles. O cartão do modelo local em Configurações › Ferramentas e o instalador baixam o Laya (1,3 GB, das versões do joBot no GitHub) em todo computador; a memória só decide o aviso de lentidão. O Qwen3.5 2B e o 4B continuam no cartão, com um botão "Trocar para" para cada um, e quem já baixou um deles continua com ele até trocar. A lista de pedidos de rede de Privacidade e do README cita o Laya.
+- A lista de pedidos de rede de Privacidade e do README passa a dizer que, conforme a tarefa, o seu perfil (sem nome, contato e cidade) e o texto do currículo (sem e-mail, telefone e CPF) vão ao serviço de IA escolhido. O README diz o que vai em cada tarefa e deixa de dizer que o joBot guarda CPF e data de nascimento: ele não guarda.
 - Para quem contribui: `scripts/treino_laya/treinar.py` junta o LoRA pela classe de imagem e texto do Qwen3.5 e copia o tokenizador do repositório original, e o treino deixa a torre de visão de fora; o `requirements.txt` do treino ganha o `torchvision`, o `pillow` e o `flash-linear-attention`.
 
 ## [0.5.0] - 2026-11-24
