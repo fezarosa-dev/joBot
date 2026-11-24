@@ -1,8 +1,8 @@
 """Execução das páginas acompanhadas (desenho 8.8, 12.2, 12.3; plano T72).
 
 Uma execução do tipo `paginas`, com trava própria: nunca segura a busca. Cada página ativa devida
-(nunca lida ou lida há 24 h ou mais, T149) é lida uma vez; a que falha fica "falhou" sem apagar o
-texto e sem parar as outras.
+(nunca lida ou lida há 23 h ou mais, as 24 h menos a `_FOLGA`, T149) é lida uma vez; a que falha
+fica "falhou" sem apagar o texto e sem parar as outras.
 """
 
 import asyncio
@@ -36,7 +36,7 @@ _FOLGA = timedelta(hours=1)
 
 
 def _devida(pagina: Pagina, agora: datetime) -> bool:
-    """Ativa e (nunca lida, ou lida há 24 h ou mais, ou com leitura no futuro: relógio voltou)."""
+    """Ativa e (nunca lida, ou lida há 23 h ou mais, ou com leitura no futuro: relógio voltou)."""
     lida = pagina.verificada_em
     return pagina.ativa and (
         lida is None or lida > agora or agora - lida >= INTERVALOS["paginas"] - _FOLGA
