@@ -145,6 +145,26 @@ fn instalar(
     Ok(())
 }
 
+/// O "Continuar" da página Pronto quando o Modelo local não baixou (T418; D185.17): o joBot
+/// ficou instalado e a casca mostra o controle, como no fim sem falha (D207.2). Fora disso
+/// (instalação em curso ou sem o joBot), recusa.
+#[tauri::command]
+fn mostrar_controle(app: AppHandle) -> Result<(), String> {
+    if app
+        .state::<Arc<Instalacao>>()
+        .em_curso
+        .load(Ordering::SeqCst)
+    {
+        return Err("a instalação está em curso".into());
+    }
+    if servidor::jobot_instalado(&dados(), std::env::consts::OS).is_none() {
+        return Err("o joBot não está instalado".into());
+    }
+    let janela = app.get_webview_window("main").ok_or("sem a janela")?;
+    ir_ao_controle(&app, &janela);
+    Ok(())
+}
+
 /// O "Fechar" da tela de instalação e o "Parar e fechar" do alerta: no meio da instalação,
 /// cancela (a linha da instalação desfaz e fecha a janela); fora dela, fecha.
 #[tauri::command]
@@ -378,6 +398,7 @@ fn main() {
             estado_instalador,
             instalar,
             fechar_instalador,
+            mostrar_controle,
             fechar_controle,
             estado_controle,
             ligar,

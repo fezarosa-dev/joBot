@@ -11,7 +11,10 @@ Script do CI (`.github/workflows/pacotes.yml`), fora do pacote `jobot`. Quatro c
   `licencas/uv/`, o `python/<tag>/<arquivo>` (o espelho que o `uv python install --mirror`
   lê), as `wheels/` (as do alvo, já baixadas com `--require-hashes`, e a do joBot) e o
   `restricoes.txt`, e por fim o `manifesto.json`, cujo sha256 sai no stdout (o
-  `JOBOT_MANIFESTO_SHA256` do build). Em `DIR` grava o `jobot-atualizacao-<versão>-<alvo>.zip`.
+  `JOBOT_MANIFESTO_SHA256` do build). O manifesto leva também `ia_local`, os tamanhos do
+  `llama-server` do alvo e dos modelos do `nucleo/dados/ia_local.json`, que a tela do instalador
+  mostra antes de o venv existir (T418; desenho 10.1); o modelo não vai nos recursos (D185.7).
+  Em `DIR` grava o `jobot-atualizacao-<versão>-<alvo>.zip`.
   O navegador não entra: o joBot não redistribui o Chrome for Testing que o Playwright baixa
   (D183.24).
 - `exes --recursos S --instalacao I`: todo `.exe` que a instalação no Windows vai ter, um por
@@ -41,6 +44,14 @@ from provar_uv import linha_do_jobot
 RAIZ = Path(__file__).resolve().parents[1]
 META = RAIZ / "desktop" / "uv.meta.json"
 APPIMAGE = RAIZ / "desktop" / "appimage.meta.json"
+IA_LOCAL = RAIZ / "src" / "jobot" / "nucleo" / "dados" / "ia_local.json"
+# o alvo do build (o do uv e do Python) -> o alvo do llama-server no ia_local.json
+ALVOS_LLAMA = {
+    "x86_64-unknown-linux-gnu": "ubuntu-x64",
+    "x86_64-pc-windows-msvc": "win-cpu-x64",
+    "aarch64-apple-darwin": "macos-arm64",
+    "x86_64-apple-darwin": "macos-x64",
+}
 MANIFESTO = "manifesto.json"
 _BLOCO = 1 << 20
 
@@ -133,8 +144,21 @@ def _entradas(raiz: Path, nomes: list[str]) -> list[dict[str, object]]:
     ]
 
 
-def _json(versao: str, arquivos: list[dict[str, object]]) -> bytes:
-    conteudo = {"versao": versao, "arquivos": arquivos}
+def tamanhos_ia_local(alvo: str) -> dict[str, object]:
+    """Os tamanhos do Modelo local para o manifesto: o `llama-server` do alvo e cada modelo."""
+    ia = json.loads(IA_LOCAL.read_text(encoding="utf-8"))
+    return {
+        "servidor": ia["llama_server"]["alvos"][ALVOS_LLAMA[alvo]]["tamanho"],
+        "modelos": {nome: m["tamanho"] for nome, m in ia["modelos"].items()},
+    }
+
+
+def _json(
+    versao: str, arquivos: list[dict[str, object]], ia_local: dict[str, object] | None = None
+) -> bytes:
+    conteudo: dict[str, object] = {"versao": versao, "arquivos": arquivos}
+    if ia_local is not None:
+        conteudo["ia_local"] = ia_local
     return (json.dumps(conteudo, indent=2, ensure_ascii=False) + "\n").encode("utf-8")
 
 
@@ -166,7 +190,7 @@ def montar(
         shutil.copyfile(whl, saida / "wheels" / whl.name)
     shutil.copyfile(restricoes, saida / "restricoes.txt")
     nomes = [p.relative_to(saida).as_posix() for p in saida.rglob("*") if p.is_file()]
-    bruto = _json(versao, _entradas(saida, nomes))
+    bruto = _json(versao, _entradas(saida, nomes), tamanhos_ia_local(alvo))
     (saida / MANIFESTO).write_bytes(bruto)
     return hashlib.sha256(bruto).hexdigest()
 
@@ -299,6 +323,7 @@ def main(argv: list[str]) -> None:
             roda=args.wheel,
             restricoes=args.restricoes,
             licencas=licencas,
+            alvo=args.alvo,
         )
         shutil.rmtree(baixados)
         pacote_de_atualizacao(args.saida, args.pacotes, versao, args.alvo)

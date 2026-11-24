@@ -1,9 +1,10 @@
 //! Instalação pela casca, sem rede (desenho 5.2 e 6.2; D173, D174, D181). Confere o
 //! `manifesto.json` pelo sha256 gravado no build e cada arquivo dos recursos pelo manifesto,
 //! prepara o Python e o venv com o `uv` dos recursos, prova o `jobot --version`, baixa o
-//! navegador se marcado (o único passo com rede, D183.24) e só então grava o `instalacao.json`. Falhou ou foi cancelada: o que a
-//! instalação criou na pasta da casca sai e o `instalacao.json` não é gravado (o Chromium fica
-//! na pasta do Playwright, D181.9).
+//! navegador se marcado (com rede, D183.24) e só então grava o `instalacao.json`. Falhou ou foi
+//! cancelada: o que a instalação criou na pasta da casca sai e o `instalacao.json` não é gravado
+//! (o Chromium fica na pasta do Playwright, D181.9). Depois, se marcado, o Modelo local (com
+//! rede, T418; D185.17): a falha ou o cancelamento dele não desfaz o joBot.
 //!
 //! Recursos (`desktop/recursos/`, D181): `manifesto.json`, `bin/uv.tar` (o `uv` ou o `uv.exe`
 //! num tar sem compressão, D183),
@@ -208,8 +209,19 @@ pub fn ler_manifesto(bytes: &[u8]) -> Result<Manifesto, Erro> {
     Ok(Manifesto {
         versao: versao.into(),
         arquivos,
-        ia_local: None,
+        ia_local: ler_ia_local(&conteudo),
     })
+}
+
+/// Os tamanhos do Modelo local; faltando ou tortos, `None`, e a tela não oferece o modelo.
+fn ler_ia_local(conteudo: &Value) -> Option<IaLocal> {
+    let ia = conteudo.get("ia_local")?;
+    let modelos = ia.get("modelos")?.as_object()?.iter();
+    let modelos: BTreeMap<String, u64> = modelos
+        .map(|(nome, tamanho)| Some((nome.clone(), tamanho.as_u64()?)))
+        .collect::<Option<_>>()?;
+    let servidor = ia.get("servidor")?.as_u64()?;
+    (!modelos.is_empty()).then_some(IaLocal { servidor, modelos })
 }
 
 /// Uma linha JSON do `jobot ferramentas baixar navegador` (T330) ou `baixar ia-local` (T418).
@@ -237,7 +249,7 @@ pub fn ler_linha(linha: &str) -> Option<Linha> {
     if let Some(modelo) = conteudo.get("modelo").and_then(Value::as_str) {
         return Some(Linha::Modelo(modelo.into()));
     }
-    if conteudo.get("etapa")?.as_str()? != "navegador" {
+    if !matches!(conteudo.get("etapa")?.as_str()?, "navegador" | "ia_local") {
         return None;
     }
     Some(Linha::Progresso {
@@ -268,14 +280,23 @@ fn manifesto_da_versao(recursos: &Path, sha_manifesto: &str, versao: &str) -> Op
 }
 
 /// Para a tela: se os recursos estão completos e quanto ocupam (o navegador, baixado à parte,
-/// pela estimativa `TAMANHO_DO_NAVEGADOR`).
+/// pela estimativa `TAMANHO_DO_NAVEGADOR`; o Modelo local pelos tamanhos do manifesto, `null`
+/// sem eles).
 pub fn estado(recursos: &Path, sha_manifesto: Option<&str>, versao: &str) -> Value {
     let manifesto = sha_manifesto.and_then(|sha| manifesto_da_versao(recursos, sha, versao));
     let Some(manifesto) = manifesto else {
         return json!({"completo": false});
     };
     let base: u64 = manifesto.arquivos.iter().map(|e| e.tamanho).sum();
-    json!({"completo": true, "base": base, "navegador": TAMANHO_DO_NAVEGADOR})
+    let ia_local = manifesto
+        .ia_local
+        .map(|ia| json!({"servidor": ia.servidor, "modelos": ia.modelos}));
+    json!({
+        "completo": true,
+        "base": base,
+        "navegador": TAMANHO_DO_NAVEGADOR,
+        "ia_local": ia_local,
+    })
 }
 
 /// Escrita atômica (`.tmp` na mesma pasta, `fsync` e troca), 0600 no Linux e no Mac.
@@ -667,7 +688,6 @@ impl Instalador<'_> {
         rodar: &mut Rodar,
         progresso: &mut dyn FnMut(Value),
     ) -> Result<Option<String>, Erro> {
-        let _ = modelo_local;
         let existia = self.pasta.exists();
         let pythons_antes = itens(&self.pasta.join("python"));
         let feito =
@@ -684,7 +704,62 @@ impl Instalador<'_> {
                 apagar(self.pasta);
             }
         }
-        feito.map(|_| None)
+        let manifesto = feito?;
+        if !modelo_local {
+            return Ok(None);
+        }
+        // depois do `instalacao.json` (D185.17): a falha do modelo não desfaz o joBot
+        let tamanhos = manifesto.ia_local.as_ref();
+        Ok(self
+            .baixar_modelo_local(tamanhos, cancelado, rodar, progresso)
+            .err())
+    }
+
+    /// O passo opcional do Modelo local (desenho 10.1): o `jobot ferramentas baixar ia-local`
+    /// do venv, que escolhe o modelo pela memória e baixa o `llama-server` e o modelo da fonte
+    /// oficial. O progresso soma os dois arquivos contra os tamanhos do manifesto. `Err` traz o
+    /// motivo da linha `fim` (`cancelado` se a pessoa fechou a janela: o `rodar` encerra a
+    /// árvore e o `.parcial` fica para Configurações › Ferramentas retomar).
+    pub fn baixar_modelo_local(
+        &self,
+        tamanhos: Option<&IaLocal>,
+        cancelado: &AtomicBool,
+        rodar: &mut Rodar,
+        progresso: &mut dyn FnMut(Value),
+    ) -> Result<(), String> {
+        if cancelado.load(Ordering::SeqCst) {
+            return Err("cancelado".into());
+        }
+        progresso(json!({"etapa": "ia_local"}));
+        let comando = self.comando_jobot(&["ferramentas", "baixar", "ia-local"]);
+        let (mut esperado, mut concluido, mut atual, mut fim) = (None, 0, None, None);
+        let saida = rodar(comando, &mut |texto| match ler_linha(texto) {
+            Some(Linha::Modelo(nome)) => {
+                esperado = tamanhos.and_then(|t| Some(t.servidor + t.modelos.get(&nome)?));
+            }
+            Some(Linha::Progresso { feito, total }) => {
+                // cada arquivo conta do zero: soma o que os anteriores já baixaram
+                if total != atual {
+                    concluido += atual.unwrap_or(0);
+                    atual = total;
+                }
+                let total = esperado.or(total.map(|t| concluido + t));
+                progresso(json!({"etapa": "ia_local", "feito": concluido + feito, "total": total}));
+            }
+            Some(Linha::Fim(resultado)) => fim = Some(resultado),
+            None => {}
+        });
+        match (saida, fim) {
+            (Ok(saida), Some(Ok(()))) if saida.codigo == Some(0) => Ok(()),
+            (Ok(_), Some(Err(motivo))) => Err(motivo),
+            (Ok(_), _) => Err("outro".into()),
+            (Err(erro), _) => Err(match erro {
+                Erro::Cancelado => "cancelado",
+                Erro::Espaco => "espaco",
+                _ => "outro",
+            }
+            .into()),
+        }
     }
 
     fn instalar_sem_desfazer(
@@ -694,7 +769,7 @@ impl Instalador<'_> {
         cancelado: &AtomicBool,
         rodar: &mut Rodar,
         progresso: &mut dyn FnMut(Value),
-    ) -> Result<(), Erro> {
+    ) -> Result<Manifesto, Erro> {
         let (manifesto, bruto) = conferir(
             self.recursos,
             sha_manifesto,
@@ -795,7 +870,7 @@ impl Instalador<'_> {
         });
         let bytes = serde_json::to_vec_pretty(&instalacao).expect("JSON fixo");
         gravar_atomico(&self.dados.join(INSTALACAO), &bytes)?;
-        Ok(())
+        Ok(manifesto)
     }
 }
 
@@ -1428,33 +1503,49 @@ mod testes {
         );
     }
 
+    /// O `ia_local` que `ler_manifesto` tira de um manifesto com esses tamanhos.
+    fn ia_do_manifesto(ia: Value) -> Result<Option<IaLocal>, Erro> {
+        let conteudo = json!({"versao": VERSAO, "arquivos": [], "ia_local": ia});
+        ler_manifesto(&serde_json::to_vec(&conteudo).unwrap()).map(|m| m.ia_local)
+    }
+
     #[test]
-    fn manifesto_sem_os_tamanhos_do_modelo_nao_oferece_o_modelo() {
-        let base = json!({"versao": VERSAO, "arquivos": []});
-        let ler = |ia: Value| {
-            let mut conteudo = base.clone();
-            conteudo["ia_local"] = ia;
-            ler_manifesto(&serde_json::to_vec(&conteudo).unwrap()).map(|m| m.ia_local)
-        };
-        // controle: com os tamanhos, o manifesto os traz
+    fn manifesto_traz_os_tamanhos_do_modelo() {
         let modelos = BTreeMap::from([("2b".to_string(), 100), ("4b".to_string(), 200)]);
         assert_eq!(
-            ler(IA_LOCAL.clone()),
+            ia_do_manifesto(IA_LOCAL.clone()),
             Ok(Some(IaLocal {
                 servidor: 10,
                 modelos
             }))
         );
-        assert_eq!(ler(Value::Null), Ok(None));
-        assert_eq!(ler(json!({"servidor": 10, "modelos": {}})), Ok(None));
+    }
+
+    // guardas: sem os tamanhos, ou com eles tortos, a tela não oferece o modelo (o controle é o
+    // teste acima, com a mesma montagem)
+    #[test]
+    fn manifesto_sem_os_tamanhos_nao_oferece_o_modelo() {
+        assert_eq!(ia_do_manifesto(Value::Null), Ok(None));
+    }
+
+    #[test]
+    fn manifesto_sem_modelo_nao_oferece_o_modelo() {
         assert_eq!(
-            ler(json!({"servidor": "10", "modelos": {"2b": 1}})),
+            ia_do_manifesto(json!({"servidor": 10, "modelos": {}})),
             Ok(None)
         );
-        assert_eq!(
-            ler(json!({"servidor": 10, "modelos": {"2b": -1}})),
-            Ok(None)
-        );
+    }
+
+    #[test]
+    fn manifesto_com_servidor_torto_nao_oferece_o_modelo() {
+        let ia = json!({"servidor": "10", "modelos": {"2b": 1}});
+        assert_eq!(ia_do_manifesto(ia), Ok(None));
+    }
+
+    #[test]
+    fn manifesto_com_tamanho_de_modelo_torto_nao_oferece_o_modelo() {
+        let ia = json!({"servidor": 10, "modelos": {"2b": 1, "4b": -1}});
+        assert_eq!(ia_do_manifesto(ia), Ok(None));
     }
 
     /// Executor do passo do modelo: imita o `jobot ferramentas baixar ia-local` com as linhas

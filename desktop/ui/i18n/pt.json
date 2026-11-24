@@ -67,5 +67,20 @@
   "controle.baixar": "Baixar a janela nova",
   "controle.falha.release": "Não consegui abrir o navegador. O sistema respondeu: {detalhe}. A janela nova fica em https://github.com/fezarosa-dev/joBot/releases/latest",
   "controle.falha.parar": "O joBot não parou a tempo. Ele pode estar terminando um trabalho. Espere um pouco e tente de novo.",
-  "controle.falha.outro": "Não consegui concluir. Tente de novo."
+  "controle.falha.outro": "Não consegui concluir. Tente de novo.",
+  "ferramentas.grupo_ia": "Inteligência artificial (opcional)",
+  "ferramentas.ia_local": "Modelo local",
+  "ferramentas.ia_local_frase": "Para usar IA sem internet e sem pagar. Se você marcar, baixa da internet de {de} a {ate}, conforme a memória do computador; dá para baixar depois em Configurações › Ferramentas.",
+  "ferramentas.tamanho_ate": "até {tamanho}",
+  "etapa.ia_local": "Baixando o modelo local",
+  "pronto.ia_local": "O joBot está instalado, mas o modelo local não baixou: {motivo}. Baixe depois em Configurações › Ferramentas.",
+  "ia_local.motivo.sem_rede": "sem conexão com a internet",
+  "ia_local.motivo.espaco": "falta espaço em disco",
+  "ia_local.motivo.arquivo": "o arquivo baixado não confere",
+  "ia_local.motivo.ocupado": "outro download do modelo está em curso",
+  "ia_local.motivo.programa_ausente": "o programa do modelo não roda neste computador",
+  "ia_local.motivo.modelo_ausente": "o modelo não está disponível para este computador",
+  "ia_local.motivo.outro": "o download não terminou",
+  "alerta.titulo_ia": "Parar o download do modelo?",
+  "alerta.texto_ia": "O joBot já está instalado. O download para e continua depois em Configurações › Ferramentas."
 }
