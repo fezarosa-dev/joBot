@@ -935,7 +935,7 @@ INSTALADOR_CITA = {
         "Mais informações",
         "Executar assim mesmo",
         "Abrir Mesmo Assim",
-        "nada é baixado na instalação, exceto o navegador",
+        "nada mais é baixado na instalação além do navegador e do Modelo local",
         "https://developer.microsoft.com/microsoft-edge/webview2/",
         "%LOCALAPPDATA%\\joBot",
         "~/Library/Application Support/joBot",
@@ -955,7 +955,7 @@ INSTALADOR_CITA = {
         "More info",
         "Run anyway",
         "Open Anyway",
-        "nothing is downloaded during the installation, except the browser",
+        "nothing else is downloaded during the installation besides the browser",
         "https://developer.microsoft.com/microsoft-edge/webview2/",
         "%LOCALAPPDATA%\\joBot",
         "~/Library/Application Support/joBot",
@@ -1126,3 +1126,26 @@ def test_adr_da_ia_diz_o_laya_autorizado(caminho: str) -> None:
     assert any(LAYA_ESPERANDO.search(linha) for linha in linhas), caminho  # o riscado ficou
     assert [linha for linha in vivas if LAYA_ESPERANDO.search(linha)] == [], caminho
     assert any("D219" in linha for linha in vivas), caminho
+
+
+TELA_DE_INSTALACAO = {
+    "pt": ("README.md", "wiki/Instalar.md"),
+    "en": ("README.en.md", "wiki/Install.md"),
+}
+SO_O_NAVEGADOR = re.compile(
+    r"único que vem da internet|exceto o navegador, se marcado"
+    r"|only thing that comes from the internet|except the browser, if ticked"
+)
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_tela_de_instalacao_cita_o_modelo_local(lingua: str) -> None:
+    """O passo Ferramentas do instalador tem a caixa Modelo local (desenho 10.1, T418), que baixa
+    do GitHub e do Hugging Face: o passo a passo não pode dizer que só o navegador vem da
+    internet."""
+    rotulo = json.loads(texto(f"desktop/ui/i18n/{lingua}.json"))["ferramentas.ia_local"]
+    for arquivo in TELA_DE_INSTALACAO[lingua]:
+        conteudo = texto(arquivo)
+        assert f"**{rotulo}**" in conteudo, (arquivo, rotulo)
+        assert "Hugging Face" in conteudo, arquivo
+        assert not SO_O_NAVEGADOR.search(conteudo), arquivo
