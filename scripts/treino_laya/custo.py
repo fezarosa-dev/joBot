@@ -6,17 +6,20 @@ Regra do dono (2026-11-24): só Community Cloud, nunca Secure; a GPU é a de men
 - Sem `--medir`: lê o catálogo de GPUs do RunPod (só leitura, nenhum recurso criado), junta com as
   vazões medidas (`--vazao arquivo.json`, `{"gpu": "<id do catálogo>", "por_s": <passos/s>}`),
   calcula horas × preço/h por GPU Community e imprime a tabela e a escolha. GPU sem medida
-  aparece só com o preço.
+  aparece só com o preço; vazão de uma GPU que não está no catálogo, ou menor ou igual a zero, é
+  recusada.
 - `--medir`: roda de propósito, dentro de um pod curto, uns passos do treino de verdade
-  (`treinar.montar_hf`, os mesmos parâmetros do treino) e imprime a linha de vazão da GPU do pod.
+  (`treinar.montar_hf`, os mesmos parâmetros do treino) com os exemplos mais longos e imprime a
+  linha de vazão da GPU do pod. A avaliação (uma por época, num recorte fixo) fica fora da medida:
+  é perto de 1% do trabalho (D219.10).
 
-    uv run python scripts/treino_laya/custo.py --vazao vazao/*.json --exemplos 40000 --epocas 2
+    uv run python scripts/treino_laya/custo.py --vazao $DADOS/vazao/*.json --exemplos 40000 \
+        --epocas 2
 """
 
 import argparse
 import json
 import math
-import os
 import sys
 import time
 from collections.abc import Mapping, Sequence
@@ -24,6 +27,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import httpx
+from montar_conjunto import Recusa, conferir_saida
 
 GRAPHQL = "https://api.runpod.io/graphql"
 _CONSULTA = "query { gpuTypes { id displayName memoryInGb communityCloud communityPrice } }"
@@ -46,10 +50,10 @@ class Linha:
     total: float | None
 
 
-def catalogo(cliente: httpx.Client, chave: str | None = None) -> list[Gpu]:
-    """Preço por hora na Community Cloud de cada GPU (consulta de leitura da API do RunPod)."""
-    cabecalhos = {"Authorization": f"Bearer {chave}"} if chave else {}
-    resposta = cliente.post(GRAPHQL, json={"query": _CONSULTA}, headers=cabecalhos)
+def catalogo(cliente: httpx.Client) -> list[Gpu]:
+    """Preço por hora na Community Cloud de cada GPU (consulta de leitura da API do RunPod; ela
+    responde sem chave, e a chave não vai junto)."""
+    resposta = cliente.post(GRAPHQL, json={"query": _CONSULTA})
     resposta.raise_for_status()
     corpo = resposta.json()
     if corpo.get("errors"):
@@ -83,6 +87,12 @@ def escolher(
 ) -> tuple[list[Linha], Linha | None]:
     """Tabela das GPUs Community com memória suficiente, da mais barata no total para a mais cara
     (sem medida no fim), e a escolhida: menor horas × preço/h dentro de `max_horas`."""
+    ruins = sorted(g for g, v in vazoes.items() if v <= 0)
+    if ruins:
+        raise ValueError(f"vazão menor ou igual a zero: {', '.join(ruins)}")
+    fora = sorted(set(vazoes) - {g.id for g in gpus})
+    if fora:
+        raise ValueError(f"GPU medida que não está no catálogo (confira o id): {', '.join(fora)}")
     linhas = []
     for gpu in gpus:
         if gpu.preco_h is None or gpu.memoria_gb < memoria_min_gb:
@@ -117,20 +127,29 @@ def tabela(linhas: Sequence[Linha], escolha: Linha | None) -> str:
 
 
 def medir(args: argparse.Namespace) -> dict[str, object]:
-    """Uns passos do treino de verdade no pod; os primeiros (aquecimento) não contam."""
+    """Uns passos do treino de verdade no pod, com os exemplos mais longos (prova que o lote cabe
+    na memória); os primeiros (aquecimento) não contam."""
     import torch  # type: ignore[import-not-found]
     from montar_conjunto import ler
     from treinar import montar_hf
 
-    treino = ler(args.dados / "treino.jsonl")[: args.lote * args.acumular * args.passos_medida]
-    args.max_passos, args.epocas = args.aquecimento, 1.0
-    montar_hf(args, treino, treino[:8]).train()  # aquecimento: compila e carrega
+    args.saida = conferir_saida(args.saida)
+    treino = longos(
+        ler(args.dados / "treino.jsonl"), args.lote * args.acumular * args.passos_medida
+    )
+    args.max_passos, args.epocas, args.avaliar = args.aquecimento, 1.0, 0
+    montar_hf(args, treino, []).train()  # aquecimento: compila e carrega
     args.max_passos, args.saida = args.passos_medida, args.saida / "medida"
-    treinador = montar_hf(args, treino, treino[:8])
+    treinador = montar_hf(args, treino, [])
     comeco = time.monotonic()
     treinador.train()
     por_s = args.passos_medida / (time.monotonic() - comeco)
     return {"gpu": args.gpu or torch.cuda.get_device_name(0), "por_s": round(por_s, 4)}
+
+
+def longos(exemplos: Sequence[Mapping[str, object]], n: int) -> list[Mapping[str, object]]:
+    """Os `n` exemplos de conversa mais longa."""
+    return sorted(exemplos, key=lambda e: len(json.dumps(e, ensure_ascii=False)), reverse=True)[:n]
 
 
 def argumentos(argv: Sequence[str] | None) -> argparse.Namespace:
@@ -146,6 +165,7 @@ def argumentos(argv: Sequence[str] | None) -> argparse.Namespace:
     # só para --medir (os mesmos nomes do treinar.py)
     analisador.add_argument("--dados", type=Path)
     analisador.add_argument("--saida", type=Path, default=Path("/workspace/medida"))
+    analisador.add_argument("--avaliar", type=int, default=0)
     analisador.add_argument("--escrever", type=Path, help="arquivo da vazão medida")
     analisador.add_argument("--gpu", help="id do catálogo, se o nome do torch for outro")
     analisador.add_argument("--passos-medida", type=int, default=30)
@@ -161,7 +181,6 @@ def argumentos(argv: Sequence[str] | None) -> argparse.Namespace:
 def main(
     argv: Sequence[str] | None = None,
     *,
-    env: Mapping[str, str] = os.environ,
     cliente: httpx.Client | None = None,
 ) -> int:
     args = argumentos(argv)
@@ -173,7 +192,13 @@ def main(
             from treinar import base_do_manifesto
 
             args.base = base_do_manifesto()
-        linha = json.dumps(medir(args))
+        try:
+            if args.escrever:
+                conferir_saida(args.escrever)  # antes de gastar o pod medindo
+            linha = json.dumps(medir(args))
+        except Recusa as recusa:
+            print(f"recusado: {recusa}", file=sys.stderr)
+            return 2
         if args.escrever:
             args.escrever.write_text(linha + "\n", encoding="utf-8")
         print(linha, flush=True)
@@ -185,8 +210,12 @@ def main(
         args.exemplos, args.lote * args.acumular, args.epocas
     )
     with cliente or httpx.Client(timeout=30) as http:
-        gpus = catalogo(http, env.get("RUNPOD_API_KEY") or None)
-    linhas, escolha = escolher(gpus, ler_vazoes(args.vazao), unidades, max_horas=args.max_horas)
+        gpus = catalogo(http)
+    try:
+        linhas, escolha = escolher(gpus, ler_vazoes(args.vazao), unidades, max_horas=args.max_horas)
+    except ValueError as erro:
+        print(f"recusado: {erro}", file=sys.stderr)
+        return 2
     print(tabela(linhas, escolha))
     if escolha is None:
         print("\nNenhuma GPU medida cabe no teto; meça mais GPUs com --medir.", flush=True)

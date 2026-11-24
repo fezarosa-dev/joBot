@@ -8,14 +8,21 @@ passa pelo pydantic (`contrato.conferir`, dentro do cliente) e pela anti-invenç
 
 Lê só o que `montar_conjunto.py` escreveu (nunca o gabarito do dono) e recusa vaga do conjunto de
 ouro. Retoma sozinho: `<saida>/<lado>.rotulos.jsonl` recebe uma linha por vaga e a vaga já
-rotulada não é pedida de novo. No fim escreve `<saida>/<lado>.jsonl` com os exemplos de
-habilidades e de "verdadeiro ou falso" (`montar_conjunto.exemplo_habilidades` e `perguntas_vf`).
+rotulada não é pedida de novo (a última linha cortada por uma queda é refeita). No fim escreve
+`<saida>/<lado>.jsonl` com os exemplos de habilidades e de "verdadeiro ou falso"
+(`montar_conjunto.exemplo_habilidades` e `perguntas_vf`).
 
-    uv run python scripts/treino_laya/rotular.py --conjunto conjunto --saida rotulado \
-        --endereco http://127.0.0.1:8000/v1 --modelo <nome servido>
+Falha do servidor numa vaga (prazo, serviço fora) é tentada `TENTATIVAS` vezes; depois a vaga fica
+marcada como pulada (`"pulada": "<motivo>"`) e a rodada segue, mas `MAX_PULADAS_SEGUIDAS` vagas
+puladas em seguida param a rodada (o servidor caiu). Se as `PRIMEIRAS_VAZIAS` primeiras vagas da
+rodada vierem todas vazias, a rodada para: o servidor ou o modelo está mal configurado.
+
+    uv run python scripts/treino_laya/rotular.py --conjunto $DADOS/conjunto \
+        --saida $DADOS/rotulado --endereco http://127.0.0.1:8000/v1 --modelo <nome servido>
 """
 
 import argparse
+import dataclasses
 import json
 import os
 import sys
@@ -27,6 +34,7 @@ from typing import Any
 from montar_conjunto import (
     Recusa,
     conferir_caminho,
+    conferir_saida,
     conferir_sem_ouro,
     descricoes_do_ouro,
     e_do_ouro,
@@ -41,6 +49,48 @@ from jobot.nucleo.ia.pedidos import pedido_encaixe, texto_encaixe
 from jobot.nucleo.ia.tarefas import pede_da_vaga
 
 LADOS = ("treino", "validacao")
+PRAZO_S = 300.0  # o professor de 27 a 32B numa GPU barata passa fácil dos 60 s do "fora"
+TENTATIVAS = 3  # falhas seguidas do servidor na mesma vaga antes de pulá-la
+MAX_PULADAS_SEGUIDAS = 5  # puladas em seguida: o servidor caiu, a rodada para
+PRIMEIRAS_VAZIAS = 20  # as primeiras da rodada todas vazias: servidor mal configurado
+ANDAMENTO = 50  # uma linha de andamento a cada tantas vagas
+
+
+class ProfessorMalConfigurado(Exception):
+    """As primeiras vagas da rodada vieram todas vazias."""
+
+
+def reparar(rotulos: Path) -> None:
+    """Tira a última linha que não abre (cortada por uma queda) e garante o fim de linha, para a
+    próxima linha não colar na anterior."""
+    if not rotulos.exists():
+        return
+    texto = rotulos.read_text(encoding="utf-8")
+    if not texto or texto.endswith("\n"):
+        return
+    corpo, _, ultima = texto.rpartition("\n")
+    try:
+        json.loads(ultima)
+    except json.JSONDecodeError:
+        rotulos.write_text(corpo + "\n" if corpo else "", encoding="utf-8")
+    else:
+        rotulos.write_text(texto + "\n", encoding="utf-8")
+
+
+def _pedir(backend: Backend, pedido: Any) -> list[str] | Falha:
+    """O `pede` cru quando o servidor respondeu (vazio: fora do esquema, recusa, contexto); a
+    última `Falha` depois de `TENTATIVAS` falhas do servidor."""
+    falha = Falha("servico_fora")
+    for _ in range(TENTATIVAS):
+        try:
+            resposta = backend.pedir(pedido)
+        except Falha as erro:
+            if erro.backend_ou_vaga == "vaga":
+                return []
+            falha = erro
+        else:
+            return list(resposta.dados["pede"])
+    return falha
 
 
 def rotular_lado(
@@ -49,11 +99,17 @@ def rotular_lado(
     registros: Sequence[Mapping[str, Any]],
     rotulos: Path,
     ouro: Sequence[str],
+    prazo_s: float = PRAZO_S,
 ) -> tuple[int, int]:
-    """Acrescenta em `rotulos` uma linha `{"id", "pede"}` por vaga nova. Devolve (rotuladas,
-    descartadas). Falha do backend sobe (a próxima rodada retoma de onde parou)."""
+    """Acrescenta em `rotulos` uma linha `{"id", "pede"}` por vaga nova (com `"pulada"` quando o
+    servidor falhou `TENTATIVAS` vezes nela). Devolve (rotuladas, descartadas). A falha que para a
+    rodada sobe; a próxima rodada retoma de onde parou."""
+    reparar(rotulos)
     feitos = {r["id"] for r in ler(rotulos)} if rotulos.exists() else set()
-    novos = descartados = 0
+    novos = descartados = vistas = 0
+    # as puladas só são gravadas quando outra vaga dá certo depois delas: se a rodada parar porque
+    # o servidor caiu, elas são pedidas de novo na próxima
+    puladas: list[dict[str, Any]] = []
     with open(rotulos, "a", encoding="utf-8") as saida:
         for registro in registros:
             if registro["id"] in feitos:
@@ -61,34 +117,47 @@ def rotular_lado(
             if e_do_ouro(f"{registro['titulo']}\n{registro['descricao']}", ouro):
                 raise Recusa(f"vaga {registro['id']!r} é do conjunto de ouro")
             texto = texto_encaixe(registro["titulo"], registro["descricao"])
-            try:
-                resposta = backend.pedir(pedido_encaixe(texto, "compativel", modelo))
-            except Falha as falha:
-                if falha.backend_ou_vaga == "backend":
-                    raise
-                pede: list[str] = []  # não validou no esquema (ou recusa, contexto)
-            else:
-                pede = pede_da_vaga(resposta.dados["pede"], texto.texto)
-            saida.write(json.dumps({"id": registro["id"], "pede": pede}, ensure_ascii=False))
-            saida.write("\n")
+            pedido = dataclasses.replace(
+                pedido_encaixe(texto, "compativel", modelo), prazo_s=prazo_s
+            )
+            bruto = _pedir(backend, pedido)
+            if isinstance(bruto, Falha):
+                puladas.append({"id": registro["id"], "pede": [], "pulada": bruto.motivo})
+                if len(puladas) >= MAX_PULADAS_SEGUIDAS:
+                    raise bruto
+                continue
+            linhas = [*puladas, {"id": registro["id"], "pede": pede_da_vaga(bruto, texto.texto)}]
+            saida.writelines(json.dumps(x, ensure_ascii=False) + "\n" for x in linhas)
             saida.flush()
-            novos += bool(pede)
-            descartados += not pede
-    return novos, descartados
+            novos += bool(linhas[-1]["pede"])
+            descartados += len(linhas) - bool(linhas[-1]["pede"])
+            vistas += len(linhas)
+            puladas.clear()
+            if vistas >= PRIMEIRAS_VAZIAS and not novos:
+                raise ProfessorMalConfigurado(
+                    f"as {vistas} primeiras vagas vieram vazias; confira o servidor e o modelo"
+                )
+            if vistas % ANDAMENTO < len(linhas):
+                print(f"  {rotulos.name}: {vistas} vagas nesta rodada", flush=True)
+        saida.writelines(json.dumps(x, ensure_ascii=False) + "\n" for x in puladas)
+    return novos, descartados + len(puladas)
 
 
 def exemplos_do_lado(
     registros: Sequence[Mapping[str, Any]], rotulos: Mapping[str, list[str]]
 ) -> list[dict[str, Any]]:
     """Habilidades e "verdadeiro ou falso" das vagas com `pede` não vazio; as falsas vêm das
-    outras vagas do mesmo lado (nada atravessa treino e validação)."""
+    outras vagas do mesmo lado (nada atravessa treino e validação). Os itens do lado são juntados
+    uma vez; cada vaga custa o mesmo, qualquer que seja o tamanho do lado."""
     com_rotulo = [r for r in registros if rotulos.get(r["id"])]
     todos = sorted({x for r in com_rotulo for x in rotulos[r["id"]]})
     exemplos = []
-    for registro in com_rotulo:
+    for n, registro in enumerate(com_rotulo, 1):
         pede = rotulos[registro["id"]]
         exemplos.append(exemplo_habilidades(registro, pede))
-        exemplos += perguntas_vf(registro, pede, [x for x in todos if x not in pede])
+        exemplos += perguntas_vf(registro, pede, todos)
+        if n % 1000 == 0:
+            print(f"  exemplos: {n}/{len(com_rotulo)} vagas", flush=True)
     return exemplos
 
 
@@ -99,6 +168,7 @@ def argumentos(argv: Sequence[str] | None) -> argparse.Namespace:
     analisador.add_argument("--endereco", default="http://127.0.0.1:8000/v1")
     analisador.add_argument("--modelo", required=True, help="o nome que o servidor mostra")
     analisador.add_argument("--chave-env", default="JOBOT_IA_CHAVE")
+    analisador.add_argument("--prazo", type=float, default=PRAZO_S, help="segundos por vaga")
     return analisador.parse_args(argv)
 
 
@@ -110,7 +180,7 @@ def main(
 ) -> int:
     args = argumentos(argv)
     try:
-        conjunto, saida = conferir_caminho(args.conjunto), conferir_caminho(args.saida)
+        conjunto, saida = conferir_caminho(args.conjunto), conferir_saida(args.saida)
         saida.mkdir(parents=True, exist_ok=True)
         ouro = descricoes_do_ouro()
         backend = (
@@ -124,7 +194,7 @@ def main(
             registros = ler(conjunto / f"{nome}.jsonl")
             comeco = time.monotonic()
             novos, fora = rotular_lado(
-                backend, args.modelo, registros, saida / f"{nome}.rotulos.jsonl", ouro
+                backend, args.modelo, registros, saida / f"{nome}.rotulos.jsonl", ouro, args.prazo
             )
             gasto = time.monotonic() - comeco
             print(f"{nome}: {novos} rotuladas, {fora} fora, {gasto:.0f} s", flush=True)
@@ -139,6 +209,9 @@ def main(
         return 2
     except Falha as falha:
         print(f"o professor falhou ({falha.motivo}); rode de novo para retomar", file=sys.stderr)
+        return 1
+    except ProfessorMalConfigurado as erro:
+        print(f"parado: {erro}", file=sys.stderr)
         return 1
     return 0
 

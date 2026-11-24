@@ -1,6 +1,7 @@
 """Regras duras do treino do Laya (T419; D219): `scripts/treino_laya/`, sem rede nem GPU."""
 
 import argparse
+import asyncio
 import hashlib
 import importlib.util
 import json
@@ -8,7 +9,7 @@ import sqlite3
 import sys
 from contextlib import closing
 from pathlib import Path
-from types import ModuleType
+from types import ModuleType, SimpleNamespace
 from typing import Any
 
 import httpx
@@ -91,10 +92,11 @@ def _ids(lados: dict[str, list[dict[str, Any]]]) -> set[str]:
 def test_lista_de_fontes_e_vazia_por_padrao(tmp_path: Path) -> None:
     banco = _banco(tmp_path, [{"fontes": ["remotive"]}])
     saida = tmp_path / "conjunto"
-    assert montar.main(["montar", "--banco", str(banco), "--saida", str(saida)]) == 2
+    base = ["montar", "--banco", str(banco), "--saida", str(saida), "--sem-gabarito"]
+    assert montar.main(base) == 2
     assert not saida.exists()
     # controle: a mesma montagem com a fonte liberada escreve a vaga
-    args = ["montar", "--banco", str(banco), "--saida", str(saida), "--fonte", "remotive"]
+    args = [*base, "--fonte", "remotive"]
     assert montar.main(args) == 0
     linhas = [*(saida / "treino.jsonl").read_text().splitlines()]
     linhas += (saida / "validacao.jsonl").read_text().splitlines()
@@ -132,9 +134,10 @@ def test_caminho_do_gabarito_e_recusado(tmp_path: Path, pasta: str) -> None:
     with pytest.raises(montar.Recusa):
         montar.conferir_caminho(proibido)
     args = ["--banco", str(proibido), "--saida", str(tmp_path / "s"), "--fonte", "remotive"]
-    assert montar.main(["montar", *args]) == 2
+    assert montar.main(["montar", *args, "--sem-gabarito"]) == 2
+    assert not (tmp_path / "s").exists()
     banco = _banco(tmp_path, [{"fontes": ["remotive"]}])
-    saida = ["--saida", str(tmp_path / pasta / "s"), "--fonte", "remotive"]
+    saida = ["--saida", str(tmp_path / pasta / "s"), "--fonte", "remotive", "--sem-gabarito"]
     assert montar.main(["montar", "--banco", str(banco), *saida]) == 2
     assert not (tmp_path / pasta / "s").exists()
     # controle: caminho comum passa
@@ -211,6 +214,124 @@ def test_exemplos_no_esquema_da_tarefa_e_vf_falsa_fora_do_texto() -> None:
     assert respostas == [("Python", {"resposta": True}), ("Kotlin", {"resposta": False})]
 
 
+@pytest.mark.parametrize(
+    ("trecho", "pessoais"),
+    [
+        ("Fale com Maria Souza pelo portal.", ("Maria", "Souza")),
+        ("Recrutadora responsável: Ana Paula Ribeiro", ("Ana", "Paula", "Ribeiro")),
+        ("Reach out to John Smith with questions.", ("John", "Smith")),
+        ("Você vai responder ao CTO Carlos Pereira.", ("Carlos", "Pereira")),
+        ("WhatsApp 11987654321 ou @maria_recruta", ("11987654321", "maria_recruta")),
+        ("Meu perfil: linkedin.com/in/joana-lima", ("joana", "lima")),
+        ("Telegram: t.me/recruta_bia", ("recruta_bia",)),
+    ],
+)
+def test_contato_em_texto_corrido_sai(trecho: str, pessoais: tuple[str, ...]) -> None:
+    texto = montar.limpar(f"Requisitos: Python e Go.\n{trecho}\nTrabalho remoto.")
+    for pessoal in pessoais:
+        assert pessoal not in texto, texto
+    assert "Requisitos: Python e Go." in texto and "Trabalho remoto." in texto
+
+
+@pytest.mark.parametrize(
+    ("trecho", "fica"),
+    [
+        (
+            "Contato: Fulano | Requisitos: Python, Django e PostgreSQL",
+            "Python, Django e PostgreSQL",
+        ),
+        ("Contact: Jane. Requirements: Go and Rust.", "Requirements: Go and Rust."),
+        (
+            "Experiência em contato com clientes e responder a incidentes.",
+            "Experiência em contato com clientes e responder a incidentes.",
+        ),
+        ("Vaga com Node.js e AWS.", "Vaga com Node.js e AWS."),
+    ],
+)
+def test_contato_corta_so_ate_o_fim_da_frase(trecho: str, fica: str) -> None:
+    assert fica in montar.limpar(trecho)
+
+
+def test_resto_de_dado_pessoal_tira_a_vaga(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    banco = _banco(
+        tmp_path,
+        [
+            {"fontes": ["remotive"], "descricao": LONGA + " Envie para vagas@empresa.com"},
+            {"fontes": ["remotive"]},
+        ],
+    )
+    monkeypatch.setattr(montar, "limpar", lambda texto: texto)  # a limpeza deixou passar
+    assert _ids(montar.montar(banco, frozenset({"remotive"}))) == {"h0001"}
+
+
+def test_montar_exige_a_lista_do_dono_ou_a_decisao_e_conta_os_hashes(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    banco = _banco(tmp_path, [{"fontes": ["remotive"]}, {"fontes": ["remotive"]}])
+    base = ["montar", "--banco", str(banco), "--saida", str(tmp_path / "c"), "--fonte", "remotive"]
+    for sem_escolha in ([], ["--sem-gabarito", "--excluir", str(tmp_path / "x")]):
+        with pytest.raises(SystemExit):
+            montar.main([*base, *sem_escolha])
+    hashes = tmp_path / "fora.txt"
+    hashes.write_text("h0000\nnao_existe\n")
+    assert montar.main([*base, "--excluir", str(hashes)]) == 0
+    erro = capsys.readouterr().err
+    assert "2 hashes lidos, 1 casaram" in erro and "aviso" not in erro
+    hashes.write_text("h0000,h0001\n")  # formato errado: nenhum casa
+    assert montar.main([*base, "--excluir", str(hashes)]) == 0
+    assert "aviso: nenhum hash" in capsys.readouterr().err
+    assert montar.main([*base, "--sem-gabarito"]) == 0
+    assert "hashes" not in capsys.readouterr().err
+
+
+def test_saida_dentro_do_repositorio_e_recusada(tmp_path: Path) -> None:
+    banco = _banco(tmp_path, [{"fontes": ["remotive"]}])
+    dentro = RAIZ / "conjunto_teste"
+    args = ["--banco", str(banco), "--saida", str(dentro), "--fonte", "remotive", "--sem-gabarito"]
+    assert montar.main(["montar", *args]) == 2
+    assert montar.main(["coletar", "--dados", str(dentro), "--fonte", "remotive"]) == 2
+    assert not dentro.exists()
+    with pytest.raises(montar.Recusa, match="repositório"):
+        montar.conferir_saida(RAIZ / "src")
+    assert montar.conferir_saida(tmp_path / "fora") == tmp_path / "fora"  # controle
+
+
+def test_leituras_recusam_o_caminho_do_gabarito(tmp_path: Path) -> None:
+    pasta = tmp_path / "joBot-dados"
+    pasta.mkdir()
+    (pasta / "treino.jsonl").write_text('{"id": "x"}\n')
+    (pasta / "fora.txt").write_text("h0000\n")
+    with pytest.raises(montar.Recusa):
+        montar.ler(pasta / "treino.jsonl")
+    with pytest.raises(montar.Recusa):
+        montar.ler_hashes(pasta / "fora.txt")
+
+
+def test_coleta_liga_so_as_fontes_publicas_permitidas(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from jobot.banco.cadastros import fontes
+    from jobot.nucleo.http import ClienteEducado
+    from jobot.nucleo.leitores.registro import LEITORES
+
+    visto: dict[str, Any] = {}
+
+    async def busca_falsa(con: sqlite3.Connection, cliente: Any, relogio: Any, quando: str) -> int:
+        visto["ligadas"] = {f.chave for f in fontes(con) if f.ligada}
+        visto["caminho"] = con.execute("PRAGMA database_list").fetchone()[2]
+        visto["cliente"] = cliente
+        return 7
+
+    monkeypatch.setattr(montar, "executar_busca", busca_falsa)
+    login = LEITORES[0].chave
+    permitidas = frozenset({"remotive", "greenhouse", login})  # a com login entrou por engano
+    assert asyncio.run(montar._buscar(tmp_path, permitidas)) == 7
+    assert visto["ligadas"] == {"remotive", "greenhouse"}
+    assert Path(visto["caminho"]) == tmp_path / "jobot.db"
+    assert isinstance(visto["cliente"], ClienteEducado)
+    assert visto["cliente"]._ua.startswith("joBot/")
+
+
 # --- rotular.py -------------------------------------------------------------------------------
 
 
@@ -227,32 +348,147 @@ class _Professor:
         return conferir(pedido, dado, "compativel")
 
 
-def test_rotular_descarta_o_que_nao_valida_e_retoma(tmp_path: Path) -> None:
-    registros = [{"id": f"v{i}", "titulo": "Dev", "descricao": LONGA} for i in range(4)]
+def _registros(n: int) -> list[dict[str, Any]]:
+    return [{"id": f"v{i}", "titulo": "Dev", "descricao": LONGA} for i in range(n)]
+
+
+def _linhas(caminho: Path) -> list[dict[str, Any]]:
+    return [json.loads(x) for x in caminho.read_text().splitlines()]
+
+
+def test_rotular_descarta_o_que_nao_valida_pula_e_retoma(tmp_path: Path) -> None:
+    falhas: list[object] = [Falha("tempo_esgotado")] * rotular.TENTATIVAS
     professor = _Professor(
         [
             {"pede": ["Python", "Docker"]},
             {"pede": "Python"},  # fora do esquema
             {"pede": ["Haskell"]},  # inventado: a anti-invenção esvazia
-            Falha("sem_rede"),  # do backend: para e a próxima rodada retoma
+            *falhas,  # do servidor, sempre na mesma vaga: ela fica pulada e a rodada segue
+            {"pede": ["Docker"]},
         ]
     )
     rotulos = tmp_path / "treino.rotulos.jsonl"
-    with pytest.raises(Falha):
-        rotular.rotular_lado(professor, "prof", registros, rotulos, ())
-    feitos = [json.loads(x) for x in rotulos.read_text().splitlines()]
-    assert feitos == [
+    assert rotular.rotular_lado(professor, "prof", _registros(5), rotulos, ()) == (2, 3)
+    assert _linhas(rotulos) == [
         {"id": "v0", "pede": ["Python", "Docker"]},
         {"id": "v1", "pede": []},
         {"id": "v2", "pede": []},
+        {"id": "v3", "pede": [], "pulada": "tempo_esgotado"},
+        {"id": "v4", "pede": ["Docker"]},
     ]
+    assert {p.prazo_s for p in professor.pedidos} == {rotular.PRAZO_S}
     professor.respostas = [{"pede": ["PostgreSQL"]}]
-    assert rotular.rotular_lado(professor, "prof", registros, rotulos, ()) == (1, 0)
-    assert len(professor.pedidos) == 5  # v0 a v2 não foram pedidas de novo
+    assert rotular.rotular_lado(professor, "prof", _registros(6), rotulos, (), 42.0) == (1, 0)
+    assert len(professor.pedidos) == 5 + rotular.TENTATIVAS  # nada foi pedido de novo
+    assert professor.pedidos[-1].prazo_s == 42.0
     exemplos = rotular.exemplos_do_lado(
-        registros, {r["id"]: r["pede"] for r in map(json.loads, rotulos.read_text().splitlines())}
+        _registros(6), {r["id"]: r["pede"] for r in _linhas(rotulos)}
     )
-    assert {e["id"] for e in exemplos if e["tarefa"] == "habilidades"} == {"v0", "v3"}
+    assert {e["id"] for e in exemplos if e["tarefa"] == "habilidades"} == {"v0", "v4", "v5"}
+
+
+class _ProfessorFora:
+    def __init__(self) -> None:
+        self.pedidos = 0
+
+    def pedir(self, pedido: Pedido) -> Resposta:
+        self.pedidos += 1
+        raise Falha("servico_fora")
+
+
+def test_rotular_para_quando_o_servidor_cai_sem_marcar_as_puladas(tmp_path: Path) -> None:
+    rotulos = tmp_path / "treino.rotulos.jsonl"
+    fora = _ProfessorFora()
+    with pytest.raises(Falha):
+        rotular.rotular_lado(fora, "prof", _registros(9), rotulos, ())
+    assert fora.pedidos == rotular.MAX_PULADAS_SEGUIDAS * rotular.TENTATIVAS
+    assert rotulos.read_text() == ""  # nenhuma vaga ficou marcada: a próxima rodada pede todas
+    professor = _Professor([{"pede": ["Python"]}] * 9)
+    assert rotular.rotular_lado(professor, "prof", _registros(9), rotulos, ()) == (9, 0)
+
+
+def test_rotular_para_se_as_primeiras_vagas_vem_vazias(tmp_path: Path) -> None:
+    n = rotular.PRIMEIRAS_VAZIAS + 5
+    rotulos = tmp_path / "treino.rotulos.jsonl"
+    vazio = _Professor([{"pede": ["Haskell"]}] * n)
+    with pytest.raises(rotular.ProfessorMalConfigurado):
+        rotular.rotular_lado(vazio, "prof", _registros(n), rotulos, ())
+    assert len(vazio.pedidos) == rotular.PRIMEIRAS_VAZIAS
+    # controle: uma vaga boa entre as primeiras e a rodada vai até o fim
+    rotulos.unlink()
+    respostas: list[object] = [{"pede": ["Haskell"]}] * n
+    respostas[3] = {"pede": ["Python"]}
+    assert rotular.rotular_lado(_Professor(respostas), "p", _registros(n), rotulos, ()) == (
+        1,
+        n - 1,
+    )
+
+
+def test_rotular_refaz_a_ultima_linha_cortada(tmp_path: Path) -> None:
+    rotulos = tmp_path / "treino.rotulos.jsonl"
+    rotulos.write_text('{"id": "v0", "pede": ["Python"]}\n{"id": "v1", "pe')
+    professor = _Professor([{"pede": ["Docker"]}])
+    assert rotular.rotular_lado(professor, "prof", _registros(2), rotulos, ()) == (1, 0)
+    assert [r["id"] for r in _linhas(rotulos)] == ["v0", "v1"]
+    # a última linha inteira mas sem o fim de linha não é pedida de novo nem cola na próxima
+    rotulos.write_text('{"id": "v0", "pede": ["Python"]}')
+    professor = _Professor([{"pede": ["Docker"]}])
+    assert rotular.rotular_lado(professor, "prof", _registros(2), rotulos, ()) == (1, 0)
+    assert [r["id"] for r in _linhas(rotulos)] == ["v0", "v1"]
+    assert len(professor.pedidos) == 1
+
+
+def _rotular_main(tmp_path: Path, registro: dict[str, Any], saida: Path) -> int:
+    conjunto = tmp_path / "conjunto"
+    conjunto.mkdir(exist_ok=True)
+    (conjunto / "treino.jsonl").write_text(json.dumps(registro) + "\n")
+    (conjunto / "validacao.jsonl").write_text("")
+    args = ["--conjunto", str(conjunto), "--saida", str(saida), "--modelo", "p"]
+    return int(rotular.main(args, env={}, montar=lambda a, e: _Professor([])))
+
+
+def test_rotular_main_confere_ouro_na_retomada_e_a_saida(tmp_path: Path) -> None:
+    ouro = json.loads(OURO.read_text(encoding="utf-8"))["vagas"][4]
+    do_ouro = {"id": "o", "titulo": ouro["titulo"], "descricao": ouro["descricao"]}
+    saida = tmp_path / "rotulado"
+    saida.mkdir()
+    # a vaga do ouro já estava rotulada (rodada antiga): a retomada não a pede, mas o exemplo para
+    (saida / "treino.rotulos.jsonl").write_text('{"id": "o", "pede": ["HTML"]}\n')
+    assert _rotular_main(tmp_path, do_ouro, saida) == 2
+    assert not (saida / "treino.jsonl").exists()
+    # saída proibida ou dentro do repositório: recusa sem criar a pasta
+    for proibida in (tmp_path / "dados_locais" / "r", RAIZ / "rotulado_teste"):
+        assert _rotular_main(tmp_path, do_ouro, proibida) == 2
+        assert not proibida.exists()
+    # controle: vaga comum já rotulada vira exemplo
+    comum = {"id": "c", "titulo": "Dev", "descricao": LONGA}
+    (saida / "treino.rotulos.jsonl").write_text('{"id": "c", "pede": ["Python"]}\n')
+    assert _rotular_main(tmp_path, comum, saida) == 0
+    assert (saida / "treino.jsonl").read_text().count('"tarefa": "habilidades"') == 1
+
+
+def test_exemplos_custam_o_mesmo_por_vaga(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    chamadas: list[int] = []
+    original = montar.pede_da_vaga
+
+    def contar(pede: list[str], texto: str) -> list[str]:
+        chamadas.append(len(pede))
+        return list(original(pede, texto))
+
+    monkeypatch.setattr(montar, "pede_da_vaga", contar)
+    n = 300
+    registros = _registros(n)
+    rotulos = {f"v{i}": ["Python", "Docker", "PostgreSQL", f"Item{i}"] for i in range(n)}
+    exemplos = rotular.exemplos_do_lado(registros, rotulos)
+    assert len(chamadas) <= n  # uma chamada por vaga, não uma por item do lado
+    assert max(chamadas) <= montar.SORTEIO_VF
+    for i in range(n):
+        vf = [e for e in exemplos if e["id"] == f"v{i}" and e["tarefa"] == "vf"]
+        sim = [e for e in vf if '"resposta": true' in e["completion"][0]["content"]]
+        nao = [e["prompt"][1]["content"].rsplit("Item: ", 1)[1] for e in vf if e not in sim]
+        assert 1 <= len(sim) <= montar.VERDADEIRAS_POR_VAGA
+        assert 1 <= len(nao) <= montar.FALSAS_POR_VAGA
+        assert all(x.startswith("Item") and x != f"Item{i}" for x in nao)
 
 
 def test_rotular_recusa_vaga_do_ouro(tmp_path: Path) -> None:
@@ -308,6 +544,63 @@ def test_teto_de_dias_tira_a_gpu_lenta_demais() -> None:
     assert escolha.gpu.id == "rapida"
     _, escolha = custo.escolher(gpus, vazoes, 10000, max_horas=10**6)
     assert escolha.gpu.id == "lenta"
+
+
+def test_horas_e_total_pela_vazao_e_passos_pelas_epocas() -> None:
+    linhas, escolha = custo.escolher([_gpu("A", 0.10)], {"A": 0.5}, 10000)
+    assert escolha is not None
+    assert escolha.horas == pytest.approx(10000 / 0.5 / 3600)
+    assert escolha.total == pytest.approx(10000 / 0.5 / 3600 * 0.10)
+    assert custo.passos_do_treino(1000, 16, 2) == 126  # 63 passos por época
+    assert custo.passos_do_treino(1000, 16, 1.5) == 95
+
+
+@pytest.mark.parametrize("vazao", [{"A": -1.0}, {"A": 0.0}, {"NVIDIA A ": 1.0}])
+def test_vazao_ruim_ou_fora_do_catalogo_e_recusada(vazao: dict[str, float]) -> None:
+    with pytest.raises(ValueError):
+        custo.escolher([_gpu("A", 0.10), _gpu("B", 0.20)], {"B": 1.0, **vazao}, 100)
+
+
+def _catalogo_falso(pedidos: list[httpx.Request]) -> httpx.Client:
+    def responder(pedido: httpx.Request) -> httpx.Response:
+        pedidos.append(pedido)
+        dados = [
+            {
+                "id": i,
+                "displayName": i,
+                "memoryInGb": 24,
+                "communityCloud": True,
+                "communityPrice": p,
+            }
+            for i, p in (("A", 0.2), ("B", 0.1))
+        ]
+        return httpx.Response(200, json={"data": {"gpuTypes": dados}})
+
+    return httpx.Client(transport=httpx.MockTransport(responder))
+
+
+def test_custo_main_escolhe_pelo_total_com_a_acumulacao(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("RUNPOD_API_KEY", "segredo")
+    (tmp_path / "a.json").write_text('{"gpu": "A", "por_s": 0.5}')
+    (tmp_path / "b.json").write_text('{"gpu": "B", "por_s": 0.2}')
+    pedidos: list[httpx.Request] = []
+    args = ["--vazao", str(tmp_path / "a.json"), str(tmp_path / "b.json"), "--exemplos", "1600"]
+    args += ["--epocas", "2", "--lote", "8", "--acumular", "2"]
+    assert custo.main(args, cliente=_catalogo_falso(pedidos)) == 0
+    # 1600 / (8 × 2) × 2 = 200 passos: A 0,11 h × 0,20 = 0,02; B 0,28 h × 0,10 = 0,03
+    assert "Escolha: A (Community), 0.1 h × US$ 0.20/h = US$ 0.02" in capsys.readouterr().out
+    assert "authorization" not in pedidos[0].headers
+    (tmp_path / "b.json").write_text('{"gpu": "B ", "por_s": 0.9}')  # id fora do catálogo
+    assert custo.main(args, cliente=_catalogo_falso(pedidos)) == 2
+
+
+def test_medir_usa_os_exemplos_mais_longos_e_recusa_saida_no_repo(tmp_path: Path) -> None:
+    exemplos = [{"id": str(i), "texto": "x" * i} for i in (5, 50, 1, 20)]
+    assert [e["id"] for e in custo.longos(exemplos, 2)] == ["50", "20"]
+    args = ["--medir", "--dados", str(tmp_path), "--escrever", str(RAIZ / "vazao.json")]
+    assert custo.main(args) == 2
 
 
 def test_catalogo_so_le_e_guarda_o_preco_community() -> None:
@@ -381,7 +674,7 @@ def test_treino_retoma_do_ultimo_checkpoint_inteiro(tmp_path: Path) -> None:
     exemplo = montar.exemplo_habilidades({"id": "y", "titulo": "Dev", "descricao": LONGA}, ["Go"])
     for nome in ("treino", "validacao"):
         (dados / f"{nome}.jsonl").write_text(json.dumps(exemplo) + "\n")
-    args = argparse.Namespace(dados=dados, saida=tmp_path / "laya")
+    args = argparse.Namespace(dados=dados, saida=tmp_path / "laya", recorte=0)
     falsos: list[_TreinoFalso] = []
 
     def montar_falso(cai_em: int | None) -> Any:
@@ -402,10 +695,10 @@ def test_treino_retoma_do_ultimo_checkpoint_inteiro(tmp_path: Path) -> None:
 
 def test_ultimo_checkpoint_ignora_o_cortado_e_ordena_por_numero(tmp_path: Path) -> None:
     assert treinar.ultimo_checkpoint(tmp_path / "nada") is None
-    for n, inteiro in ((9, True), (100, True), (200, False)):
+    for n, estado in ((9, "{}"), (100, "{}"), (200, None), (300, '{"global_st')):
         (tmp_path / f"checkpoint-{n}").mkdir()
-        if inteiro:
-            (tmp_path / f"checkpoint-{n}" / "trainer_state.json").write_text("{}")
+        if estado is not None:
+            (tmp_path / f"checkpoint-{n}" / "trainer_state.json").write_text(estado)
     assert treinar.ultimo_checkpoint(tmp_path) == tmp_path / "checkpoint-100"
 
 
@@ -420,6 +713,90 @@ def test_entrada_do_manifesto_tem_sha256_e_tamanho(tmp_path: Path) -> None:
     assert entrada["tamanho"] == 14
     assert entrada["sha256"] == hashlib.sha256(b"GGUF" + bytes(10)).hexdigest()
     assert set(entrada) == {"nome", "arquivo", "url", "tamanho", "sha256", "licenca", "origem"}
+
+
+def test_treino_recusa_saida_proibida(tmp_path: Path) -> None:
+    for saida in (tmp_path / "dados_locais" / "laya", RAIZ / "laya_teste"):
+        args = argparse.Namespace(dados=tmp_path, saida=saida, recorte=0)
+        with pytest.raises(montar.Recusa):
+            treinar.treinar(args, lambda *a: pytest.fail("não devia montar"))
+        assert not saida.exists()
+
+
+def test_exportar_converte_em_outro_ambiente_e_assina_o_q4(tmp_path: Path) -> None:
+    saida, llama = tmp_path / "laya", tmp_path / "llama.cpp"
+    saida.mkdir()
+    ordem: list[str] = []
+
+    def juntar(pasta: Path, base: str) -> Path:
+        ordem.append(f"juntar {base}")
+        return pasta / "junto"
+
+    def rodar(comando: list[str], check: bool) -> None:
+        assert check
+        ordem.append(comando[0])
+        if comando[0] == "uv":  # o conversor escreve o f16
+            Path(comando[comando.index("--outfile") + 1]).write_bytes(b"f16" * 100)
+        else:  # o llama-quantize escreve o Q4_K_M
+            Path(comando[2]).write_bytes(b"q4km!")
+        ordem.append(" ".join(comando))
+
+    args = argparse.Namespace(
+        saida=saida,
+        llama_cpp=llama,
+        base="Qwen/X",
+        url="https://exemplo.invalid/v1/Laya-2B-Q4_K_M.gguf",
+        python_conversor="uv run --no-project --with-requirements req.txt python",
+    )
+    gguf = treinar.exportar(args, juntar, rodar)
+    assert ordem[0] == "juntar Qwen/X"
+    assert ordem[2].startswith(
+        f"uv run --no-project --with-requirements req.txt python {llama}/convert_hf_to_gguf.py "
+        f"{saida}/junto --outfile"
+    )
+    assert ordem[4].startswith(f"{llama}/build/bin/llama-quantize {saida}/laya-2b-f16.gguf")
+    manifesto = json.loads((saida / "manifesto_laya.json").read_text())["laya"]
+    assert manifesto["sha256"] == hashlib.sha256(b"q4km!").hexdigest()
+    assert manifesto["tamanho"] == 5
+    assert gguf == saida / "Laya-2B-Q4_K_M.gguf"
+
+
+def test_config_do_treino_sem_warmup_ratio_e_avaliacao_num_recorte(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def registrar(**kw: Any) -> dict[str, Any]:
+        return kw
+
+    monkeypatch.setitem(
+        sys.modules, "trl", SimpleNamespace(SFTConfig=registrar, SFTTrainer=registrar)
+    )
+    monkeypatch.setitem(sys.modules, "peft", SimpleNamespace(LoraConfig=registrar))
+    monkeypatch.setitem(
+        sys.modules, "datasets", SimpleNamespace(Dataset=SimpleNamespace(from_list=list))
+    )
+    exemplo: dict[str, list[Any]] = {"prompt": [], "completion": []}
+    args = argparse.Namespace(
+        saida=Path("/x"),
+        epocas=2.0,
+        max_passos=-1,
+        lote=8,
+        acumular=2,
+        taxa=2e-4,
+        salvar_a_cada=100,
+        max_tokens=3072,
+        rank=16,
+        base="Qwen/X",
+        avaliar=3,
+    )
+    montado: Any = treinar.montar_hf(args, [exemplo] * 5, [exemplo] * 10)
+    config = montado["args"]
+    # transformers 5 tirou `warmup_ratio`; `warmup_steps` < 1 vale como proporção
+    assert "warmup_ratio" not in config and config["warmup_steps"] == 0.03
+    assert config["eval_strategy"] == "epoch" and "eval_steps" not in config
+    assert len(montado["eval_dataset"]) == 3
+    args.avaliar = 0
+    montado = treinar.montar_hf(args, [exemplo] * 5, [exemplo] * 10)
+    assert montado["args"]["eval_strategy"] == "no" and montado["eval_dataset"] is None
 
 
 def test_treino_nem_comeca_com_exemplo_do_ouro(tmp_path: Path) -> None:
@@ -437,7 +814,7 @@ def test_treino_nem_comeca_com_exemplo_do_ouro(tmp_path: Path) -> None:
         montados.append(a)
         return _TreinoFalso(a.saida, 10, None)
 
-    args = argparse.Namespace(dados=dados, saida=tmp_path / "laya")
+    args = argparse.Namespace(dados=dados, saida=tmp_path / "laya", recorte=0)
     with pytest.raises(montar.Recusa, match="ouro"):
         treinar.treinar(args, montar_)
     assert montados == []
