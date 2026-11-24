@@ -32,7 +32,7 @@ flowchart LR
 
 <sub>✅ complete · 🟡 being built · ⚪ planned</sub>
 
-Version 0.3.0 came out between phase 2 and phase 3, with the "Overview" screen (an overview of the jobs and the search) and the complete application queue. Version 0.4.0 closes phase 3, with a window of its own and the installer.
+Version 0.3.0 came out between phase 2 and phase 3, with the "Overview" screen (an overview of the jobs and the search) and the complete application queue. Version 0.4.0 closes phase 3, with a window of its own and the installer. Version 0.4.1 fixes Linux: the window becomes a control and the dashboard opens in your browser.
 
 ## 🔍 A bit more about each phase
 

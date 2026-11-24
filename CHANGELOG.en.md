@@ -8,15 +8,35 @@ The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/
 
 ## [Unreleased]
 
+0.4.1 fixes what 0.4.0 broke on Linux: the joBot window becomes a small control, and the dashboard opens in your browser.
+
 ### Added
 
 - ADR 0026 (proposed): phase 4 AI. The AI will arrive in two versions, 0.5.0 and 0.6.0, off by default; the local model will be downloaded from the official source, when the person asks, and the AI will only list what the job asks for, without giving a score. The roadmap now shows phase 4 being built.
 - ADR 0027: the shell only controls. joBot's window becomes a control with Start, Stop and Open joBot, and the dashboard opens in the person's default browser. It replaces the "Shell" part of ADR 0025.
 - The base of the phase 4 AI already ships in this version, off and with no screen to turn it on: the database migration that stores the profile, the skills the AI extracts from each job and the match level, the pydantic dependency, the clients for the Anthropic API and for OpenAI-compatible services, and `jobot ferramentas baixar ia-local`, which downloads llama-server and a model with a checked sha256. None of it runs unless the person turns it on.
+- The dashboard screen tests run in Chromium, Firefox and WebKit, because the default browser can be any of them. Before each version, CI installs the joBot window on a virtual desktop, installs joBot through it, starts, opens and stops it from the control and keeps the screenshots.
 
 ### Changed
 
+- The joBot window becomes a small control. It shows whether joBot is Running or Stopped and the dashboard address, with a Copy button, and has the Start, Stop and Open joBot buttons. Open joBot opens the dashboard in your default browser (Firefox, Chrome, Edge, Safari or another). When it opens, the window only shows the state: it does not start or open anything by itself. The install screen stays on first launch and, at the end, leads to the control.
+- Closing the window while joBot is running asks "Keep joBot running?". Keep running closes only the window, and the dashboard stays on in your browser until you press Stop; Turn off stops joBot and closes. With joBot stopped, the window closes right away. The background service is now only for joBot to start by itself when the computer starts.
+- The "Download the new window" button leaves the dashboard banner and moves to the control, which shows it when the running joBot is newer than the window ("Update now" replaces only joBot). If you still have the 0.4.0 window and update only joBot, you see a banner inside it that tells you to install the new window.
+- The dashboard looks lighter: the sidebar and the top bar have a solid background instead of blurred glass, and glass stays only in menus and dialogs.
 - The progress bar moves smoothly, in the dashboard and in the installer: it starts fast and slows down gradually, without jumping or stopping abruptly between steps.
+- The weekly source watcher re-enables itself on every run, so GitHub does not turn it off after 60 days without activity in the repository.
+
+### Removed
+
+- The dashboard no longer runs inside the joBot window. The close, minimize and maximize buttons that joBot drew and the area to drag the window are gone.
+
+### Fixed
+
+- On Linux, the 0.4.0 window made the computer slow and showed the dashboard cut off and out of place. The dashboard now runs in your browser.
+- The AppImage no longer leaves copies of about 400 MB in `/tmp`, which many Linux systems keep in memory: when it runs unpacked (without FUSE), the folder is deleted on close, even after a forced exit, and without deleting the one of another launch still in use.
+- joBot left running by the window and the browser opened by Open joBot are no longer tied to the AppImage after the window closes: they do not inherit its folder, its open files or the settings from inside it, such as the forced light theme in the browser.
+- In Firefox and Safari, the job context menu opens with the mouse.
+- In Safari, going back to a dashboard page no longer shows the false notice that the internet dropped.
 
 ## [0.4.0] - 2026-11-17
 
