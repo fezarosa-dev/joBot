@@ -314,6 +314,10 @@ def test_post_devolve_a_espera_e_o_resultado_chega_pela_pergunta(pronto: Painel)
     final = pronto.fragmento()
     assert final.status_code == 200
     assert _secao(final.text).attributes.get("hx-trigger") is None
+    # o resultado que chega sozinho puxa o foco, se solto (app.js); a página inteira, não
+    aviso = _secao(final.text).css_first("[data-foco-se-livre]")
+    assert aviso is not None and pt("detalhe.candidatura.aviso") in _texto(aviso.html or "")
+    assert _secao(pronto.pagina()).css_first("[data-foco-se-livre]") is None
 
 
 def test_clique_duplo_nao_dispara_outro(pronto: Painel) -> None:

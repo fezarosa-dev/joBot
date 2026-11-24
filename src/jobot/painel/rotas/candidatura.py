@@ -128,6 +128,7 @@ def _secao(request: Request, con: sqlite3.Connection, vaga_id: int, lado: bool) 
         retorno=f"/vagas/{vaga_id}",
         prefixo="lado-" if lado else "",
         n=2 if lado else 1,
+        foco=True,
     )
 
 
