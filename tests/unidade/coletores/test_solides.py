@@ -20,7 +20,6 @@ pytestmark = pytest.mark.anyio
 
 PASTA = Path(__file__).resolve().parents[2] / "fixtures" / "solides"
 BRT = timezone(timedelta(hours=-3))
-DIEFRA = Empresa(nome="Diefra", fonte="solides", identificador="diefra")
 Responder = Callable[[httpx.Request], httpx.Response]
 
 
