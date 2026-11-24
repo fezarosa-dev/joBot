@@ -302,6 +302,20 @@ def test_detalhe_mostra_as_habilidades_inteiras_com_backend_e_modelo(painel: Pai
     assert "segundo a IA" not in _texto(painel.detalhe("nova"))
 
 
+def test_detalhe_ao_lado_mostra_as_habilidades_como_a_pagina(painel: Painel) -> None:
+    """O detalhe ao lado (`/vagas?vaga=`) usa o mesmo corpo da página: a lista da IA também."""
+    _habilidades(painel, "usd", OITO, ["git", "PYTHON"])
+    motivos = [{"chave": "encaixe.habilidades_faltam", "params": {"lista": "Go, Rust, …"}}]
+    painel.sql("UPDATE encaixe SET motivos = ?", json.dumps(motivos))
+    html = painel.get(f"/vagas?aba=todas&vaga={painel.ids['usd']}").text
+    lado = re.search(r'<dialog\b[^>]*\bid="detalhe-vaga"[^>]*>(.*?)</dialog>', html, re.S)
+    assert lado is not None and "lado-titulo" in lado.group(1)
+    texto = _texto(lado.group(1))
+    assert "Habilidades que faltam: Go, Rust, Java, SQL, Docker, Kotlin" in texto
+    assert "O que a vaga pede, segundo a IA (local, qwen3-4b)" in texto
+    assert "…" not in texto  # o motivo truncado sai, como na página própria
+
+
 def test_detalhe_avisa_quando_a_ia_leu_so_parte_do_texto(painel: Painel) -> None:
     _habilidades(painel, "usd", ["Python"], [])
     painel.sql("UPDATE vaga SET descricao_texto = ? WHERE id = ?", "x " * 3001, painel.ids["usd"])
