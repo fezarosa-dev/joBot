@@ -15,8 +15,9 @@ _LOG = logging.getLogger(__name__)
 # Onde o canal `chrome` do Playwright procura o Chrome no Linux (conferido na 1.65.1, E8).
 CAMINHO_CHROME = Path("/opt/google/chrome/chrome")
 
-# Do ambiente do `serve` só o que o Chrome lê (pastas, área de trabalho, usuário, idioma);
-# nenhuma carrega segredo. O resto, token e chave de API inclusos, não passa (D135.10).
+# Do ambiente do `serve` só o que o Chrome lê (pastas, área de trabalho, usuário, idioma; no
+# Windows, as pastas do sistema: sem SYSTEMROOT o Winsock não carrega); nenhuma carrega segredo.
+# O resto, token e chave de API inclusos, não passa (D135.10).
 VARIAVEIS_DO_NAVEGADOR: Final = (
     "PATH",
     "HOME",
@@ -33,6 +34,16 @@ VARIAVEIS_DO_NAVEGADOR: Final = (
     "XDG_CURRENT_DESKTOP",
     "XDG_SESSION_TYPE",
     "DBUS_SESSION_BUS_ADDRESS",
+    "SYSTEMROOT",
+    "WINDIR",
+    "TEMP",
+    "TMP",
+    "USERPROFILE",
+    "LOCALAPPDATA",
+    "APPDATA",
+    "PROGRAMFILES",
+    "PROGRAMFILES(X86)",
+    "USERNAME",
 )
 
 # Recebe os mesmos argumentos de nome de `launch_persistent_context`.
