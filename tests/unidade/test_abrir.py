@@ -13,6 +13,7 @@ from typing import Any
 import pytest
 
 from apoio.filho_com_trava import filho_com_trava
+from apoio.llama_falso import RelogioSincrono
 from jobot.sistema import abrir as modulo_abrir
 from jobot.sistema import instancia, sair
 from jobot.sistema.abrir import (
@@ -203,12 +204,20 @@ def test_abrir_sem_servidor_sobe_e_abre(tmp_path: Path) -> None:
 
 
 def test_abrir_sem_servidor_que_nunca_responde_falha_sem_navegador(tmp_path: Path) -> None:
-    navegador, saida = _Navegador(), _Saida()
+    navegador, saida, relogio = _Navegador(), _Saida(), RelogioSincrono()
     porta = _porta_livre()
     env = {"JOBOT_PORTA": str(porta)}
     codigo = abrir_painel(
-        env, tmp_path, subir=lambda: None, navegador=navegador, saida=saida, esperar_s=0.3
+        env,
+        tmp_path,
+        subir=lambda: None,
+        navegador=navegador,
+        saida=saida,
+        esperar_s=1,
+        agora=relogio.agora,
+        dormir=relogio.dormir,
     )
+    assert relogio.t >= 1  # esperou o prazo inteiro no relógio falso, sem tempo real
     assert codigo != 0
     assert navegador.chamadas == []
     assert saida.linhas
@@ -228,16 +237,24 @@ def test_sem_navegador_mostra_o_endereco(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize("com_trava", [False, True])
 def test_porta_de_outro_programa_nao_abre_navegador(tmp_path: Path, com_trava: bool) -> None:
-    navegador, saida = _Navegador(), _Saida()
+    navegador, saida, relogio = _Navegador(), _Saida(), RelogioSincrono()
     with _servidor(b"<html>outro programa</html>") as porta:
         trava = Trava(tmp_path, porta)
         if com_trava:  # PID guardado, mas a porta responde outra coisa
             assert trava.pegar() is True
         env = {"JOBOT_PORTA": str(porta)}
         codigo = abrir_painel(
-            env, tmp_path, subir=_nao_sobe, navegador=navegador, saida=saida, esperar_s=0.3
+            env,
+            tmp_path,
+            subir=_nao_sobe,
+            navegador=navegador,
+            saida=saida,
+            esperar_s=1,
+            agora=relogio.agora,
+            dormir=relogio.dormir,
         )
         trava.soltar()
+    assert (relogio.t >= 1) is com_trava  # sem trava, a porta alheia recusa antes de esperar
     assert codigo != 0
     assert navegador.chamadas == []
     assert str(porta) in saida.texto
@@ -542,9 +559,13 @@ def test_sair_manda_sigterm_ao_pid_da_trava(tmp_path: Path) -> None:
 
 
 def test_sair_avisa_quando_o_servidor_nao_encerra(tmp_path: Path) -> None:
-    saida = _Saida()
+    saida, relogio = _Saida(), RelogioSincrono()
     with filho_com_trava(tmp_path, "ignora") as filho:
-        assert sair_do_servidor(tmp_path, saida=saida, esperar_s=0.5) != 0
+        codigo = sair_do_servidor(
+            tmp_path, saida=saida, esperar_s=1, agora=relogio.agora, dormir=relogio.dormir
+        )
+        assert codigo != 0
+        assert relogio.t >= 1  # o prazo correu no relógio falso, sem tempo real
         assert filho.poll() is None
     assert saida.linhas
 
