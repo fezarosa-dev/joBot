@@ -309,5 +309,9 @@
   "configuracoes.ia.falha.servico_fora": "The service is down or answered with an error. Try again later.",
   "configuracoes.ia.falha.recusa": "The model did not answer in the requested format. Try another model.",
   "configuracoes.ia.falha.formato": "The model's answer did not fit the format. Try another model.",
-  "configuracoes.ia.falha.contexto": "The text is longer than the model accepts. Try a model with a larger context."
+  "configuracoes.ia.falha.contexto": "The text is longer than the model accepts. Try a model with a larger context.",
+  "configuracoes.ia.teste.testando": "Testing: joBot makes a short request, with a made-up job, and waits for the answer (with the local model, the first time can take a few minutes).",
+  "configuracoes.ia.teste.recarregar": "Reload the page to see the test result.",
+  "configuracoes.ia.teste.ok": "✓ Tested: the answer came in the right format.",
+  "configuracoes.ia.teste.falhou": "The test failed and the task was turned off. {motivo} Then turn it on again to test once more."
 }

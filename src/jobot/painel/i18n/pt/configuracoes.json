@@ -309,5 +309,9 @@
   "configuracoes.ia.falha.servico_fora": "O serviço está fora do ar ou respondeu com erro. Tente de novo mais tarde.",
   "configuracoes.ia.falha.recusa": "O modelo não respondeu no formato pedido. Tente outro modelo.",
   "configuracoes.ia.falha.formato": "A resposta do modelo veio fora do formato. Tente outro modelo.",
-  "configuracoes.ia.falha.contexto": "O texto passou do tamanho que o modelo aceita. Tente um modelo com contexto maior."
+  "configuracoes.ia.falha.contexto": "O texto passou do tamanho que o modelo aceita. Tente um modelo com contexto maior.",
+  "configuracoes.ia.teste.testando": "Testando: o joBot faz um pedido curto, com uma vaga inventada, e espera a resposta (no modelo local, a primeira vez pode levar uns minutos).",
+  "configuracoes.ia.teste.recarregar": "Recarregue a página para ver o resultado do teste.",
+  "configuracoes.ia.teste.ok": "✓ Testado: a resposta veio no formato certo.",
+  "configuracoes.ia.teste.falhou": "O teste falhou e a tarefa ficou desligada. {motivo} Depois, ligue de novo para testar outra vez."
 }
