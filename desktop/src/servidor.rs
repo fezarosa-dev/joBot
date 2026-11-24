@@ -294,9 +294,16 @@ pub fn sem_python_de_fora(comando: &mut Command) -> &mut Command {
 }
 
 /// `jobot <subcomando>` destacado (sessão própria no POSIX, grupo próprio sem console no
-/// Windows, como `processo.destacar`): o servidor nunca é filho preso à casca.
+/// Windows, como `processo.destacar`): o servidor nunca é filho preso à casca. Com o ambiente
+/// da casca: dentro de um AppImage, o servidor que fica ligado depois dela sai dele (D217).
 pub fn comando_destacado(jobot: &Path, subcomando: &str) -> Command {
+    comando_destacado_em(jobot, subcomando, &crate::controle::ambiente_da_casca())
+}
+
+/// O miolo de `comando_destacado`, com o ambiente da casca (`vars`) injetado.
+fn comando_destacado_em(jobot: &Path, subcomando: &str, vars: &[(String, String)]) -> Command {
     let mut comando = Command::new(jobot);
+    crate::controle::fora_da_pasta_do_appimage(&mut comando, vars);
     sem_python_de_fora(&mut comando)
         .arg(subcomando)
         .stdin(Stdio::null())
@@ -598,6 +605,41 @@ mod testes {
             .map(|(k, _)| k)
             .collect();
         assert_eq!(fora, ["LD_LIBRARY_PATH", "PYTHONHOME", "PYTHONPATH"]);
+    }
+
+    /// D217: o `serve` que fica ligado depois da casca não fica preso ao AppImage: sem as
+    /// variáveis do AppRun e na casa da pessoa, não em `$APPDIR/usr`.
+    #[test]
+    fn comando_destacado_dentro_do_appimage_sai_dele() {
+        let vars: Vec<(String, String)> = [
+            ("APPDIR", "/tmp/.mount_jobot1"),
+            ("APPIMAGE", "/home/p/joBot.AppImage"),
+            ("HOME", "/home/p"),
+            ("PATH", "/tmp/.mount_jobot1/usr/bin:/usr/bin"),
+            ("LANG", "pt_BR.UTF-8"),
+        ]
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .into();
+        let c = comando_destacado_em(Path::new("/v/bin/jobot"), "serve", &vars);
+        assert_eq!(c.get_current_dir(), Some(Path::new("/home/p")));
+        let envs: std::collections::HashMap<_, _> = c
+            .get_envs()
+            .map(|(k, v)| (k.to_str().unwrap(), v.map(|v| v.to_str().unwrap())))
+            .collect();
+        assert_eq!(envs["APPDIR"], None);
+        assert_eq!(envs["APPIMAGE"], None);
+        assert_eq!(envs["PATH"], Some("/usr/bin"));
+        assert_eq!(envs["PWD"], Some("/home/p"));
+        assert_eq!(envs["PYTHONHOME"], None);
+        assert!(
+            !envs.contains_key("LANG"),
+            "o que não é do AppImage fica como está"
+        );
+        assert!(!envs.contains_key("HOME"));
+        // fora de um AppImage, nada muda: nem a pasta
+        let fora = comando_destacado_em(Path::new("/v/bin/jobot"), "sair", &vars[2..]);
+        assert_eq!(fora.get_current_dir(), None);
+        assert_eq!(fora.get_args().collect::<Vec<_>>(), ["sair"]);
     }
 
     /// Um filho de verdade conta onde ficaram a entrada, as saídas e o grupo de processos.
