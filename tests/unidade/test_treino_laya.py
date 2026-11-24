@@ -5,6 +5,7 @@ import asyncio
 import hashlib
 import importlib.util
 import json
+import re
 import sqlite3
 import sys
 from contextlib import closing
@@ -823,3 +824,128 @@ def test_treino_nem_comeca_com_exemplo_do_ouro(tmp_path: Path) -> None:
     (dados / "treino.jsonl").write_text(json.dumps(comum) + "\n")
     treinar.treinar(args, montar_)
     assert len(montados) == 1
+
+
+# --- juntar_lora: o merge e o tokenizador (D219.18) ---------------------------------------------
+# Falsos do torch, do peft, do transformers e do huggingface_hub: o Qwen3.5 é multimodal e o
+# LoRA do SFTTrainer tem as chaves da classe de imagem e texto (`model.language_model.layers`).
+
+
+class _Modelo:
+    def __init__(self, base: str, chaves: str, juntou: bool = False) -> None:
+        self.base, self.chaves, self.juntou = base, chaves, juntou
+
+    def save_pretrained(self, pasta: str) -> None:
+        Path(pasta).mkdir(parents=True, exist_ok=True)
+        conteudo = {"base": self.base, "juntou": self.juntou}
+        (Path(pasta) / "config.json").write_text(json.dumps(conteudo))
+
+
+class _ComLora:
+    def __init__(self, modelo: _Modelo, lora: str) -> None:
+        self.modelo, self.lora = modelo, lora
+
+    def merge_and_unload(self) -> _Modelo:
+        # as chaves do LoRA só casam com a classe multimodal; senão o merge não muda nada
+        casou = self.modelo.chaves == "model.language_model.layers"
+        return _Modelo(self.modelo.base, self.modelo.chaves, juntou=casou)
+
+
+def _falsos_do_merge(monkeypatch: pytest.MonkeyPatch, origem: Path) -> None:
+    def multimodal(base: str, **_kw: Any) -> _Modelo:
+        return _Modelo(base, "model.language_model.layers")
+
+    def so_texto(lora: str, **_kw: Any) -> _ComLora:
+        return _ComLora(_Modelo("Qwen/Qwen3.5-2B", "model.layers"), lora)
+
+    class _Tokenizador:
+        def save_pretrained(self, pasta: str) -> None:
+            # o transformers 5 grava a classe nova, que o conversor do llama.cpp não conhece
+            (Path(pasta) / "tokenizer_config.json").write_text(
+                json.dumps({"tokenizer_class": "Qwen3_5Tokenizer"})
+            )
+
+    transformers = SimpleNamespace(
+        AutoModelForImageTextToText=SimpleNamespace(from_pretrained=multimodal),
+        AutoModelForCausalLM=SimpleNamespace(
+            from_pretrained=lambda b, **kw: _Modelo(b, "model.layers")
+        ),
+        AutoTokenizer=SimpleNamespace(from_pretrained=lambda b, **kw: _Tokenizador()),
+    )
+    peft = SimpleNamespace(
+        PeftModel=SimpleNamespace(from_pretrained=lambda m, lora, **kw: _ComLora(m, lora)),
+        AutoPeftModelForCausalLM=SimpleNamespace(from_pretrained=so_texto),
+    )
+    monkeypatch.setitem(sys.modules, "transformers", transformers)
+    monkeypatch.setitem(sys.modules, "peft", peft)
+    monkeypatch.setitem(sys.modules, "torch", SimpleNamespace(bfloat16="bf16"))
+    # a cópia local do repositório original traz também os pesos e o config.json dele
+    hub = SimpleNamespace(snapshot_download=lambda repo, **kw: str(origem))
+    monkeypatch.setitem(sys.modules, "huggingface_hub", hub)
+
+
+def _snapshot(pasta: Path) -> Path:
+    pasta.mkdir()
+    (pasta / "tokenizer_config.json").write_text(json.dumps({"tokenizer_class": "Qwen2Tokenizer"}))
+    (pasta / "tokenizer.json").write_text('{"model": {}}')
+    (pasta / "chat_template.jinja").write_text("{{ messages }}")
+    (pasta / "config.json").write_text(json.dumps({"base": "original", "juntou": False}))
+    (pasta / "model.safetensors").write_bytes(b"pesos do original")
+    return pasta
+
+
+def test_juntar_lora_pela_classe_multimodal_muda_o_modelo(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _falsos_do_merge(monkeypatch, _snapshot(tmp_path / "snapshot"))
+    junto = treinar.juntar_lora(tmp_path / "laya", "Qwen/Qwen3.5-2B")
+    config = json.loads((junto / "config.json").read_text())
+    # pela classe só de texto as chaves não casam e o "junto" sai igual ao base
+    assert config == {"base": "Qwen/Qwen3.5-2B", "juntou": True}
+
+
+def test_juntar_lora_copia_so_o_tokenizador_do_original(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    origem = _snapshot(tmp_path / "snapshot")
+    _falsos_do_merge(monkeypatch, origem)
+    junto = treinar.juntar_lora(tmp_path / "laya", "Qwen/Qwen3.5-2B")
+    # a classe que o conversor do llama.cpp conhece, do repositório original
+    tokenizador = json.loads((junto / "tokenizer_config.json").read_text())
+    assert tokenizador == {"tokenizer_class": "Qwen2Tokenizer"}
+    for nome in ("tokenizer.json", "chat_template.jinja"):
+        assert (junto / nome).read_bytes() == (origem / nome).read_bytes()
+    # só os do tokenizador: o config.json e os pesos do original não pisam no junto
+    assert json.loads((junto / "config.json").read_text())["base"] == "Qwen/Qwen3.5-2B"
+    assert not (junto / "model.safetensors").exists()
+
+
+def test_lora_fora_da_torre_de_visao(monkeypatch: pytest.MonkeyPatch) -> None:
+    def registrar(**kw: Any) -> dict[str, Any]:
+        return kw
+
+    monkeypatch.setitem(
+        sys.modules, "trl", SimpleNamespace(SFTConfig=registrar, SFTTrainer=registrar)
+    )
+    monkeypatch.setitem(sys.modules, "peft", SimpleNamespace(LoraConfig=registrar))
+    monkeypatch.setitem(
+        sys.modules, "datasets", SimpleNamespace(Dataset=SimpleNamespace(from_list=list))
+    )
+    args = argparse.Namespace(
+        saida=Path("/x"), epocas=2.0, max_passos=-1, lote=8, acumular=2, taxa=2e-4,
+        salvar_a_cada=100, max_tokens=3072, rank=16, base="Qwen/X", avaliar=0,
+    )  # fmt: skip
+    lora: Any = treinar.montar_hf(args, [], [])["peft_config"]
+    fora = lora.get("exclude_modules")
+    assert fora is not None and re.fullmatch(fora, "model.visual.blocks.0.attn.qkv")
+    # controle: as camadas de texto continuam no LoRA
+    assert not re.fullmatch(fora, "model.language_model.layers.0.self_attn.q_proj")
+
+
+def test_requisitos_do_treino_trazem_os_da_classe_multimodal() -> None:
+    linhas = (PASTA / "requirements.txt").read_text(encoding="utf-8").splitlines()
+    fixados = {linha.split("==")[0]: linha for linha in linhas if "==" in linha}
+    assert fixados.get("torchvision") == "torchvision==0.29.2"
+    assert fixados.get("pillow") == "pillow==13.0.0"
+    assert fixados.get("flash-linear-attention") == "flash-linear-attention==0.6.0"
+    assert fixados["torch"] == "torch==2.15.0"  # controle: leu o arquivo
