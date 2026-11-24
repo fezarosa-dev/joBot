@@ -104,8 +104,16 @@ def frase_de_privacidade(tarefa: TarefaIA, base: str) -> dict[str, str | None]:
 
 
 def _privacidade(con: sqlite3.Connection) -> dict[str, str | None]:
-    """A frase de privacidade (desenho 8) pelo estado da tarefa `encaixe`."""
+    """A frase de privacidade (desenho 8) pelo estado da tarefa `encaixe`; fala só do encaixe."""
     return frase_de_privacidade(tarefa_ia(con, "encaixe"), "configuracoes.perfil.privacidade.")
+
+
+def _privacidade_perguntas(con: sqlite3.Connection) -> dict[str, str | None] | None:
+    """Com a tarefa `perguntas` ligada, a frase dela vai junto: as habilidades e o resto do
+    perfil vão naquele pedido (D233)."""
+    tarefa = tarefa_ia(con, "perguntas")
+    base = "configuracoes.perfil.perguntas.privacidade."
+    return frase_de_privacidade(tarefa, base) if tarefa.ligada else None
 
 
 # --- o resto do perfil (T434) -----------------------------------------------------------------
@@ -406,6 +414,7 @@ async def contexto_perfil(request: Request, con: Con) -> dict[str, Any]:
         "habilidades_texto": "\n".join(atuais),
         "tem_perfil": perfil.existe(con),
         "privacidade": _privacidade(con),
+        "privacidade_perguntas": _privacidade_perguntas(con),
         "apagado": request.query_params.get("apagado") == "1",
         "dados_tela": _dados_na_tela(perfil.dados(con)),
         "experiencias": [_item_na_tela(e) for e in perfil.experiencias(con)],
@@ -487,10 +496,13 @@ async def ler_curriculo(request: Request) -> Response:
 # --- questionário e perguntas de lacuna (T437; desenho 8; D233) -------------------------------
 
 PERGUNTAS = PERFIL + "/perguntas"
-TETO_RESPOSTAS = 200  # pares pergunta/resposta que a tela manda num POST
-# por cima do prazo do pedido: a leitura do cofre e a subida do `llama-server` (como o teste ao
-# ligar, `ia.FOLGA_TESTE_S`); passou disso, `tempo_esgotado`
-FOLGA_IA_S = 150.0
+# As perguntas só se acumulam (D233.5): no teto a IA não pede mais, e a página mostra só até ele
+# (as das candidaturas, T438, podem passar), então o POST nunca manda mais pares que isto.
+TETO_PERGUNTAS = 100
+TETO_RESPOSTAS = TETO_PERGUNTAS  # pares pergunta/resposta que a tela manda num POST
+# por cima do prazo do pedido: no local, a subida do `llama-server` (como o teste ao ligar,
+# `ia.FOLGA_TESTE_S`); fora, só a leitura do cofre. Passou disso, `tempo_esgotado`
+FOLGA_IA_S = {"local": 150.0, "fora": 10.0}
 
 
 def _base_na_tela(idioma: str) -> list[dict[str, str | None]]:
@@ -526,8 +538,10 @@ async def contexto_perguntas(request: Request, con: Con) -> dict[str, Any]:
         "perguntas_base": _base_na_tela(idioma_do_pedido(request)),
         "dados_tela": _dados_na_tela(perfil.dados(con)),
         "habilidades_texto": "\n".join(perfil.habilidades(con)),
-        "perguntas_ia": _perguntas_na_tela(perfil.perguntas(con)),
+        "perguntas_ia": _perguntas_na_tela(perfil.perguntas(con)[:TETO_PERGUNTAS]),
         "perguntas_ligada": tarefa.ligada,
+        "teto_perguntas": TETO_PERGUNTAS,
+        "em_curso": request.query_params.get("em_curso") == "1",
         "perguntas_privacidade": frase_de_privacidade(
             tarefa, "configuracoes.perfil.perguntas.privacidade."
         ),
@@ -586,7 +600,8 @@ async def gravar_perguntas(
             "dados_tela": _dados_digitados(form),
             "habilidades_texto": str(form.get("habilidades") or ""),
             "perguntas_ia": _perguntas_na_tela(
-                perfil.perguntas(con), {str(c): str(t) for c, t in digitadas.items()}
+                perfil.perguntas(con)[:TETO_PERGUNTAS],
+                {str(c): str(t) for c, t in digitadas.items()},
             ),
         }
     agora = relogio_do_painel(request).agora()
@@ -619,9 +634,11 @@ async def _sugerir(request: Request, con: sqlite3.Connection) -> str | tuple[int
     tarefa = tarefa_ia(con, "perguntas")
     if not tarefa.ligada:  # desligada noutra aba depois de a página abrir
         return 200, {"perguntas_falha": "configuracoes.perfil.perguntas.desligada"}
+    if len(perfil.perguntas(con)) >= TETO_PERGUNTAS:  # D233.5: sem "Tirar", o teto para o pedido
+        return 200, {"perguntas_falha": "configuracoes.perfil.perguntas.cheio"}
     trava = _trava_perguntas(request)
     if trava.locked():  # clique duplo: as respostas já gravaram; as sugestões chegam com o 1º
-        return PERGUNTAS + "?salvo=1#perguntas-ia"
+        return PERGUNTAS + "?em_curso=1#perguntas-ia"
     async with trava:  # livre: não suspende, então a checagem acima vale
         perguntas = perfil.perguntas(con)
         fontes = asdict(perfil.dados(con)) | {
@@ -638,6 +655,7 @@ async def _sugerir(request: Request, con: sqlite3.Connection) -> str | tuple[int
         except Falha as falha:
             return 200, {"perguntas_falha": chave_da_falha(falha.motivo, tarefa.backend)}
         ficam = perguntas_que_ficam(resposta.dados["perguntas"], _feitas(perguntas))
+        ficam = ficam[: max(TETO_PERGUNTAS - len(perguntas), 0)]
         agora = relogio_do_painel(request).agora()
         for p in ficam:
             chave = "ia:" + normalizar(p["pergunta"])
@@ -660,7 +678,8 @@ async def pedir_ia(request: Request, tarefa: TarefaIA, pedido: Pedido) -> Respos
         if obter is None:  # o app sem o `serve` não tem a fábrica
             raise Falha("servico_fora")
         futuro = asyncio.ensure_future(_pedir(obter, tarefa, pedido))
-        feitas, _ = await asyncio.wait({futuro}, timeout=pedido.prazo_s + FOLGA_IA_S)
+        folga = FOLGA_IA_S["local" if tarefa.backend == "local" else "fora"]
+        feitas, _ = await asyncio.wait({futuro}, timeout=pedido.prazo_s + folga)
         if not feitas:  # a thread presa segue até o próprio prazo; a página não espera
             raise Falha("tempo_esgotado")
         return futuro.result()
@@ -686,8 +705,18 @@ async def pedir_ia(request: Request, tarefa: TarefaIA, pedido: Pedido) -> Respos
 
 
 async def _pedir(obter: Obter, tarefa: TarefaIA, pedido: Pedido) -> Resposta:
-    backend = await asyncio.to_thread(obter, tarefa.backend, tarefa.modelo)
+    criando = asyncio.ensure_future(asyncio.to_thread(obter, tarefa.backend, tarefa.modelo))
+    try:
+        backend = await asyncio.shield(criando)
+    except asyncio.CancelledError:  # o prazo venceu na criação: fecha o backend quando ela acabar
+        criando.add_done_callback(_fechar_ao_criar)
+        raise
     try:
         return await asyncio.to_thread(backend.pedir, pedido)
     finally:
         backend.fechar()
+
+
+def _fechar_ao_criar(criando: asyncio.Future[Any]) -> None:
+    if not criando.cancelled() and criando.exception() is None:
+        criando.result().fechar()

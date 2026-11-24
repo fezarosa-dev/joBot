@@ -260,10 +260,24 @@ def pedido_perguntas(
         modelo=modelo,
         mensagens=(
             Mensagem("system", sistema),
-            Mensagem("user", bloco_perfil(dados_para("perguntas", fontes))),
+            Mensagem("user", _perfil_cortado(dados_para("perguntas", fontes))),
         ),
         esquema=SaidaPerguntas,
         max_tokens=lim["tarefas"]["perguntas"]["max_tokens"][lugar],
         prazo_s=lim["prazo_s"][lugar],
         versao=VERSAO["perguntas"],
     )
+
+
+def _perfil_cortado(dados: dict[str, object]) -> str:
+    """O bloco PERFIL dentro do corte do `ia.json` (desenho 5.2): das listas que só crescem, as
+    entradas mais recentes (as do fim); passando do teto de caracteres, o JSON perde o fim (o
+    modelo local tem 8192 tokens de contexto, e fora o custo por clique não cresce sem limite)."""
+    corte = limites()["tarefas"]["perguntas"]["corte"]
+    for campo in ("respostas", "perguntas_feitas"):
+        if isinstance(lista := dados.get(campo), list):
+            dados[campo] = lista[-corte[campo] :]
+    texto = json.dumps(dados, ensure_ascii=False, indent=1)
+    if len(texto) > corte["caracteres"]:
+        texto = texto[: corte["caracteres"]] + _MEIO.rstrip("\n")
+    return bloco("PERFIL", texto)

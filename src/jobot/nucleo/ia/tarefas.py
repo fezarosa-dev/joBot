@@ -184,6 +184,17 @@ _URL = re.compile(
 )
 
 
+# dado sensível que nenhuma pergunta pede (D233.11): o "nunca pergunte" do prompt não basta, porque
+# texto injetado no perfil pode virar pergunta. Lista curta, sobre o texto normalizado (sem acento
+# e sem caixa); "documentação" não casa, "gerenciador de senhas" casa (sai, o que é aceitável).
+_SENSIVEL = re.compile(
+    r"\b(?:senhas?|passwords?|passcodes?|cpf|cnpj|rg|passaportes?|passports?|pix|ssn"
+    r"|social security|cartao de credito|cartao de debito|credit cards?|debit cards?"
+    r"|numero do cartao|card number|conta bancaria|bank account|dados bancarios|bank details"
+    r"|documento de identidade|identity document|id number)\b"
+)
+
+
 def _limpar(texto: str) -> str:
     """Uma linha só (toda quebra e espaço vira um espaço), em NFKC (a URL em largura total vira a
     comum) e sem os caracteres de controle e invisíveis (`Cc`, `Cf`), que esconderiam a URL."""
@@ -210,6 +221,7 @@ def _pergunta_serve(pergunta: str, por_que: str) -> bool:
         len(pergunta) <= _PERGUNTA_MAX
         and bool(_forma_pergunta(pergunta))
         and not _URL.search(texto)
+        and not _SENSIVEL.search(normalizar(texto))
         and limpar_contato(texto) == texto
     )
 
@@ -219,8 +231,8 @@ def perguntas_que_ficam(
 ) -> list[dict[str, str]]:
     """As perguntas sugeridas que servem, na ordem da resposta, numa linha e sem invisíveis: sai a
     repetida (entre elas ou já feita, normalizada), a vazia depois de limpa, a de mais de uma
-    linha, a de mais de 200 caracteres e a que leva URL, e-mail ou telefone (na pergunta ou no
-    porquê)."""
+    linha, a de mais de 200 caracteres e a que leva URL, e-mail, telefone ou dado sensível
+    (`_SENSIVEL`; na pergunta ou no porquê)."""
     vistas = {_forma_pergunta(_limpar(f)) for f in feitas}
     ficam = []
     for item in itens:

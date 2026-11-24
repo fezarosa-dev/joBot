@@ -2,8 +2,9 @@
     perguntas base (bloco A do mapa do perfil e as de contato, de `perguntas_base.json`, no idioma
     do painel) gravam o perfil pelos mesmos campos de "Sobre você"; as que se respondem noutra seção
     levam a ela. As perguntas de lacuna (`pergunta_perfil`) têm a resposta num campo cada. Um
-    formulário só: "Salvar" e, com a tarefa `perguntas` ligada, "Salvar e sugerir perguntas". O texto
-    da IA só é mostrado (o Jinja escapa). -#}
+    formulário só: "Salvar" e, com a tarefa `perguntas` ligada, "Salvar e sugerir perguntas" (com
+    JavaScript, o [data-espera] mostra a espera e segura o segundo envio). O texto da IA só é
+    mostrado (o Jinja escapa). -#}
 {% from "configuracoes/_campos_perfil.html" import descrito, entrada, caixa, lista with context %}
 {%- set d = dados_tela %}
 {%- set onde = {"geral": "/configuracoes/geral", "experiencias": "/configuracoes/perfil#perfil-experiencias", "cursos": "/configuracoes/perfil#perfil-cursos"} %}
@@ -60,7 +61,9 @@
       {%- if perguntas_privacidade.servico %}{{ t(perguntas_privacidade.chave, servico=t(perguntas_privacidade.servico)) }}{% else %}{{ t(perguntas_privacidade.chave) }}{% endif -%}
     </p>
     {%- if perguntas_falha %}
-    <p class="config-alerta" id="perguntas-falha" role="alert">{{ t("configuracoes.perfil.perguntas.falha") }} {{ t(perguntas_falha) }}</p>
+    <p class="config-alerta" id="perguntas-falha" role="alert">{{ t("configuracoes.perfil.perguntas.falha") }} {{ t(perguntas_falha, teto=teto_perguntas) }}</p>
+    {%- elif em_curso %}
+    <p class="config-texto" role="status">{{ t("configuracoes.perfil.perguntas.em_curso") }}</p>
     {%- elif sugeridas is not none %}
     <p class="config-texto" role="status">{% if sugeridas == 0 %}{{ t("configuracoes.perfil.perguntas.sugeridas.zero") }}{% elif sugeridas == 1 %}{{ t("configuracoes.perfil.perguntas.sugeridas.uma") }}{% else %}{{ t("configuracoes.perfil.perguntas.sugeridas", n=sugeridas) }}{% endif %}</p>
     {%- endif %}
@@ -74,7 +77,7 @@
   <div class="acoes">
     <button type="submit" class="botao botao-primario">{{ t("configuracoes.salvar") }}</button>
     {%- if perguntas_ligada %}
-    <button type="submit" name="sugerir" value="1" class="botao botao-secundario" aria-describedby="perguntas-privacidade">{{ t("configuracoes.perfil.perguntas.sugerir") }}</button>
+    <button type="submit" name="sugerir" value="1" class="botao botao-secundario" aria-describedby="perguntas-privacidade" data-espera><span class="botao-rotulo">{{ t("configuracoes.perfil.perguntas.sugerir") }}</span><span class="botao-espera">{{ t("configuracoes.perfil.perguntas.sugerindo") }}</span></button>
     {%- endif %}
   </div>
 </form>

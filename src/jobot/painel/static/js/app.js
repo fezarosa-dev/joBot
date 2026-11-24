@@ -19,6 +19,30 @@
     if (evento.detail.elt?.hasAttribute?.("data-limpar-alvo")) evento.detail.target?.replaceChildren();
   });
 
+  // formulário comum (sem HTMX) que espera a IA: o botão [data-espera] mostra a espera e o segundo
+  // envio não sai (o questionário do perfil, T437). Não desativa o botão: o nome dele vai no envio
+  document.addEventListener("submit", (evento) => {
+    const form = evento.target;
+    if (!(form instanceof HTMLFormElement)) return;
+    if (form.dataset.enviando) {
+      evento.preventDefault();
+      return;
+    }
+    const botao = evento.submitter;
+    if (!botao?.hasAttribute("data-espera")) return;
+    form.dataset.enviando = "1";
+    botao.classList.add("esperando");
+    botao.setAttribute("aria-disabled", "true");
+  });
+  // voltar pelo histórico (bfcache) traz a página como saiu: tira a espera
+  window.addEventListener("pageshow", () => {
+    for (const form of document.querySelectorAll("form[data-enviando]")) delete form.dataset.enviando;
+    for (const botao of document.querySelectorAll("[data-espera].esperando")) {
+      botao.classList.remove("esperando");
+      botao.removeAttribute("aria-disabled");
+    }
+  });
+
   // depois de uma troca, o foco vai para o [data-foco] do trecho novo, se ele tiver um;
   // trecho sem [data-foco] (ex.: andamento que atualiza sozinho) não rouba o foco.
   // Com hx-swap="outerHTML" o alvo é o nó antigo, já fora do DOM: aí vale o nó do evento.
