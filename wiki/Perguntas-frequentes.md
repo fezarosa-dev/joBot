@@ -45,7 +45,7 @@ Não. Ele prepara a candidatura e ajuda a preencher formulários, mas quem revis
 <summary><strong>Minha conta do LinkedIn pode ser restringida?</strong></summary>
 
 Pode. O risco existe, e não dá para zerar.
-O joBot reduz o risco: você faz o login com as próprias mãos, numa janela comum do navegador, ele só lê, visita poucas vezes por dia, vai devagar e nunca contorna CAPTCHA.
+O joBot reduz o risco: você faz o login com as próprias mãos, numa janela comum do navegador, ele só lê, visita poucas vezes por dia, vai devagar e não contorna CAPTCHA sozinho (só o seu 2Captcha, se você ligar).
 Cada site com login tem uma chave. Você decide se liga.
 </details>
 
@@ -61,6 +61,7 @@ Para o LinkedIn, "fechada" quer dizer "não vista há 30 dias". Se uma vaga fech
 
 O painel mostra um aviso vermelho e o computador mostra uma notificação. A janela do navegador fica parada na página, esperando você resolver.
 As outras fontes continuam normalmente. O joBot nunca tenta passar pelo CAPTCHA sozinho.
+Na navegação com login, se você puser a chave do seu 2Captcha e ligar o interruptor em Configurações, Serviços (vem desligado), o joBot manda o desafio para o 2Captcha antes. Se ele não resolver, vale o aviso acima.
 </details>
 
 <details>
