@@ -4,10 +4,18 @@
 //! fechar o terminal ou matar o processo deixam a pasta. A casca lança então um vigia, num
 //! grupo de processos próprio e sem o ambiente do AppImage, que espera a casca e o runtime
 //! saírem e apaga a pasta. Com FUSE, o próprio runtime desmonta e apaga o `.mount_*`.
+//!
+//! A pasta tem o mesmo nome em toda abertura: o vigia acorda até 1 s depois do runtime, que
+//! numa saída normal já apagou a pasta, e a abertura seguinte pode já ter extraído outra no
+//! mesmo lugar. Por isso a casca grava o pid dela no marcador `.jobot-vigia` da pasta e o vigia
+//! só apaga a pasta se o marcador ainda for o da casca que o lançou (D217).
 
 use std::os::unix::process::CommandExt;
 use std::path::{Component, Path, PathBuf};
 use std::process::{Command, Stdio};
+
+/// O marcador dentro da pasta extraída: o pid da casca cujo vigia pode apagá-la.
+pub const MARCADOR: &str = ".jobot-vigia";
 
 /// A pasta extraída que a casca deve limpar: o `APPDIR` absoluto chamado
 /// `appimage_extracted_<32 hex>`, com o `APPIMAGE` definido e o executável da casca dentro
@@ -32,11 +40,12 @@ pub fn pasta_a_limpar(
     (nome && limpo && exe.starts_with(pasta)).then(|| pasta.to_path_buf())
 }
 
-/// `$1` é a pasta e o resto são os pids. Ignora o HUP de fechar o terminal e o INT do Ctrl+C.
-/// Zumbi conta como morto: um pai que não o recolhe (no contêiner, o `sleep` como pid 1)
-/// prenderia o vigia para sempre.
+/// `$1` é a pasta, `$2` a marca (o pid da casca) e o resto são os pids. Ignora o HUP de fechar
+/// o terminal e o INT do Ctrl+C. Zumbi conta como morto: um pai que não o recolhe (no
+/// contêiner, o `sleep` como pid 1) prenderia o vigia para sempre. Só apaga a pasta se o
+/// marcador ainda tem a marca dele: sem ele, ou com outra, a pasta é de outra abertura.
 const VIGIA: &str = r#"trap '' HUP INT
-d=$1; shift
+d=$1; m=$2; shift 2
 vivo() {
   for p in "$@"; do
     s=$(cat "/proc/$p/stat" 2>/dev/null) || continue
@@ -46,17 +55,24 @@ vivo() {
   return 1
 }
 while vivo "$@"; do sleep 1; done
-rm -rf -- "$d""#;
+if [ "$(cat "$d/.jobot-vigia" 2>/dev/null)" = "$m" ]; then rm -rf -- "$d"; fi"#;
 
-/// O vigia: espera todos os `pids` saírem e apaga a `pasta`. Grupo de processos próprio (o
-/// Ctrl+C e o `kill` do grupo da casca não o alcançam), na raiz (não prende a pasta) e sem
-/// o ambiente do AppImage, cujo `LD_LIBRARY_PATH` aponta para a pasta que ele apaga.
-pub fn vigia(pasta: &Path, pids: &[u32]) -> Command {
+/// Grava a `marca` no marcador da `pasta`, trocando a de uma abertura anterior.
+pub fn marcar(pasta: &Path, marca: u32) -> std::io::Result<()> {
+    std::fs::write(pasta.join(MARCADOR), marca.to_string())
+}
+
+/// O vigia: espera todos os `pids` saírem e apaga a `pasta`, se o marcador dela ainda tem a
+/// `marca`. Grupo de processos próprio (o Ctrl+C e o `kill` do grupo da casca não o
+/// alcançam), na raiz (não prende a pasta) e sem o ambiente do AppImage, cujo
+/// `LD_LIBRARY_PATH` aponta para a pasta que ele apaga.
+pub fn vigia(pasta: &Path, marca: u32, pids: &[u32]) -> Command {
     let mut c = Command::new("sh");
     c.arg("-c")
         .arg(VIGIA)
         .arg("jobot-vigia")
         .arg(pasta)
+        .arg(marca.to_string())
         .args(pids.iter().map(u32::to_string))
         .env_clear()
         .env("PATH", "/usr/bin:/bin")
@@ -80,9 +96,42 @@ pub fn vigiar() {
     let Some(pasta) = pasta_a_limpar(appdir.as_deref(), appimage.as_deref(), &exe) else {
         return;
     };
-    let pids = [std::process::id(), std::os::unix::process::parent_id()];
-    if let Err(erro) = vigia(&pasta, &pids).spawn() {
+    let eu = std::process::id();
+    let pids = [eu, std::os::unix::process::parent_id()];
+    let lancado = marcar(&pasta, eu).and_then(|()| vigia(&pasta, eu, &pids).spawn());
+    if let Err(erro) = lancado {
         eprintln!("jobot-app: não consegui vigiar {}: {erro}", pasta.display());
+    }
+}
+
+unsafe extern "C" {
+    fn fcntl(fd: i32, cmd: i32, ...) -> i32;
+}
+const F_GETFD: i32 = 1;
+const F_SETFD: i32 = 2;
+const FD_CLOEXEC: i32 = 1;
+
+/// No começo da casca: os descritores herdados além de 0-2 não passam aos filhos (D217). O
+/// runtime do AppImage com FUSE deixa aberto o cano que mantém a montagem `/tmp/.mount_*`
+/// viva; o `jobot serve` que fica ligado depois da casca a prenderia por dias. A casca segue
+/// com eles abertos (o Rust já abre os dele assim).
+pub fn nao_herdar_descritores() {
+    let Ok(lista) = std::fs::read_dir("/proc/self/fd") else {
+        return;
+    };
+    let fds: Vec<i32> = lista
+        .filter_map(|e| e.ok()?.file_name().to_str()?.parse().ok())
+        .filter(|&fd| fd > 2)
+        .collect();
+    for fd in fds {
+        // SAFETY: só lê e troca as flags do descritor; um que já fechou (o da própria lista)
+        // devolve -1 e fica como está
+        unsafe {
+            let flags = fcntl(fd, F_GETFD);
+            if flags >= 0 && flags & FD_CLOEXEC == 0 {
+                fcntl(fd, F_SETFD, flags | FD_CLOEXEC);
+            }
+        }
     }
 }
 
@@ -171,11 +220,11 @@ mod testes {
 
     #[test]
     fn vigia_roda_sh_mudo_e_sem_o_ambiente_do_appimage() {
-        let c = vigia(Path::new("/tmp/x"), &[10, 20]);
+        let c = vigia(Path::new("/tmp/x"), 7, &[10, 20]);
         assert_eq!(c.get_program(), "sh");
         let args: Vec<_> = c.get_args().map(|a| a.to_str().unwrap()).collect();
         assert_eq!(args[0], "-c");
-        assert_eq!(&args[2..], ["jobot-vigia", "/tmp/x", "10", "20"]);
+        assert_eq!(&args[2..], ["jobot-vigia", "/tmp/x", "7", "10", "20"]);
         assert_eq!(c.get_current_dir(), Some(Path::new("/")));
         let envs: Vec<_> = c.get_envs().collect();
         assert_eq!(
@@ -204,7 +253,8 @@ mod testes {
             std::thread::sleep(Duration::from_millis(20));
         }
         assert!(zumbi_ja(), "o processo não virou zumbi");
-        let mut v = vigia(&pasta, &[zumbi.id()]).spawn().unwrap();
+        marcar(&pasta, 1).unwrap();
+        let mut v = vigia(&pasta, 1, &[zumbi.id()]).spawn().unwrap();
         let fim = Instant::now() + Duration::from_secs(10);
         while pasta.exists() && Instant::now() < fim {
             std::thread::sleep(Duration::from_millis(100));
@@ -223,7 +273,8 @@ mod testes {
         std::fs::write(pasta.join("usr/bin/jobot-app"), "x").unwrap();
         let mut curto = Command::new("sleep").arg("1").spawn().unwrap();
         let mut longo = Command::new("sleep").arg("4").spawn().unwrap();
-        let mut v = vigia(&pasta, &[curto.id(), longo.id()]).spawn().unwrap();
+        marcar(&pasta, 1).unwrap();
+        let mut v = vigia(&pasta, 1, &[curto.id(), longo.id()]).spawn().unwrap();
         // grupo próprio (o kill do grupo da casca não o alcança) e só o PATH no ambiente
         let stat = std::fs::read_to_string(format!("/proc/{}/stat", v.id())).unwrap();
         let campos: Vec<_> = stat
@@ -263,5 +314,64 @@ mod testes {
         }
         assert!(!pasta.exists(), "o vigia não apagou a pasta");
         assert!(v.wait().unwrap().success());
+    }
+
+    /// A abertura seguinte extrai no mesmo lugar antes de o vigia acordar: sem o marcador dele
+    /// (a pasta nova) ou com o de outra casca, a pasta fica (D217).
+    #[test]
+    fn vigia_nao_apaga_a_pasta_de_outra_abertura() {
+        for (caso, marcador) in [("sem marcador", None), ("outra casca", Some(2))] {
+            let pasta = std::env::temp_dir().join(format!("jobot-outra-{}", std::process::id()));
+            let _ = std::fs::remove_dir_all(&pasta);
+            std::fs::create_dir_all(&pasta).unwrap();
+            marcar(&pasta, 1).unwrap();
+            let mut runtime = Command::new("sleep").arg("1").spawn().unwrap();
+            let mut v = vigia(&pasta, 1, &[runtime.id()]).spawn().unwrap();
+            // o runtime apaga a pasta dele e a abertura seguinte extrai outra no mesmo nome
+            std::fs::remove_dir_all(&pasta).unwrap();
+            std::fs::create_dir_all(&pasta).unwrap();
+            if let Some(marca) = marcador {
+                marcar(&pasta, marca).unwrap();
+            }
+            runtime.wait().unwrap();
+            assert!(v.wait().unwrap().success(), "{caso}");
+            assert!(
+                pasta.exists(),
+                "{caso}: o vigia apagou a pasta de outra abertura"
+            );
+            std::fs::remove_dir_all(&pasta).unwrap();
+        }
+    }
+
+    /// Um descritor herdado sem CLOEXEC (o cano do runtime do AppImage) não chega aos filhos.
+    #[test]
+    fn descritor_herdado_nao_passa_aos_filhos() {
+        use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+        const F_DUPFD: i32 = 0;
+        let arquivo = std::fs::File::open("/proc/self/stat").unwrap();
+        // como o runtime o deixa: herdável (o F_DUPFD não copia o CLOEXEC), num número que o
+        // `sh` do teste não usa
+        let fd = unsafe { fcntl(arquivo.as_raw_fd(), F_DUPFD, 100) };
+        assert!(fd >= 100);
+        let _dono = unsafe { OwnedFd::from_raw_fd(fd) };
+        let flags = |fd| unsafe { fcntl(fd, F_GETFD) };
+        assert_eq!(flags(fd) & FD_CLOEXEC, 0);
+        let entrada = flags(0);
+        let herda = |fd: i32| {
+            Command::new("sh")
+                .arg("-c")
+                .arg(format!("test -e /proc/self/fd/{fd}"))
+                .status()
+                .unwrap()
+                .success()
+        };
+        assert!(
+            herda(fd),
+            "controle: o filho deveria ver o descritor herdável"
+        );
+        nao_herdar_descritores();
+        assert_eq!(flags(fd) & FD_CLOEXEC, FD_CLOEXEC);
+        assert!(!herda(fd), "o filho herdou o descritor");
+        assert_eq!(flags(0), entrada, "mexeu no 0-2");
     }
 }

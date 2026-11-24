@@ -137,6 +137,38 @@ pub fn fora_do_appimage(vars: &[(String, String)]) -> Vec<(String, Option<String
         .collect()
 }
 
+/// O ambiente da casca, só com nomes e valores em UTF-8 (`std::env::vars` entraria em pânico).
+pub fn ambiente_da_casca() -> Vec<(String, String)> {
+    std::env::vars_os()
+        .filter_map(|(k, v)| Some((k.into_string().ok()?, v.into_string().ok()?)))
+        .collect()
+}
+
+/// Um filho que nasce de dentro de um AppImage sai dele (D207.1; D217 para o servidor): sem o
+/// ambiente do AppRun (`fora_do_appimage`) e na casa da pessoa, não em `$APPDIR/usr`, onde o
+/// AppRun deixa a casca (T355). O `PWD` (que saiu com o resto) diz a mesma pasta, para um
+/// programa que não seja shell. Fora de um AppImage, nada muda.
+pub fn fora_da_pasta_do_appimage<'c>(
+    comando: &'c mut Command,
+    vars: &[(String, String)],
+) -> &'c mut Command {
+    let fora = fora_do_appimage(vars);
+    if fora.is_empty() {
+        return comando;
+    }
+    for (nome, valor) in fora {
+        match valor {
+            Some(valor) => comando.env(nome, valor),
+            None => comando.env_remove(nome),
+        };
+    }
+    let casa = vars
+        .iter()
+        .find(|(k, v)| k == "HOME" && !v.is_empty())
+        .map_or("/", |(_, v)| v.as_str());
+    comando.current_dir(casa).env("PWD", casa)
+}
+
 /// O abridor pronto para rodar, com o ambiente da casca (`vars`): sem o ambiente do Python e
 /// sem o do AppImage (o `LD_LIBRARY_PATH` e os módulos dele chegariam ao navegador), fora da
 /// pasta do AppImage e sem entrada nem saída.
@@ -144,20 +176,7 @@ pub fn comando_abridor(so: &str, vars: &[(String, String)], endereco: &str) -> C
     let env = |nome: &str| vars.iter().find(|(k, _)| k == nome).map(|(_, v)| v.clone());
     let (programa, args) = abridor(so, em_distrobox(env), endereco);
     let mut comando = Command::new(programa);
-    let fora = fora_do_appimage(vars);
-    let no_appimage = !fora.is_empty();
-    for (nome, valor) in fora {
-        match valor {
-            Some(valor) => comando.env(nome, valor),
-            None => comando.env_remove(nome),
-        };
-    }
-    if no_appimage {
-        // o AppRun deixa a casca em `$APPDIR/usr`: o navegador nasce na casa da pessoa (T355),
-        // e o `PWD` (que saiu acima) diz a mesma pasta, para um abridor que não seja shell
-        let casa = env("HOME").filter(|c| !c.is_empty()).unwrap_or("/".into());
-        comando.current_dir(&casa).env("PWD", casa);
-    }
+    fora_da_pasta_do_appimage(&mut comando, vars);
     servidor::sem_python_de_fora(&mut comando)
         .args(args)
         .stdin(Stdio::null())
