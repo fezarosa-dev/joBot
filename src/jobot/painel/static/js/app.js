@@ -9,6 +9,16 @@
     evento.detail.headers["X-CSRF-Token"] = token;
   });
 
+  // o que só funciona com JavaScript (o upload do currículo manda o token no cabeçalho, T435) nasce
+  // escondido; sem JS, o <noscript> ao lado explica
+  for (const no of document.querySelectorAll("[data-com-js][hidden]")) no.hidden = false;
+
+  // envio novo de um [data-limpar-alvo] tira o resultado do anterior: um 4xx não troca o alvo, e o
+  // resultado velho ficaria ao lado do aviso de erro (o currículo grande, T435)
+  document.addEventListener("htmx:beforeRequest", (evento) => {
+    if (evento.detail.elt?.hasAttribute?.("data-limpar-alvo")) evento.detail.target?.replaceChildren();
+  });
+
   // depois de uma troca, o foco vai para o [data-foco] do trecho novo, se ele tiver um;
   // trecho sem [data-foco] (ex.: andamento que atualiza sozinho) não rouba o foco.
   // Com hx-swap="outerHTML" o alvo é o nó antigo, já fora do DOM: aí vale o nó do evento.

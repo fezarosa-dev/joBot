@@ -20,6 +20,7 @@
 | 🔍 **selectolax** (1.0.2) | Read the HTML of job pages. | Separate the job data from the rest of the page. |
 | 🔐 **keyring** (25.7.0) | Keep the 2Captcha key in the system password vault. | The key is not left in a plain file; without a vault, it goes to a file only you can read (ADR 0014). |
 | 🎭 **Playwright** (1.65.1) | Control a browser. | Reads the sites with login, using the session you opened (phase 2). It also runs the screen tests. |
+| 📄 **pypdf** (7.1.1) | Read the text of the PDF résumé in the Profile tab (0.6.0). | Runs in a separate process, with a time limit and a page limit; the PDF and its text are not saved. |
 
 ## ✅ Quality
 
