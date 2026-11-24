@@ -18,13 +18,13 @@ E o login do Claude Code teria de ser feito de novo lá dentro (no macOS ele fic
 <summary><strong>Preciso fazer login do Claude dentro do joBot?</strong></summary>
 
 Não. Você entra uma vez no Claude Code, pelo terminal, no fluxo da própria Anthropic. O joBot só detecta que está pronto e usa.
-Ele nunca vê a sua senha nem o seu token. Veja [Usando o Claude Code que você já tem](https://github.com/fezarosa-dev/joBot#usando-o-claude-code) e a [ADR 0010](https://github.com/fezarosa-dev/joBot/blob/main/docs/decisions/0010-claude-code-da-pessoa.md).
+Ele nunca vê a sua senha nem o seu token. Essa sessão ainda espera a decisão do dono sobre os termos de uso; na 0.5.0, o Claude entra pela chave da API da Anthropic, posta em Configurações › Serviços. Veja [Usando o Claude Code que você já tem](https://github.com/fezarosa-dev/joBot#usando-o-claude-code) e a [ADR 0010](https://github.com/fezarosa-dev/joBot/blob/main/docs/decisions/0010-claude-code-da-pessoa.md).
 </details>
 
 <details>
 <summary><strong>Preciso pagar alguma coisa?</strong></summary>
 
-O joBot é grátis e de código aberto. O Claude é opcional e pago, por assinatura ou pela API.
+O joBot é grátis e de código aberto. O Claude, a OpenAI e o Gemini são opcionais e pagos por uso, com a sua chave.
 O modelo local, as palavras-chave e a IA manual são grátis.
 </details>
 
@@ -32,7 +32,7 @@ O modelo local, as palavras-chave e a IA manual são grátis.
 <summary><strong>Funciona sem IA? E sem internet?</strong></summary>
 
 Sem IA, sim: o joBot usa regras e palavras-chave.
-Sem internet, vagas novas não chegam. Mas o painel continua funcionando, e o modelo local também.
+Sem internet, vagas novas não chegam. Mas o painel continua funcionando, e o modelo local também, depois de baixado. O README tem a [tabela do que funciona sem internet](https://github.com/fezarosa-dev/joBot#o-que-funciona-sem-internet).
 </details>
 
 <details>
@@ -76,7 +76,7 @@ O cartão do Gmail está em Configurações, Contas, e a leitura dos e-mails con
 <summary><strong>Meus dados vão para algum servidor?</strong></summary>
 
 Não existe servidor do joBot. Seus dados ficam no seu computador.
-Eles só vão para os serviços que você ligar: Anthropic (se usar o Claude), Google (se ligar o Gmail) e Telegram (se ligar o resumo diário). Também podem ir para o Jev (se escolher essa opção na classificação de e-mail) e para o RunPod (só no treino da fase 7). Na IA manual, vão para a IA de chat onde você colar.
+Eles só vão para os serviços que você ligar: Anthropic, OpenAI ou Google (se ligar uma tarefa de IA num deles; vai só o texto da vaga, nunca o seu perfil), o endereço de IA que você digitar, Google (se ligar o Gmail) e Telegram (se ligar o resumo diário). Também podem ir para o Jev (se escolher essa opção na classificação de e-mail). O RunPod nunca recebe dado seu: o treino do Laya roda fora do app, só com vagas de fontes públicas. Na IA manual, vão para a IA de chat onde você colar.
 </details>
 
 <details>

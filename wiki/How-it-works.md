@@ -43,7 +43,7 @@ One search cycle, step by step:
 3. 🧹 **Processing** merges duplicate jobs, understands the salary, adds labels and marks as closed the jobs that disappeared.
 4. 🗄️ **Everything goes into the SQLite database**, a file that stays on your computer.
 5. 📋 **The dashboard** shows the result in your browser. It only works on your computer (address 127.0.0.1).
-6. 🧠 **If you turned on AI**, it calculates the match with your profile and helps prepare applications.
+6. 🧠 **If you turned on AI** (since version 0.5.0), it lists the skills each job asks for, and joBot compares them with the ones in your profile and adds that to the match. In 0.6.0, it will help prepare applications.
 
 > [!TIP]
 > If one source fails, the others continue. If the computer was off at the scheduled time, the missed search runs when it turns on.
@@ -87,7 +87,7 @@ joBot has a single core and two "faces".
 | **Installation** | Native, with the installer for each system (phase 3) or from the code | None: just open the site |
 | **Sources** | All | Public sources only |
 | **Sites with login** | Yes, you sign in in a regular browser window | No |
-| **AI** | Automatic (Claude, local model) or manual | Manual (copy and paste); labels by rules only |
+| **AI** | Automatic (local model or a service with your key: Anthropic, OpenAI, Gemini or a compatible address) or manual | Manual (copy and paste); labels by rules only |
 | **Extension, Gmail and audio** | Yes | No |
 | **Where the data lives** | In the SQLite database on your computer | Your profile stays in your browser |
 | **Updates** | Every 3 h (public) and twice a day (login) | Once a day |
@@ -154,4 +154,4 @@ Running in the background is your choice, in the first-run assistant or in the s
 
 > **Golden rule:** the AI only uses the data in your profile. It never invents experience, courses or skills, and it shows which data it used.
 
-Each task picks its own option: the Claude Code session you already have, an Anthropic API key, a local model (Qwen, free and offline), keywords (no AI) or manual AI (copy and paste). Details in [Technologies](Technologies) and in the [README](https://github.com/fezarosa-dev/joBot/blob/main/README.en.md#artificial-intelligence).
+Each task picks its own option. In 0.5.0: the local model (Qwen, free and offline once downloaded), an Anthropic API, OpenAI or Google Gemini key, or an OpenAI-compatible address (Ollama, LM Studio, OpenRouter), and keywords (no AI) stay. Manual AI (copy and paste) arrives in 0.6.0, and the Claude Code session you already have waits for the owner's decision on the terms of use. Details in [Technologies](Technologies) and in the [README](https://github.com/fezarosa-dev/joBot/blob/main/README.en.md#artificial-intelligence).

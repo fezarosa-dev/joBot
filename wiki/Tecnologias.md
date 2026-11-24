@@ -40,16 +40,21 @@ A IA é opcional. Sem ela, o joBot funciona com regras e palavras-chave ([ADR 00
 
 | Opção | Custo | Onde roda |
 |---|---|---|
-| **Sessão do Claude Code** que você já tem | Usa a sua assinatura do Claude | Na Anthropic |
-| **Chave da API da Anthropic** | Pago por uso | Na Anthropic |
-| **Modelo local** (Qwen, via llama-server do llama.cpp) | Grátis | No seu computador, sem internet depois de baixar |
+| **Modelo local** (Qwen, via llama-server do llama.cpp), desde a 0.5.0 | Grátis | No seu computador, sem internet depois de baixar |
+| **Chave da API da Anthropic**, desde a 0.5.0 (experimental) | Pago por uso | Na Anthropic |
+| **Chave da OpenAI ou do Google Gemini**, desde a 0.5.0 (experimental) | Pago por uso | Na OpenAI ou no Google |
+| **Endereço compatível com a OpenAI** (Ollama, LM Studio, OpenRouter), desde a 0.5.0 | Depende do serviço | Onde o endereço apontar |
 | **Palavras-chave** (sem IA) | Grátis | No seu computador |
-| **IA manual** (copiar e colar) | Grátis no joBot | Na IA de chat que você escolher |
+| **IA manual** (copiar e colar), na 0.6.0 | Grátis no joBot | Na IA de chat que você escolher |
+| **Sessão do Claude Code** que você já tem (espera o dono) | Usa a sua assinatura do Claude | Na Anthropic |
 
 - Com o Claude, o app usa só Haiku 5.5 e Sonnet 5.5. **O Opus nunca é usado**, para poupar custo e o seu limite de uso.
 - O joBot **não tem login do Claude**. Ele usa o Claude Code que já está no seu computador, no modo sem tela, sem ferramentas e sem tocar na sua credencial ([ADR 0010](https://github.com/fezarosa-dev/joBot/blob/main/docs/decisions/0010-claude-code-da-pessoa.md)).
-- O modelo local roda pelo `llama-server`, em versão fixa e conferida por checksum (impressão digital do arquivo). Sem Ollama e sem PyTorch.
-- A transcrição de áudio usa o faster-whisper, no seu computador, e o áudio é apagado logo depois.
+- A sessão do Claude Code espera a decisão do dono sobre os termos de uso e ainda não foi construída; na 0.5.0, o Claude entra pela chave da API da Anthropic.
+- O modelo local roda pelo `llama-server`, em versão fixa e conferida por checksum (impressão digital do arquivo), só no processador. O joBot o baixa do GitHub (o `llama-server`) e do Hugging Face (o modelo Qwen3.5), só quando você pede. O joBot não traz Ollama nem PyTorch; quem já usa o Ollama ou o LM Studio pode apontar o endereço compatível para ele.
+- "Experimental" quer dizer que o serviço só foi testado com um serviço falso, porque o CI não tem chave paga.
+- O Laya, um ajuste do Qwen3.5 2B para as vagas, ainda não vem na 0.5.0: ele entra numa versão seguinte, depois do treino.
+- A transcrição de áudio vai usar o faster-whisper, no seu computador, e apagar o áudio logo depois (fase 6).
 
 <sub>Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthropic.</sub>
 

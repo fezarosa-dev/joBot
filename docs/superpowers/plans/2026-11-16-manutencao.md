@@ -406,9 +406,11 @@ Quando a IA ganhar tela (0.5.0), a lista de Privacidade passa a citar os pedidos
 **Arquivos:**
 - modificar `README.md`, `README.en.md`, `configuracoes.privacidade.telemetria` em `painel/i18n/pt` e `painel/i18n/en`, e `CITA`/`SO_QUANDO_PEDE` em `tests/unidade/test_documentos.py`.
 
-- [ ] **Ver falhar:** `CITA` com os itens novos falha contra os textos atuais.
-- [ ] **Mudar** os quatro textos juntos (lição «Painel e ADRs»), pode ir no mesmo lote da T420.
-- [ ] **Ver passar:** `tests/unidade/test_documentos.py` e `uv run ruff check`.
+Feita em 2026-11-24 no lote da T420 (D224.1).
+
+- [x] **Ver falhar:** `CITA` com os itens novos falha contra os textos atuais.
+- [x] **Mudar** os quatro textos juntos (lição «Painel e ADRs»), pode ir no mesmo lote da T420.
+- [x] **Ver passar:** `tests/unidade/test_documentos.py` e `uv run ruff check`.
 
 ### T319: `htmx:sendError` intermitente no WebKit ao trocar de aba
 `depende_de: —` · D220 (lote "testes", item 2)
