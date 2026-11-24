@@ -2,7 +2,8 @@
 // `estado_controle`, `ligar`, `parar`, `abrir_jobot` e `abrir_release` (window.__TAURI__.core), que
 // só as páginas locais alcançam. Cada um devolve {"ligado", "endereco"} e, se deu errado,
 // {"falha", "detalhe", "log"}; a consulta traz também os avisos `janela_velha` (o painel no ar é
-// mais novo que esta casca, D207.12) e `fecha_junto` (fechar a janela para o painel, D207.5).
+// mais novo que esta casca, D207.12). Fechar a janela com o painel no ar pergunta antes (D215): a
+// casca chama `window.__jobotPedirFechar` e a resposta volta por `fechar_controle`.
 // Ao abrir, só pergunta o estado: não liga nem abre nada sozinho.
 (() => {
   "use strict";
@@ -18,7 +19,7 @@
   const core = window.__TAURI__ && window.__TAURI__.core;
   const $ = (id) => document.getElementById(id);
   let textos = {};
-  let estado = { ligado: false, endereco: "", janelaVelha: false, fechaJunto: false };
+  let estado = { ligado: false, endereco: "", janelaVelha: false };
   let ocupado = null; // "ligando" ou "parando" enquanto a casca trabalha
   let falha = null;
 
@@ -41,7 +42,6 @@
     $("ligar").disabled = Boolean(ocupado) || estado.ligado;
     $("parar").disabled = Boolean(ocupado) || !estado.ligado;
     $("abrir").hidden = Boolean(ocupado) || !estado.ligado;
-    $("fecha-junto").hidden = !estado.ligado || !estado.fechaJunto;
     $("janela-nova").hidden = !estado.ligado || !estado.janelaVelha;
     $("falha").hidden = !falha;
     if (falha) {
@@ -57,12 +57,11 @@
     ligado: Boolean(r.ligado),
     endereco: r.endereco || estado.endereco,
     janelaVelha: Boolean(r.janela_velha ?? estado.janelaVelha),
-    fechaJunto: Boolean(r.fecha_junto ?? estado.fechaJunto),
   });
 
-  async function chamar(comando) {
+  async function chamar(comando, argumentos) {
     try {
-      return core ? await core.invoke(comando) : null;
+      return core ? await core.invoke(comando, argumentos) : null;
     } catch {
       return null;
     }
@@ -132,6 +131,22 @@
   $("abrir").addEventListener("click", () => agir("abrir_jobot", null, () => "abrir"));
   $("baixar").addEventListener("click", () => agir("abrir_release", null, () => "baixar"));
   $("copiar").addEventListener("click", copiar);
+
+  // D215: com o painel no ar, Deixar ligado ou Desligar; o Esc do diálogo cancela o fechar
+  const pergunta = $("pergunta-fechar");
+  const fechar = (desligar) => chamar("fechar_controle", { desligar });
+  window.__jobotPedirFechar = () => {
+    if (!estado.ligado) fechar(false);
+    else if (!pergunta.open) pergunta.showModal();
+  };
+  $("deixar-ligado").addEventListener("click", () => {
+    pergunta.close();
+    fechar(false);
+  });
+  $("desligar").addEventListener("click", () => {
+    pergunta.close();
+    fechar(true);
+  });
   document.addEventListener("visibilitychange", consultar);
 
   (async () => {

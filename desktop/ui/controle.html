@@ -32,7 +32,6 @@
     <button type="button" id="parar" class="botao" data-t="controle.parar"></button>
     <button type="button" id="abrir" class="botao botao-principal" data-t="controle.abrir" hidden></button>
   </div>
-  <p class="nota" id="fecha-junto" data-t="controle.fecha_junto" hidden></p>
 
   <div class="janela-nova" id="janela-nova" hidden>
     <p data-t="controle.janela_nova"></p>
@@ -47,6 +46,17 @@
     </details>
   </div>
 </main>
+
+<!-- Fechar a janela com o painel no ar (D215): a casca pergunta antes. Esc cancela o fechar. -->
+<dialog id="pergunta-fechar" class="pergunta" aria-labelledby="pergunta-titulo"
+  aria-describedby="pergunta-texto">
+  <h2 id="pergunta-titulo" data-t="controle.pergunta.titulo"></h2>
+  <p id="pergunta-texto" data-t="controle.pergunta.texto"></p>
+  <div class="acoes">
+    <button type="button" id="deixar-ligado" class="botao" data-t="controle.pergunta.deixar" autofocus></button>
+    <button type="button" id="desligar" class="botao" data-t="controle.pergunta.desligar"></button>
+  </div>
+</dialog>
 <script src="controle.js"></script>
 </body>
 </html>
