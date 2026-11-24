@@ -88,7 +88,7 @@ async def executar_busca(
         pedidas = {"coleta": True, "detalhes": enriquecer, "cotacoes": converter, "encaixe": True}
         await marcas.comecar([e for e, sim in pedidas.items() if sim])
         todos = descobrir() if coletores is None else coletores
-        saidas = await _coletar(con, execucao_id, cliente, relogio, todos, marcas)
+        saidas = await _coletar(con, execucao_id, cliente, relogio, todos, marcas, enriquecer)
         if enriquecer:
             await _enriquecer(con, cliente, relogio, todos, saidas, inicio, marcas)
         if _ha_regras_a_reprocessar(con):
@@ -138,8 +138,10 @@ async def _coletar(
     relogio: Relogio,
     coletores: Mapping[str, Coletor],
     marcas: Marcas,
+    enriquecer: bool,
 ) -> list[SaidaEscopo]:
-    """Passos 2 e 3: coleta, grava cada escopo e marca os escopos extintos."""
+    """Passos 2 e 3: coleta, grava cada escopo e marca os escopos extintos. Com `enriquecer`
+    (lido uma vez em `executar_busca`), o executor já detalha até o teto de cada fonte."""
     cadastradas = {f.chave: f.ligada for f in fontes(con)}
     ligadas = {c for c, ligada in cadastradas.items() if ligada and c in coletores}
     for chave in sorted(c for c, ligada in cadastradas.items() if not ligada and c in coletores):
@@ -174,7 +176,6 @@ async def _coletar(
         estados = [s.resultado.estado for s in saidas if s.fonte == fonte]
         await marcas.fonte_terminou(fonte, estado_da_fonte(estados) == "falhou")
 
-    enriquecer = bool(ler_config(con, "enriquecimento_ligado"))
     await rodar(
         coletores,
         ctx,
