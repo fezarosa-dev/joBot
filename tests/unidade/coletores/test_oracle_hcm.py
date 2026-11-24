@@ -1,7 +1,7 @@
 import copy
 import json
 from collections.abc import Awaitable, Callable
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -123,6 +123,9 @@ def _empresa(
     )
 
 
+BRASILIA = timezone(timedelta(hours=-3))
+
+
 def _ctx(*empresas: Empresa, paises: tuple[str, ...] = ("BR",)) -> ContextoColeta:
     return ContextoColeta(empresas=empresas, termos=["dev"], paises=paises)
 
@@ -219,7 +222,7 @@ async def test_normal() -> None:
         "LAD PMO Business Process - Vaga Exclusiva para Pessoa com Deficiência (PCD)"
     )
     assert primeira.locais == ("SAO PAULO, SP, Brazil",)
-    assert primeira.publicada_em == datetime(2026, 11, 13, tzinfo=UTC)
+    assert primeira.publicada_em == datetime(2026, 11, 13, tzinfo=BRASILIA)  # só a data
     assert primeira.prazo is None
     assert primeira.descricao == "" and primeira.descricao_formato == "html"  # vem no `detalhar`
     assert all(v.url.startswith("https://") for v in vagas)
@@ -678,3 +681,21 @@ async def test_resolver_recusa_o_que_nao_e_site_do_oracle_sem_pedido(endereco: s
 async def test_resolver_sem_site_number_na_pagina_da_value_error(resposta: httpx.Response) -> None:
     with pytest.raises(ValueError):
         await _resolver(f"https://{HOST}/hcmUI/CandidateExperience/en/sites/jobsearch", resposta)
+
+
+@pytest.mark.parametrize(
+    ("bruto", "esperada"),
+    [
+        ("2026-11-13", datetime(2026, 11, 13, tzinfo=timezone(timedelta(hours=-3)))),
+        ("2026-11-13T04:09:58+00:00", datetime(2026, 11, 13, 4, 9, 58, tzinfo=UTC)),
+        ("2026-11-13T09:00:00-03:00", datetime(2026, 11, 13, 12, 0, tzinfo=UTC)),
+    ],
+)
+async def test_publicada_so_data_e_meia_noite_de_brasilia_e_instante_vale_como_veio(
+    bruto: str, esperada: datetime
+) -> None:
+    pagina = _pagina(1, 0, 1)
+    pagina["items"][0]["requisitionList"][0]["PostedDate"] = bruto
+    resultado, _ = await _coletar(_json("normal"), httpx.Response(200, json=pagina))
+    [lida] = _vagas(resultado)
+    assert lida.publicada_em == esperada
