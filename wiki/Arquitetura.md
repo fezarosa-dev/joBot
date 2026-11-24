@@ -291,6 +291,7 @@ erDiagram
         TEXT pergunta
         TEXT resposta
         TEXT origem
+        INTEGER sugerida
     }
     preparo_candidatura {
         INTEGER vaga_id PK, FK

@@ -366,6 +366,7 @@ async def _pagina(
         "abas": [(g, "configuracoes.grupo." + g.replace("-", "_"), _ICONES[g]) for g in GRUPOS],
         "parcial": f"configuracoes/{_PARCIAIS[grupo]}.html",
         "erro": None,
+        "erro_secao": None,  # a aba Perfil põe o alerta na seção que gravou (D230)
         "motivo": None,
         "salvo": False,
     }

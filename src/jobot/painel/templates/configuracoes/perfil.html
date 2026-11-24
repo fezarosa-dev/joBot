@@ -5,7 +5,12 @@
     `secao` diz o que grava (sem ele, as habilidades). No erro, `erro_campo` é o `id` do controle
     marcado (com o foco, sem JavaScript) e `item_digitado` volta ao item `erro_item`. A frase de privacidade diz para onde vai o
     texto da vaga, pelo estado da tarefa `encaixe`, e, com a tarefa `perguntas` ligada, para onde
-    vai o perfil (D233). -#}
+    vai o perfil (D233).
+    Cada seção que grava troca sozinha com HTMX (D230): o `hx-select` dela tira da resposta só ela,
+    e o resto da aba, digitado e não salvo, fica. Por isso o "Salvo." (`salvo_secao`) e o alerta do
+    erro (`erro_secao`) moram na seção, e o 422 com a seção também troca (`data-troca-422`, no
+    app.js). Sem JavaScript, o formulário comum recarrega a página, e o <noscript> avisa antes.
+    As perguntas que a IA sugeriu numa candidatura esperam aqui o aceite (D234). -#}
 {% from "_alerta.html" import alerta with context %}
 {% from "configuracoes/_campos_perfil.html" import descrito, entrada, caixa, lista with context %}
 {#- os botões de um item salvo dizem qual item no nome acessível ("Tirar Analista"): todo item tem os
@@ -20,9 +25,19 @@
   {%- endif %}
 </div>
 {%- endmacro %}
+{#- o "Salvo." e o alerta da seção que gravou (D230); o foco vai ao "Salvo." depois da troca -#}
+{% macro aviso(ancora) -%}
+  {%- if erro_secao == ancora %}
+  <div class="config-alerta" id="config-erro" role="alert">
+    <p>{{ t(erro) }}</p>
+  </div>
+  {%- elif salvo_secao == ancora %}
+  <p role="status" class="config-salvo" aria-live="polite" data-foco-se-livre><span data-some-sozinho>{{ t("configuracoes.salvo") }}</span></p>
+  {%- endif %}
+{%- endmacro %}
 {% macro experiencia(e, prefixo, novo=false) -%}
 {%- set v = item_digitado if erro_item == prefixo else e %}
-<form method="post" action="/configuracoes/perfil" class="config-form">
+<form method="post" action="/configuracoes/perfil" hx-post="/configuracoes/perfil" class="config-form">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   <input type="hidden" name="secao" value="experiencia">
   <input type="hidden" name="id" value="{{ e.id }}">
@@ -39,7 +54,7 @@
 {%- endmacro %}
 {% macro curso(c, prefixo, novo=false) -%}
 {%- set v = item_digitado if erro_item == prefixo else c %}
-<form method="post" action="/configuracoes/perfil" class="config-form">
+<form method="post" action="/configuracoes/perfil" hx-post="/configuracoes/perfil" class="config-form">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   <input type="hidden" name="secao" value="curso">
   <input type="hidden" name="id" value="{{ c.id }}">
@@ -57,12 +72,36 @@
 <p role="status" class="config-salvo" aria-live="polite"><span data-some-sozinho>{{ t("configuracoes.perfil.apagado") }}</span></p>
 {% endif %}
 <p class="config-texto">{{ t("configuracoes.perfil.explicacao") }}</p>
+<noscript id="perfil-sem-js"><p class="config-texto">{{ t("configuracoes.perfil.sem_js") }}</p></noscript>
 <p class="config-texto"><a href="/configuracoes/perfil/perguntas">{{ t("configuracoes.perfil.perguntas.abrir") }}</a></p>
 <p class="config-texto" id="perfil-privacidade">
   {%- if privacidade.servico %}{{ t(privacidade.chave, servico=t(privacidade.servico)) }}{% else %}{{ t(privacidade.chave) }}{% endif -%}
   {%- set pp = privacidade_perguntas %}
   {%- if pp %} {% if pp.servico %}{{ t(pp.chave, servico=t(pp.servico)) }}{% else %}{{ t(pp.chave) }}{% endif %}{% endif -%}
 </p>
+{#- as perguntas que a IA sugeriu ao preparar candidaturas esperam o aceite (D234): só a aceita
+    entra no questionário e, respondida, nos pedidos. O botão diz qual pergunta no nome acessível -#}
+{%- if sugeridas or salvo_secao == "sugeridas" %}
+<section class="config-bloco" aria-labelledby="perfil-sugeridas" id="bloco-sugeridas" hx-target="this" hx-select="#bloco-sugeridas" hx-swap="outerHTML" data-troca-422>
+  <h2 id="perfil-sugeridas">{{ t("configuracoes.perfil.sugeridas.titulo") }}</h2>
+  {{ aviso("sugeridas") }}
+  <p class="config-texto">{{ t("configuracoes.perfil.sugeridas.explicacao", teto=teto_sugeridas) }}</p>
+  {%- for p in sugeridas %}
+  <form method="post" action="/configuracoes/perfil" hx-post="/configuracoes/perfil" class="config-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="secao" value="sugerida">
+    <input type="hidden" name="chave" value="{{ p.chave }}">
+    <p class="config-texto">{{ p.pergunta }}</p>
+    <div class="acoes">
+      <button type="submit" name="acao" value="aceitar" class="botao botao-primario" aria-label="{{ t('configuracoes.perfil.sugeridas.aceitar') }}: {{ p.pergunta }}">{{ t("configuracoes.perfil.sugeridas.aceitar") }}</button>
+      <button type="submit" name="acao" value="descartar" class="botao botao-secundario" aria-label="{{ t('configuracoes.perfil.sugeridas.descartar') }}: {{ p.pergunta }}">{{ t("configuracoes.perfil.sugeridas.descartar") }}</button>
+    </div>
+  </form>
+  {%- else %}
+  <p class="config-texto">{{ t("configuracoes.perfil.sugeridas.vazio") }}</p>
+  {%- endfor %}
+</section>
+{%- endif %}
 {#- currículo em PDF (T435; D231): o upload manda o token CSRF no cabeçalho, então só funciona com
     JavaScript; sem ele, o formulário fica escondido e o <noscript> explica -#}
 <section class="config-bloco" aria-labelledby="perfil-curriculo">
@@ -85,9 +124,10 @@
   <div id="perfil-curriculo-resultado">{% if revisao %}{% include "configuracoes/_curriculo.html" %}{% endif %}</div>
 </section>
 {%- set d = dados_tela %}
-<section class="config-bloco" aria-labelledby="perfil-sobre">
+<section class="config-bloco" aria-labelledby="perfil-sobre" id="bloco-sobre" hx-target="this" hx-select="#bloco-sobre" hx-swap="outerHTML" data-troca-422>
   <h2 id="perfil-sobre">{{ t("configuracoes.perfil.sobre") }}</h2>
-  <form method="post" action="/configuracoes/perfil" class="config-form">
+  {{ aviso("sobre") }}
+  <form method="post" action="/configuracoes/perfil" hx-post="/configuracoes/perfil" class="config-form">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <input type="hidden" name="secao" value="dados">
     <fieldset class="grupo-leva grupo-campos" aria-describedby="perfil-contato-ajuda">
@@ -124,9 +164,10 @@
     </div>
   </form>
 </section>
-<section class="config-bloco" aria-labelledby="perfil-habilidades">
+<section class="config-bloco" aria-labelledby="perfil-habilidades" id="bloco-habilidades" hx-target="this" hx-select="#bloco-habilidades" hx-swap="outerHTML" data-troca-422>
   <h2 id="perfil-habilidades">{{ t("configuracoes.perfil.habilidades.titulo") }}</h2>
-  <form method="post" action="/configuracoes/perfil" class="config-form">
+  {{ aviso("habilidades") }}
+  <form method="post" action="/configuracoes/perfil" hx-post="/configuracoes/perfil" class="config-form">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <div class="campo">
       <label for="campo-habilidades">{{ t("configuracoes.perfil.habilidades") }}</label>
@@ -138,8 +179,9 @@
     </div>
   </form>
 </section>
-<section class="config-bloco" aria-labelledby="perfil-experiencias">
+<section class="config-bloco" aria-labelledby="perfil-experiencias" id="bloco-experiencias" hx-target="this" hx-select="#bloco-experiencias" hx-swap="outerHTML" data-troca-422>
   <h2 id="perfil-experiencias">{{ t("configuracoes.perfil.experiencias") }}</h2>
+  {{ aviso("experiencias") }}
   <p class="config-texto">{{ t("configuracoes.perfil.experiencias.explicacao") }}</p>
   <div class="config-form">
   {%- for e in experiencias %}
@@ -150,8 +192,9 @@
   {%- endif %}
   </div>
 </section>
-<section class="config-bloco" aria-labelledby="perfil-cursos">
+<section class="config-bloco" aria-labelledby="perfil-cursos" id="bloco-cursos" hx-target="this" hx-select="#bloco-cursos" hx-swap="outerHTML" data-troca-422>
   <h2 id="perfil-cursos">{{ t("configuracoes.perfil.cursos") }}</h2>
+  {{ aviso("cursos") }}
   <p class="config-texto">{{ t("configuracoes.perfil.cursos.explicacao") }}</p>
   <div class="config-form">
   {%- for c in cursos %}

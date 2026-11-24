@@ -160,7 +160,13 @@ _CAMPOS_ITEM = {
     "curso": ("nome", "instituicao", "situacao", "previsao"),
 }
 _PREFIXO = {"experiencia": "exp", "curso": "curso"}
-_ANCORA = {None: "habilidades", "dados": "sobre", "experiencia": "experiencias", "curso": "cursos"}
+_ANCORA = {
+    None: "habilidades",
+    "dados": "sobre",
+    "experiencia": "experiencias",
+    "curso": "cursos",
+    "sugerida": "sugeridas",
+}
 
 
 class _Recusa(ValueError):
@@ -400,23 +406,42 @@ async def gravar_perfil(
                     "habilidades_texto": texto,
                     "erro": "configuracoes.perfil.erro.grande",
                     "erro_campo": "campo-habilidades",
+                    "erro_secao": _ANCORA[None],
                 }
             salvar_habilidades(request, con, lista)
         elif secao == "dados":
             perfil.gravar_dados(con, dados_do_form(form), relogio_do_painel(request).agora())
         elif secao in _CAMPOS_ITEM:
             _gravar_item(con, str(secao), form)
+        elif secao == "sugerida":
+            _decidir_sugerida(con, form)
         else:
             raise HTTPException(422)
     except _Recusa as recusa:
-        contexto: dict[str, Any] = {"erro": recusa.chave, "erro_campo": recusa.campo_id}
+        # o alerta mora na seção que gravou, para a troca do HTMX o trazer (D230)
+        contexto: dict[str, Any] = {
+            "erro": recusa.chave,
+            "erro_campo": recusa.campo_id,
+            "erro_secao": _ANCORA[None if secao is None else str(secao)],
+        }
         if secao == "dados":
             return 422, contexto | {"dados_tela": _dados_digitados(form)}
         prefixo = recusa.campo_id.rsplit("-", 1)[0]
         digitado = {c: str(form.get(c) or "").strip() for c in _CAMPOS_ITEM[str(secao)]}
         return 422, contexto | {"erro_item": prefixo, "item_digitado": digitado}
-    ancora = _ANCORA[None if secao is None else str(secao)]  # volta à seção, não ao alto (D230.1)
-    return f"{PERFIL}?salvo=1#perfil-{ancora}"
+    # volta à seção, não ao alto (D230.1), e o "Salvo." aparece dentro dela (D230)
+    ancora = _ANCORA[None if secao is None else str(secao)]
+    return f"{PERFIL}?salvo={ancora}#perfil-{ancora}"
+
+
+def _decidir_sugerida(con: sqlite3.Connection, form: FormData) -> None:
+    """Aceitar ou descartar a pergunta que a IA sugeriu numa candidatura (D234). A que outra aba
+    já decidiu não muda nada."""
+    acao = form.get("acao")
+    if acao not in ("aceitar", "descartar"):
+        raise HTTPException(422)
+    chave = _bruto(form, "chave")
+    (perfil.aceitar_pergunta if acao == "aceitar" else perfil.descartar_pergunta)(con, chave)
 
 
 def _item_na_tela(item: perfil.Experiencia | perfil.Curso) -> dict[str, str]:
@@ -425,7 +450,13 @@ def _item_na_tela(item: perfil.Experiencia | perfil.Curso) -> dict[str, str]:
 
 async def contexto_perfil(request: Request, con: Con) -> dict[str, Any]:
     atuais = perfil.habilidades(con)
+    salvo = request.query_params.get("salvo", "")
     return {
+        # a seção que gravou mostra o "Salvo." (D230); o `?salvo=1` da revisão do currículo, no alto
+        "salvo_secao": salvo if salvo in _ANCORA.values() else None,
+        "erro_secao": None,
+        "sugeridas": perfil.perguntas(con, sugeridas=True),
+        "teto_sugeridas": perfil.TETO_SUGERIDAS,
         "habilidades_texto": "\n".join(atuais),
         "tem_perfil": perfil.existe(con),
         "privacidade": _privacidade(con),
