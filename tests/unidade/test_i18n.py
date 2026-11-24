@@ -97,6 +97,18 @@ def test_chave_repetida_em_dois_arquivos_falha(
         i18n.carregar()
 
 
+def test_chave_repetida_no_mesmo_arquivo_falha(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Dois merges que somam a mesma chave no mesmo arquivo: o `json` ficaria com a última sem
+    dizer nada (aconteceu na junção da T436 com a T438)."""
+    (tmp_path / "pt").mkdir()
+    (tmp_path / "pt" / "a.json").write_text('{"x.y": "um", "x.y": "dois"}', encoding="utf-8")
+    monkeypatch.setattr(i18n, "PASTA", tmp_path)
+    with pytest.raises(ValueError, match="x.y"):
+        i18n.carregar()
+
+
 @pytest.mark.parametrize(
     ("cabecalho", "esperado"),
     [
