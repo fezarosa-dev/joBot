@@ -30,15 +30,25 @@ def _numero(no: ast.expr) -> float | None:
 
 
 def _sonos(arquivo: Path) -> set[str]:
-    """Nomes de `sleep`: os pontuados e o que `from time|asyncio|anyio import sleep [as x]` traz."""
+    """Nomes de `sleep`: os pontuados, os de `import time|asyncio|anyio as m` e o que
+    `from time|asyncio|anyio import sleep [as x]` traz."""
+    modulos = ("time", "asyncio", "anyio")
+    nos = list(ast.walk(ast.parse(arquivo.read_text())))
     importados = {
         a.asname or a.name
-        for n in ast.walk(ast.parse(arquivo.read_text()))
-        if isinstance(n, ast.ImportFrom) and n.module in ("time", "asyncio", "anyio")
+        for n in nos
+        if isinstance(n, ast.ImportFrom) and n.module in modulos
         for a in n.names
         if a.name == "sleep"
     }
-    return {"time.sleep", "asyncio.sleep", "anyio.sleep"} | importados
+    apelidos = {
+        f"{a.asname}.sleep"
+        for n in nos
+        if isinstance(n, ast.Import)
+        for a in n.names
+        if a.name in modulos and a.asname
+    }
+    return {f"{m}.sleep" for m in modulos} | importados | apelidos
 
 
 def _achados_de_espera(arquivos: list[Path]) -> list[str]:
@@ -129,6 +139,12 @@ def test_guarda_pega_anyio_sleep_pontuado(tmp_path: Path) -> None:
     assert _achados_de_espera([arquivo]) == ["test_exemplo.py:3 anyio.sleep"]
 
 
+@pytest.mark.parametrize("modulo", ["time", "asyncio", "anyio"])
+def test_guarda_pega_sleep_de_modulo_com_apelido(tmp_path: Path, modulo: str) -> None:
+    arquivo = _arquivo_de_exemplo(tmp_path, f"import {modulo} as t\n\nt.sleep(5)\n")
+    assert _achados_de_espera([arquivo]) == ["test_exemplo.py:3 t.sleep"]
+
+
 def test_guarda_deixa_passar_sleep_curto_e_sleep_de_outro_modulo(tmp_path: Path) -> None:
     arquivo = _arquivo_de_exemplo(
         tmp_path,
@@ -138,13 +154,26 @@ def test_guarda_deixa_passar_sleep_curto_e_sleep_de_outro_modulo(tmp_path: Path)
 
 
 def _fixtures_de(arquivo: Path) -> set[str]:
+    """Fixtures do arquivo: `@pytest.fixture[(...)]` e o nome que `from pytest import fixture
+    [as x]` traz."""
+    nos = list(ast.walk(ast.parse(arquivo.read_text())))
+    soltos = {
+        a.asname or a.name
+        for n in nos
+        if isinstance(n, ast.ImportFrom) and n.module == "pytest"
+        for a in n.names
+        if a.name == "fixture"
+    }
+
     def _e_fixture(d: ast.expr) -> bool:
         d = d.func if isinstance(d, ast.Call) else d
+        if isinstance(d, ast.Name):
+            return d.id in soltos
         return isinstance(d, ast.Attribute) and d.attr == "fixture"
 
     return {
         n.name
-        for n in ast.walk(ast.parse(arquivo.read_text()))
+        for n in nos
         if isinstance(n, ast.FunctionDef | ast.AsyncFunctionDef)
         and any(_e_fixture(d) for d in n.decorator_list)
     }
@@ -159,3 +188,26 @@ def test_sem_fixture_sombra() -> None:
         for nome in _fixtures_de(a) & do_conftest
     )
     assert achados == []
+
+
+@pytest.mark.parametrize(
+    ("importa", "decorador"),
+    [
+        ("import pytest", "@pytest.fixture"),
+        ("from pytest import fixture", "@fixture"),
+        ("from pytest import fixture", "@fixture(scope='module')"),
+        ("from pytest import fixture as f", "@f"),
+    ],
+)
+def test_fixtures_de_acha_toda_forma_do_decorador(
+    tmp_path: Path, importa: str, decorador: str
+) -> None:
+    arquivo = _arquivo_de_exemplo(tmp_path, f"{importa}\n\n\n{decorador}\ndef con():\n    ...\n")
+    assert _fixtures_de(arquivo) == {"con"}
+
+
+def test_fixtures_de_ignora_fixture_de_outro_modulo(tmp_path: Path) -> None:
+    arquivo = _arquivo_de_exemplo(
+        tmp_path, "from outro import fixture\n\n\n@fixture\ndef con():\n    ...\n"
+    )
+    assert _fixtures_de(arquivo) == set()
