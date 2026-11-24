@@ -4121,3 +4121,18 @@ A sessão propôs abrir o painel no Chrome da pessoa como janela de app. O dono 
 **Como desfazer:** tirar `_sem_tag_de_ip` do coletor e `_trocar_ip` do `capturar.py` (as fixtures ficam com o IP de documentação).
 
 **Ver também:** ADR 0016, D219.
+
+## D222. Alertas de segurança abertos depois da 0.4.1
+
+**Status:** decidido pela sessão em 2026-11-24 (o dono saiu e pediu para não parar); revisar quando voltar.
+
+**Contexto:** depois da 0.4.1 a `main` tinha sete alertas abertos do code scanning (CodeQL) e um do Dependabot. A sessão leu cada trecho. Nenhum era defeito real; todos foram dispensados pela API com o motivo e um comentário curto.
+
+1. **#8, `rust/unsafe-deserialization`, `desktop/src/servidor.rs:197`:** falso positivo. O `saude` lê só a resposta do `/saude-local` do próprio servidor em 127.0.0.1, com teto de 8192 bytes (`take(8192)`), para um `serde_json::Value`, e só confere o campo `app`. Não há tipo arbitrário nem dado de fora.
+2. **#5, `py/url-redirection`, `painel/rotas/detalhe.py:188`:** falso positivo. O destino é relativo e fixo, `/vagas/{vaga_id}`, e o `vaga_id` é um `int` de 1 a `INTEGER_MAX` validado pelo FastAPI (`IdDoBanco`).
+3. **#1, #2, #3, #4 e #7, `py/incomplete-url-substring-sanitization`:** falsos positivos, todos em testes (`test_descoberta.py` 101 e 463, `test_documentos.py` 247, `tela/test_fontes.py` 124, `test_ia_anthropic.py` 269). Cada um é `assert` ou filtro de pedido falso que confere host ou texto de log e de documento; nenhum sanitiza URL.
+4. **Dependabot #1, `glib` 0.18.5, GHSA-wrw7-89jp-8q8g (unsound no `VariantStrIter`, corrigido na 0.20):** dispensado como `not_used`. O `glib` vem do Tauri 2 pelo gtk-rs 0.18, e não há Tauri com gtk-rs 0.20; subir o pin não é possível sem trocar o Tauri. Nem a casca nem `tauri`, `wry`, `tao`, `gtk`, `muda` ou `webkit2gtk` chamam `array_iter_str` ou `VariantStrIter` (busca nas fontes do registro do cargo). A ADR 0021 segue: revisar quando o Tauri subir o gtk-rs.
+
+**Como desfazer:** reabrir o alerta no GitHub (Security, ou `PATCH` com `state=open`).
+
+**Ver também:** ADR 0021, D220.
