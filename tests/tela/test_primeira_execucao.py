@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 from fastapi import FastAPI
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Locator, Page, Route, expect
 
 from apoio.cofre_falso import CofreFalso
 from apoio.console import anotar_erros
@@ -83,7 +83,7 @@ def test_fluxo_completo_vai_do_passo_1_ao_fim_e_para_nos_destaques(
 
 def test_pular_o_passo_1_vai_direto_as_vagas(page: Page, painel: str) -> None:
     page.goto(f"{painel}/primeira-execucao/1")
-    page.get_by_role("button", name="Pular").click()
+    page.get_by_role("button", name="Pular tudo").click()
     expect(page).to_have_url(re.compile(r"/vagas(\?.*)?$"))
     page.goto(f"{painel}/")  # concluído: a raiz não volta ao assistente
     expect(page).to_have_url(re.compile(r"/vagas(\?.*)?$"))
@@ -95,7 +95,7 @@ def test_pular_no_passo_2_vai_as_vagas_sem_ligar_o_segundo_plano(
     page.goto(f"{painel}/primeira-execucao/1")
     _passo_1(page)
     expect(page).to_have_url(re.compile(r"/primeira-execucao/2\?busca=\d+$"))
-    page.get_by_role("button", name="Pular").click()
+    page.get_by_role("button", name="Pular tudo").click()
     expect(page).to_have_url(re.compile(r"/vagas(\?.*)?$"))
     assert all(c[0] != "enable" for c in sistema.systemctl())
 
@@ -109,7 +109,7 @@ def test_voltar_do_passo_2_leva_ao_passo_1(page: Page, painel: str) -> None:
 
 def _pe_dentro_da_janela(page: Page, nomes: tuple[str, ...]) -> None:
     for nome in nomes:
-        # nome exato: "Pular" por substring casa também o "Pular para o conteúdo" da casca
+        # nome exato: "Pular" por substring casa também o "Pular este passo" do Perfil
         botao = page.get_by_role("button", name=nome, exact=True).or_(
             page.get_by_role("link", name=nome, exact=True)
         )
@@ -124,7 +124,7 @@ def _pe_dentro_da_janela(page: Page, nomes: tuple[str, ...]) -> None:
 def test_botoes_visiveis_com_janela_baixa(
     page: Page, painel: str, app_painel: FastAPI, tmp_path: Path, texto: str, passo: str
 ) -> None:
-    """Janela de 560px e texto maior, com tudo marcado: o pé (Continuar, Pular, Voltar) fica na
+    """Janela de 560px e texto maior, com tudo marcado: o pé (Continuar, Pular tudo, Voltar) fica na
     janela e só o corpo do passo rola."""
     leitor = LeitorFalso(base="http://127.0.0.1:9")
     with closing(abrir(tmp_path / "jobot.db")) as con:
@@ -138,11 +138,11 @@ def test_botoes_visiveis_com_janela_baixa(
     for i in range(caixas.count()):
         caixas.nth(i).check()
     nomes = {
-        "ia": ("Continuar", "Pular"),
-        "perfil": ("Continuar", "Pular este passo", "Pular", "Voltar ao passo 1"),
-        "1": ("Continuar", "Pular", "Voltar ao passo 2"),
-        "sites": ("Continuar", "Pular", "Voltar ao passo 3"),
-        "2": ("Concluir", "Pular", "Voltar ao passo 4"),
+        "ia": ("Continuar", "Pular tudo"),
+        "perfil": ("Continuar", "Pular este passo", "Pular tudo", "Voltar ao passo 1"),
+        "1": ("Continuar", "Pular tudo", "Voltar ao passo 2"),
+        "sites": ("Continuar", "Pular tudo", "Voltar ao passo 3"),
+        "2": ("Concluir", "Pular tudo", "Voltar ao passo 4"),
     }[passo]
     _pe_dentro_da_janela(page, nomes)
     corpo = page.locator(".assistente-corpo")
@@ -278,3 +278,44 @@ def test_curriculo_lido_no_assistente_volta_ao_passo(page: Page, painel: str) ->
     expect(page).to_have_url(f"{painel}/primeira-execucao/perfil?curriculo=1")
     expect(page.get_by_role("status").filter(has_text="Currículo salvo no perfil")).to_be_visible()
     expect(page.get_by_label("Qual é o seu e-mail?")).to_have_value("contato@exemplo.invalid")
+
+
+# depois do `app.js` (que registrou o seu antes): segura a navegação, porque com ela pendente o
+# Playwright espera a página nova para ler qualquer locator (como em `test_perguntas.py`)
+_SEGURAR = """() => document.addEventListener("submit", (e) => e.preventDefault())"""
+
+
+def _esperando(botao: Locator, espera: str) -> None:
+    """O sinal de espera à vista no assistente (que não é `.config`): o rótulo some, o ponto pulsa
+    e o texto de espera fica no nome acessível."""
+    expect(botao.locator(".botao-espera")).to_be_visible()  # 1px recortado, não display: none
+    expect(botao).to_have_accessible_name(re.compile(re.escape(espera)))
+    assert botao.locator(".botao-rotulo").evaluate("e => getComputedStyle(e).opacity") == "0"
+    assert botao.evaluate("b => getComputedStyle(b, '::after').content") == '""'
+
+
+def test_espera_dos_botoes_da_ia_no_passo_perfil(page: Page, painel: str, tmp_path: Path) -> None:
+    with closing(abrir(tmp_path / "jobot.db")) as con:
+        cadastros.gravar_config(
+            con, "ia_tarefas", {"perguntas": {"ligada": True, "backend": "local", "modelo": "m"}}
+        )
+    page.goto(f"{painel}/primeira-execucao/perfil")
+    page.evaluate(_SEGURAR)
+    sugerir = page.get_by_role("button", name="Salvar e sugerir perguntas")
+    sugerir.click()
+    expect(sugerir).to_have_class(re.compile(r"\besperando\b"))
+    _esperando(sugerir, "Sugerindo perguntas…")
+
+    # o "Ler currículo" é do HTMX: o pedido fica preso na rota até o fim do teste
+    presos: list[Route] = []
+    page.route(re.compile(r"/configuracoes/perfil/curriculo"), lambda rota: presos.append(rota))
+    secao = page.get_by_role("region", name="Currículo em PDF")
+    secao.get_by_label("Arquivo do currículo (PDF)").set_input_files(
+        {"name": "curriculo.pdf", "mimeType": "application/pdf", "buffer": montar_pdf(["Dev"])}
+    )
+    ler = secao.locator('form[hx-post] button[type="submit"]')
+    ler.click()
+    expect(ler).to_have_class(re.compile(r"\bhtmx-request\b"))
+    _esperando(ler, "Lendo o currículo…")
+    assert len(presos) == 1
+    presos[0].abort()

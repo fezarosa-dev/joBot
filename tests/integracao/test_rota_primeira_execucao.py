@@ -29,9 +29,11 @@ from jobot.banco import buscas, cadastros, perfil
 from jobot.banco.conexao import abrir
 from jobot.banco.execucoes import abrir_execucao
 from jobot.banco.migrar import migrar
-from jobot.nucleo.ia.contrato import limites
+from jobot.nucleo.ia.contrato import Pedido, Resposta, limites
+from jobot.nucleo.ia.falso import BackendFalso
 from jobot.nucleo.modelo import Busca, Local, Modalidade, Nivel
 from jobot.painel.app import criar_app
+from jobot.painel.rotas.ia import Teste
 from jobot.painel.seguranca import CAMPO_CSRF
 from jobot.sistema import segundo_plano_linux
 from jobot.sistema.cofre import Cofre
@@ -1072,10 +1074,12 @@ def test_pular_desliga_o_site_que_a_pessoa_ligou(cenario: Cenario) -> None:
     assert cenario.ligadas() == []
 
 
-@pytest.mark.parametrize(("idioma", "pular"), [("pt", "Pular"), ("en", "Skip")])
+@pytest.mark.parametrize(("idioma", "pular"), [("pt", "Pular tudo"), ("en", "Skip all")])
 def test_pular_em_todo_passo(cenario: Cenario, idioma: str, pular: str) -> None:
+    """O Pular do pé conclui o assistente inteiro: "Pular tudo", para não se confundir com o
+    "Pular este passo" do Perfil (T439)."""
     cenario.com_leitor()
-    for url in (PASSO_1, SITES, PASSO_2):
+    for url in (PASSO_IA, PASSO_PERFIL, PASSO_1, SITES, PASSO_2):
         html = cenario.get(url, headers={"Accept-Language": idioma}).text
         assert html.count(f'formaction="{PULAR}"') == 1, url
         botao = re.search(rf'<button[^>]*formaction="{PULAR}"[^>]*>\s*([^<]*?)\s*</button>', html)
@@ -1190,12 +1194,19 @@ def test_passo_ia_mostra_os_atalhos_com_o_custo(cenario: Cenario) -> None:
     assert "Local model (free, runs on your PC)" in ingles
     assert "Paid service (your key)" in ingles
     assert "up to 200 requests a day" in ingles
+    # o consentimento fala do currículo, a tarefa que o atalho liga e a que mais leva dado pessoal
+    assert "O texto do currículo, sem e-mail, telefone e CPF, vai quando você manda ler." in texto
+    assert "Your résumé text, without email, phone and CPF, goes when you ask to read it." in ingles
 
 
 def test_passo_ia_sem_modelo_local_desativa_a_opcao(cenario: Cenario) -> None:
     html = cenario.get(PASSO_IA).text
     assert re.search(r'<input type="radio" name="ia" value="local" disabled', html)
     assert "Configurações › Ferramentas › Modelo local de IA" in html_lib.unescape(html)
+    # baixar só não basta: a dica diz onde ligar depois
+    assert "Configurações › IA, em Tudo offline" in html_lib.unescape(html)
+    ingles = html_lib.unescape(cenario.get(PASSO_IA, headers={"Accept-Language": "en"}).text)
+    assert "Settings › AI, under All offline" in ingles
     resposta = cenario.post(PASSO_IA, {"ia": "local"})
     assert resposta.status_code == 422
     assert "O modelo local ainda não foi baixado" in _texto_de(resposta)
@@ -1374,3 +1385,102 @@ def test_curriculo_no_assistente_grava_e_volta_ao_passo(cenario: Cenario) -> Non
     assert cenario.post(url, sobre).status_code == 422
     with closing(abrir(cenario.banco)) as con:
         assert perfil.dados(con).cargo_atual == "Dev"
+
+
+@pytest.mark.parametrize("escolha", ["local", "pago"])
+def test_passo_ia_agora_nao_desliga_o_que_o_assistente_ligou(
+    cenario: Cenario, escolha: str
+) -> None:
+    """Quem escolheu, se arrependeu, voltou e marcou "seguir sem IA" segue sem IA (T439)."""
+    cenario.app.state.modelo_local = lambda: "qwen3-4b"
+    chave = CHAVE_ANTHROPIC if escolha == "pago" else ""
+    _redireciona(cenario.post(PASSO_IA, {"ia": escolha, "chave": chave}), PASSO_PERFIL)
+    tarefas = _tarefas(cenario)
+    assert isinstance(tarefas, dict) and all(t["ligada"] for t in tarefas.values())  # controle
+    _redireciona(cenario.post(PASSO_IA, {"ia": "nenhum"}), PASSO_PERFIL)
+    tarefas = _tarefas(cenario)
+    assert isinstance(tarefas, dict) and tarefas
+    assert not any(t["ligada"] for t in tarefas.values())
+    assert re.search(r'name="ia" value="nenhum" checked', cenario.get(PASSO_IA).text)
+
+
+@pytest.mark.parametrize("escolha", ["nenhum", "local"])
+def test_passo_ia_chave_sem_o_pago_volta_sem_gravar(cenario: Cenario, escolha: str) -> None:
+    """A chave digitada com outro rádio marcado não some calada nem liga o pago sozinha: a
+    escolha é a confirmação do custo (T439)."""
+    cenario.app.state.modelo_local = lambda: "qwen3-4b"  # o local valeria: quem recusa é a chave
+    resposta = cenario.post(PASSO_IA, {"ia": escolha, "chave": CHAVE_ANTHROPIC})
+    assert resposta.status_code == 422
+    assert "Você digitou uma chave: marque Serviço pago ou apague a chave." in _texto_de(resposta)
+    assert CHAVE_ANTHROPIC not in resposta.text
+    assert re.search(r'id="ia-chave"[^>]*aria-invalid="true"', resposta.text)
+    assert re.search(rf'name="ia" value="{escolha}" checked', resposta.text)
+    assert cenario.cofre.ler("ia_anthropic") is None
+    assert _tarefas(cenario) is None
+    ingles = cenario.post(
+        PASSO_IA, {"ia": escolha, "chave": CHAVE_ANTHROPIC}, headers={"Accept-Language": "en"}
+    )
+    assert "You typed a key: choose Paid service or clear the key." in _texto_de(ingles)
+    # controle: só espaço não é chave
+    _redireciona(cenario.post(PASSO_IA, {"ia": escolha, "chave": "  "}), PASSO_PERFIL)
+
+
+def test_passo_ia_chave_nova_refaz_o_teste_ao_ligar(cenario: Cenario) -> None:
+    """Como na aba Serviços: chave nova com o Claude já ligado volta os pares dele ao teste."""
+    _redireciona(cenario.post(PASSO_IA, {"ia": "pago", "chave": CHAVE_ANTHROPIC}), PASSO_PERFIL)
+    tarefas = _tarefas(cenario)
+    assert isinstance(tarefas, dict)
+    pares = {("anthropic", t["modelo"]) for t in tarefas.values()}
+    cenario.app.state.ia_testes = dict.fromkeys(pares, Teste("falhou"))  # o da chave antiga
+    _redireciona(cenario.post(PASSO_IA, {"ia": "pago", "chave": ""}), PASSO_PERFIL)
+    assert set(cenario.app.state.ia_testes) == pares  # controle: sem chave nova, o teste fica
+    nova = {"ia": "pago", "chave": "sk-ant-outra-0123456789"}
+    _redireciona(cenario.post(PASSO_IA, nova), PASSO_PERFIL)
+    assert cenario.cofre.ler("ia_anthropic") == ("sk-ant-outra-0123456789", "sistema")
+    assert not set(cenario.app.state.ia_testes) & pares
+
+
+def test_passo_perfil_nao_diz_que_fica_no_computador_com_a_ia_paga(cenario: Cenario) -> None:
+    _redireciona(cenario.post(PASSO_IA, {"ia": "pago", "chave": CHAVE_ANTHROPIC}), PASSO_PERFIL)
+    for idioma, local in (("pt", "fica no seu computador"), ("en", "stays on your computer")):
+        texto = _texto_de(cenario.get(PASSO_PERFIL, headers={"Accept-Language": idioma}))
+        assert "Anthropic" in texto  # controle: a frase de para onde vai o currículo está lá
+        assert local not in texto
+
+
+class _IaFalsa:
+    """`app.state.ia` falsa: responde o pronto e não manda nada a ninguém."""
+
+    def __init__(self, prontas: list[Any]) -> None:
+        self.falso = BackendFalso(prontas)
+
+    def __call__(self, backend: str, modelo: str) -> _IaFalsa:
+        return self
+
+    def pedir(self, pedido: Pedido) -> Resposta:
+        return self.falso.pedir(pedido)
+
+    def fechar(self) -> None:
+        pass
+
+
+def test_passo_perfil_sugerir_volta_ao_passo_com_as_perguntas(cenario: Cenario) -> None:
+    tarefa = {"perguntas": {"ligada": True, "backend": "anthropic", "modelo": "claude-sonnet-5-5"}}
+    cenario.gravar_config("ia_tarefas", tarefa)
+    sugeridas = {
+        "perguntas": [
+            {"pergunta": "Que ferramentas de BI você usa?", "por_que": "Vagas de dados pedem BI."},
+            {"pergunta": "Você tem certificações?", "por_que": "Ajudam na triagem."},
+        ]
+    }
+    cenario.app.state.ia = _IaFalsa([sugeridas, sugeridas])
+    resposta = cenario.post(PASSO_PERFIL, PERFIL_VAZIO | {"cargo_atual": "Dev", "sugerir": "1"})
+    _redireciona(resposta, PASSO_PERFIL + "?sugeridas=2#perguntas-ia")
+    texto = _texto_de(cenario.get(PASSO_PERFIL + "?sugeridas=2"))
+    assert "Que ferramentas de BI você usa?" in texto
+    # com a busca, o endereço do passo a leva junto
+    cenario.post(PASSO_1, COMPLETO)
+    busca_id = cenario.buscas()[0].id
+    dados = PERFIL_VAZIO | {"cargo_atual": "Dev", "sugerir": "1", "busca": str(busca_id)}
+    destino = f"{PASSO_PERFIL}?sugeridas=0&busca={busca_id}#perguntas-ia"
+    _redireciona(cenario.post(PASSO_PERFIL, dados), destino)
