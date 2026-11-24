@@ -189,6 +189,34 @@ def test_progresso_determinado_nao_volta_e_para_no_teto(page: Page, ui: str) -> 
     assert _valor(page) == 100
 
 
+def _largura(page: Page) -> float:
+    return page.evaluate(  # type: ignore[no-any-return]
+        """() => document.getElementById("instalador-preenchimento").getBoundingClientRect().width
+          / document.getElementById("trilho").getBoundingClientRect().width * 100"""
+    )
+
+
+def test_barra_anda_fluida_dentro_da_etapa_e_sem_salto_na_troca(page: Page, ui: str) -> None:
+    """D216: sem aviso novo a largura segue andando, rápida no começo e freando, sem passar do
+    fim da fatia; o valor real (aria-valuenow) não muda; trocar de etapa não dá salto."""
+    page.clock.install()
+    _ate_instalando(page, ui)
+    _aviso(page, {"etapa": "python"})  # fatia do Python: de 10 a 30
+    larguras = []
+    for _ in range(8):
+        page.clock.run_for(1000)
+        larguras.append(_largura(page))
+    assert _valor(page) == 10
+    passos = [b - a for a, b in zip(larguras, larguras[1:], strict=False)]
+    assert all(p > 0 for p in passos), larguras  # nunca para
+    assert all(a > b for a, b in zip(passos[1:], passos[2:], strict=False)), larguras  # freando
+    assert 10 < larguras[-1] < 30, larguras
+    antes = _largura(page)
+    _aviso(page, {"etapa": "jobot"})
+    page.clock.run_for(100)
+    assert 0 <= _largura(page) - antes < 2  # a troca de etapa não pula
+
+
 def test_sem_navegador_as_outras_etapas_dividem_a_barra(page: Page, ui: str) -> None:
     _ate_instalando(page, ui, navegador=False)
     _aviso(page, {"etapa": "abrir"})
