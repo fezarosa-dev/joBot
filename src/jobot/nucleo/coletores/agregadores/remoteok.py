@@ -3,9 +3,15 @@
 O primeiro elemento da lista não é vaga (traz `last_updated` e `legal`): é pulado. A lista
 já traz a descrição, então não há `detalhar`. A leitura é sempre em UTF-8, porque o
 `Content-Type` da fonte vem sem `charset` e o `HttpEducado` cai para UTF-8 nesse caso.
+
+A descrição traz o IP de quem pede, em base64 ("and tag R<base64>" e "(#R<base64>)"): sai antes
+de gravar (D221), e a palavra-chave da frase fica.
 """
 
+import base64
+import ipaddress
 import json
+import re
 from collections.abc import AsyncIterator, Mapping, Sequence
 from datetime import UTC, datetime
 from math import isfinite
@@ -24,6 +30,9 @@ from jobot.nucleo.modelo import SalarioBruto, VagaColetada, confere_http
 
 _LIMITES = limites("remoteok")
 _API = "https://remoteok.com/api"
+_TAG_IP = re.compile(
+    r" and tag R([A-Za-z0-9+/]{8,}={0,2})(?![\w+/=])| ?\(#R([A-Za-z0-9+/]{8,}={0,2})\)"
+)
 
 
 class _FormatoMudou(Exception):
@@ -32,6 +41,20 @@ class _FormatoMudou(Exception):
 
 def _texto(valor: object) -> str:
     return valor.strip() if isinstance(valor, str) else ""
+
+
+def _ip_em_base64(texto: str) -> bool:
+    try:
+        decodificado = base64.b64decode(texto + "=" * (-len(texto) % 4), validate=True)
+        ipaddress.ip_address(decodificado.decode("ascii"))
+    except ValueError:  # binascii.Error e UnicodeDecodeError também são ValueError
+        return False
+    return True
+
+
+def _sem_tag_de_ip(descricao: str) -> str:
+    """Tira a tag com o IP de quem pede (D221); "R" seguido de outro texto fica."""
+    return _TAG_IP.sub(lambda m: "" if _ip_em_base64(m[1] or m[2]) else m[0], descricao)
 
 
 def _numero(valor: object) -> float | None:
@@ -101,7 +124,7 @@ def _vaga(job: object) -> VagaColetada | None:
             empresa=empresa,
             descricao_formato="html",
             modalidade_declarada="remote",  # o RemoteOK só lista vaga remota
-            descricao=_texto(job.get("description")),
+            descricao=_sem_tag_de_ip(_texto(job.get("description"))),
             # shortcut: a caixa do id fica como vem (D45); a fonte manda o id como texto
             id_externo=str(id_externo) if isinstance(id_externo, int | str) else None,
             url_candidatura=_url_candidatura(job.get("apply_url")),
