@@ -40,7 +40,7 @@ def _numero(valor: object) -> float | None:
         return None
     try:
         n = float(valor)
-    except ValueError:
+    except ValueError, OverflowError:  # texto sem número, ou inteiro gigante
         return None
     return n if isfinite(n) and n > 0 else None
 
@@ -103,7 +103,9 @@ def _vaga(job: object) -> VagaColetada | None:
             modalidade_declarada="remote",  # o RemoteOK só lista vaga remota
             descricao=_texto(job.get("description")),
             # shortcut: a caixa do id fica como vem (D45); a fonte manda o id como texto
-            id_externo=str(id_externo) if isinstance(id_externo, int | str) else None,
+            id_externo=str(id_externo)
+            if isinstance(id_externo, int | str) and not isinstance(id_externo, bool)
+            else None,
             url_candidatura=_url_candidatura(job.get("apply_url")),
             locais=tuple(filter(None, [_texto(job.get("location"))])),
             salario_estruturado=_salario(job),

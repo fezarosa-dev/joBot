@@ -260,3 +260,10 @@ async def test_endereco_e_parametros() -> None:
     assert pedido.method == "GET"
     assert str(pedido.url) == URL
     assert dict(pedido.url.params) == {}  # os filtros da API não mudam a resposta (apêndice 2.2)
+
+
+async def test_id_bool_nao_vira_id_externo() -> None:
+    dados = json.loads(_texto("normal"))
+    dados["jobs"][0]["id"] = True
+    resultado, _ = await _coletar(httpx.Response(200, json=dados))
+    assert _vagas(resultado)[0].id_externo is None

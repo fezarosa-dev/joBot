@@ -105,7 +105,9 @@ def _vaga(job: object) -> VagaColetada | None:
             empresa=empresa,
             descricao_formato="html",
             descricao=_texto(job.get("jobDescription")),
-            id_externo=str(id_externo) if isinstance(id_externo, int | str) else None,
+            id_externo=str(id_externo)
+            if isinstance(id_externo, int | str) and not isinstance(id_externo, bool)
+            else None,
             locais=_locais(job.get("jobGeo")),
             contrato_declarado=", ".join(_lista(job.get("jobType"))) or None,
             salario_estruturado=_salario(job),
