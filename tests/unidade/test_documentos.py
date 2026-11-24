@@ -784,8 +784,12 @@ FASE_3_CONCLUIDA = {
     "wiki/Roadmap.md": r"✅ \| \*\*3\. Installer\*\*.*Complete in 0\.4\.0",
     "README.md": r"\*\*3\. Instalador\*\*.*🟢 Pronta \(versão 0\.4\.0\)",
     "README.en.md": r"\*\*3\. Installer\*\*.*🟢 Done \(version 0\.4\.0\)",
-    ".github/CONTRIBUTING.md": r"fases 1, 2 e 3 .*estão concluídas: o joBot 0\.4\.0",
-    ".github/CONTRIBUTING.en.md": r"Phases 1, 2 and 3 .*are complete: joBot 0\.4\.0",
+    ".github/CONTRIBUTING.md": (
+        r"fases 1, 2 e 3 .*estão concluídas: o joBot 0\.4\.0.*a versão 0\.4\.1 já dá para instalar"
+    ),
+    ".github/CONTRIBUTING.en.md": (
+        r"Phases 1, 2 and 3 .*are complete: joBot 0\.4\.0.*version 0\.4\.1 can already be installed"
+    ),
 }
 # sobra do tempo em que a fase 3 estava em obras
 FASE_3_EM_OBRAS = re.compile(
