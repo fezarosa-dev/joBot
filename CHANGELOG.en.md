@@ -13,6 +13,10 @@ The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/
 - ADR 0026 (proposed): phase 4 AI. The AI will arrive in two versions, 0.5.0 and 0.6.0, off by default; the local model will be downloaded from the official source, when the person asks, and the AI will only list what the job asks for, without giving a score. The roadmap now shows phase 4 being built.
 - ADR 0027: the shell only controls. joBot's window becomes a control with Start, Stop and Open joBot, and the dashboard opens in the person's default browser. It replaces the "Shell" part of ADR 0025.
 
+### Changed
+
+- The progress bar moves smoothly, in the dashboard and in the installer: it starts fast and slows down gradually, without jumping or stopping abruptly between steps.
+
 ## [0.4.0] - 2026-11-17
 
 Phase 3 arrives: joBot gets a window of its own and an installer for Windows, Linux and Mac, which installs everything without internet, except the optional browser.
