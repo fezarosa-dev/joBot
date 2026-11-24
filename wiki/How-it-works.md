@@ -152,6 +152,6 @@ Running in the background is your choice, in the first-run assistant or in the s
 
 ## 🧠 Artificial intelligence (optional)
 
-> **Golden rule:** the AI never invents. In Matching it does not even receive your profile: each skill it lists has to be written in the job. In the tasks that use the profile (résumé, questions and application, since 0.6.0), it only uses the data in your profile and shows which data it used, and name, email, phone and city never go into the requests.
+> **Golden rule:** the AI never invents. In Matching it does not even receive your profile: each skill it lists has to be written in the job. In questions and the application (since 0.6.0), it only uses the data in your profile and shows which data it used, and the profile goes without name, email, phone and city. In the résumé, the PDF text goes without email, phone and CPF, and the name and city written in it go along.
 
 Each task picks its own option: the local model (Laya by default, free and offline once downloaded), an Anthropic API, OpenAI or Google Gemini key, or an OpenAI-compatible address (Ollama, LM Studio, OpenRouter), and keywords (no AI) stay. Since 0.6.0, the résumé and the application also accept manual AI (copy and paste), and the Claude Code session you already have waits for the owner's decision on the terms of use. Details in [Technologies](Technologies) and in the [README](https://github.com/fezarosa-dev/joBot/blob/main/README.en.md#artificial-intelligence).

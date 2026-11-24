@@ -52,10 +52,10 @@ A IA é opcional. Sem ela, o joBot funciona com regras e palavras-chave ([ADR 00
 - Com o Claude, o app usa só Haiku 5.5 e Sonnet 5.5. **O Opus nunca é usado**, para poupar custo e o seu limite de uso.
 - O joBot **não tem login do Claude**. Ele usa o Claude Code que já está no seu computador, no modo sem tela, sem ferramentas e sem tocar na sua credencial ([ADR 0010](https://github.com/fezarosa-dev/joBot/blob/main/docs/decisions/0010-claude-code-da-pessoa.md)).
 - A sessão do Claude Code espera a decisão do dono sobre os termos de uso e ainda não foi construída; na 0.5.0 e na 0.6.0, o Claude entra pela chave da API da Anthropic.
-- O modelo local roda pelo `llama-server`, em versão fixa e conferida por checksum (impressão digital do arquivo), só no processador. O joBot o baixa do GitHub (o `llama-server` e o Laya, das versões do joBot) e do Hugging Face (o Qwen3.5, se você trocar), só quando você pede. O joBot não traz Ollama nem PyTorch; quem já usa o Ollama ou o LM Studio pode apontar o endereço compatível para ele.
+- O modelo local roda pelo `llama-server`, em versão fixa e conferida por checksum (impressão digital do arquivo), só no processador. O joBot o baixa do GitHub (o `llama-server`, das versões do llama.cpp, e o Laya, das versões do joBot) e do Hugging Face (o Qwen3.5, se você trocar), só quando você pede. O joBot não traz Ollama nem PyTorch; quem já usa o Ollama ou o LM Studio pode apontar o endereço compatível para ele.
 - "Experimental" quer dizer que o serviço só foi testado com um serviço falso, porque o CI não tem chave paga.
 - Desde a 0.6.0, o modelo local padrão é o Laya, um ajuste do Qwen3.5 2B para as vagas, treinado com vagas públicas; o Qwen3.5 2B e o 4B originais ficam como opção em Configurações › Ferramentas.
-- Desde a 0.6.0, com a tarefa ligada, a IA também lê o currículo, sugere perguntas para o perfil e prepara candidaturas. Nome, e-mail, telefone e cidade nunca entram nos pedidos. Na IA manual, o joBot só mostra o pedido para você copiar.
+- Desde a 0.6.0, com a tarefa ligada, a IA também lê o currículo, sugere perguntas para o perfil e prepara candidaturas. As perguntas e a candidatura levam o perfil sem nome, e-mail, telefone e cidade; o currículo leva o texto do PDF sem e-mail, telefone e CPF, e o nome e a cidade escritos nele vão junto. Na IA manual, o joBot só mostra o pedido para você copiar.
 - A transcrição de áudio vai usar o faster-whisper, no seu computador, e apagar o áudio logo depois (fase 6).
 
 <sub>Claude e Claude Code são marcas da Anthropic. O joBot não é afiliado à Anthropic.</sub>

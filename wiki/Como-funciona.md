@@ -152,6 +152,6 @@ Rodar em segundo plano é escolha sua, no assistente da primeira execução ou n
 
 ## 🧠 Inteligência artificial (opcional)
 
-> **Regra de ouro:** a IA nunca inventa. No Encaixe ela nem recebe o seu perfil: cada habilidade que ela lista precisa estar escrita na vaga. Nas tarefas que usam o perfil (currículo, perguntas e candidatura, desde a 0.6.0), ela só usa os dados do seu perfil e mostra quais usou, e nome, e-mail, telefone e cidade nunca entram nos pedidos.
+> **Regra de ouro:** a IA nunca inventa. No Encaixe ela nem recebe o seu perfil: cada habilidade que ela lista precisa estar escrita na vaga. Nas perguntas e na candidatura (desde a 0.6.0), ela só usa os dados do seu perfil e mostra quais usou, e o perfil vai sem nome, e-mail, telefone e cidade. No currículo, o texto do PDF vai sem e-mail, telefone e CPF, e o nome e a cidade escritos nele vão junto.
 
 Cada tarefa escolhe a sua opção: o modelo local (o Laya, por padrão, grátis e sem internet depois de baixado), chave da API da Anthropic, da OpenAI ou do Google Gemini, ou um endereço compatível com a OpenAI (Ollama, LM Studio, OpenRouter), e as palavras-chave (sem IA) continuam. Desde a 0.6.0, o currículo e a candidatura aceitam também a IA manual (copiar e colar), e a sessão do Claude Code que você já tem espera a decisão do dono sobre os termos de uso. Detalhes em [Tecnologias](Tecnologias) e no [README](https://github.com/fezarosa-dev/joBot#inteligencia-artificial).
