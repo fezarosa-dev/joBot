@@ -25,7 +25,9 @@ para `/vagas`, sem busca e com os sites com login desligados (D137.10). A rota f
 
 Os passos IA e Perfil (T439, desenho 10.4 da fase 4, D235) vêm antes da busca, opcionais. A IA
 escolhe entre o modelo local, o serviço pago (a chave da Anthropic, guardada no cofre) e "Agora
-não", com o custo à vista: escolher o pago já é a confirmação do custo do laço. O Perfil é o
+não", com o custo à vista: escolher o pago já é a confirmação do custo do laço, e chave digitada
+com outra escolha volta ao passo sem gravar. "Agora não" desliga o que o passo liga sozinho (tudo
+local ou tudo Claude) e deixa a configuração montada na aba IA. O Perfil é o
 questionário da aba Perfil (T437) e o currículo (T435, T436), gravados pelas funções de
 `painel/rotas/perfil.py`; ele tem também "Pular este passo", que não grava nada. A busca chega
 com o cargo atual e a cidade do perfil. O `?busca=<id>` anda pelos dois passos, como pelo dos sites.
@@ -76,7 +78,7 @@ from jobot.painel.rotas.configuracoes import (
     contexto_ferramenta_navegador,
     contexto_sites_com_login,
 )
-from jobot.painel.rotas.ia import IA, contexto_ia, gravar_ia
+from jobot.painel.rotas.ia import IA, contexto_ia, gravar_ia, servico_trocou
 from jobot.painel.rotas.perfil import (
     SITUACOES,
     contexto_perguntas,
@@ -108,7 +110,7 @@ _MODALIDADES = (Modalidade.PRESENCIAL, Modalidade.HIBRIDO, Modalidade.REMOTO)
 _NIVEIS = tuple(n for n in Nivel if n is not Nivel.NAO_INFORMADO)
 _IDIOMAS: dict[str, Idioma] = {"pt": "pt", "en": "en", "es": "es"}
 _PRIMEIRO = "primeira_execucao."
-# a escolha do passo IA -> o atalho da aba IA que ela grava; "nenhum" não grava nada
+# a escolha do passo IA -> o atalho da aba IA que ela grava; "nenhum" desliga o que o passo ligou
 _ATALHO_DA_ESCOLHA = {"local": "offline", "pago": "claude"}
 _ESCOLHA_DO_MODO = {"offline": "local", "claude": "pago"}
 _ESCOLHAS_IA = (*_ATALHO_DA_ESCOLHA, "nenhum")
@@ -628,12 +630,22 @@ async def _gravar_ia(request: Request, con: Con) -> Response:
     if not isinstance(escolha, str) or escolha not in _ESCOLHAS_IA:
         raise HTTPException(422)
     seguir = RedirectResponse(_com_busca(_PASSO_PERFIL, busca_id), status_code=303)
-    if escolha == "nenhum":  # deixa a IA como está, ligada ou não
-        return seguir
     chave = form.get("chave")
-    if escolha == "pago" and isinstance(chave, str) and chave.strip():
+    digitou = isinstance(chave, str) and bool(chave.strip())
+    if digitou and escolha != "pago":  # a escolha é a confirmação do custo: nunca o pago sozinho
+        erro = _PRIMEIRO + "ia.erro.chave_sem_pago"
+        return await _formulario_ia(
+            request, con, busca_id, 422, escolha=escolha, erro=erro, erro_campo=_CAMPO_CHAVE
+        )
+    if escolha == "nenhum":
+        # desliga o que o passo liga sozinho (tudo local ou tudo Claude); a configuração montada
+        # na aba IA, ou a IA já desligada, fica como está
+        if (await contexto_ia(request, con))["ia_modo"] in _ESCOLHA_DO_MODO:
+            await gravar_ia(request, con, FormData([("atalho", "desligada")]))
+        return seguir
+    if escolha == "pago" and digitou:
         recusa = await gravar_chave_ia(
-            request, con, FormData([("servico", "anthropic"), ("chave", chave)])
+            request, con, FormData([("servico", "anthropic"), ("chave", str(chave))])
         )
         if recusa is not None:  # a chave nunca volta: o campo vem vazio
             status, contexto = recusa
@@ -642,6 +654,8 @@ async def _gravar_ia(request: Request, con: Con) -> Response:
             return await _formulario_ia(
                 request, con, busca_id, status, escolha=escolha, erro=erro, erro_campo=campo
             )
+        # como na aba Serviços: os pares já ligados na Anthropic testam de novo com a chave nova
+        await servico_trocou(request, con, "anthropic")
     atalho = FormData([("atalho", _ATALHO_DA_ESCOLHA[escolha]), ("confirmar", "1")])
     feito = await gravar_ia(request, con, atalho)
     if isinstance(feito, str) and feito.startswith(IA):

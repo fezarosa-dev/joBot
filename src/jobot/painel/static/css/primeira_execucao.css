@@ -27,6 +27,11 @@
   gap: 1.25rem;
 }
 
+/* passo Perfil: o bloco do currículo fica fora do formulário e não ganha o gap dele */
+.assistente-corpo > .config-bloco {
+  margin-block-end: 1.5rem;
+}
+
 .campo {
   display: grid;
   gap: 0.4rem;

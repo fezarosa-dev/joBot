@@ -1,6 +1,7 @@
 {#- Passo IA (T439; desenho 10.4 da fase 4; D235): os atalhos da aba IA em três escolhas. O local
     só se escolhe com o modelo baixado; o pago leva a chave da Anthropic (que nunca volta à tela) e
-    mostra o custo ao lado, então escolhê-lo já confirma o custo; "Agora não" deixa a IA como está. -#}
+    mostra o custo ao lado, então escolhê-lo já confirma o custo; "Agora não" desliga o que o passo
+    liga sozinho (tudo local ou tudo Claude). -#}
 {%- set chave_errada = erro_campo == "ia-chave" %}
 <h1 class="assistente-titulo">{{ t("primeira_execucao.ia.titulo") }}</h1>
 <p class="assistente-texto">{{ t("primeira_execucao.ia.intro") }}</p>
