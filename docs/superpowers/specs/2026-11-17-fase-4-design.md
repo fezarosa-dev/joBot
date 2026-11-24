@@ -32,7 +32,7 @@ Quem usa liga a IA se quiser, escolhe onde ela roda (no próprio computador, sem
 **Não objetivos**
 
 - Sessões do Claude Code e do Codex: esperam o dono (D185.5, D185.6, D185.18; seção 6.2).
-- Treinar o Laya: custa dinheiro e a primeira pergunta ao dono é se autoriza ou adia (D141, D185.8).
+- ~~Treinar o Laya: custa dinheiro e a primeira pergunta ao dono é se autoriza ou adia (D141, D185.8).~~ O dono autorizou em 2026-11-24 (D219): os scripts do treino entram na T419, fora do pacote do joBot; o Laya só entra no joBot se ganhar do Qwen3.5 2B no conjunto de ouro.
 - Rótulos por IA ou pelo multilingual-e5-small (ADR 0007): voltam junto do Laya (D185.9).
 - Áudio e Whisper (fase 6, D139.11), e-mail e respostas de recrutadores (fase 6), extensão do navegador (fase 5), LoRA do Qwen e classificador pessoal (fase 7).
 - O Qwen 9B: espera a medida de velocidade (D139.11).
@@ -319,7 +319,7 @@ Dois passos novos, opcionais, antes dos de hoje (ADR 0011; D185.15): **IA** (os 
 
 Nada aqui trava a 0.5.0; o que depende do dono fica de fora até a resposta.
 
-1. **Laya, primeira pergunta** (D141, D185.8): autoriza o gasto estimado (README da T419) ou adia? Até a resposta, a D141 fica "adiada, para confirmar" nas ADR 0015 e 0017.
+1. ~~**Laya, primeira pergunta** (D141, D185.8): autoriza o gasto estimado (README da T419) ou adia? Até a resposta, a D141 fica "adiada, para confirmar" nas ADR 0015 e 0017.~~ Respondida em 2026-11-24: o dono autorizou o treino no RunPod, só na Community Cloud e pela GPU de menor custo total; a T419 traz os scripts do treino (D219).
 2. Confirmar a D185 (ou trocar itens), antes da tag da 0.5.0.
 3. Sessões (6.2): o texto legal do Claude Code (D185.5), os Termos da OpenAI para o Codex (D185.6), o instalador do Claude Code sem sha256 (D185.18) e os botões Entrar (D139.14).
 4. Serviços pagos (D185.27): rodar o `provar_ia.py --backend` com a chave dele (custa centavos) ou deixar a marca "experimental".
