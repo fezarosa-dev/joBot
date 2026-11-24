@@ -29,13 +29,15 @@ LIGADO = {"ligado": True, "endereco": ENDERECO}
 # transferência falsa guarda o que a página copiou, nos três motores
 PONTE = """
 window.__chamadas = [];
+window.__argumentos = [];
 window.__copiado = null;
 Object.defineProperty(navigator, 'clipboard', {
   value: { writeText: async (texto) => { window.__copiado = texto; } },
 });
 window.__TAURI__ = { core: {
-  invoke: async (comando) => {
+  invoke: async (comando, argumentos) => {
     window.__chamadas.push(comando);
+    if (argumentos !== undefined) window.__argumentos.push([comando, argumentos]);
     const resposta = window.__respostas[comando];
     if (comando !== 'estado_controle' && resposta && !resposta.falha) {
       window.__respostas.estado_controle = resposta;
@@ -181,26 +183,82 @@ def test_motivo_desconhecido_vira_a_falha_generica(page: Page, ui: str) -> None:
     expect(page.locator("#falha-log")).to_be_hidden()
 
 
-def test_avisa_que_fechar_para_o_jobot_sem_segundo_plano(page: Page, ui: str) -> None:
-    # D207.5: a casca ligou o painel e o segundo plano está desligado
-    _abrir(page, ui, estado_controle={**LIGADO, "fecha_junto": True})
-    nota = page.get_by_text("Fechar esta janela para o joBot.")
-    expect(nota).to_be_visible()
-    # a resposta do Abrir joBot não traz os avisos: o da consulta fica
-    _botao(page, "Abrir joBot").click()
-    page.clock.run_for(5000)
-    expect(nota).to_be_visible()
-    page.evaluate(
-        f"window.__respostas.estado_controle = {json.dumps(LIGADO | {'fecha_junto': False})}"
+def _pedir_fechar(page: Page) -> None:
+    # o que a casca faz no CloseRequested da janela (`pedir_fechar` do main.rs)
+    page.evaluate("window.__jobotPedirFechar && window.__jobotPedirFechar()")
+
+
+def _respostas_de_fechar(page: Page) -> list[Any]:
+    resultado: list[Any] = page.evaluate(
+        "window.__argumentos.filter(([c]) => c === 'fechar_controle').map(([, a]) => a)"
     )
-    page.clock.run_for(5000)
-    expect(nota).to_be_hidden()
+    return resultado
 
 
-def test_sem_aviso_de_fechar_com_o_painel_parado(page: Page, ui: str) -> None:
-    _abrir(page, ui, estado_controle={**PARADO, "fecha_junto": True, "janela_velha": True})
+def test_fechar_com_o_painel_no_ar_pergunta(page: Page, ui: str) -> None:
+    # D215: fechar a janelinha não derruba a aba do navegador sem a pessoa saber
+    _abrir(page, ui, estado_controle=LIGADO)
+    expect(_botao(page, "Abrir joBot")).to_be_visible()
+    _pedir_fechar(page)
+    pergunta = page.get_by_role("dialog", name="Deixar o joBot ligado?")
+    expect(pergunta).to_be_visible()
+    expect(pergunta).to_contain_text("Parar")
+    # o foco vai para o diálogo, no botão que não desliga nada
+    expect(_botao(page, "Deixar ligado")).to_be_focused()
+    expect(_botao(page, "Desligar")).to_be_visible()
+    assert _respostas_de_fechar(page) == []
+
+
+def test_deixar_ligado_so_fecha_a_janela(page: Page, ui: str) -> None:
+    _abrir(page, ui, estado_controle=LIGADO)
+    expect(_botao(page, "Abrir joBot")).to_be_visible()
+    _pedir_fechar(page)
+    _botao(page, "Deixar ligado").click()
+    expect(page.get_by_role("dialog")).to_have_count(0)
+    assert _respostas_de_fechar(page) == [{"desligar": False}]
+
+
+def test_desligar_para_o_jobot_e_fecha(page: Page, ui: str) -> None:
+    _abrir(page, ui, estado_controle=LIGADO)
+    expect(_botao(page, "Abrir joBot")).to_be_visible()
+    _pedir_fechar(page)
+    _botao(page, "Desligar").click()
+    assert _respostas_de_fechar(page) == [{"desligar": True}]
+
+
+def test_esc_cancela_o_fechar(page: Page, ui: str) -> None:
+    _abrir(page, ui, estado_controle=LIGADO)
+    expect(_botao(page, "Abrir joBot")).to_be_visible()
+    _pedir_fechar(page)
+    expect(_botao(page, "Deixar ligado")).to_be_focused()
+    page.keyboard.press("Escape")
+    expect(page.get_by_role("dialog")).to_have_count(0)
+    assert _respostas_de_fechar(page) == []
+    # e o controle segue como estava
+    expect(_botao(page, "Parar")).to_be_enabled()
+    # pedir de novo pergunta de novo
+    _pedir_fechar(page)
+    expect(page.get_by_role("dialog", name="Deixar o joBot ligado?")).to_be_visible()
+
+
+def test_fechar_com_o_painel_parado_fecha_sem_perguntar(page: Page, ui: str) -> None:
+    _abrir(page, ui)
+    expect(_botao(page, "Ligar")).to_be_enabled()  # a página desenhou o estado
+    _pedir_fechar(page)
+    expect(page.get_by_role("dialog")).to_have_count(0)
+    assert _respostas_de_fechar(page) == [{"desligar": False}]
+
+
+def test_sem_o_aviso_antigo_de_fechar(page: Page, ui: str) -> None:
+    # o aviso de texto do D207.5 saiu: a pergunta ao fechar o substitui (D215)
+    _abrir(page, ui, estado_controle={**LIGADO, "fecha_junto": True})
+    expect(_botao(page, "Abrir joBot")).to_be_visible()
+    expect(page.get_by_text("Fechar esta janela para o joBot.")).to_have_count(0)
+
+
+def test_sem_janela_nova_com_o_painel_parado(page: Page, ui: str) -> None:
+    _abrir(page, ui, estado_controle={**PARADO, "janela_velha": True})
     expect(page.get_by_role("status").first).to_have_text("Parado")
-    expect(page.get_by_text("Fechar esta janela para o joBot.")).to_be_hidden()
     expect(_botao(page, "Baixar a janela nova")).to_be_hidden()
     expect(_botao(page, "Ligar")).to_be_enabled()  # controle: a página desenhou o estado
 
@@ -248,6 +306,16 @@ def test_em_ingles(page: Page, ui: str) -> None:
     expect(page.get_by_role("status").first).to_have_text("Stopped")
     expect(_botao(page, "Start")).to_be_enabled()
     expect(page.get_by_label("Address")).to_have_value(ENDERECO)
+
+
+def test_pergunta_de_fechar_em_ingles(page: Page, ui: str) -> None:
+    page.add_init_script("Object.defineProperty(navigator, 'language', {get: () => 'en-US'})")
+    _abrir(page, ui, estado_controle=LIGADO)
+    expect(_botao(page, "Open joBot")).to_be_visible()
+    _pedir_fechar(page)
+    expect(page.get_by_role("dialog", name="Keep joBot running?")).to_be_visible()
+    expect(_botao(page, "Keep running")).to_be_focused()
+    expect(_botao(page, "Turn off")).to_be_visible()
 
 
 def test_idioma_escolhido_na_instalacao(page: Page, ui: str) -> None:

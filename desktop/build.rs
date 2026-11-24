@@ -40,6 +40,7 @@ fn main() {
         "estado_instalador",
         "instalar",
         "fechar_instalador",
+        "fechar_controle",
         "estado_controle",
         "ligar",
         "parar",

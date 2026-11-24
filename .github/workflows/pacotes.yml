@@ -365,10 +365,11 @@ jobs:
   # A casca instalada aberta de verdade (T355; D212): o .deb (em português) e o AppImage (em
   # inglês), cada um num contêiner sem rede, como usuário comum, num Xvfb com o openbox. Sem o
   # joBot, a janela abre na tela de instalação: pelo teclado, instala sem o navegador do login
-  # e cai no controle, que só mostra "Parado"; depois, Ligar, Abrir joBot e Parar. O navegador é falso:
+  # e cai no controle, que só mostra "Parado"; depois, Ligar, Abrir joBot e Parar, e por fim ligado de
+  # novo, fechar a janela, que pergunta (D215): Esc cancela e Desligar para e fecha. O navegador é falso:
   # um xdg-open que grava o endereço, o próprio ambiente e o APPDIR da casca que o chamou; no
   # AppImage nenhuma variável pode apontar para dentro dele (D207.1). As capturas da janela
-  # (parado, ligado, parado de novo, ou a da falha) e o log da casca ficam no artefato
+  # (parado, ligado, parado de novo, a pergunta de fechar, ou a da falha) e o log da casca ficam no artefato
   # capturas-casca, que quem publica olha antes da tag.
   aberta:
     needs: casca
@@ -406,7 +407,7 @@ jobs:
           COPY xdg-open /usr/local/bin/xdg-open
           FIM
           docker build -t jobot-aberta --build-arg DEPS="$(dpkg-deb -f saida/*.deb Depends)" "$imagem"
-      - name: ligar, abrir e parar pelo controle
+      - name: ligar, abrir, parar e fechar pelo controle
         run: |
           cat > "$RUNNER_TEMP/aberta/operar.sh" <<'FIM'
           #!/bin/bash
@@ -483,6 +484,26 @@ jobs:
           esperar 30 parado
           sleep 3
           foto 3-parado
+          # D215: fechar com o painel no ar pergunta. O foco voltou ao Ligar; liga de novo,
+          # fecha com Alt+F4 (o Close do openbox), cancela com Esc e depois desliga pelo Desligar
+          xdotool key Return
+          esperar 60 no_ar
+          sleep 3
+          xdotool windowactivate --sync "$janela"
+          xdotool key alt+F4
+          sleep 3
+          foto 4-pergunta
+          xdotool key Escape
+          sleep 3
+          xdotool search --onlyvisible --name '^joBot$' > /dev/null  # a janela ficou
+          no_ar
+          xdotool key alt+F4
+          sleep 3
+          # o foco abre no Deixar ligado; o Desligar é o próximo
+          xdotool key --delay 300 Tab Return
+          esperar 30 parado
+          fechada() { ! xdotool search --onlyvisible --name '^joBot$' > /dev/null; }
+          esperar 30 fechada
           FIM
           mkdir -p capturas
           chmod 777 capturas

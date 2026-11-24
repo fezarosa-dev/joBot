@@ -85,7 +85,6 @@ h1 { margin: 0; font-size: 17px; font-weight: 600; }
   outline: 3px solid var(--destaque); outline-offset: 2px;
 }
 
-.nota { margin: 0; color: var(--texto-2); }
 .janela-nova { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .janela-nova p { flex: 1 1 12rem; margin: 0; }
 
@@ -100,10 +99,21 @@ h1 { margin: 0; font-size: 17px; font-weight: 600; }
   white-space: pre-wrap; overflow-wrap: anywhere;
 }
 
+.pergunta {
+  max-inline-size: min(360px, calc(100vw - 32px)); padding: 16px;
+  color: var(--texto); background: var(--superficie);
+  border: 1px solid var(--borda); border-radius: 10px;
+}
+.pergunta::backdrop { background: rgb(0 0 0 / 0.35); }
+.pergunta h2 { margin: 0 0 6px; font-size: 13px; font-weight: 600; }
+.pergunta p { margin: 0 0 14px; color: var(--texto-2); }
+.pergunta .acoes { justify-content: flex-end; }
+
 [hidden] { display: none !important; }
 
 @media (forced-colors: active) {
   .botao, #endereco { border: 1px solid ButtonText; }
+  .pergunta { border: 1px solid CanvasText; }
   .botao:disabled { color: GrayText; border-color: GrayText; opacity: 1; }
   .ponto { forced-color-adjust: none; border: 1px solid CanvasText; }
   .falha { color: CanvasText; }

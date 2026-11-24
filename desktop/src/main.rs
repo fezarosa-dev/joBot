@@ -28,8 +28,10 @@ use tauri::{
 const SHA_MANIFESTO: Option<&str> = option_env!("JOBOT_MANIFESTO_SHA256");
 const VERSAO: &str = env!("CARGO_PKG_VERSION");
 
-/// Se esta abertura da casca subiu o servidor (desenho 5.5): só esse ela pode parar ao fechar.
-static SUBIU: AtomicBool = AtomicBool::new(false);
+/// O painel no ar na última resposta ao controle (D215): fechar a janela pergunta antes.
+static NO_AR: AtomicBool = AtomicBool::new(false);
+/// A pessoa respondeu à pergunta de fechar: o fechar que vem a seguir passa direto.
+static RESPONDEU: AtomicBool = AtomicBool::new(false);
 
 /// Ligar e Parar, um de cada vez: dois `jobot serve` ao mesmo tempo brigariam pela porta.
 static ACAO: Mutex<()> = Mutex::new(());
@@ -150,10 +152,11 @@ fn estado_agora(dados: &Path) -> Value {
     avisos(controle::estado(porta, |_| saude.is_some()), saude)
 }
 
-/// O estado com os avisos do controle: painel mais novo que a casca e fechar que para o painel.
+/// O estado com o aviso do controle (painel mais novo que a casca); guarda se o painel está no
+/// ar, para o fechar da janela (D215).
 fn avisos(estado: Value, saude: Option<Value>) -> Value {
-    let subiu = SUBIU.load(Ordering::Relaxed);
-    controle::com_avisos(estado, saude.as_ref(), VERSAO, subiu)
+    NO_AR.store(estado["ligado"] == true, Ordering::Relaxed);
+    controle::com_avisos(estado, saude.as_ref(), VERSAO)
 }
 
 /// O controle pergunta o estado ao abrir e de tempos em tempos: só lê, nunca liga nem abre.
@@ -168,13 +171,9 @@ fn estado_controle() -> Value {
 fn ligar() -> Value {
     let _vez = ACAO.lock().unwrap_or_else(|e| e.into_inner());
     let dados = dados();
-    let trava_solta = servidor::ler_trava(&dados).0.is_none();
     let resultado = controle::ligar(&dados, std::env::consts::OS, |jobot| {
         servidor::achar_ou_subir(&dados, jobot, ambiente)
     });
-    if controle::subiu(trava_solta, &resultado) {
-        SUBIU.store(true, Ordering::Relaxed);
-    }
     match resultado {
         Ok(achado) => avisos(
             controle::estado(achado.porta, |_| true),
@@ -194,16 +193,29 @@ fn ligar() -> Value {
 fn parar() -> Value {
     let _vez = ACAO.lock().unwrap_or_else(|e| e.into_inner());
     let dados = dados();
-    let estado = controle::parar(
+    controle::parar(
         &dados,
         std::env::consts::OS,
         |jobot| fechar::rodar_esperando(jobot, &["sair"]),
         || estado_agora(&dados),
-    );
-    if estado["ligado"] != true {
-        SUBIU.store(false, Ordering::Relaxed); // só quando parou: no ar, fechar ainda o para
+    )
+}
+
+/// A resposta à pergunta de fechar (D215): "Desligar" roda `jobot sair` destacado, que termina
+/// mesmo com a casca já fechada; "Deixar ligado" só fecha. Nos dois casos a janela fecha.
+#[tauri::command]
+fn fechar_controle(app: AppHandle, desligar: bool) {
+    if desligar {
+        fechar::desligar(&dados(), std::env::consts::OS, |jobot| {
+            if let Err(erro) = servidor::comando_destacado(jobot, "sair").spawn() {
+                eprintln!("jobot-app: não consegui rodar jobot sair: {erro}");
+            }
+        });
     }
-    estado
+    RESPONDEU.store(true, Ordering::Relaxed);
+    if let Some(janela) = app.get_webview_window("main") {
+        let _ = janela.close();
+    }
 }
 
 /// Abrir joBot: o endereço do painel no navegador padrão da pessoa, só com o painel no ar.
@@ -247,7 +259,18 @@ fn em_curso(app: &AppHandle) -> bool {
         .load(Ordering::SeqCst)
 }
 
-/// Fechar no meio da instalação: a página pergunta antes (alerta, desenho 5.2).
+/// Se fechar agora pergunta antes: no meio da instalação (desenho 5.2) ou com o painel no ar
+/// (D215), enquanto a janela existe.
+fn pergunta_ao_fechar(app: &AppHandle) -> bool {
+    em_curso(app)
+        || (fechar::perguntar(
+            RESPONDEU.load(Ordering::Relaxed),
+            NO_AR.load(Ordering::Relaxed),
+        ) && app.get_webview_window("main").is_some())
+}
+
+/// A página pergunta antes de fechar: o alerta da instalação (desenho 5.2) ou o "Deixar o
+/// joBot ligado?" do controle (D215).
 fn pedir_fechar(app: &AppHandle) {
     if let Some(pagina) = app.get_webview_window("main") {
         let _ = pagina.eval("window.__jobotPedirFechar && window.__jobotPedirFechar()");
@@ -309,22 +332,6 @@ fn trazer_para_frente(app: &AppHandle) {
     }
 }
 
-/// A janela fechou e a casca vai sair: para o servidor que ela subiu, se não for de ficar.
-fn ao_sair() {
-    fechar::ao_fechar(
-        SUBIU.swap(false, Ordering::Relaxed),
-        &dados(),
-        std::env::consts::OS,
-        servidor::perguntar_segundo_plano,
-        |jobot| {
-            // destacado: o `jobot sair` termina o trabalho mesmo com a casca já fechada
-            if let Err(erro) = servidor::comando_destacado(jobot, "sair").spawn() {
-                eprintln!("jobot-app: não consegui rodar jobot sair: {erro}");
-            }
-        },
-    );
-}
-
 fn main() {
     // antes de tudo, até das fumaças: o AppImage sem FUSE não deixa a extração no /tmp (T354)
     #[cfg(target_os = "linux")]
@@ -352,6 +359,7 @@ fn main() {
             estado_instalador,
             instalar,
             fechar_instalador,
+            fechar_controle,
             estado_controle,
             ligar,
             parar,
@@ -360,7 +368,7 @@ fn main() {
         ])
         .on_window_event(|janela, evento| {
             if let WindowEvent::CloseRequested { api, .. } = evento
-                && em_curso(janela.app_handle())
+                && pergunta_ao_fechar(janela.app_handle())
             {
                 api.prevent_close();
                 pedir_fechar(janela.app_handle());
@@ -372,14 +380,14 @@ fn main() {
         })
         .build(contexto)
         .expect("erro ao montar a janela")
-        .run(|app, evento| match evento {
-            // o Cmd+Q do Mac sai sem passar pelo CloseRequested: no meio da instalação, pergunta
-            RunEvent::ExitRequested { api, .. } if em_curso(app) => {
+        .run(|app, evento| {
+            // o Cmd+Q do Mac sai sem passar pelo CloseRequested: pergunta do mesmo jeito
+            if let RunEvent::ExitRequested { api, .. } = evento
+                && pergunta_ao_fechar(app)
+            {
                 api.prevent_exit();
                 pedir_fechar(app);
             }
-            RunEvent::Exit => ao_sair(),
-            _ => {}
         });
 }
 

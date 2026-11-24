@@ -1,4 +1,4 @@
-//! Fechar a janela e desinstalar (desenho 5.5 e 7.2). Os comandos entram por parâmetro: os
+//! Fechar a janela (D215) e desinstalar (desenho 7.2). Os comandos entram por parâmetro: os
 //! testes contam as chamadas sem subir nenhum processo.
 
 use crate::servidor;
@@ -6,27 +6,20 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::Duration;
 
-/// Ao fechar a janela (desenho 5.5): `jobot sair` só se a casca subiu o servidor nesta
-/// abertura e o `/saude-local` diz `segundo_plano: false`. Servidor que a casca achou no ar
-/// (o do segundo plano, o de um `jobot abrir`), resposta que não vem ou sem o campo: nada é
-/// parado. A porta (da trava) e o `jobot` (do `instalacao.json`) são lidos agora, não os da
-/// abertura: o "Atualizar agora" troca o venv e pode trocar a porta (D182).
-pub fn ao_fechar(
-    subiu: bool,
-    dados: &Path,
-    so: &str,
-    segundo_plano: impl FnOnce(u16) -> Option<bool>,
-    sair: impl FnOnce(&Path),
-) {
-    if !subiu {
-        return;
-    }
-    let (_, Some(porta)) = servidor::ler_trava(dados) else {
+/// Se fechar a janela do controle pergunta antes (D215): só com o painel no ar na última
+/// resposta e enquanto a pessoa não respondeu. Parado, fecha direto; com ou sem segundo plano.
+pub fn perguntar(respondeu: bool, no_ar: bool) -> bool {
+    no_ar && !respondeu
+}
+
+/// O "Desligar" da pergunta de fechar (D215): `jobot sair`, com ou sem segundo plano, se alguém
+/// prende a trava. O `jobot` (do `instalacao.json`) é lido agora, não o da abertura: o
+/// "Atualizar agora" troca o venv (D182).
+pub fn desligar(dados: &Path, so: &str, sair: impl FnOnce(&Path)) {
+    if servidor::ler_trava(dados).1.is_none() {
         return; // ninguém prende a trava: não há servidor para parar
-    };
-    if segundo_plano(porta) == Some(false)
-        && let Some(jobot) = servidor::jobot_instalado(dados, so)
-    {
+    }
+    if let Some(jobot) = servidor::jobot_instalado(dados, so) {
         sair(&jobot);
     }
 }
@@ -147,21 +140,13 @@ mod testes {
         dono
     }
 
-    /// Fecha com a resposta `segundo_plano` e conta quem perguntou e quem chamou `jobot sair`.
-    fn fechar(subiu: bool, dados: &Path, resposta: Option<bool>) -> (Vec<u16>, Vec<PathBuf>) {
-        let perguntas = RefCell::new(Vec::new());
+    /// Desliga e conta quem chamou `jobot sair`.
+    fn desligando(dados: &Path) -> Vec<PathBuf> {
         let saidas = RefCell::new(Vec::new());
-        ao_fechar(
-            subiu,
-            dados,
-            "linux",
-            |porta| {
-                perguntas.borrow_mut().push(porta);
-                resposta
-            },
-            |jobot| saidas.borrow_mut().push(jobot.to_path_buf()),
-        );
-        (perguntas.into_inner(), saidas.into_inner())
+        desligar(dados, "linux", |jobot| {
+            saidas.borrow_mut().push(jobot.to_path_buf())
+        });
+        saidas.into_inner()
     }
 
     /// `<dados>` instalado com o servidor no ar na porta 47615.
@@ -173,48 +158,30 @@ mod testes {
     }
 
     #[test]
-    fn segundo_plano_desligado_chama_jobot_sair() {
-        let (dados, jobot, _dono) = no_ar("desligado");
-        let (perguntas, saidas) = fechar(true, &dados, Some(false));
-        assert_eq!(perguntas, [47615]);
-        assert_eq!(saidas, [jobot]);
+    fn pergunta_so_com_o_painel_no_ar_e_sem_resposta() {
+        assert!(perguntar(false, true));
+        assert!(!perguntar(true, true)); // a pessoa respondeu: o fechar seguinte passa
+        assert!(!perguntar(false, false)); // painel parado: fecha direto
+        assert!(!perguntar(true, false));
     }
 
     #[test]
-    fn segundo_plano_ligado_nao_chama() {
-        let (dados, _, _dono) = no_ar("ligado");
-        let (_, saidas) = fechar(true, &dados, Some(true));
-        assert!(saidas.is_empty());
+    fn desligar_chama_jobot_sair() {
+        let (dados, jobot, _dono) = no_ar("desligar");
+        assert_eq!(desligando(&dados), [jobot]);
     }
 
     #[test]
-    fn sem_resposta_nao_chama() {
-        let (dados, _, _dono) = no_ar("sem-resposta");
-        let (_, saidas) = fechar(true, &dados, None);
-        assert!(saidas.is_empty());
-    }
-
-    #[test]
-    fn nunca_para_servidor_que_a_casca_nao_subiu() {
-        let (dados, _, _dono) = no_ar("nao-subiu");
-        let (perguntas, saidas) = fechar(false, &dados, Some(false));
-        assert!(perguntas.is_empty());
-        assert!(saidas.is_empty());
-    }
-
-    #[test]
-    fn trava_solta_nao_pergunta() {
+    fn desligar_com_a_trava_solta_nao_chama() {
         // o servidor já saiu: a trava ficou com dado velho, ninguém a prende
         let dados = temporaria("trava-solta");
         instalado(&dados, &dados.join("app"));
         std::fs::write(dados.join("jobot.lock"), "42\n47615\n").unwrap();
-        let (perguntas, saidas) = fechar(true, &dados, Some(false));
-        assert!(perguntas.is_empty());
-        assert!(saidas.is_empty());
+        assert!(desligando(&dados).is_empty());
     }
 
     #[test]
-    fn depois_de_atualizar_usa_o_jobot_e_a_porta_de_agora() {
+    fn desligar_depois_de_atualizar_usa_o_jobot_de_agora() {
         // "Atualizar agora": venv novo no instalacao.json e o servidor novo noutra porta
         let (dados, _, dono) = no_ar("atualizou");
         drop(dono);
@@ -229,9 +196,7 @@ mod testes {
         });
         std::fs::write(dados.join("instalacao.json"), instalacao.to_string()).unwrap();
         let _dono = trava_presa(&dados, "43\n8123\n");
-        let (perguntas, saidas) = fechar(true, &dados, Some(false));
-        assert_eq!(perguntas, [8123]);
-        assert_eq!(saidas, [novo]);
+        assert_eq!(desligando(&dados), [novo]);
     }
 
     /// `<dados>` com o banco, um venv com o `jobot` e o `instalacao.json` apontando `pasta`.
