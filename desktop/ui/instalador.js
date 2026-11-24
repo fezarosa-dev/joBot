@@ -183,8 +183,10 @@
   let ultimo = 0;
   let quadro = 0;
 
+  // no download do modelo (minutos) a largura segue os bytes: correndo sozinha ela chegaria ao
+  // fim da fatia em 1 min e pararia lá o resto do download (D205.4)
   function alvo(agora) {
-    if (!instalando || parando || !etapa || reduzido.matches) return valor;
+    if (!instalando || parando || !etapa || etapa === "ia_local" || reduzido.matches) return valor;
     const fim = Math.min(TETO, calcular(etapa, 1, 1));
     return Math.max(valor, fim - (fim - partida) * 0.9 ** ((agora - desde) / 2000));
   }
@@ -225,6 +227,7 @@
     if (aviso.etapa !== etapa) {
       etapa = aviso.etapa;
       desenharEtapa();
+      desenharAlerta(); // o alerta aberto não promete desfazer o que a etapa do modelo não desfaz
       $("etapa-viva").textContent = t(`etapa.${etapa}`); // a região viva diz só o nome da etapa
     }
     valor = Math.min(TETO, Math.max(valor, Math.floor(calcular(etapa, aviso.feito || 0, aviso.total || 0))));
@@ -280,8 +283,9 @@
   });
   $("ferramenta-navegador").addEventListener("change", desenharRodape);
   $("ferramenta-ia-local").addEventListener("change", desenharRodape);
-  // a casca encolhe a janela e mostra o controle, como quando tudo deu (main.rs; D207.2)
-  $("seguir").addEventListener("click", () => core?.invoke("mostrar_controle"));
+  // a casca encolhe a janela e mostra o controle, como quando tudo deu (main.rs; D207.2); se
+  // ela recusa, fecha: o joBot já instalado abre no controle na próxima vez
+  $("seguir").addEventListener("click", () => core?.invoke("mostrar_controle").catch(fechar));
   $("idioma").addEventListener("change", (evento) => {
     // fica para o controle, que abre depois na mesma origem (D207.9); sem armazenamento, tudo bem
     try {
