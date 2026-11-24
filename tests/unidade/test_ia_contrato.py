@@ -259,6 +259,12 @@ def test_ia_json_traz_prazos_limites_e_cortes() -> None:
                 "max_tokens": {"fora": 1024, "local": 512},
                 "claude": "claude-sonnet-5-5",
             },
+            # sob pedido, na leitura do currículo (T436; D232): o corte guarda o começo
+            "curriculo": {
+                "max_tokens": {"fora": 4096, "local": 1536},
+                "corte": {"local": 12000, "fora": 40000},
+                "claude": "claude-sonnet-5-5",
+            },
         },
         "laco": {"max_por_rodada": 20, "max_tentativas": 2, "max_por_dia_fora": 200},
         "memoria_gib": {"modelo_4b_desde": 11, "aviso_lento_abaixo": 7},

@@ -449,9 +449,8 @@ async def apagar(request: Request, con: Con) -> Response:
 _CURRICULO = "configuracoes/_curriculo.html"
 
 
-def extrair_curriculo(lido: pdf.Lido) -> None:
-    """Onde o texto lido entra na extração dos campos (tarefa `curriculo`, T436). O texto só vive
-    neste pedido: nada aqui o guarda."""
+async def extrair_curriculo(request: Request, con: sqlite3.Connection, lido: pdf.Lido) -> dict[str, Any]:
+    return {"lido": lido}
 
 
 def _aviso(request: Request, chave: str, status: int = 200) -> Response:
@@ -461,7 +460,7 @@ def _aviso(request: Request, chave: str, status: int = 200) -> Response:
 
 
 @router.post("/curriculo")
-async def ler_curriculo(request: Request) -> Response:
+async def ler_curriculo(request: Request, con: Con) -> Response:
     """Lê o PDF enviado. O token CSRF veio no cabeçalho (`exigir_csrf` não lê o corpo de um
     upload); o tamanho se confere pelo `Content-Length` antes de ler o corpo, e o temporário do
     Starlette (acima de 1 MB vai ao disco) fecha ao sair do `async with`."""
@@ -480,8 +479,7 @@ async def ler_curriculo(request: Request) -> Response:
         lido = await run_in_threadpool(pdf.ler, dados)
     except pdf.AvisoPdf as aviso:
         return _aviso(request, "aviso." + aviso.aviso)
-    extrair_curriculo(lido)
-    return renderizar(request, _CURRICULO, lido=lido)
+    return renderizar(request, _CURRICULO, **await extrair_curriculo(request, con, lido))
 
 
 # --- questionário e perguntas de lacuna (T437; desenho 8; D233) -------------------------------

@@ -267,3 +267,26 @@ def pedido_perguntas(
         prazo_s=lim["prazo_s"][lugar],
         versao=VERSAO["perguntas"],
     )
+
+
+# ---- curriculo (desenho 5.2 e 8; T436, D232) ---------------------------------------------------
+
+
+@dataclass(frozen=True)
+class TextoCurriculo:
+    texto: str
+    cortados: int
+
+
+def contato_do_texto(texto: str) -> tuple[str | None, str | None]:
+    return None, None
+
+
+def texto_curriculo(
+    texto: str, backend: str, fontes: Mapping[str, object] | None = None
+) -> TextoCurriculo:
+    return TextoCurriculo("", 0)
+
+
+def pedido_curriculo(texto: TextoCurriculo, backend: str, modelo: str) -> Pedido:
+    return pedido_encaixe(TextoVaga(texto.texto, 0), backend, modelo)

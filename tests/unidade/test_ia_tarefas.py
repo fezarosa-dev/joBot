@@ -631,3 +631,30 @@ def test_candidatura_vaga_com_instrucao_embutida_nao_passa_sem_aviso() -> None:
     assert (feito.tem, feito.faltam) == (("Python",), ("Kubernetes",))
     assert feito.citados == ("Kubernetes",)
     assert (feito.usou, feito.perguntar) == (("habilidades",), ())
+
+
+# ---- nível do idioma no trecho dele (T436; D228.2, D232) ----------------------------------------
+
+
+def test_nivel_do_idioma_so_vale_no_trecho_do_idioma() -> None:
+    texto = "Idiomas: Inglês avançado, Espanhol básico\nAlemão (fluente) | Francês - intermediário"
+    dados = {
+        "idiomas_falados": [
+            {"idioma": "Inglês", "nivel": "avancado"},  # no trecho dele: fica
+            {"idioma": "Espanhol", "nivel": "avancado"},  # o "avançado" é do inglês: marca
+            {"idioma": "Alemão", "nivel": "fluente"},
+            {"idioma": "Francês", "nivel": "intermediario"},
+            {"idioma": "Italiano", "nivel": None},  # sem nível: nada a conferir aqui
+            {"idioma": "Russo", "nivel": "basico"},  # o idioma nem está no texto: marca
+        ]
+    }
+    assert tarefas.nivel_fora_do_trecho(dados, texto) == {
+        "idiomas_falados.1.nivel",
+        "idiomas_falados.5.nivel",
+    }
+    # o nao_achei sozinho não pega o espanhol (o limite da D228.2)
+    assert "idiomas_falados.1.nivel" not in nao_achei(dados, texto)
+
+
+def test_nivel_sem_idiomas_nao_marca_nada() -> None:
+    assert tarefas.nivel_fora_do_trecho({}, "Inglês avançado") == frozenset()

@@ -245,7 +245,12 @@ def test_tudo_offline_faz_um_teste_so_e_as_tarefas_dividem_o_resultado(
     assert _esperar(painel.parado)
     assert [par for par, _ in painel.fabrica.pedidos] == [("local", LOCAL)]
     desligada = {"ligada": False, "backend": "local", "modelo": LOCAL}
-    assert painel.tarefas() == {"encaixe": desligada, "perguntas": desligada, "outra": desligada}
+    assert painel.tarefas() == {
+        "encaixe": desligada,
+        "perguntas": desligada,
+        "curriculo": desligada,  # o currículo da T436 também
+        "outra": desligada,
+    }
 
 
 def test_sem_fabrica_nada_e_testado(tmp_path: Path) -> None:
@@ -669,3 +674,21 @@ def test_resultado_e_anunciado_fora_da_tarefa_e_o_modo_atualiza(painel: Painel) 
     assert modo.attributes.get("hx-swap-oob") == "true"
     desligada = pt("configuracoes.ia.modo", modo=pt("configuracoes.ia.modo.desligada"))
     assert modo.text().strip() == desligada
+
+
+# ------------------------------------------------------------------ IA manual (T436; D232)
+
+
+def test_ia_manual_liga_sem_teste_nem_modelo(painel: Painel) -> None:
+    """(guarda) A IA manual não manda nada: não entra na fila do teste ao ligar; controle: o
+    mesmo formulário no compatível entra."""
+    dados = {"curriculo_ligada": "on", "curriculo_backend": "manual", "curriculo_modelo": "x"}
+    assert painel.post(dados).status_code == 303
+    tarefas = painel.tarefas()
+    assert isinstance(tarefas, dict)
+    assert tarefas["curriculo"] == {"ligada": True, "backend": "manual", "modelo": ""}
+    assert ("manual", "") not in painel.testes() and painel.fabrica.pedidos == []
+    controle = dados | {"curriculo_backend": COMPATIVEL[0], "curriculo_modelo": COMPATIVEL[1]}
+    assert painel.post(controle).status_code == 303
+    assert _esperar(painel.parado)
+    assert [par for par, _ in painel.fabrica.pedidos] == [COMPATIVEL]

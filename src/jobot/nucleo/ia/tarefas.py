@@ -296,3 +296,7 @@ def conferir_candidatura(
         usou=tuple(usou),
         citados=tuple(f for f in faltam if _aparece(normalizar(f), texto)),
     )
+
+
+def nivel_fora_do_trecho(dados: Mapping[str, Any], texto: str) -> frozenset[str]:
+    return frozenset()

@@ -174,6 +174,7 @@ def test_desligar_a_ia_mantem_o_backend_e_o_modelo(painel: Painel) -> None:
     assert painel.tarefas() == {
         "encaixe": {"ligada": False, "backend": "openai", "modelo": "gpt-x"},
         "perguntas": DESLIGADA,  # o atalho grava todas as tarefas do `ia.json` (T437)
+        "curriculo": DESLIGADA,  # e a do currículo (T436)
     }
     assert not painel.acordar.is_set()  # desligar não acorda o laço
 
@@ -183,7 +184,7 @@ def test_tudo_offline_grava_o_modelo_local_e_acorda_o_laco(painel: Painel) -> No
     assert "offline" in _atalhos(painel.get().text)
     assert _destino(painel.post({"atalho": "offline"})) == (303, IA + "?salvo=1")
     no_local = {"ligada": True, "backend": "local", "modelo": LOCAL}
-    assert painel.tarefas() == {"encaixe": no_local, "perguntas": no_local}
+    assert painel.tarefas() == {"encaixe": no_local, "perguntas": no_local, "curriculo": no_local}
     assert painel.acordar.is_set()
     texto = _texto(painel.get().text)
     assert pt("configuracoes.ia.modo", modo=pt("configuracoes.ia.modo.offline")) in texto
@@ -213,6 +214,7 @@ def test_atalhos_preservam_tarefa_desconhecida(painel: Painel) -> None:
     assert painel.tarefas() == {
         "encaixe": {"ligada": True, "backend": "local", "modelo": LOCAL},
         "perguntas": {"ligada": True, "backend": "local", "modelo": LOCAL},
+        "curriculo": {"ligada": True, "backend": "local", "modelo": LOCAL},
         "futura": outra,
     }
 
@@ -262,6 +264,7 @@ def test_tudo_claude_pede_confirmacao_do_custo_antes_de_gravar(painel: Painel) -
     assert painel.tarefas() == {
         "encaixe": {"ligada": True, "backend": "anthropic", "modelo": "claude-haiku-5-5"},
         "perguntas": {"ligada": True, "backend": "anthropic", "modelo": "claude-sonnet-5-5"},
+        "curriculo": {"ligada": True, "backend": "anthropic", "modelo": "claude-sonnet-5-5"},
     }
     assert painel.acordar.is_set()
     modo = pt("configuracoes.ia.modo", modo=pt("configuracoes.ia.modo.claude"))
@@ -686,3 +689,53 @@ def test_tudo_claude_liga_perguntas_no_sonnet(painel: Painel) -> None:
         "backend": "anthropic",
         "modelo": "claude-sonnet-5-5",
     }
+
+
+# ------------------------------------------------------------------ currículo e IA manual (T436)
+
+
+def _opcoes_de(html: str, tarefa: str) -> list[str]:
+    select = LexborHTMLParser(html).css_first(f'select[name="{tarefa}_backend"]')
+    return [] if select is None else [o.attributes["value"] or "" for o in select.css("option")]
+
+
+def test_curriculo_aparece_com_a_frase_dela_e_so_ele_tem_a_ia_manual(painel: Painel) -> None:
+    html = painel.get().text
+    # sem serviço configurado, a IA manual já serve ao currículo; as outras não têm onde rodar
+    assert _opcoes_de(html, "curriculo") == ["manual"]
+    assert (_opcoes_de(html, "encaixe"), _opcoes_de(html, "perguntas")) == ([], [])
+    texto = _texto(html)
+    assert pt("configuracoes.ia.tarefa.curriculo") in texto
+    assert pt("configuracoes.ia.tarefa.curriculo.ajuda") in texto
+    assert pt("configuracoes.ia.privacidade.curriculo.desligada") in texto
+    caixa = LexborHTMLParser(html).css_first('input[name="curriculo_ligada"]')
+    assert caixa is not None and "disabled" not in caixa.attributes
+    painel.cofre.gravar("ia_openai", CHAVE)
+    html = painel.get().text
+    assert _opcoes_de(html, "curriculo") == ["openai", "manual"]
+    assert _opcoes_de(html, "encaixe") == ["openai"] == _opcoes_de(html, "perguntas")
+    assert pt("configuracoes.ia.backend.manual") in _texto(html)
+
+
+@pytest.mark.parametrize(
+    ("tarefa", "frase"),
+    [
+        ("curriculo", "configuracoes.ia.privacidade.curriculo.manual"),
+        ("encaixe", None),
+        ("perguntas", None),
+    ],
+)
+def test_ia_manual_so_no_curriculo(painel: Painel, tarefa: str, frase: str | None) -> None:
+    dados = {f"{tarefa}_ligada": "on", f"{tarefa}_backend": "manual", f"{tarefa}_modelo": ""}
+    resposta = painel.post(dados)
+    if frase is None:  # a lista é fechada: a tela não mostra "manual" nessas tarefas
+        assert resposta.status_code == 422
+        assert painel.tarefas() == {"encaixe": DESLIGADA}
+        return
+    assert _destino(resposta) == (303, IA + "?salvo=1")
+    tarefas = painel.tarefas()
+    assert isinstance(tarefas, dict)
+    assert tarefas["curriculo"] == {"ligada": True, "backend": "manual", "modelo": ""}
+    texto = _texto(painel.get().text)
+    assert pt(frase) in texto
+    assert pt("configuracoes.ia.hoje", n=0, teto=200) not in texto  # a manual não tem teto
