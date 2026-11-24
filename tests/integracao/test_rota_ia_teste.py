@@ -572,3 +572,99 @@ def test_o_laco_do_serve_espera_enquanto_o_teste_roda(
         fabrica.soltar.set()
         assert _esperar(lambda: not app.state.ia_fila)
         assert ocupados[0]() is False
+
+
+# ------------------------------------------------------------------ revisão da T416
+
+
+def test_erro_ao_montar_o_pedido_nao_prende_a_fila(
+    painel: Painel, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Um bug antes do pedido (montar o exemplo) não deixa o par em "testando" para sempre: a
+    fila anda, os dois pares saem e o laço fica livre."""
+    original = ia.pedido_de_teste
+
+    def montar(backend: str, modelo: str) -> Pedido:
+        if (backend, modelo) == COMPATIVEL:
+            raise RuntimeError("bug")
+        return original(backend, modelo)
+
+    monkeypatch.setattr(ia, "pedido_de_teste", montar)
+    painel.fabrica.soltar = threading.Event()
+    painel.ligar("local", LOCAL)
+    assert painel.fabrica.dentro.wait(5)
+    painel.ligar(*COMPATIVEL)  # entra atrás do local, que está preso
+    painel.fabrica.soltar.set()
+    assert _esperar(painel.parado)
+    assert painel.testes()[COMPATIVEL].estado == "falhou"
+    assert painel.tarefas() == _encaixe(False, *COMPATIVEL)
+    assert painel.app.state.ia_pessoa == set()
+    assert painel.http.get(FRAGMENTO).status_code == 200  # o polling para
+
+
+def test_erro_ao_desligar_nao_prende_a_fila(
+    painel: Painel, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Erro fora do `sqlite3` ao desligar (disco) vai ao log: o par seguinte ainda é testado."""
+
+    def quebrado(*_: object) -> None:
+        raise OSError("disco")
+
+    painel.fabrica.soltar = threading.Event()
+    painel.fabrica.erros[COMPATIVEL] = Falha("sem_rede")
+    painel.ligar(*COMPATIVEL)
+    assert painel.fabrica.dentro.wait(5)
+    painel.ligar("local", LOCAL)  # entra atrás
+    monkeypatch.setattr(ia, "abrir", quebrado)
+    painel.fabrica.soltar.set()
+    assert _esperar(painel.parado)
+    assert [par for par, _ in painel.fabrica.pedidos] == [COMPATIVEL, ("local", LOCAL)]
+    assert painel.app.state.ia_pessoa == set()
+
+
+def test_chave_nova_acorda_o_laco(painel: Painel) -> None:
+    """A rodada em curso montou o cliente com a chave velha: acordar faz o laço refazer a rodada
+    depois do teste, sem esperar a próxima busca."""
+    par = ("anthropic", "claude-haiku-5-5")
+    painel.ligar(*par)
+    assert _esperar(painel.parado)
+    painel.app.state.ia_acordar.clear()
+    painel.post({"servico": "openai", "chave": "sk-0987654321"}, "/configuracoes/servicos")
+    assert not painel.app.state.ia_acordar.is_set()  # nada ligado no serviço: não acorda
+    painel.post(
+        {"servico": "anthropic", "chave": "sk-ant-nova-12345678"}, "/configuracoes/servicos"
+    )
+    assert painel.app.state.ia_acordar.is_set()
+    assert _esperar(painel.parado)
+
+
+def test_resultado_e_anunciado_fora_da_tarefa_e_o_modo_atualiza(painel: Painel) -> None:
+    """A região `#status-ia` fica fora do `fieldset` trocado e recebe o resultado em OOB; o "Modo"
+    do topo vem junto, porque a tarefa pode ter desligado."""
+    painel.fabrica.soltar = threading.Event()
+    painel.fabrica.erros[("local", LOCAL)] = Falha("contexto")
+    assert painel.post({"atalho": "offline"}).status_code == 303
+    assert painel.fabrica.dentro.wait(5)
+    pagina = LexborHTMLParser(painel.http.get(IA).text)
+    regiao = pagina.css_first("#status-ia")
+    assert regiao is not None
+    assert regiao.attributes.get("role") == "status"
+    assert regiao.text().strip() == ""
+    assert pagina.css_first("fieldset #status-ia") is None
+    assert pagina.css_first("fieldset [aria-live], fieldset [role=status]") is None
+    modo = pagina.css_first("#ia-modo")
+    assert modo is not None
+    offline = pt("configuracoes.ia.modo", modo=pt("configuracoes.ia.modo.offline"))
+    assert modo.text().strip() == offline
+    painel.fabrica.soltar.set()
+    assert _esperar(painel.parado)
+    fim = LexborHTMLParser(painel.http.get(FRAGMENTO).text)
+    anuncio = fim.css_first('[hx-swap-oob="innerHTML:#status-ia"]')
+    assert anuncio is not None
+    falhou = pt("configuracoes.ia.teste.falhou", motivo=pt("configuracoes.ia.falha.contexto"))
+    assert _texto(anuncio.html or "").strip() == falhou
+    modo = fim.css_first("p#ia-modo")
+    assert modo is not None
+    assert modo.attributes.get("hx-swap-oob") == "true"
+    desligada = pt("configuracoes.ia.modo", modo=pt("configuracoes.ia.modo.desligada"))
+    assert modo.text().strip() == desligada

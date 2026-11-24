@@ -29,7 +29,7 @@
 {% endif %}
 <section class="config-bloco" aria-labelledby="ia-atalhos-titulo">
   <h2 id="ia-atalhos-titulo">{{ t("configuracoes.ia.atalhos") }}</h2>
-  <p class="config-texto">{{ t("configuracoes.ia.modo", modo=t("configuracoes.ia.modo." ~ ia_modo)) }}</p>
+  {% include "configuracoes/_ia_modo.html" %}
   <form method="post" action="/configuracoes/ia" class="config-form">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <div class="campo">
@@ -61,6 +61,8 @@
 <section class="config-bloco" aria-labelledby="ia-personalizado-titulo">
   <h2 id="ia-personalizado-titulo">{{ t("configuracoes.ia.personalizado") }}</h2>
   <p class="config-texto">{{ t("configuracoes.ia.personalizado.explicacao") }}</p>
+  {#- o resultado do teste ao ligar (T416) é anunciado aqui, fora do `fieldset` que o polling troca #}
+  <p id="status-ia" role="status" aria-live="polite" class="config-salvo"></p>
   <form method="post" action="/configuracoes/ia" class="config-form">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     {%- for linha in ia_linhas %}

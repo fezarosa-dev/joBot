@@ -1,0 +1,3 @@
+{#- O texto do resultado do teste ao ligar (T416): na tarefa e no anúncio do `#status-ia`. -#}
+{%- set falha = "configuracoes.ia.falha." ~ linha.teste.motivo ~ (".anthropic" if linha.teste.motivo == "chave_recusada" and linha.backend == "anthropic" else "") -%}
+{%- if linha.teste.estado == "ok" %}{{ t("configuracoes.ia.teste.ok") }}{% else %}{{ t("configuracoes.ia.teste.falhou", motivo=t(falha)) }}{% endif -%}

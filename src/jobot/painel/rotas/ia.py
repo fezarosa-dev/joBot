@@ -18,7 +18,6 @@ import asyncio
 import functools
 import logging
 import re
-import sqlite3
 from collections.abc import Callable, Iterable, Mapping
 from contextlib import closing
 from dataclasses import dataclass, replace
@@ -312,36 +311,45 @@ async def _testar_fila(
     banco: Path,
     relogio: Relogio,
 ) -> None:
-    """Um par por vez, na ordem da fila, cada um com o prazo contado do próprio começo."""
+    """Um par por vez, na ordem da fila. Erro de qualquer tipo vai ao log e a fila anda: o par
+    nunca fica em "testando" com o laço esperando para sempre."""
     while fila:
         par = fila[0]
-        inicio = relogio.agora()
         resultado = Teste("falhou", "servico_fora")  # começa em falha (padrões «Serve»)
-        pedido = pedido_de_teste(*par)
-        passo = asyncio.ensure_future(_testar(obter, par, pedido))
         try:
             try:
-                feitas, _ = await asyncio.wait({passo}, timeout=pedido.prazo_s + FOLGA_TESTE_S)
-                if not feitas:  # a thread presa segue até o próprio prazo; a fila não espera
-                    raise Falha("tempo_esgotado")
-                passo.result()
-                resultado = _OK
-            except Falha as falha:
-                resultado = Teste("falhou", falha.motivo)
+                resultado = await _um_teste(obter, par, relogio)
             except Exception:
                 log.exception("ia teste %s %s: erro fora do contrato", *par)
-            segundos = (relogio.agora() - inicio).total_seconds()
-            log.info("ia teste %s %s: %s em %.1f s", *par, resultado.motivo or "ok", segundos)
             # pedido de novo no meio (a chave mudou): vale o resultado do seguinte
             if resultado != _OK and par not in fila[1:]:
                 _desligar(banco, par)
         finally:
             # o cancelamento (fim do servidor) passa só por aqui: a tarefa gravada fica
-            passo.cancel()  # terminado, não faz nada; senão fecha o cliente (o `finally` dele)
             fila.pop(0)
             if par not in fila:
                 testes[par] = resultado
                 pessoa.discard(par)
+
+
+async def _um_teste(obter: Obter, par: Par, relogio: Relogio) -> Teste:
+    """O teste de um par, com o prazo contado do próprio começo."""
+    inicio = relogio.agora()
+    pedido = pedido_de_teste(*par)
+    passo = asyncio.ensure_future(_testar(obter, par, pedido))
+    try:
+        feitas, _ = await asyncio.wait({passo}, timeout=pedido.prazo_s + FOLGA_TESTE_S)
+        if not feitas:  # a thread presa segue até o próprio prazo; a fila não espera
+            raise Falha("tempo_esgotado")
+        passo.result()
+        resultado = _OK
+    except Falha as falha:
+        resultado = Teste("falhou", falha.motivo)
+    finally:
+        passo.cancel()  # terminado, não faz nada; senão fecha o cliente (o `finally` dele)
+    segundos = (relogio.agora() - inicio).total_seconds()
+    log.info("ia teste %s %s: %s em %.1f s", *par, resultado.motivo or "ok", segundos)
+    return resultado
 
 
 async def _testar(obter: Obter, par: Par, pedido: Pedido) -> None:
@@ -354,7 +362,7 @@ async def _testar(obter: Obter, par: Par, pedido: Pedido) -> None:
 
 def _desligar(banco: Path, par: Par) -> None:
     """Desliga as tarefas ligadas no par que falhou; backend e modelo ficam (desenho 6.1). Erro
-    do banco vai ao log: a fila segue com os outros pares."""
+    (banco, disco) vai ao log: a fila segue com os outros pares."""
     try:
         with closing(abrir(banco)) as con:  # conexão própria: a do pedido já fechou
             atuais = {nome: tarefa_ia(con, nome) for nome in tarefas()}
@@ -365,19 +373,30 @@ def _desligar(banco: Path, par: Par) -> None:
             }
             if caidas:
                 gravar_tarefas_ia(con, caidas)
-    except sqlite3.Error:
+    except Exception:
         log.exception("ia teste %s %s: não consegui desligar a tarefa", *par)
 
 
 async def servico_trocou(request: Request, con: Con, servico: str) -> None:
-    """A chave ou o endereço do serviço mudou (aba Serviços): os testes dele valem de novo, e os
-    pares ligados nele voltam à fila."""
+    """A chave ou o endereço do serviço mudou (aba Serviços): os pares ligados nele testam de
+    novo."""
+    await refazer_testes(request, servico, [tarefa_ia(con, nome) for nome in tarefas()])
+
+
+async def refazer_testes(request: Request, servico: str, atuais: Iterable[TarefaIA]) -> None:
+    """O serviço mudou (chave, endereço, ou o modelo local trocado em Ferramentas): os testes dele
+    valem de novo, os pares ligados nele voltam à fila e o laço acorda, porque a rodada em curso
+    montou o cliente com o que era antes (ela para sozinha na falha)."""
     testes = _testes(request)
     for par in [p for p, t in testes.items() if p[0] == servico and t.estado != "testando"]:
         del testes[par]
-    ligadas = [t for nome in tarefas() if (t := tarefa_ia(con, nome)).ligada]
-    pares = dict.fromkeys((t.backend, t.modelo) for t in ligadas if t.backend == servico)
+    pares = dict.fromkeys(
+        (t.backend, t.modelo) for t in atuais if t.ligada and t.backend == servico
+    )
     await _enfileirar(request, pares, de_novo=True)
+    acordar = getattr(request.app.state, "ia_acordar", None)
+    if acordar is not None and pares:
+        acordar.set()
 
 
 @router.get("/teste/{tarefa}")
