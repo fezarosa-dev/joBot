@@ -233,7 +233,10 @@ def test_curriculo_sem_javascript_explica(browser: Browser, painel: str) -> None
         pagina = contexto.new_page()
         pagina.goto(f"{painel}/configuracoes/perfil")
         secao = pagina.get_by_role("region", name="Currículo em PDF")
-        expect(secao.get_by_text("precisa do JavaScript ligado")).to_be_visible()
+        # o get_by_text do Playwright pula o conteúdo de <noscript>: o parágrafo vai por CSS
+        nota = secao.locator("noscript > p")
+        expect(nota).to_be_visible()
+        expect(nota).to_contain_text("precisa do JavaScript ligado")
         expect(secao.get_by_role("button", name="Ler currículo", exact=True)).to_be_hidden()
     finally:
         contexto.close()
