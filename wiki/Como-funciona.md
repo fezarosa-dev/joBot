@@ -43,7 +43,7 @@ Um ciclo de busca, passo a passo:
 3. 🧹 **O tratamento** junta vagas repetidas, entende o salário, coloca rótulos e marca como fechadas as vagas que sumiram.
 4. 🗄️ **Tudo vai para o banco** SQLite, um arquivo que fica no seu computador.
 5. 📋 **O painel** mostra o resultado no seu navegador. Ele só funciona no seu computador (endereço 127.0.0.1).
-6. 🧠 **Se você ligou a IA** (desde a versão 0.5.0), ela lista as habilidades que cada vaga pede, e o joBot compara com as do seu perfil e soma isso ao encaixe. Na 0.6.0, ela vai ajudar a preparar candidaturas.
+6. 🧠 **Se você ligou a IA** (desde a versão 0.5.0), ela lista as habilidades que cada vaga pede, e o joBot compara com as do seu perfil e soma isso ao encaixe. Desde a 0.6.0, quando você pede, ela também lê o currículo, sugere perguntas para o perfil e prepara a carta e o resumo de uma candidatura (botão **Preparar candidatura** no detalhe da vaga).
 
 > [!TIP]
 > Se uma fonte falhar, as outras continuam. Se o computador estava desligado na hora marcada, a busca perdida roda quando ele liga.
@@ -152,6 +152,6 @@ Rodar em segundo plano é escolha sua, no assistente da primeira execução ou n
 
 ## 🧠 Inteligência artificial (opcional)
 
-> **Regra de ouro:** a IA nunca inventa. Na 0.5.0 ela nem recebe o seu perfil: cada habilidade que ela lista precisa estar escrita na vaga. A partir da 0.6.0, nas tarefas que usam o perfil (currículo, questionário, candidatura), ela só usa os dados do seu perfil e mostra quais usou.
+> **Regra de ouro:** a IA nunca inventa. No Encaixe ela nem recebe o seu perfil: cada habilidade que ela lista precisa estar escrita na vaga. Nas tarefas que usam o perfil (currículo, perguntas e candidatura, desde a 0.6.0), ela só usa os dados do seu perfil e mostra quais usou, e nome, e-mail, telefone e cidade nunca entram nos pedidos.
 
-Cada tarefa escolhe a sua opção. Na 0.5.0: modelo local (Qwen, grátis e sem internet depois de baixado), chave da API da Anthropic, da OpenAI ou do Google Gemini, ou um endereço compatível com a OpenAI (Ollama, LM Studio, OpenRouter), e as palavras-chave (sem IA) continuam. A IA manual (copiar e colar) chega na 0.6.0, e a sessão do Claude Code que você já tem espera a decisão do dono sobre os termos de uso. Detalhes em [Tecnologias](Tecnologias) e no [README](https://github.com/fezarosa-dev/joBot#inteligencia-artificial).
+Cada tarefa escolhe a sua opção: o modelo local (o Laya, por padrão, grátis e sem internet depois de baixado), chave da API da Anthropic, da OpenAI ou do Google Gemini, ou um endereço compatível com a OpenAI (Ollama, LM Studio, OpenRouter), e as palavras-chave (sem IA) continuam. Desde a 0.6.0, o currículo e a candidatura aceitam também a IA manual (copiar e colar), e a sessão do Claude Code que você já tem espera a decisão do dono sobre os termos de uso. Detalhes em [Tecnologias](Tecnologias) e no [README](https://github.com/fezarosa-dev/joBot#inteligencia-artificial).

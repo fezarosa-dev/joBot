@@ -43,7 +43,7 @@ One search cycle, step by step:
 3. 🧹 **Processing** merges duplicate jobs, understands the salary, adds labels and marks as closed the jobs that disappeared.
 4. 🗄️ **Everything goes into the SQLite database**, a file that stays on your computer.
 5. 📋 **The dashboard** shows the result in your browser. It only works on your computer (address 127.0.0.1).
-6. 🧠 **If you turned on AI** (since version 0.5.0), it lists the skills each job asks for, and joBot compares them with the ones in your profile and adds that to the match. In 0.6.0, it will help prepare applications.
+6. 🧠 **If you turned on AI** (since version 0.5.0), it lists the skills each job asks for, and joBot compares them with the ones in your profile and adds that to the match. Since 0.6.0, when you ask, it also reads the résumé, suggests questions for the profile and writes the cover letter and summary for an application (the **Prepare Application** button in a job's details).
 
 > [!TIP]
 > If one source fails, the others continue. If the computer was off at the scheduled time, the missed search runs when it turns on.
@@ -152,6 +152,6 @@ Running in the background is your choice, in the first-run assistant or in the s
 
 ## 🧠 Artificial intelligence (optional)
 
-> **Golden rule:** the AI never invents. In 0.5.0 it does not even receive your profile: each skill it lists has to be written in the job. From 0.6.0 on, in the tasks that use the profile (résumé, questionnaire, application), it only uses the data in your profile and shows which data it used.
+> **Golden rule:** the AI never invents. In Matching it does not even receive your profile: each skill it lists has to be written in the job. In the tasks that use the profile (résumé, questions and application, since 0.6.0), it only uses the data in your profile and shows which data it used, and name, email, phone and city never go into the requests.
 
-Each task picks its own option. In 0.5.0: the local model (Qwen, free and offline once downloaded), an Anthropic API, OpenAI or Google Gemini key, or an OpenAI-compatible address (Ollama, LM Studio, OpenRouter), and keywords (no AI) stay. Manual AI (copy and paste) arrives in 0.6.0, and the Claude Code session you already have waits for the owner's decision on the terms of use. Details in [Technologies](Technologies) and in the [README](https://github.com/fezarosa-dev/joBot/blob/main/README.en.md#artificial-intelligence).
+Each task picks its own option: the local model (Laya by default, free and offline once downloaded), an Anthropic API, OpenAI or Google Gemini key, or an OpenAI-compatible address (Ollama, LM Studio, OpenRouter), and keywords (no AI) stay. Since 0.6.0, the résumé and the application also accept manual AI (copy and paste), and the Claude Code session you already have waits for the owner's decision on the terms of use. Details in [Technologies](Technologies) and in the [README](https://github.com/fezarosa-dev/joBot/blob/main/README.en.md#artificial-intelligence).

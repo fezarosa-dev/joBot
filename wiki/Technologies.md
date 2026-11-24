@@ -41,20 +41,21 @@ AI is optional. Without it, joBot works with rules and keywords ([ADR 0009](http
 
 | Option | Cost | Where it runs |
 |---|---|---|
-| **Local model** (Qwen, via llama.cpp's llama-server), since 0.5.0 | Free | On your computer, offline after the download |
+| **Local model** (Laya by default, via llama.cpp's llama-server), since 0.5.0 | Free | On your computer, offline after the download |
 | **Anthropic API key**, since 0.5.0 (experimental) | Pay per use | At Anthropic |
 | **OpenAI or Google Gemini key**, since 0.5.0 (experimental) | Pay per use (Gemini may be billed per use, depending on your Google AI Studio account plan) | At OpenAI or Google |
 | **OpenAI-compatible address** (Ollama, LM Studio, OpenRouter), since 0.5.0 (experimental: the same client only ran against the local model's `llama-server`, in CI) | Depends on the service | Wherever the address points |
 | **Keywords** (no AI) | Free | On your computer |
-| **Manual AI** (copy and paste), in 0.6.0 | Free in joBot | In the chat AI you choose |
+| **Manual AI** (copy and paste), since 0.6.0, for the résumé and the application | Free in joBot | In the chat AI you choose |
 | **Claude Code session** you already have (waiting for the owner) | Uses your Claude subscription | At Anthropic |
 
 - With Claude, the app only uses Haiku 5.5 and Sonnet 5.5. **Opus is never used**, to save cost and your usage limit.
 - joBot **has no Claude login**. It uses the Claude Code already on your computer, in headless mode, with no tools and without touching your credentials ([ADR 0010](https://github.com/fezarosa-dev/joBot/blob/main/docs/decisions/0010-claude-code-da-pessoa.md)).
-- The Claude Code session waits for the owner's decision on the terms of use and has not been built yet; in 0.5.0, Claude comes in through the Anthropic API key.
-- The local model runs through `llama-server`, in a pinned version checked by checksum (a fingerprint of the file), on the processor only. joBot downloads it from GitHub (`llama-server`) and Hugging Face (the Qwen3.5 model), only when you ask. joBot does not bring Ollama or PyTorch; if you already use Ollama or LM Studio, you can point the compatible address at it.
+- The Claude Code session waits for the owner's decision on the terms of use and has not been built yet; in 0.5.0 and 0.6.0, Claude comes in through the Anthropic API key.
+- The local model runs through `llama-server`, in a pinned version checked by checksum (a fingerprint of the file), on the processor only. joBot downloads it from GitHub (`llama-server` and Laya, from joBot's releases) and Hugging Face (Qwen3.5, if you switch), only when you ask. joBot does not bring Ollama or PyTorch; if you already use Ollama or LM Studio, you can point the compatible address at it.
 - "Experimental" means the service was only tested against a fake service, because CI has no paid key.
-- Laya, a fine-tune of Qwen3.5 2B for jobs, does not ship in 0.5.0 yet: it comes in a later version, after the training.
+- Since 0.6.0, the default local model is Laya, a fine-tune of Qwen3.5 2B for jobs, trained on public jobs; the original Qwen3.5 2B and 4B stay as options in Settings › Tools.
+- Since 0.6.0, with the task on, the AI also reads the résumé, suggests questions for the profile and prepares applications. Name, email, phone and city never go into the requests. With manual AI, joBot only shows the request for you to copy.
 - Audio transcription will use faster-whisper, on your computer, and delete the audio right after (phase 6).
 
 <sub>Claude and Claude Code are trademarks of Anthropic. joBot is not affiliated with Anthropic.</sub>

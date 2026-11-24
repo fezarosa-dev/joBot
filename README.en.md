@@ -32,7 +32,7 @@ It gathers, filters and organizes jobs from many sites into a nice dashboard tha
 
 > [!IMPORTANT]
 > **joBot phases 1, 2 and 3 (the foundation, the browser with login and the installer) have been done since version 0.4.0; the version to install now is 0.5.0, which brings the first part of phase 4 (the optional AI).** It searches public sources for jobs, keeps everything on your computer and shows it in a dashboard. You can already [install and use it](#requirements-and-installation).
-> LinkedIn is the site with login today (others can come through the [new site template](docs/site-novo.en.md)); it has been here since version 0.3.0 and comes off (you turn it on in Settings, Accounts). The Gmail card is already in Settings, Accounts. AI arrives in version 0.5.0, off by default, to list the skills each job asks for ([details](#artificial-intelligence)); reading the emails, audio and the rest (the other sites with login, the other AI tasks and browser extension) are still a plan. See the [roadmap](#roadmap). Before you turn on the sources, read the [usage and terms notices](#license-and-notices).
+> LinkedIn is the site with login today (others can come through the [new site template](docs/site-novo.en.md)); it has been here since version 0.3.0 and comes off (you turn it on in Settings, Accounts). The Gmail card is already in Settings, Accounts. AI arrives in version 0.5.0, off by default, to list the skills each job asks for, and 0.6.0 brings the full profile, reading your résumé and preparing applications ([details](#artificial-intelligence)); reading the emails, audio and the rest (the other sites with login, AI on the emails and browser extension) are still a plan. See the [roadmap](#roadmap). Before you turn on the sources, read the [usage and terms notices](#license-and-notices).
 
 ## 📑 Contents
 
@@ -147,7 +147,7 @@ One search cycle, step by step:
 3. **The core** merges duplicate jobs, understands the salary, adds labels and marks as closed the jobs that disappeared.
 4. **Everything goes to the SQLite database**, a file that stays on your computer.
 5. **The dashboard** shows the result in your browser. It only works on your computer (address 127.0.0.1).
-6. **If you turn on the AI** (from version 0.5.0), it lists the skills each job asks for, and joBot compares them with the ones in your profile and adds that to the match. The AI does not give a score. In 0.6.0, it will help prepare applications. Without AI, the match comes from the rules of your search.
+6. **If you turn on the AI** (from version 0.5.0), it lists the skills each job asks for, and joBot compares them with the ones in your profile and adds that to the match. The AI does not give a score. From 0.6.0 on, it also reads your résumé to fill in the profile, suggests questions about what the profile is missing and writes the cover letter and summary for an application, always when you ask. Without AI, the match comes from the rules of your search.
 
 If one source fails, the others keep going. If the computer was off at the scheduled time, the missed search runs when it turns on.
 
@@ -235,8 +235,8 @@ The dashboard runs at `http://127.0.0.1:47615`. When joBot finds Chrome, Edge or
 
 The AI is **optional** and arrives in version 0.5.0 (phase 4), **off by default**. Without it, joBot works with rules and keywords, as it has since phase 1.
 
-> **Golden rule:** the AI never invents. In 0.5.0 it does not even receive your profile: each skill it lists has to be written in the job.
-> From 0.6.0 on, in the tasks that use the profile (résumé, questionnaire, application), it only uses the data in your profile, shows which data it used and, if information is missing, asks a question, and your answer is saved in the profile.
+> **Golden rule:** the AI never invents. In Matching it does not even receive your profile: each skill it lists has to be written in the job.
+> In the tasks that use the profile (résumé, questions and application, since 0.6.0), it only uses the data in your profile and shows which data it used. What it takes from the résumé that is not written there comes marked for you to check. If information is missing, it suggests a question, which only becomes profile data when you answer it.
 
 ### What 0.5.0 brings
 
@@ -245,19 +245,30 @@ The AI is **optional** and arrives in version 0.5.0 (phase 4), **off by default*
 - **Test when you turn it on.** Turning the task on or switching the service sends a short request, with a sample job. If it fails, the task stays off and the screen says why.
 - **Cost in plain sight.** A paid service shows as "billed per use", turning Matching on with it asks for confirmation, and joBot makes at most 200 requests a day to each outside service, not counting the test when you turn it on.
 
-The résumé, the questionnaire, the gap questions, manual AI and "Prepare application" arrive in 0.6.0. The Claude Code and Codex sessions wait for the owner's decision on the terms of use and have not been built yet. Laya (the local model fine-tuned for jobs) does not ship in 0.5.0 either: it comes in a later version, after the training.
+### What 0.6.0 brings
+
+- **The full profile**, in Settings › Profile: contact, job title, years of experience, education, summary, links, languages with their level, skills and up to 10 experiences and 10 courses. Each part has its own Save. The contact fields (name, email, phone and city) never go into requests to AI. **Delete profile** deletes all of it, the answers and the prepared applications.
+- **Reading your résumé PDF.** You send the PDF (up to 5 MB) in the Profile tab, joBot reads the first 20 pages on your computer, and the **Résumé** task fills in the form for you to check. What the AI puts in that is not written in the résumé comes marked "Not found in the résumé" and stays out of **Approve All**. Email, phone and CPF are taken out of the text before it goes to the AI and filled in on your computer; the rest of the text goes as it is, including the name and city, if they are written in it. Nothing is saved before you save, and neither the PDF nor its text is kept. Reading the résumé needs JavaScript turned on in the browser; without it, you fill in the profile by hand.
+- **Profile questionnaire.** Questions about you (where you live, job title, experience, education, skills, languages, contact and links) that save the profile; you open the questionnaire from the Profile tab. With the **Questions** task on, the AI suggests up to 5 questions about what the profile is missing, each with the reason.
+- **Prepare Application**, in a job's details, with the task on: the AI writes the cover letter and a summary of your profile for the job, in the job's language, and joBot shows what you have and what you are missing of what the job asks for, and the profile data the AI used. The letter and the summary come in boxes you can edit and copy, with the notice "Check before using: the AI can be wrong." and, if the letter mentions something that is not in your profile, a notice with the item. joBot never sends anything: you are the one who uses the letter.
+- **Suggested questions.** The questions the AI suggests while preparing an application wait for you to accept or discard them in the Profile tab (up to 20 wait; the oldest goes), and only the answer to an accepted question goes into the next requests.
+- **Manual AI**, for the résumé and the application: joBot shows the request, you copy and paste it into the AI chat you want, and paste the answer back. The answer goes through the same checks, and joBot sends nothing to anyone.
+- **First run with AI and profile.** The wizard gets two optional steps before the search: where the AI runs (the local model, the Anthropic API with your key, or continue without AI) and your profile (the résumé and the questionnaire). Both can be skipped, and the search comes with the job title and city from the profile.
+- **Laya as the default local model.** The model downloaded is Laya 2B, a fine-tune of Qwen3.5 2B for jobs (see the offline package, below).
+
+The tasks you trigger (Résumé, Questions and Prepare application) make one request per click and do not count toward the limit of 200 requests a day, which belongs to Matching. The Claude Code and Codex sessions wait for the owner's decision on the terms of use and have not been built yet.
 
 ### Options
 
 | Option | Cost | Where it runs | Where the data goes | Needs internet? | Status |
 |---|---|---|---|---|---|
-| **Local model (Qwen)** | Free | On your computer | Does not leave the computer | No (after downloading) | In 0.5.0 |
-| **Anthropic API key** | Pay per use | At Anthropic | Anthropic | Yes | In 0.5.0, experimental |
-| **OpenAI key** | Pay per use | At OpenAI | OpenAI | Yes | In 0.5.0, experimental |
-| **Google Gemini key** | May be billed per use, depending on your Google AI Studio account plan | At Google | Google | Yes | In 0.5.0, experimental |
-| **OpenAI-compatible address** (Ollama, LM Studio, OpenRouter) | Depends on the service | Wherever the address points | To that address | Depends on the address | In 0.5.0, experimental |
+| **Local model** (Laya, by default) | Free | On your computer | Does not leave the computer | No (after downloading) | Since 0.5.0; Laya since 0.6.0 |
+| **Anthropic API key** | Pay per use | At Anthropic | Anthropic | Yes | Since 0.5.0, experimental |
+| **OpenAI key** | Pay per use | At OpenAI | OpenAI | Yes | Since 0.5.0, experimental |
+| **Google Gemini key** | May be billed per use, depending on your Google AI Studio account plan | At Google | Google | Yes | Since 0.5.0, experimental |
+| **OpenAI-compatible address** (Ollama, LM Studio, OpenRouter) | Depends on the service | Wherever the address points | To that address | Depends on the address | Since 0.5.0, experimental |
 | **Keywords** (no AI) | Free | On your computer | Does not leave the computer | No | Since 0.1.0 |
-| **Manual AI** (copy and paste) | Free in joBot; depends on the chat AI you use | In the chat AI you choose | Wherever you paste it | Depends on the chat AI | In 0.6.0 |
+| **Manual AI** (copy and paste) | Free in joBot; depends on the chat AI you use | In the chat AI you choose | Wherever you paste it | Depends on the chat AI | Since 0.6.0, for the résumé and the application |
 | **Claude Code session** ([details](#using-claude-code)) | Uses your Claude subscription | At Anthropic | Anthropic | Yes | Waiting for the owner |
 
 **Experimental, not yet proven:** joBot's CI has no key for a paid service, so the Anthropic API, OpenAI and Gemini were only tested against a fake service. They carry that mark in the AI tab until they are proven with a real key. The local model was only proven in CI: it ran on GitHub's computers (Linux, Windows and Mac, on the processor only), with up to 55 s for the longest job. Not yet proven: the compatible address against a real Ollama, LM Studio or OpenRouter (the same client only ran against the local model's `llama-server`, in CI), the installer really downloading the Local model, resuming a cut download against the real servers, the Windows Defender and SmartScreen warnings on `llama-server.exe` and the speed on an ordinary computer.
@@ -307,6 +318,8 @@ A "checksum" is a fingerprint of the file: joBot checks that the downloaded file
 | Match by the rules of your search | Yes |
 | Job skills through the local model (All offline) | Yes, after downloading the model |
 | Job skills through a service (Anthropic, OpenAI, Gemini) | No |
+| Read the résumé, suggest questions and prepare applications with the local model | Yes, after downloading the model |
+| Those tasks through a service or manual AI | No |
 | Search for new jobs, check companies and pages, get the currency rates | No |
 | Read the sites with login | No |
 | Download the local model, the browser or a new joBot version | No |
@@ -314,7 +327,7 @@ A "checksum" is a fingerprint of the file: joBot checks that the downloaded file
 <a id="using-claude-code"></a>
 ## ✨ Using the Claude Code you already have
 
-> This section describes an option that still waits for the owner's decision on Anthropic's terms of use: it does not ship in 0.5.0. Until then, Claude comes in through the Anthropic API key.
+> This section describes an option that still waits for the owner's decision on Anthropic's terms of use: it does not ship in 0.5.0 or 0.6.0. Until then, Claude comes in through the Anthropic API key.
 
 If you already use Claude Code on your computer, joBot can use Claude **with no extra login**.
 You do not log in to Claude inside joBot. Ever.
@@ -364,17 +377,17 @@ Details in [ADR 0010](docs/decisions/0010-claude-code-da-pessoa.md) (in Portugue
 <a id="privacy-and-security"></a>
 ## 🔒 Privacy and security
 
-> These rules apply to what phases 1 and 2 brought and to the AI of version 0.5.0. The ones that talk about Telegram, extension and audio describe the next phases. For Gmail, the card in Settings, Accounts already applies: it keeps the app password in the system password vault and only opens the inbox read-only, to check the sign-in; reading emails comes in phase 6.
+> These rules apply to what phases 1 and 2 brought and to the AI of versions 0.5.0 and 0.6.0. The ones that talk about Telegram, extension and audio describe the next phases. For Gmail, the card in Settings, Accounts already applies: it keeps the app password in the system password vault and only opens the inbox read-only, to check the sign-in; reading emails comes in phase 6.
 
 - **There is no joBot server.** Your data stays on your computer.
 - **No telemetry.** No usage data is sent.
 - **Local record of opening.** joBot keeps, only on your computer, when you opened the application for each job; it never leaves here.
-- **Search and check requests only.** joBot only makes network requests in these cases: to the public job sources you leave on (they all come on), including each job's page; to the Central Bank of Brazil, to get the exchange rates of the currencies in the jobs and show salaries in the display currency you choose, with currency conversion on (it comes on); to Common Crawl, once a week, to discover new companies, and then to those companies' job boards, to check them (it comes on); to the pages you ask it to follow (it comes on, but with no pages on the list there is no request); to the sites with login you turn on (they come off), through the browser, with your account; to Playwright's servers, to download the browser, only when you press "Download" in Tools or, in the desktop app, check it during installation (joBot does not distribute the browser; it comes from Playwright) or update joBot with it already downloaded; to 2Captcha, only when you test the key in Settings, Services, or, while browsing with login, with the key saved and the switch on (comes off); to Gmail (Google), over a read-only IMAP connection, only when you save or check the app password in Settings, Accounts (with no app password there is no request); to the AI services you set up (Anthropic API, OpenAI, Google Gemini or the compatible address you type), with the title and text of the jobs, only when you turn on an AI task on one of them in Settings, AI (the tasks come off), and in the test when you turn it on; the local model makes no network request; to GitHub and Hugging Face, with their CDNs, to download the local model (llama-server and the model: Laya, from joBot's releases on GitHub, or a Qwen model, from Hugging Face), only when you press "Download", "Switch" or "Update" on the model card in Tools, check it during installation or run jobot ferramentas baixar (or atualizar) ia-local; to a company's website, only when you paste an address, test it or accept a suggestion; to the internet through git and uv (or to GitHub, when joBot came from the installer), to download the new joBot version, only when you ask to update (the Update now button or the jobot atualizar command). With the version notice (next item) on, it also asks GitHub (it comes on; you can turn it off). Whoever receives a request sees your computer's IP address, as with any internet request.
+- **Search and check requests only.** joBot only makes network requests in these cases: to the public job sources you leave on (they all come on), including each job's page; to the Central Bank of Brazil, to get the exchange rates of the currencies in the jobs and show salaries in the display currency you choose, with currency conversion on (it comes on); to Common Crawl, once a week, to discover new companies, and then to those companies' job boards, to check them (it comes on); to the pages you ask it to follow (it comes on, but with no pages on the list there is no request); to the sites with login you turn on (they come off), through the browser, with your account; to Playwright's servers, to download the browser, only when you press "Download" in Tools or, in the desktop app, check it during installation (joBot does not distribute the browser; it comes from Playwright) or update joBot with it already downloaded; to 2Captcha, only when you test the key in Settings, Services, or, while browsing with login, with the key saved and the switch on (comes off); to Gmail (Google), over a read-only IMAP connection, only when you save or check the app password in Settings, Accounts (with no app password there is no request); to the AI services you set up (Anthropic API, OpenAI, Google Gemini or the compatible address you type), with the title and text of the jobs, your profile without name, contact details and city and the résumé text without email, phone and CPF, depending on the task, only when you turn on an AI task on one of them in Settings, AI (the tasks come off), and in the test when you turn it on, and the résumé, the questions and the application only when you ask for them; the local model makes no network request; to GitHub and Hugging Face, with their CDNs, to download the local model (llama-server and the model: Laya, from joBot's releases on GitHub, or a Qwen model, from Hugging Face), only when you press "Download", "Switch" or "Update" on the model card in Tools, check it during installation or run jobot ferramentas baixar (or atualizar) ia-local; to a company's website, only when you paste an address, test it or accept a suggestion; to the internet through git and uv (or to GitHub, when joBot came from the installer), to download the new joBot version, only when you ask to update (the Update now button or the jobot atualizar command). With the version notice (next item) on, it also asks GitHub (it comes on; you can turn it off). Whoever receives a request sees your computer's IP address, as with any internet request.
 - **Version notice on by default.** Once a day joBot asks `api.github.com` which version is the newest. The request carries only joBot's fixed user agent (which includes the version number) and your computer's IP, like any request on the internet. It carries no search and no data of yours. To turn it off, go to Settings, Privacy; off, it makes no request at all.
-- **The AI only gets the job text.** The Matching task sends the service only the title and text of the job (the beginning and the end, when it is long), never your profile or any other data of yours. The local model runs on your computer and only serves your own computer (127.0.0.1).
+- **What goes to the AI, task by task.** Matching sends the service only the title and text of the job (the beginning and the end, when it is long). Résumé sends the PDF text without email, phone and CPF, which joBot takes out first; the name and city written in the résumé go along. Questions sends your profile without name, email, phone and city (nor the links). Prepare Application sends the same profile and the job text, only when you click the button. A question the AI suggests only goes into requests after you accept and answer it. Each task says, in the AI tab and next to the button or the upload, what goes and where. With manual AI joBot sends nothing: you copy the request, built with the same rules, and paste it into the AI chat you choose. The local model runs on your computer and only serves your own computer (127.0.0.1).
+- **The résumé is not kept.** The PDF is read on your computer, in a separate process, and neither it nor its text stays in the data folder or the database: only what you approve and save goes into the profile.
 - **Secrets in the system vault.** The Gmail app password, the AI service keys and the Telegram token stay in the operating system's password vault. Without a vault, they go to a file that only your user can read, and the dashboard warns you.
-- **Protected personal data.** CPF (Brazilian tax ID) and date of birth stay in the database, in a folder that only your user can access and that is not synced to the cloud. The dashboard recommends turning on disk encryption (LUKS, BitLocker or FileVault).
-- **Exporting the profile does not include documents** such as the CPF, unless you check that option.
+- **Protected personal data.** The profile stays in the database, in a folder that only your user can access and that is not synced to the cloud. joBot does not keep a CPF (Brazilian tax ID) or date of birth. The dashboard recommends turning on disk encryption (LUKS, BitLocker or FileVault).
 - **Dashboard closed to the outside.** It only accepts connections from your own computer (127.0.0.1) and checks every request.
 - **Paired extension.** The extension only talks to joBot after pairing. It never touches password or card fields.
 - **Audio deleted.** The recording is transcribed on your computer and deleted right after.
@@ -492,12 +505,15 @@ joBot also runs inside a distrobox container, as on Fedora Silverblue.
 
 ### First run
 
-The first time, the dashboard asks two questions. Everything is optional.
+The first time, the dashboard asks a few questions. Everything is optional, and every step has **Skip all**.
 
 | Step | What happens |
 |---|---|
-| **1. What are you looking for?** | Job titles or keywords, cities, work modes, levels, minimum salary and job languages. This becomes your first search. If you skip it, jobs appear by date, with no match score. You can change it later, in Searches. |
-| **2. Background** | Choose whether joBot starts by itself with your user and searches for jobs every 3 hours, even with the dashboard closed. You can change it later, in Settings. |
+| **Do you want to use AI?** | Where the AI runs: the local model (free, once downloaded), a paid service with your Anthropic API key, or continue without AI, which is the default. You can change it later, in Settings › AI. |
+| **Your profile** | Your résumé PDF and the questions about you, which save the profile. It also has **Skip this step**. You can complete it later, in Settings › Profile. |
+| **What are you looking for?** | Job titles or keywords, cities, work modes, levels, minimum salary and job languages, already with the job title and city from your profile. This becomes your first search. If you skip it, jobs appear by date, with no match score. You can change it later, in Searches. |
+| **Sites with login** | Only shows up when there is a site with login to turn on. You can turn it on later, in Settings. |
+| **Background** | Choose whether joBot starts by itself with your user and searches for jobs every 3 hours, even with the dashboard closed. You can change it later, in Settings. |
 
 Then press **Search now**, at the top of the dashboard, or wait for the next scheduled search.
 
@@ -516,7 +532,7 @@ When a new version comes out, the dashboard tells you in a banner at the top. Th
 |---|---|---|
 | Browser controlled by Playwright (Chromium, optional) | about 210 MB to download and 420 MB on disk | Phase 2, only for sites with login; download and remove it in Settings, Tools |
 | llama-server | ~13 to 25 MB, depending on the system | Since 0.5.0, only if you ask for the Local model; download and remove it in Settings, Tools |
-| Laya-2B (the default), Qwen3.5-2B **or** Qwen3.5-4B model | 1.29 GB, 1.28 GB or 2.74 GB | Since 0.5.0, together with llama-server; Laya is the default since the next version |
+| Laya-2B (the default), Qwen3.5-2B **or** Qwen3.5-4B model | 1.29 GB, 1.28 GB or 2.74 GB | Since 0.5.0, together with llama-server; Laya is the default since 0.6.0 |
 | Audio transcription "small" | 484 MB | Phase 6 |
 | Audio transcription "medium" | 1.53 GB | Phase 6, optional |
 

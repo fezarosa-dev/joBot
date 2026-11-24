@@ -1254,7 +1254,8 @@ CADA_TAREFA = {
 # o que a 0.5.0 dizia (só o texto da vaga sai) e o CPF guardado, que a 0.6.0 não guarda
 SO_A_VAGA = re.compile(
     r"A IA só recebe o texto da vaga|The AI only gets the job text|nunca o seu perfil"
-    r"|never your profile|CPF e data de nascimento ficam|CPF and date of birth are"
+    r"|never your profile|CPF e data de nascimento ficam"
+    r"|CPF \(Brazilian tax ID\) and date of birth stay"
 )
 
 
@@ -1294,7 +1295,7 @@ WIKI_0_6_0 = {
     "wiki/Tecnologias.md": ("Laya", "IA manual"),
     "wiki/Technologies.md": ("Laya", "Manual AI"),
     "wiki/Como-funciona.md": ("Preparar candidatura", "IA manual"),
-    "wiki/How-it-works.md": ("Prepare Application", "Manual AI"),
+    "wiki/How-it-works.md": ("Prepare Application", "manual AI"),
     "wiki/Perguntas-frequentes.md": ("sem nome, e-mail, telefone e cidade",),
     "wiki/Frequently-asked-questions.md": ("without name, email, phone and city",),
     "wiki/Roteiro.md": ("Laya",),

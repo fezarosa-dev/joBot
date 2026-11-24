@@ -63,10 +63,10 @@ A versão 0.3.0 saiu entre a fase 2 e a fase 3, com a tela "Panorama" (visão ge
 <details>
 <summary><strong>🟡 Fase 4, IA local</strong></summary>
 
-- Pacote offline: llama-server e um modelo Qwen, para usar IA sem internet e sem pagar.
+- Pacote offline: llama-server e o Laya (um ajuste do Qwen3.5 2B para as vagas), para usar IA sem internet e sem pagar.
 - Entram no assistente a escolha da IA, o currículo e o questionário.
-- A fase sai em duas versões: a 0.5.0 traz o modelo local e o encaixe pelas habilidades; a 0.6.0, o currículo, o questionário e a ajuda na candidatura (ainda em decisão).
-- O modelo multilingual-e5-small, para rótulos abaixo de 90% de acerto, fica para depois (ainda em decisão). O ajuste do Laya foi autorizado: a 0.5.0 saiu sem ele, e ele entra numa versão seguinte, depois do treino.
+- A fase sai em duas versões: a 0.5.0 traz o modelo local e o encaixe pelas habilidades; a 0.6.0, o perfil completo, o currículo, o questionário, Preparar candidatura e a IA manual.
+- O modelo multilingual-e5-small, para rótulos abaixo de 90% de acerto, fica para depois (ainda em decisão). O ajuste do Laya foi autorizado: a 0.5.0 saiu sem ele, e ele é o modelo local padrão da 0.6.0.
 </details>
 
 <details>

@@ -8,9 +8,24 @@ The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/
 
 ## [Unreleased]
 
+The second part of the AI arrives, optional and off by default: the full profile, reading the résumé, questions about what the profile is missing and preparing applications. The default local model is now Laya.
+
+### Added
+
+- Full Settings › Profile: contact, job title, years of experience, education, summary, links, languages with their level, skills and up to 10 experiences and 10 courses, each part with its own Save. With JavaScript, saving one part does not erase what you typed in the others. The contact fields never go into requests to AI, and Delete profile also deletes the experiences, courses, answers and prepared applications.
+- Read your résumé PDF in the Profile tab: up to 5 MB and 20 pages, read on your computer. With the Résumé task on, the AI fills in the form for you to check; what is not written in the résumé comes marked "Not found in the résumé" and stays out of Approve All. Email, phone and CPF are taken out of the text before it goes to the AI and filled in on your computer. Nothing is saved before you save, and neither the PDF nor its text is kept. A password-protected, corrupted, image-only or non-PDF file gets its own notice.
+- Profile questionnaire, with questions about you that save the profile. With the Questions task on, the AI suggests up to 5 questions about what is missing, each with the reason.
+- Prepare Application, in a job's details: with the task on, the AI writes the cover letter and a summary of your profile for the job, in the job's language. The screen shows what you have and what you are missing of what the job asks for, the profile data the AI used, the notice "Check before using: the AI can be wrong." and a notice when the letter mentions something that is not in your profile. The letter and the summary come in boxes you can edit and copy; joBot sends nothing.
+- Suggested questions: the questions the AI suggests while preparing an application wait for you to accept or discard them in the Profile tab (up to 20 wait), and only the answer to an accepted question goes into the next requests.
+- Manual AI for the résumé and the application: joBot shows the request, you copy and paste it into the AI chat you want and paste the answer back, which goes through the same checks. joBot sends nothing to anyone.
+- Settings › AI gets the Résumé, Questions and Prepare application tasks, each with the sentence saying what goes and where. They only run when you ask and do not count toward the limit of 200 requests a day.
+- The first run gets two optional steps before the search: where the AI runs and your profile. Both can be skipped, and the search comes with the job title and city from the profile.
+- For contributors: the `pypdf` dependency, which reads the résumé in a separate process, and the database migrations for the full profile and the suggested questions.
+
 ### Changed
 
 - The default local model is now Laya 2B, a fine-tune of Qwen3.5 2B for jobs, trained on public jobs from four sources (Greenhouse, Lever, We Work Remotely and Jobicy), with no job from sites with login and none from the gold set. On the gold set it gets 96.3% right, against 84% to 91% for the original Qwen3.5 2B and the same as 4B and 9B at Q4, while being 2 to 3.5 times faster than them. The local model card in Settings › Tools and the installer download Laya (1.3 GB, from joBot's releases on GitHub) on every computer; memory only decides the slowness warning. Qwen3.5 2B and 4B stay on the card, with a "Switch to" button for each, and whoever already downloaded one keeps it until switching. The list of network requests in Privacy and in the README mentions Laya.
+- The list of network requests in Privacy and in the README now says that, depending on the task, your profile (without name, contact details and city) and the résumé text (without email, phone and CPF) go to the AI service you chose. The README says what goes in each task and no longer says joBot keeps a CPF and date of birth: it does not.
 - For contributors: `scripts/treino_laya/treinar.py` merges the LoRA through Qwen3.5's image-and-text class and copies the tokenizer from the original repository, and training leaves the vision tower out; the training `requirements.txt` gains `torchvision`, `pillow` and `flash-linear-attention`.
 
 ## [0.5.0] - 2026-11-24
