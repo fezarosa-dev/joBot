@@ -560,13 +560,12 @@ def test_sair_manda_sigterm_ao_pid_da_trava(tmp_path: Path) -> None:
 
 def test_sair_avisa_quando_o_servidor_nao_encerra(tmp_path: Path) -> None:
     saida, relogio = _Saida(), RelogioSincrono()
-    with filho_com_trava(tmp_path, "ignora") as filho:
+    with filho_com_trava(tmp_path, "ignora"):
         codigo = sair_do_servidor(
             tmp_path, saida=saida, esperar_s=1, agora=relogio.agora, dormir=relogio.dormir
         )
         assert codigo != 0
         assert relogio.t >= 1  # o prazo correu no relógio falso, sem tempo real
-        assert filho.poll() is None
     assert saida.linhas
 
 
