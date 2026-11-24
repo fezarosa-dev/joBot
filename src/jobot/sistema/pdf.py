@@ -7,6 +7,7 @@ dados nem num temporário nosso. Lê até `MAX_PAGINAS`. Só este módulo import
 (`test_camadas.py`). Os avisos (`Aviso`) têm texto em `configuracoes.perfil.curriculo.aviso.*`.
 """
 
+import faulthandler
 import io
 import json
 import subprocess
@@ -21,9 +22,10 @@ from jobot.sistema import processo
 TETO_BYTES = 5 * 1024 * 1024  # o pedido inteiro, pelo `Content-Length` (desenho 8)
 MAX_PAGINAS = 20
 PRAZO_S = 30.0
+TETO_TEXTO = 200_000  # caracteres que voltam do filho (o maior uso do desenho é 40000)
 _FATIA_S = 0.25  # cada espera do `communicate`; o prazo conta pelo relógio injetado
 
-Aviso = Literal["nao_pdf", "senha", "corrompido", "so_imagem", "prazo"]
+Aviso = Literal["nao_pdf", "senha", "protegido", "corrompido", "so_imagem", "prazo"]
 _AVISOS: tuple[str, ...] = get_args(Aviso)
 
 
@@ -52,26 +54,25 @@ class Filho(Protocol):
 
 def ler_bytes(dados: bytes) -> dict[str, object]:
     """Roda no filho: o texto das primeiras páginas ou `{"aviso": ...}`."""
-    from pypdf import PasswordType, PdfReader  # só no filho: o servidor não carrega o pypdf
+    import pypdf  # só no filho: o servidor não carrega o pypdf
+    from pypdf.errors import DependencyError
 
     if b"%PDF-" not in dados[:1024]:  # o cabeçalho pode vir depois de lixo, até 1 KiB
         return {"aviso": "nao_pdf"}
     try:
-        leitor = PdfReader(io.BytesIO(dados))
-        if leitor.is_encrypted:
-            try:
-                aberto = leitor.decrypt("") != PasswordType.NOT_DECRYPTED
-            except Exception:  # cifra que pede biblioteca que não temos: igual a senha
-                aberto = False
-            if not aberto:
-                return {"aviso": "senha"}
+        leitor = pypdf.PdfReader(io.BytesIO(dados))
+        if leitor.is_encrypted and leitor.decrypt("") == pypdf.PasswordType.NOT_DECRYPTED:
+            return {"aviso": "senha"}
         total = len(leitor.pages)
         paginas = [leitor.pages[i].extract_text() for i in range(min(total, MAX_PAGINAS))]
+    except DependencyError:  # AES sem o `cryptography` (fora do Linux; D231.1)
+        return {"aviso": "protegido"}
     except Exception:  # pypdf, recursão, memória: o PDF não se lê
         return {"aviso": "corrompido"}
-    texto = "\n".join(paginas).strip()
+    texto = "\n".join(paginas).strip()[:TETO_TEXTO]
     if not texto:
         return {"aviso": "so_imagem"}
+    texto = texto.encode("utf-8", "replace").decode("utf-8")  # surrogate solto vira "?"
     return {"texto": texto, "paginas": len(paginas), "total": total}
 
 
@@ -130,6 +131,8 @@ def _resultado(saida: bytes, codigo: int | None) -> Lido:
 
 
 def main() -> None:
+    # vigia em C, fora do GIL: se o servidor morre sem levar o filho, ele sai mesmo assim
+    faulthandler.dump_traceback_later(PRAZO_S + 5, exit=True)
     sys.stdout.write(json.dumps(ler_bytes(sys.stdin.buffer.read())))
 
 

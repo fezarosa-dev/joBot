@@ -453,7 +453,8 @@ async def ler_curriculo(request: Request) -> Response:
     upload); o tamanho se confere pelo `Content-Length` antes de ler o corpo, e o temporário do
     Starlette (acima de 1 MB vai ao disco) fecha ao sair do `async with`."""
     tamanho = request.headers.get("content-length", "")
-    if not (tamanho.isascii() and tamanho.isdigit()):
+    # chunked manda sobre o Content-Length (o h11 aceita os dois): o tamanho declarado não vale
+    if "transfer-encoding" in request.headers or not (tamanho.isascii() and tamanho.isdigit()):
         return _aviso(request, "sem_tamanho", 411)
     if int(tamanho) > pdf.TETO_BYTES:
         return _aviso(request, "grande", 413)

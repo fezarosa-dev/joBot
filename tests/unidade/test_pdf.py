@@ -186,12 +186,14 @@ def test_texto_do_filho_tem_teto_e_sai_em_utf8_valido(monkeypatch: pytest.Monkey
 def test_filho_lancado_isolado_e_em_grupo_proprio(monkeypatch: pytest.MonkeyPatch) -> None:
     chamadas: list[tuple[list[str], dict[str, Any]]] = []
 
-    def espiao(argv: list[str], **kw: Any) -> str:
+    filho = object()
+
+    def espiao(argv: list[str], **kw: Any) -> object:
         chamadas.append((argv, kw))
-        return "filho"
+        return filho
 
     monkeypatch.setattr(subprocess, "Popen", espiao)
-    assert pdf._lancar() == "filho"
+    assert pdf._lancar() is filho
     assert chamadas == [
         (
             [sys.executable, "-P", "-m", "jobot.sistema.pdf"],

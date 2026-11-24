@@ -95,7 +95,8 @@ async def exigir_csrf(request: Request) -> None:
 
     Exceção: o `POST /sair` com o cabeçalho `X-Jobot-Sair` decide só pelo segredo local. Upload
     (`multipart/form-data`) só vale com o token no cabeçalho: sem ele, a recusa vem sem ler o
-    corpo (o arquivo; desenho 8 da fase 4, T435).
+    corpo (o arquivo; desenho 8 da fase 4, T435). Pedido de outro site é recusado antes de qualquer
+    leitura do corpo.
     """
     if request.method in METODOS_SEGUROS:
         return
@@ -112,6 +113,10 @@ async def exigir_csrf(request: Request) -> None:
             return
         raise HTTPException(403, detail=t(idioma_do_pedido(request), "seguranca.recarregue"))
     origem = request.headers.get("origin")
+    if request.headers.get("sec-fetch-site") == "cross-site" or (
+        origem is not None and origem != f"http://{request.headers.get('host')}"
+    ):  # outro site: a recusa vem antes de ler o corpo
+        raise HTTPException(403, detail=t(idioma_do_pedido(request), "seguranca.recarregue"))
     enviado = request.headers.get(CABECALHO_CSRF)
     tipo = request.headers.get("content-type", "").split(";")[0].strip().lower()
     if enviado is None and tipo == "multipart/form-data":
@@ -119,11 +124,7 @@ async def exigir_csrf(request: Request) -> None:
     elif enviado is None:
         campo = (await request.form()).get(CAMPO_CSRF)
         enviado = campo if isinstance(campo, str) else ""
-    if (
-        request.headers.get("sec-fetch-site") == "cross-site"
-        or (origem is not None and origem != f"http://{request.headers.get('host')}")
-        or not hmac.compare_digest(enviado.encode(), csrf_token(request).encode())
-    ):
+    if not hmac.compare_digest(enviado.encode(), csrf_token(request).encode()):
         raise HTTPException(403, detail=t(idioma_do_pedido(request), "seguranca.recarregue"))
 
 
