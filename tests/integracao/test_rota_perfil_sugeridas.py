@@ -21,6 +21,7 @@ from jobot.banco.conexao import abrir
 from jobot.banco.migrar import migrar
 from jobot.painel import i18n
 from jobot.painel.app import criar_app
+from jobot.painel.rotas.perfil import TETO_PERGUNTAS
 from jobot.painel.seguranca import CAMPO_CSRF
 
 PORTA = 47619
@@ -159,3 +160,21 @@ def test_responder_a_sugerida_pelo_questionario_nao_grava(painel: Painel) -> Non
     with painel.con() as con:
         respostas = dict(con.execute("SELECT chave, resposta FROM pergunta_perfil"))
     assert respostas == {"ia:k8s": None, "ia:bi": "Sim"}
+
+
+def test_aceitar_no_teto_recusa_na_secao(painel: Painel) -> None:
+    """Com o questionário no teto (D233.5), a aceita não caberia na tela e não seria respondida."""
+    for n in range(TETO_PERGUNTAS):
+        painel.pergunta(f"ia:{n}", f"Pergunta {n}?", sugerida=False)
+    painel.pergunta("ia:k8s", K8S, sugerida=True)
+    resposta = painel.decidir("ia:k8s", "aceitar")
+    assert resposta.status_code == 422
+    secao = _secao(resposta.text)
+    assert secao is not None
+    alerta = secao.css_first("#config-erro")
+    assert alerta is not None and alerta.attributes.get("role") == "alert"
+    assert pt("configuracoes.perfil.sugeridas.cheio") in _texto(alerta.html or "")
+    assert painel.chaves(sugeridas=True) == ["ia:k8s"]
+    assert len(painel.chaves()) == TETO_PERGUNTAS
+    assert painel.decidir("ia:k8s", "descartar").status_code == 303  # descartar segue livre
+    assert painel.chaves(sugeridas=True) == []

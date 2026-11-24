@@ -244,6 +244,18 @@ def test_salvar_uma_secao_nao_apaga_o_digitado_nas_outras(
         assert (habilidades(con), dados(con).nome) == (["Python"], None)
 
 
+def test_apagar_perfil_aparece_depois_do_primeiro_salvar(page: Page, painel: str) -> None:
+    """Com HTMX, o primeiro Salvar traz o "Apagar perfil" sem recarregar a página (D230.8)."""
+    page.goto(f"{painel}/configuracoes/perfil")
+    apagar = page.get_by_role("button", name="Apagar perfil")
+    expect(apagar).to_have_count(0)
+    regiao = page.get_by_role("region", name="Habilidades")
+    regiao.get_by_role("textbox", name="Suas habilidades").fill("Python")
+    regiao.get_by_role("button", name="Salvar", exact=True).click()
+    expect(regiao.get_by_role("status").filter(has_text="Salvo.")).to_be_visible()
+    expect(apagar).to_be_visible()
+
+
 def test_sem_javascript_a_aba_avisa_antes_de_salvar(browser: Browser, painel: str) -> None:
     contexto = browser.new_context(java_script_enabled=False, locale="pt-BR")
     try:

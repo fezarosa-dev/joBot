@@ -200,3 +200,18 @@ def test_sem_javascript_a_aba_avisa_que_salvar_recarrega(http: Http, idioma: str
     aviso = LexborHTMLParser(html).css_first("noscript#perfil-sem-js")
     assert aviso is not None
     assert i18n.carregar()[idioma]["configuracoes.perfil.sem_js"] in _texto(aviso.html or "")
+
+
+def test_apagar_perfil_vem_junto_na_troca(http: Http) -> None:
+    """Com HTMX, o "Apagar perfil" fica fora das seções: cada uma o traz por troca fora de banda,
+    para ele aparecer depois do primeiro Salvar sem recarregar a página."""
+    arvore = LexborHTMLParser(http.get(PERFIL).text)
+    for nome in SECOES:
+        secao = arvore.css_first(f"section#bloco-{nome}")
+        assert secao is not None and secao.attributes.get("hx-select-oob") == "#perfil-apagar"
+    vazio = arvore.css_first("#perfil-apagar")  # o alvo existe mesmo sem perfil
+    assert vazio is not None and vazio.css_first("button") is None
+    assert http.gravar({"habilidades": "Python"}).status_code == 303
+    cheio = LexborHTMLParser(http.get(PERFIL).text).css_first("#perfil-apagar")
+    assert cheio is not None
+    assert pt("configuracoes.perfil.apagar") in _texto(cheio.html or "")
