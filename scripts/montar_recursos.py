@@ -149,6 +149,7 @@ def montar(
     roda: Path,
     restricoes: Path,
     licencas: list[Path],
+    alvo: str,
 ) -> str:
     """Recursos completos em `saida` (apagada antes: arquivo fora do manifesto recusa tudo);
     devolve o sha256 do `manifesto.json`."""
