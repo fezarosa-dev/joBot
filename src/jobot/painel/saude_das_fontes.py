@@ -3,9 +3,10 @@
 O estado da fonte vem da última execução que gravou linha dela (`saude`), com a regra do
 executor (`estado_da_fonte`). O escopo aparece como texto, como vem do coletor, sem separar nem
 traduzir (D50). O link "reportar problema" só existe em "falhou" e "parcial" com motivo do
-conjunto fechado de `nucleo/quebra.py`; em fonte com vários escopos ele fica em cada escopo,
-com `<fonte>/<escopo>`. Mora fora de `rotas/` porque a tela de Fontes, Configurações e o Panorama
-a usam.
+conjunto fechado de `nucleo/quebra.py`. Em fonte com vários escopos, só o escopo que é empresa
+cadastrada (com a fonte ligada) ganha link próprio, com `<fonte>/<escopo>`; os outros escopos são
+texto opaco (D50) e se reportam pelo link do cartão, que leva só a chave. Mora fora de `rotas/`
+porque a tela de Fontes, Configurações e o Panorama a usam.
 """
 
 import sqlite3

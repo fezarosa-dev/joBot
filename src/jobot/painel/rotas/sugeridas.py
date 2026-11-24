@@ -16,22 +16,21 @@ import logging
 import sqlite3
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Path, Request
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from jobot.banco.sugeridas import Sugerida, aprovar, descartar, restaurar, sugeridas
 from jobot.nucleo.coletores.plataformas import gupy
 from jobot.painel.cliente import cliente_do_painel
-from jobot.painel.consultas import relogio_do_painel
+from jobot.painel.consultas import IdDoBanco, relogio_do_painel
 from jobot.painel.lateral import ler_lateral
 from jobot.painel.seguranca import Con, renderizar
 
 router = APIRouter(prefix="/empresas/sugeridas")
 registro = logging.getLogger(__name__)
 
-SugestaoId = Annotated[int, Path(ge=1, le=2**63 - 1)]  # o INTEGER do SQLite tem 64 bits com sinal
+SugestaoId = IdDoBanco
 PRAZO_S = 120.0
 
 

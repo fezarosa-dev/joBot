@@ -113,7 +113,7 @@ def contar_chamada(con: sqlite3.Connection, backend: str, agora: datetime) -> No
 
     Guarda só o dia de hoje em `config.ia_chamadas`; o dia novo recomeça do zero.
     """
-    # ponytail: ler e gravar sem trava; o laço é o único que conta (uma rodada por vez)
+    # shortcut: ler e gravar sem trava; o laço é o único que conta (uma rodada por vez)
     contagem = _contagem(con, agora)
     contagem[backend] = contagem.get(backend, 0) + 1
     dia = agora.astimezone().date().isoformat()  # DP8: o dia é o local

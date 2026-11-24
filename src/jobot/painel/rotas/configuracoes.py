@@ -789,7 +789,8 @@ async def esquecer_logins_pergunta(request: Request) -> Response:
 
 @router.post(f"/{COM_LOGIN}/esquecer/confirmar")
 async def esquecer_logins_confirmado(request: Request, con: Con) -> Response:
-    """Confirma o alerta: apaga a pasta do perfil, nunca com leitura ou login rodando (D132.22)."""
+    """Confirma o alerta: apaga a pasta do perfil (D132.21), nunca com leitura ou login rodando
+    (trava `login`, D132.18)."""
     _exige_leitor(request)
     trava = _trava_de_login(request)
     sem_js = request.headers.get("hx-request") != "true"  # T310, D165: volta à página do grupo

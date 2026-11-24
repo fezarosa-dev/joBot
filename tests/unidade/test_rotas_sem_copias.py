@@ -87,10 +87,11 @@ AUXILIARES = {
     "ambiente": ("_ambiente", "ambiente_do_painel"),
     "rodar": ("_rodar", "rodar_do_painel"),
     "um": ("_um", "campo_unico"),
+    "inteiro": ("_id_valido", "inteiro_da_url"),
 }
 IMPORTAM = {
     "configuracoes": ("ambiente_do_painel", "rodar_do_painel"),
-    "primeira_execucao": ("ambiente_do_painel", "rodar_do_painel"),
+    "primeira_execucao": ("ambiente_do_painel", "rodar_do_painel", "inteiro_da_url"),
     "buscas": ("campo_unico",),
     "detalhe": ("campo_unico",),
 }
@@ -114,6 +115,31 @@ def test_funcoes_das_rotas_definidas_uma_vez() -> None:
             for a in n.names
         }
         assert set(esperados) <= importados, rota
+
+
+def _maior_integer(arvore: ast.AST) -> int:
+    """Quantas vezes `2**63` (o teto do INTEGER do SQLite) aparece escrito no módulo."""
+    return sum(
+        isinstance(n, ast.BinOp)
+        and isinstance(n.op, ast.Pow)
+        and isinstance(n.left, ast.Constant)
+        and n.left.value == 2
+        and isinstance(n.right, ast.Constant)
+        and n.right.value == 63
+        for n in ast.walk(arvore)
+    )
+
+
+def test_teto_do_integer_escrito_uma_vez_no_painel() -> None:
+    """`INTEGER_MAX` (moeda.py) e o `IdDoBanco` dos caminhos (consultas.py) servem a todas as
+    rotas; ninguém reescreve o `2**63 - 1`."""
+    assert _maior_integer(ast.parse("x = 2**63 - 1")) == 1  # controle do detector
+    donos = [
+        f"{caminho.relative_to(PAINEL)}"
+        for caminho in PAINEL.rglob("*.py")
+        for _ in range(_maior_integer(_arvore(caminho)))
+    ]
+    assert donos == ["moeda.py"], donos
 
 
 def _cria_cliente(arvore: ast.AST) -> bool:
