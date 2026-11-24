@@ -49,6 +49,8 @@
   .ferramenta label { font-weight: 500; }
   .ferramenta .ferramenta-tamanho { color: var(--texto-2); font: var(--t-sub); }
   .ferramenta .ferramenta-frase { grid-column: 2 / -1; margin: 0; color: var(--texto-2); font: var(--t-sub); }
+  .grupo-ia { min-inline-size: 0; margin: 0; padding: 0; border: 0; }
+  .grupo-ia legend { padding: 0; margin-block-end: 0.5rem; font: var(--t-headline); }
   .instalador-rodape {
     display: grid; grid-template-columns: max-content 1fr; gap: 0.25rem 1rem; margin: 0;
     color: var(--texto-2); font: var(--t-sub);
@@ -100,6 +102,19 @@
           <p class="ferramenta-frase" id="frase-navegador" data-t="ferramentas.navegador_frase"></p>
         </li>
       </ul>
+      <!-- desenho 10.1 (T418): só o Modelo local, desmarcado; o Claude Code e o Codex esperam o
+           dono (D185.5 e D185.6). Sem os tamanhos no manifesto, o grupo não aparece. -->
+      <fieldset class="grupo-ia" id="grupo-ia" hidden>
+        <legend data-t="ferramentas.grupo_ia"></legend>
+        <ul class="ferramentas">
+          <li class="ferramenta">
+            <input type="checkbox" id="ferramenta-ia-local" aria-describedby="frase-ia-local">
+            <label for="ferramenta-ia-local" data-t="ferramentas.ia_local"></label>
+            <span class="ferramenta-tamanho" id="tamanho-ia-local"></span>
+            <p class="ferramenta-frase" id="frase-ia-local"></p>
+          </li>
+        </ul>
+      </fieldset>
       <dl class="instalador-rodape" id="rodape">
         <dt data-t="rodape.onde"></dt><dd id="onde-fica"></dd>
         <dt data-t="rodape.espaco"></dt><dd id="espaco"></dd>
@@ -132,8 +147,10 @@
     </section>
 
     <section data-passo="pronto" hidden>
-      <h2 tabindex="-1" data-t="pronto.titulo"></h2>
-      <p class="texto-2" data-t="etapa.abrir"></p>
+      <h2 tabindex="-1" data-t="pronto.titulo" aria-describedby="pronto-ia"></h2>
+      <p class="texto-2" id="pronto-abrindo" data-t="etapa.abrir"></p>
+      <!-- o modelo não baixou: o joBot fica instalado e o "Continuar" leva ao controle (D185.17) -->
+      <p class="texto-2" id="pronto-ia" hidden></p>
     </section>
 
     <section data-passo="incompleto" hidden>
@@ -150,6 +167,7 @@
     <button type="button" id="instalar" class="botao-principal" data-t="instalar" hidden></button>
     <button type="button" id="sem-navegador" class="botao-simples" data-t="sem_navegador" hidden></button>
     <button type="button" id="tentar" class="botao-principal" data-t="tentar" hidden></button>
+    <button type="button" id="seguir" class="botao-principal" data-t="continuar" hidden></button>
   </div>
 </main>
 

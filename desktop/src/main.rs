@@ -77,9 +77,15 @@ fn estado_instalador(app: AppHandle) -> Value {
     estado
 }
 
-/// Instala numa linha à parte; o progresso vai pelo canal e termina em `{"fim": ...}`.
-#[tauri::command]
-fn instalar(app: AppHandle, navegador: bool, progresso: Channel<Value>) -> Result<(), String> {
+/// Instala numa linha à parte; o progresso vai pelo canal e termina em `{"fim": ...}`. Os
+/// argumentos chegam como a página os manda (`modelo_local`, desenho 10.1).
+#[tauri::command(rename_all = "snake_case")]
+fn instalar(
+    app: AppHandle,
+    navegador: bool,
+    modelo_local: bool,
+    progresso: Channel<Value>,
+) -> Result<(), String> {
     let estado = app.state::<Arc<Instalacao>>().inner().clone();
     if estado.em_curso.swap(true, Ordering::SeqCst) {
         return Err("a instalação já está em curso".into());
@@ -101,6 +107,7 @@ fn instalar(app: AppHandle, navegador: bool, progresso: Channel<Value>) -> Resul
         let resultado = instalador.instalar(
             SHA_MANIFESTO.unwrap_or_default(),
             navegador,
+            modelo_local,
             &estado.cancelado,
             &mut rodar,
             &mut |aviso| {
@@ -118,7 +125,12 @@ fn instalar(app: AppHandle, navegador: bool, progresso: Channel<Value>) -> Resul
             return;
         }
         match resultado {
-            Ok(()) => {
+            // o joBot ficou instalado e o modelo não baixou: a página Pronto diz o que faltou e
+            // o "Continuar" dela pede o controle (`mostrar_controle`; D185.17, D207.2)
+            Ok(Some(motivo)) => {
+                let _ = progresso.send(json!({"fim": "pronto", "ia_local": motivo}));
+            }
+            Ok(None) => {
                 let _ = progresso.send(json!({"etapa": "abrir"}));
                 let _ = progresso.send(json!({"fim": "pronto"}));
                 ir_ao_controle(&app, &janela);
@@ -130,6 +142,26 @@ fn instalar(app: AppHandle, navegador: bool, progresso: Channel<Value>) -> Resul
             }
         }
     });
+    Ok(())
+}
+
+/// O "Continuar" da página Pronto quando o Modelo local não baixou (T418; D185.17): o joBot
+/// ficou instalado e a casca mostra o controle, como no fim sem falha (D207.2). Fora disso
+/// (instalação em curso ou sem o joBot), recusa.
+#[tauri::command]
+fn mostrar_controle(app: AppHandle) -> Result<(), String> {
+    if app
+        .state::<Arc<Instalacao>>()
+        .em_curso
+        .load(Ordering::SeqCst)
+    {
+        return Err("a instalação está em curso".into());
+    }
+    if servidor::jobot_instalado(&dados(), std::env::consts::OS).is_none() {
+        return Err("o joBot não está instalado".into());
+    }
+    let janela = app.get_webview_window("main").ok_or("sem a janela")?;
+    ir_ao_controle(&app, &janela);
     Ok(())
 }
 
@@ -366,6 +398,7 @@ fn main() {
             estado_instalador,
             instalar,
             fechar_instalador,
+            mostrar_controle,
             fechar_controle,
             estado_controle,
             ligar,
@@ -469,6 +502,7 @@ fn verificar(info: &tauri::PackageInfo) -> i32 {
     };
     let feito = instalador.instalar(
         SHA_MANIFESTO.unwrap_or_default(),
+        false,
         false,
         &cancelado,
         &mut rodar,

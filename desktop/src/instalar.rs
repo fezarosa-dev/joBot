@@ -1,9 +1,10 @@
 //! Instalação pela casca, sem rede (desenho 5.2 e 6.2; D173, D174, D181). Confere o
 //! `manifesto.json` pelo sha256 gravado no build e cada arquivo dos recursos pelo manifesto,
 //! prepara o Python e o venv com o `uv` dos recursos, prova o `jobot --version`, baixa o
-//! navegador se marcado (o único passo com rede, D183.24) e só então grava o `instalacao.json`. Falhou ou foi cancelada: o que a
-//! instalação criou na pasta da casca sai e o `instalacao.json` não é gravado (o Chromium fica
-//! na pasta do Playwright, D181.9).
+//! navegador se marcado (com rede, D183.24) e só então grava o `instalacao.json`. Falhou ou foi
+//! cancelada: o que a instalação criou na pasta da casca sai e o `instalacao.json` não é gravado
+//! (o Chromium fica na pasta do Playwright, D181.9). Depois, se marcado, o Modelo local (com
+//! rede, T418; D185.17): a falha ou o cancelamento dele não desfaz o joBot.
 //!
 //! Recursos (`desktop/recursos/`, D181): `manifesto.json`, `bin/uv.tar` (o `uv` ou o `uv.exe`
 //! num tar sem compressão, D183),
@@ -15,6 +16,7 @@
 use crate::servidor;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
+use std::collections::BTreeMap;
 use std::fmt::Write as _;
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, BufRead, BufReader, Read, Write};
@@ -42,6 +44,16 @@ pub struct Entrada {
 pub struct Manifesto {
     pub versao: String,
     pub arquivos: Vec<Entrada>,
+    pub ia_local: Option<IaLocal>,
+}
+
+/// Os tamanhos do Modelo local que o build copia do `ia_local.json` para o manifesto (T418;
+/// desenho 10.1): o `llama-server` do alvo e cada modelo, em bytes. Nada disso vem nos recursos:
+/// a tela os mostra antes de o venv existir, e o passo do modelo mede o progresso por eles.
+#[derive(Debug, Clone, PartialEq)]
+pub struct IaLocal {
+    pub servidor: u64,
+    pub modelos: BTreeMap<String, u64>,
 }
 
 impl Manifesto {
@@ -197,22 +209,47 @@ pub fn ler_manifesto(bytes: &[u8]) -> Result<Manifesto, Erro> {
     Ok(Manifesto {
         versao: versao.into(),
         arquivos,
+        ia_local: ler_ia_local(&conteudo),
     })
 }
 
-/// Uma linha JSON do `jobot ferramentas baixar navegador` (T330).
+/// Os tamanhos do Modelo local; faltando ou tortos, `None`, e a tela não oferece o modelo.
+fn ler_ia_local(conteudo: &Value) -> Option<IaLocal> {
+    let ia = conteudo.get("ia_local")?;
+    let modelos = ia.get("modelos")?.as_object()?.iter();
+    let modelos: BTreeMap<String, u64> = modelos
+        .map(|(nome, tamanho)| Some((nome.clone(), tamanho.as_u64()?)))
+        .collect::<Option<_>>()?;
+    let servidor = ia.get("servidor")?.as_u64()?;
+    (!modelos.is_empty()).then_some(IaLocal { servidor, modelos })
+}
+
+/// Uma linha JSON do `jobot ferramentas baixar navegador` (T330) ou `baixar ia-local` (T418).
 #[derive(Debug, PartialEq)]
 pub enum Linha {
-    Progresso { feito: u64, total: Option<u64> },
-    Fim(bool),
+    Progresso {
+        feito: u64,
+        total: Option<u64>,
+    },
+    /// O modelo que o `baixar ia-local` escolheu pela memória (`{"modelo": "4b", ...}`).
+    Modelo(String),
+    /// `Ok` na linha `{"fim": "pronto"}`; senão o `motivo` da linha (sem ele, `outro`).
+    Fim(Result<(), String>),
 }
 
 pub fn ler_linha(linha: &str) -> Option<Linha> {
     let conteudo: Value = serde_json::from_str(linha.trim()).ok()?;
     if let Some(fim) = conteudo.get("fim").and_then(Value::as_str) {
-        return Some(Linha::Fim(fim == "pronto"));
+        if fim == "pronto" {
+            return Some(Linha::Fim(Ok(())));
+        }
+        let motivo = conteudo.get("motivo").and_then(Value::as_str);
+        return Some(Linha::Fim(Err(motivo.unwrap_or("outro").into())));
     }
-    if conteudo.get("etapa")?.as_str()? != "navegador" {
+    if let Some(modelo) = conteudo.get("modelo").and_then(Value::as_str) {
+        return Some(Linha::Modelo(modelo.into()));
+    }
+    if !matches!(conteudo.get("etapa")?.as_str()?, "navegador" | "ia_local") {
         return None;
     }
     Some(Linha::Progresso {
@@ -243,14 +280,23 @@ fn manifesto_da_versao(recursos: &Path, sha_manifesto: &str, versao: &str) -> Op
 }
 
 /// Para a tela: se os recursos estão completos e quanto ocupam (o navegador, baixado à parte,
-/// pela estimativa `TAMANHO_DO_NAVEGADOR`).
+/// pela estimativa `TAMANHO_DO_NAVEGADOR`; o Modelo local pelos tamanhos do manifesto, `null`
+/// sem eles).
 pub fn estado(recursos: &Path, sha_manifesto: Option<&str>, versao: &str) -> Value {
     let manifesto = sha_manifesto.and_then(|sha| manifesto_da_versao(recursos, sha, versao));
     let Some(manifesto) = manifesto else {
         return json!({"completo": false});
     };
     let base: u64 = manifesto.arquivos.iter().map(|e| e.tamanho).sum();
-    json!({"completo": true, "base": base, "navegador": TAMANHO_DO_NAVEGADOR})
+    let ia_local = manifesto
+        .ia_local
+        .map(|ia| json!({"servidor": ia.servidor, "modelos": ia.modelos}));
+    json!({
+        "completo": true,
+        "base": base,
+        "navegador": TAMANHO_DO_NAVEGADOR,
+        "ia_local": ia_local,
+    })
 }
 
 /// Escrita atômica (`.tmp` na mesma pasta, `fsync` e troca), 0600 no Linux e no Mac.
@@ -619,8 +665,8 @@ impl Instalador<'_> {
             Some(Linha::Progresso { feito, total }) => {
                 progresso(json!({"etapa": "navegador", "feito": feito, "total": total}));
             }
-            Some(Linha::Fim(ok)) => pronto = ok,
-            None => {}
+            Some(Linha::Fim(fim)) => pronto = fim.is_ok(),
+            Some(Linha::Modelo(_)) | None => {}
         })?;
         if saida.codigo != Some(0) || !pronto {
             return Err(match falhou("jobot ferramentas baixar navegador", &saida) {
@@ -631,15 +677,17 @@ impl Instalador<'_> {
         Ok(())
     }
 
-    /// Confere, instala e grava; com erro, desfaz o que criou.
+    /// Confere, instala e grava; com erro, desfaz o que criou. `Ok(Some(motivo))`: o joBot
+    /// ficou instalado e o Modelo local não baixou.
     pub fn instalar(
         &self,
         sha_manifesto: &str,
         navegador: bool,
+        modelo_local: bool,
         cancelado: &AtomicBool,
         rodar: &mut Rodar,
         progresso: &mut dyn FnMut(Value),
-    ) -> Result<(), Erro> {
+    ) -> Result<Option<String>, Erro> {
         let existia = self.pasta.exists();
         let pythons_antes = itens(&self.pasta.join("python"));
         let feito =
@@ -656,7 +704,62 @@ impl Instalador<'_> {
                 apagar(self.pasta);
             }
         }
-        feito
+        let manifesto = feito?;
+        if !modelo_local {
+            return Ok(None);
+        }
+        // depois do `instalacao.json` (D185.17): a falha do modelo não desfaz o joBot
+        let tamanhos = manifesto.ia_local.as_ref();
+        Ok(self
+            .baixar_modelo_local(tamanhos, cancelado, rodar, progresso)
+            .err())
+    }
+
+    /// O passo opcional do Modelo local (desenho 10.1): o `jobot ferramentas baixar ia-local`
+    /// do venv, que escolhe o modelo pela memória e baixa o `llama-server` e o modelo da fonte
+    /// oficial. O progresso soma os dois arquivos contra os tamanhos do manifesto. `Err` traz o
+    /// motivo da linha `fim` (`cancelado` se a pessoa fechou a janela: o `rodar` encerra a
+    /// árvore e o `.parcial` fica para Configurações › Ferramentas retomar).
+    pub fn baixar_modelo_local(
+        &self,
+        tamanhos: Option<&IaLocal>,
+        cancelado: &AtomicBool,
+        rodar: &mut Rodar,
+        progresso: &mut dyn FnMut(Value),
+    ) -> Result<(), String> {
+        if cancelado.load(Ordering::SeqCst) {
+            return Err("cancelado".into());
+        }
+        progresso(json!({"etapa": "ia_local"}));
+        let comando = self.comando_jobot(&["ferramentas", "baixar", "ia-local"]);
+        let (mut esperado, mut concluido, mut atual, mut fim) = (None, 0, None, None);
+        let saida = rodar(comando, &mut |texto| match ler_linha(texto) {
+            Some(Linha::Modelo(nome)) => {
+                esperado = tamanhos.and_then(|t| Some(t.servidor + t.modelos.get(&nome)?));
+            }
+            Some(Linha::Progresso { feito, total }) => {
+                // cada arquivo conta do zero: soma o que os anteriores já baixaram
+                if total != atual {
+                    concluido += atual.unwrap_or(0);
+                    atual = total;
+                }
+                let total = esperado.or(total.map(|t| concluido + t));
+                progresso(json!({"etapa": "ia_local", "feito": concluido + feito, "total": total}));
+            }
+            Some(Linha::Fim(resultado)) => fim = Some(resultado),
+            None => {}
+        });
+        match (saida, fim) {
+            (Ok(saida), Some(Ok(()))) if saida.codigo == Some(0) => Ok(()),
+            (Ok(_), Some(Err(motivo))) => Err(motivo),
+            (Ok(_), _) => Err("outro".into()),
+            (Err(erro), _) => Err(match erro {
+                Erro::Cancelado => "cancelado",
+                Erro::Espaco => "espaco",
+                _ => "outro",
+            }
+            .into()),
+        }
     }
 
     fn instalar_sem_desfazer(
@@ -666,7 +769,7 @@ impl Instalador<'_> {
         cancelado: &AtomicBool,
         rodar: &mut Rodar,
         progresso: &mut dyn FnMut(Value),
-    ) -> Result<(), Erro> {
+    ) -> Result<Manifesto, Erro> {
         let (manifesto, bruto) = conferir(
             self.recursos,
             sha_manifesto,
@@ -767,7 +870,7 @@ impl Instalador<'_> {
         });
         let bytes = serde_json::to_vec_pretty(&instalacao).expect("JSON fixo");
         gravar_atomico(&self.dados.join(INSTALACAO), &bytes)?;
-        Ok(())
+        Ok(manifesto)
     }
 }
 
@@ -780,6 +883,9 @@ mod testes {
     use std::sync::atomic::Ordering;
 
     const VERSAO: &str = "0.3.0";
+    /// Os tamanhos do Modelo local no manifesto de mentira (o `llama-server` e os dois modelos).
+    static IA_LOCAL: std::sync::LazyLock<Value> =
+        std::sync::LazyLock::new(|| json!({"servidor": 10, "modelos": {"2b": 100, "4b": 200}}));
     const PYTHON: &str = "python/20260807/cpython-3.14.7+20260807-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz";
 
     fn temporaria(nome: &str) -> PathBuf {
@@ -869,7 +975,12 @@ mod testes {
             fs::write(&caminho, &conteudo).unwrap();
             lista.push(json!({"nome": nome, "tamanho": conteudo.len(), "sha256": sha(&conteudo)}));
         }
-        let bruto = serde_json::to_vec(&json!({"versao": versao, "arquivos": lista})).unwrap();
+        let bruto = serde_json::to_vec(&json!({
+            "versao": versao,
+            "arquivos": lista,
+            "ia_local": IA_LOCAL.clone(),
+        }))
+        .unwrap();
         fs::write(raiz.join(MANIFESTO), &bruto).unwrap();
         sha(&bruto)
     }
@@ -987,6 +1098,7 @@ mod testes {
         let r = c.instalador().instalar(
             &errado,
             true,
+            false,
             &AtomicBool::new(false),
             &mut executor,
             &mut |_| {},
@@ -1009,6 +1121,7 @@ mod testes {
         let r = c.instalador().instalar(
             &c.sha,
             true,
+            false,
             &AtomicBool::new(false),
             &mut executor,
             &mut |_| {},
@@ -1029,13 +1142,13 @@ mod testes {
         let parar = AtomicBool::new(false);
         let r = c
             .instalador()
-            .instalar(&c.sha, true, &parar, &mut executor, &mut |_| {});
+            .instalar(&c.sha, true, false, &parar, &mut executor, &mut |_| {});
         assert_eq!(r, Err(Erro::Arquivo("restricoes.txt".into())));
         let c = cenario("sobra");
         fs::write(c.recursos.join("wheels/intrusa-1.0-py3-none-any.whl"), "x").unwrap();
         let r = c
             .instalador()
-            .instalar(&c.sha, true, &parar, &mut executor, &mut |_| {});
+            .instalar(&c.sha, true, false, &parar, &mut executor, &mut |_| {});
         assert_eq!(
             r,
             Err(Erro::Arquivo("wheels/intrusa-1.0-py3-none-any.whl".into()))
@@ -1049,9 +1162,9 @@ mod testes {
         let sha_outro = montar_recursos(&c.recursos, "0.2.0");
         let (feitos, mut executor) = falso(c.pasta.clone(), "jobot 0.3.0", None);
         let parar = AtomicBool::new(false);
-        let r = c
-            .instalador()
-            .instalar(&sha_outro, true, &parar, &mut executor, &mut |_| {});
+        let r =
+            c.instalador()
+                .instalar(&sha_outro, true, false, &parar, &mut executor, &mut |_| {});
         assert_eq!(r, Err(Erro::Arquivo(MANIFESTO.into())));
         assert!(feitos.borrow().is_empty());
     }
@@ -1086,11 +1199,12 @@ mod testes {
         let r = c.instalador().instalar(
             &c.sha,
             true,
+            false,
             &AtomicBool::new(false),
             &mut executor,
             &mut |v| avisos.push(v),
         );
-        assert_eq!(r, Ok(()));
+        assert_eq!(r, Ok(None));
         let uv = texto(&c.pasta.join("bin").join("uv"));
         let venv = c.pasta.join("venvs").join("venv-0.3.0");
         let jobot = texto(&venv.join("bin").join("jobot"));
@@ -1216,11 +1330,12 @@ mod testes {
         let r = c.instalador().instalar(
             &c.sha,
             false,
+            false,
             &AtomicBool::new(false),
             &mut executor,
             &mut |_| {},
         );
-        assert_eq!(r, Ok(()));
+        assert_eq!(r, Ok(None));
         let todos = argvs(&feitos);
         assert_eq!(todos.len(), 4, "{todos:?}");
         assert!(
@@ -1239,6 +1354,7 @@ mod testes {
         let r = c.instalador().instalar(
             &c.sha,
             true,
+            false,
             &AtomicBool::new(false),
             &mut executor,
             &mut |_| {},
@@ -1259,6 +1375,7 @@ mod testes {
         let r = c.instalador().instalar(
             &c.sha,
             true,
+            false,
             &AtomicBool::new(false),
             &mut executor,
             &mut |_| {},
@@ -1287,6 +1404,7 @@ mod testes {
         let r = c.instalador().instalar(
             &c.sha,
             true,
+            false,
             &AtomicBool::new(false),
             &mut executor,
             &mut |_| {},
@@ -1317,7 +1435,7 @@ mod testes {
         };
         let r = c
             .instalador()
-            .instalar(&c.sha, true, &parar, &mut executor, &mut |_| {});
+            .instalar(&c.sha, true, false, &parar, &mut executor, &mut |_| {});
         assert_eq!(r, Err(Erro::Cancelado));
         assert_eq!(argvs(&feitos).len(), 3);
         assert!(!c.pasta.exists());
@@ -1331,6 +1449,7 @@ mod testes {
         let r = c.instalador().instalar(
             &c.sha,
             true,
+            false,
             &AtomicBool::new(true),
             &mut executor,
             &mut |_| {},
@@ -1356,10 +1475,223 @@ mod testes {
                 total: None
             })
         );
-        assert_eq!(ler_linha(r#"{"fim":"pronto"}"#), Some(Linha::Fim(true)));
-        assert_eq!(ler_linha(r#"{"fim":"falhou"}"#), Some(Linha::Fim(false)));
+        assert_eq!(ler_linha(r#"{"fim":"pronto"}"#), Some(Linha::Fim(Ok(()))));
+        assert_eq!(
+            ler_linha(r#"{"fim":"falhou"}"#),
+            Some(Linha::Fim(Err("outro".into())))
+        );
         assert_eq!(ler_linha(r#"{"etapa":"outra","feito":1}"#), None);
         assert_eq!(ler_linha("aviso solto"), None);
+    }
+
+    #[test]
+    fn linhas_do_modelo_local() {
+        assert_eq!(
+            ler_linha(r#"{"etapa":"ia_local","feito":4,"total":10}"#),
+            Some(Linha::Progresso {
+                feito: 4,
+                total: Some(10)
+            })
+        );
+        assert_eq!(
+            ler_linha(r#"{"memoria":8000000000,"modelo":"2b","lento":false}"#),
+            Some(Linha::Modelo("2b".into()))
+        );
+        assert_eq!(
+            ler_linha(r#"{"fim":"falhou","motivo":"sem_rede"}"#),
+            Some(Linha::Fim(Err("sem_rede".into())))
+        );
+    }
+
+    /// O `ia_local` que `ler_manifesto` tira de um manifesto com esses tamanhos.
+    fn ia_do_manifesto(ia: Value) -> Result<Option<IaLocal>, Erro> {
+        let conteudo = json!({"versao": VERSAO, "arquivos": [], "ia_local": ia});
+        ler_manifesto(&serde_json::to_vec(&conteudo).unwrap()).map(|m| m.ia_local)
+    }
+
+    #[test]
+    fn manifesto_traz_os_tamanhos_do_modelo() {
+        let modelos = BTreeMap::from([("2b".to_string(), 100), ("4b".to_string(), 200)]);
+        assert_eq!(
+            ia_do_manifesto(IA_LOCAL.clone()),
+            Ok(Some(IaLocal {
+                servidor: 10,
+                modelos
+            }))
+        );
+    }
+
+    // guardas: sem os tamanhos, ou com eles tortos, a tela não oferece o modelo (o controle é o
+    // teste acima, com a mesma montagem)
+    #[test]
+    fn manifesto_sem_os_tamanhos_nao_oferece_o_modelo() {
+        assert_eq!(ia_do_manifesto(Value::Null), Ok(None));
+    }
+
+    #[test]
+    fn manifesto_sem_modelo_nao_oferece_o_modelo() {
+        assert_eq!(
+            ia_do_manifesto(json!({"servidor": 10, "modelos": {}})),
+            Ok(None)
+        );
+    }
+
+    #[test]
+    fn manifesto_com_servidor_torto_nao_oferece_o_modelo() {
+        let ia = json!({"servidor": "10", "modelos": {"2b": 1}});
+        assert_eq!(ia_do_manifesto(ia), Ok(None));
+    }
+
+    #[test]
+    fn manifesto_com_tamanho_de_modelo_torto_nao_oferece_o_modelo() {
+        let ia = json!({"servidor": 10, "modelos": {"2b": 1, "4b": -1}});
+        assert_eq!(ia_do_manifesto(ia), Ok(None));
+    }
+
+    /// Executor do passo do modelo: imita o `jobot ferramentas baixar ia-local` com as linhas
+    /// dadas e o código de saída; os outros comandos vão para o `falso`.
+    #[allow(clippy::type_complexity)] // o executor é um impl FnMut: não cabe num type
+    fn com_modelo(
+        dados: PathBuf,
+        linhas: &'static [&'static str],
+        codigo: i32,
+        visto: Rc<RefCell<Vec<bool>>>,
+        mut base: impl FnMut(Command, &mut dyn FnMut(&str)) -> Result<Saida, Erro>,
+    ) -> impl FnMut(Command, &mut dyn FnMut(&str)) -> Result<Saida, Erro> {
+        move |comando: Command, linha: &mut dyn FnMut(&str)| {
+            if !comando.get_args().any(|a| a == "ia-local") {
+                return base(comando, linha);
+            }
+            visto.borrow_mut().push(dados.join(INSTALACAO).exists());
+            let _ = base(comando, &mut |_| {}); // grava o argv
+            for texto in linhas {
+                linha(texto);
+            }
+            Ok(Saida {
+                codigo: Some(codigo),
+                ..Saida::default()
+            })
+        }
+    }
+
+    #[test]
+    fn modelo_local_roda_depois_de_gravado_o_instalacao_json() {
+        let c = cenario("modelo-local");
+        let (feitos, base) = falso(c.pasta.clone(), "jobot 0.3.0", None);
+        let visto = Rc::default();
+        let linhas = &[
+            r#"{"memoria":16000000000,"modelo":"4b","lento":false}"#,
+            r#"{"etapa":"ia_local","feito":0,"total":10}"#,
+            r#"{"etapa":"ia_local","feito":10,"total":10}"#,
+            r#"{"etapa":"ia_local","feito":50,"total":200}"#,
+            r#"{"etapa":"ia_local","feito":200,"total":200}"#,
+            r#"{"fim":"pronto"}"#,
+        ];
+        let mut executor = com_modelo(c.dados.clone(), linhas, 0, Rc::clone(&visto), base);
+        let mut avisos = Vec::new();
+        let r = c.instalador().instalar(
+            &c.sha,
+            true,
+            true,
+            &AtomicBool::new(false),
+            &mut executor,
+            &mut |v| avisos.push(v),
+        );
+        assert_eq!(r, Ok(None));
+        // o último comando, depois do navegador, com o instalacao.json já gravado (D185.17)
+        let todos = argvs(&feitos);
+        let jobot = texto(&c.instalador().venv().join("bin").join("jobot"));
+        assert_eq!(
+            todos.last().unwrap(),
+            &v(&[&jobot, "ferramentas", "baixar", "ia-local"])
+        );
+        assert_eq!(*visto.borrow(), [true]);
+        let mut etapas: Vec<&str> = avisos.iter().filter_map(|v| v["etapa"].as_str()).collect();
+        etapas.dedup();
+        assert_eq!(
+            etapas,
+            ["conferir", "python", "jobot", "navegador", "ia_local"]
+        );
+        // por bytes: os dois arquivos somados contra o llama-server e o modelo escolhido
+        let do_modelo: Vec<&Value> = avisos
+            .iter()
+            .filter(|v| v["etapa"] == "ia_local" && v.get("feito").is_some())
+            .collect();
+        assert_eq!(
+            do_modelo,
+            [
+                &json!({"etapa": "ia_local", "feito": 0, "total": 210}),
+                &json!({"etapa": "ia_local", "feito": 10, "total": 210}),
+                &json!({"etapa": "ia_local", "feito": 60, "total": 210}),
+                &json!({"etapa": "ia_local", "feito": 210, "total": 210}),
+            ]
+        );
+    }
+
+    #[test]
+    fn modelo_local_que_falha_nao_desfaz_e_diz_o_motivo() {
+        for (linhas, codigo, motivo) in [
+            (
+                &[r#"{"fim":"falhou","motivo":"sem_rede"}"#][..],
+                1,
+                "sem_rede",
+            ),
+            (&[r#"{"fim":"falhou","motivo":"espaco"}"#][..], 1, "espaco"),
+            // o comando que cai sem a linha `fim`, ou que sai com 1 depois de "pronto"
+            (&[][..], 1, "outro"),
+            (&[r#"{"fim":"pronto"}"#][..], 1, "outro"),
+        ] {
+            let c = cenario(&format!("modelo-falha-{motivo}-{codigo}-{}", linhas.len()));
+            let (_, base) = falso(c.pasta.clone(), "jobot 0.3.0", None);
+            let visto = Rc::default();
+            let mut executor = com_modelo(c.dados.clone(), linhas, codigo, visto, base);
+            let r = c.instalador().instalar(
+                &c.sha,
+                false,
+                true,
+                &AtomicBool::new(false),
+                &mut executor,
+                &mut |_| {},
+            );
+            assert_eq!(r, Ok(Some(motivo.to_string())), "{linhas:?}");
+            assert!(c.dados.join(INSTALACAO).exists());
+            assert!(c.instalador().venv().exists());
+            assert!(c.pasta.join("manifesto-0.3.0.json").exists());
+        }
+    }
+
+    #[test]
+    fn modelo_local_cancelado_mantem_o_parcial_e_o_instalacao_json() {
+        let c = cenario("modelo-cancelado");
+        let parar = AtomicBool::new(false);
+        let parcial = c
+            .dados
+            .join("ferramentas")
+            .join("modelos")
+            .join("Qwen3.5-4B-Q4_K_M.gguf.00fe7986ff5f.parcial");
+        let (feitos, mut base) = falso(c.pasta.clone(), "jobot 0.3.0", None);
+        let mut executor = |comando: Command, linha: &mut dyn FnMut(&str)| {
+            let modelo = comando.get_args().any(|a| a == "ia-local");
+            let r = base(comando, linha);
+            if modelo {
+                // o download começou e a pessoa fechou a janela: o `rodar` encerra a árvore
+                // (`rodar_cancelado_encerra_os_netos`) e devolve `Cancelado`
+                fs::create_dir_all(parcial.parent().unwrap()).unwrap();
+                fs::write(&parcial, "metade").unwrap();
+                linha(r#"{"etapa":"ia_local","feito":3,"total":10}"#);
+                parar.store(true, Ordering::SeqCst);
+                return Err(Erro::Cancelado);
+            }
+            r
+        };
+        let r = c
+            .instalador()
+            .instalar(&c.sha, false, true, &parar, &mut executor, &mut |_| {});
+        assert_eq!(r, Ok(Some("cancelado".to_string())));
+        assert!(argvs(&feitos).concat().contains(&"ia-local".to_string()));
+        assert_eq!(fs::read_to_string(&parcial).unwrap(), "metade");
+        assert!(c.dados.join(INSTALACAO).exists());
+        assert!(c.instalador().venv().exists());
     }
 
     #[test]
@@ -1400,7 +1732,12 @@ mod testes {
         let total: u64 = arquivos().iter().map(|(_, c)| c.len() as u64).sum();
         assert_eq!(
             estado(&c.recursos, Some(c.sha.as_str()), VERSAO),
-            json!({"completo": true, "base": total, "navegador": TAMANHO_DO_NAVEGADOR})
+            json!({
+                "completo": true,
+                "base": total,
+                "navegador": TAMANHO_DO_NAVEGADOR,
+                "ia_local": IA_LOCAL.clone(),
+            })
         );
         assert_eq!(
             estado(&c.recursos, None, VERSAO),

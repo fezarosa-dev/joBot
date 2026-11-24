@@ -374,7 +374,8 @@ jobs:
   # A casca instalada aberta de verdade (T355; D212): o .deb (em português) e o AppImage (em
   # inglês), cada um num contêiner sem rede, como usuário comum, num Xvfb com o openbox. Sem o
   # joBot, a janela abre na tela de instalação: pelo teclado, instala sem o navegador do login
-  # e cai no controle, que só mostra "Parado"; depois, Ligar, Abrir joBot e Parar, e por fim ligado de
+  # (no AppImage, com o Modelo local marcado, que falha sem rede e deixa a janela no Pronto até
+  # o Continuar; D205.8) e cai no controle, que só mostra "Parado"; depois, Ligar, Abrir joBot e Parar, e por fim ligado de
   # novo, fechar a janela, que pergunta (D215): Esc cancela e Desligar para e fecha. O navegador é falso:
   # um xdg-open que grava o endereço, o próprio ambiente e o APPDIR da casca que o chamou; no
   # AppImage nenhuma variável pode apontar para dentro dele (D207.1). As capturas da janela
@@ -454,10 +455,28 @@ jobs:
           xdotool key --delay 300 Tab Tab Return
           sleep 3
           foto 0-ferramentas
-          # ferramentas: do título, a caixa do navegador (a do joBot é fixa), o Voltar e o Instalar
-          xdotool key --delay 300 Tab space Tab Tab Return
+          # ferramentas: do título, a caixa do navegador (a do joBot é fixa), a do Modelo local, o
+          # Voltar e o Instalar. No AppImage o modelo vai marcado (D205.8): sem rede, ele falha
+          # depois de gravado o instalacao.json, a janela fica no Pronto com o motivo e o
+          # Continuar dela leva ao controle; no .deb, desmarcado, a janela vai sozinha
+          if [ "$nome" = appimage ]; then modelo=space; else modelo=; fi
+          xdotool key --delay 300 Tab space Tab $modelo Tab Tab Return
           esperar 300 test -s "$dados/instalacao.json"
+          largura() { xdotool getwindowgeometry --shell "$janela" | sed -n 's/^WIDTH=//p'; }
+          if [ "$nome" = appimage ]; then
+            baixando() { grep -qs -- 'ia-loca[l]' /proc/[0-9]*/cmdline; }
+            parou() { ! baixando; }
+            sleep 5
+            esperar 120 parou
+            sleep 5
+            test "$(largura)" -gt 600  # a tela da instalação: a casca não foi sozinha ao controle
+            test ! -e "$dados/ferramentas/ia_local.json"  # nada anotado como baixado
+            foto 0-pronto-sem-modelo
+            xdotool windowactivate --sync "$janela"
+            xdotool key --delay 300 Tab Return  # do título Pronto, o Continuar
+          fi
           sleep 10  # a janela encolhe, vai ao controle, carrega os textos e pergunta o estado
+          test "$(largura)" -lt 600
           parado
           foto 1-parado
           xdotool windowactivate --sync "$janela"
