@@ -153,6 +153,49 @@ def test_largura_anda_entre_perguntas(page: Page, painel: str, app_painel: FastA
     assert abs(_medir(page)["largura"] - alvo) < 0.5
 
 
+EASING = """() => {
+  const a = document.getElementById("andamento-preenchimento")?.getAnimations()
+    .find((a) => a.effect.getComputedTiming().endTime !== Infinity);
+  return a ? a.effect.getTiming().easing : null;
+}"""
+
+
+def _inclinacoes(easing: str) -> tuple[float, float]:
+    """Velocidade no começo e no fim da animação, em vezes a velocidade média dela."""
+    padrao = r"cubic-bezier\(([^,]+),([^,]+),([^,]+),([^)]+)\)"
+    achado = re.fullmatch(padrao, easing.replace(" ", ""))
+    assert achado, easing
+    x1, y1, x2, y2 = (float(n) for n in achado.groups())
+    return y1 / x1, (1 - y2) / (1 - x2)
+
+
+def test_velocidade_nao_da_tranco_entre_perguntas(
+    page: Page, painel: str, app_painel: FastAPI
+) -> None:
+    """D216: cada trecho começa na velocidade em que o anterior terminou (sem corte seco)."""
+    banco = app_painel.state.banco
+    id_ = _busca(banco, {"gupy": 10})
+    _etapa(banco, id_, "coleta", 1, 10)
+    page.clock.install()
+    _carregar(page, painel)
+    v0 = float(_assentar(page)["valor"])
+    _etapa(banco, id_, "coleta", 5, 10)
+    _proxima_pergunta(page)
+    primeiro = _esperar_valor_novo(page, str(v0))
+    comeco, _ = _inclinacoes(page.evaluate(EASING))
+    assert comeco == pytest.approx(0, abs=0.01)  # saiu do parado: começa do zero, sem salto
+    v1 = float(primeiro["valor"])
+    _terminar_animacoes(page)
+    _etapa(banco, id_, "coleta", 9, 10)
+    _proxima_pergunta(page)
+    v2 = float(_esperar_valor_novo(page, primeiro["valor"])["valor"])
+    comeco, fim = _inclinacoes(page.evaluate(EASING))
+    # a velocidade média do trecho anterior, medida na média deste: a junta não tem degrau
+    assert comeco == pytest.approx(min((v1 - v0) / (v2 - v1), 3), abs=0.02)
+    assert fim == pytest.approx(1, abs=0.01)
+    assert v1 - v0 > v2 - v1  # e a curva freia: o mesmo trabalho anda menos depois
+
+
 def test_barra_continua_entre_perguntas(page: Page, painel: str, app_painel: FastAPI) -> None:
     banco = app_painel.state.banco
     id_ = _busca(banco, {"gupy": 10})

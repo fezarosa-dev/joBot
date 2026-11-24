@@ -14,6 +14,10 @@ O formato segue o [Keep a Changelog 1.1.0](https://keepachangelog.com/pt-BR/1.1.
 - ADR 0027: a casca só controla. A janela do joBot vira um controle com Ligar, Parar e Abrir joBot, e o painel abre no navegador padrão da pessoa. Troca a parte "Casca" da ADR 0025.
 - A base da IA da fase 4 já vem nesta versão, desligada e sem tela para ligar: a migração do banco que guarda o perfil, as habilidades que a IA tirar de cada vaga e o nível de encaixe, a dependência pydantic, os clientes da API da Anthropic e de serviços compatíveis com a OpenAI e o `jobot ferramentas baixar ia-local`, que baixa o llama-server e um modelo com sha256 conferido. Nada disso roda sem a pessoa ligar.
 
+### Alterado
+
+- A barra de progresso anda de forma fluida, no painel e na instalação: começa rápida e vai freando aos poucos, sem pular nem parar de repente entre uma etapa e outra.
+
 ## [0.4.0] - 2026-11-17
 
 A fase 3 chega: o joBot ganha uma janela própria e um instalador para Windows, Linux e Mac, que instala tudo sem internet, menos o navegador opcional.

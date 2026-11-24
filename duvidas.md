@@ -3933,3 +3933,18 @@ A sessão propôs abrir o painel no Chrome da pessoa como janela de app. O dono 
 **Como desfazer:** cada item diz o seu.
 
 **Ver também:** D185.24, D206, D208.4, D211, D212, ADR 0027, T357.
+
+## D216. Barra de progresso fluida, rápida no começo e freando
+
+**Status:** decidido pelo dono em 2026-11-23.
+
+**Contexto:** o dono viu as barras do painel e do instalador pulando: "começa carregando bem rápido e vai diminuindo a velocidade de forma fluida. E ele dividiu em blocos é só para poder saber a velocidade em cada ponto. Não é para pular e nem dar cortes secos". As etapas (os pesos do painel, as fatias do instalador) só dizem a velocidade em cada ponto; o movimento é contínuo. Isto substitui a curva da D143.62 (`p^1,25`, lenta no começo), que o dono tinha aceitado no lugar da que ele descreveu primeiro.
+
+1. **Curva do painel.** `f(p) = 1 − (1 − p)^1,5` (`nucleo/andamento.py`): começa com 1,5 vez a velocidade média e freia sempre, sem degrau. Ela fica acima de `p` entre as pontas, então a barra mostra um pouco mais do que foi feito; continuam o teto de 99% até fechar, nunca voltar e nunca passar do fim da etapa (`L = f(B)`).
+2. **Avanço lento contínuo.** Sai a espera de 3 s sem mudança e saem os degraus de 2 s: `v = max(f(p), partida, L − (L − partida) · 0,9^(t/2))`, com `t` em segundos desde a última mudança de `p`. A barra anda desde o primeiro instante e a velocidade só depende do que falta até `L`.
+3. **Movimento no painel.** Cada trecho entre duas perguntas (2 s) é uma `cubic-bezier` que começa na velocidade média do trecho anterior e termina na média dele (`app.js`): a junta não tem degrau de velocidade. Saindo do parado, começa do zero. A inclinação de saída tem teto de 3 vezes a média. Com Reduzir movimento, segue pulando direto para o valor.
+4. **Movimento no instalador.** O `aria-valuenow` continua sendo o valor real (as fatias da D181.11). A largura anda num laço de quadros: dentro da etapa, se aproxima do fim da fatia (o que falta cai a 0,9 a cada 2 s), e duas suavizações em série (250 ms cada) tiram o tranco quando a etapa troca ou chega uma contagem. Nunca volta; parada ("Parando") fica onde está; com Reduzir movimento, mostra o valor real.
+
+**Como desfazer:** item 1, `EXPOENTE` e `curva` de volta a `p^1,25`; item 2, o `PARADA_S` e o `math.floor`; itens 3 e 4, a animação linear de 2 s e a largura igual ao valor.
+
+**Ver também:** D143.55, D143.62, D143.63, D181.11, T252, T336, T358.

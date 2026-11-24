@@ -14,6 +14,10 @@ The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/
 - ADR 0027: the shell only controls. joBot's window becomes a control with Start, Stop and Open joBot, and the dashboard opens in the person's default browser. It replaces the "Shell" part of ADR 0025.
 - The base of the phase 4 AI already ships in this version, off and with no screen to turn it on: the database migration that stores the profile, the skills the AI extracts from each job and the match level, the pydantic dependency, the clients for the Anthropic API and for OpenAI-compatible services, and `jobot ferramentas baixar ia-local`, which downloads llama-server and a model with a checked sha256. None of it runs unless the person turns it on.
 
+### Changed
+
+- The progress bar moves smoothly, in the dashboard and in the installer: it starts fast and slows down gradually, without jumping or stopping abruptly between steps.
+
 ## [0.4.0] - 2026-11-17
 
 Phase 3 arrives: joBot gets a window of its own and an installer for Windows, Linux and Mac, which installs everything without internet, except the optional browser.
