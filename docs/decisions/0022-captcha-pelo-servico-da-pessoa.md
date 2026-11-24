@@ -62,7 +62,7 @@ O desenho completo (parte do 2Captcha e a parte da IA pela sessão, que fica reg
 - Quem quer o recurso tem de criar conta no 2Captcha, pôr saldo e guardar a chave aqui. Quem não quer não vê nenhuma mudança: o padrão é desligado.
 - O joBot passa a falar com um serviço de terceiro, só quando a pessoa liga. A lista de pedidos de rede dos textos de privacidade (README em português e inglês e a tela de Configurações, Privacidade) ganha o 2Captcha na mesma entrega do código.
 - Risco que fica com a pessoa: o site pode restringir a conta, e o gasto sai do saldo dela. Por isso o teto de 30 por dia e o log de cada resolução.
-- A regra "nunca contorna CAPTCHA" continua valendo nas fontes públicas, no `README.md`, na wiki e no `CLAUDE.md` do projeto. Esses textos mudam junto com o código da fase 2, não antes.
+- A regra "nunca contorna CAPTCHA" continua valendo nas fontes públicas, no `README.md`, na wiki e no `CLAUDE.md` do projeto. Esses textos mudam junto com o código da fase 2, não antes. (Feito: o `CLAUDE.md` já traz a exceção; o README e a wiki, em português e inglês, passaram a dizer "não contorna CAPTCHA sozinho", com a exceção do 2Captcha da pessoa, na revisão de 2026-11-24.)
 - Antes de construir, o dono confirma esta decisão (D124). Se não confirmar, a 0005 e a 0014 voltam ao texto anterior.
 - Desfazer: tirar a aba e o cliente da API e apagar a chave do cofre.
 

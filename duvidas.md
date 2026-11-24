@@ -4025,3 +4025,18 @@ A sessão propôs abrir o painel no Chrome da pessoa como janela de app. O dono 
 **Como desfazer:** tirar o último passo do `vigia.yml` e o `actions: write`.
 
 **Ver também:** ADR 0002, ADR 0016, ADR 0018, D31.
+
+## D220. Correções da code-ultrareview do repositório inteiro
+
+**Status:** escolhas da sessão em 2026-11-24, para discutir com o dono. O dono pediu a revisão do repositório inteiro e depois "pode corrigir essas coisas", com as decisões tomadas pela sessão e registradas aqui. Cada lote da correção põe os seus itens nesta dúvida.
+
+**Contexto:** a revisão olhou a `dev` em 6421277. Cada item diz o lote, o que a sessão escolheu e como desfazer.
+
+1. **Lote documentos: "não contorna CAPTCHA" ganha a exceção do 2Captcha (escolha da sessão, para discutir com o dono).** A lista "O que ele não faz" do README e da página `A-ideia-e-a-historia`, a FAQ, o princípio "Coleta educada" e a linha da 0005 em `Decisoes` diziam "nunca contorna CAPTCHA", mas o 2Captcha da pessoa (ADR 0022) já resolve o desafio na navegação com login, se ela puser a chave e ligar. Os textos (pt e en) passam a dizer "não contorna CAPTCHA sozinho": nas fontes públicas, nunca; na navegação com login, só pelo 2Captcha da pessoa, desligado por padrão; a FAQ diz que, sem ele ou se ele não resolver, vale o aviso de sempre. A ADR 0022 anota que os textos mudaram. A confirmação da própria ADR 0022 (D124) segue com o dono; se ele não confirmar, estes textos voltam junto com o código. Desfazer: voltar as frases pelo git.
+2. **Lote documentos: o selo de plataforma fica "Linux" (escolha da sessão, para discutir com o dono).** A revisão pediu "Linux | Windows | macOS", mas a D184.4 e o `test_selo_de_plataforma_nao_promete_o_que_nao_foi_testado` seguram a troca até a prova do dono nos PCs dele (T343). Nada mudou. Desfazer: nada; quando a T343 passar, trocar o selo e o teste juntos.
+3. **Lote documentos: a fase 9 do roteiro diz que o vigia e o atualizar já vieram (escolha da sessão, para discutir com o dono).** Em vez de apagar o item "Planejado", `Roteiro`/`Roadmap` dizem que o vigia semanal e o jeito fácil de atualizar já vieram na fase 1 (ADR 0018). Desfazer: apagar a linha.
+4. **Lote documentos: guarda da caixa dos rótulos em inglês (escolha da sessão, para discutir com o dono).** O `test_doc_em_ingles_cita_o_rotulo_com_a_caixa_do_catalogo` (`test_wiki.py`) confere todo texto entre aspas, de duas a quatro palavras, do README em inglês, do CHANGELOG em inglês e das páginas em inglês da wiki: se ele é um rótulo do catálogo `en` com outra caixa, falha ("More filters" e "search now" caíram nele). Palavra solta ficou de fora: "new" e "offer" entre aspas são estados da vaga, não botões. Negrito também ficou de fora ("**Text size:**" é o nome do item da lista). Desfazer: tirar o teste.
+
+**Como desfazer:** cada item diz o seu.
+
+**Ver também:** ADR 0018, ADR 0022, ADR 0025, ADR 0027, D124, D184.4, D213, T343.
