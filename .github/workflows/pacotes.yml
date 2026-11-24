@@ -267,6 +267,15 @@ jobs:
           depois=$(docker exec "$c" ls -A /tmp)
           echo "/tmp depois da saída normal: [$depois]"
           test "$depois" = "$antes"
+          # duas aberturas coladas (D217): a extração tem o mesmo nome e o vigia da primeira
+          # acorda com a segunda já extraída no mesmo lugar; ele não pode apagá-la
+          docker exec "$c" runuser -u pessoa -- sh -c 'export APPIMAGE_EXTRACT_AND_RUN=1 \
+            && JOBOT_DADOS="$HOME/dados-cola1" ./jobot.AppImage --verificar \
+            && JOBOT_DADOS="$HOME/dados-cola2" ./jobot.AppImage --verificar'
+          sleep 3
+          depois=$(docker exec "$c" ls -A /tmp)
+          echo "/tmp depois das duas aberturas coladas: [$depois]"
+          test "$depois" = "$antes"
           # à força: o vigia apaga; o controle mostra que, sem ele, a pasta fica
           docker exec "$c" runuser -u pessoa -- bash /lixo/forcar.sh controle
           docker exec "$c" runuser -u pessoa -- bash /lixo/forcar.sh vigia
@@ -503,6 +512,59 @@ jobs:
           xdotool key --delay 300 Tab Return
           esperar 30 parado
           fechada() { ! xdotool search --onlyvisible --name '^joBot$' > /dev/null; }
+          esperar 30 fechada
+          # D217: Deixar ligado (o Enter, no botão com o foco). Reabre, liga e fecha: a janela
+          # some, o painel segue no ar e o servidor não fica preso ao AppImage
+          WEBKIT_DISABLE_DMABUF_RENDERER=1 WEBKIT_DISABLE_COMPOSITING_MODE=1 \
+            dbus-run-session -- $casca >> "/capturas/$nome-casca.log" 2>&1 &
+          esperar 60 xdotool search --onlyvisible --name '^joBot$'
+          janela=$(xdotool search --onlyvisible --name '^joBot$' | head -n 1)
+          sleep 10
+          parado
+          xdotool windowactivate --sync "$janela"
+          xdotool key --delay 300 Tab Tab Tab Return
+          esperar 60 no_ar
+          sleep 3
+          xdotool windowactivate --sync "$janela"
+          xdotool key alt+F4
+          sleep 3
+          foto 5-deixar-ligado
+          xdotool key Return
+          esperar 30 fechada
+          sleep 3
+          no_ar
+          pid=$(head -n 1 "$dados/jobot.lock")  # a trava do servidor: o pid, depois a porta
+          test -d "/proc/$pid"
+          echo "servidor $pid: pasta $(readlink "/proc/$pid/cwd")"
+          tr '\0' '\n' < "/proc/$pid/environ" > "/capturas/$nome-ambiente-do-servidor.txt"
+          ls -l "/proc/$pid/fd" > "/capturas/$nome-descritores-do-servidor.txt"
+          if [ -n "$appdir" ]; then
+            case "$(readlink "/proc/$pid/cwd")" in
+              "$appdir"*) echo "o servidor ficou na pasta do AppImage" >&2; false ;;
+            esac
+            if grep -F "$appdir" "/capturas/$nome-ambiente-do-servidor.txt" "/capturas/$nome-descritores-do-servidor.txt" >&2; then
+              echo "o servidor herdou caminhos ou descritores de dentro do AppImage ($appdir)" >&2
+              false
+            fi
+          fi
+          if [ "$nome" = appimage ] && grep -E '^(GTK_THEME|GDK_BACKEND|PYTHONDONTWRITEBYTECODE|APPIMAGE|APPDIR|ARGV0|OWD)=' "/capturas/$nome-ambiente-do-servidor.txt" >&2; then
+            echo "o servidor herdou essas variáveis do AppRun" >&2
+            false
+          fi
+          # reabrir mostra Ligado: o endereço, o Copiar e o Parar (o Ligar está desativado)
+          WEBKIT_DISABLE_DMABUF_RENDERER=1 WEBKIT_DISABLE_COMPOSITING_MODE=1 \
+            dbus-run-session -- $casca >> "/capturas/$nome-casca.log" 2>&1 &
+          esperar 60 xdotool search --onlyvisible --name '^joBot$'
+          janela=$(xdotool search --onlyvisible --name '^joBot$' | head -n 1)
+          sleep 10
+          foto 6-ligado-de-novo
+          xdotool windowactivate --sync "$janela"
+          xdotool key --delay 300 Tab Tab Tab Return
+          esperar 30 parado
+          sleep 3
+          # parado, fechar fecha sem perguntar
+          xdotool windowactivate --sync "$janela"
+          xdotool key alt+F4
           esperar 30 fechada
           FIM
           mkdir -p capturas
