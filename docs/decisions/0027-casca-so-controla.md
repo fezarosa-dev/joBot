@@ -2,7 +2,7 @@
 
 - **Status:** aceita
 - **Data:** 2026-11-18
-- **Atualizada:** 2026-11-18, na verificação da 0.4.1 (o aviso da janela nova, a tela de instalação e o que o CI prova; D207.12, D208.4, D212.10, D212.11 e D214.2).
+- **Atualizada:** 2026-11-18, na verificação da 0.4.1 (o aviso da janela nova, a tela de instalação e o que o CI prova; D207.12, D208.4, D212.10, D212.11 e D214.2); 2026-11-23, fechar a janela com o painel no ar pergunta antes (D215, decisão do dono).
 - **Origem:** D206 do `duvidas.md` (decisão do dono, com o motivo nas palavras dela). Troca a parte "Casca" da [0025](0025-app-de-desktop-e-instalador.md).
 
 ## Contexto
@@ -22,7 +22,7 @@ A falta de memória teve também uma causa fora do joBot: temporários dos teste
 - **Fica como estava na 0.4.0:**
   - a tela de instalação na primeira abertura;
   - ~~o aviso de versão nova, que abre a página da release;~~ o aviso de versão nova na faixa do painel. O "Baixar a janela nova", que abre a página da release, muda de lugar: na casca 0.4.1 ele fica no controle, quando o painel no ar é mais novo que a casca; na casca 0.4.0, que ainda mostra o painel na janela dela, a faixa do painel o mostra sempre;
-  - fechar a janela fecha só a janela: com o segundo plano ligado, o joBot continua buscando vagas. Sem ele, fechar a janela para o joBot que ela ligou, e o controle avisa isso.
+  - ~~fechar a janela fecha só a janela: com o segundo plano ligado, o joBot continua buscando vagas. Sem ele, fechar a janela para o joBot que ela ligou, e o controle avisa isso.~~ Trocado pelo D215 (decisão do dono): fechar a janela do controle com o painel no ar pergunta "Deixar o joBot ligado?". **Deixar ligado** fecha só a janela, e o painel segue no ar até alguém apertar Parar; **Desligar** para o joBot e fecha. Com o painel parado, fecha direto. Vale com o segundo plano ligado ou desligado: ele fica só para o joBot ligar sozinho quando o computador inicia. Fechar a janelinha não pode derrubar a aba do navegador sem a pessoa saber.
 - **O painel tem que funcionar em qualquer navegador moderno.** O navegador padrão pode ser o Firefox (o padrão do Fedora), o Chrome, o Edge ou o Safari. Os testes de tela passam a rodar no Chromium, no Firefox e no WebKit do Playwright.
 - **O visual fica leve.** Saem os efeitos que pesam fora do Chromium, como `backdrop-filter` em áreas grandes e animações infinitas. Entram versões que dão a mesma cara. Os ícones por máscara SVG ficam enquanto as capturas do WebKit os mostrarem certos; o que falhar troca-se ícone a ícone.
 - **O AppImage não deixa nada no `/tmp`.** Se ele rodar extraído, a pasta é apagada ao fechar, mesmo depois de uma saída à força. Montado com FUSE, a montagem `/tmp/.mount_*` pode durar enquanto vivem o servidor e o navegador que a casca lançou; a abertura de verdade antes da tag confere.
@@ -40,3 +40,4 @@ A falta de memória teve também uma causa fora do joBot: temporários dos teste
 - [0025. App de desktop e instalador](0025-app-de-desktop-e-instalador.md)
 - [0023. Tudo pelo painel](0023-tudo-pelo-painel.md)
 - [duvidas.md: D206](../../duvidas.md)
+- [duvidas.md: D215](../../duvidas.md) (fechar a janela do controle)
