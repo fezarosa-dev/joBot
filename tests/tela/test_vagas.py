@@ -77,6 +77,13 @@ def _abrir_mais_filtros(page: Page) -> None:
     expect(page.locator("details.mais-filtros")).to_have_attribute("open", "")
 
 
+def _sem_pedido_no_ar(page: Page) -> None:
+    """Antes de navegar: o WebKit dá `htmx:sendError` ao pedido que a volta do histórico corta
+    depois do `pageshow` (fora do intervalo que `anotar_erros` perdoa)."""
+    expect(page.locator("#filtros-chips[aria-busy]")).to_have_count(0)
+    expect(page.locator(".htmx-request")).to_have_count(0)
+
+
 def test_abas_marcam_a_atual_e_a_url_reabre_a_tela(page: Page, painel: str) -> None:
     erros = anotar_erros(page)  # violação do CSP aparece como erro no console
     page.goto(f"{painel}/vagas?aba=todas")
@@ -98,14 +105,17 @@ def test_abas_marcam_a_atual_e_a_url_reabre_a_tela(page: Page, painel: str) -> N
     todas = lateral.locator('[href^="/vagas?aba=todas"]')
     novas = lateral.locator('[href^="/vagas?aba=novas"]')
     expect(todas).to_have_attribute("aria-current", "page")
+    _sem_pedido_no_ar(page)
     novas.click()
     expect(page).to_have_url(re.compile(r"[?&]aba=novas"))
     expect(lateral.locator("[aria-current]")).to_have_count(1)
     expect(novas).to_have_attribute("aria-current", "page")
     expect(todas).not_to_have_attribute("aria-current", "page")
 
+    _sem_pedido_no_ar(page)
     page.reload()
     expect(novas).to_have_attribute("aria-current", "page")
+    _sem_pedido_no_ar(page)
     page.go_back()
     expect(todas).to_have_attribute("aria-current", "page")
     assert erros == []
