@@ -39,6 +39,10 @@ TABELAS = {
     "candidatura",
     "perfil",
     "habilidades_vaga",
+    "experiencia",
+    "curso",
+    "pergunta_perfil",
+    "preparo_candidatura",
 }
 INDICES = {
     "execucao_uma_por_tipo",
