@@ -76,7 +76,8 @@ def _a_busca(con: sqlite3.Connection, request: Request, agora: datetime) -> dict
     problema = sum(c.estado in ("falhou", "parcial") for c in ligadas)
     return {
         "ultima": None if inicio is None else data_completa(inicio.isoformat(), idioma),
-        "rodando": execucao_atual(con) is not None,
+        # como o `_andamento` de execucao.py: descoberta, páginas e login não são a busca (12.3)
+        "rodando": (atual := execucao_atual(con)) is not None and atual.tipo == "busca",
         "proxima": proxima,
         "fontes_problema": problema,
         # `no_limite` e `sem_execucao` não são problema, mas não deixam dizer que todas funcionaram

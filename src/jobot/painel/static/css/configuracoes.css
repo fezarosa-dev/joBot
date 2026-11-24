@@ -470,8 +470,8 @@
   }
 }
 
-/* modo de alto contraste: o botão olho apertado ganha borda além do fundo (a chave e a caixa de
-   marcar têm o bloco delas no base.css) */
+/* modo de alto contraste: os botões ganham contorno e o olho apertado, borda além do fundo (a
+   chave e a caixa de marcar têm o bloco delas no base.css) */
 @media (forced-colors: active) {
   .config-grupos a::before {
     forced-color-adjust: none;
@@ -487,6 +487,15 @@
 
   .config-grupos a[aria-current="page"]::before {
     background-color: HighlightText;
+  }
+
+  /* `.config .botao` (0,2,0) vence o `button` do base.css: o contorno volta aqui */
+  .config .botao {
+    border: 1px solid ButtonText;
+  }
+
+  .config .botao:disabled {
+    border-color: GrayText;
   }
 
   .config .botao[data-olho][aria-pressed="true"] {

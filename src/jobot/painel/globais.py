@@ -5,6 +5,7 @@ from collections.abc import Sequence
 import jinja2
 from jinja2 import pass_context
 from jinja2.runtime import Context
+from starlette.requests import Request
 
 from jobot.banco.leitura import Item
 from jobot.nucleo.modelo import Local, Motivo
@@ -43,6 +44,14 @@ def _salario_texto(contexto: Context, item: Item) -> formatos.SalarioTexto | Non
     return formatos.salario_texto(item, contexto["idioma"], contexto.get("exibicao"))
 
 
+def _url_de_volta(request: Request) -> str:
+    """Caminho e consulta da página atual para o campo `voltar`, sem o `salvo` de uma gravação."""
+    consulta = "&".join(
+        p for p in request.url.query.split("&") if p and p.split("=", 1)[0] != "salvo"
+    )
+    return request.url.path + ("?" + consulta if consulta else "")
+
+
 def registrar(env: jinja2.Environment) -> None:
     env.globals |= {
         "salario_texto": _salario_texto,
@@ -55,4 +64,5 @@ def registrar(env: jinja2.Environment) -> None:
         "motivo": _motivo,
         "lateral": lateral,
         "grupos_configuracoes": grupos_configuracoes,
+        "url_de_volta": _url_de_volta,
     }

@@ -60,8 +60,9 @@ from jobot.painel.ambiente import (
     plataforma_do_painel,
     rodar_do_painel,
 )
-from jobot.painel.consultas import relogio_do_painel
+from jobot.painel.consultas import MAX_ID, inteiro_da_url, relogio_do_painel
 from jobot.painel.i18n import pais_do_accept_language, t
+from jobot.painel.moeda import INTEGER_MAX
 from jobot.painel.rotas.configuracoes import (
     contexto_ferramenta_navegador,
     contexto_sites_com_login,
@@ -79,7 +80,6 @@ _MAX_CARGOS = 20
 _MAX_CIDADES = 10
 _MAX_TEXTO = 100
 _MAX_DIGITOS = 20  # o INTEGER do SQLite guarda até 19 dígitos em centavos
-_MAX_CENTAVOS = 2**63 - 1
 _MILHAR = re.compile(r"[0-9]{1,3}(?:\.[0-9]{3})+(?:,[0-9]{1,2})?")
 _SIMPLES = re.compile(r"[0-9]+(?:[,.][0-9]{1,2})?")
 _UFS_JSON = Path(__file__).parents[2] / "nucleo" / "dados" / "ufs.json"
@@ -165,7 +165,7 @@ def _centavos(digitado: str) -> int | None:
     if len(texto) > _MAX_DIGITOS:
         raise _Invalido("erro.salario")
     centavos = int(Decimal(texto.replace(",", ".")).scaleb(2))
-    if not 0 < centavos <= _MAX_CENTAVOS:
+    if not 0 < centavos <= INTEGER_MAX:
         raise _Invalido("erro.salario")
     return centavos
 
@@ -238,13 +238,6 @@ def _entrada_de(busca: Busca) -> Entrada:
 
 def _gravada(con: Con, busca_id: int | None) -> Busca | None:
     return next((b for b in buscas.buscas(con) if b.id == busca_id), None) if busca_id else None
-
-
-def _id_valido(texto: str | None) -> int | None:
-    if texto is None or not texto.isascii() or not texto.isdigit():
-        return None
-    numero = int(texto) if len(texto) <= 19 else 0
-    return numero if 1 <= numero <= _MAX_CENTAVOS else None
 
 
 def _pagina(request: Request, passo: str, status: int = 200, **ctx: Any) -> Response:
@@ -384,7 +377,7 @@ async def _formulario_sites(request: Request, con: Con, busca_id: int | None) ->
 
 def _busca_da_url(con: Con, texto: object) -> int | None:
     """O `?busca=` só vale se for uma busca que existe (`registros/padroes.md`, modo edição)."""
-    achada = _gravada(con, _id_valido(texto if isinstance(texto, str) else None))
+    achada = _gravada(con, inteiro_da_url(texto if isinstance(texto, str) else None, MAX_ID))
     return achada.id if achada else None
 
 
@@ -400,7 +393,7 @@ async def mostrar(request: Request, con: Con, passo: str) -> Response:
     if passo == "sites":
         return await _formulario_sites(request, con, _busca_da_url(con, params.get("busca")))
     if passo == "1":
-        voltando = _gravada(con, _id_valido(params.get("busca")))
+        voltando = _gravada(con, inteiro_da_url(params.get("busca"), MAX_ID))
         if voltando is None:
             return _formulario_1(request, con, Entrada())
         return _formulario_1(request, con, _entrada_de(voltando), busca_id=voltando.id)
@@ -408,7 +401,7 @@ async def mostrar(request: Request, con: Con, passo: str) -> Response:
     if params.get("feito") == "1" and ler_config(con, "primeira_execucao_concluida", False) is True:
         aviso = params.get("aviso", "")
         return _pagina(request, "2", etapa="pronto", aviso_motivo=_AVISOS.get(aviso))
-    return _formulario_2(request, con, busca_id=_id_valido(params.get("busca")))
+    return _formulario_2(request, con, busca_id=inteiro_da_url(params.get("busca"), MAX_ID))
 
 
 def _proximo_do_passo_1(request: Request) -> str:
@@ -421,7 +414,8 @@ def _depois_do_passo_1(request: Request, existente: Busca | None) -> str:
 
 async def _gravar_passo_1(request: Request, con: Con) -> Response:
     form = await request.form()
-    pedido = _id_valido(str(form.get("busca", "")))  # o "voltar" do passo 2 edita a mesma busca
+    # o "voltar" do passo 2 edita a mesma busca
+    pedido = inteiro_da_url(str(form.get("busca", "")), MAX_ID)
     existente = _gravada(con, pedido)
     pais = _pais_do_formulario(form)
     entrada = await _ler_entrada(request)
@@ -489,7 +483,7 @@ async def _desligar_sem_prender(request: Request) -> str | None:
 async def _gravar_passo_2(request: Request, con: Con) -> Response:
     form = await request.form()
     escolha = form.get("segundo_plano")
-    busca_id = _id_valido(str(form.get("busca", "")))
+    busca_id = inteiro_da_url(str(form.get("busca", "")), MAX_ID)
     if escolha not in ("ligar", "desligar"):
         raise HTTPException(422)
     suportado = com_segundo_plano(request)
@@ -532,9 +526,8 @@ async def pular(request: Request, con: Con) -> Response:
     _gravar_pais_se_falta(request, con, pais)
     if com_segundo_plano(request):  # o atalho sai como no "Não ligar agora"; falha só vai ao log
         await _desligar_sem_prender(request)
-    for leitor in leitores_do_painel(
-        request
-    ):  # D137.10: Pular deixa os padrões, sem site com login
+    # D137.10: Pular deixa os padrões, sem site com login
+    for leitor in leitores_do_painel(request):
         with suppress(LookupError):
             ligar_fonte(con, leitor.chave, False)
     gravar_config(con, "segundo_plano", False)

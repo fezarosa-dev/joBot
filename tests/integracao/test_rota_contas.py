@@ -51,7 +51,6 @@ CONFERIR = f"{GRUPO}/{CHAVE}/conferir"
 ESQUECER = f"{GRUPO}/esquecer"
 CONFIRMAR = f"{ESQUECER}/confirmar"
 AGORA = datetime(2026, 11, 15, 12, 0, tzinfo=UTC)
-CHAVES_DE_HORARIO = ("formato", "repetido", "muitos", "perto")
 TEXTOS: dict[str, dict[str, Any]] = {
     "pt": {
         "explicacao": "O joBot nunca digita a sua senha",

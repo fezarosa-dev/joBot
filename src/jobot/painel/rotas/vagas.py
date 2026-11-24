@@ -14,7 +14,7 @@ from datetime import UTC, datetime
 from typing import Annotated, Any
 from urllib.parse import parse_qs, parse_qsl, urlencode, urlsplit
 
-from fastapi import APIRouter, Form, HTTPException, Path, Request
+from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from starlette.datastructures import QueryParams
 
@@ -25,6 +25,7 @@ from jobot.banco.paginas import paginas, ultimas_diferencas
 from jobot.nucleo.tratamento.locais import codigos_de_pais, nome_do_pais, nome_em_ingles
 from jobot.painel.consultas import (
     MAX_ID,
+    IdDoBanco,
     busca_ativa,
     busca_efetiva,
     ids_destaques,
@@ -33,7 +34,13 @@ from jobot.painel.consultas import (
 )
 from jobot.painel.detalhe_vaga import contexto_do_detalhe
 from jobot.painel.lateral import ler_lateral
-from jobot.painel.moeda import Exibicao, FiltroSalario, exibicao_do_painel, filtro_salario
+from jobot.painel.moeda import (
+    INTEGER_MAX,
+    Exibicao,
+    FiltroSalario,
+    exibicao_do_painel,
+    filtro_salario,
+)
 from jobot.painel.seguranca import Con, de_volta, renderizar
 
 router = APIRouter()
@@ -58,8 +65,7 @@ _ROTULO_CHIP = {
 _TETO_SALARIO = 10**12
 _MAX_TEXTO = 100
 # o INTEGER do SQLite é de 64 bits com sinal: id maior estoura em OverflowError (500)
-_MAX_VAGA = 2**63 - 1  # o maior INTEGER do SQLite
-VagaId = Annotated[int, Path(ge=1, le=_MAX_VAGA)]
+VagaId = IdDoBanco
 _MAX_PAGINA = 10_000
 # o Desfazer recarrega até 20 páginas de uma vez (T311): 10 mil vagas levavam ~4 s e 7,6 MB
 _MAX_RECARGA = 20
@@ -417,7 +423,7 @@ async def vagas(request: Request, con: Con) -> HTMLResponse:
             )
         )
     # o detalhe ao lado (T255): id torto ou de vaga que não existe abre só a lista
-    vaga_id = inteiro_da_url(request.query_params.get("vaga"), _MAX_VAGA)
+    vaga_id = inteiro_da_url(request.query_params.get("vaga"), INTEGER_MAX)
     vaga = None if vaga_id is None else leitura.detalhe(con, vaga_id, estado.busca_id, agora)
     detalhe: dict[str, Any] | None = None
     if vaga is not None:

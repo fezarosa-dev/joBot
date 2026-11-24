@@ -1,7 +1,6 @@
 """Conexão por pedido, CSRF e renderização dos templates (desenho 14.3 e 14.4)."""
 
 import hmac
-import json
 import sqlite3
 from collections.abc import AsyncIterator
 from contextlib import closing
@@ -14,6 +13,7 @@ from fastapi import Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
+from jobot.banco.cadastros import ler_config
 from jobot.banco.conexao import abrir
 from jobot.painel import globais
 from jobot.painel.i18n import idioma_inicial, t
@@ -33,17 +33,6 @@ TEMPLATES = Jinja2Templates(
     )
 )
 globais.registrar(TEMPLATES.env)
-
-
-def _url_de_volta(request: Request) -> str:
-    """Caminho e consulta da página atual para o campo `voltar`, sem o `salvo` de uma gravação."""
-    consulta = "&".join(
-        p for p in request.url.query.split("&") if p and p.split("=", 1)[0] != "salvo"
-    )
-    return request.url.path + ("?" + consulta if consulta else "")
-
-
-TEMPLATES.env.globals["url_de_volta"] = _url_de_volta
 
 
 async def conexao(request: Request) -> AsyncIterator[sqlite3.Connection]:
@@ -77,11 +66,9 @@ def idioma_do_pedido(request: Request) -> str:
     banco: Path = request.app.state.banco
     if banco.exists():  # sem banco ainda, não cria um arquivo vazio só para ler
         with closing(abrir(banco)) as con:
-            linha = con.execute("SELECT valor FROM config WHERE chave = 'idioma'").fetchone()
-        if linha is not None:
-            salvo = json.loads(linha[0])
-            if salvo in ("pt", "en"):
-                return str(salvo)
+            salvo = ler_config(con, "idioma", None)  # JSON estragado vale o padrão, sem 500
+        if salvo in ("pt", "en"):
+            return str(salvo)
     return idioma_inicial(request.headers.get("accept-language"))
 
 
@@ -94,17 +81,12 @@ def tema_e_texto(request: Request) -> tuple[str, str]:
     tema, texto = "sistema", "padrao"
     if banco.exists():  # sem banco ainda, não cria um arquivo vazio só para ler
         with closing(abrir(banco)) as con:
-            linhas = dict(
-                con.execute(
-                    "SELECT chave, valor FROM config WHERE chave IN ('tema', 'tamanho_texto')"
-                ).fetchall()
-            )
-        if "tema" in linhas and (salvo := json.loads(linhas["tema"])) in TEMAS:
-            tema = str(salvo)
-        if "tamanho_texto" in linhas and (salvo := json.loads(linhas["tamanho_texto"])) in (
-            TAMANHOS_TEXTO
-        ):
-            texto = str(salvo)
+            salvo_tema = ler_config(con, "tema", tema)
+            salvo_texto = ler_config(con, "tamanho_texto", texto)
+        if salvo_tema in TEMAS:
+            tema = str(salvo_tema)
+        if salvo_texto in TAMANHOS_TEXTO:
+            texto = str(salvo_texto)
     return tema, texto
 
 
