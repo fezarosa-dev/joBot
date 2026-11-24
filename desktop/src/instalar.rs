@@ -231,7 +231,7 @@ pub enum Linha {
         feito: u64,
         total: Option<u64>,
     },
-    /// O modelo que o `baixar ia-local` escolheu pela memória (`{"modelo": "4b", ...}`).
+    /// O modelo que o `baixar ia-local` escolheu (`{"modelo": "laya", ...}`; o padrão do manifesto).
     Modelo(String),
     /// `Ok` na linha `{"fim": "pronto"}`; senão o `motivo` da linha (sem ele, `outro`).
     Fim(Result<(), String>),

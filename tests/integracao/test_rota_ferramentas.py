@@ -641,8 +641,9 @@ def _tarefas(painel: Painel, valor: object = None) -> Any:
         return ler_config(con, "ia_tarefas")
 
 
-def _post_ia(painel: Painel, acao: str, http: TestClient) -> Any:
-    return http.post(f"{IA_LOCAL}/{acao}", data={CAMPO_CSRF: painel.token}, headers=HTMX)
+def _post_ia(painel: Painel, acao: str, http: TestClient, **campos: str) -> Any:
+    dados = {CAMPO_CSRF: painel.token} | campos
+    return http.post(f"{IA_LOCAL}/{acao}", data=dados, headers=HTMX)
 
 
 def _ia_livre(painel: Painel) -> bool:
@@ -658,30 +659,38 @@ def test_modelo_local_nao_baixado_mostra_tamanho_e_baixar(sem_leitor: Painel) ->
     html = sem_leitor.http.get(GRUPO).text
     texto = _texto(html)
     assert _ia("estado.nao_baixado") in texto
-    assert _ia("tamanho", menor="1,3 GB", maior="2,7 GB") in texto
+    # o padrão do manifesto: o Laya (D219.20)
+    assert _ia("tamanho", nome=MODELOS["laya"]["nome"], tamanho="1,3 GB") in texto
     assert _acoes_ia(html) == ["baixar"]
     formulario = html[html.index(f'action="{IA_LOCAL}/baixar"') :]
     assert f'name="{CAMPO_CSRF}" value="{sem_leitor.token}"' in formulario.split("</form>")[0]
 
 
-@pytest.mark.parametrize(("chave", "outro"), [("4b", "2b"), ("2b", "4b")])
+TAMANHO = {"laya": "1,3 GB", "2b": "1,3 GB", "4b": "2,7 GB"}
+
+
+@pytest.mark.parametrize(
+    ("chave", "outros"), [("laya", ["2b", "4b"]), ("4b", ["laya", "2b"]), ("2b", ["laya", "4b"])]
+)
 def test_baixado_mostra_modelo_tamanho_licenca_e_origem(
-    sem_leitor: Painel, chave: str, outro: str
+    sem_leitor: Painel, chave: str, outros: list[str]
 ) -> None:
     _anotar(sem_leitor, chave)
     html = sem_leitor.http.get(GRUPO).text
     texto = _texto(html)
     modelo, alvo = MODELOS[chave], SERVIDOR["alvos"]["ubuntu-x64"]
-    tamanho = {"2b": "1,3 GB", "4b": "2,7 GB"}
     assert _ia("estado.baixado") in texto
-    assert _ia("modelo", nome=modelo["nome"], tamanho=tamanho[chave]) in texto
+    assert _ia("modelo", nome=modelo["nome"], tamanho=TAMANHO[chave]) in texto
     assert _ia("licenca", licenca=modelo["licenca"]) in texto
     assert _ia("origem", origem=modelo["origem"]) in texto
     assert _ia("programa", build=SERVIDOR["build"]) in texto
     assert _ia("licenca", licenca=alvo["licenca"]) in texto
     assert _ia("origem", origem=alvo["origem"]) in texto
-    assert _ia("trocar", nome=MODELOS[outro]["nome"], tamanho=tamanho[outro]) in texto
-    assert _acoes_ia(html) == ["trocar", "remover"]
+    # um "Trocar para" por modelo do manifesto, cada um com o seu no formulário (D219.20)
+    for outro in outros:
+        assert _ia("trocar", nome=MODELOS[outro]["nome"], tamanho=TAMANHO[outro]) in texto
+    assert _acoes_ia(html) == ["trocar", "trocar", "remover"]
+    assert re.findall(r'name="modelo" value="([\w.-]+)"', html) == outros
     assert _ia("desatualizado") not in texto
 
 
@@ -719,7 +728,7 @@ def test_trocar_baixa_o_outro_e_leva_as_tarefas_locais(sem_leitor: Painel) -> No
     local = {"ligada": True, "backend": "local", "modelo": MODELOS["4b"]["nome"]}
     _tarefas(painel, {"encaixe": local})
     with TestClient(painel.app, base_url=BASE) as http:
-        assert _post_ia(painel, "trocar", http).status_code == 200
+        assert _post_ia(painel, "trocar", http, modelo="2b").status_code == 200
         _anotar(painel, "2b")
         painel.comando.liberar.set()
         assert _esperar(lambda: _ia_livre(painel))
@@ -757,7 +766,7 @@ def test_trocar_testa_o_modelo_novo_das_tarefas_ligadas(sem_leitor: Painel) -> N
     painel.app.state.ia_acordar = asyncio.Event()
     novo = ("local", MODELOS["2b"]["nome"])
     with TestClient(painel.app, base_url=BASE) as http:
-        assert _post_ia(painel, "trocar", http).status_code == 200
+        assert _post_ia(painel, "trocar", http, modelo="2b").status_code == 200
         _anotar(painel, "2b")
         painel.comando.liberar.set()
         assert _esperar(lambda: _ia_livre(painel))
@@ -776,7 +785,7 @@ def test_trocar_sem_tarefa_ligada_nao_testa(sem_leitor: Painel) -> None:
     fabrica = _FabricaIA()
     painel.app.state.ia = fabrica
     with TestClient(painel.app, base_url=BASE) as http:
-        assert _post_ia(painel, "trocar", http).status_code == 200
+        assert _post_ia(painel, "trocar", http, modelo="2b").status_code == 200
         _anotar(painel, "2b")
         painel.comando.liberar.set()
         assert _esperar(lambda: _ia_livre(painel))
@@ -797,7 +806,7 @@ def test_atualizar_quando_o_manifesto_mudou(sem_leitor: Painel, mudar: dict[str,
     _anotar(painel, "2b", **mudar)
     html = painel.http.get(GRUPO).text
     assert _ia("desatualizado") in _texto(html)
-    assert _acoes_ia(html) == ["atualizar", "trocar", "remover"]
+    assert _acoes_ia(html) == ["atualizar", "trocar", "trocar", "remover"]
     with TestClient(painel.app, base_url=BASE) as http:
         assert _post_ia(painel, "atualizar", http).status_code == 200
         painel.comando.liberar.set()
@@ -915,10 +924,26 @@ def test_acao_sem_modelo_baixado_nao_roda(sem_leitor: Painel, acao: str) -> None
         assert _post_ia(painel, "baixar", http).status_code == 200
         assert painel.comandos == []
         _anotar(painel, "2b", build="b1")  # controle: com o modelo baixado e mudado, roda
-        _post_ia(painel, acao, http)
+        _post_ia(painel, acao, http, modelo="4b")
         painel.comando.liberar.set()
         assert _esperar(lambda: _ia_livre(painel))
     assert len(painel.comandos) == 1
+
+
+@pytest.mark.parametrize("modelo", [None, "2b", "9b", "../x"])
+def test_trocar_so_para_outro_modelo_do_manifesto(sem_leitor: Painel, modelo: str | None) -> None:
+    """(guarda) Sem o campo, para o mesmo modelo ou para um que não está no manifesto, nada roda;
+    controle: para o Laya, roda."""
+    painel = sem_leitor
+    _anotar(painel, "2b")
+    campos = {} if modelo is None else {"modelo": modelo}
+    with TestClient(painel.app, base_url=BASE) as http:
+        assert _post_ia(painel, "trocar", http, **campos).status_code == 200
+        assert painel.comandos == []
+        _post_ia(painel, "trocar", http, modelo="laya")
+        painel.comando.liberar.set()
+        assert _esperar(lambda: _ia_livre(painel))
+    assert painel.comandos == [(["baixar", "ia-local", "--modelo", "laya"], painel.dados)]
 
 
 def test_acao_desconhecida_da_404(sem_leitor: Painel) -> None:
@@ -1019,9 +1044,9 @@ def test_arquivo_anotado_que_sumiu_oferece_atualizar(sem_leitor: Painel, sem: st
     _anotar(painel, "2b", sem=sem)
     html = painel.http.get(GRUPO).text
     assert _ia("desatualizado") in _texto(html)
-    assert _acoes_ia(html) == ["atualizar", "trocar", "remover"]
+    assert _acoes_ia(html) == ["atualizar", "trocar", "trocar", "remover"]
     _anotar(painel, "2b")  # controle: com os dois arquivos, nada a atualizar
-    assert _acoes_ia(painel.http.get(GRUPO).text) == ["trocar", "remover"]
+    assert _acoes_ia(painel.http.get(GRUPO).text) == ["trocar", "trocar", "remover"]
 
 
 def test_removendo_sem_barra_nem_dica_de_download(sem_leitor: Painel) -> None:
@@ -1076,10 +1101,18 @@ def test_foco_no_estado_depois_do_botao_e_no_aviso_do_fim(sem_leitor: Painel) ->
         assert _com_foco(http.get(IA_LOCAL, headers=HTMX).text) == []
 
 
-@pytest.mark.parametrize(("chave", "mudou"), [(None, False), ("2b", True), ("4b", True)])
-def test_argumentos_passam_pelo_parser_do_cli(chave: str | None, mudou: bool) -> None:
+@pytest.mark.parametrize(
+    ("chave", "mudou", "alvo"),
+    [(None, False, None), ("2b", True, "laya"), ("4b", True, "2b"), ("laya", True, "4b")],
+)
+def test_argumentos_passam_pelo_parser_do_cli(
+    chave: str | None, mudou: bool, alvo: str | None
+) -> None:
     """Cada lista que a rota roda é um `jobot ferramentas ... ia-local` que o CLI aceita."""
-    listas = [a for a in argumentos_ia_local(chave, mudou).values() if a is not None]
+    argumentos = argumentos_ia_local(chave, mudou, alvo)
+    if chave:
+        assert argumentos["trocar"] == ["baixar", "ia-local", "--modelo", alvo]
+    listas = [a for a in argumentos.values() if a is not None]
     assert listas
     for lista in listas:
         inteiro = ia_local.comando(lista)

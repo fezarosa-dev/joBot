@@ -42,7 +42,17 @@
       }
     }
   },
+  "padrao": "laya",
   "modelos": {
+    "laya": {
+      "nome": "Laya-2B-Q4_K_M",
+      "arquivo": "Laya-2B-Q4_K_M.gguf",
+      "url": "https://github.com/fezarosa-dev/joBot/releases/download/modelo-laya-2b-1/Laya-2B-Q4_K_M.gguf",
+      "tamanho": 1285207680,
+      "sha256": "606e488c0ecfc4ef0196b6ca5b8cf3294a886845c99be0b841fed6f9a080075a",
+      "licenca": "Apache-2.0",
+      "origem": "Qwen/Qwen3.5-2B (Qwen), ajuste LoRA do joBot (scripts/treino_laya), GGUF fezarosa-dev/joBot (https://github.com/fezarosa-dev/joBot/releases/tag/modelo-laya-2b-1)"
+    },
     "2b": {
       "nome": "Qwen3.5-2B-Q4_K_M",
       "arquivo": "Qwen3.5-2B-Q4_K_M.gguf",

@@ -1031,9 +1031,10 @@ def _andamento_ia(request: Request) -> dict[str, Any]:
 
 
 def _no_disco(request: Request) -> tuple[dict[str, Any], dict[str, Any], str | None, bool]:
-    """O manifesto, a anotação, a chave do modelo baixado (`2b`, `4b`) e se há o que atualizar:
-    o manifesto mudou desde o download (programa ou modelo, D195) ou um dos arquivos anotados
-    sumiu. Anotação torta (valor que não é texto) é "não baixado", como na aba IA (D202.13)."""
+    """O manifesto, a anotação, a chave do modelo baixado (`laya`, `2b`, `4b`) e se há o que
+    atualizar: o manifesto mudou desde o download (programa ou modelo, D195) ou um dos arquivos
+    anotados sumiu. Anotação torta (valor que não é texto) é "não baixado", como na aba IA
+    (D202.13)."""
     manifesto = ia_local.manifesto_local()
     dados = _dados(request)
     anotacao = ia_local.ler_anotacao(dados)
@@ -1057,10 +1058,6 @@ def _no_disco(request: Request) -> tuple[dict[str, Any], dict[str, Any], str | N
     return manifesto, anotacao, chave, mudou
 
 
-def _outro(chave: str) -> str:
-    return "2b" if chave == "4b" else "4b"
-
-
 def contexto_ferramenta_ia_local(request: Request, *, foco: bool = False) -> dict[str, Any]:
     """O cartão do modelo local; resultado terminal aparece uma vez só, como no navegador.
     `foco`: a resposta do botão, que some na troca; o foco vai ao estado (o aviso do fim o puxa
@@ -1074,16 +1071,21 @@ def contexto_ferramenta_ia_local(request: Request, *, foco: bool = False) -> dic
         andamento.clear()
     rodando = resultado in _RODANDO_IA
     feito, total = (andamento.get("feito", 0), andamento.get("total", 0)) if rodando else (0, 0)
-    modelo = programa = outro = None
+    modelo = programa = None
+    outros = []
     if chave is not None:
         m = modelos[chave]
         modelo = m | {"tamanho": gigabytes(m["tamanho"], idioma)}
-        o = modelos[_outro(chave)]
-        outro = {"nome": o["nome"], "tamanho": gigabytes(o["tamanho"], idioma)}
+        # um "Trocar para" por modelo do manifesto, na ordem dele (o padrão primeiro, D219.20)
+        outros = [
+            {"chave": c, "nome": o["nome"], "tamanho": gigabytes(o["tamanho"], idioma)}
+            for c, o in modelos.items()
+            if c != chave
+        ]
         servidor = manifesto["llama_server"]
         if alvo := servidor["alvos"].get(anotacao.get("alvo")):
             programa = alvo | {"build": anotacao.get("build")}
-    tamanhos = sorted(m["tamanho"] for m in modelos.values())
+    padrao = modelos[manifesto["padrao"]]
     return {
         "ia_estado": resultado if rodando else "baixado" if chave else "nao_baixado",
         "ia_foco": foco,
@@ -1094,10 +1096,9 @@ def contexto_ferramenta_ia_local(request: Request, *, foco: bool = False) -> dic
         "ia_pct": feito * 100 // total if total else 0,
         "ia_modelo": modelo,
         "ia_programa": programa,
-        "ia_outro": outro,
+        "ia_outros": outros,
         "ia_desatualizado": mudou and not rodando,
-        "ia_menor": gigabytes(tamanhos[0], idioma),
-        "ia_maior": gigabytes(tamanhos[-1], idioma),
+        "ia_padrao": {"nome": padrao["nome"], "tamanho": gigabytes(padrao["tamanho"], idioma)},
     }
 
 
@@ -1114,11 +1115,16 @@ async def estado_do_modelo_local(request: Request) -> Response:
     return _cartao_ia_local(request)
 
 
-def argumentos_ia_local(chave: str | None, mudou: bool) -> dict[str, list[str] | None]:
-    """O `jobot ferramentas ...` de cada botão; `None`: o botão não vale agora."""
+def argumentos_ia_local(
+    chave: str | None, mudou: bool, alvo: str | None = None
+) -> dict[str, list[str] | None]:
+    """O `jobot ferramentas ...` de cada botão; `None`: o botão não vale agora. `alvo`: o modelo
+    do "Trocar para", já conferido no manifesto."""
     return {
         "baixar": ["baixar", "ia-local"] if chave is None else None,
-        "trocar": ["baixar", "ia-local", "--modelo", _outro(chave)] if chave else None,
+        "trocar": ["baixar", "ia-local", "--modelo", alvo]
+        if chave and alvo and alvo != chave
+        else None,
         "atualizar": ["atualizar", "ia-local"] if chave and mudou else None,
         "remover": ["remover", "ia-local"] if chave else None,
     }
@@ -1126,10 +1132,16 @@ def argumentos_ia_local(chave: str | None, mudou: bool) -> dict[str, list[str] |
 
 @router.post(_IA_LOCAL + "/{acao}")
 async def comando_do_modelo_local(request: Request, con: Con, acao: str) -> Response:
-    """Baixar (o modelo pela memória), Trocar (2B ↔ 4B), Atualizar e Remover rodam o
-    `jobot ferramentas ... ia-local` em segundo plano, um por vez (D195.12)."""
+    """Baixar (o padrão do manifesto), Trocar (para o modelo do campo `modelo`), Atualizar e
+    Remover rodam o `jobot ferramentas ... ia-local` em segundo plano, um por vez (D195.12)."""
     manifesto, _, chave, mudou = _no_disco(request)
-    argumentos = argumentos_ia_local(chave, mudou)
+    alvo = None
+    if acao == "trocar":
+        pedido_modelo = (await request.form()).get("modelo")
+        # só um modelo do manifesto: o valor vai para a linha de comando
+        if isinstance(pedido_modelo, str) and pedido_modelo in manifesto["modelos"]:
+            alvo = pedido_modelo
+    argumentos = argumentos_ia_local(chave, mudou, alvo)
     if acao not in argumentos:
         raise HTTPException(404)
     trava = _trava(request, "ia_local")
@@ -1142,7 +1154,7 @@ async def comando_do_modelo_local(request: Request, con: Con, acao: str) -> Resp
         # as tarefas no local desligam já, sem esperar o comando (que também desliga, D195)
         _desligar_local(con)
     andamento = _andamento_ia(request)
-    novo = manifesto["modelos"][_outro(chave)]["nome"] if acao == "trocar" and chave else None
+    novo = manifesto["modelos"][alvo]["nome"] if acao == "trocar" and alvo else None
     banco: Path = request.app.state.banco
     await trava.acquire()  # livre: não suspende; tudo que pode falhar vem antes
     andamento.clear()

@@ -8,9 +8,11 @@ import sqlite3
 import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
+from typing import get_args
 
 from jobot import __version__
 from jobot.banco.migrar import BancoMaisNovo
+from jobot.sistema.memoria import Modelo
 from jobot.sistema.pastas import configurar_log, pasta_de_dados
 
 COMANDOS: Mapping[str, str] = {
@@ -41,7 +43,10 @@ def _parser() -> argparse.ArgumentParser:
     ferramentas.add_argument("acao", choices=["baixar", "atualizar", "remover"])
     ferramentas.add_argument("ferramenta", choices=["navegador", "ia-local"])
     ferramentas.add_argument(
-        "--modelo", choices=["auto", "2b", "4b"], default="auto", help="modelo local (ia-local)"
+        "--modelo",
+        choices=["auto", *get_args(Modelo)],
+        default="auto",
+        help="modelo local (ia-local)",
     )
     plano = sub.add_parser("segundo-plano", help="liga ou desliga o serviço de segundo plano")
     plano.add_argument("acao", choices=["ligar", "desligar", "status"])

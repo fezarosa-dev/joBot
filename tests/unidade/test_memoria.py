@@ -1,4 +1,5 @@
-"""Memória total e o modelo local (T404; desenho 7; D185.19): valores de PCs reais."""
+"""Memória total e o aviso de lentidão do modelo local (T404; desenho 7; D185.19; D219.20):
+valores de PCs reais."""
 
 import ctypes
 from typing import Any
@@ -6,11 +7,11 @@ from typing import Any
 import pytest
 
 from jobot.nucleo.ia.contrato import limites
-from jobot.sistema.memoria import GIB, escolher_modelo, memoria_total
+from jobot.sistema import memoria
+from jobot.sistema.memoria import GIB, memoria_total
 
-# os cortes de produção, que o `jobot ferramentas baixar ia-local --modelo auto` lê (T409)
-_GIB = limites()["memoria_gib"]
-CORTES = {"desde_4b_gib": _GIB["modelo_4b_desde"], "aviso_gib": _GIB["aviso_lento_abaixo"]}
+# o corte de produção, que o `jobot ferramentas baixar ia-local --modelo auto` lê (T409)
+CORTE = {"aviso_gib": limites()["memoria_gib"]["aviso_lento_abaixo"]}
 
 _PAGINA = 4096
 
@@ -46,20 +47,28 @@ def test_global_memory_status_ex_que_falha_levanta() -> None:
 
 
 @pytest.mark.parametrize(
-    ("gib", "esperado"),
+    ("gib", "curta"),
     [
-        (7.7, ("2b", False)),  # um PC de 8 GB
-        (6.5, ("2b", True)),
-        (11.5, ("4b", False)),  # um PC de 12 GB
-        (13.3, ("4b", False)),  # um PC de 16 GB
-        (11.0, ("4b", False)),  # "a partir de 11 GiB"
-        (10.99, ("2b", False)),
-        (7.0, ("2b", False)),  # aviso só abaixo de 7 GiB
+        (7.7, False),  # um PC de 8 GB
+        (6.5, True),
+        (11.5, False),  # um PC de 12 GB
+        (7.0, False),  # aviso só abaixo de 7 GiB
+        (6.99, True),
     ],
 )
-def test_modelo_pela_memoria(gib: float, esperado: tuple[str, bool]) -> None:
-    assert escolher_modelo(memoria_total("linux", sysconf=_sysconf(gib)), **CORTES) == esperado
+def test_aviso_pela_memoria(gib: float, curta: bool) -> None:
+    total = memoria_total("linux", sysconf=_sysconf(gib))
+    assert getattr(memoria, "memoria_curta", None) is not None
+    assert memoria.memoria_curta(total, **CORTE) is curta
 
 
-def test_modelo_pela_memoria_do_windows() -> None:
-    assert escolher_modelo(memoria_total("win32", status=_status(6.5)), **CORTES) == ("2b", True)
+def test_aviso_pela_memoria_do_windows() -> None:
+    total = memoria_total("win32", status=_status(6.5))
+    assert getattr(memoria, "memoria_curta", None) is not None
+    assert memoria.memoria_curta(total, **CORTE) is True
+
+
+def test_o_modelo_nao_sai_mais_da_memoria() -> None:
+    """D219.20: o Laya é o padrão em todo computador; a memória só decide o aviso."""
+    assert not hasattr(memoria, "escolher_modelo")
+    assert set(limites()["memoria_gib"]) == {"aviso_lento_abaixo"}

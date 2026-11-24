@@ -100,6 +100,8 @@ def test_baixado_mostra_o_modelo_e_os_botoes(page: Page, painel: str, tmp_path: 
     expect(page.get_by_text("Licença: Apache-2.0.", exact=False)).to_be_visible()
     trocar = page.get_by_role("button", name="Trocar para Qwen3.5-2B-Q4_K_M (1,3 GB)")
     expect(trocar).to_be_visible()
+    # o Laya, o padrão, também se oferece (D219.20)
+    expect(page.get_by_role("button", name="Trocar para Laya-2B-Q4_K_M (1,3 GB)")).to_be_visible()
     remover = page.get_by_role("button", name="Remover", exact=True)
     expect(remover).to_have_accessible_description(re.compile("desliga as tarefas de IA"))
     page.emulate_media(forced_colors="active")  # os botões seguem visíveis nas cores forçadas

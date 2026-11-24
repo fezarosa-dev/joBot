@@ -1125,6 +1125,44 @@ def test_changelog_fecha_a_0_5_0(lingua: str) -> None:
         assert termo in nova, (CHANGELOG[lingua], termo)
 
 
+# o Laya é o padrão em todo computador e a memória só decide o aviso (D219.20)
+LAYA_NO_README = {
+    "pt": ("Laya-2B", "`--modelo laya`", "`2b`", "`4b`", "versões do joBot no GitHub"),
+    "en": ("Laya-2B", "`--modelo laya`", "`2b`", "`4b`", "joBot's releases on GitHub"),
+}
+ESCOLHA_PELA_MEMORIA = {
+    "pt": ("escolhe o modelo pela memória", "escolhe pela memória", "conforme a memória"),
+    "en": ("picks the model by the computer", "picks by the computer", "depending on the computer"),
+}
+# as quatro fontes que entraram no treino do Laya (D219.14); nenhuma foi "liberada" pelos termos
+FONTES_DO_LAYA = ("Greenhouse", "Lever", "We Work Remotely", "Jobicy")
+LIBERADA = {"pt": "liberad", "en": "cleared"}
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_readme_diz_o_laya_como_modelo_padrao(lingua: str) -> None:
+    """O pacote offline, o passo do instalador e o comando dizem o Laya como padrão e as três
+    opções; a escolha pela memória da 0.5.0 não sobra (D219.20)."""
+    conteudo = texto(README[lingua])
+    for termo in LAYA_NO_README[lingua]:
+        assert termo in conteudo, (README[lingua], termo)
+    for termo in ESCOLHA_PELA_MEMORIA[lingua]:
+        assert termo not in conteudo, (README[lingua], termo)
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_changelog_diz_de_onde_vem_o_treino_do_laya(lingua: str) -> None:
+    """O "Não lançado" diz as quatro fontes do treino e não chama nenhuma de liberada: os termos
+    delas não falam de treino de modelo (D219.14)."""
+    conteudo = texto(CHANGELOG[lingua])
+    inicio = conteudo.index(NAO_LANCADO[lingua])
+    nao_lancado = conteudo[inicio : conteudo.index("\n## [", inicio + 1)]
+    laya = next(x for x in nao_lancado.splitlines() if "Laya 2B" in x)
+    for fonte in FONTES_DO_LAYA:
+        assert fonte in laya, (CHANGELOG[lingua], fonte)
+    assert LIBERADA[lingua] not in laya.lower(), CHANGELOG[lingua]
+
+
 LAYA_AUTORIZADO_NA_IA = (
     "docs/decisions/0014-seguranca-e-privacidade.md",
     "docs/decisions/0026-ia-da-fase-4.md",
