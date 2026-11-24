@@ -1,5 +1,6 @@
 """Guarda da wiki (ADR 0019): pares pt/en, links que não quebram e FAQ com fonte única."""
 
+import json
 import re
 from pathlib import Path
 
@@ -173,3 +174,27 @@ def test_nota_de_privacidade_sem_gmail_futuro() -> None:
         assert aba in nota, arquivo  # controle positivo: a nota existe e cita a aba
         assert fase in nota, arquivo
         assert velho not in nota, arquivo
+
+
+# rótulo de mais de uma palavra entre aspas na doc em inglês copia a caixa do catálogo
+CITACAO = re.compile(r'"([^"\n]{2,40})"')
+
+
+def test_doc_em_ingles_cita_o_rotulo_com_a_caixa_do_catalogo() -> None:
+    rotulos: dict[str, set[str]] = {}
+    for catalogo in (RAIZ / "src/jobot/painel/i18n/en").glob("*.json"):
+        for valor in json.loads(catalogo.read_text(encoding="utf-8")).values():
+            if "{" not in valor and 2 <= len(valor.split()) <= 4:
+                rotulos.setdefault(valor.lower(), set()).add(valor)
+    documentos = [
+        RAIZ / "README.en.md",
+        RAIZ / "CHANGELOG.en.md",
+        *(WIKI / f"{en}.md" for en in PARES.values()),
+    ]
+    errados = [
+        f"{doc.relative_to(RAIZ)}: {citado!r} (catálogo: {sorted(rotulos[citado.lower()])})"
+        for doc in documentos
+        for citado in CITACAO.findall(doc.read_text(encoding="utf-8"))
+        if citado.lower() in rotulos and citado not in rotulos[citado.lower()]
+    ]
+    assert errados == []
