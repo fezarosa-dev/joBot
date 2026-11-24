@@ -296,3 +296,7 @@ def conferir_candidatura(
         usou=tuple(usou),
         citados=tuple(f for f in faltam if _aparece(normalizar(f), texto)),
     )
+
+
+def citados(faltam: Sequence[str], texto: str) -> tuple[str, ...]:  # stub do vermelho
+    return ()

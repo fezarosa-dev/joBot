@@ -67,3 +67,7 @@ async def desfazer(
     except LookupError as erro:
         raise HTTPException(404, "vaga não existe") from erro
     return _depois(request, con, vaga_id, voltar)
+
+
+def espera_maxima(pedido: object) -> float:  # stub do vermelho
+    return 0.0

@@ -380,5 +380,12 @@
   "configuracoes.ia.teste.testando": "Testing: joBot makes a short request, with a made-up job, and waits for the answer (with the local model, the first time can take a few minutes).",
   "configuracoes.ia.teste.recarregar": "Reload the page to see the test result.",
   "configuracoes.ia.teste.ok": "✓ Tested: the answer came in the right format.",
-  "configuracoes.ia.teste.falhou": "The test failed and the task was turned off. {motivo} Then turn it on again to test once more."
+  "configuracoes.ia.teste.falhou": "The test failed and the task was turned off. {motivo} Then turn it on again to test once more.",
+  "configuracoes.ia.tarefa.candidatura": "Prepare application",
+  "configuracoes.ia.tarefa.candidatura.ajuda": "Only when you click Prepare Application in a job's details: writes the cover letter and the summary from your profile.",
+  "configuracoes.ia.backend.manual": "Manual AI: you copy and paste into the chat you choose",
+  "configuracoes.ia.privacidade.candidatura.desligada": "Off: your profile doesn't leave your computer.",
+  "configuracoes.ia.privacidade.candidatura.local": "Your profile and the job text stay on your computer: it uses the local model.",
+  "configuracoes.ia.privacidade.candidatura.fora": "When you click Prepare Application, your profile (without name, email, phone and city) and the job text go to {servico}.",
+  "configuracoes.ia.privacidade.candidatura.manual": "Nothing goes out by itself: joBot shows the request, you copy and paste it into the AI chat you choose."
 }

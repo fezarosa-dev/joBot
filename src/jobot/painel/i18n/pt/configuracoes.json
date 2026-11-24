@@ -380,5 +380,12 @@
   "configuracoes.ia.teste.testando": "Testando: o joBot faz um pedido curto, com uma vaga inventada, e espera a resposta (no modelo local, a primeira vez pode levar uns minutos).",
   "configuracoes.ia.teste.recarregar": "Recarregue a página para ver o resultado do teste.",
   "configuracoes.ia.teste.ok": "✓ Testado: a resposta veio no formato certo.",
-  "configuracoes.ia.teste.falhou": "O teste falhou e a tarefa ficou desligada. {motivo} Depois, ligue de novo para testar outra vez."
+  "configuracoes.ia.teste.falhou": "O teste falhou e a tarefa ficou desligada. {motivo} Depois, ligue de novo para testar outra vez.",
+  "configuracoes.ia.tarefa.candidatura": "Preparar candidatura",
+  "configuracoes.ia.tarefa.candidatura.ajuda": "Só quando você clica em Preparar candidatura no detalhe de uma vaga: escreve a carta e o resumo a partir do seu perfil.",
+  "configuracoes.ia.backend.manual": "IA manual: você copia e cola no chat que escolher",
+  "configuracoes.ia.privacidade.candidatura.desligada": "Desligada: o seu perfil não sai do seu computador.",
+  "configuracoes.ia.privacidade.candidatura.local": "O seu perfil e o texto da vaga ficam no seu computador: usa o modelo local.",
+  "configuracoes.ia.privacidade.candidatura.fora": "Quando você clica em Preparar candidatura, o seu perfil (sem nome, e-mail, telefone e cidade) e o texto da vaga vão para {servico}.",
+  "configuracoes.ia.privacidade.candidatura.manual": "Nada sai sozinho: o joBot mostra o pedido, você copia e cola no chat de IA que escolher."
 }

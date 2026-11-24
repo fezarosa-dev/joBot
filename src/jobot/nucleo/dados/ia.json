@@ -8,6 +8,10 @@
       "max_tokens": {"fora": 1024, "local": 448},
       "corte": {"inicio": 4000, "fim": 2000},
       "claude": "claude-haiku-5-5"
+    },
+    "candidatura": {
+      "max_tokens": {"fora": 4096, "local": 2048},
+      "claude": "claude-sonnet-5-5"
     }
   },
   "laco": {"max_por_rodada": 20, "max_tentativas": 2, "max_por_dia_fora": 200},
