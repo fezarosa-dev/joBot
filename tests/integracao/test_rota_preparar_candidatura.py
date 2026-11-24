@@ -27,7 +27,7 @@ from apoio.semear import inserir_vaga
 from jobot.banco import cadastros, ia, perfil
 from jobot.banco.conexao import abrir
 from jobot.banco.migrar import migrar
-from jobot.nucleo.ia.contrato import Falha, Pedido, Resposta, conferir
+from jobot.nucleo.ia.contrato import Falha, Pedido, Resposta, conferir, limites
 from jobot.painel.app import criar_app
 from jobot.painel.i18n import carregar
 from jobot.painel.seguranca import CAMPO_CSRF
@@ -721,3 +721,131 @@ def test_candidatura_num_servico_pago_nao_pede_confirmacao_do_custo(painel: Pain
     assert _ia(painel, dados).status_code == 303
     controle = {"encaixe_ligada": "on", "encaixe_backend": "gemini", "encaixe_modelo": "g"}
     assert _ia(painel, dados | controle).status_code == 200
+
+
+# ------------------------------------------------------------------ correções da revisão (T438)
+
+
+@pytest.mark.parametrize("htmx", [True, False])
+def test_desligada_com_servico_gravado_nao_manda_o_perfil(painel: Painel, htmx: bool) -> None:
+    """(guarda) O atalho "Desligada" deixa backend e modelo: um POST direto não manda nada.
+    Controle: ligada, o mesmo POST pede."""
+    painel.tarefa(GEMINI | {"ligada": False})
+    painel.habilidades("Python")
+    assert painel.preparar(htmx=htmx).status_code == (200 if htmx else 303)
+    assert painel.fabrica.pedidos == []
+    assert painel.parado()
+    assert painel.preparo() is None
+    painel.tarefa(GEMINI)
+    assert painel.preparar(htmx=htmx).status_code == (200 if htmx else 303)
+    assert _esperar(painel.parado)
+    assert len(painel.fabrica.pedidos) == 1
+
+
+def test_colar_com_o_manual_desligado_nao_grava(painel: Painel) -> None:
+    """(guarda) Colar só com a tarefa ligada; controle: ligada, grava."""
+    painel.tarefa(MANUAL | {"ligada": False})
+    painel.habilidades("Python")
+    assert painel.colar(json.dumps(RESPOSTA)).status_code == 200
+    assert painel.preparo() is None
+    painel.tarefa(MANUAL)
+    assert painel.colar(json.dumps(RESPOSTA)).status_code == 200
+    assert painel.preparo() is not None
+
+
+def test_fragmento_do_detalhe_ao_lado_mantem_o_prefixo(pronto: Painel) -> None:
+    """Depois da troca do HTMX no detalhe ao lado, id, título e `lado=1` continuam."""
+    pronto.fabrica.soltar = threading.Event()
+    espera = _secao(pronto.preparar(lado="1").text, "lado-")
+    url = f"/vagas/{pronto.vaga}/candidatura/preparo?lado=1"
+    assert espera.attributes.get("hx-get") == url
+    assert espera.css_first("h3#lado-det-preparo") is not None
+    pronto.fabrica.soltar.set()
+    assert _esperar(pronto.parado)
+    final = pronto.http.get(url)
+    assert final.status_code == 200
+    secao = _secao(final.text, "lado-")
+    assert secao.css_first("h3#lado-det-preparo") is not None
+    assert secao.css_first("form input[name='lado'][value='1']") is not None
+    assert secao.css_first("textarea#lado-carta-" + str(pronto.vaga)) is not None
+    # controle: sem `lado`, a seção da página
+    pagina = _secao(pronto.fragmento().text)
+    assert pagina.css_first("h2#det-preparo") is not None
+    assert pagina.css_first("input[name='lado']") is None
+
+
+def test_colar_ruim_sem_javascript_volta_e_a_pagina_mostra_o_motivo(painel: Painel) -> None:
+    painel.tarefa(MANUAL)
+    painel.habilidades("Python")
+    resposta = painel.colar("não é JSON", htmx=False)
+    assert (resposta.status_code, resposta.headers.get("location")) == (
+        303,
+        f"/vagas/{painel.vaga}",
+    )
+    assert pt("detalhe.candidatura.falha_manual") in _texto(painel.pagina())
+
+
+def test_vaga_cortada_avisa_no_preparo(pronto: Painel) -> None:
+    """A IA leu só parte da vaga: o preparo diz (desenho 5.2), como o bloco das habilidades."""
+    assert pt("detalhe.habilidades.cortado") not in _texto(_secao(_feito(pronto)).html or "")
+    with pronto.con() as con:
+        longa = DESCRICAO + " Detalhe." * 1000
+        con.execute("UPDATE vaga SET descricao_texto = ? WHERE id = ?", (longa, pronto.vaga))
+        con.commit()
+    assert pt("detalhe.habilidades.cortado") in _texto(_secao(_feito(pronto)).html or "")
+
+
+def test_contexto_estourado_na_candidatura_tem_texto_proprio(pronto: Painel) -> None:
+    """O pedido leva a vaga e o perfil: "tente um modelo maior" não ajuda quem está offline."""
+    pronto.fabrica.erro = Falha("contexto")
+    texto = _texto(_feito(pronto))
+    assert pt("configuracoes.ia.falha.contexto") not in texto
+    assert pt("detalhe.candidatura.falha.contexto") in texto
+
+
+def test_feito_no_manual_tem_rotulo_curto(painel: Painel) -> None:
+    painel.tarefa(MANUAL)
+    painel.habilidades("Python")
+    secao = _secao(painel.colar(json.dumps(RESPOSTA)).text)
+    notas = secao.css(".preparo-nota")
+    assert notas
+    final = _texto(notas[-1].html or "")
+    assert pt("configuracoes.ia.backend.manual") not in final
+    assert pt("detalhe.candidatura.feito_manual", data="X").split("X")[1] in final
+
+
+def test_aba_ia_candidatura_nao_mostra_a_contagem_do_laco(painel: Painel) -> None:
+    """O teto do dia é do laço: a candidatura, sob pedido, não conta. Controle: o encaixe mostra."""
+    dia = painel.app.state.relogio.agora().astimezone().date().isoformat()
+    painel.config("ia_chamadas", {"dia": dia, "por_backend": {"gemini": 7}})
+    painel.tarefa(GEMINI)
+    assert "de 200 hoje" not in _texto(painel.http.get("/configuracoes/ia").text)
+    painel.config("ia_tarefas", {"candidatura": GEMINI, "encaixe": GEMINI})
+    assert _texto(painel.http.get("/configuracoes/ia").text).count("7 de 200 hoje") == 1
+
+
+def test_manual_nao_mostra_nem_deixa_o_modelo_manual_para_outro_servico(painel: Painel) -> None:
+    painel.tarefa(MANUAL)
+    campo = LexborHTMLParser(painel.http.get("/configuracoes/ia").text).css_first(
+        "input[name='candidatura_modelo']"
+    )
+    assert campo is not None and campo.attributes.get("value") == ""
+    # o formulário antigo ainda traz "manual": no Gemini, pede o modelo e não grava
+    dados = {
+        "candidatura_ligada": "on",
+        "candidatura_backend": "gemini",
+        "candidatura_modelo": "manual",
+    }
+    resposta = _ia(painel, dados)
+    assert resposta.status_code == 422
+    assert pt("configuracoes.ia.erro.modelo") in _texto(resposta.text)
+    with painel.con() as con:
+        tarefas = cadastros.ler_config(con, "ia_tarefas")
+    assert isinstance(tarefas, dict) and tarefas["candidatura"] == MANUAL
+    # na Anthropic, vale o modelo padrão da tarefa
+    painel.cofre.gravar("ia_anthropic", "chave-anthropic-1234567890")
+    assert _ia(painel, dados | {"candidatura_backend": "anthropic"}).status_code == 303
+    with painel.con() as con:
+        tarefas = cadastros.ler_config(con, "ia_tarefas")
+    assert isinstance(tarefas, dict)
+    assert tarefas["candidatura"]["modelo"] == limites()["tarefas"]["candidatura"]["claude"]
