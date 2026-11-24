@@ -46,7 +46,7 @@ from jobot.nucleo.ia.pedidos import (
 )
 from jobot.nucleo.ia.tarefas import nao_achei, nivel_fora_do_trecho, perguntas_que_ficam
 from jobot.nucleo.texto import normalizar, sem_pontas
-from jobot.painel.consultas import relogio_do_painel
+from jobot.painel.consultas import MAX_ID, inteiro_da_url, relogio_do_painel
 from jobot.painel.seguranca import Con, idioma_do_pedido, renderizar
 from jobot.sistema import pdf
 
@@ -610,6 +610,27 @@ def _revisao(
 _CONTEXTO_CV = {"formacoes": FORMACOES, "situacoes": SITUACOES, "niveis": NIVEIS, "teto": _TETO}
 
 
+# o passo Perfil da primeira execução (T439; D235) mostra o mesmo envio: lá a revisão grava pelo
+# assistente, que volta ao passo, e o `?busca=` do assistente vai junto
+CURRICULO_NO_ASSISTENTE = "/primeira-execucao/perfil/curriculo"
+
+
+def curriculo_no_assistente(busca: int | None) -> dict[str, str]:
+    """A consulta que o envio e a resposta colada levam no assistente e a ação da revisão lá."""
+    sufixo = f"busca={busca}" if busca else ""
+    return {
+        "consulta": "?de=assistente" + (f"&{sufixo}" if sufixo else ""),
+        "acao": CURRICULO_NO_ASSISTENTE + (f"?{sufixo}" if sufixo else ""),
+    }
+
+
+def _do_assistente(request: Request) -> dict[str, str] | None:
+    params = request.query_params
+    if params.get("de") != "assistente":
+        return None
+    return curriculo_no_assistente(inteiro_da_url(params.get("busca"), MAX_ID))
+
+
 def _trava_curriculo(request: Request) -> asyncio.Lock:
     estado = request.app.state
     if getattr(estado, "ia_trava_curriculo", None) is None:
@@ -681,10 +702,20 @@ async def colar_curriculo(request: Request, con: Con) -> Response:
     except Falha as falha:
         dados = _manual(request, pedido, enviado, email, telefone)
         falhou = chave_da_falha(falha.motivo, manual.BACKEND)
-        return renderizar(request, _CURRICULO, manual=dados, falha_ia=falhou, **contexto)
+        return renderizar(
+            request,
+            _CURRICULO,
+            manual=dados,
+            falha_ia=falhou,
+            curriculo_assistente=_do_assistente(request),
+            **contexto,
+        )
     gravado = perfil.dados(con)
     revisao = _revisao(resposta.dados, enviado, email or None, telefone or None, gravado)
-    return renderizar(request, _CURRICULO, revisao=revisao, **contexto)
+    assistente = _do_assistente(request)
+    return renderizar(
+        request, _CURRICULO, revisao=revisao, curriculo_assistente=assistente, **contexto
+    )
 
 
 # --- o "Salvar" da revisão (secao=curriculo) ---------------------------------------------------
@@ -873,7 +904,8 @@ async def ler_curriculo(request: Request, con: Con) -> Response:
         lido = await run_in_threadpool(pdf.ler, dados)
     except pdf.AvisoPdf as aviso:
         return _aviso(request, "aviso." + aviso.aviso)
-    return renderizar(request, _CURRICULO, **await extrair_curriculo(request, con, lido))
+    contexto = await extrair_curriculo(request, con, lido)
+    return renderizar(request, _CURRICULO, curriculo_assistente=_do_assistente(request), **contexto)
 
 
 # --- questionário e perguntas de lacuna (T437; desenho 8; D233) -------------------------------

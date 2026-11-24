@@ -1,7 +1,8 @@
 {#- Resultado da leitura do currículo em PDF (T435, T436; D231, D232): o aviso (também no 411 e no
     413, que o aviso de erro do app.js lê pelo data-aviso-erro), quantas páginas foram lidas, o
     motivo sem a IA, o pedido para copiar da IA manual e a revisão do que foi lido. A revisão é um
-    formulário comum (POST com CSRF, sem JavaScript) para /configuracoes/perfil com secao=curriculo:
+    formulário comum (POST com CSRF, sem JavaScript) para /configuracoes/perfil com secao=curriculo (no
+    passo Perfil da primeira execução, para o assistente: `curriculo_assistente`, T439):
     nada é gravado antes dele. Cada item tem a caixa "Usar"; o que "não achei no currículo" vem
     desmarcado, com o motivo, e fica fora do "Aprovar todas". -#}
 {% from "configuracoes/_campos_perfil.html" import entrada, caixa, lista with context %}
@@ -28,7 +29,9 @@
     <label for="cv-manual-pedido">{{ t("configuracoes.perfil.curriculo.manual.pedido") }}</label>
     <textarea class="campo-texto" id="cv-manual-pedido" rows="8" readonly spellcheck="false">{{ manual.texto }}</textarea>
   </div>
-  <form method="post" action="/configuracoes/perfil/curriculo/resposta" class="config-form" hx-post="/configuracoes/perfil/curriculo/resposta" hx-target="#perfil-curriculo-resultado" hx-swap="innerHTML" hx-disabled-elt="find button" hx-indicator="find button">
+  {#- no passo Perfil da primeira execução (T439), a resposta colada volta ao assistente #}
+  {%- set consulta = curriculo_assistente.consulta if curriculo_assistente else "" %}
+  <form method="post" action="/configuracoes/perfil/curriculo/resposta{{ consulta }}" class="config-form" hx-post="/configuracoes/perfil/curriculo/resposta{{ consulta }}" hx-target="#perfil-curriculo-resultado" hx-swap="innerHTML" hx-disabled-elt="find button" hx-indicator="find button">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <textarea name="texto" hidden>{{ manual.enviado }}</textarea>
     <input type="hidden" name="email" value="{{ manual.email }}">
@@ -109,7 +112,7 @@
   {%- endif %}
 </fieldset>
 {%- endmacro %}
-<form method="post" action="/configuracoes/perfil" class="config-form" aria-labelledby="cv-revisao-titulo">
+<form method="post" action="{{ curriculo_assistente.acao if curriculo_assistente else '/configuracoes/perfil' }}" class="config-form" aria-labelledby="cv-revisao-titulo">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   <input type="hidden" name="secao" value="curriculo">
   {#- a resposta colada chega sem o "Currículo lido": o foco solto vai ao título da revisão #}
