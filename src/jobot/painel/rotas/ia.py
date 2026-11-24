@@ -50,6 +50,12 @@ LOCAL: Final = "local"
 BACKENDS: Final = (*SERVICOS_IA, LOCAL)  # a ordem do select
 PAGOS: Final = ("anthropic", "openai", "gemini")  # cobrados por uso e ainda não provados (D185.27)
 ATALHOS: Final = ("desligada", "offline", "claude")
+# as tarefas do laço, que pedem sozinhas e por isso pedem a confirmação do custo; as outras só
+# chamam a IA quando a pessoa clica (D233)
+DO_LACO: Final = ("encaixe",)
+_BASE = "configuracoes.ia.privacidade."
+# a frase de privacidade de cada tarefa: o `encaixe` tem as da 0.5.0; as outras, as suas
+_BASE_PRIVACIDADE: Final = {"encaixe": _BASE}
 # o nome vai no corpo JSON do pedido: ASCII visível, sem espaço (`qwen3:4b`, `org/modelo`)
 _MODELO: Final = re.compile(r"[!-~]{1,200}")
 
@@ -99,7 +105,7 @@ async def contexto_ia(request: Request, con: Con) -> dict[str, Any]:
             "ligada": t.ligada,
             "backend": t.backend,
             "modelo": t.modelo,
-            "privacidade": frase_de_privacidade(t, "configuracoes.ia.privacidade."),
+            "privacidade": frase_de_privacidade(t, _BASE_PRIVACIDADE.get(nome, f"{_BASE}{nome}.")),
             "parada": t.ligada and t.backend not in configurados,
             # o teto do dia é por backend de fora (D198.10); o local não tem teto
             "hoje": chamadas_do_dia(con, t.backend, agora)
@@ -153,8 +159,8 @@ def _da_tabela(
         ligada = f"{nome}_ligada" in form
         if b is None and not ligada:
             # sem backend configurado (ou com o cofre falhando) a tela não mostra o select e a
-            # caixa vem desativada: nada ali era editável, então a tarefa gravada fica
-            novas[nome] = atuais[nome]
+            # caixa vem desativada: nada ali era editável, então a tarefa gravada fica (e o
+            # formulário que não traz a tarefa não a grava)
             continue
         if backend and backend not in configurados:
             raise HTTPException(422)  # a tela só mostra os configurados (lista fechada)
@@ -197,12 +203,13 @@ async def gravar_ia(request: Request, con: Con, form: FormData) -> str | tuple[i
             contexto = {"ia_digitado": digitado, "ia_erro_tarefa": tarefa, "ia_erro_campo": campo}
             return 422, contexto | {"erro": erro}
         novas = lidas
-    # ligar o laço num serviço pago (ou trocar de serviço pago) pede a confirmação do custo
-    # ponytail: na 0.5.0 toda tarefa é do laço (só o `encaixe`); as sob pedido da 0.6.0 decidem
+    # ligar o laço num serviço pago (ou trocar de serviço pago) pede a confirmação do custo; a
+    # tarefa sob pedido só chama a IA quando a pessoa clica, e a frase junto do botão diz para onde
     caras = [
         t.backend
         for n, t in novas.items()
-        if t.ligada
+        if n in DO_LACO
+        and t.ligada
         and t.backend in PAGOS
         and not (atuais[n].ligada and atuais[n].backend == t.backend)
     ]

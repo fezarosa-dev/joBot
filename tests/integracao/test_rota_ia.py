@@ -172,7 +172,8 @@ def test_desligar_a_ia_mantem_o_backend_e_o_modelo(painel: Painel) -> None:
     painel.tarefa(True, "openai", "gpt-x")
     assert _destino(painel.post({"atalho": "desligada"})) == (303, IA + "?salvo=1")
     assert painel.tarefas() == {
-        "encaixe": {"ligada": False, "backend": "openai", "modelo": "gpt-x"}
+        "encaixe": {"ligada": False, "backend": "openai", "modelo": "gpt-x"},
+        "perguntas": DESLIGADA,  # o atalho grava todas as tarefas do `ia.json` (T437)
     }
     assert not painel.acordar.is_set()  # desligar não acorda o laço
 
@@ -181,7 +182,8 @@ def test_tudo_offline_grava_o_modelo_local_e_acorda_o_laco(painel: Painel) -> No
     painel.local()
     assert "offline" in _atalhos(painel.get().text)
     assert _destino(painel.post({"atalho": "offline"})) == (303, IA + "?salvo=1")
-    assert painel.tarefas() == {"encaixe": {"ligada": True, "backend": "local", "modelo": LOCAL}}
+    no_local = {"ligada": True, "backend": "local", "modelo": LOCAL}
+    assert painel.tarefas() == {"encaixe": no_local, "perguntas": no_local}
     assert painel.acordar.is_set()
     texto = _texto(painel.get().text)
     assert pt("configuracoes.ia.modo", modo=pt("configuracoes.ia.modo.offline")) in texto
@@ -210,6 +212,7 @@ def test_atalhos_preservam_tarefa_desconhecida(painel: Painel) -> None:
     painel.post({"atalho": "offline"})
     assert painel.tarefas() == {
         "encaixe": {"ligada": True, "backend": "local", "modelo": LOCAL},
+        "perguntas": {"ligada": True, "backend": "local", "modelo": LOCAL},
         "futura": outra,
     }
 
@@ -257,7 +260,8 @@ def test_tudo_claude_pede_confirmacao_do_custo_antes_de_gravar(painel: Painel) -
 
     assert _destino(painel.post({"atalho": "claude", "confirmar": "1"})) == (303, IA + "?salvo=1")
     assert painel.tarefas() == {
-        "encaixe": {"ligada": True, "backend": "anthropic", "modelo": "claude-haiku-5-5"}
+        "encaixe": {"ligada": True, "backend": "anthropic", "modelo": "claude-haiku-5-5"},
+        "perguntas": {"ligada": True, "backend": "anthropic", "modelo": "claude-sonnet-5-5"},
     }
     assert painel.acordar.is_set()
     modo = pt("configuracoes.ia.modo", modo=pt("configuracoes.ia.modo.claude"))
@@ -641,3 +645,44 @@ def test_catalogos_sem_chave_ia_so_de_um_lado() -> None:
     so_en = {c for c in en if c.startswith("configuracoes.ia.")} - set(pt_)
     assert (so_pt, so_en) == (set(), set())
     assert json.dumps(sorted(c for c in pt_ if c.startswith("configuracoes.ia."))) != "[]"
+
+
+# ------------------------------------------------------------------ perguntas (T437; D233)
+
+
+def test_tarefa_perguntas_aparece_com_a_frase_dela(painel: Painel) -> None:
+    painel.cofre.gravar("ia_gemini", CHAVE)
+    painel.config("ia_tarefas", {"perguntas": {"ligada": True, "backend": "gemini", "modelo": "m"}})
+    html = painel.get().text
+    assert LexborHTMLParser(html).css_first('input[name="perguntas_ligada"]') is not None
+    texto = _texto(html)
+    assert pt("configuracoes.ia.tarefa.perguntas") in texto
+    assert pt("configuracoes.ia.tarefa.perguntas.ajuda") in texto
+    servico = pt("configuracoes.perfil.servico.gemini")
+    assert pt("configuracoes.ia.privacidade.perguntas.fora", servico=servico) in texto
+    # o encaixe, desligado, segue com a frase dele
+    assert pt("configuracoes.ia.privacidade.desligada") in texto
+
+
+def test_ligar_perguntas_num_servico_pago_nao_pede_confirmacao(painel: Painel) -> None:
+    """(guarda) A tarefa sob pedido não vai ao aviso de custo do laço; controle: o encaixe vai."""
+    painel.cofre.gravar("ia_openai", CHAVE)
+    dados = {"perguntas_ligada": "on", "perguntas_backend": "openai", "perguntas_modelo": "gpt-x"}
+    assert painel.post(dados).status_code == 303
+    tarefas = painel.tarefas()
+    assert isinstance(tarefas, dict)
+    assert tarefas.get("perguntas") == {"ligada": True, "backend": "openai", "modelo": "gpt-x"}
+    controle = {"encaixe_ligada": "on", "encaixe_backend": "openai", "encaixe_modelo": "gpt-x"}
+    assert painel.post(dados | controle).status_code == 200
+
+
+def test_tudo_claude_liga_perguntas_no_sonnet(painel: Painel) -> None:
+    painel.cofre.gravar("ia_anthropic", CHAVE)
+    assert painel.post({"atalho": "claude", "confirmar": "1"}).status_code == 303
+    tarefas = painel.tarefas()
+    assert isinstance(tarefas, dict)
+    assert tarefas.get("perguntas") == {
+        "ligada": True,
+        "backend": "anthropic",
+        "modelo": "claude-sonnet-5-5",
+    }

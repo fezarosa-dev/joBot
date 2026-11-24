@@ -11,10 +11,13 @@ falhar, nada muda. Todo formulário da aba posta em `POST /configuracoes/perfil`
 as habilidades (o formulário da 0.5.0). Este módulo não importa aquele.
 """
 
+import asyncio
+import logging
 import re
 import sqlite3
 import unicodedata
 from collections.abc import Sequence
+from dataclasses import asdict, replace
 from typing import Any, get_args
 from urllib.parse import urlsplit
 
@@ -23,13 +26,19 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import RedirectResponse, Response
 from starlette.datastructures import FormData, UploadFile
 
+from jobot.agenda.ia import Obter
 from jobot.banco import buscas, perfil
 from jobot.banco.cadastros import ler_config
 from jobot.banco.ia import TarefaIA, tarefa_ia
+from jobot.nucleo.ia.contrato import Falha, Motivo, Pedido, Resposta
+from jobot.nucleo.ia.pedidos import pedido_perguntas, perguntas_base
+from jobot.nucleo.ia.tarefas import perguntas_que_ficam
 from jobot.nucleo.texto import normalizar, sem_pontas
 from jobot.painel.consultas import relogio_do_painel
-from jobot.painel.seguranca import Con, renderizar
+from jobot.painel.seguranca import Con, idioma_do_pedido, renderizar
 from jobot.sistema import pdf
+
+log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/configuracoes/perfil")
 
@@ -238,25 +247,29 @@ def _idiomas(form: FormData) -> tuple[tuple[str, str], ...]:
     return tuple(pares)
 
 
-def dados_do_form(form: FormData) -> perfil.Dados:
-    """Os `Dados` do formulário "Sobre você". Campo vazio apaga o valor (D226.1)."""
-    valores = {c: _bruto(form, c) for c in _IDS_DADOS}
+def _comuns(form: FormData) -> dict[str, Any]:
+    """Os campos que "Sobre você" e o questionário têm em comum, já conferidos."""
+    valores = {c: _bruto(form, c) for c in _IDS_DADOS if c != "resumo"}
     email = _texto(valores["email"], "perfil-email", _TETO["email"])
     if email is not None and not _EMAIL.fullmatch(email):
         raise _Recusa("configuracoes.perfil.erro.email", "perfil-email")
-    formacao = _da_lista(valores["formacao_nivel"], FORMACOES)
-    return perfil.Dados(
-        nome=_texto(valores["nome"], "perfil-nome"),
-        email=email,
-        telefone=_texto(valores["telefone"], "perfil-telefone", _TETO["telefone"]),
-        cidade_moradia=_texto(valores["cidade_moradia"], "perfil-cidade"),
-        cargo_atual=_texto(valores["cargo_atual"], "perfil-cargo"),
-        anos_de_experiencia=_anos(valores["anos_de_experiencia"]),
-        formacao_nivel=formacao,  # type: ignore[arg-type]  # conferida contra FORMACOES
-        resumo=_bloco(valores["resumo"], "perfil-resumo"),
-        idiomas_falados=_idiomas(form),
-        links=_links(valores["links"]),
-    )
+    return {
+        "nome": _texto(valores["nome"], "perfil-nome"),
+        "email": email,
+        "telefone": _texto(valores["telefone"], "perfil-telefone", _TETO["telefone"]),
+        "cidade_moradia": _texto(valores["cidade_moradia"], "perfil-cidade"),
+        "cargo_atual": _texto(valores["cargo_atual"], "perfil-cargo"),
+        "anos_de_experiencia": _anos(valores["anos_de_experiencia"]),
+        "formacao_nivel": _da_lista(valores["formacao_nivel"], FORMACOES),
+        "links": _links(valores["links"]),
+    }
+
+
+def dados_do_form(form: FormData) -> perfil.Dados:
+    """Os `Dados` do formulário "Sobre você". Campo vazio apaga o valor (D226.1)."""
+    comuns = _comuns(form)
+    resumo = _bloco(_bruto(form, "resumo"), "perfil-resumo")
+    return perfil.Dados(**comuns, resumo=resumo, idiomas_falados=_idiomas(form))
 
 
 def _dados_na_tela(dados: perfil.Dados) -> dict[str, Any]:
@@ -469,3 +482,212 @@ async def ler_curriculo(request: Request) -> Response:
         return _aviso(request, "aviso." + aviso.aviso)
     extrair_curriculo(lido)
     return renderizar(request, _CURRICULO, lido=lido)
+
+
+# --- questionário e perguntas de lacuna (T437; desenho 8; D233) -------------------------------
+
+PERGUNTAS = PERFIL + "/perguntas"
+TETO_RESPOSTAS = 200  # pares pergunta/resposta que a tela manda num POST
+# por cima do prazo do pedido: a leitura do cofre e a subida do `llama-server` (como o teste ao
+# ligar, `ia.FOLGA_TESTE_S`); passou disso, `tempo_esgotado`
+FOLGA_IA_S = 150.0
+
+
+def _base_na_tela(idioma: str) -> list[dict[str, str | None]]:
+    return [
+        {"id": p["id"], "campo": p.get("campo"), "onde": p.get("onde"), "texto": p.get(idioma)}
+        for p in perguntas_base()
+    ]
+
+
+def _feitas(perguntas: Sequence[perfil.PerguntaPerfil]) -> list[str]:
+    """As perguntas que a IA não deve repetir: as base, nos dois idiomas, e as já gravadas."""
+    return [p[i] for p in perguntas_base() for i in ("pt", "en")] + [p.pergunta for p in perguntas]
+
+
+def _perguntas_na_tela(
+    perguntas: Sequence[perfil.PerguntaPerfil], digitadas: dict[str, str] | None = None
+) -> list[dict[str, str]]:
+    return [
+        {
+            "chave": p.chave,
+            "pergunta": p.pergunta,
+            "por_que": p.por_que or "",
+            "resposta": (digitadas or {}).get(p.chave, p.resposta or ""),
+        }
+        for p in perguntas
+    ]
+
+
+async def contexto_perguntas(request: Request, con: Con) -> dict[str, Any]:
+    tarefa = tarefa_ia(con, "perguntas")
+    sugeridas = request.query_params.get("sugeridas", "")
+    return {
+        "perguntas_base": _base_na_tela(idioma_do_pedido(request)),
+        "dados_tela": _dados_na_tela(perfil.dados(con)),
+        "habilidades_texto": "\n".join(perfil.habilidades(con)),
+        "perguntas_ia": _perguntas_na_tela(perfil.perguntas(con)),
+        "perguntas_ligada": tarefa.ligada,
+        "perguntas_privacidade": frase_de_privacidade(
+            tarefa, "configuracoes.perfil.perguntas.privacidade."
+        ),
+        "perguntas_falha": None,
+        # só um número de 0 a 5 vai à página; o resto da URL não
+        "sugeridas": int(sugeridas) if sugeridas in ("0", "1", "2", "3", "4", "5") else None,
+        "formacoes": FORMACOES,
+        "niveis": NIVEIS,
+        "idiomas_fixos": IDIOMAS_FIXOS,
+        "teto": _TETO,
+        "erro_campo": None,
+    }
+
+
+def _respostas(form: FormData) -> list[tuple[str, str | None]]:
+    """Os pares (chave, resposta) das perguntas; resposta vazia = `None` (apaga)."""
+    chaves, textos = form.getlist("pergunta_chave"), form.getlist("pergunta_resposta")
+    if (
+        len(chaves) != len(textos)
+        or len(chaves) > TETO_RESPOSTAS
+        or not all(isinstance(v, str) for v in (*chaves, *textos))
+    ):
+        raise HTTPException(422)
+    return [
+        (str(c), _bloco(str(t), f"pergunta-{n}"))
+        for n, (c, t) in enumerate(zip(chaves, textos, strict=True), start=1)
+    ]
+
+
+def _dados_das_perguntas(form: FormData, atuais: perfil.Dados) -> perfil.Dados:
+    """Os campos do questionário por cima dos gravados: o resumo e os outros idiomas ficam."""
+    fixos = [(c, n) for c in IDIOMAS_FIXOS if (n := _da_lista(_bruto(form, "idioma_" + c), NIVEIS))]
+    outros = [par for par in atuais.idiomas_falados if par[0] not in IDIOMAS_FIXOS]
+    return replace(atuais, **_comuns(form), idiomas_falados=tuple(fixos + outros))
+
+
+async def gravar_perguntas(
+    request: Request, con: sqlite3.Connection, form: FormData
+) -> str | tuple[int, dict[str, Any]]:
+    """Grava as respostas do questionário (perfil, habilidades e perguntas) e, com `sugerir`,
+    pede as perguntas de lacuna. Devolve o endereço do 303 ou o status e o contexto da página.
+    Tudo é conferido antes de gravar: com um campo errado, nada muda."""
+    try:
+        novos = _dados_das_perguntas(form, perfil.dados(con))
+        try:
+            lista = habilidades_do_texto(_bruto(form, "habilidades"))
+        except ValueError:
+            raise _Recusa("configuracoes.perfil.erro.grande", "campo-habilidades") from None
+        respostas = _respostas(form)
+    except _Recusa as recusa:
+        chaves, textos = form.getlist("pergunta_chave"), form.getlist("pergunta_resposta")
+        digitadas = dict(zip(chaves, textos, strict=False))  # a tela manda em pares
+        return 422, {
+            "erro": recusa.chave,
+            "erro_campo": recusa.campo_id,
+            "dados_tela": _dados_digitados(form),
+            "habilidades_texto": str(form.get("habilidades") or ""),
+            "perguntas_ia": _perguntas_na_tela(
+                perfil.perguntas(con), {str(c): str(t) for c, t in digitadas.items()}
+            ),
+        }
+    agora = relogio_do_painel(request).agora()
+    salvar_habilidades(request, con, lista)
+    perfil.gravar_dados(con, novos, agora)
+    guardadas = {p.chave: p.resposta for p in perfil.perguntas(con)}
+    for chave, resposta in respostas:
+        if chave in guardadas and guardadas[chave] != resposta:
+            perfil.responder_pergunta(con, chave, resposta, agora)
+    if "sugerir" not in form:
+        return PERGUNTAS + "?salvo=1#perguntas-ia"
+    return await _sugerir(request, con)
+
+
+def _trava_perguntas(request: Request) -> asyncio.Lock:
+    estado = request.app.state
+    if getattr(estado, "ia_trava_perguntas", None) is None:
+        estado.ia_trava_perguntas = asyncio.Lock()
+    trava: asyncio.Lock = estado.ia_trava_perguntas
+    return trava
+
+
+def chave_da_falha(motivo: Motivo, backend: str) -> str:
+    """O texto do motivo, com o da Anthropic à parte (D192.3), como no teste ao ligar."""
+    especial = motivo == "chave_recusada" and backend == "anthropic"
+    return "configuracoes.ia.falha." + motivo + (".anthropic" if especial else "")
+
+
+async def _sugerir(request: Request, con: sqlite3.Connection) -> str | tuple[int, dict[str, Any]]:
+    tarefa = tarefa_ia(con, "perguntas")
+    if not tarefa.ligada:  # desligada noutra aba depois de a página abrir
+        return 200, {"perguntas_falha": "configuracoes.perfil.perguntas.desligada"}
+    trava = _trava_perguntas(request)
+    if trava.locked():  # clique duplo: as respostas já gravaram; as sugestões chegam com o 1º
+        return PERGUNTAS + "?salvo=1#perguntas-ia"
+    async with trava:  # livre: não suspende, então a checagem acima vale
+        perguntas = perfil.perguntas(con)
+        fontes = asdict(perfil.dados(con)) | {
+            "habilidades": perfil.habilidades(con),
+            "experiencias": perfil.experiencias(con),
+            "cursos": perfil.cursos(con),
+            "respostas": [p for p in perguntas if p.resposta],  # só as respondidas (D227.6)
+            "perguntas_feitas": _feitas(perguntas),
+        }
+        idioma = idioma_do_pedido(request)
+        pedido = pedido_perguntas(fontes, idioma, tarefa.backend, tarefa.modelo)
+        try:
+            resposta = await pedir_ia(request, tarefa, pedido)
+        except Falha as falha:
+            return 200, {"perguntas_falha": chave_da_falha(falha.motivo, tarefa.backend)}
+        ficam = perguntas_que_ficam(resposta.dados["perguntas"], _feitas(perguntas))
+        agora = relogio_do_painel(request).agora()
+        for p in ficam:
+            chave = "ia:" + normalizar(p["pergunta"])
+            perfil.gravar_pergunta(
+                con, chave, p["pergunta"], "ia", agora, por_que=p["por_que"] or None
+            )
+    return f"{PERGUNTAS}?sugeridas={len(ficam)}#perguntas-ia"
+
+
+async def pedir_ia(request: Request, tarefa: TarefaIA, pedido: Pedido) -> Resposta:
+    """Uma chamada à IA sob pedido, fora do laço: o backend da fábrica do `serve`
+    (`app.state.ia`) numa thread, com prazo. Erro fora do contrato vai ao log e vira
+    `servico_fora`; o log só leva tarefa, backend, modelo, duração e motivo (desenho 5.3)."""
+    obter: Obter | None = getattr(request.app.state, "ia", None)
+    relogio = relogio_do_painel(request)
+    inicio = relogio.agora()
+    motivo = "ok"
+    futuro: asyncio.Future[Resposta] | None = None
+    try:
+        if obter is None:  # o app sem o `serve` não tem a fábrica
+            raise Falha("servico_fora")
+        futuro = asyncio.ensure_future(_pedir(obter, tarefa, pedido))
+        feitas, _ = await asyncio.wait({futuro}, timeout=pedido.prazo_s + FOLGA_IA_S)
+        if not feitas:  # a thread presa segue até o próprio prazo; a página não espera
+            raise Falha("tempo_esgotado")
+        return futuro.result()
+    except Falha as falha:
+        motivo = falha.motivo
+        raise
+    except Exception:
+        motivo = "servico_fora"
+        log.exception("ia %s %s: erro fora do contrato", pedido.tarefa, tarefa.backend)
+        raise Falha("servico_fora") from None
+    finally:
+        if futuro is not None:
+            futuro.cancel()  # terminado, não faz nada; senão fecha o cliente (o `finally` dele)
+        segundos = (relogio.agora() - inicio).total_seconds()
+        log.info(
+            "ia %s %s %s: %s em %.1f s",
+            pedido.tarefa,
+            tarefa.backend,
+            tarefa.modelo,
+            motivo,
+            segundos,
+        )
+
+
+async def _pedir(obter: Obter, tarefa: TarefaIA, pedido: Pedido) -> Resposta:
+    backend = await asyncio.to_thread(obter, tarefa.backend, tarefa.modelo)
+    try:
+        return await asyncio.to_thread(backend.pedir, pedido)
+    finally:
+        backend.fechar()

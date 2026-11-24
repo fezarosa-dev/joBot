@@ -261,12 +261,15 @@ def gravar_pergunta(
         )
 
 
-def responder_pergunta(con: sqlite3.Connection, chave: str, resposta: str, agora: datetime) -> None:
-    """Grava a resposta da pergunta que já existe; chave desconhecida não cria nada."""
+def responder_pergunta(
+    con: sqlite3.Connection, chave: str, resposta: str | None, agora: datetime
+) -> None:
+    """Grava a resposta da pergunta que já existe; chave desconhecida não cria nada. `None` apaga
+    a resposta (a pergunta volta a "sem resposta")."""
     with con:
         con.execute(
             "UPDATE pergunta_perfil SET resposta = ?, respondida_em = ? WHERE chave = ?",
-            (resposta, agora.isoformat(), chave),
+            (resposta, None if resposta is None else agora.isoformat(), chave),
         )
 
 
