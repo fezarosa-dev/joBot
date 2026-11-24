@@ -26,7 +26,9 @@ class TarefaIA:
 def tarefa_ia(con: sqlite3.Connection, tarefa: str) -> TarefaIA:
     """A configuração da tarefa em `ia_tarefas`. Ausente ou estranha: desligada.
 
-    Só liga com `ligada` igual a `true` e backend e modelo em texto não vazio.
+    Só liga com `ligada` igual a `true` e backend e modelo em texto não vazio; a IA manual
+    ("manual", o `manual.BACKEND` do núcleo) liga sem modelo: o joBot não sabe qual chat a pessoa
+    usa (D229.5, D232).
     """
     tarefas = ler_config(con, "ia_tarefas")
     item = tarefas.get(tarefa) if isinstance(tarefas, dict) else None
@@ -35,7 +37,7 @@ def tarefa_ia(con: sqlite3.Connection, tarefa: str) -> TarefaIA:
     backend, modelo = item.get("backend"), item.get("modelo")
     backend = backend if isinstance(backend, str) else ""
     modelo = modelo if isinstance(modelo, str) else ""
-    ligada = item.get("ligada") is True and bool(backend) and bool(modelo)
+    ligada = item.get("ligada") is True and bool(backend) and (bool(modelo) or backend == "manual")
     return TarefaIA(ligada=ligada, backend=backend, modelo=modelo)
 
 

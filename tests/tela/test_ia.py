@@ -75,7 +75,7 @@ def test_tudo_offline_pelo_teclado(page: Page, painel: str, tmp_path: Path) -> N
     expect(page.get_by_role("status").filter(has_text="Salvo.")).to_be_visible()
     expect(page.get_by_text("Agora: Tudo offline.")).to_be_visible()
     no_local = {"ligada": True, "backend": "local", "modelo": LOCAL}
-    assert _tarefas(tmp_path) == {"encaixe": no_local, "perguntas": no_local}
+    assert _tarefas(tmp_path) == {"encaixe": no_local, "perguntas": no_local, "curriculo": no_local}
 
 
 def test_custo_pede_confirmacao_e_voltar_nao_liga(
@@ -120,6 +120,7 @@ def test_custo_confirmado_sem_javascript(
     assert _tarefas(tmp_path) == {
         "encaixe": {"ligada": True, "backend": "anthropic", "modelo": "claude-haiku-5-5"},
         "perguntas": {"ligada": True, "backend": "anthropic", "modelo": "claude-sonnet-5-5"},
+        "curriculo": {"ligada": True, "backend": "anthropic", "modelo": "claude-sonnet-5-5"},
     }
 
 
@@ -202,7 +203,8 @@ def test_teste_ao_ligar_pergunta_e_mostra_a_falha_com_a_tarefa_desligada(
     desligada = {"ligada": False, "backend": "local", "modelo": LOCAL}
     while _tarefas(tmp_path) != {
         "encaixe": desligada,
-        "perguntas": desligada,  # o mesmo par: o teste é um só e as duas caem (T437)
+        "perguntas": desligada,  # o mesmo par: o teste é um só e as três caem (T437, T436)
+        "curriculo": desligada,
     }:  # o resultado chega só pela pergunta periódica, depois do servidor terminar
         assert time.monotonic() < fim
         time.sleep(0.01)

@@ -637,20 +637,25 @@ def test_candidatura_vaga_com_instrucao_embutida_nao_passa_sem_aviso() -> None:
 
 
 def test_nivel_do_idioma_so_vale_no_trecho_do_idioma() -> None:
-    texto = "Idiomas: Inglês avançado, Espanhol básico\nAlemão (fluente) | Francês - intermediário"
-    dados = {
-        "idiomas_falados": [
-            {"idioma": "Inglês", "nivel": "avancado"},  # no trecho dele: fica
-            {"idioma": "Espanhol", "nivel": "avancado"},  # o "avançado" é do inglês: marca
-            {"idioma": "Alemão", "nivel": "fluente"},
-            {"idioma": "Francês", "nivel": "intermediario"},
-            {"idioma": "Italiano", "nivel": None},  # sem nível: nada a conferir aqui
-            {"idioma": "Russo", "nivel": "basico"},  # o idioma nem está no texto: marca
-        ]
-    }
+    texto = (
+        "Idiomas: Inglês avançado, Espanhol básico\n"
+        "Alemão avançado | Japonês básico; Francês - intermediário\n"
+        "\u2022 Italiano fluente \u2022 Russo básico"
+    )
+    pares = [
+        ("Inglês", "avancado"),  # no trecho dele: fica
+        ("Espanhol", "avancado"),  # o "avançado" é do inglês (vírgula): marca
+        ("Alemão", "avancado"),
+        ("Japonês", "avancado"),  # o do alemão (barra vertical): marca
+        ("Francês", "basico"),  # o do japonês (ponto e vírgula): marca
+        ("Italiano", "fluente"),
+        ("Russo", "fluente"),  # o do italiano (marcador de lista): marca
+        ("Grego", None),  # sem nível: nada a conferir aqui
+        ("Sueco", "basico"),  # o idioma nem está no texto: marca
+    ]
+    dados = {"idiomas_falados": [{"idioma": i, "nivel": n} for i, n in pares]}
     assert tarefas.nivel_fora_do_trecho(dados, texto) == {
-        "idiomas_falados.1.nivel",
-        "idiomas_falados.5.nivel",
+        f"idiomas_falados.{n}.nivel" for n in (1, 3, 4, 6, 8)
     }
     # o nao_achei sozinho não pega o espanhol (o limite da D228.2)
     assert "idiomas_falados.1.nivel" not in nao_achei(dados, texto)

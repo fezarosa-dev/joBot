@@ -1,9 +1,12 @@
 """Aba Perfil de Configurações: dados, idiomas, habilidades, experiências, cursos e "Apagar
 perfil" (desenho 8 da fase 4; T413, T434; D200, D230).
 
-Tudo aqui é dado da pessoa e fica no computador: nenhuma rota deste módulo manda nada para fora.
+Tudo aqui é dado da pessoa e fica no computador; só sai para a IA que a pessoa ligar, pela lista
+permitida de `nucleo/ia/pedidos.py` (as perguntas de lacuna, T437, e a leitura do currículo, T436).
 O currículo em PDF (`POST /configuracoes/perfil/curriculo`, T435) é lido no processo filho de
-`sistema/pdf.py` e não é guardado: nem o PDF nem o texto vão ao banco ou à pasta de dados.
+`sistema/pdf.py` e não é guardado: nem o PDF nem o texto vão ao banco ou à pasta de dados. Com a
+tarefa `curriculo` ligada, o texto sem contato vai à IA e o que ela leu volta como revisão; só o
+"Salvar" da revisão grava (D232).
 As habilidades vão ao banco limpas e sem repetidos (`habilidades_do_texto`); mudar a lista
 recalcula o encaixe **antes** de gravar, com a lista nova (padrões «Config»): se o recálculo
 falhar, nada muda. Todo formulário da aba posta em `POST /configuracoes/perfil` (rota de
@@ -16,7 +19,7 @@ import logging
 import re
 import sqlite3
 import unicodedata
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from dataclasses import asdict, replace
 from typing import Any, get_args
 from urllib.parse import urlsplit
@@ -30,9 +33,18 @@ from jobot.agenda.ia import Obter
 from jobot.banco import buscas, perfil
 from jobot.banco.cadastros import ler_config
 from jobot.banco.ia import TarefaIA, tarefa_ia
-from jobot.nucleo.ia.contrato import Falha, Motivo, Pedido, Resposta
-from jobot.nucleo.ia.pedidos import pedido_perguntas, perguntas_base
-from jobot.nucleo.ia.tarefas import perguntas_que_ficam
+from jobot.nucleo.ia import manual
+from jobot.nucleo.ia.contrato import Falha, Motivo, Pedido, Resposta, limites
+from jobot.nucleo.ia.manual import texto_para_copiar
+from jobot.nucleo.ia.pedidos import (
+    TextoCurriculo,
+    contato_do_texto,
+    pedido_curriculo,
+    pedido_perguntas,
+    perguntas_base,
+    texto_curriculo,
+)
+from jobot.nucleo.ia.tarefas import nao_achei, nivel_fora_do_trecho, perguntas_que_ficam
 from jobot.nucleo.texto import normalizar, sem_pontas
 from jobot.painel.consultas import relogio_do_painel
 from jobot.painel.seguranca import Con, idioma_do_pedido, renderizar
@@ -93,12 +105,13 @@ def salvar_habilidades(request: Request, con: sqlite3.Connection, lista: Sequenc
 
 
 def frase_de_privacidade(tarefa: TarefaIA, base: str) -> dict[str, str | None]:
-    """A chave da frase (`<base>desligada`, `local` ou `fora`) e, fora, o nome do serviço; a aba
-    IA usa a mesma regra com as frases dela (T415)."""
+    """A chave da frase (`<base>desligada`, `local`, `manual` ou `fora`) e, fora, o nome do
+    serviço; a aba IA usa a mesma regra com as frases dela (T415). `manual` só nas tarefas que a
+    aceitam (`ia.COM_MANUAL`, T436)."""
     if not tarefa.ligada:
         return {"chave": base + "desligada", "servico": None}
-    if tarefa.backend == "local":
-        return {"chave": base + "local", "servico": None}
+    if tarefa.backend in ("local", manual.BACKEND):
+        return {"chave": base + tarefa.backend, "servico": None}
     nome = tarefa.backend if tarefa.backend in SERVICOS else "outro"
     return {"chave": base + "fora", "servico": "configuracoes.perfil.servico." + nome}
 
@@ -210,12 +223,12 @@ def _links(valor: str) -> tuple[str, ...]:
     return tuple(lista)
 
 
-def _anos(valor: str) -> int | None:
+def _anos(valor: str, campo_id: str = "perfil-anos") -> int | None:
     limpo = valor.strip()
     if not limpo:
         return None
     if not limpo.isascii() or not limpo.isdigit() or int(limpo) > 60:
-        raise _Recusa("configuracoes.perfil.erro.anos", "perfil-anos")
+        raise _Recusa("configuracoes.perfil.erro.anos", campo_id)
     return int(limpo)
 
 
@@ -367,6 +380,8 @@ async def gravar_perfil(
 ) -> str | tuple[int, dict[str, Any]]:
     """Grava a seção de `form`; devolve o endereço do 303 ou o status e o contexto do erro."""
     secao = form.get("secao")
+    if secao == "curriculo":  # a revisão do que a IA leu do currículo (T436)
+        return _gravar_curriculo(request, con, form)
     try:
         if secao is None:
             texto = _bruto(form, "habilidades")
@@ -406,6 +421,10 @@ async def contexto_perfil(request: Request, con: Con) -> dict[str, Any]:
         "habilidades_texto": "\n".join(atuais),
         "tem_perfil": perfil.existe(con),
         "privacidade": _privacidade(con),
+        "curriculo_privacidade": frase_de_privacidade(
+            tarefa_ia(con, "curriculo"), "configuracoes.ia.privacidade.curriculo."
+        ),
+        "revisao": None,
         "apagado": request.query_params.get("apagado") == "1",
         "dados_tela": _dados_na_tela(perfil.dados(con)),
         "experiencias": [_item_na_tela(e) for e in perfil.experiencias(con)],
@@ -447,10 +466,291 @@ async def apagar(request: Request, con: Con) -> Response:
 # --- o currículo em PDF (T435; D231) ----------------------------------------------------------
 
 _CURRICULO = "configuracoes/_curriculo.html"
+_CV = "configuracoes.perfil.curriculo."
+# o que a revisão pode trazer: os campos de `SaidaCurriculo` (T432), mais o e-mail e o telefone,
+# que o regex local acha (desenho 8). Cada item é um caminho de `tarefas.nao_achei`.
+_ESCALARES = ("email", "telefone", "cargo_atual", "anos_de_experiencia", "formacao_nivel", "resumo")
+_LISTAS = {
+    "habilidades": ("valor",),
+    "idiomas_falados": ("idioma", "nivel"),
+    "experiencias": _CAMPOS_ITEM["experiencia"],
+    "cursos": _CAMPOS_ITEM["curso"],
+}
+_CAMINHO = re.compile(rf"(?:{'|'.join(_ESCALARES)}|(?:{'|'.join(_LISTAS)})\.\d{{1,2}})")
+TETO_REVISAO = 100  # itens num POST; a IA devolve no máximo 86 (6 + 50 + 10 + 10 + 10)
+# o nome do idioma lido -> o código da lista fixa (A9); o resto fica pelo nome
+_CODIGO_IDIOMA = {
+    "portugues": "pt",
+    "portuguese": "pt",
+    "ingles": "en",
+    "english": "en",
+    "espanhol": "es",
+    "spanish": "es",
+    "espanol": "es",
+}
 
 
-async def extrair_curriculo(request: Request, con: sqlite3.Connection, lido: pdf.Lido) -> dict[str, Any]:
-    return {"lido": lido}
+def _subcampos(caminho: str) -> tuple[str, ...]:
+    return _LISTAS.get(caminho.split(".")[0], ("valor",))
+
+
+def _id_cv(caminho: str, campo: str) -> str:
+    return f"cv-{caminho.replace('.', '-')}-{campo}"
+
+
+def _motivo(caminho: str, marcados: Collection[str]) -> str | None:
+    """Por que o item fica fora do "Aprovar todas": não achado no texto, ou o número de anos, que
+    o `nao_achei` acha em qualquer lugar ("3 filhos"; D228.2)."""
+    if caminho == "anos_de_experiencia":
+        return "conferir"
+    if caminho in marcados or any(m.startswith(caminho + ".") for m in marcados):
+        return "nao_achei"
+    return None
+
+
+def _item(caminho: str, valores: dict[str, str], motivo: str | None, usar: bool) -> dict[str, Any]:
+    return {"caminho": caminho, "valores": valores, "motivo": motivo, "usar": usar}
+
+
+def _revisao(
+    dados: dict[str, Any], enviado: str, email: str | None, telefone: str | None
+) -> list[dict[str, Any]]:
+    """Os itens da revisão: cada valor lido, com a marca de `nao_achei` e de
+    `nivel_fora_do_trecho` contra o texto enviado. O marcado vem desmarcado para usar."""
+    marcados = nao_achei(dados, enviado) | nivel_fora_do_trecho(dados, enviado)
+    lidos: dict[str, dict[str, str]] = {}
+    for campo, valor in (("email", email), ("telefone", telefone)):
+        if valor:
+            lidos[campo] = {"valor": valor}
+    for campo in _ESCALARES[2:]:
+        if dados.get(campo) not in (None, ""):
+            lidos[campo] = {"valor": str(dados[campo])}
+    for lista, subs in _LISTAS.items():
+        for i, linha in enumerate(dados.get(lista) or []):
+            valores = {"valor": linha} if lista == "habilidades" else linha
+            lidos[f"{lista}.{i}"] = {
+                s: "" if valores.get(s) is None else str(valores[s]) for s in subs
+            }
+    itens = []
+    for caminho, valores in lidos.items():
+        motivo = None if caminho in ("email", "telefone") else _motivo(caminho, marcados)
+        itens.append(_item(caminho, valores, motivo, motivo is None))
+    return itens
+
+
+# as listas e os tetos que o fragmento da revisão usa (fora da página do perfil)
+_CONTEXTO_CV = {"formacoes": FORMACOES, "situacoes": SITUACOES, "niveis": NIVEIS, "teto": _TETO}
+
+
+def _trava_curriculo(request: Request) -> asyncio.Lock:
+    estado = request.app.state
+    if getattr(estado, "ia_trava_curriculo", None) is None:
+        estado.ia_trava_curriculo = asyncio.Lock()
+    trava: asyncio.Lock = estado.ia_trava_curriculo
+    return trava
+
+
+async def extrair_curriculo(
+    request: Request, con: sqlite3.Connection, lido: pdf.Lido
+) -> dict[str, Any]:
+    """A tarefa `curriculo` sobre o texto lido (desenho 8): o contexto do fragmento, com os itens
+    da revisão. O e-mail e o telefone saem do texto e voltam pelo regex local; nada é gravado
+    aqui (só o "Salvar" grava). O texto só vive neste pedido."""
+    email, telefone = contato_do_texto(lido.texto)
+    contexto: dict[str, Any] = {"lido": lido} | _CONTEXTO_CV
+    so_local = _revisao({}, "", email, telefone)
+    tarefa = tarefa_ia(con, "curriculo")
+    if not tarefa.ligada:
+        return contexto | {"motivo_ia": _CV + "sem_ia", "revisao": so_local}
+    gravado = perfil.dados(con)
+    proprios = {"nome": gravado.nome, "email": gravado.email, "telefone": gravado.telefone}
+    texto = texto_curriculo(lido.texto, tarefa.backend, proprios)
+    pedido = pedido_curriculo(texto, tarefa.backend, tarefa.modelo)
+    contexto["cortado"] = texto.cortados > 0
+    if tarefa.backend == manual.BACKEND:  # a pessoa copia e cola: nada sai daqui
+        return contexto | {"manual": _manual(pedido, texto.texto, email, telefone)}
+    trava = _trava_curriculo(request)
+    if trava.locked():  # clique duplo: o primeiro pedido segue e traz a revisão
+        return contexto | {"motivo_ia": _CV + "em_curso"}
+    async with trava:  # livre: não suspende, então a checagem acima vale
+        try:
+            resposta = await pedir_ia(request, tarefa, pedido)
+        except Falha as falha:
+            falhou = chave_da_falha(falha.motivo, tarefa.backend)
+            return contexto | {"falha_ia": falhou, "revisao": so_local}
+    return contexto | {"revisao": _revisao(resposta.dados, texto.texto, email, telefone)}
+
+
+def _manual(
+    pedido: Pedido, enviado: str, email: str | None, telefone: str | None
+) -> dict[str, str]:
+    """O texto para copiar e o que o formulário de colar leva de volta (o texto enviado, para o
+    "não achei", e o contato do regex local): fica na página, nunca no servidor."""
+    return {
+        "texto": texto_para_copiar(pedido),
+        "enviado": enviado,
+        "email": email or "",
+        "telefone": telefone or "",
+    }
+
+
+@router.post("/curriculo/resposta")
+async def colar_curriculo(request: Request) -> Response:
+    """A resposta colada da IA manual (D229): o mesmo esquema e as mesmas conferências."""
+    form = await request.form()
+    enviado, colado, email, telefone = (
+        _bruto(form, c) for c in ("texto", "colado", "email", "telefone")
+    )
+    # o navegador manda as quebras de linha da caixa como \r\n: folga de duas vezes o corte
+    teto = 2 * limites()["tarefas"]["curriculo"]["corte"]["fora"]
+    if len(enviado) > teto or len(email) > _TETO["email"] or len(telefone) > _TETO["telefone"]:
+        raise HTTPException(422)
+    pedido = pedido_curriculo(TextoCurriculo(enviado, 0), manual.BACKEND, "")
+    contexto = _CONTEXTO_CV
+    try:
+        resposta = manual.ler_resposta(pedido, colado)
+    except Falha as falha:
+        dados = _manual(pedido, enviado, email, telefone)
+        falhou = chave_da_falha(falha.motivo, manual.BACKEND)
+        return renderizar(request, _CURRICULO, manual=dados, falha_ia=falhou, **contexto)
+    revisao = _revisao(resposta.dados, enviado, email or None, telefone or None)
+    return renderizar(request, _CURRICULO, revisao=revisao, **contexto)
+
+
+# --- o "Salvar" da revisão (secao=curriculo) ---------------------------------------------------
+
+
+def _textos(form: FormData, nome: str) -> set[str]:
+    return {v for v in form.getlist(nome) if isinstance(v, str)}
+
+
+def _itens_digitados(form: FormData, caminhos: list[str]) -> list[dict[str, Any]]:
+    """A revisão como voltou no formulário, para a página do erro."""
+    marcados, usar = _textos(form, "marcado"), _textos(form, "usar")
+    return [
+        _item(
+            c,
+            {s: str(form.get(f"{c}.{s}") or "") for s in _subcampos(c)},
+            _motivo(c, marcados) if c in marcados else None,
+            c in usar,
+        )
+        for c in caminhos
+    ]
+
+
+def _idioma(nome: str) -> str:
+    return _CODIGO_IDIOMA.get(normalizar(nome), nome)
+
+
+def _gravar_curriculo(
+    request: Request, con: sqlite3.Connection, form: FormData
+) -> str | tuple[int, dict[str, Any]]:
+    """Grava os itens escolhidos: com `aprovar`, todos os não marcados ("não achei no currículo"
+    fica de fora); senão, os da caixa `usar`. Cada valor passa pelas conferências da aba, e tudo
+    se confere antes de gravar: com um erro, nada muda. Os itens somam ao perfil: habilidades e
+    idiomas se juntam aos de hoje, experiências e cursos entram como novos (até o teto)."""
+    caminhos = form.getlist("item")
+    if (
+        len(caminhos) > TETO_REVISAO
+        or len(set(caminhos)) != len(caminhos)
+        or not all(isinstance(c, str) and _CAMINHO.fullmatch(c) for c in caminhos)
+    ):
+        raise HTTPException(422)
+    nomes = [str(c) for c in caminhos]
+    marcados, usar = _textos(form, "marcado"), _textos(form, "usar")
+    escolhidos = [c for c in nomes if (c not in marcados if "aprovar" in form else c in usar)]
+    try:
+        if not escolhidos:
+            raise _Recusa(_CV + "nada", _id_cv(nomes[0], "usar") if nomes else "perfil-curriculo")
+        _aplicar_curriculo(request, con, form, escolhidos)
+    except _Recusa as recusa:
+        revisao = _itens_digitados(form, nomes)
+        return 422, {"erro": recusa.chave, "erro_campo": recusa.campo_id, "revisao": revisao}
+    return f"{PERFIL}?salvo=1#perfil-sobre"
+
+
+def _aplicar_curriculo(
+    request: Request, con: sqlite3.Connection, form: FormData, escolhidos: list[str]
+) -> None:
+    def valor(caminho: str, campo: str = "valor") -> str:
+        return _bruto(form, f"{caminho}.{campo}")
+
+    def subform(caminho: str) -> FormData:
+        return FormData([(s, valor(caminho, s)) for s in _subcampos(caminho)])
+
+    dados = perfil.dados(con)
+    muda: dict[str, Any] = {}
+    habilidades: list[tuple[str, str]] = []
+    idiomas: list[tuple[str, str]] = []
+    idioma_id = ""  # o controle marcado se passar do teto de outros idiomas
+    experiencias: list[perfil.Experiencia] = []
+    cursos: list[perfil.Curso] = []
+    for c in escolhidos:
+        raiz, campo_id = c.split(".")[0], _id_cv(c, "valor")
+        if raiz == "email":
+            email = _texto(valor(c), campo_id, _TETO["email"])
+            if email is not None and not _EMAIL.fullmatch(email):
+                raise _Recusa("configuracoes.perfil.erro.email", campo_id)
+            muda["email"] = email
+        elif raiz in ("telefone", "cargo_atual"):
+            muda[raiz] = _texto(valor(c), campo_id, _TETO.get(raiz, _TETO_PADRAO))
+        elif raiz == "anos_de_experiencia":
+            muda[raiz] = _anos(valor(c), campo_id)
+        elif raiz == "formacao_nivel":
+            muda[raiz] = _da_lista(valor(c), FORMACOES)
+        elif raiz == "resumo":
+            muda[raiz] = _bloco(valor(c), campo_id)
+        elif raiz == "habilidades":
+            habilidades.append((sem_pontas(_linha(valor(c))), campo_id))
+        elif raiz == "idiomas_falados":
+            nome = _texto(valor(c, "idioma"), _id_cv(c, "idioma"), _TETO["idioma"])
+            nivel = _da_lista(valor(c, "nivel"), NIVEIS)
+            if nome is None:
+                continue
+            if nivel is None:
+                raise _Recusa("configuracoes.perfil.erro.nivel", _id_cv(c, "nivel"))
+            idiomas.append((_idioma(nome), nivel))
+            idioma_id = idioma_id or _id_cv(c, "idioma")
+        elif raiz == "experiencias":
+            experiencias.append(_experiencia(subform(c), None, f"cv-{c.replace('.', '-')}"))
+        else:
+            cursos.append(_curso(subform(c), None, f"cv-{c.replace('.', '-')}"))
+    for novos, atuais, primeiro in (
+        (experiencias, perfil.experiencias(con), "experiencias"),
+        (cursos, perfil.cursos(con), "cursos"),
+    ):
+        if novos and len(atuais) + len(novos) > TETO_ITENS:
+            caminho = next(c for c in escolhidos if c.startswith(primeiro))
+            raise _Recusa(
+                "configuracoes.perfil.erro.itens", _id_cv(caminho, _subcampos(caminho)[0])
+            )
+    lista = None
+    if habilidades:
+        try:
+            lista = habilidades_do_texto(
+                "\n".join([*perfil.habilidades(con), *(h for h, _ in habilidades)])
+            )
+        except ValueError:
+            raise _Recusa("configuracoes.perfil.erro.grande", habilidades[0][1]) from None
+    if idiomas:
+        pares = dict(dados.idiomas_falados)
+        for nome, nivel in idiomas:
+            achado = next((k for k in pares if normalizar(k) == normalizar(nome)), nome)
+            pares[achado] = nivel
+        outros = [k for k in pares if k not in IDIOMAS_FIXOS]
+        if len(outros) > TETO_OUTROS:
+            raise _Recusa("configuracoes.perfil.erro.outros", idioma_id)
+        muda["idiomas_falados"] = tuple(pares.items())
+    # tudo conferido: grava
+    agora = relogio_do_painel(request).agora()
+    if lista is not None:
+        salvar_habilidades(request, con, lista)
+    if muda:
+        perfil.gravar_dados(con, replace(dados, **muda), agora)
+    for experiencia in experiencias:
+        perfil.gravar_experiencia(con, experiencia)
+    for curso in cursos:
+        perfil.gravar_curso(con, curso)
 
 
 def _aviso(request: Request, chave: str, status: int = 200) -> Response:

@@ -154,6 +154,26 @@ def nao_achei(dados: Mapping[str, Any], texto: str) -> frozenset[str]:
     return frozenset(marcados)
 
 
+# Um trecho de idioma termina na quebra de linha ou num separador de lista (vírgula, ponto e
+# vírgula, barra vertical, marcador).
+_TRECHO = re.compile(r"[\n,;|\u2022]")
+
+
+def nivel_fora_do_trecho(dados: Mapping[str, Any], texto: str) -> frozenset[str]:
+    """Os `idiomas_falados.N.nivel` cujo nível não está num trecho do texto que cita o idioma:
+    com "Inglês avançado, Espanhol básico", o "avançado" não vale para o espanhol. O `nao_achei`
+    acha o nível em qualquer lugar do texto (D228.2); a tela soma as duas marcas (D232)."""
+    trechos = [_sem_traco(t) for t in _TRECHO.split(texto)]
+    marcados = set()
+    for i, par in enumerate(dados.get("idiomas_falados") or []):
+        idioma, nivel = _sem_traco(sem_pontas(par.get("idioma") or "")), par.get("nivel")
+        if nivel and not any(
+            idioma and _aparece(idioma, t) and _aparece(_sem_traco(nivel), t) for t in trechos
+        ):
+            marcados.add(f"idiomas_falados.{i}.nivel")
+    return frozenset(marcados)
+
+
 # ---- perguntas (desenho 5.2 e 8) ----------------------------------------------------------------
 
 _PERGUNTA_MAX = 200  # acima disto a pergunta sai (desenho 5.2); o esquema só segura o absurdo
@@ -296,7 +316,3 @@ def conferir_candidatura(
         usou=tuple(usou),
         citados=tuple(f for f in faltam if _aparece(normalizar(f), texto)),
     )
-
-
-def nivel_fora_do_trecho(dados: Mapping[str, Any], texto: str) -> frozenset[str]:
-    return frozenset()

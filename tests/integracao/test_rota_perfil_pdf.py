@@ -484,7 +484,7 @@ def _salvar(painel: Painel, campos: list[tuple[str, str]], **extra: str) -> Any:
 def _ler_cv(painel: Painel, prontas: list[Any] | None = None) -> tuple[Any, Fabrica]:
     _ligar(painel)
     fabrica = _fabrica(painel, [RESPOSTA_IA] if prontas is None else prontas)
-    resposta = painel.enviar(montar_pdf(PAGINAS_CV))
+    resposta = painel.enviar(montar_pdf([*PAGINAS_CV]))
     assert resposta.status_code == 200
     return resposta, fabrica
 
@@ -590,14 +590,14 @@ def test_email_telefone_e_cpf_pelo_regex_local_e_fora_do_pedido(painel: Painel) 
     form = _form_revisao(resposta.text)
     assert form is not None
     campos = dict(_campos(form))
-    assert campos["email.valor"] == "contato@exemplo.invalid"
-    assert campos["telefone.valor"] == "(11) 98765-4321"
+    assert campos.get("email.valor") == "contato@exemplo.invalid"
+    assert campos.get("telefone.valor") == "(11) 98765-4321"
     assert "529" not in resposta.text  # o CPF não tem campo (D226) e não volta à tela
 
 
 def test_sem_ia_o_formulario_vem_vazio_e_com_o_motivo(painel: Painel) -> None:
     fabrica = _fabrica(painel, [RESPOSTA_IA])  # a tarefa desligada: nada é pedido
-    resposta = painel.enviar(montar_pdf(PAGINAS_CV))
+    resposta = painel.enviar(montar_pdf([*PAGINAS_CV]))
     assert resposta.status_code == 200
     assert fabrica.pares == []
     assert i18n.t("pt", CV_CHAVE + "sem_ia") in _texto(resposta.text)
@@ -635,12 +635,32 @@ def test_prazo_da_ia_vencido_vem_vazio_e_com_o_motivo(
     fabrica = _fabrica(painel, [RESPOSTA_IA])
     fabrica.soltar = threading.Event()  # preso até o prazo vencer
     try:
-        resposta = painel.enviar(montar_pdf(PAGINAS_CV))
+        resposta = painel.enviar(montar_pdf([*PAGINAS_CV]))
     finally:
         fabrica.soltar.set()
     assert i18n.t("pt", "configuracoes.ia.falha.tempo_esgotado") in _texto(resposta.text)
     form = _form_revisao(resposta.text)
     assert form is not None and _valores(form, "item") == ["email", "telefone"]
+
+
+def test_numero_e_nivel_fora_do_trecho_ficam_para_conferir(painel: Painel) -> None:
+    """O número de anos casa com qualquer número do texto ("3 filhos") e o nível com qualquer
+    nível: os dois ficam fora do "Aprovar todas" (D228.2)."""
+    _ligar(painel)
+    lido = {
+        "anos_de_experiencia": 3,
+        "idiomas_falados": [
+            {"idioma": "Ingles", "nivel": "avancado"},
+            {"idioma": "Espanhol", "nivel": "avancado"},  # o "avancado" é do inglês
+        ],
+    }
+    _fabrica(painel, [lido])
+    resposta = painel.enviar(montar_pdf(["Tenho 3 filhos", "Ingles avancado, Espanhol basico"]))
+    form = _form_revisao(resposta.text)
+    assert form is not None
+    assert sorted(_valores(form, "marcado")) == ["anos_de_experiencia", "idiomas_falados.1"]
+    assert _valores(form, "usar") == ["idiomas_falados.0"]
+    assert i18n.t("pt", CV_CHAVE + "conferir") in _texto(form.html)
 
 
 def test_texto_da_ia_sai_escapado(painel: Painel) -> None:
@@ -666,11 +686,12 @@ def test_clique_duplo_nao_dispara_outro(painel: Painel) -> None:
     fabrica = _fabrica(painel, [RESPOSTA_IA, RESPOSTA_IA])
     fabrica.soltar = threading.Event()
     respostas: list[Any] = []
-    dados = montar_pdf(PAGINAS_CV)
-    primeiro = threading.Thread(target=lambda: respostas.append(painel.enviar(dados)))
+    dados = montar_pdf([*PAGINAS_CV])
+    # daemon: um mutante que espera a trava não segura o pytest no fim
+    primeiro = threading.Thread(target=lambda: respostas.append(painel.enviar(dados)), daemon=True)
     primeiro.start()
     entrou = fabrica.entrou.wait(5)
-    segundo = threading.Thread(target=lambda: respostas.append(painel.enviar(dados)))
+    segundo = threading.Thread(target=lambda: respostas.append(painel.enviar(dados)), daemon=True)
     segundo.start()
     segundo.join(5)  # volta sem esperar o primeiro, que segue preso
     antes_de_soltar = list(respostas)
@@ -700,7 +721,7 @@ def test_frase_de_para_onde_vai_o_texto_junto_do_upload(
     frase = LexborHTMLParser(html).css_first("#perfil-curriculo-privacidade")
     assert frase is not None
     nome = {"servico": i18n.t("pt", "configuracoes.perfil.servico." + servico)} if servico else {}
-    assert _texto(frase.html) == i18n.t(
+    assert _texto(frase.html or "") == i18n.t(
         "pt", "configuracoes.ia.privacidade.curriculo." + chave, **nome
     )
     arquivo = LexborHTMLParser(html).css_first("#perfil-curriculo-arquivo")
@@ -714,7 +735,7 @@ def test_frase_de_para_onde_vai_o_texto_junto_do_upload(
 def _ler_manual(painel: Painel) -> tuple[Any, Fabrica]:
     _ligar(painel, "manual", "")
     fabrica = _fabrica(painel, [])
-    resposta = painel.enviar(montar_pdf(PAGINAS_CV))
+    resposta = painel.enviar(montar_pdf([*PAGINAS_CV]))
     assert resposta.status_code == 200
     return resposta, fabrica
 
@@ -837,7 +858,7 @@ def test_teto_de_experiencias_recusa_sem_gravar(painel: Painel) -> None:
     ["nome", "habilidades.x", "habilidades.100", "experiencias.0.cargo", "../email"],
 )
 def test_caminho_desconhecido_e_422(painel: Painel, item: str) -> None:
-    campos = [("secao", "curriculo"), ("item", item), ("usar", item)]
+    campos = [("secao", "curriculo"), ("item", item), ("usar", item), (f"{item}.valor", "x")]
     assert _salvar(painel, campos).status_code == 422
     controle = [("secao", "curriculo"), ("item", "cargo_atual"), ("usar", "cargo_atual")]
     assert _salvar(painel, [*controle, ("cargo_atual.valor", "Dev")]).status_code == 303

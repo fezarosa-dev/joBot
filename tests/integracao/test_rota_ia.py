@@ -726,7 +726,8 @@ def test_curriculo_aparece_com_a_frase_dela_e_so_ele_tem_a_ia_manual(painel: Pai
     ],
 )
 def test_ia_manual_so_no_curriculo(painel: Painel, tarefa: str, frase: str | None) -> None:
-    dados = {f"{tarefa}_ligada": "on", f"{tarefa}_backend": "manual", f"{tarefa}_modelo": ""}
+    # o modelo digitado não conta: a manual grava o modelo vazio
+    dados = {f"{tarefa}_ligada": "on", f"{tarefa}_backend": "manual", f"{tarefa}_modelo": "gpt-x"}
     resposta = painel.post(dados)
     if frase is None:  # a lista é fechada: a tela não mostra "manual" nessas tarefas
         assert resposta.status_code == 422
