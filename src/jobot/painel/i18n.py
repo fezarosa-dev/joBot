@@ -9,13 +9,23 @@ from jobot.nucleo.tratamento.locais import codigos_de_pais
 PASTA = Path(__file__).parent / "i18n"
 
 
+def _sem_repetidas(pares: list[tuple[str, str]]) -> dict[str, str]:
+    dados = dict(pares)
+    if len(dados) < len(pares):
+        chaves = [k for k, _ in pares]
+        raise ValueError(f"chave repetida: {sorted({k for k in chaves if chaves.count(k) > 1})}")
+    return dados
+
+
 def carregar() -> Mapping[str, Mapping[str, str]]:
-    """Junta `<idioma>/*.json`; chave repetida em dois arquivos do mesmo idioma falha."""
+    """Junta `<idioma>/*.json`; chave repetida no mesmo arquivo ou em dois arquivos do mesmo
+    idioma falha."""
     catalogo: dict[str, dict[str, str]] = {}
     for pasta in sorted(p for p in PASTA.iterdir() if p.is_dir()):
         textos = catalogo[pasta.name] = {}
         for arquivo in sorted(pasta.glob("*.json")):
-            dados: dict[str, str] = json.loads(arquivo.read_text(encoding="utf-8"))
+            texto = arquivo.read_text(encoding="utf-8")
+            dados: dict[str, str] = json.loads(texto, object_pairs_hook=_sem_repetidas)
             repetidas = textos.keys() & dados.keys()
             if repetidas:
                 raise ValueError(f"chave repetida em {arquivo}: {sorted(repetidas)}")
