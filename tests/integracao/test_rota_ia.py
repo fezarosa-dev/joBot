@@ -259,6 +259,17 @@ def test_tudo_claude_pede_confirmacao_do_custo_antes_de_gravar(painel: Painel) -
     assert modo in _texto(painel.get().text)
 
 
+def test_confirmacao_do_custo_abre_com_o_foco_no_aviso(painel: Painel) -> None:
+    # o Return repetido de quem apertou "Tudo Claude" não pode cair em "Ligar mesmo assim"
+    painel.cofre.gravar("ia_anthropic", CHAVE)
+    arvore = LexborHTMLParser(painel.post({"atalho": "claude"}).text)
+    aviso = arvore.css_first('section[aria-labelledby="ia-custo-titulo"]')
+    assert aviso is not None
+    assert "autofocus" in aviso.attributes
+    assert aviso.attributes.get("tabindex") == "-1"
+    assert aviso.css("form [autofocus]") == []  # nem o "Ligar mesmo assim" nem outro botão
+
+
 def test_atalho_desconhecido_e_422(painel: Painel) -> None:
     assert painel.post({"atalho": "tudo"}).status_code == 422
     assert painel.tarefas() == {"encaixe": DESLIGADA}
@@ -475,6 +486,11 @@ def test_modelo_ou_backend_invalido_volta_com_422_e_nada_grava(
     )
     assert campo is not None
     assert campo.attributes.get("aria-invalid") == "true"
+    # o campo aponta para a mensagem do erro, não só para a ajuda
+    assert "config-erro" in (campo.attributes.get("aria-describedby") or "").split()
+    alerta = arvore.css_first("#config-erro")
+    assert alerta is not None
+    assert pt(erro) in _texto(alerta.html or "")
     if backend:  # o digitado volta para corrigir
         assert campo.attributes.get("value") == modelo
     caixa = arvore.css_first('input[name="encaixe_ligada"]')
@@ -488,10 +504,31 @@ def test_modelo_de_200_caracteres_vale(painel: Painel) -> None:
     assert painel.post(dados).status_code == 303
 
 
-def test_desligada_sem_backend_grava_vazia(painel: Painel) -> None:
-    painel.tarefa(False, "openai", "gpt-x")  # a chave saiu: a tela não mostra o select
-    assert painel.post({"encaixe_modelo": ""}).status_code == 303
-    assert painel.tarefas() == {"encaixe": DESLIGADA}
+@pytest.mark.parametrize("ligada", [False, True])
+def test_salvar_sem_o_select_mantem_a_tarefa_gravada(painel: Painel, ligada: bool) -> None:
+    # a chave saiu: a tela não mostra o select e a caixa vem desativada (não vai no form)
+    painel.tarefa(ligada, "openai", "gpt-x")
+    assert _opcoes(painel.get().text) == []
+    assert painel.post({}).status_code == 303
+    tarefa = {"ligada": ligada, "backend": "openai", "modelo": "gpt-x"}
+    assert painel.tarefas() == {"encaixe": tarefa}
+
+
+def test_cofre_travado_e_salvar_nao_apaga_a_tarefa(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    painel = Painel(tmp_path)
+    painel.tarefa(True, "anthropic", "claude-haiku-5-5")
+    trava = threading.Event()
+    painel.app.state.cofre = Cofre(tmp_path, CofreFalso(trava=trava))
+    monkeypatch.setattr(limites, "PRAZO_COFRE_S", 0.05)
+    try:
+        assert _opcoes(painel.get().text) == []
+        assert painel.post({}).status_code == 303
+    finally:
+        trava.set()  # solta as threads presas
+    tarefa = {"ligada": True, "backend": "anthropic", "modelo": "claude-haiku-5-5"}
+    assert painel.tarefas() == {"encaixe": tarefa}
 
 
 # ------------------------------------------------------------------ frases e contagem

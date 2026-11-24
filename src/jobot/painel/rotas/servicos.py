@@ -13,7 +13,7 @@ página; este módulo não importa aquele. Com o campo `servico`, o formulário 
 import asyncio
 import logging
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import Any, Final
 
 from fastapi import APIRouter, HTTPException, Request
@@ -53,27 +53,37 @@ async def no_cofre[T](func: Callable[..., T], *args: object) -> T:
         raise OSError("o cofre não respondeu a tempo") from None
 
 
-async def contexto_captcha(request: Request, con: Con) -> dict[str, Any]:
-    """O que o cartão mostra; a chave em si nunca entra no contexto."""
-    mascara = local = None
-    falhou = request.query_params.get("erro") == "cofre"
+# a máscara e onde a chave está (ou `None, None`) e se o cofre falhou
+type Lida = tuple[str | None, str | None, bool]
+
+
+async def _ler_mascara(request: Request, nome: str) -> Lida:
+    """Lê a chave `nome` do cofre sem tocar no banco: pode correr num `asyncio.gather`."""
     try:
-        achado = await no_cofre(cofre_do_painel(request).ler, NOME_NO_COFRE)
+        achado = await no_cofre(cofre_do_painel(request).ler, nome)
     except OSError as erro:
-        _LOG.warning("2captcha: não consegui ler a chave: %s", type(erro).__name__)
-        falhou = True
-    else:
-        if achado is not None:
-            mascara, local = mascarar(achado[0]), achado[1]
+        _LOG.warning("cofre: não consegui ler %s: %s", nome, type(erro).__name__)
+        return None, None, True
+    return (None, None, False) if achado is None else (mascarar(achado[0]), achado[1], False)
+
+
+def _captcha(request: Request, ligado: bool, lida: Lida) -> dict[str, Any]:
+    """O que o cartão mostra; a chave em si nunca entra no contexto."""
+    mascara, local, falhou = lida
     return {
         "captcha": {
-            "ligado": mascara is not None and ler_config(con, "captcha_ligado") is True,
+            "ligado": mascara is not None and ligado,
             "mascara": mascara,
             "local": local,
-            "falhou": falhou,
+            "falhou": falhou or request.query_params.get("erro") == "cofre",
             "teto": TETO_DIA,
         }
     }
+
+
+async def contexto_captcha(request: Request, con: Con) -> dict[str, Any]:
+    ligado = ler_config(con, "captcha_ligado") is True
+    return _captcha(request, ligado, await _ler_mascara(request, NOME_NO_COFRE))
 
 
 def _cartao(
@@ -172,39 +182,46 @@ def _endereco_salvo(con: Con) -> str:
     return endereco if isinstance(endereco, str) else ""
 
 
-async def _cartao_ia(request: Request, con: Con, servico: str) -> dict[str, Any]:
+def _cartao_ia(request: Request, servico: str, lida: Lida, endereco: str) -> dict[str, Any]:
     """O que um cartão de IA mostra; a chave em si nunca entra no contexto."""
-    mascara = local = None
-    falhou = request.query_params.get("erro") == f"cofre-ia-{servico}"
-    try:
-        achado = await no_cofre(cofre_do_painel(request).ler, f"ia_{servico}")
-    except OSError as erro:
-        _LOG.warning("ia: não consegui ler a chave de %s: %s", servico, type(erro).__name__)
-        falhou = True
-    else:
-        if achado is not None:
-            mascara, local = mascarar(achado[0]), achado[1]
-    endereco = _endereco_salvo(con) if servico == "compativel" else ""
+    mascara, local, falhou = lida
+    endereco = endereco if servico == "compativel" else ""
     return {
         "servico": servico,
         "mascara": mascara,
         "local": local,
-        "falhou": falhou,
+        "falhou": falhou or request.query_params.get("erro") == f"cofre-ia-{servico}",
         "endereco": endereco,
         "apagavel": mascara is not None or bool(endereco),
     }
 
 
+def _chaves_ia(request: Request, lidas: Sequence[Lida], endereco: str) -> dict[str, Any]:
+    pares = zip(SERVICOS_IA, lidas, strict=True)
+    return {"chaves_ia": [_cartao_ia(request, s, lida, endereco) for s, lida in pares]}
+
+
+def _nomes_ia() -> list[str]:
+    return [f"ia_{s}" for s in SERVICOS_IA]
+
+
 async def contexto_chaves_ia(request: Request, con: Con) -> dict[str, Any]:
-    # as leituras correm juntas: com o cofre travado, a página espera um prazo, não quatro
-    cartoes = await asyncio.gather(*(_cartao_ia(request, con, s) for s in SERVICOS_IA))
-    return {"chaves_ia": list(cartoes)}
+    # o banco é lido antes, na tarefa do pedido (a conexão não se divide entre tarefas); só as
+    # leituras do cofre correm juntas: com o cofre travado, a página espera um prazo, não quatro
+    endereco = _endereco_salvo(con)
+    lidas = await asyncio.gather(*(_ler_mascara(request, n) for n in _nomes_ia()))
+    return _chaves_ia(request, lidas, endereco)
 
 
 async def contexto_servicos(request: Request, con: Con) -> dict[str, Any]:
-    # shortcut: com o cofre travado, cada abertura da aba deixa presas 5 threads (2Captcha + 4 IA)
-    # no threadpool do anyio (40); se pesar, uma leitura só do cofre ou um semáforo (D201.7)
-    return await contexto_captcha(request, con) | await contexto_chaves_ia(request, con)
+    # as 5 leituras do cofre (2Captcha e 4 de IA) correm juntas: um prazo, não dois (D201.7)
+    # shortcut: com o cofre travado, cada abertura da aba deixa presas 5 threads no threadpool
+    # do anyio (40); se pesar, uma leitura só do cofre ou um semáforo (D201.7)
+    ligado = ler_config(con, "captcha_ligado") is True
+    endereco = _endereco_salvo(con)
+    nomes = [NOME_NO_COFRE, *_nomes_ia()]
+    lidas = await asyncio.gather(*(_ler_mascara(request, n) for n in nomes))
+    return _captcha(request, ligado, lidas[0]) | _chaves_ia(request, lidas[1:], endereco)
 
 
 async def gravar_chave_ia(
@@ -266,6 +283,7 @@ async def apagar_ia(request: Request, con: Con, servico: str) -> Response:
     if request.headers.get("hx-request") != "true":
         sufixo = f"?erro=cofre-ia-{servico}" if falhou else "?salvo=1"
         return RedirectResponse(_VOLTA + sufixo, 303)
-    cartao = await _cartao_ia(request, con, servico)
+    endereco = _endereco_salvo(con)
+    cartao = _cartao_ia(request, servico, await _ler_mascara(request, f"ia_{servico}"), endereco)
     cartao["falhou"] = falhou or cartao["falhou"]
     return renderizar(request, _CARTAO_IA, cartao=cartao, cartao_salvo=not falhou, foco_chave=True)

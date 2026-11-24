@@ -19,7 +19,7 @@
     <p>{{ t(motivo.chave, **motivo.params) }}</p>
   </div>
   {% elif erro %}
-  <div class="config-alerta" role="alert">
+  <div class="config-alerta" id="config-erro" role="alert">
     <p>{{ t(erro) }}</p>
   </div>
   {% endif %}

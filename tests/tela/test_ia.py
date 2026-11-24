@@ -84,8 +84,13 @@ def test_custo_pede_confirmacao_e_voltar_nao_liga(
         page.get_by_role("button", name="Tudo Claude", exact=True).click()
     expect(page.get_by_role("heading", name="Ligar o encaixe num serviço cobrado?")).to_be_visible()
     expect(page.get_by_role("alert").filter(has_text="até 200 pedidos por dia")).to_be_visible()
-    ligar = page.get_by_role("button", name="Ligar mesmo assim", exact=True)
-    expect(ligar).to_be_focused()  # o `autofocus` leva direto à decisão
+    # o foco abre no aviso, não em "Ligar mesmo assim": o Return logo depois de abrir não grava
+    aviso = page.get_by_role("region", name="Ligar o encaixe num serviço cobrado?")
+    expect(aviso).to_be_focused()
+    page.keyboard.press("Enter")
+    page.keyboard.press("Enter")
+    expect(aviso).to_be_focused()
+    assert _tarefas(tmp_path) == {"encaixe": {"ligada": False, "backend": "", "modelo": ""}}
     with page.expect_navigation():
         page.get_by_role("link", name="Voltar sem ligar", exact=True).click()
     expect(page).to_have_url(re.compile(r"/configuracoes/ia$"))

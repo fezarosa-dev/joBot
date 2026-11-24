@@ -13,7 +13,7 @@
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   <div class="campo">
     <label for="campo-habilidades">{{ t("configuracoes.perfil.habilidades") }}</label>
-    <textarea class="campo-texto" id="campo-habilidades" name="habilidades" rows="8" autocomplete="off" spellcheck="false" aria-describedby="habilidades-ajuda perfil-privacidade"{% if erro %} aria-invalid="true"{% endif %}>{{ habilidades_texto }}</textarea>
+    <textarea class="campo-texto" id="campo-habilidades" name="habilidades" rows="8" autocomplete="off" spellcheck="false" aria-describedby="habilidades-ajuda perfil-privacidade{% if erro %} config-erro{% endif %}"{% if erro %} aria-invalid="true"{% endif %}>{{ habilidades_texto }}</textarea>
     <small id="habilidades-ajuda">{{ t("configuracoes.perfil.habilidades.ajuda") }}</small>
   </div>
   <div class="acoes">

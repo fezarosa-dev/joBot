@@ -323,6 +323,20 @@ def test_sem_modelo_baixado_e_modelo_ausente(tmp_path: Path) -> None:
     assert erro.value.motivo == "modelo_ausente"
 
 
+@pytest.mark.parametrize("torto", [{"arquivo": 1}, {"programa": None}, {"modelo": ["2b"]}])
+def test_anotacao_com_valor_que_nao_e_texto_e_modelo_ausente(
+    tmp_path: Path, torto: dict[str, object]
+) -> None:
+    # editada à mão ou estragada: a aba IA lê a cada abertura e não pode cair em 500
+    ferramentas = tmp_path / "ferramentas"
+    ferramentas.mkdir()
+    anotacao = {"modelo": "2b", "arquivo": "m.gguf", "programa": "llama/llama-server"} | torto
+    (ferramentas / "ia_local.json").write_text(json.dumps(anotacao), encoding="utf-8")
+    with pytest.raises(Falha) as erro:
+        provar.caminhos_local(tmp_path)
+    assert erro.value.motivo == "modelo_ausente"
+
+
 # --- medir_modelo.py --------------------------------------------------------------------------
 
 
