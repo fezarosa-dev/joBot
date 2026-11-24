@@ -237,8 +237,8 @@ def test_pedido_do_teste_e_curto_com_exemplo_ficticio(painel: Painel) -> None:
 def test_tudo_offline_faz_um_teste_so_e_as_tarefas_dividem_o_resultado(
     painel: Painel, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Três tarefas no mesmo par (o `encaixe`, as `perguntas` da T437 e uma posta no `ia.json`
-    aqui): um teste só, e as três caem juntas."""
+    """Tarefas no mesmo par (o `encaixe`, as `perguntas` da T437, o `curriculo` da T436, a
+    `candidatura` da T438 e uma posta no `ia.json` aqui): um teste só, e todas caem juntas."""
     monkeypatch.setitem(limites()["tarefas"], "outra", limites()["tarefas"]["encaixe"])
     painel.fabrica.erros[("local", LOCAL)] = Falha("contexto")
     assert painel.post({"atalho": "offline"}).status_code == 303
@@ -249,6 +249,7 @@ def test_tudo_offline_faz_um_teste_so_e_as_tarefas_dividem_o_resultado(
         "encaixe": desligada,
         "perguntas": desligada,
         "curriculo": desligada,  # o currículo da T436 também
+        "candidatura": desligada,  # e a candidatura da T438
         "outra": desligada,
     }
 
@@ -686,8 +687,8 @@ def test_ia_manual_liga_sem_teste_nem_modelo(painel: Painel) -> None:
     assert painel.post(dados).status_code == 303
     tarefas = painel.tarefas()
     assert isinstance(tarefas, dict)
-    assert tarefas["curriculo"] == {"ligada": True, "backend": "manual", "modelo": ""}
-    assert ("manual", "") not in painel.testes() and painel.fabrica.pedidos == []
+    assert tarefas["curriculo"] == {"ligada": True, "backend": "manual", "modelo": "manual"}
+    assert ("manual", "manual") not in painel.testes() and painel.fabrica.pedidos == []
     controle = dados | {"curriculo_backend": COMPATIVEL[0], "curriculo_modelo": COMPATIVEL[1]}
     assert painel.post(controle).status_code == 303
     assert _esperar(painel.parado)

@@ -1,4 +1,5 @@
-{#- Uma tarefa da aba IA (T415): ligar, onde roda (só os backends configurados), o modelo, a frase
+{#- Uma tarefa da aba IA (T415): ligar, onde roda (os backends configurados e, na tarefa que aceita,
+    a IA manual: `linha.backends`, T438), o modelo, a frase
     de privacidade, o aviso de serviço que sumiu, as marcas do serviço pago e os pedidos de hoje.
     `linha.backends` traz a IA manual nas tarefas que a aceitam (T436). `v` é o digitado que voltou (erro ou confirmação do custo); senão, o gravado. Enquanto o par
     testa (T416), a tarefa pergunta a cada 2 s e é trocada inteira quando o resultado chega. -#}
@@ -26,7 +27,7 @@
   </div>
   <div class="campo">
     <label for="ia-{{ n }}-modelo">{{ t("configuracoes.ia.modelo") }}</label>
-    <input type="text" class="campo-texto" id="ia-{{ n }}-modelo" name="{{ n }}_modelo" value="{{ v.modelo }}" list="ia-modelos-claude" maxlength="200" autocomplete="off" spellcheck="false" aria-describedby="ia-{{ n }}-modelo-ajuda{% if errado == 'modelo' %} config-erro{% endif %}"{% if errado == "modelo" %} aria-invalid="true"{% endif %}>
+    <input type="text" class="campo-texto" id="ia-{{ n }}-modelo" name="{{ n }}_modelo" value="{{ '' if v.backend == 'manual' else v.modelo }}" list="ia-modelos-claude" maxlength="200" autocomplete="off" spellcheck="false" aria-describedby="ia-{{ n }}-modelo-ajuda{% if errado == 'modelo' %} config-erro{% endif %}"{% if errado == "modelo" %} aria-invalid="true"{% endif %}>
     <small id="ia-{{ n }}-modelo-ajuda">{{ t("configuracoes.ia.modelo.ajuda") }}{% if ia_local %} {{ t("configuracoes.ia.modelo.local", modelo=ia_local) }}{% endif %}</small>
   </div>
   {%- else %}

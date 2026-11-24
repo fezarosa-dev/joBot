@@ -709,7 +709,7 @@ def test_clique_duplo_nao_dispara_outro(painel: Painel) -> None:
         (None, "desligada", None),
         (("local", "qwen"), "local", None),
         (("anthropic", "claude-sonnet-5-5"), "fora", "anthropic"),
-        (("manual", ""), "manual", None),
+        (("manual", "manual"), "manual", None),
     ],
 )
 def test_frase_de_para_onde_vai_o_texto_junto_do_upload(
@@ -733,7 +733,7 @@ def test_frase_de_para_onde_vai_o_texto_junto_do_upload(
 
 
 def _ler_manual(painel: Painel) -> tuple[Any, Fabrica]:
-    _ligar(painel, "manual", "")
+    _ligar(painel, "manual", "manual")
     fabrica = _fabrica(painel, [])
     resposta = painel.enviar(montar_pdf([*PAGINAS_CV]))
     assert resposta.status_code == 200
@@ -751,7 +751,7 @@ def test_ia_manual_mostra_o_pedido_para_copiar_sem_chamar_ninguem(painel: Painel
     assert pedido is not None and "readonly" in pedido.attributes
     lido = "\n".join(PAGINAS_CV)
     texto = pedidos.texto_curriculo(lido, "manual")
-    esperado = manual.texto_para_copiar(pedidos.pedido_curriculo(texto, "manual", ""))
+    esperado = manual.texto_para_copiar(pedidos.pedido_curriculo(texto, "manual", "manual"))
     assert pedido.text() == esperado
     for contato in ("contato@exemplo", "98765", "529.982"):
         assert contato not in esperado

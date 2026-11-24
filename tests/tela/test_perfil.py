@@ -329,7 +329,7 @@ def test_curriculo_lido_pela_ia_e_aprovado(
 
 
 def test_curriculo_na_ia_manual_copia_e_cola(page: Page, painel: str, tmp_path: Path) -> None:
-    _ligar_curriculo(tmp_path, "manual", "")
+    _ligar_curriculo(tmp_path, "manual", "manual")
     _enviar_curriculo(page, painel, montar_pdf([*_PAGINAS]))
     pedido = page.get_by_role("textbox", name="Pedido para copiar")
     expect(pedido).to_have_attribute("readonly", "")

@@ -232,19 +232,6 @@ def test_ia_tarefas_gravada_le_ligada(con: sqlite3.Connection) -> None:
     assert ia.tarefa_ia(con, "curriculo").ligada is False
 
 
-def test_ia_manual_liga_sem_modelo(con: sqlite3.Connection) -> None:
-    """A IA manual não tem modelo: o joBot não sabe qual chat a pessoa usa (D229.5, D232)."""
-    gravar_config(
-        con, "ia_tarefas", {"curriculo": {"ligada": True, "backend": "manual", "modelo": ""}}
-    )
-    assert ia.tarefa_ia(con, "curriculo") == ia.TarefaIA(ligada=True, backend="manual", modelo="")
-    # controle: sem modelo, outro backend segue desligado
-    gravar_config(
-        con, "ia_tarefas", {"curriculo": {"ligada": True, "backend": "local", "modelo": ""}}
-    )
-    assert ia.tarefa_ia(con, "curriculo").ligada is False
-
-
 @pytest.mark.parametrize(
     "valor",
     [

@@ -106,11 +106,11 @@ def salvar_habilidades(request: Request, con: sqlite3.Connection, lista: Sequenc
 
 def frase_de_privacidade(tarefa: TarefaIA, base: str) -> dict[str, str | None]:
     """A chave da frase (`<base>desligada`, `local`, `manual` ou `fora`) e, fora, o nome do
-    serviço; a aba IA usa a mesma regra com as frases dela (T415). `manual` só nas tarefas que a
-    aceitam (`ia.COM_MANUAL`, T436)."""
+    serviço; a aba IA usa a mesma regra com as frases dela (T415). Só as tarefas que aceitam a IA
+    manual (`ia.COM_MANUAL`) têm a frase `manual` (T436, T438)."""
     if not tarefa.ligada:
         return {"chave": base + "desligada", "servico": None}
-    if tarefa.backend in ("local", manual.BACKEND):
+    if tarefa.backend in ("local", "manual"):
         return {"chave": base + tarefa.backend, "servico": None}
     nome = tarefa.backend if tarefa.backend in SERVICOS else "outro"
     return {"chave": base + "fora", "servico": "configuracoes.perfil.servico." + nome}

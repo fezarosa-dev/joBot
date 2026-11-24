@@ -107,6 +107,9 @@
     </ol>
   </section>
   </div>
+  {%- if preparo %}
+  {%- with vaga_id=vaga.id %}{% include "detalhe/_preparo.html" %}{% endwith %}
+  {%- endif %}
   {%- if fontes %}
   <section class="bloco" aria-labelledby="{{ prefixo }}det-fontes">
     <h{{ n + 1 }} id="{{ prefixo }}det-fontes">{{ t("detalhe.secao.fontes") }}</h{{ n + 1 }}>

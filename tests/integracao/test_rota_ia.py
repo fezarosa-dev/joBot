@@ -175,6 +175,7 @@ def test_desligar_a_ia_mantem_o_backend_e_o_modelo(painel: Painel) -> None:
         "encaixe": {"ligada": False, "backend": "openai", "modelo": "gpt-x"},
         "perguntas": DESLIGADA,  # o atalho grava todas as tarefas do `ia.json` (T437)
         "curriculo": DESLIGADA,  # e a do currículo (T436)
+        "candidatura": DESLIGADA,  # e a da candidatura (T438)
     }
     assert not painel.acordar.is_set()  # desligar não acorda o laço
 
@@ -184,7 +185,12 @@ def test_tudo_offline_grava_o_modelo_local_e_acorda_o_laco(painel: Painel) -> No
     assert "offline" in _atalhos(painel.get().text)
     assert _destino(painel.post({"atalho": "offline"})) == (303, IA + "?salvo=1")
     no_local = {"ligada": True, "backend": "local", "modelo": LOCAL}
-    assert painel.tarefas() == {"encaixe": no_local, "perguntas": no_local, "curriculo": no_local}
+    assert painel.tarefas() == {
+        "encaixe": no_local,
+        "perguntas": no_local,
+        "curriculo": no_local,
+        "candidatura": no_local,
+    }
     assert painel.acordar.is_set()
     texto = _texto(painel.get().text)
     assert pt("configuracoes.ia.modo", modo=pt("configuracoes.ia.modo.offline")) in texto
@@ -215,6 +221,7 @@ def test_atalhos_preservam_tarefa_desconhecida(painel: Painel) -> None:
         "encaixe": {"ligada": True, "backend": "local", "modelo": LOCAL},
         "perguntas": {"ligada": True, "backend": "local", "modelo": LOCAL},
         "curriculo": {"ligada": True, "backend": "local", "modelo": LOCAL},
+        "candidatura": {"ligada": True, "backend": "local", "modelo": LOCAL},
         "futura": outra,
     }
 
@@ -265,6 +272,7 @@ def test_tudo_claude_pede_confirmacao_do_custo_antes_de_gravar(painel: Painel) -
         "encaixe": {"ligada": True, "backend": "anthropic", "modelo": "claude-haiku-5-5"},
         "perguntas": {"ligada": True, "backend": "anthropic", "modelo": "claude-sonnet-5-5"},
         "curriculo": {"ligada": True, "backend": "anthropic", "modelo": "claude-sonnet-5-5"},
+        "candidatura": {"ligada": True, "backend": "anthropic", "modelo": "claude-sonnet-5-5"},
     }
     assert painel.acordar.is_set()
     modo = pt("configuracoes.ia.modo", modo=pt("configuracoes.ia.modo.claude"))
@@ -739,7 +747,7 @@ def test_curriculo_aparece_com_a_frase_dela_e_so_ele_tem_a_ia_manual(painel: Pai
     ],
 )
 def test_ia_manual_so_no_curriculo(painel: Painel, tarefa: str, frase: str | None) -> None:
-    # o modelo digitado não conta: a manual grava o modelo vazio
+    # o modelo digitado não conta: a manual grava o marcador "manual" (D234.9)
     dados = {f"{tarefa}_ligada": "on", f"{tarefa}_backend": "manual", f"{tarefa}_modelo": "gpt-x"}
     resposta = painel.post(dados)
     if frase is None:  # a lista é fechada: a tela não mostra "manual" nessas tarefas
@@ -749,7 +757,7 @@ def test_ia_manual_so_no_curriculo(painel: Painel, tarefa: str, frase: str | Non
     assert _destino(resposta) == (303, IA + "?salvo=1")
     tarefas = painel.tarefas()
     assert isinstance(tarefas, dict)
-    assert tarefas["curriculo"] == {"ligada": True, "backend": "manual", "modelo": ""}
+    assert tarefas["curriculo"] == {"ligada": True, "backend": "manual", "modelo": "manual"}
     texto = _texto(painel.get().text)
     assert pt(frase) in texto
     assert pt("configuracoes.ia.hoje", n=0, teto=200) not in texto  # a manual não tem teto

@@ -18,6 +18,10 @@
       "max_tokens": {"fora": 4096, "local": 1536},
       "corte": {"local": 12000, "fora": 40000},
       "claude": "claude-sonnet-5-5"
+    },
+    "candidatura": {
+      "max_tokens": {"fora": 4096, "local": 2048},
+      "claude": "claude-sonnet-5-5"
     }
   },
   "laco": {"max_por_rodada": 20, "max_tentativas": 2, "max_por_dia_fora": 200},

@@ -31,9 +31,9 @@ from starlette.datastructures import FormData
 from jobot.agenda.ia import Obter
 from jobot.banco.conexao import abrir
 from jobot.banco.ia import TarefaIA, chamadas_do_dia, gravar_tarefas_ia, tarefa_ia
-from jobot.nucleo.ia import manual
 from jobot.nucleo.ia.anthropic import MODELOS
 from jobot.nucleo.ia.contrato import Falha, Motivo, Pedido, limites
+from jobot.nucleo.ia.manual import BACKEND as MANUAL
 from jobot.nucleo.ia.pedidos import pedido_encaixe, texto_encaixe
 from jobot.nucleo.relogio import Relogio
 from jobot.painel.consultas import relogio_do_painel
@@ -54,19 +54,24 @@ ATALHOS: Final = ("desligada", "offline", "claude")
 # as tarefas do laço, que pedem sozinhas e por isso pedem a confirmação do custo; as outras só
 # chamam a IA quando a pessoa clica (D233)
 DO_LACO: Final = ("encaixe",)
-# a IA manual (copiar e colar; D229): só nas tarefas cuja rota mostra o texto para copiar e lê a
-# resposta colada (D232); ela não tem modelo, chave, teste ao ligar nem teto do dia
-MANUAL: Final = manual.BACKEND
-COM_MANUAL: Final = ("curriculo",)
 _BASE = "configuracoes.ia.privacidade."
 # a frase de privacidade de cada tarefa: o `encaixe` tem as da 0.5.0; as outras, as suas
 _BASE_PRIVACIDADE: Final = {"encaixe": _BASE}
 # o nome vai no corpo JSON do pedido: ASCII visível, sem espaço (`qwen3:4b`, `org/modelo`)
 _MODELO: Final = re.compile(r"[!-~]{1,200}")
+# IA manual (D229, D234): o joBot mostra o pedido e a pessoa cola a resposta; sem chave, sem
+# teste ao ligar e sem conta do dia. Só nas tarefas com tela para colar; o modelo gravado é o
+# marcador "manual" (o joBot não sabe qual chat a pessoa usa, e `tarefa_ia` pede modelo)
+COM_MANUAL: Final = ("curriculo", "candidatura")
 
 
 def tarefas() -> tuple[str, ...]:
     return tuple(limites()["tarefas"])
+
+
+def onde_roda(tarefa: str, configurados: list[str]) -> list[str]:
+    """Os backends que a tela oferece à tarefa: os configurados e, na que aceita, a IA manual."""
+    return [*configurados, MANUAL] if tarefa in COM_MANUAL else configurados
 
 
 def modelo_local(request: Request) -> str | None:
@@ -99,11 +104,6 @@ def _modo(atuais: Mapping[str, TarefaIA]) -> str:
     return "personalizado"
 
 
-def _da_tarefa(nome: str, configurados: list[str]) -> list[str]:
-    """Os backends que a tarefa pode usar: os configurados e, onde a rota a aceita, a manual."""
-    return [*configurados, MANUAL] if nome in COM_MANUAL else configurados
-
-
 async def contexto_ia(request: Request, con: Con) -> dict[str, Any]:
     configurados, cofre_falhou = await _configurados(request, con)
     agora = relogio_do_painel(request).agora()
@@ -115,9 +115,9 @@ async def contexto_ia(request: Request, con: Con) -> dict[str, Any]:
             "ligada": t.ligada,
             "backend": t.backend,
             "modelo": t.modelo,
-            "backends": _da_tarefa(nome, configurados),
             "privacidade": frase_de_privacidade(t, _BASE_PRIVACIDADE.get(nome, f"{_BASE}{nome}.")),
-            "parada": t.ligada and t.backend not in _da_tarefa(nome, configurados),
+            "backends": onde_roda(nome, configurados),
+            "parada": t.ligada and t.backend not in onde_roda(nome, configurados),
             # o teto do dia é do laço e por backend de fora (D198.10); o local, a manual e as
             # tarefas sob pedido não têm teto
             "hoje": chamadas_do_dia(con, t.backend, agora)
@@ -174,12 +174,14 @@ def _da_tabela(
             # caixa vem desativada: nada ali era editável, então a tarefa gravada fica (e o
             # formulário que não traz a tarefa não a grava)
             continue
-        if backend and backend not in _da_tarefa(nome, configurados):
+        if backend and backend not in onde_roda(nome, configurados):
             raise HTTPException(422)  # a tela só mostra os configurados (lista fechada)
         digitado[nome] = {"ligada": ligada, "backend": backend, "modelo": modelo}
         erro: tuple[str, str] | None = None
+        if modelo == MANUAL:
+            modelo = ""  # o marcador do manual (formulário antigo) não é modelo de serviço nenhum
         if backend == MANUAL:
-            modelo = ""  # o joBot não sabe qual chat a pessoa usa (D229.5)
+            modelo = MANUAL  # o digitado não conta: não há modelo a escolher
         elif backend == LOCAL:
             modelo = local or ""  # vale o baixado; o digitado não conta
         elif backend == "anthropic":
@@ -294,13 +296,9 @@ def _pares_novos(
     for nome, t in novas.items():
         par, antes = (t.backend, t.modelo), atuais[nome]
         mudou = not antes.ligada or (antes.backend, antes.modelo) != par
-        if (
-            t.ligada
-            and t.backend != MANUAL
-            and mudou
-            and testes.get(par) != _OK
-            and par not in pares
-        ):
+        if t.backend == MANUAL:  # nada vai a serviço nenhum: não há o que testar
+            continue
+        if t.ligada and mudou and testes.get(par) != _OK and par not in pares:
             pares.append(par)
     return pares
 

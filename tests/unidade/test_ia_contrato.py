@@ -267,6 +267,11 @@ def test_ia_json_traz_prazos_limites_e_cortes() -> None:
                 "corte": {"local": 12000, "fora": 40000},
                 "claude": "claude-sonnet-5-5",
             },
+            # sob pedido, no detalhe da vaga (T438; D234)
+            "candidatura": {
+                "max_tokens": {"fora": 4096, "local": 2048},
+                "claude": "claude-sonnet-5-5",
+            },
         },
         "laco": {"max_por_rodada": 20, "max_tentativas": 2, "max_por_dia_fora": 200},
         "memoria_gib": {"modelo_4b_desde": 11, "aviso_lento_abaixo": 7},
