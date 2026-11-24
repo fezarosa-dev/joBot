@@ -8,6 +8,10 @@ The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-11-24
+
+**If you have the 0.4.0 window:** install the 0.4.1 window before using Update now in the dashboard. With only the dashboard updated, the 0.4.0 window has no close buttons and no drag area (close it with Alt+F4) and shows the notice to download the new window.
+
 0.4.1 fixes what 0.4.0 broke on Linux: the joBot window becomes a small control, and the dashboard opens in your browser.
 
 ### Added

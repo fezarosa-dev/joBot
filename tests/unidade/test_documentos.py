@@ -189,7 +189,7 @@ def test_changelog_tem_as_mesmas_secoes_nas_duas_linguas() -> None:
 
 def test_changelog_traz_a_versao_do_pacote() -> None:
     projeto = tomllib.loads(texto("pyproject.toml"))["project"]["version"]
-    assert projeto == __version__ == "0.4.0"
+    assert projeto == __version__ == "0.4.1"
     for caminho in CHANGELOG.values():
         conteudo = texto(caminho)
         for versao in (projeto, "0.1.0"):
@@ -541,13 +541,36 @@ V0_4_0 = "## [0.4.0] - 2026-11-17"
 RESUMO_0_4_0 = {"pt": ("fase 3", "janela", "instalador"), "en": ("Phase 3", "window", "installer")}
 
 
+# a 0.4.1 corrige o Linux; no topo, o aviso a quem tem a janela 0.4.0 (D214.3)
+V0_4_1 = "## [0.4.1] - 2026-11-24"
+RESUMO_0_4_1 = {"pt": ("Linux", "controle", "navegador"), "en": ("Linux", "control", "browser")}
+AVISO_0_4_1 = {
+    "pt": "**Quem tem a janela 0.4.0:** instale a janela 0.4.1 antes de usar o Atualizar agora",
+    "en": "**If you have the 0.4.0 window:** install the 0.4.1 window before using Update now",
+}
+
+
 @pytest.mark.parametrize("lingua", LINGUAS)
-def test_changelog_fecha_a_0_4_0(lingua: str) -> None:
-    """A 0.4.0 é a primeira seção de versão, logo depois de "Não lançado" (que já recebe a fase 4,
-    T400), e o resumo dela cobre a fase 3."""
+def test_changelog_fecha_a_0_4_1(lingua: str) -> None:
+    """A 0.4.1 é a primeira seção de versão, logo depois de "Não lançado", e abre com o aviso a
+    quem tem a janela 0.4.0, antes do resumo."""
     conteudo = texto(CHANGELOG[lingua])
     assert NAO_LANCADO[lingua] in conteudo, CHANGELOG[lingua]
     inicio = conteudo.index(NAO_LANCADO[lingua])
+    fim = conteudo.index("\n## [", inicio + 1)
+    assert conteudo[fim + 1 :].startswith(V0_4_1), CHANGELOG[lingua]
+    secao = conteudo[fim + 1 :]
+    resumo = secao[: secao.index("###")]
+    assert resumo.split("\n\n")[1].startswith(AVISO_0_4_1[lingua]), CHANGELOG[lingua]
+    for termo in RESUMO_0_4_1[lingua]:
+        assert termo in resumo, (CHANGELOG[lingua], termo)
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_changelog_fecha_a_0_4_0(lingua: str) -> None:
+    """A 0.4.0 vem logo depois da 0.4.1, e o resumo dela cobre a fase 3."""
+    conteudo = texto(CHANGELOG[lingua])
+    inicio = conteudo.index(V0_4_1)
     fim = conteudo.index("\n## [", inicio + 1)
     assert conteudo[fim + 1 :].startswith(V0_4_0), CHANGELOG[lingua]
     secao = conteudo[fim + 1 :]
@@ -659,8 +682,8 @@ FASE_1_CONCLUIDA = {
     ".github/CONTRIBUTING.en.md": (
         r"Phases 1, 2 and 3 \(foundation, browser with login and installer\) are complete"
     ),
-    ".github/SECURITY.md": r"(?i)só a versão mais recente \(hoje a 0\.4\.0\)",
-    ".github/SECURITY.en.md": r"(?i)only the latest version \(currently 0\.4\.0\)",
+    ".github/SECURITY.md": r"(?i)só a versão mais recente \(hoje a 0\.4\.1\)",
+    ".github/SECURITY.en.md": r"(?i)only the latest version \(currently 0\.4\.1\)",
     ".github/SUPPORT.md": r"formulário de bug",
     ".github/SUPPORT.en.md": r"bug form",
     "docs/decisions/0017-fases.md": r"fases 1, 2 e 3 estão concluídas",
