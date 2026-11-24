@@ -30,14 +30,10 @@ fn versao(texto: &str) -> Option<(u64, u64, u64)> {
 
 /// Os avisos do controle, da mesma `/saude-local` do estado. `janela_velha`: o painel no ar é
 /// mais novo que esta casca (o "Atualizar agora" do painel só troca o Python; D207.12).
-/// `fecha_junto`: fechar a janela para o painel, a mesma conta do `fechar::ao_fechar` (a casca o
-/// ligou e o segundo plano está desligado; D207.5).
-pub fn com_avisos(mut estado: Value, saude: Option<&Value>, casca: &str, subiu: bool) -> Value {
+pub fn com_avisos(mut estado: Value, saude: Option<&Value>, casca: &str) -> Value {
     let painel = saude.and_then(|s| versao(s.get("versao")?.as_str()?));
     let casca = versao(casca);
     estado["janela_velha"] = (casca.is_some() && painel > casca).into();
-    let segundo_plano = saude.and_then(|s| s.get("segundo_plano")?.as_bool());
-    estado["fecha_junto"] = (subiu && segundo_plano == Some(false)).into();
     estado
 }
 
@@ -59,18 +55,6 @@ pub fn ligar(
     servidor::jobot_instalado(dados, so)
         .ok_or(servidor::Falha::SemInstalacao)
         .and_then(|jobot| achar(&jobot))
-}
-
-/// Se fechar a janela pode parar este servidor (`SUBIU`): a casca o subiu agora, ou a trava
-/// estava solta e o `jobot serve` lançado não respondeu a tempo (ele pode terminar de subir
-/// depois; o `fechar::ao_fechar` reconfere a trava e o segundo plano). A `Porta` de antes de
-/// lançar também entra: com outro programa na porta, ninguém prende a trava e nada é parado.
-pub fn subiu(trava_solta: bool, ligar: &Result<servidor::Servidor, servidor::Falha>) -> bool {
-    match ligar {
-        Ok(achado) => achado.subiu,
-        Err(servidor::Falha::SemResposta(_) | servidor::Falha::Porta(_)) => trava_solta,
-        Err(_) => false,
-    }
 }
 
 /// Parar: `jobot sair` pelo joBot instalado (`sair` espera o fim) e o estado depois (`agora`).
@@ -250,8 +234,8 @@ mod testes {
     #[test]
     fn janela_velha_so_com_o_painel_mais_novo_que_a_casca() {
         let aviso = |painel: &str, casca: &str| {
-            let saude = json!({"app": "jobot", "versao": painel, "segundo_plano": true});
-            com_avisos(estado(1, |_| true), Some(&saude), casca, false)["janela_velha"] == true
+            let saude = json!({"app": "jobot", "versao": painel});
+            com_avisos(estado(1, |_| true), Some(&saude), casca)["janela_velha"] == true
         };
         assert!(aviso("0.4.2", "0.4.1"));
         assert!(aviso("0.5.0.dev1", "0.4.1"));
@@ -261,21 +245,8 @@ mod testes {
         assert!(!aviso("lixo", "0.4.1"));
         assert!(!aviso("0.4.2", "lixo"));
         // sem resposta da saúde (painel parado): nada a avisar
-        let parado = com_avisos(estado(1, |_| false), None, "0.4.1", true);
+        let parado = com_avisos(estado(1, |_| false), None, "0.4.1");
         assert_eq!(parado["janela_velha"], false);
-        assert_eq!(parado["fecha_junto"], false);
-    }
-
-    #[test]
-    fn fecha_junto_so_quando_a_casca_ligou_sem_segundo_plano() {
-        let com = |segundo: Value, subiu: bool| {
-            let saude = json!({"app": "jobot", "versao": "0.4.1", "segundo_plano": segundo});
-            com_avisos(estado(1, |_| true), Some(&saude), "0.4.1", subiu)["fecha_junto"] == true
-        };
-        assert!(com(json!(false), true));
-        assert!(!com(json!(true), true)); // segundo plano: fechar não para
-        assert!(!com(json!(false), false)); // ligado por outro: fechar não para
-        assert!(!com(json!("false"), true)); // como o `ao_fechar`: só o booleano
     }
 
     #[test]
@@ -307,10 +278,7 @@ mod testes {
         let chamou = RefCell::new(false);
         let r = ligar(&dados, "linux", |_| {
             *chamou.borrow_mut() = true;
-            Ok(servidor::Servidor {
-                porta: 1,
-                subiu: true,
-            })
+            Ok(servidor::Servidor { porta: 1 })
         });
         assert_eq!(r, Err(servidor::Falha::SemInstalacao));
         assert!(!chamou.into_inner());
@@ -365,27 +333,6 @@ mod testes {
         assert_eq!(e["ligado"], true);
         assert_eq!(e["falha"], "parar");
         let _ = std::fs::remove_dir_all(&dados);
-    }
-
-    #[test]
-    fn subiu_tambem_quando_o_serve_lancado_nao_respondeu_a_tempo() {
-        use servidor::{Falha, Servidor};
-        let achado = |subiu| Ok(Servidor { porta: 1, subiu });
-        assert!(subiu(true, &achado(true)));
-        assert!(!subiu(true, &achado(false)));
-        for falha in [Falha::SemResposta(1), Falha::Porta(1)] {
-            assert!(subiu(true, &Err(falha)));
-        }
-        // a trava já estava presa: o servidor é de outro (segundo plano, `jobot abrir`)
-        assert!(!subiu(false, &Err(Falha::SemResposta(1))));
-        for falha in [
-            Falha::SemInstalacao,
-            Falha::Captura,
-            Falha::Saiu(Some(1)),
-            Falha::NaoSubiu("x".into()),
-        ] {
-            assert!(!subiu(true, &Err(falha)));
-        }
     }
 
     #[test]
