@@ -1,0 +1,18 @@
+{#- O teste ao ligar de uma tarefa (T416; desenho 6.1 da fase 4): o par (backend, modelo) dela
+    testando, passou ou falhou (a tarefa ficou desligada, com o que fazer). O resultado que chega
+    pelo polling (`ia_foco_teste`) puxa o foco, se ele estava solto (app.js). Sem JavaScript, o
+    "testando" leva a recarregar a página. -#}
+{%- set teste = linha.teste -%}
+{%- if teste %}
+<div aria-live="polite">
+  {%- if teste.estado == "testando" %}
+  <p class="config-texto">{{ t("configuracoes.ia.teste.testando") }}</p>
+  <noscript><p class="config-texto"><a href="/configuracoes/ia">{{ t("configuracoes.ia.teste.recarregar") }}</a></p></noscript>
+  {%- else %}
+  {%- set falha = "configuracoes.ia.falha." ~ teste.motivo ~ (".anthropic" if teste.motivo == "chave_recusada" and linha.backend == "anthropic" else "") %}
+  <p class="config-texto" role="status"{% if ia_foco_teste %} data-foco-se-livre tabindex="-1"{% endif %}>
+    {%- if teste.estado == "ok" %}{{ t("configuracoes.ia.teste.ok") }}{% else %}{{ t("configuracoes.ia.teste.falhou", motivo=t(falha)) }}{% endif -%}
+  </p>
+  {%- endif %}
+</div>
+{%- endif %}

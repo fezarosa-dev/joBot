@@ -77,7 +77,7 @@ from jobot.painel.consultas import relogio_do_painel
 from jobot.painel.formatos import conferido_texto, gigabytes, opcoes_de_pais
 from jobot.painel.rotas.execucao import criar_tarefa
 from jobot.painel.rotas.gmail import contexto_gmail
-from jobot.painel.rotas.ia import LOCAL, contexto_ia, gravar_ia, tarefas
+from jobot.painel.rotas.ia import LOCAL, contexto_ia, gravar_ia, servico_trocou, tarefas
 from jobot.painel.rotas.perfil import contexto_perfil, habilidades_do_texto, salvar_habilidades
 from jobot.painel.rotas.servicos import (
     contexto_captcha,
@@ -489,8 +489,13 @@ async def _gravar_privacidade(request: Request, con: Con) -> Response:
 async def _gravar_servicos(request: Request, con: Con) -> Response:
     form = await request.form()
     if "servico" in form:  # o cartão de uma chave de IA (T414)
+        antes = ler_config(con, "ia_compativel")
         falhou = await gravar_chave_ia(request, con, form)
         if falhou is None:
+            # chave digitada ou endereço novo: o teste ao ligar dos pares do serviço vale de novo
+            servico = str(form.get("servico"))
+            if str(form.get("chave") or "").strip() or ler_config(con, "ia_compativel") != antes:
+                await servico_trocou(request, con, servico)
             return _volta("servicos", salvo=True)
         status, ctx = falhou
         return await _pagina(request, con, "servicos", status, **ctx)

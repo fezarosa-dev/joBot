@@ -6,6 +6,8 @@ teste espera tempo real: `expect_navigation` e `expect`.
 """
 
 import re
+import threading
+import time
 from collections.abc import Iterator
 from contextlib import closing
 from pathlib import Path
@@ -19,6 +21,7 @@ from apoio.console import anotar_erros
 from apoio.relogio import RelogioFalso
 from jobot.banco.cadastros import ler_config
 from jobot.banco.conexao import abrir
+from jobot.nucleo.ia.contrato import Falha, Pedido, Resposta
 from jobot.sistema.cofre import Cofre
 
 pytestmark = pytest.mark.tela
@@ -159,3 +162,49 @@ def test_campo_e_select_com_foco_visivel_em_cores_forcadas(page: Page, painel: s
     )
     assert contorno[0] != "none"
     assert float(contorno[1].removesuffix("px")) >= 2
+
+
+class _FabricaQueFalha:
+    """`app.state.ia` falsa (T416): o pedido do teste espera `soltar` e falha sem rede."""
+
+    def __init__(self) -> None:
+        self.soltar = threading.Event()
+
+    def __call__(self, backend: str, modelo: str) -> _FabricaQueFalha:
+        return self
+
+    def pedir(self, pedido: Pedido) -> Resposta:
+        assert self.soltar.wait(10)
+        raise Falha("sem_rede")
+
+    def fechar(self) -> None:
+        pass
+
+
+def test_teste_ao_ligar_pergunta_e_mostra_a_falha_com_a_tarefa_desligada(
+    page: Page, painel: str, tmp_path: Path, app_painel: FastAPI
+) -> None:
+    fabrica = _FabricaQueFalha()
+    app_painel.state.ia = fabrica
+    page.clock.install()  # sem `pause_at`: o polling do htmx precisa dos timers
+    page.goto(f"{painel}{IA}")
+    with page.expect_navigation():
+        page.get_by_role("button", name="Tudo offline", exact=True).click()
+    tarefa = page.locator("fieldset#ia-encaixe")
+    expect(tarefa).to_have_attribute("hx-trigger", "every 2s")  # antes do 1º fast_forward
+    expect(tarefa.get_by_text(re.compile("^Testando:"))).to_be_visible()
+    expect(tarefa.get_by_role("checkbox", name="Ligada", exact=True)).to_be_checked()
+    fabrica.soltar.set()
+    fim = time.monotonic() + 5
+    while _tarefas(tmp_path) != {
+        "encaixe": {"ligada": False, "backend": "local", "modelo": LOCAL}
+    }:  # o resultado chega só pela pergunta periódica, depois do servidor terminar
+        assert time.monotonic() < fim
+        time.sleep(0.01)
+    page.clock.fast_forward(2000)
+    resultado = page.get_by_role("status").filter(has_text="O teste falhou")
+    expect(resultado).to_be_visible()
+    expect(resultado).to_contain_text("Confira a internet")
+    tarefa = page.locator("fieldset#ia-encaixe")
+    expect(tarefa).not_to_have_attribute("hx-trigger", re.compile("."))
+    expect(tarefa.get_by_role("checkbox", name="Ligada", exact=True)).not_to_be_checked()
