@@ -2,11 +2,13 @@
 código (anti-invenção do `encaixe`, "não achei no currículo", perguntas que saem e o preparo de
 candidatura)."""
 
-from typing import Any
+from typing import Any, get_args
 
 import pytest
 from pydantic import BaseModel
 
+from jobot.banco import perfil
+from jobot.nucleo.ia import tarefas
 from jobot.nucleo.ia.contrato import Falha, Pedido
 from jobot.nucleo.ia.esquema import PERMITIDAS, esquema_para
 from jobot.nucleo.ia.falso import BackendFalso
@@ -219,6 +221,13 @@ def test_resposta_fora_do_esquema_das_novas_e_falha_formato(
 
 # -- curriculo
 
+
+def test_escolhas_do_curriculo_sao_as_do_banco() -> None:
+    # o núcleo não importa o banco: a lista fica nos dois lados e este teste os mantém iguais
+    assert get_args(tarefas.Formacao) == get_args(perfil.Formacao)
+    assert get_args(tarefas.Situacao) == get_args(perfil.Situacao)
+
+
 TEXTO_CV = """Analista de Dados
 Resumo: Analista com foco em Python e SQL.
 Experiência
@@ -297,13 +306,23 @@ def test_curriculo_so_conta_palavra_inteira() -> None:
     assert nao_achei(dados, texto) == {"habilidades.0", "habilidades.1", "anos_de_experiencia"}
 
 
+def test_curriculo_pontuacao_das_pontas_nao_conta() -> None:
+    dados = _dados("curriculo", {"habilidades": ["(Python)", "SQL.", "Go;"]})
+    assert nao_achei(dados, "Python, SQL e Go") == frozenset()
+
+
 def test_curriculo_numero_e_ano_do_texto() -> None:
-    experiencia = {"cargo": "Analista de Dados", "inicio": "2031-01", "fim": "2020-03"}
+    experiencias = [
+        {"cargo": "Analista de Dados", "inicio": "2031-01", "fim": "2020-03"},
+        {"cargo": "Analista de Dados", "inicio": "2019-13", "fim": "2019-03-15"},  # fora de AAAA-MM
+    ]
     curso = {"nome": "Estatística", "previsao": "03/2019"}  # fora de AAAA-MM
-    dados = _cv(anos_de_experiencia=7, experiencias=[experiencia], cursos=[curso])
+    dados = _cv(anos_de_experiencia=7, experiencias=experiencias, cursos=[curso])
     assert nao_achei(dados, TEXTO_CV) == {
         "anos_de_experiencia",
         "experiencias.0.inicio",
+        "experiencias.1.inicio",
+        "experiencias.1.fim",
         "cursos.0.previsao",
     }
 
