@@ -5,8 +5,9 @@ Dois passos, nesta ordem:
 - `coletar --dados <pasta> --fonte <chave> ...`: uma busca do joBot num banco separado, só com as
   fontes permitidas ligadas. A coleta é a do próprio joBot (`executar_busca` com o
   `ClienteEducado`): user agent do joBot, intervalo por host, 429 e `Retry-After` (ADR 0004).
-- `montar --banco <jobot.db> --saida <pasta> --fonte <chave> ... [--excluir <hashes.txt>]`: lê as
-  vagas do banco e escreve `treino.jsonl` e `validacao.jsonl` (uma vaga por linha, sem rótulo).
+- `montar --banco <jobot.db> --saida <pasta> --fonte <chave> ... (--excluir <hashes.txt> |
+  --sem-gabarito)`: lê as vagas do banco e escreve `treino.jsonl` e `validacao.jsonl` (uma vaga por
+  linha, sem rótulo).
 
 Regras duras (testadas em `tests/unidade/test_treino_laya.py`):
 
@@ -14,10 +15,10 @@ Regras duras (testadas em `tests/unidade/test_treino_laya.py`):
   entra só se todas as ocorrências dela são de fontes permitidas, e nunca se alguma é de site com
   login;
 - o arquivo de hashes (`url_hash`, um por linha) que o dono gera fora do repositório tira as vagas
-  do gabarito dele;
-- e-mail, telefone, CPF e nome de recrutador saem do texto; o que sobrar de dado pessoal tira a
-  vaga;
-- caminho com `joBot-dados` ou `dados_locais` é recusado;
+  do gabarito dele; sem ele, `--sem-gabarito` tem de ser dito (D219.13);
+- e-mail, telefone, CPF, contato e nome de recrutador saem do texto até o fim da frase; o que sobrar
+  de dado pessoal tira a vaga. Nome solto em texto corrido não é garantido: confira uma amostra;
+- caminho com `joBot-dados` ou `dados_locais` é recusado, e a saída dentro do repositório também;
 - as vagas do conjunto de ouro (`tests/fixtures/ia/ouro_habilidades.json`) nunca entram;
 - treino e validação se dividem por grupo de vagas duplicadas (mesma empresa e mesmo título).
 
@@ -34,8 +35,8 @@ import random
 import re
 import sqlite3
 import sys
-from collections.abc import Iterable, Mapping, Sequence
-from contextlib import closing
+from collections.abc import Iterable, Iterator, Mapping, Sequence
+from contextlib import ExitStack, closing
 from pathlib import Path
 from typing import Any
 
@@ -60,13 +61,32 @@ OURO = RAIZ / "tests" / "fixtures" / "ia" / "ouro_habilidades.json"
 PROIBIDAS = ("jobot-dados", "dados_locais")  # comparadas em minúsculas
 VALIDACAO_PCT = 10
 MIN_DESCRICAO = 200  # caracteres depois da limpeza: menos que isso não ensina nada
+VERDADEIRAS_POR_VAGA = 2  # D219.7: "verdadeiro ou falso" equilibrado, até 2 sim e 2 não
 FALSAS_POR_VAGA = 2
+SORTEIO_VF = 20  # candidatas a "não" sorteadas por vaga (uma só varredura do texto)
 MODELO = "laya"  # o nome do modelo no pedido; não muda o texto
-# Linha "Recrutadora: Fulana", "Contato: ...", "Fale com ...": sai inteira até o fim da linha.
-_RECRUTADOR = re.compile(
+# O resto da frase: para em quebra de linha, ";", "|", "!", "?" ou ponto seguido de espaço (o ponto
+# de "empresa.com" e de "Node.js" não acaba a frase).
+_FRASE = r"(?:[^\n.;|!?]|\.(?=\S))*"
+# Contato e recrutador saem do começo da marca até o fim da frase (D219.4).
+_CONTATO = re.compile(
+    "(?:"
+    # rótulo com dois-pontos (até uma palavra entre eles) ou traço: "Recrutadora responsável: Ana"
     r"\b(?:recrutador[a]?|recruiter|hiring manager|talent (?:partner|acquisition)|"
-    r"respons[aá]vel pela vaga|contato|contact|fale com|falar com|enviar para|send to)\b"
-    r"\s*[:\-]\s*[^\n]*",
+    r"respons[aá]vel pela vaga|contato|contact|enviar para|send to)\b"
+    r"(?:\s*[-–]|(?:\s+\w+)?\s*:)"
+    # convite sem dois-pontos: "Fale com Maria", "Reach out to John"
+    r"|\b(?:fale|falar|converse|conversar|chame|chamar) com\b"
+    r"|\b(?:reach out to|get in touch with)\b"
+    # "responder ao CTO Carlos Pereira", "reports to Jane Doe": só com nome próprio depois
+    r"|\b(?:responder|reportar|reporta|report|reports|reporting)\s+(?:diretamente\s+)?"
+    r"(?:a|ao|à|para|to)\s+(?:the\s+)?(?-i:(?:[A-Z]{2,5}\s+)?[A-ZÀ-Ý][a-zà-ÿ]+\s+[A-ZÀ-Ý][a-zà-ÿ]+)"
+    # perfil e mensageiro: "linkedin.com/in/x", "wa.me/...", "t.me/...", "@maria_recruta"
+    r"|(?:linkedin\.com/in/|\bwa\.me/|\bt\.me/)"
+    r"|(?<![\w.@])@[A-Za-z0-9_][A-Za-z0-9_.]{2,}"
+    # telefone colado depois da marca: "WhatsApp 11987654321"
+    r"|\b(?:whats\s?app|telegram|telefone|tel|fone|celular|phone|mobile)\b\W{0,5}\+?\d{10,13}(?!\d)"
+    ")" + _FRASE,
     re.IGNORECASE,
 )
 
@@ -101,6 +121,15 @@ def conferir_fontes(permitidas: Sequence[str], publicas: Iterable[str]) -> froze
     return frozenset(permitidas)
 
 
+def conferir_saida(caminho: Path) -> Path:
+    """Como `conferir_caminho` e recusa saída dentro do repositório: a coleta e os exemplos guardam
+    vagas cruas, e um `git add -A` as publicaria."""
+    resolvido = conferir_caminho(caminho)
+    if resolvido.is_relative_to(RAIZ):
+        raise Recusa(f"saída dentro do repositório (use uma pasta fora do clone): {caminho}")
+    return resolvido
+
+
 def ler_hashes(caminho: Path | None) -> frozenset[str]:
     if caminho is None:
         return frozenset()
@@ -109,8 +138,9 @@ def ler_hashes(caminho: Path | None) -> frozenset[str]:
 
 
 def limpar(texto: str) -> str:
-    """Tira a linha do recrutador e troca e-mail, telefone, CPF e nome por valores de exemplo."""
-    return limpar_pessoais(_RECRUTADOR.sub("", texto)).strip()
+    """Tira contato e recrutador até o fim da frase e troca e-mail, telefone, CPF e nome (campos
+    conhecidos) por valores de exemplo. Nome solto em texto corrido pode passar (D219.4)."""
+    return limpar_pessoais(_CONTATO.sub("", texto)).strip()
 
 
 def descricoes_do_ouro(caminho: Path = OURO) -> tuple[str, ...]:
@@ -150,46 +180,69 @@ ORDER BY v.id
 """
 
 
-def montar(
+def vagas(
     banco: Path,
     permitidas: frozenset[str],
     excluir: frozenset[str] = frozenset(),
     ouro: Sequence[str] = (),
-) -> dict[str, list[dict[str, Any]]]:
-    """As vagas que passam pelas regras, já divididas em `treino` e `validacao`."""
-    lados: dict[str, list[dict[str, Any]]] = {"treino": [], "validacao": []}
+    casados: set[str] | None = None,
+) -> Iterator[tuple[str, dict[str, Any]]]:
+    """As vagas que passam pelas regras, uma a uma (o cursor, sem `fetchall`), com o lado de cada
+    uma. Os hashes de `excluir` que casaram com alguma vaga vão para `casados`."""
     uri = f"{conferir_caminho(banco).as_uri()}?mode=ro"
     with closing(sqlite3.connect(uri, uri=True)) as con:
-        linhas = con.execute(_CONSULTA).fetchall()
-    for url_hash, titulo, empresa, descricao, juntas, com_login in linhas:
-        das_fontes = sorted(set(juntas.split("\x1f")))
-        if com_login or not set(das_fontes) <= permitidas or url_hash.lower() in excluir:
-            continue
-        titulo, descricao = limpar(titulo), limpar(descricao)
-        if len(descricao) < MIN_DESCRICAO or e_do_ouro(f"{titulo}\n{descricao}", ouro):
-            continue
-        if achar_pessoais(f"{titulo}\n{descricao}"):
-            continue  # o que a limpeza não tirou tira a vaga inteira
-        g = grupo(empresa, titulo)
-        lados[lado(g)].append(
-            {
+        for url_hash, titulo, empresa, descricao, juntas, com_login in con.execute(_CONSULTA):
+            if url_hash.lower() in excluir:
+                if casados is not None:
+                    casados.add(url_hash.lower())
+                continue
+            das_fontes = sorted(set(juntas.split("\x1f")))
+            if com_login or not set(das_fontes) <= permitidas:
+                continue
+            titulo, descricao = limpar(titulo), limpar(descricao)
+            if len(descricao) < MIN_DESCRICAO or e_do_ouro(f"{titulo}\n{descricao}", ouro):
+                continue
+            if achar_pessoais(f"{titulo}\n{descricao}"):
+                continue  # o que a limpeza não tirou tira a vaga inteira
+            g = grupo(empresa, titulo)
+            registro = {
                 "id": url_hash,
                 "grupo": g,
                 "fontes": das_fontes,
                 "titulo": titulo,
                 "descricao": descricao,
             }
-        )
+            yield lado(g), registro
+
+
+def montar(
+    banco: Path,
+    permitidas: frozenset[str],
+    excluir: frozenset[str] = frozenset(),
+    ouro: Sequence[str] = (),
+    casados: set[str] | None = None,
+) -> dict[str, list[dict[str, Any]]]:
+    """`vagas` já dividida em `treino` e `validacao`, na memória."""
+    lados: dict[str, list[dict[str, Any]]] = {"treino": [], "validacao": []}
+    for nome, registro in vagas(banco, permitidas, excluir, ouro, casados):
+        lados[nome].append(registro)
     return lados
 
 
-def escrever(lados: Mapping[str, Sequence[Mapping[str, Any]]], saida: Path) -> None:
-    saida = conferir_caminho(saida)
+def escrever(itens: Iterable[tuple[str, Mapping[str, Any]]], saida: Path) -> dict[str, int]:
+    """Escreve `treino.jsonl` e `validacao.jsonl` aos poucos; devolve quantas vagas cada um tem."""
+    saida = conferir_saida(saida)
     saida.mkdir(parents=True, exist_ok=True)
-    for nome, registros in lados.items():
-        with open(saida / f"{nome}.jsonl", "w", encoding="utf-8") as arquivo:
-            for registro in registros:
-                arquivo.write(json.dumps(registro, ensure_ascii=False) + "\n")
+    contagem = {"treino": 0, "validacao": 0}
+    with ExitStack() as pilha:
+        arquivos = {
+            nome: pilha.enter_context(open(saida / f"{nome}.jsonl", "w", encoding="utf-8"))
+            for nome in contagem
+        }
+        for nome, registro in itens:
+            arquivos[nome].write(json.dumps(registro, ensure_ascii=False) + "\n")
+            contagem[nome] += 1
+    return contagem
 
 
 def ler(caminho: Path) -> list[dict[str, Any]]:
@@ -219,14 +272,22 @@ def exemplo_habilidades(registro: Mapping[str, Any], pede: Sequence[str]) -> dic
 def perguntas_vf(
     registro: Mapping[str, Any], pede: Sequence[str], outras: Sequence[str]
 ) -> list[dict[str, Any]]:
-    """ "Verdadeiro ou falso": um sim para cada item de `pede` (já passou pela anti-invenção) e até
-    `FALSAS_POR_VAGA` nãos com itens de outras vagas que não estão escritos nesta."""
+    """ "Verdadeiro ou falso" equilibrado (D219.7): até `VERDADEIRAS_POR_VAGA` sins sorteados de
+    `pede` (já passou pela anti-invenção) e até `FALSAS_POR_VAGA` nãos com itens de `outras` (os
+    itens das outras vagas do lado, sem repetição) que não estão escritos nesta.
+
+    Custo fixo por vaga: sorteia `SORTEIO_VF` candidatas e confere todas numa só chamada de
+    `pede_da_vaga` (o texto da vaga é normalizado uma vez), sem varrer `outras` inteira."""
     texto = texto_encaixe(registro["titulo"], registro["descricao"]).texto
     sorteio = random.Random(registro["id"])
-    candidatas = sorted({x for x in outras if not pede_da_vaga([x], texto)})
-    falsas = sorteio.sample(candidatas, min(FALSAS_POR_VAGA, len(candidatas)))
+    verdadeiras = sorteio.sample(list(pede), min(VERDADEIRAS_POR_VAGA, len(pede)))
+    proprias = {normalizar(x) for x in pede}
+    indices = sorteio.sample(range(len(outras)), min(SORTEIO_VF, len(outras)))
+    amostra = [outras[i] for i in indices if normalizar(outras[i]) not in proprias]
+    escritas = {normalizar(x) for x in pede_da_vaga(amostra, texto)} if amostra else set()
+    falsas = [x for x in amostra if normalizar(x) not in escritas][:FALSAS_POR_VAGA]
     exemplos = []
-    for item, resposta in [*((x, True) for x in pede), *((x, False) for x in falsas)]:
+    for item, resposta in [*((x, True) for x in verdadeiras), *((x, False) for x in falsas)]:
         exemplos.append(
             {
                 "tarefa": "vf",
@@ -251,6 +312,7 @@ async def _buscar(dados: Path, permitidas: frozenset[str]) -> int | None:
     caminho = dados / "jobot.db"
     preparar_banco(caminho, relogio)
     with closing(abrir(caminho)) as con:
+        # só as permitidas, e nunca a fonte com login, mesmo se alguém a permitir
         for fonte in fontes(con):
             ligar_fonte(con, fonte.chave, fonte.chave in permitidas and not fonte.com_login)
         cliente = ClienteEducado(None, relogio, ValidadoresDoBanco(con), __version__)
@@ -268,7 +330,11 @@ def argumentos(argv: Sequence[str] | None) -> argparse.Namespace:
     juntar = sub.add_parser("montar", help="escreve treino.jsonl e validacao.jsonl")
     juntar.add_argument("--banco", type=Path, required=True)
     juntar.add_argument("--saida", type=Path, required=True)
-    juntar.add_argument("--excluir", type=Path, help="url_hash do gabarito, um por linha")
+    gabarito = juntar.add_mutually_exclusive_group(required=True)
+    gabarito.add_argument("--excluir", type=Path, help="url_hash do gabarito, um por linha")
+    gabarito.add_argument(
+        "--sem-gabarito", action="store_true", help="sem a lista do dono (anote na D219)"
+    )
     for p in (coletar, juntar):
         p.add_argument("--fonte", action="append", default=[], help="fonte permitida")
     return analisador.parse_args(argv)
@@ -279,17 +345,27 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         permitidas = conferir_fontes(args.fonte, descobrir())
         if args.passo == "coletar":
-            dados = conferir_caminho(args.dados)
+            dados = conferir_saida(args.dados)
             dados.mkdir(parents=True, exist_ok=True)
             execucao = asyncio.run(_buscar(dados, permitidas))
             print(f"busca {execucao} concluída em {dados / 'jobot.db'}")
             return 0
-        lados = montar(args.banco, permitidas, ler_hashes(args.excluir), descricoes_do_ouro())
-        escrever(lados, args.saida)
+        conferir_caminho(args.banco), conferir_saida(args.saida)  # antes de abrir a saída
+        excluir, casados = ler_hashes(args.excluir), set[str]()
+        itens = vagas(args.banco, permitidas, excluir, descricoes_do_ouro(), casados)
+        contagem = escrever(itens, args.saida)
     except Recusa as recusa:
         print(f"recusado: {recusa}", file=sys.stderr)
         return 2
-    print(json.dumps({nome: len(v) for nome, v in lados.items()}))
+    if args.excluir is not None:
+        print(f"gabarito: {len(excluir)} hashes lidos, {len(casados)} casaram", file=sys.stderr)
+        if not casados:
+            print(
+                "aviso: nenhum hash do gabarito casou com uma vaga; confira o arquivo "
+                "(um url_hash por linha)",
+                file=sys.stderr,
+            )
+    print(json.dumps(contagem))
     return 0
 
 
