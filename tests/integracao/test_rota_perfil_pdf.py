@@ -630,7 +630,7 @@ def test_falha_da_ia_vem_vazio_e_com_o_motivo(painel: Painel, pronta: Any) -> No
 def test_prazo_da_ia_vencido_vem_vazio_e_com_o_motivo(
     painel: Painel, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(perfil_rota, "FOLGA_IA_S", -limites()["prazo_s"]["fora"] + 0.05)
+    monkeypatch.setitem(perfil_rota.FOLGA_IA_S, "fora", -limites()["prazo_s"]["fora"] + 0.05)
     _ligar(painel)
     fabrica = _fabrica(painel, [RESPOSTA_IA])
     fabrica.soltar = threading.Event()  # preso até o prazo vencer

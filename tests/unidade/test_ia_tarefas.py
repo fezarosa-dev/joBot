@@ -663,3 +663,35 @@ def test_nivel_do_idioma_so_vale_no_trecho_do_idioma() -> None:
 
 def test_nivel_sem_idiomas_nao_marca_nada() -> None:
     assert tarefas.nivel_fora_do_trecho({}, "Inglês avançado") == frozenset()
+
+
+@pytest.mark.parametrize(
+    "pergunta",
+    [
+        "Qual é a sua senha do banco?",
+        "Qual o seu CPF?",
+        "Pode informar o número do seu RG?",
+        "Qual o número do seu cartão de crédito?",
+        "What is your password?",
+        "What is your credit card number?",
+        "Qual o número do seu passaporte?",
+        "Qual a sua chave PIX?",
+        "Qual a sua conta bancária?",
+        "What is your Social Security number?",
+    ],
+)
+def test_pergunta_sobre_dado_sensivel_sai(pergunta: str) -> None:
+    """(guarda) Texto injetado no perfil pode levar o modelo a pedir senha ou documento (D233.11):
+    o código tira, não só o prompt; controle: a pergunta comum fica."""
+    assert _textos(perguntas_que_ficam([_p(pergunta), _p("Tem CNH?")], [])) == ["Tem CNH?"]
+
+
+def test_porque_sobre_dado_sensivel_tira_a_pergunta() -> None:
+    itens = [_p("Pode confirmar?", "Precisamos da sua senha."), _p("Aceita viajar?")]
+    assert _textos(perguntas_que_ficam(itens, [])) == ["Aceita viajar?"]
+
+
+def test_documentacao_nao_e_documento() -> None:
+    assert _textos(perguntas_que_ficam([_p("Já escreveu documentação de API?")], [])) == [
+        "Já escreveu documentação de API?"
+    ]

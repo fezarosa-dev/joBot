@@ -562,3 +562,47 @@ def test_curriculo_so_de_contato_vai_vazio() -> None:
     texto = pedidos.texto_curriculo("ana@exemplo.invalid", "local")
     assert (texto.texto, texto.cortados) == ("[contato removido]", 0)
     assert pedidos.texto_curriculo("   ", "local").texto == ""
+
+
+def test_pedido_perguntas_cortado_pelo_ia_json() -> None:
+    """Perfil cheio dentro dos tetos da tela não passa do corte do `ia.json` (desenho 5.2): só as
+    respostas e as perguntas feitas mais recentes, e o bloco PERFIL até o teto de caracteres."""
+    corte = limites()["tarefas"]["perguntas"]["corte"]
+    respostas = [
+        PerguntaPerfil(f"ia:{n}", f"Pergunta {n}?", "ia", None, f"Resposta {n} " + "x" * 1900)
+        for n in range(150)
+    ]
+    fontes = {
+        "resumo": "r" * 2000,
+        "habilidades": [f"habilidade {n} " + "h" * 80 for n in range(200)],
+        "respostas": respostas,
+        "perguntas_feitas": [f"Feita {n}?" for n in range(400)],
+    }
+    usuario = pedidos.pedido_perguntas(fontes, "pt", "local", "m").mensagens[1].texto
+    assert usuario.startswith("<<<PERFIL\n") and usuario.endswith("\nPERFIL>>>")
+    assert len(usuario) <= corte["caracteres"] + 100
+    assert "Pergunta 0?" not in usuario  # a mais velha sai antes
+    assert "Feita 0?" not in usuario
+    # pequeno, vai inteiro: só as N mais recentes de cada lista
+    curto = (
+        pedidos.pedido_perguntas(
+            {
+                "respostas": [
+                    PerguntaPerfil(f"ia:{n}", f"P{n}?", "ia", None, "R") for n in range(50)
+                ],
+                "perguntas_feitas": [f"F{n}?" for n in range(100)],
+            },
+            "pt",
+            "local",
+            "m",
+        )
+        .mensagens[1]
+        .texto
+    )
+    dados = json.loads(curto.removeprefix("<<<PERFIL\n").removesuffix("\nPERFIL>>>"))
+    assert [r["pergunta"] for r in dados["respostas"]] == [
+        f"P{n}?" for n in range(50 - corte["respostas"], 50)
+    ]
+    assert dados["perguntas_feitas"] == [
+        f"F{n}?" for n in range(100 - corte["perguntas_feitas"], 100)
+    ]

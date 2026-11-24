@@ -118,9 +118,10 @@ async def contexto_ia(request: Request, con: Con) -> dict[str, Any]:
             "backends": _da_tarefa(nome, configurados),
             "privacidade": frase_de_privacidade(t, _BASE_PRIVACIDADE.get(nome, f"{_BASE}{nome}.")),
             "parada": t.ligada and t.backend not in _da_tarefa(nome, configurados),
-            # o teto do dia é por backend de fora (D198.10); o local e a manual não têm teto
+            # o teto do dia é do laço e por backend de fora (D198.10); o local, a manual e as
+            # tarefas sob pedido não têm teto
             "hoje": chamadas_do_dia(con, t.backend, agora)
-            if t.backend not in ("", LOCAL, MANUAL)
+            if nome in DO_LACO and t.backend not in ("", LOCAL, MANUAL)
             else None,
             "teste": testes.get((t.backend, t.modelo)),
         }
