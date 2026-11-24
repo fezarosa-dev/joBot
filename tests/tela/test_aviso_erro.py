@@ -21,8 +21,8 @@ GENERICO_5XX = (
     "Algo deu errado no joBot. Tente de novo; se repetir, veja o arquivo de log do joBot."
 )
 GENERICO_REDE = (
-    "O joBot não respondeu. Ele pode ter sido fechado: abra de novo com jobot abrir"
-    " (ou pelo atalho do menu)."
+    "O joBot não respondeu. Ele pode ter sido fechado: ligue de novo pelo botão Ligar da janela"
+    " do joBot (o atalho do menu), ou com jobot abrir."
 )
 BOTOES = """() => {
   const main = document.querySelector('main');

@@ -1,9 +1,9 @@
 {
   "aviso_versao.texto": "A new joBot version is available: {versao}.",
-  "aviso_versao.janela": "The joBot window has a new version too.",
+  "aviso_versao.janela": "This window is from an old joBot version and no longer shows the panel properly. Install the new window: it opens the panel in your browser.",
   "aviso_versao.atualizar": "Update now",
   "aviso_versao.baixar_janela": "Download the new window",
-  "aviso_versao.janela_aberta": "The new version's page opened in your browser.",
+  "aviso_versao.janela_aberta": "The new version's page opened in your browser. After installing, close this window (Alt+F4; on a Mac, Cmd+Q).",
   "aviso_versao.janela_falhou": "Could not open the browser. Download the new window at {endereco}",
   "aviso_versao.atualizando": "Updating joBot. The panel reloads by itself when the new version opens.",
   "aviso_versao.demorou": "Two minutes went by and the new version did not open. What happened is in the file logs/atualizar.log, in the data folder (Settings › Privacy).",

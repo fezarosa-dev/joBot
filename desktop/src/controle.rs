@@ -19,6 +19,28 @@ pub fn estado(porta: u16, no_ar: impl FnOnce(u16) -> bool) -> Value {
     json!({"ligado": no_ar(porta), "endereco": servidor::url_do_painel(porta)})
 }
 
+/// A página da release, que o controle abre quando o painel é mais novo que a casca (D207.12).
+pub const URL_RELEASE: &str = "https://github.com/fezarosa-dev/joBot/releases/latest";
+
+/// `1.2.3` (com ou sem sufixo depois do terceiro número, como `0.5.0.dev1`) vira `(1, 2, 3)`.
+fn versao(texto: &str) -> Option<(u64, u64, u64)> {
+    let mut partes = texto.split('.').map(|p| p.parse().ok());
+    Some((partes.next()??, partes.next()??, partes.next()??))
+}
+
+/// Os avisos do controle, da mesma `/saude-local` do estado. `janela_velha`: o painel no ar é
+/// mais novo que esta casca (o "Atualizar agora" do painel só troca o Python; D207.12).
+/// `fecha_junto`: fechar a janela para o painel, a mesma conta do `fechar::ao_fechar` (a casca o
+/// ligou e o segundo plano está desligado; D207.5).
+pub fn com_avisos(mut estado: Value, saude: Option<&Value>, casca: &str, subiu: bool) -> Value {
+    let painel = saude.and_then(|s| versao(s.get("versao")?.as_str()?));
+    let casca = versao(casca);
+    estado["janela_velha"] = (casca.is_some() && painel > casca).into();
+    let segundo_plano = saude.and_then(|s| s.get("segundo_plano")?.as_bool());
+    estado["fecha_junto"] = (subiu && segundo_plano == Some(false)).into();
+    estado
+}
+
 /// O estado com o motivo da falha (o `codigo` de `servidor::Falha`, ou `abrir`), o detalhe e
 /// o fim do log, que a página mostra.
 pub fn com_falha(mut estado: Value, codigo: &str, detalhe: &str, log: &str) -> Value {
@@ -91,17 +113,31 @@ pub fn abridor(so: &str, distrobox: bool, endereco: &str) -> (&'static str, Vec<
     }
 }
 
+/// O que o AppRun cria sem ser caminho e que o navegador não herda (D207.1): o `GTK_THEME`
+/// forçaria o tema claro num navegador GTK que nasce do Abrir joBot.
+const DO_APPRUN: [&str; 6] = [
+    "GTK_THEME",
+    "GDK_BACKEND",
+    "PYTHONDONTWRITEBYTECODE",
+    "APPIMAGE",
+    "ARGV0",
+    "OWD",
+];
+
 /// O ambiente que o abridor não leva para o navegador dentro de um AppImage (há `APPDIR`): o
 /// AppRun aponta `GTK_PATH`, `GIO_EXTRA_MODULES`, `XDG_DATA_DIRS`, `PATH` e outras para dentro
 /// dele, e um navegador que nasce do Abrir joBot seguiria vivo com a casca fechada (D207.1).
 /// Lista de caminhos perde os pedaços de dentro e os vazios (`Some`); o resto que aponta para
-/// lá sai.
+/// lá sai, e também o que o AppRun cria sem ser caminho (`DO_APPRUN`).
 pub fn fora_do_appimage(vars: &[(String, String)]) -> Vec<(String, Option<String>)> {
     let Some((_, appdir)) = vars.iter().find(|(k, v)| k == "APPDIR" && !v.is_empty()) else {
         return Vec::new();
     };
     vars.iter()
         .filter_map(|(k, v)| {
+            if DO_APPRUN.contains(&k.as_str()) {
+                return Some((k.clone(), None));
+            }
             let dentro = |p: &&str| Path::new(p).starts_with(appdir);
             if !v.split(':').any(|p| dentro(&p)) {
                 return None; // nada aponta para dentro
@@ -209,6 +245,37 @@ mod testes {
             parado,
             json!({"ligado": false, "endereco": "http://127.0.0.1:8000/"})
         );
+    }
+
+    #[test]
+    fn janela_velha_so_com_o_painel_mais_novo_que_a_casca() {
+        let aviso = |painel: &str, casca: &str| {
+            let saude = json!({"app": "jobot", "versao": painel, "segundo_plano": true});
+            com_avisos(estado(1, |_| true), Some(&saude), casca, false)["janela_velha"] == true
+        };
+        assert!(aviso("0.4.2", "0.4.1"));
+        assert!(aviso("0.5.0.dev1", "0.4.1"));
+        assert!(aviso("0.10.0", "0.9.9")); // número, não texto
+        assert!(!aviso("0.4.1", "0.4.1"));
+        assert!(!aviso("0.4.0", "0.4.1"));
+        assert!(!aviso("lixo", "0.4.1"));
+        assert!(!aviso("0.4.2", "lixo"));
+        // sem resposta da saúde (painel parado): nada a avisar
+        let parado = com_avisos(estado(1, |_| false), None, "0.4.1", true);
+        assert_eq!(parado["janela_velha"], false);
+        assert_eq!(parado["fecha_junto"], false);
+    }
+
+    #[test]
+    fn fecha_junto_so_quando_a_casca_ligou_sem_segundo_plano() {
+        let com = |segundo: Value, subiu: bool| {
+            let saude = json!({"app": "jobot", "versao": "0.4.1", "segundo_plano": segundo});
+            com_avisos(estado(1, |_| true), Some(&saude), "0.4.1", subiu)["fecha_junto"] == true
+        };
+        assert!(com(json!(false), true));
+        assert!(!com(json!(true), true)); // segundo plano: fechar não para
+        assert!(!com(json!(false), false)); // ligado por outro: fechar não para
+        assert!(!com(json!("false"), true)); // como o `ao_fechar`: só o booleano
     }
 
     #[test]
@@ -390,6 +457,13 @@ mod testes {
             ("QT_PLUGIN_PATH", "/tmp/.mount_jobotX/usr/qt::/usr/lib/qt"),
             ("HOME", "/home/p"),
             ("VIZINHO", "/tmp/.mount_jobotXY/x"), // outra pasta, só o começo igual
+            // o que o AppRun cria sem ser caminho (o artefato do T355 mostrou)
+            ("GTK_THEME", "Adwaita:light"),
+            ("GDK_BACKEND", "x11"),
+            ("PYTHONDONTWRITEBYTECODE", "1"),
+            ("APPIMAGE", "/home/p/joBot.AppImage"),
+            ("ARGV0", "./joBot.AppImage"),
+            ("OWD", "/home/p"),
         ]);
         let mut fora = fora_do_appimage(&ambiente);
         fora.sort();
@@ -397,14 +471,22 @@ mod testes {
             fora,
             [
                 ("APPDIR".to_string(), None),
+                ("APPIMAGE".into(), None),
+                ("ARGV0".into(), None),
+                ("GDK_BACKEND".into(), None),
                 ("GST_PLUGIN_SYSTEM_PATH".into(), None),
                 ("GTK_PATH".into(), None),
+                ("GTK_THEME".into(), None),
+                ("OWD".into(), None),
                 ("PATH".into(), Some("/usr/local/bin:/usr/bin".into())),
+                ("PYTHONDONTWRITEBYTECODE".into(), None),
                 ("QT_PLUGIN_PATH".into(), Some("/usr/lib/qt".into())),
                 ("XDG_DATA_DIRS".into(), None),
             ]
         );
         assert!(fora_do_appimage(&vars(&[("GTK_PATH", "/x"), ("APPDIR", "")])).is_empty());
+        // fora de um AppImage, o tema e o resto da pessoa ficam
+        assert!(fora_do_appimage(&vars(&[("GTK_THEME", "Adwaita:dark")])).is_empty());
     }
 
     #[test]
@@ -413,6 +495,7 @@ mod testes {
             ("CONTAINER_ID", "fedora"),
             ("APPDIR", "/tmp/.mount_j"),
             ("GIO_EXTRA_MODULES", "/tmp/.mount_j/usr/lib/gio"),
+            ("GTK_THEME", "Adwaita:light"),
             ("PWD", "/tmp/.mount_j/usr"),
             ("HOME", "/home/p"),
         ]);
@@ -439,6 +522,7 @@ mod testes {
             [
                 "APPDIR",
                 "GIO_EXTRA_MODULES",
+                "GTK_THEME",
                 "LD_LIBRARY_PATH",
                 "PYTHONHOME",
                 "PYTHONPATH"
