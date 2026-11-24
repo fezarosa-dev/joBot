@@ -42,8 +42,8 @@ AI is optional. Without it, joBot works with rules and keywords ([ADR 0009](http
 |---|---|---|
 | **Local model** (Qwen, via llama.cpp's llama-server), since 0.5.0 | Free | On your computer, offline after the download |
 | **Anthropic API key**, since 0.5.0 (experimental) | Pay per use | At Anthropic |
-| **OpenAI or Google Gemini key**, since 0.5.0 (experimental) | Pay per use | At OpenAI or Google |
-| **OpenAI-compatible address** (Ollama, LM Studio, OpenRouter), since 0.5.0 | Depends on the service | Wherever the address points |
+| **OpenAI or Google Gemini key**, since 0.5.0 (experimental) | Pay per use (Gemini may be billed per use, depending on your Google AI Studio account plan) | At OpenAI or Google |
+| **OpenAI-compatible address** (Ollama, LM Studio, OpenRouter), since 0.5.0 (experimental: the same client only ran against the local model's `llama-server`, in CI) | Depends on the service | Wherever the address points |
 | **Keywords** (no AI) | Free | On your computer |
 | **Manual AI** (copy and paste), in 0.6.0 | Free in joBot | In the chat AI you choose |
 | **Claude Code session** you already have (waiting for the owner) | Uses your Claude subscription | At Anthropic |

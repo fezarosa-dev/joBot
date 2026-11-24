@@ -37,8 +37,8 @@ Each file is about 100 to 200 MB (the Windows one about 120 MB, the Mac ones abo
 
 On first launch, the joBot window shows the install screen.
 
-1. **Tools:** joBot and Python 3.14 come ticked and locked. The browser for sites with login (LinkedIn and others you sign in to) comes ticked and is the only thing that comes from the internet: joBot downloads it through Playwright, from Playwright's servers (about 210 MB). If you untick it, the sites with login stay off until you download the browser in Settings › Tools.
-2. **Installing:** nothing is downloaded, except the browser, if ticked. joBot checks the sha256 of every file and every library; if any does not match, nothing is installed and the screen asks you to download the installer again. The browser is left out of this check: Playwright does not publish its sha256, and the download comes over HTTPS. Without internet, the installation works the same without the browser: if its download fails, the screen offers to go on without it.
+1. **Tools:** joBot and Python 3.14 come ticked and locked. Only two items come from the internet: the browser for sites with login (LinkedIn and others you sign in to), which comes ticked, and the AI **Local model**, which comes unticked. joBot downloads the browser through Playwright, from Playwright's servers (about 210 MB), and the Local model from GitHub and Hugging Face (up to about 2.8 GB, depending on the computer's memory), with its sha256 checked. If you untick the browser, the sites with login stay off until you download it in Settings › Tools; the model can be downloaded there later too.
+2. **Installing:** nothing else is downloaded besides the browser and the Local model, if ticked. joBot checks the sha256 of every file and every library; if any does not match, nothing is installed and the screen asks you to download the installer again. The browser is left out of this check: Playwright does not publish its sha256, and the download comes over HTTPS. Without internet, the installation works the same without the browser: if its download fails, the screen offers to go on without it. The Local model is downloaded after joBot is already installed: if its download fails, joBot stays installed and the screen says why.
 3. **Done:** the window becomes the joBot control. Press **Start** and then **Open joBot**: the dashboard opens in your default browser, with the first-run questions.
 
 If the installation fails midway, what it did is undone, and "Try again" starts from scratch.
@@ -52,7 +52,7 @@ If the installation fails midway, what it did is undone, and "Try again" starts 
 
 ## 5. Uninstall
 
-Uninstalling never deletes your data. The browser stays too, in the Playwright folder; to remove it, press **Remove** in Settings › Tools first.
+Uninstalling never deletes your data. The browser stays too, in the Playwright folder; to remove it, press **Remove** in Settings › Tools first. The local model stays too, in the `ferramentas` folder inside the data folder, and takes up to about 2.8 GB (the larger model alone is 2.7 GB); to remove it, press **Remove** on the model card, on the same screen, before uninstalling, or delete the `ferramentas` folder afterwards.
 
 - **Windows:** Settings › Apps, joBot, **Uninstall**. The uninstaller turns off the background service, quits joBot and deletes the `%LOCALAPPDATA%\joBot\app` folder.
 - **Linux:** turn off the background service and use **Quit joBot**; remove the package (`sudo apt remove` or `sudo dnf remove`) or delete the `.AppImage`; delete the `~/.local/share/jobot-app` folder by hand.

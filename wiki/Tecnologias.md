@@ -42,8 +42,8 @@ A IA é opcional. Sem ela, o joBot funciona com regras e palavras-chave ([ADR 00
 |---|---|---|
 | **Modelo local** (Qwen, via llama-server do llama.cpp), desde a 0.5.0 | Grátis | No seu computador, sem internet depois de baixar |
 | **Chave da API da Anthropic**, desde a 0.5.0 (experimental) | Pago por uso | Na Anthropic |
-| **Chave da OpenAI ou do Google Gemini**, desde a 0.5.0 (experimental) | Pago por uso | Na OpenAI ou no Google |
-| **Endereço compatível com a OpenAI** (Ollama, LM Studio, OpenRouter), desde a 0.5.0 | Depende do serviço | Onde o endereço apontar |
+| **Chave da OpenAI ou do Google Gemini**, desde a 0.5.0 (experimental) | Pago por uso (o Gemini pode ser cobrado por uso, conforme o plano da sua conta no Google AI Studio) | Na OpenAI ou no Google |
+| **Endereço compatível com a OpenAI** (Ollama, LM Studio, OpenRouter), desde a 0.5.0 (experimental: o mesmo cliente só rodou contra o `llama-server` do modelo local, no CI) | Depende do serviço | Onde o endereço apontar |
 | **Palavras-chave** (sem IA) | Grátis | No seu computador |
 | **IA manual** (copiar e colar), na 0.6.0 | Grátis no joBot | Na IA de chat que você escolher |
 | **Sessão do Claude Code** que você já tem (espera o dono) | Usa a sua assinatura do Claude | Na Anthropic |

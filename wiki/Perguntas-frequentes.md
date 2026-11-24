@@ -24,7 +24,7 @@ Ele nunca vê a sua senha nem o seu token. Essa sessão ainda espera a decisão 
 <details>
 <summary><strong>Preciso pagar alguma coisa?</strong></summary>
 
-O joBot é grátis e de código aberto. O Claude, a OpenAI e o Gemini são opcionais e pagos por uso, com a sua chave.
+O joBot é grátis e de código aberto. O Claude, a OpenAI e o Gemini são opcionais, com a sua chave: o Claude e a OpenAI são pagos por uso, e o Gemini pode ser cobrado por uso, conforme o plano da sua conta no Google AI Studio.
 O modelo local, as palavras-chave e a IA manual são grátis.
 </details>
 

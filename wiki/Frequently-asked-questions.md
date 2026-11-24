@@ -24,7 +24,7 @@ It never sees your password or your token. That session still waits for the owne
 <details>
 <summary><strong>Do I have to pay for anything?</strong></summary>
 
-joBot is free and open source. Claude, OpenAI and Gemini are optional and paid per use, with your key.
+joBot is free and open source. Claude, OpenAI and Gemini are optional, with your key: Claude and OpenAI are paid per use, and Gemini may be billed per use, depending on your Google AI Studio account plan.
 The local model, keywords and manual AI are free.
 </details>
 

@@ -152,6 +152,6 @@ Running in the background is your choice, in the first-run assistant or in the s
 
 ## 🧠 Artificial intelligence (optional)
 
-> **Golden rule:** the AI only uses the data in your profile. It never invents experience, courses or skills, and it shows which data it used.
+> **Golden rule:** the AI never invents. In 0.5.0 it does not even receive your profile: each skill it lists has to be written in the job. From 0.6.0 on, in the tasks that use the profile (résumé, questionnaire, application), it only uses the data in your profile and shows which data it used.
 
 Each task picks its own option. In 0.5.0: the local model (Qwen, free and offline once downloaded), an Anthropic API, OpenAI or Google Gemini key, or an OpenAI-compatible address (Ollama, LM Studio, OpenRouter), and keywords (no AI) stay. Manual AI (copy and paste) arrives in 0.6.0, and the Claude Code session you already have waits for the owner's decision on the terms of use. Details in [Technologies](Technologies) and in the [README](https://github.com/fezarosa-dev/joBot/blob/main/README.en.md#artificial-intelligence).
