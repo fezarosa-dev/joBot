@@ -129,7 +129,9 @@ def _vaga(escopo: str, empresa: str, job: object) -> VagaColetada | None:
         empresa=empresa,
         descricao_formato="html",
         descricao=_descricao(job),
-        id_externo=str(job["id"]) if isinstance(job.get("id"), int | str) else None,
+        id_externo=str(job["id"])
+        if isinstance(job.get("id"), int | str) and not isinstance(job["id"], bool)
+        else None,
         url_candidatura=_http(job.get("applyUrl")),
         locais=tuple(dict.fromkeys(filter(None, locais))),
         modalidade_declarada=_texto(modalidade) or None,

@@ -81,7 +81,9 @@ def _vaga(escopo: str, job: object) -> VagaColetada | None:
             empresa=empresa,
             descricao_formato="texto",
             descricao=_texto(job.get("description")),
-            id_externo=str(job["id"]) if isinstance(job.get("id"), int | str) else None,
+            id_externo=str(job["id"])
+            if isinstance(job.get("id"), int | str) and not isinstance(job["id"], bool)
+            else None,
             locais=_local(job),
             modalidade_declarada=_texto(job.get("workplaceType")) or None,
             contrato_declarado=_texto(job.get("type")) or None,

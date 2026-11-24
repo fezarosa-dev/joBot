@@ -95,7 +95,9 @@ def _vaga(escopo: str, empresa: str, job: dict[str, object]) -> VagaColetada | N
             empresa=empresa,
             descricao_formato="html" if html or not puro else "texto",
             descricao=html or puro,
-            id_externo=str(job["id"]) if isinstance(job.get("id"), int | str) else None,
+            id_externo=str(job["id"])
+            if isinstance(job.get("id"), int | str) and not isinstance(job["id"], bool)
+            else None,
             url_candidatura=apply if isinstance(apply, str) and apply else None,  # sem mudança
             locais=_locais(job),
             modalidade_declarada=_texto(job.get("workplaceType")) or None,
