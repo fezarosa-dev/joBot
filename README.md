@@ -210,7 +210,7 @@ Também na fase 1:
 <a id="o-painel"></a>
 ## 📋 O painel
 
-O painel roda em `http://127.0.0.1:47615`. Quando o joBot acha o Chrome, o Edge ou o Chromium no seu computador, ele abre numa **janela própria**, sem abas nem barra de endereço, como um aplicativo; sem nenhum deles, usa o Chromium que ele instalou, e só então uma aba comum do navegador.
+O painel roda em `http://127.0.0.1:47615`. Quando o joBot acha o Chrome, o Edge ou o Chromium no seu computador, ele abre numa **janela própria**, sem abas nem barra de endereço, como um aplicativo; sem nenhum deles, usa o Chromium que ele instalou, e só então uma aba comum do navegador. Pelo instalador, o painel abre no seu navegador padrão, pelo botão **Abrir joBot** da janela do joBot.
 
 - **Barra lateral:** à esquerda, a seção Vagas (Destaques de hoje e as abas, cada uma com a contagem) e a seção Onde buscar (Buscas, Empresas, Sugeridas, Fontes e Sites), mais Configurações. Dá para recolhê-la e arrastar a borda para mudar a largura.
 - **Lista com detalhe:** a lista de vagas fica de um lado e o detalhe da vaga escolhida, do outro. Em janela estreita o detalhe sobe por cima da lista.
@@ -356,7 +356,7 @@ Detalhes na [ADR 0010](docs/decisions/0010-claude-code-da-pessoa.md).
 <a id="requisitos-e-instalacao"></a>
 ## 📦 Requisitos e instalação
 
-> Há dois jeitos de instalar. **Pelo instalador** (a partir da versão 0.4.0): você baixa um arquivo, abre e tem o joBot numa janela própria, sem terminal. **Pelo código**: você baixa o código e roda com o uv, como nas versões 0.1.0 a 0.3.0. O passo a passo com mais detalhes está na [página Instalar da wiki](https://github.com/fezarosa-dev/joBot/wiki/Instalar).
+> Há dois jeitos de instalar. **Pelo instalador** (a partir da versão 0.4.0): você baixa um arquivo, abre e tem a janela do joBot, um controle pequeno que liga o joBot e abre o painel no seu navegador, sem terminal. **Pelo código**: você baixa o código e roda com o uv, como nas versões 0.1.0 a 0.3.0. O passo a passo com mais detalhes está na [página Instalar da wiki](https://github.com/fezarosa-dev/joBot/wiki/Instalar).
 
 ### Requisitos
 
@@ -385,9 +385,11 @@ Na primeira vez que você abre, a janela do joBot mostra a tela de instalação:
 
 1. **Ferramentas.** joBot e Python 3.14 vêm marcados e travados (são necessários). O navegador para sites com login vem marcado e é o único que vem da internet: o joBot o baixa pelo Playwright, dos servidores do Playwright (uns 210 MB). Se você desmarcar, dá para baixar depois em Configurações › Ferramentas.
 2. **Instalando.** Tudo sai de dentro do instalador: nada é baixado na instalação, exceto o navegador, se marcado. O joBot confere o sha256 de cada arquivo contra a lista gravada quando o instalador foi feito, e o de cada biblioteca; se algum não bater, nada é instalado. O navegador fica fora dessa conferência: o Playwright não publica o sha256 dele, e o download vem por HTTPS. Sem internet, a instalação funciona igual sem o navegador: se o download dele falhar, a tela oferece seguir sem ele.
-3. **Pronto.** A janela abre o painel, com as perguntas da primeira execução (abaixo).
+3. **Pronto.** A janela vira o controle do joBot. Aperte **Ligar** e depois **Abrir joBot**: o painel abre no seu navegador padrão, com as perguntas da primeira execução (abaixo).
 
-Fechar a janela fecha só a janela: com o segundo plano ligado, as buscas seguem. Para parar tudo, use **Encerrar o joBot** em Configurações › Geral.
+Depois disso, a janela do joBot é sempre o controle. Ela mostra se o joBot está **Ligado** ou **Parado**, o endereço do painel (com o botão **Copiar**) e os botões **Ligar**, **Parar** e **Abrir joBot**, que só aparece com o joBot ligado. Ao abrir, ela só mostra o estado: não liga nem abre nada sozinha. Se o segundo plano já ligou o joBot, ela aparece como Ligado.
+
+Fechar a janela com o joBot ligado pergunta **Deixar o joBot ligado?**. **Deixar ligado** fecha só a janela, e o painel segue no navegador até você abrir a janela de novo e apertar **Parar**. **Desligar** para o joBot e fecha a janela. Com o joBot parado, a janela fecha direto. O segundo plano serve para o joBot ligar sozinho quando o computador inicia. Pelo painel, **Encerrar o joBot**, em Configurações › Geral, também para tudo.
 
 No Windows, a janela usa o WebView2 da Microsoft, que o Windows 11 e o Windows 10 atualizado já trazem. Num Windows sem ele, o instalador não baixa nada: avisa, com o link oficial da Microsoft (https://developer.microsoft.com/microsoft-edge/webview2/), e cancela. Instale o WebView2 por esse link e abra o instalador de novo.
 
@@ -474,7 +476,7 @@ Depois, aperte **Buscar agora**, no topo do painel, ou espere a próxima busca d
 
 Quando sai uma versão nova, o painel avisa numa faixa no topo. O aviso de versão vem **ligado por padrão**: para desligar, vá em Configurações, Privacidade. Os detalhes estão em [Privacidade e segurança](#privacidade-e-seguranca).
 
-- **Pelo instalador:** aperte **Atualizar agora**, na faixa ou em Configurações › Geral. O joBot baixa o pacote da versão nova, confere o sha256 de cada arquivo, monta a versão nova ao lado da que você usa e só troca quando ela abre; se algo falhar, nada muda. Se a janela também tiver versão nova, a faixa mostra **Baixar a janela nova**, que abre a página da versão: baixe o instalador de novo e abra, e os seus dados ficam.
+- **Pelo instalador:** aperte **Atualizar agora**, na faixa ou em Configurações › Geral. O joBot baixa o pacote da versão nova, confere o sha256 de cada arquivo, monta a versão nova ao lado da que você usa e só troca quando ela abre; se algo falhar, nada muda. A atualização troca só o joBot, não a janela. Quando a janela também tem versão nova, ela mostra **Há uma versão nova desta janela.** e o botão **Baixar a janela nova**, que abre a página da versão: baixe o instalador de novo e abra, e os seus dados ficam. Quem ainda tem a janela da 0.4.0 vê esse aviso numa faixa do painel.
 - **Pelo código:** rode `uv run jobot atualizar` na pasta `joBot`.
 
 ### O que as próximas fases vão baixar
@@ -507,7 +509,7 @@ Cada fase só começa depois que a anterior passa nos testes. Não há datas pro
 | **8. Versão GitHub Pages** | Versão GitHub Pages, sem instalação | ⚪ Planejada |
 | **9. Publicação** | README com selos e revisão de segurança | ⚪ Planejada |
 
-A versão 0.3.0 saiu entre a fase 2 e a fase 3, com a tela "Panorama" e a fila de candidaturas completa. A versão 0.4.0 fecha a fase 3, com a janela própria e o instalador.
+A versão 0.3.0 saiu entre a fase 2 e a fase 3, com a tela "Panorama" e a fila de candidaturas completa. A versão 0.4.0 fecha a fase 3, com a janela própria e o instalador. A versão 0.4.1 corrige o Linux: a janela vira um controle e o painel abre no seu navegador.
 
 <a id="perguntas-frequentes"></a>
 ## ❓ Perguntas frequentes

@@ -210,7 +210,7 @@ Also in phase 1:
 <a id="dashboard"></a>
 ## 📋 The dashboard
 
-The dashboard runs at `http://127.0.0.1:47615`. When joBot finds Chrome, Edge or Chromium on your computer, it opens in **its own window**, with no tabs or address bar, like an app; with none of them, it uses the Chromium it installed, and only then a regular browser tab.
+The dashboard runs at `http://127.0.0.1:47615`. When joBot finds Chrome, Edge or Chromium on your computer, it opens in **its own window**, with no tabs or address bar, like an app; with none of them, it uses the Chromium it installed, and only then a regular browser tab. With the installer, the dashboard opens in your default browser, through the **Open joBot** button in the joBot window.
 
 - **Sidebar:** on the left, the Jobs section (Today's Highlights and the tabs, each with its count) and the Where to Look section (Searches, Companies, Suggested, Sources and Sites), plus Settings. You can hide it and drag its edge to change the width.
 - **List with detail:** the job list sits on one side and the detail of the chosen job on the other. In a narrow window the detail slides over the list.
@@ -356,7 +356,7 @@ Details in [ADR 0010](docs/decisions/0010-claude-code-da-pessoa.md) (in Portugue
 <a id="requirements-and-installation"></a>
 ## 📦 Requirements and installation
 
-> There are two ways to install. **With the installer** (from version 0.4.0 on): you download one file, open it and get joBot in a window of its own, with no terminal. **From the code**: you download the code and run it with uv, as in versions 0.1.0 to 0.3.0. The step by step with more detail is on the [Install page of the wiki](https://github.com/fezarosa-dev/joBot/wiki/Install).
+> There are two ways to install. **With the installer** (from version 0.4.0 on): you download one file, open it and get the joBot window, a small control that starts joBot and opens the dashboard in your browser, with no terminal. **From the code**: you download the code and run it with uv, as in versions 0.1.0 to 0.3.0. The step by step with more detail is on the [Install page of the wiki](https://github.com/fezarosa-dev/joBot/wiki/Install).
 
 ### Requirements
 
@@ -385,9 +385,11 @@ The first time you open it, the joBot window shows the install screen:
 
 1. **Tools.** joBot and Python 3.14 come ticked and locked (they are required). The browser for sites with login comes ticked and is the only thing that comes from the internet: joBot downloads it through Playwright, from Playwright's servers (about 210 MB). If you untick it, you can download it later in Settings › Tools.
 2. **Installing.** Everything comes from inside the installer: nothing is downloaded during the installation, except the browser, if ticked. joBot checks the sha256 of every file against the list recorded when the installer was built, and that of every library; if any does not match, nothing is installed. The browser is left out of this check: Playwright does not publish its sha256, and the download comes over HTTPS. Without internet, the installation works the same without the browser: if its download fails, the screen offers to go on without it.
-3. **Done.** The window opens the dashboard, with the first-run questions (below).
+3. **Done.** The window becomes the joBot control. Press **Start** and then **Open joBot**: the dashboard opens in your default browser, with the first-run questions (below).
 
-Closing the window closes only the window: with the background service on, the searches go on. To stop everything, use **Quit joBot** in Settings › General.
+From then on, the joBot window is always the control. It shows whether joBot is **Running** or **Stopped**, the dashboard address (with a **Copy** button) and the **Start**, **Stop** and **Open joBot** buttons; Open joBot only shows while joBot is running. When it opens, it only shows the state: it does not start or open anything by itself. If the background service already started joBot, it shows Running.
+
+Closing the window while joBot is running asks **Keep joBot running?**. **Keep running** closes only the window, and the dashboard stays on in your browser until you open the window again and press **Stop**. **Turn off** stops joBot and closes the window. With joBot stopped, the window closes right away. The background service is for joBot to start by itself when the computer starts. From the dashboard, **Quit joBot**, in Settings › General, also stops everything.
 
 On Windows, the window uses Microsoft's WebView2, which Windows 11 and an up-to-date Windows 10 already have. On a Windows without it, the installer downloads nothing: it warns you, with Microsoft's official link (https://developer.microsoft.com/microsoft-edge/webview2/), and cancels. Install WebView2 from that link and open the installer again.
 
@@ -474,7 +476,7 @@ Then press **Search now**, at the top of the dashboard, or wait for the next sch
 
 When a new version comes out, the dashboard tells you in a banner at the top. The version notice comes **on by default**: to turn it off, go to Settings, Privacy. The details are in [Privacy and security](#privacy-and-security).
 
-- **With the installer:** press **Update now**, in the banner or in Settings › General. joBot downloads the new version's package, checks the sha256 of every file, builds the new version next to the one you use and only switches when it opens; if anything fails, nothing changes. If the window has a new version too, the banner shows **Download the new window**, which opens the version page: download the installer again and open it, and your data stays.
+- **With the installer:** press **Update now**, in the banner or in Settings › General. joBot downloads the new version's package, checks the sha256 of every file, builds the new version next to the one you use and only switches when it opens; if anything fails, nothing changes. The update replaces only joBot, not the window. When the window has a new version too, it shows **There is a new version of this window.** and the **Download the new window** button, which opens the version page: download the installer again and open it, and your data stays. If you still have the 0.4.0 window, you see this notice in a banner on the dashboard.
 - **From the code:** run `uv run jobot atualizar` in the `joBot` folder.
 
 ### What the next phases will download
@@ -507,7 +509,7 @@ Each phase only starts after the previous one passes the tests. No dates are pro
 | **8. GitHub Pages version** | GitHub Pages version, no installation | ⚪ Planned |
 | **9. Release** | README with badges and security review | ⚪ Planned |
 
-Version 0.3.0 came out between phase 2 and phase 3, with the "Overview" screen and the complete application queue. Version 0.4.0 closes phase 3, with a window of its own and the installer.
+Version 0.3.0 came out between phase 2 and phase 3, with the "Overview" screen and the complete application queue. Version 0.4.0 closes phase 3, with a window of its own and the installer. Version 0.4.1 fixes Linux: the window becomes a control and the dashboard opens in your browser.
 
 <a id="faq"></a>
 ## ❓ FAQ
