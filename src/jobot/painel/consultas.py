@@ -7,7 +7,9 @@ Mora fora de `rotas/` porque a lateral é um global do Jinja: `globais` não pod
 import sqlite3
 from collections.abc import Sequence
 from datetime import UTC, datetime
+from typing import Annotated
 
+from fastapi import Path
 from starlette.requests import Request
 
 from jobot.banco import cadastros, leitura
@@ -17,8 +19,11 @@ from jobot.nucleo import gmail
 from jobot.nucleo.destaques import Candidata, destaques
 from jobot.nucleo.leitores.base import LeitorComLogin
 from jobot.nucleo.relogio import Relogio, RelogioReal
+from jobot.painel.moeda import INTEGER_MAX
 
 MAX_ID = 2**31
+# id no caminho da URL: o INTEGER do SQLite tem 64 bits com sinal
+IdDoBanco = Annotated[int, Path(ge=1, le=INTEGER_MAX)]
 _DESTAQUES_N = 10
 # janela larga para o SQL; a de 24 h é da função pura `destaques`
 _ANTES_DESTAQUES = "julianday(v.primeira_vista_em) >= julianday(:agora) - 2"
