@@ -6,6 +6,7 @@ está no texto, as `perguntas` tiram o que não serve e a `candidatura` tira de 
 enviado, calcula `tem` e `faltam` no código e avisa quando a carta cita o que falta (D228)."""
 
 import re
+import unicodedata
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Annotated, Any, Literal
@@ -126,7 +127,9 @@ def _achou(campo: str, valor: object, alvo: str) -> bool:
 
 
 def _vazio(valor: object) -> bool:
-    return valor is None or (isinstance(valor, str) and not valor.strip())
+    if isinstance(valor, str):
+        return not valor.strip()
+    return valor is None or (isinstance(valor, list | tuple) and not valor)
 
 
 def nao_achei(dados: Mapping[str, Any], texto: str) -> frozenset[str]:
@@ -170,39 +173,65 @@ class SaidaPerguntas(BaseModel):
     perguntas: list[PerguntaSugerida] = Field(max_length=5)
 
 
-# shortcut: endereço com esquema, "www." ou terminado num destes domínios (em minúsculas, para
-# "ASP.NET" ficar); "golpe.xyz" sem esquema passa, mas não vira link: a tela só mostra texto.
+# shortcut: endereço com esquema, "www.", `nome.algo/caminho` de qualquer domínio, ou nome
+# terminado num destes domínios (sem caixa, menos o `net`, para "ASP.NET" ficar). "golpe.xyz" sem
+# caminho passa, mas não vira link: a tela só mostra texto. E-mail e telefone saem por
+# `limpar_contato` (D228.3).
 _URL = re.compile(
     r"(?i:\b(?:https?|ftp|mailto|javascript|data|file|tel):|\bwww\.)"
-    r"|\b[\w-]+(?:\.[\w-]+)*\.(?:com|net|org|br|ly|gov|edu|info)(?![\w-])"
+    r"|\b[\w-]+(?:\.[\w-]+)+/"
+    r"|\b[\w-]+(?:\.[\w-]+)*\.(?:(?i:com|org|br|ly|gov|edu|info)|net)(?![\w-])"
 )
 
 
+def _limpar(texto: str) -> str:
+    """Uma linha só (toda quebra e espaço vira um espaço), em NFKC (a URL em largura total vira a
+    comum) e sem os caracteres de controle e invisíveis (`Cc`, `Cf`), que esconderiam a URL."""
+    texto = unicodedata.normalize("NFKC", texto)
+    return " ".join(
+        "".join(
+            " " if c.isspace() else c
+            for c in texto
+            if c.isspace() or unicodedata.category(c) not in ("Cc", "Cf")
+        ).split()
+    )
+
+
 def _forma_pergunta(texto: str) -> str:
-    return normalizar(sem_pontas(texto))
+    return normalizar(sem_pontas(texto).lstrip("¿¡"))
 
 
 def _pergunta_serve(pergunta: str, por_que: str) -> bool:
+    # import aqui: `pedidos` importa `tarefas` (VERSAO)
+    from jobot.nucleo.ia.pedidos import limpar_contato
+
+    texto = f"{pergunta}\n{por_que}"
     return (
         len(pergunta) <= _PERGUNTA_MAX
-        and len(pergunta.splitlines()) == 1
-        and not _URL.search(pergunta)
-        and not _URL.search(por_que)
+        and bool(_forma_pergunta(pergunta))
+        and not _URL.search(texto)
+        and limpar_contato(texto) == texto
     )
 
 
 def perguntas_que_ficam(
     itens: Sequence[Mapping[str, Any]], feitas: Sequence[str]
 ) -> list[dict[str, str]]:
-    """As perguntas sugeridas que servem, na ordem da resposta: sai a repetida (entre elas ou já
-    feita, normalizada), a de mais de uma linha, a de mais de 200 caracteres e a que leva URL (na
-    pergunta ou no porquê)."""
-    vistas = {_forma_pergunta(f) for f in feitas}
+    """As perguntas sugeridas que servem, na ordem da resposta, numa linha e sem invisíveis: sai a
+    repetida (entre elas ou já feita, normalizada), a vazia depois de limpa, a de mais de uma
+    linha, a de mais de 200 caracteres e a que leva URL, e-mail ou telefone (na pergunta ou no
+    porquê)."""
+    vistas = {_forma_pergunta(_limpar(f)) for f in feitas}
     ficam = []
     for item in itens:
-        pergunta, por_que = item["pergunta"].strip(), item.get("por_que") or ""
+        bruta = item["pergunta"].strip()
+        pergunta, por_que = _limpar(bruta), _limpar(item.get("por_que") or "")
         forma = _forma_pergunta(pergunta)
-        if forma not in vistas and _pergunta_serve(pergunta, por_que):
+        if (
+            len(bruta.splitlines()) == 1
+            and forma not in vistas
+            and _pergunta_serve(pergunta, por_que)
+        ):
             vistas.add(forma)
             ficam.append({"pergunta": pergunta, "por_que": por_que})
     return ficam
@@ -248,10 +277,14 @@ def conferir_candidatura(
     (`pedidos.dados_para("candidatura", ...)`, sem os vazios). `pede`: o que a vaga pede, do
     `encaixe` (`None` sem resultado). `feitas`: as perguntas do perfil que já existem."""
     habilidades = enviados.get("habilidades")
-    meu = [h for h in habilidades if isinstance(h, str)] if isinstance(habilidades, list) else []
+    meu = (
+        [h for h in habilidades if isinstance(h, str)]
+        if isinstance(habilidades, list | tuple)
+        else []
+    )
     tem, faltam = casar(pede or (), meu)
     texto = normalizar(f"{dados['carta']}\n{dados['resumo']}")
-    usou = dict.fromkeys(c for c in dados["usou"] if c in enviados)
+    usou = dict.fromkeys(c for c in dados["usou"] if not _vazio(enviados.get(c)))
     perguntar = perguntas_que_ficam([{"pergunta": p} for p in dados["perguntar"]], feitas)
     return Candidatura(
         idioma=dados["idioma"],

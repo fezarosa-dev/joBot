@@ -569,7 +569,12 @@ def test_candidatura_usou_so_com_chaves_preenchidas() -> None:
 
 
 def test_candidatura_chave_enviada_vazia_nao_fica_em_usou() -> None:
-    enviados = {"habilidades": ("Python",), "respostas": [], "resumo": " ", "cargo_atual": None}
+    enviados: dict[str, object] = {
+        "habilidades": ("Python",),
+        "respostas": [],
+        "resumo": " ",
+        "cargo_atual": None,
+    }
     usou = ["habilidades", "respostas", "resumo", "cargo_atual"]
     feito = conferir_candidatura(_carta(usou=usou), enviados, ["Python", "Go"], [])
     assert feito.usou == ("habilidades",)
