@@ -21,7 +21,7 @@ src/jobot/
 │   │   └── (raiz)            base, executor, registro, paginas, descoberta_cc
 │   ├── leitores/             os sites com login: o que ler de cada um (um arquivo por site)
 │   ├── tratamento/           duplicadas, salário, rótulos, locais, ciclo de vida
-│   ├── ia/                   contrato da IA, esquema por serviço, tarefas e montagem dos pedidos
+│   ├── ia/                   contrato da IA, esquema por serviço, tarefas, pedidos e IA manual
 │   └── dados/                listas em JSON: fontes, empresas, rótulos, salário
 ├── banco/                    SQLite: conexão, migrações (migracoes/), gravação e consultas
 ├── agenda/                   agendador e execução das buscas
