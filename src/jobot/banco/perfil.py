@@ -273,6 +273,18 @@ def responder_pergunta(con: sqlite3.Connection, chave: str, resposta: str, agora
 _PESSOAIS = ("perfil", "experiencia", "curso", "pergunta_perfil", "preparo_candidatura")
 
 
+def existe(con: sqlite3.Connection) -> bool:
+    """Há algo que "Apagar perfil" apagaria. A linha de `perfil` salva toda em branco não conta
+    (D230.6): sem habilidades e com todas as colunas da 0.6.0 nulas."""
+    com_valor = (
+        "SELECT EXISTS (SELECT 1 FROM perfil WHERE habilidades <> '[]'"
+        f" OR COALESCE({', '.join(_COLUNAS)}) IS NOT NULL)"
+    )
+    return bool(con.execute(com_valor).fetchone()[0]) or any(
+        con.execute(f"SELECT EXISTS (SELECT 1 FROM {t})").fetchone()[0] for t in _PESSOAIS[1:]
+    )
+
+
 def apagar_perfil(con: sqlite3.Connection) -> None:
     """ "Apagar perfil": a linha, as experiências, os cursos, as perguntas e os preparos.
 
