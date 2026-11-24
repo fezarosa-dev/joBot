@@ -21,8 +21,8 @@ GENERICO_5XX = (
     "Algo deu errado no joBot. Tente de novo; se repetir, veja o arquivo de log do joBot."
 )
 GENERICO_REDE = (
-    "O joBot não respondeu. Ele pode ter sido fechado: abra de novo com jobot abrir"
-    " (ou pelo atalho do menu)."
+    "O joBot não respondeu. Ele pode ter sido fechado: ligue de novo pelo botão Ligar da janela"
+    " do joBot (o atalho do menu), ou com jobot abrir."
 )
 BOTOES = """() => {
   const main = document.querySelector('main');
@@ -169,6 +169,36 @@ def test_falha_de_rede_mostra_a_mensagem_de_rede(page: Page, painel: str) -> Non
     page.route("**/_t/rede", lambda rota: rota.abort())
     _clicar(page, "brede")
     expect(page.locator(REGIAO)).to_contain_text(GENERICO_REDE)
+
+
+VOLTOU = "() => dispatchEvent(new PageTransitionEvent('pageshow', {persisted: true}))"
+
+
+@pytest.mark.parametrize("saida", ["beforeunload", "pagehide"])
+def test_falha_de_rede_com_a_pagina_saindo_nao_liga_o_aviso(
+    page: Page, painel: str, saida: str
+) -> None:
+    """O WebKit dá `error` (sendError no htmx) ao pedido que a saída da página corta, e o Safari
+    pode devolver a página pelo Voltar: o "sem rede" falso não liga (T352; D209.5). Os eventos
+    vêm sintéticos para a ordem ser a mesma nos três motores."""
+    _abrir(page, painel)
+    _contar_pedidos(page)
+    page.route("**/_t/rede", lambda rota: rota.abort())
+    page.evaluate(f"() => dispatchEvent(new Event('{saida}'))")
+    _pedir(page, "brede")
+    expect(page.locator(REGIAO)).to_be_hidden()
+    # a página que volta pelo Voltar fala de novo
+    page.evaluate(VOLTOU)
+    _pedir(page, "brede")
+    expect(page.locator(REGIAO)).to_contain_text(GENERICO_REDE)
+
+
+def test_pagina_que_volta_pelo_voltar_chega_sem_aviso(page: Page, painel: str) -> None:
+    _abrir(page, painel)
+    _clicar(page, "b500")
+    expect(page.locator(REGIAO)).to_be_visible()
+    page.evaluate(VOLTOU)
+    expect(page.locator(REGIAO)).to_be_hidden()
 
 
 def test_fechar_esconde_e_erro_novo_reabre_com_o_texto_novo(page: Page, painel: str) -> None:

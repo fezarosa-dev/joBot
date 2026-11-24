@@ -1,0 +1,120 @@
+/* O controle da casca (T350; D206, ADR 0027). Visual de app do Mac (desenho 2026-11-15, 5.3):
+   texto de 13px, controles de 28px, um botão principal, desativado a .45. Página leve: sem
+   vidro (backdrop-filter), sem animação e sem light-dark(), que o WebKitGTK velho não tem.
+   Contraste: #ffffff sobre --destaque #0071e3 = 4,70:1; --texto-2 sobre --fundo passa de 4,5:1
+   nos dois temas. */
+:root {
+  color-scheme: light dark;
+  --fundo: #f5f5f7;
+  --superficie: #ffffff;
+  --texto: #1d1d1f;
+  --texto-2: #5e5e63;
+  --destaque: #0071e3;
+  --borda: rgb(0 0 0 / 0.15);
+  --ligado: #248a3d;
+  --parado: #8e8e93;
+  --alerta: #c9190b;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fundo: #1c1c1e;
+    --superficie: #2c2c2e;
+    --texto: #f5f5f7;
+    --texto-2: #a1a1a6;
+    --borda: rgb(255 255 255 / 0.18);
+    --ligado: #30d158;
+    --parado: #8e8e93;
+    --alerta: #ff6961;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html, body { margin: 0; min-block-size: 100%; }
+
+body {
+  background: var(--fundo);
+  color: var(--texto);
+  font: 13px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+}
+
+.controle {
+  display: grid;
+  gap: 12px;
+  padding: 20px;
+  max-inline-size: 480px;
+  margin-inline: auto;
+}
+
+.cabeca { display: flex; gap: 12px; align-items: center; }
+.marca { inline-size: 40px; block-size: 40px; }
+h1 { margin: 0; font-size: 17px; font-weight: 600; }
+
+.estado { display: flex; gap: 6px; align-items: center; margin: 2px 0 0; color: var(--texto-2); }
+.ponto {
+  inline-size: 8px; block-size: 8px; border-radius: 50%;
+  background: var(--parado);
+}
+[data-estado="ligado"] .ponto { background: var(--ligado); }
+
+.linha-endereco { display: flex; gap: 8px; align-items: center; }
+.linha-endereco label { color: var(--texto-2); }
+#endereco {
+  flex: 1; min-inline-size: 0; block-size: 28px; padding: 0 8px;
+  font: 12px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: var(--texto); background: var(--superficie);
+  border: 1px solid var(--borda); border-radius: 6px;
+}
+
+.copiado { margin: -8px 0 0; min-block-size: 1.4em; color: var(--texto-2); }
+
+.acoes { display: flex; flex-wrap: wrap; gap: 8px; }
+.acoes .botao-principal { margin-inline-start: auto; }
+
+.botao {
+  block-size: 28px; padding: 0 14px;
+  font: inherit; color: var(--texto); background: var(--superficie);
+  border: 1px solid var(--borda); border-radius: 6px; cursor: default;
+}
+.botao-principal {
+  color: #ffffff; background: var(--destaque); border-color: transparent; font-weight: 600;
+}
+.botao:disabled { opacity: 0.45; }
+.botao:focus-visible, #endereco:focus-visible, summary:focus-visible {
+  outline: 3px solid var(--destaque); outline-offset: 2px;
+}
+
+.janela-nova { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.janela-nova p { flex: 1 1 12rem; margin: 0; }
+
+.falha { color: var(--alerta); }
+.falha p { margin: 0; }
+.falha summary { cursor: default; color: var(--texto-2); }
+.falha pre {
+  margin: 6px 0 0; padding: 8px; max-block-size: 8rem; overflow: auto;
+  color: var(--texto); background: var(--superficie);
+  border: 1px solid var(--borda); border-radius: 6px;
+  font: 11px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  white-space: pre-wrap; overflow-wrap: anywhere;
+}
+
+.pergunta {
+  max-inline-size: min(360px, calc(100vw - 32px)); padding: 16px;
+  color: var(--texto); background: var(--superficie);
+  border: 1px solid var(--borda); border-radius: 10px;
+}
+.pergunta::backdrop { background: rgb(0 0 0 / 0.35); }
+.pergunta h2 { margin: 0 0 6px; font-size: 13px; font-weight: 600; }
+.pergunta p { margin: 0 0 14px; color: var(--texto-2); }
+.pergunta .acoes { justify-content: flex-end; }
+
+[hidden] { display: none !important; }
+
+@media (forced-colors: active) {
+  .botao, #endereco { border: 1px solid ButtonText; }
+  .pergunta { border: 1px solid CanvasText; }
+  .botao:disabled { color: GrayText; border-color: GrayText; opacity: 1; }
+  .ponto { forced-color-adjust: none; border: 1px solid CanvasText; }
+  .falha { color: CanvasText; }
+}

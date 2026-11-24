@@ -24,11 +24,8 @@
   {#- na lista sem aba válida vale a primeira; no detalhe da vaga, só a aba de origem na URL, senão nenhuma -#}
   {%- set aba_atual = aba_pedida if aba_pedida in lado.abas else (lado.abas[0] if caminho == "/vagas" else "") -%}
 {%- endif -%}
-{#- dentro da casca (T334; desenho 5.3) o user agent traz ` joBot-casca/<versão> (<so>)`: o <html>
-    ganha data-casca e, fora do Mac (que tem os botões do sistema), a fileira de três círculos -#}
-{%- set marca = marca_da_casca(request.headers.get("user-agent")) -%}
 <!doctype html>
-<html lang="{{ idioma }}" data-tema="{{ tema_atual }}" data-texto="{{ tamanho_texto }}"{% if com_lateral %} data-lateral="aberta"{% endif %}{% if marca %} data-casca="{{ marca[1] }}"{% endif %}>
+<html lang="{{ idioma }}" data-tema="{{ tema_atual }}" data-texto="{{ tamanho_texto }}"{% if com_lateral %} data-lateral="aberta"{% endif %}>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -50,16 +47,8 @@
 </head>
 <body>
   <a class="pular" href="#conteudo">{{ t("casca.pular") }}</a>
-  {%- if marca and marca[1] != "macos" %}
-  {#- filho do body, fixo no canto: o vidro da lateral e da barra prenderia o position: fixed -#}
-  <div class="janela-botoes" role="group" aria-label="{{ t('casca.janela.botoes') }}" data-janela-botoes>
-    <button type="button" class="janela-fechar" aria-label="{{ t('casca.janela.fechar') }}" data-janela-acao="close"><span aria-hidden="true">&times;</span></button>
-    <button type="button" class="janela-minimizar" aria-label="{{ t('casca.janela.minimizar') }}" data-janela-acao="minimize"><span aria-hidden="true">&minus;</span></button>
-    <button type="button" class="janela-maximizar" aria-label="{{ t('casca.janela.maximizar') }}" data-janela-acao="toggleMaximize" data-maximizar="{{ t('casca.janela.maximizar') }}" data-restaurar="{{ t('casca.janela.restaurar') }}"><span aria-hidden="true">+</span></button>
-  </div>
-  {%- endif %}
   {%- if com_lateral %}
-  <aside id="lateral" class="lateral vidro">
+  <aside id="lateral" class="lateral">
     <a class="marca" href="/">joBot</a>
     <nav class="menu" aria-label="{{ t('casca.menu') }}">
       <ul>
@@ -77,7 +66,7 @@
     <div class="divisor" role="separator" aria-orientation="vertical" aria-valuemin="180" aria-valuemax="320" aria-valuenow="240" tabindex="0" aria-controls="lateral" aria-label="{{ t('casca.lateral.divisor') }}" data-divisor></div>
   </aside>
   {%- endif %}
-  <header class="topo vidro">
+  <header class="topo">
     <div class="topo-inicio">
       {%- if com_lateral %}
       <button type="button" class="botao-barra" data-recolher aria-controls="lateral" aria-expanded="true" aria-label="{{ t('casca.lateral.recolher') }}" data-recolher-rotulo="{{ t('casca.lateral.recolher') }}" data-mostrar="{{ t('casca.lateral.mostrar') }}"><span class="icone" data-icone="panel-left" aria-hidden="true"></span></button>
@@ -113,7 +102,7 @@
       HX-Trigger sai antes da troca e levaria a chave velha -#}
   <div id="aviso-candidatura" role="status" hx-get="/aviso-candidatura" hx-trigger="load, focus from:window" hx-include="find input[name=mostrando]" hx-swap="innerHTML"><input type="hidden" name="mostrando" value=""></div>
   <div id="faixa-desfazer" role="status"></div>
-  {#- a coluna do conteúdo rola sozinha: o body nunca rola por baixo do vidro -#}
+  {#- a coluna do conteúdo rola sozinha: o body nunca rola por baixo da barra -#}
   <div class="coluna">
     <main id="conteudo" tabindex="-1">
       {% block conteudo %}{% endblock %}

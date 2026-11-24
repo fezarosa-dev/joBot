@@ -107,10 +107,6 @@ def _rss_com_item(**campos: str) -> httpx.Response:
     corpo = "".join(f"<{k}><![CDATA[{v}]]></{k}>" for k, v in item.items() if v != "<omitir>")
     texto = f"<rss version='2.0'><channel><title>t</title><item>{corpo}</item></channel></rss>"
     return httpx.Response(200, text=texto)
-    return httpx.Response(
-        200,
-        text=f"<rss version='2.0'><channel><title>t</title><item>{corpo}</item></channel></rss>",
-    )
 
 
 def test_coletor_registrado_com_a_chave_de_fontes_json() -> None:

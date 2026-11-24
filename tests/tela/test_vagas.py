@@ -9,8 +9,9 @@ from typing import Any
 
 import pytest
 from fastapi import FastAPI
-from playwright.sync_api import Browser, Locator, Page, Route, expect
+from playwright.sync_api import Locator, Page, Route, expect
 
+from apoio.console import anotar_erros
 from apoio.relogio import RelogioFalso
 from apoio.semear import AGORA, inserir_vaga
 from jobot.banco.conexao import abrir
@@ -77,9 +78,7 @@ def _abrir_mais_filtros(page: Page) -> None:
 
 
 def test_abas_marcam_a_atual_e_a_url_reabre_a_tela(page: Page, painel: str) -> None:
-    erros: list[str] = []  # violação do CSP aparece como erro no console
-    page.on("console", lambda m: erros.append(m.text) if m.type == "error" else None)
-    page.on("pageerror", lambda e: erros.append(str(e)))
+    erros = anotar_erros(page)  # violação do CSP aparece como erro no console
     page.goto(f"{painel}/vagas?aba=todas")
     # as abas moram só na lateral (T254, D150 item 1): a tela não repete a fileira
     expect(page.locator("main nav.abas")).to_have_count(0)
@@ -581,18 +580,14 @@ def test_teclado_da_lista_nao_age_em_campo_de_texto(page: Page, painel: str) -> 
     expect(busca).to_have_value("")
 
 
-def test_sem_js_a_linha_e_um_link_comum(browser: Browser, painel: str) -> None:
-    contexto = browser.new_context(java_script_enabled=False)
-    try:
-        pagina = contexto.new_page()
-        pagina.goto(f"{painel}/vagas?aba=todas")
-        linha = pagina.locator('#lista-vagas > [role="option"]', has_text=NOVA)
-        assert linha.get_attribute("tabindex") is None  # sem JS, cada linha é um link no Tab
-        linha.click()
-        expect(pagina).to_have_url(re.compile(r"/vagas/\d+$"))
-        expect(pagina.get_by_role("heading", level=1, name=NOVA)).to_be_visible()
-    finally:
-        contexto.close()
+def test_sem_js_a_linha_e_um_link_comum(pagina_sem_js: Page, painel: str) -> None:
+    pagina = pagina_sem_js
+    pagina.goto(f"{painel}/vagas?aba=todas")
+    linha = pagina.locator('#lista-vagas > [role="option"]', has_text=NOVA)
+    assert linha.get_attribute("tabindex") is None  # sem JS, cada linha é um link no Tab
+    linha.click()
+    expect(pagina).to_have_url(re.compile(r"/vagas/\d+$"))
+    expect(pagina.get_by_role("heading", level=1, name=NOVA)).to_be_visible()
 
 
 def test_barra_da_lista_tem_a_busca_e_troca_a_busca_escolhida(
@@ -1166,12 +1161,16 @@ def test_primeira_linha_sem_marca(page: Page, painel: str) -> None:
 VIOLACOES = """
 window.__violacoes = [];
 document.addEventListener('securitypolicyviolation', (e) => {
-  window.__violacoes.push(e.violatedDirective);
+  // a diretiva e de onde veio, para a falha dizer o que o CSP barrou
+  const onde = `${e.sourceFile}:${e.lineNumber}`;
+  window.__violacoes.push(`${e.violatedDirective} ${e.blockedURI} ${onde} ${e.sample}`);
 });
 """
 
 
-def test_troca_da_lista_sem_violacao_de_csp(page: Page, painel: str, banco: Path) -> None:
+def test_troca_da_lista_sem_violacao_de_csp(
+    page: Page, painel: str, banco: Path, browser_name: str
+) -> None:
     """A captura de tela do Playwright deixa style="" nos campos; o htmx copiava esse style para
     os campos novos na troca e o CSP barrava (style-src-attr). Item 10 da T301."""
     _sql(
@@ -1185,6 +1184,14 @@ def test_troca_da_lista_sem_violacao_de_csp(page: Page, painel: str, banco: Path
     page.goto(f"{painel}/vagas?aba=todas")
     _aguardar_lista(page)
     page.screenshot()  # antes das trocas, como numa conferência visual
+    # no WebKit a própria foto põe um <style> na página (o Playwright, para esconder o cursor) e o
+    # CSP o barra; lá a conta das violações começa depois dela, quando o aviso já chegou (T352).
+    # Nos outros motores a conta vem desde a carga.
+    if browser_name == "webkit":
+        page.evaluate(
+            "() => new Promise(fim => requestAnimationFrame(() => setTimeout(() => {"
+            " window.__violacoes = []; fim(); })))"
+        )
     # o que a foto faz, sem depender dela: style vazio nos campos, posto pelo CSSOM (o CSP deixa)
     marcados = page.locator('[id^="filtro-"]').evaluate_all(
         "es => es.map(e => { e.style.caretColor = 'transparent'; e.style.caretColor = '';"

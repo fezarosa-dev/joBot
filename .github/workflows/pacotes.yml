@@ -30,6 +30,8 @@ name: Pacotes
 #     o instalacao.json saem, a pasta de dados fica).
 #   Mac: o .app de dentro do .dmg, os dois passos com rede (limite: o runner não deixa isolar
 #     um processo).
+# aberta: a casca instalada (o .deb e o AppImage) aberta num Xvfb, operada pelo teclado; as
+#   capturas da janela no artefato capturas-casca (T355; detalhes no job).
 # juntar: os anexos da release (12 arquivos), o SHA256SUMS e as notas (a seção da versão dos
 #   dois CHANGELOGs) num artefato release; o publicar do release.yml só cria a release com ele,
 #   então o ensaio pelo casca.yml prova tudo menos o gh release create.
@@ -199,6 +201,86 @@ jobs:
           fumaca jobot-fumaca "$appimage" ./jobot.AppImage
           fumaca jobot-fumaca-nova "$appimage" ./jobot.AppImage
 
+      # T354 (D211, D217): sem FUSE, o runtime do AppImage só se extrai com
+      # APPIMAGE_EXTRACT_AND_RUN=1, em $TMPDIR/appimage_extracted_<md5>, e não apaga a pasta
+      # (nem numa saída normal): quem apaga é o vigia da casca. O /tmp tem de voltar ao que era:
+      # depois de uma saída normal, de duas aberturas coladas (a mesma pasta) e de matar à força
+      # (SIGKILL) o grupo do runtime e da casca. Controle: matando o vigia junto, a pasta fica.
+      # O pid 1 do contêiner (o sleep) não recolhe zumbis: o vigia não pode esperá-los.
+      - name: AppImage sem lixo no /tmp (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          lixo="$RUNNER_TEMP/lixo"
+          mkdir -p "$lixo"
+          cat > "$lixo/forcar.sh" <<'FIM'
+          #!/bin/bash
+          # $1: vigia (só o grupo da casca morre) ou controle (o vigia morre antes)
+          set -u
+          cd "$HOME"
+          vigias() {
+            for f in /proc/[0-9]*/cmdline; do
+              tr '\0' ' ' <"$f" 2>/dev/null | grep -q jobot-vigia || continue
+              p=${f#/proc/}; echo "${p%/cmdline}"
+            done
+          }
+          antes=$(ls -A /tmp)
+          JOBOT_DADOS="$HOME/dados-$1" APPIMAGE_EXTRACT_AND_RUN=1 setsid ./jobot.AppImage --verificar >"$HOME/$1.log" 2>&1 &
+          grupo=$!
+          # a casca lança o vigia no começo do main: sem ele, o teste não diria nada
+          for i in $(seq 240); do [ -n "$(vigias)" ] && break; sleep 0.5; done
+          [ -n "$(vigias)" ] || { echo "nenhum vigia rodando"; cat "$HOME/$1.log"; exit 1; }
+          sleep 1
+          # congela o grupo: a casca não pode terminar sozinha antes da morte forçada
+          kill -STOP -- "-$grupo" || { echo "a casca saiu antes da morte forçada"; exit 1; }
+          ls -d /tmp/appimage_extracted_* || { echo "sem extração no /tmp"; exit 1; }
+          if [ "$1" = controle ]; then
+            for p in $(vigias); do kill -KILL "$p"; done
+          fi
+          kill -KILL -- "-$grupo"
+          for i in $(seq 20); do [ "$(ls -A /tmp)" = "$antes" ] && break; sleep 1; done
+          echo "/tmp depois ($1):"; ls -A /tmp
+          if [ "$1" = controle ]; then
+            # sem o vigia a pasta fica: é ele que limpa, e a conferência enxerga o lixo
+            ls -d /tmp/appimage_extracted_* || { echo "o controle não deixou lixo"; exit 1; }
+            rm -rf /tmp/appimage_extracted_*
+          else
+            [ "$(ls -A /tmp)" = "$antes" ] || { echo "sobrou lixo no /tmp"; exit 1; }
+          fi
+          FIM
+          c=$(docker run -d -v "$PWD/saida:/saida:ro" -v "$lixo:/lixo:ro" -w /home/pessoa jobot-fumaca sleep infinity)
+          docker exec "$c" sh -c 'test ! -e /dev/fuse && cp /saida/*.AppImage /home/pessoa/jobot.AppImage \
+            && chown pessoa /home/pessoa/jobot.AppImage && chmod 755 /home/pessoa/jobot.AppImage'
+          antes=$(docker exec "$c" ls -A /tmp)
+          echo "/tmp antes: [$antes]"
+          # sem FUSE e sem a variável, o runtime não se extrai sozinho: falha e diz o que fazer
+          if docker exec "$c" runuser -u pessoa -- ./jobot.AppImage --verificar; then
+            echo "o AppImage rodou sem FUSE e sem extrair"; exit 1
+          fi
+          depois=$(docker exec "$c" ls -A /tmp)
+          if [ "$depois" != "$antes" ]; then
+            echo "::warning::o runtime sem FUSE deixou no /tmp: $depois"
+            docker exec "$c" sh -c 'rmdir /tmp/.mount_* 2>/dev/null; true'
+          fi
+          # saída normal: o vigia apaga
+          docker exec "$c" runuser -u pessoa -- env APPIMAGE_EXTRACT_AND_RUN=1 ./jobot.AppImage --verificar
+          sleep 3
+          depois=$(docker exec "$c" ls -A /tmp)
+          echo "/tmp depois da saída normal: [$depois]"
+          test "$depois" = "$antes"
+          # duas aberturas coladas (D217): a extração tem o mesmo nome e o vigia da primeira
+          # acorda com o runtime da segunda extraindo no mesmo lugar; ele espera, não apaga
+          docker exec "$c" runuser -u pessoa -- sh -c 'export APPIMAGE_EXTRACT_AND_RUN=1 \
+            && JOBOT_DADOS="$HOME/dados-cola1" ./jobot.AppImage --verificar \
+            && JOBOT_DADOS="$HOME/dados-cola2" ./jobot.AppImage --verificar'
+          sleep 3
+          depois=$(docker exec "$c" ls -A /tmp)
+          echo "/tmp depois das duas aberturas coladas: [$depois]"
+          test "$depois" = "$antes"
+          # à força: o vigia apaga; o controle mostra que, sem ele, a pasta fica
+          docker exec "$c" runuser -u pessoa -- bash /lixo/forcar.sh controle
+          docker exec "$c" runuser -u pessoa -- bash /lixo/forcar.sh vigia
+          docker rm -f "$c"
+
       - name: fumaça sem rede e navegador (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
@@ -289,8 +371,225 @@ jobs:
           "$RUNNER_TEMP/joBot.app/Contents/MacOS/jobot-app" --verificar
           "$RUNNER_TEMP/joBot.app/Contents/MacOS/jobot-app" --verificar-navegador
 
+  # A casca instalada aberta de verdade (T355; D212): o .deb (em português) e o AppImage (em
+  # inglês), cada um num contêiner sem rede, como usuário comum, num Xvfb com o openbox. Sem o
+  # joBot, a janela abre na tela de instalação: pelo teclado, instala sem o navegador do login
+  # e cai no controle, que só mostra "Parado"; depois, Ligar, Abrir joBot e Parar, e por fim ligado de
+  # novo, fechar a janela, que pergunta (D215): Esc cancela e Desligar para e fecha. O navegador é falso:
+  # um xdg-open que grava o endereço, o próprio ambiente e o APPDIR da casca que o chamou; no
+  # AppImage nenhuma variável pode apontar para dentro dele (D207.1). As capturas da janela
+  # (parado, ligado, parado de novo, a pergunta de fechar, ou a da falha) e o log da casca ficam no artefato
+  # capturas-casca, que quem publica olha antes da tag.
+  aberta:
+    needs: casca
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: casca-x86_64-unknown-linux-gnu
+          path: saida
+      - name: imagem com o Xvfb e o navegador falso
+        run: |
+          imagem="$RUNNER_TEMP/aberta"
+          mkdir -p "$imagem"
+          cat > "$imagem/xdg-open" <<'FIM'
+          #!/bin/sh
+          # o navegador falso: o endereço por último, porque é por ele que o teste espera
+          d=/home/pessoa/aberto
+          mkdir -p "$d"
+          env > "$d/ambiente"
+          tr '\0' '\n' < "/proc/$PPID/environ" | sed -n 's/^APPDIR=//p' > "$d/appdir"
+          printf '%s\n' "$*" > "$d/endereco"
+          FIM
+          chmod 755 "$imagem/xdg-open"
+          cat > "$imagem/Dockerfile" <<'FIM'
+          FROM ubuntu:22.04
+          ARG DEPS
+          ENV DEBIAN_FRONTEND=noninteractive
+          RUN apt-get update \
+           && apt-get satisfy -y --no-install-recommends "$DEPS" \
+           && apt-get install -y --no-install-recommends xvfb openbox xdotool imagemagick dbus curl fonts-dejavu-core locales \
+           && locale-gen pt_BR.UTF-8 \
+           && rm -rf /var/lib/apt/lists/* \
+           && useradd -m pessoa
+          COPY xdg-open /usr/local/bin/xdg-open
+          FIM
+          docker build -t jobot-aberta --build-arg DEPS="$(dpkg-deb -f saida/*.deb Depends)" "$imagem"
+      - name: ligar, abrir, parar e fechar pelo controle
+        run: |
+          cat > "$RUNNER_TEMP/aberta/operar.sh" <<'FIM'
+          #!/bin/bash
+          # como a pessoa, no contêiner sem rede: o nome do pacote e a casca
+          set -Eeuo pipefail
+          nome=$1 casca=$2 porta=47615 aberto=/home/pessoa/aberto janela=
+          dados=/home/pessoa/.local/share/jobot
+          foto() { import -window "${janela:-root}" -frame "/capturas/$nome-$1.png"; }
+          trap 'foto falha || true; tail -n 40 "/capturas/$nome-casca.log" || true' ERR
+          esperar() {  # segundos, a condição
+            local s=$1
+            shift
+            for _ in $(seq "$s"); do "$@" && return 0; sleep 1; done
+            echo "não aconteceu em $s s: $*" >&2
+            return 1
+          }
+          no_ar() { curl -fsS --max-time 2 -o /dev/null "http://127.0.0.1:$porta/saude-local"; }
+          parado() { ! no_ar; }
+          export DISPLAY=:99
+          Xvfb :99 -screen 0 800x600x24 -nolisten tcp &
+          esperar 30 xdotool getdisplaygeometry
+          openbox &
+          # sem GPU no Xvfb: o WebKitGTK desenha sem DMA-BUF e sem composição
+          WEBKIT_DISABLE_DMABUF_RENDERER=1 WEBKIT_DISABLE_COMPOSITING_MODE=1 \
+            dbus-run-session -- $casca > "/capturas/$nome-casca.log" 2>&1 &
+          esperar 60 xdotool search --onlyvisible --name '^joBot$'
+          janela=$(xdotool search --onlyvisible --name '^joBot$' | head -n 1)
+          # sem o joBot, a mesma janela é a da instalação (D207.2): instala por ela, pelo teclado,
+          # sem o navegador do login (não há rede), e ela tem de cair no controle (D212.10)
+          sleep 10  # a página carrega os textos e confere os recursos
+          test ! -e "$dados/instalacao.json"
+          foto 0-instalar
+          xdotool windowactivate --sync "$janela"
+          # boas-vindas: o foco está no título; o Idioma e o Continuar
+          xdotool key --delay 300 Tab Tab Return
+          sleep 3
+          foto 0-ferramentas
+          # ferramentas: do título, a caixa do navegador (a do joBot é fixa), o Voltar e o Instalar
+          xdotool key --delay 300 Tab space Tab Tab Return
+          esperar 300 test -s "$dados/instalacao.json"
+          sleep 10  # a janela encolhe, vai ao controle, carrega os textos e pergunta o estado
+          parado
+          foto 1-parado
+          xdotool windowactivate --sync "$janela"
+          # o endereço, o Copiar e o Ligar; depois de ligar, o foco vai para o Abrir joBot
+          xdotool key --delay 300 Tab Tab Tab Return
+          esperar 60 no_ar
+          sleep 3
+          foto 2-ligado
+          xdotool key Return
+          esperar 20 test -s "$aberto/endereco"
+          test "$(cat "$aberto/endereco")" = "http://127.0.0.1:$porta/"
+          curl -fsS -o /dev/null "http://127.0.0.1:$porta/"
+          appdir=$(cat "$aberto/appdir")
+          if [ "$nome" = appimage ]; then test -n "$appdir"; fi
+          cp "$aberto/ambiente" "/capturas/$nome-ambiente-do-navegador.txt"
+          if [ -n "$appdir" ] && grep -F "$appdir" "$aberto/ambiente" > "$aberto/dentro"; then
+            echo "o navegador herdou caminhos de dentro do AppImage ($appdir):" >&2
+            sed "s#$appdir#<APPDIR>#g" "$aberto/dentro" >&2
+            false
+          fi
+          # nem o que o AppRun cria sem ser caminho: o GTK_THEME força o tema claro (D207.1)
+          if [ "$nome" = appimage ] && grep -E '^(GTK_THEME|GDK_BACKEND|PYTHONDONTWRITEBYTECODE|APPIMAGE|ARGV0|OWD)=' "$aberto/ambiente" >&2; then
+            echo "o navegador herdou essas variáveis do AppRun" >&2
+            false
+          fi
+          # e lista de caminhos vazia, que no GStreamer desliga os plugins do sistema (D212.6)
+          if grep -E '^(GST_PLUGIN_SYSTEM_PATH(_1_0)?|GST_PLUGIN_PATH|PERLLIB|QT_PLUGIN_PATH|GTK_PATH|GIO_EXTRA_MODULES|XDG_DATA_DIRS|PATH|LD_LIBRARY_PATH)=$' "$aberto/ambiente" >&2; then
+            echo "o navegador recebeu essas variáveis vazias em vez de sem elas" >&2
+            false
+          fi
+          # do Abrir joBot, um passo para trás é o Parar
+          xdotool key --delay 300 shift+Tab Return
+          esperar 30 parado
+          sleep 3
+          foto 3-parado
+          # D215: fechar com o painel no ar pergunta. O foco voltou ao Ligar; liga de novo,
+          # fecha com Alt+F4 (o Close do openbox), cancela com Esc e depois desliga pelo Desligar
+          xdotool key Return
+          esperar 60 no_ar
+          sleep 3
+          xdotool windowactivate --sync "$janela"
+          xdotool key alt+F4
+          sleep 3
+          foto 4-pergunta
+          xdotool key Escape
+          sleep 3
+          xdotool search --onlyvisible --name '^joBot$' > /dev/null  # a janela ficou
+          no_ar
+          xdotool key alt+F4
+          sleep 3
+          # o foco abre no Deixar ligado; o Desligar é o próximo
+          xdotool key --delay 300 Tab Return
+          esperar 30 parado
+          fechada() { ! xdotool search --onlyvisible --name '^joBot$' > /dev/null; }
+          esperar 30 fechada
+          # D217: Deixar ligado (o Enter, no botão com o foco). Reabre, liga e fecha: a janela
+          # some, o painel segue no ar e o servidor não fica preso ao AppImage
+          WEBKIT_DISABLE_DMABUF_RENDERER=1 WEBKIT_DISABLE_COMPOSITING_MODE=1 \
+            dbus-run-session -- $casca >> "/capturas/$nome-casca.log" 2>&1 &
+          esperar 60 xdotool search --onlyvisible --name '^joBot$'
+          janela=$(xdotool search --onlyvisible --name '^joBot$' | head -n 1)
+          sleep 10
+          parado
+          xdotool windowactivate --sync "$janela"
+          xdotool key --delay 300 Tab Tab Tab Return
+          esperar 60 no_ar
+          sleep 3
+          xdotool windowactivate --sync "$janela"
+          xdotool key alt+F4
+          sleep 3
+          foto 5-deixar-ligado
+          xdotool key Return
+          esperar 30 fechada
+          sleep 3
+          no_ar
+          pid=$(head -n 1 "$dados/jobot.lock")  # a trava do servidor: o pid, depois a porta
+          test -d "/proc/$pid"
+          echo "servidor $pid: pasta $(readlink "/proc/$pid/cwd")"
+          tr '\0' '\n' < "/proc/$pid/environ" > "/capturas/$nome-ambiente-do-servidor.txt"
+          ls -l "/proc/$pid/fd" > "/capturas/$nome-descritores-do-servidor.txt"
+          if [ -n "$appdir" ]; then
+            case "$(readlink "/proc/$pid/cwd")" in
+              "$appdir"*) echo "o servidor ficou na pasta do AppImage" >&2; false ;;
+            esac
+            if grep -F "$appdir" "/capturas/$nome-ambiente-do-servidor.txt" "/capturas/$nome-descritores-do-servidor.txt" >&2; then
+              echo "o servidor herdou caminhos ou descritores de dentro do AppImage ($appdir)" >&2
+              false
+            fi
+          fi
+          if [ "$nome" = appimage ] && grep -E '^(GTK_THEME|GDK_BACKEND|PYTHONDONTWRITEBYTECODE|APPIMAGE|APPDIR|ARGV0|OWD)=' "/capturas/$nome-ambiente-do-servidor.txt" >&2; then
+            echo "o servidor herdou essas variáveis do AppRun" >&2
+            false
+          fi
+          # reabrir mostra Ligado: o endereço, o Copiar e o Parar (o Ligar está desativado)
+          WEBKIT_DISABLE_DMABUF_RENDERER=1 WEBKIT_DISABLE_COMPOSITING_MODE=1 \
+            dbus-run-session -- $casca >> "/capturas/$nome-casca.log" 2>&1 &
+          esperar 60 xdotool search --onlyvisible --name '^joBot$'
+          janela=$(xdotool search --onlyvisible --name '^joBot$' | head -n 1)
+          sleep 10
+          foto 6-ligado-de-novo
+          xdotool windowactivate --sync "$janela"
+          xdotool key --delay 300 Tab Tab Tab Return
+          esperar 30 parado
+          sleep 3
+          # parado, fechar fecha sem perguntar
+          xdotool windowactivate --sync "$janela"
+          xdotool key alt+F4
+          esperar 30 fechada
+          FIM
+          mkdir -p capturas
+          chmod 777 capturas
+          aberta() {  # nome, o preparo (como root), a casca, o idioma
+            local c
+            c=$(docker run -d --network none -v "$PWD/saida:/saida:ro" -v "$RUNNER_TEMP/aberta:/aberta:ro" \
+              -v "$PWD/capturas:/capturas" -e APPIMAGE_EXTRACT_AND_RUN=1 -w /tmp jobot-aberta sleep infinity)
+            docker exec "$c" sh -c "$2"
+            docker exec -u pessoa -w /tmp -e LANG="$4" -e LANGUAGE="$4" "$c" bash /aberta/operar.sh "$1" "$3"
+            docker rm -f "$c"
+          }
+          aberta deb 'dpkg -i /saida/*.deb' jobot-app pt_BR.UTF-8
+          aberta appimage 'cp /saida/*.AppImage /tmp/jobot.AppImage && chmod 755 /tmp/jobot.AppImage' ./jobot.AppImage C.UTF-8
+          ls -la capturas
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: capturas-casca
+          path: capturas/
+          if-no-files-found: error
+          retention-days: 2
+
   juntar:
-    needs: [wheel, casca]
+    needs: [wheel, casca, aberta]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:

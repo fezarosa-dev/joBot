@@ -2,7 +2,6 @@
 
 import ast
 import sqlite3
-import time
 from collections.abc import Iterator
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
@@ -412,16 +411,7 @@ def test_detalhe_traz_fontes_e_url_candidatura(
     assert detalhe(con, 999_999, b) is None
 
 
-@pytest.fixture
-def fuso_brasilia(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    monkeypatch.setenv("TZ", "America/Sao_Paulo")
-    time.tzset()
-    yield
-    monkeypatch.undo()
-    time.tzset()
-
-
-def test_hoje_e_o_dia_local(con: sqlite3.Connection, fuso_brasilia: None) -> None:
+def test_hoje_e_o_dia_local(con: sqlite3.Connection, fuso_de_sao_paulo: None) -> None:
     # 01:30 UTC de 13/11 ainda é 22:30 de 12/11 em Brasília: prazo de 12/11 não venceu
     agora = datetime(2026, 11, 13, 1, 30, tzinfo=UTC)
     hoje = inserir_vaga(con, prazo="2026-11-12")

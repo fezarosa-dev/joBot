@@ -17,7 +17,7 @@ Depois a ideia se expandiu para todo mundo. Hoje o joBot é pensado para todo ti
 |---|---|
 | 2026-11-13 | As decisões principais foram tomadas em 9 rodadas de perguntas e respostas e registradas em documentos curtos, as ADRs (ADR 0001 a 0017). |
 | 2026-11-14 | O projeto passou a ser desenhado para ser mantido pela comunidade (ADR 0018), ganhou esta wiki (ADR 0019) e passou a aceitar só doação como apoio (ADR 0020). |
-| Agora | As fases 1, 2 e 3 de 9 (a base, o navegador com login e o instalador) estão concluídas: o joBot 0.4.0 já funciona. Veja o [roteiro](Roteiro). |
+| Agora | As fases 1, 2 e 3 de 9 (a base, o navegador com login e o instalador) estão concluídas: o joBot 0.4.1 já funciona. Veja o [roteiro](Roteiro). |
 
 ## 😩 O problema
 
@@ -48,7 +48,7 @@ Um painel pessoal que junta e organiza as vagas para você.
 > - **Não se candidata em massa.** Não existe "aplicar em 200 vagas com um clique".
 > - **Não envia nada sozinho.** Quem envia a candidatura é sempre você.
 > - **Não digita a sua senha.** Nos sites com login, você entra com as próprias mãos.
-> - **Não contorna CAPTCHA.** Se aparecer um, ele para e avisa você.
+> - **Não contorna CAPTCHA sozinho.** Se aparecer um, ele para e avisa você. Nas fontes públicas, é sempre assim. Na navegação com login, a única exceção é o seu 2Captcha: só se você puser a sua chave e ligar o interruptor em Configurações, Serviços (vem desligado).
 > - **Não manda telemetria.** O joBot não envia dados de uso para ninguém.
 > - **Não inventa experiência.** A IA só usa o que está no seu perfil.
 
@@ -57,7 +57,7 @@ Um painel pessoal que junta e organiza as vagas para você.
 | | Princípio | O que quer dizer |
 |:---:|---|---|
 | 🖥️ | **Roda no seu computador** | O painel só funciona no próprio computador (endereço 127.0.0.1). Os dados ficam num banco local. |
-| 🤝 | **Coleta educada** | O robô se identifica, espera entre um pedido e outro e espera mais quando o site pede calma. Nunca contorna login, CAPTCHA ou bloqueio anti-robô. |
+| 🤝 | **Coleta educada** | O robô se identifica, espera entre um pedido e outro e espera mais quando o site pede calma. Nunca contorna login, CAPTCHA ou bloqueio anti-robô (a única exceção é o 2Captcha da pessoa, na navegação com login, se ela ligar). |
 | 📖 | **Código aberto (MIT)** | Qualquer pessoa pode ler, usar e melhorar o código, sob a licença MIT. |
 | 🧼 | **Sala limpa** | Ideias e fatos públicos podem ser usados. Código e dados de teste de terceiros nunca são copiados. |
 | 🌍 | **Mantido pela comunidade** | Os sites de vagas mudam sem aviso. Cada fonte tem o seu coletor (o código que lê as vagas de uma fonte), com exemplos e testes próprios, para qualquer pessoa conseguir consertar. |

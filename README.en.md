@@ -32,7 +32,7 @@ It gathers, filters and organizes jobs from many sites into a nice dashboard tha
 
 > [!IMPORTANT]
 > **joBot phases 1, 2 and 3 (the foundation, the browser with login and the installer) are done: version 0.4.0.** It searches public sources for jobs, keeps everything on your computer and shows it in a dashboard. You can already [install and use it](#requirements-and-installation).
-> LinkedIn is the site with login today (others can come through the [new site template](docs/site-novo.en.md)); it arrives in the next version and comes off. The Gmail card is already in Settings, Accounts; reading the emails, audio and the rest (the other sites with login, AI and browser extension) are still a plan. See the [roadmap](#roadmap). Before you turn on the sources, read the [usage and terms notices](#license-and-notices).
+> LinkedIn is the site with login today (others can come through the [new site template](docs/site-novo.en.md)); it has been here since version 0.3.0 and comes off (you turn it on in Settings, Accounts). The Gmail card is already in Settings, Accounts; reading the emails, audio and the rest (the other sites with login, AI and browser extension) are still a plan. See the [roadmap](#roadmap). Before you turn on the sources, read the [usage and terms notices](#license-and-notices).
 
 ## 📑 Contents
 
@@ -102,7 +102,7 @@ joBot does not do the following, and was planned never to:
 - **It does not mass-apply.** There is no "apply to 200 jobs with one click".
 - **It does not send anything on its own.** You are always the one who sends the application.
 - **It does not type your password.** On sites with login, you sign in with your own hands, in a regular browser window: however you like (Google, email and password), and then you close the window. joBot checks the session by itself.
-- **It does not bypass CAPTCHA.** If one shows up, it stops and warns you.
+- **It does not get past a CAPTCHA on its own.** If one shows up, it stops and warns you. On the public sources, that is always the case. In the browsing with login, the only exception is your own 2Captcha: only if you save your key and turn on the switch in Settings, Services (it comes off).
 - **It does not send telemetry.** joBot does not send usage data to anyone.
 - **It does not invent experience.** The AI only uses what is in your profile.
 
@@ -210,13 +210,13 @@ Also in phase 1:
 <a id="dashboard"></a>
 ## 📋 The dashboard
 
-The dashboard runs at `http://127.0.0.1:47615`. When joBot finds Chrome, Edge or Chromium on your computer, it opens in **its own window**, with no tabs or address bar, like an app; with none of them, it uses the Chromium it installed, and only then a regular browser tab.
+The dashboard runs at `http://127.0.0.1:47615`. When joBot finds Chrome, Edge or Chromium on your computer, it opens in **its own window**, with no tabs or address bar, like an app; with none of them, it uses the Chromium it installed, and only then a regular browser tab. With the installer, the dashboard opens in your default browser, through the **Open joBot** button in the joBot window.
 
 - **Sidebar:** on the left, the Jobs section (Today's Highlights and the tabs, each with its count) and the Where to Look section (Searches, Companies, Suggested, Sources and Sites), plus Settings. You can hide it and drag its edge to change the width.
 - **List with detail:** the job list sits on one side and the detail of the chosen job on the other. In a narrow window the detail slides over the list.
 
 - **Tabs:** Today's Highlights (the best new ones, one per company), All, New, Closing Soon, Saved, Applied, Programs and Hidden.
-- **Filters** as "chips" (little buttons) with counts: country and how many days ago the job was posted stay in view; salary, city, company and words the job must not have are under "More filters". The current filter stays in the page address, so you can save the link. Quick search with the `/` key.
+- **Filters** as "chips" (little buttons) with counts: country and how many days ago the job was posted stay in view; salary, city, company and words the job must not have are under "More Filters". The current filter stays in the page address, so you can save the link. Quick search with the `/` key.
 - **Status of each job:** new → saved → applied → interview → rejected or offer.
 - **Match with your search:** ● good, ◐ medium, ○ weak, always with the reasons.
 - **12-month calendar** on each job, to see deadlines at a glance.
@@ -341,7 +341,7 @@ Details in [ADR 0010](docs/decisions/0010-claude-code-da-pessoa.md) (in Portugue
 - **There is no joBot server.** Your data stays on your computer.
 - **No telemetry.** No usage data is sent.
 - **Local record of opening.** joBot keeps, only on your computer, when you opened the application for each job; it never leaves here.
-- **Search and check requests only.** joBot only makes network requests in these cases: to the public job sources you leave on (they all come on), including each job's page; to the Central Bank of Brazil, to get the exchange rates of the currencies in the jobs and show salaries in the display currency you choose, with currency conversion on (it comes on); to Common Crawl, once a week, to discover new companies, and then to those companies' job boards, to check them (it comes on); to the pages you ask it to follow (it comes on, but with no pages on the list there is no request); to the sites with login you turn on (they come off), through the browser, with your account; to Playwright's servers, to download the browser, only when you press "Download" in Tools or, in the desktop app, check it during installation (joBot does not distribute the browser; it comes from Playwright) or update joBot with it already downloaded; to 2Captcha, only when you test the key in Settings, Services, or, while browsing with login, with the key saved and the switch on (comes off); to a company's website, only when you paste an address, test it or accept a suggestion; to the internet through git and uv (or to GitHub, when joBot came from the installer), to download the new joBot version, only when you ask to update (the Update now button or the jobot atualizar command). With the version notice (next item) on, it also asks GitHub (it comes on; you can turn it off). Whoever receives a request sees your computer's IP address, as with any internet request.
+- **Search and check requests only.** joBot only makes network requests in these cases: to the public job sources you leave on (they all come on), including each job's page; to the Central Bank of Brazil, to get the exchange rates of the currencies in the jobs and show salaries in the display currency you choose, with currency conversion on (it comes on); to Common Crawl, once a week, to discover new companies, and then to those companies' job boards, to check them (it comes on); to the pages you ask it to follow (it comes on, but with no pages on the list there is no request); to the sites with login you turn on (they come off), through the browser, with your account; to Playwright's servers, to download the browser, only when you press "Download" in Tools or, in the desktop app, check it during installation (joBot does not distribute the browser; it comes from Playwright) or update joBot with it already downloaded; to 2Captcha, only when you test the key in Settings, Services, or, while browsing with login, with the key saved and the switch on (comes off); to Gmail (Google), over a read-only IMAP connection, only when you save or check the app password in Settings, Accounts (with no app password there is no request); to a company's website, only when you paste an address, test it or accept a suggestion; to the internet through git and uv (or to GitHub, when joBot came from the installer), to download the new joBot version, only when you ask to update (the Update now button or the jobot atualizar command). With the version notice (next item) on, it also asks GitHub (it comes on; you can turn it off). Whoever receives a request sees your computer's IP address, as with any internet request.
 - **Version notice on by default.** Once a day joBot asks `api.github.com` which version is the newest. The request carries only joBot's fixed user agent (which includes the version number) and your computer's IP, like any request on the internet. It carries no search and no data of yours. To turn it off, go to Settings, Privacy; off, it makes no request at all.
 - **Secrets in the system vault.** The Gmail app password, the API key and the Telegram token stay in the operating system's password vault. Without a vault, they go to a file that only your user can read, and the dashboard warns you.
 - **Protected personal data.** CPF (Brazilian tax ID) and date of birth stay in the database, in a folder that only your user can access and that is not synced to the cloud. The dashboard recommends turning on disk encryption (LUKS, BitLocker or FileVault).
@@ -356,7 +356,7 @@ Details in [ADR 0010](docs/decisions/0010-claude-code-da-pessoa.md) (in Portugue
 <a id="requirements-and-installation"></a>
 ## 📦 Requirements and installation
 
-> There are two ways to install. **With the installer** (from version 0.4.0 on): you download one file, open it and get joBot in a window of its own, with no terminal. **From the code**: you download the code and run it with uv, as in versions 0.1.0 to 0.3.0. The step by step with more detail is on the [Install page of the wiki](https://github.com/fezarosa-dev/joBot/wiki/Install).
+> There are two ways to install. **With the installer** (from version 0.4.0 on): you download one file, open it and get the joBot window, a small control that starts joBot and opens the dashboard in your browser, with no terminal. **From the code**: you download the code and run it with uv, as in versions 0.1.0 to 0.3.0. The step by step with more detail is on the [Install page of the wiki](https://github.com/fezarosa-dev/joBot/wiki/Install).
 
 ### Requirements
 
@@ -385,9 +385,11 @@ The first time you open it, the joBot window shows the install screen:
 
 1. **Tools.** joBot and Python 3.14 come ticked and locked (they are required). The browser for sites with login comes ticked and is the only thing that comes from the internet: joBot downloads it through Playwright, from Playwright's servers (about 210 MB). If you untick it, you can download it later in Settings › Tools.
 2. **Installing.** Everything comes from inside the installer: nothing is downloaded during the installation, except the browser, if ticked. joBot checks the sha256 of every file against the list recorded when the installer was built, and that of every library; if any does not match, nothing is installed. The browser is left out of this check: Playwright does not publish its sha256, and the download comes over HTTPS. Without internet, the installation works the same without the browser: if its download fails, the screen offers to go on without it.
-3. **Done.** The window opens the dashboard, with the first-run questions (below).
+3. **Done.** The window becomes the joBot control. Press **Start** and then **Open joBot**: the dashboard opens in your default browser, with the first-run questions (below).
 
-Closing the window closes only the window: with the background service on, the searches go on. To stop everything, use **Quit joBot** in Settings › General.
+From then on, the joBot window is always the control. It shows whether joBot is **Running** or **Stopped**, the dashboard address (with a **Copy** button) and the **Start**, **Stop** and **Open joBot** buttons; Open joBot only shows while joBot is running. When it opens, it only shows the state: it does not start or open anything by itself. If the background service already started joBot, it shows Running.
+
+Closing the window while joBot is running asks **Keep joBot running?**. **Keep running** closes only the window, and the dashboard stays on in your browser until you open the window again and press **Stop**. **Turn off** stops joBot and closes the window. With joBot stopped, the window closes right away. The background service is for joBot to start by itself when the computer starts. From the dashboard, **Quit joBot**, in Settings › General, also stops everything.
 
 On Windows, the window uses Microsoft's WebView2, which Windows 11 and an up-to-date Windows 10 already have. On a Windows without it, the installer downloads nothing: it warns you, with Microsoft's official link (https://developer.microsoft.com/microsoft-edge/webview2/), and cancels. Install WebView2 from that link and open the installer again.
 
@@ -424,6 +426,7 @@ If you installed from the code, run all of them from inside the `joBot` folder, 
 | `jobot segundo-plano ligar` | Turns on the background service, so joBot starts by itself with your user. `desligar` removes the service, and `status` shows how it is. On Linux it uses systemd; on Windows, Task Scheduler; on the Mac, a LaunchAgent (experimental). |
 | `jobot atualizar` | Updates joBot to the newest version and turns back on what was on. |
 | `jobot ferramentas baixar navegador` | Downloads the browser for sites with login (the same as the "Download" button in Tools). |
+| `jobot ferramentas baixar ia-local` | Downloads the local AI model from the official source (llama.cpp's `llama-server` and an Unsloth Qwen3.5), with the sha256 checked. With `--modelo auto` (the default) it picks by the computer's memory; `--modelo 2b` or `4b` picks by hand. `atualizar ia-local` downloads what changed; `remover ia-local` deletes it all and turns off the tasks that used the local model. |
 | `jobot avaliar-rotulos` | For project maintainers: measures the label rules against an examples file of your own. |
 
 ### Where the data lives
@@ -473,7 +476,7 @@ Then press **Search now**, at the top of the dashboard, or wait for the next sch
 
 When a new version comes out, the dashboard tells you in a banner at the top. The version notice comes **on by default**: to turn it off, go to Settings, Privacy. The details are in [Privacy and security](#privacy-and-security).
 
-- **With the installer:** press **Update now**, in the banner or in Settings › General. joBot downloads the new version's package, checks the sha256 of every file, builds the new version next to the one you use and only switches when it opens; if anything fails, nothing changes. If the window has a new version too, the banner shows **Download the new window**, which opens the version page: download the installer again and open it, and your data stays.
+- **With the installer:** press **Update now**, in the banner or in Settings › General. joBot downloads the new version's package, checks the sha256 of every file, builds the new version next to the one you use and only switches when it opens; if anything fails, nothing changes. The update replaces only joBot, not the window. When the window has a new version too, it shows **There is a new version of this window.** and the **Download the new window** button, which opens the version page: download the installer again and open it, and your data stays. If you still have the 0.4.0 window, you see this notice in a banner on the dashboard.
 - **From the code:** run `uv run jobot atualizar` in the `joBot` folder.
 
 ### What the next phases will download
@@ -499,14 +502,14 @@ Each phase only starts after the previous one passes the tests. No dates are pro
 | **1. Base** | Common core, public sources, database, dashboard and scheduling | 🟢 Done (version 0.1.0) |
 | **2. Browser with login** | Login through a regular window, LinkedIn first, site mapping, CAPTCHA handling | 🟢 Done (version 0.3.0) |
 | **3. Installer** | 64-bit installer with a list of tools to tick (Windows and Linux first, Mac later) | 🟢 Done (version 0.4.0) |
-| **4. Local AI** | Offline package (llama-server + Qwen) | ⚪ Planned |
+| **4. Local AI** | Offline package (llama-server + Qwen) | 🟡 Being built (toward 0.5.0) |
 | **5. Browser extension** | Browser extension for forms | ⚪ Planned |
 | **6. Audio and Gmail** | Answers by voice and email reading | ⚪ Planned |
 | **7. Training** | Learn from what you save and discard | ⚪ Planned |
 | **8. GitHub Pages version** | GitHub Pages version, no installation | ⚪ Planned |
 | **9. Release** | README with badges and security review | ⚪ Planned |
 
-Version 0.3.0 came out between phase 2 and phase 3, with the "Overview" screen and the complete application queue. Version 0.4.0 closes phase 3, with a window of its own and the installer.
+Version 0.3.0 came out between phase 2 and phase 3, with the "Overview" screen and the complete application queue. Version 0.4.0 closes phase 3, with a window of its own and the installer. Version 0.4.1 fixes Linux: the window becomes a control and the dashboard opens in your browser.
 
 <a id="faq"></a>
 ## ❓ FAQ
@@ -548,11 +551,13 @@ Each important decision is recorded in a short document called an ADR (architect
 | 0023 | [Everything through the dashboard: tools, updates and shutdown](docs/decisions/0023-tudo-pelo-painel.md) |
 | 0024 | [Gmail with an app password](docs/decisions/0024-gmail-por-senha-de-app.md) |
 | 0025 | [Desktop app and installer](docs/decisions/0025-app-de-desktop-e-instalador.md) |
+| 0026 | [Phase 4 AI: tasks, backends and local model](docs/decisions/0026-ia-da-fase-4.md) |
+| 0027 | [The shell only controls; the dashboard opens in the person's browser](docs/decisions/0027-casca-so-controla.md) |
 
 <a id="how-to-contribute"></a>
 ## 🤝 How to contribute
 
-The repository is on GitHub. Phases 1, 2 and 3 are done, and the next ones are being planned.
+The repository is on GitHub. Phases 1, 2 and 3 are done, phase 4 is being built and the following ones are being planned.
 
 - **Suggestions and job sources** can already be sent through issues, with ready-made forms.
 - **Questions** go through the [question form](https://github.com/fezarosa-dev/joBot/issues/new?template=duvida.yml). Read the [FAQ](https://github.com/fezarosa-dev/joBot/wiki/Frequently-asked-questions) first.

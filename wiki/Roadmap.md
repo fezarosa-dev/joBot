@@ -11,7 +11,7 @@
 
 ```mermaid
 flowchart LR
-    F1["✅ Phase 1 · Base"] --> F2["✅ Phase 2 · Browser with login"] --> F3["✅ Phase 3 · Installer"] --> F4["⚪ Phase 4 · Local AI"]
+    F1["✅ Phase 1 · Base"] --> F2["✅ Phase 2 · Browser with login"] --> F3["✅ Phase 3 · Installer"] --> F4["🟡 Phase 4 · Local AI"]
     F4 --> F5["⚪ Phase 5 · Extension"] --> F6["⚪ Phase 6 · Audio and Gmail"] --> F7["⚪ Phase 7 · Training"]
     F7 --> F8["⚪ Phase 8 · GitHub Pages"] --> F9["⚪ Phase 9 · Release"]
 ```
@@ -23,7 +23,7 @@ flowchart LR
 | ✅ | **1. Base** | Common core, public sources, database, dashboard and scheduling | Complete |
 | ✅ | **2. Browser with login** | Login through a regular window, LinkedIn first, site mapping and CAPTCHA handling | Complete |
 | ✅ | **3. Installer** | 64-bit installer with a list of tools to tick (Windows and Linux first, Mac later) | Complete in 0.4.0 |
-| ⚪ | **4. Local AI** | Offline package (llama-server + Qwen) | Planned |
+| 🟡 | **4. Local AI** | Offline package (llama-server + Qwen) | Being built (toward 0.5.0) |
 | ⚪ | **5. Browser extension** | Browser extension for forms | Planned |
 | ⚪ | **6. Audio and Gmail** | Answers by voice and email reading | Planned |
 | ⚪ | **7. Training** | Learn from what you save and discard | Planned |
@@ -32,7 +32,7 @@ flowchart LR
 
 <sub>✅ complete · 🟡 being built · ⚪ planned</sub>
 
-Version 0.3.0 came out between phase 2 and phase 3, with the "Overview" screen (an overview of the jobs and the search) and the complete application queue. Version 0.4.0 closes phase 3, with a window of its own and the installer.
+Version 0.3.0 came out between phase 2 and phase 3, with the "Overview" screen (an overview of the jobs and the search) and the complete application queue. Version 0.4.0 closes phase 3, with a window of its own and the installer. Version 0.4.1 fixes Linux: the window becomes a control and the dashboard opens in your browser.
 
 ## 🔍 A bit more about each phase
 
@@ -61,11 +61,12 @@ Version 0.3.0 came out between phase 2 and phase 3, with the "Overview" screen (
 </details>
 
 <details>
-<summary><strong>⚪ Phase 4, Local AI</strong></summary>
+<summary><strong>🟡 Phase 4, Local AI</strong></summary>
 
 - Offline package: llama-server and a Qwen model, to use AI without internet and without paying.
 - The AI choice, the résumé and the questionnaire join the assistant.
-- If any label stays below 90% accuracy, only that label starts using the free multilingual-e5-small model.
+- The phase comes out in two versions: 0.5.0 brings the local model and the match by skills; 0.6.0, the résumé, the questionnaire and help with the application (still being decided).
+- The multilingual-e5-small model, for labels below 90% accuracy, is left for later, together with the Laya fine-tuning (still being decided).
 </details>
 
 <details>
@@ -99,7 +100,7 @@ Version 0.3.0 came out between phase 2 and phase 3, with the "Overview" screen (
 <summary><strong>⚪ Phase 9, Release</strong></summary>
 
 - README with badges and security review.
-- Planned: a weekly watcher that tests each source and opens an issue when one breaks, and an easy way to update the installation.
+- The weekly watcher (which tests each source and opens an issue when one breaks) and the easy way to update the installation already came in phase 1 (ADR 0018).
 - From here on, code pull requests are accepted.
 </details>
 

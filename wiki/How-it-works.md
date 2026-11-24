@@ -38,7 +38,7 @@ flowchart LR
 
 One search cycle, step by step:
 
-1. ⏰ **At the scheduled time**, joBot wakes up. Or when you press "search now".
+1. ⏰ **At the scheduled time**, joBot wakes up. Or when you press "Search now".
 2. 🤖 **Each collector** (the code that reads the jobs from a source) visits its source calmly and brings the jobs in a single format.
 3. 🧹 **Processing** merges duplicate jobs, understands the salary, adds labels and marks as closed the jobs that disappeared.
 4. 🗄️ **Everything goes into the SQLite database**, a file that stays on your computer.
@@ -122,12 +122,12 @@ Each source has an on/off switch.
 
 ## 📋 The dashboard
 
-The dashboard runs on your computer, at `127.0.0.1`. If joBot finds Chrome, Edge or Chromium on the system, it opens in its own window, with no tabs or address bar; otherwise it uses the Chromium it installed, and only then a regular tab.
+The dashboard runs on your computer, at `127.0.0.1`. If joBot finds Chrome, Edge or Chromium on the system, it opens in its own window, with no tabs or address bar; otherwise it uses the Chromium it installed, and only then a regular tab. With the installer, the **Open joBot** button in the joBot window opens the dashboard in your default browser.
 
 - **Sidebar:** the Jobs section (Today's Highlights and the tabs, with the count of each), the Where to Look section (Searches, Companies, Suggested, Sources and Sites) and Settings. You can hide it and change its width.
 - **List with detail:** the job list on one side, the detail of the chosen job on the other; in a narrow window the detail slides over the list.
 - **Tabs:** Today's Highlights, All, New, Closing Soon, Saved, Applied, Programs and Hidden, all in the sidebar.
-- **Filters** as "chips" (little buttons) with counts: country and how many days ago the job was posted stay in view; salary, city, company and words the job must not have are under "More filters". The current filter stays in the page address, so you can save the link. Quick search with the `/` key.
+- **Filters** as "chips" (little buttons) with counts: country and how many days ago the job was posted stay in view; salary, city, company and words the job must not have are under "More Filters". The current filter stays in the page address, so you can save the link. Quick search with the `/` key.
 - **Status of each job:** new → saved → applied → interview → rejected or offer.
 - **12-month calendar** on each job, to see deadlines at a glance.
 - **Overview and application queue:** the Overview, in the sidebar, gathers the day: what closes soon, the applications and the search. When you open a job's application link, the dashboard asks "Did you apply?" ("Yes, I Applied" or "Not Yet", with Undo); the job's timeline shows the date of each step and the Applied tab shows the "since". If the description has an application email, the "Apply by Email" button only opens your email app: joBot sends nothing.

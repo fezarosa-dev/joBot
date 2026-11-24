@@ -27,7 +27,7 @@
   "casca.busca.dica": "Focar a busca (/)",
   "casca.erro.4xx": "Não deu para fazer isso. Recarregue a página e tente de novo.",
   "casca.erro.5xx": "Algo deu errado no joBot. Tente de novo; se repetir, veja o arquivo de log do joBot.",
-  "casca.erro.rede": "O joBot não respondeu. Ele pode ter sido fechado: abra de novo com jobot abrir (ou pelo atalho do menu).",
+  "casca.erro.rede": "O joBot não respondeu. Ele pode ter sido fechado: ligue de novo pelo botão Ligar da janela do joBot (o atalho do menu), ou com jobot abrir.",
   "casca.erro.fechar": "Fechar aviso",
   "casca.desfazer.ocultada": "Vaga ocultada",
   "casca.desfazer.mostrada": "Vaga mostrada de novo",
@@ -55,10 +55,5 @@
   "casca.aviso_candidatura.sim": "Sim, me candidatei",
   "casca.aviso_candidatura.ainda_nao": "Ainda não",
   "casca.aviso_candidatura.mais": "e mais {n} para responder",
-  "casca.aviso_candidatura.marcada": "{titulo} marcada como Candidatei.",
-  "casca.janela.botoes": "Botões da janela",
-  "casca.janela.fechar": "Fechar",
-  "casca.janela.minimizar": "Minimizar",
-  "casca.janela.maximizar": "Maximizar",
-  "casca.janela.restaurar": "Restaurar"
+  "casca.aviso_candidatura.marcada": "{titulo} marcada como Candidatei."
 }

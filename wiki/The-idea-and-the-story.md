@@ -17,7 +17,7 @@ Then the idea expanded to everyone. Today joBot is designed for every kind of jo
 |---|---|
 | 2026-11-13 | The main decisions were made in 9 rounds of questions and answers and recorded in short documents, the ADRs (ADR 0001 to 0017). |
 | 2026-11-14 | The project was redesigned to be maintained by the community (ADR 0018), got this wiki (ADR 0019) and decided to accept only donations as support (ADR 0020). |
-| Now | Phases 1, 2 and 3 of 9 (the base, the browser with login and the installer) are complete: joBot 0.4.0 already works. See the [roadmap](Roadmap). |
+| Now | Phases 1, 2 and 3 of 9 (the base, the browser with login and the installer) are complete: joBot 0.4.1 already works. See the [roadmap](Roadmap). |
 
 ## 😩 The problem
 
@@ -48,7 +48,7 @@ A personal dashboard that gathers and organizes jobs for you.
 > - **It does not mass-apply.** There is no "apply to 200 jobs with one click".
 > - **It does not send anything on its own.** You are always the one who sends the application.
 > - **It does not type your password.** On sites with login, you sign in with your own hands.
-> - **It does not bypass CAPTCHA.** If one shows up, it stops and warns you.
+> - **It does not get past a CAPTCHA on its own.** If one shows up, it stops and warns you. On the public sources, that is always the case. In the browsing with login, the only exception is your own 2Captcha: only if you save your key and turn on the switch in Settings, Services (it comes off).
 > - **It does not send telemetry.** joBot does not send usage data to anyone.
 > - **It does not invent experience.** The AI only uses what is in your profile.
 
@@ -57,7 +57,7 @@ A personal dashboard that gathers and organizes jobs for you.
 | | Principle | What it means |
 |:---:|---|---|
 | 🖥️ | **Runs on your computer** | The dashboard only works on your own computer (address 127.0.0.1). The data stays in a local database. |
-| 🤝 | **Polite collection** | The robot identifies itself, waits between one request and the next and waits longer when the site asks for calm. It never bypasses login, CAPTCHA or anti-robot blocks. |
+| 🤝 | **Polite collection** | The robot identifies itself, waits between one request and the next and waits longer when the site asks for calm. It never bypasses login, CAPTCHA or anti-robot blocks (the only exception is the person's own 2Captcha, in the browsing with login, if they turn it on). |
 | 📖 | **Open source (MIT)** | Anyone can read, use and improve the code, under the MIT license. |
 | 🧼 | **Clean room** | Public ideas and facts can be used. Third-party code and test data are never copied. |
 | 🌍 | **Maintained by the community** | Job sites change without notice. Each source has its own collector (the code that reads the jobs from a source), with its own examples and tests, so anyone can fix it. |

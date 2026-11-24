@@ -16,6 +16,7 @@ from fastapi import FastAPI
 from playwright.sync_api import Locator, Page, Route, expect
 
 from apoio.cofre_falso import CofreFalso
+from apoio.console import anotar_erros
 from apoio.relogio import RelogioFalso
 from jobot.banco.cadastros import ler_config
 from jobot.banco.conexao import abrir
@@ -54,9 +55,7 @@ def app_painel(app_painel: FastAPI, cofre: Cofre, api: dict[str, Any]) -> FastAP
 
 @pytest.fixture(autouse=True)
 def _sem_erro_no_console(page: Page) -> Iterator[None]:
-    erros: list[str] = []  # violação do CSP aparece como erro no console
-    page.on("console", lambda m: erros.append(m.text) if m.type == "error" else None)
-    page.on("pageerror", lambda e: erros.append(str(e)))
+    erros = anotar_erros(page)  # violação do CSP aparece como erro no console
     yield
     assert erros == []
 

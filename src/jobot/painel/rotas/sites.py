@@ -10,9 +10,8 @@ O texto e o nome vêm de terceiro e da pessoa: o Jinja os escapa, nada é HTML.
 import asyncio
 import sqlite3
 from dataclasses import dataclass
-from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Path, Request
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from jobot.banco.paginas import (
@@ -25,11 +24,12 @@ from jobot.banco.paginas import (
 )
 from jobot.nucleo.coletores.paginas import Pagina, conferir_endereco
 from jobot.nucleo.http import ErroDeRede
+from jobot.painel.consultas import IdDoBanco
 from jobot.painel.seguranca import Con, renderizar
 
 router = APIRouter(prefix="/sites")
 
-PaginaId = Annotated[int, Path(ge=1, le=2**63 - 1)]  # o INTEGER do SQLite tem 64 bits com sinal
+PaginaId = IdDoBanco
 _MAX_NOME = 100
 _MAX_ENDERECO = 500
 _PRAZO_DNS_S = 15.0

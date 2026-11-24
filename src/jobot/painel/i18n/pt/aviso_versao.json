@@ -1,9 +1,9 @@
 {
   "aviso_versao.texto": "Há uma versão nova do joBot: {versao}.",
-  "aviso_versao.janela": "A janela do joBot também tem versão nova.",
+  "aviso_versao.janela": "Esta janela é de uma versão antiga do joBot e não mostra mais o painel direito. Instale a janela nova: ela abre o painel no seu navegador.",
   "aviso_versao.atualizar": "Atualizar agora",
   "aviso_versao.baixar_janela": "Baixar a janela nova",
-  "aviso_versao.janela_aberta": "A página da versão nova abriu no seu navegador.",
+  "aviso_versao.janela_aberta": "A página da versão nova abriu no seu navegador. Depois de instalar, feche esta janela (Alt+F4; no Mac, Cmd+Q).",
   "aviso_versao.janela_falhou": "Não deu para abrir o navegador. Baixe a janela nova em {endereco}",
   "aviso_versao.atualizando": "Atualizando o joBot. O painel recarrega sozinho quando a versão nova abrir.",
   "aviso_versao.demorou": "Passaram dois minutos e a versão nova não abriu. O que aconteceu fica no arquivo logs/atualizar.log, na pasta de dados (Configurações › Privacidade).",

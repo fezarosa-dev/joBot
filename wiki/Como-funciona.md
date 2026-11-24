@@ -38,7 +38,7 @@ flowchart LR
 
 Um ciclo de busca, passo a passo:
 
-1. ⏰ **Na hora marcada**, o joBot acorda. Ou quando você aperta "buscar agora".
+1. ⏰ **Na hora marcada**, o joBot acorda. Ou quando você aperta "Buscar agora".
 2. 🤖 **Cada coletor** (o código que lê as vagas de uma fonte) visita a sua fonte com calma e traz as vagas num formato único.
 3. 🧹 **O tratamento** junta vagas repetidas, entende o salário, coloca rótulos e marca como fechadas as vagas que sumiram.
 4. 🗄️ **Tudo vai para o banco** SQLite, um arquivo que fica no seu computador.
@@ -122,7 +122,7 @@ Cada fonte tem uma chave liga/desliga.
 
 ## 📋 O painel
 
-O painel roda no seu computador, em `127.0.0.1`. Se o joBot acha o Chrome, o Edge ou o Chromium no sistema, ele abre numa janela própria, sem abas nem barra de endereço; senão usa o Chromium que ele instalou, e só então uma aba comum.
+O painel roda no seu computador, em `127.0.0.1`. Se o joBot acha o Chrome, o Edge ou o Chromium no sistema, ele abre numa janela própria, sem abas nem barra de endereço; senão usa o Chromium que ele instalou, e só então uma aba comum. Pelo instalador, o botão **Abrir joBot** da janela do joBot abre o painel no seu navegador padrão.
 
 - **Barra lateral:** a seção Vagas (Destaques de hoje e as abas, com a contagem de cada uma), a seção Onde buscar (Buscas, Empresas, Sugeridas, Fontes e Sites) e Configurações. Dá para recolhê-la e mudar a largura.
 - **Lista com detalhe:** a lista de vagas de um lado, o detalhe da vaga escolhida do outro; em janela estreita o detalhe sobe por cima da lista.
@@ -146,7 +146,7 @@ O painel roda no seu computador, em `127.0.0.1`. Se o joBot acha o Chrome, o Edg
 |---|---|
 | Fontes públicas | A cada 3 horas |
 | Sites com login | Duas vezes por dia (9h e 18h, ajustável) |
-| Botão "buscar agora" | Na hora, respeitando o intervalo mínimo de algumas fontes |
+| Botão "Buscar agora" | Na hora, respeitando o intervalo mínimo de algumas fontes |
 
 Rodar em segundo plano é escolha sua, no assistente da primeira execução ou nas configurações. Ligado, o joBot inicia com o computador, sem janela, e um atalho "joBot" abre o painel.
 

@@ -32,7 +32,7 @@ Ele junta, filtra e organiza vagas de muitos sites num painel bonito que roda no
 
 > [!IMPORTANT]
 > **As fases 1, 2 e 3 do joBot (a base, o navegador com login e o instalador) estão prontas: versão 0.4.0.** Ele busca vagas em fontes públicas, guarda tudo no seu computador e mostra num painel. Já dá para [instalar e usar](#requisitos-e-instalacao).
-> O LinkedIn é o site com login de hoje (outros podem vir pelo [molde de site novo](docs/site-novo.md)); chega na próxima versão e vem desligado. O cartão do Gmail já está em Configurações, Contas; a leitura dos e-mails, o áudio e o resto (os outros sites com login, IA e extensão do navegador) ainda são plano. Veja o [roteiro](#roteiro). Antes de ligar as fontes, leia os [avisos de uso e de termos](#licenca-e-avisos).
+> O LinkedIn é o site com login de hoje (outros podem vir pelo [molde de site novo](docs/site-novo.md)); já está aqui desde a versão 0.3.0 e vem desligado (você liga em Configurações, Contas). O cartão do Gmail já está em Configurações, Contas; a leitura dos e-mails, o áudio e o resto (os outros sites com login, IA e extensão do navegador) ainda são plano. Veja o [roteiro](#roteiro). Antes de ligar as fontes, leia os [avisos de uso e de termos](#licenca-e-avisos).
 
 ## 📑 Sumário
 
@@ -102,7 +102,7 @@ O joBot não faz, e foi planejado para nunca fazer:
 - **Não se candidata em massa.** Não existe "aplicar em 200 vagas com um clique".
 - **Não envia nada sozinho.** Quem envia a candidatura é sempre você.
 - **Não digita a sua senha.** Nos sites com login, você entra com as próprias mãos, numa janela comum do navegador: como quiser (Google, e-mail e senha) e depois fecha a janela. O joBot confere a sessão sozinho.
-- **Não contorna CAPTCHA.** Se aparecer um, ele para e avisa você.
+- **Não contorna CAPTCHA sozinho.** Se aparecer um, ele para e avisa você. Nas fontes públicas, é sempre assim. Na navegação com login, a única exceção é o seu 2Captcha: só se você puser a sua chave e ligar o interruptor em Configurações, Serviços (vem desligado).
 - **Não manda telemetria.** O joBot não envia dados de uso para ninguém.
 - **Não inventa experiência.** A IA só usa o que está no seu perfil.
 
@@ -210,7 +210,7 @@ Também na fase 1:
 <a id="o-painel"></a>
 ## 📋 O painel
 
-O painel roda em `http://127.0.0.1:47615`. Quando o joBot acha o Chrome, o Edge ou o Chromium no seu computador, ele abre numa **janela própria**, sem abas nem barra de endereço, como um aplicativo; sem nenhum deles, usa o Chromium que ele instalou, e só então uma aba comum do navegador.
+O painel roda em `http://127.0.0.1:47615`. Quando o joBot acha o Chrome, o Edge ou o Chromium no seu computador, ele abre numa **janela própria**, sem abas nem barra de endereço, como um aplicativo; sem nenhum deles, usa o Chromium que ele instalou, e só então uma aba comum do navegador. Pelo instalador, o painel abre no seu navegador padrão, pelo botão **Abrir joBot** da janela do joBot.
 
 - **Barra lateral:** à esquerda, a seção Vagas (Destaques de hoje e as abas, cada uma com a contagem) e a seção Onde buscar (Buscas, Empresas, Sugeridas, Fontes e Sites), mais Configurações. Dá para recolhê-la e arrastar a borda para mudar a largura.
 - **Lista com detalhe:** a lista de vagas fica de um lado e o detalhe da vaga escolhida, do outro. Em janela estreita o detalhe sobe por cima da lista.
@@ -317,7 +317,7 @@ Pronto. A conta, a assinatura, os limites e o custo continuam sendo seus.
 
 - Chamada sem nenhuma ferramenta (`--tools ""`), sem servidores MCP (`--strict-mcp-config`) e sem guardar a sessão (`--no-session-persistence`). Detalhes na [referência de comandos](https://code.claude.com/docs/en/cli-reference).
 - Roda numa pasta temporária vazia, para não carregar configurações de algum projeto. As suas configurações pessoais em `~/.claude` continuam valendo.
-- Tira `ANTHROPIC_API_KEY` e `ANTHROPIC_AUTH_TOKEN` do ambiente da chamada (exceto no modo "chave da API"). Sem isso, o Claude Code usaria a chave e a cobrança iria para a API sem você perceber. Pelo mesmo motivo, tira as variáveis de provedor de nuvem (`CLAUDE_CODE_USE_BEDROCK`, `CLAUDE_CODE_USE_VERTEX` e `CLAUDE_CODE_USE_FOUNDRY`).
+- Tira `ANTHROPIC_API_KEY` e `ANTHROPIC_AUTH_TOKEN` do ambiente da chamada (exceto no modo "Chave da API"). Sem isso, o Claude Code usaria a chave e a cobrança iria para a API sem você perceber. Pelo mesmo motivo, tira as variáveis de provedor de nuvem (`CLAUDE_CODE_USE_BEDROCK`, `CLAUDE_CODE_USE_VERTEX` e `CLAUDE_CODE_USE_FOUNDRY`).
 - Antes de cada chamada, confere com `claude auth status` se o login ativo é o da assinatura. Se outro método estiver ativo (por exemplo, um `apiKeyHelper` nas suas configurações), o painel avisa e não faz a chamada.
 - Não usa `--bare`, porque esse modo não lê o login da assinatura.
 - Não usa nem pede `CLAUDE_CODE_OAUTH_TOKEN`.
@@ -341,7 +341,7 @@ Detalhes na [ADR 0010](docs/decisions/0010-claude-code-da-pessoa.md).
 - **Não existe servidor do joBot.** Seus dados ficam no seu computador.
 - **Sem telemetria.** Nenhum dado de uso é enviado.
 - **Registro local da abertura.** O joBot guarda, só no seu computador, quando você abriu a candidatura de cada vaga; isso não sai daqui.
-- **Só pedidos de busca e conferência.** O joBot só faz pedidos de rede nestes casos: às fontes públicas de vagas que você deixa ligadas (vêm todas ligadas), incluindo a página de cada vaga; ao Banco Central, para pegar a cotação das moedas das vagas e mostrar o salário na moeda de exibição que você escolhe, com a conversão de moeda ligada (vem ligada); ao Common Crawl, uma vez por semana, para descobrir empresas novas, e depois aos quadros de vagas dessas empresas, para conferir (vem ligada); às páginas que você manda acompanhar (vem ligada, mas sem páginas na lista não há pedido); aos sites com login que você liga (vêm desligados), pelo navegador, com a sua conta; aos servidores do Playwright, para baixar o navegador, só quando você aperta "Baixar" em Ferramentas ou, no app de desktop, o marca na instalação (o joBot não distribui o navegador; ele vem do Playwright) ou atualiza o joBot com ele já baixado; ao 2Captcha, só quando você testa a chave em Configurações, Serviços, ou, na navegação com login, com a chave posta e o interruptor ligado (vem desligado); ao site de uma empresa, só quando você cola o endereço dela, testa ou aceita uma sugestão; à internet pelo git e pelo uv (ou ao GitHub, quando o joBot veio pelo instalador), para baixar a versão nova do joBot, só quando você pede para atualizar (botão Atualizar agora ou comando jobot atualizar). Com o aviso de versão (próximo item) ligado, também pergunta ao GitHub (vem ligado; você pode desligar). Quem recebe o pedido vê o IP do seu computador, como em qualquer pedido na internet.
+- **Só pedidos de busca e conferência.** O joBot só faz pedidos de rede nestes casos: às fontes públicas de vagas que você deixa ligadas (vêm todas ligadas), incluindo a página de cada vaga; ao Banco Central, para pegar a cotação das moedas das vagas e mostrar o salário na moeda de exibição que você escolhe, com a conversão de moeda ligada (vem ligada); ao Common Crawl, uma vez por semana, para descobrir empresas novas, e depois aos quadros de vagas dessas empresas, para conferir (vem ligada); às páginas que você manda acompanhar (vem ligada, mas sem páginas na lista não há pedido); aos sites com login que você liga (vêm desligados), pelo navegador, com a sua conta; aos servidores do Playwright, para baixar o navegador, só quando você aperta "Baixar" em Ferramentas ou, no app de desktop, o marca na instalação (o joBot não distribui o navegador; ele vem do Playwright) ou atualiza o joBot com ele já baixado; ao 2Captcha, só quando você testa a chave em Configurações, Serviços, ou, na navegação com login, com a chave posta e o interruptor ligado (vem desligado); ao Gmail (Google), pela conexão IMAP só de leitura, só quando você salva ou confere a senha de app em Configurações, Contas (sem senha de app, não há pedido); ao site de uma empresa, só quando você cola o endereço dela, testa ou aceita uma sugestão; à internet pelo git e pelo uv (ou ao GitHub, quando o joBot veio pelo instalador), para baixar a versão nova do joBot, só quando você pede para atualizar (botão Atualizar agora ou comando jobot atualizar). Com o aviso de versão (próximo item) ligado, também pergunta ao GitHub (vem ligado; você pode desligar). Quem recebe o pedido vê o IP do seu computador, como em qualquer pedido na internet.
 - **Aviso de versão ligado por padrão.** Uma vez por dia o joBot pergunta ao `api.github.com` qual é a versão mais nova. O pedido leva só o user agent fixo do joBot (que traz o número da versão) e o IP do seu computador, como todo pedido na internet. Não leva busca nem dado seu. Para desligar, vá em Configurações, Privacidade; desligado, não faz pedido nenhum.
 - **Segredos no cofre do sistema.** A senha de app do Gmail, a chave da API e o token do Telegram ficam no cofre de senhas do sistema operacional. Sem cofre, vão para um arquivo que só o seu usuário lê, e o painel avisa.
 - **Dados pessoais protegidos.** CPF e data de nascimento ficam no banco, numa pasta que só o seu usuário acessa e que não é sincronizada com nuvem. O painel recomenda ligar a criptografia de disco (LUKS, BitLocker ou FileVault).
@@ -356,7 +356,7 @@ Detalhes na [ADR 0010](docs/decisions/0010-claude-code-da-pessoa.md).
 <a id="requisitos-e-instalacao"></a>
 ## 📦 Requisitos e instalação
 
-> Há dois jeitos de instalar. **Pelo instalador** (a partir da versão 0.4.0): você baixa um arquivo, abre e tem o joBot numa janela própria, sem terminal. **Pelo código**: você baixa o código e roda com o uv, como nas versões 0.1.0 a 0.3.0. O passo a passo com mais detalhes está na [página Instalar da wiki](https://github.com/fezarosa-dev/joBot/wiki/Instalar).
+> Há dois jeitos de instalar. **Pelo instalador** (a partir da versão 0.4.0): você baixa um arquivo, abre e tem a janela do joBot, um controle pequeno que liga o joBot e abre o painel no seu navegador, sem terminal. **Pelo código**: você baixa o código e roda com o uv, como nas versões 0.1.0 a 0.3.0. O passo a passo com mais detalhes está na [página Instalar da wiki](https://github.com/fezarosa-dev/joBot/wiki/Instalar).
 
 ### Requisitos
 
@@ -385,9 +385,11 @@ Na primeira vez que você abre, a janela do joBot mostra a tela de instalação:
 
 1. **Ferramentas.** joBot e Python 3.14 vêm marcados e travados (são necessários). O navegador para sites com login vem marcado e é o único que vem da internet: o joBot o baixa pelo Playwright, dos servidores do Playwright (uns 210 MB). Se você desmarcar, dá para baixar depois em Configurações › Ferramentas.
 2. **Instalando.** Tudo sai de dentro do instalador: nada é baixado na instalação, exceto o navegador, se marcado. O joBot confere o sha256 de cada arquivo contra a lista gravada quando o instalador foi feito, e o de cada biblioteca; se algum não bater, nada é instalado. O navegador fica fora dessa conferência: o Playwright não publica o sha256 dele, e o download vem por HTTPS. Sem internet, a instalação funciona igual sem o navegador: se o download dele falhar, a tela oferece seguir sem ele.
-3. **Pronto.** A janela abre o painel, com as perguntas da primeira execução (abaixo).
+3. **Pronto.** A janela vira o controle do joBot. Aperte **Ligar** e depois **Abrir joBot**: o painel abre no seu navegador padrão, com as perguntas da primeira execução (abaixo).
 
-Fechar a janela fecha só a janela: com o segundo plano ligado, as buscas seguem. Para parar tudo, use **Encerrar o joBot** em Configurações › Geral.
+Depois disso, a janela do joBot é sempre o controle. Ela mostra se o joBot está **Ligado** ou **Parado**, o endereço do painel (com o botão **Copiar**) e os botões **Ligar**, **Parar** e **Abrir joBot**, que só aparece com o joBot ligado. Ao abrir, ela só mostra o estado: não liga nem abre nada sozinha. Se o segundo plano já ligou o joBot, ela aparece como Ligado.
+
+Fechar a janela com o joBot ligado pergunta **Deixar o joBot ligado?**. **Deixar ligado** fecha só a janela, e o painel segue no navegador até você abrir a janela de novo e apertar **Parar**. **Desligar** para o joBot e fecha a janela. Com o joBot parado, a janela fecha direto. O segundo plano serve para o joBot ligar sozinho quando o computador inicia. Pelo painel, **Encerrar o joBot**, em Configurações › Geral, também para tudo.
 
 No Windows, a janela usa o WebView2 da Microsoft, que o Windows 11 e o Windows 10 atualizado já trazem. Num Windows sem ele, o instalador não baixa nada: avisa, com o link oficial da Microsoft (https://developer.microsoft.com/microsoft-edge/webview2/), e cancela. Instale o WebView2 por esse link e abra o instalador de novo.
 
@@ -424,6 +426,7 @@ Quem instalou pelo código roda todos de dentro da pasta `joBot`, com `uv run` n
 | `jobot segundo-plano ligar` | Liga o segundo plano, para o joBot iniciar sozinho junto com o seu usuário. Com `desligar` tira o serviço, e com `status` mostra como está. No Linux usa o systemd; no Windows, o Agendador de Tarefas; no Mac, um LaunchAgent (experimental). |
 | `jobot atualizar` | Atualiza o joBot para a versão mais nova e religa o que estava ligado. |
 | `jobot ferramentas baixar navegador` | Baixa o navegador dos sites com login (o mesmo do botão "Baixar" em Ferramentas). |
+| `jobot ferramentas baixar ia-local` | Baixa o modelo local de IA da fonte oficial (o `llama-server` do llama.cpp e um Qwen3.5 da Unsloth), com o sha256 conferido. Com `--modelo auto` (o padrão) escolhe pela memória do computador; `--modelo 2b` ou `4b` escolhe à mão. `atualizar ia-local` baixa o que mudou; `remover ia-local` apaga tudo e desliga as tarefas que usavam o modelo local. |
 | `jobot avaliar-rotulos` | Para quem mantém o projeto: mede as regras de rótulo contra um arquivo de exemplos seu. |
 
 ### Onde ficam os dados
@@ -473,7 +476,7 @@ Depois, aperte **Buscar agora**, no topo do painel, ou espere a próxima busca d
 
 Quando sai uma versão nova, o painel avisa numa faixa no topo. O aviso de versão vem **ligado por padrão**: para desligar, vá em Configurações, Privacidade. Os detalhes estão em [Privacidade e segurança](#privacidade-e-seguranca).
 
-- **Pelo instalador:** aperte **Atualizar agora**, na faixa ou em Configurações › Geral. O joBot baixa o pacote da versão nova, confere o sha256 de cada arquivo, monta a versão nova ao lado da que você usa e só troca quando ela abre; se algo falhar, nada muda. Se a janela também tiver versão nova, a faixa mostra **Baixar a janela nova**, que abre a página da versão: baixe o instalador de novo e abra, e os seus dados ficam.
+- **Pelo instalador:** aperte **Atualizar agora**, na faixa ou em Configurações › Geral. O joBot baixa o pacote da versão nova, confere o sha256 de cada arquivo, monta a versão nova ao lado da que você usa e só troca quando ela abre; se algo falhar, nada muda. A atualização troca só o joBot, não a janela. Quando a janela também tem versão nova, ela mostra **Há uma versão nova desta janela.** e o botão **Baixar a janela nova**, que abre a página da versão: baixe o instalador de novo e abra, e os seus dados ficam. Quem ainda tem a janela da 0.4.0 vê esse aviso numa faixa do painel.
 - **Pelo código:** rode `uv run jobot atualizar` na pasta `joBot`.
 
 ### O que as próximas fases vão baixar
@@ -499,14 +502,14 @@ Cada fase só começa depois que a anterior passa nos testes. Não há datas pro
 | **1. Base** | Núcleo comum, fontes públicas, banco, painel e agenda | 🟢 Pronta (versão 0.1.0) |
 | **2. Navegador com login** | Login pela janela comum, LinkedIn primeiro, mapeamento dos sites, tratamento de CAPTCHA | 🟢 Pronta (versão 0.3.0) |
 | **3. Instalador** | Instalador de 64 bits, com lista de ferramentas para marcar (Windows e Linux primeiro, Mac depois) | 🟢 Pronta (versão 0.4.0) |
-| **4. IA local** | Pacote offline (llama-server + Qwen) | ⚪ Planejada |
+| **4. IA local** | Pacote offline (llama-server + Qwen) | 🟡 Sendo construída (rumo à 0.5.0) |
 | **5. Extensão do navegador** | Extensão do navegador para formulários | ⚪ Planejada |
 | **6. Áudio e Gmail** | Respostas por voz e leitura de e-mails | ⚪ Planejada |
 | **7. Treino** | Aprender com o que você salva e descarta | ⚪ Planejada |
 | **8. Versão GitHub Pages** | Versão GitHub Pages, sem instalação | ⚪ Planejada |
 | **9. Publicação** | README com selos e revisão de segurança | ⚪ Planejada |
 
-A versão 0.3.0 saiu entre a fase 2 e a fase 3, com a tela "Panorama" e a fila de candidaturas completa. A versão 0.4.0 fecha a fase 3, com a janela própria e o instalador.
+A versão 0.3.0 saiu entre a fase 2 e a fase 3, com a tela "Panorama" e a fila de candidaturas completa. A versão 0.4.0 fecha a fase 3, com a janela própria e o instalador. A versão 0.4.1 corrige o Linux: a janela vira um controle e o painel abre no seu navegador.
 
 <a id="perguntas-frequentes"></a>
 ## ❓ Perguntas frequentes
@@ -548,11 +551,13 @@ Cada decisão importante está registrada num documento curto, chamado ADR (regi
 | 0023 | [Tudo pelo painel: ferramentas, atualização e encerramento](docs/decisions/0023-tudo-pelo-painel.md) |
 | 0024 | [Gmail por senha de app](docs/decisions/0024-gmail-por-senha-de-app.md) |
 | 0025 | [App de desktop e instalador](docs/decisions/0025-app-de-desktop-e-instalador.md) |
+| 0026 | [IA da fase 4: tarefas, backends e modelo local](docs/decisions/0026-ia-da-fase-4.md) |
+| 0027 | [A casca só controla; o painel abre no navegador da pessoa](docs/decisions/0027-casca-so-controla.md) |
 
 <a id="como-contribuir"></a>
 ## 🤝 Como contribuir
 
-O repositório está no GitHub. As fases 1, 2 e 3 estão prontas, e as próximas estão em planejamento.
+O repositório está no GitHub. As fases 1, 2 e 3 estão prontas, a fase 4 está sendo construída e as seguintes estão em planejamento.
 
 - **Sugestões e fontes de vagas** já podem ser enviadas pelas issues, com formulários prontos.
 - **Dúvidas** vão pelo [formulário de dúvida](https://github.com/fezarosa-dev/joBot/issues/new?template=duvida.yml). Leia antes as [perguntas frequentes](https://github.com/fezarosa-dev/joBot/wiki/Perguntas-frequentes).

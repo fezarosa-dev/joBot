@@ -68,10 +68,12 @@ async def executar_busca(
     motivo: Literal["agenda", "agora", "recuperacao"],
     *,
     coletores: Mapping[str, Coletor] | None = None,
+    ao_fim: asyncio.Event | None = None,
 ) -> int | None:
     """Roda uma busca inteira e devolve o id da execução; `None` se outra já está rodando.
 
     Um erro no meio marca a execução "interrompida" na hora, com o motivo, e sobe (D54, T153).
+    `ao_fim` é marcado quando a busca termina bem (o laço das habilidades, `agenda/ia.py`).
     """
     inicio = relogio.agora()
     execucao_id = abrir_execucao(con, "busca", motivo, inicio)
@@ -86,7 +88,7 @@ async def executar_busca(
         pedidas = {"coleta": True, "detalhes": enriquecer, "cotacoes": converter, "encaixe": True}
         await marcas.comecar([e for e, sim in pedidas.items() if sim])
         todos = descobrir() if coletores is None else coletores
-        saidas = await _coletar(con, execucao_id, cliente, relogio, todos, marcas)
+        saidas = await _coletar(con, execucao_id, cliente, relogio, todos, marcas, enriquecer)
         if enriquecer:
             await _enriquecer(con, cliente, relogio, todos, saidas, inicio, marcas)
         if _ha_regras_a_reprocessar(con):
@@ -110,6 +112,8 @@ async def executar_busca(
         with contextlib.suppress(asyncio.CancelledError):
             await batimento
     fechar_execucao(con, execucao_id, relogio.agora())
+    if ao_fim is not None:
+        ao_fim.set()  # acorda o laço das habilidades (desenho 5.4); a busca não espera por ele
     return execucao_id
 
 
@@ -134,8 +138,10 @@ async def _coletar(
     relogio: Relogio,
     coletores: Mapping[str, Coletor],
     marcas: Marcas,
+    enriquecer: bool,
 ) -> list[SaidaEscopo]:
-    """Passos 2 e 3: coleta, grava cada escopo e marca os escopos extintos."""
+    """Passos 2 e 3: coleta, grava cada escopo e marca os escopos extintos. Com `enriquecer`
+    (lido uma vez em `executar_busca`), o executor já detalha até o teto de cada fonte."""
     cadastradas = {f.chave: f.ligada for f in fontes(con)}
     ligadas = {c for c, ligada in cadastradas.items() if ligada and c in coletores}
     for chave in sorted(c for c, ligada in cadastradas.items() if not ligada and c in coletores):
@@ -170,7 +176,6 @@ async def _coletar(
         estados = [s.resultado.estado for s in saidas if s.fonte == fonte]
         await marcas.fonte_terminou(fonte, estado_da_fonte(estados) == "falhou")
 
-    enriquecer = bool(ler_config(con, "enriquecimento_ligado"))
     await rodar(
         coletores,
         ctx,

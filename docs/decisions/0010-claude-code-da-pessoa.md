@@ -2,6 +2,7 @@
 
 - **Status:** aceita
 - **Data:** 2026-11-13
+- **Atualizada:** 2026-11-17 (o texto legal atual do Claude Code e a sessão que espera o dono, para confirmar, D185 e [0026](0026-ia-da-fase-4.md); a instalação pelo joBot, D138)
 
 ## Contexto
 
@@ -24,7 +25,7 @@ O projeto está em desenvolvimento e ainda não tem código. Tudo abaixo é o qu
 ### Login
 
 - O joBot não tem login do Claude.
-- A pessoa instala o Claude Code pelo site oficial e entra uma vez pelo fluxo da Anthropic. Para isso, ela abre o terminal (a janela de comandos de texto do computador), roda `claude` e segue o `/login`.
+- A pessoa instala o Claude Code ~~pelo site oficial~~ (desde a D138.7, também pelo joBot, que roda o instalador oficial a pedido dela e nunca o remove; ver [0023](0023-tudo-pelo-painel.md)) e entra uma vez pelo fluxo da Anthropic. Para isso, ela abre o terminal (a janela de comandos de texto do computador), roda `claude` e segue o `/login`.
 - A credencial fica onde o Claude Code já guarda: na pasta `~/.claude` no Linux e no Windows (`%USERPROFILE%\.claude` no Windows) e no Keychain no macOS. Keychain é o cofre de senhas do macOS. O joBot nunca abre esse lugar. Se a variável `CLAUDE_CONFIG_DIR` estiver definida, a pasta muda; o joBot também não abre essa outra pasta.
 
 ### Como o joBot descobre se o Claude está pronto
@@ -80,6 +81,13 @@ O projeto está em desenvolvimento e ainda não tem código. Tudo abaixo é o qu
 - A opção fica mantida, com os cuidados técnicos acima.
 - Registrado em duvidas.md (D1, resolvida em 2026-11-13).
 
+## Fase 4: a sessão espera o dono (2026-11-17, para confirmar)
+
+- O texto legal atual do Claude Code (página de política legal e de conformidade, lida em 2026-11-17) diz que o login das assinaturas serve ao uso comum do Claude Code e que quem constrói produto deve usar chave de API. A D1 e esta ADR continuam como desenho do backend, mas a pergunta volta ao dono: ele libera o login da assinatura para o joBot? (D185.5, para confirmar.)
+- Até a resposta, nada da sessão do Claude Code é construído na fase 4, nem o botão Baixar dele no instalador (D185.5 e D185.17, para confirmar). Com a resposta, um lote próprio constrói e prova na máquina do dono, com os cuidados acima.
+- O instalador oficial do Claude Code é um script remoto sem sha256 fixado; baixar e rodar sem sha256 também espera o dono (D185.18, para confirmar).
+- "Tudo Claude" passa a usar a API da Anthropic, cobrada por uso, e diz isso na tela (D185.28, para confirmar).
+
 ## Fontes
 
 Documentação oficial do Claude Code (em inglês). O texto acima resume essas páginas com palavras próprias.
@@ -95,3 +103,6 @@ Documentação oficial do Claude Code (em inglês). O texto acima resume essas p
 - [0009. Inteligência artificial: opções, modelos e pacote offline](0009-ia-backends-e-modelos.md)
 - [0011. Perfil, currículo, primeira execução e áudio](0011-perfil-e-primeira-execucao.md)
 - [0014. Segurança e privacidade](0014-seguranca-e-privacidade.md)
+- [0023. Tudo pelo painel](0023-tudo-pelo-painel.md)
+- [0026. IA da fase 4: tarefas, backends e modelo local](0026-ia-da-fase-4.md)
+- [duvidas.md: D185 (fase 4)](../../duvidas.md)

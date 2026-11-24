@@ -18,9 +18,9 @@ import sqlite3
 from collections.abc import Mapping
 from dataclasses import dataclass
 from functools import cache
-from typing import Annotated, Any
+from typing import Any
 
-from fastapi import APIRouter, HTTPException, Path, Request
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from jobot.banco.cadastros import (
@@ -44,13 +44,13 @@ from jobot.nucleo.http import (
 )
 from jobot.nucleo.modelo import Empresa
 from jobot.painel.cliente import cliente_do_painel
-from jobot.painel.consultas import relogio_do_painel
+from jobot.painel.consultas import IdDoBanco, relogio_do_painel
 from jobot.painel.seguranca import Con, renderizar
 
 router = APIRouter(prefix="/empresas")
 registro = logging.getLogger(__name__)
 
-EmpresaId = Annotated[int, Path(ge=1, le=2**63 - 1)]  # o INTEGER do SQLite tem 64 bits com sinal
+EmpresaId = IdDoBanco
 # Fontes que se acompanham por empresa. Escopo único (Remotive, WWR...) e busca por cargo
 # (Himalayas) não têm identificador de empresa; fonte nova por empresa entra aqui.
 ATS_POR_EMPRESA = ("greenhouse", "lever", "ashby", "smartrecruiters", "gupy")

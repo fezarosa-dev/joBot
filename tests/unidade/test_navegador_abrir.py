@@ -18,6 +18,7 @@ from jobot.navegador.abrir import (
     navegador_instalado,
 )
 from jobot.sistema.pastas import PASTA_NAVEGADOR
+from jobot.sistema.tela import ambiente_da_tela
 
 pytestmark = pytest.mark.anyio
 
@@ -126,6 +127,7 @@ async def test_lancador_de_producao_passa_so_o_ambiente_do_navegador(
         "XDG_CONFIG_HOME", "XDG_CACHE_HOME", "XDG_DATA_HOME", "XDG_DATA_DIRS",
         "XDG_CURRENT_DESKTOP", "XDG_SESSION_TYPE", "DBUS_SESSION_BUS_ADDRESS",
         "DISPLAY", "WAYLAND_DISPLAY", "XAUTHORITY", "XDG_RUNTIME_DIR", "SEGREDO_DO_TESTE",
+        *_DO_WINDOWS,
     )  # fmt: skip
     for nome in nomes:
         monkeypatch.delenv(nome, raising=False)
@@ -145,6 +147,37 @@ async def test_lancador_de_producao_passa_so_o_ambiente_do_navegador(
         "LANG": "pt_BR.UTF-8",
         "DISPLAY": ":7",
     }
+
+
+# os nomes do Windows que o Chrome de lá lê (SYSTEMROOT carrega o Winsock); nenhum é segredo
+_DO_WINDOWS = (
+    "SYSTEMROOT", "WINDIR", "TEMP", "TMP", "USERPROFILE", "LOCALAPPDATA", "APPDATA",
+    "PROGRAMFILES", "PROGRAMFILES(X86)", "USERNAME",
+)  # fmt: skip
+
+
+async def test_lancador_de_producao_passa_as_pastas_do_windows(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    for nome in _DO_WINDOWS:
+        monkeypatch.setenv(nome, "C:\\x")
+    pw = _Playwright()
+    tela = {"JOBOT_TELA": "win32"}
+    await abrir_contexto(tmp_path, tela, lancador_de_producao(pw, tela))  # type: ignore[arg-type]
+    env = pw.chromium.chamadas[0]["env"]
+    assert {n: env.get(n) for n in _DO_WINDOWS} == dict.fromkeys(_DO_WINDOWS, "C:\\x")
+
+
+async def test_windows_sem_o_nofollow_chega_ao_navegador(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # o Windows não tem os.O_NOFOLLOW: o perfil é lido de novo para ir além do primeiro uso
+    monkeypatch.delattr(os, "O_NOFOLLOW", raising=False)
+    tela = ambiente_da_tela({}, lambda comando: pytest.fail("chamou o systemctl"), "win32")
+    for _ in range(2):
+        lancador = _Lancador()
+        assert await abrir_contexto(tmp_path, tela, lancador) is CONTEXTO
+        assert len(lancador.chamadas) == 1
 
 
 async def test_chrome_primeiro_depois_chromium(tmp_path: Path) -> None:

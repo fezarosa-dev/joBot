@@ -230,8 +230,8 @@ def _corpo(html: str) -> str:
 
 def test_lateral_antes_do_banner(cliente: TestClient) -> None:
     corpo = _corpo(cliente.get("/vagas").text)
-    assert re.search(r'<aside\b[^>]*class="lateral vidro"', corpo)
-    assert re.search(r'<header\b[^>]*class="topo vidro"', corpo)
+    assert re.search(r'<aside\b[^>]*class="lateral"', corpo)
+    assert re.search(r'<header\b[^>]*class="topo"', corpo)
     aside, header = corpo.index("<aside"), corpo.index("<header")
     assert aside < header
     # o header é filho do body: o aside fecha antes dele, e nada o envolve
@@ -239,7 +239,7 @@ def test_lateral_antes_do_banner(cliente: TestClient) -> None:
     antes = corpo[:header]
     assert antes.count("<div") == antes.count("</div>")
     assert antes.count("<main") == 0
-    assert re.search(r'<header\b[^>]*class="topo vidro"[^>]*>', corpo)
+    assert re.search(r'<header\b[^>]*class="topo"[^>]*>', corpo)
 
 
 def test_busca_na_barra_so_em_vagas(cliente: TestClient) -> None:

@@ -1,7 +1,7 @@
 //! Antes do `tauri_build`: copia o CSS, as fontes e o ícone do painel para `ui/painel/`
 //! (gitignored; desenho 5.2), garante a pasta `recursos/` (gitignored, vazia no build local:
-//! a casca diz que o instalador está incompleto) e declara os comandos da tela de instalação,
-//! que só a capability `local` libera (o painel em 127.0.0.1 não os alcança).
+//! a casca diz que o instalador está incompleto) e declara os comandos da tela de instalação e
+//! do controle, que só a capability `local` (as páginas de `ui/`) libera.
 
 use std::fs;
 use std::path::Path;
@@ -40,6 +40,12 @@ fn main() {
         "estado_instalador",
         "instalar",
         "fechar_instalador",
+        "fechar_controle",
+        "estado_controle",
+        "ligar",
+        "parar",
+        "abrir_jobot",
+        "abrir_release",
     ]);
     tauri_build::try_build(tauri_build::Attributes::new().app_manifest(comandos))
         .expect("tauri-build");

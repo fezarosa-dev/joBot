@@ -2,7 +2,7 @@
 
 - **Status:** aceita
 - **Data:** 2026-11-13
-- **Atualizada:** 2026-11-15 (seção do modelo leve na máquina da pessoa, D122; seção do Laya antes da fase 4, D141); antes, em 2026-11-13
+- **Atualizada:** 2026-11-15 (seção do modelo leve na máquina da pessoa, D122; seção do Laya antes da fase 4, D141); antes, em 2026-11-13; 2026-11-17 (o Laya antes da fase 4 fica adiado, para confirmar, e o Laya público é um modelo de decisão, D185.8 e [0026](0026-ia-da-fase-4.md)); 2026-11-24 (o dono autoriza o treino do Laya no RunPod, só na Community Cloud e pela GPU de menor custo total; o Laya passa a ser o Qwen3.5 2B ajustado por LoRA, D219)
 
 ## Contexto
 
@@ -12,7 +12,7 @@ Com o tempo, as vagas que a pessoa salva e descarta mostram o que ela quer de ve
 
 ### O que é treinado
 
-- Ajuste fino do Laya, um encoder multilíngue (mmBERT-base, 322M, licença Apache-2.0). Encoder é um modelo que lê o texto e devolve números ou rótulos, sem escrever texto. Sem ajuste, ele fica perto do acaso; por isso só é usado depois de ajustado.
+- ~~Ajuste fino do Laya, um encoder multilíngue (mmBERT-base, 322M, licença Apache-2.0). Encoder é um modelo que lê o texto e devolve números ou rótulos, sem escrever texto. Sem ajuste, ele fica perto do acaso; por isso só é usado depois de ajustado.~~ Em 2026-11-24 o Laya passou a ser o LoRA do Qwen3.5 2B (seção "Laya autorizado", D219).
 - Ajuste fino LoRA (um treino leve de um modelo já pronto) do Qwen3.5-2B e do Qwen3.5-4B.
 - Os dois treinos rodam no RunPod (serviço de computadores alugados).
 - O Qwen ajustado é exportado em GGUF (o formato de arquivo que o llama-server lê), para rodar no llama-server.
@@ -53,10 +53,22 @@ Nunca entra dado pessoal: currículo real e ações da pessoa no painel ficam fo
 
 ## Laya antes da fase 4 (2026-11-15)
 
-- Exceção ao título e ao resto desta ADR: o ajuste fino do Laya sai da fase 7 e acontece antes da fase 4 (D141). Os outros treinos (LoRA do Qwen, classificador pessoal) continuam na fase 7.
+- Exceção ao título e ao resto desta ADR: o ajuste fino do Laya sai da fase 7 e ~~acontece antes da fase 4 (D141)~~ ~~fica adiado, para confirmar (2026-11-17, D185.8): o dono decide primeiro se autoriza o gasto do treino antes da fase 4 ou adia~~ o dono autorizou o treino em 2026-11-24 (D219); ele roda na fase 4, pelos scripts de `scripts/treino_laya/`. Os outros treinos (~~LoRA do Qwen~~ LoRA do Qwen3.5 4B, classificador pessoal) continuam na fase 7; o LoRA do 2B é o próprio Laya (2026-11-24, D219).
 - O Laya ajustado entra no encaixe junto com o Qwen local e reconhece palavras diferentes que querem dizer a mesma competência. Isso fecha o descompasso: o encaixe pelo sentido (D122) dependia do Laya ajustado, que só ficaria pronto na fase 7.
 - O resto vale como está: o modelo ajustado só substitui o original se ganhar no gabarito, o gabarito nunca entra no treino, e o treino roda no RunPod.
 - O ponto em aberto abaixo (termos das fontes) passa a valer antes deste treino do Laya, não antes da fase 7.
+
+## ~~Laya adiado na fase 4 (2026-11-17, para confirmar)~~
+
+- ~~Até o dono responder (D185.8, para confirmar), a fase 4 segue sem o Laya: as habilidades da vaga vêm da IA escolhida pela pessoa, e o código compara com o perfil ([0026](0026-ia-da-fase-4.md)). A fase 4 só prepara o conjunto de exemplos e o preço; nenhum treino roda e nenhum recurso do RunPod é criado sem o dono autorizar (para confirmar).~~ Caiu em 2026-11-24 (D219).
+- Nota (para confirmar): o Laya público (`convaiinnovations/laya-multilingual`, Apache-2.0, sobre o mmBERT-base) é um modelo de decisão (escolha, nota e "verdadeiro ou falso"), não um modelo que compara competências pelo sentido. O ajuste fino teria de ensinar essa comparação.
+
+## Laya autorizado (2026-11-24)
+
+- O dono autorizou o treino no RunPod em 2026-11-24, com duas regras: só Community Cloud, nunca Secure; e a GPU de menor custo total (preço por hora × horas do treino), mesmo que leve até uns 20 dias (D219).
+- O que é treinado: um ajuste LoRA do Qwen3.5 2B do modelo local (o mesmo do `ia_local.json`), para a tarefa `encaixe` (as habilidades da vaga, no esquema de `nucleo/ia`) e para perguntas "verdadeiro ou falso" sobre a vaga. O nome Laya passa a ser esse modelo; o encoder mmBERT da seção "O que é treinado" fica de fora (escolha da sessão, para discutir com o dono, D219).
+- As respostas certas vêm de um modelo professor aberto e maior (um Qwen3.5 de 27 a 32B) rodando no próprio pod, não do Claude. Continuam valendo: só vagas de fontes públicas, sem e-mail, telefone e nome; o gabarito nunca entra (o conjunto de ouro público da T410 mede, e uma lista de hashes que o dono gera fora do repositório tira as vagas do gabarito dele).
+- O Laya só substitui o Qwen3.5 2B original se acertar mais no conjunto de ouro. A saída é um GGUF Q4_K_M com sha256, no formato do `ia_local.json`.
 
 ## Consequências
 
@@ -74,4 +86,5 @@ Nunca entra dado pessoal: currículo real e ações da pessoa no painel ficam fo
 - [0007. Tratamento das vagas: duplicadas, ciclo de vida, salário e rótulos](0007-tratamento-dos-dados.md)
 - [0009. Inteligência artificial: opções, modelos e pacote offline](0009-ia-backends-e-modelos.md)
 - [0014. Segurança e privacidade](0014-seguranca-e-privacidade.md)
-- [duvidas.md: D141 (Laya antes da fase 4)](../../duvidas.md)
+- [0026. IA da fase 4: tarefas, backends e modelo local](0026-ia-da-fase-4.md)
+- [duvidas.md: D141 (Laya antes da fase 4), D185 (fase 4) e D219 (treino do Laya)](../../duvidas.md)

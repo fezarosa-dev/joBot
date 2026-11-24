@@ -3,7 +3,9 @@
 Desenho 12.1 (um processo), 12.3 (travas), 12.6 (`jobot serve`) e 14.1 (rede). Ao subir: migra,
 semeia, marca as execuções interrompidas e reaplica as regras que mudaram; o laço da agenda
 nasce e morre com o app (lifespan) e divide com a rota "buscar agora" as travas por tipo (D55).
-A checagem de versão (T85) roda numa tarefa própria no mesmo lifespan, com conexão própria.
+A checagem de versão (T85) roda numa tarefa própria no mesmo lifespan, com conexão própria, e
+o laço das habilidades (T412, desenho 5.4) também: `FabricaIA` monta os backends de IA (o cliente
+do núcleo, a chave do cofre e o `llama-server`) e o laço só recebe o backend pronto.
 """
 
 import argparse
@@ -13,6 +15,7 @@ import logging
 import os
 import sqlite3
 import sys
+import threading
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable, Mapping
 from contextlib import closing
@@ -26,6 +29,7 @@ from jobot import __version__
 from jobot.agenda.agendador import INTERVALOS, laco
 from jobot.agenda.descoberta import executar_descoberta
 from jobot.agenda.execucao import executar_busca, reprocessar_se_regras_mudaram
+from jobot.agenda.ia import BackendDoLaco, laco_ia
 from jobot.agenda.login import Login
 from jobot.agenda.paginas import executar_paginas
 from jobot.agenda.versao import laco_versao
@@ -44,14 +48,21 @@ from jobot.banco.gravacao import ValidadoresDoBanco
 from jobot.banco.migrar import BancoMaisNovo, migrar
 from jobot.banco.paginas import existe_pagina_nova
 from jobot.cli import caminho_do_log, mensagem_do_banco
+from jobot.cli.ferramentas import caminhos_local
 from jobot.navegador.abrir import navegador_instalado
 from jobot.navegador.execucao import dependencias_de_producao, executar_login
 from jobot.nucleo.horarios import horarios_validos
 from jobot.nucleo.http import ClienteEducado
+from jobot.nucleo.ia.anthropic import ClienteAnthropic
+from jobot.nucleo.ia.compativel_openai import ENDERECOS, ClienteCompativel
+from jobot.nucleo.ia.contrato import Falha, Pedido, Resposta
 from jobot.nucleo.leitores.registro import leitores
 from jobot.nucleo.relogio import Relogio, RelogioReal
 from jobot.painel.app import criar_app
+from jobot.sistema import llama
+from jobot.sistema.cofre import Cofre
 from jobot.sistema.instancia import AVISO_CAPTURA, Trava, captura_em_andamento, porta
+from jobot.sistema.llama import FalhaLlama, Llama
 from jobot.sistema.pastas import configurar_log, pasta_de_dados, preparar_pasta
 from jobot.sistema.sair import apagar_token, gravar_token
 
@@ -110,7 +121,7 @@ class _EstadoDoBanco:
             if ler_config(con, "primeira_execucao_concluida", False) is not True:
                 # sem as preferências do assistente a busca sairia vazia e ocuparia o "Buscar
                 # agora" do fim dele; o painel e `jobot buscar` não passam por aqui (T139)
-                return {**{tipo: False for tipo in TIPOS}, "login": False}
+                return dict.fromkeys(TIPOS, False)
             return {tipo: bool(ler_config(con, chave)) for tipo, chave in _INTERRUPTORES.items()}
 
     def pagina_nova(self) -> bool:
@@ -135,6 +146,84 @@ class _EstadoDoBanco:
                     )
                 horarios = horarios_validos(PADROES["login_horarios"])
             return Login(horarios, inicio_da_ultima_leitura_login(con))
+
+
+class _Anthropic(ClienteAnthropic):
+    def fechar(self) -> None:
+        self.close()
+
+
+class _Local:
+    """`Backend` do modelo local: sobe o `llama-server` na thread do pedido, se ainda não subiu
+    (a subida leva de 1 a 25 s; D185.7)."""
+
+    def __init__(self, instancia: Llama) -> None:
+        self._llama = instancia
+        self._cliente: ClienteCompativel | None = None
+        self._de = ("", "")
+
+    def pedir(self, pedido: Pedido) -> Resposta:
+        try:
+            endereco, chave = self._llama.subir()
+        except FalhaLlama as falha:
+            raise Falha(falha.motivo) from None  # os motivos do `llama.py` são os do contrato
+        if self._cliente is None or self._de != (endereco, chave):  # o servidor subiu de novo
+            self.fechar()
+            self._cliente, self._de = ClienteCompativel("local", endereco, chave), (endereco, chave)
+        return self._cliente.pedir(pedido)
+
+    def fechar(self) -> None:
+        if self._cliente is not None:
+            self._cliente.fechar()
+
+
+class FabricaIA:
+    """`app.state.ia`: `(backend, modelo) -> Backend` (desenho 5). A chave vem do cofre a cada
+    chamada; a `Llama` do modelo local fica aqui e cai no fim de `vida` (D194.4)."""
+
+    def __init__(self, dados: Path, banco: Path, cofre: Cofre | None = None) -> None:
+        self._dados = dados
+        self._banco = banco
+        self._cofre = cofre or Cofre(dados)
+        self.llama: Llama | None = None
+        self._encerrada = False
+        self._caminhos: tuple[Path, Path] | None = None
+        self._trava = threading.Lock()  # o laço e as rotas (T416) chamam de threads diferentes
+
+    def __call__(self, backend: str, modelo: str) -> BackendDoLaco:
+        if backend == "local":
+            return _Local(self._instancia())
+        if backend not in ("anthropic", "compativel", *ENDERECOS):
+            raise ValueError(f"backend de IA desconhecido: {backend!r}")
+        lida = self._cofre.ler(f"ia_{backend}")
+        chave = lida[0] if lida else None
+        if backend == "compativel":  # a chave é opcional (Ollama, LM Studio)
+            with closing(abrir(self._banco)) as con:
+                valor = ler_config(con, "ia_compativel")
+            endereco = valor.get("endereco") if isinstance(valor, dict) else None
+            return ClienteCompativel(backend, endereco if isinstance(endereco, str) else "", chave)
+        if chave is None:
+            raise Falha("sem_chave")
+        if backend == "anthropic":
+            return _Anthropic(chave)
+        return ClienteCompativel(backend, ENDERECOS[backend], chave)
+
+    def _instancia(self) -> Llama:
+        programa, gguf, _ = caminhos_local(self._dados)  # sem modelo baixado: `modelo_ausente`
+        with self._trava:
+            if self._encerrada:  # depois do fim de `vida`, nenhum `llama-server` novo
+                raise Falha("servico_fora")
+            if self.llama is None or self._caminhos != (programa, gguf):
+                if self.llama is not None:
+                    self.llama.encerrar()  # o modelo baixado mudou
+                self.llama, self._caminhos = Llama(self._dados, programa, gguf), (programa, gguf)
+            return self.llama
+
+    def encerrar(self) -> None:
+        with self._trava:
+            self._encerrada = True
+            if self.llama is not None:
+                self.llama.encerrar()
 
 
 def _perdida(caminho: Path, agora: datetime) -> bool:
@@ -164,15 +253,27 @@ def montar(
 
     @contextlib.asynccontextmanager
     async def vida(app: FastAPI) -> AsyncIterator[None]:
+        # desenho 7: o `llama-server` de um servidor que morreu sai já na subida (D194.3)
+        llama.encerrar_sobra(dados)
         with closing(abrir(caminho)) as leitura:  # só lê os validadores do `cache_http`
             # um cliente para todos os tipos: o ritmo por host vale entre eles (12.3)
             cliente = ClienteEducado(None, relogio, ValidadoresDoBanco(leitura), __version__)
             app.state.cliente = cliente
 
+            # o laço das habilidades acorda no fim de cada busca e quando a aba IA liga a tarefa
+            acordar = asyncio.Event()
+            app.state.ia_acordar = acordar
+            # pedidos da pessoa em curso (o teste ao ligar, T416): o laço espera entre uma vaga e
+            # outra enquanto houver algum (desenho 5.4, item 6)
+            pessoa: set[object] = set()
+            app.state.ia_pessoa = pessoa
+            fabrica = FabricaIA(dados, caminho)
+            app.state.ia = fabrica
+
             async def busca() -> None:
                 motivo = motivos.pop() if motivos else "agenda"
                 with closing(abrir(caminho)) as con:  # conexão própria: nunca dividida (padrões)
-                    await executar_busca(con, cliente, relogio, motivo)
+                    await executar_busca(con, cliente, relogio, motivo, ao_fim=acordar)
 
             async def descoberta() -> None:
                 with closing(abrir(caminho)) as con:  # conexão própria: nunca dividida (padrões)
@@ -206,16 +307,24 @@ def montar(
             )
             # checagem de versão (T85): tarefa própria, abre a sua conexão com o caminho
             versao = asyncio.create_task(laco_versao(caminho, cliente, relogio))
+            habilidades = asyncio.create_task(
+                laco_ia(caminho, fabrica, relogio, acordar, ocupado=lambda: bool(pessoa))
+            )
             try:
                 yield
             finally:
                 # as do "Buscar agora" (painel/rotas/execucao.py) também usam o cliente: Ctrl+C
                 # e SIGTERM passam por aqui, então todas param antes de fechá-lo
-                todas = [agenda, versao, *getattr(app.state, "tarefas", ())]
+                todas = [agenda, versao, habilidades, *getattr(app.state, "tarefas", ())]
                 for tarefa in todas:
                     tarefa.cancel()
                 await asyncio.gather(*todas, return_exceptions=True)
                 await cliente.fechar()
+                try:
+                    fabrica.encerrar()  # a instância cai com o servidor (D194.4)
+                except Exception:
+                    log.exception("não consegui encerrar o llama-server")  # a sobra sai abaixo
+                llama.encerrar_sobra(dados)  # e a anotada por um servidor que morreu
 
     app.router.lifespan_context = vida
     config = uvicorn.Config(

@@ -333,3 +333,13 @@ def test_select_falhando_desfaz_transacao(con: sqlite3.Connection) -> None:
     finally:
         con.set_authorizer(None)
     assert not aberta  # o BEGIN IMMEDIATE foi desfeito: a escrita não fica travada
+
+
+@pytest.mark.parametrize("ruim", ["NaN", "Infinity", "0", "-5.65", "x"])
+def test_venda_invalida_no_banco_e_ausente(con: sqlite3.Connection, ruim: str) -> None:
+    # a gravação recusa, mas o banco pode vir corrompido de fora
+    con.execute(
+        "INSERT INTO cotacao (moeda, data, venda, buscada_em) VALUES ('USD', ?, ?, ?)",
+        (SEXTA.isoformat(), ruim, AGORA.isoformat()),
+    )
+    assert cotacao_mais_recente(con, "USD") is None

@@ -5,7 +5,6 @@ import pytest
 
 from jobot.nucleo import andamento
 from jobot.nucleo.andamento import (
-    PARADA_S,
     PESOS,
     TETO,
     curva,
@@ -24,11 +23,14 @@ def test_curva_nas_pontas() -> None:
     assert curva(1.0) == 1.0
 
 
-def test_curva_cresce_e_fica_abaixo_de_p() -> None:
+def test_curva_comeca_rapida_e_vai_freando() -> None:
+    # D216: rápida no começo e freando aos poucos, sem degrau (o passo encolhe sempre)
     grade = [i / 100 for i in range(101)]
     valores = [curva(p) for p in grade]
-    assert all(a < b for a, b in zip(valores, valores[1:], strict=False))
-    assert all(curva(p) < p for p in grade[1:-1])
+    passos = [b - a for a, b in zip(valores, valores[1:], strict=False)]
+    assert all(passo > 0 for passo in passos)
+    assert all(a > b for a, b in zip(passos, passos[1:], strict=False))
+    assert all(curva(p) > p for p in grade[1:-1])
 
 
 def test_pesos_somam_um_sem_uma_etapa() -> None:
@@ -163,8 +165,18 @@ def test_avanco_lento_nunca_passa_do_limite() -> None:
     for s in range(5, int(MAX_RETRY_AFTER_S) + 1):
         v = valor_mostrado(p, b, partida, float(s), fechada=False)
         assert curva(p) < v < limite, s
-    for antes in (0.0, 1.0, 2.0, PARADA_S - 0.01):
-        assert valor_mostrado(p, b, partida, antes, fechada=False) == max(curva(p), partida)
+    assert valor_mostrado(p, b, partida, 0.0, fechada=False) == max(curva(p), partida)
+
+
+def test_avanco_lento_sem_parada_nem_degrau() -> None:
+    # D216: anda desde o primeiro instante, sempre um pouco, e nunca dá salto
+    p, b = 0.6, 0.8
+    partida = curva(p)
+    valores = [valor_mostrado(p, b, partida, s / 10, fechada=False) for s in range(0, 600)]
+    passos = [y - x for x, y in zip(valores, valores[1:], strict=False)]
+    assert all(passo > 0 for passo in passos)
+    assert max(passos) < 0.005
+    assert all(x >= y for x, y in zip(passos, passos[1:], strict=False))
 
 
 def test_avanco_lento_cresce_com_o_tempo_parado() -> None:
@@ -177,9 +189,11 @@ def test_avanco_lento_cresce_com_o_tempo_parado() -> None:
 def test_avanco_lento_fecha_o_resto_a_cada_passo() -> None:
     p, b = 0.6, 0.8
     partida, limite = curva(p), curva(b)
-    # 10 passos de 2 s depois dos 3 s de parada: o que falta cai a 0,9 por passo
+    # o que falta cai a 0,9 a cada 2 s, contínuo: 20 s = 10 passos, 21 s = 10,5
     esperado = limite - (limite - partida) * 0.9**10
-    assert valor_mostrado(p, b, partida, 23.0, fechada=False) == pytest.approx(esperado)
+    assert valor_mostrado(p, b, partida, 20.0, fechada=False) == pytest.approx(esperado)
+    meio = limite - (limite - partida) * 0.9**10.5
+    assert valor_mostrado(p, b, partida, 21.0, fechada=False) == pytest.approx(meio)
 
 
 def test_teto_ate_fechar() -> None:
@@ -200,4 +214,4 @@ def test_constantes_da_proposta() -> None:
         ("cotacoes", 3),
         ("encaixe", 5),
     ]
-    assert andamento.EXPOENTE == 1.25
+    assert andamento.EXPOENTE == 1.5

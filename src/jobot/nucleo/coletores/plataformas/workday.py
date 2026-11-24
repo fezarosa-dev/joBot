@@ -12,7 +12,7 @@ import json
 import re
 from collections.abc import AsyncIterator, Mapping, Sequence
 from dataclasses import replace
-from datetime import UTC, date, datetime
+from datetime import date, datetime, timedelta, timezone
 from typing import Literal
 from urllib.parse import urlsplit
 
@@ -38,6 +38,7 @@ _LOCALE = re.compile(r"[a-z]{2}-[A-Z]{2}")  # prefixo de idioma dos endereços (
 _CAMINHO = re.compile(r"/job/[^\s?#\\]+")  # `externalPath` da vaga
 _CABECALHOS = {"Accept": "application/json", "Accept-Language": "pt-BR"}
 _PAIS = re.compile(r"[A-Z]{2}")
+_BRASILIA = timezone(timedelta(hours=-3))  # data sem fuso: meia-noite de Brasília
 _PADRAO = "BR"  # sem país nas buscas (o "testar" do painel), como no Eightfold (A21)
 _SO_CONTAGEM = re.compile(r"\d+\s+\S+")  # "2 Locais", "3 Locations": não é cidade
 
@@ -307,7 +308,7 @@ class Workday:
             descricao=descricao or item.descricao,
             descricao_formato="html",
             publicada_em=(
-                datetime(inicio.year, inicio.month, inicio.day, tzinfo=UTC)
+                datetime(inicio.year, inicio.month, inicio.day, tzinfo=_BRASILIA)
                 if inicio
                 else item.publicada_em
             ),

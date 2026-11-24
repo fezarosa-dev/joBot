@@ -522,6 +522,7 @@ def _salario(valor: object, unidade: object = "MONTH", moeda: object = "BRL") ->
         (_salario(True), None),
         (_salario("350"), None),
         (_salario(float("inf")), None),
+        (_salario(10**400), None),  # float() estoura: OverflowError
         ({"currency": "BRL"}, None),
         ([1, 2], None),
     ],
@@ -580,3 +581,20 @@ async def test_resolver() -> None:
 
     with pytest.raises(ValueError):
         await super_estagios.COLETOR.resolver("329131", SemRede())  # type: ignore[arg-type]
+
+
+async def test_sitemap_so_com_filho_desconhecido_falhou() -> None:
+    # tag renomeada: "ok" vazio fecharia todas as vagas (padroes «JSON e XML externos»)
+    corpo = _sitemap().replace("</urlset>", f"<link>{_entrada(1)}</link></urlset>")
+    resultado, _ = await _coletar(_resposta(corpo))
+    assert (resultado.vagas, resultado.estado) == ((), "falhou")
+    assert resultado.motivo == "saude.formato_mudou"
+
+
+async def test_detalhar_json_ld_em_cadeia_de_5000_nao_estoura() -> None:
+    ld = json.dumps(_json_ld(), ensure_ascii=False)
+    fundo = "[" * 5000 + ld + "]" * 5000
+    vaga, _ = await _detalhar(_item(), _resposta(_pagina([]).replace("[]", fundo, 1)))
+    assert vaga is None  # fundo demais: nenhuma vaga, e nunca RecursionError
+    raso = await _vaga(_pagina([[[_json_ld()]]]))  # aninhado de leve ainda vale
+    assert raso.titulo == "Estágio em FISIOTERAPIA"

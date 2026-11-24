@@ -340,3 +340,102 @@ Itens pequenos e independentes entre si.
 - [ ] **Achar a causa** (arredondamento de sub-pixel da entrelinha do título, fonte que ainda não carregou, quebra de linha diferente) com sonda, sem `sleep`.
 - [ ] **Teste que falha** pela causa provada e **corrigir** na causa (CSS ou espera certa no teste), sem só afrouxar a tolerância.
 - [ ] **Ver passar:** o laço no CI sem falha.
+
+### T346: menos transparência nos testes de tela do Firefox e do WebKit
+`depende_de: —` · D209
+
+**O que se viu.** Na T352 o `-m tela` passou a rodar nos três motores. `tests/tela/test_casca.py::test_sem_vidro_com_menos_transparencia` emula `prefers-reduced-transparency: reduce` pelo CDP (`Emulation.setEmulatedMedia`), que só existe no Chromium; o Playwright 1.65 não emula essa media no `emulate_media`. No Firefox e no WebKit o teste pula com o motivo e o número desta tarefa. O `test_sem_vidro_com_mais_contraste_ou_cores_forcadas[contrast]` tem a mesma guarda (pula se o motor não emular `prefers-contrast`), que no CI da T352 não disparou.
+
+- [ ] Quando o Playwright emular `prefers-reduced-transparency` em `emulate_media` (ou o motor aceitar outro caminho sem CDP), trocar o CDP por ele e tirar o pulo por motor.
+- [ ] Ver passar nos três motores no CI.
+
+### T347: acertos de visual vistos nas capturas da 0.4.1
+`depende_de: —` · D209.10
+
+**O que se viu.** Na verificação da 0.4.1, as capturas do CI 44315135931 (painel nos três motores) e do 44315218953 (casca) mostraram defeitos antigos, que não vieram da 0.4.1 (os tokens não mudaram desde a v0.4.0).
+
+- [ ] Em Configurações › Geral, o botão "Salvar" fica colado no título "Atualizar o joBot" (folga de 1 a 2 px, medida nos três motores): margem acima do título que vem depois do formulário (`configuracoes.css`).
+- [ ] Os botões secundários ("Abrir no site", "Salvar", "Ocultar", "Encerrar o joBot") têm fundo (232,232,237) sobre o fundo (236,236,236): 1,03:1 no claro e 1,20:1 no escuro; o "Sair" sobre a barra dá 1,13:1 e 1,06:1. O texto passa, mas o botão parece texto solto: borda ou fundo mais distinto, conferido no `contraste-grafico` (`base.css`).
+- [ ] O `<select>` nativo do WebKit sai cinza e mais alto (D209.10): `appearance: none` com seta própria nos três motores, ou deixar anotado de vez.
+- [ ] O ícone do app ainda é o provisório do esqueleto (`desktop/icons/icon.png`, um quadrado azul de 32×32), que aparece na marca do controle, na barra de título, no `.deb` e no AppImage: um ícone de verdade (o `build.rs` já o copia para o controle) e as variantes que cada pacote pede.
+
+### T315: triagem dos achados não verificados da code-ultrareview
+`depende_de: —` · D220
+
+**O que se viu.** A code-ultrareview do repositório inteiro (2026-11-24, `dev` em 6421277) deu 1.197 achados; os 69 que o validador passou (nota 80 ou mais) viraram os lotes da D220. Sobraram 1.128 abaixo de 80, sem conferência: 180 entre 60 e 79, 428 entre 40 e 59 e 520 abaixo de 40. Por eixo: simplificação 277, estilo 196, testes 150, correção 131, documentação 106, intenção 91, desenho de API 89, desempenho 70, coerência 18. Entre os de 60 a 79: estilo 48, simplificação 39, testes 24, intenção 20, correção 20, documentação 19, coerência 5, desempenho 3, desenho de API 2.
+
+**Onde está.** Fora do repositório, no PC do dono: `~/.agents/output/joBot/code-ultrareview/code-ultrareview-repositorio-completo-20261124.md` (seção dos não verificados) e o `.jsonl` ao lado, com `axis`, `location`, `finding`, `recommendation`, `severity`, `validator_score` e `validator_reason` por linha. O relatório tem caminhos locais: não copie achados, trechos nem o arquivo para o repositório; a tarefa e os commits citam só o arquivo do código e o que mudou.
+
+- [ ] **Triar** pelo `.jsonl`, em ordem: 60 a 79 primeiro (correção, testes e intenção antes de estilo e simplificação), depois 40 a 59; abaixo de 40 só correção e testes, o resto sai sem olhar. Cada achado é conferido contra a `dev` atual (muitos já caíram nos lotes da D220); o `validator_reason` diz por que o validador duvidou.
+- [ ] **Anotar** por eixo, nesta tarefa, quantos foram aceitos, recusados (com o motivo em uma linha, sem citar o achado) e já resolvidos.
+- [ ] **Corrigir** os aceitos em lotes por camada, como na D220: cada lote é uma branch `fix/` com teste que falha antes (vermelho válido) e passa depois; itens só de texto conferem por `rtk grep`. Escolhas que mudam comportamento vão para o `duvidas.md`, no estilo da D220.
+- [ ] **Ver passar:** o CI de cada `lote/` verde antes de juntar na `dev`.
+
+### T316: pequenos acertos que sobraram da D220
+`depende_de: —` · D220
+
+Itens pequenos e independentes entre si, deixados abertos pelos lotes da revisão.
+
+**Arquivos:**
+- modificar `src/jobot/nucleo/coletores/portais/super_estagios.py` (e os outros `json.loads` do `nucleo` que só pegam `ValueError`), `tests/apoio/llama_falso.py`, `tests/apoio/relogio.py` e os testes que importam o `RelogioSincrono`; criar ou modificar um teste de tela da `pagina_sem_js`.
+
+**Interfaces:**
+- Nenhum contrato muda.
+
+- [ ] (a) Super Estágios: o `_candidatos` para em 100 níveis (D220, lote "nucleo", item 5), mas o `json.loads` do JSON-LD estoura `RecursionError` antes, com uma cadeia funda o bastante, e o `except ValueError` não pega. Pegar `ValueError, RecursionError` (como `navegador/perfil.py` e `nucleo/cambio.py`), teste com cadeia de 5000 («JSON e XML externos»). Conferir os outros `json.loads` do `nucleo` que só pegam `ValueError` (Amazon, Eightfold, clientes de IA e mais) e acertar os que leem dado de fora.
+- [ ] (b) A guarda de rede da `pagina_sem_js` não tem teste vermelho próprio (D220, lote "testes", item 3): um teste de tela com `pagina_sem_js` que carrega `<img src="http://example.invalid/x">` e confere que o pedido foi barrado.
+- [ ] (c) Mover o `RelogioSincrono` de `tests/apoio/llama_falso.py` para `tests/apoio/relogio.py`, ao lado do `RelogioFalso`, e trocar os imports (`test_abrir.py`, `test_ferramentas_ia.py`, `test_llama.py`). Só mudança de lugar: conferir por `rtk grep` que não sobra import velho.
+- [ ] **Ver falhar:** (a) e (b) com a asserção do item; (c) não muda comportamento e não pede vermelho.
+- [ ] **Ver passar:** os arquivos de teste mexidos e `uv run ruff check && uv run ruff format --check`; a tela roda no CI.
+
+### T317: login e "Atualizar agora" num Windows e num Mac de verdade
+`depende_de: —` · D220 (pontos abertos), T343
+
+Não é código, a não ser que a conferência ache defeito. Precisa de máquina real (o CI do Windows não abre navegador e os testes do `darwin` usam executor falso).
+
+- [ ] **Windows:** "Fazer login agora" abre o navegador com rede (D220, itens 12 e 13). Se falhar, o sintoma esperado é `sem_navegador` ou `sem_rede`, não `sem_tela`: anotar qual variável faltou e acrescentá-la a `VARIAVEIS_DO_NAVEGADOR`, com teste. Alternativa sem máquina: o job `windows` da `casca.yml` ganhar um Chromium headless que abre uma página local.
+- [ ] **Windows:** "Atualizar agora" com o segundo plano ligado deixa o servidor no ar e a tarefa do Agendador apontando para o venv novo (D220, itens 10 e 11).
+- [ ] **Mac:** "Atualizar agora" com o segundo plano ligado não deixa o joBot fora do ar depois do `launchctl bootout` (D176.10). Se deixar, aplicar o conserto descrito nos pontos abertos da D220 (o atualizar do Mac não dá `bootout`), com teste.
+- [ ] Anotar o resultado na D220 e fechar os dois pontos abertos.
+
+### T318: a IA na lista de pedidos de rede
+`depende_de: T415` · D220 (lote "painel", item 5), T420
+
+Quando a IA ganhar tela (0.5.0), a lista de Privacidade passa a citar os pedidos dela: os clientes de `api.anthropic.com`, OpenAI, Gemini e endereço compatível, e o `jobot ferramentas baixar ia-local` (o `llama-server` e o modelo), com o texto que explica como ligá-la.
+
+**Arquivos:**
+- modificar `README.md`, `README.en.md`, `configuracoes.privacidade.telemetria` em `painel/i18n/pt` e `painel/i18n/en`, e `CITA`/`SO_QUANDO_PEDE` em `tests/unidade/test_documentos.py`.
+
+- [ ] **Ver falhar:** `CITA` com os itens novos falha contra os textos atuais.
+- [ ] **Mudar** os quatro textos juntos (lição «Painel e ADRs»), pode ir no mesmo lote da T420.
+- [ ] **Ver passar:** `tests/unidade/test_documentos.py` e `uv run ruff check`.
+
+### T319: `htmx:sendError` intermitente no WebKit ao trocar de aba
+`depende_de: —` · D220 (lote "testes", item 2)
+
+**O que se viu.** No CI 45349027660 (1ª tentativa), `tests/tela/test_vagas.py::test_abas_marcam_a_atual_e_a_url_reabre_a_tela` falhou no WebKit com `htmx:afterRequest` e `htmx:sendError` no console depois do reload e do `go_back`; passou na 2ª. O desvio do `_SAINDO` em `tests/apoio/console.py` só perdoa o erro entre `beforeunload`/`pagehide` e `pageshow`; no WebKit o erro da requisição cortada pela troca de página pode chegar depois do `pageshow` da página nova e contar como erro.
+
+- [ ] **Reproduzir:** laço do teste no WebKit no CI (como na T314), com sonda que registra a ordem de `beforeunload`, `pagehide`, `pageshow`, `htmx:beforeRequest` e `htmx:sendError`, com a URL e a página (velha ou nova) de cada um.
+- [ ] **Achar a causa** com os dados da sonda: confirmar que o erro é da requisição da página velha, cortada na troca, e não de uma requisição da página nova.
+- [ ] **Teste que falha** pela causa provada e **corrigir** na causa: o desvio reconhece a requisição cortada pela troca (por exemplo, marcando as requisições da página que sai), ou o `app.js` deixa de disparar a requisição que a troca corta. Sem pular o teste, sem repetir e sem perdoar todo `sendError`.
+- [ ] **Ver passar:** o laço no CI sem falha.
+
+### T348: o `playwright install` do CI estoura os 15 min
+`depende_de: —` · T294
+
+**O que se viu.** Em quase todo lote, algum job `tela` do Firefox ou do WebKit passa dos 15 min no passo `uv run playwright install --with-deps <motor>` (ou no `install-deps`), preso no apt do runner; custa um `gh run rerun <id> --failed` por lote. O `ci.yml` já guarda `~/.cache/ms-playwright` por motor e versão do Playwright (`cache-motor`) e os `.deb` do apt em `~/apt-debs` (`cache-apt`), com prazo por conexão no apt.
+
+**Onde olhar.** Hipóteses a provar pelos logs dos jobs que estouraram, antes de mexer: (a) o `install-deps` roda `apt-get update` sempre, mesmo com todos os `.deb` no cache, e o índice do espelho é o que demora; (b) a chave do `cache-apt` leva a imagem do runner, que muda toda semana: depois da troca, o `restore-keys` traz `.deb` velhos, o apt baixa os novos e o cache só se salva no fim de um job verde (16 jobs em paralelo); (c) o job `capturas` não tem cache nenhum (`install --with-deps chromium firefox webkit` direto).
+
+- [ ] **Medir:** nos logs de três ou quatro lotes recentes, quanto do passo vai no `apt-get update`, no download e no `dpkg`, e se o `cache-apt` acertou.
+- [ ] **Corrigir** pela causa medida: pular o `apt-get update` quando os `.deb` do cache bastam (instalar com `apt-get install --no-download` ou `dpkg -i`, e só cair no caminho de rede se faltar pacote), e o mesmo cache no job `capturas`.
+- [ ] **Prazo e nova tentativa só na instalação:** `timeout-minutes` próprio no passo de instalação (bem abaixo dos 15 min do job) e uma nova tentativa automática dele em shell (`timeout` com até 3 voltas), sem action nova. Teste nunca se repete (T292).
+- [ ] **Ver passar:** três lotes seguidos sem estouro no passo.
+
+### T349: os pacotes de ensaio chegam devagar na máquina do dono
+`depende_de: —`
+
+**O que se viu.** Baixar artefato do GitHub Actions (`gh run download`) na máquina do dono sai a ~70 KB/s: os ~500 MB de pacotes de ensaio levam umas 2 h antes do teste na VM. Não é defeito do projeto; é o caminho do download.
+
+- [ ] Medir a velocidade de um anexo de release (`gh release download`) e de um download pelo Codespace (`gh codespace cp`) contra o artefato do Actions.
+- [ ] Se algum for bem mais rápido, o fluxo de ensaio passa a usá-lo: os pacotes como anexo de uma pre-release em rascunho (apagada depois do teste; rascunho não aparece para quem usa) ou baixados no Codespace e trazidos de lá. Anotar o caminho escolhido nas instruções do teste na VM.
