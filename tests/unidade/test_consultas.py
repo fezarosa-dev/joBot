@@ -11,7 +11,6 @@ MOVIDOS = {
     "utc_do_banco",
     "ids_destaques",
     "_ids_destaques",
-    "grupos_visiveis",
     "leitores_do_painel",
 }
 
@@ -64,6 +63,5 @@ def test_nomes_movidos_sem_copia() -> None:
         "busca_efetiva": ["consultas.py"],
         "utc_do_banco": ["consultas.py"],
         "ids_destaques": ["consultas.py"],
-        "grupos_visiveis": ["ambiente.py"],
         "leitores_do_painel": ["ambiente.py"],
     }
