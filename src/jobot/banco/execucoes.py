@@ -20,7 +20,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Literal
 
-from jobot.banco.conexao import abrir
+from jobot.banco.conexao import abrir, quem_abriu_confirma
 from jobot.nucleo.coletores.executor import Historico
 from jobot.nucleo.modelo import VagaColetada
 from jobot.nucleo.relogio import Relogio
@@ -183,8 +183,7 @@ def gravar_saude(
     motivo: str | None = None,
 ) -> None:
     """Uma linha de saúde por (execução, fonte, escopo); gravar de novo atualiza a linha."""
-    ja_aberta = con.in_transaction
-    try:
+    with quem_abriu_confirma(con):
         con.execute(
             "INSERT INTO saude (execucao_id, fonte, escopo, estado, vagas, pedidos, duracao_ms,"
             " motivo) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
@@ -193,24 +192,11 @@ def gravar_saude(
             " motivo=excluded.motivo",
             (execucao_id, fonte, escopo, estado, vagas, pedidos, duracao_ms, motivo),
         )
-    except BaseException:
-        if not ja_aberta:
-            con.rollback()
-        raise
-    if not ja_aberta:
-        con.commit()
 
 
 def _marcar_fonte(con: sqlite3.Connection, sql: str, parametros: tuple[object, ...]) -> None:
-    ja_aberta = con.in_transaction  # como `gravar_saude`: quem abriu a transação confirma
-    try:
+    with quem_abriu_confirma(con):
         con.execute(sql, parametros)
-    except BaseException:
-        if not ja_aberta:
-            con.rollback()
-        raise
-    if not ja_aberta:
-        con.commit()
 
 
 def comecar_fonte(con: sqlite3.Connection, execucao_id: int, fonte: str, agora: datetime) -> None:

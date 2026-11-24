@@ -1,17 +1,18 @@
 """Dados do progresso da busca no banco (desenho 5.9, E2; plano T246).
 
 Datas entram e saem em UTC com fuso (`agora` vem de quem chama; sem fuso levanta `ValueError`).
-Transações como `gravar_saude`: toda gravação só confirma quando não há transação aberta;
+Transações por `quem_abriu_confirma`: toda gravação só confirma quando não há transação aberta;
 havendo, quem abriu confirma. Nada é apagado.
 """
 
 import json
 import logging
 import sqlite3
-from collections.abc import Iterator, Mapping, Sequence
-from contextlib import contextmanager
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
+
+from jobot.banco.conexao import quem_abriu_confirma
 
 log = logging.getLogger(__name__)
 
@@ -54,25 +55,11 @@ def _data_ou_none(texto: str | None) -> datetime | None:
     return None if texto is None else _data(texto)
 
 
-@contextmanager
-def _transacao(con: sqlite3.Connection) -> Iterator[None]:
-    """Como `gravar_saude`: quem abriu a transação é quem confirma."""
-    ja_aberta = con.in_transaction
-    try:
-        yield
-    except BaseException:
-        if not ja_aberta:
-            con.rollback()
-        raise
-    if not ja_aberta:
-        con.commit()
-
-
 def abrir_andamento(
     con: sqlite3.Connection, execucao_id: int, etapas: Sequence[str], agora: datetime
 ) -> None:
     """Começa o andamento em `preparando`, partida 0; abrir de novo volta ao começo."""
-    with _transacao(con):
+    with quem_abriu_confirma(con):
         con.execute(
             "INSERT INTO andamento (execucao_id, etapas, etapa, partida, mudou_em)"
             " VALUES (?, ?, 'preparando', 0, ?)"
@@ -90,7 +77,7 @@ def planejar(
 
     Sem `abrir_andamento` antes, não grava nada e escreve no log."""
     planejado = sum(totais.values())
-    with _transacao(con):
+    with quem_abriu_confirma(con):
         cur = con.execute(
             "UPDATE andamento SET etapa='coleta', feitas=0, total=?, total_planejado=?,"
             " mudou_em=? WHERE execucao_id=?",
@@ -118,7 +105,7 @@ def mudar_etapa(
     agora: datetime,
 ) -> None:
     """Passa para `etapa`; `total_planejado` e as linhas das fontes ficam como estão."""
-    with _transacao(con):
+    with quem_abriu_confirma(con):
         cur = con.execute(
             "UPDATE andamento SET etapa=?, feitas=?, total=?, partida=?, mudou_em=?"
             " WHERE execucao_id=?",
@@ -142,7 +129,7 @@ def marcar_fonte(
 
     `feitas=None` mantém o valor. Estado diferente de `esperando` limpa a espera."""
     esperando = estado == "esperando"
-    with _transacao(con):
+    with quem_abriu_confirma(con):
         cur = con.execute(
             "UPDATE andamento_fonte SET estado=?, feitas=COALESCE(?, feitas), espera_ate=?,"
             " espera_motivo=? WHERE execucao_id=? AND fonte=?",
