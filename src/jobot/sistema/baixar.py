@@ -169,28 +169,38 @@ def _receber(
                 modo, feito = "wb", 0  # o servidor ignorou o `Range`: recomeça
             else:
                 raise FalhaBaixar("sem_rede")
+            # só o `open` e o `write` viram motivo: o `BrokenPipeError` do `avisar` (o painel que
+            # lia a saída morreu) sobe cru e o `.parcial` fica para a retomada (D223.1)
             try:
-                with parcial.open(modo) as saida:
-                    ultimo = agora()
-                    for bloco in resposta.iter_raw():
-                        feito += len(bloco)
-                        if feito > tamanho:
-                            raise FalhaBaixar("arquivo")
+                saida = parcial.open(modo)
+            except OSError as erro:
+                raise _do_disco(erro) from erro
+            with saida:
+                ultimo = agora()
+                for bloco in resposta.iter_raw():
+                    feito += len(bloco)
+                    if feito > tamanho:
+                        raise FalhaBaixar("arquivo")
+                    try:
                         saida.write(bloco)
-                        avisar(feito)
-                        if cancelar is not None and cancelar.is_set():
-                            raise FalhaBaixar("cancelado")
-                        momento = agora()
-                        if momento - ultimo > INATIVIDADE_S:
-                            raise FalhaBaixar("sem_rede")
-                        ultimo = momento
-            except OSError as erro:  # disco cheio no meio: `espaco`; o resto do disco: `arquivo`
-                motivo: Motivo = "espaco" if erro.errno == errno.ENOSPC else "arquivo"
-                raise FalhaBaixar(motivo) from erro
+                    except OSError as erro:
+                        raise _do_disco(erro) from erro
+                    avisar(feito)
+                    if cancelar is not None and cancelar.is_set():
+                        raise FalhaBaixar("cancelado")
+                    momento = agora()
+                    if momento - ultimo > INATIVIDADE_S:
+                        raise FalhaBaixar("sem_rede")
+                    ultimo = momento
         finally:
             resposta.close()
     except httpx.HTTPError as erro:
         raise FalhaBaixar("sem_rede") from erro
+
+
+def _do_disco(erro: OSError) -> FalhaBaixar:
+    """Disco cheio no meio: `espaco`; o resto do disco: `arquivo`."""
+    return FalhaBaixar("espaco" if erro.errno == errno.ENOSPC else "arquivo")
 
 
 def _sha256(caminho: Path) -> str:

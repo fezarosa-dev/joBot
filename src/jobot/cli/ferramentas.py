@@ -41,7 +41,6 @@ import time
 from collections.abc import Callable, Mapping
 from contextlib import closing
 from functools import partial
-from importlib import resources
 from pathlib import Path
 from typing import Any
 
@@ -61,6 +60,11 @@ from jobot.sistema.baixar import (
     tornar_executavel,
 )
 from jobot.sistema.casca import gravar_atomico
+
+# o `ia.yml`, os scripts e os testes ainda os pedem daqui (D202.2: a leitura mora no `sistema`)
+from jobot.sistema.ia_local import ANOTACAO as ANOTACAO
+from jobot.sistema.ia_local import ler_anotacao as ler_anotacao
+from jobot.sistema.ia_local import manifesto_local as manifesto_local
 from jobot.sistema.memoria import escolher_modelo, memoria_total
 from jobot.sistema.pastas import PASTA_FERRAMENTAS, configurar_log, pasta_de_dados, preparar_pasta
 
@@ -73,7 +77,6 @@ _ALVOS = {
     ("darwin", "arm64"): "macos-arm64",
     ("darwin", "x86_64"): "macos-x64",
 }
-ANOTACAO = "ia_local.json"
 BACKEND_LOCAL = "local"  # o nome do backend em `esquema_para` e em `ia_tarefas`
 VERSAO_S = 30.0  # prazo do `llama-server --version`
 # pausas entre as tentativas de apagar: no Windows, o `llama-server` recém-derrubado pelo
@@ -115,22 +118,6 @@ def alvo_daqui(plataforma: str = sys.platform, maquina: str | None = None) -> st
 
 
 ALVO = alvo_daqui()
-
-
-def manifesto_local() -> dict[str, Any]:
-    """`nucleo/dados/ia_local.json` (T407; D193)."""
-    arquivo = resources.files("jobot.nucleo").joinpath("dados", "ia_local.json")
-    dados: dict[str, Any] = json.loads(arquivo.read_text(encoding="utf-8"))
-    return dados
-
-
-def ler_anotacao(dados: Path) -> dict[str, Any]:
-    """O que está baixado (`<dados>/ferramentas/ia_local.json`); sem arquivo ou estragado: `{}`."""
-    try:
-        anotacao = json.loads((dados / PASTA_FERRAMENTAS / ANOTACAO).read_text(encoding="utf-8"))
-    except OSError, ValueError:
-        return {}
-    return anotacao if isinstance(anotacao, dict) else {}
 
 
 def caminhos_local(dados: Path) -> tuple[Path, Path, str]:

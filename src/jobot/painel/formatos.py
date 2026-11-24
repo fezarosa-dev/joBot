@@ -45,6 +45,11 @@ def _milhar(inteiro: int, sep: str) -> str:
     return f"{inteiro:,}".replace(",", sep)
 
 
+def gigabytes(tamanho: int, idioma: str) -> str:
+    """Bytes em GB decimais com uma casa (`1,3 GB`), como o instalador (desenho 10.1 da fase 4)."""
+    return f"{tamanho / 1e9:.1f}".replace(".", _separadores(idioma)[1]) + " GB"
+
+
 def dinheiro(centavos: int, moeda: str, idioma: str) -> str:
     """Valor com o símbolo da moeda; sem centavos quando for redondo (`US$ 5.000`)."""
     milhar, decimal = _separadores(idioma)
