@@ -189,12 +189,18 @@ def abrir_janela(
     return abrir_navegador(endereco, env)
 
 
-def _esperar_jobot(porta: int, esperar_s: float) -> bool:
-    fim = time.monotonic() + esperar_s
-    while not e_o_jobot(porta):
-        if time.monotonic() >= fim:
+def _esperar(
+    pronto: Callable[[], bool],
+    esperar_s: float,
+    agora: Callable[[], float],
+    dormir: Callable[[float], None],
+) -> bool:
+    """Olha `pronto` a cada passo até dar certo (True) ou vencer o prazo (False)."""
+    fim = agora() + esperar_s
+    while not pronto():
+        if agora() >= fim:
             return False
-        time.sleep(_ESPERA_PASSO_S)
+        dormir(_ESPERA_PASSO_S)
     return True
 
 
@@ -206,6 +212,8 @@ def abrir_painel(
     navegador: Callable[[str, Mapping[str, str]], bool] = abrir_navegador,
     saida: Callable[[str], None] = print,
     esperar_s: float = 15.0,
+    agora: Callable[[], float] = time.monotonic,
+    dormir: Callable[[float], None] = time.sleep,
 ) -> int:
     """Sobe o servidor se ninguém o prende; só abre o navegador se a porta é mesmo do joBot."""
     # com o servidor no ar vale a porta que ele gravou na trava: o serviço não herda o env do shell
@@ -225,7 +233,7 @@ def abrir_painel(
             saida(ocupada)
             return 1
         subir()
-    if not _esperar_jobot(p, esperar_s):
+    if not _esperar(lambda: e_o_jobot(p), esperar_s, agora, dormir):
         saida(
             ocupada
             if _porta_ocupada(p)
@@ -261,6 +269,8 @@ def sair_do_servidor(
     saida: Callable[[str], None] = print,
     esperar_s: float = 10.0,
     plataforma: str = sys.platform,
+    agora: Callable[[], float] = time.monotonic,
+    dormir: Callable[[float], None] = time.sleep,
 ) -> int:
     """Pede o fim ao servidor da trava (só se ela está presa) e espera a trava soltar.
 
@@ -289,12 +299,9 @@ def sair_do_servidor(
         except PermissionError:
             saida(f"Sem permissão para encerrar o joBot (PID {pid}).")
             return 1
-    fim = time.monotonic() + esperar_s
-    while pid_do_servidor(dados) is not None:
-        if time.monotonic() >= fim:
-            saida(f"O joBot (PID {pid}) não encerrou em {esperar_s:g} s.")
-            return 1
-        time.sleep(_ESPERA_PASSO_S)
+    if not _esperar(lambda: pid_do_servidor(dados) is None, esperar_s, agora, dormir):
+        saida(f"O joBot (PID {pid}) não encerrou em {esperar_s:g} s.")
+        return 1
     saida("joBot encerrado.")
     return 0
 

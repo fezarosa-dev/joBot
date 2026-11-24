@@ -12,7 +12,7 @@ from urllib.parse import urlsplit
 import pytest
 import uvicorn
 from fastapi import FastAPI
-from playwright.sync_api import BrowserContext, Route
+from playwright.sync_api import Browser, BrowserContext, Page, Route
 
 from apoio.semear import semear
 from jobot.banco.conexao import abrir
@@ -69,9 +69,8 @@ def painel(app_painel: FastAPI, porta: int) -> Iterator[str]:
     linha.join(10)
 
 
-@pytest.fixture(autouse=True)
-def _so_127(context: BrowserContext) -> Iterator[list[str]]:
-    """Todo pedido do navegador para fora de 127.0.0.1 é barrado e faz o teste falhar."""
+def _guardar_rede(contexto: BrowserContext) -> list[str]:
+    """Barra todo pedido do contexto para fora de 127.0.0.1 e devolve a lista dos barrados."""
     fora: list[str] = []
 
     def filtrar(route: Route) -> None:
@@ -81,6 +80,26 @@ def _so_127(context: BrowserContext) -> Iterator[list[str]]:
             fora.append(route.request.url)
             route.abort()
 
-    context.route("**/*", filtrar)
+    contexto.route("**/*", filtrar)
+    return fora
+
+
+@pytest.fixture(autouse=True)
+def _so_127(context: BrowserContext) -> Iterator[list[str]]:
+    """Todo pedido do navegador para fora de 127.0.0.1 é barrado e faz o teste falhar."""
+    fora = _guardar_rede(context)
     yield fora
+    assert fora == [], f"pedido para fora de {LOCAL}: {fora}"
+
+
+@pytest.fixture
+def pagina_sem_js(browser: Browser, browser_context_args: dict[str, Any]) -> Iterator[Page]:
+    """Página num contexto sem JavaScript, com o idioma e a guarda de rede dos outros testes
+    (`browser.new_context` ignora `browser_context_args` se não os receber)."""
+    contexto = browser.new_context(**browser_context_args, java_script_enabled=False)
+    fora = _guardar_rede(contexto)
+    try:
+        yield contexto.new_page()
+    finally:
+        contexto.close()
     assert fora == [], f"pedido para fora de {LOCAL}: {fora}"

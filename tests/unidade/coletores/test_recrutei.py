@@ -49,11 +49,6 @@ def _normal() -> dict[str, Any]:
     return dados
 
 
-def _itens(dados: dict[str, Any]) -> list[dict[str, Any]]:
-    """Os itens de todos os departamentos, na ordem."""
-    return [i for d in dados["data"]["vacancies"] for i in d["items"]]
-
-
 def _resposta(dados: object, status: int = 202) -> httpx.Response:
     return httpx.Response(status, json=dados)
 

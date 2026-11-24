@@ -7,6 +7,7 @@ nada vai ao GitHub e o fragmento sai vazio.
 import asyncio
 import re
 from contextlib import closing
+from datetime import timedelta
 from pathlib import Path
 
 import httpx
@@ -43,13 +44,13 @@ def _cliente(dados: Path) -> TestClient:
     return TestClient(criar_app(dados, PORTA), base_url=BASE)
 
 
-def _checar(dados: Path, pedidos: list[httpx.Request]) -> None:
+def _checar(dados: Path, pedidos: list[httpx.Request], dias_depois: int = 0) -> None:
     def github(pedido: httpx.Request) -> httpx.Response:
         pedidos.append(pedido)
         return httpx.Response(200, json={"tag_name": "v99.0.0"})
 
     async def rodar() -> None:
-        relogio = RelogioFalso()
+        relogio = RelogioFalso(RelogioFalso().agora() + timedelta(days=dias_depois))
         cliente = ClienteEducado(
             httpx.MockTransport(github), relogio, _SemValidadores(), __version__
         )
@@ -69,7 +70,7 @@ def test_aviso_nasce_ligado_e_desligado_nao_checa_nem_mostra(dados: Path) -> Non
     assert "99.0.0" in _cliente(dados).get("/aviso-versao").text
     with closing(abrir(dados / "jobot.db")) as con:
         gravar_config(con, "aviso_versao_ligada", False)
-    _checar(dados, pedidos)
+    _checar(dados, pedidos, dias_depois=2)  # fora do limite diário: só o interruptor impede
     assert len(pedidos) == 1  # desligado, não checa de novo
     resposta = _cliente(dados).get("/aviso-versao")
     assert resposta.status_code == 200
