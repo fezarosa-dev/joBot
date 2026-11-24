@@ -216,8 +216,17 @@ def chave_da_falha(motivo: Motivo, backend: str) -> str:
     manual, o da resposta colada."""
     if backend == manual.BACKEND:
         return "detalhe.candidatura.falha_manual"
+    if motivo == "contexto":  # o pedido leva o perfil: encurtar ajuda também quem está offline
+        return "detalhe.candidatura.falha.contexto"
     especial = motivo == "chave_recusada" and backend == "anthropic"
     return "configuracoes.ia.falha." + motivo + (".anthropic" if especial else "")
+
+
+def _cortada(con: sqlite3.Connection, vaga_id: int) -> bool:
+    linha = con.execute(
+        "SELECT titulo, descricao_texto FROM vaga WHERE id = ?", (vaga_id,)
+    ).fetchone()
+    return linha is not None and texto_encaixe(linha[0] or "", linha[1] or "").cortados > 0
 
 
 def contexto_do_preparo(
@@ -231,17 +240,23 @@ def contexto_do_preparo(
         del preparos[vaga_id]
         falha = chave_da_falha(em_curso.motivo or "servico_fora", em_curso.backend)
     no_manual = tarefa.backend == manual.BACKEND
+    # só o manual mostra o pedido; nos outros basta saber se há perfil a mandar
     feito = (
         pedido_da_vaga(con, vaga_id, tarefa.backend, tarefa.modelo, idioma_painel)
-        if tarefa.ligada
+        if tarefa.ligada and no_manual
         else None
+    )
+    sem_perfil = tarefa.ligada and (
+        feito is None if no_manual else not dados_para("candidatura", fontes_do_perfil(con))
     )
     gravado = preparo(con, vaga_id)
     return {
         "ligada": tarefa.ligada,
         "manual": no_manual,
         "privacidade": frase_de_privacidade(tarefa, "detalhe.candidatura.privacidade."),
-        "sem_perfil": tarefa.ligada and feito is None,
+        "sem_perfil": sem_perfil,
+        # como no bloco das habilidades, o corte é o do texto de hoje da vaga (desenho 5.2)
+        "cortado": gravado is not None and _cortada(con, vaga_id),
         "preparando": em_curso is not None and em_curso.estado == "preparando",
         "falha": falha,
         "gravado": gravado,

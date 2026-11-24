@@ -118,9 +118,10 @@ async def contexto_ia(request: Request, con: Con) -> dict[str, Any]:
             "privacidade": frase_de_privacidade(t, _BASE_PRIVACIDADE.get(nome, f"{_BASE}{nome}.")),
             "backends": onde_roda(nome, configurados),
             "parada": t.ligada and t.backend not in onde_roda(nome, configurados),
-            # o teto do dia é por backend de fora (D198.10); o local e o manual não têm teto
+            # o teto do dia é do laço e por backend de fora (D198.10); o local e as tarefas sob
+            # pedido não têm teto
             "hoje": chamadas_do_dia(con, t.backend, agora)
-            if t.backend not in ("", LOCAL, MANUAL)
+            if nome in DO_LACO and t.backend not in ("", LOCAL)
             else None,
             "teste": testes.get((t.backend, t.modelo)),
         }
@@ -177,6 +178,8 @@ def _da_tabela(
             raise HTTPException(422)  # a tela só mostra os configurados (lista fechada)
         digitado[nome] = {"ligada": ligada, "backend": backend, "modelo": modelo}
         erro: tuple[str, str] | None = None
+        if modelo == MANUAL:
+            modelo = ""  # o marcador do manual (formulário antigo) não é modelo de serviço nenhum
         if backend == MANUAL:
             modelo = MANUAL  # o digitado não conta: não há modelo a escolher
         elif backend == LOCAL:

@@ -27,7 +27,7 @@
   </div>
   <div class="campo">
     <label for="ia-{{ n }}-modelo">{{ t("configuracoes.ia.modelo") }}</label>
-    <input type="text" class="campo-texto" id="ia-{{ n }}-modelo" name="{{ n }}_modelo" value="{{ v.modelo }}" list="ia-modelos-claude" maxlength="200" autocomplete="off" spellcheck="false" aria-describedby="ia-{{ n }}-modelo-ajuda{% if errado == 'modelo' %} config-erro{% endif %}"{% if errado == "modelo" %} aria-invalid="true"{% endif %}>
+    <input type="text" class="campo-texto" id="ia-{{ n }}-modelo" name="{{ n }}_modelo" value="{{ '' if v.backend == 'manual' else v.modelo }}" list="ia-modelos-claude" maxlength="200" autocomplete="off" spellcheck="false" aria-describedby="ia-{{ n }}-modelo-ajuda{% if errado == 'modelo' %} config-erro{% endif %}"{% if errado == "modelo" %} aria-invalid="true"{% endif %}>
     <small id="ia-{{ n }}-modelo-ajuda">{{ t("configuracoes.ia.modelo.ajuda") }}{% if ia_local %} {{ t("configuracoes.ia.modelo.local", modelo=ia_local) }}{% endif %}</small>
   </div>
   {%- else %}

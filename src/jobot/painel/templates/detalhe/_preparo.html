@@ -64,6 +64,9 @@
   {%- if g %}
   <div class="preparo-resultado">
     <p class="preparo-aviso"{{ marca }}><strong>{{ t("detalhe.candidatura.aviso") }}</strong></p>
+    {%- if p.cortado %}
+    <p class="preparo-aviso">{{ t("detalhe.habilidades.cortado") }}</p>
+    {%- endif %}
     {%- if p.citados %}
     <p class="preparo-aviso" role="note">{{ t("detalhe.candidatura.citado", lista=p.citados) }}</p>
     {%- endif %}
@@ -102,7 +105,11 @@
       {%- endfor %}
     </ul>
     {%- endif %}
+    {%- if g.backend == "manual" %}
+    <p class="preparo-nota">{{ t("detalhe.candidatura.feito_manual", data=data_curta(g.feito_em, idioma)) }}</p>
+    {%- else %}
     <p class="preparo-nota">{{ t("detalhe.candidatura.feito", data=data_curta(g.feito_em, idioma), backend=rotulo("configuracoes.ia.backend." ~ g.backend, g.backend)) }}</p>
+    {%- endif %}
   </div>
   {%- endif %}
 </section>
