@@ -553,6 +553,11 @@ small.convertido {
     border: 1px solid ButtonText;
   }
 
+  /* o chip só informativo não é controle: borda de texto, não de botão */
+  .chip-info {
+    border-color: CanvasText;
+  }
+
   .chip[aria-pressed="true"],
   .chip[aria-current="true"] {
     forced-color-adjust: none;

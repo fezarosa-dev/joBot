@@ -550,6 +550,23 @@ def test_chip_ligado_usa_a_selecao_do_sistema_nas_cores_forcadas() -> None:
         assert "Highlight" in corpo and "forced-color-adjust: none" in corpo, seletor
 
 
+@pytest.mark.parametrize(
+    ("arquivo", "seletor", "cor"),
+    [
+        ("vagas.css", ".chip-info", "CanvasText"),
+        ("configuracoes.css", ".config .botao:disabled", "GrayText"),
+    ],
+)
+def test_nas_cores_forcadas_so_controle_ativo_tem_borda_de_botao(
+    arquivo: str, seletor: str, cor: str
+) -> None:
+    """O chip só informativo não é controle e o botão desligado não está ativo: nas cores forçadas
+    a borda deles não é a ButtonText do botão que se clica."""
+    css = _sem_comentarios((PASTA / arquivo).read_text(encoding="utf-8"))
+    regras = [r for r in _regras(css) if FORCADAS in r.contexto and seletor in _seletores(r)]
+    assert any(_valor(r, "border-color") == cor for r in regras), seletor
+
+
 def test_interruptor_mora_na_base_e_buscas_nao_liga_o_css_de_configuracoes() -> None:
     """O interruptor (38x22px) e o mini (30x18px) moram no base.css, que toda página liga: a lista
     de buscas não precisa mais do configuracoes.css."""

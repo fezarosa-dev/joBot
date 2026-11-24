@@ -494,6 +494,10 @@
     border: 1px solid ButtonText;
   }
 
+  .config .botao:disabled {
+    border-color: GrayText;
+  }
+
   .config .botao[data-olho][aria-pressed="true"] {
     border: 2px solid ButtonText;
   }
