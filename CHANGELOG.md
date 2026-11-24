@@ -8,6 +8,25 @@ O formato segue o [Keep a Changelog 1.1.0](https://keepachangelog.com/pt-BR/1.1.
 
 ## [Não lançado]
 
+A IA chega, opcional e desligada por padrão: ela lista as habilidades que cada vaga pede, e o joBot compara com as do seu perfil. Ela roda no modelo local, de graça e sem internet depois de baixado, ou num serviço com a sua chave.
+
+### Adicionado
+
+- Configurações › IA: liga a tarefa Encaixe e escolhe onde ela roda (o modelo local, a API da Anthropic, a OpenAI, o Google Gemini ou um endereço compatível com a OpenAI, como o Ollama, o LM Studio e o OpenRouter) e com qual modelo. Os atalhos Desligar a IA, Tudo offline e Tudo Claude configuram tudo de uma vez. Tudo vem desligado.
+- Com o Encaixe ligado, depois de cada busca a IA lê até 20 vagas novas que já combinam com uma busca e lista o que cada uma pede; cada item tem de estar escrito na vaga. A IA não vê o seu perfil e não dá nota: o joBot compara a lista com as suas habilidades, mostra no detalhe da vaga as que você tem e as que faltam, e as habilidades passam a pesar no encaixe.
+- Configurações › Perfil: as suas habilidades, uma por linha, e o botão Apagar perfil.
+- Configurações › Serviços: cartões para a chave da Anthropic, da OpenAI e do Google Gemini e para o endereço de um serviço compatível com a OpenAI. As chaves ficam no cofre do sistema, e guardar uma chave não liga nada.
+- Teste ao ligar: ligar uma tarefa ou trocar o serviço, a chave ou o endereço manda um pedido curto, com uma vaga de exemplo. Se falhar, a tarefa fica desligada e a aba IA diz o motivo.
+- Custo à vista: os serviços pagos aparecem como "cobrado por uso", ligar o Encaixe num deles pede confirmação, e o joBot faz no máximo 200 pedidos por dia a um serviço de fora, com a conta do dia na aba IA. A API da Anthropic, a OpenAI e o Gemini vêm marcados "experimental, ainda não provado": só foram testados com um serviço falso.
+- Configurações › Ferramentas: o cartão do modelo local baixa o `llama-server` do llama.cpp (do GitHub) e um Qwen3.5 2B ou 4B (do Hugging Face), com o sha256 conferido, e escolhe o modelo pela memória do computador (de 1,3 GB a 2,7 GB). No mesmo cartão ficam a barra do download, a licença e a origem de cada arquivo e os botões para trocar de modelo, Atualizar quando sair versão nova e Remover.
+- O instalador traz a caixa Modelo local no passo Ferramentas, desmarcada. Marcada, ela baixa o modelo depois de instalar o joBot; se o download falhar, o joBot fica instalado e a tela manda baixar depois em Configurações › Ferramentas.
+- Para quem contribui: os scripts de `scripts/treino_laya/` montam o conjunto de vagas públicas, rotulam, treinam e exportam o Laya, um ajuste do Qwen3.5 2B para as vagas, e calculam o custo do treino. O Laya ainda não vem nesta versão: ele entra numa versão seguinte, depois do treino, se acertar mais que o modelo original.
+
+### Alterado
+
+- A aba Ferramentas de Configurações aparece sempre, mesmo sem site com login ligado.
+- A lista de pedidos de rede de Privacidade e do README passa a citar os serviços de IA e os downloads do modelo local (GitHub e Hugging Face, com os CDNs deles), com a condição de cada um. O README ganha a tabela do que funciona sem internet, e o pacote offline deixa de citar o áudio, que fica para a fase 6.
+
 ## [0.4.1] - 2026-11-24
 
 **Quem tem a janela 0.4.0:** instale a janela 0.4.1 antes de usar o Atualizar agora do painel. Atualizado só o painel, a janela 0.4.0 fica sem os botões de fechar e de arrastar (feche com Alt+F4) e mostra o aviso para baixar a janela nova.

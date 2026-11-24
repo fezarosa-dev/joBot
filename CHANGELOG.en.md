@@ -8,6 +8,25 @@ The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/
 
 ## [Unreleased]
 
+AI arrives, optional and off by default: it lists the skills each job asks for, and joBot compares them with the ones in your profile. It runs on the local model, free and without internet once downloaded, or on a service with your key.
+
+### Added
+
+- Settings › AI: turns on the Matching task and chooses where it runs (the local model, the Anthropic API, OpenAI, Google Gemini or an OpenAI-compatible address, such as Ollama, LM Studio and OpenRouter) and with which model. The Turn AI off, All offline and All Claude shortcuts set everything at once. Everything comes off.
+- With Matching on, after each search the AI reads up to 20 new jobs that already match a search and lists what each one asks for; each item has to be written in the job. The AI does not see your profile and does not give a score: joBot compares the list with your skills, shows in the job details the ones you have and the ones you are missing, and skills now count in the match.
+- Settings › Profile: your skills, one per line, and the Delete profile button.
+- Settings › Services: cards for the Anthropic, OpenAI and Google Gemini keys and for the address of an OpenAI-compatible service. The keys stay in the system password vault, and saving a key turns nothing on.
+- Test when you turn it on: turning a task on or switching the service, the key or the address sends a short request, with a sample job. If it fails, the task stays off and the AI tab says why.
+- Cost in plain sight: paid services show as "billed per use", turning Matching on with one of them asks for confirmation, and joBot makes at most 200 requests a day to an outside service, with the day's count in the AI tab. The Anthropic API, OpenAI and Gemini come marked "experimental, not yet proven": they were only tested against a fake service.
+- Settings › Tools: the local model card downloads llama.cpp's `llama-server` (from GitHub) and a Qwen3.5 2B or 4B (from Hugging Face), with the sha256 checked, and picks the model by the computer's memory (1.3 GB to 2.7 GB). The same card has the download bar, the license and origin of each file and the buttons to switch models, Update when a new version comes out and Remove.
+- The installer has the Local model box in the Tools step, unticked. Ticked, it downloads the model after installing joBot; if the download fails, joBot stays installed and the screen says to download it later in Settings › Tools.
+- For contributors: the scripts in `scripts/treino_laya/` build the set of public jobs, label, train and export Laya, a fine-tune of Qwen3.5 2B for jobs, and calculate the training cost. Laya does not ship in this version yet: it comes in a later version, after the training, if it scores better than the original model.
+
+### Changed
+
+- The Tools tab in Settings always shows, even with no site with login turned on.
+- The network request list in Privacy and in the README now names the AI services and the local model downloads (GitHub and Hugging Face, with their CDNs), with the condition of each one. The README gets the table of what works without internet, and the offline package no longer lists audio, which is left for phase 6.
+
 ## [0.4.1] - 2026-11-24
 
 **If you have the 0.4.0 window:** install the 0.4.1 window before using Update now in the dashboard. With only the dashboard updated, the 0.4.0 window has no close buttons and no drag area (close it with Alt+F4) and shows the notice to download the new window.

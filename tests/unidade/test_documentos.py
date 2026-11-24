@@ -378,6 +378,16 @@ CITA: Mapping[str, Mapping[str, tuple[str, ...]]] = {
             r"o marca na instalação",
         ),
         "gmail": (r"Gmail", r"senha de app", r"só quando você"),
+        "ia": (
+            r"serviços de IA",
+            r"API da Anthropic",
+            r"OpenAI",
+            r"Gemini",
+            r"endereço compatível",
+            r"só quando você liga",
+            r"as tarefas vêm desligadas",
+        ),
+        "modelo local": (r"GitHub", r"Hugging Face", r"CDNs", r"modelo local", r"só quando você"),
     },
     "en": {
         "fontes": (r"public job sources",),
@@ -395,6 +405,16 @@ CITA: Mapping[str, Mapping[str, tuple[str, ...]]] = {
             r"check it during installation",
         ),
         "gmail": (r"Gmail", r"app password", r"only when you"),
+        "ia": (
+            r"AI services",
+            r"Anthropic API",
+            r"OpenAI",
+            r"Gemini",
+            r"compatible address",
+            r"only when you turn on",
+            r"the tasks come off",
+        ),
+        "modelo local": (r"GitHub", r"Hugging Face", r"CDNs", r"local model", r"only when you"),
     },
 }
 CONDICAO: Mapping[str, Mapping[bool, str]] = {
@@ -413,7 +433,16 @@ CHAVE_DO_PADRAO = {
 FONTES_LIGADAS = {"pt": r"vêm todas ligadas", "en": r"all come on"}
 # pedidos que só saem quando a pessoa age, sem padrão ligado ou desligado: a frase diz quando
 # (os sites com login são vários, cada um com a sua chave, sempre desligada: a frase diz isso)
-SO_QUANDO_PEDE = {"endereço", "atualização", "sites com login", "navegador", "gmail"}
+# (as tarefas de IA também: a frase diz que vêm desligadas, e `_condicoes` confere o `ia_tarefas`)
+SO_QUANDO_PEDE = {
+    "endereço",
+    "atualização",
+    "sites com login",
+    "navegador",
+    "gmail",
+    "ia",
+    "modelo local",
+}
 
 
 def test_condicao_aceita_os_dois_generos() -> None:
@@ -436,6 +465,10 @@ def _condicoes(lingua: str) -> dict[str, tuple[str, ...]]:
     fontes = json.loads((RAIZ / "src/jobot/nucleo/dados/fontes.json").read_text(encoding="utf-8"))
     desligadas = sorted(c for c, d in fontes.items() if d.get("ligada_padrao", True) is False)
     assert not desligadas, f"o texto diz que todas vêm ligadas; o fontes.json desliga {desligadas}"
+    tarefas = cadastros.PADROES["ia_tarefas"]
+    assert tarefas, "sem tarefa de IA no padrão"  # controle: o texto fala de tarefas que existem
+    ligadas = sorted(t for t, c in tarefas.items() if c["ligada"])
+    assert not ligadas, f"o texto diz que as tarefas de IA vêm desligadas; {ligadas} vem ligada"
     exigido = {
         pedido: (*cita, CONDICAO[lingua][_ligado_por_padrao(pedido)])
         for pedido, cita in CITA[lingua].items()
@@ -1024,3 +1057,72 @@ def test_readme_lista_todas_as_adrs(lingua: str) -> None:
     conteudo = texto(README[lingua])
     faltam = [n for n in numeros if f"| {n} | [" not in conteudo]
     assert faltam == [], (README[lingua], faltam)
+
+
+# T420: o que os documentos da 0.5.0 dizem da IA; cada termo só o texto novo tem
+SECAO_IA = {"pt": "inteligencia-artificial", "en": "artificial-intelligence"}
+IA_0_5_0 = {
+    "pt": ("O que a 0.5.0 traz", "O que funciona sem internet", "Hugging Face", "provado no CI"),
+    "en": ("What 0.5.0 brings", "What works without internet", "Hugging Face", "proven in CI"),
+}
+SOBRA_DO_MODELO = {
+    "pt": ("pasta `ferramentas`", "2,7 GB"),
+    "en": ("`ferramentas` folder", "2.7 GB"),
+}
+NAO_LANCADO_0_5_0 = {
+    "pt": ("Configurações › IA", "Hugging Face", "Laya"),
+    "en": ("Settings › AI", "Hugging Face", "Laya"),
+}
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_readme_traz_a_ia_da_0_5_0(lingua: str) -> None:
+    """A seção de IA diz o que a 0.5.0 traz, a tabela do que funciona sem internet, a marca dos
+    serviços pagos não provados (a mesma frase da aba IA) e o que só o CI provou; o pacote offline
+    perdeu o áudio (D185.10 e D185.27)."""
+    ia = secao(texto(README[lingua]), SECAO_IA[lingua])
+    assert "Qwen3.5-4B" in ia, README[lingua]  # controle: a tabela do pacote offline está aqui
+    for termo in IA_0_5_0[lingua]:
+        assert termo in ia, (README[lingua], termo)
+    marca = i18n.carregar()[lingua]["configuracoes.ia.experimental"].split(":")[0]
+    assert f"**{marca}:**" in ia, README[lingua]
+    assert "whisper" not in ia.lower(), README[lingua]
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_desinstalar_diz_a_sobra_do_modelo_local(lingua: str) -> None:
+    """Desinstalar deixa o modelo local na pasta de dados: o README diz onde e quanto (D185.18)."""
+    instalacao = secao(texto(README[lingua]), SECAO_INSTALACAO[lingua])
+    for termo in SOBRA_DO_MODELO[lingua]:
+        assert termo in instalacao, (README[lingua], termo)
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_changelog_traz_a_0_5_0_em_nao_lancado(lingua: str) -> None:
+    """A 0.5.0 fica em "Não lançado", sem data: a data entra com a tag
+    (padrões «Troca de versão»)."""
+    conteudo = texto(CHANGELOG[lingua])
+    assert NAO_LANCADO[lingua] in conteudo, CHANGELOG[lingua]
+    inicio = conteudo.index(NAO_LANCADO[lingua])
+    nova = conteudo[inicio : conteudo.index("\n## [", inicio + 1)]
+    for termo in NAO_LANCADO_0_5_0[lingua]:
+        assert termo in nova, (CHANGELOG[lingua], termo)
+
+
+LAYA_AUTORIZADO_NA_IA = (
+    "docs/decisions/0014-seguranca-e-privacidade.md",
+    "docs/decisions/0026-ia-da-fase-4.md",
+)
+# o que essas ADRs diziam do Laya antes da autorização (D185.8); fora do riscado, não pode sobrar
+LAYA_ESPERANDO = re.compile(r"primeira pergunta ao dono|só roda se o dono autorizar")
+
+
+@pytest.mark.parametrize("caminho", LAYA_AUTORIZADO_NA_IA)
+def test_adr_da_ia_diz_o_laya_autorizado(caminho: str) -> None:
+    """D219.12: a 0014 e a 0026 riscam o Laya à espera do dono e citam a autorização (D219)."""
+    linhas = [linha for linha in texto(caminho).splitlines() if linha.startswith("- ")]
+    vivas = [re.sub(r"~~.*?~~", "", linha) for linha in linhas if "Laya" in linha]
+    assert vivas, caminho  # controle: achou as linhas do Laya
+    assert any(LAYA_ESPERANDO.search(linha) for linha in linhas), caminho  # o riscado ficou
+    assert [linha for linha in vivas if LAYA_ESPERANDO.search(linha)] == [], caminho
+    assert any("D219" in linha for linha in vivas), caminho
