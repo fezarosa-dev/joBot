@@ -24,10 +24,11 @@ pytestmark = pytest.mark.tela
 
 @pytest.fixture(autouse=True)
 def _sem_erro_no_console(page: Page) -> Iterator[None]:
-    # violação do CSP aparece como erro; o 422 do teto é a resposta esperada da página
+    # violação do CSP aparece como erro; o 422 do teto e o 413 do currículo grande são respostas
+    # esperadas da página
     erros = anotar_erros(page, ignorar="422")
     yield
-    assert erros == []
+    assert [erro for erro in erros if "413" not in erro] == []
 
 
 def _gravar(tmp_path: Path, lista: list[str]) -> None:

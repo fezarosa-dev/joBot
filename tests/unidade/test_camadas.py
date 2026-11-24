@@ -109,8 +109,8 @@ def test_pypdf_so_no_leitor_do_pdf() -> None:
     assert _ruins_fora_de(FONTE, ("pypdf",), ("sistema/pdf.py",)) == []
     assert _ruins_fora_de(FONTE, ("pypdf",), ()) == [
         "pdf.py: pypdf",
-        "pdf.py: pypdf.PasswordType",
-        "pdf.py: pypdf.PdfReader",
+        "pdf.py: pypdf.errors",
+        "pdf.py: pypdf.errors.DependencyError",
     ]
 
 
