@@ -29,6 +29,7 @@ GLOBAIS = (
     "rotulo",
     "motivo",
     "dinheiro",
+    "url_de_volta",
 )
 
 
@@ -128,7 +129,8 @@ def test_globais_do_jinja_vem_do_modulo_explicito(cliente: TestClient) -> None:
     globais = TEMPLATES.env.globals
     assert set(GLOBAIS) <= globais.keys()
     assert "tema" not in globais
-    assert {globais["rotulo"].__module__, globais["motivo"].__module__} == {"jobot.painel.globais"}
+    modulos = {globais[nome].__module__ for nome in ("rotulo", "motivo", "url_de_volta")}
+    assert modulos == {"jobot.painel.globais"}
 
 
 _SO_TEMPLATES = """
@@ -180,6 +182,22 @@ def test_texto_fora_da_lista_da_422(cliente: TestClient, valor: str) -> None:
     assert (
         cliente.post("/preferencias/texto", data=dados | {"tamanho": "padrao"}).status_code == 303
     )
+
+
+@pytest.mark.parametrize("chave", ["idioma", "tema", "tamanho_texto"])
+def test_config_estragada_vale_o_padrao_e_nao_derruba_a_pagina(
+    cliente: TestClient, chave: str
+) -> None:
+    """JSON estragado (edição à mão) em idioma, tema ou texto não dá 500: vale o padrão."""
+    banco: Path = cliente.app.state.banco  # type: ignore[attr-defined]
+    with closing(abrir(banco)) as con:
+        con.execute("INSERT INTO config (chave, valor) VALUES (?, '{torto')", (chave,))
+        con.commit()
+    resposta = cliente.get("/vagas", headers={"Accept-Language": "en"})
+    assert resposta.status_code == 200
+    assert _data_tema(cliente) == "sistema"
+    assert _data_texto(cliente) == "padrao"
+    assert re.search(r'<html[^>]*\blang="en', resposta.text)  # sem idioma salvo, o do navegador
 
 
 def test_preferencias_sem_js(cliente: TestClient) -> None:
