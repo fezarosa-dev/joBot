@@ -1,0 +1,10 @@
+# Dependências do treino do Laya (treinar.py e custo.py --medir), fora do pyproject do joBot.
+# Uso: uv run --with-requirements scripts/treino_laya/requirements.txt python scripts/treino_laya/treinar.py ...
+# Versões publicadas há mais de duas semanas em 2026-11-24 (D219); a primeira rodada no pod as
+# confirma juntas, e uma troca entra aqui e na D219.
+torch==2.15.0
+transformers==5.22.2
+peft==0.21.2
+trl==1.17.1
+accelerate==1.15.0
+datasets==5.1.0
