@@ -4025,3 +4025,11 @@ A sessão propôs abrir o painel no Chrome da pessoa como janela de app. O dono 
 **Como desfazer:** tirar o último passo do `vigia.yml` e o `actions: write`.
 
 **Ver também:** ADR 0002, ADR 0016, ADR 0018, D31.
+
+## D220. Correções da code-ultrareview do repositório inteiro
+
+**Status:** decidido pela sessão em 2026-11-24, a pedido do dono ("pode corrigir essas coisas"; "decisões, tente tomar você mesmo"), para confirmar. Cada lote da revisão põe aqui os seus itens.
+
+**Escolhas da sessão, para discutir com o dono:**
+
+1. **Lote painel: o `?busca=` do assistente segue o teto das outras telas.** O assistente da primeira execução tinha uma cópia própria do leitor de id (`_id_valido`), com teto de 2**63-1, enquanto Vagas, lateral, detalhe e Panorama usam `inteiro_da_url(..., MAX_ID)`, com teto de 2**31. Agora ele usa o mesmo leitor. Efeito: um `busca=` acima de 2**31 vale como lixo, igual a `busca=abc`: no passo 1, o POST cria uma busca nova em vez de responder 404. Guarda: `test_funcoes_das_rotas_definidas_uma_vez`. Desfazer: voltar o `_id_valido` em `rotas/primeira_execucao.py` (e tirar a entrada `inteiro` do teste).
