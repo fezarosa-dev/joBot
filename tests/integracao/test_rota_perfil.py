@@ -516,7 +516,7 @@ def test_secoes_com_titulo_e_campos_com_rotulo(painel: Painel) -> None:
         _texto(re.search(rf'<h2 id="{s}"[^>]*>(.*?)</h2>', pagina, re.S).group(1)).strip()  # type: ignore[union-attr]
         for s in secoes
     ]
-    assert titulos == ["Sobre você", "Habilidades", "Experiências", "Cursos"]
+    assert titulos == ["Currículo em PDF", "Sobre você", "Habilidades", "Experiências", "Cursos"]
     conteudo = _sem_paleta(pagina).split('class="config-conteudo"')[1]
     ids = re.findall(
         r'<(?:input|select|textarea)\b(?![^>]*type="hidden")[^>]*\bid="([^"]+)"', conteudo

@@ -1,0 +1,7 @@
+{#- Resultado da leitura do currículo em PDF (T435; D231): o aviso (também no 411 e no 413, que o
+    aviso de erro do app.js lê pelo data-aviso-erro) ou quantas páginas foram lidas. -#}
+{%- if aviso %}
+<div class="config-alerta" role="alert" data-foco-se-livre><p data-aviso-erro>{{ t(aviso) }}</p></div>
+{%- else %}
+<p class="config-texto" role="status" data-foco-se-livre>{{ t("configuracoes.perfil.curriculo.lido", paginas=lido.paginas, total=lido.total) }}</p>
+{%- endif %}
