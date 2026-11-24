@@ -225,13 +225,12 @@ def _habilidades(
     if not total:
         return None
     peso: int = _dados()["pesos"]["habilidades"]
-    casados = min(len(tem), total)  # a razão fica entre 0 e 1
     motivos = tuple(
         Motivo(chave=f"encaixe.habilidades_{nome}", params={"lista": _lista(itens)})
         for nome, itens in (("tem", tem), ("faltam", faltam))
         if itens
     )
-    return (2 * peso * casados + total) // (2 * total), peso, motivos
+    return (2 * peso * len(tem) + total) // (2 * total), peso, motivos
 
 
 def calcular(
