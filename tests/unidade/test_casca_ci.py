@@ -95,7 +95,7 @@ def test_job_windows_roda_os_testes_de_sistema() -> None:
     texto = _job("windows")
     assert "runs-on: windows-latest" in texto
     assert "uv sync --locked" in texto
-    filtro = '-k "pastas or instancia or processo or segundo_plano or atualizar"'
+    filtro = '-k "pastas or instancia or processo or segundo_plano or atualizar or cofre"'
     assert f"uv run pytest tests/unidade {filtro}" in texto
     # os ramos #[cfg(windows)] da casca (nota da revisão da T337)
     assert "--component clippy" in texto

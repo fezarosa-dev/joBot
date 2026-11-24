@@ -3,6 +3,7 @@
 import logging
 import os
 import stat
+import sys
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -18,6 +19,8 @@ CHAVE = "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6"
 OUTRA = "f0e1d2c3b4a5f6e7d8c9b0a1f2e3d4c5"
 SEGREDO = "segredo-que-nao-pode-vazar"
 NOME = "2captcha"
+# o job do Windows na casca.yml roda este arquivo: lá não há os bits 0600 do POSIX
+SO_POSIX = pytest.mark.skipif(sys.platform == "win32", reason="o Windows não tem os bits do POSIX")
 
 
 @pytest.fixture
@@ -49,6 +52,7 @@ def test_grava_le_e_apaga_no_cofre_do_sistema(pasta: Path) -> None:
     assert falso.guardado == {}
 
 
+@SO_POSIX
 def test_cofre_que_falha_cai_no_arquivo_0600(pasta: Path, caplog: pytest.LogCaptureFixture) -> None:
     cofre = Cofre(pasta, CofreFalso(falha=RuntimeError(SEGREDO)))
     assert cofre.gravar(NOME, CHAVE) == "arquivo"
@@ -61,12 +65,25 @@ def test_cofre_que_falha_cai_no_arquivo_0600(pasta: Path, caplog: pytest.LogCapt
     assert all(r.exc_info is None for r in caplog.records)
 
 
+def test_reserva_no_arquivo_sem_o_cloexec_do_posix(
+    pasta: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # o Windows não tem `os.O_CLOEXEC`: ler sem segredo, gravar o arquivo e o fsync da pasta
+    # não podem estourar `AttributeError` por causa dele
+    monkeypatch.delattr(os, "O_CLOEXEC")
+    cofre = Cofre(pasta, CofreFalso(falha=RuntimeError("fora do ar")))
+    assert cofre.ler(NOME) is None
+    assert cofre.gravar(NOME, CHAVE) == "arquivo"
+    assert cofre.ler(NOME) == (CHAVE, "arquivo")
+
+
 def test_cofre_que_engole_a_chave_cai_no_arquivo(pasta: Path) -> None:
     cofre = Cofre(pasta, CofreFalso(engole=True))
     assert cofre.gravar(NOME, CHAVE) == "arquivo"
     assert cofre.ler(NOME) == (CHAVE, "arquivo")
 
 
+@SO_POSIX
 def test_arquivo_nasce_0600_mesmo_com_umask_aberto(pasta: Path) -> None:
     antiga = os.umask(0)
     try:
@@ -76,6 +93,7 @@ def test_arquivo_nasce_0600_mesmo_com_umask_aberto(pasta: Path) -> None:
     assert _modo(pasta / f"{NOME}.segredo") == 0o600
 
 
+@SO_POSIX
 def test_arquivo_existente_frouxo_fica_0600(pasta: Path) -> None:
     arquivo = pasta / f"{NOME}.segredo"
     arquivo.write_text(OUTRA)
@@ -250,6 +268,7 @@ def test_falha_na_escrita_mantem_o_arquivo_antigo_e_nao_deixa_tmp(
     assert sorted(p.name for p in pasta.iterdir()) == [arquivo.name]
 
 
+@SO_POSIX
 @pytest.mark.parametrize("mascara", [0o277, 0])
 def test_arquivo_final_fica_0600_e_o_tmp_nunca_e_frouxo(
     pasta: Path, monkeypatch: pytest.MonkeyPatch, mascara: int
@@ -310,6 +329,7 @@ def test_interrupcao_na_escrita_tambem_limpa_o_tmp(
     assert list(pasta.iterdir()) == []
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="o Windows não abre pasta com os.open")
 def test_falha_no_fsync_da_pasta_nao_derruba_a_gravacao(
     pasta: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
