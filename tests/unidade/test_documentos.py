@@ -821,12 +821,13 @@ def test_fase_4_planejada_pega_as_frases_antigas() -> None:
     assert [a for a in antigas if FASE_4_PLANEJADA.search(a) is None] == []
 
 
-# o ajuste do Laya antes da fase 4 (D141) fica adiado até o dono responder (D185.8)
-LAYA_ADIADO = ("docs/decisions/0015-treino.md", "docs/decisions/0017-fases.md")
+# o ajuste do Laya antes da fase 4 (D141): adiado em 2026-11-17 (D185.8), autorizado pelo dono em
+# 2026-11-24 (D219)
+LAYA_AUTORIZADO = ("docs/decisions/0015-treino.md", "docs/decisions/0017-fases.md")
 
 
-@pytest.mark.parametrize("caminho", LAYA_ADIADO)
-def test_laya_antes_da_fase_4_diz_adiado(caminho: str) -> None:
+@pytest.mark.parametrize("caminho", LAYA_AUTORIZADO)
+def test_laya_antes_da_fase_4_diz_autorizado(caminho: str) -> None:
     linhas = [
         linha
         for linha in texto(caminho).splitlines()
@@ -836,7 +837,8 @@ def test_laya_antes_da_fase_4_diz_adiado(caminho: str) -> None:
         and "antes da fase 4" in linha
     ]
     assert linhas, caminho  # controle: achou a linha do Laya
-    assert [linha for linha in linhas if "adiado, para confirmar" not in linha] == [], caminho
+    assert [linha for linha in linhas if "autorizou o treino" not in linha] == [], caminho
+    assert [linha for linha in linhas if "2026-11-24 (D219" not in linha] == [], caminho
 
 
 def test_indice_das_adrs_lista_todas() -> None:
