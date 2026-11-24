@@ -8,6 +8,8 @@ The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-24
+
 AI arrives, optional and off by default: it lists the skills each job asks for, and joBot compares them with the ones in your profile. It runs on the local model, free and without internet once downloaded, or on a service with your key.
 
 ### Added

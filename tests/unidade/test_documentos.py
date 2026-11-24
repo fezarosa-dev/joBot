@@ -189,7 +189,7 @@ def test_changelog_tem_as_mesmas_secoes_nas_duas_linguas() -> None:
 
 def test_changelog_traz_a_versao_do_pacote() -> None:
     projeto = tomllib.loads(texto("pyproject.toml"))["project"]["version"]
-    assert projeto == __version__ == "0.4.1"
+    assert projeto == __version__ == "0.5.0"
     for caminho in CHANGELOG.values():
         conteudo = texto(caminho)
         for versao in (projeto, "0.1.0"):
@@ -585,11 +585,10 @@ AVISO_0_4_1 = {
 
 @pytest.mark.parametrize("lingua", LINGUAS)
 def test_changelog_fecha_a_0_4_1(lingua: str) -> None:
-    """A 0.4.1 é a primeira seção de versão, logo depois de "Não lançado", e abre com o aviso a
-    quem tem a janela 0.4.0, antes do resumo."""
+    """A 0.4.1 vem logo depois da 0.5.0 e abre com o aviso a quem tem a janela 0.4.0, antes do
+    resumo."""
     conteudo = texto(CHANGELOG[lingua])
-    assert NAO_LANCADO[lingua] in conteudo, CHANGELOG[lingua]
-    inicio = conteudo.index(NAO_LANCADO[lingua])
+    inicio = conteudo.index(V0_5_0)
     fim = conteudo.index("\n## [", inicio + 1)
     assert conteudo[fim + 1 :].startswith(V0_4_1), CHANGELOG[lingua]
     secao = conteudo[fim + 1 :]
@@ -715,8 +714,8 @@ FASE_1_CONCLUIDA = {
     ".github/CONTRIBUTING.en.md": (
         r"Phases 1, 2 and 3 \(foundation, browser with login and installer\) are complete"
     ),
-    ".github/SECURITY.md": r"(?i)só a versão mais recente \(hoje a 0\.4\.1\)",
-    ".github/SECURITY.en.md": r"(?i)only the latest version \(currently 0\.4\.1\)",
+    ".github/SECURITY.md": r"(?i)só a versão mais recente \(hoje a 0\.5\.0\)",
+    ".github/SECURITY.en.md": r"(?i)only the latest version \(currently 0\.5\.0\)",
     ".github/SUPPORT.md": r"formulário de bug",
     ".github/SUPPORT.en.md": r"bug form",
     "docs/decisions/0017-fases.md": r"fases 1, 2 e 3 estão concluídas",
@@ -818,10 +817,10 @@ FASE_3_CONCLUIDA = {
     "README.md": r"\*\*3\. Instalador\*\*.*🟢 Pronta \(versão 0\.4\.0\)",
     "README.en.md": r"\*\*3\. Installer\*\*.*🟢 Done \(version 0\.4\.0\)",
     ".github/CONTRIBUTING.md": (
-        r"fases 1, 2 e 3 .*estão concluídas: o joBot 0\.4\.0.*a versão 0\.4\.1 já dá para instalar"
+        r"fases 1, 2 e 3 .*estão concluídas: o joBot 0\.4\.0.*a versão 0\.5\.0 já dá para instalar"
     ),
     ".github/CONTRIBUTING.en.md": (
-        r"Phases 1, 2 and 3 .*are complete: joBot 0\.4\.0.*version 0\.4\.1 can already be installed"
+        r"Phases 1, 2 and 3 .*are complete: joBot 0\.4\.0.*version 0\.5\.0 can already be installed"
     ),
 }
 # sobra do tempo em que a fase 3 estava em obras
@@ -840,16 +839,30 @@ def test_status_da_fase_3_igual_nos_documentos(caminho: str) -> None:
     assert FASE_3_EM_OBRAS.search(conteudo) is None, caminho
 
 
-# o que cada documento de estado vivo diz da fase 4 (T400, D185.26): sendo construída
+# o que cada documento de estado vivo diz da fase 4 (T400, D185.26): sendo construída; desde a
+# T421, com a 0.5.0 como a primeira parte e rumo à 0.6.0
+PARTE_PT = r"a 0\.5\.0 trouxe a primeira parte; rumo à 0\.6\.0"
+PARTE_EN = r"0\.5\.0 brought the first part; toward 0\.6\.0"
 FASE_4_EM_OBRAS = {
-    "docs/decisions/0017-fases.md": r"Fase 4, IA local:.*Status: sendo construída, rumo à 0\.5\.0",
-    "docs/decisions/README.md": r"a fase 4 está sendo construída \(rumo à 0\.5\.0\)",
-    "wiki/Roteiro.md": r"🟡 \| \*\*4\. IA local\*\*.*\| Sendo construída \(rumo à 0\.5\.0\) \|",
-    "wiki/Roadmap.md": r"🟡 \| \*\*4\. Local AI\*\*.*\| Being built \(toward 0\.5\.0\) \|",
-    "README.md": r"\*\*4\. IA local\*\*.*\| 🟡 Sendo construída \(rumo à 0\.5\.0\) \|",
-    "README.en.md": r"\*\*4\. Local AI\*\*.*\| 🟡 Being built \(toward 0\.5\.0\) \|",
-    ".github/CONTRIBUTING.md": r"A fase 4 \(IA local\) está sendo construída, rumo à 0\.5\.0",
-    ".github/CONTRIBUTING.en.md": r"Phase 4 \(local AI\) is being built, toward 0\.5\.0",
+    "docs/decisions/0017-fases.md": (
+        r"Fase 4, IA local:.*Status: sendo construída; a 0\.5\.0 trouxe a primeira parte, rumo à"
+        r" 0\.6\.0"
+    ),
+    "docs/decisions/README.md": rf"a fase 4 está sendo construída \({PARTE_PT}\)",
+    "wiki/Roteiro.md": rf"🟡 \| \*\*4\. IA local\*\*.*\| Sendo construída \({PARTE_PT}\) \|",
+    "wiki/Roadmap.md": rf"🟡 \| \*\*4\. Local AI\*\*.*\| Being built \({PARTE_EN}\) \|",
+    "README.md": rf"\*\*4\. IA local\*\*.*\| 🟡 Sendo construída \({PARTE_PT}\) \|",
+    "README.en.md": rf"\*\*4\. Local AI\*\*.*\| 🟡 Being built \({PARTE_EN}\) \|",
+    ".github/CONTRIBUTING.md": (
+        r"A fase 4 \(IA local\) está sendo construída: a 0\.5\.0 trouxe a primeira parte"
+    ),
+    ".github/CONTRIBUTING.en.md": (
+        r"Phase 4 \(local AI\) is being built: 0\.5\.0 brought the first part"
+    ),
+    "wiki/Home.md": (
+        r"A fase 4 \(IA local\) está sendo construída: a 0\.5\.0 trouxe a primeira parte"
+    ),
+    "wiki/Home-en.md": r"Phase 4 \(local AI\) is being built: 0\.5\.0 brought the first part",
 }
 # sobra do tempo em que a fase 4 estava só planejada
 FASE_4_PLANEJADA = re.compile(
@@ -1069,7 +1082,8 @@ SOBRA_DO_MODELO = {
     "pt": ("pasta `ferramentas`", "2,7 GB"),
     "en": ("`ferramentas` folder", "2.7 GB"),
 }
-NAO_LANCADO_0_5_0 = {
+V0_5_0 = "## [0.5.0] - 2026-11-24"
+NA_0_5_0 = {
     "pt": ("Configurações › IA", "Hugging Face", "Laya"),
     "en": ("Settings › AI", "Hugging Face", "Laya"),
 }
@@ -1098,14 +1112,16 @@ def test_desinstalar_diz_a_sobra_do_modelo_local(lingua: str) -> None:
 
 
 @pytest.mark.parametrize("lingua", LINGUAS)
-def test_changelog_traz_a_0_5_0_em_nao_lancado(lingua: str) -> None:
-    """A 0.5.0 fica em "Não lançado", sem data: a data entra com a tag
-    (padrões «Troca de versão»)."""
+def test_changelog_fecha_a_0_5_0(lingua: str) -> None:
+    """A 0.5.0 é a primeira seção de versão, logo depois de "Não lançado", com a data do dia da
+    tag (T421, padrões «Troca de versão»), e traz a IA."""
     conteudo = texto(CHANGELOG[lingua])
     assert NAO_LANCADO[lingua] in conteudo, CHANGELOG[lingua]
     inicio = conteudo.index(NAO_LANCADO[lingua])
-    nova = conteudo[inicio : conteudo.index("\n## [", inicio + 1)]
-    for termo in NAO_LANCADO_0_5_0[lingua]:
+    fim = conteudo.index("\n## [", inicio + 1)
+    assert conteudo[fim + 1 :].startswith(V0_5_0), CHANGELOG[lingua]
+    nova = conteudo[fim + 1 : conteudo.index("\n## [", fim + 1)]
+    for termo in NA_0_5_0[lingua]:
         assert termo in nova, (CHANGELOG[lingua], termo)
 
 
