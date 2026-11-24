@@ -394,8 +394,17 @@ def test_casca_aberta_no_xvfb_liga_abre_e_para_pelo_teclado() -> None:
         "foto 0-instalar",
         "xdotool key --delay 300 Tab Tab Return",
         "foto 0-ferramentas",
-        "xdotool key --delay 300 Tab space Tab Tab Return",
+        # o Tab a mais é a caixa do Modelo local (D205.8): marcada só no AppImage
+        'if [ "$nome" = appimage ]; then modelo=space; else modelo=; fi',
+        "xdotool key --delay 300 Tab space Tab $modelo Tab Tab Return",
         'esperar 300 test -s "$dados/instalacao.json"',
+        # sem rede o modelo falha: a janela fica no Pronto e o Continuar leva ao controle
+        "esperar 120 parou",
+        'test "$(largura)" -gt 600',
+        'test ! -e "$dados/ferramentas/ia_local.json"',
+        "foto 0-pronto-sem-modelo",
+        "xdotool key --delay 300 Tab Return",
+        'test "$(largura)" -lt 600',
         "foto 1-parado",
         "xdotool key --delay 300 Tab Tab Tab Return",
         "esperar 60 no_ar",
