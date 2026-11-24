@@ -71,7 +71,7 @@ jobs:
         with:
           enable-cache: true
       - run: uv sync --locked
-      - run: uv run pytest tests/unidade -k "pastas or instancia or processo or segundo_plano or atualizar"
+      - run: uv run pytest tests/unidade -k "pastas or instancia or processo or segundo_plano or atualizar or cofre"
       - name: rust
         shell: bash
         working-directory: desktop
