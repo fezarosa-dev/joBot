@@ -1,21 +1,19 @@
-//! AppImage extraído (T354, D211). Sem FUSE, ou com `--appimage-extract-and-run`, o runtime do
-//! AppImage se extrai em `$TMPDIR/appimage_extracted_<md5>` (o `/tmp`, que em muitos Linux fica
-//! na RAM: uns 400 MB) e só apaga a pasta se ele mesmo sobreviver até a casca sair. Ctrl+C,
-//! fechar o terminal ou matar o processo deixam a pasta. A casca lança então um vigia, num
-//! grupo de processos próprio e sem o ambiente do AppImage, que espera a casca e o runtime
-//! saírem e apaga a pasta. Com FUSE, o próprio runtime desmonta e apaga o `.mount_*`.
+//! AppImage extraído (T354, D211, D217). Sem FUSE, ou com `--appimage-extract-and-run`, o
+//! runtime do AppImage se extrai em `$TMPDIR/appimage_extracted_<md5>` (o `/tmp`, que em muitos
+//! Linux fica na RAM: uns 400 MB). O runtime que vai no AppImage não apaga a pasta, nem numa
+//! saída normal (visto com `strace`: depois do `wait4`, ele sai sem um `unlink`). A casca lança
+//! então um vigia, num grupo de processos próprio e sem o ambiente do AppImage, que espera a
+//! casca e o runtime saírem e apaga a pasta. Com FUSE, o próprio runtime desmonta e apaga o
+//! `.mount_*`.
 //!
-//! A pasta tem o mesmo nome em toda abertura: o vigia acorda até 1 s depois do runtime, que
-//! numa saída normal já apagou a pasta, e a abertura seguinte pode já ter extraído outra no
-//! mesmo lugar. Por isso a casca grava o pid dela no marcador `.jobot-vigia` da pasta e o vigia
-//! só apaga a pasta se o marcador ainda for o da casca que o lançou (D217).
+//! A pasta tem o mesmo nome em toda abertura do mesmo arquivo: enquanto alguém a usa (o runtime
+//! de outra abertura, que extrai nela, ou um programa de dentro dela, como a casca seguinte ou
+//! um processo do WebKit que ainda sai), o vigia espera. Antes de apagar, ele troca o nome da
+//! pasta, para que uma abertura que comece nesse instante extraia numa pasta nova.
 
 use std::os::unix::process::CommandExt;
 use std::path::{Component, Path, PathBuf};
 use std::process::{Command, Stdio};
-
-/// O marcador dentro da pasta extraída: o pid da casca cujo vigia pode apagá-la.
-pub const MARCADOR: &str = ".jobot-vigia";
 
 /// A pasta extraída que a casca deve limpar: o `APPDIR` absoluto chamado
 /// `appimage_extracted_<32 hex>`, com o `APPIMAGE` definido e o executável da casca dentro
@@ -40,12 +38,14 @@ pub fn pasta_a_limpar(
     (nome && limpo && exe.starts_with(pasta)).then(|| pasta.to_path_buf())
 }
 
-/// `$1` é a pasta, `$2` a marca (o pid da casca) e o resto são os pids. Ignora o HUP de fechar
-/// o terminal e o INT do Ctrl+C. Zumbi conta como morto: um pai que não o recolhe (no
-/// contêiner, o `sleep` como pid 1) prenderia o vigia para sempre. Só apaga a pasta se o
-/// marcador ainda tem a marca dele: sem ele, ou com outra, a pasta é de outra abertura.
+/// `$1` é a pasta, `$2` o AppImage e o resto são os pids. Ignora o HUP de fechar o terminal e
+/// o INT do Ctrl+C. Zumbi conta como morto: um pai que não o recolhe (no contêiner, o `sleep`
+/// como pid 1) prenderia o vigia para sempre. `em_uso`: um processo da pessoa roda o mesmo
+/// AppImage (o runtime de outra abertura, que extrai na mesma pasta) ou um programa de dentro
+/// da pasta; o vigia espera também por eles. O `mv` antes do `rm` tira o nome da pasta do
+/// caminho de quem abrir depois.
 const VIGIA: &str = r#"trap '' HUP INT
-d=$1; m=$2; shift 2
+d=$1; a=$2; shift 2
 vivo() {
   for p in "$@"; do
     s=$(cat "/proc/$p/stat" 2>/dev/null) || continue
@@ -54,25 +54,28 @@ vivo() {
   done
   return 1
 }
-while vivo "$@"; do sleep 1; done
-if [ "$(cat "$d/.jobot-vigia" 2>/dev/null)" = "$m" ]; then rm -rf -- "$d"; fi"#;
-
-/// Grava a `marca` no marcador da `pasta`, trocando a de uma abertura anterior.
-pub fn marcar(pasta: &Path, marca: u32) -> std::io::Result<()> {
-    std::fs::write(pasta.join(MARCADOR), marca.to_string())
+em_uso() {
+  for x in /proc/[0-9]*/exe; do
+    x=$(readlink "$x" 2>/dev/null) || continue
+    case $x in "$a" | "$d"/*) return 0 ;; esac
+  done
+  return 1
 }
+while vivo "$@" || em_uso; do sleep 1; done
+lixo="$d.apagando.$$"
+if mv -- "$d" "$lixo" 2>/dev/null; then rm -rf -- "$lixo"; fi"#;
 
-/// O vigia: espera todos os `pids` saírem e apaga a `pasta`, se o marcador dela ainda tem a
-/// `marca`. Grupo de processos próprio (o Ctrl+C e o `kill` do grupo da casca não o
+/// O vigia: espera todos os `pids` saírem, e ninguém mais usar a `pasta` nem rodar o
+/// `appimage`, e apaga a pasta. Grupo de processos próprio (o Ctrl+C e o `kill` do grupo da casca não o
 /// alcançam), na raiz (não prende a pasta) e sem o ambiente do AppImage, cujo
 /// `LD_LIBRARY_PATH` aponta para a pasta que ele apaga.
-pub fn vigia(pasta: &Path, marca: u32, pids: &[u32]) -> Command {
+pub fn vigia(pasta: &Path, appimage: &Path, pids: &[u32]) -> Command {
     let mut c = Command::new("sh");
     c.arg("-c")
         .arg(VIGIA)
         .arg("jobot-vigia")
         .arg(pasta)
-        .arg(marca.to_string())
+        .arg(appimage)
         .args(pids.iter().map(u32::to_string))
         .env_clear()
         .env("PATH", "/usr/bin:/bin")
@@ -86,7 +89,8 @@ pub fn vigia(pasta: &Path, marca: u32, pids: &[u32]) -> Command {
 
 /// No começo da casca: se ela roda de uma extração do AppImage, lança o vigia da pasta. Espera
 /// a casca e o pai dela, o runtime (o AppRun do AppImage troca de programa sem criar outro
-/// processo), que apaga a pasta numa saída normal; o vigia só age quando o runtime não pôde.
+/// processo). O AppImage vai com o caminho real, que é o que o `/proc/<pid>/exe` do runtime
+/// mostra.
 pub fn vigiar() {
     let appdir = std::env::var_os("APPDIR").and_then(|p| PathBuf::from(p).canonicalize().ok());
     let appimage = std::env::var_os("APPIMAGE").map(PathBuf::from);
@@ -96,10 +100,11 @@ pub fn vigiar() {
     let Some(pasta) = pasta_a_limpar(appdir.as_deref(), appimage.as_deref(), &exe) else {
         return;
     };
-    let eu = std::process::id();
-    let pids = [eu, std::os::unix::process::parent_id()];
-    let lancado = marcar(&pasta, eu).and_then(|()| vigia(&pasta, eu, &pids).spawn());
-    if let Err(erro) = lancado {
+    let Some(appimage) = appimage.map(|a| a.canonicalize().unwrap_or(a)) else {
+        return;
+    };
+    let pids = [std::process::id(), std::os::unix::process::parent_id()];
+    if let Err(erro) = vigia(&pasta, &appimage, &pids).spawn() {
         eprintln!("jobot-app: não consegui vigiar {}: {erro}", pasta.display());
     }
 }
@@ -141,6 +146,8 @@ mod testes {
     use std::time::{Duration, Instant};
 
     const NOME: &str = "appimage_extracted_56fe70d7183c4a60aa470ea7cf3c62f2";
+    /// Um AppImage que nenhum processo roda.
+    const NAO_HA: &str = "/nao/existe/joBot.AppImage";
 
     fn limpar(appdir: &str, appimage: Option<&str>, exe: &str) -> Option<PathBuf> {
         pasta_a_limpar(
@@ -220,11 +227,24 @@ mod testes {
 
     #[test]
     fn vigia_roda_sh_mudo_e_sem_o_ambiente_do_appimage() {
-        let c = vigia(Path::new("/tmp/x"), 7, &[10, 20]);
+        let c = vigia(
+            Path::new("/tmp/x"),
+            Path::new("/home/p/joBot.AppImage"),
+            &[10, 20],
+        );
         assert_eq!(c.get_program(), "sh");
         let args: Vec<_> = c.get_args().map(|a| a.to_str().unwrap()).collect();
         assert_eq!(args[0], "-c");
-        assert_eq!(&args[2..], ["jobot-vigia", "/tmp/x", "7", "10", "20"]);
+        assert_eq!(
+            &args[2..],
+            [
+                "jobot-vigia",
+                "/tmp/x",
+                "/home/p/joBot.AppImage",
+                "10",
+                "20"
+            ]
+        );
         assert_eq!(c.get_current_dir(), Some(Path::new("/")));
         let envs: Vec<_> = c.get_envs().collect();
         assert_eq!(
@@ -253,8 +273,9 @@ mod testes {
             std::thread::sleep(Duration::from_millis(20));
         }
         assert!(zumbi_ja(), "o processo não virou zumbi");
-        marcar(&pasta, 1).unwrap();
-        let mut v = vigia(&pasta, 1, &[zumbi.id()]).spawn().unwrap();
+        let mut v = vigia(&pasta, Path::new(NAO_HA), &[zumbi.id()])
+            .spawn()
+            .unwrap();
         let fim = Instant::now() + Duration::from_secs(10);
         while pasta.exists() && Instant::now() < fim {
             std::thread::sleep(Duration::from_millis(100));
@@ -273,8 +294,9 @@ mod testes {
         std::fs::write(pasta.join("usr/bin/jobot-app"), "x").unwrap();
         let mut curto = Command::new("sleep").arg("1").spawn().unwrap();
         let mut longo = Command::new("sleep").arg("4").spawn().unwrap();
-        marcar(&pasta, 1).unwrap();
-        let mut v = vigia(&pasta, 1, &[curto.id(), longo.id()]).spawn().unwrap();
+        let mut v = vigia(&pasta, Path::new(NAO_HA), &[curto.id(), longo.id()])
+            .spawn()
+            .unwrap();
         // grupo próprio (o kill do grupo da casca não o alcança) e só o PATH no ambiente
         let stat = std::fs::read_to_string(format!("/proc/{}/stat", v.id())).unwrap();
         let campos: Vec<_> = stat
@@ -314,33 +336,58 @@ mod testes {
         }
         assert!(!pasta.exists(), "o vigia não apagou a pasta");
         assert!(v.wait().unwrap().success());
+        // nem a pasta com o nome trocado sobra
+        let nome = pasta.file_name().unwrap().to_str().unwrap().to_owned();
+        let sobra = std::fs::read_dir(pasta.parent().unwrap())
+            .unwrap()
+            .filter_map(Result::ok)
+            .any(|e| e.file_name().to_string_lossy().starts_with(&nome));
+        assert!(!sobra, "sobrou a pasta renomeada");
     }
 
-    /// A abertura seguinte extrai no mesmo lugar antes de o vigia acordar: sem o marcador dele
-    /// (a pasta nova) ou com o de outra casca, a pasta fica (D217).
+    /// Outra abertura do mesmo AppImage no ar (o runtime dela extraindo na mesma pasta): o
+    /// vigia espera ela sair antes de apagar (D217). Uma cópia do `sleep` faz o papel do
+    /// AppImage (um nome só deste teste: o sistema pode ter outros `sleep` rodando).
     #[test]
-    fn vigia_nao_apaga_a_pasta_de_outra_abertura() {
-        for (caso, marcador) in [("sem marcador", None), ("outra casca", Some(2))] {
-            let pasta = std::env::temp_dir().join(format!("jobot-outra-{}", std::process::id()));
-            let _ = std::fs::remove_dir_all(&pasta);
-            std::fs::create_dir_all(&pasta).unwrap();
-            marcar(&pasta, 1).unwrap();
-            let mut runtime = Command::new("sleep").arg("1").spawn().unwrap();
-            let mut v = vigia(&pasta, 1, &[runtime.id()]).spawn().unwrap();
-            // o runtime apaga a pasta dele e a abertura seguinte extrai outra no mesmo nome
-            std::fs::remove_dir_all(&pasta).unwrap();
-            std::fs::create_dir_all(&pasta).unwrap();
-            if let Some(marca) = marcador {
-                marcar(&pasta, marca).unwrap();
-            }
-            runtime.wait().unwrap();
-            assert!(v.wait().unwrap().success(), "{caso}");
-            assert!(
-                pasta.exists(),
-                "{caso}: o vigia apagou a pasta de outra abertura"
-            );
-            std::fs::remove_dir_all(&pasta).unwrap();
+    fn vigia_espera_outra_abertura_do_mesmo_appimage() {
+        let pasta = std::env::temp_dir().join(format!("jobot-outra-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&pasta);
+        std::fs::create_dir_all(&pasta).unwrap();
+        let sleep = std::env::temp_dir().join(format!("jobot-img-{}.AppImage", std::process::id()));
+        std::fs::copy("/bin/sleep", &sleep).unwrap();
+        // ETXTBSY: outro teste pode ter feito fork com a cópia recém-escrita aberta
+        let mut outra = std::iter::repeat_with(|| Command::new(&sleep).arg("30").spawn())
+            .take(50)
+            .find_map(|r| match r {
+                Err(e) if e.raw_os_error() == Some(26) => {
+                    std::thread::sleep(Duration::from_millis(100));
+                    None
+                }
+                r => Some(r.unwrap()),
+            })
+            .unwrap();
+        let mut runtime = Command::new("true").spawn().unwrap();
+        runtime.wait().unwrap();
+        let real = sleep.canonicalize().unwrap(); // o que o /proc/<pid>/exe mostra
+        let mut v = vigia(&pasta, &real, &[runtime.id()]).spawn().unwrap();
+        std::thread::sleep(Duration::from_millis(1500));
+        assert!(pasta.exists(), "o vigia apagou a pasta de outra abertura");
+        assert!(
+            v.try_wait().unwrap().is_none(),
+            "o vigia desistiu de esperar"
+        );
+        outra.kill().unwrap();
+        outra.wait().unwrap();
+        let fim = Instant::now() + Duration::from_secs(10);
+        while pasta.exists() && Instant::now() < fim {
+            std::thread::sleep(Duration::from_millis(100));
         }
+        assert!(
+            !pasta.exists(),
+            "o vigia não apagou depois que a outra abertura saiu"
+        );
+        assert!(v.wait().unwrap().success());
+        std::fs::remove_file(&sleep).unwrap();
     }
 
     /// Um descritor herdado sem CLOEXEC (o cano do runtime do AppImage) não chega aos filhos.
