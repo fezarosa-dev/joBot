@@ -45,7 +45,7 @@ No. It prepares the application and helps fill in forms, but you are always the 
 <summary><strong>Can my LinkedIn account be restricted?</strong></summary>
 
 It can. The risk exists, and it can't be reduced to zero.
-joBot reduces the risk: you do the login with your own hands, in a regular browser window, it only reads, it visits a few times a day, it goes slowly and it never bypasses CAPTCHA.
+joBot reduces the risk: you do the login with your own hands, in a regular browser window, it only reads, it visits a few times a day, it goes slowly and it does not get past a CAPTCHA on its own (only your 2Captcha, if you turn it on).
 Each site with login has a switch. You decide whether to turn it on.
 </details>
 
@@ -61,6 +61,7 @@ For LinkedIn, "closed" means "not seen for 30 days". If a job closed by mistake 
 
 The dashboard shows a red warning and the computer shows a notification. The browser window stays still on the page, waiting for you to solve it.
 The other sources continue normally. joBot never tries to get past the CAPTCHA on its own.
+In the browsing with login, if you save your 2Captcha key and turn on the switch in Settings, Services (it comes off), joBot sends the challenge to 2Captcha first. If it is not solved, the warning above applies.
 </details>
 
 <details>

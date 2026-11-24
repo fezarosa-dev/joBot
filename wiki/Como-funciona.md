@@ -38,7 +38,7 @@ flowchart LR
 
 Um ciclo de busca, passo a passo:
 
-1. ⏰ **Na hora marcada**, o joBot acorda. Ou quando você aperta "buscar agora".
+1. ⏰ **Na hora marcada**, o joBot acorda. Ou quando você aperta "Buscar agora".
 2. 🤖 **Cada coletor** (o código que lê as vagas de uma fonte) visita a sua fonte com calma e traz as vagas num formato único.
 3. 🧹 **O tratamento** junta vagas repetidas, entende o salário, coloca rótulos e marca como fechadas as vagas que sumiram.
 4. 🗄️ **Tudo vai para o banco** SQLite, um arquivo que fica no seu computador.
@@ -146,7 +146,7 @@ O painel roda no seu computador, em `127.0.0.1`. Se o joBot acha o Chrome, o Edg
 |---|---|
 | Fontes públicas | A cada 3 horas |
 | Sites com login | Duas vezes por dia (9h e 18h, ajustável) |
-| Botão "buscar agora" | Na hora, respeitando o intervalo mínimo de algumas fontes |
+| Botão "Buscar agora" | Na hora, respeitando o intervalo mínimo de algumas fontes |
 
 Rodar em segundo plano é escolha sua, no assistente da primeira execução ou nas configurações. Ligado, o joBot inicia com o computador, sem janela, e um atalho "joBot" abre o painel.
 
