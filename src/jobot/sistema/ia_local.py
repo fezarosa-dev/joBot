@@ -43,9 +43,10 @@ def comando(argumentos: Sequence[str]) -> list[str]:
 
 
 async def abrir_comando(argumentos: Sequence[str], dados: Path) -> asyncio.subprocess.Process:
-    """O comando com a saída num cano e `JOBOT_DADOS` na pasta do painel que pediu. Se o servidor
-    cai, o filho morre na linha seguinte que escreve (cano sem leitor) e o `.parcial` fica para a
-    retomada."""
+    """O comando com a saída num cano e `JOBOT_DADOS` na pasta do painel que pediu. Cancelado ou
+    com erro na leitura, o painel o mata (`kill`). Se o servidor morre de uma vez (SIGKILL, queda),
+    o `print` seguinte do andamento levanta `BrokenPipeError`, que o `baixar` não trata como erro
+    do disco: o filho sai e o `.parcial` fica para a retomada (D223.1)."""
     return await asyncio.create_subprocess_exec(
         *comando(argumentos),
         stdin=asyncio.subprocess.DEVNULL,

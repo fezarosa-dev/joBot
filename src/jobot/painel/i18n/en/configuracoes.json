@@ -165,6 +165,7 @@
   "configuracoes.ferramentas.ia_local.origem": "Source: {origem}.",
   "configuracoes.ferramentas.ia_local.barra": "Download progress",
   "configuracoes.ferramentas.ia_local.andamento": "{pct}% of the current file.",
+  "configuracoes.ferramentas.ia_local.recarregar": "Refresh the page to see the progress",
   "configuracoes.ferramentas.ia_local.desatualizado": "A new version of the model or the program is available. Update downloads only what changed.",
   "configuracoes.ferramentas.ia_local.baixar": "Download",
   "configuracoes.ferramentas.ia_local.trocar": "Switch to {nome} ({tamanho})",

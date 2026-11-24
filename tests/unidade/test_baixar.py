@@ -343,6 +343,28 @@ def test_erro_de_disco_no_meio_fica_nos_motivos(
     assert not destino.exists()
 
 
+def test_progresso_que_quebra_no_meio_mantem_o_parcial(
+    servidor: Servidor, cliente: httpx.Client, tmp_path: Path
+) -> None:
+    """O servidor do painel morreu: o `print` do andamento levanta `BrokenPipeError`, que não é
+    erro do disco e não apaga o que já veio (D223.1)."""
+    servidor.rotas["/f"] = arquivo()
+    destino = tmp_path / "m.gguf"
+    linhas: list[str] = []
+
+    def progresso(linha: str) -> None:
+        if linhas:
+            raise BrokenPipeError(errno.EPIPE, os.strerror(errno.EPIPE))
+        linhas.append(linha)  # a primeira, antes do pedido, passa
+
+    with pytest.raises((BrokenPipeError, FalhaBaixar)) as erro:  # o velho virava `arquivo`
+        _baixar(servidor, cliente, destino, progresso=progresso)
+    assert parcial_de(destino, SHA).exists()
+    assert parcial_de(destino, SHA).stat().st_size > 0
+    assert isinstance(erro.value, BrokenPipeError)
+    assert not destino.exists()
+
+
 def test_erro_de_conexao_e_sem_rede(tmp_path: Path) -> None:
     def cai(pedido: httpx.Request) -> httpx.Response:
         raise httpx.ReadTimeout("parado", request=pedido)

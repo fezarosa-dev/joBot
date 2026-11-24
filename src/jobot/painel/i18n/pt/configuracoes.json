@@ -165,6 +165,7 @@
   "configuracoes.ferramentas.ia_local.origem": "Origem: {origem}.",
   "configuracoes.ferramentas.ia_local.barra": "Andamento do download",
   "configuracoes.ferramentas.ia_local.andamento": "{pct}% do arquivo atual.",
+  "configuracoes.ferramentas.ia_local.recarregar": "Atualizar a página para ver o andamento",
   "configuracoes.ferramentas.ia_local.desatualizado": "Há uma versão nova do modelo ou do programa. Atualizar baixa só o que mudou.",
   "configuracoes.ferramentas.ia_local.baixar": "Baixar",
   "configuracoes.ferramentas.ia_local.trocar": "Trocar para {nome} ({tamanho})",
