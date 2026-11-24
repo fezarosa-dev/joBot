@@ -6,7 +6,7 @@ Obrigado pelo interesse! Este guia explica como ajudar com o joBot, agora e depo
 
 ## Estado do projeto
 
-As fases 1, 2 e 3 (base, navegador com login e instalador) estão concluídas: o joBot 0.4.0 fechou a fase 3, e a versão 0.4.1 já dá para instalar e usar ([como instalar](../README.md#requisitos-e-instalacao)). A fase 4 (IA local) está sendo construída, rumo à 0.5.0; as fases 5 a 9 estão planejadas. A 0.5.0 sai sem o Laya treinado: o conjunto, o treino e a conta de custo dele ficam em `scripts/treino_laya/`, com o passo a passo no README de lá. As decisões já tomadas estão em [`docs/decisions/`](../docs/decisions/README.md) (só em português por enquanto). Para saber o que o projeto é e para onde ele vai, leia o [README](../README.md).
+As fases 1, 2 e 3 (base, navegador com login e instalador) estão concluídas: o joBot 0.4.0 fechou a fase 3, e a versão 0.5.0 já dá para instalar e usar ([como instalar](../README.md#requisitos-e-instalacao)). A fase 4 (IA local) está sendo construída: a 0.5.0 trouxe a primeira parte, e a 0.6.0 fecha a fase; as fases 5 a 9 estão planejadas. A 0.5.0 saiu sem o Laya treinado: o conjunto, o treino e a conta de custo dele ficam em `scripts/treino_laya/`, com o passo a passo no README de lá. As decisões já tomadas estão em [`docs/decisions/`](../docs/decisions/README.md) (só em português por enquanto). Para saber o que o projeto é e para onde ele vai, leia o [README](../README.md).
 
 ## Como ajudar agora
 

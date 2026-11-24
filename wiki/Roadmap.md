@@ -23,7 +23,7 @@ flowchart LR
 | ✅ | **1. Base** | Common core, public sources, database, dashboard and scheduling | Complete |
 | ✅ | **2. Browser with login** | Login through a regular window, LinkedIn first, site mapping and CAPTCHA handling | Complete |
 | ✅ | **3. Installer** | 64-bit installer with a list of tools to tick (Windows and Linux first, Mac later) | Complete in 0.4.0 |
-| 🟡 | **4. Local AI** | Offline package (llama-server + Qwen) | Being built (toward 0.5.0) |
+| 🟡 | **4. Local AI** | Offline package (llama-server + Qwen) | Being built (0.5.0 brought the first part; toward 0.6.0) |
 | ⚪ | **5. Browser extension** | Browser extension for forms | Planned |
 | ⚪ | **6. Audio and Gmail** | Answers by voice and email reading | Planned |
 | ⚪ | **7. Training** | Learn from what you save and discard | Planned |
@@ -32,7 +32,7 @@ flowchart LR
 
 <sub>✅ complete · 🟡 being built · ⚪ planned</sub>
 
-Version 0.3.0 came out between phase 2 and phase 3, with the "Overview" screen (an overview of the jobs and the search) and the complete application queue. Version 0.4.0 closes phase 3, with a window of its own and the installer. Version 0.4.1 fixes Linux: the window becomes a control and the dashboard opens in your browser.
+Version 0.3.0 came out between phase 2 and phase 3, with the "Overview" screen (an overview of the jobs and the search) and the complete application queue. Version 0.4.0 closes phase 3, with a window of its own and the installer. Version 0.4.1 fixes Linux: the window becomes a control and the dashboard opens in your browser. Version 0.5.0 brings the first part of phase 4: the optional AI, off by default, which lists the skills each job asks for.
 
 ## 🔍 A bit more about each phase
 
@@ -66,7 +66,7 @@ Version 0.3.0 came out between phase 2 and phase 3, with the "Overview" screen (
 - Offline package: llama-server and a Qwen model, to use AI without internet and without paying.
 - The AI choice, the résumé and the questionnaire join the assistant.
 - The phase comes out in two versions: 0.5.0 brings the local model and the match by skills; 0.6.0, the résumé, the questionnaire and help with the application (still being decided).
-- The multilingual-e5-small model, for labels below 90% accuracy, is left for later (still being decided). The Laya fine-tuning was approved: 0.5.0 ships without it, and it comes in a later version, after the training.
+- The multilingual-e5-small model, for labels below 90% accuracy, is left for later (still being decided). The Laya fine-tuning was approved: 0.5.0 shipped without it, and it comes in a later version, after the training.
 </details>
 
 <details>

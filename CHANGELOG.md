@@ -8,6 +8,8 @@ O formato segue o [Keep a Changelog 1.1.0](https://keepachangelog.com/pt-BR/1.1.
 
 ## [Não lançado]
 
+## [0.5.0] - 2026-11-24
+
 A IA chega, opcional e desligada por padrão: ela lista as habilidades que cada vaga pede, e o joBot compara com as do seu perfil. Ela roda no modelo local, de graça e sem internet depois de baixado, ou num serviço com a sua chave.
 
 ### Adicionado
