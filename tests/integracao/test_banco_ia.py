@@ -4,7 +4,7 @@ import json
 import sqlite3
 import time
 from collections.abc import Callable, Iterator
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -16,7 +16,6 @@ from jobot.banco.conexao import abrir, tem_fts5
 from jobot.banco.migrar import migrar
 
 T0 = datetime(2026, 11, 17, 12, 0, tzinfo=UTC)
-MENOS_3 = timezone(timedelta(hours=-3))
 
 
 @pytest.fixture(autouse=True)
@@ -36,12 +35,6 @@ def con(tmp_path: Path) -> Iterator[sqlite3.Connection]:
     migrar(c, caminho)
     yield c
     c.close()
-
-
-def _vaga(con: sqlite3.Connection) -> int:
-    vaga_id = inserir_vaga(con)
-    con.commit()
-    return vaga_id
 
 
 def _linha(con: sqlite3.Connection, vaga_id: int) -> dict[str, object]:
@@ -104,7 +97,7 @@ def test_perfil_adulterado_le_so_textos(con: sqlite3.Connection, valor: str) -> 
 
 
 def test_apagar_perfil_apaga_a_linha_e_deixa_habilidades_vaga(con: sqlite3.Connection) -> None:
-    vaga_id = _vaga(con)
+    vaga_id = inserir_vaga(con)
     _pede(con, vaga_id, ["Python"])
     perfil.gravar_habilidades(con, ["Python"], T0)
     assert con.execute("SELECT count(*) FROM perfil").fetchone()[0] == 1
@@ -117,7 +110,7 @@ def test_apagar_perfil_apaga_a_linha_e_deixa_habilidades_vaga(con: sqlite3.Conne
 
 
 def test_pede_gravado_duas_vezes_fica_uma_linha(con: sqlite3.Connection) -> None:
-    vaga_id = _vaga(con)
+    vaga_id = inserir_vaga(con)
     _pede(con, vaga_id, ["Python"], chave="c1")
     _pede(
         con,
@@ -140,7 +133,7 @@ def test_pede_gravado_duas_vezes_fica_uma_linha(con: sqlite3.Connection) -> None
 
 
 def test_falha_nao_apaga_o_pede_anterior(con: sqlite3.Connection) -> None:
-    vaga_id = _vaga(con)
+    vaga_id = inserir_vaga(con)
     _pede(con, vaga_id, ["Python"], chave="c1")
     _falha(
         con, vaga_id, chave="c2", motivo="contexto", backend="openai", agora=T0 + timedelta(hours=1)
@@ -162,7 +155,7 @@ def test_falha_nao_apaga_o_pede_anterior(con: sqlite3.Connection) -> None:
 
 
 def test_tentativas_contam_por_chave(con: sqlite3.Connection) -> None:
-    vaga_id = _vaga(con)
+    vaga_id = inserir_vaga(con)
     _falha(con, vaga_id, chave="c1")  # sem linha: a falha cria a linha sem `pede`
     assert (_linha(con, vaga_id)["pede"], _linha(con, vaga_id)["tentativas"]) == (None, 1)
     _falha(con, vaga_id, chave="c1", motivo="recusa")
@@ -175,7 +168,7 @@ def test_tentativas_contam_por_chave(con: sqlite3.Connection) -> None:
 
 def test_gravar_habilidades_vaga_nao_dispara_gatilho(con: sqlite3.Connection) -> None:
     """(guarda) Nenhum gatilho de `vaga`, de `evento` nem do FTS5 dispara ao gravar."""
-    vaga_id = _vaga(con)
+    vaga_id = inserir_vaga(con)
     tabelas = ["vaga", "evento", "ocorrencia", "encaixe"] + (["vaga_fts"] if tem_fts5(con) else [])
     antes = {t: con.execute(f"SELECT * FROM {t}").fetchall() for t in tabelas}
     gravacoes: list[Callable[[], None]] = [
@@ -199,7 +192,7 @@ def test_chamadas_do_dia_contam_cada_chamada_por_backend_e_dia_local(
 ) -> None:
     # agora: 01:00 UTC do dia 18, que é 22:00 do dia 17 no fuso -03
     agora = datetime(2026, 11, 18, 1, 0, tzinfo=UTC)
-    vaga = _vaga(con)
+    vaga = inserir_vaga(con)
     for _ in range(3):
         ia.contar_chamada(con, "openai", agora)
     ia.contar_chamada(con, "local", agora)

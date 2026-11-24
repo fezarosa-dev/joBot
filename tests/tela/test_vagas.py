@@ -9,7 +9,7 @@ from typing import Any
 
 import pytest
 from fastapi import FastAPI
-from playwright.sync_api import Browser, Locator, Page, Route, expect
+from playwright.sync_api import Locator, Page, Route, expect
 
 from apoio.console import anotar_erros
 from apoio.relogio import RelogioFalso
@@ -580,18 +580,14 @@ def test_teclado_da_lista_nao_age_em_campo_de_texto(page: Page, painel: str) -> 
     expect(busca).to_have_value("")
 
 
-def test_sem_js_a_linha_e_um_link_comum(browser: Browser, painel: str) -> None:
-    contexto = browser.new_context(java_script_enabled=False)
-    try:
-        pagina = contexto.new_page()
-        pagina.goto(f"{painel}/vagas?aba=todas")
-        linha = pagina.locator('#lista-vagas > [role="option"]', has_text=NOVA)
-        assert linha.get_attribute("tabindex") is None  # sem JS, cada linha é um link no Tab
-        linha.click()
-        expect(pagina).to_have_url(re.compile(r"/vagas/\d+$"))
-        expect(pagina.get_by_role("heading", level=1, name=NOVA)).to_be_visible()
-    finally:
-        contexto.close()
+def test_sem_js_a_linha_e_um_link_comum(pagina_sem_js: Page, painel: str) -> None:
+    pagina = pagina_sem_js
+    pagina.goto(f"{painel}/vagas?aba=todas")
+    linha = pagina.locator('#lista-vagas > [role="option"]', has_text=NOVA)
+    assert linha.get_attribute("tabindex") is None  # sem JS, cada linha é um link no Tab
+    linha.click()
+    expect(pagina).to_have_url(re.compile(r"/vagas/\d+$"))
+    expect(pagina.get_by_role("heading", level=1, name=NOVA)).to_be_visible()
 
 
 def test_barra_da_lista_tem_a_busca_e_troca_a_busca_escolhida(

@@ -4054,3 +4054,14 @@ A sessão propôs abrir o painel no Chrome da pessoa como janela de app. O dono 
 **Como desfazer:** o dono manda trocar qualquer item; voltar atrás por inteiro é apagar `scripts/treino_laya/` e `tests/unidade/test_treino_laya.py` e devolver a T419, a D185.8 e as ADR 0015 e 0017 ao texto de 2026-11-17.
 
 **Ver também:** ADR 0004, ADR 0015, ADR 0016, ADR 0017, D122, D141, D185 (itens 8 e 9), D196, T410, T419.
+
+## D220. Correções da code-ultrareview do repositório inteiro
+
+**Status:** escolhas da sessão em 2026-11-24, a pedido do dono ("pode corrigir essas coisas"; "decisões, tente tomar você mesmo"), para discutir com o dono. Cada lote da revisão escreve aqui os seus itens.
+
+**Lote "testes"** (branch `fix/rev-testes`):
+
+1. **`abrir` e `sair` recebem `agora` e `dormir`** (escolha da sessão, para discutir com o dono). `src/jobot/sistema/abrir.py` ganhou os dois parâmetros (padrão `time.monotonic` e `time.sleep`) só para os testes correrem no relógio falso, sem esperar tempo real; o `cli/abrir.py` não muda. O `RelogioSincrono` continua em `tests/apoio/llama_falso.py`; mudar para `tests/apoio/relogio.py` fica para quando houver outro motivo de mexer ali. Desfazer: tirar os parâmetros e voltar os testes de `test_abrir.py` às esperas curtas de antes.
+2. **Instabilidade do WebKit fica para tarefa própria** (escolha da sessão, para discutir com o dono). No CI 45349027660 (1ª tentativa), `test_abas_marcam_a_atual_e_a_url_reabre_a_tela` falhou no WebKit com `htmx:afterRequest` e `htmx:sendError` depois do reload e do `go_back`; passou na 2ª. O desvio do `_SAINDO` em `tests/apoio/console.py` só cobre o intervalo entre `beforeunload`/`pagehide` e `pageshow`, e no WebKit o erro do pedido cortado pode chegar depois do `pageshow` da página nova. Não é deste lote (o teste não mudou). Desfazer: tratar no próprio lote.
+3. **A guarda de rede da `pagina_sem_js` não ganhou teste vermelho próprio** (escolha da sessão). Ela usa a mesma função `_guardar_rede` do `_so_127`, que já tem o `test_nenhum_pedido_sai_de_127`. Desfazer: um teste de tela com `pagina_sem_js` que carrega `<img src="http://example.invalid/x">` e confere que o pedido foi barrado.
+
