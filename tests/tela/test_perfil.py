@@ -54,8 +54,8 @@ def test_salvar_pelo_teclado_grava_sem_repetidos(page: Page, painel: str, tmp_pa
     expect(salvar).to_be_focused()
     with page.expect_navigation():
         page.keyboard.press("Enter")
-    # o app.js tira o ?salvo= da URL depois de mostrar a mensagem
-    expect(page).to_have_url(re.compile(r"/configuracoes/perfil(\?salvo=1)?$"))
+    # o app.js tira o ?salvo= da URL depois de mostrar a mensagem; a âncora volta à seção
+    expect(page).to_have_url(re.compile(r"/configuracoes/perfil(\?salvo=1)?#perfil-habilidades$"))
     expect(page.get_by_role("status").filter(has_text="Salvo.")).to_be_visible()
     expect(page.get_by_role("textbox", name="Suas habilidades")).to_have_value("Python\nGo")
     assert _lidas(tmp_path) == (1, ["Python", "Go"])
@@ -131,6 +131,7 @@ def test_erro_de_teto_marca_o_campo(page: Page, painel: str, tmp_path: Path) -> 
         ).click()
     expect(page.get_by_role("alert")).to_contain_text("Até 200 habilidades")
     expect(campo).to_have_attribute("aria-invalid", "true")
+    expect(campo).to_be_focused()  # o `autofocus` leva ao campo errado, sem JavaScript
     expect(campo).to_have_value("x" * 101)
     assert _lidas(tmp_path) == (0, [])
 
@@ -139,7 +140,9 @@ def test_sobre_voce_grava_e_volta_preenchido(page: Page, painel: str, tmp_path: 
     page.goto(f"{painel}/configuracoes/perfil")
     sobre = page.get_by_role("region", name="Sobre você")
     contato = sobre.get_by_role("group", name="Contato")
-    expect(contato).to_have_accessible_description(re.compile("nunca vai para a IA"))
+    expect(contato).to_have_accessible_description(
+        re.compile("não põe estes campos nos pedidos à IA")
+    )
     contato.get_by_role("textbox", name="Nome").fill("Maria Exemplo")
     contato.get_by_role("textbox", name="E-mail").fill("maria@exemplo.test")
     sobre.get_by_role("spinbutton", name="Anos de experiência na área").fill("7")
@@ -176,12 +179,10 @@ def _adicionar_e_tirar(pagina: Page, painel: str, tmp_path: Path) -> None:
     expect(item.get_by_role("textbox", name="Início")).to_have_value("2019-03")
     with closing(abrir(tmp_path / "jobot.db")) as con:
         assert [e.cargo for e in experiencias(con)] == ["Analista"]
-    # o `has` procura dentro do formulário: o grupo vem sem a região
-    form = pagina.get_by_role("region", name="Experiências").locator(
-        "form", has=pagina.get_by_role("group", name="Analista")
-    )
+    # cada item tem o seu Tirar, com o item no nome acessível
+    secao = pagina.get_by_role("region", name="Experiências")
     with pagina.expect_navigation():
-        form.get_by_role("button", name="Tirar", exact=True).click()
+        secao.get_by_role("button", name="Tirar Analista", exact=True).click()
     secao = pagina.get_by_role("region", name="Experiências")
     expect(secao.get_by_role("group", name="Analista")).to_have_count(0)
     with closing(abrir(tmp_path / "jobot.db")) as con:

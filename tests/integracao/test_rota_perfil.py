@@ -34,6 +34,16 @@ APAGAR = PERFIL + "/apagar"
 CONFIRMAR = APAGAR + "/confirmar"
 HOJE = date(2026, 11, 13)
 RECALCULAR = "jobot.painel.rotas.perfil.buscas.recalcular_encaixe"
+# o 303 volta à seção que gravou (D230.1): a página não pula para o alto
+SALVO = {
+    secao: (303, f"{PERFIL}?salvo=1#perfil-{ancora}")
+    for secao, ancora in (
+        (None, "habilidades"),
+        ("dados", "sobre"),
+        ("experiencia", "experiencias"),
+        ("curso", "cursos"),
+    )
+}
 
 
 class Painel:
@@ -159,7 +169,7 @@ def test_habilidades_gravadas_normalizadas_sem_repetidos(painel: Painel) -> None
         "PÝTHON.\n(Docker)\nC++\n.NET\nReact\u200b\n\n"
     )
     resposta = painel.post(PERFIL, {"habilidades": texto})
-    assert _status(resposta) == (303, PERFIL + "?salvo=1")
+    assert _status(resposta) == SALVO[None]
     gravadas = ["Python", "PostgreSQL", "Machine Learning", "Docker", "C++", ".NET", "React"]
     assert painel.habilidades() == gravadas
     pagina = painel.get(PERFIL + "?salvo=1").text
@@ -170,7 +180,7 @@ def test_habilidades_gravadas_normalizadas_sem_repetidos(painel: Painel) -> None
 def test_campo_vazio_grava_lista_vazia(painel: Painel) -> None:
     painel.post(PERFIL, {"habilidades": "Go"})
     assert painel.habilidades() == ["Go"]  # controle
-    assert _status(painel.post(PERFIL, {"habilidades": " \n \n"})) == (303, PERFIL + "?salvo=1")
+    assert _status(painel.post(PERFIL, {"habilidades": " \n \n"})) == SALVO[None]
     assert painel.habilidades() == []
 
 
@@ -193,7 +203,7 @@ def test_teto_de_habilidades_volta_com_o_texto(painel: Painel, texto: str, aceit
     painel.post(PERFIL, {"habilidades": "Rust"})
     resposta = painel.post(PERFIL, {"habilidades": texto})
     if aceita:
-        assert _status(resposta) == (303, PERFIL + "?salvo=1")
+        assert _status(resposta) == SALVO[None]
         assert painel.habilidades() == texto.split("\n")
         return
     assert resposta.status_code == 422
@@ -283,10 +293,7 @@ def test_mesmo_conjunto_grava_sem_recalcular(
         return 0
 
     monkeypatch.setattr(RECALCULAR, conta)
-    assert _status(painel.post(PERFIL, {"habilidades": "go\npython\n"})) == (
-        303,
-        PERFIL + "?salvo=1",
-    )
+    assert _status(painel.post(PERFIL, {"habilidades": "go\npython\n"})) == SALVO[None]
     assert chamadas == []
     assert painel.habilidades() == ["go", "python"]  # ordem e grafia novas gravadas
     painel.post(PERFIL, {"habilidades": "Python"})  # controle: a lista mudou
@@ -460,7 +467,6 @@ CURSO: dict[str, Any] = {
     "situacao": "concluido",
     "previsao": "2018-12",
 }
-SALVO = (303, PERFIL + "?salvo=1")
 
 
 def _dados(painel: Painel) -> perfil.Dados:
@@ -523,7 +529,7 @@ def test_secoes_com_titulo_e_campos_com_rotulo(painel: Painel) -> None:
 
 
 def test_dados_gravados_e_mostrados_de_volta(painel: Painel) -> None:
-    assert _status(painel.post(PERFIL, DADOS)) == SALVO
+    assert _status(painel.post(PERFIL, DADOS)) == SALVO["dados"]
     assert _dados(painel) == perfil.Dados(
         nome="Maria Exemplo",
         email="maria@exemplo.test",
@@ -568,7 +574,7 @@ def test_dados_e_habilidades_nao_se_apagam(painel: Painel) -> None:
 def test_campo_limpo_apaga_o_valor(painel: Painel) -> None:
     painel.post(PERFIL, DADOS)
     vazio = {c: "" for c in DADOS} | {"secao": "dados", "outro_nome": "", "outro_nivel": ""}
-    assert _status(painel.post(PERFIL, vazio)) == SALVO
+    assert _status(painel.post(PERFIL, vazio)) == SALVO["dados"]
     assert _dados(painel) == perfil.Dados()
 
 
@@ -603,6 +609,18 @@ def test_campo_limpo_apaga_o_valor(painel: Painel) -> None:
             "Um link por linha, começando com http:// ou https://, até 10.",
             "perfil-links",
         ),
+        (  # `urlsplit` levanta `ValueError` com estes dois: 422, nunca 500
+            "links",
+            "http://[abc",
+            "Um link por linha, começando com http:// ou https://, até 10.",
+            "perfil-links",
+        ),
+        (
+            "links",
+            "https://exemplo.test\u2100/x",
+            "Um link por linha, começando com http:// ou https://, até 10.",
+            "perfil-links",
+        ),
         (
             "links",
             "ftp://exemplo.test",
@@ -631,6 +649,9 @@ def test_dado_errado_volta_com_o_texto_e_nao_grava(
     assert entrada is not None
     assert 'aria-invalid="true"' in entrada.group(0)
     assert re.search(r'aria-describedby="[^"]*\bconfig-erro\b', entrada.group(0))
+    # o foco abre no campo errado, sem JavaScript (o `autofocus` de um `<dialog>` só vale aberto)
+    focados = re.findall(r"<(?!dialog\b)[^>]*\bautofocus\b[^>]*>", resposta.text)
+    assert focados == [entrada.group(0)]
     assert _dados(painel).nome == "Antes"
 
 
@@ -644,7 +665,7 @@ def test_repetidos_e_linhas_vazias_das_pontas_saem(painel: Painel) -> None:
         "outro_nivel": ["basico", "fluente", "avancado"],
         "resumo": "\n\n  Primeira  \n\nSegunda\n\n",
     }
-    assert _status(painel.post(PERFIL, DADOS | troca)) == SALVO
+    assert _status(painel.post(PERFIL, DADOS | troca)) == SALVO["dados"]
     gravados = _dados(painel)
     assert gravados.links[:2] == ("https://a.test", "https://b.test")
     assert len(gravados.links) == 10
@@ -657,7 +678,47 @@ def test_outro_idioma_sem_nivel_volta_com_o_texto(painel: Painel) -> None:
     assert resposta.status_code == 422
     assert _alerta(resposta.text) == "Escolha o nível de cada idioma que você escreveu."
     assert _valor(resposta.text, "perfil-outro-1") == "Alemão"
+    # o controle errado é a lista do nível, não o nome
+    nivel = re.search(r'<select\b[^>]*\bid="perfil-outro-1-nivel"[^>]*>', resposta.text)
+    assert nivel is not None
+    assert 'aria-invalid="true"' in nivel.group(0)
+    assert "autofocus" in nivel.group(0)
+    nome = re.search(r'<input\b[^>]*\bid="perfil-outro-1"[^>]*>', resposta.text)
+    assert nome is not None
+    assert "aria-invalid" not in nome.group(0)
     assert _dados(painel) == perfil.Dados()
+
+
+def _outros(quantos: int) -> dict[str, list[str]]:
+    return {
+        "outro_nome": [f"Idioma {n}" for n in range(quantos)],
+        "outro_nivel": ["basico"] * quantos,
+    }
+
+
+def test_teto_de_dez_outros_idiomas(painel: Painel) -> None:
+    assert _status(painel.post(PERFIL, DADOS | _outros(10))) == SALVO["dados"]
+    pagina = painel.get(PERFIL).text
+    assert 'id="perfil-outro-10"' in pagina
+    assert 'id="perfil-outro-11"' not in pagina  # com dez, sem a linha vazia de mais um
+    resposta = painel.post(PERFIL, DADOS | _outros(11))
+    assert resposta.status_code == 422
+    assert _alerta(resposta.text) == "Até 10 outros idiomas."
+    assert len(_dados(painel).idiomas_falados) == 12  # os dois fixos e os dez de antes
+    # a tela nunca manda mais de 11 linhas: mais que isso é 422 seco
+    linhas = {"outro_nome": ["Russo"] + [""] * 11, "outro_nivel": ["basico"] + [""] * 11}
+    assert painel.post(PERFIL, DADOS | linhas, sem_500=True).status_code == 422
+    assert len(_dados(painel).idiomas_falados) == 12
+
+
+def test_outro_idioma_com_o_codigo_de_um_fixo_nao_o_troca(painel: Painel) -> None:
+    troca = {"outro_nome": ["pt", "EN", "Russo"], "outro_nivel": ["basico", "basico", "basico"]}
+    assert _status(painel.post(PERFIL, DADOS | troca)) == SALVO["dados"]
+    assert _dados(painel).idiomas_falados == (
+        ("pt", "fluente"),
+        ("en", "avancado"),
+        ("Russo", "basico"),
+    )
 
 
 @pytest.mark.parametrize(
@@ -673,7 +734,7 @@ def test_outro_idioma_sem_nivel_volta_com_o_texto(painel: Painel) -> None:
 def test_valor_fora_da_lista_da_422_seco(painel: Painel, troca: dict[str, Any]) -> None:
     assert painel.post(PERFIL, DADOS | troca, sem_500=True).status_code == 422
     assert _dados(painel) == perfil.Dados()
-    assert _status(painel.post(PERFIL, DADOS)) == SALVO  # controle
+    assert _status(painel.post(PERFIL, DADOS)) == SALVO["dados"]  # controle
 
 
 def test_texto_da_pessoa_sai_escapado(painel: Painel) -> None:
@@ -690,7 +751,7 @@ def test_texto_da_pessoa_sai_escapado(painel: Painel) -> None:
 
 
 def test_experiencia_entra_edita_e_tirar_apaga_a_linha(painel: Painel) -> None:
-    assert _status(painel.post(PERFIL, EXPERIENCIA)) == SALVO
+    assert _status(painel.post(PERFIL, EXPERIENCIA)) == SALVO["experiencia"]
     painel.post(PERFIL, EXPERIENCIA | {"cargo": "Estagiário", "fim": "2019-02", "inicio": ""})
     primeira, segunda = _experiencias(painel)
     assert primeira == perfil.Experiencia(
@@ -704,18 +765,18 @@ def test_experiencia_entra_edita_e_tirar_apaga_a_linha(painel: Painel) -> None:
     assert _valor(pagina, "exp-nova-cargo") == ""
 
     editada = EXPERIENCIA | {"id": str(primeira.id), "cargo": "Analista sênior", "empresa": ""}
-    assert _status(painel.post(PERFIL, editada)) == SALVO
+    assert _status(painel.post(PERFIL, editada)) == SALVO["experiencia"]
     assert [(e.id, e.cargo, e.empresa) for e in _experiencias(painel)] == [
         (primeira.id, "Analista sênior", None),
         (segunda.id, "Estagiário", "Empresa Exemplo"),
     ]
-    assert _status(painel.post(PERFIL, editada | {"tirar": "1"})) == SALVO
+    assert _status(painel.post(PERFIL, editada | {"tirar": "1"})) == SALVO["experiencia"]
     assert painel.sql("SELECT id, cargo FROM experiencia") == [(segunda.id, "Estagiário")]
     assert f'id="exp-{primeira.id}-cargo"' not in painel.get(PERFIL).text
 
 
 def test_curso_entra_edita_e_tirar_apaga_a_linha(painel: Painel) -> None:
-    assert _status(painel.post(PERFIL, CURSO)) == SALVO
+    assert _status(painel.post(PERFIL, CURSO)) == SALVO["curso"]
     (curso,) = _cursos(painel)
     assert curso == perfil.Curso(
         "Estatística", "Universidade Exemplo", "concluido", "2018-12", curso.id
@@ -724,12 +785,30 @@ def test_curso_entra_edita_e_tirar_apaga_a_linha(painel: Painel) -> None:
     assert _valor(pagina, f"curso-{curso.id}-nome") == "Estatística"
     assert _escolhido(pagina, f"curso-{curso.id}-situacao") == "concluido"
     editado = CURSO | {"id": str(curso.id), "situacao": "cursando", "previsao": "2027-06"}
-    assert _status(painel.post(PERFIL, editado)) == SALVO
+    assert _status(painel.post(PERFIL, editado)) == SALVO["curso"]
     assert _cursos(painel) == [
         perfil.Curso("Estatística", "Universidade Exemplo", "cursando", "2027-06", curso.id)
     ]
-    assert _status(painel.post(PERFIL, editado | {"tirar": "1"})) == SALVO
+    assert _status(painel.post(PERFIL, editado | {"tirar": "1"})) == SALVO["curso"]
     assert painel.sql("SELECT count(*) FROM curso") == [(0,)]
+
+
+def test_botoes_de_cada_item_dizem_qual_item(painel: Painel) -> None:
+    painel.post(PERFIL, EXPERIENCIA)
+    painel.post(PERFIL, EXPERIENCIA | {"cargo": "Estagiário"})
+    painel.post(PERFIL, CURSO)
+    pagina = _sem_paleta(painel.get(PERFIL).text).split('class="config-conteudo"')[1]
+    rotulos = re.findall(r'<button\b[^>]*\baria-label="([^"]+)"', pagina)
+    esperados = ["Salvar", "Tirar"]
+    assert [html_lib.unescape(r) for r in rotulos] == [
+        *(f"{b} Analista" for b in esperados),
+        *(f"{b} Estagiário" for b in esperados),
+        *(f"{b} Estatística" for b in esperados),
+    ]
+    painel.idioma("en")
+    pagina = painel.get(PERFIL).text.split('class="config-conteudo"')[1]
+    rotulos = re.findall(r'<button\b[^>]*\baria-label="([^"]+)"', pagina)
+    assert rotulos[:2] == ["Save Analista", "Remove Analista"]
 
 
 @pytest.mark.parametrize(
@@ -776,12 +855,13 @@ def test_item_errado_volta_com_o_texto_e_nao_grava(
     entrada = re.search(rf'<(?:input|textarea)\b[^>]*\bid="{campo_id}"[^>]*>', resposta.text)
     assert entrada is not None
     assert 'aria-invalid="true"' in entrada.group(0)
+    assert "autofocus" in entrada.group(0)
     assert painel.sql("SELECT count(*) FROM experiencia") == [(0,)]
     assert painel.sql("SELECT count(*) FROM curso") == [(0,)]
 
 
 def test_erro_ao_editar_volta_no_proprio_item(painel: Painel) -> None:
-    assert _status(painel.post(PERFIL, EXPERIENCIA)) == SALVO
+    assert _status(painel.post(PERFIL, EXPERIENCIA)) == SALVO["experiencia"]
     (exp,) = _experiencias(painel)
     resposta = painel.post(
         PERFIL, EXPERIENCIA | {"id": str(exp.id), "cargo": "", "empresa": "Nova"}
@@ -795,26 +875,35 @@ def test_erro_ao_editar_volta_no_proprio_item(painel: Painel) -> None:
 @pytest.mark.parametrize(("base", "tabela"), [(EXPERIENCIA, "experiencia"), (CURSO, "curso")])
 def test_teto_de_dez_itens(painel: Painel, base: dict[str, Any], tabela: str) -> None:
     for _ in range(10):
-        assert _status(painel.post(PERFIL, base)) == SALVO
+        assert _status(painel.post(PERFIL, base)) == SALVO[base["secao"]]
     pagina = painel.get(PERFIL).text
     novo = "exp-nova-cargo" if tabela == "experiencia" else "curso-nova-nome"
     assert f'id="{novo}"' not in pagina  # sem o formulário de mais um
     resposta = painel.post(PERFIL, base)
     assert resposta.status_code == 422
     assert _alerta(resposta.text) == "Até 10 experiências e 10 cursos."
+    # de outra aba, com um campo errado: o teto vem antes da conferência dos campos
+    obrigatorio = "cargo" if tabela == "experiencia" else "nome"
+    resposta = painel.post(PERFIL, base | {obrigatorio: ""})
+    assert _alerta(resposta.text) == "Até 10 experiências e 10 cursos."
     assert painel.sql(f"SELECT count(*) FROM {tabela}") == [(10,)]
 
 
 @pytest.mark.parametrize("base", [EXPERIENCIA, CURSO])
 def test_editar_item_ja_tirado_da_404(painel: Painel, base: dict[str, Any]) -> None:
-    assert _status(painel.post(PERFIL, base)) == SALVO
+    assert _status(painel.post(PERFIL, base)) == SALVO[base["secao"]]
     tabela = "experiencia" if base is EXPERIENCIA else "curso"
     (id_,) = painel.sql(f"SELECT id FROM {tabela}")[0]
     painel.post(PERFIL, base | {"id": str(id_), "tirar": "1"})
     assert painel.post(PERFIL, base | {"id": str(id_)}).status_code == 404
+    # com um campo errado também: o item que saiu vem antes da conferência dos campos
+    obrigatorio = "cargo" if tabela == "experiencia" else "nome"
+    assert painel.post(PERFIL, base | {"id": str(id_), obrigatorio: ""}).status_code == 404
     assert painel.sql(f"SELECT count(*) FROM {tabela}") == [(0,)]  # não volta
     # tirar de novo não quebra nada
-    assert _status(painel.post(PERFIL, base | {"id": str(id_), "tirar": "1"})) == SALVO
+    assert (
+        _status(painel.post(PERFIL, base | {"id": str(id_), "tirar": "1"})) == SALVO[base["secao"]]
+    )
 
 
 @pytest.mark.parametrize(
@@ -878,6 +967,35 @@ def test_confirmacao_de_apagar_diz_o_que_sai(painel: Painel) -> None:
     ) in texto
 
 
+def test_salvar_tudo_em_branco_nao_mostra_apagar(painel: Painel) -> None:
+    vazio = {c: "" for c in DADOS} | {"secao": "dados", "outro_nome": "", "outro_nivel": ""}
+    assert _status(painel.post(PERFIL, vazio)) == SALVO["dados"]
+    assert _status(painel.post(PERFIL, {"habilidades": ""})) == SALVO[None]
+    assert CONFIRMAR not in painel.get(PERFIL).text  # nada para apagar
+    painel.post(PERFIL, {"habilidades": "Go"})
+    assert CONFIRMAR in painel.get(PERFIL).text  # controle
+
+
+def test_pagina_do_perfil_nao_fica_no_cache(painel: Painel) -> None:
+    painel.post(PERFIL, DADOS)
+    assert painel.get(PERFIL).headers.get("cache-control") == "no-store"
+    resposta = painel.post(PERFIL, DADOS | {"anos_de_experiencia": "99"})
+    assert resposta.status_code == 422
+    assert resposta.headers.get("cache-control") == "no-store"
+    assert "no-store" not in painel.get("/configuracoes/geral").headers.get("cache-control", "")
+
+
+def test_explicacao_diz_que_cada_parte_salva_e_o_que_nao_vai_a_ia(painel: Painel) -> None:
+    pagina = _texto(painel.get(PERFIL).text)
+    assert "Cada parte tem o seu Salvar." in pagina
+    assert "O joBot não põe estes campos nos pedidos à IA." in pagina
+    assert "nunca vai para a IA" not in pagina
+    painel.idioma("en")
+    pagina = _texto(painel.get(PERFIL).text)
+    assert "Each part has its own Save." in pagina
+    assert "joBot does not put these fields in requests to AI." in pagina
+
+
 @pytest.mark.parametrize("base", [DADOS, EXPERIENCIA, CURSO])
 def test_apagar_aparece_com_qualquer_parte_do_perfil(painel: Painel, base: dict[str, Any]) -> None:
     assert CONFIRMAR not in painel.get(PERFIL).text
@@ -892,7 +1010,7 @@ def test_apagar_aparece_com_qualquer_parte_do_perfil(painel: Painel, base: dict[
 def test_secao_sem_csrf_e_recusada(painel: Painel, dados: dict[str, Any], tabela: str) -> None:
     assert painel.post(PERFIL, dados, csrf=False).status_code == 403
     assert painel.sql(f"SELECT count(*) FROM {tabela}") == [(0,)]
-    assert _status(painel.post(PERFIL, dados)) == SALVO  # controle
+    assert _status(painel.post(PERFIL, dados)) == SALVO[dados["secao"]]  # controle
     assert painel.sql(f"SELECT count(*) FROM {tabela}") == [(1,)]
     if tabela != "perfil":
         (id_,) = painel.sql(f"SELECT id FROM {tabela}")[0]
