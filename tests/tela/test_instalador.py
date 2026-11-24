@@ -44,6 +44,7 @@ window.__TAURI__ = { core: {
       window.__instalar.push([Object.keys(args).sort(), args.navegador, args.modelo_local]);
     }
     if (comando === 'estado_instalador') return window.__estado;
+    if (comando === window.__recusar) throw new Error('recusado');
     return null;
   },
 } };
@@ -335,6 +336,47 @@ def test_fechar_fora_da_instalacao_fecha_sem_perguntar(page: Page, ui: str) -> N
     page.get_by_role("button", name="Fechar", exact=True).click()
     expect(page.get_by_role("dialog")).to_have_count(0)
     assert "fechar_instalador" in [c[0] for c in _chamadas(page)]
+
+
+def test_continuar_recusado_fecha_o_instalador(page: Page, ui: str) -> None:
+    """Se a casca recusa o `mostrar_controle`, o Continuar não fica mudo: fecha a janela, e o
+    joBot já instalado abre no controle na próxima vez."""
+    _ate_instalando(page, ui)
+    page.evaluate("window.__recusar = 'mostrar_controle'")
+    _aviso(page, {"fim": "pronto", "ia_local": "sem_rede"})
+    page.get_by_role("button", name="Continuar", exact=True).click()
+    page.wait_for_function("window.__chamadas.at(-1)[0] === 'fechar_instalador'")
+    assert [c[0] for c in _chamadas(page)][-2:] == ["mostrar_controle", "fechar_instalador"]
+
+
+def test_barra_do_modelo_segue_os_bytes(page: Page, ui: str) -> None:
+    """No download do modelo (minutos) a largura segue os bytes, sem correr sozinha até o fim
+    da fatia e parar lá (D205.4); a suavização da D216 continua."""
+    page.clock.install()
+    _abrir(page, ui)
+    page.get_by_role("button", name="Continuar", exact=True).click()
+    page.get_by_label("Navegador para sites com login").uncheck()
+    page.get_by_label("Modelo local", exact=True).check()
+    page.get_by_role("button", name="Instalar", exact=True).click()
+    _aviso(page, {"etapa": "ia_local", "feito": 5, "total": 100})
+    assert _valor(page) == 50  # 63 de 125
+    page.clock.run_for(120_000)
+    assert 48 <= _largura(page) < 52  # sem a correção, ~96 (o fim da fatia)
+    _aviso(page, {"etapa": "ia_local", "feito": 50, "total": 100})
+    page.clock.run_for(3000)
+    assert 70 < _largura(page) < 74  # 90 de 125: anda com os bytes
+
+
+def test_alerta_aberto_muda_quando_o_modelo_comeca(page: Page, ui: str) -> None:
+    """Com o alerta aberto, a etapa que vira a do modelo troca o texto: dali parar não desfaz o
+    joBot, e o alerta não pode prometer o contrário."""
+    _ate_instalando(page, ui)
+    page.evaluate("window.__jobotPedirFechar()")
+    expect(page.get_by_role("dialog", name="Parar a instalação?")).to_be_visible()
+    _aviso(page, {"etapa": "ia_local", "feito": 1, "total": 10})
+    alerta = page.get_by_role("dialog", name="Parar o download do modelo?")
+    expect(alerta).to_be_visible()
+    expect(alerta).to_contain_text("O joBot já está instalado")
 
 
 @pytest.mark.parametrize(
