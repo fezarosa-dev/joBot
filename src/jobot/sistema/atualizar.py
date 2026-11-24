@@ -19,7 +19,7 @@ import httpx
 
 import jobot
 from jobot.nucleo.quebra import URL_REPOSITORIO
-from jobot.sistema import casca, processo
+from jobot.sistema import casca, processo, segundo_plano
 from jobot.sistema.abrir import sair_do_servidor, subir_servidor
 from jobot.sistema.instancia import AVISO_CAPTURA, captura_em_andamento, pid_do_servidor
 from jobot.sistema.segundo_plano_linux import (
@@ -27,10 +27,7 @@ from jobot.sistema.segundo_plano_linux import (
     Recusa,
     Resultado,
     Rodar,
-    desligar,
-    ligar,
     sem_eco_no_terminal,
-    status,
 )
 
 Tipo = Literal["casca", "clone_git", "uv_tool", "desconhecida"]
@@ -83,6 +80,8 @@ def rodar_atualizacao(comando: Sequence[str]) -> Resultado:
             text=True,
             env={**os.environ, "GIT_TERMINAL_PROMPT": "0"},
             start_new_session=True,  # o grupo do POSIX; no Windows o taskkill /T acha a árvore
+            # o atualizador destacado não tem console: sem isto cada schtasks pisca uma janela
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         )
     except OSError:  # programa que não existe ou não abre
         return Resultado(127)
@@ -149,12 +148,19 @@ def _comandos(tipo: Tipo, raiz: Path) -> list[list[str]]:
 
 
 def _parar_e_atualizar(
-    rodar: Rodar, dados: Path, comandos: list[list[str]], plano: bool, parar: Callable[[Path], int]
+    rodar: Rodar,
+    dados: Path,
+    comandos: list[list[str]],
+    plano: bool,
+    parar: Callable[[Path], int],
+    plataforma: str | None,
 ) -> bool:
     try:
         if plano:
+            # o serviço de cada sistema (T337): o do Linux pelo systemctl, que o Windows e o Mac
+            # não têm; o disable --now e o bootout também param o servidor que subiram
             with sem_eco_no_terminal():
-                desligar(rodar)  # o disable --now também para o servidor que o systemd subiu
+                segundo_plano.desligar(rodar, plataforma=plataforma)
         if pid_do_servidor(dados) is not None and parar(dados) != 0:
             print("O servidor não encerrou; nada foi atualizado.", file=sys.stderr)
             return False
@@ -178,21 +184,32 @@ def _religar(
     plano: bool,
     servidor: bool,
     subir: Callable[[], None],
+    plataforma: str | None,
     ligar_plano: Callable[[], None] | None = None,
 ) -> bool:
+    religado = True
     try:
         if plano:
             with sem_eco_no_terminal():
-                (ligar_plano or (lambda: ligar(rodar)))()  # o enable --now sobe o servidor
-        elif servidor and pid_do_servidor(dados) is None:  # o que não caiu não sobe de novo
-            subir()
+                (ligar_plano or (lambda: segundo_plano.ligar(rodar, plataforma=plataforma)))()
     except Recusa as recusa:
         print(f"Não consegui religar o segundo plano: {_motivo(recusa)}", file=sys.stderr)
+        religado = False
+    except OSError as erro:
+        print(f"Não consegui religar o joBot: {erro}", file=sys.stderr)
+        religado = False
+    # no Linux e no Mac o serviço põe o servidor no ar; a tarefa do Windows não, e a falha dela
+    # não deixa fora o servidor que estava no ar
+    pelo_servico = plano and segundo_plano.sobe_ao_ligar(plataforma)
+    if pelo_servico and not religado:
         return False
+    try:
+        if servidor and not pelo_servico and pid_do_servidor(dados) is None:  # o que não caiu fica
+            subir()
     except OSError as erro:
         print(f"Não consegui religar o joBot: {erro}", file=sys.stderr)
         return False
-    return True
+    return religado
 
 
 def _novidades(rodar: Rodar, raiz: Path, tipo: Tipo, antigo: str | None) -> None:
@@ -232,6 +249,7 @@ def _atualizar_casca(
     parar: Callable[[Path], int],
     subir: Callable[[], None],
     subir_em: Callable[[Path], None],
+    plataforma: str | None,
 ) -> int:
     """Canal `casca` (desenho 6.3): monta e prova o venv novo antes de parar qualquer coisa."""
     try:
@@ -243,10 +261,10 @@ def _atualizar_casca(
     if nova is None:
         print("O joBot já está na versão mais nova.")
         return 0
-    plano = status(rodar).habilitado
+    plano = segundo_plano.status(rodar, plataforma=plataforma).habilitado
     servidor = pid_do_servidor(dados) is not None
     trocada: dict[str, object] | None = None
-    if _parar_e_atualizar(rodar, dados, [], plano, parar):
+    if _parar_e_atualizar(rodar, dados, [], plano, parar, plataforma):
         try:
             trocada = casca.trocar(dados, instalacao, nova)
         except casca.Falha as falha:
@@ -255,7 +273,7 @@ def _atualizar_casca(
             print(f"Não consegui trocar a versão: {erro}. Nada mudou.", file=sys.stderr)
     if trocada is None:  # religa a versão de antes, que continua a do instalacao.json
         casca.descartar(nova)
-        _religar(rodar, dados, plano, servidor, subir)
+        _religar(rodar, dados, plano, servidor, subir, plataforma)
         return 1
     religado = _religar(
         rodar,
@@ -263,6 +281,7 @@ def _atualizar_casca(
         plano,
         servidor,
         lambda: subir_em(nova.python),
+        plataforma,
         lambda: _ligar_pelo_novo(rodar, nova.jobot),
     )
     casca.limpar(trocada)
@@ -285,16 +304,18 @@ def atualizar(
     subir_em: Callable[[Path], None] = _subir_em,
     cliente: httpx.Client | None = None,
     raiz: Path | None = None,
+    plataforma: str | None = None,
 ) -> int:
-    """Atualiza o joBot; 0 se deu certo, 1 se recusou ou falhou (religando o que parou)."""
+    """Atualiza o joBot; 0 se deu certo, 1 se recusou ou falhou (religando o que parou).
+    `plataforma`: a do `sys.platform` quando falta (o segundo plano de cada sistema)."""
     if captura_em_andamento(dados):
         print(AVISO_CAPTURA, file=sys.stderr)
         return 1
     if casca.tem_instalacao(dados):
         if cliente is not None:
-            return _atualizar_casca(rodar, dados, cliente, parar, subir, subir_em)
+            return _atualizar_casca(rodar, dados, cliente, parar, subir, subir_em, plataforma)
         with casca.cliente_de_download() as proprio:
-            return _atualizar_casca(rodar, dados, proprio, parar, subir, subir_em)
+            return _atualizar_casca(rodar, dados, proprio, parar, subir, subir_em, plataforma)
     raiz = raiz or raiz_da_instalacao()
     tipo = tipo_de_instalacao(raiz)
     if tipo == "desconhecida":
@@ -312,10 +333,10 @@ def atualizar(
         cabeca = rodar(_git(raiz, "rev-parse", "HEAD")).saida.strip()
         antigo = cabeca if _HASH.fullmatch(cabeca) else None  # vai como argumento do git diff
     # anota o que estava ligado antes de parar qualquer coisa
-    plano = status(rodar).habilitado
+    plano = segundo_plano.status(rodar, plataforma=plataforma).habilitado
     servidor = pid_do_servidor(dados) is not None
-    atualizado = _parar_e_atualizar(rodar, dados, _comandos(tipo, raiz), plano, parar)
-    religado = _religar(rodar, dados, plano, servidor, subir)
+    atualizado = _parar_e_atualizar(rodar, dados, _comandos(tipo, raiz), plano, parar, plataforma)
+    religado = _religar(rodar, dados, plano, servidor, subir, plataforma)
     if not atualizado or not religado:
         return 1
     _novidades(rodar, raiz, tipo, antigo)
