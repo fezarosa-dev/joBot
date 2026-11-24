@@ -26,7 +26,7 @@
 </div>
 {%- endmacro %}
 {#- o "Salvo." e o alerta da seção que gravou (D230); o foco vai ao "Salvo." depois da troca -#}
-{% macro aviso(ancora) -%}
+{% macro aviso_da_secao(ancora) -%}
   {%- if erro_secao == ancora %}
   <div class="config-alerta" id="config-erro" role="alert">
     <p>{{ t(erro) }}</p>
@@ -84,7 +84,7 @@
 {%- if sugeridas or salvo_secao == "sugeridas" %}
 <section class="config-bloco" aria-labelledby="perfil-sugeridas" id="bloco-sugeridas" hx-target="this" hx-select="#bloco-sugeridas" hx-swap="outerHTML" data-troca-422>
   <h2 id="perfil-sugeridas">{{ t("configuracoes.perfil.sugeridas.titulo") }}</h2>
-  {{ aviso("sugeridas") }}
+  {{ aviso_da_secao("sugeridas") }}
   <p class="config-texto">{{ t("configuracoes.perfil.sugeridas.explicacao", teto=teto_sugeridas) }}</p>
   {%- for p in sugeridas %}
   <form method="post" action="/configuracoes/perfil" hx-post="/configuracoes/perfil" class="config-form">
@@ -126,7 +126,7 @@
 {%- set d = dados_tela %}
 <section class="config-bloco" aria-labelledby="perfil-sobre" id="bloco-sobre" hx-target="this" hx-select="#bloco-sobre" hx-swap="outerHTML" data-troca-422>
   <h2 id="perfil-sobre">{{ t("configuracoes.perfil.sobre") }}</h2>
-  {{ aviso("sobre") }}
+  {{ aviso_da_secao("sobre") }}
   <form method="post" action="/configuracoes/perfil" hx-post="/configuracoes/perfil" class="config-form">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <input type="hidden" name="secao" value="dados">
@@ -166,7 +166,7 @@
 </section>
 <section class="config-bloco" aria-labelledby="perfil-habilidades" id="bloco-habilidades" hx-target="this" hx-select="#bloco-habilidades" hx-swap="outerHTML" data-troca-422>
   <h2 id="perfil-habilidades">{{ t("configuracoes.perfil.habilidades.titulo") }}</h2>
-  {{ aviso("habilidades") }}
+  {{ aviso_da_secao("habilidades") }}
   <form method="post" action="/configuracoes/perfil" hx-post="/configuracoes/perfil" class="config-form">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <div class="campo">
@@ -181,7 +181,7 @@
 </section>
 <section class="config-bloco" aria-labelledby="perfil-experiencias" id="bloco-experiencias" hx-target="this" hx-select="#bloco-experiencias" hx-swap="outerHTML" data-troca-422>
   <h2 id="perfil-experiencias">{{ t("configuracoes.perfil.experiencias") }}</h2>
-  {{ aviso("experiencias") }}
+  {{ aviso_da_secao("experiencias") }}
   <p class="config-texto">{{ t("configuracoes.perfil.experiencias.explicacao") }}</p>
   <div class="config-form">
   {%- for e in experiencias %}
@@ -194,7 +194,7 @@
 </section>
 <section class="config-bloco" aria-labelledby="perfil-cursos" id="bloco-cursos" hx-target="this" hx-select="#bloco-cursos" hx-swap="outerHTML" data-troca-422>
   <h2 id="perfil-cursos">{{ t("configuracoes.perfil.cursos") }}</h2>
-  {{ aviso("cursos") }}
+  {{ aviso_da_secao("cursos") }}
   <p class="config-texto">{{ t("configuracoes.perfil.cursos.explicacao") }}</p>
   <div class="config-form">
   {%- for c in cursos %}

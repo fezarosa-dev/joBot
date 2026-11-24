@@ -249,7 +249,10 @@ def test_sem_javascript_a_aba_avisa_antes_de_salvar(browser: Browser, painel: st
     try:
         pagina = contexto.new_page()
         pagina.goto(f"{painel}/configuracoes/perfil")
-        expect(pagina.get_by_text("Sem JavaScript, cada Salvar recarrega a página")).to_be_visible()
+        # o get_by_text do Playwright pula o conteúdo de <noscript>: o parágrafo vai por CSS
+        nota = pagina.locator("noscript#perfil-sem-js > p")
+        expect(nota).to_be_visible()
+        expect(nota).to_contain_text("Sem JavaScript, cada Salvar recarrega a página")
     finally:
         contexto.close()
 
