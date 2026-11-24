@@ -19,8 +19,7 @@ from jobot.banco.conexao import abrir
 from jobot.banco.migrar import migrar
 from jobot.banco.sugeridas import gravar_sugestoes
 from jobot.nucleo.coletores.descoberta_cc import Sugestao
-from jobot.nucleo.leitores.registro import leitores
-from jobot.painel.ambiente import grupos_visiveis
+from jobot.painel.ambiente import GRUPOS
 from jobot.painel.app import criar_app
 from jobot.painel.seguranca import renderizar
 
@@ -461,8 +460,7 @@ def test_paleta_tem_os_comandos(cliente: TestClient, banco: Path, idioma: str) -
     assert PANORAMA[idioma] in pares
     # e um por grupo de Configurações
     hrefs = [href for _, href, _, _ in opcoes]
-    grupos = grupos_visiveis(leitores())  # o `cliente` não põe leitores no app.state
-    assert [g for g in grupos if f"/configuracoes/{g}" not in hrefs] == []
+    assert [g for g in GRUPOS if f"/configuracoes/{g}" not in hrefs] == []
     geral = [r for r, h, _, _ in opcoes if h == "/configuracoes/geral"]
     assert any(r.endswith(ROTULO_GRUPO[idioma]) for r in geral)
     # os formulários que já existem, cada um com o csrf_token da página

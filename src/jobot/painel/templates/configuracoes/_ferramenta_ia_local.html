@@ -1,0 +1,51 @@
+{#- O modelo local em Ferramentas (T417; desenho 10.2 da fase 4): trocado inteiro pelo HTMX; enquanto
+    o comando roda, pergunta de novo a cada 5 s e a barra anda pelos bytes. Cada botão é um
+    formulário com o CSRF: sem JavaScript, o POST volta à página inteira. -#}
+{%- set p = "configuracoes.ferramentas.ia_local." -%}
+{%- set rodando = ia_estado in ("baixando", "removendo") -%}
+{%- macro acao(nome, rotulo, classe="botao-secundario", ajuda=none) -%}
+<form method="post" action="/configuracoes/ferramentas/ia-local/{{ nome }}" hx-post="/configuracoes/ferramentas/ia-local/{{ nome }}" hx-target="#ferramenta-ia-local" hx-swap="outerHTML">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <button type="submit" class="botao {{ classe }}"{% if ajuda %} aria-describedby="{{ ajuda }}"{% endif %}>{{ rotulo }}</button>
+</form>
+{%- endmacro -%}
+<section id="ferramenta-ia-local" class="config-bloco" aria-labelledby="ia-local-titulo"{% if rodando %} hx-get="/configuracoes/ferramentas/ia-local" hx-trigger="every 5s" hx-target="#ferramenta-ia-local" hx-swap="outerHTML"{% endif %}>
+  <h2 id="ia-local-titulo">{{ t(p ~ "nome") }}</h2>
+  <p class="config-texto">{{ t(p ~ "frase") }}</p>
+  <div aria-live="polite">
+    <p class="config-texto">{{ t(p ~ "estado." ~ ia_estado) }}</p>
+    {%- if ia_resultado %}
+    <p class="config-texto" role="status">{{ t(p ~ "aviso." ~ ia_resultado, motivo=t(p ~ "motivo." ~ ia_motivo)) }}</p>
+    {%- endif %}
+  </div>
+  {%- if rodando %}
+  <progress id="ia-local-barra" aria-label="{{ t(p ~ 'barra') }}"{% if ia_total %} max="{{ ia_total }}" value="{{ ia_feito }}"{% endif %}></progress>
+  {%- if ia_total %}<p class="config-texto"><small>{{ t(p ~ "andamento", pct=ia_pct) }}</small></p>{% endif %}
+  <p class="config-texto">{{ t("configuracoes.ferramentas.dica_baixando") }}</p>
+  {%- endif %}
+  {%- if ia_modelo %}
+  <p class="config-texto">{{ t(p ~ "modelo", nome=ia_modelo.nome, tamanho=ia_modelo.tamanho) }}</p>
+  <p class="config-texto"><small>{{ t(p ~ "licenca", licenca=ia_modelo.licenca) }} {{ t(p ~ "origem", origem=ia_modelo.origem) }}</small></p>
+  {%- if ia_programa %}
+  <p class="config-texto">{{ t(p ~ "programa", build=ia_programa.build) }}</p>
+  <p class="config-texto"><small>{{ t(p ~ "licenca", licenca=ia_programa.licenca) }} {{ t(p ~ "origem", origem=ia_programa.origem) }}</small></p>
+  {%- endif %}
+  {%- elif not rodando %}
+  <p class="config-texto"><small>{{ t(p ~ "tamanho", menor=ia_menor, maior=ia_maior) }}</small></p>
+  {%- endif %}
+  {%- if ia_desatualizado %}
+  <p class="config-texto" role="status">{{ t(p ~ "desatualizado") }}</p>
+  {%- endif %}
+  {%- if not rodando %}
+  <div class="acoes">
+    {%- if ia_modelo %}
+    {%- if ia_desatualizado %}{{ acao("atualizar", t(p ~ "atualizar"), "botao-primario") }}{% endif %}
+    {{ acao("trocar", t(p ~ "trocar", nome=ia_outro.nome, tamanho=ia_outro.tamanho)) }}
+    {{ acao("remover", t(p ~ "remover"), ajuda="ia-local-remover-ajuda") }}
+    {%- else %}
+    {{ acao("baixar", t(p ~ "baixar"), "botao-primario") }}
+    {%- endif %}
+  </div>
+  {%- if ia_modelo %}<p class="config-texto" id="ia-local-remover-ajuda"><small>{{ t(p ~ "remover.ajuda") }}</small></p>{% endif %}
+  {%- endif %}
+</section>

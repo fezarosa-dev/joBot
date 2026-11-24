@@ -196,6 +196,11 @@ def test_tudo_offline_sem_o_modelo_leva_a_ferramentas(painel: Painel) -> None:
     resposta = painel.post({"atalho": "offline"})
     assert _destino(resposta) == (303, "/configuracoes/ferramentas")
     assert painel.tarefas() == {"encaixe": DESLIGADA}
+    # o destino tem o cartão do modelo local mesmo sem leitor com login (T417; D185.20)
+    painel.app.state.leitores = ()
+    ferramentas = painel.get("/configuracoes/ferramentas")
+    assert ferramentas.status_code == 200
+    assert 'id="ferramenta-ia-local"' in ferramentas.text
 
 
 def test_atalhos_preservam_tarefa_desconhecida(painel: Painel) -> None:
