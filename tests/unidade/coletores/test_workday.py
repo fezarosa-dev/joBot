@@ -1,7 +1,7 @@
 import copy
 import json
 from collections.abc import Awaitable, Callable
-from datetime import UTC, date, datetime
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +19,7 @@ from jobot.nucleo.tratamento.locais import ler_locais
 
 pytestmark = pytest.mark.anyio
 
+BRASILIA = timezone(timedelta(hours=-3))  # startDate sem fuso: meia-noite de Brasília
 PASTA = Path(__file__).resolve().parents[2] / "fixtures" / "workday"
 ESCOPO = "santander/SantanderCareers|wd3|BR"
 URL_LISTA = "https://santander.wd3.myworkdayjobs.com/wday/cxs/santander/SantanderCareers/jobs"
@@ -525,7 +526,7 @@ async def test_detalhar_le_job_posting_info() -> None:
     info = _dados("detalhe")["jobPostingInfo"]
     assert detalhada.descricao == info["jobDescription"]
     assert detalhada.descricao_formato == "html"
-    assert detalhada.publicada_em == datetime(2026, 11, 11, tzinfo=UTC)  # startDate
+    assert detalhada.publicada_em == datetime(2026, 11, 11, tzinfo=BRASILIA)  # startDate
     assert detalhada.prazo == date(2026, 12, 11)  # endDate
     assert detalhada.contrato_declarado == "Full time"  # timeType
     # o resto fica como veio da lista (a URL é a chave: não muda)
@@ -567,7 +568,7 @@ async def test_detalhar_sem_descricao_mantem_datas_e_tipo() -> None:
     detalhada, _ = await _detalhar(vaga, httpx.Response(200, json=dados))
     assert detalhada is not None
     assert detalhada.descricao == vaga.descricao
-    assert detalhada.publicada_em == datetime(2026, 11, 11, tzinfo=UTC)
+    assert detalhada.publicada_em == datetime(2026, 11, 11, tzinfo=BRASILIA)
     assert detalhada.prazo == date(2026, 12, 11)
     assert detalhada.contrato_declarado == "Full time"
 
