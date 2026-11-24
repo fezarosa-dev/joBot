@@ -42,7 +42,8 @@ def ler_resposta(pedido: Pedido, colado: str) -> Resposta:
     respondem). Não é JSON, tem dois blocos, passa do teto de `ia.json` ou não passa no esquema:
     `Falha("formato")`, sem o texto colado."""
     _so_sob_pedido(pedido.tarefa)
-    if len(colado.encode()) > limites()["resposta_max_bytes"]:
+    # `surrogatepass`: substituto solto conta os seus bytes e cai no `json.loads` como formato.
+    if len(colado.encode(errors="surrogatepass")) > limites()["resposta_max_bytes"]:
         raise Falha("formato")
     texto = colado.strip()
     blocos = _BLOCO.findall(texto)

@@ -3,6 +3,8 @@ leitura da resposta colada, que passa pelo mesmo esquema e pelas mesmas conferê
 backends. Só nas tarefas sob pedido: o `encaixe` recusa."""
 
 import json
+import subprocess
+import sys
 from dataclasses import replace
 from typing import Any
 
@@ -67,9 +69,14 @@ def test_texto_para_copiar_traz_as_mensagens_em_ordem_e_o_esquema() -> None:
 
 
 def test_texto_para_copiar_pede_so_o_json() -> None:
-    texto = texto_para_copiar(_candidatura())
+    pedido = _candidatura()
+    texto = texto_para_copiar(pedido)
     assert "JSON Schema" in texto
     assert "only one JSON object" in texto
+    # a última instrução é nossa: a frase vem depois do bloco de dados, logo antes do esquema
+    usuario = pedido.mensagens[-1].texto
+    assert texto.split("\n\n")[-2] == manual.PEDE_JSON
+    assert texto.index(usuario) < texto.index(manual.PEDE_JSON)
 
 
 @pytest.mark.parametrize(
@@ -133,6 +140,15 @@ def test_json_puro_com_crases_dentro_do_texto_vale_inteiro() -> None:
     assert _lido(json.dumps(carta)) == carta
 
 
+def test_json_puro_vale_antes_do_bloco_que_tambem_e_json() -> None:
+    # o bloco "{}" também passaria no esquema do currículo; o texto inteiro vem primeiro
+    pedido = _pedido("curriculo", SaidaCurriculo, bloco("CURRICULO", "x"))
+    resumo = "Uso ```{}``` no README"
+    assert _lido(json.dumps({"resumo": resumo}), pedido) == SaidaCurriculo(
+        resumo=resumo
+    ).model_dump(mode="json")
+
+
 @pytest.mark.parametrize(
     "colado",
     [
@@ -145,11 +161,20 @@ def test_json_puro_com_crases_dentro_do_texto_vale_inteiro() -> None:
         "```json\nnão é json\n```",
         "[{dados}]",  # lista, não objeto
         "[" * 100_000,  # aninhado demais
-        "```" + " " * 50_000 + "x",  # bloco sem fim (a regex não pode voltar atrás demais)
+        "\ud800",  # substituto solto: não vira UTF-8
     ],
 )
 def test_resposta_que_nao_e_json_e_falha_formato(colado: str) -> None:
     assert _lido(colado.replace("{dados}", json.dumps(CARTA))) == "formato"
+
+
+def test_bloco_sem_fim_falha_formato_depressa() -> None:
+    # A regex não pode voltar atrás demais. Ela roda primeiro num processo à parte, com prazo: se
+    # voltar a ficar cúbica, o teste reprova em 10 s, em vez de travar o job até o prazo do CI.
+    colado = "```" + " " * 50_000 + "x"
+    codigo = f"from jobot.nucleo.ia.manual import _BLOCO; _BLOCO.findall({colado!r})"
+    subprocess.run([sys.executable, "-c", codigo], check=True, timeout=10)
+    assert _lido(colado) == "formato"
 
 
 @pytest.mark.parametrize(
