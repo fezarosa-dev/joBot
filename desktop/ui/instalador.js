@@ -110,7 +110,39 @@
 
   function aplicar() {
     $("trilho").setAttribute("aria-valuenow", String(valor));
-    $("instalador-preenchimento").style.inlineSize = `${valor}%`;
+    if (!instalando) {
+      suave = mostrado = valor;
+      $("instalador-preenchimento").style.inlineSize = `${valor}%`;
+    }
+  }
+
+  // Movimento da barra (D216): o aria-valuenow é o valor real; a largura anda sozinha dentro da
+  // etapa, rápida no começo e freando (o que falta até o fim da fatia cai a 0,9 a cada 2 s, e a
+  // velocidade só depende do que falta, então não muda quando chega aviso da mesma etapa), e duas
+  // suavizações em série tiram o tranco na troca de etapa. Nunca volta nem passa do teto.
+  const reduzido = window.matchMedia("(prefers-reduced-motion: reduce)");
+  let mostrado = 0;
+  let suave = 0;
+  let partida = 0;
+  let desde = 0;
+  let ultimo = 0;
+  let quadro = 0;
+
+  function alvo(agora) {
+    if (!instalando || parando || !etapa || reduzido.matches) return valor;
+    const fim = Math.min(TETO, calcular(etapa, 1, 1));
+    return Math.max(valor, fim - (fim - partida) * 0.9 ** ((agora - desde) / 2000));
+  }
+
+  function andar() {
+    const agora = performance.now(); // o mesmo relógio do aviso (o do quadro pode ter outra origem)
+    const dt = ultimo ? Math.min(agora - ultimo, 100) : 0;
+    ultimo = agora;
+    const k = reduzido.matches ? 1 : 1 - Math.exp(-dt / 250);
+    suave += (Math.max(alvo(agora), suave) - suave) * k;
+    mostrado += (suave - mostrado) * k;
+    $("instalador-preenchimento").style.inlineSize = `${mostrado}%`;
+    quadro = instalando ? requestAnimationFrame(andar) : 0;
   }
 
   function aoAviso(aviso) {
@@ -130,12 +162,17 @@
       return;
     }
     if (parando || !ORDEM.includes(aviso.etapa)) return;
+    // o avanço recomeça de onde o alvo estava: a posição não salta
+    const agora = performance.now();
+    const antes = alvo(agora);
     if (aviso.etapa !== etapa) {
       etapa = aviso.etapa;
       desenharEtapa();
       $("etapa-viva").textContent = t(`etapa.${etapa}`); // a região viva diz só o nome da etapa
     }
     valor = Math.min(TETO, Math.max(valor, Math.floor(calcular(etapa, aviso.feito || 0, aviso.total || 0))));
+    partida = Math.max(antes, valor);
+    desde = agora;
     aplicar();
   }
 
@@ -144,7 +181,12 @@
     parando = false;
     valor = 0;
     etapa = null;
+    mostrado = suave = partida = 0;
+    desde = performance.now();
+    ultimo = 0;
+    $("instalador-preenchimento").style.inlineSize = "0%";
     aplicar();
+    if (!quadro) quadro = requestAnimationFrame(andar);
     mostrarPasso("instalando");
     aoAviso({ etapa: "conferir" });
     const canal = new core.Channel();
