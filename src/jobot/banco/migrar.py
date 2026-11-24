@@ -53,14 +53,19 @@ def _copiar(con: sqlite3.Connection, caminho: Path, versao: int) -> None:
         con.backup(copia)
     finally:
         copia.close()
+    for velha in copias(caminho)[:-COPIAS_GUARDADAS]:
+        velha.unlink()
+
+
+def copias(caminho: Path) -> list[Path]:
+    """As cópias de antes das migrações (`<banco>.antes-vN`), da mais velha para a mais nova."""
     prefixo = f"{caminho.name}.antes-v"
-    copias = sorted(
+    achadas = sorted(
         (int(p.name.removeprefix(prefixo)), p)
         for p in caminho.parent.glob(f"{prefixo}*")
         if p.name.removeprefix(prefixo).isdigit()
     )
-    for _, velha in copias[:-COPIAS_GUARDADAS]:
-        velha.unlink()
+    return [p for _, p in achadas]
 
 
 def _aplicar(con: sqlite3.Connection, numero: int, sql: str) -> None:

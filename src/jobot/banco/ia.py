@@ -1,4 +1,5 @@
-"""IA no banco (desenho 5.4; plano T403): o que cada vaga pede, a contagem do dia e `ia_tarefas`.
+"""IA no banco (desenho 5.4 e 9; planos T403 e T430): o que cada vaga pede, a contagem do dia,
+`ia_tarefas` e o preparo de candidatura.
 
 `habilidades_vaga` tem uma linha por vaga, gravada por `ON CONFLICT DO UPDATE`. O acerto troca o
 `pede` e não mexe na falha; a falha não apaga o `pede` anterior. `tentativas` conta as falhas
@@ -8,10 +9,11 @@ seguidas com a mesma `falha_chave` e recomeça com chave nova.
 import json
 import sqlite3
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass, fields
 from datetime import datetime
 
 from jobot.banco.cadastros import gravar_config, ler_config
+from jobot.banco.perfil import textos_json
 
 
 @dataclass(frozen=True)
@@ -184,3 +186,55 @@ def candidatas(con: sqlite3.Connection) -> list[Candidata]:
             " ORDER BY v.primeira_vista_em DESC, v.id DESC"
         )
     ]
+
+
+@dataclass(frozen=True)
+class Preparo:
+    """O preparo de candidatura de uma vaga (desenho 9), como fica em `preparo_candidatura`."""
+
+    idioma: str
+    carta: str
+    resumo: str
+    tem: tuple[str, ...]  # do código (desenho 5.5)
+    faltam: tuple[str, ...]
+    perguntar: tuple[str, ...]  # já conferidas pela regra de `perguntas`
+    usou: tuple[str, ...]  # chaves do perfil que a IA disse ter usado
+    backend: str
+    modelo: str
+    versao: int
+    feito_em: str  # ISO com fuso
+
+
+_PREPARO = [f.name for f in fields(Preparo)]
+_LISTAS_DO_PREPARO = ("tem", "faltam", "perguntar", "usou")
+
+
+def gravar_preparo(con: sqlite3.Connection, vaga_id: int, preparo: Preparo) -> None:
+    """Grava o preparo da vaga; refazer substitui a linha (`ON CONFLICT DO UPDATE`).
+
+    Só o acerto chega aqui: a falha não mexe no preparo anterior.
+    """
+    valores = [
+        json.dumps(list(v), ensure_ascii=False) if c in _LISTAS_DO_PREPARO else v
+        for c, v in asdict(preparo).items()
+    ]
+    with con:
+        con.execute(
+            f"INSERT INTO preparo_candidatura (vaga_id, {', '.join(_PREPARO)})"
+            f" VALUES (?, {', '.join('?' * len(_PREPARO))}) ON CONFLICT(vaga_id) DO UPDATE SET "
+            + ", ".join(f"{c} = excluded.{c}" for c in _PREPARO),
+            (vaga_id, *valores),
+        )
+
+
+def preparo(con: sqlite3.Connection, vaga_id: int) -> Preparo | None:
+    """O preparo gravado da vaga, ou `None`. Listas estragadas viram vazias."""
+    linha = con.execute(
+        f"SELECT {', '.join(_PREPARO)} FROM preparo_candidatura WHERE vaga_id = ?", (vaga_id,)
+    ).fetchone()
+    if linha is None:
+        return None
+    lido = dict(zip(_PREPARO, linha, strict=True))
+    for c in _LISTAS_DO_PREPARO:
+        lido[c] = textos_json(lido[c])
+    return Preparo(**lido)
