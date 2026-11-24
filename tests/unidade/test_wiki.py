@@ -1,7 +1,10 @@
 """Guarda da wiki (ADR 0019): pares pt/en, links que não quebram e FAQ com fonte única."""
 
+import json
 import re
 from pathlib import Path
+
+import pytest
 
 RAIZ = Path(__file__).resolve().parents[2]
 WIKI = RAIZ / "wiki"
@@ -173,3 +176,65 @@ def test_nota_de_privacidade_sem_gmail_futuro() -> None:
         assert aba in nota, arquivo  # controle positivo: a nota existe e cita a aba
         assert fase in nota, arquivo
         assert velho not in nota, arquivo
+
+
+# rótulo de mais de uma palavra entre aspas na doc em inglês copia a caixa do catálogo
+CITACAO = re.compile(r'"([^"\n]{2,40})"')
+
+
+@pytest.mark.parametrize(
+    ("lingua", "documentos", "controle"),
+    [
+        (
+            "en",
+            ["README.en.md", "CHANGELOG.en.md", *(f"wiki/{en}.md" for en in PARES.values())],
+            ("README.en.md", "More Filters"),
+        ),
+        (
+            "pt",
+            ["README.md", "CHANGELOG.md", *(f"wiki/{pt}.md" for pt in PARES)],
+            ("README.md", "Buscar agora"),
+        ),
+    ],
+)
+def test_doc_cita_o_rotulo_com_a_caixa_do_catalogo(
+    lingua: str, documentos: list[str], controle: tuple[str, str]
+) -> None:
+    rotulos: dict[str, set[str]] = {}
+    for catalogo in (RAIZ / "src/jobot/painel/i18n" / lingua).glob("*.json"):
+        for valor in json.loads(catalogo.read_text(encoding="utf-8")).values():
+            if "{" not in valor and 2 <= len(valor.split()) <= 4:
+                rotulos.setdefault(valor.lower(), set()).add(valor)
+    citados = {doc: CITACAO.findall((RAIZ / doc).read_text(encoding="utf-8")) for doc in documentos}
+    # controle positivo: a montagem acha os rótulos e casa uma citação conhecida
+    doc_controle, rotulo_controle = controle
+    assert rotulo_controle in rotulos[rotulo_controle.lower()]
+    assert rotulo_controle in citados[doc_controle]
+    errados = [
+        f"{doc}: {citado!r} (catálogo: {sorted(rotulos[citado.lower()])})"
+        for doc, lista in citados.items()
+        for citado in lista
+        if citado.lower() in rotulos and citado not in rotulos[citado.lower()]
+    ]
+    assert errados == []
+
+
+def marcador_perdido(texto: str) -> list[int]:
+    """Linhas "> **b**" logo depois de "> - a": no Markdown, b vira continuação do item a."""
+    linhas = texto.splitlines()
+    return [
+        n + 1
+        for n in range(1, len(linhas))
+        if linhas[n - 1].startswith("> - ") and linhas[n].startswith("> **")
+    ]
+
+
+def test_lista_em_citacao_nao_perde_o_marcador() -> None:
+    assert marcador_perdido("> - **a.** x\n> **b.** y\n> - **c.** z") == [2]
+    documentos = [RAIZ / "README.md", RAIZ / "README.en.md", *sorted(WIKI.glob("*.md"))]
+    errados = [
+        f"{doc.relative_to(RAIZ)}:{n}"
+        for doc in documentos
+        for n in marcador_perdido(doc.read_text(encoding="utf-8"))
+    ]
+    assert errados == []

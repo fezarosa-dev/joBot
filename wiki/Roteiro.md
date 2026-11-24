@@ -100,7 +100,7 @@ A versão 0.3.0 saiu entre a fase 2 e a fase 3, com a tela "Panorama" (visão ge
 <summary><strong>⚪ Fase 9, Publicação</strong></summary>
 
 - README com selos e revisão de segurança.
-- Planejado: um vigia semanal que testa cada fonte e abre issue quando uma quebra, e um jeito fácil de atualizar a instalação.
+- O vigia semanal (que testa cada fonte e abre issue quando uma quebra) e o jeito fácil de atualizar a instalação já vieram na fase 1 (ADR 0018).
 - A partir daqui, pull requests de código passam a ser aceitos.
 </details>
 

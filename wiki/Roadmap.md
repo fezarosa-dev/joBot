@@ -100,7 +100,7 @@ Version 0.3.0 came out between phase 2 and phase 3, with the "Overview" screen (
 <summary><strong>⚪ Phase 9, Release</strong></summary>
 
 - README with badges and security review.
-- Planned: a weekly watcher that tests each source and opens an issue when one breaks, and an easy way to update the installation.
+- The weekly watcher (which tests each source and opens an issue when one breaks) and the easy way to update the installation already came in phase 1 (ADR 0018).
 - From here on, code pull requests are accepted.
 </details>
 

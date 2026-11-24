@@ -111,7 +111,7 @@ Phase 2 arrives: the browser with login and LinkedIn, the first site with login.
 
 - ADR 0022: CAPTCHA solved by the service the person turns on (2Captcha), only for logged-in browsing.
 - Services tab in Settings: save the 2Captcha key, test the key and see the balance. Use comes with logged-in browsing.
-- New filters in the job list: country, how many days ago the job was posted and, under "More filters", salary, city, company and words the job must not have.
+- New filters in the job list: country, how many days ago the job was posted and, under "More Filters", salary, city, company and words the job must not have.
 - "My country", asked on the first run and kept in Settings, and the currency of converted values, which you choose (your country's by default).
 
 ### Changed

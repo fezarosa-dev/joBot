@@ -32,7 +32,7 @@ It gathers, filters and organizes jobs from many sites into a nice dashboard tha
 
 > [!IMPORTANT]
 > **joBot phases 1, 2 and 3 (the foundation, the browser with login and the installer) are done: version 0.4.0.** It searches public sources for jobs, keeps everything on your computer and shows it in a dashboard. You can already [install and use it](#requirements-and-installation).
-> LinkedIn is the site with login today (others can come through the [new site template](docs/site-novo.en.md)); it arrives in the next version and comes off. The Gmail card is already in Settings, Accounts; reading the emails, audio and the rest (the other sites with login, AI and browser extension) are still a plan. See the [roadmap](#roadmap). Before you turn on the sources, read the [usage and terms notices](#license-and-notices).
+> LinkedIn is the site with login today (others can come through the [new site template](docs/site-novo.en.md)); it has been here since version 0.3.0 and comes off (you turn it on in Settings, Accounts). The Gmail card is already in Settings, Accounts; reading the emails, audio and the rest (the other sites with login, AI and browser extension) are still a plan. See the [roadmap](#roadmap). Before you turn on the sources, read the [usage and terms notices](#license-and-notices).
 
 ## 📑 Contents
 
@@ -102,7 +102,7 @@ joBot does not do the following, and was planned never to:
 - **It does not mass-apply.** There is no "apply to 200 jobs with one click".
 - **It does not send anything on its own.** You are always the one who sends the application.
 - **It does not type your password.** On sites with login, you sign in with your own hands, in a regular browser window: however you like (Google, email and password), and then you close the window. joBot checks the session by itself.
-- **It does not bypass CAPTCHA.** If one shows up, it stops and warns you.
+- **It does not get past a CAPTCHA on its own.** If one shows up, it stops and warns you. On the public sources, that is always the case. In the browsing with login, the only exception is your own 2Captcha: only if you save your key and turn on the switch in Settings, Services (it comes off).
 - **It does not send telemetry.** joBot does not send usage data to anyone.
 - **It does not invent experience.** The AI only uses what is in your profile.
 
@@ -216,7 +216,7 @@ The dashboard runs at `http://127.0.0.1:47615`. When joBot finds Chrome, Edge or
 - **List with detail:** the job list sits on one side and the detail of the chosen job on the other. In a narrow window the detail slides over the list.
 
 - **Tabs:** Today's Highlights (the best new ones, one per company), All, New, Closing Soon, Saved, Applied, Programs and Hidden.
-- **Filters** as "chips" (little buttons) with counts: country and how many days ago the job was posted stay in view; salary, city, company and words the job must not have are under "More filters". The current filter stays in the page address, so you can save the link. Quick search with the `/` key.
+- **Filters** as "chips" (little buttons) with counts: country and how many days ago the job was posted stay in view; salary, city, company and words the job must not have are under "More Filters". The current filter stays in the page address, so you can save the link. Quick search with the `/` key.
 - **Status of each job:** new → saved → applied → interview → rejected or offer.
 - **Match with your search:** ● good, ◐ medium, ○ weak, always with the reasons.
 - **12-month calendar** on each job, to see deadlines at a glance.
