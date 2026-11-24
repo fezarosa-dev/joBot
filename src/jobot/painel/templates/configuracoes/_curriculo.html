@@ -43,7 +43,8 @@
   </form>
 </div>
 {%- endif %}
-{%- if revisao is not none and not revisao and not motivo_ia and not falha_ia %}
+{#- revisao == []: com a IA manual antes de colar não há revisão (nem a chave) #}
+{%- if revisao == [] and not motivo_ia and not falha_ia %}
 <p class="config-texto">{{ t("configuracoes.perfil.curriculo.nada_achado") }}</p>
 {%- endif %}
 {%- if revisao %}
@@ -70,6 +71,7 @@
   <input type="hidden" name="item" value="{{ c }}">
   {%- if i.motivo %}
   <input type="hidden" name="marcado" value="{{ c }}">
+  <input type="hidden" name="{{ c }}.motivo" value="{{ i.motivo }}">
   <p class="config-texto" id="{{ base }}-motivo">{{ t("configuracoes.perfil.curriculo." ~ i.motivo) }}</p>
   {%- endif %}
   <div class="interruptor">

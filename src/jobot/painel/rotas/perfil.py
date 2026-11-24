@@ -19,7 +19,7 @@ import logging
 import re
 import sqlite3
 import unicodedata
-from collections.abc import Collection, Sequence
+from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import asdict, replace
 from typing import Any, get_args
 from urllib.parse import urlsplit
@@ -507,13 +507,30 @@ def _id_cv(caminho: str, campo: str) -> str:
     return f"cv-{caminho.replace('.', '-')}-{campo}"
 
 
-def _motivo(caminho: str, marcados: Collection[str]) -> str | None:
-    """Por que o item fica fora do "Aprovar todas": não achado no texto, ou o número de anos, que
-    o `nao_achei` acha em qualquer lugar ("3 filhos"; D228.2)."""
+# por que um item fica fora do "Aprovar todas" (o texto é `configuracoes.perfil.curriculo.<motivo>`)
+_MOTIVOS = ("conferir", "nao_achei", "troca", "sem_nivel")
+
+
+def _sem_formato(campo: str, valor: str) -> str:
+    return re.sub(r"\D", "", valor) if campo == "telefone" else valor.casefold()
+
+
+def _motivo(
+    caminho: str, valores: dict[str, str], marcados: Collection[str], gravado: Mapping[str, Any]
+) -> str | None:
+    """Por que o item fica fora do "Aprovar todas": o contato que trocaria outro já gravado (o
+    regex pega o primeiro número que parece telefone), o número de anos, que o `nao_achei` acha em
+    qualquer lugar ("3 filhos"; D228.2), o que não foi achado no texto e o idioma sem nível."""
+    if caminho in ("email", "telefone"):
+        antes = gravado.get(caminho)
+        mesmo = not antes or _sem_formato(caminho, antes) == _sem_formato(caminho, valores["valor"])
+        return None if mesmo else "troca"
     if caminho == "anos_de_experiencia":
         return "conferir"
     if caminho in marcados or any(m.startswith(caminho + ".") for m in marcados):
         return "nao_achei"
+    if caminho.startswith("idiomas_falados.") and not valores.get("nivel"):
+        return "sem_nivel"
     return None
 
 
@@ -522,10 +539,15 @@ def _item(caminho: str, valores: dict[str, str], motivo: str | None, usar: bool)
 
 
 def _revisao(
-    dados: dict[str, Any], enviado: str, email: str | None, telefone: str | None
+    dados: dict[str, Any],
+    enviado: str,
+    email: str | None,
+    telefone: str | None,
+    gravado: perfil.Dados,
 ) -> list[dict[str, Any]]:
     """Os itens da revisão: cada valor lido, com a marca de `nao_achei` e de
-    `nivel_fora_do_trecho` contra o texto enviado. O marcado vem desmarcado para usar."""
+    `nivel_fora_do_trecho` contra o texto enviado e a do contato contra o `gravado`. O marcado
+    vem desmarcado para usar."""
     marcados = nao_achei(dados, enviado) | nivel_fora_do_trecho(dados, enviado)
     lidos: dict[str, dict[str, str]] = {}
     for campo, valor in (("email", email), ("telefone", telefone)):
@@ -540,9 +562,10 @@ def _revisao(
             lidos[f"{lista}.{i}"] = {
                 s: "" if valores.get(s) is None else str(valores[s]) for s in subs
             }
+    contato = {"email": gravado.email, "telefone": gravado.telefone}
     itens = []
     for caminho, valores in lidos.items():
-        motivo = None if caminho in ("email", "telefone") else _motivo(caminho, marcados)
+        motivo = _motivo(caminho, valores, marcados, contato)
         itens.append(_item(caminho, valores, motivo, motivo is None))
     return itens
 
@@ -567,11 +590,11 @@ async def extrair_curriculo(
     aqui (só o "Salvar" grava). O texto só vive neste pedido."""
     email, telefone = contato_do_texto(lido.texto)
     contexto: dict[str, Any] = {"lido": lido} | _CONTEXTO_CV
-    so_local = _revisao({}, "", email, telefone)
+    gravado = perfil.dados(con)
+    so_local = _revisao({}, "", email, telefone, gravado)
     tarefa = tarefa_ia(con, "curriculo")
     if not tarefa.ligada:
         return contexto | {"motivo_ia": _CV + "sem_ia", "revisao": so_local}
-    gravado = perfil.dados(con)
     proprios = {"nome": gravado.nome, "email": gravado.email, "telefone": gravado.telefone}
     texto = texto_curriculo(lido.texto, tarefa.backend, proprios)
     pedido = pedido_curriculo(texto, tarefa.backend, tarefa.modelo)
@@ -587,7 +610,8 @@ async def extrair_curriculo(
         except Falha as falha:
             falhou = chave_da_falha(falha.motivo, tarefa.backend)
             return contexto | {"falha_ia": falhou, "revisao": so_local}
-    return contexto | {"revisao": _revisao(resposta.dados, texto.texto, email, telefone)}
+    revisao = _revisao(resposta.dados, texto.texto, email, telefone, gravado)
+    return contexto | {"revisao": revisao}
 
 
 def _manual(
@@ -604,7 +628,7 @@ def _manual(
 
 
 @router.post("/curriculo/resposta")
-async def colar_curriculo(request: Request) -> Response:
+async def colar_curriculo(request: Request, con: Con) -> Response:
     """A resposta colada da IA manual (D229): o mesmo esquema e as mesmas conferências."""
     form = await request.form()
     enviado, colado, email, telefone = (
@@ -622,7 +646,8 @@ async def colar_curriculo(request: Request) -> Response:
         dados = _manual(pedido, enviado, email, telefone)
         falhou = chave_da_falha(falha.motivo, manual.BACKEND)
         return renderizar(request, _CURRICULO, manual=dados, falha_ia=falhou, **contexto)
-    revisao = _revisao(resposta.dados, enviado, email or None, telefone or None)
+    gravado = perfil.dados(con)
+    revisao = _revisao(resposta.dados, enviado, email or None, telefone or None, gravado)
     return renderizar(request, _CURRICULO, revisao=revisao, **contexto)
 
 
@@ -634,17 +659,15 @@ def _textos(form: FormData, nome: str) -> set[str]:
 
 
 def _itens_digitados(form: FormData, caminhos: list[str]) -> list[dict[str, Any]]:
-    """A revisão como voltou no formulário, para a página do erro."""
+    """A revisão como voltou no formulário, para a página do erro (o motivo vem escondido)."""
     marcados, usar = _textos(form, "marcado"), _textos(form, "usar")
-    return [
-        _item(
-            c,
-            {s: str(form.get(f"{c}.{s}") or "") for s in _subcampos(c)},
-            _motivo(c, marcados) if c in marcados else None,
-            c in usar,
-        )
-        for c in caminhos
-    ]
+    itens = []
+    for c in caminhos:
+        motivo = str(form.get(f"{c}.motivo") or "")
+        valores = {s: str(form.get(f"{c}.{s}") or "") for s in _subcampos(c)}
+        ok = c in marcados and motivo in _MOTIVOS
+        itens.append(_item(c, valores, motivo if ok else None, c in usar))
+    return itens
 
 
 def _idioma(nome: str) -> str:
@@ -654,10 +677,11 @@ def _idioma(nome: str) -> str:
 def _gravar_curriculo(
     request: Request, con: sqlite3.Connection, form: FormData
 ) -> str | tuple[int, dict[str, Any]]:
-    """Grava os itens escolhidos: com `aprovar`, todos os não marcados ("não achei no currículo"
-    fica de fora); senão, os da caixa `usar`. Cada valor passa pelas conferências da aba, e tudo
+    """Grava os itens escolhidos: com `aprovar`, os da caixa `usar` que não estão para conferir;
+    senão, todos os da caixa `usar`. Cada valor passa pelas conferências da aba, e tudo
     se confere antes de gravar: com um erro, nada muda. Os itens somam ao perfil: habilidades e
-    idiomas se juntam aos de hoje, experiências e cursos entram como novos (até o teto)."""
+    idiomas se juntam aos de hoje, experiências e cursos entram como novos (até o teto), menos os
+    iguais aos já gravados."""
     caminhos = form.getlist("item")
     if (
         len(caminhos) > TETO_REVISAO
@@ -667,7 +691,8 @@ def _gravar_curriculo(
         raise HTTPException(422)
     nomes = [str(c) for c in caminhos]
     marcados, usar = _textos(form, "marcado"), _textos(form, "usar")
-    escolhidos = [c for c in nomes if (c not in marcados if "aprovar" in form else c in usar)]
+    aprovar = "aprovar" in form
+    escolhidos = [c for c in nomes if c in usar and not (aprovar and c in marcados)]
     try:
         if not escolhidos:
             raise _Recusa(_CV + "nada", _id_cv(nomes[0], "usar") if nomes else "perfil-curriculo")
@@ -724,6 +749,9 @@ def _aplicar_curriculo(
             experiencias.append(_experiencia(subform(c), None, f"cv-{c.replace('.', '-')}"))
         else:
             cursos.append(_curso(subform(c), None, f"cv-{c.replace('.', '-')}"))
+    # a mesma revisão salva de novo (voltar no navegador, currículo atualizado) não repete
+    experiencias = _sem_os_gravados(experiencias, perfil.experiencias(con), _chave_experiencia)
+    cursos = _sem_os_gravados(cursos, perfil.cursos(con), _chave_curso)
     for novos, atuais, primeiro in (
         (experiencias, perfil.experiencias(con), "experiencias"),
         (cursos, perfil.cursos(con), "cursos"),
@@ -760,6 +788,27 @@ def _aplicar_curriculo(
         perfil.gravar_experiencia(con, experiencia)
     for curso in cursos:
         perfil.gravar_curso(con, curso)
+
+
+def _chave_experiencia(e: perfil.Experiencia) -> tuple[str, ...]:
+    return tuple(normalizar(v or "") for v in (e.cargo, e.empresa, e.inicio))
+
+
+def _chave_curso(c: perfil.Curso) -> tuple[str, ...]:
+    return tuple(normalizar(v or "") for v in (c.nome, c.instituicao))
+
+
+def _sem_os_gravados[T](
+    novos: list[T], gravados: list[T], chave: Callable[[T], tuple[str, ...]]
+) -> list[T]:
+    """Os novos sem os iguais (pela `chave`) a um gravado ou a um anterior da mesma lista."""
+    vistos = {chave(g) for g in gravados}
+    ficam = []
+    for item in novos:
+        if chave(item) not in vistos:
+            vistos.add(chave(item))
+            ficam.append(item)
+    return ficam
 
 
 def _aviso(request: Request, chave: str, status: int = 200) -> Response:

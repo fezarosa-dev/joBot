@@ -889,11 +889,7 @@ def test_valor_errado_volta_com_a_revisao_e_nada_e_gravado(painel: Painel) -> No
     resposta, _ = _ler_cv(painel)
     form = _form_revisao(resposta.text)
     assert form is not None
-    campos = [
-        (n, "marco de 2019" if n == "experiencias.0.inicio" else v)
-        for n, v in _campos(form)
-        if n != "usar"
-    ]
+    campos = [(n, "marco de 2019" if n == "experiencias.0.inicio" else v) for n, v in _campos(form)]
     errado = _salvar(painel, campos, aprovar="1")
     assert errado.status_code == 422
     assert i18n.t("pt", "configuracoes.perfil.erro.mes") in _texto(errado.text)
