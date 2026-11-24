@@ -34,3 +34,74 @@ def pede_da_vaga(pede: list[str], texto: str) -> list[str]:
             vistos.add(forma)
             ficam.append(limpo)
     return ficam
+
+
+# Esqueleto da T432 (só para o vermelho): campos soltos, sem conferência.
+from collections.abc import Mapping, Sequence  # noqa: E402
+from dataclasses import dataclass  # noqa: E402
+from typing import Any  # noqa: E402
+
+VERSAO.update(curriculo=0, perguntas=0, candidatura=0)
+
+
+class SaidaCurriculo(BaseModel):
+    cargo_atual: Any = None
+    anos_de_experiencia: Any = None
+    formacao_nivel: Any = None
+    resumo: Any = None
+    habilidades: Any = []
+    idiomas_falados: Any = []
+    experiencias: Any = []
+    cursos: Any = []
+
+
+class SaidaPerguntas(BaseModel):
+    perguntas: Any = []
+
+
+class SaidaCandidatura(BaseModel):
+    idioma: Any = None
+    carta: Any = None
+    resumo: Any = None
+    perguntar: Any = []
+    usou: Any = []
+
+
+def nao_achei(dados: Mapping[str, Any], texto: str) -> frozenset[str]:
+    return frozenset()
+
+
+def perguntas_que_ficam(
+    itens: Sequence[Mapping[str, Any]], feitas: Sequence[str]
+) -> list[dict[str, str]]:
+    return [dict(item) for item in itens]
+
+
+@dataclass(frozen=True)
+class Candidatura:
+    idioma: str
+    carta: str
+    resumo: str
+    tem: tuple[str, ...]
+    faltam: tuple[str, ...]
+    perguntar: tuple[str, ...]
+    usou: tuple[str, ...]
+    citados: tuple[str, ...]
+
+
+def conferir_candidatura(
+    dados: Mapping[str, Any],
+    enviados: Mapping[str, object],
+    pede: Sequence[str] | None,
+    feitas: Sequence[str],
+) -> Candidatura:
+    return Candidatura(
+        dados["idioma"],
+        dados["carta"],
+        dados["resumo"],
+        (),
+        (),
+        tuple(dados["perguntar"]),
+        tuple(dados["usou"]),
+        (),
+    )
