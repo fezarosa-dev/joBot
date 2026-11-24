@@ -164,5 +164,8 @@ def de_reais(reais: int, venda: Decimal) -> int:
 
 def taxa_cruzada(venda_x: Decimal, venda_y: Decimal) -> Decimal:
     """Quantas unidades de Y valem 1 de X (`venda_x / venda_y`), em 4 casas, meio para cima."""
+    for venda in (venda_x, venda_y):
+        if not venda.is_finite() or venda <= 0:
+            raise ValueError(f"cotação inválida: {venda!r}")
     taxa = Context(prec=34, rounding=ROUND_HALF_UP).divide(venda_x, venda_y)
     return taxa.quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)

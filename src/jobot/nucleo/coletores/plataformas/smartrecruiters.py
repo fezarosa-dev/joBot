@@ -33,6 +33,7 @@ MAX_PAGINAS = 200  # trava contra `totalFound` mentiroso: 20 mil vagas num escop
 _IDENTIFICADOR = re.compile(r"[A-Za-z0-9_-]{1,100}")
 _ID_VAGA = re.compile(r"[A-Za-z0-9_-]{1,100}")
 _PAIS = re.compile(r"[a-z]{2}")
+_PADRAO = "br"
 _HOSTS_VAGAS = frozenset({"jobs.smartrecruiters.com", "careers.smartrecruiters.com"})
 _HOST_API = "api.smartrecruiters.com"
 # Primeiro segmento que não é identificador de empresa nos endereços de vagas.
@@ -145,10 +146,10 @@ class SmartRecruiters:
     por_escopo: Mapping[str, LimiteEscopo] = _LIMITES.por_escopo
 
     def escopos(self, ctx: ContextoColeta) -> Sequence[str]:
-        """Uma empresa por país das buscas ativas (DR-53); sem país válido, nada a pedir."""
-        paises = dict.fromkeys(
-            p for p in (p.strip().lower() for p in ctx.paises) if _PAIS.fullmatch(p)
-        )
+        """Uma empresa por país das buscas ativas (DR-53); sem país nas buscas (o "testar" do
+        painel), o Brasil, como no Workday (A21); só país inválido, nada a pedir."""
+        brutos = ctx.paises or (_PADRAO,)
+        paises = dict.fromkeys(p for p in (p.strip().lower() for p in brutos) if _PAIS.fullmatch(p))
         empresas = dict.fromkeys(e.identificador for e in ctx.empresas)
         return [f"{e}|{p}" for e in empresas for p in paises]
 

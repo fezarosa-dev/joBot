@@ -42,6 +42,7 @@ _URL_VAGA = re.compile(r"https://www\.superestagios\.com\.br/vaga/(\d+)")
 # real e trocar se o site passar a mandar UTC.
 _BRASILIA = timezone(timedelta(hours=-3))
 _NOME = "Super Estágios"
+_PROFUNDIDADE = 100  # bem abaixo do limite de recursão do Python
 _PERIODOS: Mapping[str, Periodo] = {
     "HOUR": "hora",
     "DAY": "dia",
@@ -83,6 +84,8 @@ def _ler_sitemap(texto: str) -> tuple[list[Item], int, int]:
     if _nome(raiz) != "urlset":
         raise _FormatoMudou
     urls = [e for e in raiz if _nome(e) == "url"]
+    if len(raiz) and not urls:
+        raise _FormatoMudou  # só filho desconhecido: "ok" vazio fecharia todas as vagas
     vagas: list[Item] = []
     sem_endereco = recusadas = 0
     for url in urls:
@@ -115,7 +118,10 @@ def _numero(valor: object) -> float | None:
     """Valor positivo e finito; `bool` (que é `int`), texto e zero não valem."""
     if isinstance(valor, bool) or not isinstance(valor, int | float):
         return None
-    return valor if math.isfinite(valor) and valor > 0 else None
+    try:
+        return valor if math.isfinite(valor) and valor > 0 else None
+    except OverflowError:  # inteiro maior que um float
+        return None
 
 
 def _salario(base: object) -> SalarioBruto | None:
@@ -157,14 +163,16 @@ def _locais(lugares: object) -> tuple[str, ...]:
     return tuple(dict.fromkeys(achados))
 
 
-def _candidatos(dado: object) -> Iterator[dict[str, object]]:
-    """Os objetos do JSON-LD solto, em lista ou em `@graph`."""
+def _candidatos(dado: object, fundo: int = 0) -> Iterator[dict[str, object]]:
+    """Os objetos do JSON-LD solto, em lista ou em `@graph`; fundo demais fica de fora."""
+    if fundo > _PROFUNDIDADE:
+        return
     if isinstance(dado, list):
         for filho in dado:
-            yield from _candidatos(filho)
+            yield from _candidatos(filho, fundo + 1)
     elif isinstance(dado, dict):
         yield dado
-        yield from _candidatos(dado.get("@graph"))
+        yield from _candidatos(dado.get("@graph"), fundo + 1)
 
 
 def _vaga_do_json_ld(arvore: LexborHTMLParser) -> dict[str, object] | None:

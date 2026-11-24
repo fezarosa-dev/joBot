@@ -468,3 +468,11 @@ def test_instante_vira_dia_local() -> None:
     assert formatos.data_completa(instante, "pt") == "16/11/2026"
     assert formatos.data_curta(instante, "en") == "11/16"
     assert formatos.data_curta("2026-11-17", "pt") == "17/11"  # controle: sem hora, não muda
+
+
+@pytest.mark.parametrize("ruim", ["NaN", "0", "-6.25"])
+def test_cotacao_de_exibicao_invalida_vale_como_ausente(ruim: str) -> None:
+    texto = formatos.salario_texto(_item(**_USD), "pt", _exibicao("EUR", ruim))
+    assert texto is not None
+    assert texto.convertido == "≈ R$ 28.250/mês"
+    assert texto.cotacao == "em reais: ainda não temos a cotação de EUR"
