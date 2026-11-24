@@ -235,6 +235,11 @@
 }
 
 @media (forced-colors: active) {
+  .botao-buscar,
+  .botao-sair {
+    border: 1px solid ButtonText;
+  }
+
   .progresso-trilho {
     border: 1px solid CanvasText;
   }

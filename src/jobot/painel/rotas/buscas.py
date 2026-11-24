@@ -11,9 +11,9 @@ import re
 import sqlite3
 from collections.abc import Sequence
 from dataclasses import dataclass, replace
-from typing import Annotated, Any
+from typing import Any
 
-from fastapi import APIRouter, HTTPException, Path, Request
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from starlette.datastructures import FormData
 
@@ -22,13 +22,13 @@ from jobot.banco.cadastros import ler_config
 from jobot.nucleo.cambio import MOEDAS
 from jobot.nucleo.modelo import Busca, Idioma, Local, Modalidade, Nivel
 from jobot.nucleo.tratamento.locais import ler_locais, nome_em_ingles
-from jobot.painel.consultas import relogio_do_painel
+from jobot.painel.consultas import IdDoBanco, relogio_do_painel
 from jobot.painel.formulario import campo_unico
 from jobot.painel.seguranca import Con, renderizar
 
 router = APIRouter(prefix="/buscas")
 
-BuscaId = Annotated[int, Path(ge=1, le=2**63 - 1)]  # o INTEGER do SQLite tem 64 bits com sinal
+BuscaId = IdDoBanco
 REGRAS = ("modalidade", "nivel", "salario", "idioma", "pais")  # ids de `nucleo/encaixe.py`
 MODALIDADES = tuple(m for m in Modalidade if m != Modalidade.NAO_INFORMADO)
 NIVEIS = tuple(n for n in Nivel if n != Nivel.NAO_INFORMADO)
