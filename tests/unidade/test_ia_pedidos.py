@@ -130,11 +130,24 @@ TUDO = {
     "idiomas_falados": [["inglês", "avançado"]],
     "resumo": "Analista com foco em dados abertos.",
     "experiencias": [
-        {"id": 7, "cargo": "Analista", "empresa": "Acme", "inicio": "2021-03", "fim": None,
-         "descricao": "Painéis de vendas."}
+        {
+            "id": 7,
+            "cargo": "Analista",
+            "empresa": "Acme",
+            "inicio": "2021-03",
+            "fim": None,
+            "descricao": "Painéis de vendas.",
+        }
     ],
-    "cursos": [{"id": 3, "nome": "Estatística", "instituicao": "UFPR", "situacao": "concluido",
-                "previsao": "2020-12"}],
+    "cursos": [
+        {
+            "id": 3,
+            "nome": "Estatística",
+            "instituicao": "UFPR",
+            "situacao": "concluido",
+            "previsao": "2020-12",
+        }
+    ],
     "respostas": [{"pergunta": "Aceita viajar?", "resposta": "Sim, às vezes."}],
     "perguntas_feitas": ["Aceita viajar?"],
     "curriculo": "Maria Exemplo. Analista de dados.",
@@ -179,12 +192,20 @@ def test_fora_da_lista_nao_entra_nem_por_engano() -> None:
     dados = dados_para("candidatura", TUDO)
     assert "cpf" not in dados and "links" not in dados
     assert dados["experiencias"] == [
-        {"cargo": "Analista", "empresa": "Acme", "inicio": "2021-03",
-         "descricao": "Painéis de vendas."}
+        {
+            "cargo": "Analista",
+            "empresa": "Acme",
+            "inicio": "2021-03",
+            "descricao": "Painéis de vendas.",
+        }
     ]
     assert dados["cursos"] == [
-        {"nome": "Estatística", "instituicao": "UFPR", "situacao": "concluido",
-         "previsao": "2020-12"}
+        {
+            "nome": "Estatística",
+            "instituicao": "UFPR",
+            "situacao": "concluido",
+            "previsao": "2020-12",
+        }
     ]
     texto = bloco_perfil(dados)
     assert "52998224725" not in texto and "exemplo.invalid/in/maria" not in texto
@@ -193,8 +214,14 @@ def test_fora_da_lista_nao_entra_nem_por_engano() -> None:
 def test_vazio_nao_entra() -> None:
     dados = dados_para(
         "candidatura",
-        {"resumo": "  ", "habilidades": [], "cargo_atual": None, "anos_de_experiencia": 0,
-         "experiencias": [{"cargo": "Dev", "empresa": "", "descricao": None}]},
+        {
+            "resumo": "  ",
+            "habilidades": [],
+            "cargo_atual": None,
+            "anos_de_experiencia": 0,
+            "experiencias": [{"cargo": "Dev", "empresa": "", "descricao": None}],
+            "cursos": [{"id": 1, "nome": " ", "instituicao": None}],
+        },
     )
     assert dados == {"anos_de_experiencia": 0, "experiencias": [{"cargo": "Dev"}]}
 
@@ -239,6 +266,10 @@ SEM_CONTATO = [
     "Formada em 15/03/2020, semestre 2020.1",
     "CEP 80010-000",
     "Nota 9,5 de 10",
+    "Vendas +12.50% em 2023",
+    "Receita de R$ 1.200.000 2024/25",
+    "Protocolo 12345-6789",
+    "Matrícula 20231234",
 ]
 
 
@@ -262,6 +293,20 @@ def test_proprio_nome_email_e_telefone_saem_do_texto_livre() -> None:
     assert resumo.startswith("Sou ") and "Mariana ok." in resumo  # controle: o resto fica
 
 
+@pytest.mark.parametrize(
+    ("nome", "esperado"),
+    [
+        ("Ana", f"Analista, {pedidos.REMOVIDO} e Mariana fazem a prova"),
+        ("Li", f"Analista, Ana e Mariana fazem a prova com {pedidos.REMOVIDO}"),
+        ("a", "Analista, Ana e Mariana fazem a prova com Li"),  # uma letra não sai
+        ("  ", "Analista, Ana e Mariana fazem a prova com Li"),
+    ],
+)
+def test_proprio_nome_sai_so_como_palavra_inteira(nome: str, esperado: str) -> None:
+    resumo = "Analista, Ana e Mariana fazem a prova" + ("" if nome == "Ana" else " com Li")
+    assert dados_para("candidatura", {"nome": nome, "resumo": resumo})["resumo"] == esperado
+
+
 def test_email_no_resumo_e_numa_resposta_nao_sai_no_pedido() -> None:
     # (guarda) desenho 5.2: o pedido serializado de um perfil com o e-mail escondido no resumo e
     # numa resposta não contém o e-mail. Controle: o resto do resumo e da resposta aparece.
@@ -271,6 +316,7 @@ def test_email_no_resumo_e_numa_resposta_nao_sai_no_pedido() -> None:
         "resumo": "Analista de dados; escreva para escondido@exemplo.invalid se quiser.",
         "respostas": [{"pergunta": "Contato?", "resposta": "Prefiro resposta@exemplo.invalid"}],
         "experiencias": [{"cargo": "Dev", "descricao": "Suporte em suporte@exemplo.invalid"}],
+        "habilidades": ["Python", "lista@exemplo.invalid"],
     }
     for tarefa in ("perguntas", "candidatura"):
         dados = dados_para(tarefa, fontes)
@@ -283,9 +329,13 @@ def test_email_no_resumo_e_numa_resposta_nao_sai_no_pedido() -> None:
 
 
 def test_curriculo_vai_sem_contato() -> None:
-    texto = dados_para("curriculo", {"curriculo": "Ana Lima\nana@exemplo.invalid\n(11) 98765-4321"
-                                                  "\nCPF 529.982.247-25\nPython"})["curriculo"]
-    assert texto == "Ana Lima\n[contato removido]\n[contato removido]\nCPF [contato removido]\nPython"
+    texto = dados_para(
+        "curriculo",
+        {"curriculo": "Ana Lima\nana@exemplo.invalid\n(11) 98765-4321\nCPF 529.982.247-25\nPython"},
+    )["curriculo"]
+    assert (
+        texto == "Ana Lima\n[contato removido]\n[contato removido]\nCPF [contato removido]\nPython"
+    )
 
 
 def test_bloco_do_perfil_e_dado_com_marcas_trocadas() -> None:
