@@ -4301,3 +4301,20 @@ A sessão propôs abrir o painel no Chrome da pessoa como janela de app. O dono 
 **Como desfazer:** cada item diz o seu.
 
 **Ver também:** D185, D199, D214, D219 (item 17), D224, T343, T347, T421, T422.
+
+## D226. Migração 0013: escolhas da T430 (escolha da sessão, para discutir com o dono)
+
+**Status:** decidido pela sessão em 2026-11-24, escolha da sessão, para discutir com o dono. Só esquema e gravação; nenhuma tela muda e nada sai do computador.
+
+**Contexto:** a T430 faz a migração `0013_perfil.sql` (desenho 8 e 9 da fase 4; D185.13): as colunas novas de `perfil`, `experiencia`, `curso`, `pergunta_perfil` e `preparo_candidatura`, com a gravação em `banco/perfil.py` e `banco/ia.py`. O desenho deu os nomes das colunas de `perfil` e de `preparo_candidatura` e deixou abertos os tipos, os CHECK, as colunas das listas e o que "Apagar perfil" leva.
+
+1. **Valores conferidos pelo banco.** `anos_de_experiencia` de 0 a 60 (A4 do mapa do perfil); `formacao_nivel` em `medio`, `tecnico`, `graduacao`, `pos_graduacao`, `mestrado` e `doutorado` (A6); `curso.situacao` em `concluido`, `cursando` e `trancado` (A7); `experiencia.cargo` e `curso.nome` não vazios. `idiomas_falados` é JSON de pares `[idioma, nível]` e `links` é JSON de textos, sem CHECK: o nível e o formato do link são da tela (T434). Lista estragada lida do banco vira vazia, como as habilidades. Desfazer: migração nova com os CHECK trocados.
+2. **Experiência e curso sem chave para `perfil`.** Com `foreign_keys` ligado, a chave obrigaria a linha de `perfil` a existir antes da primeira experiência e o "Apagar perfil" a apagar os filhos primeiro; sem ela, `apagar_perfil` apaga as cinco tabelas numa transação só. Gravar só os dados de contato cria a linha de `perfil` com a lista de habilidades vazia; gravar as habilidades não mexe nos dados, e gravar os dados não mexe nas habilidades. Datas como `AAAA-MM` em texto; `fim` vazio é o emprego de hoje. Ordem de leitura: a de entrada (`id`). Desfazer: migração nova com `REFERENCES perfil(id) ON DELETE CASCADE`.
+3. **`pergunta_perfil` com `chave` única.** A mesma pergunta volta à mesma linha (`ON CONFLICT(chave) DO UPDATE`): sugerir de novo troca o texto, o porquê e a origem, nunca a resposta; `responder_pergunta` só grava em pergunta que já existe. Quem cria a chave (por exemplo `base:<id>` para as do `perguntas_base.json` e `ia:<texto normalizado>` para as da IA) são a T437 e a T438. Desfazer: tirar o `UNIQUE` numa migração nova e conferir repetidas no código.
+4. **`preparo_candidatura` guarda só o acerto.** Todas as colunas são `NOT NULL` e não há colunas de falha: o motivo da falha (backend, prazo, formato) fica com a tarefa em curso na tela (T438), e a falha nunca toca o preparo anterior (desenho 9). `perguntar` é lista de textos, sem o "por quê" (a vaga é o porquê); `idioma` sem CHECK, porque a T438 escolhe entre o da vaga e o do painel. Desfazer: migração nova com `falha` e `falha_em`, como em `habilidades_vaga`.
+5. **"Apagar perfil" leva as cinco tabelas e deixa as da vaga.** Apaga `perfil`, `experiencia`, `curso`, `pergunta_perfil` e `preparo_candidatura`; `habilidades_vaga` e `candidatura` (quando a pessoa abriu a candidatura) ficam, porque não dependem do perfil. O texto da confirmação na aba Perfil ainda fala só das habilidades: muda com a T434, que põe as seções novas na tela. Desfazer: tirar uma tabela da lista de `apagar_perfil`.
+6. **Nenhum dado fora da lista.** Sem CPF, data de nascimento, projetos e texto do currículo (D185.13): o teste lê o esquema inteiro em `sqlite_master` e recusa essas palavras, e a 0013 não cria gatilho (o teste compara a lista de gatilhos antes e depois). Desfazer: migração nova com o campo.
+
+**Como desfazer:** cada item diz o seu; migração que entrou na `dev` não muda, então cada troca vira migração nova.
+
+**Ver também:** D185.13, desenho 8 e 9 da fase 4, mapa do perfil (`docs/superpowers/specs/2026-11-15-perguntas-do-perfil.md`), T430, T434, T437, T438.
