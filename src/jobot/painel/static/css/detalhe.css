@@ -340,8 +340,7 @@ a.secundario {
 /* o sheet entra em páginas que não carregam o buscas.css (detalhe e lista): os campos do formulário
    levam a mesma aparência daqui */
 .sheet-corpo input[type="text"],
-.sheet-corpo textarea,
-.preparo textarea {
+.sheet-corpo textarea {
   box-sizing: border-box;
   width: 100%;
   min-block-size: 1.75rem;
@@ -354,12 +353,25 @@ a.secundario {
   font-size: 0.9375rem;
 }
 
-.sheet-corpo textarea,
-.preparo textarea {
+.sheet-corpo textarea {
   resize: vertical;
 }
 
-/* T438: o preparo de candidatura, com o espaço dos outros blocos do detalhe */
+/* T438: o preparo de candidatura, com o espaço dos outros blocos do detalhe; as caixas com a
+   aparência das do sheet (a página da vaga não carrega o buscas.css) */
+.preparo textarea {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-controle);
+  background-color: var(--superficie);
+  color: var(--texto);
+  font: inherit;
+  font-size: 0.9375rem;
+  resize: vertical;
+}
+
 .preparo,
 .preparo-resultado,
 .preparo .campo {
