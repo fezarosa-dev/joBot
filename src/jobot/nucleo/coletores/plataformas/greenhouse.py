@@ -80,7 +80,9 @@ def _vaga(escopo: str, job: object) -> VagaColetada | None:
             empresa=empresa,
             descricao_formato="html",
             descricao=html.unescape(_texto(job.get("content"))),  # vem escapado em entidades
-            id_externo=str(job["id"]) if isinstance(job.get("id"), int | str) else None,
+            id_externo=str(job["id"])
+            if isinstance(job.get("id"), int | str) and not isinstance(job["id"], bool)
+            else None,
             locais=tuple(filter(None, [_texto(local.get("name"))]))
             if isinstance(local, dict)
             else (),

@@ -15,7 +15,7 @@ import json
 import re
 from collections.abc import AsyncIterator, Mapping, Sequence
 from dataclasses import replace
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta, timezone
 from typing import Literal
 from urllib.parse import quote, urlsplit
 
@@ -43,6 +43,7 @@ _SITE = re.compile(r"[A-Za-z0-9_-]{1,100}")
 _PAIS = re.compile(r"[A-Z]{2}")
 _ID = re.compile(r"\d{1,20}")  # `Id` da vaga e da faceta: entram na URL
 _SITE_NUMBER_HTML = re.compile(r'data-sitenumber="([A-Za-z0-9_]{1,50})"')
+_BRASILIA = timezone(timedelta(hours=-3))  # data sem fuso: meia-noite de Brasília
 _PADRAO = "BR"  # sem país nas buscas (o "testar" do painel), como no Workday
 _CABECALHOS = {"Accept": "application/json"}
 _DESCRICAO = ("ExternalDescriptionStr", "ExternalResponsibilitiesStr", "ExternalQualificationsStr")
@@ -78,6 +79,15 @@ def _instante(valor: object) -> datetime | None:
     except ValueError:
         return None
     return lido.replace(tzinfo=UTC) if lido and lido.tzinfo is None else lido
+
+
+def _publicada(valor: object) -> datetime | None:
+    """`PostedDate`: com hora, o instante como veio; só a data, meia-noite de Brasília."""
+    lido = _instante(valor) if isinstance(valor, str) and "T" in valor else None
+    if lido is not None:
+        return lido
+    dia = _dia(valor)
+    return datetime(dia.year, dia.month, dia.day, tzinfo=_BRASILIA) if dia else None
 
 
 def _separar(escopo: str) -> tuple[str, str, str, str]:
@@ -134,7 +144,6 @@ def _vaga(escopo: str, empresa: str, item: object) -> VagaColetada | None:
         for s in (secundarios if isinstance(secundarios, list) else [])
         if isinstance(s, dict)
     ]
-    publicada = _dia(item.get("PostedDate"))
     try:
         return VagaColetada(
             fonte="oracle_hcm",
@@ -146,11 +155,7 @@ def _vaga(escopo: str, empresa: str, item: object) -> VagaColetada | None:
             id_externo=ident,
             locais=tuple(n for n in map(_texto, nomes) if n),
             modalidade_declarada=_texto(item.get("WorkplaceType")) or None,
-            publicada_em=(
-                datetime(publicada.year, publicada.month, publicada.day, tzinfo=UTC)
-                if publicada
-                else None
-            ),
+            publicada_em=_publicada(item.get("PostedDate")),
             prazo=_dia(item.get("PostingEndDate")),
         )
     except ValueError:
