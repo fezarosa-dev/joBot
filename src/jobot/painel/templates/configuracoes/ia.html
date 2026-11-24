@@ -3,7 +3,9 @@
     (`ia_custo`): um formulário com os mesmos campos e `confirmar=1`, que funciona sem JavaScript.
     A chave nunca chega aqui, só quais serviços têm onde rodar (`ia_backends`). -#}
 {% if ia_custo %}
-<section class="config-bloco config-aviso" aria-labelledby="ia-custo-titulo">
+{#- o foco abre no aviso, não no botão que liga: o Return repetido de quem apertou o atalho não
+    confirma a cobrança sem ler (como o <dialog> de `_alerta.html`) #}
+<section class="config-bloco config-aviso" aria-labelledby="ia-custo-titulo" tabindex="-1" autofocus>
   <h2 id="ia-custo-titulo">{{ t("configuracoes.ia.custo.titulo") }}</h2>
   <p class="config-texto" role="alert">{{ t("configuracoes.ia.custo.texto", servico=t("configuracoes.servicos.ia." ~ ia_custo.servico ~ ".titulo"), teto=ia_teto) }}</p>
   <form method="post" action="/configuracoes/ia" class="config-form" data-confirmar-custo>
@@ -13,7 +15,7 @@
     {%- endfor %}
     <input type="hidden" name="confirmar" value="1">
     <div class="acoes">
-      <button type="submit" class="botao botao-primario" autofocus>{{ t("configuracoes.ia.custo.ligar") }}</button>
+      <button type="submit" class="botao botao-primario">{{ t("configuracoes.ia.custo.ligar") }}</button>
       <a class="botao botao-secundario" href="/configuracoes/ia">{{ t("configuracoes.ia.custo.voltar") }}</a>
     </div>
   </form>

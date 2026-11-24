@@ -3,6 +3,7 @@
     `v` é o digitado que voltou (erro ou confirmação do custo); senão, o gravado. -#}
 {%- set n = linha.nome -%}
 {%- set v = ia_digitado[n] if ia_digitado and n in ia_digitado else linha -%}
+{%- set errado = ia_erro_campo if ia_erro_tarefa == n else none -%}
 <fieldset class="grupo-leva" aria-describedby="ia-{{ n }}-ajuda ia-{{ n }}-privacidade">
   <legend>{{ t("configuracoes.ia.tarefa." ~ n) }}</legend>
   <p class="config-texto" id="ia-{{ n }}-ajuda">{{ t("configuracoes.ia.tarefa." ~ n ~ ".ajuda") }}</p>
@@ -15,7 +16,7 @@
   {%- if ia_backends %}
   <div class="campo">
     <label for="ia-{{ n }}-backend">{{ t("configuracoes.ia.backend") }}</label>
-    <select id="ia-{{ n }}-backend" name="{{ n }}_backend"{% if ia_erro_campo == "backend" %} aria-invalid="true"{% endif %}>
+    <select id="ia-{{ n }}-backend" name="{{ n }}_backend"{% if errado == "backend" %} aria-invalid="true" aria-describedby="config-erro"{% endif %}>
       {%- for b in ia_backends %}
       <option value="{{ b }}"{% if b == v.backend %} selected{% endif %}>{{ t("configuracoes.ia.backend." ~ b) }}</option>
       {%- endfor %}
@@ -23,7 +24,7 @@
   </div>
   <div class="campo">
     <label for="ia-{{ n }}-modelo">{{ t("configuracoes.ia.modelo") }}</label>
-    <input type="text" class="campo-texto" id="ia-{{ n }}-modelo" name="{{ n }}_modelo" value="{{ v.modelo }}" list="ia-modelos-claude" maxlength="200" autocomplete="off" spellcheck="false" aria-describedby="ia-{{ n }}-modelo-ajuda"{% if ia_erro_campo == "modelo" %} aria-invalid="true"{% endif %}>
+    <input type="text" class="campo-texto" id="ia-{{ n }}-modelo" name="{{ n }}_modelo" value="{{ v.modelo }}" list="ia-modelos-claude" maxlength="200" autocomplete="off" spellcheck="false" aria-describedby="ia-{{ n }}-modelo-ajuda{% if errado == 'modelo' %} config-erro{% endif %}"{% if errado == "modelo" %} aria-invalid="true"{% endif %}>
     <small id="ia-{{ n }}-modelo-ajuda">{{ t("configuracoes.ia.modelo.ajuda") }}{% if ia_local %} {{ t("configuracoes.ia.modelo.local", modelo=ia_local) }}{% endif %}</small>
   </div>
   {%- else %}

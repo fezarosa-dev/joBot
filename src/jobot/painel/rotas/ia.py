@@ -99,6 +99,7 @@ async def contexto_ia(request: Request, con: Con) -> dict[str, Any]:
         "ia_pagos": PAGOS,
         "ia_modelos_claude": MODELOS,
         "ia_digitado": None,
+        "ia_erro_tarefa": None,
         "ia_erro_campo": None,
         "ia_custo": None,
     }
@@ -120,9 +121,9 @@ def _do_atalho(
 
 
 def _da_tabela(
-    form: FormData, configurados: list[str], local: str | None
-) -> dict[str, TarefaIA] | tuple[dict[str, dict[str, Any]], str, str]:
-    """As tarefas da tabela, ou o digitado, o campo errado e a chave do erro."""
+    form: FormData, atuais: Mapping[str, TarefaIA], configurados: list[str], local: str | None
+) -> dict[str, TarefaIA] | tuple[dict[str, dict[str, Any]], str, str, str]:
+    """As tarefas da tabela, ou o digitado, a tarefa e o campo errados e a chave do erro."""
     novas: dict[str, TarefaIA] = {}
     digitado: dict[str, dict[str, Any]] = {}
     for nome in tarefas():
@@ -130,6 +131,11 @@ def _da_tabela(
         backend = b if isinstance(b, str) else ""
         modelo = m.strip() if isinstance(m, str) else ""
         ligada = f"{nome}_ligada" in form
+        if b is None and not ligada:
+            # sem backend configurado (ou com o cofre falhando) a tela não mostra o select e a
+            # caixa vem desativada: nada ali era editável, então a tarefa gravada fica
+            novas[nome] = atuais[nome]
+            continue
         if backend and backend not in configurados:
             raise HTTPException(422)  # a tela só mostra os configurados (lista fechada)
         digitado[nome] = {"ligada": ligada, "backend": backend, "modelo": modelo}
@@ -145,7 +151,7 @@ def _da_tabela(
         if ligada and not backend:
             erro = ("backend", "configuracoes.ia.erro.sem_backend")
         if erro:
-            return digitado, *erro
+            return digitado, nome, *erro
         novas[nome] = TarefaIA(ligada, backend, modelo if backend else "")
     return novas
 
@@ -165,10 +171,11 @@ async def gravar_ia(request: Request, con: Con, form: FormData) -> str | tuple[i
             return feitas
         novas = feitas
     else:
-        lidas = _da_tabela(form, configurados, local)
+        lidas = _da_tabela(form, atuais, configurados, local)
         if isinstance(lidas, tuple):
-            digitado, campo, erro = lidas
-            return 422, {"ia_digitado": digitado, "ia_erro_campo": campo, "erro": erro}
+            digitado, tarefa, campo, erro = lidas
+            contexto = {"ia_digitado": digitado, "ia_erro_tarefa": tarefa, "ia_erro_campo": campo}
+            return 422, contexto | {"erro": erro}
         novas = lidas
     # ligar o laço num serviço pago (ou trocar de serviço pago) pede a confirmação do custo
     # ponytail: na 0.5.0 toda tarefa é do laço (só o `encaixe`); as sob pedido da 0.6.0 decidem

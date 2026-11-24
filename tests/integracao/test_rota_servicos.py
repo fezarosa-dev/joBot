@@ -989,6 +989,28 @@ def test_cofre_que_trava_ao_ler_as_chaves_de_ia_avisa_em_cada_cartao(
         assert pt("configuracoes.servicos.erro.cofre") in cartao, servico
 
 
+class _CofreQueEsperaJuntas(CofreFalso):
+    """Só responde quando as 5 leituras da aba (2Captcha e 4 de IA) estão dentro dele juntas."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.barreira = threading.Barrier(1 + len(IA))
+
+    def _antes(self) -> None:
+        self.barreira.wait(timeout=1)  # sozinha, quebra: a leitura veio em sequência
+        super()._antes()
+
+
+def test_aba_servicos_le_o_cofre_numa_leva_so(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # com o cofre travado a aba espera um prazo, não dois (2Captcha e depois as de IA; D201.7)
+    painel = Painel(tmp_path, _CofreQueEsperaJuntas())
+    monkeypatch.setattr(limites, "PRAZO_COFRE_S", 0.5)
+    texto = _texto(painel.get(SERVICOS))
+    assert pt("configuracoes.servicos.erro.cofre") not in texto
+
+
 @pytest.mark.parametrize("servico", IA)
 def test_chave_de_ia_nunca_no_log(
     painel: Painel, caplog: pytest.LogCaptureFixture, servico: str

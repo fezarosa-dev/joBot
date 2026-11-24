@@ -182,6 +182,11 @@ def test_teto_de_habilidades_volta_com_o_texto(painel: Painel, texto: str, aceit
     assert "Até 200 habilidades, cada uma com até 100 caracteres." in _texto(alerta.group(1))
     assert _campo(resposta.text) == texto  # o que foi digitado volta para corrigir
     assert painel.habilidades() == ["Rust"]
+    # o campo aponta para a mensagem do erro, não só para a ajuda
+    caixa = re.search(r"<textarea[^>]*>", resposta.text)
+    assert caixa is not None
+    assert re.search(r'aria-describedby="[^"]*\bconfig-erro\b', caixa.group(0))
+    assert 'id="config-erro"' in resposta.text
 
 
 # ------------------------------------------------------------------ encaixe
