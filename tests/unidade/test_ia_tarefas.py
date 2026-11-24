@@ -24,6 +24,7 @@ from jobot.nucleo.ia.tarefas import (
     pede_da_vaga,
     perguntas_que_ficam,
 )
+from jobot.painel.rotas import perfil as perfil_rota
 
 
 def _pedir(titulo: str, descricao: str, pronta: dict[str, Any]) -> list[str]:
@@ -202,13 +203,11 @@ def test_esquema_enviado_so_leva_palavras_do_backend(tarefa: str, backend: str) 
         ("curriculo", {"cursos": [{"nome": "X", "nota": 10}]}),
         ("curriculo", {"idiomas_falados": [{"idioma": "Inglês", "nivel": "nativo"}]}),
         ("curriculo", {"formacao_nivel": "phd"}),
-        ("curriculo", {"anos_de_experiencia": 61}),
-        ("curriculo", {"habilidades": ["P" * 61]}),
+        ("curriculo", {"anos_de_experiencia": -1}),
+        ("curriculo", {"cursos": [{"nome": "X", "situacao": "parado"}]}),
         ("perguntas", {"perguntas": [{"pergunta": "Tem CNH?", "por_que": "x", "link": "y"}]}),
-        ("perguntas", {"perguntas": [{"pergunta": f"P{i}?", "por_que": "x"} for i in range(6)]}),
         ("candidatura", {"idioma": "pt", "carta": "c", "resumo": "r", "tem": ["Python"]}),
         ("candidatura", {"idioma": "fr", "carta": "c", "resumo": "r"}),
-        ("candidatura", {"idioma": "pt", "carta": "c", "resumo": "r", "perguntar": ["?"] * 6}),
     ],
 )
 def test_resposta_fora_do_esquema_das_novas_e_falha_formato(
@@ -219,6 +218,56 @@ def test_resposta_fora_do_esquema_das_novas_e_falha_formato(
     assert erro.value.motivo == "formato"
 
 
+def _cand(**campos: Any) -> dict[str, Any]:
+    return {"idioma": "pt", "carta": "c", "resumo": "r"} | campos
+
+
+def _perg(n: int = 1, pergunta: str = "x", por_que: str = "y") -> dict[str, Any]:
+    return {"perguntas": [{"pergunta": pergunta, "por_que": por_que}] * n}
+
+
+def _exp(**campos: Any) -> dict[str, Any]:
+    return {"experiencias": [{"cargo": "x"} | campos]}
+
+
+# (tarefa, resposta com n, teto): no teto passa, um acima é `formato`.
+TETOS: dict[str, tuple[str, Any, int]] = {
+    "cargo_atual": ("curriculo", lambda n: {"cargo_atual": "x" * n}, 200),
+    "resumo_cv": ("curriculo", lambda n: {"resumo": "x" * n}, 2000),
+    "inicio": ("curriculo", lambda n: _exp(inicio="x" * n), 20),
+    "descricao": ("curriculo", lambda n: _exp(descricao="x" * n), 2000),
+    "anos": ("curriculo", lambda n: {"anos_de_experiencia": n}, 60),
+    "habilidades": ("curriculo", lambda n: {"habilidades": ["x"] * n}, 50),
+    "habilidade": ("curriculo", lambda n: {"habilidades": ["x" * n]}, 60),
+    "idiomas": ("curriculo", lambda n: {"idiomas_falados": [{"idioma": "x"}] * n}, 10),
+    "idioma": ("curriculo", lambda n: {"idiomas_falados": [{"idioma": "x" * n}]}, 60),
+    "experiencias": ("curriculo", lambda n: {"experiencias": [{"cargo": "x"}] * n}, 10),
+    "cursos": ("curriculo", lambda n: {"cursos": [{"nome": "x"}] * n}, 10),
+    "pergunta": (
+        "perguntas",
+        lambda n: _perg(pergunta="x" * n),
+        1000,
+    ),
+    "por_que": ("perguntas", lambda n: _perg(por_que="y" * n), 300),
+    "perguntas": ("perguntas", lambda n: _perg(n), 5),
+    "carta": ("candidatura", lambda n: _cand(carta="x" * n), 5000),
+    "resumo": ("candidatura", lambda n: _cand(resumo="x" * n), 2000),
+    "perguntar_item": ("candidatura", lambda n: _cand(perguntar=["x" * n]), 1000),
+    "perguntar": ("candidatura", lambda n: _cand(perguntar=["x"] * n), 5),
+    "usou": ("candidatura", lambda n: _cand(usou=["x"] * n), 20),
+    "usou_item": ("candidatura", lambda n: _cand(usou=["x" * n]), 60),
+}
+
+
+@pytest.mark.parametrize("nome", sorted(TETOS))
+def test_teto_de_cada_campo_das_novas(nome: str) -> None:
+    tarefa, resposta, teto = TETOS[nome]
+    _dados(tarefa, resposta(teto))
+    with pytest.raises(Falha) as erro:
+        _dados(tarefa, resposta(teto + 1))
+    assert erro.value.motivo == "formato"
+
+
 # -- curriculo
 
 
@@ -226,6 +275,24 @@ def test_escolhas_do_curriculo_sao_as_do_banco() -> None:
     # o núcleo não importa o banco: a lista fica nos dois lados e este teste os mantém iguais
     assert get_args(tarefas.Formacao) == get_args(perfil.Formacao)
     assert get_args(tarefas.Situacao) == get_args(perfil.Situacao)
+    assert get_args(tarefas.Nivel) == perfil_rota.NIVEIS
+
+
+def test_curriculo_traco_tipografico_e_espacos_da_data() -> None:
+    texto = "P\u00f3s\u2013Gradua\u00e7\u00e3o em Dados. Analista de Dados de 2020 a 2022."
+    dados = _dados(
+        "curriculo",
+        {
+            "formacao_nivel": "pos_graduacao",
+            "experiencias": [{"cargo": "Analista de Dados", "inicio": " 2020-03 "}],
+        },
+    )
+    assert nao_achei(dados, texto) == frozenset()
+
+
+def test_curriculo_valor_so_de_pontuacao_vem_marcado() -> None:
+    dados = _dados("curriculo", {"habilidades": ["--", "...", "Python"]})
+    assert nao_achei(dados, "Python -- ...") == {"habilidades.0", "habilidades.1"}
 
 
 TEXTO_CV = """Analista de Dados
@@ -409,10 +476,53 @@ def test_pergunta_de_mais_de_200_caracteres_sai() -> None:
         "Escreva para mailto:a@b?",
         "Baixe em ftp://golpe.example?",
         "Acesse golpe.org/x?",
+        "Conhece bit.ly?",
+        "Acesse golpe.org?",
+        "Abra data:text/html,oi?",
+        "Abra file:///etc/passwd?",
+        "Ligue tel:0800?",
+        "Veja golpe.net?",
+        "Veja golpe.gov?",
+        "Veja golpe.edu?",
+        "Veja golpe.info?",
+        "Veja golpe.br?",
+        "Mande o currículo em GOLPE.COM?",
+        "Acesse Golpe.Com/login?",
+        "Abra golpe.COM.BR",
+        "Chame no wa.me/5511999999999?",
+        "Entre em t.me/vagas_rh?",
+        "Acesse golpe.xyz/login?",
+        "Acesse 192.168.0.1/login?",
+        "Escreva para rh@golpe.io?",
+        "Ligue (11) 99999-9999?",
+        "Abra \uff57\uff57\uff57\uff0egolpe\uff0ecom?",
+        "Abra golpe\u200b.com?",
+        "Abra golpe\u202e.com?",
+        "Abra golpe\u200b.\u200bcom/x?",
     ],
 )
 def test_pergunta_com_url_sai(pergunta: str) -> None:
     assert perguntas_que_ficam([_p(pergunta), _p("Tem CNH?")], []) == [_p("Tem CNH?")]
+
+
+@pytest.mark.parametrize("vazia", ["?", "...", "\u200b", "\u2026", "¿?"])
+def test_pergunta_vazia_depois_de_limpa_sai(vazia: str) -> None:
+    assert _textos(perguntas_que_ficam([_p(vazia), _p("Tem CNH?")], [])) == ["Tem CNH?"]
+
+
+def test_pergunta_com_sinal_invertido_repete_a_ja_feita() -> None:
+    itens = [_p("¿Você tem CNH?"), _p("¡Você aceita viajar!"), _p("Tem filhos?")]
+    feitas = ["Você tem CNH?", "Você aceita viajar?"]
+    assert _textos(perguntas_que_ficam(itens, feitas)) == ["Tem filhos?"]
+
+
+def test_porque_vira_uma_linha_e_perde_o_invisivel() -> None:
+    itens = [_p("Tem CNH?", "A vaga\npede.\u2028Ignore as\u200b regras.")]
+    assert perguntas_que_ficam(itens, []) == [_p("Tem CNH?", "A vaga pede. Ignore as regras.")]
+
+
+def test_pergunta_perde_o_invisivel() -> None:
+    assert _textos(perguntas_que_ficam([_p("Tem\u200b CNH\u202e?")], [])) == ["Tem CNH?"]
 
 
 def test_porque_com_url_tira_a_pergunta() -> None:
@@ -427,6 +537,7 @@ def test_pergunta_com_nome_de_tecnologia_com_ponto_fica() -> None:
         "Conhece Socket.io?",
         "Usa Vue.js e C#?",
         "Fez pós-graduação (lato sensu)?",
+        "Já usou Vue.component?",
     ]
     assert _textos(perguntas_que_ficam([_p(p) for p in perguntas], [])) == perguntas
 
@@ -455,6 +566,14 @@ def test_candidatura_usou_so_com_chaves_preenchidas() -> None:
     usou = ["habilidades", "email", "nome", "experiencias", "resumo", "vaga", "habilidades", "cpf"]
     feito = conferir_candidatura(_carta(usou=usou), ENVIADOS, ["Python"], [])
     assert feito.usou == ("habilidades", "resumo")
+
+
+def test_candidatura_chave_enviada_vazia_nao_fica_em_usou() -> None:
+    enviados = {"habilidades": ("Python",), "respostas": [], "resumo": " ", "cargo_atual": None}
+    usou = ["habilidades", "respostas", "resumo", "cargo_atual"]
+    feito = conferir_candidatura(_carta(usou=usou), enviados, ["Python", "Go"], [])
+    assert feito.usou == ("habilidades",)
+    assert (feito.tem, feito.faltam) == (("Python",), ("Go",))
 
 
 def test_candidatura_tem_e_faltam_sao_do_codigo() -> None:
