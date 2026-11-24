@@ -4285,3 +4285,19 @@ A sessão propôs abrir o painel no Chrome da pessoa como janela de app. O dono 
 **Como desfazer:** cada item diz o seu.
 
 **Ver também:** D185 (itens 7, 9, 10, 18, 19, 22 e 27), D186.4, D205.3, D219 (itens 12 e 17), T318, T420.
+
+## D225. Release 0.5.0: escolhas da T421 e o portão T422 (para confirmar)
+
+**Status:** decidido pela sessão em 2026-11-24, com a autonomia que o dono deu ("decisões, tome você mesmo"), para discutir com o dono. A tag `v0.5.0` não sai nesta entrega.
+
+**Contexto:** a T421 troca a versão para 0.5.0, roda o ensaio com pacotes e com o modelo local de verdade e leva a `dev` para a `main`. A T422 é o portão do dono: instalar a 0.5.0 com o Modelo local marcado, ligar "Tudo offline", pôr as habilidades, buscar e medir o tempo por vaga. O dono delegou o portão à sessão em 2026-11-24.
+
+1. **Versão e documentos.** A 0.5.0 entra no `pyproject.toml`, `uv.lock`, `desktop/Cargo.toml`, `desktop/Cargo.lock` e `desktop/tauri.conf.json`; os CHANGELOGs ganham a seção `[0.5.0] - 2026-11-24` (a data é o dia da tag: se a tag sair outro dia, a data muda antes dela). O `SECURITY`, o `CONTRIBUTING`, o README, a `Home` e a página da história da wiki passam a dizer a 0.5.0; o README, o Roteiro, a ADR 0017 e o índice das ADRs dizem que a fase 4 segue sendo construída, com a 0.5.0 como a primeira parte, rumo à 0.6.0. A `Home` da wiki ainda dizia "As fases 4 a 9 estão planejadas", sobra que o teste da fase 4 não lia; ela entrou no teste. Desfazer: são texto.
+2. **Portão T422 aprovado pela sessão.** Provas: CI 45415644854 e Casca com pacotes e `ia=true` 45415662233 no candidato `89f1dc7`, com o modelo local de verdade nos três sistemas; CI 45422872396 e Casca com pacotes e `ia=true` 45422886624 no commit da versão, `3115d6a`; revisões independentes em cada tarefa da 0.5.0; o teste de instalar, usar e desinstalar numa VM Fedora 44 com FUSE real (rpm e AppImage, 0 falhas, a VM nunca abaixo de 3,2 GB livres, 0 OOM); e as capturas do item 3. O que ninguém provou ainda: a 0.5.0 instalada num PC do dono com o Modelo local baixado de verdade, o "Tudo offline" com as habilidades dele e o tempo por vaga fora do CI; o Windows e o Mac seguem só com o CI. Desfazer: o dono faz o teste da T422 (antes da tag, se quiser) e cada estranhamento vira tarefa.
+3. **Capturas do ensaio (2026-11-24).** Casca (`capturas-casca` do 45422886624, `.deb` em pt e AppImage em en): a tela de instalação com a caixa Modelo local desmarcada sob "Inteligência artificial (opcional)", "até 2,8 GB" e o espaço em disco de 995 MB sem ela; o "Pronto" do AppImage com a caixa marcada e sem rede diz que o joBot ficou instalado e manda baixar depois em Configurações › Ferramentas; o controle parado e ligado, o Abrir joBot e a pergunta ao fechar (Deixar ligado e Desligar); os pacotes saem como `joBot_0.5.0`. Painel (`capturas` do 45422872396, Chromium, Firefox e WebKit, claro e escuro, 1280 e 800 px): sem texto cortado nem sobreposição, e "Versão instalada: 0.5.0" em Configurações › Geral. Os defeitos vistos já estão na T347 (o Salvar quase colado ao título "Atualizar o joBot", o `<select>` do WebKit mais alto e cinza, os botões secundários de pouco contraste e o ícone provisório). O ensaio não fotografa Configurações › IA, Perfil e Serviços; as telas da IA só têm os testes de tela.
+4. **A tag espera.** Ficam abertos na T421 as respostas do dono à D185, o ensaio do `release.yml`, a tag `v0.5.0` num sha explícito da `origin/main` e a conferência da release.
+5. **Para confirmar com o dono:** D185 (o desenho da fase 4), D197, D198, D200 a D205, D219, D223, D224 e esta.
+
+**Como desfazer:** cada item diz o seu.
+
+**Ver também:** D185, D214, D219 (item 17), D224, T347, T421, T422.
