@@ -242,8 +242,11 @@ fn abrir_release() -> Value {
 }
 
 fn abridor(endereco: &str) -> std::process::Command {
-    let vars: Vec<_> = std::env::vars().collect();
-    controle::comando_abridor(std::env::consts::OS, &vars, endereco)
+    controle::comando_abridor(
+        std::env::consts::OS,
+        &controle::ambiente_da_casca(),
+        endereco,
+    )
 }
 
 /// Lança o abridor sem esperar o navegador.
@@ -335,7 +338,11 @@ fn trazer_para_frente(app: &AppHandle) {
 fn main() {
     // antes de tudo, até das fumaças: o AppImage sem FUSE não deixa a extração no /tmp (T354)
     #[cfg(target_os = "linux")]
-    extraido::vigiar();
+    {
+        // o cano do runtime do AppImage não prende a montagem ao servidor ligado (D217)
+        extraido::nao_herdar_descritores();
+        extraido::vigiar();
+    }
     let contexto = tauri::generate_context!();
     let args: Vec<String> = std::env::args().skip(1).collect();
     if args.first().is_some_and(|a| a == "--verificar") {

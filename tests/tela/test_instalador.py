@@ -285,6 +285,22 @@ def test_tab_segue_a_ordem_visual_do_pe(page: Page, ui: str) -> None:
     expect(instalar).to_be_focused()
 
 
+def test_titulo_com_foco_sem_anel_e_controles_com(page: Page, ui: str) -> None:
+    # D217: o título recebe o foco por script (leitor de tela) e não ganha o anel azul
+    _abrir(page, ui)
+    titulo = page.get_by_role("heading", name="joBot", exact=True)
+    titulo.focus()
+    expect(titulo).to_be_focused()
+    assert titulo.evaluate("e => getComputedStyle(e).outlineStyle") == "none"
+    continuar = page.get_by_role("button", name="Continuar", exact=True)
+    for _ in range(5):
+        page.keyboard.press("Tab")
+        if continuar.evaluate("e => e === document.activeElement"):
+            break
+    expect(continuar).to_be_focused()
+    assert continuar.evaluate("e => getComputedStyle(e).outlineStyle") != "none"
+
+
 def test_falha_mostra_o_detalhe_para_diagnostico(page: Page, ui: str) -> None:
     _ate_instalando(page, ui)
     _aviso(page, {"fim": "falhou", "motivo": "outro", "detalhe": "uv pip install: deu errado"})

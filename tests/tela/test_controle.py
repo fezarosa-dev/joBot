@@ -249,6 +249,15 @@ def test_fechar_com_o_painel_parado_fecha_sem_perguntar(page: Page, ui: str) -> 
     assert _respostas_de_fechar(page) == [{"desligar": False}]
 
 
+def test_sem_show_modal_fecha_sem_perguntar(page: Page, ui: str) -> None:
+    # D217: um WebView sem `showModal` (ou que lança) não pode deixar a janela sem fechar
+    _abrir(page, ui, estado_controle=LIGADO)
+    expect(_botao(page, "Abrir joBot")).to_be_visible()
+    page.evaluate("delete HTMLDialogElement.prototype.showModal")
+    _pedir_fechar(page)
+    assert _respostas_de_fechar(page) == [{"desligar": False}]
+
+
 def test_sem_o_aviso_antigo_de_fechar(page: Page, ui: str) -> None:
     # o aviso de texto do D207.5 saiu: a pergunta ao fechar o substitui (D215)
     _abrir(page, ui, estado_controle={**LIGADO, "fecha_junto": True})
