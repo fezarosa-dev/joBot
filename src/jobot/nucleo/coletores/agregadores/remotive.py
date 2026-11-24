@@ -63,7 +63,9 @@ def _vaga(job: object) -> VagaColetada | None:
             empresa=empresa,
             descricao_formato="html",
             descricao=_texto(job.get("description")),
-            id_externo=str(job["id"]) if isinstance(job.get("id"), int | str) else None,
+            id_externo=str(job["id"])
+            if isinstance(job.get("id"), int | str) and not isinstance(job["id"], bool)
+            else None,
             locais=tuple(filter(None, [_texto(job.get("candidate_required_location"))])),
             modalidade_declarada="remote",  # a Remotive só lista vaga remota
             contrato_declarado=_texto(job.get("job_type")) or None,

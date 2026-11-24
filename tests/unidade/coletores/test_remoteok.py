@@ -340,3 +340,16 @@ async def test_resolver_recusa_tudo(http_proibido: HttpEducado) -> None:
     for entrada in ("", "remoteok", "https://remoteok.com/remote-jobs/x-1"):
         with pytest.raises(ValueError):
             await remoteok.COLETOR.resolver(entrada, http_proibido)
+
+
+async def test_id_bool_nao_vira_id_externo() -> None:
+    resultado, _ = await _coletar(_com_vaga(id=True))
+    assert _unica(resultado).id_externo is None
+
+
+async def test_salario_gigante_fica_ausente_sem_derrubar_o_escopo() -> None:
+    resultado, _ = await _coletar(_com_vaga(salary_min=10**400, salary_max=90000))
+    assert resultado.estado == "ok"
+    assert _unica(resultado).salario_estruturado == SalarioBruto(
+        moeda="USD", minimo_unidades=None, maximo_unidades=90000.0, periodo="ano"
+    )
