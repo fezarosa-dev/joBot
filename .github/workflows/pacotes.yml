@@ -201,12 +201,12 @@ jobs:
           fumaca jobot-fumaca "$appimage" ./jobot.AppImage
           fumaca jobot-fumaca-nova "$appimage" ./jobot.AppImage
 
-      # T354 (D211): sem FUSE, o runtime do AppImage só se extrai com
-      # APPIMAGE_EXTRACT_AND_RUN=1, em $TMPDIR/appimage_extracted_<md5>, e só apaga a pasta se
-      # ele mesmo sobreviver. O /tmp tem de voltar ao que era: depois de uma saída normal e
-      # depois de matar à força (SIGKILL) o grupo do runtime e da casca, quando quem apaga é o
-      # vigia da casca. Controle: matando o vigia junto, a pasta fica. O pid 1 do contêiner (o
-      # sleep) não recolhe zumbis: o vigia não pode esperá-los.
+      # T354 (D211, D217): sem FUSE, o runtime do AppImage só se extrai com
+      # APPIMAGE_EXTRACT_AND_RUN=1, em $TMPDIR/appimage_extracted_<md5>, e não apaga a pasta
+      # (nem numa saída normal): quem apaga é o vigia da casca. O /tmp tem de voltar ao que era:
+      # depois de uma saída normal, de duas aberturas coladas (a mesma pasta) e de matar à força
+      # (SIGKILL) o grupo do runtime e da casca. Controle: matando o vigia junto, a pasta fica.
+      # O pid 1 do contêiner (o sleep) não recolhe zumbis: o vigia não pode esperá-los.
       - name: AppImage sem lixo no /tmp (Linux)
         if: runner.os == 'Linux'
         run: |
@@ -261,14 +261,14 @@ jobs:
             echo "::warning::o runtime sem FUSE deixou no /tmp: $depois"
             docker exec "$c" sh -c 'rmdir /tmp/.mount_* 2>/dev/null; true'
           fi
-          # saída normal: o próprio runtime apaga
+          # saída normal: o vigia apaga
           docker exec "$c" runuser -u pessoa -- env APPIMAGE_EXTRACT_AND_RUN=1 ./jobot.AppImage --verificar
           sleep 3
           depois=$(docker exec "$c" ls -A /tmp)
           echo "/tmp depois da saída normal: [$depois]"
           test "$depois" = "$antes"
           # duas aberturas coladas (D217): a extração tem o mesmo nome e o vigia da primeira
-          # acorda com a segunda já extraída no mesmo lugar; ele não pode apagá-la
+          # acorda com o runtime da segunda extraindo no mesmo lugar; ele espera, não apaga
           docker exec "$c" runuser -u pessoa -- sh -c 'export APPIMAGE_EXTRACT_AND_RUN=1 \
             && JOBOT_DADOS="$HOME/dados-cola1" ./jobot.AppImage --verificar \
             && JOBOT_DADOS="$HOME/dados-cola2" ./jobot.AppImage --verificar'
