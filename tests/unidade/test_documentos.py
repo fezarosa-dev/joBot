@@ -466,7 +466,7 @@ def _condicoes(lingua: str) -> dict[str, tuple[str, ...]]:
     desligadas = sorted(c for c, d in fontes.items() if d.get("ligada_padrao", True) is False)
     assert not desligadas, f"o texto diz que todas vêm ligadas; o fontes.json desliga {desligadas}"
     tarefas = cadastros.PADROES["ia_tarefas"]
-    assert tarefas, "sem tarefa de IA no padrão"  # controle: o texto fala de tarefas que existem
+    assert isinstance(tarefas, dict) and tarefas, "sem tarefa de IA no padrão"  # controle
     ligadas = sorted(t for t, c in tarefas.items() if c["ligada"])
     assert not ligadas, f"o texto diz que as tarefas de IA vêm desligadas; {ligadas} vem ligada"
     exigido = {
