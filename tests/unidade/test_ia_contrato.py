@@ -246,11 +246,13 @@ def test_ia_json_traz_prazos_limites_e_cortes() -> None:
     assert limites() == {
         "prazo_s": {"fora": 60, "local": 180},
         "prazo_teste_s": {"fora": 30, "local": 180},
+        "max_tokens_teste": 256,  # o pedido curto do teste ao ligar (T416; desenho 5.6)
         "resposta_max_bytes": 1048576,
         "tarefas": {
             "encaixe": {
                 "max_tokens": {"fora": 1024, "local": 448},
                 "corte": {"inicio": 4000, "fim": 2000},
+                "claude": "claude-haiku-5-5",  # o modelo do "Tudo Claude" (T415; desenho 5.2)
             },
         },
         "laco": {"max_por_rodada": 20, "max_tentativas": 2, "max_por_dia_fora": 200},

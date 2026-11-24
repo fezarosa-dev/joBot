@@ -1,9 +1,14 @@
 {
   "prazo_s": {"fora": 60, "local": 180},
   "prazo_teste_s": {"fora": 30, "local": 180},
+  "max_tokens_teste": 256,
   "resposta_max_bytes": 1048576,
   "tarefas": {
-    "encaixe": {"max_tokens": {"fora": 1024, "local": 448}, "corte": {"inicio": 4000, "fim": 2000}}
+    "encaixe": {
+      "max_tokens": {"fora": 1024, "local": 448},
+      "corte": {"inicio": 4000, "fim": 2000},
+      "claude": "claude-haiku-5-5"
+    }
   },
   "laco": {"max_por_rodada": 20, "max_tentativas": 2, "max_por_dia_fora": 200},
   "memoria_gib": {"modelo_4b_desde": 11, "aviso_lento_abaixo": 7}

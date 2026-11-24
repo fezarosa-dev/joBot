@@ -43,7 +43,7 @@ Um ciclo de busca, passo a passo:
 3. 🧹 **O tratamento** junta vagas repetidas, entende o salário, coloca rótulos e marca como fechadas as vagas que sumiram.
 4. 🗄️ **Tudo vai para o banco** SQLite, um arquivo que fica no seu computador.
 5. 📋 **O painel** mostra o resultado no seu navegador. Ele só funciona no seu computador (endereço 127.0.0.1).
-6. 🧠 **Se você ligou a IA**, ela calcula o encaixe com o seu perfil e ajuda a preparar candidaturas.
+6. 🧠 **Se você ligou a IA** (desde a versão 0.5.0), ela lista as habilidades que cada vaga pede, e o joBot compara com as do seu perfil e soma isso ao encaixe. Na 0.6.0, ela vai ajudar a preparar candidaturas.
 
 > [!TIP]
 > Se uma fonte falhar, as outras continuam. Se o computador estava desligado na hora marcada, a busca perdida roda quando ele liga.
@@ -87,7 +87,7 @@ O joBot tem um núcleo só e duas "caras".
 | **Instalação** | Nativa, pelo instalador de cada sistema (fase 3) ou pelo código | Nenhuma: é só abrir o site |
 | **Fontes** | Todas | Só fontes públicas |
 | **Sites com login** | Sim, você entra numa janela comum do navegador | Não |
-| **IA** | Automática (Claude, modelo local) ou manual | Manual (copiar e colar); rótulos só por regras |
+| **IA** | Automática (modelo local ou serviço com a sua chave: Anthropic, OpenAI, Gemini ou um endereço compatível) ou manual | Manual (copiar e colar); rótulos só por regras |
 | **Extensão, Gmail e áudio** | Sim | Não |
 | **Onde ficam os dados** | No banco SQLite do seu computador | Seu perfil fica no seu navegador |
 | **Atualização** | A cada 3 h (públicas) e 2x por dia (login) | Uma vez por dia |
@@ -152,6 +152,6 @@ Rodar em segundo plano é escolha sua, no assistente da primeira execução ou n
 
 ## 🧠 Inteligência artificial (opcional)
 
-> **Regra de ouro:** a IA só usa os dados do seu perfil. Ela nunca inventa experiência, curso ou habilidade, e mostra quais dados usou.
+> **Regra de ouro:** a IA nunca inventa. Na 0.5.0 ela nem recebe o seu perfil: cada habilidade que ela lista precisa estar escrita na vaga. A partir da 0.6.0, nas tarefas que usam o perfil (currículo, questionário, candidatura), ela só usa os dados do seu perfil e mostra quais usou.
 
-Cada tarefa escolhe a sua opção: sessão do Claude Code que você já tem, chave da API da Anthropic, modelo local (Qwen, grátis e sem internet), palavras-chave (sem IA) ou IA manual (copiar e colar). Detalhes em [Tecnologias](Tecnologias) e no [README](https://github.com/fezarosa-dev/joBot#inteligencia-artificial).
+Cada tarefa escolhe a sua opção. Na 0.5.0: modelo local (Qwen, grátis e sem internet depois de baixado), chave da API da Anthropic, da OpenAI ou do Google Gemini, ou um endereço compatível com a OpenAI (Ollama, LM Studio, OpenRouter), e as palavras-chave (sem IA) continuam. A IA manual (copiar e colar) chega na 0.6.0, e a sessão do Claude Code que você já tem espera a decisão do dono sobre os termos de uso. Detalhes em [Tecnologias](Tecnologias) e no [README](https://github.com/fezarosa-dev/joBot#inteligencia-artificial).

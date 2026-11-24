@@ -39,6 +39,7 @@ _EXTRAS: dict[str, dict[str, Any]] = {
     "claude-haiku-5-5": {"tool_choice": {"type": "tool", "name": FERRAMENTA}},
     "claude-sonnet-5-5": {"tool_choice": {"type": "auto"}, "thinking": {"type": "between_tools"}},
 }
+MODELOS = tuple(_EXTRAS)  # os aceitos, na ordem (a aba IA os sugere e recusa os outros)
 _POR_STATUS: dict[int, Motivo] = {
     400: "esquema_recusado",
     401: "chave_recusada",

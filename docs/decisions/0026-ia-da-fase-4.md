@@ -2,6 +2,7 @@
 
 - **Status:** proposta (tudo aqui vem da D185 do `duvidas.md`, escolhas da sessão de 2026-11-17 que o dono ainda não confirmou; cada frase da decisão leva a marca "para confirmar")
 - **Data:** 2026-11-17
+- **Atualizada:** 2026-11-24 (o dono autoriza o treino do Laya; a 0.5.0 sai sem o Laya treinado, para confirmar, D219 e [0015](0015-treino.md))
 
 ## Contexto
 
@@ -15,7 +16,7 @@ A fase 4 traz a IA ([0017](0017-fases.md)). As decisões do dono deixaram pontos
 - **Sessões do Claude Code e do Codex esperam o dono** (para confirmar, D185.5 e D185.6): o texto legal atual do Claude Code e a documentação do Codex pedem chave de API para produto e automação. Até a resposta do dono, nada dessas sessões é construído.
 - **Modelo local da fonte oficial** (para confirmar, D185.7, D185.18 e D185.19): o `llama-server` do build b12359 e o Qwen3.5-2B ou 4B da Unsloth, com sha256 fixo, baixados pelo joBot a pedido da pessoa para a pasta de dados, sem ir no instalador nem na release. O tamanho do modelo vem da memória do computador, e roda só em CPU.
 - **A IA só extrai; o encaixe é do código** (para confirmar, D185.11 e D185.12): a tarefa `encaixe` lista o que a vaga pede, sem ver o perfil; o código compara com as habilidades da pessoa. A IA não dá nota nem esconde vaga. Um laço à parte, fora da busca, cuida das vagas mais novas.
-- **Laya e e5-small adiados** (para confirmar, D185.8 e D185.9): o treino do Laya é a primeira pergunta ao dono (autoriza o gasto ou adia), e o multilingual-e5-small volta junto do Laya. Até a resposta, as habilidades vêm da IA escolhida.
+- **Laya e e5-small** (para confirmar, D185.8, D185.9 e D219): ~~o treino do Laya é a primeira pergunta ao dono (autoriza o gasto ou adia), e o multilingual-e5-small volta junto do Laya. Até a resposta, as habilidades vêm da IA escolhida.~~ O dono autorizou o treino do Laya em 2026-11-24 (D219): o Laya passa a ser o Qwen3.5 2B ajustado por LoRA, treinado no RunPod pelos scripts de `scripts/treino_laya/` ([0015](0015-treino.md)). A 0.5.0 sai sem o Laya treinado, porque o treino espera uma GPU barata da Community Cloud, e as habilidades vêm da IA escolhida; o Laya entra numa versão seguinte, se acertar mais que o 2B original no conjunto de ouro. O multilingual-e5-small continua adiado.
 - **Sem áudio no pacote offline** (para confirmar, D185.10): o áudio fica na fase 6 (D139.11).
 - **Perfil mínimo** (para confirmar, D185.13): na 0.5.0, só as habilidades, com "Apagar perfil"; na 0.6.0, experiências, cursos e perguntas. CPF, data de nascimento e projetos ficam de fora.
 - **Segurança e custo** (para confirmar, D185.22 e D185.28): lista permitida de campos por tarefa, sem nome, e-mail, telefone ou cidade; serviço pago aparece como "cobrado por uso", com teto diário de chamadas do laço. Os serviços pagos ficam marcados "experimental" até o dono os provar com a chave dele (D185.27).
@@ -38,4 +39,4 @@ A fase 4 traz a IA ([0017](0017-fases.md)). As decisões do dono deixaram pontos
 - [0015. Treino de modelos (fase 7)](0015-treino.md)
 - [0017. Fases do projeto](0017-fases.md)
 - [0023. Tudo pelo painel](0023-tudo-pelo-painel.md)
-- [duvidas.md: D185 (fase 4) e D186 (documentos da T400)](../../duvidas.md)
+- [duvidas.md: D185 (fase 4), D186 (documentos da T400) e D219 (treino do Laya)](../../duvidas.md)

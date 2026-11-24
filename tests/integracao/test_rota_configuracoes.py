@@ -190,6 +190,8 @@ ICONE_DO_GRUPO = {
     "geral": "sliders-horizontal",
     "fontes": "rss",
     "funcoes": "toggle-right",
+    "perfil": "graduation-cap",
+    "ia": "sparkles",
     "segundo-plano": "timer",
     "privacidade": "shield",
     "servicos": "plug",
@@ -235,26 +237,15 @@ def test_grupo_desconhecido_da_404(painel: Painel) -> None:
     assert painel.post("/configuracoes/nada").status_code == 404
 
 
-def test_grupo_sumido_vai_para_geral(painel: Painel) -> None:
-    """Grupo guardado pelo navegador que sem leitor não existe mais cai em Geral, não em 404."""
-    grupo = "ferramentas"
-    assert painel.get(f"/configuracoes/{grupo}").status_code == 200  # controle: com leitor existe
+def test_contas_e_ferramentas_visiveis_sem_leitor(painel: Painel) -> None:
+    """E13: "Contas" fica nas abas sem leitor (o Gmail mora lá); "Ferramentas" também, com o
+    modelo local (desenho 10.2 da fase 4; D185.20)."""
     painel.app.state.leitores = ()
-    resposta = painel.get(f"/configuracoes/{grupo}")
-    assert (resposta.status_code, resposta.headers.get("location")) == (303, GERAL)
-    assert painel.get(GERAL).status_code == 200
-    # só o GET redireciona: gravar num grupo que não existe continua 404
-    assert painel.post(f"/configuracoes/{grupo}").status_code == 404
-
-
-def test_contas_visivel_sem_leitor(painel: Painel) -> None:
-    """E13: "Contas" fica nas abas sem leitor (o Gmail mora lá); "Ferramentas" some."""
-    painel.app.state.leitores = ()
-    resposta = painel.get("/configuracoes/contas")
-    assert resposta.status_code == 200
+    for grupo in ("contas", "ferramentas"):
+        assert painel.get(f"/configuracoes/{grupo}").status_code == 200
     abas = re.findall(r'href="(/configuracoes/[^"]+)"', painel.get(GERAL).text)
     assert "/configuracoes/contas" in abas
-    assert "/configuracoes/ferramentas" not in abas
+    assert "/configuracoes/ferramentas" in abas
 
 
 @pytest.mark.parametrize("leitores", [None, ()])

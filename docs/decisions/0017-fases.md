@@ -2,11 +2,11 @@
 
 - **Status:** aceita
 - **Data:** 2026-11-13
-- **Atualizada:** 2026-11-16 (versões 0.1.1, 0.2.0 e 0.2.1 entre a fase 1 e a fase 2; fase 3 vira o Instalador, as seguintes andam um número, e a versão 0.3.0 traz o Panorama e a fila, D138; fase 3 com o app de desktop, D142, e o ajuste do Laya antes da fase 4, D141; fase 2 concluída e 0.3.0); 2026-11-17 (fase 3 começa a ser construída, D171 e [0025](0025-app-de-desktop-e-instalador.md); fase 3 concluída na 0.4.0; fase 4 começa a ser construída, rumo à 0.5.0, e o ajuste do Laya antes da fase 4 fica adiado, para confirmar, D185 e [0026](0026-ia-da-fase-4.md)); 2026-11-24 (o dono autoriza o treino do Laya antes da fase 4, D219)
+- **Atualizada:** 2026-11-16 (versões 0.1.1, 0.2.0 e 0.2.1 entre a fase 1 e a fase 2; fase 3 vira o Instalador, as seguintes andam um número, e a versão 0.3.0 traz o Panorama e a fila, D138; fase 3 com o app de desktop, D142, e o ajuste do Laya antes da fase 4, D141; fase 2 concluída e 0.3.0); 2026-11-17 (fase 3 começa a ser construída, D171 e [0025](0025-app-de-desktop-e-instalador.md); fase 3 concluída na 0.4.0; fase 4 começa a ser construída, rumo à 0.5.0, e o ajuste do Laya antes da fase 4 fica adiado, para confirmar, D185 e [0026](0026-ia-da-fase-4.md)); 2026-11-24 (o dono autoriza o treino do Laya antes da fase 4, e a 0.5.0 sai sem o Laya treinado, D219; a 0.5.0 sai com a primeira parte da fase 4, rumo à 0.6.0, T421)
 
 ## Contexto
 
-O projeto é grande. Ir por fases deixa cada entrega testada antes da próxima. Hoje as fases 1, 2 e 3 estão concluídas, as versões 0.1.0, 0.1.1, 0.2.0, 0.2.1, 0.3.0 e 0.4.0 já saíram (a 0.2.0 traz filtros novos e deixa o 2Captcha preparado para a fase 2; a 0.2.1 deixa a lista de vagas mais rápida e faz o aviso «Salvo.» sumir sozinho; a 0.3.0 traz o navegador com login, o LinkedIn, o visual novo do painel, a aba Contas, o Panorama e a fila de candidaturas; a 0.4.0 traz a janela própria e o instalador para Windows, Linux e Mac); a fase 4 está sendo construída e as outras fases estão planejadas. Em 2026-11-15 o dono decidiu a ordem LinkedIn (fase 2), Panorama e fila, versão 0.3.0, instalador, IA local (D138).
+O projeto é grande. Ir por fases deixa cada entrega testada antes da próxima. Hoje as fases 1, 2 e 3 estão concluídas, as versões 0.1.0, 0.1.1, 0.2.0, 0.2.1, 0.3.0, 0.4.0, 0.4.1 e 0.5.0 já saíram (a 0.2.0 traz filtros novos e deixa o 2Captcha preparado para a fase 2; a 0.2.1 deixa a lista de vagas mais rápida e faz o aviso «Salvo.» sumir sozinho; a 0.3.0 traz o navegador com login, o LinkedIn, o visual novo do painel, a aba Contas, o Panorama e a fila de candidaturas; a 0.4.0 traz a janela própria e o instalador para Windows, Linux e Mac; a 0.4.1 corrige o Linux; a 0.5.0 traz a primeira parte da fase 4, a IA opcional); a fase 4 está sendo construída e as outras fases estão planejadas. Em 2026-11-15 o dono decidiu a ordem LinkedIn (fase 2), Panorama e fila, versão 0.3.0, instalador, IA local (D138).
 
 ## Decisão
 
@@ -15,7 +15,7 @@ O projeto é grande. Ir por fases deixa cada entrega testada antes da próxima. 
 - Fase 2, Navegador com login: Chrome visível, mapeamento dos sites e tratamento de CAPTCHA. Status: concluída na 0.3.0 (navegador com login e o primeiro site).
 - Depois da fase 2 sai a versão 0.3.0, num lote separado do login: a tela "Panorama" (visão geral das vagas e da busca) e a fila de candidaturas completa (link de candidatura por e-mail, a pergunta "Você se candidatou?" quando a pessoa volta ao painel e as datas de cada passo). Só depois dela começa a fase 3.
 - Fase 3, Instalador: só 64 bits; Windows e Linux primeiro, Mac depois (testado só no GitHub Actions). A tela do instalador mostra uma lista de ferramentas para marcar: as essenciais vêm marcadas e não dá para desmarcar. As outras, se ficarem sem marca, aparecem depois no painel para baixar quando a pessoa quiser (ver [0023](0023-tudo-pelo-painel.md)). Status: concluída na 0.4.0 (janela própria e instalador; desenho e decisões na D171 e na [0025](0025-app-de-desktop-e-instalador.md)).
-- Fase 4, IA local: pacote offline (llama-server + Qwen). Status: sendo construída, rumo à 0.5.0; a fase sai em duas versões, a 0.5.0 e a 0.6.0 (para confirmar: desenho e escolhas na D185 e na [0026](0026-ia-da-fase-4.md)).
+- Fase 4, IA local: pacote offline (llama-server + Qwen). Status: sendo construída; a 0.5.0 trouxe a primeira parte, rumo à 0.6.0; a fase sai em duas versões, a 0.5.0 e a 0.6.0 (para confirmar: desenho e escolhas na D185 e na [0026](0026-ia-da-fase-4.md)).
 - Fase 5, Extensão do navegador. Status: planejada.
 - Fase 6, Áudio e Gmail. Status: planejada.
 - Fase 7, Treino. Status: planejada.
@@ -25,7 +25,7 @@ O projeto é grande. Ir por fases deixa cada entrega testada antes da próxima. 
 ## App de desktop na fase 3 e Laya antes da fase 4 (2026-11-15)
 
 - A fase 3 inclui, além do instalador, o app de desktop: uma casca Tauri com ícone e janela própria em volta do mesmo painel, que continua em 127.0.0.1. O mesmo projeto Tauri gera o instalador (D142). O visual de app do Mac vem da D140.
-- ~~O ajuste fino do Laya (ADR 0015) acontece antes da fase 4, e o Laya ajustado entra no encaixe junto com o Qwen local (D141).~~ ~~O ajuste do Laya antes da fase 4 está adiado, para confirmar (2026-11-17, D185.8): o treino custa, e o dono decide se autoriza o gasto ou adia; até lá, a fase 4 segue com as habilidades pela IA escolhida ([0026](0026-ia-da-fase-4.md)).~~ O dono autorizou o treino do Laya antes da fase 4 em 2026-11-24 (D219, [0015](0015-treino.md)), no RunPod, só na Community Cloud e pela GPU de menor custo total. Os outros treinos seguem na fase 7.
+- ~~O ajuste fino do Laya (ADR 0015) acontece antes da fase 4, e o Laya ajustado entra no encaixe junto com o Qwen local (D141).~~ ~~O ajuste do Laya antes da fase 4 está adiado, para confirmar (2026-11-17, D185.8): o treino custa, e o dono decide se autoriza o gasto ou adia; até lá, a fase 4 segue com as habilidades pela IA escolhida ([0026](0026-ia-da-fase-4.md)).~~ O dono autorizou o treino do Laya antes da fase 4 em 2026-11-24 (D219, [0015](0015-treino.md)), no RunPod, só na Community Cloud e pela GPU de menor custo total. A 0.5.0 sai sem o Laya treinado, que entra numa versão seguinte (escolha da sessão, para discutir com o dono, D219). Os outros treinos seguem na fase 7.
 - Nenhuma fase muda de número nem de nome.
 
 ## Consequências

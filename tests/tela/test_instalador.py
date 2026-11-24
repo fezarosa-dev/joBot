@@ -23,15 +23,28 @@ UI = RAIZ / "desktop" / "ui"
 ESTATICOS = RAIZ / "src" / "jobot" / "painel" / "static"
 ICONE = RAIZ / "desktop" / "icons" / "icon.png"
 DADOS = "/home/ana/.local/share/jobot"
-ESTADO = {"completo": True, "dados": DADOS, "base": 80_000_000, "navegador": 170_000_000}
+# os tamanhos do Modelo local, como o build os copia do `ia_local.json` (T418)
+IA_LOCAL = {"servidor": 20_000_000, "modelos": {"2b": 1_280_835_840, "4b": 2_740_937_888}}
+ESTADO = {
+    "completo": True,
+    "dados": DADOS,
+    "base": 80_000_000,
+    "navegador": 170_000_000,
+    "ia_local": IA_LOCAL,
+}
 # a ponte falsa: mesma forma do `withGlobalTauri` (window.__TAURI__.core)
 PONTE = """
 window.__chamadas = [];
+window.__instalar = [];
 window.__TAURI__ = { core: {
   Channel: class { constructor() { this.onmessage = () => {}; window.__canal = this; } },
   invoke: async (comando, args) => {
     window.__chamadas.push([comando, args && 'navegador' in args ? args.navegador : null]);
+    if (comando === 'instalar') {
+      window.__instalar.push([Object.keys(args).sort(), args.navegador, args.modelo_local]);
+    }
     if (comando === 'estado_instalador') return window.__estado;
+    if (comando === window.__recusar) throw new Error('recusado');
     return null;
   },
 } };
@@ -41,6 +54,7 @@ ETAPAS = {
     "python": "Preparando o Python",
     "jobot": "Instalando o joBot",
     "navegador": "Baixando o navegador",
+    "ia_local": "Baixando o modelo local",
     "abrir": "Abrindo",
 }
 
@@ -157,8 +171,8 @@ def test_etapas_escritas_e_so_o_navegador_baixa(page: Page, ui: str) -> None:
         _aviso(page, {"etapa": etapa})
         expect(linha).to_have_text(texto)
         expect(page.get_by_role("status")).to_have_text(texto)
-    # só o navegador vem da internet (D183.24); o resto sai dos recursos (D174.1)
-    assert [e for e, t in ETAPAS.items() if "Baixando" in t] == ["navegador"]
+    # só o navegador (D183.24) e o modelo (D185.7) vêm da internet; o resto sai dos recursos
+    assert [e for e, t in ETAPAS.items() if "Baixando" in t] == ["navegador", "ia_local"]
 
 
 def test_progresso_determinado_nao_volta_e_para_no_teto(page: Page, ui: str) -> None:
@@ -228,6 +242,9 @@ def test_pe_preso_com_janela_baixa_e_texto_maior(page: Page, ui: str) -> None:
     _abrir(page, ui)
     page.evaluate("document.documentElement.dataset.texto = 'maior'")
     page.get_by_role("button", name="Continuar", exact=True).click()
+    modelo = page.get_by_label("Modelo local", exact=True)
+    expect(modelo).to_be_visible()
+    modelo.check()  # tudo marcado (padrões «Layout»)
     instalar = page.get_by_role("button", name="Instalar", exact=True)
     expect(instalar).to_be_visible()
     caixa = instalar.bounding_box()
@@ -321,6 +338,47 @@ def test_fechar_fora_da_instalacao_fecha_sem_perguntar(page: Page, ui: str) -> N
     assert "fechar_instalador" in [c[0] for c in _chamadas(page)]
 
 
+def test_continuar_recusado_fecha_o_instalador(page: Page, ui: str) -> None:
+    """Se a casca recusa o `mostrar_controle`, o Continuar não fica mudo: fecha a janela, e o
+    joBot já instalado abre no controle na próxima vez."""
+    _ate_instalando(page, ui)
+    page.evaluate("window.__recusar = 'mostrar_controle'")
+    _aviso(page, {"fim": "pronto", "ia_local": "sem_rede"})
+    page.get_by_role("button", name="Continuar", exact=True).click()
+    page.wait_for_function("window.__chamadas.at(-1)[0] === 'fechar_instalador'")
+    assert [c[0] for c in _chamadas(page)][-2:] == ["mostrar_controle", "fechar_instalador"]
+
+
+def test_barra_do_modelo_segue_os_bytes(page: Page, ui: str) -> None:
+    """No download do modelo (minutos) a largura segue os bytes, sem correr sozinha até o fim
+    da fatia e parar lá (D205.4); a suavização da D216 continua."""
+    page.clock.install()
+    _abrir(page, ui)
+    page.get_by_role("button", name="Continuar", exact=True).click()
+    page.get_by_label("Navegador para sites com login").uncheck()
+    page.get_by_label("Modelo local", exact=True).check()
+    page.get_by_role("button", name="Instalar", exact=True).click()
+    _aviso(page, {"etapa": "ia_local", "feito": 5, "total": 100})
+    assert _valor(page) == 50  # 63 de 125
+    page.clock.run_for(120_000)
+    assert 48 <= _largura(page) < 52  # sem a correção, ~96 (o fim da fatia)
+    _aviso(page, {"etapa": "ia_local", "feito": 50, "total": 100})
+    page.clock.run_for(3000)
+    assert 70 < _largura(page) < 74  # 90 de 125: anda com os bytes
+
+
+def test_alerta_aberto_muda_quando_o_modelo_comeca(page: Page, ui: str) -> None:
+    """Com o alerta aberto, a etapa que vira a do modelo troca o texto: dali parar não desfaz o
+    joBot, e o alerta não pode prometer o contrário."""
+    _ate_instalando(page, ui)
+    page.evaluate("window.__jobotPedirFechar()")
+    expect(page.get_by_role("dialog", name="Parar a instalação?")).to_be_visible()
+    _aviso(page, {"etapa": "ia_local", "feito": 1, "total": 10})
+    alerta = page.get_by_role("dialog", name="Parar o download do modelo?")
+    expect(alerta).to_be_visible()
+    expect(alerta).to_contain_text("O joBot já está instalado")
+
+
 @pytest.mark.parametrize(
     ("motivo", "frase"),
     [
@@ -386,3 +444,166 @@ def test_em_ingles_e_troca_de_idioma(page: Page, ui: str) -> None:
     expect(page.locator("html")).to_have_attribute("lang", "pt")
     # a escolha fica para o controle, que abre logo depois na mesma origem (D207.9)
     assert page.evaluate("localStorage.getItem('jobot.idioma')") == "pt"
+
+
+# --- Modelo local (T418; desenho 10.1; D185.17) ---
+
+FRASE_IA = (
+    "Para usar IA sem internet e sem pagar. Se você marcar, baixa da internet de 1,3 a 2,7 GB, "
+    "conforme a memória do computador; dá para baixar depois em Configurações › Ferramentas."
+)
+
+
+def _instalar_args(page: Page) -> list[Any]:
+    resultado: list[Any] = page.evaluate("window.__instalar")
+    return resultado
+
+
+def test_grupo_de_ia_so_com_o_modelo_local_desmarcado(page: Page, ui: str) -> None:
+    _abrir(page, ui)
+    page.get_by_role("button", name="Continuar", exact=True).click()
+    grupo = page.get_by_role("group", name="Inteligência artificial (opcional)")
+    expect(grupo).to_be_visible()
+    # só o Modelo local: Claude Code e Codex esperam o dono (D185.5 e D185.6)
+    expect(grupo.get_by_role("checkbox")).to_have_count(1)
+    modelo = grupo.get_by_role("checkbox", name="Modelo local", exact=True)
+    expect(modelo).not_to_be_checked()
+    expect(modelo).to_be_enabled()
+    expect(modelo).to_have_accessible_description(FRASE_IA)
+    expect(grupo).to_contain_text("até 2,8 GB")
+    corpo = page.locator("body").inner_text()
+    for nome in ("Claude", "Codex", "vem com", "inclui"):
+        assert nome not in corpo, nome
+    # depois do navegador, na ordem do DOM (a do Tab)
+    caixas = page.get_by_role("checkbox")
+    expect(caixas).to_have_count(3)
+    assert caixas.nth(2).get_attribute("id") == "ferramenta-ia-local"
+    page.get_by_role("button", name="Instalar", exact=True).click()
+    assert _instalar_args(page) == [[["modelo_local", "navegador", "progresso"], True, False]]
+
+
+def test_rodape_soma_o_modelo_marcado(page: Page, ui: str) -> None:
+    _abrir(page, ui)
+    page.get_by_role("button", name="Continuar", exact=True).click()
+    espaco = page.locator("#espaco")
+    expect(espaco).to_have_text("cerca de 750 MB")
+    expect(page.get_by_label("Modelo local", exact=True)).to_be_visible()
+    page.get_by_label("Modelo local", exact=True).check()
+    # 750 MB + o llama-server compactado x 3 (60 MB) + o modelo maior (2 741 MB): 3,6 GB
+    expect(espaco).to_have_text("cerca de 3,6 GB")
+    page.get_by_label("Modelo local", exact=True).press("Space")  # desmarca pelo teclado
+    expect(espaco).to_have_text("cerca de 750 MB")
+    page.get_by_label("Modelo local", exact=True).check()
+    page.get_by_role("button", name="Instalar", exact=True).click()
+    assert _instalar_args(page)[0][1:] == [True, True]
+
+
+def test_sem_os_tamanhos_o_instalador_nao_oferece_o_modelo(page: Page, ui: str) -> None:
+    _abrir(page, ui, {k: v for k, v in ESTADO.items() if k != "ia_local"})
+    page.get_by_role("button", name="Continuar", exact=True).click()
+    expect(page.get_by_role("heading", name="O que instalar")).to_be_visible()
+    expect(page.get_by_role("group", name="Inteligência artificial (opcional)")).to_have_count(0)
+    page.get_by_role("button", name="Instalar", exact=True).click()
+    assert _instalar_args(page)[0][1:] == [True, False]
+
+
+def test_etapa_do_modelo_reserva_a_fatia_so_quando_marcado(page: Page, ui: str) -> None:
+    _abrir(page, ui)
+    page.get_by_role("button", name="Continuar", exact=True).click()
+    page.get_by_label("Navegador para sites com login").uncheck()
+    expect(page.get_by_label("Modelo local", exact=True)).to_be_visible()
+    page.get_by_label("Modelo local", exact=True).check()
+    page.get_by_role("button", name="Instalar", exact=True).click()
+    _aviso(page, {"etapa": "ia_local", "feito": 0, "total": 100})
+    expect(page.locator(".progresso-linha")).to_have_text("Baixando o modelo local")
+    # 60 de 125 (conferir 10, python 20, jobot 30, modelo 60, abrir 5)
+    assert _valor(page) == 48
+    _aviso(page, {"etapa": "ia_local", "feito": 50, "total": 100})
+    assert _valor(page) == 72  # 90 de 125
+
+
+def test_pronto_diz_o_que_nao_baixou_e_segue_para_o_controle(page: Page, ui: str) -> None:
+    _ate_instalando(page, ui)
+    _aviso(page, {"etapa": "ia_local"})
+    _aviso(page, {"fim": "pronto", "ia_local": "sem_rede"})
+    expect(page.get_by_role("heading", name="Pronto")).to_be_visible()
+    expect(page.get_by_role("heading", name="Pronto")).to_be_focused()
+    aviso = page.locator("#pronto-ia")
+    expect(aviso).to_have_text(
+        "O joBot está instalado, mas o modelo local não baixou: sem conexão com a internet. "
+        "Baixe depois em Configurações › Ferramentas."
+    )
+    expect(page.get_by_role("heading", name="Pronto")).to_have_accessible_description(
+        aviso.inner_text()
+    )
+    expect(page.locator("#pronto-abrindo")).to_be_hidden()
+    principais = page.locator(".botao-principal:visible")
+    expect(principais).to_have_count(1)
+    seguir = page.get_by_role("button", name="Continuar", exact=True)
+    expect(principais).to_have_text("Continuar")
+    # do título, o Tab vai direto ao botão (o caminho do job aberta do pacotes.yml)
+    page.keyboard.press("Tab")
+    expect(seguir).to_be_focused()
+    url = page.url
+    page.keyboard.press("Enter")
+    # quem encolhe a janela e mostra o controle é a casca (D207.2), não a página
+    page.wait_for_function("window.__chamadas.at(-1)[0] === 'mostrar_controle'")
+    assert page.url == url
+
+
+@pytest.mark.parametrize(
+    ("motivo", "frase"),
+    [
+        ("espaco", "falta espaço em disco"),
+        ("arquivo", "o arquivo baixado não confere"),
+        ("ocupado", "outro download do modelo está em curso"),
+        ("programa_ausente", "o programa do modelo não roda neste computador"),
+        ("modelo_ausente", "o modelo não está disponível para este computador"),
+        ("qualquer", "o download não terminou"),
+    ],
+)
+def test_pronto_traduz_o_motivo_do_modelo(page: Page, ui: str, motivo: str, frase: str) -> None:
+    _ate_instalando(page, ui)
+    _aviso(page, {"fim": "pronto", "ia_local": motivo})
+    expect(page.locator("#pronto-ia")).to_contain_text(f"não baixou: {frase}.")
+
+
+def test_pronto_sem_falha_do_modelo_nao_mostra_aviso(page: Page, ui: str) -> None:
+    _ate_instalando(page, ui)
+    _aviso(page, {"etapa": "abrir"})
+    _aviso(page, {"fim": "pronto"})
+    expect(page.get_by_role("heading", name="Pronto")).to_be_visible()
+    expect(page.locator("#pronto-abrindo")).to_be_visible()
+    # controle: o aviso existe e fica escondido
+    expect(page.locator("#pronto-ia")).to_have_count(1)
+    expect(page.locator("#pronto-ia")).to_be_hidden()
+    expect(page.locator("#seguir")).to_be_hidden()
+
+
+def test_fechar_no_download_do_modelo_diz_que_o_jobot_fica(page: Page, ui: str) -> None:
+    _ate_instalando(page, ui)
+    page.evaluate("window.__jobotPedirFechar()")
+    expect(page.get_by_role("dialog", name="Parar a instalação?")).to_be_visible()
+    page.get_by_role("button", name="Continuar instalando", exact=True).click()
+    _aviso(page, {"etapa": "ia_local", "feito": 1, "total": 10})
+    page.evaluate("window.__jobotPedirFechar()")
+    alerta = page.get_by_role("dialog", name="Parar o download do modelo?")
+    expect(alerta).to_be_visible()
+    expect(alerta).to_contain_text("O joBot já está instalado")
+    expect(alerta).to_contain_text("Configurações › Ferramentas")
+    page.get_by_role("button", name="Parar e fechar", exact=True).click()
+    assert "fechar_instalador" in [c[0] for c in _chamadas(page)]
+
+
+def test_modelo_local_em_ingles(page: Page, ui: str) -> None:
+    page.add_init_script("Object.defineProperty(navigator, 'language', {get: () => 'en-US'})")
+    _abrir(page, ui)
+    page.get_by_role("button", name="Continue", exact=True).click()
+    grupo = page.get_by_role("group", name="Artificial intelligence (optional)")
+    modelo = grupo.get_by_role("checkbox", name="Local model", exact=True)
+    expect(modelo).not_to_be_checked()
+    expect(modelo).to_have_accessible_description(
+        "To use AI offline and for free. If you check it, it downloads 1.3 to 2.7 GB from the "
+        "internet, depending on the computer's memory; you can download it later in "
+        "Settings › Tools."
+    )

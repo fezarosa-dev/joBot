@@ -10,6 +10,7 @@
     "allow-estado-instalador",
     "allow-instalar",
     "allow-fechar-instalador",
+    "allow-mostrar-controle",
     "allow-fechar-controle",
     "allow-estado-controle",
     "allow-ligar",

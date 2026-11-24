@@ -189,7 +189,7 @@ def test_changelog_tem_as_mesmas_secoes_nas_duas_linguas() -> None:
 
 def test_changelog_traz_a_versao_do_pacote() -> None:
     projeto = tomllib.loads(texto("pyproject.toml"))["project"]["version"]
-    assert projeto == __version__ == "0.4.1"
+    assert projeto == __version__ == "0.5.0"
     for caminho in CHANGELOG.values():
         conteudo = texto(caminho)
         for versao in (projeto, "0.1.0"):
@@ -378,6 +378,16 @@ CITA: Mapping[str, Mapping[str, tuple[str, ...]]] = {
             r"o marca na instalação",
         ),
         "gmail": (r"Gmail", r"senha de app", r"só quando você"),
+        "ia": (
+            r"serviços de IA",
+            r"API da Anthropic",
+            r"OpenAI",
+            r"Gemini",
+            r"endereço compatível",
+            r"só quando você liga",
+            r"as tarefas vêm desligadas",
+        ),
+        "modelo local": (r"GitHub", r"Hugging Face", r"CDNs", r"modelo local", r"só quando você"),
     },
     "en": {
         "fontes": (r"public job sources",),
@@ -395,6 +405,16 @@ CITA: Mapping[str, Mapping[str, tuple[str, ...]]] = {
             r"check it during installation",
         ),
         "gmail": (r"Gmail", r"app password", r"only when you"),
+        "ia": (
+            r"AI services",
+            r"Anthropic API",
+            r"OpenAI",
+            r"Gemini",
+            r"compatible address",
+            r"only when you turn on",
+            r"the tasks come off",
+        ),
+        "modelo local": (r"GitHub", r"Hugging Face", r"CDNs", r"local model", r"only when you"),
     },
 }
 CONDICAO: Mapping[str, Mapping[bool, str]] = {
@@ -413,7 +433,16 @@ CHAVE_DO_PADRAO = {
 FONTES_LIGADAS = {"pt": r"vêm todas ligadas", "en": r"all come on"}
 # pedidos que só saem quando a pessoa age, sem padrão ligado ou desligado: a frase diz quando
 # (os sites com login são vários, cada um com a sua chave, sempre desligada: a frase diz isso)
-SO_QUANDO_PEDE = {"endereço", "atualização", "sites com login", "navegador", "gmail"}
+# (as tarefas de IA também: a frase diz que vêm desligadas, e `_condicoes` confere o `ia_tarefas`)
+SO_QUANDO_PEDE = {
+    "endereço",
+    "atualização",
+    "sites com login",
+    "navegador",
+    "gmail",
+    "ia",
+    "modelo local",
+}
 
 
 def test_condicao_aceita_os_dois_generos() -> None:
@@ -436,6 +465,10 @@ def _condicoes(lingua: str) -> dict[str, tuple[str, ...]]:
     fontes = json.loads((RAIZ / "src/jobot/nucleo/dados/fontes.json").read_text(encoding="utf-8"))
     desligadas = sorted(c for c, d in fontes.items() if d.get("ligada_padrao", True) is False)
     assert not desligadas, f"o texto diz que todas vêm ligadas; o fontes.json desliga {desligadas}"
+    tarefas = cadastros.PADROES["ia_tarefas"]
+    assert isinstance(tarefas, dict) and tarefas, "sem tarefa de IA no padrão"  # controle
+    ligadas = sorted(t for t, c in tarefas.items() if c["ligada"])
+    assert not ligadas, f"o texto diz que as tarefas de IA vêm desligadas; {ligadas} vem ligada"
     exigido = {
         pedido: (*cita, CONDICAO[lingua][_ligado_por_padrao(pedido)])
         for pedido, cita in CITA[lingua].items()
@@ -552,11 +585,10 @@ AVISO_0_4_1 = {
 
 @pytest.mark.parametrize("lingua", LINGUAS)
 def test_changelog_fecha_a_0_4_1(lingua: str) -> None:
-    """A 0.4.1 é a primeira seção de versão, logo depois de "Não lançado", e abre com o aviso a
-    quem tem a janela 0.4.0, antes do resumo."""
+    """A 0.4.1 vem logo depois da 0.5.0 e abre com o aviso a quem tem a janela 0.4.0, antes do
+    resumo."""
     conteudo = texto(CHANGELOG[lingua])
-    assert NAO_LANCADO[lingua] in conteudo, CHANGELOG[lingua]
-    inicio = conteudo.index(NAO_LANCADO[lingua])
+    inicio = conteudo.index(V0_5_0)
     fim = conteudo.index("\n## [", inicio + 1)
     assert conteudo[fim + 1 :].startswith(V0_4_1), CHANGELOG[lingua]
     secao = conteudo[fim + 1 :]
@@ -682,8 +714,8 @@ FASE_1_CONCLUIDA = {
     ".github/CONTRIBUTING.en.md": (
         r"Phases 1, 2 and 3 \(foundation, browser with login and installer\) are complete"
     ),
-    ".github/SECURITY.md": r"(?i)só a versão mais recente \(hoje a 0\.4\.1\)",
-    ".github/SECURITY.en.md": r"(?i)only the latest version \(currently 0\.4\.1\)",
+    ".github/SECURITY.md": r"(?i)só a versão mais recente \(hoje a 0\.5\.0\)",
+    ".github/SECURITY.en.md": r"(?i)only the latest version \(currently 0\.5\.0\)",
     ".github/SUPPORT.md": r"formulário de bug",
     ".github/SUPPORT.en.md": r"bug form",
     "docs/decisions/0017-fases.md": r"fases 1, 2 e 3 estão concluídas",
@@ -784,8 +816,12 @@ FASE_3_CONCLUIDA = {
     "wiki/Roadmap.md": r"✅ \| \*\*3\. Installer\*\*.*Complete in 0\.4\.0",
     "README.md": r"\*\*3\. Instalador\*\*.*🟢 Pronta \(versão 0\.4\.0\)",
     "README.en.md": r"\*\*3\. Installer\*\*.*🟢 Done \(version 0\.4\.0\)",
-    ".github/CONTRIBUTING.md": r"fases 1, 2 e 3 .*estão concluídas: o joBot 0\.4\.0",
-    ".github/CONTRIBUTING.en.md": r"Phases 1, 2 and 3 .*are complete: joBot 0\.4\.0",
+    ".github/CONTRIBUTING.md": (
+        r"fases 1, 2 e 3 .*estão concluídas: o joBot 0\.4\.0.*a versão 0\.5\.0 já dá para instalar"
+    ),
+    ".github/CONTRIBUTING.en.md": (
+        r"Phases 1, 2 and 3 .*are complete: joBot 0\.4\.0.*version 0\.5\.0 can already be installed"
+    ),
 }
 # sobra do tempo em que a fase 3 estava em obras
 FASE_3_EM_OBRAS = re.compile(
@@ -803,16 +839,30 @@ def test_status_da_fase_3_igual_nos_documentos(caminho: str) -> None:
     assert FASE_3_EM_OBRAS.search(conteudo) is None, caminho
 
 
-# o que cada documento de estado vivo diz da fase 4 (T400, D185.26): sendo construída
+# o que cada documento de estado vivo diz da fase 4 (T400, D185.26): sendo construída; desde a
+# T421, com a 0.5.0 como a primeira parte e rumo à 0.6.0
+PARTE_PT = r"a 0\.5\.0 trouxe a primeira parte; rumo à 0\.6\.0"
+PARTE_EN = r"0\.5\.0 brought the first part; toward 0\.6\.0"
 FASE_4_EM_OBRAS = {
-    "docs/decisions/0017-fases.md": r"Fase 4, IA local:.*Status: sendo construída, rumo à 0\.5\.0",
-    "docs/decisions/README.md": r"a fase 4 está sendo construída \(rumo à 0\.5\.0\)",
-    "wiki/Roteiro.md": r"🟡 \| \*\*4\. IA local\*\*.*\| Sendo construída \(rumo à 0\.5\.0\) \|",
-    "wiki/Roadmap.md": r"🟡 \| \*\*4\. Local AI\*\*.*\| Being built \(toward 0\.5\.0\) \|",
-    "README.md": r"\*\*4\. IA local\*\*.*\| 🟡 Sendo construída \(rumo à 0\.5\.0\) \|",
-    "README.en.md": r"\*\*4\. Local AI\*\*.*\| 🟡 Being built \(toward 0\.5\.0\) \|",
-    ".github/CONTRIBUTING.md": r"A fase 4 \(IA local\) está sendo construída, rumo à 0\.5\.0",
-    ".github/CONTRIBUTING.en.md": r"Phase 4 \(local AI\) is being built, toward 0\.5\.0",
+    "docs/decisions/0017-fases.md": (
+        r"Fase 4, IA local:.*Status: sendo construída; a 0\.5\.0 trouxe a primeira parte, rumo à"
+        r" 0\.6\.0"
+    ),
+    "docs/decisions/README.md": rf"a fase 4 está sendo construída \({PARTE_PT}\)",
+    "wiki/Roteiro.md": rf"🟡 \| \*\*4\. IA local\*\*.*\| Sendo construída \({PARTE_PT}\) \|",
+    "wiki/Roadmap.md": rf"🟡 \| \*\*4\. Local AI\*\*.*\| Being built \({PARTE_EN}\) \|",
+    "README.md": rf"\*\*4\. IA local\*\*.*\| 🟡 Sendo construída \({PARTE_PT}\) \|",
+    "README.en.md": rf"\*\*4\. Local AI\*\*.*\| 🟡 Being built \({PARTE_EN}\) \|",
+    ".github/CONTRIBUTING.md": (
+        r"A fase 4 \(IA local\) está sendo construída: a 0\.5\.0 trouxe a primeira parte"
+    ),
+    ".github/CONTRIBUTING.en.md": (
+        r"Phase 4 \(local AI\) is being built: 0\.5\.0 brought the first part"
+    ),
+    "wiki/Home.md": (
+        r"A fase 4 \(IA local\) está sendo construída: a 0\.5\.0 trouxe a primeira parte"
+    ),
+    "wiki/Home-en.md": r"Phase 4 \(local AI\) is being built: 0\.5\.0 brought the first part",
 }
 # sobra do tempo em que a fase 4 estava só planejada
 FASE_4_PLANEJADA = re.compile(
@@ -898,7 +948,7 @@ INSTALADOR_CITA = {
         "Mais informações",
         "Executar assim mesmo",
         "Abrir Mesmo Assim",
-        "nada é baixado na instalação, exceto o navegador",
+        "nada mais é baixado na instalação além do navegador e do Modelo local",
         "https://developer.microsoft.com/microsoft-edge/webview2/",
         "%LOCALAPPDATA%\\joBot",
         "~/Library/Application Support/joBot",
@@ -918,7 +968,7 @@ INSTALADOR_CITA = {
         "More info",
         "Run anyway",
         "Open Anyway",
-        "nothing is downloaded during the installation, except the browser",
+        "nothing else is downloaded during the installation besides the browser",
         "https://developer.microsoft.com/microsoft-edge/webview2/",
         "%LOCALAPPDATA%\\joBot",
         "~/Library/Application Support/joBot",
@@ -1020,3 +1070,98 @@ def test_readme_lista_todas_as_adrs(lingua: str) -> None:
     conteudo = texto(README[lingua])
     faltam = [n for n in numeros if f"| {n} | [" not in conteudo]
     assert faltam == [], (README[lingua], faltam)
+
+
+# T420: o que os documentos da 0.5.0 dizem da IA; cada termo só o texto novo tem
+SECAO_IA = {"pt": "inteligencia-artificial", "en": "artificial-intelligence"}
+IA_0_5_0 = {
+    "pt": ("O que a 0.5.0 traz", "O que funciona sem internet", "Hugging Face", "provado no CI"),
+    "en": ("What 0.5.0 brings", "What works without internet", "Hugging Face", "proven in CI"),
+}
+SOBRA_DO_MODELO = {
+    "pt": ("pasta `ferramentas`", "2,7 GB"),
+    "en": ("`ferramentas` folder", "2.7 GB"),
+}
+V0_5_0 = "## [0.5.0] - 2026-11-24"
+NA_0_5_0 = {
+    "pt": ("Configurações › IA", "Hugging Face", "Laya"),
+    "en": ("Settings › AI", "Hugging Face", "Laya"),
+}
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_readme_traz_a_ia_da_0_5_0(lingua: str) -> None:
+    """A seção de IA diz o que a 0.5.0 traz, a tabela do que funciona sem internet, a marca dos
+    serviços pagos não provados (a mesma frase da aba IA) e o que só o CI provou; o pacote offline
+    perdeu o áudio (D185.10 e D185.27)."""
+    ia = secao(texto(README[lingua]), SECAO_IA[lingua])
+    assert "Qwen3.5-4B" in ia, README[lingua]  # controle: a tabela do pacote offline está aqui
+    for termo in IA_0_5_0[lingua]:
+        assert termo in ia, (README[lingua], termo)
+    marca = i18n.carregar()[lingua]["configuracoes.ia.experimental"].split(":")[0]
+    assert f"**{marca}:**" in ia, README[lingua]
+    assert "whisper" not in ia.lower(), README[lingua]
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_desinstalar_diz_a_sobra_do_modelo_local(lingua: str) -> None:
+    """Desinstalar deixa o modelo local na pasta de dados: o README diz onde e quanto (D185.18)."""
+    instalacao = secao(texto(README[lingua]), SECAO_INSTALACAO[lingua])
+    for termo in SOBRA_DO_MODELO[lingua]:
+        assert termo in instalacao, (README[lingua], termo)
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_changelog_fecha_a_0_5_0(lingua: str) -> None:
+    """A 0.5.0 é a primeira seção de versão, logo depois de "Não lançado", com a data do dia da
+    tag (T421, padrões «Troca de versão»), e traz a IA."""
+    conteudo = texto(CHANGELOG[lingua])
+    assert NAO_LANCADO[lingua] in conteudo, CHANGELOG[lingua]
+    inicio = conteudo.index(NAO_LANCADO[lingua])
+    fim = conteudo.index("\n## [", inicio + 1)
+    assert conteudo[fim + 1 :].startswith(V0_5_0), CHANGELOG[lingua]
+    nova = conteudo[fim + 1 : conteudo.index("\n## [", fim + 1)]
+    for termo in NA_0_5_0[lingua]:
+        assert termo in nova, (CHANGELOG[lingua], termo)
+
+
+LAYA_AUTORIZADO_NA_IA = (
+    "docs/decisions/0014-seguranca-e-privacidade.md",
+    "docs/decisions/0026-ia-da-fase-4.md",
+)
+# o que essas ADRs diziam do Laya antes da autorização (D185.8); fora do riscado, não pode sobrar
+LAYA_ESPERANDO = re.compile(r"primeira pergunta ao dono|só roda se o dono autorizar")
+
+
+@pytest.mark.parametrize("caminho", LAYA_AUTORIZADO_NA_IA)
+def test_adr_da_ia_diz_o_laya_autorizado(caminho: str) -> None:
+    """D219.12: a 0014 e a 0026 riscam o Laya à espera do dono e citam a autorização (D219)."""
+    linhas = [linha for linha in texto(caminho).splitlines() if linha.startswith("- ")]
+    vivas = [re.sub(r"~~.*?~~", "", linha) for linha in linhas if "Laya" in linha]
+    assert vivas, caminho  # controle: achou as linhas do Laya
+    assert any(LAYA_ESPERANDO.search(linha) for linha in linhas), caminho  # o riscado ficou
+    assert [linha for linha in vivas if LAYA_ESPERANDO.search(linha)] == [], caminho
+    assert any("D219" in linha for linha in vivas), caminho
+
+
+TELA_DE_INSTALACAO = {
+    "pt": ("README.md", "wiki/Instalar.md"),
+    "en": ("README.en.md", "wiki/Install.md"),
+}
+SO_O_NAVEGADOR = re.compile(
+    r"único que vem da internet|exceto o navegador, se marcado"
+    r"|only thing that comes from the internet|except the browser, if ticked"
+)
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_tela_de_instalacao_cita_o_modelo_local(lingua: str) -> None:
+    """O passo Ferramentas do instalador tem a caixa Modelo local (desenho 10.1, T418), que baixa
+    do GitHub e do Hugging Face: o passo a passo não pode dizer que só o navegador vem da
+    internet."""
+    rotulo = json.loads(texto(f"desktop/ui/i18n/{lingua}.json"))["ferramentas.ia_local"]
+    for arquivo in TELA_DE_INSTALACAO[lingua]:
+        conteudo = texto(arquivo)
+        assert f"**{rotulo}**" in conteudo, (arquivo, rotulo)
+        assert "Hugging Face" in conteudo, arquivo
+        assert not SO_O_NAVEGADOR.search(conteudo), arquivo
