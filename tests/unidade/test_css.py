@@ -501,20 +501,53 @@ def test_alerta_nao_anula_o_caminho_solido_do_vidro() -> None:
     assert alerta < solido.start(), "base.css: .alerta depois dos blocos sólidos do vidro"
 
 
-def test_toda_tela_com_apagar_em_details_liga_o_css_que_o_estiliza() -> None:
-    """Empresas e Sites ainda usam <details class="apagar">; a regra só sai com o último uso."""
+def test_diferenca_dos_programas_usa_o_estilo_que_a_pagina_liga() -> None:
+    """A diferença dos Programas (vagas/miolo.html, parcial de vagas/pagina.html) usa o
+    `.ver-mudancas` do sites.css, que a página liga; o `.apagar` saiu com o último uso."""
     modelos = ESTATICOS.parent / "templates"
-    for modelo in modelos.rglob("*.html"):
-        if 'class="apagar"' not in modelo.read_text(encoding="utf-8"):
+    miolo = (modelos / "vagas" / "miolo.html").read_text(encoding="utf-8")
+    pagina = (modelos / "vagas" / "pagina.html").read_text(encoding="utf-8")
+    assert '<details class="ver-mudancas">' in miolo
+    ligados = set(re.findall(r"/static/css/([\w-]+)\.css", pagina))
+    assert any(r.seletor == ".ver-mudancas summary" for arq, r in _todas() if arq[:-4] in ligados)
+    com_apagar = [
+        m.name for m in modelos.rglob("*.html") if 'class="apagar"' in m.read_text("utf-8")
+    ]
+    assert not com_apagar, com_apagar
+    assert not [arq for arq, r in _todas() if ".apagar" in r.seletor]
+
+
+FORCADAS = "@media (forced-colors: active)"
+
+
+def test_controle_sem_aparencia_tem_borda_nas_cores_forcadas() -> None:
+    """Controle com `appearance: none` (e `border: 0`) vence o `button` do bloco de cores forçadas
+    do base.css: o próprio arquivo devolve a borda a cada seletor (padroes-tela, «CSS e
+    template»)."""
+    forcadas: dict[str, list[Regra]] = {}
+    for arq, r in _todas():
+        if FORCADAS in r.contexto:
+            forcadas.setdefault(arq, []).append(r)
+    sem_borda = []
+    for arq, r in _todas():
+        if r.contexto or _valor(r, "appearance") != "none":
             continue
-        texto = modelo.read_text(encoding="utf-8")
-        if modelo.name != "lista.html" and "{% extends" not in texto:
-            continue  # parcial: o CSS vem da página que a inclui
-        ligados = {m for m in re.findall(r"/static/css/([\w-]+)\.css", texto)}
-        estilizado = any(
-            r.seletor == ".apagar summary" for arq, r in _todas() if arq[:-4] in ligados
-        )
-        assert estilizado, f'{modelo.name}: class="apagar" sem .apagar summary no CSS ligado'
+        for seletor in _seletores(r):
+            bordas = [
+                _valor(f, "border") or "" for f in forcadas.get(arq, []) if seletor in _seletores(f)
+            ]
+            if not any("ButtonText" in b for b in bordas):
+                sem_borda.append(f"{arq}: {seletor}")
+    assert not sem_borda, sem_borda
+
+
+def test_chip_ligado_usa_a_selecao_do_sistema_nas_cores_forcadas() -> None:
+    """O chip ligado só difere pelo fundo, que as cores forçadas trocam: lá ele usa Highlight."""
+    css = _sem_comentarios((PASTA / "vagas.css").read_text(encoding="utf-8"))
+    for seletor in ('.chip[aria-pressed="true"]', '.chip[aria-current="true"]'):
+        regras = [r for r in _regras(css) if FORCADAS in r.contexto and seletor in _seletores(r)]
+        corpo = " ".join(r.corpo for r in regras)
+        assert "Highlight" in corpo and "forced-color-adjust: none" in corpo, seletor
 
 
 def test_interruptor_mora_na_base_e_buscas_nao_liga_o_css_de_configuracoes() -> None:

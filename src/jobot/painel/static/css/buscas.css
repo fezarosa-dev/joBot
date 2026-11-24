@@ -94,18 +94,6 @@ textarea {
   font-size: 1.25rem;
 }
 
-/* <details class="apagar"> de Empresas e Sites: sai junto com o último uso (T260 e T261) */
-.apagar summary {
-  cursor: default;
-  color: var(--link);
-}
-
-.apagar form {
-  display: grid;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
-}
-
 /* linha da lista agrupada (.lista-agrupada, base.css). O interruptor mini (.chave-mini) e o estilo
    dele vêm do base.css. */
 .linha-busca {
