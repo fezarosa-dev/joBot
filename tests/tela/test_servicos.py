@@ -1,4 +1,5 @@
-"""Visual e movimento do cartão do 2Captcha no navegador (plano T186; desenho E15 e E16).
+"""Visual e movimento do cartão do 2Captcha no navegador (plano T186; desenho E15 e E16) e os
+cartões das chaves de IA (T414).
 
 O cofre é o `CofreFalso` e a API do 2Captcha é um `httpx.MockTransport`: nada toca o sistema
 nem a rede. Nenhum teste espera tempo real: `expect_response` e `page.clock`.
@@ -54,9 +55,9 @@ def app_painel(app_painel: FastAPI, cofre: Cofre, api: dict[str, Any]) -> FastAP
 
 
 @pytest.fixture(autouse=True)
-def _sem_erro_no_console(page: Page) -> Iterator[None]:
+def _sem_erro_no_console(page: Page) -> Iterator[list[str]]:
     erros = anotar_erros(page)  # violação do CSP aparece como erro no console
-    yield
+    yield erros
     assert erros == []
 
 
@@ -266,3 +267,70 @@ def test_resultado_ok_usa_o_token_nos_dois_temas(
     page.goto(f"{painel}/configuracoes/servicos")
     _teste_da_chave(page)
     expect(page.locator("#resultado-captcha .resultado-ok")).to_have_css("color", cor)
+
+
+# --- chaves de IA (T414) -------------------------------------------------------------------
+
+CHAVE_IA = "sk-proj-AbCd_1234-EfGh5678IjKl9012"
+APAGAR_OPENAI = "**/configuracoes/servicos/ia/openai/apagar"
+
+
+def test_chave_de_ia_salva_com_enter_e_apagar_devolve_o_foco_ao_campo(
+    page: Page, painel: str, cofre: Cofre
+) -> None:
+    page.goto(f"{painel}/configuracoes/servicos")
+    cartao = page.locator("#cartao-ia-openai")
+    campo = cartao.get_by_label("Chave da OpenAI", exact=True)
+    campo.fill(CHAVE_IA)
+    with page.expect_navigation():
+        campo.press("Enter")
+    expect(cartao).to_contain_text("Chave salva: •••• 9012")
+    expect(cartao.get_by_label("Chave da OpenAI", exact=True)).to_have_value("")
+    assert cofre.ler("ia_openai") == (CHAVE_IA, "sistema")
+    apagar = cartao.get_by_role("button", name="Apagar a chave da OpenAI", exact=True)
+    with page.expect_response(APAGAR_OPENAI):
+        apagar.click()
+    expect(page.locator("#cartao-ia-openai")).not_to_have_class(re.compile(r"\bhtmx-settling\b"))
+    expect(page.locator("#campo-chave-ia-openai")).to_be_focused()
+    expect(page.locator("#cartao-ia-openai")).not_to_contain_text("Chave salva")
+    expect(page.locator("#status-servicos")).to_contain_text("Salvo.")
+    assert cofre.ler("ia_openai") is None
+
+
+def test_olho_da_chave_de_ia_e_so_do_proprio_campo(page: Page, painel: str) -> None:
+    page.goto(f"{painel}/configuracoes/servicos")
+    campo = page.get_by_label("Chave da Anthropic", exact=True)
+    campo.fill(CHAVE_IA)
+    page.get_by_role("button", name="Mostrar a chave da Anthropic", exact=True).click()
+    expect(campo).to_have_attribute("type", "text")
+    expect(page.get_by_label("Chave da OpenAI", exact=True)).to_have_attribute("type", "password")
+    expect(page.get_by_label("Chave da API")).to_have_attribute("type", "password")
+
+
+def test_endereco_torto_do_compativel_marca_o_campo(
+    page: Page, painel: str, _sem_erro_no_console: list[str]
+) -> None:
+    page.goto(f"{painel}/configuracoes/servicos")
+    campo = page.get_by_label("Endereço do serviço", exact=True)
+    campo.fill("http://exemplo.com/v1")
+    with page.expect_navigation():
+        page.get_by_role("button", name="Salvar o endereço e a chave", exact=True).click()
+    cartao = page.locator("#cartao-ia-compativel")
+    expect(cartao.get_by_role("alert")).to_have_text(
+        t("pt", "configuracoes.servicos.ia.erro.endereco")
+    )
+    campo = page.get_by_label("Endereço do serviço", exact=True)
+    expect(campo).to_have_attribute("aria-invalid", "true")
+    expect(campo).to_have_value("http://exemplo.com/v1")
+    # o 422 do endereço torto é a resposta esperada da página, não erro de script; só neste teste
+    _sem_erro_no_console[:] = [e for e in _sem_erro_no_console if "422" not in e]
+
+
+def test_nenhum_controle_padrao_nos_cartoes_de_ia(page: Page, painel: str, cofre: Cofre) -> None:
+    cofre.gravar("ia_compativel", CHAVE_IA)
+    page.goto(f"{painel}/configuracoes/servicos")
+    cartoes = page.locator('[id^="cartao-ia-"]')
+    expect(cartoes).to_have_count(4)
+    expect(cartoes.locator("button:not(.botao)")).to_have_count(0)
+    expect(cartoes.locator("input:not(.campo-texto):not([type=hidden])")).to_have_count(0)
+    expect(page.locator(".config-conteudo .botao-primario")).to_have_count(1)
