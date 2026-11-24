@@ -84,7 +84,13 @@ from jobot.painel.rotas.ia import (
     servico_trocou,
     tarefas,
 )
-from jobot.painel.rotas.perfil import contexto_perfil, gravar_perfil
+from jobot.painel.rotas.perfil import (
+    PERGUNTAS,
+    contexto_perfil,
+    contexto_perguntas,
+    gravar_perfil,
+    gravar_perguntas,
+)
 from jobot.painel.rotas.servicos import (
     contexto_captcha,
     contexto_servicos,
@@ -587,6 +593,28 @@ async def aparencia_de_antes() -> RedirectResponse:
 async def sites_com_login_de_antes() -> RedirectResponse:
     """O endereço velho da aba que virou Contas (T275; só o GET, as ações não têm cópia)."""
     return _volta(COM_LOGIN)
+
+
+# O questionário do perfil (T437): uma página da aba Perfil, com o contexto e a gravação de
+# `perfil.py`. Fica antes de `/{grupo}` só por clareza: tem dois segmentos.
+_QUESTIONARIO = "configuracoes/perguntas.html"
+
+
+@router.get(PERGUNTAS.removeprefix("/configuracoes"))
+async def questionario(request: Request, con: Con) -> Response:
+    ctx = await contexto_perguntas(request, con)
+    salvo = request.query_params.get("salvo") == "1"
+    return await _pagina(request, con, "perfil", parcial=_QUESTIONARIO, salvo=salvo, **ctx)
+
+
+@router.post(PERGUNTAS.removeprefix("/configuracoes"))
+async def gravar_questionario(request: Request, con: Con) -> Response:
+    feito = await gravar_perguntas(request, con, await request.form())
+    if isinstance(feito, str):
+        return RedirectResponse(feito, 303)
+    status, extra = feito
+    ctx = await contexto_perguntas(request, con) | extra
+    return await _pagina(request, con, "perfil", status, parcial=_QUESTIONARIO, **ctx)
 
 
 @router.get("/{grupo}")

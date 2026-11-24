@@ -1,0 +1,15 @@
+[
+  {"id": "A1", "onde": "geral", "pt": "Em que país você mora?", "en": "Which country do you live in?"},
+  {"id": "A2", "campo": "cidade_moradia", "pt": "Em que cidade você mora?", "en": "Which city do you live in?"},
+  {"id": "A3", "campo": "cargo_atual", "pt": "Qual é o seu cargo hoje (ou o último que você teve)?", "en": "What is your job title today (or the last one you had)?"},
+  {"id": "A4", "campo": "anos_de_experiencia", "pt": "Há quantos anos você trabalha na sua área?", "en": "How many years have you worked in your field?"},
+  {"id": "A5", "onde": "experiencias", "pt": "Quais foram seus empregos mais importantes?", "en": "Which were your most important jobs?"},
+  {"id": "A6", "campo": "formacao_nivel", "pt": "Qual é o seu maior nível de estudo?", "en": "What is your highest level of education?"},
+  {"id": "A7", "onde": "cursos", "pt": "Qual curso você faz ou fez, e em que situação ele está?", "en": "Which course are you taking or did you take, and what is its status?"},
+  {"id": "A8", "campo": "habilidades", "pt": "Quais são suas principais habilidades?", "en": "What are your main skills?"},
+  {"id": "A9", "campo": "idiomas_falados", "pt": "Que idiomas você fala, e com que nível?", "en": "Which languages do you speak, and how well?"},
+  {"id": "nome", "campo": "nome", "pt": "Qual é o seu nome?", "en": "What is your name?"},
+  {"id": "email", "campo": "email", "pt": "Qual é o seu e-mail?", "en": "What is your email address?"},
+  {"id": "telefone", "campo": "telefone", "pt": "Qual é o seu telefone?", "en": "What is your phone number?"},
+  {"id": "links", "campo": "links", "pt": "Quer pôr links seus, como LinkedIn, GitHub ou portfólio?", "en": "Do you want to add your links, such as LinkedIn, GitHub or a portfolio?"}
+]

@@ -1,7 +1,7 @@
 {#- Uma tarefa da aba IA (T415): ligar, onde roda (os backends configurados e, na tarefa que aceita,
     a IA manual: `linha.backends`, T438), o modelo, a frase
     de privacidade, o aviso de serviço que sumiu, as marcas do serviço pago e os pedidos de hoje.
-    `v` é o digitado que voltou (erro ou confirmação do custo); senão, o gravado. Enquanto o par
+    `linha.backends` traz a IA manual nas tarefas que a aceitam (T436). `v` é o digitado que voltou (erro ou confirmação do custo); senão, o gravado. Enquanto o par
     testa (T416), a tarefa pergunta a cada 2 s e é trocada inteira quando o resultado chega. -#}
 {%- set n = linha.nome -%}
 {%- set v = ia_digitado[n] if ia_digitado and n in ia_digitado else linha -%}

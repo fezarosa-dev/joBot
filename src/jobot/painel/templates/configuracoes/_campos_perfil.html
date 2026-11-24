@@ -1,0 +1,38 @@
+{#- Os campos da aba Perfil e do questionário (T434, T437): o rótulo, a ajuda e a marca do erro
+    (`erro_campo` é o `id` do controle marcado: `aria-invalid`, o alerta no `aria-describedby` e o
+    foco pelo `autofocus`, que vale sem JavaScript). Importe `with context`. -#}
+{% macro descrito(id, ajuda=none) -%}
+  {%- set ids = ([id ~ "-ajuda"] if ajuda else []) + (["config-erro"] if erro_campo == id else []) -%}
+  {%- if ids %} aria-describedby="{{ ids|join(' ') }}"{% endif %}{% if erro_campo == id %} aria-invalid="true" autofocus{% endif %}
+{%- endmacro %}
+{% macro entrada(id, nome, rotulo, valor, tipo="text", teto=200, ajuda=none, autocomplete="off", mes=false, obrigatorio=false) -%}
+<div class="campo">
+  <label for="{{ id }}">{{ rotulo }}</label>
+  <input class="campo-texto" type="{{ tipo }}" id="{{ id }}" name="{{ nome }}" value="{{ valor }}" autocomplete="{{ autocomplete }}"
+    {%- if mes %} maxlength="7" pattern="\d{4}-(0[1-9]|1[0-2])" placeholder="{{ t('configuracoes.perfil.mes.formato') }}" inputmode="numeric"{% else %} maxlength="{{ teto }}"{% endif %}
+    {%- if obrigatorio %} required{% endif %}{{ descrito(id, ajuda) }}>
+  {%- if ajuda %}
+  <small id="{{ id }}-ajuda">{{ ajuda }}</small>
+  {%- endif %}
+</div>
+{%- endmacro %}
+{% macro caixa(id, nome, rotulo, valor, linhas=4, teto=2000, ajuda=none) -%}
+<div class="campo">
+  <label for="{{ id }}">{{ rotulo }}</label>
+  <textarea class="campo-texto" id="{{ id }}" name="{{ nome }}" rows="{{ linhas }}" maxlength="{{ teto }}" autocomplete="off"{{ descrito(id, ajuda) }}>{{ valor }}</textarea>
+  {%- if ajuda %}
+  <small id="{{ id }}-ajuda">{{ ajuda }}</small>
+  {%- endif %}
+</div>
+{%- endmacro %}
+{% macro lista(id, nome, rotulo, opcoes, valor, prefixo) -%}
+<div class="campo">
+  <label for="{{ id }}">{{ rotulo }}</label>
+  <select id="{{ id }}" name="{{ nome }}"{{ descrito(id) }}>
+    <option value=""{% if not valor %} selected{% endif %}>{{ t("configuracoes.perfil.nao_informar") }}</option>
+    {%- for opcao in opcoes %}
+    <option value="{{ opcao }}"{% if opcao == valor %} selected{% endif %}>{{ t(prefixo ~ opcao) }}</option>
+    {%- endfor %}
+  </select>
+</div>
+{%- endmacro %}

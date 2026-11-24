@@ -62,7 +62,7 @@ _MODELO: Final = re.compile(r"[!-~]{1,200}")
 # IA manual (D229, D234): o joBot mostra o pedido e a pessoa cola a resposta; sem chave, sem
 # teste ao ligar e sem conta do dia. Só nas tarefas com tela para colar; o modelo gravado é o
 # marcador "manual" (o joBot não sabe qual chat a pessoa usa, e `tarefa_ia` pede modelo)
-COM_MANUAL: Final = ("candidatura",)
+COM_MANUAL: Final = ("curriculo", "candidatura")
 
 
 def tarefas() -> tuple[str, ...]:
@@ -118,10 +118,10 @@ async def contexto_ia(request: Request, con: Con) -> dict[str, Any]:
             "privacidade": frase_de_privacidade(t, _BASE_PRIVACIDADE.get(nome, f"{_BASE}{nome}.")),
             "backends": onde_roda(nome, configurados),
             "parada": t.ligada and t.backend not in onde_roda(nome, configurados),
-            # o teto do dia é do laço e por backend de fora (D198.10); o local e as tarefas sob
-            # pedido não têm teto
+            # o teto do dia é do laço e por backend de fora (D198.10); o local, a manual e as
+            # tarefas sob pedido não têm teto
             "hoje": chamadas_do_dia(con, t.backend, agora)
-            if nome in DO_LACO and t.backend not in ("", LOCAL)
+            if nome in DO_LACO and t.backend not in ("", LOCAL, MANUAL)
             else None,
             "teste": testes.get((t.backend, t.modelo)),
         }
@@ -290,7 +290,8 @@ def pedido_de_teste(backend: str, modelo: str) -> Pedido:
 def _pares_novos(
     novas: Mapping[str, TarefaIA], atuais: Mapping[str, TarefaIA], testes: Mapping[Par, Teste]
 ) -> list[Par]:
-    """Os pares das tarefas que ligaram agora ou trocaram de par, sem os que já passaram."""
+    """Os pares das tarefas que ligaram agora ou trocaram de par, sem os que já passaram. A IA
+    manual não manda nada a ninguém: não tem o que testar."""
     pares: list[Par] = []
     for nome, t in novas.items():
         par, antes = (t.backend, t.modelo), atuais[nome]

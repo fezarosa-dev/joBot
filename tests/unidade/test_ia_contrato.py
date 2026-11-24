@@ -254,6 +254,19 @@ def test_ia_json_traz_prazos_limites_e_cortes() -> None:
                 "corte": {"inicio": 4000, "fim": 2000},
                 "claude": "claude-haiku-5-5",  # o modelo do "Tudo Claude" (T415; desenho 5.2)
             },
+            # sob pedido, no questionário do perfil (T437; D233)
+            "perguntas": {
+                "max_tokens": {"fora": 1024, "local": 512},
+                # as listas que só crescem e o bloco PERFIL (cabe no `-c 8192` do local)
+                "corte": {"respostas": 30, "perguntas_feitas": 60, "caracteres": 12000},
+                "claude": "claude-sonnet-5-5",
+            },
+            # sob pedido, na leitura do currículo (T436; D232): o corte guarda o começo
+            "curriculo": {
+                "max_tokens": {"fora": 4096, "local": 1536},
+                "corte": {"local": 12000, "fora": 40000},
+                "claude": "claude-sonnet-5-5",
+            },
             # sob pedido, no detalhe da vaga (T438; D234)
             "candidatura": {
                 "max_tokens": {"fora": 4096, "local": 2048},

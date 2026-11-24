@@ -410,6 +410,44 @@ def test_frase_de_privacidade(painel: Painel, idioma: str, tarefa: object, frase
     assert frase in _texto(painel.get(PERFIL).text)
 
 
+@pytest.mark.parametrize(
+    ("encaixe", "perguntas", "frase"),
+    [
+        (
+            None,
+            {"ligada": True, "backend": "openai", "modelo": "m"},
+            "Ao pedir perguntas, o seu perfil, sem nome, contato e cidade, vai para a OpenAI.",
+        ),
+        (
+            {"ligada": True, "backend": "local", "modelo": "m"},
+            {"ligada": True, "backend": "local", "modelo": "m"},
+            "O seu perfil fica no seu computador: as perguntas usam o modelo local.",
+        ),
+    ],
+)
+def test_frase_de_privacidade_conta_a_tarefa_perguntas(
+    painel: Painel, encaixe: object, perguntas: object, frase: str
+) -> None:
+    """As habilidades vão no pedido das perguntas (D233): com `perguntas` ligada, a aba diz para
+    onde o perfil vai, e nada diz que nada sai. Controle: com `perguntas` desligada, a frase das
+    perguntas não aparece."""
+    tarefas: dict[str, object] = {"perguntas": perguntas}
+    if encaixe is not None:
+        tarefas["encaixe"] = encaixe
+    with closing(abrir(painel.banco)) as con:
+        cadastros.gravar_config(con, "ia_tarefas", tarefas)
+    texto = _texto(painel.get(PERFIL).text)
+    assert frase in texto
+    assert "nada sai" not in texto
+    with closing(abrir(painel.banco)) as con:
+        cadastros.gravar_config(
+            con, "ia_tarefas", tarefas | {"perguntas": {"ligada": False, "backend": "openai"}}
+        )
+    texto = _texto(painel.get(PERFIL).text)
+    assert frase not in texto
+    assert "nada sai" not in texto  # a frase da tarefa desligada é da página do questionário
+
+
 @pytest.mark.parametrize("backend", ["anthropic", "openai", "gemini", "compativel", "outro"])
 def test_todo_servico_tem_nome_nos_dois_catalogos(backend: str) -> None:
     catalogos = i18n.carregar()

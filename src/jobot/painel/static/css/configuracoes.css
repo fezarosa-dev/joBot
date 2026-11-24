@@ -352,7 +352,8 @@
   cursor: not-allowed;
 }
 
-/* botão à espera da resposta (o HTMX põe .htmx-request e desativa): o texto some sem mudar a
+/* botão à espera da resposta (o HTMX põe .htmx-request e desativa; num formulário comum, o app.js
+   põe .esperando no [data-espera]): o texto some sem mudar a
    largura do botão e um ponto pulsa no lugar; o texto "Testando…" fica só para leitor de tela */
 .config .botao {
   position: relative;
@@ -362,15 +363,15 @@
   display: none;
 }
 
-.config .botao.htmx-request {
+.config .botao:is(.htmx-request, .esperando) {
   cursor: progress;
 }
 
-.config .botao.htmx-request .botao-rotulo {
+.config .botao:is(.htmx-request, .esperando) .botao-rotulo {
   opacity: 0;
 }
 
-.config .botao.htmx-request .botao-espera {
+.config .botao:is(.htmx-request, .esperando) .botao-espera {
   position: absolute;
   display: block;
   width: 1px;
@@ -380,7 +381,7 @@
   white-space: nowrap;
 }
 
-.config .botao.htmx-request::after {
+.config .botao:is(.htmx-request, .esperando)::after {
   content: "";
   position: absolute;
   top: 50%;
@@ -483,7 +484,7 @@
     transition: none !important; /* vence o fundido de 120ms do base.css (!important, seletor menor) */
   }
 
-  .config .botao.htmx-request::after,
+  .config .botao:is(.htmx-request, .esperando)::after,
   .resultado > * {
     animation: none;
   }

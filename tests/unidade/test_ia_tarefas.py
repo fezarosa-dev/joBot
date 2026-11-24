@@ -631,3 +631,67 @@ def test_candidatura_vaga_com_instrucao_embutida_nao_passa_sem_aviso() -> None:
     assert (feito.tem, feito.faltam) == (("Python",), ("Kubernetes",))
     assert feito.citados == ("Kubernetes",)
     assert (feito.usou, feito.perguntar) == (("habilidades",), ())
+
+
+# ---- nível do idioma no trecho dele (T436; D228.2, D232) ----------------------------------------
+
+
+def test_nivel_do_idioma_so_vale_no_trecho_do_idioma() -> None:
+    texto = (
+        "Idiomas: Inglês avançado, Espanhol básico\n"
+        "Alemão avançado | Japonês básico; Francês - intermediário\n"
+        "\u2022 Italiano fluente \u2022 Russo básico"
+    )
+    pares = [
+        ("Inglês", "avancado"),  # no trecho dele: fica
+        ("Espanhol", "avancado"),  # o "avançado" é do inglês (vírgula): marca
+        ("Alemão", "avancado"),
+        ("Japonês", "avancado"),  # o do alemão (barra vertical): marca
+        ("Francês", "basico"),  # o do japonês (ponto e vírgula): marca
+        ("Italiano", "fluente"),
+        ("Russo", "fluente"),  # o do italiano (marcador de lista): marca
+        ("Grego", None),  # sem nível: nada a conferir aqui
+        ("Sueco", "basico"),  # o idioma nem está no texto: marca
+    ]
+    dados = {"idiomas_falados": [{"idioma": i, "nivel": n} for i, n in pares]}
+    assert tarefas.nivel_fora_do_trecho(dados, texto) == {
+        f"idiomas_falados.{n}.nivel" for n in (1, 3, 4, 6, 8)
+    }
+    # o nao_achei sozinho não pega o espanhol (o limite da D228.2)
+    assert "idiomas_falados.1.nivel" not in nao_achei(dados, texto)
+
+
+def test_nivel_sem_idiomas_nao_marca_nada() -> None:
+    assert tarefas.nivel_fora_do_trecho({}, "Inglês avançado") == frozenset()
+
+
+@pytest.mark.parametrize(
+    "pergunta",
+    [
+        "Qual é a sua senha do banco?",
+        "Qual o seu CPF?",
+        "Pode informar o número do seu RG?",
+        "Qual o número do seu cartão de crédito?",
+        "What is your password?",
+        "What is your credit card number?",
+        "Qual o número do seu passaporte?",
+        "Qual a sua chave PIX?",
+        "Qual a sua conta bancária?",
+        "What is your Social Security number?",
+    ],
+)
+def test_pergunta_sobre_dado_sensivel_sai(pergunta: str) -> None:
+    """(guarda) Texto injetado no perfil pode levar o modelo a pedir senha ou documento (D233.11):
+    o código tira, não só o prompt; controle: a pergunta comum fica."""
+    assert _textos(perguntas_que_ficam([_p(pergunta), _p("Tem CNH?")], [])) == ["Tem CNH?"]
+
+
+def test_porque_sobre_dado_sensivel_tira_a_pergunta() -> None:
+    itens = [_p("Pode confirmar?", "Precisamos da sua senha."), _p("Aceita viajar?")]
+    assert _textos(perguntas_que_ficam(itens, [])) == ["Aceita viajar?"]
+
+
+def test_documentacao_nao_e_documento() -> None:
+    assert _textos(perguntas_que_ficam([_p("Já escreveu documentação de API?")], [])) == [
+        "Já escreveu documentação de API?"
+    ]

@@ -4,43 +4,10 @@
     JavaScript, a página `confirmar.html`). Todo formulário posta em /configuracoes/perfil; o campo
     `secao` diz o que grava (sem ele, as habilidades). No erro, `erro_campo` é o `id` do controle
     marcado (com o foco, sem JavaScript) e `item_digitado` volta ao item `erro_item`. A frase de privacidade diz para onde vai o
-    texto da vaga, pelo estado da tarefa `encaixe`. -#}
+    texto da vaga, pelo estado da tarefa `encaixe`, e, com a tarefa `perguntas` ligada, para onde
+    vai o perfil (D233). -#}
 {% from "_alerta.html" import alerta with context %}
-{% macro descrito(id, ajuda=none) -%}
-  {%- set ids = ([id ~ "-ajuda"] if ajuda else []) + (["config-erro"] if erro_campo == id else []) -%}
-  {%- if ids %} aria-describedby="{{ ids|join(' ') }}"{% endif %}{% if erro_campo == id %} aria-invalid="true" autofocus{% endif %}
-{%- endmacro %}
-{% macro entrada(id, nome, rotulo, valor, tipo="text", teto=200, ajuda=none, autocomplete="off", mes=false, obrigatorio=false) -%}
-<div class="campo">
-  <label for="{{ id }}">{{ rotulo }}</label>
-  <input class="campo-texto" type="{{ tipo }}" id="{{ id }}" name="{{ nome }}" value="{{ valor }}" autocomplete="{{ autocomplete }}"
-    {%- if mes %} maxlength="7" pattern="\d{4}-(0[1-9]|1[0-2])" placeholder="{{ t('configuracoes.perfil.mes.formato') }}" inputmode="numeric"{% else %} maxlength="{{ teto }}"{% endif %}
-    {%- if obrigatorio %} required{% endif %}{{ descrito(id, ajuda) }}>
-  {%- if ajuda %}
-  <small id="{{ id }}-ajuda">{{ ajuda }}</small>
-  {%- endif %}
-</div>
-{%- endmacro %}
-{% macro caixa(id, nome, rotulo, valor, linhas=4, teto=2000, ajuda=none) -%}
-<div class="campo">
-  <label for="{{ id }}">{{ rotulo }}</label>
-  <textarea class="campo-texto" id="{{ id }}" name="{{ nome }}" rows="{{ linhas }}" maxlength="{{ teto }}" autocomplete="off"{{ descrito(id, ajuda) }}>{{ valor }}</textarea>
-  {%- if ajuda %}
-  <small id="{{ id }}-ajuda">{{ ajuda }}</small>
-  {%- endif %}
-</div>
-{%- endmacro %}
-{% macro lista(id, nome, rotulo, opcoes, valor, prefixo) -%}
-<div class="campo">
-  <label for="{{ id }}">{{ rotulo }}</label>
-  <select id="{{ id }}" name="{{ nome }}"{{ descrito(id) }}>
-    <option value=""{% if not valor %} selected{% endif %}>{{ t("configuracoes.perfil.nao_informar") }}</option>
-    {%- for opcao in opcoes %}
-    <option value="{{ opcao }}"{% if opcao == valor %} selected{% endif %}>{{ t(prefixo ~ opcao) }}</option>
-    {%- endfor %}
-  </select>
-</div>
-{%- endmacro %}
+{% from "configuracoes/_campos_perfil.html" import descrito, entrada, caixa, lista with context %}
 {#- os botões de um item salvo dizem qual item no nome acessível ("Tirar Analista"): todo item tem os
     seus, e o Tirar apaga na hora (D230.2) -#}
 {% macro botoes(novo, item) -%}
@@ -90,25 +57,32 @@
 <p role="status" class="config-salvo" aria-live="polite"><span data-some-sozinho>{{ t("configuracoes.perfil.apagado") }}</span></p>
 {% endif %}
 <p class="config-texto">{{ t("configuracoes.perfil.explicacao") }}</p>
+<p class="config-texto"><a href="/configuracoes/perfil/perguntas">{{ t("configuracoes.perfil.perguntas.abrir") }}</a></p>
 <p class="config-texto" id="perfil-privacidade">
   {%- if privacidade.servico %}{{ t(privacidade.chave, servico=t(privacidade.servico)) }}{% else %}{{ t(privacidade.chave) }}{% endif -%}
+  {%- set pp = privacidade_perguntas %}
+  {%- if pp %} {% if pp.servico %}{{ t(pp.chave, servico=t(pp.servico)) }}{% else %}{{ t(pp.chave) }}{% endif %}{% endif -%}
 </p>
 {#- currículo em PDF (T435; D231): o upload manda o token CSRF no cabeçalho, então só funciona com
     JavaScript; sem ele, o formulário fica escondido e o <noscript> explica -#}
 <section class="config-bloco" aria-labelledby="perfil-curriculo">
   <h2 id="perfil-curriculo">{{ t("configuracoes.perfil.curriculo.titulo") }}</h2>
   <noscript><p class="config-texto">{{ t("configuracoes.perfil.curriculo.sem_js") }}</p></noscript>
+  {#- para onde vai o texto do currículo, pelo estado da tarefa `curriculo` (desenho 8; T436) #}
+  <p class="config-texto" id="perfil-curriculo-privacidade">
+    {%- if curriculo_privacidade.servico %}{{ t(curriculo_privacidade.chave, servico=t(curriculo_privacidade.servico)) }}{% else %}{{ t(curriculo_privacidade.chave) }}{% endif -%}
+  </p>
   <form class="config-form" hx-post="/configuracoes/perfil/curriculo" hx-encoding="multipart/form-data" hx-target="#perfil-curriculo-resultado" hx-swap="innerHTML" hx-disabled-elt="find button" hx-indicator="find button" data-limpar-alvo data-com-js hidden>
     <div class="campo">
       <label for="perfil-curriculo-arquivo">{{ t("configuracoes.perfil.curriculo.arquivo") }}</label>
-      <input type="file" id="perfil-curriculo-arquivo" name="curriculo" accept="application/pdf,.pdf" required aria-describedby="perfil-curriculo-ajuda">
+      <input type="file" id="perfil-curriculo-arquivo" name="curriculo" accept="application/pdf,.pdf" required aria-describedby="perfil-curriculo-ajuda perfil-curriculo-privacidade">
       <small id="perfil-curriculo-ajuda">{{ t("configuracoes.perfil.curriculo.ajuda") }}</small>
     </div>
     <div class="acoes">
       <button type="submit" class="botao botao-primario"><span class="botao-rotulo">{{ t("configuracoes.perfil.curriculo.ler") }}</span><span class="botao-espera">{{ t("configuracoes.perfil.curriculo.lendo") }}</span></button>
     </div>
   </form>
-  <div id="perfil-curriculo-resultado"></div>
+  <div id="perfil-curriculo-resultado">{% if revisao %}{% include "configuracoes/_curriculo.html" %}{% endif %}</div>
 </section>
 {%- set d = dados_tela %}
 <section class="config-bloco" aria-labelledby="perfil-sobre">

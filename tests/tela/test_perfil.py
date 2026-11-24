@@ -1,23 +1,29 @@
 """Aba Perfil no navegador (planos T413 e T434; desenho 8 da fase 4; D200, D230).
 
 Salvar pelo teclado, "Sobre você", experiências entrando e saindo (também sem JavaScript),
-"Apagar perfil" pelo alerta e sem JavaScript, foco e cores forçadas, o currículo em PDF (T435).
+"Apagar perfil" pelo alerta e sem JavaScript, foco e cores forçadas, o currículo em PDF (T435) e a
+revisão do que a IA leu dele, também pela IA manual (T436).
 Nenhum teste espera tempo real: `expect_navigation` e `expect`.
 """
 
+import json
 import re
 from collections.abc import Iterator
 from contextlib import closing
 from pathlib import Path
 
 import pytest
+from fastapi import FastAPI
 from playwright.sync_api import Browser, Page, expect
 
 from apoio.console import anotar_erros
 from apoio.pdf import montar_pdf
 from apoio.semear import AGORA
+from jobot.banco.cadastros import gravar_config
 from jobot.banco.conexao import abrir
 from jobot.banco.perfil import dados, experiencias, gravar_habilidades, habilidades
+from jobot.nucleo.ia.contrato import Pedido, Resposta
+from jobot.nucleo.ia.falso import BackendFalso
 
 pytestmark = pytest.mark.tela
 
@@ -258,3 +264,80 @@ def test_curriculo_sem_javascript_explica(browser: Browser, painel: str) -> None
         expect(secao.get_by_role("button", name="Ler currículo", exact=True)).to_be_hidden()
     finally:
         contexto.close()
+
+
+# ------------------------------------------------------------------ extração pela IA (T436; D232)
+
+_PAGINAS = ["Analista de dados", "contato@exemplo.invalid", "Python e SQL"]
+_LIDO: dict[str, object] = {
+    "cargo_atual": "Analista de dados",
+    "habilidades": ["Python", "SQL", "Kubernetes"],
+}
+
+
+class _Fabrica:
+    """`app.state.ia` falsa: devolve sempre o mesmo `BackendFalso`."""
+
+    def __init__(self, prontas: list[dict[str, object]]) -> None:
+        self.falso = BackendFalso(list(prontas))
+
+    def __call__(self, backend: str, modelo: str) -> _Fabrica:
+        return self
+
+    def pedir(self, pedido: Pedido) -> Resposta:
+        return self.falso.pedir(pedido)
+
+    def fechar(self) -> None:
+        pass
+
+
+def _ligar_curriculo(tmp_path: Path, backend: str, modelo: str) -> None:
+    with closing(abrir(tmp_path / "jobot.db")) as con:
+        tarefa = {"ligada": True, "backend": backend, "modelo": modelo}
+        gravar_config(con, "ia_tarefas", {"curriculo": tarefa})
+
+
+def _aprovar_e_conferir(page: Page, tmp_path: Path) -> None:
+    revisao = page.get_by_role("form", name="Confira o que foi lido")
+    expect(revisao).to_be_visible()
+    marcada = revisao.get_by_role("checkbox", name="Usar Habilidade 3")
+    expect(marcada).not_to_be_checked()
+    expect(marcada).to_have_accessible_description(re.compile("Não achei no currículo"))
+    expect(revisao.get_by_role("checkbox", name="Usar Habilidade 1")).to_be_checked()
+    with closing(abrir(tmp_path / "jobot.db")) as con:
+        assert habilidades(con) == []  # nada grava antes do Salvar
+    with page.expect_navigation():
+        revisao.get_by_role("button", name="Aprovar todas", exact=True).click()
+    expect(page).to_have_url(re.compile(r"/configuracoes/perfil(\?salvo=1)?#perfil-sobre$"))
+    expect(page.get_by_role("textbox", name="E-mail")).to_have_value("contato@exemplo.invalid")
+    with closing(abrir(tmp_path / "jobot.db")) as con:
+        assert habilidades(con) == ["Python", "SQL"]
+        assert dados(con).cargo_atual == "Analista de dados"
+
+
+def test_curriculo_lido_pela_ia_e_aprovado(
+    page: Page, painel: str, app_painel: FastAPI, tmp_path: Path
+) -> None:
+    _ligar_curriculo(tmp_path, "local", "qwen")
+    app_painel.state.ia = _Fabrica([_LIDO])
+    page.goto(f"{painel}/configuracoes/perfil")
+    expect(page.locator("#perfil-curriculo-privacidade")).to_have_text(
+        "O texto do currículo fica no seu computador: usa o modelo local."
+    )
+    _enviar_curriculo(page, painel, montar_pdf([*_PAGINAS]))
+    _aprovar_e_conferir(page, tmp_path)
+
+
+def test_curriculo_na_ia_manual_copia_e_cola(page: Page, painel: str, tmp_path: Path) -> None:
+    _ligar_curriculo(tmp_path, "manual", "manual")
+    _enviar_curriculo(page, painel, montar_pdf([*_PAGINAS]))
+    pedido = page.get_by_role("textbox", name="Pedido para copiar")
+    expect(pedido).to_have_attribute("readonly", "")
+    expect(pedido).to_have_value(re.compile("<<<CURRICULO"))
+    expect(pedido).not_to_have_value(re.compile("contato@exemplo"))
+    expect(page.get_by_text("A IA não achou nada para preencher.")).to_have_count(0)
+    page.get_by_role("textbox", name="Resposta do chat").fill(
+        "```json\n" + json.dumps(_LIDO) + "\n```"
+    )
+    page.get_by_role("button", name="Ler a resposta", exact=True).click()
+    _aprovar_e_conferir(page, tmp_path)
