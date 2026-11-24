@@ -4,9 +4,11 @@ lista permitida por tarefa e limpeza de contato no que vem da pessoa (T431)."""
 import copy
 import inspect
 import json
+from dataclasses import dataclass
 
 import pytest
 
+from jobot.banco.perfil import Curso, Experiencia, PerguntaPerfil
 from jobot.nucleo.ia import pedidos
 from jobot.nucleo.ia.contrato import limites
 from jobot.nucleo.ia.pedidos import (
@@ -245,6 +247,22 @@ CONTATOS = [
     "555-123-4567",
     "529.982.247-25",
     "52998224725",
+    "5541987654321",
+    "005541987654321",
+    # CPF sem os pontos, com barra, com espaços e com o hífen entre espaços
+    "529982247-25",
+    "123456789-09",
+    "529.982.247/25",
+    "529 982 247 25",
+    "529.982.24725",
+    "529.982.247 - 25",
+    # traço tipográfico, comum em texto de PDF (U+2013, U+2011, U+2212), e hífen entre espaços
+    "41 98765\u20134321",
+    "41 98765\u20114321",
+    "(41) 3333\u20114444",
+    "529.982.247\u201125",
+    "+55 41 98765\u22124321",
+    "(41) 98765 - 4321",
 ]
 
 
@@ -270,6 +288,14 @@ SEM_CONTATO = [
     "Receita de R$ 1.200.000 2024/25",
     "Protocolo 12345-6789",
     "Matrícula 20231234",
+    # versão seguida de período de anos não é DDD
+    "Java 21 2021-2024",
+    "Angular 17 2023-2024",
+    "Windows 11 2021\u20132025",
+    "Top 10 2020 2021",
+    "Turma 10 2019 - 2023",
+    "C++17 2019-2023",
+    "Python 3.12 2019 - 2023",
 ]
 
 
@@ -305,6 +331,65 @@ def test_proprio_nome_email_e_telefone_saem_do_texto_livre() -> None:
 def test_proprio_nome_sai_so_como_palavra_inteira(nome: str, esperado: str) -> None:
     resumo = "Analista, Ana e Mariana fazem a prova" + ("" if nome == "Ana" else " com Li")
     assert dados_para("candidatura", {"nome": nome, "resumo": resumo})["resumo"] == esperado
+
+
+def test_proprio_nome_sai_com_quebra_de_linha_ou_espaco_duplo() -> None:
+    resumo = "Eu, Maria\nExemplo, e Maria  Exemplo de novo; Maria fica."
+    dados = dados_para("candidatura", {"nome": " Maria Exemplo ", "resumo": resumo})
+    assert dados["resumo"] == f"Eu, {pedidos.REMOVIDO}, e {pedidos.REMOVIDO} de novo; Maria fica."
+
+
+def test_nome_em_branco_nao_mexe_no_texto_com_espaco_duplo() -> None:
+    resumo = "Dados  abertos,   painéis e SQL."
+    assert dados_para("candidatura", {"nome": "  ", "resumo": resumo})["resumo"] == resumo
+
+
+@dataclass(frozen=True)
+class _Objeto:
+    texto: str
+
+
+def test_tipo_desconhecido_nao_sai_sujo() -> None:
+    # Lista permitida fecha por padrão: só texto, número e as listas deles entram; conjunto, dict
+    # e objeto em qualquer campo ficam de fora, e número que é contato também.
+    dados = dados_para(
+        "candidatura",
+        {
+            "habilidades": ["Python", {"x": "y@exemplo.invalid"}, {"Rust", "z@exemplo.invalid"}],
+            "idiomas_falados": {"inglês", "w@exemplo.invalid"},
+            "resumo": {"texto": "r@exemplo.invalid"},
+            "cargo_atual": _Objeto("c@exemplo.invalid"),
+            "anos_de_experiencia": 41987654321,
+            "formacao_nivel": "graduacao",
+        },
+    )
+    assert dados == {"habilidades": ["Python"], "formacao_nivel": "graduacao"}
+    assert dados_para("candidatura", {"anos_de_experiencia": 4}) == {"anos_de_experiencia": 4}
+
+
+def test_linhas_do_banco_entram_limpas_e_sem_id() -> None:
+    # A chamada natural: as linhas como `banco.perfil` as devolve (dataclasses), não dicts.
+    dados = dados_para(
+        "perguntas",
+        {
+            "experiencias": [Experiencia("Dev", "Acme", descricao="a@exemplo.invalid", id=7)],
+            "cursos": [Curso("Estatística", "UFPR", id=3)],
+            "respostas": [PerguntaPerfil("viajar", "Aceita viajar?", "base", resposta="Sim")],
+        },
+    )
+    assert dados == {
+        "experiencias": [
+            {"cargo": "Dev", "empresa": "Acme", "descricao": pedidos.REMOVIDO},
+        ],
+        "cursos": [{"nome": "Estatística", "instituicao": "UFPR"}],
+        "respostas": [{"pergunta": "Aceita viajar?", "resposta": "Sim"}],
+    }
+
+
+@pytest.mark.parametrize("linha", ["Dev na Acme", ["Dev"], 7, Experiencia])
+def test_linha_de_forma_desconhecida_da_erro(linha: object) -> None:
+    with pytest.raises(TypeError):
+        dados_para("candidatura", {"experiencias": [linha]})
 
 
 def test_email_no_resumo_e_numa_resposta_nao_sai_no_pedido() -> None:
