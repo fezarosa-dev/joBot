@@ -96,7 +96,7 @@ def ambiente(chave: str, base: Mapping[str, str] = os.environ) -> dict[str, str]
 
 
 def porta_livre() -> int:
-    # ponytail: a porta pode ser tomada entre fechar e o filho abrir; aí o filho morre e é
+    # shortcut: a porta pode ser tomada entre fechar e o filho abrir; aí o filho morre e é
     # `programa_ausente` (o `/health` só vale com o filho vivo)
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0))
@@ -187,7 +187,7 @@ class _Orfao:
 
 def _encerrar_pid(pid: int) -> None:
     # melhor esforço: no Windows, o processo que sai antes do `taskkill` dá WinError 87 no
-    # `os.kill`. ponytail: só o SIGTERM, sem esperar nem SIGKILL (o `llama-server` sai com ele)
+    # `os.kill`. shortcut: só o SIGTERM, sem esperar nem SIGKILL (o `llama-server` sai com ele)
     with contextlib.suppress(OSError):
         processo.encerrar_grupo(_Orfao(pid))
 

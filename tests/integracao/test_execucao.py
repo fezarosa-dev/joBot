@@ -10,7 +10,7 @@ import inspect
 import json
 import sqlite3
 import time
-from collections.abc import Awaitable, Callable, Iterable, Iterator, Mapping
+from collections.abc import Awaitable, Callable, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
@@ -22,6 +22,7 @@ import pytest
 
 from apoio.relogio import RelogioFalso
 from jobot.agenda import execucao
+from jobot.agenda.andamento import Marcas
 from jobot.agenda.execucao import executar_busca, reprocessar_se_regras_mudaram
 from jobot.banco import andamento, execucoes
 from jobot.banco.buscas import criar_busca
@@ -791,6 +792,25 @@ async def test_enriquecimento_interruptor_desligado(
         hash_url(canonica(conhecida.url)),
     )
     assert ultima == _iso(AGORA)
+
+
+async def test_interruptor_de_enriquecimento_lido_uma_vez(
+    con: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Desligado no meio da execução: rodam as etapas fixadas no começo (com detalhes)."""
+    gravar_config(con, "enriquecimento_ligado", True)
+    comecar = Marcas.comecar
+
+    async def desliga_no_meio(self: Marcas, etapas: Sequence[str]) -> None:
+        await comecar(self, etapas)
+        gravar_config(con, "enriquecimento_ligado", False)
+
+    monkeypatch.setattr(Marcas, "comecar", desliga_no_meio)
+    rodadas = _espiar(monkeypatch, "rodar")
+
+    await _executar(con, [Falso(lista={"": (_vaga(1),)})])
+
+    assert [r["max_detalhes_por_fonte"] for r in rodadas] == [execucao.MAX_DETALHES_POR_FONTE]
 
 
 async def test_cache_de_enriquecimento_vencido_nao_apaga_descricao(
