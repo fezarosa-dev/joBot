@@ -70,7 +70,7 @@ def test_reserva_no_arquivo_sem_o_cloexec_do_posix(
 ) -> None:
     # o Windows não tem `os.O_CLOEXEC`: ler sem segredo, gravar o arquivo e o fsync da pasta
     # não podem estourar `AttributeError` por causa dele
-    monkeypatch.delattr(os, "O_CLOEXEC")
+    monkeypatch.delattr(os, "O_CLOEXEC", raising=False)  # no Windows já não existe
     cofre = Cofre(pasta, CofreFalso(falha=RuntimeError("fora do ar")))
     assert cofre.ler(NOME) is None
     assert cofre.gravar(NOME, CHAVE) == "arquivo"
