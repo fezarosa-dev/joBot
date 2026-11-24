@@ -5,7 +5,8 @@
   "cabecalhos": {
     "Content-Type": "application/json"
   },
-  "sha256": "84bab9aaa42cad370b162a70d885034f16661673d02b02da5cbe020edc272d9f",
+  "sha256": "9116d56f89d129b710d164ee10da92b79bc3491e855eb8a7aff11e3c82f9741e",
   "versao": "0.1.0",
-  "metodo": "GET"
+  "metodo": "GET",
+  "limpo_depois": "2026-11-24: a tag com o IP de quem capturou (base64) virou a de 192.0.2.1 (D221)"
 }

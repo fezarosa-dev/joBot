@@ -4090,3 +4090,19 @@ A sessão propôs abrir o painel no Chrome da pessoa como janela de app. O dono 
 **Como desfazer:** cada item diz o seu.
 
 **Ver também:** ADR 0018, ADR 0022, ADR 0025, ADR 0027, D124, D184.4, D213, T343, A21, D45, D57, DR-53, `registros/padroes.md` («Molde de coletor», «JSON e XML externos», «Decimal de fora», «Dia de calendário»).
+
+## D221. O IP do dono nas fixtures do RemoteOK (espera o dono)
+
+**Status:** limpo pela sessão em 2026-11-24; reescrever o histórico do git espera o dono.
+
+**Contexto:** o RemoteOK põe no fim da descrição de cada vaga uma frase anti-spam com o IP público de quem pede, em base64 ("Please mention the word **X** and tag R<base64> when applying ... (#R<base64>)"). As fixtures `tests/fixtures/remoteok/normal.json` e `formato_mudou.json`, capturadas em 2026-11-14, guardaram o IP da máquina do dono nessas tags (seis linhas, doze ocorrências). Elas estão no repositório público desde então, nas tags v0.1.0 a v0.4.0. A limpeza de `scripts/capturar.py` não procurava IP. Nenhum outro arquivo rastreado tinha base64 que decodifica para IP (varredura por script de todos os arquivos do `git ls-files`).
+
+1. **Fixtures limpas:** cada tag passou a trazer o base64 de 192.0.2.1 (IP de documentação, RFC 5737), com a mesma frase; o `sha256` dos dois `.meta.json` foi refeito, com o campo `limpo_depois`.
+2. **O coletor tira a tag antes de gravar:** `_sem_tag_de_ip` em `nucleo/coletores/agregadores/remoteok.py` remove "and tag R<base64>" e "(#R<base64>)" só quando o base64 decodifica para um IP (v4 ou v6); a palavra-chave da frase fica, porque serve a quem se candidata. Testes `test_tira_a_tag_com_o_ip_de_quem_pede`, `test_tag_que_nao_e_ip_fica` e `test_fixtures_sem_tag_de_ip_depois_da_coleta`. Bancos antigos guardam a tag com o IP da própria pessoa, só na máquina dela; não há regravação.
+3. **A captura troca e recusa:** `limpar_pessoais` troca todo token base64 que decodifica para IP (com ou sem o "R" na frente) pelo de 192.0.2.1, e `achar_pessoais` acusa "ip em base64" sem repetir o valor. Teste `test_limpar_e_achar_ip_em_base64`. A limpeza do treino do Laya (D219.4) usa a mesma função e ganha a troca.
+
+**Espera o dono:** tirar o IP do histórico pediria reescrever o git e forçar push na `main` e na `dev`, que são protegidas (ADR 0016), e mesmo assim não alcança os arquivos de código das releases já publicadas, que são imutáveis, nem clones e forks feitos desde 2026-11-14. **Recomendação da sessão:** não reescrever, porque IP residencial costuma mudar e o vazamento antigo não sai por completo; o dono decide.
+
+**Como desfazer:** tirar `_sem_tag_de_ip` do coletor e `_trocar_ip` do `capturar.py` (as fixtures ficam com o IP de documentação).
+
+**Ver também:** ADR 0016, D219.
