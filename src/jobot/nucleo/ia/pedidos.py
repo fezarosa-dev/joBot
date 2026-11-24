@@ -10,7 +10,7 @@ copiado da vaga, na língua dela."""
 import json
 import re
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass, is_dataclass
 from typing import Literal
 
 from jobot.nucleo.ia.contrato import Mensagem, Pedido, limites
@@ -118,21 +118,27 @@ REMOVIDO = "[contato removido]"
 
 # shortcut: só e-mail, telefone e CPF escritos com algarismos e "@"; "maria arroba gmail" e o número
 # por extenso passam, salvo o contato da própria pessoa (`_sem_o_proprio`). Na dúvida, tira: número
-# colado de 10 a 13 algarismos sai (telefone com DDD ou CPF sem pontos), e período "2019-2023" fica.
+# colado de 10 algarismos ou mais sai (telefone com DDD ou CPF sem pontos); período "2019-2023"
+# fica, também depois de um número curto ("Java 21 2021-2024"; D227.4).
+_TRACO = "\\-\u2010-\u2015\u2212\u00ad"  # hífen, traços tipográficos (PDF), menos e hífen mole
+_SEP = rf"(?:\s?[.{_TRACO}]\s?|\s)"  # "-", ".", " - ", "–" ou um espaço
+_ANOS = rf"(?:19|20)\d\d{_SEP}(?:19|20)\d\d(?!\d)"  # período de dois anos
 _CONTATO = re.compile(
     "|".join(
         (
             # a âncora evita varrer cada início de palavra até o fim (quadrático em "aaaa...")
             r"(?<![\w.+-])[\w.+-]+(?:@|%40)[\w-]+(?:\.[\w-]+)+",
-            r"(?<!\d)\d{3}\.\d{3}\.\d{3}-\d{2}(?!\d)",  # CPF com pontos
+            # CPF: "529.982.247-25", "529982247-25", "529 982 247 25", "529.982.247/25"
+            rf"(?<!\d)\d{{3}}[.\s]?\d{{3}}[.\s]?\d{{3}}(?:\s?[/.{_TRACO}]\s?|\s)?\d{{2}}(?!\d)",
             # com "+" e 8 algarismos ou mais: "+55 41 98765-4321", "+1 (555) 123-4567"
-            r"\+(?=(?:[\s.()-]{0,2}\d){8})\d{1,3}(?:[\s.-]?\(?\d{2,5}\)?){1,4}",
-            r"\(\d{2,3}\)\s?(?:9[\s.-]?)?\d{3,5}[\s.-]?\d{4}(?!\d)",  # "(41) 9 8765-4321"
-            r"(?<![\d.])\d{2,3}[\s.-](?:9[\s.-]?)?\d{3,5}[\s.-]?\d{4}(?!\d)",  # "41 98765-4321"
-            r"(?<![\d.])9\d{4}[\s.-]?\d{4}(?!\d)",  # celular sem DDD
-            # fixo sem DDD, menos o período de dois anos
-            r"(?<![\d.])(?!(?:19|20)\d\d[\s.-](?:19|20)\d\d(?!\d))\d{4}[\s.-]\d{4}(?!\d)",
-            r"(?<!\d)\d{10,13}(?!\d)",
+            rf"\+(?=(?:[\s.(){_TRACO}]{{0,3}}\d){{8}})\d{{1,3}}(?!{_SEP}{_ANOS})"
+            rf"(?:{_SEP}?\(?\d{{2,5}}\)?){{1,4}}",
+            rf"\(\d{{2,3}}\)\s?(?:9{_SEP}?)?\d{{3,5}}{_SEP}?\d{{4}}(?!\d)",  # "(41) 9 8765-4321"
+            # "41 98765-4321", menos versão seguida de período ("Java 21 2021-2024")
+            rf"(?<![\d.])\d{{2,3}}{_SEP}(?!{_ANOS})(?:9{_SEP}?)?\d{{3,5}}{_SEP}?\d{{4}}(?!\d)",
+            rf"(?<![\d.])9\d{{4}}{_SEP}?\d{{4}}(?!\d)",  # celular sem DDD
+            rf"(?<![\d.])(?!{_ANOS})\d{{4}}{_SEP}\d{{4}}(?!\d)",  # fixo sem DDD, menos o período
+            r"(?<!\d)\d{10,}(?!\d)",
         )
     )
 )
@@ -145,9 +151,11 @@ def limpar_contato(texto: str) -> str:
 
 def _sem_o_proprio(texto: str, proprios: tuple[str, ...]) -> str:
     # O nome, o e-mail e o telefone que a pessoa gravou saem como estão escritos, palavra inteira e
-    # sem caixa: pegam o que a regex não pega (D227.3).
+    # sem caixa; entre as partes, qualquer espaço ou quebra de linha (texto de PDF). Pegam o que a
+    # regex não pega (D227.3).
     for valor in proprios:
-        texto = re.sub(rf"(?<!\w){re.escape(valor)}(?!\w)", REMOVIDO, texto, flags=re.IGNORECASE)
+        partes = r"\s+".join(map(re.escape, valor.split()))
+        texto = re.sub(rf"(?<!\w){partes}(?!\w)", REMOVIDO, texto, flags=re.IGNORECASE)
     return texto
 
 
@@ -156,23 +164,36 @@ def _vazio(valor: object) -> bool:
 
 
 def _limpo(valor: object, proprios: tuple[str, ...]) -> object:
-    """Limpa todo texto (também dentro das listas); vazio vira `None`, para sair."""
+    """Limpa todo texto (também dentro das listas); vazio vira `None`, para sair. Fecha por padrão:
+    só texto, número e listas deles; conjunto, dict e objeto viram `None` (D227.7)."""
     if isinstance(valor, str):
         texto = limpar_contato(_sem_o_proprio(valor, proprios))
         return texto if texto.strip() else None
     if isinstance(valor, list | tuple):
         itens = [_limpo(v, proprios) for v in valor]
         return [v for v in itens if not _vazio(v)] or None
-    if isinstance(valor, Mapping):  # linha de lista sem `_SUBCAMPOS`: não acontece; sai inteira
-        return None
-    return valor
+    if isinstance(valor, int | float):  # número que parece contato também sai
+        return valor if limpar_contato(str(valor)) == str(valor) else None
+    return None
+
+
+def _linha(linha: object) -> Mapping[str, object]:
+    # As linhas vêm como dict ou como as dataclasses de `banco.perfil` (`Experiencia`, `Curso`,
+    # `PerguntaPerfil`); outra forma é erro de quem chama, não linha que some calada.
+    if isinstance(linha, Mapping):
+        return linha
+    if is_dataclass(linha) and not isinstance(linha, type):
+        return asdict(linha)
+    raise TypeError(f"linha de lista em forma desconhecida: {type(linha).__name__}")
 
 
 def dados_para(tarefa: str, fontes: Mapping[str, object]) -> dict[str, object]:
     """O que entra da pessoa na `tarefa`: só a lista de `CAMPOS` (e os `_SUBCAMPOS` das linhas),
     com todo texto limpo de contato e sem os vazios. `fontes` pode trazer tudo o que se sabe."""
     proprios = tuple(
-        v.strip() for c in ("nome", "email", "telefone") if isinstance(v := fontes.get(c), str)
+        " ".join(v.split())
+        for c in ("nome", "email", "telefone")
+        if isinstance(v := fontes.get(c), str)
     )
     proprios = tuple(v for v in proprios if len(v) >= 2)  # uma letra tiraria o artigo "a"
     dados: dict[str, object] = {}
@@ -183,8 +204,7 @@ def dados_para(tarefa: str, fontes: Mapping[str, object]) -> dict[str, object]:
         if campo in _SUBCAMPOS and isinstance(valor, list | tuple):
             linhas = [
                 {k: v for k in _SUBCAMPOS[campo] if not _vazio(v := _limpo(linha.get(k), proprios))}
-                for linha in valor
-                if isinstance(linha, Mapping)
+                for linha in map(_linha, valor)
             ]
             valor = [linha for linha in linhas if linha]
         else:
