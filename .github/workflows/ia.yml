@@ -9,8 +9,9 @@ name: IA
 # todo computador; D219.20), prova o encaixe com o conjunto de ouro (scripts/provar_ia.py, meta) e
 # mede tokens/s e tempo por vaga (scripts/medir_modelo.py); prova no Laya as três tarefas novas
 # da 0.6.0, currículo, perguntas e preparar candidatura (scripts/provar_tarefas.py, T445: tempo,
-# tokens, esquema, prazo e contexto; a espera de 900 s só mede quem passa do prazo); depois troca
-# para o 2B e para o 4B e prova e mede cada um. Os números vão no resumo do job.
+# tokens, esquema, prazo e contexto; a espera de 360 s, o dobro do prazo, só mede quem passa
+# dele); depois troca para o 2B e para o 4B e prova e mede cada um. Os números vão no resumo do
+# job.
 on:
   workflow_call:
 
@@ -54,7 +55,7 @@ jobs:
         run: uv run python scripts/medir_modelo.py --rotulo "${{ matrix.os }}"
       - name: tarefas-auto
         if: ${{ !cancelled() }}
-        run: uv run python scripts/provar_tarefas.py --rotulo "${{ matrix.os }}" --espera-s 900
+        run: uv run python scripts/provar_tarefas.py --rotulo "${{ matrix.os }}" --espera-s 360
       - name: baixar-2b
         if: ${{ !cancelled() }}
         run: uv run jobot ferramentas baixar ia-local --modelo 2b | grep -v '"etapa"'
