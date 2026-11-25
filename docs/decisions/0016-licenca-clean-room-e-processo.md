@@ -2,7 +2,7 @@
 
 - **Status:** aceita
 - **Data:** 2026-11-13
-- **Atualizada:** 2026-11-14; 2026-11-24 (exceção da reescrita do histórico, D221.4)
+- **Atualizada:** 2026-11-14; 2026-11-24 (exceção da reescrita do histórico, D221.4); 2026-11-25 (CI verde obrigatório na `main` e portão da tag, D242)
 
 ## Contexto
 
@@ -37,6 +37,7 @@ O projeto vai ser público e quer poder reaproveitar ideias de outros projetos s
 - A `main` só recebe mudanças por PR vindo da `dev`. Histórico que já subiu não é reescrito. Única exceção até hoje: em 2026-11-24 o dono decidiu reescrever o histórico para tirar um dado pessoal de duas fixtures de teste (`git filter-repo`, force push com as regras desligadas por cerca de 1 minuto e religadas logo depois; ver `duvidas.md`, D221.4 e D221.5, e o aviso a quem clonou no CHANGELOG da 0.6.0).
 - No GitHub, regras de proteção garantem isso: a `main` só aceita mudança por PR e não pode ser reescrita nem apagada; a `dev` não pode ser reescrita nem apagada.
 - Todo PR para a `main` ou para a `dev` só entra com a aprovação do responsável (`.github/CODEOWNERS`): uma aprovação, que cai se entrar commit novo, e o último push também precisa ser aprovado. A única exceção é o papel de administrador do repositório (o dono): na `main`, só por dentro de um PR, para juntar o próprio PR da `dev` (o GitHub não deixa aprovar o próprio PR); na `dev`, sempre, para o fluxo de lotes. Configurado nas regras `proteger-main` e `proteger-dev` em 2026-11-17 (D172).
+- Nenhum PR entra na `main` sem os checks `ok` (o CI inteiro), `casca` e `windows` verdes, e essa regra não tem exceção, nem para o administrador: regra `ci-verde-main`, pedida pelo dono em 2026-11-25 (D242). A tag `v*` também só publica se a árvore dela passou no CI e no ensaio da Casca com pacotes e modelo local: o job `portao` do `release.yml` (D242).
 
 ## Consequências
 

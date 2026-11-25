@@ -4702,3 +4702,16 @@ A sessão propôs abrir o painel no Chrome da pessoa como janela de app. O dono 
 **Como desfazer:** cada item diz o seu. A release é imutável depois da tag: um defeito sai numa 0.6.1.
 
 **Ver também:** D185, D219, D221, D225, D237, D238, D239, D240, T441, T442, T443, T444, T445, T446, T447.
+
+## D242. CI verde obrigatório na `main`, portão da tag e guia de instalação nas notas (decidido pelo dono)
+
+**Status:** decidido pelo dono em 2026-11-25, nesta conversa. Depois de a release 0.6.0 precisar de três rodadas (D241), uma delas com o PR #20 juntado antes de o CI terminar, o dono pediu: "coloca a regra de nunca conseguir dar merge na main enquanto o CI não for verde", "pra que você não faça a cagada de novo", e que o texto de toda release explique como instalar, qual arquivo baixar e o que é cada anexo.
+
+1. **Regra `ci-verde-main` no GitHub (ativa desde 2026-11-25).** Na `main`, exige os checks `ok` (o resumo do CI, que depende de todos os jobs, inclusive os de tela nos três motores), `casca` e `windows` (do `casca.yml`), do GitHub Actions. É uma regra separada da `proteger-main` e não tem ninguém na lista de exceção: nem o `--admin` passa. O CI e a Casca rodam em todo PR, sem filtro de caminho, então o check nunca fica esperando à toa.
+2. **Portão no `release.yml`.** O job `portao` roda antes de publicar e só deixa a tag seguir se, na mesma árvore do commit da tag, houver um run verde do `ci.yml` e um do `casca.yml` com os jobs `pacotes / juntar` e `ia` verdes (o ensaio com pacotes e `ia=true`). Compara a árvore, não o sha: o CI do PR roda no commit da `dev`, que tem a mesma árvore do merge na `main`. Provado contra o GitHub: a `v0.5.0` passa e a `main` sem ensaio é recusada. A regra de ruleset não serve para tag: o GitHub não exige checks na criação de tag.
+3. **Guia de instalação nas notas.** `.github/release-instalar.md` e `.github/release-install.en.md` trazem a tabela de qual arquivo baixar por sistema, como instalar (com os avisos do Windows e do Mac) e o que é cada outro anexo; o `juntar` do `pacotes.yml` troca `{versao}` pela versão e põe o guia antes das novidades, em pt e em en. A 0.6.0 saiu antes disso: o guia entrou no texto dela pelo `gh release edit` (numa release imutável o texto ainda muda; os anexos e a tag não).
+
+**Como desfazer:** (1) apagar a regra `ci-verde-main` em Settings › Rules; (2) tirar o job `portao` e o `portao` do `needs` do `publicar`; (3) tirar os dois `sed` do `juntar` e os arquivos do guia.
+
+**Ver também:** ADR 0016, D172, D241, T441.
+
