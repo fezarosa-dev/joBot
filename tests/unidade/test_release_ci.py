@@ -73,11 +73,12 @@ def test_release_so_por_tag_ou_a_mao_e_so_o_publicar_escreve() -> None:
     assert "pull_request" not in texto
     assert _secao(texto, "permissions") == ["contents: read"]
     assert texto.count("contents: write") == 1
-    # um permissions no topo e um no publicar, só com contents: write
-    assert texto.count("permissions:") == 2
+    # um permissions no topo, um no portão (só leitura) e um no publicar
+    assert texto.count("permissions:") == 3
     assert _permissoes_do_job(RELEASE, "publicar") == ["contents: write"]
+    assert _permissoes_do_job(RELEASE, "portao") == ["actions: read", "contents: read"]
     assert set(re.findall(r"secrets\.\w+", texto)) == {"secrets.GITHUB_TOKEN"}
-    assert texto.count("secrets") == 1
+    assert texto.count("secrets") == 2
 
 
 def _permissoes_do_job(caminho: Path, nome: str) -> list[str]:
@@ -110,10 +111,10 @@ def test_actions_fixadas_por_hash_com_versao() -> None:
 
 
 def test_release_monta_pelo_pacotes_e_publica_so_na_tag() -> None:
-    assert _jobs(RELEASE) == ["pacotes", "publicar"]
+    assert _jobs(RELEASE) == ["portao", "pacotes", "publicar"]
     assert "uses: ./.github/workflows/pacotes.yml" in _job(RELEASE, "pacotes")
     publicar = _job(RELEASE, "publicar")
-    assert "needs: pacotes" in publicar
+    assert "needs: [portao, pacotes]" in publicar
     assert "if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')" in publicar
     assert "gh release create" in publicar
     # sem --latest: o gh marca a release nova como a latest, que o versao.py lê
@@ -126,6 +127,18 @@ def test_release_monta_pelo_pacotes_e_publica_so_na_tag() -> None:
     assert "sha256sum -c" in publicar
     assert "merge-multiple" not in publicar and "> SHA256SUMS" not in publicar
     assert "--notes-file ../notas.md" in publicar
+
+
+def test_portao_so_publica_com_ci_e_ensaio_verdes_na_arvore_da_tag() -> None:
+    # pedido do dono (2026-11-25): a tag não publica código que não passou no CI inteiro e no
+    # ensaio da Casca com pacotes e ia=true; a árvore conta, não o sha (o PR roda na dev)
+    portao = _job(RELEASE, "portao")
+    assert "if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')" in portao
+    assert "git/commits/" in portao and ".tree.sha" in portao
+    assert "actions/workflows/$1/runs?status=success" in portao
+    assert "verde ci.yml ''" in portao and "verde casca.yml" in portao
+    assert 'startswith("pacotes / juntar")' in portao and 'startswith("ia")' in portao
+    assert portao.count("exit 1") == 2
 
 
 def test_juntar_monta_os_anexos_o_sha256sums_e_as_notas() -> None:
