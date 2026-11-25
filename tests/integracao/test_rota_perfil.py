@@ -417,7 +417,9 @@ def test_frase_de_privacidade(painel: Painel, idioma: str, tarefa: object, frase
         (
             None,
             {"ligada": True, "backend": "openai", "modelo": "m"},
-            "Ao pedir perguntas, o seu perfil, sem nome, contato e cidade, vai para a OpenAI.",
+            "Ao pedir perguntas, o seu perfil, sem nome, contato e cidade, vai para a OpenAI; o que"
+            " você escreveu nos campos de texto vai como você escreveu, menos e-mail, telefone,"
+            " CPF e o seu nome, quando escrito como está no perfil.",
         ),
         (
             {"ligada": True, "backend": "local", "modelo": "m"},
