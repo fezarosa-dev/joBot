@@ -1,5 +1,6 @@
 """O esquema de saída que cada backend aceita (desenho 5.1 da fase 4). Os limites tirados daqui
-continuam conferidos pelo pydantic na resposta (`contrato.conferir`)."""
+continuam conferidos pelo pydantic na resposta (`contrato.conferir`). Nenhum backend recebe as
+descrições: são as docstrings dos modelos, notas de quem constrói (D229)."""
 
 from typing import Any
 
@@ -52,7 +53,7 @@ _REPETICAO = frozenset({"minLength", "maxLength", "minItems", "maxItems"})
 def esquema_para(backend: str, modelo: type[BaseModel]) -> dict[str, Any]:
     if backend not in PERMITIDAS:
         raise ValueError(f"backend de IA desconhecido: {backend!r}")
-    completo = modelo.model_json_schema()
+    completo: dict[str, Any] = sem_descricoes(modelo.model_json_schema())
     permitidas = PERMITIDAS[backend]
     if permitidas is None:
         return completo
@@ -78,3 +79,16 @@ def _filtrar(
     if todos and "properties" in saida:
         saida["required"] = list(saida["properties"])
     return saida
+
+
+def sem_descricoes(no: Any) -> Any:
+    if isinstance(no, dict):
+        # a palavra-chave é texto; um campo chamado "description" em `properties` é um objeto
+        return {
+            k: sem_descricoes(v)
+            for k, v in no.items()
+            if not (k == "description" and isinstance(v, str))
+        }
+    if isinstance(no, list):
+        return [sem_descricoes(v) for v in no]
+    return no
