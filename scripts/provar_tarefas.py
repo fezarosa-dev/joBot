@@ -211,10 +211,13 @@ def provar(
         if espera_s is not None:
             pedido = dataclasses.replace(pedido, prazo_s=espera_s)
         timings.clear()
-        motivo = None
+        motivo, campos = None, ()
         comeco = relogio()
         try:
-            backend.pedir(pedido)
+            dados = backend.pedir(pedido).dados
+            campos = tuple(k for k, v in dados.items() if v not in (None, "", [], {}))
+            # só dado sintético: a resposta inteira no log, para ler o que o modelo entendeu
+            print(json.dumps({"caso": caso.nome, "resposta": dados}, ensure_ascii=False))
         except Falha as falha:
             motivo = falha.motivo
         segundos = relogio() - comeco
@@ -229,6 +232,7 @@ def provar(
                 pedido.max_tokens,
                 caso.pedido.prazo_s,
                 motivo,
+                campos,
             )
         )
         print(json.dumps({**dataclasses.asdict(medidas[-1]), "passou": medidas[-1].passou}))
@@ -243,14 +247,15 @@ def tabela(rotulo: str, modelo: str, medidas: Sequence[Medida]) -> str:
     linhas = [
         f"\n**Tarefas novas no modelo local ({modelo})**\n",
         "| sistema | caso | s | prazo (s) | lidos | gerados | max_tokens "
-        f"| lidos + max ≤ {CONTEXTO} | esquema | resultado |",
-        "|---|---|---|---|---|---|---|---|---|---|",
+        f"| lidos + max ≤ {CONTEXTO} | campos preenchidos | esquema | resultado |",
+        "|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     for m in medidas:
         linhas.append(
             f"| {rotulo} | {m.caso} | {m.segundos:.1f} | {m.prazo_s:.0f} | {_ou(m.leitura_n)} | "
             f"{_ou(m.geracao_n)} | {m.max_tokens} | {'sim' if m.cabe else 'não'} | "
-            f"{'valida' if m.valida else m.motivo} | {'passou' if m.passou else 'não passou'} |"
+            f"{len(m.campos)} | {'valida' if m.valida else m.motivo} | "
+            f"{'passou' if m.passou else 'não passou'} |"
         )
     return "\n".join(linhas)
 
