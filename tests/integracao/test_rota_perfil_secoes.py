@@ -2,7 +2,8 @@
 
 Com HTMX, o Salvar de uma seção troca só a própria seção (`hx-select` dela), e o que foi digitado
 nas outras fica na tela; o "Salvo." e o alerta do erro moram dentro da seção, para a troca os
-trazer. Sem JavaScript, o formulário comum recarrega a página, e a aba avisa antes disso.
+trazer. Sem JavaScript (T443, D237.3), a aba é um formulário só: cada Salvar manda tudo, grava só a
+sua seção e a página volta com o que foi digitado nas outras.
 """
 
 import html as html_lib
@@ -16,7 +17,7 @@ from fastapi.testclient import TestClient
 from selectolax.lexbor import LexborHTMLParser
 
 from apoio.relogio import RelogioFalso
-from jobot.banco import cadastros
+from jobot.banco import cadastros, perfil
 from jobot.banco.conexao import abrir
 from jobot.banco.migrar import migrar
 from jobot.painel import i18n
@@ -97,10 +98,12 @@ def test_cada_secao_troca_so_a_si_mesma(http: Http) -> None:
         assert atributos.get("hx-select") == f"#bloco-{nome}", nome
         assert (atributos.get("hx-target"), atributos.get("hx-swap")) == ("this", "outerHTML")
         assert "data-troca-422" in atributos, nome
-        formularios = secao.css("form")
-        assert formularios, nome
-        for form in formularios:  # sem JavaScript, o mesmo formulário posta igual
-            assert form.attributes.get("hx-post") == form.attributes.get("action") == PERFIL
+        botoes = secao.css("button[type=submit]")
+        assert botoes, nome
+        for botao in botoes:  # sem JavaScript, o mesmo botão posta igual, e volta à seção
+            atributos = botao.attributes
+            assert atributos.get("hx-post") == PERFIL, nome
+            assert atributos.get("formaction") == f"{PERFIL}#perfil-{nome}", nome
 
 
 @pytest.mark.parametrize(
@@ -194,12 +197,12 @@ def test_curriculo_segue_com_o_salvo_no_alto(http: Http) -> None:
 
 
 @pytest.mark.parametrize("idioma", ["pt", "en"])
-def test_sem_javascript_a_aba_avisa_que_salvar_recarrega(http: Http, idioma: str) -> None:
+def test_sem_javascript_a_aba_nao_avisa_mais_que_salvar_perde(http: Http, idioma: str) -> None:
+    """O aviso da D230.8(b) sai com a correção (T443): salvar não perde mais nada."""
     http.idioma(idioma)
     html = http.get(PERFIL).text
-    aviso = LexborHTMLParser(html).css_first("noscript#perfil-sem-js")
-    assert aviso is not None
-    assert i18n.carregar()[idioma]["configuracoes.perfil.sem_js"] in _texto(aviso.html or "")
+    assert LexborHTMLParser(html).css_first("noscript#perfil-sem-js") is None
+    assert "configuracoes.perfil.sem_js" not in i18n.carregar()[idioma]
 
 
 def test_apagar_perfil_vem_junto_na_troca(http: Http) -> None:
@@ -215,3 +218,141 @@ def test_apagar_perfil_vem_junto_na_troca(http: Http) -> None:
     cheio = LexborHTMLParser(http.get(PERFIL).text).css_first("#perfil-apagar")
     assert cheio is not None
     assert pt("configuracoes.perfil.apagar") in _texto(cheio.html or "")
+
+
+# --- sem JavaScript, um formulário só (T443; D230.8 e D237.3) ----------------------------------
+
+
+def _envio(html: str, botao: tuple[str, str], **trocas: str) -> dict[str, list[str]]:
+    """O que o navegador manda ao apertar `botao` no formulário da aba, com `trocas` digitadas."""
+    form = LexborHTMLParser(html).css_first("form#perfil-aba")
+    assert form is not None
+    envio: dict[str, list[str]] = {}
+    for no in form.css("input, textarea, select"):
+        nome = no.attributes.get("name")
+        if not nome or no.attributes.get("type") in ("submit", "file"):
+            continue
+        if no.tag == "textarea":
+            valor = no.text()
+        elif no.tag == "select":
+            opcao = no.css_first("option[selected]") or no.css_first("option")
+            valor = (opcao.attributes.get("value") or "") if opcao else ""
+        else:
+            valor = no.attributes.get("value") or ""
+        envio.setdefault(nome, []).append(trocas.get(nome, valor))
+    return envio | {botao[0]: [botao[1]]}
+
+
+DIGITADO = {
+    "nome": "Maria Exemplo",
+    "habilidades": "Python",
+    "exp-nova-cargo": "Analista",
+    "curso-nova-nome": "ADS",
+}
+
+
+def _valor(html: str, campo_id: str) -> str:
+    no = LexborHTMLParser(html).css_first(f"#{campo_id}")
+    assert no is not None, campo_id
+    return no.text() if no.tag == "textarea" else no.attributes.get("value") or ""
+
+
+def _gravados(http: Http) -> dict[str, Any]:
+    with closing(abrir(http.banco)) as con:
+        return {
+            "nome": perfil.dados(con).nome,
+            "habilidades": perfil.habilidades(con),
+            "experiencias": [e.cargo for e in perfil.experiencias(con)],
+            "cursos": [c.nome for c in perfil.cursos(con)],
+        }
+
+
+def test_a_aba_e_um_formulario_so(http: Http) -> None:
+    arvore = LexborHTMLParser(http.get(PERFIL).text)
+    form = arvore.css_first("form#perfil-aba")
+    assert form is not None
+    assert (form.attributes.get("method"), form.attributes.get("action")) == ("post", PERFIL)
+    token = form.css_first(f"input[name={CAMPO_CSRF}]")
+    assert token is not None and token.attributes.get("value") == http.token
+    for nome in SECOES:
+        secao = form.css_first(f"section#bloco-{nome}")
+        assert secao is not None, nome
+        assert secao.css("form") == [], nome  # sem formulário dentro de formulário
+        for botao in secao.css("button[type=submit]"):
+            # a conferência é do servidor: o campo errado de outra seção não barra este Salvar
+            assert "formnovalidate" in botao.attributes, nome
+            assert botao.attributes.get("name") in ("secao", "tirar"), nome
+
+
+SALVAR = {
+    "habilidades": (("secao", "habilidades"), "habilidades"),
+    "dados": (("secao", "dados"), "nome"),
+    "experiencia": (("secao", "exp-nova"), "experiencias"),
+    "curso": (("secao", "curso-nova"), "cursos"),
+}
+ESPERADO = {"nome": "Maria Exemplo", "habilidades": ["Python"], "experiencias": ["Analista"]}
+ESPERADO |= {"cursos": ["ADS"]}
+VAZIO: dict[str, Any] = {"nome": None, "habilidades": [], "experiencias": [], "cursos": []}
+ANCORA = {"habilidades": "habilidades", "dados": "sobre", "experiencia": "experiencias"}
+ANCORA |= {"curso": "cursos"}
+CAMPO = {"nome": ("perfil-nome", "nome"), "habilidades": ("campo-habilidades", "habilidades")}
+CAMPO |= {"experiencias": ("exp-nova-cargo", "exp-nova-cargo")}
+CAMPO |= {"cursos": ("curso-nova-nome", "curso-nova-nome")}
+
+
+@pytest.mark.parametrize("secao", list(SALVAR))
+def test_sem_javascript_salvar_uma_secao_guarda_o_digitado_nas_outras(
+    http: Http, secao: str
+) -> None:
+    botao, gravada = SALVAR[secao]
+    resposta = http.post(PERFIL, data=_envio(http.get(PERFIL).text, botao, **DIGITADO))
+    assert resposta.status_code == 200
+    # (guarda) grava só a seção do botão; o controle é a própria seção gravada
+    assert _gravados(http) == VAZIO | {gravada: ESPERADO[gravada]}
+    html = resposta.text
+    for chave, (campo_id, nome) in CAMPO.items():
+        if chave != gravada:  # o digitado nas outras volta, ainda não salvo
+            assert _valor(html, campo_id) == DIGITADO[nome], campo_id
+    salvo = LexborHTMLParser(html).css_first(f"#bloco-{ANCORA[secao]} [role=status]")
+    assert salvo is not None and _texto(salvo.html or "").strip() == pt("configuracoes.salvo")
+
+
+def test_sem_javascript_o_erro_de_uma_secao_guarda_o_digitado_nas_outras(http: Http) -> None:
+    envio = _envio(http.get(PERFIL).text, ("secao", "dados"), email="sem-arroba", **DIGITADO)
+    resposta = http.post(PERFIL, data=envio)
+    assert resposta.status_code == 422
+    assert _gravados(http) == VAZIO
+    html = resposta.text
+    alerta = LexborHTMLParser(html).css_first("#bloco-sobre #config-erro")
+    assert alerta is not None
+    assert _valor(html, "perfil-email") == "sem-arroba"
+    assert _valor(html, "campo-habilidades") == "Python"
+    assert _valor(html, "exp-nova-cargo") == "Analista"
+    assert _valor(html, "curso-nova-nome") == "ADS"
+
+
+def test_sem_javascript_tirar_um_item_guarda_o_digitado_nos_outros(http: Http) -> None:
+    with closing(abrir(http.banco)) as con:
+        perfil.gravar_experiencia(con, perfil.Experiencia("Analista"))
+        perfil.gravar_experiencia(con, perfil.Experiencia("Gerente"))
+        analista, gerente = (e.id for e in perfil.experiencias(con))
+    html = http.get(PERFIL).text
+    trocas = {f"exp-{gerente}-cargo": "Gerente de projetos", "habilidades": "Go"}
+    resposta = http.post(PERFIL, data=_envio(html, ("tirar", f"exp-{analista}"), **trocas))
+    assert resposta.status_code == 200
+    assert _gravados(http)["experiencias"] == ["Gerente"]
+    assert _valor(resposta.text, f"exp-{gerente}-cargo") == "Gerente de projetos"
+    assert _valor(resposta.text, "campo-habilidades") == "Go"
+
+
+@pytest.mark.parametrize("valor", ["exp-abc", "exp-0", "curso-", "outra", "exp-nova-x"])
+def test_botao_de_secao_desconhecido_e_422(http: Http, valor: str) -> None:
+    envio = _envio(http.get(PERFIL).text, ("secao", valor))
+    assert http.post(PERFIL, data=envio).status_code == 422
+
+
+def test_sem_javascript_o_envio_sem_csrf_e_recusado(http: Http) -> None:
+    envio = _envio(http.get(PERFIL).text, ("secao", "habilidades"), **DIGITADO)
+    del envio[CAMPO_CSRF]
+    assert http.post(PERFIL, data=envio).status_code == 403
+    assert _gravados(http) == VAZIO

@@ -145,14 +145,16 @@ def test_perfil_abre_com_a_aba_e_o_campo_com_rotulo(painel: Painel) -> None:
     assert f'<label for="{id_campo.group(1)}"' in resposta.text  # nome acessível
     assert "aria-describedby=" in campo.group(0)
     assert _campo(resposta.text) == ""
-    # um botão principal por formulário de gravar: o Salvar de cada seção
+    # um formulário só (T443) e um botão principal por parte: o Salvar de cada seção
     formularios = re.findall(
-        r'<form method="post" action="/configuracoes/perfil".*?</form>',
+        r'<form id="perfil-aba" method="post" action="/configuracoes/perfil".*?</form>',
         _sem_paleta(resposta.text),
         re.S,
     )
-    assert len(formularios) == 4  # sobre você, habilidades, nova experiência e novo curso
-    assert [len(re.findall(r'class="[^"]*botao-primario', f)) for f in formularios] == [1] * 4
+    assert len(formularios) == 1
+    principal = r'<button [^>]*value="([^"]+)" class="[^"]*botao-primario'
+    principais = re.findall(principal, formularios[0])
+    assert principais == ["dados", "habilidades", "exp-nova", "curso-nova"]
 
 
 def test_perfil_vem_depois_de_funcoes_nas_abas(painel: Painel) -> None:
