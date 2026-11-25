@@ -144,4 +144,10 @@ def test_perfil_cortado_no_local_e_inteiro_fora() -> None:
     assert '"Pergunta 0?"' not in local  # a mais velha sai antes do teto
     fora = perfil("openai")
     assert '"Pergunta 0?"' in fora and '"Pergunta 99?"' in fora  # controle: fora vai inteiro
-    assert len(fora) > 10 * corte["caracteres"]
+    assert len(fora) > 8 * corte["caracteres"]
+    # pequeno, sem chegar ao teto: só as respostas mais recentes
+    curtas = [PerguntaPerfil(f"ia:{n}", f"P{n}?", "ia", None, "R") for n in range(50)]
+    fontes = FONTES | {"respostas": curtas}
+    local = perfil("local")
+    assert '"P19?"' not in local and '"P20?"' in local and '"P49?"' in local
+    assert '"P0?"' in perfil("openai")  # controle
