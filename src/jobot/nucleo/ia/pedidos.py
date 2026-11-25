@@ -262,13 +262,14 @@ def pedido_perguntas(
     no bloco PERFIL. `idioma` é o do painel; outro vira inglês."""
     lim = limites()
     lugar = "local" if backend == "local" else "fora"
+    corte = lim["tarefas"]["perguntas"]["corte"]
     sistema = SISTEMA_PERGUNTAS.format(idioma=_IDIOMAS.get(idioma, _IDIOMAS["en"]))
     return Pedido(
         tarefa="perguntas",
         modelo=modelo,
         mensagens=(
             Mensagem("system", sistema),
-            Mensagem("user", _perfil_cortado(dados_para("perguntas", fontes))),
+            Mensagem("user", _perfil_cortado(dados_para("perguntas", fontes), corte)),
         ),
         esquema=SaidaPerguntas,
         max_tokens=lim["tarefas"]["perguntas"]["max_tokens"][lugar],
@@ -277,13 +278,13 @@ def pedido_perguntas(
     )
 
 
-def _perfil_cortado(dados: dict[str, object]) -> str:
-    """O bloco PERFIL dentro do corte do `ia.json` (desenho 5.2): das listas que só crescem, as
-    entradas mais recentes (as do fim); passando do teto de caracteres, o JSON perde o fim (o
-    modelo local tem 8192 tokens de contexto, e fora o custo por clique não cresce sem limite)."""
-    corte = limites()["tarefas"]["perguntas"]["corte"]
+def _perfil_cortado(dados: dict[str, object], corte: Mapping[str, int]) -> str:
+    """O bloco PERFIL dentro do `corte` do `ia.json` (desenho 5.2): das listas que só crescem e
+    estão no corte, as entradas mais recentes (as do fim); passando do teto de caracteres, o JSON
+    perde o fim (o modelo local tem 8192 tokens de contexto, e fora o custo por clique não cresce
+    sem limite). Nas perguntas, nos dois lugares; na candidatura, só no local (T445)."""
     for campo in ("respostas", "perguntas_feitas"):
-        if isinstance(lista := dados.get(campo), list):
+        if campo in corte and isinstance(lista := dados.get(campo), list):
             dados[campo] = lista[-corte[campo] :]
     texto = json.dumps(dados, ensure_ascii=False, indent=1)
     if len(texto) > corte["caracteres"]:
@@ -391,9 +392,11 @@ def pedido_candidatura(
     usuario = bloco("VAGA", texto.texto)
     if texto.cortados:
         usuario += _AVISO_CORTE.format(n=texto.cortados)
-    usuario += "\n\n" + bloco_perfil(dados_para("candidatura", fontes))
     lim = limites()
     lugar = "local" if backend == "local" else "fora"
+    perfil = dados_para("candidatura", fontes)
+    corte = lim["tarefas"]["candidatura"]["corte"].get(lugar)
+    usuario += "\n\n" + (_perfil_cortado(perfil, corte) if corte else bloco_perfil(perfil))
     sistema = SISTEMA_CANDIDATURA.format(idioma=_IDIOMAS_CARTA[idioma], codigo=idioma)
     return Pedido(
         tarefa="candidatura",

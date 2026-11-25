@@ -10,6 +10,7 @@ import json
 import re
 
 from jobot.nucleo.ia.contrato import Falha, Pedido, Resposta, conferir, limites
+from jobot.nucleo.ia.esquema import sem_descricoes
 
 BACKEND = "manual"
 TAREFAS = frozenset({"curriculo", "perguntas", "candidatura"})
@@ -43,22 +44,9 @@ def texto_para_copiar(pedido: Pedido, idioma: str) -> str:
     que são as docstrings dos modelos, notas de quem constrói (D229)."""
     _so_sob_pedido(pedido.tarefa)
     esquema = json.dumps(
-        _sem_descricoes(pedido.esquema.model_json_schema()), ensure_ascii=False, indent=1
+        sem_descricoes(pedido.esquema.model_json_schema()), ensure_ascii=False, indent=1
     )
     return "\n\n".join([*(m.texto for m in pedido.mensagens), PEDE_JSON[idioma], esquema])
-
-
-def _sem_descricoes(no: object) -> object:
-    if isinstance(no, dict):
-        # a palavra-chave é texto; um campo chamado "description" em `properties` é um objeto
-        return {
-            k: _sem_descricoes(v)
-            for k, v in no.items()
-            if not (k == "description" and isinstance(v, str))
-        }
-    if isinstance(no, list):
-        return [_sem_descricoes(v) for v in no]
-    return no
 
 
 def ler_resposta(pedido: Pedido, colado: str) -> Resposta:
