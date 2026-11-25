@@ -2,7 +2,7 @@
 
 - **Status:** aceita
 - **Data:** 2026-11-13
-- **Atualizada:** 2026-11-15 (seção do modelo leve na máquina da pessoa, D122; seção do Laya antes da fase 4, D141); antes, em 2026-11-13; 2026-11-17 (o Laya antes da fase 4 fica adiado, para confirmar, e o Laya público é um modelo de decisão, D185.8 e [0026](0026-ia-da-fase-4.md)); 2026-11-24 (o dono autoriza o treino do Laya no RunPod, só na Community Cloud e pela GPU de menor custo total; o Laya passa a ser o Qwen3.5 2B ajustado por LoRA, e a 0.5.0 sai sem ele treinado, D219); 2026-11-24 (o Laya treinado vira o modelo local padrão da 0.6.0, D219 confirmada pelo dono na D237)
+- **Atualizada:** 2026-11-15 (seção do modelo leve na máquina da pessoa, D122; seção do Laya antes da fase 4, D141); antes, em 2026-11-13; 2026-11-17 (o Laya antes da fase 4 fica adiado, para confirmar, e o Laya público é um modelo de decisão, D185.8 e [0026](0026-ia-da-fase-4.md)); 2026-11-24 (o dono autoriza o treino do Laya no RunPod, só na Community Cloud e pela GPU de menor custo total; o Laya passa a ser o Qwen3.5 2B ajustado por LoRA, e a 0.5.0 sai sem ele treinado, D219); 2026-11-24 (o Laya treinado vira o modelo local padrão da 0.6.0, D219 confirmada pelo dono na D237); 2026-11-24 (o dono aprova as quatro fontes do treino do Laya sem o trecho dos termos que permite, D219.14)
 
 ## Contexto
 
@@ -80,6 +80,7 @@ Nunca entra dado pessoal: currículo real e ações da pessoa no painel ficam fo
 ## Pontos em aberto
 
 - Antes da fase 7, conferir nos termos de cada fonte se as vagas dela podem entrar em treino de modelo público. Algumas fontes proíbem repassar as vagas (ADR 0004).
+- Para o Laya da 0.6.0, nenhuma das quatro fontes usadas (Greenhouse, Lever, We Work Remotely e Jobicy) tem nos termos o trecho que permite: os termos delas não proíbem reaproveitar as vagas, mas também não autorizam expressamente treinar um modelo público. O dono decidiu em 2026-11-24 aprovar as quatro com essa leitura, mantendo o Laya como padrão e as fontes declaradas; se alguma fonte reclamar, ela sai e o Laya é retreinado sem ela (D219.14). É uma decisão do dono, não uma leitura de que os termos permitem.
 
 ## Ver também
 
