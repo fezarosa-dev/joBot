@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "jobot"
-version = "0.5.0"
+version = "0.6.0"
 description = "Busca vagas em fontes públicas e mostra num painel local."
 readme = "README.md"
 license = "MIT"

@@ -31,7 +31,7 @@ It gathers, filters and organizes jobs from many sites into a nice dashboard tha
 </div>
 
 > [!IMPORTANT]
-> **joBot phases 1, 2 and 3 (the foundation, the browser with login and the installer) have been done since version 0.4.0; the version to install now is 0.5.0, which brings the first part of phase 4 (the optional AI).** It searches public sources for jobs, keeps everything on your computer and shows it in a dashboard. You can already [install and use it](#requirements-and-installation).
+> **joBot phases 1, 2, 3 and 4 (the foundation, the browser with login, the installer and the local AI) are done; the version to install now is 0.6.0, which closes phase 4 (the optional AI).** It searches public sources for jobs, keeps everything on your computer and shows it in a dashboard. You can already [install and use it](#requirements-and-installation).
 > LinkedIn is the site with login today (others can come through the [new site template](docs/site-novo.en.md)); it has been here since version 0.3.0 and comes off (you turn it on in Settings, Accounts). The Gmail card is already in Settings, Accounts. AI arrives in version 0.5.0, off by default, to list the skills each job asks for, and 0.6.0 brings the full profile, reading your résumé and preparing applications ([details](#artificial-intelligence)); reading the emails, audio and the rest (the other sites with login, AI on the emails and browser extension) are still a plan. See the [roadmap](#roadmap). Before you turn on the sources, read the [usage and terms notices](#license-and-notices).
 
 ## 📑 Contents
@@ -547,14 +547,14 @@ Each phase only starts after the previous one passes the tests. No dates are pro
 | **1. Base** | Common core, public sources, database, dashboard and scheduling | 🟢 Done (version 0.1.0) |
 | **2. Browser with login** | Login through a regular window, LinkedIn first, site mapping, CAPTCHA handling | 🟢 Done (version 0.3.0) |
 | **3. Installer** | 64-bit installer with a list of tools to tick (Windows and Linux first, Mac later) | 🟢 Done (version 0.4.0) |
-| **4. Local AI** | Offline package (llama-server + Qwen) | 🟡 Being built (0.5.0 brought the first part; toward 0.6.0) |
+| **4. Local AI** | Offline package (llama-server + Qwen) | 🟢 Done (version 0.6.0) |
 | **5. Browser extension** | Browser extension for forms | ⚪ Planned |
 | **6. Audio and Gmail** | Answers by voice and email reading | ⚪ Planned |
 | **7. Training** | Learn from what you save and discard | ⚪ Planned |
-| **8. GitHub Pages version** | GitHub Pages version, no installation | ⚪ Planned |
+| **8. GitHub Pages version** | GitHub Pages version, no installation | ⚪ Planned (the next one, being designed) |
 | **9. Release** | README with badges and security review | ⚪ Planned |
 
-Version 0.3.0 came out between phase 2 and phase 3, with the "Overview" screen and the complete application queue. Version 0.4.0 closes phase 3, with a window of its own and the installer. Version 0.4.1 fixes Linux: the window becomes a control and the dashboard opens in your browser. Version 0.5.0 brings the first part of phase 4: the optional AI, off by default, which lists the skills each job asks for.
+Version 0.3.0 came out between phase 2 and phase 3, with the "Overview" screen and the complete application queue. Version 0.4.0 closes phase 3, with a window of its own and the installer. Version 0.4.1 fixes Linux: the window becomes a control and the dashboard opens in your browser. Version 0.5.0 brings the first part of phase 4: the optional AI, off by default, which lists the skills each job asks for. Version 0.6.0 closes phase 4, with the full profile, résumé reading, the questions, application preparation, manual AI and Laya as the default local model. The next one is phase 8, the GitHub Pages version, built before phase 5 at the owner's request.
 
 <a id="faq"></a>
 ## ❓ FAQ
@@ -602,7 +602,7 @@ Each important decision is recorded in a short document called an ADR (architect
 <a id="how-to-contribute"></a>
 ## 🤝 How to contribute
 
-The repository is on GitHub. Phases 1, 2 and 3 are done, phase 4 is being built and the following ones are being planned.
+The repository is on GitHub. Phases 1, 2, 3 and 4 are done, phase 8 is being designed and comes next, and the others are being planned.
 
 - **Suggestions and job sources** can already be sent through issues, with ready-made forms.
 - **Questions** go through the [question form](https://github.com/fezarosa-dev/joBot/issues/new?template=duvida.yml). Read the [FAQ](https://github.com/fezarosa-dev/joBot/wiki/Frequently-asked-questions) first.

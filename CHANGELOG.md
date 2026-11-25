@@ -8,6 +8,8 @@ O formato segue o [Keep a Changelog 1.1.0](https://keepachangelog.com/pt-BR/1.1.
 
 ## [Não lançado]
 
+## [0.6.0] - 2026-11-25
+
 > **Histórico do git reescrito em 2026-11-24**, para tirar um dado pessoal de duas fixtures de teste. Se você clonou o repositório antes dessa data, rode uma vez, na pasta do clone, `git fetch origin && git reset --hard origin/main && uv sync --locked`, ou clone de novo. O reset descarta qualquer mudança local do clone; os seus dados ficam na pasta de dados, fora dele, e não mudam. Fork ou clone de trabalho parte de um clone novo. Quem usa o instalador não precisa fazer nada.
 
 A segunda parte da IA chega, opcional e desligada por padrão: o perfil completo, a leitura do currículo, as perguntas sobre o que falta no perfil e a preparação de candidaturas. O modelo local padrão passa a ser o Laya. As tarefas Currículo, Perguntas e Preparar candidatura são experimentais: confira sempre o que a IA devolve. Os serviços pagos (API da Anthropic, OpenAI e Gemini) seguem sem prova com uma chave de verdade e continuam marcados como experimentais na aba IA.
