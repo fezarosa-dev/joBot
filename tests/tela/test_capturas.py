@@ -38,6 +38,9 @@ TELAS = {
     "assistente-perfil": "/primeira-execucao/perfil",
     "candidatura": "/vagas/2",  # a segunda semeada, com o preparo do serviço falso
 }
+# as telas longas da 0.6.0 saem inteiras: o fim do formulário (experiências, cursos, o resultado
+# da candidatura) também se confere
+INTEIRAS = {"perfil", "ia", "assistente-ia", "assistente-perfil", "candidatura"}
 CANDIDATURA = Preparo(
     idioma="pt",
     carta="Prezada equipe, trabalho com Python há três anos e quero conversar sobre a vaga.",
@@ -109,4 +112,4 @@ def test_captura(
     pasta = Path(os.environ.get("JOBOT_CAPTURAS") or tmp_path)
     pasta.mkdir(parents=True, exist_ok=True)
     foto = pasta / f"{browser_name}-{tela}-{tema}-{largura}.png"
-    page.screenshot(path=foto, animations="disabled")
+    page.screenshot(path=foto, animations="disabled", full_page=tela in INTEIRAS)
