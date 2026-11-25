@@ -392,6 +392,8 @@
   "configuracoes.perfil.erro.cargo": "Escreva o cargo da experiência.",
   "configuracoes.perfil.erro.curso": "Escreva o nome do curso.",
   "configuracoes.perfil.erro.mes": "Datas no formato AAAA-MM, com o início antes do fim.",
+  "configuracoes.perfil.erro.saiu": "Este item já tinha saído do perfil, talvez noutra aba. O que foi digitado nele voltou no item novo, para adicionar de novo.",
+  "configuracoes.perfil.nada_salvo": "Nada foi salvo. Cada parte grava pelo próprio botão Salvar.",
   "configuracoes.perfil.erro.itens": "Até 10 experiências e 10 cursos.",
   "configuracoes.perfil.erro.outros": "Até 10 outros idiomas.",
   "configuracoes.grupo.ia": "IA",

@@ -392,6 +392,8 @@
   "configuracoes.perfil.erro.cargo": "Type the job title of the experience.",
   "configuracoes.perfil.erro.curso": "Type the course name.",
   "configuracoes.perfil.erro.mes": "Dates as YYYY-MM, with the start before the end.",
+  "configuracoes.perfil.erro.saiu": "This item had already been removed from the profile, maybe in another tab. What you typed in it is back in the new item, so you can add it again.",
+  "configuracoes.perfil.nada_salvo": "Nothing was saved. Each part saves with its own Save button.",
   "configuracoes.perfil.erro.itens": "Up to 10 experiences and 10 courses.",
   "configuracoes.perfil.erro.outros": "Up to 10 other languages.",
   "configuracoes.grupo.ia": "AI",

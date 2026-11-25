@@ -368,9 +368,11 @@ def _curso(form: FormData, id_: int | None, prefixo: str) -> perfil.Curso:
     )
 
 
-def _gravar_item(con: sqlite3.Connection, secao: str, form: FormData) -> None:
-    """Nova, editada ou tirada (o botão `tirar`). Editar a que já saiu: 404, não a traz de volta.
-    O item que saiu e o teto vêm antes da conferência dos campos (duas abas abertas)."""
+def _gravar_item(con: sqlite3.Connection, secao: str, form: FormData, na_aba: bool) -> None:
+    """Nova, editada ou tirada (o botão `tirar`). Editar a que já saiu: 404, não a traz de volta;
+    no formulário da aba (`na_aba`), o digitado nela volta no item novo, com o aviso. O item que
+    saiu e o teto vêm antes da conferência dos campos (duas abas abertas). Na aba, a nova igual a
+    uma gravada não entra de novo: sem o 303, recarregar a página reenvia o Adicionar (T443)."""
     id_ = _id_do_item(form)
     experiencia = secao == "experiencia"
     if "tirar" in form:
@@ -379,15 +381,22 @@ def _gravar_item(con: sqlite3.Connection, secao: str, form: FormData) -> None:
         (perfil.apagar_experiencia if experiencia else perfil.apagar_curso)(con, id_)
         return
     prefixo = f"{_PREFIXO[secao]}-{id_ if id_ is not None else 'nova'}"
-    ids = [i.id for i in (perfil.experiencias(con) if experiencia else perfil.cursos(con))]
-    if id_ is not None and id_ not in ids:
+    atuais: Sequence[perfil.Experiencia | perfil.Curso]
+    atuais = perfil.experiencias(con) if experiencia else perfil.cursos(con)
+    if id_ is not None and id_ not in [i.id for i in atuais]:
+        if na_aba:
+            nova = f"{_PREFIXO[secao]}-nova-{_CAMPOS_ITEM[secao][0]}"
+            raise _Recusa("configuracoes.perfil.erro.saiu", nova)
         raise HTTPException(404)
-    if id_ is None and len(ids) >= TETO_ITENS:
+    if id_ is None and len(atuais) >= TETO_ITENS:
         raise _Recusa("configuracoes.perfil.erro.itens", prefixo + "-" + _CAMPOS_ITEM[secao][0])
     if experiencia:
         exp = _experiencia(form, id_, prefixo)
+        novo: perfil.Experiencia | perfil.Curso = exp
     else:
-        curso = _curso(form, id_, prefixo)
+        curso = novo = _curso(form, id_, prefixo)
+    if na_aba and id_ is None and any(replace(a, id=None) == novo for a in atuais):
+        return
     gravado = (
         perfil.gravar_experiencia(con, exp) if experiencia else perfil.gravar_curso(con, curso)
     )
@@ -400,8 +409,17 @@ def _envio_de_uma_secao(form: FormData) -> tuple[FormData, str | None]:
 
     O botão diz o que grava: `secao=habilidades`, `secao=dados`, `secao=exp-3` (`exp-nova`,
     `curso-…`) ou `tirar=exp-3`; os campos do item vêm com o prefixo (`exp-3-cargo`). O envio de uma
-    seção sozinha (campo oculto `secao`, `id` e os campos sem prefixo) passa como veio."""
-    secao, tirar = form.get("secao"), form.get("tirar")
+    seção sozinha (campo oculto `secao`, `id` e os campos sem prefixo) passa como veio. A pergunta
+    sugerida vem em `sugerida=aceitar:<chave>`; o envio da aba sem botão é 422, para não cair no
+    ramo antigo das habilidades."""
+    secao, tirar, sugerida = form.get("secao"), form.get("tirar"), form.get("sugerida")
+    if sugerida is not None:
+        acao, _, chave = str(sugerida).partition(":")
+        if not isinstance(sugerida, str) or not chave:
+            raise HTTPException(422)
+        return FormData([("secao", "sugerida"), ("acao", acao), ("chave", chave)]), None
+    if secao is None and tirar is None and any(c in form for c in _IDS_DADOS):
+        raise HTTPException(422)
     if secao == "habilidades":
         return FormData([(k, v) for k, v in form.multi_items() if k != "secao"]), None
     alvo = secao if tirar is None else tirar
@@ -447,6 +465,8 @@ async def gravar_perfil(
     if form.get("secao") == "curriculo":  # a revisão do que a IA leu do currículo (T436)
         return _gravar_curriculo(request, con, form)
     digitado = _digitado_na_aba(form)
+    if form.get("secao") == "nenhuma":  # o Enter sem JavaScript: não grava nada (T443)
+        return 200, digitado | {"nada_salvo": True}
     form, item = _envio_de_uma_secao(form)
     secao = form.get("secao")
     try:
@@ -467,7 +487,7 @@ async def gravar_perfil(
             perfil.gravar_dados(con, dados_do_form(form), relogio_do_painel(request).agora())
             digitado.pop("dados_tela", None)
         elif secao in _CAMPOS_ITEM:
-            _gravar_item(con, str(secao), form)
+            _gravar_item(con, str(secao), form, item is not None)
             if item is not None:  # o item gravado (ou tirado) volta como está no banco
                 digitado.get("itens_digitados", {}).pop(item, None)
         elif secao == "sugerida":

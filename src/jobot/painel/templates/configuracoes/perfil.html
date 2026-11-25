@@ -14,8 +14,10 @@
     erro (`erro_secao`) moram na seção, e o 422 com a seção também troca (`data-troca-422`, no
     app.js); o "Apagar perfil", fora delas, vem junto pelo `hx-select-oob`. Sem JavaScript, o
     formulário recarrega a página, que volta na seção (o `formaction` com a âncora). O Enter num
-    campo de item vai ao botão do item (`data-parte`, no app.js); sem JavaScript, o navegador
-    aperta o primeiro botão do formulário, o Salvar de "Sobre você".
+    campo vai ao botão da parte (`data-parte`, no app.js); sem JavaScript, o navegador aperta o
+    primeiro botão do formulário, o oculto `secao=nenhuma`, que não grava nada e devolve a página
+    com o digitado e o aviso `nada_salvo`. Ele vem antes das sugeridas, que também mandam o
+    formulário da aba (`form="perfil-aba"`, `sugerida=aceitar:<chave>`).
     As perguntas que a IA sugeriu numa candidatura esperam aqui o aceite (D234). -#}
 {% from "_alerta.html" import alerta with context %}
 {% from "configuracoes/_campos_perfil.html" import descrito, entrada, caixa, lista with context %}
@@ -70,6 +72,9 @@
   {{ botoes(novo, c.nome, prefixo, "cursos") }}
 </div>
 {%- endmacro %}
+{% if nada_salvo %}
+<p role="status" class="config-salvo" aria-live="polite">{{ t("configuracoes.perfil.nada_salvo") }}</p>
+{% endif %}
 {% if apagado %}
 <p role="status" class="config-salvo" aria-live="polite"><span data-some-sozinho>{{ t("configuracoes.perfil.apagado") }}</span></p>
 {% endif %}
@@ -80,6 +85,8 @@
   {%- set pp = privacidade_perguntas %}
   {%- if pp %} {% if pp.servico %}{{ t(pp.chave, servico=t(pp.servico)) }}{% else %}{{ t(pp.chave) }}{% endif %}{% endif -%}
 </p>
+{#- o primeiro botão do formulário da aba, o do Enter sem JavaScript: não grava nada (T443) -#}
+<button type="submit" form="perfil-aba" name="secao" value="nenhuma" hidden formnovalidate tabindex="-1"></button>
 {#- as perguntas que a IA sugeriu ao preparar candidaturas esperam o aceite (D234): só a aceita
     entra no questionário e, respondida, nos pedidos. O botão diz qual pergunta no nome acessível -#}
 {%- if perguntas_sugeridas or salvo_secao == "sugeridas" %}
@@ -88,16 +95,13 @@
   {{ aviso_da_secao("sugeridas") }}
   <p class="config-texto">{{ t("configuracoes.perfil.sugeridas.explicacao", teto=teto_sugeridas) }}</p>
   {%- for p in perguntas_sugeridas %}
-  <form method="post" action="/configuracoes/perfil" hx-post="/configuracoes/perfil" class="config-form">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-    <input type="hidden" name="secao" value="sugerida">
-    <input type="hidden" name="chave" value="{{ p.chave }}">
+  <div class="config-form">
     <p class="config-texto">{{ p.pergunta }}</p>
     <div class="acoes">
-      <button type="submit" name="acao" value="aceitar" class="botao botao-primario" aria-label="{{ t('configuracoes.perfil.sugeridas.aceitar') }}: {{ p.pergunta }}">{{ t("configuracoes.perfil.sugeridas.aceitar") }}</button>
-      <button type="submit" name="acao" value="descartar" class="botao botao-secundario" aria-label="{{ t('configuracoes.perfil.sugeridas.descartar') }}: {{ p.pergunta }}">{{ t("configuracoes.perfil.sugeridas.descartar") }}</button>
+      <button type="submit" form="perfil-aba" name="sugerida" value="aceitar:{{ p.chave }}" class="botao botao-primario" aria-label="{{ t('configuracoes.perfil.sugeridas.aceitar') }}: {{ p.pergunta }}"{{ envia("sugeridas") }}>{{ t("configuracoes.perfil.sugeridas.aceitar") }}</button>
+      <button type="submit" form="perfil-aba" name="sugerida" value="descartar:{{ p.chave }}" class="botao botao-secundario" aria-label="{{ t('configuracoes.perfil.sugeridas.descartar') }}: {{ p.pergunta }}"{{ envia("sugeridas") }}>{{ t("configuracoes.perfil.sugeridas.descartar") }}</button>
     </div>
-  </form>
+  </div>
   {%- else %}
   <p class="config-texto">{{ t("configuracoes.perfil.sugeridas.vazio") }}</p>
   {%- endfor %}
@@ -110,7 +114,7 @@
 <section class="config-bloco" aria-labelledby="perfil-sobre" id="bloco-sobre" hx-target="this" hx-select="#bloco-sobre" hx-swap="outerHTML" hx-select-oob="#perfil-apagar" data-troca-422>
   <h2 id="perfil-sobre">{{ t("configuracoes.perfil.sobre") }}</h2>
   {{ aviso_da_secao("sobre") }}
-  <div class="config-form">
+  <div class="config-form" data-parte>
     <fieldset class="grupo-leva grupo-campos" aria-describedby="perfil-contato-ajuda">
       <legend>{{ t("configuracoes.perfil.contato") }}</legend>
       <small id="perfil-contato-ajuda">{{ t("configuracoes.perfil.contato.ajuda") }}</small>

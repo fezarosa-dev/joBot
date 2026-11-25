@@ -43,8 +43,9 @@
     }
   });
 
-  // aba Perfil, um formulário só (T443): o Enter do navegador apertaria o primeiro botão (o Salvar de
-  // "Sobre você"); num campo de experiência ou curso, ele vai ao botão do próprio item
+  // aba Perfil, um formulário só (T443): o Enter do navegador apertaria o primeiro botão (o oculto,
+  // que não grava nada); num campo de "Sobre você", de experiência ou de curso, ele vai ao botão
+  // da própria parte
   document.addEventListener("keydown", (evento) => {
     const campo = evento.target;
     if (evento.key !== "Enter" || evento.isComposing || !(campo instanceof HTMLInputElement)) return;

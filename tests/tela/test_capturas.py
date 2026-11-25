@@ -4,7 +4,7 @@ O job `capturas` do CI roda este arquivo no Chromium, no Firefox e no WebKit, co
 `JOBOT_CAPTURAS` apontando a pasta que vira artefato. Sem a variável, as fotos vão para a pasta
 temporária do teste e só se prova que cada tela abre.
 As telas da 0.6.0 (T443): as abas Perfil e IA, os passos IA e Perfil da primeira execução e um
-detalhe com a candidatura preparada, que o serviço falso deixou gravada (nada sai da máquina).
+detalhe com a candidatura preparada, gravada direto no banco de teste (nada sai da máquina).
 """
 
 import os
@@ -36,7 +36,7 @@ TELAS = {
     "ia": "/configuracoes/ia",
     "assistente-ia": "/primeira-execucao/ia",
     "assistente-perfil": "/primeira-execucao/perfil",
-    "candidatura": "/vagas/2",  # a segunda semeada, com o preparo do serviço falso
+    "candidatura": "/vagas/2",  # a segunda semeada, com o preparo gravado direto
 }
 # as telas longas da 0.6.0 saem inteiras: o fim do formulário (experiências, cursos, o resultado
 # da candidatura) também se confere. A página rola dentro do `main`, não no documento (o
