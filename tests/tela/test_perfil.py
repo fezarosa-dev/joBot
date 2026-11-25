@@ -275,6 +275,47 @@ def test_enter_num_item_salva_o_item(page: Page, painel: str, tmp_path: Path) ->
         assert ([e.cargo for e in experiencias(con)], dados(con).nome) == (["Analista"], None)
 
 
+def test_enter_em_sobre_voce_salva_sobre_voce(page: Page, painel: str, tmp_path: Path) -> None:
+    """Com JavaScript, o Enter de "Sobre você" vai ao Salvar dele, não ao primeiro botão (T443)."""
+    page.goto(f"{painel}/configuracoes/perfil")
+    secao = page.get_by_role("region", name="Experiências")
+    cargo = secao.get_by_role("group", name="Nova experiência").get_by_role("textbox", name="Cargo")
+    cargo.fill("Analista")
+    sobre = page.get_by_role("region", name="Sobre você")
+    nome = sobre.get_by_role("textbox", name="Nome")
+    nome.fill("Ana")
+    nome.press("Enter")
+    expect(sobre.get_by_role("status").filter(has_text="Salvo.")).to_be_visible()
+    expect(cargo).to_have_value("Analista")
+    with closing(abrir(tmp_path / "jobot.db")) as con:
+        assert (dados(con).nome, experiencias(con)) == ("Ana", [])
+
+
+def test_enter_sem_javascript_nao_grava_nada(browser: Browser, painel: str, tmp_path: Path) -> None:
+    """Sem JavaScript, o Enter aperta o primeiro botão do formulário, que não grava nada e devolve
+    a página com o digitado (antes, gravava "Sobre você" com o Enter dado num item)."""
+    contexto = browser.new_context(java_script_enabled=False, locale="pt-BR")
+    try:
+        pagina = contexto.new_page()
+        pagina.goto(f"{painel}/configuracoes/perfil")
+        nome = pagina.get_by_role("region", name="Sobre você").get_by_role("textbox", name="Nome")
+        nome.fill("Ana")
+        nova = pagina.get_by_role("region", name="Experiências").get_by_role(
+            "group", name="Nova experiência"
+        )
+        cargo = nova.get_by_role("textbox", name="Cargo")
+        cargo.fill("Analista")
+        with pagina.expect_navigation():
+            cargo.press("Enter")
+        expect(pagina.get_by_role("status").filter(has_text="Nada foi salvo")).to_be_visible()
+        expect(nome).to_have_value("Ana")
+        expect(cargo).to_have_value("Analista")
+    finally:
+        contexto.close()
+    with closing(abrir(tmp_path / "jobot.db")) as con:
+        assert (dados(con).nome, experiencias(con)) == (None, [])
+
+
 def test_apagar_perfil_aparece_depois_do_primeiro_salvar(page: Page, painel: str) -> None:
     """Com HTMX, o primeiro Salvar traz o "Apagar perfil" sem recarregar a página (D230.8)."""
     page.goto(f"{painel}/configuracoes/perfil")
@@ -317,10 +358,13 @@ def test_aceitar_sugerida_sem_javascript(browser: Browser, painel: str, tmp_path
     try:
         pagina = contexto.new_page()
         pagina.goto(f"{painel}/configuracoes/perfil")
+        nome = pagina.get_by_role("region", name="Sobre você").get_by_role("textbox", name="Nome")
+        nome.fill("Ana")  # digitado, sem salvar: volta com a página (T443)
         secao = pagina.get_by_role("region", name="Perguntas sugeridas")
         with pagina.expect_navigation():
             secao.get_by_role("button", name="Aceitar: Usa Kubernetes?").click()
         expect(pagina.get_by_role("region", name="Perguntas sugeridas")).to_contain_text("Salvo.")
+        expect(nome).to_have_value("Ana")
     finally:
         contexto.close()
     assert _aceitas(tmp_path) == ["Usa Kubernetes?"]

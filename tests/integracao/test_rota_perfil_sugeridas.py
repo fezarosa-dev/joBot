@@ -84,13 +84,14 @@ def test_sugerida_aparece_com_aceitar_e_descartar(painel: Painel) -> None:
     secao = _secao(painel.http.get(PERFIL).text)
     assert secao is not None
     assert secao.css_first("h2").text().strip() == pt("configuracoes.perfil.sugeridas.titulo")
-    form = secao.css_first("form")
-    assert (form.attributes["method"], form.attributes["action"]) == ("post", PERFIL)
-    ocultos = {i.attributes["name"]: i.attributes["value"] for i in form.css("input[type=hidden]")}
-    assert ocultos == {CAMPO_CSRF: painel.token, "secao": "sugerida", "chave": "ia:k8s"}
-    botoes = {b.attributes["value"]: b.attributes["aria-label"] for b in form.css("button")}
+    # os botões mandam o formulário da aba, com o digitado nas outras seções (T443)
+    assert secao.css("form") == []
+    botoes = {b.attributes["value"]: b for b in secao.css("button")}
+    assert list(botoes) == ["aceitar:ia:k8s", "descartar:ia:k8s"]
+    for botao in botoes.values():
+        assert (botao.attributes["form"], botao.attributes["name"]) == ("perfil-aba", "sugerida")
     # o nome acessível começa pelo texto visível e diz qual pergunta (D230.2)
-    assert botoes == {
+    assert {v.split(":")[0]: b.attributes["aria-label"] for v, b in botoes.items()} == {
         "aceitar": f"{pt('configuracoes.perfil.sugeridas.aceitar')}: {K8S}",
         "descartar": f"{pt('configuracoes.perfil.sugeridas.descartar')}: {K8S}",
     }

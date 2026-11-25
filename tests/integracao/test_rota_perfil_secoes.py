@@ -356,3 +356,148 @@ def test_sem_javascript_o_envio_sem_csrf_e_recusado(http: Http) -> None:
     del envio[CAMPO_CSRF]
     assert http.post(PERFIL, data=envio).status_code == 403
     assert _gravados(http) == VAZIO
+
+
+# --- correções da revisão da T443 ---------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("botao", "campo", "chave"),
+    [("exp-nova", "exp-nova-cargo", "experiencias"), ("curso-nova", "curso-nova-nome", "cursos")],
+)
+def test_sem_javascript_reenviar_o_adicionar_nao_repete_o_item(
+    http: Http, botao: str, campo: str, chave: str
+) -> None:
+    """Sem 303, recarregar a página reenvia o formulário: o Adicionar repetido não grava de novo."""
+    envio = _envio(http.get(PERFIL).text, ("secao", botao), **DIGITADO)
+    assert http.post(PERFIL, data=envio).status_code == 200
+    assert http.post(PERFIL, data=envio).status_code == 200  # o reenvio
+    assert _gravados(http)[chave] == ESPERADO[chave]
+    assert _valor(http.get(PERFIL).text, campo) == ""
+
+
+def _botoes_da_aba(html: str) -> list[Any]:
+    """Os botões do formulário da aba na ordem da página: os de dentro e os com `form`."""
+    return LexborHTMLParser(html).css("button[form=perfil-aba], form#perfil-aba button")
+
+
+def test_sem_javascript_o_enter_nao_grava_outra_secao(http: Http) -> None:
+    """O Enter sem JavaScript aperta o primeiro botão do formulário: um botão oculto que não grava
+    nada e devolve a página com o digitado (antes, gravava "Sobre você")."""
+    with closing(abrir(http.banco)) as con:
+        agora = RelogioFalso().agora()
+        perfil.gravar_pergunta(con, "ia:k8s", "Usa Kubernetes?", "ia", agora, sugerida=True)
+    html = http.get(PERFIL).text
+    primeiro = _botoes_da_aba(html)[0]
+    atributos = primeiro.attributes
+    assert (atributos.get("name"), atributos.get("value")) == ("secao", "nenhuma")
+    assert "hidden" in atributos and "formnovalidate" in atributos
+    resposta = http.post(PERFIL, data=_envio(html, ("secao", "nenhuma"), **DIGITADO))
+    assert resposta.status_code == 200
+    assert _gravados(http) == VAZIO
+    for campo_id, nome in CAMPO.values():
+        assert _valor(resposta.text, campo_id) == DIGITADO[nome], campo_id
+    assert pt("configuracoes.perfil.nada_salvo") in _fora_das_secoes(resposta.text)
+
+
+def test_sem_javascript_aceitar_sugerida_guarda_o_digitado(http: Http) -> None:
+    """As perguntas sugeridas também mandam o formulário da aba (D230.8, D237.3)."""
+    with closing(abrir(http.banco)) as con:
+        agora = RelogioFalso().agora()
+        perfil.gravar_pergunta(con, "ia:k8s", "Usa Kubernetes?", "ia", agora, sugerida=True)
+    html = http.get(PERFIL).text
+    botoes = LexborHTMLParser(html).css("#bloco-sugeridas button")
+    assert [(b.attributes.get("form"), b.attributes.get("name")) for b in botoes] == [
+        ("perfil-aba", "sugerida")
+    ] * 2
+    assert [b.attributes.get("value") for b in botoes] == ["aceitar:ia:k8s", "descartar:ia:k8s"]
+    for botao in botoes:
+        assert botao.attributes.get("formaction") == f"{PERFIL}#perfil-sugeridas"
+        assert "formnovalidate" in botao.attributes and botao.attributes.get("hx-post") == PERFIL
+    resposta = http.post(PERFIL, data=_envio(html, ("sugerida", "aceitar:ia:k8s"), **DIGITADO))
+    assert resposta.status_code == 200
+    with closing(abrir(http.banco)) as con:
+        assert [p.chave for p in perfil.perguntas(con)] == ["ia:k8s"]
+    assert _gravados(http) == VAZIO
+    for campo_id, nome in CAMPO.values():
+        assert _valor(resposta.text, campo_id) == DIGITADO[nome], campo_id
+    salvo = LexborHTMLParser(resposta.text).css_first("#bloco-sugeridas [role=status]")
+    assert salvo is not None and _texto(salvo.html or "").strip() == pt("configuracoes.salvo")
+
+
+@pytest.mark.parametrize("valor", ["aceitar", "outra:ia:k8s", ":ia:k8s"])
+def test_sem_javascript_sugerida_desconhecida_e_422(http: Http, valor: str) -> None:
+    envio = _envio(http.get(PERFIL).text, ("sugerida", valor))
+    assert http.post(PERFIL, data=envio).status_code == 422
+
+
+def test_sem_javascript_salvar_item_que_saiu_devolve_o_digitado(http: Http) -> None:
+    """O item que outra aba tirou não volta sozinho, mas o digitado nele volta no item novo, com o
+    aviso na seção, e o das outras seções também (antes: 404 seco)."""
+    with closing(abrir(http.banco)) as con:
+        perfil.gravar_experiencia(con, perfil.Experiencia("Analista"))
+        (id_,) = (e.id for e in perfil.experiencias(con))
+    html = http.get(PERFIL).text
+    with closing(abrir(http.banco)) as con:
+        perfil.apagar_experiencia(con, id_)  # a outra aba
+    trocas = {f"exp-{id_}-cargo": "Analista sênior", "habilidades": "Go"}
+    resposta = http.post(PERFIL, data=_envio(html, ("secao", f"exp-{id_}"), **trocas))
+    assert resposta.status_code == 422
+    assert _gravados(http)["experiencias"] == []
+    secao = LexborHTMLParser(resposta.text).css_first("#bloco-experiencias")
+    assert secao is not None
+    alerta = secao.css_first("#config-erro")
+    assert alerta is not None
+    assert pt("configuracoes.perfil.erro.saiu") in _texto(alerta.html or "")
+    assert _valor(resposta.text, "exp-nova-cargo") == "Analista sênior"
+    assert _valor(resposta.text, "campo-habilidades") == "Go"
+
+
+def test_salvar_item_que_saiu_sozinho_segue_404(http: Http) -> None:
+    """O envio de uma seção sozinha (sem o digitado das outras) segue com o 404 (D230.2)."""
+    dados = {"secao": "experiencia", "id": "99", "cargo": "Analista"}
+    dados |= {"empresa": "", "inicio": "", "fim": "", "descricao": ""}
+    assert http.gravar(dados).status_code == 404
+
+
+def test_envio_da_aba_sem_botao_e_422(http: Http) -> None:
+    """Sem o botão, o envio com as outras seções não cai no ramo antigo das habilidades."""
+    envio = _envio(http.get(PERFIL).text, ("secao", "habilidades"), **DIGITADO)
+    del envio["secao"]
+    assert http.post(PERFIL, data=envio).status_code == 422
+    assert _gravados(http) == VAZIO
+
+
+def test_sem_javascript_volta_a_lista_e_o_outro_idioma_digitados(http: Http) -> None:
+    trocas = {"formacao_nivel": "graduacao", "idioma_en": "fluente", "outro_nome": "Alemão"}
+    trocas |= {"outro_nivel": "basico", "curso-nova-situacao": "cursando"}
+    resposta = http.post(
+        PERFIL, data=_envio(http.get(PERFIL).text, ("secao", "habilidades"), **trocas)
+    )
+    assert resposta.status_code == 200
+    arvore = LexborHTMLParser(resposta.text)
+    for campo_id, valor in [
+        ("perfil-formacao", "graduacao"),
+        ("perfil-idioma-en", "fluente"),
+        ("perfil-outro-1-nivel", "basico"),
+        ("curso-nova-situacao", "cursando"),
+    ]:
+        opcao = arvore.css_first(f"#{campo_id} option[selected]")
+        assert opcao is not None and opcao.attributes.get("value") == valor, campo_id
+    assert _valor(resposta.text, "perfil-outro-1") == "Alemão"
+
+
+def test_sem_javascript_erro_num_item_guarda_o_digitado_no_outro(http: Http) -> None:
+    with closing(abrir(http.banco)) as con:
+        perfil.gravar_experiencia(con, perfil.Experiencia("Analista"))
+        perfil.gravar_experiencia(con, perfil.Experiencia("Gerente"))
+        analista, gerente = (e.id for e in perfil.experiencias(con))
+    trocas = {f"exp-{analista}-inicio": "2020-13", f"exp-{gerente}-cargo": "Gerente de projetos"}
+    html = http.get(PERFIL).text
+    resposta = http.post(PERFIL, data=_envio(html, ("secao", f"exp-{analista}"), **trocas))
+    assert resposta.status_code == 422
+    assert _valor(resposta.text, f"exp-{analista}-inicio") == "2020-13"
+    assert _valor(resposta.text, f"exp-{gerente}-cargo") == "Gerente de projetos"
+    arvore = LexborHTMLParser(resposta.text)
+    marcados = [n.attributes.get("id") for n in arvore.css("[aria-invalid=true]")]
+    assert marcados == [f"exp-{analista}-inicio"]
