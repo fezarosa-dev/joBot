@@ -31,6 +31,10 @@ The second part of the AI arrives, optional and off by default: the full profile
 - If you were on "All Claude" or "All offline" in the 0.5.0 AI tab, you now see "Custom": the new tasks start off, and Matching stays as it was.
 - For contributors: `scripts/treino_laya/treinar.py` merges the LoRA through Qwen3.5's image-and-text class and copies the tokenizer from the original repository, and training leaves the vision tower out; the training `requirements.txt` gains `torchvision`, `pillow` and `flash-linear-attention`.
 
+### Fixed
+
+- AppImage on Linux: when the window closed, the built-in browser processes (WebKit) crashed because the AppImage unmounted its files before they exited, and the system spent CPU and memory recording the crash. The window now ends those processes before it exits. The "Keep running" server stays up. The bug dated back to 0.4.0.
+
 ## [0.5.0] - 2026-11-24
 
 AI arrives, optional and off by default: it lists the skills each job asks for, and joBot compares them with the ones in your profile. It runs on the local model, free and without internet once downloaded, or on a service with your key.
