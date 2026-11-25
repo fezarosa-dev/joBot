@@ -48,7 +48,9 @@ VALIDAS: dict[str, dict[str, object]] = {
     "perguntas": {"perguntas": [{"pergunta": "Já usou Kubernetes?", "por_que": "a vaga pede"}]},
     "candidatura": {"idioma": "pt", "carta": "Olá.", "resumo": "Dev Python.", "usou": ["resumo"]},
 }
-TIMINGS = {"prompt_n": 3000, "predicted_n": 400}
+# o `llama-server` sobe com `-np 1`: o prefixo igual ao do pedido anterior vem do cache (`cache_n`)
+# e só o resto é lido de novo (`prompt_n`); o pedido inteiro é a soma
+TIMINGS = {"prompt_n": 2500, "cache_n": 500, "predicted_n": 400}
 
 
 class _Gravado(BackendFalso):
@@ -105,6 +107,9 @@ def test_curriculo_vem_do_pdf_montado_e_os_longos_passam_do_corte() -> None:
     assert "The resume was cut" in casos["curriculo_longo"]
     assert "was cut" not in casos["candidatura"]
     assert "The posting was cut" in casos["candidatura_longa"]
+    # o perfil longo passa do corte da candidatura no local: o maior pedido que o produto manda
+    assert casos["candidatura_longa"].endswith("[...]\nPERFIL>>>")
+    assert not casos["candidatura"].endswith("[...]\nPERFIL>>>")
     corte = limites()["tarefas"]["perguntas"]["corte"]["caracteres"]
     assert len(casos["perguntas"]) < corte < len(casos["perguntas_longo"])
 
@@ -158,8 +163,8 @@ def test_passar_do_prazo_nao_passa() -> None:
         assert (medida.valida, medida.no_prazo, medida.passou) == (True, passou, passou)
 
 
-def _lidos(n: int) -> Callable[[Pedido], dict[str, Any] | None]:
-    return lambda _: {"prompt_n": n}
+def _lidos(n: int, cache: int = 100) -> Callable[[Pedido], dict[str, Any] | None]:
+    return lambda _: {"prompt_n": n - cache, "cache_n": cache}
 
 
 def test_passar_do_contexto_nao_passa() -> None:
@@ -169,7 +174,25 @@ def test_passar_do_contexto_nao_passa() -> None:
         timings: list[dict[str, Any] | None] = []
         backend = _Gravado(_validas(casos), timings, _lidos(lidos))
         [medida] = provar.provar(backend, casos, timings, relogio=_relogio(1))
-        assert (medida.valida, medida.cabe, medida.passou) == (True, cabe, cabe)
+        assert (medida.leitura_n, medida.valida, medida.cabe, medida.passou) == (
+            lidos,
+            True,
+            cabe,
+            cabe,
+        )
+
+
+def test_sem_cache_n_nao_inventa_numero_e_nao_passa() -> None:
+    casos = _casos()[:1]
+    timings: list[dict[str, Any] | None] = []
+    backend = _Gravado(_validas(casos), timings, lambda _: {"prompt_n": 10, "predicted_n": 5})
+    [medida] = provar.provar(backend, casos, timings, relogio=_relogio(1))
+    assert (medida.leitura_n, medida.geracao_n, medida.cabe, medida.passou) == (
+        None,
+        5,
+        False,
+        False,
+    )
 
 
 def test_sem_timings_nao_inventa_numero_e_nao_passa() -> None:
@@ -226,7 +249,8 @@ def test_main_escreve_o_resumo_e_sai_com_zero_quando_tudo_passa(tmp_path: Path) 
     for nome in NOMES:
         assert f"| ubuntu | {nome} |" in texto
     assert "| 3000 | 400 |" in texto
-    assert "| 3000 | 400 | 1536 | sim | 2 | valida | passou |" in texto
+    assert "| 3000 | 400 | 1536 | sim | 2 | não | valida | passou |" in texto
+    assert "| leu o essencial |" in texto
 
 
 def test_main_sai_com_um_quando_um_caso_nao_passa(tmp_path: Path) -> None:
@@ -252,3 +276,45 @@ def test_main_sai_com_dois_sem_subir_o_servidor(motivo: str) -> None:
         raise Falha(cast(Motivo, motivo))
 
     assert provar.main([], env={}, montar=montar) == 2
+
+
+_EXP = [{"cargo": "Dev", "empresa": "X", "inicio": "2021-03"}]
+
+
+@pytest.mark.parametrize(
+    ("tarefa", "dados", "leu"),
+    [
+        ("curriculo", {"habilidades": ["Python"], "experiencias": _EXP}, True),
+        ("curriculo", {"habilidades": [], "experiencias": _EXP}, False),
+        ("curriculo", {"habilidades": ["Python"], "experiencias": []}, False),
+        ("curriculo", {"formacao_nivel": "tecnico", "cursos": [{"nome": "AWS"}]}, False),
+        ("perguntas", {"perguntas": [{"pergunta": "Usou Go?"}, {"pergunta": "Tem CNH?"}]}, True),
+        (
+            "perguntas",
+            {"perguntas": [{"pergunta": "Usou Go?"}, {"pergunta": " usou  go? "}]},
+            False,
+        ),
+        ("perguntas", {"perguntas": []}, False),
+        ("candidatura", {"carta": "Olá, sou dev Python."}, True),
+        ("candidatura", {"carta": "Atenciosamente,\n[Seu Nome]"}, False),
+        ("candidatura", {"carta": ""}, False),
+    ],
+)
+def test_leu_o_essencial_por_tarefa(tarefa: str, dados: dict[str, object], leu: bool) -> None:
+    """Além do esquema (que aceita a resposta vazia): o currículo trouxe experiências e
+    habilidades, as perguntas não se repetem e a carta não deixa lugar para preencher."""
+    assert provar.leu_o_essencial(tarefa, dados) is leu
+
+
+def test_leu_o_essencial_so_informa_e_falha_fica_sem() -> None:
+    casos = _casos()[:2]
+    timings: list[dict[str, Any] | None] = []
+    prontas: list[dict[str, object] | Falha] = [
+        {"cargo_atual": "Dev", "habilidades": ["Python"], "experiencias": _EXP},
+        {"formacao_nivel": "tecnico"},
+    ]
+    medidas = provar.provar(_Gravado(prontas, timings), casos, timings, relogio=_relogio(1))
+    assert [(m.essencial, m.passou) for m in medidas] == [(True, True), (False, True)]
+    prontas = [Falha("tempo_esgotado")]
+    [medida] = provar.provar(_Gravado(prontas, timings), casos[:1], timings, relogio=_relogio(1))
+    assert medida.essencial is None

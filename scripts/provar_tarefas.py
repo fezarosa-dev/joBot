@@ -171,6 +171,7 @@ class Medida:
     prazo_s: float
     motivo: str | None  # a `Falha`; None = a resposta validou no esquema
     campos: tuple[str, ...] = ()  # os da resposta com valor: o esquema aceita a resposta vazia
+    essencial: bool | None = None
 
     @property
     def valida(self) -> bool:
@@ -188,6 +189,10 @@ class Medida:
     @property
     def passou(self) -> bool:
         return self.valida and self.no_prazo and self.cabe
+
+
+def leu_o_essencial(tarefa: str, dados: Mapping[str, Any]) -> bool | None:
+    return None  # esqueleto do vermelho
 
 
 def _numero(timings: Mapping[str, Any] | None, chave: str) -> int | None:
