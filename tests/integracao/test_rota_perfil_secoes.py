@@ -437,6 +437,7 @@ def test_sem_javascript_salvar_item_que_saiu_devolve_o_digitado(http: Http) -> N
     with closing(abrir(http.banco)) as con:
         perfil.gravar_experiencia(con, perfil.Experiencia("Analista"))
         (id_,) = (e.id for e in perfil.experiencias(con))
+    assert id_ is not None
     html = http.get(PERFIL).text
     with closing(abrir(http.banco)) as con:
         perfil.apagar_experiencia(con, id_)  # a outra aba
