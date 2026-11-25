@@ -21,11 +21,46 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Portão (pedido do dono, 2026-11-25): a tag só publica se o mesmo código passou no CI
+  # inteiro e no ensaio da Casca com pacotes e ia=true. Compara a árvore, não o sha: o CI do
+  # PR roda no commit da dev, que tem a mesma árvore do merge na main. Sem isso, falha.
+  portao:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: CI e ensaio verdes na árvore da tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          arvore() { gh api "repos/$GITHUB_REPOSITORY/git/commits/$1" --jq .tree.sha; }
+          alvo=$(arvore "$GITHUB_SHA")
+          # verde <fluxo> <filtro jq dos jobs, vazio = basta o run verde>
+          verde() {
+            local id sha
+            while read -r id sha; do
+              [ "$(arvore "$sha")" = "$alvo" ] || continue
+              [ -z "$2" ] && return 0
+              gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/jobs?per_page=100" --jq "$2" | grep -q . && return 0
+            done < <(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/$1/runs?status=success&per_page=100" \
+                       --jq '.workflow_runs[] | "\(.id) \(.head_sha)"')
+            return 1
+          }
+          verde ci.yml '' || { echo "::error::nenhum CI verde na árvore $alvo da tag"; exit 1; }
+          verde casca.yml '[.jobs[] | select(.conclusion == "success") | .name]
+            | select(any(startswith("pacotes / juntar")) and any(startswith("ia"))) | "ok"' \
+            || { echo "::error::nenhum ensaio da Casca com pacotes e ia=true verde na árvore $alvo da tag"; exit 1; }
+          echo "CI e ensaio verdes na árvore $alvo"
+
   pacotes:
     uses: ./.github/workflows/pacotes.yml
 
   publicar:
-    needs: pacotes
+    needs: [portao, pacotes]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     timeout-minutes: 30

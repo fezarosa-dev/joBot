@@ -637,7 +637,12 @@ jobs:
           for changelog in CHANGELOG.md CHANGELOG.en.md; do
             secao "$changelog" | grep -q '[^[:space:]]' || { echo "sem a seção $VERSAO no $changelog"; exit 1; }
           done
-          { secao CHANGELOG.md; echo; echo '---'; echo; secao CHANGELOG.en.md; } > release/notas.md
+          # o guia de instalação (qual arquivo baixar e o que é cada anexo) vem antes das novidades
+          {
+            sed "s/{versao}/$VERSAO/g" .github/release-instalar.md; secao CHANGELOG.md
+            echo; echo '---'; echo
+            sed "s/{versao}/$VERSAO/g" .github/release-install.en.md; secao CHANGELOG.en.md
+          } > release/notas.md
           cat release/notas.md
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

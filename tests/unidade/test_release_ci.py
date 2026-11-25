@@ -73,11 +73,12 @@ def test_release_so_por_tag_ou_a_mao_e_so_o_publicar_escreve() -> None:
     assert "pull_request" not in texto
     assert _secao(texto, "permissions") == ["contents: read"]
     assert texto.count("contents: write") == 1
-    # um permissions no topo e um no publicar, só com contents: write
-    assert texto.count("permissions:") == 2
+    # um permissions no topo, um no portão (só leitura) e um no publicar
+    assert texto.count("permissions:") == 3
     assert _permissoes_do_job(RELEASE, "publicar") == ["contents: write"]
+    assert _permissoes_do_job(RELEASE, "portao") == ["actions: read", "contents: read"]
     assert set(re.findall(r"secrets\.\w+", texto)) == {"secrets.GITHUB_TOKEN"}
-    assert texto.count("secrets") == 1
+    assert texto.count("secrets") == 2
 
 
 def _permissoes_do_job(caminho: Path, nome: str) -> list[str]:
@@ -110,10 +111,10 @@ def test_actions_fixadas_por_hash_com_versao() -> None:
 
 
 def test_release_monta_pelo_pacotes_e_publica_so_na_tag() -> None:
-    assert _jobs(RELEASE) == ["pacotes", "publicar"]
+    assert _jobs(RELEASE) == ["portao", "pacotes", "publicar"]
     assert "uses: ./.github/workflows/pacotes.yml" in _job(RELEASE, "pacotes")
     publicar = _job(RELEASE, "publicar")
-    assert "needs: pacotes" in publicar
+    assert "needs: [portao, pacotes]" in publicar
     assert "if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')" in publicar
     assert "gh release create" in publicar
     # sem --latest: o gh marca a release nova como a latest, que o versao.py lê
@@ -126,6 +127,49 @@ def test_release_monta_pelo_pacotes_e_publica_so_na_tag() -> None:
     assert "sha256sum -c" in publicar
     assert "merge-multiple" not in publicar and "> SHA256SUMS" not in publicar
     assert "--notes-file ../notas.md" in publicar
+
+
+def test_portao_so_publica_com_ci_e_ensaio_verdes_na_arvore_da_tag() -> None:
+    # pedido do dono (2026-11-25): a tag não publica código que não passou no CI inteiro e no
+    # ensaio da Casca com pacotes e ia=true; a árvore conta, não o sha (o PR roda na dev)
+    portao = _job(RELEASE, "portao")
+    assert "if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')" in portao
+    assert "git/commits/" in portao and ".tree.sha" in portao
+    assert "actions/workflows/$1/runs?status=success" in portao
+    assert "verde ci.yml ''" in portao and "verde casca.yml" in portao
+    assert 'startswith("pacotes / juntar")' in portao and 'startswith("ia")' in portao
+    assert portao.count("exit 1") == 2
+
+
+GUIAS = [RAIZ / ".github" / "release-instalar.md", RAIZ / ".github" / "release-install.en.md"]
+
+
+def test_notas_comecam_pelo_guia_de_instalacao_com_os_nomes_da_versao() -> None:
+    # pedido do dono (2026-11-25): o texto de toda release diz qual arquivo baixar, como
+    # instalar e o que é cada anexo; o guia vem antes das novidades, em pt e em en
+    juntar = _job(PACOTES, "juntar")
+    assert 'sed "s/{versao}/$VERSAO/g" .github/release-instalar.md' in juntar
+    assert 'sed "s/{versao}/$VERSAO/g" .github/release-install.en.md' in juntar
+    notas = juntar.split("> release/notas.md")[0]
+    assert notas.index("release-instalar.md") < notas.index("secao CHANGELOG.md")
+    assert notas.index("secao CHANGELOG.md") < notas.index("release-install.en.md")
+    assert notas.index("release-install.en.md") < notas.index("secao CHANGELOG.en.md")
+    anexos = [
+        "joBot_{versao}_x64-setup.exe",
+        "joBot_{versao}_amd64.deb",
+        "joBot-{versao}-1.x86_64.rpm",
+        "joBot_{versao}_amd64.AppImage",
+        "joBot_{versao}_aarch64.dmg",
+        "joBot_{versao}_x64.dmg",
+        "jobot-atualizacao-{versao}-",
+        "jobot-{versao}-py3-none-any.whl",
+        "restricoes.txt",
+        "SHA256SUMS",
+    ]
+    for guia in GUIAS:
+        texto = guia.read_text(encoding="utf-8")
+        for anexo in anexos:
+            assert anexo in texto, (guia.name, anexo)
 
 
 def test_juntar_monta_os_anexos_o_sha256sums_e_as_notas() -> None:
