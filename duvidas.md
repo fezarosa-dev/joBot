@@ -4583,3 +4583,54 @@ A sessão propôs abrir o painel no Chrome da pessoa como janela de app. O dono 
 **Como desfazer:** o dono reabre qualquer item; as decisões citadas trazem o "como desfazer" de cada uma. Os itens 3 e 4 ainda não mudaram o código: o 3 entra na T443 e o 4 na T444, e a release da 0.6.0 (T441) espera as duas.
 
 **Ver também:** D124, D185 (itens 5, 6, 18 e 27), D197 a D236, D199, D219, D221, D229, D230, D234, T343.
+
+## D238. A fase 8 (versão GitHub Pages) vem antes da fase 5 (extensão)
+
+**Status:** decidida pelo dono em 2026-11-24.
+
+**Contexto:** a ADR 0017 punha a extensão do navegador (fase 5) antes da versão GitHub Pages (fase 8). Em 2026-11-24 o dono perguntou se dava para mudar a ordem e desenvolver o GitHub Pages antes da extensão, e decidiu que sim.
+
+**Decisão do dono:** a fase 8 é construída logo depois da fase 4 (a 0.6.0), antes da fase 5. Os números e os nomes das fases não mudam; muda só a ordem de execução. A release 0.6.0, que corre em paralelo, não muda.
+
+**Notas da sessão:**
+
+1. Nada técnico da fase 8 depende das fases 5, 6 ou 7: ela usa o núcleo, os coletores, o encaixe e a IA manual da 0.6.0 (desenho `docs/superpowers/specs/2026-11-24-fase-8-design.md`, seção 4).
+2. A ADR 0017 ganha a ordem nova e a fase 8 "em desenho". O roteiro do README (pt e en) e da wiki (Roteiro e Roadmap) muda na entrega dos documentos da 0.7.0, não agora: a release 0.6.0 mexe nos mesmos arquivos em paralelo, e mudar os dois lados de uma vez daria conflito.
+
+**Como desfazer:** voltar a frase da ordem na ADR 0017; o desenho da fase 8 não depende da ordem.
+
+**Ver também:** ADR 0002, ADR 0017, D239.
+
+## D239. Fase 8, versão GitHub Pages: escolhas do desenho (escolha da sessão, para discutir com o dono)
+
+**Status:** decidido pela sessão em 2026-11-24, escolha da sessão, para discutir com o dono. Só documentos: nenhum código, workflow ou dado mudou. O dono pediu, em 2026-11-24, para a sessão seguir sozinha pelas fases, decidindo e registrando.
+
+**Contexto:** com a ordem nova (D238), a fase 8 é a próxima depois da 0.6.0. O desenho (`docs/superpowers/specs/2026-11-24-fase-8-design.md`) levantou o que já existe e fechou os pontos abertos da ADR 0002 (o que a IA manual faz no encaixe, se os esquemas da IA viram dados que as duas versões leem, a reativação do agendamento) e os novos (termos das fontes para um site aberto, o Discord). D239.n é o item n da seção 12 do desenho.
+
+1. **Termos: fonte sem anotação fica fora.** Arquivo novo `nucleo/dados/publicacao.json` com `site` (`inteiro`, `resumo`, `fora`), `feed`, endereço, data e trecho dos termos de cada fonte; um teste exige toda chave de `descobrir()`. Texto inteiro só onde o termo autoriza exibir ou redistribuir de forma expressa: Jobicy (permite guardar e redistribuir, com crédito) e Himalayas (permite exibir no próprio site; proíbe repassar, também por feed). Resumo e link: RemoteOK, We Work Remotely, Greenhouse, Lever, Ashby (só `isListed`) e issues do GitHub (sem o corpo, que traz nomes e contatos). Leituras de 2026-11-24 na seção 5 do desenho. Desfazer: trocar o valor da fonte no arquivo.
+2. **Remotive fora do site e do feed.** A API existe para exibir vagas com crédito, mas o termo pede para não mandar as vagas a sites de terceiros e cita agregadores como o tipo proibido; o site do joBot é um agregador aberto. A D219.14 já a tinha deixado fora do Laya pelo mesmo trecho. **Para o dono:** liberar no site como resumo, com crédito, se ler o termo de outro jeito. Desfazer: `site: resumo` na Remotive.
+3. **Fontes sem termos lidos ficam fora até a leitura.** SmartRecruiters, Workday, Eightfold, Oracle HCM, InHire, Quickin, Recrutei, Sólides, CIEE, IEL, Super Estágios, Cia de Talentos, USP, Google, Amazon e a descoberta pelo Common Crawl. Eureca, Abler e Gupy ficam fora pela ADR 0004; Hacker News pelos termos do Y Combinator. A leitura das brasileiras é a primeira tarefa da 0.7.0, porque sem elas o site tem pouca vaga do Brasil. Desfazer: anotar a fonte no arquivo.
+4. **Workflow `pages.yml`.** Agenda diária às 7:41 UTC, `workflow_dispatch` e push na `main` só em `web/**` e nos scripts do Pages; nunca em PR; permissões `contents: write`, `pages: write`, `id-token: write` e `actions: write`, sem nenhum segredo; deploy pelas Actions oficiais do Pages fixadas por hash; reativação no último passo (D218). Desfazer: apagar o workflow.
+5. **A coleta é o executor de verdade num banco temporário.** `scripts/pages.py coletar` roda `executar_busca` com as fontes permitidas ligadas, o `ClienteEducado` e o tratamento do núcleo; nada copiado. Desfazer: trocar por um script próprio como o do vigia (com o custo de copiar a regra).
+6. **Na 0.7.0, só fontes que não pedem termo de busca.** O site não tem as buscas de ninguém; uma lista fixa de termos amplos fica para depois. Desfazer: pôr a lista de termos no `coletar`.
+7. **Retenção e teto.** O ramo `dados` é sobrescrito por um commit órfão único (exceção à regra de não reescrever histórico da ADR 0016, só nesse ramo, que já vinha da ADR 0002); vaga não vista há 7 dias ou com prazo vencido sai; `vista_em` vem do `vagas.json` de ontem; `vagas.json` acima de 20 MB falha sem publicar. O "nada é apagado" vale para o banco de cada pessoa, não para o retrato público. Desfazer: trocar os 7 dias e o teto (constantes propostas do `coletar`).
+8. **Feed Atom das vagas novas.** Só metadados, até 200 entradas, só fontes com `feed` sim (Himalayas, Remotive e WWR não; a WWR até alguém reler o aviso). Desfazer: tirar o `feed.xml` do `montar`.
+9. **Rótulos e tratamento no Python do Actions; só o encaixe e a normalização em JavaScript.** O site recebe os rótulos prontos; a paridade cobre umas 200 linhas em vez do tratamento inteiro. A ADR 0007 previa as regras de rótulo lidas também pelo JavaScript; com isso, só o `encaixe.json` precisa ser lido pelos dois. Desfazer: portar `rotulos.py` e o resto do tratamento para JavaScript, com paridade.
+10. **Salário mínimo da busca no site só em reais.** A vaga já traz `salario_mensal_brl` convertido no Actions; nenhum câmbio roda no navegador. Desfazer: publicar as cotações do dia e portar a conversão.
+11. **Código fora do pacote, sem npm.** `scripts/pages.py` (coletar e montar) e `web/` (templates, JavaScript em módulos ES puros, CSS próprio e catálogos `web/i18n/{pt,en}.json`); o build copia o CSS, a Inter e os ícones do painel; sem framework, bundler nem TypeScript (o TypeScript da ADR 0012 é da extensão). Desfazer: mover para outro lugar; nada no pacote depende disso.
+12. **CSP em meta, só `'self'`, sem nada inline.** O Pages não aceita cabeçalho; `frame-ancestors` não vale em meta (teto conhecido). Desfazer: afrouxar a política no template.
+13. **Faixa "baixe a versão completa".** Fixa, sem fechar, com o texto pt e en da seção 7.3 do desenho e o link para a página Instalar (Install) da wiki. Desfazer: trocar o texto no catálogo.
+14. **Origem compartilhada do `github.io`.** O `localStorage` de `<dono>.github.io` é o mesmo para todo site do Pages da conta: chaves com prefixo `jobot:`, aviso na página Sobre e nenhum outro site da conta com script de terceiros. **Para o dono:** um domínio próprio isolaria a origem (opcional). Desfazer: nada a desfazer além do aviso.
+15. **Formato `jobot-perfil` versão 1, nos dois lados.** Perfil, buscas e status por `url_hash`; nunca chave, senha, cookie ou dado de vaga; importar mostra o resumo e só grava com OK; status de vaga desconhecida fica fora e aparece na contagem; na versão local, status importado vira evento novo (nada apagado). A versão local ganha Exportar e Importar em Configurações › Perfil. Desfazer: tirar os botões; o formato fica documentado.
+16. **Os esquemas e os moldes da IA saem do Python no build.** Resposta ao ponto aberto da ADR 0002: os modelos pydantic continuam a fonte da verdade, e o `montar` exporta `moldes_ia.json` (mensagens, ordem dos blocos, `PEDE_JSON` por idioma, esquema sem descrições); o JavaScript só lê. A IA manual não faz encaixe no site, como na versão local (D229.1). Desfazer: escrever os esquemas à mão em JSON, com teste de igualdade.
+17. **Chave do visitante (Haiku) fora desta fase.** A chave no `localStorage` ficaria ao alcance de qualquer falha de script da origem compartilhada, a CSP teria de abrir a API de fora e a chamada direta do navegador pede o cabeçalho de acesso direto da Anthropic. Continua como opção para depois, desligada por padrão. Desfazer: desenhar a opção numa versão seguinte, com a chave só na sessão do navegador.
+18. **Habilidades por IA nas vagas do site fora desta fase.** Rodar o Laya no runner, em CPU, seria grátis e sem segredo, mas o tempo para centenas de vagas por dia não foi medido. Desfazer: medir e propor numa versão seguinte.
+19. **Discord.** Feed na 0.7.0. Na 0.8.0, um canal de Anúncios no servidor do dono que outros servidores seguem pelo recurso nativo do Discord: sem bot nosso 24 horas, sem estado por servidor, sem segredo de outro servidor no repositório. Alimentado por (a, recomendado) um bot de RSS da conta do dono lendo o feed, que mantém a regra "nenhum segredo no Actions" da ADR 0002, ou (b) um webhook do canal do dono como segredo num Environment protegido, exceção à ADR 0002 que só o dono abre. O nível 1 (webhook no painel local) é da versão local e fica fora. **Para o dono:** o servidor e o canal (Comunidade) e a escolha entre (a) e (b). Desfazer: não criar o canal; o feed segue servindo a quem quiser.
+20. **Versões.** 0.7.0: coleta, site, encaixe, perfil, exportar e importar, faixa e feed. 0.8.0: IA manual no site e canal do Discord. Desfazer: juntar tudo numa versão.
+21. **Testes do JavaScript no Chromium do Playwright, a partir do pytest.** Sem Node nem npm no projeto; os casos de paridade são gerados pelo Python das nossas fixtures, mais casos de borda de Unicode (`ß`, `İ`, NBSP, marcas combinantes, `\w` Unicode), e o teste em Python reprova o arquivo de casos velho. Desfazer: rodar os mesmos casos com o executor de testes do Node.
+
+**Também mudou:** a ADR 0002 ganha nota sobre o que a fase 8 decide (encaixe só por regras no site, esquemas exportados do Python, chave do visitante adiada, ponto aberto do ramo `dados` fechado pela reativação da D218); a ADR 0007 ganha nota de que só o `encaixe.json` é lido pelo JavaScript; a ADR 0017 ganha a ordem nova (D238) e a fase 8 em desenho.
+
+**Como desfazer:** cada item diz o seu; nada foi construído.
+
+**Ver também:** ADR 0002, 0004, 0007, 0016, 0017, 0018, 0021, D218, D219.14, D227, D229, D238.
