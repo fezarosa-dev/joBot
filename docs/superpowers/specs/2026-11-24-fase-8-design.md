@@ -1,6 +1,6 @@
 # Fase 8: versão GitHub Pages (desenho)
 
-Data: 2026-11-24, revisto no mesmo dia com os achados da revisão (seção 17). Decisões de origem: ADR 0002 (duas versões, um núcleo: a base desta fase), 0004 e 0005 (coleta educada; nada com login), 0007 (regras em Python e em JavaScript), 0014 (sem telemetria), 0016 (sala limpa), 0017 (fases), 0018 (CI aberto, vigia), 0021 (dependências à mão), 0023 e 0026 (IA da fase 4); D218 (vigia que se reativa), D219.14 (termos lidos para o treino do Laya), D227 (limpeza de contato), D229 (IA manual). Ordem nova das fases: **D238** (pedido do dono em 2026-11-24, aceito pela sessão, para o dono confirmar: a fase 8 vem antes da fase 5; os números não mudam). Escolhas desta sessão: **D239** (escolha da sessão, para discutir com o dono). Versões alvo: **0.7.0** e **0.8.0** (D239.20, para discutir).
+Data: 2026-11-24, revisto no mesmo dia com os achados da revisão (seção 17). Decisões de origem: ADR 0002 (duas versões, um núcleo: a base desta fase), 0004 e 0005 (coleta educada; nada com login), 0007 (regras em Python e em JavaScript), 0014 (sem telemetria), 0016 (sala limpa), 0017 (fases), 0018 (CI aberto, vigia), 0021 (dependências à mão), 0023 e 0026 (IA da fase 4); D218 (vigia que se reativa), D219.14 (termos lidos para o treino do Laya), D227 (limpeza de contato), D229 (IA manual). Ordem nova das fases: **D238** (pedido e decidido pelo dono em 2026-11-24: a fase 8 vem antes da fase 5; os números não mudam). Escolhas desta sessão: **D239** (escolha da sessão, para discutir com o dono). Versões alvo: **0.7.0** e **0.8.0** (D239.20, para discutir).
 
 Fatos sobre o código citam o símbolo e o arquivo, conferidos na `dev` em `d16de121` (2026-11-24, a T440 juntada; a release 0.6.0 corre em paralelo e este desenho não mexe nela). Quando a linha andar, procure o símbolo. Valores marcados "(proposta)" foram escolhidos pela sessão e valem para construir; o dono pode trocar.
 
@@ -132,7 +132,7 @@ Consequência honesta: com a Himalayas e a WWR fora, só a Jobicy publica texto 
   - `reativar` (`needs: [coletar, publicar]`, `if: always()`, `actions: write`): `gh api -X PUT repos/$GITHUB_REPOSITORY/actions/workflows/pages.yml/enable` (D218).
 - **Sem ramo `dados`** (proposta, D239.7; espera o dono): o `coletar` lê o `vagas.json` de ontem do próprio site publicado (`https://<dono>.github.io/<repo>/dados/vagas.json`; 404 na primeira vez = sem anterior). Isso dispensa o ramo `dados`, o `git push --force`, o `contents: write` e a exceção à ADR 0016. A ADR 0002 cita o ramo `dados`, então a troca é do dono; se ele quiser o ramo, entra um quarto job `dados` com `contents: write` e só o push do commit órfão.
 - `concurrency: pages`, sem cancelar a execução em curso; `timeout-minutes` por job (120 no `coletar`, 10 nos outros).
-- O `schedule`, o `workflow_dispatch` e o ambiente `github-pages` só valem no ramo padrão (`main`): `pages.yml` e o site vão à `main` num PR **antes** da tag `v0.7.0`, e a 0.7.0 só é marcada depois de alguns dias de execução verde (proposta: 3; o dono diz quantos; seção 14).
+- O `schedule`, o `workflow_dispatch` e o ambiente `github-pages` só valem no ramo padrão (`main`): `pages.yml` e o site vão à `main` num PR **antes** da tag `v0.7.0`, e a 0.7.0 só é marcada depois de 3 dias de execução verde (decidido pelo dono em 2026-11-24, D239.28; seção 14).
 
 ### 6.2 A coleta
 
@@ -162,7 +162,7 @@ Um objeto JSON por vaga, com nomes por extenso (o Pages comprime): `url_hash` (o
 1. `limpar_contato` em `titulo`, `empresa` e `descricao_texto` de toda fonte, no `coletar`, antes de qualquer arquivo ser escrito.
 2. No texto inteiro, sai também todo URL e todo `@identificador` (perfil do LinkedIn, `t.me/usuario`, `@usuario`).
 3. Nome de pessoa **pode** aparecer no texto inteiro (quem recruta assina a vaga) e não há como tirá-lo por regra: a página Sobre diz isso e não promete o contrário. E-mail escrito por extenso ("maria arroba gmail") também passa, como na versão local.
-4. **Remoção**: a página Sobre traz um canal de remoção (o contato é o dono quem escolhe; espera o dono) e um arquivo versionado `nucleo/dados/bloqueio.json` (proposta) só com `url_hash` e chave de empresa normalizada, lido pelo `coletar`: o que está ali não é publicado. Um site público copiado por terceiros não se desfaz, e a Sobre diz isso também.
+4. **Remoção**: a página Sobre traz o canal de remoção, um modelo de issue "Pedido de remoção / Removal request" no GitHub (`.github/ISSUE_TEMPLATE/remocao.yml`, pt e en no mesmo arquivo, como os outros modelos; decidido pelo dono em 2026-11-24, D239.24), e um arquivo versionado `nucleo/dados/bloqueio.json` (proposta) só com `url_hash` e chave de empresa normalizada, lido pelo `coletar`: o que está ali não é publicado. Um site público copiado por terceiros não se desfaz, e a Sobre diz isso também.
 
 ## 7. O site
 
@@ -174,7 +174,7 @@ Um objeto JSON por vaga, com nomes por extenso (o Pages comprime): `url_hash` (o
 - JavaScript em módulos ES puros, sem build, sem framework (D239.11). O site precisa de JavaScript para listar as vagas; sem ele, um `<noscript>` explica e aponta o link para baixar o joBot.
 - **Navegador mínimo**: o que os módulos e as expressões regulares pedem (o lookbehind pede Safari 16.4); a tarefa do site fixa a lista e mostra um aviso, em vez de página em branco, quando o navegador não tem o que falta.
 - "Atualizado em <data>" no topo (ADR 0002); com mais de 2 dias sem atualizar, aviso de que a coleta parou.
-- **Buscadores**: `noindex` nas páginas de vagas (proposta, D239.25); se a página inicial e a Sobre são indexadas, o dono decide. O site não disputa resultado de busca com as fontes.
+- **Buscadores**: tudo indexado (decidido pelo dono em 2026-11-24, D239.25): nenhuma página leva `noindex`, e as páginas de vagas também aparecem no Google, como a inicial e a Sobre. O site continua sem `JobPosting` (seção 2 e testes da seção 13): não entra no Google Jobs disputando com as fontes, e o termo da Himalayas proíbe repassar por esses dados estruturados.
 
 ### 7.2 O que roda no navegador
 
@@ -241,10 +241,10 @@ As mesmas regras de tela do painel (`registros/padroes-tela.md`): contraste nos 
 
 ## 12. Escolhas desta sessão (D239)
 
-Cada item é escolha da sessão, para discutir com o dono, com o desfazer no `duvidas.md` (D239.n é o item n desta lista).
+Cada item é escolha da sessão, para discutir com o dono, com o desfazer no `duvidas.md` (D239.n é o item n desta lista), menos os que o dono decidiu em 2026-11-24, marcados "decidido pelo dono": 1, 2, 22 e 23 (o critério de texto inteiro "como no desenho"), 24 (o canal de remoção), 25 (tudo indexado) e 28 (3 dias verdes).
 
-1. Termos: fonte sem anotação fica fora; `publicacao.json` com `site`, `feed`, `retencao_dias`, `max_vagas`, endereço, data e trecho por fonte; teste exige toda chave de `descobrir()` e trecho não vazio fora do `fora`. Texto inteiro só na Jobicy.
-2. Remotive fora do site e do feed, apesar de a API existir para exibir vagas: o termo cita agregadores como o tipo de site proibido, e o site do joBot é um agregador.
+1. Termos: fonte sem anotação fica fora; `publicacao.json` com `site`, `feed`, `retencao_dias`, `max_vagas`, endereço, data e trecho por fonte; teste exige toda chave de `descobrir()` e trecho não vazio fora do `fora`. Texto inteiro só na Jobicy (decidido pelo dono).
+2. Remotive fora do site e do feed, apesar de a API existir para exibir vagas: o termo cita agregadores como o tipo de site proibido, e o site do joBot é um agregador (decidido pelo dono).
 3. Fontes sem leitura nesta rodada ficam fora até a tarefa de leitura da 0.7.0, com as brasileiras primeiro.
 4. Workflow `pages.yml` com agenda diária às 7:41 UTC, à mão e push na `main`; só com `vars.JOBOT_PAGES` ligada; três jobs com permissões mínimas; sem segredo; deploy pelas Actions oficiais do Pages com `environment: github-pages`.
 5. A coleta é o executor de verdade num banco temporário, sem cópia do núcleo; o `GITHUB_TOKEN` só nos pedidos a `api.github.com`.
@@ -264,13 +264,13 @@ Cada item é escolha da sessão, para discutir com o dono, com o desfazer no `du
 19. Discord: feed na 0.7.0; canal de Anúncios do dono que outros servidores seguem na 0.8.0, com um feed de resumo diário, alimentado por bot de RSS (recomendado) ou por webhook em segredo (exceção na ADR 0002, só com o dono).
 20. Versões: 0.7.0 (coleta, site, encaixe, buscas, país, status, exportar e importar disso, faixa, feed) e 0.8.0 (perfil, IA manual e canal do Discord).
 21. Testes do JavaScript no Chromium do Playwright, a partir do pytest, sem Node no projeto.
-22. Himalayas fora na 0.7.0 (o coletor só lista por termo, e o termo pede retenção diária, nada de feed nem de `JobPosting` e crédito visível); as condições de volta ficam na seção 5.
-23. We Work Remotely fora até uma pessoa ler os termos num navegador e anotar o trecho.
-24. Limpeza: `limpar_contato` em título, empresa e texto de toda fonte; URLs e `@identificadores` fora do texto inteiro; nome de pessoa pode aparecer e a Sobre diz isso; canal de remoção e `bloqueio.json`.
-25. `noindex` nas páginas de vagas; nenhum `JobPosting`; nenhum `rel="nofollow"` nos links de crédito.
+22. Himalayas fora na 0.7.0 (o coletor só lista por termo, e o termo pede retenção diária, nada de feed nem de `JobPosting` e crédito visível); as condições de volta ficam na seção 5 (decidido pelo dono).
+23. We Work Remotely fora até uma pessoa ler os termos num navegador e anotar o trecho (decidido pelo dono).
+24. Limpeza: `limpar_contato` em título, empresa e texto de toda fonte; URLs e `@identificadores` fora do texto inteiro; nome de pessoa pode aparecer e a Sobre diz isso; canal de remoção por modelo de issue no GitHub (decidido pelo dono) e `bloqueio.json`.
+25. Tudo indexado, nenhum `noindex` (decidido pelo dono); nenhum `JobPosting`; nenhum `rel="nofollow"` nos links de crédito.
 26. Normalização no JavaScript por tabelas exportadas do Python, com teste exaustivo dos pontos de código; navegador mínimo declarado, com aviso.
 27. Retrato mínimo da vaga junto do status, no navegador e no arquivo; vaga desconhecida entra na versão local com o retrato e texto vazio.
-28. A 0.7.0 só é marcada depois de `pages.yml` e o site irem à `main` num PR e rodarem alguns dias verdes (proposta: 3).
+28. A 0.7.0 só é marcada depois de `pages.yml` e o site irem à `main` num PR e rodarem 3 dias verdes (decidido pelo dono).
 
 ## 13. Testes
 
@@ -282,7 +282,7 @@ Cada item é escolha da sessão, para discutir com o dono, com o desfazer no `du
 - **Workflow por texto, por job**: `pages.yml` sem `pull_request`, sem `pull_request_target`, sem `secrets.`; `contents: read` no topo; cada job com as permissões listadas e só elas (`coletar` sem escrita, `publicar` com `pages` e `id-token` e `environment: github-pages`, `reativar` com `actions: write` e `if: always()`); a condição `vars.JOBOT_PAGES`; Actions fixadas por hash (como a guarda do vigia em `test_vigia.py`).
 - **Site (Playwright, `-m tela`, no CI)**: o `site/` montado com dados falsos e servido num subcaminho de `127.0.0.1`; filtros; encaixe e motivos; status, retrato e ocultar sobrevivem a recarregar; sem `localStorage` o site funciona; exportar e importar; faixa em toda página nas duas línguas, em 320×568 e com texto a 200%; paginação, contagem em `aria-live`, foco do detalhe e `#vaga=`; nenhum pedido de rede fora da origem (o teste escuta os pedidos da página); CSP primeiro no `<head>` e sem violação no console; título com `<img src=x onerror=…>` não cria elemento; link `javascript:` some; saída da moldura; prazo pelo dia local; aviso de navegador antigo; acessibilidade como no painel.
 - **Paridade**: encaixe e `normalizar` exaustivo (seção 8), ida e volta do `jobot-perfil` (seção 9) e, na 0.8.0, texto para copiar, limpeza de contato e leitura da resposta (seção 10).
-- **Guardas de texto**: nenhum `http://` ou `https://` literal em `web/` além da lista permitida (links da wiki e do repositório); nenhum `innerHTML` e família em `web/**/*.js` (seção 7.4); nenhum `JobPosting` nem `application/ld+json` no site montado; nenhum `rel="nofollow"`; `noindex` nas páginas de vagas.
+- **Guardas de texto**: nenhum `http://` ou `https://` literal em `web/` além da lista permitida (links da wiki e do repositório); nenhum `innerHTML` e família em `web/**/*.js` (seção 7.4); nenhum `JobPosting` nem `application/ld+json` no site montado; nenhum `rel="nofollow"`; nenhum `noindex` (D239.25, decisão do dono).
 - Nesta máquina, só o arquivo de teste da tarefa e o ruff; suíte inteira, `-m tela` e mypy no CI, como sempre.
 
 ## 14. Versões e tarefas
@@ -295,13 +295,8 @@ Sites com login, Gmail, extensão, IA automática, áudio e segundo plano (ADR 0
 
 ## 16. O que espera o dono
 
-- Confirmar a ordem nova das fases (D238): a sessão recebeu a pergunta dele e a decisão pelo texto da tarefa, e não tem um "sim" dele depois da pergunta.
 - Ligar o Pages no repositório (Settings › Pages › Source: GitHub Actions) e a variável `JOBOT_PAGES` = `sim` antes do primeiro deploy.
 - Ramo `dados` ou não (D239.7): a proposta é ler o `vagas.json` de ontem do próprio site, sem o ramo; a ADR 0002 cita o ramo, então a troca é dele.
-- O contato do canal de remoção na página Sobre (D239.24).
-- Quantos dias de execução verde antes da tag `v0.7.0` (proposta: 3; D239.28).
-- Se a página inicial e a Sobre são indexadas pelos buscadores (D239.25).
-- Confirmar ou trocar as escolhas da D239, em especial a Remotive fora (D239.2), a Himalayas e a WWR fora (D239.22 e 23) e texto inteiro só na Jobicy (D239.1).
 - WWR: ler as duas páginas de termos num navegador, se a sessão não conseguir abrir (D239.23).
 - Discord (0.8.0): criar o servidor ou o canal de Anúncios (Comunidade) e escolher entre bot de RSS da conta dele e webhook em segredo (exceção na ADR 0002), depois da conferência da documentação.
 - Domínio próprio, se quiser isolar a origem do `localStorage` (D239.14).

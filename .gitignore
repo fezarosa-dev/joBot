@@ -28,3 +28,6 @@ desktop/gen/
 desktop/ui/painel/
 desktop/binaries/
 desktop/recursos/
+
+# Serena (ferramenta local de quem edita)
+.serena/

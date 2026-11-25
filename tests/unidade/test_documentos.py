@@ -1397,3 +1397,256 @@ def test_adr_diz_o_laya_padrao_na_0_6_0(caminho: str) -> None:
     assert vivas, caminho  # controle: achou as linhas do Laya
     assert [linha for linha in vivas if "versão seguinte" in linha] == [], caminho
     assert any("0.6.0" in linha for linha in vivas), caminho
+
+
+def nao_lancado(lingua: str) -> str:
+    conteudo = texto(CHANGELOG[lingua])
+    inicio = conteudo.index(NAO_LANCADO[lingua])
+    return conteudo[inicio : conteudo.index("\n## [", inicio + 1)]
+
+
+# D221.4: o histórico foi reescrito em 2026-11-24; quem clonou antes refaz o clone uma vez
+REESCRITA = "git fetch origin && git reset --hard origin/main && uv sync --locked"
+REESCRITA_DIZ = {
+    "pt": ("2026-11-24", "clone de novo", "descarta", "pasta de dados"),
+    "en": ("2026-11-24", "clone again", "discards", "data folder"),
+}
+FORK_DE_CLONE_NOVO = {"pt": "fork", "en": "fork"}
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_aviso_da_reescrita_do_historico(lingua: str) -> None:
+    """O topo da 0.6.0 no CHANGELOG, o "Atualizar > Pelo código" do README e o CONTRIBUTING dão o
+    comando único para o clone de antes da reescrita, dizem que o reset descarta mudança local e
+    que os dados ficam fora do clone (D221.4)."""
+    topo = nao_lancado(lingua).split("\n### ", 1)[0]  # antes do primeiro grupo
+    instalacao = secao(texto(README[lingua]), SECAO_INSTALACAO[lingua])
+    inicio = instalacao.index(ATUALIZAR[lingua][0])
+    atualizar = instalacao[inicio : instalacao.find("\n### ", inicio + 1)]
+    contributing = texto(CONTRIBUTING[lingua])
+    for nome, trecho in (
+        (CHANGELOG[lingua], topo),
+        (README[lingua], atualizar),
+        (CONTRIBUTING[lingua], contributing),
+    ):
+        assert REESCRITA in trecho, nome
+        for termo in REESCRITA_DIZ[lingua]:
+            assert termo in trecho, (nome, termo)
+    assert FORK_DE_CLONE_NOVO[lingua] in contributing.split(REESCRITA, 1)[1][:600], lingua
+    assert "CONTRIBUTING" in atualizar, README[lingua]  # o fork e o clone de trabalho ficam lá
+
+
+# o que sai do texto livre (D227.3 e D232): do currículo só e-mail, telefone e CPF (o nome e a
+# cidade escritos nele podem ir); do perfil também o próprio nome, só quando escrito como está no
+# campo Nome (`_sem_o_proprio`); o resto vai como a pessoa escreveu
+TEXTO_DO_CURRICULO = {
+    "pt": "o nome e a cidade podem ir, se estiverem escritos nele",
+    "en": "the name and city may go, if they are written in it",
+}
+TEXTO_DO_PERFIL = {"pt": "como você escreveu", "en": "as you wrote"}
+NOME_COMO_NO_PERFIL = {
+    "pt": "o seu nome, quando escrito como está no perfil",
+    "en": "your name, when written as it is in the profile",
+}
+# as promessas antigas, maiores do que o código cumpre
+PROMESSA_VELHA = {
+    "pt": re.compile(r"CPF e o seu nome(?!, quando)|inclusive o nome e a cidade"),
+    "en": re.compile(r"CPF and your name(?!, when)|including the name and city"),
+}
+ITEM_IA_DA_PRIVACIDADE = {"pt": "**O que vai para a IA", "en": "**What goes to the AI"}
+
+
+def test_promessa_velha_pega_as_frases_antigas() -> None:
+    """Controle das regex: as frases de antes casam; as novas, não."""
+    assert PROMESSA_VELHA["pt"].search("menos e-mail, telefone, CPF e o seu nome.")
+    assert PROMESSA_VELHA["pt"].search("o resto vai como está, inclusive o nome e a cidade")
+    assert PROMESSA_VELHA["en"].search("except email, phone, CPF and your name.")
+    assert PROMESSA_VELHA["pt"].search(f"CPF e {NOME_COMO_NO_PERFIL['pt']}") is None
+    assert PROMESSA_VELHA["en"].search(f"CPF and {NOME_COMO_NO_PERFIL['en']}") is None
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_changelog_diz_o_que_vai_do_curriculo_e_do_perfil(lingua: str) -> None:
+    secao_nova = nao_lancado(lingua)
+    item_ia = next(
+        x
+        for x in texto(README[lingua]).splitlines()
+        if x.startswith(f"- {ITEM_IA_DA_PRIVACIDADE[lingua]}")
+    )
+    for termo in (TEXTO_DO_CURRICULO[lingua], TEXTO_DO_PERFIL[lingua], NOME_COMO_NO_PERFIL[lingua]):
+        assert termo in secao_nova, (CHANGELOG[lingua], termo)
+    assert NOME_COMO_NO_PERFIL[lingua] in item_ia, README[lingua]
+    for nome, trecho in ((CHANGELOG[lingua], secao_nova), (README[lingua], item_ia)):
+        assert PROMESSA_VELHA[lingua].findall(trecho) == [], nome
+
+
+# cada frase de privacidade junto da tarefa (aba IA, aba Perfil, detalhe da vaga, primeira
+# execução) tem a mesma ressalva do CHANGELOG
+RESSALVA_NA_ABA_IA = {
+    "configuracoes.ia.privacidade.curriculo.fora": (TEXTO_DO_CURRICULO,),
+    "configuracoes.ia.privacidade.curriculo.manual": (TEXTO_DO_CURRICULO,),
+    "configuracoes.ia.privacidade.perguntas.fora": (TEXTO_DO_PERFIL, NOME_COMO_NO_PERFIL),
+    "configuracoes.ia.privacidade.candidatura.fora": (TEXTO_DO_PERFIL, NOME_COMO_NO_PERFIL),
+    "configuracoes.perfil.perguntas.privacidade.fora": (TEXTO_DO_PERFIL, NOME_COMO_NO_PERFIL),
+    "detalhe.candidatura.privacidade.fora": (TEXTO_DO_PERFIL, NOME_COMO_NO_PERFIL),
+    "detalhe.candidatura.privacidade.manual": (TEXTO_DO_PERFIL, NOME_COMO_NO_PERFIL),
+    "primeira_execucao.ia.pago.privacidade": (
+        TEXTO_DO_CURRICULO,
+        TEXTO_DO_PERFIL,
+        NOME_COMO_NO_PERFIL,
+    ),
+}
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_aba_ia_diz_o_que_vai_do_texto_livre(lingua: str) -> None:
+    catalogo = i18n.carregar()[lingua]
+    assert TEXTO_DO_PERFIL[lingua] not in catalogo["configuracoes.ia.privacidade.fora"]  # controle
+    for chave, termos in RESSALVA_NA_ABA_IA.items():
+        for termo in termos:
+            assert termo[lingua] in catalogo[chave], (lingua, chave, termo[lingua])
+    velhas = [c for c, v in catalogo.items() if PROMESSA_VELHA[lingua].search(v)]
+    assert velhas == [], lingua
+
+
+# D185.27: Currículo, Perguntas e Preparar candidatura são experimentais; os pagos, sem prova
+TAREFAS_EXPERIMENTAIS = ("curriculo", "perguntas", "candidatura")
+EXPERIMENTAL_0_6_0 = {
+    "pt": ("experimentais", "chave de verdade"),
+    "en": ("experimental", "real key"),
+}
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_aba_ia_marca_as_tarefas_experimentais(lingua: str) -> None:
+    catalogo = i18n.carregar()[lingua]
+    assert "Experimental" not in catalogo["configuracoes.ia.tarefa.encaixe.ajuda"]  # controle
+    for tarefa in TAREFAS_EXPERIMENTAIS:
+        assert "Experimental" in catalogo[f"configuracoes.ia.tarefa.{tarefa}.ajuda"], tarefa
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_changelog_e_readme_dizem_o_que_e_experimental(lingua: str) -> None:
+    """O CHANGELOG e o README dizem que as três tarefas novas são experimentais e que os
+    serviços pagos seguem sem prova com chave de verdade; o CHANGELOG avisa quem estava num
+    atalho da 0.5.0 que passa a ver o modo personalizado (D234.15)."""
+    catalogo = i18n.carregar()[lingua]
+    rotulos = [
+        catalogo[f"configuracoes.ia.tarefa.{t}"].split(":")[0] for t in TAREFAS_EXPERIMENTAIS
+    ]
+    modos = [catalogo[f"configuracoes.ia.modo.{m}"] for m in ("offline", "claude", "personalizado")]
+    ia = secao(texto(README[lingua]), SECAO_IA[lingua])
+    secao_nova = nao_lancado(lingua)
+    palavra = EXPERIMENTAL_0_6_0[lingua][0]
+    for nome, trecho in ((CHANGELOG[lingua], secao_nova), (README[lingua], ia)):
+        linhas = trecho.splitlines()
+        for termo in EXPERIMENTAL_0_6_0[lingua]:
+            assert termo in trecho, (nome, termo)
+        # numa mesma linha: os três rótulos e a palavra; os três modos e a versão de antes
+        assert [x for x in linhas if palavra in x and all(r in x for r in rotulos)], nome
+        assert [x for x in linhas if "0.5.0" in x and all(m in x for m in modos)], nome
+
+
+# os números do Laya no caminho do produto (D219.22, ensaio da 0.6.0 no CI); os do pod (2B de 84%
+# a 91%, 3,5 vezes) não são do produto
+LAYA_NO_ENSAIO = ("79", "68", "69", "82")
+NUMEROS_DO_POD = re.compile(r"84% (?:a|to) 91%|3[,.]5 (?:vezes|times)")
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_changelog_traz_os_numeros_do_laya_no_ensaio(lingua: str) -> None:
+    laya = next(x for x in nao_lancado(lingua).splitlines() if "Laya 2B" in x)
+    for numero in LAYA_NO_ENSAIO:
+        assert numero in laya, (CHANGELOG[lingua], numero)
+    assert NUMEROS_DO_POD.findall(laya) == [], CHANGELOG[lingua]
+    for numero in VAGA_LONGA:  # os tempos do conjunto de ouro não são o máximo por vaga
+        assert numero in laya, (CHANGELOG[lingua], numero)
+
+
+# a vaga longa do `medir_modelo.py` no mesmo ensaio (run 45512620948): Laya até 23 s, 4B até 66 s
+# (macOS); o "até 55 s" do README era de antes e de outro modelo
+VAGA_LONGA = ("23 s", "66 s")
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_readme_traz_a_vaga_longa_do_ensaio(lingua: str) -> None:
+    ia = secao(texto(README[lingua]), SECAO_IA[lingua])
+    assert "55 s" not in ia, README[lingua]
+    linha = next(x for x in ia.splitlines() if "Laya" in x and VAGA_LONGA[0] in x)
+    assert VAGA_LONGA[1] in linha, README[lingua]
+
+
+# o número de cada tarefa do plano é único: duas frentes com o mesmo número calam o plano (a T445 da
+# frente "ia-esquema-e-prova" e a da "docs-pre-release", que virou a T446)
+PLANO_FASE_4 = "docs/superpowers/plans/2026-11-17-fase-4.md"
+TAREFA = re.compile(r"^### (T\d+):", re.M)
+
+
+def tarefa_do_plano(numero: str) -> str:
+    conteudo = texto(PLANO_FASE_4)
+    assert f"### {numero}:" in conteudo, numero
+    inicio = conteudo.index(f"### {numero}:")
+    fim = re.search(r"^##", conteudo[inicio + 4 :], re.M)
+    return conteudo[inicio : inicio + 4 + fim.start()] if fim else conteudo[inicio:]
+
+
+def test_plano_da_fase_4_sem_numero_repetido() -> None:
+    numeros = TAREFA.findall(texto(PLANO_FASE_4))
+    assert "T441" in numeros  # controle
+    assert sorted({n for n in numeros if numeros.count(n) > 1}) == []
+
+
+def test_t446_nao_prende_a_release() -> None:
+    """A manutenção do `jobot atualizar` (D221.5) espera a tag e não entra no `depende_de` da
+    T441 nem da T442."""
+    assert "tag v0.6.0" in tarefa_do_plano("T446")
+    for portao in ("T441", "T442"):
+        assert "T446" not in tarefa_do_plano(portao), portao
+    assert "T446" in texto("duvidas.md")
+
+
+def secao_da_duvida(numero: str) -> str:
+    conteudo = texto("duvidas.md")
+    inicio = conteudo.index(f"\n## {numero}. ")
+    return conteudo[inicio : conteudo.index("\n## D", inicio + 1)]
+
+
+def sem_riscado(trecho: str) -> str:
+    return re.sub(r"~~.*?~~", "", trecho, flags=re.S)
+
+
+def test_d219_sem_pendencia_que_prende_o_pr() -> None:
+    """As fontes do Laya foram aprovadas pelo dono e o `--sem-gabarito` foi aceito na D237.6: a
+    D219 não guarda pendência viva antes do PR da `dev` para a `main` e traz a ressalva da WWR."""
+    d219 = secao_da_duvida("D219")
+    assert "Pendência do dono" in d219  # controle: o parágrafo antigo continua, riscado
+    viva = sem_riscado(d219)
+    for velho in ("Pendência do dono", "segue com o dono", "segue com ele"):
+        assert velho not in viva, velho
+    for novo in ("D237.6", "D239.23", "não prende o PR"):
+        assert novo in viva, novo
+
+
+def test_adr_0015_atribui_a_leitura_e_ressalva_a_wwr() -> None:
+    linha = next(
+        x
+        for x in texto("docs/decisions/0015-treino.md").splitlines()
+        if "quatro fontes usadas" in x
+    )
+    assert "leitura apresentada a ele" in linha
+    assert "D239.23" in linha
+    assert "os termos delas não proíbem" not in linha
+
+
+def test_adr_0017_fase_8_decidida() -> None:
+    titulos = [x for x in texto("docs/decisions/0017-fases.md").splitlines() if x.startswith("## ")]
+    fase_8 = [x for x in titulos if "Fase 8" in x]
+    assert fase_8  # controle
+    assert [x for x in fase_8 if "para confirmar" in x] == []
+
+
+def test_numeros_do_pod_pegam_a_frase_antiga() -> None:
+    """Controle da regex: a frase do CHANGELOG antes do ensaio casa; o nome Qwen3.5, não."""
+    assert NUMEROS_DO_POD.search("contra 84% a 91% do Qwen3.5 2B original")
+    assert NUMEROS_DO_POD.search("while being 2 to 3.5 times faster than them")
+    assert NUMEROS_DO_POD.search("ajuste do Qwen3.5 2B") is None
