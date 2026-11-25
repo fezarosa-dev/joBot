@@ -40,9 +40,10 @@ TELAS = {
 }
 # as telas longas da 0.6.0 saem inteiras: o fim do formulário (experiências, cursos, o resultado
 # da candidatura) também se confere. A página rola dentro do `main`, não no documento (o
-# `full_page` do Playwright não a pega): a janela cresce até a maior altura de rolagem
+# `full_page` do Playwright não a pega): a janela cresce o tanto que falta rolar
 INTEIRAS = {"perfil", "ia", "assistente-ia", "assistente-perfil", "candidatura"}
-_ALTURA = "() => Math.max(...[...document.querySelectorAll('*')].map((e) => e.scrollHeight))"
+_ALTURA = """() => innerHeight + Math.max(0, ...[...document.querySelectorAll('*')]
+  .map((e) => e.scrollHeight - e.clientHeight))"""
 CANDIDATURA = Preparo(
     idioma="pt",
     carta="Prezada equipe, trabalho com Python há três anos e quero conversar sobre a vaga.",
