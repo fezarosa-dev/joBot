@@ -141,6 +141,37 @@ def test_portao_so_publica_com_ci_e_ensaio_verdes_na_arvore_da_tag() -> None:
     assert portao.count("exit 1") == 2
 
 
+GUIAS = [RAIZ / ".github" / "release-instalar.md", RAIZ / ".github" / "release-install.en.md"]
+
+
+def test_notas_comecam_pelo_guia_de_instalacao_com_os_nomes_da_versao() -> None:
+    # pedido do dono (2026-11-25): o texto de toda release diz qual arquivo baixar, como
+    # instalar e o que é cada anexo; o guia vem antes das novidades, em pt e em en
+    juntar = _job(PACOTES, "juntar")
+    assert 'sed "s/{versao}/$VERSAO/g" .github/release-instalar.md' in juntar
+    assert 'sed "s/{versao}/$VERSAO/g" .github/release-install.en.md' in juntar
+    notas = juntar.split("> release/notas.md")[0]
+    assert notas.index("release-instalar.md") < notas.index("secao CHANGELOG.md")
+    assert notas.index("secao CHANGELOG.md") < notas.index("release-install.en.md")
+    assert notas.index("release-install.en.md") < notas.index("secao CHANGELOG.en.md")
+    anexos = [
+        "joBot_{versao}_x64-setup.exe",
+        "joBot_{versao}_amd64.deb",
+        "joBot-{versao}-1.x86_64.rpm",
+        "joBot_{versao}_amd64.AppImage",
+        "joBot_{versao}_aarch64.dmg",
+        "joBot_{versao}_x64.dmg",
+        "jobot-atualizacao-{versao}-",
+        "jobot-{versao}-py3-none-any.whl",
+        "restricoes.txt",
+        "SHA256SUMS",
+    ]
+    for guia in GUIAS:
+        texto = guia.read_text(encoding="utf-8")
+        for anexo in anexos:
+            assert anexo in texto, (guia.name, anexo)
+
+
 def test_juntar_monta_os_anexos_o_sha256sums_e_as_notas() -> None:
     juntar = _job(PACOTES, "juntar")
     # a release só sai com a casca aberta de verdade (T355)
