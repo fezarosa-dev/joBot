@@ -2,7 +2,7 @@
 
 - **Status:** aceita
 - **Data:** 2026-11-13
-- **Atualizada:** 2026-11-17 (a IA da fase 4 não dá nota de encaixe, para confirmar, D185 e [0026](0026-ia-da-fase-4.md)); 2026-11-24 (desenho da fase 8: o que a versão Pages publica e o que roda no navegador, escolha da sessão, para discutir com o dono, D239; a fase 8 vem antes da fase 5, D238)
+- **Atualizada:** 2026-11-17 (a IA da fase 4 não dá nota de encaixe, para confirmar, D185 e [0026](0026-ia-da-fase-4.md)); 2026-11-24 (desenho da fase 8: o que a versão Pages publica e o que roda no navegador, escolha da sessão, para discutir com o dono, D239; a fase 8 vem antes da fase 5, a pedido do dono, para confirmar, D238)
 
 ## Contexto
 
@@ -41,11 +41,11 @@ Nem todo mundo quer instalar um programa. Uma versão no navegador, sem instala�
 
 O desenho da fase 8 (`docs/superpowers/specs/2026-11-24-fase-8-design.md`) fecha os pontos acima (D239):
 
-- O site publica só as fontes cujos termos foram lidos e anotados em `nucleo/dados/publicacao.json`: texto inteiro só onde o termo permite; nas outras, título, empresa, local, rótulos, data e link para a vaga original; fonte sem anotação fica fora (D239.1 a D239.3).
-- A coleta diária é o executor do joBot num banco temporário, no Actions, sem segredo; o ramo `dados` guarda só o retrato do dia (D239.4 a D239.7).
+- O site publica só as fontes cujos termos foram lidos e anotados em `nucleo/dados/publicacao.json`: texto inteiro só onde o termo permite; nas outras, título, empresa, local, rótulos, data e link para a vaga original; fonte sem anotação fica fora (D239.1 a D239.3, D239.22 e D239.23). Toda vaga publicada passa pela limpeza de contato, e há lista de bloqueio e canal de remoção (D239.24).
+- A coleta diária é o executor do joBot num banco temporário, no Actions, sem segredo. Proposta, para o dono decidir: sem o ramo `dados`; o `vagas.json` de ontem vem do próprio site publicado, o que dispensa o push forçado e a escrita no repositório (D239.4 a D239.7).
 - Os rótulos e o tratamento rodam em Python, no Actions; no navegador rodam só o encaixe por regras e a normalização, com paridade testada (D239.9).
 - Os esquemas da IA continuam em pydantic, no Python; o build exporta o JSON Schema e os moldes do pedido para o JavaScript (D239.16).
-- O perfil, as buscas e o status ficam no `localStorage`; o arquivo `jobot-perfil` é o mesmo nas duas versões (D239.15).
+- As buscas, o país e o status (com um retrato mínimo da vaga) ficam no `localStorage`; o arquivo `jobot-perfil` é o mesmo nas duas versões. O perfil no site e no arquivo vem na 0.8.0, junto da IA manual (D239.15 e D239.27).
 - A chave do visitante para o Haiku fica para depois da fase 8 (D239.17).
 - O ponto em aberto sobre o ramo `dados` deixa de importar: o workflow se reativa pela API em toda execução, como o vigia (D218).
 
