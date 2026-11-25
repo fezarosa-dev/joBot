@@ -1301,6 +1301,25 @@ def test_changelog_traz_a_0_6_0_em_nao_lancado(lingua: str) -> None:
         assert termo in nao_lancado, (CHANGELOG[lingua], termo)
 
 
+# T443 (D237.3): a aba Perfil não perde o digitado também sem JavaScript
+SEM_JS_NAO_PERDE = {
+    "pt": "Salvar uma parte não apaga o que foi digitado nas outras, também sem JavaScript.",
+    "en": "Saving one part does not erase what you typed in the others, also without JavaScript.",
+}
+SO_COM_JS = re.compile(r"Com JavaScript, salvar uma parte|With JavaScript, saving one part")
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_perfil_nao_perde_o_digitado_tambem_sem_javascript(lingua: str) -> None:
+    """O CHANGELOG e o README não dizem mais que só com JavaScript salvar uma parte guarda o
+    digitado nas outras (T443)."""
+    assert SO_COM_JS.search("Com JavaScript, salvar uma parte não apaga")  # controle da regex
+    for arquivo in (CHANGELOG[lingua], README[lingua]):
+        conteudo = texto(arquivo)
+        assert SEM_JS_NAO_PERDE[lingua] in conteudo, arquivo
+        assert SO_COM_JS.findall(conteudo) == [], arquivo
+
+
 # wiki: o que cada página precisa dizer da 0.6.0, e o que ela dizia no futuro
 WIKI_0_6_0 = {
     "wiki/Tecnologias.md": (
