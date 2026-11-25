@@ -20,6 +20,10 @@ Phases 1, 2 and 3 (foundation, browser with login and installer) are complete: j
 - Need help or have a question? See [Support](SUPPORT.en.md).
 - By taking part, you accept the [Code of Conduct](CODE_OF_CONDUCT.en.md).
 
+## History rewritten on 2026-11-24
+
+The git history was rewritten on 2026-11-24, to take personal data out of two test fixtures. If you cloned before that date, run once, in the clone's folder, `git fetch origin && git reset --hard origin/main && uv sync --locked`, or clone again. The reset discards any local change in the clone (save first what you want to keep); your joBot data lives in the data folder, outside it, and does not change. A fork or a working clone, new or for a PR, starts from a clone made after that date: a fork from before cannot be reused.
+
 ## Project rules
 
 - **TDD for all code.** Write the test first, watch it fail, write the code and watch the test pass.

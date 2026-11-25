@@ -1195,8 +1195,14 @@ def test_passo_ia_mostra_os_atalhos_com_o_custo(cenario: Cenario) -> None:
     assert "Paid service (your key)" in ingles
     assert "up to 200 requests a day" in ingles
     # o consentimento fala do currículo, a tarefa que o atalho liga e a que mais leva dado pessoal
-    assert "O texto do currículo, sem e-mail, telefone e CPF, vai quando você manda ler." in texto
-    assert "Your résumé text, without email, phone and CPF, goes when you ask to read it." in ingles
+    assert (
+        "O texto do currículo, sem e-mail, telefone e CPF, vai quando você manda ler; o nome e a"
+        " cidade podem ir, se estiverem escritos nele." in texto
+    )
+    assert (
+        "Your résumé text, without email, phone and CPF, goes when you ask to read it; the name"
+        " and city may go, if they are written in it." in ingles
+    )
 
 
 def test_passo_ia_sem_modelo_local_desativa_a_opcao(cenario: Cenario) -> None:
