@@ -124,6 +124,18 @@ def test_provar_mede_tempo_tokens_e_valida_no_esquema() -> None:
     assert [m.caso for m in medidas] == NOMES
     assert [(m.segundos, m.leitura_n, m.geracao_n) for m in medidas] == [(10, 3000, 400)] * 6
     assert all(m.valida and m.cabe and m.no_prazo and m.passou for m in medidas)
+    # o que veio preenchido (o esquema aceita a resposta vazia: o número diz se leu algo)
+    curriculo, perguntas, candidatura = (
+        ("cargo_atual", "habilidades"),
+        ("perguntas",),
+        (
+            "idioma",
+            "carta",
+            "resumo",
+            "usou",
+        ),
+    )
+    assert [m.campos for m in medidas] == [curriculo] * 2 + [perguntas] * 2 + [candidatura] * 2
 
 
 def test_resposta_fora_do_esquema_nao_passa() -> None:
@@ -180,6 +192,7 @@ def test_falha_de_um_caso_e_anotada_e_os_outros_seguem() -> None:
     prontas[0] = Falha("tempo_esgotado")
     medidas = provar.provar(_Gravado(prontas, timings), casos, timings, relogio=_relogio(1))
     assert [m.motivo for m in medidas] == ["tempo_esgotado", None, None, None, None, None]
+    assert medidas[0].campos == ()
     assert (medidas[0].leitura_n, medidas[0].passou) == (None, False)
     assert all(m.passou for m in medidas[1:])
 
@@ -213,6 +226,7 @@ def test_main_escreve_o_resumo_e_sai_com_zero_quando_tudo_passa(tmp_path: Path) 
     for nome in NOMES:
         assert f"| ubuntu | {nome} |" in texto
     assert "| 3000 | 400 |" in texto
+    assert "| 3000 | 400 | 1536 | sim | 2 | valida | passou |" in texto
 
 
 def test_main_sai_com_um_quando_um_caso_nao_passa(tmp_path: Path) -> None:

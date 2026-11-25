@@ -170,6 +170,7 @@ class Medida:
     max_tokens: int
     prazo_s: float
     motivo: str | None  # a `Falha`; None = a resposta validou no esquema
+    campos: tuple[str, ...] = ()  # os da resposta com valor: o esquema aceita a resposta vazia
 
     @property
     def valida(self) -> bool:
