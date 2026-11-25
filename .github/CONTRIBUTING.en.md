@@ -6,19 +6,23 @@ Thanks for your interest! This guide explains how to help with joBot, now and af
 
 ## Project status
 
-Phases 1, 2 and 3 (foundation, browser with login and installer) are complete: joBot 0.4.0 closed phase 3, and version 0.5.0 can already be installed and used ([how to install](../README.en.md#requirements-and-installation)). Phase 4 (local AI) is being built: 0.5.0 brought the first part, and 0.6.0 closes the phase; phases 5 to 9 are planned. 0.5.0 shipped without the trained Laya: its dataset, training and cost estimate live in `scripts/treino_laya/`, with the step by step in the README there (Portuguese only for now). The decisions made so far are in [`docs/decisions/`](../docs/decisions/README.md) (Portuguese only for now). To learn what the project is and where it is going, read the [README](../README.en.md).
+Phases 1, 2, 3 and 4 (foundation, browser with login, installer and local AI) are complete: joBot 0.4.0 closed phase 3, 0.6.0 closed phase 4, and version 0.6.0 can already be installed and used ([how to install](../README.en.md#requirements-and-installation)). The next one is phase 8 (GitHub Pages version), being designed, built before phase 5; phases 5, 6, 7 and 9 are planned. Laya, the default local model since 0.6.0, has its dataset, training and cost estimate in `scripts/treino_laya/`, with the step by step in the README there (Portuguese only for now). The decisions made so far are in [`docs/decisions/`](../docs/decisions/README.md) (Portuguese only for now). To learn what the project is and where it is going, read the [README](../README.en.md).
 
 ## How to help now
 
 - **Suggestions and job sources** are welcome right away. Open an issue using the forms: Bug, Feature request or Job source.
 - **Did a job source break?** The guide [How to fix a source that broke](../docs/consertar-fonte.en.md) shows how to find what changed and fix it. For now it helps you understand the path and report what you found in an issue; the PR with the fix follows the rule below.
 - **Want to add a new job site?** The guide [How to add a new site](../docs/site-novo.en.md) takes you from the site to the PR, with a template that already runs for a public site and another for a site with login. For now it helps you get ready and open the "Job source" issue; the PR follows the rule below.
-- **Want to test the AI?** The AI tests use a fake service and run without network, with the rest of the suite. The real local model is proven by the `ia.yml` workflow, which runs by hand, through `casca.yml` with the `ia` input (`gh workflow run casca.yml --ref <branch> -f ia=true`). If you have a key for a service, you can prove the Matching task with `scripts/provar_ia.py --backend openai`, `gemini`, `anthropic` or `compativel` (with `--endereco`); the key goes in the `JOBOT_IA_CHAVE` variable, never in the command.
+- **Want to test the AI?** The AI tests use a fake service and run without network, with the rest of the suite. The real local model is proven by the `ia.yml` workflow, which runs by hand, through `casca.yml` with the `ia` input (`gh workflow run casca.yml --ref <branch> -f ia=true`). If you have a key for a service, you can prove the Matching task with `scripts/provar_ia.py --backend openai`, `gemini`, `anthropic` or `compativel` (with `--endereco`); the key goes in the `JOBOT_IA_CHAVE` variable, never in the command. The 0.6.0 tasks (résumé, questions and application) and manual AI are tested the same way, with the fake service; the résumé tests build the PDF inside the test, with `pypdf`, and no PDF or anyone's résumé goes into the repository.
 - **Code pull requests** will only be accepted after the release (phase 9). Until then, the code is still changing a lot.
 - Issues and PRs can be written in **Portuguese or English**.
 - Found a security flaw? **Do not open a public issue.** See the [Security Policy](SECURITY.en.md).
 - Need help or have a question? See [Support](SUPPORT.en.md).
 - By taking part, you accept the [Code of Conduct](CODE_OF_CONDUCT.en.md).
+
+## History rewritten on 2026-11-24
+
+The git history was rewritten on 2026-11-24, to take personal data out of two test fixtures. If you cloned before that date, run once, in the clone's folder, `git fetch origin && git reset --hard origin/main && uv sync --locked`, or clone again. The reset discards any local change in the clone (save first what you want to keep); your joBot data lives in the data folder, outside it, and does not change. A fork or a working clone, new or for a PR, starts from a clone made after that date: a fork from before cannot be reused.
 
 ## Project rules
 

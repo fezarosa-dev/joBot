@@ -70,7 +70,7 @@
   "controle.falha.outro": "Could not finish. Try again.",
   "ferramentas.grupo_ia": "Artificial intelligence (optional)",
   "ferramentas.ia_local": "Local model",
-  "ferramentas.ia_local_frase": "To use AI offline and for free. If you check it, it downloads {de} to {ate} from the internet, depending on the computer's memory; you can download it later in Settings › Tools.",
+  "ferramentas.ia_local_frase": "To use AI offline and for free. If you check it, it downloads the Laya model, fine-tuned for jobs ({tamanho}), from the internet; you can download it later, or switch models, in Settings › Tools.",
   "ferramentas.tamanho_ate": "up to {tamanho}",
   "etapa.ia_local": "Downloading the local model",
   "pronto.ia_local": "joBot is installed, but the local model did not download: {motivo}. Download it later in Settings › Tools.",

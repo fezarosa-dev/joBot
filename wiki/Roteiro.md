@@ -11,7 +11,7 @@
 
 ```mermaid
 flowchart LR
-    F1["✅ Fase 1 · Base"] --> F2["✅ Fase 2 · Navegador com login"] --> F3["✅ Fase 3 · Instalador"] --> F4["🟡 Fase 4 · IA local"]
+    F1["✅ Fase 1 · Base"] --> F2["✅ Fase 2 · Navegador com login"] --> F3["✅ Fase 3 · Instalador"] --> F4["✅ Fase 4 · IA local"]
     F4 --> F5["⚪ Fase 5 · Extensão"] --> F6["⚪ Fase 6 · Áudio e Gmail"] --> F7["⚪ Fase 7 · Treino"]
     F7 --> F8["⚪ Fase 8 · GitHub Pages"] --> F9["⚪ Fase 9 · Publicação"]
 ```
@@ -23,16 +23,16 @@ flowchart LR
 | ✅ | **1. Base** | Núcleo comum, fontes públicas, banco, painel e agenda | Concluída |
 | ✅ | **2. Navegador com login** | Login pela janela comum, LinkedIn primeiro, mapeamento dos sites e tratamento de CAPTCHA | Concluída |
 | ✅ | **3. Instalador** | Instalador de 64 bits, com lista de ferramentas para marcar (Windows e Linux primeiro, Mac depois) | Concluída na 0.4.0 |
-| 🟡 | **4. IA local** | Pacote offline (llama-server + Qwen) | Sendo construída (a 0.5.0 trouxe a primeira parte; rumo à 0.6.0) |
+| ✅ | **4. IA local** | Pacote offline (llama-server + Qwen) | Concluída na 0.6.0 |
 | ⚪ | **5. Extensão do navegador** | Extensão do navegador para formulários | Planejada |
 | ⚪ | **6. Áudio e Gmail** | Respostas por voz e leitura de e-mails | Planejada |
 | ⚪ | **7. Treino** | Aprender com o que você salva e descarta | Planejada |
-| ⚪ | **8. Versão GitHub Pages** | Versão no navegador, sem instalação | Planejada |
+| ⚪ | **8. Versão GitHub Pages** | Versão no navegador, sem instalação | Planejada (a próxima, em desenho) |
 | ⚪ | **9. Publicação** | README com selos e revisão de segurança | Planejada |
 
 <sub>✅ concluída · 🟡 sendo construída · ⚪ planejada</sub>
 
-A versão 0.3.0 saiu entre a fase 2 e a fase 3, com a tela "Panorama" (visão geral das vagas e da busca) e a fila de candidaturas completa. A versão 0.4.0 fecha a fase 3, com a janela própria e o instalador. A versão 0.4.1 corrige o Linux: a janela vira um controle e o painel abre no seu navegador. A versão 0.5.0 traz a primeira parte da fase 4: a IA opcional, desligada por padrão, que lista as habilidades que cada vaga pede.
+A versão 0.3.0 saiu entre a fase 2 e a fase 3, com a tela "Panorama" (visão geral das vagas e da busca) e a fila de candidaturas completa. A versão 0.4.0 fecha a fase 3, com a janela própria e o instalador. A versão 0.4.1 corrige o Linux: a janela vira um controle e o painel abre no seu navegador. A versão 0.5.0 traz a primeira parte da fase 4: a IA opcional, desligada por padrão, que lista as habilidades que cada vaga pede. A versão 0.6.0 fecha a fase 4, com o perfil completo, a leitura do currículo, as perguntas, a preparação de candidaturas, a IA manual e o Laya como modelo local padrão. A próxima é a fase 8, a versão GitHub Pages, construída antes da fase 5 a pedido do dono.
 
 ## 🔍 Um pouco mais sobre cada fase
 
@@ -61,12 +61,12 @@ A versão 0.3.0 saiu entre a fase 2 e a fase 3, com a tela "Panorama" (visão ge
 </details>
 
 <details>
-<summary><strong>🟡 Fase 4, IA local</strong></summary>
+<summary><strong>✅ Fase 4, IA local</strong></summary>
 
-- Pacote offline: llama-server e um modelo Qwen, para usar IA sem internet e sem pagar.
+- Pacote offline: llama-server e o Laya (um ajuste do Qwen3.5 2B para as vagas), para usar IA sem internet e sem pagar.
 - Entram no assistente a escolha da IA, o currículo e o questionário.
-- A fase sai em duas versões: a 0.5.0 traz o modelo local e o encaixe pelas habilidades; a 0.6.0, o currículo, o questionário e a ajuda na candidatura (ainda em decisão).
-- O modelo multilingual-e5-small, para rótulos abaixo de 90% de acerto, fica para depois (ainda em decisão). O ajuste do Laya foi autorizado: a 0.5.0 saiu sem ele, e ele entra numa versão seguinte, depois do treino.
+- A fase saiu em duas versões: a 0.5.0 trouxe o modelo local e o encaixe pelas habilidades; a 0.6.0, o perfil completo, o currículo, o questionário, Preparar candidatura e a IA manual.
+- O modelo multilingual-e5-small, para rótulos abaixo de 90% de acerto, fica para depois (ainda em decisão). O ajuste do Laya foi autorizado: a 0.5.0 saiu sem ele, e ele é o modelo local padrão da 0.6.0.
 </details>
 
 <details>

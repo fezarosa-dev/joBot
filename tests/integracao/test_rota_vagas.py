@@ -105,7 +105,7 @@ def _atual(html: str) -> list[str]:
 
 def test_raiz_vai_para_vagas_ou_para_a_primeira_execucao(painel: Painel) -> None:
     primeira = painel.get("/")
-    assert (primeira.status_code, primeira.headers["location"]) == (303, "/primeira-execucao/1")
+    assert (primeira.status_code, primeira.headers["location"]) == (303, "/primeira-execucao/ia")
     painel.config("primeira_execucao_concluida", True)
     pronta = painel.get("/")
     assert (pronta.status_code, pronta.headers["location"]) == (303, "/vagas?aba=destaques")
@@ -130,7 +130,7 @@ def test_config_estragada_cai_no_padrao_em_vez_de_dar_500(painel: Painel) -> Non
     assert (raiz.status_code, raiz.headers.get("location")) == (303, "/vagas?aba=destaques")
     painel.sql("UPDATE config SET valor = '{' WHERE chave = 'primeira_execucao_concluida'")
     raiz = http.get("/")
-    assert (raiz.status_code, raiz.headers.get("location")) == (303, "/primeira-execucao/1")
+    assert (raiz.status_code, raiz.headers.get("location")) == (303, "/primeira-execucao/ia")
 
 
 def test_oito_abas_e_so_a_atual_tem_aria_current(painel: Painel) -> None:

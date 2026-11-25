@@ -1,29 +1,44 @@
-"""Perfil da pessoa (desenho 8; plano T403). Na 0.5.0, só as habilidades, numa linha só.
+"""Perfil da pessoa (desenho 8; planos T403 e T430). Tudo aqui é dado da pessoa e fica no PC.
 
-As habilidades ficam no computador: o pedido do `encaixe` nunca leva o perfil (desenho 5.3).
-Normalizar e tirar repetidos é da tela (T413); aqui só se lê e grava.
+A linha única de `perfil` guarda as habilidades (0.5.0) e, desde a 0.6.0, os dados de contato e o
+resumo; `experiencia`, `curso` e `pergunta_perfil` guardam as listas. O que vai para a IA sai da
+lista permitida de cada tarefa (desenho 5.2), não daqui. Normalizar é da tela; aqui só se lê e
+grava, sempre com `ON CONFLICT DO UPDATE`. "Apagar perfil" apaga tudo isso e os preparos.
 """
 
 import json
 import sqlite3
 from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
+from typing import Literal
+
+from jobot.banco.migrar import copias
+
+
+def _lista_json(texto: str | None) -> list[object]:
+    """O JSON da coluna, se for lista; senão (NULL, estragado, outro tipo), lista vazia."""
+    try:
+        valor = json.loads(texto) if texto is not None else None
+    except ValueError:
+        return []
+    return valor if isinstance(valor, list) else []
+
+
+def textos_json(texto: str | None) -> tuple[str, ...]:
+    """Só os textos da lista em JSON (também lê as listas de `preparo_candidatura`)."""
+    return tuple(v for v in _lista_json(texto) if isinstance(v, str))
 
 
 def habilidades(con: sqlite3.Connection) -> list[str]:
     """As habilidades gravadas. Sem perfil, ou com valor estranho, lista vazia; só textos ficam."""
     linha = con.execute("SELECT habilidades FROM perfil WHERE id = 1").fetchone()
-    if linha is None:
-        return []
-    try:
-        valor = json.loads(linha[0])
-    except ValueError:
-        return []
-    return [h for h in valor if isinstance(h, str)] if isinstance(valor, list) else []
+    return [] if linha is None else list(textos_json(linha[0]))
 
 
 def gravar_habilidades(con: sqlite3.Connection, lista: Sequence[str], agora: datetime) -> None:
-    """Grava as habilidades na linha única (`ON CONFLICT DO UPDATE`)."""
+    """Grava as habilidades na linha única (`ON CONFLICT DO UPDATE`); os outros dados ficam."""
     with con:
         con.execute(
             "INSERT INTO perfil (id, habilidades, atualizado_em) VALUES (1, ?, ?)"
@@ -33,7 +48,301 @@ def gravar_habilidades(con: sqlite3.Connection, lista: Sequence[str], agora: dat
         )
 
 
-def apagar_perfil(con: sqlite3.Connection) -> None:
-    """Apaga a linha ("Apagar perfil"). `habilidades_vaga` fica: não depende do perfil."""
+Formacao = Literal["medio", "tecnico", "graduacao", "pos_graduacao", "mestrado", "doutorado"]
+
+
+@dataclass(frozen=True)
+class Dados:
+    """As colunas da 0.6.0 na linha única. Vazio = `None` (ou tupla vazia, nas listas)."""
+
+    nome: str | None = None
+    email: str | None = None
+    telefone: str | None = None
+    cidade_moradia: str | None = None
+    cargo_atual: str | None = None
+    anos_de_experiencia: int | None = None  # 0 a 60 (CHECK)
+    formacao_nivel: Formacao | None = None
+    resumo: str | None = None
+    idiomas_falados: tuple[tuple[str, str], ...] = ()  # (idioma, nível)
+    links: tuple[str, ...] = ()
+
+
+_TEXTOS = ("nome", "email", "telefone", "cidade_moradia", "cargo_atual")
+_COLUNAS = (*_TEXTOS, "anos_de_experiencia", "formacao_nivel", "resumo", "idiomas_falados", "links")
+
+
+def dados(con: sqlite3.Connection) -> Dados:
+    """Os dados gravados. Sem perfil, `Dados()`; listas estragadas viram vazias."""
+    linha = con.execute(f"SELECT {', '.join(_COLUNAS)} FROM perfil WHERE id = 1").fetchone()
+    if linha is None:
+        return Dados()
+    nome, email, telefone, cidade, cargo, anos, formacao, resumo, idiomas, links = linha
+    pares = tuple(
+        (p[0], p[1])
+        for p in _lista_json(idiomas)
+        if isinstance(p, list) and len(p) == 2 and all(isinstance(x, str) for x in p)
+    )
+    return Dados(
+        nome,
+        email,
+        telefone,
+        cidade,
+        cargo,
+        anos_de_experiencia=anos,
+        formacao_nivel=formacao,
+        resumo=resumo,
+        idiomas_falados=pares,
+        links=textos_json(links),
+    )
+
+
+def _json_ou_nulo(lista: list[object]) -> str | None:
+    """Lista em JSON; vazia = NULL, como os textos vazios."""
+    return json.dumps(lista, ensure_ascii=False) if lista else None
+
+
+def gravar_dados(con: sqlite3.Connection, novos: Dados, agora: datetime) -> None:
+    """Grava todas as colunas de `Dados` na linha única; as habilidades ficam como estão.
+
+    Sem a linha, ela nasce com a lista de habilidades vazia.
+    """
+    valores = (
+        *(getattr(novos, c) for c in _TEXTOS),
+        novos.anos_de_experiencia,
+        novos.formacao_nivel,
+        novos.resumo,
+        _json_ou_nulo([list(p) for p in novos.idiomas_falados]),
+        _json_ou_nulo(list(novos.links)),
+    )
     with con:
-        con.execute("DELETE FROM perfil")
+        con.execute(
+            f"INSERT INTO perfil (id, habilidades, atualizado_em, {', '.join(_COLUNAS)})"
+            f" VALUES (1, '[]', ?, {', '.join('?' * len(_COLUNAS))})"
+            " ON CONFLICT(id) DO UPDATE SET atualizado_em = excluded.atualizado_em, "
+            + ", ".join(f"{c} = excluded.{c}" for c in _COLUNAS),
+            (agora.isoformat(), *valores),
+        )
+
+
+@dataclass(frozen=True)
+class Experiencia:
+    cargo: str
+    empresa: str | None = None
+    inicio: str | None = None  # AAAA-MM
+    fim: str | None = None  # AAAA-MM; None = o emprego de hoje
+    descricao: str | None = None
+    id: int | None = None  # None = nova
+
+
+def experiencias(con: sqlite3.Connection) -> list[Experiencia]:
+    """As experiências, na ordem em que entraram."""
+    return [
+        Experiencia(cargo, empresa, inicio, fim, descricao, id_)
+        for id_, cargo, empresa, inicio, fim, descricao in con.execute(
+            "SELECT id, cargo, empresa, inicio, fim, descricao FROM experiencia ORDER BY id"
+        )
+    ]
+
+
+def gravar_experiencia(con: sqlite3.Connection, exp: Experiencia) -> int | None:
+    """Nova (`id` None): cria e devolve o `id`. Com `id`: edita no lugar e devolve o `id`; se a
+    linha já foi tirada (formulário de outra aba), não a traz de volta e devolve `None`.
+    """
+    campos = (exp.cargo, exp.empresa, exp.inicio, exp.fim, exp.descricao)
+    with con:
+        if exp.id is None:
+            cursor = con.execute(
+                "INSERT INTO experiencia (cargo, empresa, inicio, fim, descricao)"
+                " VALUES (?, ?, ?, ?, ?) RETURNING id",
+                campos,
+            )
+        else:
+            cursor = con.execute(
+                "UPDATE experiencia SET cargo = ?, empresa = ?, inicio = ?, fim = ?, descricao = ?"
+                " WHERE id = ? RETURNING id",
+                (*campos, exp.id),
+            )
+        linha = cursor.fetchone()
+    return None if linha is None else int(linha[0])
+
+
+def apagar_experiencia(con: sqlite3.Connection, id_: int) -> None:
+    """Tira a experiência: a linha some (é dado da pessoa, não vaga)."""
+    with con:
+        con.execute("DELETE FROM experiencia WHERE id = ?", (id_,))
+
+
+Situacao = Literal["concluido", "cursando", "trancado"]
+
+
+@dataclass(frozen=True)
+class Curso:
+    nome: str
+    instituicao: str | None = None
+    situacao: Situacao | None = None
+    previsao: str | None = None  # AAAA-MM: fim ou previsão de formatura
+    id: int | None = None  # None = novo
+
+
+def cursos(con: sqlite3.Connection) -> list[Curso]:
+    """Os cursos, na ordem em que entraram."""
+    return [
+        Curso(nome, instituicao, situacao, previsao, id_)
+        for id_, nome, instituicao, situacao, previsao in con.execute(
+            "SELECT id, nome, instituicao, situacao, previsao FROM curso ORDER BY id"
+        )
+    ]
+
+
+def gravar_curso(con: sqlite3.Connection, curso: Curso) -> int | None:
+    """Como `gravar_experiencia`: novo cria; com `id`, edita; o curso tirado não volta (`None`)."""
+    campos = (curso.nome, curso.instituicao, curso.situacao, curso.previsao)
+    with con:
+        if curso.id is None:
+            cursor = con.execute(
+                "INSERT INTO curso (nome, instituicao, situacao, previsao) VALUES (?, ?, ?, ?)"
+                " RETURNING id",
+                campos,
+            )
+        else:
+            cursor = con.execute(
+                "UPDATE curso SET nome = ?, instituicao = ?, situacao = ?, previsao = ?"
+                " WHERE id = ? RETURNING id",
+                (*campos, curso.id),
+            )
+        linha = cursor.fetchone()
+    return None if linha is None else int(linha[0])
+
+
+def apagar_curso(con: sqlite3.Connection, id_: int) -> None:
+    """Tira o curso: a linha some."""
+    with con:
+        con.execute("DELETE FROM curso WHERE id = ?", (id_,))
+
+
+Origem = Literal["base", "ia"]
+
+
+@dataclass(frozen=True)
+class PerguntaPerfil:
+    chave: str
+    pergunta: str
+    origem: Origem
+    por_que: str | None = None
+    resposta: str | None = None  # None = ainda sem resposta
+
+
+# As sugeridas que esperam o aceite (D234): passou disso, a mais velha sai.
+TETO_SUGERIDAS = 20
+
+
+def perguntas(con: sqlite3.Connection, *, sugeridas: bool = False) -> list[PerguntaPerfil]:
+    """As perguntas aceitas do perfil, na ordem em que entraram; com `sugeridas`, só as que a IA
+    sugeriu numa candidatura e esperam o aceite (D234), que nunca vão a um pedido."""
+    return [
+        PerguntaPerfil(*linha)
+        for linha in con.execute(
+            "SELECT chave, pergunta, origem, por_que, resposta FROM pergunta_perfil"
+            " WHERE sugerida = ? ORDER BY id",
+            (int(sugeridas),),
+        )
+    ]
+
+
+def gravar_pergunta(
+    con: sqlite3.Connection,
+    chave: str,
+    pergunta: str,
+    origem: Origem,
+    agora: datetime,
+    *,
+    por_que: str | None = None,
+    sugerida: bool = False,
+) -> None:
+    """Grava a pergunta pela `chave`. A mesma chave troca o texto e o porquê, nunca a resposta;
+    a aceita fica aceita, e a pedida sem `sugerida` aceita a que esperava. Com `sugerida`, só
+    as `TETO_SUGERIDAS` mais novas que esperam ficam."""
+    with con:
+        con.execute(
+            "INSERT INTO pergunta_perfil (chave, pergunta, por_que, origem, criada_em, sugerida)"
+            " VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(chave) DO UPDATE SET"
+            " pergunta = excluded.pergunta, por_que = excluded.por_que, origem = excluded.origem,"
+            " sugerida = min(sugerida, excluded.sugerida)",
+            (chave, pergunta, por_que, origem, agora.isoformat(), int(sugerida)),
+        )
+        if sugerida:
+            con.execute(
+                "DELETE FROM pergunta_perfil WHERE sugerida = 1 AND id NOT IN"
+                " (SELECT id FROM pergunta_perfil WHERE sugerida = 1 ORDER BY id DESC LIMIT ?)",
+                (TETO_SUGERIDAS,),
+            )
+
+
+def aceitar_pergunta(con: sqlite3.Connection, chave: str) -> None:
+    """A sugerida entra no perfil (no questionário e, respondida, nos pedidos)."""
+    with con:
+        con.execute("UPDATE pergunta_perfil SET sugerida = 0 WHERE chave = ?", (chave,))
+
+
+def descartar_pergunta(con: sqlite3.Connection, chave: str) -> None:
+    """A sugerida sai; a aceita não sai por aqui."""
+    with con:
+        con.execute("DELETE FROM pergunta_perfil WHERE chave = ? AND sugerida = 1", (chave,))
+
+
+def responder_pergunta(
+    con: sqlite3.Connection, chave: str, resposta: str | None, agora: datetime
+) -> None:
+    """Grava a resposta da pergunta que já existe; chave desconhecida não cria nada. `None` apaga
+    a resposta (a pergunta volta a "sem resposta")."""
+    with con:
+        con.execute(
+            "UPDATE pergunta_perfil SET resposta = ?, respondida_em = ? WHERE chave = ?",
+            (resposta, None if resposta is None else agora.isoformat(), chave),
+        )
+
+
+_PESSOAIS = ("perfil", "experiencia", "curso", "pergunta_perfil", "preparo_candidatura")
+
+
+def existe(con: sqlite3.Connection) -> bool:
+    """Há algo que "Apagar perfil" apagaria. A linha de `perfil` salva toda em branco não conta
+    (D230.6): sem habilidades e com todas as colunas da 0.6.0 nulas."""
+    com_valor = (
+        "SELECT EXISTS (SELECT 1 FROM perfil WHERE habilidades <> '[]'"
+        f" OR COALESCE({', '.join(_COLUNAS)}) IS NOT NULL)"
+    )
+    return bool(con.execute(com_valor).fetchone()[0]) or any(
+        con.execute(f"SELECT EXISTS (SELECT 1 FROM {t})").fetchone()[0] for t in _PESSOAIS[1:]
+    )
+
+
+def apagar_perfil(con: sqlite3.Connection) -> None:
+    """ "Apagar perfil": a linha, as experiências, os cursos, as perguntas e os preparos.
+
+    `habilidades_vaga` e `candidatura` ficam: são da vaga e não dependem do perfil. Os bytes somem
+    também: `secure_delete` (de `abrir`) zera o apagado, o checkpoint esvazia o `-wal` e as
+    cópias `.antes-vN` perdem as mesmas tabelas.
+    """
+    with con:
+        for tabela in _PESSOAIS:
+            con.execute(f"DELETE FROM {tabela}")
+    # ponytail: outra conexão lendo deixa o checkpoint pela metade; o próximo o completa
+    con.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+    arquivo = con.execute("PRAGMA database_list").fetchone()[2]
+    for copia in copias(Path(arquivo)) if arquivo else []:
+        _apagar_na_copia(copia)
+
+
+def _apagar_na_copia(copia: Path) -> None:
+    """Apaga as tabelas pessoais que a cópia tiver (a de uma versão velha tem menos)."""
+    c = sqlite3.connect(copia)
+    try:
+        c.execute("PRAGMA secure_delete=ON")
+        existem = {n for (n,) in c.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+        with c:
+            for tabela in _PESSOAIS:
+                if tabela in existem:
+                    c.execute(f"DELETE FROM {tabela}")
+    finally:
+        c.close()

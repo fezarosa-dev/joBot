@@ -4,9 +4,12 @@
     troca: o foco vai ao estado (`ia_foco`) ou ao aviso do fim, só se estiver solto (app.js). -#}
 {%- set p = "configuracoes.ferramentas.ia_local." -%}
 {%- set rodando = ia_estado in ("baixando", "removendo") -%}
-{%- macro acao(nome, rotulo, classe="botao-secundario", ajuda=none) -%}
+{%- macro acao(nome, rotulo, classe="botao-secundario", ajuda=none, modelo=none) -%}
 <form method="post" action="/configuracoes/ferramentas/ia-local/{{ nome }}" hx-post="/configuracoes/ferramentas/ia-local/{{ nome }}" hx-target="#ferramenta-ia-local" hx-swap="outerHTML">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  {%- if modelo %}
+  <input type="hidden" name="modelo" value="{{ modelo }}">
+  {%- endif %}
   <button type="submit" class="botao {{ classe }}"{% if ajuda %} aria-describedby="{{ ajuda }}"{% endif %}>{{ rotulo }}</button>
 </form>
 {%- endmacro -%}
@@ -35,7 +38,7 @@
   <p class="config-texto"><small>{{ t(p ~ "licenca", licenca=ia_programa.licenca) }} {{ t(p ~ "origem", origem=ia_programa.origem) }}</small></p>
   {%- endif %}
   {%- elif not rodando %}
-  <p class="config-texto"><small>{{ t(p ~ "tamanho", menor=ia_menor, maior=ia_maior) }}</small></p>
+  <p class="config-texto"><small>{{ t(p ~ "tamanho", nome=ia_padrao.nome, tamanho=ia_padrao.tamanho) }}</small></p>
   {%- endif %}
   {%- if ia_desatualizado %}
   <p class="config-texto" role="status">{{ t(p ~ "desatualizado") }}</p>
@@ -44,7 +47,9 @@
   <div class="acoes">
     {%- if ia_modelo %}
     {%- if ia_desatualizado %}{{ acao("atualizar", t(p ~ "atualizar"), "botao-primario") }}{% endif %}
-    {{ acao("trocar", t(p ~ "trocar", nome=ia_outro.nome, tamanho=ia_outro.tamanho)) }}
+    {%- for outro in ia_outros %}
+    {{ acao("trocar", t(p ~ "trocar", nome=outro.nome, tamanho=outro.tamanho), modelo=outro.chave) }}
+    {%- endfor %}
     {{ acao("remover", t(p ~ "remover"), ajuda="ia-local-remover-ajuda") }}
     {%- else %}
     {{ acao("baixar", t(p ~ "baixar"), "botao-primario") }}

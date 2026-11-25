@@ -96,7 +96,8 @@ def test_job_windows_roda_os_testes_de_sistema() -> None:
     assert "runs-on: windows-latest" in texto
     assert "uv sync --locked" in texto
     filtro = (
-        '-k "pastas or instancia or processo or segundo_plano or atualizar or cofre or nofollow"'
+        '-k "pastas or instancia or processo or segundo_plano or atualizar or cofre or nofollow'
+        ' or test_pdf"'  # o filho real do PDF (T435), pelo nome do módulo
     )
     assert f"uv run pytest tests/unidade {filtro}" in texto
     # os ramos #[cfg(windows)] da casca (nota da revisão da T337)

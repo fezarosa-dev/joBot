@@ -1,0 +1,20 @@
+{#- Passo Perfil (T439; desenho 10.4 da fase 4; D235): o envio do currículo (fora do formulário do
+    passo, que não se aninha) e as perguntas do questionário da aba Perfil (T437), no formulário que
+    o Continuar grava. O "Salvar e sugerir perguntas" fica no pé, depois do Continuar: o Enter num
+    campo aciona o primeiro botão do formulário, e o perfil só vai à IA num clique. -#}
+<h1 class="assistente-titulo">{{ t("primeira_execucao.perfil.titulo") }}</h1>
+<p class="assistente-texto">{{ t("primeira_execucao.perfil.intro") }}</p>
+{% if erro %}
+<div class="assistente-alerta" id="config-erro" role="alert">
+  <strong>{{ t("primeira_execucao.erro.titulo") }}</strong>
+  <p>{{ t(erro) }}</p>
+</div>
+{% elif curriculo_salvo %}
+<p class="assistente-texto" role="status">{{ t("primeira_execucao.perfil.curriculo_salvo") }}</p>
+{% endif %}
+{% include "configuracoes/_curriculo_envio.html" %}
+<form id="assistente-form" method="post" action="/primeira-execucao/perfil" class="assistente-form config-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  {% if busca_id %}<input type="hidden" name="busca" value="{{ busca_id }}">{% endif %}
+  {% include "configuracoes/_perguntas_campos.html" %}
+</form>

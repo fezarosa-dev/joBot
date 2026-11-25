@@ -1,25 +1,197 @@
-{#- Aba Perfil (T413; desenho 8 da fase 4): as habilidades, uma por linha, e "Apagar perfil" com o
-    alerta de confirmação (sem JavaScript, a página `confirmar.html`). A frase de privacidade diz
-    para onde vai o texto da vaga, pelo estado da tarefa `encaixe`. -#}
+{#- Aba Perfil (T413, T434; desenho 8 da fase 4): "Sobre você" (contato, trabalho e estudo, idiomas),
+    as habilidades (uma por linha), as experiências e os cursos (um formulário por item, com Salvar e
+    Tirar, e um para o novo, até `teto_itens`) e "Apagar perfil" com o alerta de confirmação (sem
+    JavaScript, a página `confirmar.html`). As quatro seções que se digitam são um formulário só
+    (`#perfil-aba`, T443): cada botão manda tudo e diz o que grava (`secao=dados`, `habilidades`,
+    `exp-3`, `curso-nova` ou `tirar=exp-3`), e a página volta com o digitado nas outras seções
+    (`dados_tela`, `habilidades_texto`, `itens_digitados` pelo prefixo do item). Os botões levam
+    `formnovalidate`: quem confere é o servidor, e o campo errado de outra seção não barra este
+    Salvar. No erro, `erro_campo` é o `id` do controle marcado (com o foco, sem JavaScript). A frase de privacidade diz para onde vai o
+    texto da vaga, pelo estado da tarefa `encaixe`, e, com a tarefa `perguntas` ligada, para onde
+    vai o perfil (D233).
+    Cada seção que grava troca sozinha com HTMX (D230): o `hx-select` dela tira da resposta só ela,
+    e o resto da aba, digitado e não salvo, fica. Por isso o "Salvo." (`salvo_secao`) e o alerta do
+    erro (`erro_secao`) moram na seção, e o 422 com a seção também troca (`data-troca-422`, no
+    app.js); o "Apagar perfil", fora delas, vem junto pelo `hx-select-oob`. Sem JavaScript, o
+    formulário recarrega a página, que volta na seção (o `formaction` com a âncora). O Enter num
+    campo vai ao botão da parte (`data-parte`, no app.js); sem JavaScript, o navegador aperta o
+    primeiro botão do formulário, o oculto `secao=nenhuma`, que não grava nada e devolve a página
+    com o digitado e o aviso `nada_salvo`. Ele vem antes das sugeridas, que também mandam o
+    formulário da aba (`form="perfil-aba"`, `sugerida=aceitar:<chave>`).
+    As perguntas que a IA sugeriu numa candidatura esperam aqui o aceite (D234). -#}
 {% from "_alerta.html" import alerta with context %}
+{% from "configuracoes/_campos_perfil.html" import descrito, entrada, caixa, lista with context %}
+{#- todo botão do formulário único posta igual com e sem JavaScript e volta à própria seção (T443) -#}
+{% macro envia(ancora) %} formaction="/configuracoes/perfil#perfil-{{ ancora }}" hx-post="/configuracoes/perfil" formnovalidate{% endmacro %}
+{#- os botões de um item salvo dizem qual item no nome acessível ("Tirar Analista"): todo item tem os
+    seus, e o Tirar apaga na hora (D230.2) -#}
+{% macro botoes(novo, item, prefixo, ancora) -%}
+<div class="acoes">
+  {%- if novo %}
+  <button type="submit" name="secao" value="{{ prefixo }}" class="botao botao-primario"{{ envia(ancora) }}>{{ t("configuracoes.perfil.adicionar") }}</button>
+  {%- else %}
+  <button type="submit" name="secao" value="{{ prefixo }}" class="botao botao-primario" aria-label="{{ t('configuracoes.perfil.salvar_item', item=item) }}"{{ envia(ancora) }}>{{ t("configuracoes.salvar") }}</button>
+  <button type="submit" name="tirar" value="{{ prefixo }}" class="botao botao-secundario" aria-label="{{ t('configuracoes.perfil.tirar_item', item=item) }}"{{ envia(ancora) }}>{{ t("configuracoes.perfil.tirar") }}</button>
+  {%- endif %}
+</div>
+{%- endmacro %}
+{#- o "Salvo." e o alerta da seção que gravou (D230); o foco vai ao "Salvo." depois da troca -#}
+{% macro aviso_da_secao(ancora) -%}
+  {%- if erro_secao == ancora %}
+  <div class="config-alerta" id="config-erro" role="alert">
+    <p>{{ t(erro) }}</p>
+  </div>
+  {%- elif salvo_secao == ancora %}
+  <p role="status" class="config-salvo" aria-live="polite" data-foco-se-livre><span data-some-sozinho>{{ t("configuracoes.salvo") }}</span></p>
+  {%- endif %}
+{%- endmacro %}
+{% macro experiencia(e, prefixo, novo=false) -%}
+{%- set v = itens_digitados[prefixo] if prefixo in itens_digitados else e %}
+<div class="config-form" data-parte>
+  <fieldset class="grupo-leva grupo-campos">
+    <legend>{{ t("configuracoes.perfil.experiencia.nova") if novo else e.cargo }}</legend>
+    {{ entrada(prefixo ~ "-cargo", prefixo ~ "-cargo", t("configuracoes.perfil.experiencia.cargo"), v.cargo, obrigatorio=true) }}
+    {{ entrada(prefixo ~ "-empresa", prefixo ~ "-empresa", t("configuracoes.perfil.experiencia.empresa"), v.empresa) }}
+    {{ entrada(prefixo ~ "-inicio", prefixo ~ "-inicio", t("configuracoes.perfil.experiencia.inicio"), v.inicio, mes=true) }}
+    {{ entrada(prefixo ~ "-fim", prefixo ~ "-fim", t("configuracoes.perfil.experiencia.fim"), v.fim, mes=true, ajuda=t("configuracoes.perfil.experiencia.fim.ajuda")) }}
+    {{ caixa(prefixo ~ "-descricao", prefixo ~ "-descricao", t("configuracoes.perfil.experiencia.descricao"), v.descricao, linhas=3) }}
+  </fieldset>
+  {{ botoes(novo, e.cargo, prefixo, "experiencias") }}
+</div>
+{%- endmacro %}
+{% macro curso(c, prefixo, novo=false) -%}
+{%- set v = itens_digitados[prefixo] if prefixo in itens_digitados else c %}
+<div class="config-form" data-parte>
+  <fieldset class="grupo-leva grupo-campos">
+    <legend>{{ t("configuracoes.perfil.curso.novo") if novo else c.nome }}</legend>
+    {{ entrada(prefixo ~ "-nome", prefixo ~ "-nome", t("configuracoes.perfil.curso.nome"), v.nome, obrigatorio=true) }}
+    {{ entrada(prefixo ~ "-instituicao", prefixo ~ "-instituicao", t("configuracoes.perfil.curso.instituicao"), v.instituicao) }}
+    {{ lista(prefixo ~ "-situacao", prefixo ~ "-situacao", t("configuracoes.perfil.curso.situacao"), situacoes, v.situacao, "configuracoes.perfil.situacao.") }}
+    {{ entrada(prefixo ~ "-previsao", prefixo ~ "-previsao", t("configuracoes.perfil.curso.previsao"), v.previsao, mes=true) }}
+  </fieldset>
+  {{ botoes(novo, c.nome, prefixo, "cursos") }}
+</div>
+{%- endmacro %}
+{% if nada_salvo %}
+<p role="status" class="config-salvo" aria-live="polite">{{ t("configuracoes.perfil.nada_salvo") }}</p>
+{% endif %}
 {% if apagado %}
 <p role="status" class="config-salvo" aria-live="polite"><span data-some-sozinho>{{ t("configuracoes.perfil.apagado") }}</span></p>
 {% endif %}
 <p class="config-texto">{{ t("configuracoes.perfil.explicacao") }}</p>
+<p class="config-texto"><a href="/configuracoes/perfil/perguntas">{{ t("configuracoes.perfil.perguntas.abrir") }}</a></p>
 <p class="config-texto" id="perfil-privacidade">
   {%- if privacidade.servico %}{{ t(privacidade.chave, servico=t(privacidade.servico)) }}{% else %}{{ t(privacidade.chave) }}{% endif -%}
+  {%- set pp = privacidade_perguntas %}
+  {%- if pp %} {% if pp.servico %}{{ t(pp.chave, servico=t(pp.servico)) }}{% else %}{{ t(pp.chave) }}{% endif %}{% endif -%}
 </p>
-<form method="post" action="/configuracoes/perfil" class="config-form">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-  <div class="campo">
-    <label for="campo-habilidades">{{ t("configuracoes.perfil.habilidades") }}</label>
-    <textarea class="campo-texto" id="campo-habilidades" name="habilidades" rows="8" autocomplete="off" spellcheck="false" aria-describedby="habilidades-ajuda perfil-privacidade{% if erro %} config-erro{% endif %}"{% if erro %} aria-invalid="true"{% endif %}>{{ habilidades_texto }}</textarea>
-    <small id="habilidades-ajuda">{{ t("configuracoes.perfil.habilidades.ajuda") }}</small>
+{#- o primeiro botão do formulário da aba, o do Enter sem JavaScript: não grava nada (T443) -#}
+<button type="submit" form="perfil-aba" name="secao" value="nenhuma" hidden formnovalidate tabindex="-1"></button>
+{#- as perguntas que a IA sugeriu ao preparar candidaturas esperam o aceite (D234): só a aceita
+    entra no questionário e, respondida, nos pedidos. O botão diz qual pergunta no nome acessível -#}
+{%- if perguntas_sugeridas or salvo_secao == "sugeridas" %}
+<section class="config-bloco" aria-labelledby="perfil-sugeridas" id="bloco-sugeridas" hx-target="this" hx-select="#bloco-sugeridas" hx-swap="outerHTML" hx-select-oob="#perfil-apagar" data-troca-422>
+  <h2 id="perfil-sugeridas">{{ t("configuracoes.perfil.sugeridas.titulo") }}</h2>
+  {{ aviso_da_secao("sugeridas") }}
+  <p class="config-texto">{{ t("configuracoes.perfil.sugeridas.explicacao", teto=teto_sugeridas) }}</p>
+  {%- for p in perguntas_sugeridas %}
+  <div class="config-form">
+    <p class="config-texto">{{ p.pergunta }}</p>
+    <div class="acoes">
+      <button type="submit" form="perfil-aba" name="sugerida" value="aceitar:{{ p.chave }}" class="botao botao-primario" aria-label="{{ t('configuracoes.perfil.sugeridas.aceitar') }}: {{ p.pergunta }}"{{ envia("sugeridas") }}>{{ t("configuracoes.perfil.sugeridas.aceitar") }}</button>
+      <button type="submit" form="perfil-aba" name="sugerida" value="descartar:{{ p.chave }}" class="botao botao-secundario" aria-label="{{ t('configuracoes.perfil.sugeridas.descartar') }}: {{ p.pergunta }}"{{ envia("sugeridas") }}>{{ t("configuracoes.perfil.sugeridas.descartar") }}</button>
+    </div>
   </div>
-  <div class="acoes">
-    <button type="submit" class="botao botao-primario">{{ t("configuracoes.salvar") }}</button>
+  {%- else %}
+  <p class="config-texto">{{ t("configuracoes.perfil.sugeridas.vazio") }}</p>
+  {%- endfor %}
+</section>
+{%- endif %}
+{% include "configuracoes/_curriculo_envio.html" %}
+{%- set d = dados_tela %}
+<form id="perfil-aba" method="post" action="/configuracoes/perfil">
+<input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<section class="config-bloco" aria-labelledby="perfil-sobre" id="bloco-sobre" hx-target="this" hx-select="#bloco-sobre" hx-swap="outerHTML" hx-select-oob="#perfil-apagar" data-troca-422>
+  <h2 id="perfil-sobre">{{ t("configuracoes.perfil.sobre") }}</h2>
+  {{ aviso_da_secao("sobre") }}
+  <div class="config-form" data-parte>
+    <fieldset class="grupo-leva grupo-campos" aria-describedby="perfil-contato-ajuda">
+      <legend>{{ t("configuracoes.perfil.contato") }}</legend>
+      <small id="perfil-contato-ajuda">{{ t("configuracoes.perfil.contato.ajuda") }}</small>
+      {{ entrada("perfil-nome", "nome", t("configuracoes.perfil.nome"), d.nome, autocomplete="name") }}
+      {{ entrada("perfil-email", "email", t("configuracoes.perfil.email"), d.email, tipo="email", teto=teto.email, autocomplete="email") }}
+      {{ entrada("perfil-telefone", "telefone", t("configuracoes.perfil.telefone"), d.telefone, tipo="tel", teto=teto.telefone, autocomplete="tel") }}
+      {{ entrada("perfil-cidade", "cidade_moradia", t("configuracoes.perfil.cidade"), d.cidade_moradia, autocomplete="address-level2") }}
+    </fieldset>
+    <fieldset class="grupo-leva grupo-campos">
+      <legend>{{ t("configuracoes.perfil.trabalho") }}</legend>
+      {{ entrada("perfil-cargo", "cargo_atual", t("configuracoes.perfil.cargo"), d.cargo_atual, autocomplete="organization-title") }}
+      <div class="campo">
+        <label for="perfil-anos">{{ t("configuracoes.perfil.anos") }}</label>
+        <input type="number" id="perfil-anos" name="anos_de_experiencia" value="{{ d.anos_de_experiencia }}" min="0" max="60" step="1" inputmode="numeric"{{ descrito("perfil-anos") }}>
+      </div>
+      {{ lista("perfil-formacao", "formacao_nivel", t("configuracoes.perfil.formacao"), formacoes, d.formacao_nivel, "configuracoes.perfil.formacao.") }}
+      {{ caixa("perfil-resumo", "resumo", t("configuracoes.perfil.resumo"), d.resumo, teto=teto.resumo, ajuda=t("configuracoes.perfil.resumo.ajuda")) }}
+      {{ caixa("perfil-links", "links", t("configuracoes.perfil.links"), d.links, linhas=3, teto=5100, ajuda=t("configuracoes.perfil.links.ajuda")) }}
+    </fieldset>
+    <fieldset class="grupo-leva grupo-campos">
+      <legend>{{ t("configuracoes.perfil.idiomas") }}</legend>
+      {%- for codigo in idiomas_fixos %}
+      {{ lista("perfil-idioma-" ~ codigo, "idioma_" ~ codigo, t("configuracoes.perfil.idioma." ~ codigo), niveis, d.idiomas[codigo], "configuracoes.perfil.nivel.") }}
+      {%- endfor %}
+      {%- for nome, nivel in d.outros %}
+      {{ entrada("perfil-outro-" ~ loop.index, "outro_nome", t("configuracoes.perfil.outro", n=loop.index), nome, teto=teto.idioma) }}
+      {{ lista("perfil-outro-" ~ loop.index ~ "-nivel", "outro_nivel", t("configuracoes.perfil.outro.nivel", n=loop.index), niveis, nivel, "configuracoes.perfil.nivel.") }}
+      {%- endfor %}
+    </fieldset>
+    <div class="acoes">
+      <button type="submit" name="secao" value="dados" class="botao botao-primario"{{ envia("sobre") }}>{{ t("configuracoes.salvar") }}</button>
+    </div>
   </div>
+</section>
+<section class="config-bloco" aria-labelledby="perfil-habilidades" id="bloco-habilidades" hx-target="this" hx-select="#bloco-habilidades" hx-swap="outerHTML" hx-select-oob="#perfil-apagar" data-troca-422>
+  <h2 id="perfil-habilidades">{{ t("configuracoes.perfil.habilidades.titulo") }}</h2>
+  {{ aviso_da_secao("habilidades") }}
+  <div class="config-form">
+    <div class="campo">
+      <label for="campo-habilidades">{{ t("configuracoes.perfil.habilidades") }}</label>
+      <textarea class="campo-texto" id="campo-habilidades" name="habilidades" rows="8" autocomplete="off" spellcheck="false" aria-describedby="habilidades-ajuda perfil-privacidade{% if erro_campo == 'campo-habilidades' %} config-erro{% endif %}"{% if erro_campo == "campo-habilidades" %} aria-invalid="true" autofocus{% endif %}>{{ habilidades_texto }}</textarea>
+      <small id="habilidades-ajuda">{{ t("configuracoes.perfil.habilidades.ajuda") }}</small>
+    </div>
+    <div class="acoes">
+      <button type="submit" name="secao" value="habilidades" class="botao botao-primario"{{ envia("habilidades") }}>{{ t("configuracoes.salvar") }}</button>
+    </div>
+  </div>
+</section>
+<section class="config-bloco" aria-labelledby="perfil-experiencias" id="bloco-experiencias" hx-target="this" hx-select="#bloco-experiencias" hx-swap="outerHTML" hx-select-oob="#perfil-apagar" data-troca-422>
+  <h2 id="perfil-experiencias">{{ t("configuracoes.perfil.experiencias") }}</h2>
+  {{ aviso_da_secao("experiencias") }}
+  <p class="config-texto">{{ t("configuracoes.perfil.experiencias.explicacao") }}</p>
+  <div class="config-form">
+  {%- for e in experiencias %}
+  {{ experiencia(e, "exp-" ~ e.id) }}
+  {%- endfor %}
+  {%- if experiencias|length < teto_itens %}
+  {{ experiencia({"id": "", "cargo": "", "empresa": "", "inicio": "", "fim": "", "descricao": ""}, "exp-nova", novo=true) }}
+  {%- endif %}
+  </div>
+</section>
+<section class="config-bloco" aria-labelledby="perfil-cursos" id="bloco-cursos" hx-target="this" hx-select="#bloco-cursos" hx-swap="outerHTML" hx-select-oob="#perfil-apagar" data-troca-422>
+  <h2 id="perfil-cursos">{{ t("configuracoes.perfil.cursos") }}</h2>
+  {{ aviso_da_secao("cursos") }}
+  <p class="config-texto">{{ t("configuracoes.perfil.cursos.explicacao") }}</p>
+  <div class="config-form">
+  {%- for c in cursos %}
+  {{ curso(c, "curso-" ~ c.id) }}
+  {%- endfor %}
+  {%- if cursos|length < teto_itens %}
+  {{ curso({"id": "", "nome": "", "instituicao": "", "situacao": "", "previsao": ""}, "curso-nova", novo=true) }}
+  {%- endif %}
+  </div>
+</section>
 </form>
+{#- o alvo fica mesmo sem perfil: a seção que grava o traz por troca fora de banda (D230.8) -#}
+<div id="perfil-apagar">
 {%- if tem_perfil %}
 <form method="get" action="/configuracoes/perfil/apagar/confirmar">
   <div class="acoes">
@@ -28,3 +200,4 @@
 </form>
 {{ alerta("alerta-perfil", t("configuracoes.perfil.apagar.pergunta"), t("configuracoes.perfil.apagar.explicacao"), t("comum.apagar"), "/configuracoes/perfil/apagar") }}
 {%- endif %}
+</div>

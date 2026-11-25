@@ -32,7 +32,7 @@ from jobot.painel.consultas import (
     inteiro_da_url,
     relogio_do_painel,
 )
-from jobot.painel.detalhe_vaga import contexto_do_detalhe
+from jobot.painel.detalhe_vaga import contexto_do_detalhe, preparos_de
 from jobot.painel.lateral import ler_lateral
 from jobot.painel.moeda import (
     INTEGER_MAX,
@@ -41,7 +41,7 @@ from jobot.painel.moeda import (
     exibicao_do_painel,
     filtro_salario,
 )
-from jobot.painel.seguranca import Con, de_volta, renderizar
+from jobot.painel.seguranca import Con, de_volta, idioma_do_pedido, renderizar
 
 router = APIRouter()
 
@@ -379,7 +379,7 @@ def com_vary(resposta: HTMLResponse) -> HTMLResponse:
 @router.get("/")
 async def raiz(con: Con) -> RedirectResponse:
     if not ler_config(con, "primeira_execucao_concluida", False):
-        return RedirectResponse("/primeira-execucao/1", status_code=303)
+        return RedirectResponse("/primeira-execucao/ia", status_code=303)
     aba = ABA_DESTAQUES if ler_config(con, "destaques_ligados") else "todas"
     return RedirectResponse(f"/vagas?aba={aba}", status_code=303)
 
@@ -428,7 +428,8 @@ async def vagas(request: Request, con: Con) -> HTMLResponse:
     detalhe: dict[str, Any] | None = None
     if vaga is not None:
         retorno = estado.url(extras=[("vaga", str(vaga.id))])
-        detalhe = contexto_do_detalhe(con, vaga, agora.astimezone().date(), retorno)
+        hoje, preparos = agora.astimezone().date(), preparos_de(request)
+        detalhe = contexto_do_detalhe(con, vaga, hoje, retorno, preparos, idioma_do_pedido(request))
     if parcial and cabecalho.get("hx-target") == "detalhe-vaga":
         # o clique na linha troca só o detalhe: sem refazer a lista, os Destaques e a lateral
         return com_vary(renderizar(request, "vagas/detalhe_lado.html", detalhe=detalhe))

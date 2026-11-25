@@ -1,0 +1,115 @@
+{#- Preparar candidatura (T438; desenho 9 da fase 4). Vem no corpo do detalhe e sozinha, pela
+    pergunta do HTMX e pelos POSTs (`rotas/candidatura.py`), que mandam `preparo`, `vaga_id`,
+    `retorno`, `prefixo` e `n`. Enquanto a IA trabalha, a seção pergunta a cada 2 s (204 até
+    acabar) e é trocada inteira; sem JavaScript, o POST volta à página com 303 e o "Preparando"
+    leva a recarregar. O texto da IA é dado: o Jinja escapa e ele só vai para caixas de texto.
+    Sozinha (`foco`), a seção puxa o foco para o aviso novo, se ele estava solto (app.js). -#}
+{%- set p = preparo -%}
+{%- set marca = " data-foco-se-livre" if foco | default(false) else "" -%}
+{%- set base = "/vagas/" ~ vaga_id ~ "/candidatura" -%}
+{%- set lado = "1" if prefixo else "" -%}
+{%- macro frase() -%}
+<p class="preparo-privacidade">{% if p.privacidade.servico %}{{ t(p.privacidade.chave, servico=t(p.privacidade.servico)) }}{% else %}{{ t(p.privacidade.chave) }}{% endif %}</p>
+{%- endmacro -%}
+{%- macro campos_ocultos() -%}
+<input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<input type="hidden" name="voltar" value="{{ retorno }}">
+{%- if lado %}
+<input type="hidden" name="lado" value="1">
+{%- endif %}
+{%- endmacro -%}
+<section class="bloco preparo" id="{{ prefixo }}preparo" aria-labelledby="{{ prefixo }}det-preparo"
+  {%- if p.preparando %} hx-get="{{ base }}/preparo{% if lado %}?lado=1{% endif %}" hx-trigger="every 2s" hx-target="this" hx-swap="outerHTML" aria-busy="true"{% endif %}>
+  <h{{ n + 1 }} id="{{ prefixo }}det-preparo">{{ t("detalhe.candidatura.titulo") }}</h{{ n + 1 }}>
+  {%- if not p.ligada %}
+  <p><a href="/configuracoes/ia">{{ t("detalhe.candidatura.ligar") }}</a></p>
+  {%- elif p.sem_perfil %}
+  <p><a href="/configuracoes/perfil">{{ t("detalhe.candidatura.sem_perfil") }}</a></p>
+  {{ frase() }}
+  {%- elif p.manual %}
+  {{ frase() }}
+  <details class="preparo-manual"{% if p.falha %} open{% endif %}>
+    <summary>{{ t("detalhe.candidatura.manual.titulo") }}</summary>
+    <p>{{ t("detalhe.candidatura.manual.passo1") }}</p>
+    <div class="campo">
+      <label for="{{ prefixo }}pedido-{{ vaga_id }}">{{ t("detalhe.candidatura.manual.pedido") }}</label>
+      <textarea id="{{ prefixo }}pedido-{{ vaga_id }}" name="pedido" rows="6" readonly>{{ p.texto_manual }}</textarea>
+    </div>
+    <p><button type="button" class="secundario" hidden data-copiar-de="{{ prefixo }}pedido-{{ vaga_id }}" data-copiado="{{ t('detalhe.candidatura.copiado') }}" data-nao-copiou="{{ t('detalhe.candidatura.nao_copiou') }}">{{ t("detalhe.candidatura.manual.copiar") }}</button> <span role="status"></span></p>
+    <form method="post" action="{{ base }}/colar" hx-post="{{ base }}/colar" hx-target="closest section" hx-swap="outerHTML" hx-disabled-elt="find button">
+      {{ campos_ocultos() }}
+      <div class="campo">
+        <label for="{{ prefixo }}resposta-{{ vaga_id }}">{{ t("detalhe.candidatura.manual.resposta") }}</label>
+        <small id="{{ prefixo }}resposta-{{ vaga_id }}-ajuda">{{ t("detalhe.candidatura.manual.passo2") }}</small>
+        <textarea id="{{ prefixo }}resposta-{{ vaga_id }}" name="resposta" rows="4" required aria-describedby="{{ prefixo }}resposta-{{ vaga_id }}-ajuda"></textarea>
+      </div>
+      <button type="submit" class="secundario">{{ t("detalhe.candidatura.manual.ler") }}</button>
+    </form>
+  </details>
+  {%- elif p.preparando %}
+  {{ frase() }}
+  <p role="status"{{ marca }}>{{ t("detalhe.candidatura.preparando") }}</p>
+  <noscript><p><a href="{{ retorno }}">{{ t("detalhe.candidatura.recarregar") }}</a></p></noscript>
+  {%- else %}
+  <form method="post" action="{{ base }}/preparar" hx-post="{{ base }}/preparar" hx-target="closest section" hx-swap="outerHTML" hx-disabled-elt="find button">
+    {{ campos_ocultos() }}
+    <button type="submit" class="primario">{{ t("detalhe.candidatura.refazer" if p.gravado else "detalhe.candidatura.preparar") }}</button>
+  </form>
+  {{ frase() }}
+  {%- endif %}
+  {%- if p.falha %}
+  <p class="preparo-falha" role="alert"{{ marca }}>{% if p.manual %}{{ t(p.falha) }}{% else %}{{ t("detalhe.candidatura.falhou", motivo=t(p.falha)) }}{% endif %}</p>
+  {%- endif %}
+  {%- set g = p.gravado %}
+  {%- if g %}
+  <div class="preparo-resultado">
+    <p class="preparo-aviso"{{ marca }}><strong>{{ t("detalhe.candidatura.aviso") }}</strong></p>
+    {%- if p.cortado %}
+    <p class="preparo-aviso">{{ t("detalhe.habilidades.cortado") }}</p>
+    {%- endif %}
+    {%- if p.citados %}
+    <p class="preparo-aviso" role="note">{{ t("detalhe.candidatura.citado", lista=p.citados) }}</p>
+    {%- endif %}
+    {%- for campo, linhas in (("carta", 10), ("resumo", 5)) %}
+    {%- set caixa = prefixo ~ campo ~ "-" ~ vaga_id %}
+    <div class="campo">
+      <label for="{{ caixa }}">{{ t("detalhe.candidatura." ~ campo) }}</label>
+      <textarea id="{{ caixa }}" name="{{ campo }}" rows="{{ linhas }}" lang="{{ g.idioma }}" aria-describedby="{{ prefixo }}preparo-editar-{{ vaga_id }}">{{ g[campo] }}</textarea>
+    </div>
+    <p><button type="button" class="secundario" hidden data-copiar-de="{{ caixa }}" data-copiado="{{ t('detalhe.candidatura.copiado') }}" data-nao-copiou="{{ t('detalhe.candidatura.nao_copiou') }}">{{ t("detalhe.candidatura.copiar_" ~ campo) }}</button> <span role="status"></span></p>
+    {%- endfor %}
+    <p class="preparo-nota" id="{{ prefixo }}preparo-editar-{{ vaga_id }}">{{ t("detalhe.candidatura.editar") }} {{ t("detalhe.candidatura.nao_envia") }}</p>
+    <ul class="motivos">
+      {%- if g.tem %}
+      <li>{{ t("detalhe.candidatura.tem", lista=g.tem | join(", ")) }}</li>
+      {%- endif %}
+      {%- if g.faltam %}
+      <li>{{ t("detalhe.candidatura.faltam", lista=g.faltam | join(", ")) }}</li>
+      {%- endif %}
+      {%- if not g.tem and not g.faltam %}
+      <li>{{ t("detalhe.candidatura.sem_pede") }}</li>
+      {%- endif %}
+      {%- if g.usou %}
+      {%- set nomes = [] %}
+      {%- for chave in g.usou %}{% set _ = nomes.append(rotulo("detalhe.candidatura.campo." ~ chave, chave)) %}{% endfor %}
+      <li>{{ t("detalhe.candidatura.usou", lista=nomes | join(", ")) }}</li>
+      {%- else %}
+      <li>{{ t("detalhe.candidatura.usou_nada") }}</li>
+      {%- endif %}
+    </ul>
+    {%- if g.perguntar %}
+    <p><a href="/configuracoes/perfil#perfil-sugeridas">{{ t("detalhe.candidatura.perguntas") }}</a></p>
+    <ul class="motivos">
+      {%- for pergunta in g.perguntar %}
+      <li>{{ pergunta }}</li>
+      {%- endfor %}
+    </ul>
+    {%- endif %}
+    {%- if g.backend == "manual" %}
+    <p class="preparo-nota">{{ t("detalhe.candidatura.feito_manual", data=data_curta(g.feito_em, idioma)) }}</p>
+    {%- else %}
+    <p class="preparo-nota">{{ t("detalhe.candidatura.feito", data=data_curta(g.feito_em, idioma), backend=rotulo("configuracoes.ia.backend." ~ g.backend, g.backend)) }}</p>
+    {%- endif %}
+  </div>
+  {%- endif %}
+</section>

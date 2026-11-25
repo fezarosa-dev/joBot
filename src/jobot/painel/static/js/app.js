@@ -9,6 +9,64 @@
     evento.detail.headers["X-CSRF-Token"] = token;
   });
 
+  // o que só funciona com JavaScript (o upload do currículo manda o token no cabeçalho, T435) nasce
+  // escondido; sem JS, o <noscript> ao lado explica
+  for (const no of document.querySelectorAll("[data-com-js][hidden]")) no.hidden = false;
+
+  // envio novo de um [data-limpar-alvo] tira o resultado do anterior: um 4xx não troca o alvo, e o
+  // resultado velho ficaria ao lado do aviso de erro (o currículo grande, T435)
+  document.addEventListener("htmx:beforeRequest", (evento) => {
+    if (evento.detail.elt?.hasAttribute?.("data-limpar-alvo")) evento.detail.target?.replaceChildren();
+  });
+
+  // formulário comum (sem HTMX) que espera a IA: o botão [data-espera] mostra a espera e o segundo
+  // envio não sai (o questionário do perfil, T437). Não desativa o botão: o nome dele vai no envio
+  document.addEventListener("submit", (evento) => {
+    const form = evento.target;
+    if (!(form instanceof HTMLFormElement)) return;
+    if (form.dataset.enviando) {
+      evento.preventDefault();
+      return;
+    }
+    const botao = evento.submitter;
+    if (!botao?.hasAttribute("data-espera")) return;
+    form.dataset.enviando = "1";
+    botao.classList.add("esperando");
+    botao.setAttribute("aria-disabled", "true");
+  });
+  // voltar pelo histórico (bfcache) traz a página como saiu: tira a espera
+  window.addEventListener("pageshow", () => {
+    for (const form of document.querySelectorAll("form[data-enviando]")) delete form.dataset.enviando;
+    for (const botao of document.querySelectorAll("[data-espera].esperando")) {
+      botao.classList.remove("esperando");
+      botao.removeAttribute("aria-disabled");
+    }
+  });
+
+  // aba Perfil, um formulário só (T443): o Enter do navegador apertaria o primeiro botão (o oculto,
+  // que não grava nada); num campo de "Sobre você", de experiência ou de curso, ele vai ao botão
+  // da própria parte
+  document.addEventListener("keydown", (evento) => {
+    const campo = evento.target;
+    if (evento.key !== "Enter" || evento.isComposing || !(campo instanceof HTMLInputElement)) return;
+    const botao = campo.closest("[data-parte]")?.querySelector('button[name="secao"]');
+    if (!botao) return;
+    evento.preventDefault();
+    botao.click();
+  });
+
+  // seção que troca sozinha (aba Perfil, D230): o 422 que traz a seção (campo marcado e alerta)
+  // troca como o 200; o 422 seco, sem a seção, fica com o aviso de erro de sempre
+  document.addEventListener("htmx:beforeSwap", (evento) => {
+    const d = evento.detail;
+    const seletor = d.elt?.closest?.("[data-troca-422]")?.getAttribute("hx-select");
+    if (d.xhr?.status !== 422 || !seletor) return;
+    const doc = new DOMParser().parseFromString(d.xhr.responseText ?? "", "text/html");
+    if (!doc.querySelector(seletor)) return;
+    d.shouldSwap = true;
+    d.isError = false;
+  });
+
   // depois de uma troca, o foco vai para o [data-foco] do trecho novo, se ele tiver um;
   // trecho sem [data-foco] (ex.: andamento que atualiza sozinho) não rouba o foco.
   // Com hx-swap="outerHTML" o alvo é o nó antigo, já fora do DOM: aí vale o nó do evento.
@@ -1357,19 +1415,22 @@
 
   // "Copiar endereço" do e-mail de candidatura (desenho 5.7): vem hidden e só aparece com
   // JavaScript (sem ele o endereço continua à vista). A troca do #estado-da-vaga traz o botão de
-  // novo hidden: o afterSettle o mostra outra vez
+  // novo hidden: o afterSettle o mostra outra vez. `data-copiar-de` (T438) copia o texto de hoje
+  // da caixa com aquele id (a carta e o resumo, que a pessoa pode ter editado)
+  const COPIAR = "button[data-copiar], button[data-copiar-de]";
   const mostrarCopiar = () => {
-    for (const botao of document.querySelectorAll("button[data-copiar][hidden]")) botao.hidden = false;
+    for (const botao of document.querySelectorAll(`:is(${COPIAR})[hidden]`)) botao.hidden = false;
   };
   mostrarCopiar();
   document.addEventListener("htmx:afterSettle", mostrarCopiar);
   document.addEventListener("click", async (evento) => {
-    const botao = evento.target.closest?.("button[data-copiar]");
+    const botao = evento.target.closest?.(COPIAR);
     if (!botao) return;
+    const caixa = botao.dataset.copiarDe ? document.getElementById(botao.dataset.copiarDe) : null;
     let copiou = false;
     try {
       // sem permissão (ou sem clipboard) cai no catch
-      await navigator.clipboard.writeText(botao.dataset.copiar);
+      await navigator.clipboard.writeText(caixa ? caixa.value : botao.dataset.copiar);
       copiou = true;
     } catch {
       copiou = false;

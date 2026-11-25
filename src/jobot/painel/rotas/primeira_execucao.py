@@ -1,4 +1,4 @@
-"""Assistente de primeira execução: busca e segundo plano (desenho 13.6; plano T53).
+"""Assistente de primeira execução: IA, perfil, busca e segundo plano (desenho 13.6; plano T53).
 
 Passo 1 grava o Meu país e a primeira busca (a busca é opcional) e passo 2 liga ou desliga o
 segundo plano com `sistema.segundo_plano`. No fim grava `primeira_execucao_concluida` e
@@ -23,6 +23,15 @@ os padrões (Meu país, segundo plano desligado, atalho do menu, primeira execu�
 para `/vagas`, sem busca e com os sites com login desligados (D137.10). A rota fica antes de
 `/{passo}`.
 
+Os passos IA e Perfil (T439, desenho 10.4 da fase 4, D235) vêm antes da busca, opcionais. A IA
+escolhe entre o modelo local, o serviço pago (a chave da Anthropic, guardada no cofre) e "Agora
+não", com o custo à vista: escolher o pago já é a confirmação do custo do laço, e chave digitada
+com outra escolha volta ao passo sem gravar. "Agora não" desliga o que o passo liga sozinho (tudo
+local ou tudo Claude) e deixa a configuração montada na aba IA. O Perfil é o
+questionário da aba Perfil (T437) e o currículo (T435, T436), gravados pelas funções de
+`painel/rotas/perfil.py`; ele tem também "Pular este passo", que não grava nada. A busca chega
+com o cargo atual e a cidade do perfil. O `?busca=<id>` anda pelos dois passos, como pelo dos sites.
+
 Ligar recusado fica no passo 2 com o motivo em texto fixo (a saída do systemctl vai só para o
 log, nunca para a tela). Desligar nunca prende (D49 b, T152): se desligar ou criar o atalho falha,
 o passo 2 conclui mesmo assim e o fim mostra um aviso por código fixo em `?aviso=` (`_AVISOS`);
@@ -41,17 +50,19 @@ from functools import cache
 from itertools import zip_longest
 from pathlib import Path
 from typing import Any
+from urllib.parse import parse_qsl, urlencode, urlsplit
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse, Response
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import FormData
 
-from jobot.banco import buscas
+from jobot.banco import buscas, perfil
 from jobot.banco.cadastros import gravar_config, ler_config, ligar_fonte, meu_pais
+from jobot.banco.ia import tarefa_ia
 from jobot.nucleo.cambio import MOEDAS
 from jobot.nucleo.modelo import Busca, Idioma, Local, Modalidade, Motivo, Nivel
-from jobot.nucleo.tratamento.locais import codigos_de_pais
+from jobot.nucleo.tratamento.locais import codigos_de_pais, ler_locais
 from jobot.painel import formatos
 from jobot.painel.ambiente import (
     ambiente_do_painel,
@@ -67,12 +78,24 @@ from jobot.painel.rotas.configuracoes import (
     contexto_ferramenta_navegador,
     contexto_sites_com_login,
 )
+from jobot.painel.rotas.ia import IA, contexto_ia, gravar_ia, servico_trocou
+from jobot.painel.rotas.perfil import (
+    SITUACOES,
+    contexto_perguntas,
+    curriculo_no_assistente,
+    frase_de_privacidade,
+    gravar_perfil,
+    gravar_perguntas,
+)
+from jobot.painel.rotas.servicos import gravar_chave_ia
 from jobot.painel.seguranca import Con, idioma_do_pedido, renderizar
 from jobot.sistema import caso, segundo_plano
 from jobot.sistema.segundo_plano_linux import Recusa
 
 router = APIRouter(prefix="/primeira-execucao")
 
+_PASSO_IA = "/primeira-execucao/ia"
+_PASSO_PERFIL = "/primeira-execucao/perfil"
 _PASSO_1 = "/primeira-execucao/1"
 _PASSO_2 = "/primeira-execucao/2"
 _SITES = "/primeira-execucao/sites"
@@ -87,6 +110,11 @@ _MODALIDADES = (Modalidade.PRESENCIAL, Modalidade.HIBRIDO, Modalidade.REMOTO)
 _NIVEIS = tuple(n for n in Nivel if n is not Nivel.NAO_INFORMADO)
 _IDIOMAS: dict[str, Idioma] = {"pt": "pt", "en": "en", "es": "es"}
 _PRIMEIRO = "primeira_execucao."
+# a escolha do passo IA -> o atalho da aba IA que ela grava; "nenhum" desliga o que o passo ligou
+_ATALHO_DA_ESCOLHA = {"local": "offline", "pago": "claude"}
+_ESCOLHA_DO_MODO = {"offline": "local", "claude": "pago"}
+_ESCOLHAS_IA = (*_ATALHO_DA_ESCOLHA, "nenhum")
+_CAMPO_CHAVE = "ia-chave"
 _LOG = logging.getLogger(__name__)
 # Código fixo do `?aviso=` do fim (nunca texto livre na URL) -> chave do motivo em texto simples.
 _AVISOS = {
@@ -102,7 +130,8 @@ _AVISOS = {
 
 def numeros_dos_passos(com_sites: bool) -> dict[str, int]:
     """Id do passo na URL -> o número que a pessoa vê; o passo dos sites só existe com leitor."""
-    return {passo: n for n, passo in enumerate(("1", "sites", "2") if com_sites else ("1", "2"), 1)}
+    passos = ("ia", "perfil", "1", *(("sites",) if com_sites else ()), "2")
+    return {passo: n for n, passo in enumerate(passos, 1)}
 
 
 @cache
@@ -236,6 +265,18 @@ def _entrada_de(busca: Busca) -> Entrada:
     )
 
 
+def _entrada_do_perfil(con: Con) -> Entrada:
+    """O passo 1 sem busca chega com o cargo atual e a cidade do perfil (desenho 10.4). A cidade
+    que não se entende vai como foi escrita, sem UF."""
+    dados = perfil.dados(con)
+    cidades = []
+    if dados.cidade_moradia:
+        achado = next(iter(ler_locais([dados.cidade_moradia])), Local())
+        cidade = achado.cidade or ("" if achado.uf else dados.cidade_moradia)
+        cidades = [(cidade, achado.uf or "")]
+    return Entrada(cargos=dados.cargo_atual or "", cidades=cidades)
+
+
 def _gravada(con: Con, busca_id: int | None) -> Busca | None:
     return next((b for b in buscas.buscas(con) if b.id == busca_id), None) if busca_id else None
 
@@ -315,7 +356,16 @@ def _formulario_1(
         entrada.pais = _pais_pre_escolhido(request, con)
     paises = formatos.opcoes_de_pais(idioma_do_pedido(request))
     return _pagina(
-        request, "1", status, entrada=entrada, erro=erro, busca_id=busca_id, paises=paises
+        request,
+        "1",
+        status,
+        entrada=entrada,
+        erro=erro,
+        busca_id=busca_id,
+        paises=paises,
+        voltar_n=numeros_dos_passos(bool(leitores_do_painel(request)))["perfil"],
+        voltar_url=_PASSO_PERFIL,
+        voltar_busca=busca_id,
     )
 
 
@@ -368,11 +418,65 @@ async def _formulario_sites(request: Request, con: Con, busca_id: int | None) ->
         request,
         "sites",
         busca_id=busca_id,
-        voltar_n=1,
+        voltar_n=numeros_dos_passos(True)["1"],
         voltar_url=_PASSO_1,
         voltar_busca=busca_id,
         **contexto,
     )
+
+
+async def _formulario_ia(
+    request: Request,
+    con: Con,
+    busca_id: int | None,
+    status: int = 200,
+    *,
+    escolha: str | None = None,
+    erro: str | None = None,
+    erro_campo: str | None = None,
+) -> Response:
+    """O passo IA: os atalhos da aba IA em três escolhas, com o custo do pago à vista."""
+    ia = await contexto_ia(request, con)
+    marcada = escolha or _ESCOLHA_DO_MODO.get(ia["ia_modo"], "nenhum")
+    if marcada == "local" and ia["ia_local"] is None:  # o modelo sumiu: a opção vem desativada
+        marcada = "nenhum"
+    return _pagina(
+        request,
+        "ia",
+        status,
+        busca_id=busca_id,
+        ia_escolha=marcada,
+        ia_local=ia["ia_local"],
+        ia_teto=ia["ia_teto"],
+        ia_tem_chave="anthropic" in ia["ia_backends"],
+        erro=erro,
+        erro_campo=erro_campo,
+    )
+
+
+async def _formulario_perfil(
+    request: Request, con: Con, busca_id: int | None, status: int = 200, **extra: Any
+) -> Response:
+    """O passo Perfil: o envio do currículo e o questionário da aba Perfil (T437)."""
+    contexto = await contexto_perguntas(request, con)
+    tarefa = tarefa_ia(con, "curriculo")
+    proprio: dict[str, Any] = {
+        "busca_id": busca_id,
+        "voltar_n": numeros_dos_passos(bool(leitores_do_painel(request)))["ia"],
+        "voltar_url": _PASSO_IA,
+        "voltar_busca": busca_id,
+        "curriculo_privacidade": frase_de_privacidade(
+            tarefa, "configuracoes.ia.privacidade.curriculo."
+        ),
+        "curriculo_assistente": curriculo_no_assistente(busca_id),
+        "curriculo_salvo": request.query_params.get("curriculo") == "1",
+        "revisao": None,
+        "situacoes": SITUACOES,
+        "assistente": True,  # as perguntas que se respondem noutra seção ficam para a aba Perfil
+    }
+    # o questionário vale sobre o padrão de `_pagina` (`niveis` aqui é o do idioma, não o da
+    # busca) e o `extra` (erro, digitado, revisão do currículo) vale sobre os dois
+    return _pagina(request, "perfil", status, **(proprio | contexto | extra))
 
 
 def _busca_da_url(con: Con, texto: object) -> int | None:
@@ -390,12 +494,16 @@ async def mostrar(request: Request, con: Con, passo: str) -> Response:
     if passo not in numeros_dos_passos(bool(leitores_do_painel(request))):
         raise HTTPException(404)
     params = request.query_params
+    if passo == "ia":
+        return await _formulario_ia(request, con, _busca_da_url(con, params.get("busca")))
+    if passo == "perfil":
+        return await _formulario_perfil(request, con, _busca_da_url(con, params.get("busca")))
     if passo == "sites":
         return await _formulario_sites(request, con, _busca_da_url(con, params.get("busca")))
     if passo == "1":
         voltando = _gravada(con, inteiro_da_url(params.get("busca"), MAX_ID))
         if voltando is None:
-            return _formulario_1(request, con, Entrada())
+            return _formulario_1(request, con, _entrada_do_perfil(con))
         return _formulario_1(request, con, _entrada_de(voltando), busca_id=voltando.id)
 
     if params.get("feito") == "1" and ler_config(con, "primeira_execucao_concluida", False) is True:
@@ -513,6 +621,75 @@ async def _gravar_passo_2(request: Request, con: Con) -> Response:
     )
 
 
+async def _gravar_ia(request: Request, con: Con) -> Response:
+    """Grava a escolha do passo IA pelos atalhos da aba IA. O pago guarda antes a chave digitada;
+    a confirmação do custo do laço é a própria escolha, com o custo escrito ao lado (D235)."""
+    form = await request.form()
+    escolha = form.get("ia")
+    busca_id = _busca_da_url(con, form.get("busca"))
+    if not isinstance(escolha, str) or escolha not in _ESCOLHAS_IA:
+        raise HTTPException(422)
+    seguir = RedirectResponse(_com_busca(_PASSO_PERFIL, busca_id), status_code=303)
+    chave = form.get("chave")
+    digitou = isinstance(chave, str) and bool(chave.strip())
+    if digitou and escolha != "pago":  # a escolha é a confirmação do custo: nunca o pago sozinho
+        erro = _PRIMEIRO + "ia.erro.chave_sem_pago"
+        return await _formulario_ia(
+            request, con, busca_id, 422, escolha=escolha, erro=erro, erro_campo=_CAMPO_CHAVE
+        )
+    if escolha == "nenhum":
+        # desliga o que o passo liga sozinho (tudo local ou tudo Claude); a configuração montada
+        # na aba IA, ou a IA já desligada, fica como está
+        if (await contexto_ia(request, con))["ia_modo"] in _ESCOLHA_DO_MODO:
+            await gravar_ia(request, con, FormData([("atalho", "desligada")]))
+        return seguir
+    if escolha == "pago" and digitou:
+        recusa = await gravar_chave_ia(
+            request, con, FormData([("servico", "anthropic"), ("chave", str(chave))])
+        )
+        if recusa is not None:  # a chave nunca volta: o campo vem vazio
+            status, contexto = recusa
+            campo = _CAMPO_CHAVE if contexto["erro_ia"]["campo"] else None
+            erro = contexto["erro_ia"]["erro"]
+            return await _formulario_ia(
+                request, con, busca_id, status, escolha=escolha, erro=erro, erro_campo=campo
+            )
+        # como na aba Serviços: os pares já ligados na Anthropic testam de novo com a chave nova
+        await servico_trocou(request, con, "anthropic")
+    atalho = FormData([("atalho", _ATALHO_DA_ESCOLHA[escolha]), ("confirmar", "1")])
+    feito = await gravar_ia(request, con, atalho)
+    if isinstance(feito, str) and feito.startswith(IA):
+        return seguir
+    # o atalho levaria a Ferramentas ou a Serviços: falta o modelo baixado ou a chave
+    falta = "sem_chave" if escolha == "pago" else "sem_modelo"
+    return await _formulario_ia(
+        request,
+        con,
+        busca_id,
+        422,
+        escolha=escolha,
+        erro=_PRIMEIRO + "ia.erro." + falta,
+        erro_campo=_CAMPO_CHAVE if escolha == "pago" else None,
+    )
+
+
+async def _gravar_perfil(request: Request, con: Con) -> Response:
+    """Grava o questionário (T437). Sem "sugerir", segue para a busca; com ele, volta ao passo
+    com as perguntas novas, como o questionário volta a si mesmo."""
+    form = await request.form()
+    busca_id = _busca_da_url(con, form.get("busca"))
+    feito = await gravar_perguntas(request, con, form)
+    if isinstance(feito, tuple):
+        status, extra = feito
+        return await _formulario_perfil(request, con, busca_id, status, **extra)
+    if "sugerir" not in form:
+        return RedirectResponse(_com_busca(_PASSO_1, busca_id), status_code=303)
+    volta = urlsplit(feito)  # o endereço do questionário: só a consulta e a âncora mudam de casa
+    consulta = parse_qsl(volta.query) + ([("busca", str(busca_id))] if busca_id else [])
+    destino = f"{_PASSO_PERFIL}?{urlencode(consulta)}#{volta.fragment}"
+    return RedirectResponse(destino, status_code=303)
+
+
 async def _gravar_sites(request: Request, con: Con) -> Response:
     """Continuar segue com o que a pessoa ligou; o Pular é o `POST /pular` (desliga os sites)."""
     form = await request.form()
@@ -535,10 +712,29 @@ async def pular(request: Request, con: Con) -> Response:
     return RedirectResponse("/vagas", status_code=303)
 
 
+@router.post("/perfil/curriculo")
+async def gravar_curriculo(request: Request, con: Con) -> Response:
+    """A revisão do currículo aberta no passo Perfil: grava como a da aba e volta ao passo."""
+    form = await request.form()
+    if form.get("secao") != "curriculo":  # só a revisão: as outras seções são da aba
+        raise HTTPException(422)
+    busca_id = _busca_da_url(con, request.query_params.get("busca"))
+    feito = await gravar_perfil(request, con, form)
+    if isinstance(feito, tuple):
+        status, extra = feito
+        return await _formulario_perfil(request, con, busca_id, status, **extra)
+    destino = _PASSO_PERFIL + "?curriculo=1" + (f"&busca={busca_id}" if busca_id else "")
+    return RedirectResponse(destino, status_code=303)
+
+
 @router.post("/{passo}")
 async def gravar(request: Request, con: Con, passo: str) -> Response:
     if passo not in numeros_dos_passos(bool(leitores_do_painel(request))):
         raise HTTPException(404)
+    if passo == "ia":
+        return await _gravar_ia(request, con)
+    if passo == "perfil":
+        return await _gravar_perfil(request, con)
     if passo == "1":
         return await _gravar_passo_1(request, con)
     if passo == "sites":

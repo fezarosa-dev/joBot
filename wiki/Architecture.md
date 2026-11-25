@@ -21,7 +21,7 @@ src/jobot/
 │   │   └── (root)            base, executor, registro, paginas, descoberta_cc
 │   ├── leitores/             the sites with login: what to read on each (one file per site)
 │   ├── tratamento/           duplicates, salary, labels, places, life cycle
-│   ├── ia/                   AI contract, schema per service, tasks and request building
+│   ├── ia/                   AI contract, schema per service, tasks, requests and manual AI
 │   └── dados/                JSON lists: sources, companies, labels, salary
 ├── banco/                    SQLite: connection, migrations (migracoes/), writing and queries
 ├── agenda/                   scheduler and search runs
@@ -107,6 +107,7 @@ erDiagram
     vaga ||--o{ evento : "vaga_id"
     vaga ||--o| candidatura : "vaga_id"
     vaga ||--o| habilidades_vaga : "vaga_id"
+    vaga ||--o| preparo_candidatura : "vaga_id"
     vaga ||--o| vaga_fts : "rowid = id"
     busca ||--o{ encaixe : "busca_id"
     pagina_acompanhada ||--o{ mudanca_pagina : "pagina_id"
@@ -266,6 +267,39 @@ erDiagram
         INTEGER id PK
         TEXT habilidades
         TEXT atualizado_em
+        TEXT nome
+        TEXT email
+        TEXT cargo_atual
+        TEXT resumo
+        TEXT idiomas_falados
+    }
+    experiencia {
+        INTEGER id PK
+        TEXT cargo
+        TEXT empresa
+        TEXT inicio
+        TEXT fim
+    }
+    curso {
+        INTEGER id PK
+        TEXT nome
+        TEXT situacao
+    }
+    pergunta_perfil {
+        INTEGER id PK
+        TEXT chave
+        TEXT pergunta
+        TEXT resposta
+        TEXT origem
+        INTEGER sugerida
+    }
+    preparo_candidatura {
+        INTEGER vaga_id PK, FK
+        TEXT idioma
+        TEXT carta
+        TEXT resumo
+        TEXT usou
+        TEXT feito_em
     }
     cotacao {
         TEXT moeda PK
@@ -309,7 +343,7 @@ erDiagram
     }
 ```
 
-**Nothing is deleted.** The trigger `vaga_sem_delete` refuses any `DELETE` on `vaga`: a job that disappears from the source only gets `fechada_em`. The `evento` table (the history of what you did in the dashboard) only receives additions: `evento_sem_update` and `evento_sem_delete` refuse to change or delete a row. The `candidatura` table (when you opened the application for each job) is updated in place, and `candidatura_sem_delete` refuses to delete a row. The `habilidades_vaga` table (what each job asks for, according to the AI) is also updated in place, and a failure never deletes the previous result. The exception is `perfil` (your skills): "Delete profile" deletes the row, because it is your data, not a job. Writing always uses `INSERT ... ON CONFLICT DO UPDATE`, never `INSERT OR REPLACE`. The tables `cotacao`, `cache_http`, `enriquecimento` and `config` have no foreign key: `enriquecimento` links to the job only through the value of `url_hash`.
+**Nothing is deleted.** The trigger `vaga_sem_delete` refuses any `DELETE` on `vaga`: a job that disappears from the source only gets `fechada_em`. The `evento` table (the history of what you did in the dashboard) only receives additions: `evento_sem_update` and `evento_sem_delete` refuse to change or delete a row. The `candidatura` table (when you opened the application for each job) is updated in place, and `candidatura_sem_delete` refuses to delete a row. The `habilidades_vaga` table (what each job asks for, according to the AI) is also updated in place, and a failure never deletes the previous result. The exceptions are your own data, not job data: `perfil` (skills, contact and summary), `experiencia`, `curso`, `pergunta_perfil` and `preparo_candidatura` (the letter and summary prepared for each job, redone in place). "Delete profile" deletes all five, also in the copies kept from before each migration (`jobot.db.antes-vN`), and SQLite zeroes what was deleted in the file (`secure_delete`), leaving no text in the `-wal`. Removing an experience or a course deletes the row, and its number is never reused. The résumé text is never stored, and the profile has no CPF, date of birth or projects. Writing always uses `INSERT ... ON CONFLICT DO UPDATE`, never `INSERT OR REPLACE`. The tables `cotacao`, `cache_http`, `enriquecimento` and `config` have no foreign key: `enriquecimento` links to the job only through the value of `url_hash`.
 
 ## 🔎 One search, step by step
 

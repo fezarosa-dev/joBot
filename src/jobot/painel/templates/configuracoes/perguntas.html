@@ -1,0 +1,22 @@
+{#- Questionário do perfil (T437; desenho 8 da fase 4; D233), uma página da aba Perfil. As
+    perguntas base (bloco A do mapa do perfil e as de contato, de `perguntas_base.json`, no idioma
+    do painel) gravam o perfil pelos mesmos campos de "Sobre você"; as que se respondem noutra seção
+    levam a ela. As perguntas de lacuna (`pergunta_perfil`) têm a resposta num campo cada. Um
+    formulário só: "Salvar" e, com a tarefa `perguntas` ligada, "Salvar e sugerir perguntas" (com
+    JavaScript, o [data-espera] mostra a espera e segura o segundo envio). O texto da IA só é
+    mostrado (o Jinja escapa). -#}
+<section class="config-bloco" aria-labelledby="perguntas-titulo">
+  <h2 id="perguntas-titulo">{{ t("configuracoes.perfil.perguntas.titulo") }}</h2>
+  <p class="config-texto">{{ t("configuracoes.perfil.perguntas.explicacao") }}</p>
+  <p class="config-texto"><a href="/configuracoes/perfil">{{ t("configuracoes.perfil.perguntas.voltar") }}</a></p>
+</section>
+<form method="post" action="/configuracoes/perfil/perguntas" class="config-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  {% include "configuracoes/_perguntas_campos.html" %}
+  <div class="acoes">
+    <button type="submit" class="botao botao-primario">{{ t("configuracoes.salvar") }}</button>
+    {%- if perguntas_ligada %}
+    <button type="submit" name="sugerir" value="1" class="botao botao-secundario" aria-describedby="perguntas-privacidade" data-espera><span class="botao-rotulo">{{ t("configuracoes.perfil.perguntas.sugerir") }}</span><span class="botao-espera">{{ t("configuracoes.perfil.perguntas.sugerindo") }}</span></button>
+    {%- endif %}
+  </div>
+</form>

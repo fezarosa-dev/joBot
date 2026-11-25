@@ -18,7 +18,7 @@
     <strong>{{ t("configuracoes.segundo_plano.recusa") }}</strong>
     <p>{{ t(motivo.chave, **motivo.params) }}</p>
   </div>
-  {% elif erro %}
+  {% elif erro and not erro_secao %}
   <div class="config-alerta" id="config-erro" role="alert">
     <p>{{ t(erro) }}</p>
   </div>

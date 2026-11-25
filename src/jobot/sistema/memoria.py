@@ -1,8 +1,10 @@
-"""Memória total do computador e o modelo local que cabe nela (desenho 7; D185.19; D189).
+"""Memória total do computador e o aviso de que o modelo local pode ficar lento (desenho 7;
+D185.19; D189; D219.20).
 
-O sistema informa menos que o nominal (um PC de 16 GB informa uns 13,3 GiB): os cortes têm folga.
-Os cortes vêm de quem chama, lidos do `memoria_gib` do `nucleo/dados/ia.json` (o `sistema` não lê a
-IA; T409, D195): 4B a partir de 11 GiB, aviso só abaixo de 7 GiB.
+O modelo não sai mais da memória: o `auto` baixa o `padrao` do `ia_local.json` (o Laya) em todo
+computador. O sistema informa menos que o nominal (um PC de 16 GB informa uns 13,3 GiB): o corte tem
+folga e vem de quem chama, lido do `memoria_gib` do `nucleo/dados/ia.json` (o `sistema` não lê a IA;
+T409, D195): aviso só abaixo de 7 GiB.
 """
 
 import ctypes
@@ -13,7 +15,8 @@ from typing import Any, Literal
 
 GIB = 1 << 30
 
-Modelo = Literal["2b", "4b"]
+# as chaves de `modelos` no `nucleo/dados/ia_local.json` (o teste do manifesto confere)
+Modelo = Literal["laya", "2b", "4b"]
 
 
 class _MEMORYSTATUSEX(ctypes.Structure):
@@ -48,8 +51,6 @@ def memoria_total(
     return ler("SC_PHYS_PAGES") * ler("SC_PAGE_SIZE")
 
 
-def escolher_modelo(total: int, *, desde_4b_gib: float, aviso_gib: float) -> tuple[Modelo, bool]:
-    """(modelo, avisar que pode ficar lento) pela memória total em bytes: 4B a partir de
-    `desde_4b_gib`, aviso só abaixo de `aviso_gib`."""
-    gib = total / GIB
-    return ("4b" if gib >= desde_4b_gib else "2b"), gib < aviso_gib
+def memoria_curta(total: int, *, aviso_gib: float) -> bool:
+    """Avisar que o modelo local pode ficar lento: memória total em bytes abaixo de `aviso_gib`."""
+    return total / GIB < aviso_gib

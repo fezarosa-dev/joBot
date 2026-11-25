@@ -1,0 +1,142 @@
+{#- Resultado da leitura do currículo em PDF (T435, T436; D231, D232): o aviso (também no 411 e no
+    413, que o aviso de erro do app.js lê pelo data-aviso-erro), quantas páginas foram lidas, o
+    motivo sem a IA, o pedido para copiar da IA manual e a revisão do que foi lido. A revisão é um
+    formulário comum (POST com CSRF, sem JavaScript) para /configuracoes/perfil com secao=curriculo (no
+    passo Perfil da primeira execução, para o assistente: `curriculo_assistente`, T439):
+    nada é gravado antes dele. Cada item tem a caixa "Usar"; o que "não achei no currículo" vem
+    desmarcado, com o motivo, e fica fora do "Aprovar todas". -#}
+{% from "configuracoes/_campos_perfil.html" import entrada, caixa, lista with context %}
+{%- if aviso %}
+<div class="config-alerta" role="alert" data-foco-se-livre><p data-aviso-erro>{{ t(aviso) }}</p></div>
+{%- else %}
+{%- if lido %}
+<p class="config-texto" role="status" data-foco-se-livre>{{ t("configuracoes.perfil.curriculo.lido", paginas=lido.paginas, total=lido.total) }}</p>
+{%- endif %}
+{%- if motivo_ia %}
+<p class="config-texto">{{ t(motivo_ia) }}{% if motivo_ia.endswith("sem_ia") %} <a href="/configuracoes/ia">{{ t("configuracoes.grupo.ia") }}</a>{% endif %}</p>
+{%- endif %}
+{%- if falha_ia %}
+<div class="config-alerta" role="alert"{% if not lido %} data-foco-se-livre{% endif %}><p>{{ t("configuracoes.perfil.curriculo.falha") }}</p><p>{{ t(falha_ia) }}</p></div>
+{%- endif %}
+{%- if cortado %}
+<p class="config-texto">{{ t("configuracoes.perfil.curriculo.cortado") }}</p>
+{%- endif %}
+{%- if manual %}
+<div class="config-aviso">
+  <h3>{{ t("configuracoes.perfil.curriculo.manual") }}</h3>
+  <p class="config-texto">{{ t("configuracoes.perfil.curriculo.manual.explicacao") }}</p>
+  <div class="campo">
+    <label for="cv-manual-pedido">{{ t("configuracoes.perfil.curriculo.manual.pedido") }}</label>
+    <textarea class="campo-texto" id="cv-manual-pedido" rows="8" readonly spellcheck="false">{{ manual.texto }}</textarea>
+  </div>
+  {#- no passo Perfil da primeira execução (T439), a resposta colada volta ao assistente #}
+  {%- set consulta = curriculo_assistente.consulta if curriculo_assistente else "" %}
+  <form method="post" action="/configuracoes/perfil/curriculo/resposta{{ consulta }}" class="config-form" hx-post="/configuracoes/perfil/curriculo/resposta{{ consulta }}" hx-target="#perfil-curriculo-resultado" hx-swap="innerHTML" hx-disabled-elt="find button" hx-indicator="find button">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <textarea name="texto" hidden>{{ manual.enviado }}</textarea>
+    <input type="hidden" name="email" value="{{ manual.email }}">
+    <input type="hidden" name="telefone" value="{{ manual.telefone }}">
+    <div class="campo">
+      <label for="cv-manual-colar">{{ t("configuracoes.perfil.curriculo.manual.colar") }}</label>
+      <textarea class="campo-texto" id="cv-manual-colar" name="colado" rows="8" required spellcheck="false"></textarea>
+    </div>
+    <div class="acoes">
+      <button type="submit" class="botao botao-primario"><span class="botao-rotulo">{{ t("configuracoes.perfil.curriculo.manual.ler") }}</span><span class="botao-espera">{{ t("configuracoes.perfil.curriculo.manual.lendo") }}</span></button>
+    </div>
+  </form>
+</div>
+{%- endif %}
+{#- revisao == []: com a IA manual antes de colar não há revisão (nem a chave) #}
+{%- if revisao == [] and not motivo_ia and not falha_ia %}
+<p class="config-texto">{{ t("configuracoes.perfil.curriculo.nada_achado") }}</p>
+{%- endif %}
+{%- if revisao %}
+{%- macro rotulo(caminho) -%}
+  {%- set raiz, _, n = caminho.partition(".") -%}
+  {%- if raiz == "email" %}{{ t("configuracoes.perfil.email") }}
+  {%- elif raiz == "telefone" %}{{ t("configuracoes.perfil.telefone") }}
+  {%- elif raiz == "cargo_atual" %}{{ t("configuracoes.perfil.cargo") }}
+  {%- elif raiz == "anos_de_experiencia" %}{{ t("configuracoes.perfil.anos") }}
+  {%- elif raiz == "formacao_nivel" %}{{ t("configuracoes.perfil.formacao") }}
+  {%- elif raiz == "resumo" %}{{ t("configuracoes.perfil.resumo") }}
+  {%- elif raiz == "habilidades" %}{{ t("configuracoes.perfil.curriculo.habilidade", n=n|int + 1) }}
+  {%- elif raiz == "idiomas_falados" %}{{ t("configuracoes.perfil.curriculo.idioma", n=n|int + 1) }}
+  {%- elif raiz == "experiencias" %}{{ t("configuracoes.perfil.curriculo.experiencia", n=n|int + 1) }}
+  {%- else %}{{ t("configuracoes.perfil.curriculo.curso", n=n|int + 1) }}{% endif -%}
+{%- endmacro %}
+{%- macro item(i) -%}
+{%- set c = i.caminho -%}
+{%- set raiz, _, n = c.partition(".") -%}
+{%- set base = "cv-" ~ c|replace(".", "-") -%}
+{%- set v = i.valores -%}
+<fieldset class="grupo-leva grupo-campos">
+  <legend>{{ rotulo(c) }}</legend>
+  <input type="hidden" name="item" value="{{ c }}">
+  {%- if i.motivo %}
+  <input type="hidden" name="marcado" value="{{ c }}">
+  <input type="hidden" name="{{ c }}.motivo" value="{{ i.motivo }}">
+  <p class="config-texto" id="{{ base }}-motivo">{{ t("configuracoes.perfil.curriculo." ~ i.motivo) }}</p>
+  {%- endif %}
+  <div class="interruptor">
+    <label class="interruptor-linha interruptor-caixa">
+      <input type="checkbox" id="{{ base }}-usar" name="usar" value="{{ c }}" aria-label="{{ t('configuracoes.perfil.curriculo.usar_item', item=rotulo(c)) }}"{% if i.usar %} checked{% endif %}{% if i.motivo %} aria-describedby="{{ base }}-motivo"{% endif %}{% if erro_campo == base ~ "-usar" %} aria-invalid="true" autofocus{% endif %}>
+      <span class="interruptor-texto">{{ t("configuracoes.perfil.curriculo.usar") }}</span>
+    </label>
+  </div>
+  {%- if raiz == "email" %}
+  {{ entrada(base ~ "-valor", c ~ ".valor", t("configuracoes.perfil.email"), v.valor, tipo="email", teto=teto.email) }}
+  {%- elif raiz == "telefone" %}
+  {{ entrada(base ~ "-valor", c ~ ".valor", t("configuracoes.perfil.telefone"), v.valor, tipo="tel", teto=teto.telefone) }}
+  {%- elif raiz == "anos_de_experiencia" %}
+  {{ entrada(base ~ "-valor", c ~ ".valor", t("configuracoes.perfil.anos"), v.valor, teto=2) }}
+  {%- elif raiz == "formacao_nivel" %}
+  {{ lista(base ~ "-valor", c ~ ".valor", t("configuracoes.perfil.formacao"), formacoes, v.valor, "configuracoes.perfil.formacao.") }}
+  {%- elif raiz == "resumo" %}
+  {{ caixa(base ~ "-valor", c ~ ".valor", t("configuracoes.perfil.resumo"), v.valor, teto=teto.resumo) }}
+  {%- elif raiz == "idiomas_falados" %}
+  {{ entrada(base ~ "-idioma", c ~ ".idioma", t("configuracoes.perfil.curriculo.idioma", n=n|int + 1), v.idioma, teto=teto.idioma) }}
+  {{ lista(base ~ "-nivel", c ~ ".nivel", t("configuracoes.perfil.curriculo.nivel", n=n|int + 1), niveis, v.nivel, "configuracoes.perfil.nivel.") }}
+  {%- elif raiz == "experiencias" %}
+  {{ entrada(base ~ "-cargo", c ~ ".cargo", t("configuracoes.perfil.experiencia.cargo"), v.cargo) }}
+  {{ entrada(base ~ "-empresa", c ~ ".empresa", t("configuracoes.perfil.experiencia.empresa"), v.empresa) }}
+  {{ entrada(base ~ "-inicio", c ~ ".inicio", t("configuracoes.perfil.experiencia.inicio"), v.inicio, teto=20) }}
+  {{ entrada(base ~ "-fim", c ~ ".fim", t("configuracoes.perfil.experiencia.fim"), v.fim, teto=20) }}
+  {{ caixa(base ~ "-descricao", c ~ ".descricao", t("configuracoes.perfil.experiencia.descricao"), v.descricao, linhas=3) }}
+  {%- elif raiz == "cursos" %}
+  {{ entrada(base ~ "-nome", c ~ ".nome", t("configuracoes.perfil.curso.nome"), v.nome) }}
+  {{ entrada(base ~ "-instituicao", c ~ ".instituicao", t("configuracoes.perfil.curso.instituicao"), v.instituicao) }}
+  {{ lista(base ~ "-situacao", c ~ ".situacao", t("configuracoes.perfil.curso.situacao"), situacoes, v.situacao, "configuracoes.perfil.situacao.") }}
+  {{ entrada(base ~ "-previsao", c ~ ".previsao", t("configuracoes.perfil.curso.previsao"), v.previsao, teto=20) }}
+  {%- else %}
+  {{ entrada(base ~ "-valor", c ~ ".valor", rotulo(c), v.valor, teto=100 if raiz == "habilidades" else 200) }}
+  {%- endif %}
+</fieldset>
+{%- endmacro %}
+<form method="post" action="{{ curriculo_assistente.acao if curriculo_assistente else '/configuracoes/perfil' }}" class="config-form" aria-labelledby="cv-revisao-titulo">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <input type="hidden" name="secao" value="curriculo">
+  {#- a resposta colada chega sem o "Currículo lido": o foco solto vai ao título da revisão #}
+  <h3 id="cv-revisao-titulo"{% if not lido and not falha_ia %} data-foco-se-livre{% endif %}>{{ t("configuracoes.perfil.curriculo.revisao") }}</h3>
+  <p class="config-texto">{{ t("configuracoes.perfil.curriculo.revisao.explicacao") }}</p>
+  {%- set achados = revisao|rejectattr("motivo")|list %}
+  {%- set conferir = revisao|selectattr("motivo")|list %}
+  {%- if achados %}
+  <h4>{{ t("configuracoes.perfil.curriculo.achados") }}</h4>
+  {%- for i in achados %}
+  {{ item(i) }}
+  {%- endfor %}
+  {%- endif %}
+  {%- if conferir %}
+  <h4>{{ t("configuracoes.perfil.curriculo.para_conferir") }}</h4>
+  {%- for i in conferir %}
+  {{ item(i) }}
+  {%- endfor %}
+  {%- endif %}
+  <div class="acoes">
+    <button type="submit" name="aprovar" value="1" class="botao botao-primario" aria-describedby="cv-aprovar-ajuda">{{ t("configuracoes.perfil.curriculo.aprovar") }}</button>
+    <button type="submit" class="botao botao-secundario">{{ t("configuracoes.perfil.curriculo.salvar") }}</button>
+  </div>
+  <small id="cv-aprovar-ajuda">{{ t("configuracoes.perfil.curriculo.aprovar.ajuda") }}</small>
+</form>
+{%- endif %}
+{%- endif %}

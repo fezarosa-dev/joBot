@@ -56,14 +56,14 @@
   // os compactados viram o espaço instalado pelo fator; o modelo (GGUF) ocupa o que baixa
   const tamanho = (bytes) => t("ferramentas.tamanho", { tamanho: formatar(bytes * FATOR_DISCO) });
 
-  // os tamanhos do Modelo local no manifesto (o llama-server e cada modelo); sem eles, null
+  // os tamanhos do Modelo local no manifesto (o llama-server e o modelo padrão, o Laya, que o
+  // `baixar ia-local` baixa em todo computador, D219.20); sem eles, null
   function iaLocal() {
     const ia = estado.ia_local;
     const modelos = Object.values((ia && ia.modelos) || {}).filter((n) => n > 0);
     if (!ia || !(ia.servidor > 0) || !modelos.length) return null;
-    // o modelo sai da memória do computador, que esta tela não lê: conta o maior
-    const ate = Math.max(...modelos);
-    return { de: Math.min(...modelos), ate, disco: ia.servidor * FATOR_DISCO + ate };
+    const modelo = Math.max(...modelos); // um só; com mais de um, conta o maior
+    return { modelo, disco: ia.servidor * FATOR_DISCO + modelo };
   }
 
   function desenharRodape() {
@@ -76,12 +76,8 @@
     if (ia) {
       const disco = formatar(ia.disco);
       $("tamanho-ia-local").textContent = t("ferramentas.tamanho_ate", { tamanho: disco });
-      // "de 1,3 a 2,7 GB": a unidade só no fim quando as duas pontas a dividem
-      const [de, ate] = [formatar(ia.de), formatar(ia.ate)];
-      const unidade = ate.slice(ate.lastIndexOf(" "));
       $("frase-ia-local").textContent = t("ferramentas.ia_local_frase", {
-        de: de.endsWith(unidade) ? de.slice(0, -unidade.length) : de,
-        ate,
+        tamanho: formatar(ia.modelo),
       });
     }
     $("onde-fica").textContent = estado.dados || "";

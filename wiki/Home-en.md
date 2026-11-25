@@ -47,7 +47,7 @@ joBot was born to help young university students find their first job.
 Then the idea grew and became an assistant for everyone looking for a job, in any field. [Read the full story](The-idea-and-the-story).
 
 > [!NOTE]
-> **joBot is under development.** Phases 1, 2 and 3 of 9 (the base, the browser with login and the installer) are complete: you can already [install and use](https://github.com/fezarosa-dev/joBot/blob/main/README.en.md#requirements-and-installation) version 0.5.0, and the [Install page](Install) shows the step by step. Phase 4 (local AI) is being built: 0.5.0 brought the first part, the optional AI. Phases 5 to 9 are planned. See the [roadmap](Roadmap).
+> **joBot is under development.** Phases 1, 2, 3 and 4 of 9 (the base, the browser with login, the installer and the local AI) are complete: you can already [install and use](https://github.com/fezarosa-dev/joBot/blob/main/README.en.md#requirements-and-installation) version 0.6.0, and the [Install page](Install) shows the step by step. 0.5.0 brought the first part of the optional AI, and 0.6.0 closed phase 4. The next one is phase 8 (GitHub Pages version); phases 5, 6, 7 and 9 are planned. See the [roadmap](Roadmap).
 
 ## ✨ Highlights
 

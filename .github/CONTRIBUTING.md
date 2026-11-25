@@ -6,19 +6,23 @@ Obrigado pelo interesse! Este guia explica como ajudar com o joBot, agora e depo
 
 ## Estado do projeto
 
-As fases 1, 2 e 3 (base, navegador com login e instalador) estão concluídas: o joBot 0.4.0 fechou a fase 3, e a versão 0.5.0 já dá para instalar e usar ([como instalar](../README.md#requisitos-e-instalacao)). A fase 4 (IA local) está sendo construída: a 0.5.0 trouxe a primeira parte, e a 0.6.0 fecha a fase; as fases 5 a 9 estão planejadas. A 0.5.0 saiu sem o Laya treinado: o conjunto, o treino e a conta de custo dele ficam em `scripts/treino_laya/`, com o passo a passo no README de lá. As decisões já tomadas estão em [`docs/decisions/`](../docs/decisions/README.md) (só em português por enquanto). Para saber o que o projeto é e para onde ele vai, leia o [README](../README.md).
+As fases 1, 2, 3 e 4 (base, navegador com login, instalador e IA local) estão concluídas: o joBot 0.4.0 fechou a fase 3, a 0.6.0 fechou a fase 4, e a versão 0.6.0 já dá para instalar e usar ([como instalar](../README.md#requisitos-e-instalacao)). A próxima é a fase 8 (versão GitHub Pages), em desenho, construída antes da fase 5; as fases 5, 6, 7 e 9 estão planejadas. O Laya, o modelo local padrão desde a 0.6.0, tem o conjunto, o treino e a conta de custo em `scripts/treino_laya/`, com o passo a passo no README de lá. As decisões já tomadas estão em [`docs/decisions/`](../docs/decisions/README.md) (só em português por enquanto). Para saber o que o projeto é e para onde ele vai, leia o [README](../README.md).
 
 ## Como ajudar agora
 
 - **Sugestões e fontes de vagas** são bem-vindas desde já. Abra uma issue pelos formulários: Bug, Sugestão ou Fonte de vagas.
 - **Uma fonte de vagas quebrou?** O guia [Como consertar uma fonte que quebrou](../docs/consertar-fonte.md) mostra como achar o que mudou e consertar. Hoje ele serve para você entender o caminho e relatar o que achou numa issue; o PR com o conserto segue a regra abaixo.
 - **Quer acrescentar um site de vagas novo?** O guia [Como acrescentar um site novo](../docs/site-novo.md) leva do site ao PR, com um molde que já roda para o site público e outro para o site com login. Hoje serve para você se preparar e abrir a issue "Fonte de vagas"; o PR segue a regra abaixo.
-- **Quer testar a IA?** Os testes da IA usam um serviço falso e rodam sem rede, com o resto da suíte. O modelo local de verdade é provado pelo workflow `ia.yml`, que roda à mão, pelo `casca.yml` com a entrada `ia` (`gh workflow run casca.yml --ref <branch> -f ia=true`). Quem tem chave de um serviço pode provar a tarefa Encaixe com `scripts/provar_ia.py --backend openai`, `gemini`, `anthropic` ou `compativel` (com `--endereco`); a chave vai pela variável `JOBOT_IA_CHAVE`, nunca no comando.
+- **Quer testar a IA?** Os testes da IA usam um serviço falso e rodam sem rede, com o resto da suíte. O modelo local de verdade é provado pelo workflow `ia.yml`, que roda à mão, pelo `casca.yml` com a entrada `ia` (`gh workflow run casca.yml --ref <branch> -f ia=true`). Quem tem chave de um serviço pode provar a tarefa Encaixe com `scripts/provar_ia.py --backend openai`, `gemini`, `anthropic` ou `compativel` (com `--endereco`); a chave vai pela variável `JOBOT_IA_CHAVE`, nunca no comando. As tarefas da 0.6.0 (currículo, perguntas e candidatura) e a IA manual são testadas do mesmo jeito, com o serviço falso; os testes do currículo montam o PDF no próprio teste, com o `pypdf`, e nenhum PDF nem currículo de pessoa entra no repositório.
 - **Pull requests de código** só serão aceitos depois da publicação (fase 9). Até lá, o código ainda está mudando muito.
 - Issues e PRs podem ser escritos em **português ou inglês**.
 - Achou uma falha de segurança? **Não abra issue pública.** Veja a [Política de Segurança](SECURITY.md).
 - Precisa de ajuda ou tem uma dúvida? Veja o [Suporte](SUPPORT.md).
 - Ao participar, você aceita o [Código de Conduta](CODE_OF_CONDUCT.md).
+
+## Histórico reescrito em 2026-11-24
+
+O histórico do git foi reescrito em 2026-11-24, para tirar um dado pessoal de duas fixtures de teste. Se você clonou antes dessa data, rode uma vez, na pasta do clone, `git fetch origin && git reset --hard origin/main && uv sync --locked`, ou clone de novo. O reset descarta qualquer mudança local do clone (guarde antes o que quiser manter); os seus dados do joBot ficam na pasta de dados, fora dele, e não mudam. Fork ou clone de trabalho, novo ou para um PR, parte de um clone feito depois dessa data: um fork de antes não se reaproveita.
 
 ## Regras do projeto
 

@@ -25,6 +25,7 @@ import hashlib
 import json
 import re
 import shlex
+import shutil
 import subprocess
 import sys
 from collections.abc import Callable, Sequence
@@ -45,6 +46,15 @@ MANIFESTO = RAIZ / "src" / "jobot" / "nucleo" / "dados" / "ia_local.json"
 _CHECKPOINT = re.compile(r"checkpoint-(\d+)")
 # o `Trainer` grava este arquivo por último no checkpoint: sem ele, a gravação foi cortada
 _COMPLETO = "trainer_state.json"
+_ARQUIVOS_TOKENIZADOR = [
+    "tokenizer.json",
+    "tokenizer_config.json",
+    "vocab.json",
+    "merges.txt",
+    "chat_template.jinja",
+    "preprocessor_config.json",
+    "video_preprocessor_config.json",
+]
 
 
 class Treinador(Protocol):
@@ -115,6 +125,7 @@ def montar_hf(args: argparse.Namespace, treino: list[Any], validacao: list[Any])
         lora_alpha=2 * args.rank,
         lora_dropout=0.05,
         target_modules="all-linear",
+        exclude_modules=r".*visual.*",  # só texto: a torre de visão não recebe imagem no treino
         task_type="CAUSAL_LM",
     )
     treinador: Treinador = SFTTrainer(
@@ -170,13 +181,26 @@ def entrada_manifesto(gguf: Path, url: str, base: str) -> dict[str, Any]:
 
 def juntar_lora(saida: Path, base: str) -> Path:
     """O LoRA junto ao modelo base em `<saida>/junto`, no ambiente do treino."""
-    from peft import AutoPeftModelForCausalLM
-    from transformers import AutoTokenizer  # type: ignore[import-not-found]
+    import torch  # type: ignore[import-not-found]
+    from peft import PeftModel
+    from transformers import AutoModelForImageTextToText  # type: ignore[import-not-found]
 
     junto = saida / "junto"
-    modelo = AutoPeftModelForCausalLM.from_pretrained(str(saida / "lora")).merge_and_unload()
+    # o Qwen3.5 é multimodal: o SFTTrainer treina a classe de imagem e texto
+    # (`model.language_model.layers`); o AutoPeftModelForCausalLM carregaria a só de texto
+    # (`model.layers`), as chaves do LoRA não casariam e o merge sairia igual ao modelo base
+    original = AutoModelForImageTextToText.from_pretrained(base, dtype=torch.bfloat16)
+    modelo = PeftModel.from_pretrained(original, str(saida / "lora")).merge_and_unload()
     modelo.save_pretrained(str(junto))
-    AutoTokenizer.from_pretrained(base).save_pretrained(str(junto))
+    # os arquivos do tokenizador vêm do repositório original: o `save_pretrained` do
+    # transformers 5 grava `Qwen3_5Tokenizer`, que o transformers do conversor não conhece
+    from huggingface_hub import snapshot_download  # type: ignore[import-not-found]
+
+    origem = Path(snapshot_download(base, allow_patterns=_ARQUIVOS_TOKENIZADOR))
+    for nome in _ARQUIVOS_TOKENIZADOR:
+        # só esses: a cópia local do repositório pode ter os pesos e o config.json do original
+        if (origem / nome).exists():
+            shutil.copy(origem / nome, junto / nome)
     return junto
 
 

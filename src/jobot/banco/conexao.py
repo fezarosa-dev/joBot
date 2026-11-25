@@ -11,6 +11,7 @@ def abrir(caminho: Path) -> sqlite3.Connection:
     con.execute("PRAGMA journal_mode=WAL")
     con.execute("PRAGMA foreign_keys=ON")
     con.execute("PRAGMA busy_timeout=5000")
+    con.execute("PRAGMA secure_delete=ON")  # o que se apaga (perfil) vira zero no arquivo
     return con
 
 

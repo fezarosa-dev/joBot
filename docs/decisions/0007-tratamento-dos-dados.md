@@ -2,7 +2,7 @@
 
 - **Status:** aceita
 - **Data:** 2026-11-13
-- **Atualizada:** 2026-11-13; 2026-11-17 (o multilingual-e5-small sai da fase 4, para confirmar, D185 e [0026](0026-ia-da-fase-4.md))
+- **Atualizada:** 2026-11-13; 2026-11-17 (o multilingual-e5-small sai da fase 4, para confirmar, D185 e [0026](0026-ia-da-fase-4.md)); 2026-11-24 (na versão Pages, os rótulos rodam em Python no Actions e só o encaixe roda em JavaScript, escolha da sessão, para discutir com o dono, D239.9)
 
 ## Contexto
 
@@ -43,7 +43,7 @@ Decisão de 2026-11-13. A fase 7 treina modelos (ADR 0015) e precisa destes dado
 
 ### Onde ficam as regras e como medir
 
-- As regras ficam em arquivos de dados lidos pelo Python (versão local) e pelo JavaScript (versão Pages).
+- As regras ficam em arquivos de dados lidos pelo Python (versão local) e pelo JavaScript (versão Pages). Desenho da fase 8 (2026-11-24, D239.9, para discutir com o dono): os rótulos e o tratamento rodam em Python no GitHub Actions e o site recebe o resultado; só o `encaixe.json` é lido também pelo JavaScript.
 - Os casos de teste das regras ficam em JSON desde a fase 1. O teste em JavaScript chega com a versão Pages (fase 8).
 - Conjunto de ouro (gabarito): 329 vagas reais, de 30 fontes, já coletadas em 2026-11-13.
 - Rotulagem do gabarito em duas passadas: agentes do modelo Sonnet rotulam; o modelo Fable rotula de novo, às cegas (sem ver a primeira resposta). Onde discordam, o Fable decide e registra o porquê. O dono não confere amostra do gabarito.
@@ -55,7 +55,7 @@ Decisão de 2026-11-13. A fase 7 treina modelos (ADR 0015) e precisa destes dado
 
 ## Consequências
 
-- Mudança de regra exige rodar os testes em Python e, a partir da fase 8, também em JavaScript.
+- Mudança de regra exige rodar os testes em Python e, a partir da fase 8, também em JavaScript (na proposta da D239.9, só as regras de encaixe).
 - A precisão dos rótulos é medida, não suposta.
 - O banco cresce com o tempo, porque nenhuma vaga é apagada.
 
@@ -66,4 +66,4 @@ Decisão de 2026-11-13. A fase 7 treina modelos (ADR 0015) e precisa destes dado
 - [0008. Painel e visual](0008-painel-e-visual.md)
 - [0015. Treino de modelos (fase 7)](0015-treino.md)
 - [0026. IA da fase 4: tarefas, backends e modelo local](0026-ia-da-fase-4.md)
-- [duvidas.md: D185 (fase 4)](../../duvidas.md)
+- [duvidas.md: D185 (fase 4) e D239 (fase 8)](../../duvidas.md)

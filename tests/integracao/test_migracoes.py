@@ -39,6 +39,10 @@ TABELAS = {
     "candidatura",
     "perfil",
     "habilidades_vaga",
+    "experiencia",
+    "curso",
+    "pergunta_perfil",
+    "preparo_candidatura",
 }
 INDICES = {
     "execucao_uma_por_tipo",
@@ -129,6 +133,7 @@ def test_pragmas(tmp_path: Path) -> None:
     assert con.execute("PRAGMA journal_mode").fetchone()[0] == "wal"
     assert con.execute("PRAGMA foreign_keys").fetchone()[0] == 1
     assert con.execute("PRAGMA busy_timeout").fetchone()[0] == 5000
+    assert con.execute("PRAGMA secure_delete").fetchone()[0] == 1  # apagado vira zero no arquivo
 
 
 def test_vazio_recebe_esquema(tmp_path: Path) -> None:

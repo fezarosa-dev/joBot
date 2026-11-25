@@ -84,7 +84,9 @@ def test_matriz_nos_tres_sistemas_com_prazo() -> None:
     assert "uv sync --locked" in texto
 
 
-def test_passos_baixam_atestam_provam_e_medem_os_dois_modelos() -> None:
+def test_passos_baixam_atestam_provam_e_medem_os_tres_modelos() -> None:
+    """O `auto` baixa o padrão do manifesto (o Laya, D219.20); depois o 2B e o 4B, cada um com a
+    prova e a medida, para nenhum modelo do manifesto ficar sem prova."""
     texto = _codigo()
     # a atestação vem antes do baixar, que já roda o `llama-server --version`
     passos = [
@@ -93,14 +95,41 @@ def test_passos_baixam_atestam_provam_e_medem_os_dois_modelos() -> None:
         "uv run python scripts/provar_ia.py",
         "uv run python scripts/medir_modelo.py",
         "uv run jobot ferramentas baixar ia-local --modelo 2b",
+        "uv run jobot ferramentas baixar ia-local --modelo 4b",
     ]
+    faltam = [p for p in passos if p not in texto]
+    assert not faltam, faltam
     posicoes = [texto.index(p) for p in passos]
     assert posicoes == sorted(posicoes)
-    # depois do 2B, a prova e a medida de novo
-    depois = texto[texto.index(passos[-1]) :]
-    assert "scripts/provar_ia.py" in depois
-    assert "scripts/medir_modelo.py" in depois
+    # depois do 2B e depois do 4B, a prova e a medida de novo
+    for baixar in passos[-2:]:
+        depois = texto[texto.index(baixar) :]
+        assert "scripts/provar_ia.py" in depois, baixar
+        assert "scripts/medir_modelo.py" in depois, baixar
+    entre = texto[texto.index(passos[-2]) : texto.index(passos[-1])]
+    assert "scripts/provar_ia.py" in entre and "scripts/medir_modelo.py" in entre
+    modelos = set(json.loads(MANIFESTO.read_text(encoding="utf-8"))["modelos"])
+    assert modelos == {"laya", "2b", "4b"}  # um passo por modelo: o padrão pelo auto, 2b e 4b
     assert "JOBOT_DADOS=" in texto  # nada na pasta de dados do runner
+
+
+def test_tarefas_novas_provadas_no_laya_antes_de_trocar_de_modelo() -> None:
+    """T445: currículo, perguntas e preparar candidatura no modelo padrão (o `auto`, o Laya), com
+    a espera alargada para medir o tempo de verdade de quem passa do prazo."""
+    texto = _codigo()
+    passo = "uv run python scripts/provar_tarefas.py"
+    assert texto.count(passo) == 1
+    posicao = texto.index(passo)
+    assert texto.index("--modelo auto") < posicao < texto.index("--modelo 2b")
+    linha = next(x for x in texto.splitlines() if passo in x)
+    assert "--espera-s" in linha and "--rotulo" in linha
+    # seis casos: a espera de cada um até o dobro do prazo, para um runner travado não comer o
+    # tempo do job e cortar o 2B e o 4B sem medir
+    espera = float(linha.split("--espera-s")[1].split()[0])
+    assert limites()["prazo_s"]["local"] < espera <= 2 * limites()["prazo_s"]["local"]
+    # roda mesmo se a prova do encaixe ficou abaixo da meta
+    linhas = texto.splitlines()
+    assert linhas[linhas.index(linha) - 1].strip() == "if: ${{ !cancelled() }}"
 
 
 def test_atestacao_com_o_dono_e_o_workflow_do_manifesto() -> None:

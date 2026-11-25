@@ -12,8 +12,9 @@ Script do CI (`.github/workflows/pacotes.yml`), fora do pacote `jobot`. Quatro c
   lê), as `wheels/` (as do alvo, já baixadas com `--require-hashes`, e a do joBot) e o
   `restricoes.txt`, e por fim o `manifesto.json`, cujo sha256 sai no stdout (o
   `JOBOT_MANIFESTO_SHA256` do build). O manifesto leva também `ia_local`, os tamanhos do
-  `llama-server` do alvo e dos modelos do `nucleo/dados/ia_local.json`, que a tela do instalador
-  mostra antes de o venv existir (T418; desenho 10.1); o modelo não vai nos recursos (D185.7).
+  `llama-server` do alvo e do modelo padrão do `nucleo/dados/ia_local.json`, que a tela do
+  instalador mostra antes de o venv existir (T418; desenho 10.1); o modelo não vai nos recursos
+  (D185.7).
   Em `DIR` grava o `jobot-atualizacao-<versão>-<alvo>.zip`.
   O navegador não entra: o joBot não redistribui o Chrome for Testing que o Playwright baixa
   (D183.24).
@@ -145,11 +146,13 @@ def _entradas(raiz: Path, nomes: list[str]) -> list[dict[str, object]]:
 
 
 def tamanhos_ia_local(alvo: str) -> dict[str, object]:
-    """Os tamanhos do Modelo local para o manifesto: o `llama-server` do alvo e cada modelo."""
+    """Os tamanhos do Modelo local para o manifesto: o `llama-server` do alvo e o modelo padrão,
+    o único que o instalador baixa (o `auto`, D219.20); os outros se trocam em Ferramentas."""
     ia = json.loads(IA_LOCAL.read_text(encoding="utf-8"))
+    padrao = ia["padrao"]
     return {
         "servidor": ia["llama_server"]["alvos"][ALVOS_LLAMA[alvo]]["tamanho"],
-        "modelos": {nome: m["tamanho"] for nome, m in ia["modelos"].items()},
+        "modelos": {padrao: ia["modelos"][padrao]["tamanho"]},
     }
 
 

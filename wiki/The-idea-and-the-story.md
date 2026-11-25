@@ -17,7 +17,7 @@ Then the idea expanded to everyone. Today joBot is designed for every kind of jo
 |---|---|
 | 2026-11-13 | The main decisions were made in 9 rounds of questions and answers and recorded in short documents, the ADRs (ADR 0001 to 0017). |
 | 2026-11-14 | The project was redesigned to be maintained by the community (ADR 0018), got this wiki (ADR 0019) and decided to accept only donations as support (ADR 0020). |
-| Now | Phases 1, 2 and 3 of 9 (the base, the browser with login and the installer) are complete: joBot 0.5.0 already works, with the first part of phase 4 (the optional AI). See the [roadmap](Roadmap). |
+| Now | Phases 1, 2, 3 and 4 of 9 (the base, the browser with login, the installer and the local AI) are complete: joBot 0.6.0 already works, with the optional AI. The next one is phase 8, the GitHub Pages version. See the [roadmap](Roadmap). |
 
 ## 😩 The problem
 
