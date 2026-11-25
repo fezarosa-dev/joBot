@@ -1605,15 +1605,26 @@ def test_readme_traz_a_vaga_longa_do_ensaio(lingua: str) -> None:
 
 
 # o que o ensaio final (Casca 45557856420, passo tarefas-auto) mediu do Laya nas tarefas novas
-# (D240.3, D240.4): o currículo só com a formação e os cursos; os 79 de 82 são só do Encaixe
+# (D240.3, D240.4): o currículo só com a formação, errada ("tecnico" para um tecnólogo), e os
+# cursos; os 79 de 82 são só do Encaixe
 LAYA_NAS_TAREFAS = {
-    "pt": ("só o nível de formação e os cursos", "também erraram", "só do Encaixe"),
-    "en": ("only the education level and the courses", "also made mistakes", "only for Matching"),
+    "pt": (
+        "só o nível de formação e os cursos",
+        "o nível de formação veio errado",
+        "também erraram",
+        "só do Encaixe",
+    ),
+    "en": (
+        "only the education level and the courses",
+        "the education level came out wrong",
+        "also made mistakes",
+        "only for Matching",
+    ),
 }
 ENCAIXE_DO_LAYA = {"pt": "ensaio do Encaixe", "en": "Matching run"}
 AJUDA_CURRICULO_LOCAL = {
-    "pt": "só preenche o nível de formação",
-    "en": "only fills in the education",
+    "pt": ("No Laya", "só preenche o nível de formação", "pode vir errado"),
+    "en": ("On Laya", "only fills in the education", "may come out wrong"),
 }
 
 
@@ -1628,7 +1639,33 @@ def test_documentos_dizem_o_que_o_laya_leu_nas_tarefas(lingua: str) -> None:
     laya = next(x for x in secao_0_6_0(lingua).splitlines() if "Laya 2B" in x)
     assert ENCAIXE_DO_LAYA[lingua] in laya.split("79")[0], CHANGELOG[lingua]
     ajuda = i18n.carregar()[lingua]["configuracoes.ia.tarefa.curriculo.ajuda"]
-    assert AJUDA_CURRICULO_LOCAL[lingua] in ajuda, lingua
+    for termo in AJUDA_CURRICULO_LOCAL[lingua]:
+        assert termo in ajuda, (lingua, termo)
+
+
+# a regra de ouro diz o que o joBot faz, não que a IA nunca erra: o ensaio 45557856420 mostrou
+# cartas do Laya com o que não está no perfil (D241.9)
+REGRA_DE_OURO = {
+    "pt": ("README.md", "wiki/Como-funciona.md"),
+    "en": ("README.en.md", "wiki/How-it-works.md"),
+}
+REGRA_FAZ = {
+    "pt": ("só manda à IA o que você escreveu", "A IA pode errar", "a carta cita algo"),
+    "en": ("only sends the AI what you wrote", "The AI can be wrong", "the letter mentions"),
+}
+REGRA_PROMETE = re.compile(
+    r"a IA nunca inventa|the AI never invents|ela só usa os dados|it only uses the data"
+)
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_regra_de_ouro_diz_o_que_o_jobot_faz(lingua: str) -> None:
+    for caminho in REGRA_DE_OURO[lingua]:
+        blocos = texto(caminho).split("\n\n")
+        regra = next(x for x in blocos if "Regra de ouro" in x or "Golden rule" in x)
+        for termo in REGRA_FAZ[lingua]:
+            assert termo in regra, (caminho, termo)
+        assert REGRA_PROMETE.findall(regra) == [], caminho
 
 
 # o número de cada tarefa do plano é único: duas frentes com o mesmo número calam o plano (a T445 da
