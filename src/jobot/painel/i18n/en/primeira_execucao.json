@@ -72,7 +72,7 @@
   "primeira_execucao.ia.pago": "Paid service (your key)",
   "primeira_execucao.ia.pago.ajuda": "Uses the Anthropic API (Claude) with your key. OpenAI, Google Gemini and compatible services are in Settings › AI.",
   "primeira_execucao.ia.pago.custo": "Cost: charged per use, on your Anthropic account. With matching on, joBot makes up to {teto} requests a day, one per new job that matches a search; the other tasks only ask when you click. Experimental, not yet proven.",
-  "primeira_execucao.ia.pago.privacidade": "Job texts go to Anthropic. Your résumé text, without email, phone and CPF, goes when you ask to read it. Your profile, without your name and contact details, only goes when you ask.",
+  "primeira_execucao.ia.pago.privacidade": "Job texts go to Anthropic. Your résumé text, without email, phone and CPF, goes when you ask to read it; the name and city may go, if they are written in it. Your profile, without your name and contact details, only goes when you ask; what you wrote in the text fields goes as you wrote it, except email, phone, CPF and your name, when written as it is in the profile.",
   "primeira_execucao.ia.chave": "Anthropic API key",
   "primeira_execucao.ia.chave.ajuda": "It stays in the system password vault and never comes back to the screen.",
   "primeira_execucao.ia.chave.guardada": "A key is already saved: leave this blank to keep it.",

@@ -28,7 +28,7 @@ O projeto é grande. Ir por fases deixa cada entrega testada antes da próxima. 
 - ~~O ajuste fino do Laya (ADR 0015) acontece antes da fase 4, e o Laya ajustado entra no encaixe junto com o Qwen local (D141).~~ ~~O ajuste do Laya antes da fase 4 está adiado, para confirmar (2026-11-17, D185.8): o treino custa, e o dono decide se autoriza o gasto ou adia; até lá, a fase 4 segue com as habilidades pela IA escolhida ([0026](0026-ia-da-fase-4.md)).~~ O dono autorizou o treino do Laya antes da fase 4 em 2026-11-24 (D219, [0015](0015-treino.md)), no RunPod, só na Community Cloud e pela GPU de menor custo total. A 0.5.0 sai sem o Laya treinado, ~~que entra numa versão seguinte~~ e ele é o modelo local padrão da 0.6.0 (D219, confirmada pelo dono em 2026-11-24, D237). Os outros treinos seguem na fase 7.
 - Nenhuma fase muda de número nem de nome.
 
-## Fase 8 antes da fase 5 (2026-11-24, para confirmar)
+## Fase 8 antes da fase 5 (2026-11-24, decidida pelo dono)
 
 - A pedido do dono, em 2026-11-24, a versão GitHub Pages (fase 8) é construída logo depois da fase 4, antes da extensão do navegador (fase 5) (D238, decidida pelo dono). A ordem de execução fica: 4, 8, 5, 6, 7, 9.
 - Os números e os nomes das fases não mudam. "Cada fase só começa depois que a anterior passa nos testes" vale na ordem nova: a fase 8 começa depois da fase 4 (a 0.6.0).
