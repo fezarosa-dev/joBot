@@ -39,8 +39,10 @@ TELAS = {
     "candidatura": "/vagas/2",  # a segunda semeada, com o preparo do serviço falso
 }
 # as telas longas da 0.6.0 saem inteiras: o fim do formulário (experiências, cursos, o resultado
-# da candidatura) também se confere
+# da candidatura) também se confere. A página rola dentro do `main`, não no documento (o
+# `full_page` do Playwright não a pega): a janela cresce até a maior altura de rolagem
 INTEIRAS = {"perfil", "ia", "assistente-ia", "assistente-perfil", "candidatura"}
+_ALTURA = "() => Math.max(...[...document.querySelectorAll('*')].map((e) => e.scrollHeight))"
 CANDIDATURA = Preparo(
     idioma="pt",
     carta="Prezada equipe, trabalho com Python há três anos e quero conversar sobre a vaga.",
@@ -112,4 +114,6 @@ def test_captura(
     pasta = Path(os.environ.get("JOBOT_CAPTURAS") or tmp_path)
     pasta.mkdir(parents=True, exist_ok=True)
     foto = pasta / f"{browser_name}-{tela}-{tema}-{largura}.png"
-    page.screenshot(path=foto, animations="disabled", full_page=tela in INTEIRAS)
+    if tela in INTEIRAS:
+        page.set_viewport_size({"width": largura, "height": min(page.evaluate(_ALTURA), 8000)})
+    page.screenshot(path=foto, animations="disabled")
