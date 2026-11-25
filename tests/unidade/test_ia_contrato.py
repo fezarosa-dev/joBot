@@ -37,7 +37,8 @@ DO_PEDIDO = {"recusa", "formato", "contexto"}
 # Lista permitida de cada backend, escrita aqui à parte do código (desenho 5.1), conferida na
 # documentação em 2026-11-17 (T405): a do `strict` da OpenAI e a da saída estruturada do Gemini,
 # que não cita `pattern`, `multipleOf` nem os `exclusive*`. O compatível leva a do Gemini, a mais
-# estreita; o llama.cpp aceita mais, mas repetição acima de 2000 quebra a gramática.
+# estreita; o llama.cpp aceita mais, mas repetição acima de 2000 quebra a gramática. Sem
+# `description`: nenhum backend a recebe (T444).
 _STRICT = {
     "type",
     "properties",
@@ -48,7 +49,6 @@ _STRICT = {
     "anyOf",
     "$defs",
     "$ref",
-    "description",
     "pattern",
     "format",
     "multipleOf",
@@ -231,7 +231,7 @@ def test_esquema_sem_descricoes_em_nivel_nenhum_e_guarda_o_campo_description(
 ) -> None:
     completo = _Descrito.model_json_schema()
     # controle: descrição no alto, no campo e no modelo aninhado
-    assert [completo["description"], completo["properties"]["lista"]["description"]] != []
+    assert completo["description"] and completo["properties"]["lista"]["description"]
     assert "description" in completo["$defs"]["_Nota"]
     enviado = esquema_para(backend, _Descrito)
     nota = enviado["$defs"]["_Nota"]

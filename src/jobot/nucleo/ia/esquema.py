@@ -8,7 +8,8 @@ from pydantic import BaseModel
 
 # Lista do `strict` da OpenAI, conferida em 2026-11-17 (T405) em "Supported schemas" de
 # https://developers.openai.com/api/docs/guides/structured-outputs: sem `minLength`/`maxLength`,
-# todo campo em `required` e `additionalProperties: false` em todo objeto.
+# todo campo em `required` e `additionalProperties: false` em todo objeto. O `description` da lista
+# não entra: `sem_descricoes` o tira antes do filtro (T444).
 _STRICT = frozenset(
     {
         "type",
@@ -20,7 +21,6 @@ _STRICT = frozenset(
         "anyOf",
         "$defs",
         "$ref",
-        "description",
         "pattern",
         "format",
         "multipleOf",
