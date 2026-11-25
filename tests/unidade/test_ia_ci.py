@@ -113,6 +113,21 @@ def test_passos_baixam_atestam_provam_e_medem_os_tres_modelos() -> None:
     assert "JOBOT_DADOS=" in texto  # nada na pasta de dados do runner
 
 
+def test_tarefas_novas_provadas_no_laya_antes_de_trocar_de_modelo() -> None:
+    """T445: currículo, perguntas e preparar candidatura no modelo padrão (o `auto`, o Laya), com
+    a espera alargada para medir o tempo de verdade de quem passa do prazo."""
+    texto = _codigo()
+    passo = "uv run python scripts/provar_tarefas.py"
+    assert texto.count(passo) == 1
+    posicao = texto.index(passo)
+    assert texto.index("--modelo auto") < posicao < texto.index("--modelo 2b")
+    linha = next(x for x in texto.splitlines() if passo in x)
+    assert "--espera-s" in linha and "--rotulo" in linha
+    # roda mesmo se a prova do encaixe ficou abaixo da meta
+    antes = texto[:posicao].splitlines()
+    assert antes[-1].strip() == "if: ${{ !cancelled() }}"
+
+
 def test_atestacao_com_o_dono_e_o_workflow_do_manifesto() -> None:
     atestacao = json.loads(MANIFESTO.read_text(encoding="utf-8"))["llama_server"]["atestacao"]
     texto = _codigo()
