@@ -2,6 +2,7 @@
 `tmp_path`, os downloads por `httpx.MockTransport` (sem rede), o `--version` por um falso e o
 `llama-server` do teste do `+x` pelo servidor falso em thread (`apoio.llama_falso`)."""
 
+import gzip
 import hashlib
 import io
 import json
@@ -39,7 +40,11 @@ GGUF_LAYA = b"GGUF-laya" * 90
 def _tar(membros: dict[str, bytes]) -> bytes:
     """`.tar.gz` com os membros sem `+x` (modo 0644): quem dá o `+x` é o joBot."""
     saida = io.BytesIO()
-    with tarfile.open(fileobj=saida, mode="w:gz") as tf:
+    # mtime fixo no gzip: com a hora, dois manifestos de segundos diferentes davam outro sha256
+    with (
+        gzip.GzipFile(fileobj=saida, mode="wb", mtime=0) as gz,
+        tarfile.open(fileobj=gz, mode="w") as tf,
+    ):
         for nome, corpo in membros.items():
             info = tarfile.TarInfo(nome)
             info.size, info.mode = len(corpo), 0o644

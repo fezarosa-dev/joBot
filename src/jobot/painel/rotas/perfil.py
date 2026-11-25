@@ -144,7 +144,9 @@ TETO_OUTROS = 10  # outros idiomas; a tela desenha até um a mais, vazio
 _TETO = {"email": 254, "telefone": 40, "resumo": 2000, "descricao": 2000, "link": 500, "idioma": 60}
 _TETO_PADRAO = 200
 _MES = re.compile(r"\d{4}-(0[1-9]|1[0-2])")
-_EMAIL = re.compile(r"[^@\s]+@[^@\s]+\.[^@\s]+")
+# rótulos sem ponto e âncora \A: sem retrocesso polinomial (CodeQL py/polynomial-redos, que não
+# vê o fullmatch), sobre os 254 do teto
+_EMAIL = re.compile(r"\A[^@\s]+@[^@\s.]+(?:\.[^@\s.]+)+")
 _ID = re.compile(r"[1-9]\d{0,17}")  # até 18 dígitos: sempre cabe no INTEGER do SQLite
 # campo do formulário de dados -> `id` do controle na tela (o erro marca o controle certo)
 _IDS_DADOS = {
