@@ -3,12 +3,18 @@
 Currículo (o texto de um PDF montado aqui e lido pelo leitor de produção, em processo filho),
 Perguntas e Preparar candidatura, com os pedidos de produção (`pedidos.pedido_*`) e um perfil
 sintético: nenhum dado de pessoa (sem nome, e-mail, telefone nem cidade). Cada tarefa vai num caso
-comum e num pior caso de leitura, com o texto passando do corte do `ia.json` (o currículo e a vaga
-pelo seu corte; o perfil com mais respostas e perguntas feitas do que o corte das perguntas guarda).
+comum e num caso longo, com o texto passando do corte do `ia.json` (o currículo e a vaga pelo seu
+corte; o perfil com mais respostas e perguntas feitas do que o corte das perguntas guarda e maior
+que o corte da candidatura no local). O longo é o maior pedido que o produto manda, com texto em
+português comum; texto com menos caracteres por token passaria dele.
 
 Anota o tempo, os tokens lidos e gerados (os `timings` que o `llama-server` põe na resposta) e se a
-resposta valida no esquema. Um caso passa quando valida, cabe no prazo do produto (`prazo_s` local)
-e no contexto (`CONTEXTO`: os lidos mais o `max_tokens` do pedido). `--espera-s` só alarga a espera
+resposta valida no esquema. Os lidos são o pedido inteiro: o `prompt_n` mais o `cache_n` (com `-np
+1`, o prefixo igual ao do pedido anterior vem do cache e só o resto entra no `prompt_n`). Um caso
+passa quando valida, cabe no prazo do produto (`prazo_s` local) e no contexto (`CONTEXTO`: os lidos
+mais o `max_tokens` do pedido). A coluna "leu o essencial" só informa (não decide o resultado):
+o currículo trouxe experiências e habilidades, as perguntas não se repetem e a carta não deixa
+lugar para preencher, como "[Nome]". `--espera-s` só alarga a espera
 do cliente, para medir o tempo de verdade de quem passa do prazo; quem julga é o prazo do produto.
 Sai com 0 se todo caso passou, 1 se não e 2 sem o modelo baixado. Escreve uma linha JSON por caso
 e, no Actions, a tabela no resumo do job (`GITHUB_STEP_SUMMARY`).
@@ -66,7 +72,7 @@ CURRICULO = (
     "Habilidades\n"
     "Python, FastAPI, Django, PostgreSQL, Docker, Git, pytest, SQL",
 )
-# o pior caso: projetos até passar do corte do currículo local (12000 caracteres), 8 por página
+# o caso longo: projetos até passar do corte do currículo local (12000 caracteres), 8 por página
 _PROJETOS = [
     f"Projeto {n}: integração de pagamentos para o Cliente Fictício {n}, com Python, filas e "
     "testes automatizados; documentei a API e acompanhei a implantação em produção."
@@ -121,7 +127,8 @@ PERFIL: dict[str, object] = {
     ],
     "perguntas_feitas": ["Aceita trabalho híbrido?"],
 }
-# o pior caso: mais respostas e perguntas feitas do que o corte das perguntas guarda
+# o caso longo: mais respostas e perguntas feitas do que o corte das perguntas guarda, e o perfil
+# maior que o corte da candidatura no local
 PERFIL_LONGO: dict[str, object] = PERFIL | {
     "respostas": [
         {
@@ -191,8 +198,16 @@ class Medida:
         return self.valida and self.no_prazo and self.cabe
 
 
-def leu_o_essencial(tarefa: str, dados: Mapping[str, Any]) -> bool | None:
-    return None  # esqueleto do vermelho
+def leu_o_essencial(tarefa: str, dados: Mapping[str, Any]) -> bool:
+    """O que o esquema não confere (ele aceita a resposta vazia), para uma melhora ou piora do
+    modelo aparecer na tabela."""
+    if tarefa == "curriculo":
+        return bool(dados.get("experiencias")) and bool(dados.get("habilidades"))
+    if tarefa == "perguntas":
+        textos = [" ".join(p["pergunta"].casefold().split()) for p in dados.get("perguntas", [])]
+        return bool(textos) and len(set(textos)) == len(textos)
+    carta = dados.get("carta") or ""
+    return bool(carta.strip()) and "[" not in carta
 
 
 def _numero(timings: Mapping[str, Any] | None, chave: str) -> int | None:
@@ -216,11 +231,14 @@ def provar(
         if espera_s is not None:
             pedido = dataclasses.replace(pedido, prazo_s=espera_s)
         timings.clear()
-        motivo, campos = None, ()
+        motivo: str | None = None
+        campos: tuple[str, ...] = ()
+        essencial: bool | None = None
         comeco = relogio()
         try:
             dados = backend.pedir(pedido).dados
             campos = tuple(k for k, v in dados.items() if v not in (None, "", [], {}))
+            essencial = leu_o_essencial(pedido.tarefa, dados)
             # só dado sintético: a resposta inteira no log, para ler o que o modelo entendeu
             print(json.dumps({"caso": caso.nome, "resposta": dados}, ensure_ascii=False))
         except Falha as falha:
@@ -232,34 +250,46 @@ def provar(
                 caso.nome,
                 pedido.tarefa,
                 segundos,
-                _numero(anotado, "prompt_n"),
+                _lidos(anotado),
                 _numero(anotado, "predicted_n"),
                 pedido.max_tokens,
                 caso.pedido.prazo_s,
                 motivo,
                 campos,
+                essencial,
             )
         )
         print(json.dumps({**dataclasses.asdict(medidas[-1]), "passou": medidas[-1].passou}))
     return medidas
 
 
+def _lidos(timings: Mapping[str, Any] | None) -> int | None:
+    """O pedido inteiro: o lido agora mais o que veio do cache. Sem um dos dois, não se sabe."""
+    lido, cache = _numero(timings, "prompt_n"), _numero(timings, "cache_n")
+    return None if lido is None or cache is None else lido + cache
+
+
 def _ou(valor: int | None) -> str:
     return "?" if valor is None else str(valor)
+
+
+def _sim(valor: bool | None) -> str:
+    return "—" if valor is None else "sim" if valor else "não"
 
 
 def tabela(rotulo: str, modelo: str, medidas: Sequence[Medida]) -> str:
     linhas = [
         f"\n**Tarefas novas no modelo local ({modelo})**\n",
         "| sistema | caso | s | prazo (s) | lidos | gerados | max_tokens "
-        f"| lidos + max ≤ {CONTEXTO} | campos preenchidos | esquema | resultado |",
-        "|---|---|---|---|---|---|---|---|---|---|---|",
+        f"| lidos + max ≤ {CONTEXTO} | campos preenchidos | leu o essencial | esquema "
+        "| resultado |",
+        "|---|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     for m in medidas:
         linhas.append(
             f"| {rotulo} | {m.caso} | {m.segundos:.1f} | {m.prazo_s:.0f} | {_ou(m.leitura_n)} | "
-            f"{_ou(m.geracao_n)} | {m.max_tokens} | {'sim' if m.cabe else 'não'} | "
-            f"{len(m.campos)} | {'valida' if m.valida else m.motivo} | "
+            f"{_ou(m.geracao_n)} | {m.max_tokens} | {_sim(m.cabe)} | "
+            f"{len(m.campos)} | {_sim(m.essencial)} | {'valida' if m.valida else m.motivo} | "
             f"{'passou' if m.passou else 'não passou'} |"
         )
     return "\n".join(linhas)
