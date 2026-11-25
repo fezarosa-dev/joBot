@@ -421,6 +421,9 @@ fn main() {
         .build(contexto)
         .expect("erro ao montar a janela")
         .run(|app, evento| {
+            if matches!(evento, RunEvent::Exit) {
+                fechar::encerrar_webkit();
+            }
             // o Cmd+Q do Mac sai sem passar pelo CloseRequested: pergunta do mesmo jeito
             if let RunEvent::ExitRequested { api, .. } = evento
                 && pergunta_ao_fechar(app)

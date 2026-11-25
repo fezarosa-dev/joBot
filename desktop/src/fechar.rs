@@ -24,6 +24,57 @@ pub fn desligar(dados: &Path, so: &str, sair: impl FnOnce(&Path)) {
     }
 }
 
+/// Se a linha do `/proc/<pid>/stat` é de um processo do WebKit (`WebKitWebProcess`,
+/// `WebKitNetworkProcess`) vivo e filho de `pai`. Zumbi já saiu: não conta.
+fn filho_webkit(stat: &str, pai: u32) -> bool {
+    let (Some(abre), Some(fecha)) = (stat.find('('), stat.rfind(')')) else {
+        return false;
+    };
+    let nome = stat.get(abre + 1..fecha).unwrap_or("");
+    let mut campos = stat.get(fecha + 1..).unwrap_or("").split_whitespace();
+    let (estado, ppid) = (
+        campos.next(),
+        campos.next().and_then(|p| p.parse::<u32>().ok()),
+    );
+    nome.starts_with("WebKit") && !matches!(estado, None | Some("Z" | "X")) && ppid == Some(pai)
+}
+
+/// Os pids dos processos do WebKit vivos filhos deste processo.
+fn filhos_webkit() -> Vec<u32> {
+    let eu = std::process::id();
+    let Ok(pasta) = std::fs::read_dir("/proc") else {
+        return Vec::new();
+    };
+    pasta
+        .filter_map(|e| e.ok()?.file_name().to_str()?.parse::<u32>().ok())
+        .filter(|pid| {
+            std::fs::read_to_string(format!("/proc/{pid}/stat")).is_ok_and(|s| filho_webkit(&s, eu))
+        })
+        .collect()
+}
+
+/// Antes de a casca sair (Linux): encerra os processos do WebKit e espera eles sumirem. No
+/// AppImage, sair antes deles desmonta os arquivos que eles ainda leem: morrem com SIGBUS e o
+/// systemd-coredump gasta CPU e RAM gravando a quebra (teste na VM, 2026-11-25). Só mexe nos
+/// filhos com nome WebKit: o servidor do "Deixar ligado" segue no ar. Espera no máximo 3 s.
+pub fn encerrar_webkit() {
+    if !cfg!(target_os = "linux") {
+        return;
+    }
+    for pid in filhos_webkit() {
+        let _ = Command::new("kill")
+            .arg(pid.to_string())
+            .stderr(Stdio::null())
+            .status();
+    }
+    for _ in 0..30 {
+        if filhos_webkit().is_empty() {
+            return;
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    }
+}
+
 /// A pasta da casca do `<dados>/instalacao.json` (desenho 6.2), só se apagá-la não leva a
 /// pasta de dados junto (caminho absoluto que não é a pasta de dados nem a contém) e se ela
 /// parece mesmo a da casca: canal `casca` e um `bin/` ou um `manifesto-*.json` dentro.
@@ -117,6 +168,20 @@ mod testes {
         let _ = std::fs::remove_dir_all(&p);
         std::fs::create_dir_all(&p).unwrap();
         p
+    }
+
+    #[test]
+    fn filho_webkit_so_o_webkit_vivo_deste_pai() {
+        let linha = |nome: &str, estado: &str, ppid: u32| {
+            format!("8241 ({nome}) {estado} {ppid} 8241 8241 0 -1")
+        };
+        assert!(filho_webkit(&linha("WebKitWebProces", "S", 77), 77));
+        assert!(filho_webkit(&linha("WebKitNetworkPr", "R", 77), 77));
+        assert!(!filho_webkit(&linha("WebKitWebProces", "Z", 77), 77)); // zumbi já saiu
+        assert!(!filho_webkit(&linha("WebKitWebProces", "S", 78), 77)); // filho de outro
+        assert!(!filho_webkit(&linha("python3", "S", 77), 77)); // o servidor do "Deixar ligado"
+        assert!(!filho_webkit(&linha("a) S 77 (WebKit", "S", 1), 77)); // nome com parênteses
+        assert!(!filho_webkit("lixo", 77));
     }
 
     #[test]

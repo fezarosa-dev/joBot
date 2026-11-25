@@ -31,6 +31,10 @@ A segunda parte da IA chega, opcional e desligada por padrão: o perfil completo
 - Quem estava em "Tudo Claude" ou "Tudo offline" na aba IA da 0.5.0 passa a ver "Personalizado": as tarefas novas nascem desligadas, e o Encaixe continua como estava.
 - Para quem contribui: `scripts/treino_laya/treinar.py` junta o LoRA pela classe de imagem e texto do Qwen3.5 e copia o tokenizador do repositório original, e o treino deixa a torre de visão de fora; o `requirements.txt` do treino ganha o `torchvision`, o `pillow` e o `flash-linear-attention`.
 
+### Corrigido
+
+- AppImage no Linux: ao fechar a janela, os processos do navegador interno (WebKit) quebravam porque o AppImage desmontava os arquivos antes de eles saírem, e o sistema gastava CPU e memória gravando a quebra. Agora a janela encerra esses processos antes de sair. O servidor do "Deixar ligado" segue no ar. O defeito vinha desde a 0.4.0.
+
 ## [0.5.0] - 2026-11-24
 
 A IA chega, opcional e desligada por padrão: ela lista as habilidades que cada vaga pede, e o joBot compara com as do seu perfil. Ela roda no modelo local, de graça e sem internet depois de baixado, ou num serviço com a sua chave.
