@@ -1591,9 +1591,9 @@ def test_changelog_traz_os_numeros_do_laya_no_ensaio(lingua: str) -> None:
         assert numero in laya, (CHANGELOG[lingua], numero)
 
 
-# a vaga longa do `medir_modelo.py` no mesmo ensaio (run 45512620948): Laya até 23 s, 4B até 66 s
-# (macOS); o "até 55 s" do README era de antes e de outro modelo
-VAGA_LONGA = ("23 s", "66 s")
+# a vaga longa do `medir_modelo.py` no ensaio final (Casca 45557856420): Laya até 24,2 s (Linux), 4B
+# até 60,3 s (Linux); o "até 55 s" do README era de antes e de outro modelo
+VAGA_LONGA = ("24 s", "60 s")
 
 
 @pytest.mark.parametrize("lingua", LINGUAS)
@@ -1602,6 +1602,33 @@ def test_readme_traz_a_vaga_longa_do_ensaio(lingua: str) -> None:
     assert "55 s" not in ia, README[lingua]
     linha = next(x for x in ia.splitlines() if "Laya" in x and VAGA_LONGA[0] in x)
     assert VAGA_LONGA[1] in linha, README[lingua]
+
+
+# o que o ensaio final (Casca 45557856420, passo tarefas-auto) mediu do Laya nas tarefas novas
+# (D240.3, D240.4): o currículo só com a formação e os cursos; os 79 de 82 são só do Encaixe
+LAYA_NAS_TAREFAS = {
+    "pt": ("só o nível de formação e os cursos", "também erraram", "só do Encaixe"),
+    "en": ("only the education level and the courses", "also made mistakes", "only for Matching"),
+}
+ENCAIXE_DO_LAYA = {"pt": "ensaio do Encaixe", "en": "Matching run"}
+AJUDA_CURRICULO_LOCAL = {
+    "pt": "só preenche o nível de formação",
+    "en": "only fills in the education",
+}
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_documentos_dizem_o_que_o_laya_leu_nas_tarefas(lingua: str) -> None:
+    """D240.4: o CHANGELOG, o README e a aba IA dizem o que o ensaio mediu do Laya nas tarefas
+    novas, e os 79 de 82 aparecem como número do Encaixe."""
+    ia = secao(texto(README[lingua]), SECAO_IA[lingua])
+    for nome, trecho in ((CHANGELOG[lingua], secao_0_6_0(lingua)), (README[lingua], ia)):
+        for termo in LAYA_NAS_TAREFAS[lingua]:
+            assert termo in trecho, (nome, termo)
+    laya = next(x for x in secao_0_6_0(lingua).splitlines() if "Laya 2B" in x)
+    assert ENCAIXE_DO_LAYA[lingua] in laya.split("79")[0], CHANGELOG[lingua]
+    ajuda = i18n.carregar()[lingua]["configuracoes.ia.tarefa.curriculo.ajuda"]
+    assert AJUDA_CURRICULO_LOCAL[lingua] in ajuda, lingua
 
 
 # o número de cada tarefa do plano é único: duas frentes com o mesmo número calam o plano (a T445 da

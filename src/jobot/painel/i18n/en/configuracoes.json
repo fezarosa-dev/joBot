@@ -419,7 +419,7 @@
   "configuracoes.ia.tarefa.perguntas": "Questions: what your profile is missing",
   "configuracoes.ia.tarefa.perguntas.ajuda": "Only when you ask, in the profile questionnaire: the AI suggests up to 5 questions about what is missing. Experimental: always check the result.",
   "configuracoes.ia.tarefa.curriculo": "Résumé: fill in the profile from the PDF",
-  "configuracoes.ia.tarefa.curriculo.ajuda": "Only when you send your résumé in the Profile tab: the AI reads the text and you check it before saving. Experimental: always check the result.",
+  "configuracoes.ia.tarefa.curriculo.ajuda": "Only when you send your résumé in the Profile tab: the AI reads the text and you check it before saving. On the local model, for now, it only fills in the education level and the courses. Experimental: always check the result.",
   "configuracoes.ia.ligada": "On",
   "configuracoes.ia.backend": "Where it runs",
   "configuracoes.ia.backend.anthropic": "Anthropic API (billed per use)",

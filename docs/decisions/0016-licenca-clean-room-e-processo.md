@@ -2,7 +2,7 @@
 
 - **Status:** aceita
 - **Data:** 2026-11-13
-- **Atualizada:** 2026-11-14
+- **Atualizada:** 2026-11-14; 2026-11-24 (exceção da reescrita do histórico, D221.4)
 
 ## Contexto
 
@@ -34,7 +34,7 @@ O projeto vai ser público e quer poder reaproveitar ideias de outros projetos s
 - Desde 2026-11-13, a documentação para quem usa e contribui (README e arquivos de comunidade) existe em português e em inglês. O arquivo principal é em português e a versão em inglês fica ao lado, com final `.en.md`. As ADRs e o `duvidas.md` ficam só em português.
 - O repositório tem os arquivos de comunidade do GitHub em `.github/`: Código de Conduta (Contributor Covenant), política de segurança, guia de contribuição, suporte, modelos de issue e de PR e CODEOWNERS. Na raiz ficam o `CHANGELOG.md` e o `CITATION.cff`.
 - Falhas de segurança chegam pelo relato privado de vulnerabilidade do GitHub.
-- A `main` só recebe mudanças por PR vindo da `dev`. Histórico que já subiu não é reescrito.
+- A `main` só recebe mudanças por PR vindo da `dev`. Histórico que já subiu não é reescrito. Única exceção até hoje: em 2026-11-24 o dono decidiu reescrever o histórico para tirar um dado pessoal de duas fixtures de teste (`git filter-repo`, force push com as regras desligadas por cerca de 1 minuto e religadas logo depois; ver `duvidas.md`, D221.4 e D221.5, e o aviso a quem clonou no CHANGELOG da 0.6.0).
 - No GitHub, regras de proteção garantem isso: a `main` só aceita mudança por PR e não pode ser reescrita nem apagada; a `dev` não pode ser reescrita nem apagada.
 - Todo PR para a `main` ou para a `dev` só entra com a aprovação do responsável (`.github/CODEOWNERS`): uma aprovação, que cai se entrar commit novo, e o último push também precisa ser aprovado. A única exceção é o papel de administrador do repositório (o dono): na `main`, só por dentro de um PR, para juntar o próprio PR da `dev` (o GitHub não deixa aprovar o próprio PR); na `dev`, sempre, para o fluxo de lotes. Configurado nas regras `proteger-main` e `proteger-dev` em 2026-11-17 (D172).
 
@@ -47,3 +47,4 @@ O projeto vai ser público e quer poder reaproveitar ideias de outros projetos s
 - [0001. Escopo: o que o joBot é e o que não é](0001-escopo-do-jobot.md)
 - [0004. Fontes públicas de vagas e coleta educada](0004-fontes-publicas.md)
 - [0017. Fases do projeto](0017-fases.md)
+- [duvidas.md: D221 (a reescrita do histórico de 2026-11-24)](../../duvidas.md)
