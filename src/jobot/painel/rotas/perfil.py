@@ -12,6 +12,9 @@ recalcula o encaixe **antes** de gravar, com a lista nova (padrões «Config»):
 falhar, nada muda. Todo formulário da aba posta em `POST /configuracoes/perfil` (rota de
 `configuracoes.py`, que chama `gravar_perfil`); o campo `secao` escolhe o que grava, e sem ele são
 as habilidades (o formulário da 0.5.0). Este módulo não importa aquele.
+A aba é um formulário só (T443): cada Salvar manda tudo e diz no próprio botão o que grava
+(`_envio_de_uma_secao`), e a página volta com o que foi digitado nas outras seções
+(`_digitado_na_aba`), que, sem JavaScript, não teria outro lugar para ficar.
 """
 
 import asyncio
@@ -160,6 +163,9 @@ _CAMPOS_ITEM = {
     "curso": ("nome", "instituicao", "situacao", "previsao"),
 }
 _PREFIXO = {"experiencia": "exp", "curso": "curso"}
+# o item no formulário único da aba (T443): `exp-3`, `curso-nova`; os campos dele, `exp-3-cargo`
+_ITEM_NA_ABA = re.compile(r"(exp|curso)-([1-9][0-9]{0,17}|nova)")
+_SECAO_DO_PREFIXO = {v: k for k, v in _PREFIXO.items()}
 _ANCORA = {
     None: "habilidades",
     "dados": "sobre",
@@ -389,37 +395,88 @@ def _gravar_item(con: sqlite3.Connection, secao: str, form: FormData) -> None:
         raise HTTPException(404)
 
 
+def _envio_de_uma_secao(form: FormData) -> tuple[FormData, str | None]:
+    """O envio do formulário único da aba (T443) como o de uma seção sozinha, e o item dele.
+
+    O botão diz o que grava: `secao=habilidades`, `secao=dados`, `secao=exp-3` (`exp-nova`,
+    `curso-…`) ou `tirar=exp-3`; os campos do item vêm com o prefixo (`exp-3-cargo`). O envio de uma
+    seção sozinha (campo oculto `secao`, `id` e os campos sem prefixo) passa como veio."""
+    secao, tirar = form.get("secao"), form.get("tirar")
+    if secao == "habilidades":
+        return FormData([(k, v) for k, v in form.multi_items() if k != "secao"]), None
+    alvo = secao if tirar is None else tirar
+    if secao in (None, *_ANCORA) and tirar in (None, "1"):
+        return form, None
+    if not isinstance(alvo, str) or not (item := _ITEM_NA_ABA.fullmatch(alvo)):
+        raise HTTPException(422)
+    nome = _SECAO_DO_PREFIXO[item[1]]
+    pares: list[tuple[str, str | UploadFile]] = [
+        ("secao", nome),
+        ("id", "" if item[2] == "nova" else item[2]),
+    ]
+    pares += [(c, v) for c in _CAMPOS_ITEM[nome] if (v := form.get(f"{alvo}-{c}")) is not None]
+    return FormData(pares + ([("tirar", "1")] if tirar is not None else [])), alvo
+
+
+def _digitado_na_aba(form: FormData) -> dict[str, Any]:
+    """O que veio de cada seção no envio, para a página voltar com ele (T443): sem JavaScript, o
+    digitado e não salvo nas outras seções só fica se o servidor o devolver."""
+    digitado: dict[str, Any] = {}
+    if all(c in form for c in _IDS_DADOS):
+        digitado["dados_tela"] = _dados_digitados(form)
+    if isinstance(texto := form.get("habilidades"), str):
+        digitado["habilidades_texto"] = texto
+    itens: dict[str, dict[str, str]] = {}
+    for chave in form:
+        prefixo = chave.rpartition("-")[0]
+        if prefixo not in itens and (item := _ITEM_NA_ABA.fullmatch(prefixo)):
+            campos = _CAMPOS_ITEM[_SECAO_DO_PREFIXO[item[1]]]
+            itens[prefixo] = {c: str(form.get(f"{prefixo}-{c}") or "").strip() for c in campos}
+    if itens:
+        digitado["itens_digitados"] = itens
+    return digitado
+
+
 async def gravar_perfil(
     request: Request, con: sqlite3.Connection, form: FormData
 ) -> str | tuple[int, dict[str, Any]]:
-    """Grava a seção de `form`; devolve o endereço do 303 ou o status e o contexto do erro."""
-    secao = form.get("secao")
-    if secao == "curriculo":  # a revisão do que a IA leu do currículo (T436)
+    """Grava a seção de `form`; devolve o endereço do 303 ou o status e o contexto da página.
+
+    Com o digitado de outras seções no envio (o formulário único da aba, T443), a página volta já
+    com ele: 200 com o "Salvo." na seção que gravou, ou o 422 do erro."""
+    if form.get("secao") == "curriculo":  # a revisão do que a IA leu do currículo (T436)
         return _gravar_curriculo(request, con, form)
+    digitado = _digitado_na_aba(form)
+    form, item = _envio_de_uma_secao(form)
+    secao = form.get("secao")
     try:
         if secao is None:
             texto = _bruto(form, "habilidades")
             try:
                 lista = habilidades_do_texto(texto)
             except ValueError:  # a página volta com o que foi digitado, e nada é gravado
-                return 422, {
+                return 422, digitado | {
                     "habilidades_texto": texto,
                     "erro": "configuracoes.perfil.erro.grande",
                     "erro_campo": "campo-habilidades",
                     "erro_secao": _ANCORA[None],
                 }
             salvar_habilidades(request, con, lista)
+            digitado.pop("habilidades_texto", None)
         elif secao == "dados":
             perfil.gravar_dados(con, dados_do_form(form), relogio_do_painel(request).agora())
+            digitado.pop("dados_tela", None)
         elif secao in _CAMPOS_ITEM:
             _gravar_item(con, str(secao), form)
+            if item is not None:  # o item gravado (ou tirado) volta como está no banco
+                digitado.get("itens_digitados", {}).pop(item, None)
         elif secao == "sugerida":
             _decidir_sugerida(con, form)
         else:
             raise HTTPException(422)
     except _Recusa as recusa:
         # o alerta mora na seção que gravou, para a troca do HTMX o trazer (D230)
-        contexto: dict[str, Any] = {
+        contexto: dict[str, Any] = digitado | {
             "erro": recusa.chave,
             "erro_campo": recusa.campo_id,
             "erro_secao": _ANCORA[None if secao is None else str(secao)],
@@ -429,10 +486,16 @@ async def gravar_perfil(
         if secao == "sugerida":
             return 422, contexto
         prefixo = recusa.campo_id.rsplit("-", 1)[0]
-        digitado = {c: str(form.get(c) or "").strip() for c in _CAMPOS_ITEM[str(secao)]}
-        return 422, contexto | {"erro_item": prefixo, "item_digitado": digitado}
+        campos = _CAMPOS_ITEM[str(secao)]
+        itens = digitado.get("itens_digitados", {})
+        itens[prefixo] = {c: str(form.get(c) or "").strip() for c in campos}
+        return 422, contexto | {"itens_digitados": itens}
     # volta à seção, não ao alto (D230.1), e o "Salvo." aparece dentro dela (D230)
     ancora = _ANCORA[None if secao is None else str(secao)]
+    if digitado.get("itens_digitados") == {}:
+        del digitado["itens_digitados"]
+    if digitado:  # o formulário único: a página volta com o digitado nas outras seções (T443)
+        return 200, digitado | {"salvo_secao": ancora}
     return f"{PERFIL}?salvo={ancora}#perfil-{ancora}"
 
 
@@ -481,8 +544,7 @@ async def contexto_perfil(request: Request, con: Con) -> dict[str, Any]:
         "teto_itens": TETO_ITENS,
         "teto": _TETO,
         "erro_campo": None,
-        "erro_item": None,
-        "item_digitado": None,
+        "itens_digitados": {},
     }
 
 

@@ -296,7 +296,6 @@
   "configuracoes.perfil.apagar.pergunta": "Delete the profile?",
   "configuracoes.perfil.apagar.explicacao": "Your details, languages, skills, experience, courses, answers and prepared applications are removed from joBot. What AI already read from the jobs stays.",
   "configuracoes.perfil.perguntas.abrir": "Would you rather answer questions? Open the questionnaire.",
-  "configuracoes.perfil.sem_js": "Without JavaScript, each Save reloads the page: save one part before editing another, or what you typed and did not save in the other parts is lost.",
   "configuracoes.perfil.sugeridas.titulo": "Suggested questions",
   "configuracoes.perfil.sugeridas.explicacao": "The AI suggested these questions while preparing applications. They only join the questionnaire if you accept them, and only the answer to an accepted question goes in requests to the AI. The {teto} newest are kept.",
   "configuracoes.perfil.sugeridas.vazio": "No questions waiting.",

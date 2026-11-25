@@ -43,6 +43,17 @@
     }
   });
 
+  // aba Perfil, um formulário só (T443): o Enter do navegador apertaria o primeiro botão (o Salvar de
+  // "Sobre você"); num campo de experiência ou curso, ele vai ao botão do próprio item
+  document.addEventListener("keydown", (evento) => {
+    const campo = evento.target;
+    if (evento.key !== "Enter" || evento.isComposing || !(campo instanceof HTMLInputElement)) return;
+    const botao = campo.closest("[data-parte]")?.querySelector('button[name="secao"]');
+    if (!botao) return;
+    evento.preventDefault();
+    botao.click();
+  });
+
   // seção que troca sozinha (aba Perfil, D230): o 422 que traz a seção (campo marcado e alerta)
   // troca como o 200; o 422 seco, sem a seção, fica com o aviso de erro de sempre
   document.addEventListener("htmx:beforeSwap", (evento) => {
