@@ -124,8 +124,8 @@ def test_tarefas_novas_provadas_no_laya_antes_de_trocar_de_modelo() -> None:
     linha = next(x for x in texto.splitlines() if passo in x)
     assert "--espera-s" in linha and "--rotulo" in linha
     # roda mesmo se a prova do encaixe ficou abaixo da meta
-    antes = texto[:posicao].splitlines()
-    assert antes[-1].strip() == "if: ${{ !cancelled() }}"
+    linhas = texto.splitlines()
+    assert linhas[linhas.index(linha) - 1].strip() == "if: ${{ !cancelled() }}"
 
 
 def test_atestacao_com_o_dono_e_o_workflow_do_manifesto() -> None:

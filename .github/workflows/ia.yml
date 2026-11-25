@@ -7,8 +7,10 @@ name: IA
 # Em cada sistema: confere a atestação SLSA do pacote do llama-server do manifesto (D193.3)
 # antes de o joBot rodar o binário, baixa o modelo padrão do manifesto (--modelo auto, o Laya em
 # todo computador; D219.20), prova o encaixe com o conjunto de ouro (scripts/provar_ia.py, meta) e
-# mede tokens/s e tempo por vaga (scripts/medir_modelo.py); depois troca para o 2B e para o 4B e
-# prova e mede cada um. Os números vão no resumo do job.
+# mede tokens/s e tempo por vaga (scripts/medir_modelo.py); prova no Laya as três tarefas novas
+# da 0.6.0, currículo, perguntas e preparar candidatura (scripts/provar_tarefas.py, T445: tempo,
+# tokens, esquema, prazo e contexto; a espera de 900 s só mede quem passa do prazo); depois troca
+# para o 2B e para o 4B e prova e mede cada um. Os números vão no resumo do job.
 on:
   workflow_call:
 
@@ -50,6 +52,9 @@ jobs:
       - name: medir-auto
         if: ${{ !cancelled() }}
         run: uv run python scripts/medir_modelo.py --rotulo "${{ matrix.os }}"
+      - name: tarefas-auto
+        if: ${{ !cancelled() }}
+        run: uv run python scripts/provar_tarefas.py --rotulo "${{ matrix.os }}" --espera-s 900
       - name: baixar-2b
         if: ${{ !cancelled() }}
         run: uv run jobot ferramentas baixar ia-local --modelo 2b | grep -v '"etapa"'

@@ -7,11 +7,11 @@ import sys
 from collections.abc import Callable, Iterator, Mapping
 from pathlib import Path
 from types import ModuleType
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
-from jobot.nucleo.ia.contrato import Falha, Pedido, Resposta, limites
+from jobot.nucleo.ia.contrato import Falha, Motivo, Pedido, Resposta, limites
 from jobot.nucleo.ia.falso import BackendFalso
 from jobot.nucleo.ia.pedidos import limpar_contato
 from jobot.sistema.llama import CONTEXTO
@@ -146,12 +146,16 @@ def test_passar_do_prazo_nao_passa() -> None:
         assert (medida.valida, medida.no_prazo, medida.passou) == (True, passou, passou)
 
 
+def _lidos(n: int) -> Callable[[Pedido], dict[str, Any] | None]:
+    return lambda _: {"prompt_n": n}
+
+
 def test_passar_do_contexto_nao_passa() -> None:
     casos = _casos()[:1]
     teto = CONTEXTO - casos[0].pedido.max_tokens
     for lidos, cabe in ((teto, True), (teto + 1, False)):
         timings: list[dict[str, Any] | None] = []
-        backend = _Gravado(_validas(casos), timings, lambda _, n=lidos: {"prompt_n": n})
+        backend = _Gravado(_validas(casos), timings, _lidos(lidos))
         [medida] = provar.provar(backend, casos, timings, relogio=_relogio(1))
         assert (medida.valida, medida.cabe, medida.passou) == (True, cabe, cabe)
 
@@ -231,6 +235,6 @@ def test_main_sai_com_dois_sem_o_modelo() -> None:
 @pytest.mark.parametrize("motivo", ["programa_ausente", "servico_fora"])
 def test_main_sai_com_dois_sem_subir_o_servidor(motivo: str) -> None:
     def montar(env: Mapping[str, str]) -> Any:
-        raise Falha(motivo)  # type: ignore[arg-type]
+        raise Falha(cast(Motivo, motivo))
 
     assert provar.main([], env={}, montar=montar) == 2
