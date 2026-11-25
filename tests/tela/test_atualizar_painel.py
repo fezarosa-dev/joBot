@@ -149,6 +149,10 @@ def test_depois_de_120_s_explica_e_oferece_tentar_de_novo(
             page.clock.fast_forward(2000)
         if perguntas == 1:
             expect(demorou).to_be_hidden()
+        # a resposta chegou, mas a página ainda a trata: espera a pergunta seguinte agendada ou o
+        # aviso do prazo antes de decidir a volta seguinte (sem isso, o prazo nessa hora dava 61)
+        seguinte = regiao.locator(f'[data-atualizando][data-perguntas="{perguntas + 1}"]')
+        expect(seguinte.or_(demorou).first).to_be_visible()
     assert 55 <= perguntas <= 61, perguntas
     expect(demorou).to_be_visible()
     # o foco estava na caixa (veio do botão apertado): vai ao "Tentar de novo"

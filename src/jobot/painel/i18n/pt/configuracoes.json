@@ -419,7 +419,7 @@
   "configuracoes.ia.tarefa.perguntas": "Perguntas: o que falta no seu perfil",
   "configuracoes.ia.tarefa.perguntas.ajuda": "Só quando você pede, no questionário do perfil: a IA sugere até 5 perguntas sobre o que falta. Experimental: confira sempre o resultado.",
   "configuracoes.ia.tarefa.curriculo": "Currículo: preencher o perfil pelo PDF",
-  "configuracoes.ia.tarefa.curriculo.ajuda": "Só quando você envia o currículo na aba Perfil: a IA lê o texto e você confere antes de salvar. Experimental: confira sempre o resultado.",
+  "configuracoes.ia.tarefa.curriculo.ajuda": "Só quando você envia o currículo na aba Perfil: a IA lê o texto e você confere antes de salvar. No Laya, o modelo local padrão, por enquanto ela só preenche o nível de formação e os cursos, e o nível pode vir errado: confira. Experimental: confira sempre o resultado.",
   "configuracoes.ia.ligada": "Ligada",
   "configuracoes.ia.backend": "Onde roda",
   "configuracoes.ia.backend.anthropic": "API da Anthropic (cobrada por uso)",

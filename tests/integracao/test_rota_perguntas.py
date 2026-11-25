@@ -218,6 +218,26 @@ def test_respostas_gravam_o_perfil_e_as_habilidades(painel: Painel) -> None:
     assert 'value="Campinas"' in html and "Python\nSQL" in html
 
 
+@pytest.mark.parametrize(
+    ("email", "valido"),
+    [
+        ("ana@exemplo.invalid", True),
+        ("ana.lima+vagas@mail.exemplo.com.br", True),
+        ("sem-arroba", False),
+        ("ana@sem-ponto", False),
+        ("ana@exemplo.", False),
+        ("ana@.exemplo", False),
+        ("ana@exemplo..com", False),
+        ("ana lima@exemplo.com", False),
+        ("ana@b@exemplo.com", False),
+    ],
+)
+def test_email_do_perfil_sem_retrocesso(email: str, valido: bool) -> None:
+    """CodeQL py/polynomial-redos #9 e #10: os rótulos do domínio não têm ponto, então nenhum
+    trecho casa de dois jeitos."""
+    assert bool(rotas_perfil._EMAIL.fullmatch(email)) is valido
+
+
 def test_resposta_errada_volta_com_o_digitado_e_nada_grava(painel: Painel) -> None:
     resposta = painel.post({"email": "sem-arroba", "cidade_moradia": "Campinas"})
     assert resposta.status_code == 422
