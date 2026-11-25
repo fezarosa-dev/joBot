@@ -322,6 +322,8 @@ def test_ia_json_traz_prazos_limites_e_cortes() -> None:
             # sob pedido, no detalhe da vaga (T438; D234)
             "candidatura": {
                 "max_tokens": {"fora": 4096, "local": 2048},
+                # o perfil no local, para a vaga cortada, ele e o max_tokens caberem em 8192 (T445)
+                "corte": {"local": {"respostas": 30, "caracteres": 10000}},
                 "claude": "claude-sonnet-5-5",
             },
         },

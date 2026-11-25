@@ -4,7 +4,7 @@ perfil vão juntos, cada um no seu bloco, com a lista permitida e a limpeza de c
 
 import pytest
 
-from jobot.banco.perfil import Experiencia
+from jobot.banco.perfil import Experiencia, PerguntaPerfil
 from jobot.nucleo.ia.contrato import limites
 from jobot.nucleo.ia.pedidos import dados_para, pedido_candidatura, texto_encaixe
 from jobot.nucleo.ia.tarefas import VERSAO, SaidaCandidatura, citados
@@ -118,3 +118,30 @@ def test_citados_acha_item_de_faltam_como_palavra_inteira() -> None:
         "Kubernetes",
     )
     assert citados((), "qualquer coisa") == ()
+
+
+def test_perfil_cortado_no_local_e_inteiro_fora() -> None:
+    """No local (8192 de contexto), o perfil entra pelo corte do `ia.json` como nas perguntas: as
+    respostas mais recentes e o bloco PERFIL até o teto de caracteres (T445). Fora vai inteiro."""
+    corte = limites()["tarefas"]["candidatura"]["corte"]["local"]
+    respostas = [
+        PerguntaPerfil(f"ia:{n}", f"Pergunta {n}?", "ia", None, f"Resposta {n} " + "x" * 600)
+        for n in range(100)
+    ]
+    experiencias = [
+        Experiencia(f"Cargo {n}", "Empresa", "2020-01", None, "d" * 2000) for n in range(10)
+    ]
+    fontes = FONTES | {"respostas": respostas, "experiencias": experiencias}
+
+    def perfil(backend: str) -> str:
+        usuario = pedido_candidatura(texto_encaixe("Dev", "x"), fontes, "pt", backend, "m")
+        texto = usuario.mensagens[1].texto
+        return texto[texto.index("<<<PERFIL") :]
+
+    local = perfil("local")
+    assert local.startswith("<<<PERFIL\n") and local.endswith("\nPERFIL>>>")
+    assert len(local) <= corte["caracteres"] + 100
+    assert '"Pergunta 0?"' not in local  # a mais velha sai antes do teto
+    fora = perfil("openai")
+    assert '"Pergunta 0?"' in fora and '"Pergunta 99?"' in fora  # controle: fora vai inteiro
+    assert len(fora) > 10 * corte["caracteres"]
