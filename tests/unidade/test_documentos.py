@@ -1500,7 +1500,7 @@ def test_changelog_e_readme_dizem_o_que_e_experimental(lingua: str) -> None:
 # os números do Laya no caminho do produto (D219.22, ensaio da 0.6.0 no CI); os do pod (2B de 84%
 # a 91%, 3,5 vezes) não são do produto
 LAYA_NO_ENSAIO = ("79", "68", "69", "82")
-NUMEROS_DO_POD = re.compile(r"84% (?:a|to) 91%|3[,.]5")
+NUMEROS_DO_POD = re.compile(r"84% (?:a|to) 91%|3[,.]5 (?:vezes|times)")
 
 
 @pytest.mark.parametrize("lingua", LINGUAS)
@@ -1509,3 +1509,10 @@ def test_changelog_traz_os_numeros_do_laya_no_ensaio(lingua: str) -> None:
     for numero in LAYA_NO_ENSAIO:
         assert numero in laya, (CHANGELOG[lingua], numero)
     assert NUMEROS_DO_POD.findall(laya) == [], CHANGELOG[lingua]
+
+
+def test_numeros_do_pod_pegam_a_frase_antiga() -> None:
+    """Controle da regex: a frase do CHANGELOG antes do ensaio casa; o nome Qwen3.5, não."""
+    assert NUMEROS_DO_POD.search("contra 84% a 91% do Qwen3.5 2B original")
+    assert NUMEROS_DO_POD.search("while being 2 to 3.5 times faster than them")
+    assert NUMEROS_DO_POD.search("ajuste do Qwen3.5 2B") is None
