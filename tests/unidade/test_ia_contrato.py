@@ -19,6 +19,7 @@ from jobot.nucleo.ia.contrato import (
 )
 from jobot.nucleo.ia.esquema import esquema_para
 from jobot.nucleo.ia.falso import BackendFalso
+from jobot.nucleo.ia.tarefas import SaidaCandidatura, SaidaCurriculo, SaidaEncaixe, SaidaPerguntas
 
 DO_BACKEND = {
     "sem_chave",
@@ -194,8 +195,59 @@ def test_esquema_strict_guarda_so_o_max_items(backend: str) -> None:
     assert _repeticoes(esquema_para(backend, _Exemplo)) == [3000]
 
 
-def test_esquema_da_anthropic_e_o_inteiro() -> None:
+class _Nota(BaseModel):
+    """Nota interna de quem constrói (desenho 5.5)."""
+
+    model_config = ConfigDict(extra="forbid")
+    description: str = Field(max_length=60, description="um campo que se chama description")
+
+
+class _Descrito(BaseModel):
+    """Docstring do alto, nota interna em português."""
+
+    model_config = ConfigDict(extra="forbid")
+    nota: _Nota
+    lista: list[_Nota] = Field(max_length=5, description="nota do campo")
+    talvez: _Nota | None = None
+
+
+_MODELOS = [_Descrito, SaidaEncaixe, SaidaCurriculo, SaidaPerguntas, SaidaCandidatura]
+
+
+@pytest.mark.parametrize("backend", [*sorted(PERMITIDAS), "anthropic"])
+@pytest.mark.parametrize("modelo", _MODELOS, ids=lambda m: m.__name__)
+def test_esquema_enviado_vai_sem_descricoes(backend: str, modelo: type[BaseModel]) -> None:
+    """As descrições são as docstrings, notas internas em português (D229, decidido pelo dono)."""
+    completo = modelo.model_json_schema()
+    assert "description" in _palavras(completo)  # controle: o modelo de origem tem descrição
+    enviado = esquema_para(backend, modelo)
+    assert "description" not in _palavras(enviado)
+    assert enviado["properties"].keys() == completo["properties"].keys()
+
+
+@pytest.mark.parametrize("backend", [*sorted(PERMITIDAS), "anthropic"])
+def test_esquema_sem_descricoes_em_nivel_nenhum_e_guarda_o_campo_description(
+    backend: str,
+) -> None:
+    completo = _Descrito.model_json_schema()
+    # controle: descrição no alto, no campo e no modelo aninhado
+    assert [completo["description"], completo["properties"]["lista"]["description"]] != []
+    assert "description" in completo["$defs"]["_Nota"]
+    enviado = esquema_para(backend, _Descrito)
+    nota = enviado["$defs"]["_Nota"]
+    assert "description" not in nota
+    assert "description" not in enviado["properties"]["lista"]
+    # o campo chamado "description" é um objeto em `properties`, não a palavra-chave
+    assert list(nota["properties"]) == ["description"]
+    assert "description" not in nota["properties"]["description"]
+
+
+def test_esquema_da_anthropic_e_o_inteiro_sem_as_descricoes() -> None:
     assert esquema_para("anthropic", _Exemplo) == _Exemplo.model_json_schema()
+    completo = _Descrito.model_json_schema()
+    enviado = esquema_para("anthropic", _Descrito)
+    assert _palavras(enviado) == _palavras(completo) - {"description"}
+    assert enviado["properties"]["lista"]["maxItems"] == 5
 
 
 def test_esquema_para_recusa_backend_desconhecido() -> None:
