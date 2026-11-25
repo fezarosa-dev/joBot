@@ -1397,3 +1397,115 @@ def test_adr_diz_o_laya_padrao_na_0_6_0(caminho: str) -> None:
     assert vivas, caminho  # controle: achou as linhas do Laya
     assert [linha for linha in vivas if "versão seguinte" in linha] == [], caminho
     assert any("0.6.0" in linha for linha in vivas), caminho
+
+
+def nao_lancado(lingua: str) -> str:
+    conteudo = texto(CHANGELOG[lingua])
+    inicio = conteudo.index(NAO_LANCADO[lingua])
+    return conteudo[inicio : conteudo.index("\n## [", inicio + 1)]
+
+
+# D221.4: o histórico foi reescrito em 2026-11-24; quem clonou antes refaz o clone uma vez
+REESCRITA = "git fetch origin && git reset --hard origin/main && uv sync --locked"
+REESCRITA_DIZ = {
+    "pt": ("2026-11-24", "clone de novo", "descarta", "pasta de dados"),
+    "en": ("2026-11-24", "clone again", "discards", "data folder"),
+}
+FORK_DE_CLONE_NOVO = {"pt": "fork", "en": "fork"}
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_aviso_da_reescrita_do_historico(lingua: str) -> None:
+    """O topo da 0.6.0 no CHANGELOG, o "Atualizar > Pelo código" do README e o CONTRIBUTING dão o
+    comando único para o clone de antes da reescrita, dizem que o reset descarta mudança local e
+    que os dados ficam fora do clone (D221.4)."""
+    topo = nao_lancado(lingua).split("\n### ", 1)[0]  # antes do primeiro grupo
+    instalacao = secao(texto(README[lingua]), SECAO_INSTALACAO[lingua])
+    inicio = instalacao.index(ATUALIZAR[lingua][0])
+    atualizar = instalacao[inicio : instalacao.find("\n### ", inicio + 1)]
+    contributing = texto(CONTRIBUTING[lingua])
+    for nome, trecho in (
+        (CHANGELOG[lingua], topo),
+        (README[lingua], atualizar),
+        (CONTRIBUTING[lingua], contributing),
+    ):
+        assert REESCRITA in trecho, nome
+        for termo in REESCRITA_DIZ[lingua]:
+            assert termo in trecho, (nome, termo)
+    assert FORK_DE_CLONE_NOVO[lingua] in contributing.split(REESCRITA, 1)[1][:600], lingua
+
+
+# o que sai do texto livre (D227.3 e D232): do currículo só e-mail, telefone e CPF; do perfil
+# também o próprio nome; o resto vai como a pessoa escreveu
+TEXTO_DO_CURRICULO = {"pt": "inclusive o nome e a cidade", "en": "including the name and city"}
+TEXTO_DO_PERFIL = {"pt": "como você escreveu", "en": "as you wrote"}
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_changelog_diz_o_que_vai_do_curriculo_e_do_perfil(lingua: str) -> None:
+    secao_nova = nao_lancado(lingua)
+    for termo in (TEXTO_DO_CURRICULO[lingua], TEXTO_DO_PERFIL[lingua]):
+        assert termo in secao_nova, (CHANGELOG[lingua], termo)
+
+
+RESSALVA_NA_ABA_IA = {
+    "configuracoes.ia.privacidade.curriculo.fora": TEXTO_DO_CURRICULO,
+    "configuracoes.ia.privacidade.curriculo.manual": TEXTO_DO_CURRICULO,
+    "configuracoes.ia.privacidade.perguntas.fora": TEXTO_DO_PERFIL,
+    "configuracoes.ia.privacidade.candidatura.fora": TEXTO_DO_PERFIL,
+}
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_aba_ia_diz_o_que_vai_do_texto_livre(lingua: str) -> None:
+    """A frase de privacidade de cada tarefa da aba IA tem a mesma ressalva do CHANGELOG."""
+    catalogo = i18n.carregar()[lingua]
+    assert TEXTO_DO_PERFIL[lingua] not in catalogo["configuracoes.ia.privacidade.fora"]  # controle
+    for chave, termo in RESSALVA_NA_ABA_IA.items():
+        assert termo[lingua] in catalogo[chave], (lingua, chave)
+
+
+# D185.27: Currículo, Perguntas e Preparar candidatura são experimentais; os pagos, sem prova
+TAREFAS_EXPERIMENTAIS = ("curriculo", "perguntas", "candidatura")
+EXPERIMENTAL_0_6_0 = {
+    "pt": ("experimentais", "chave de verdade"),
+    "en": ("experimental", "real key"),
+}
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_aba_ia_marca_as_tarefas_experimentais(lingua: str) -> None:
+    catalogo = i18n.carregar()[lingua]
+    assert "Experimental" not in catalogo["configuracoes.ia.tarefa.encaixe.ajuda"]  # controle
+    for tarefa in TAREFAS_EXPERIMENTAIS:
+        assert "Experimental" in catalogo[f"configuracoes.ia.tarefa.{tarefa}.ajuda"], tarefa
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_changelog_e_readme_dizem_o_que_e_experimental(lingua: str) -> None:
+    """O CHANGELOG e o README dizem que as três tarefas novas são experimentais e que os
+    serviços pagos seguem sem prova com chave de verdade; o CHANGELOG avisa quem estava num
+    atalho da 0.5.0 que passa a ver o modo personalizado (D234.15)."""
+    catalogo = i18n.carregar()[lingua]
+    rotulos = [catalogo[f"configuracoes.ia.tarefa.{t}"].split(":")[0] for t in ("curriculo",)]
+    ia = secao(texto(README[lingua]), SECAO_IA[lingua])
+    secao_nova = nao_lancado(lingua)
+    for nome, trecho in ((CHANGELOG[lingua], secao_nova), (README[lingua], ia)):
+        for termo in (*EXPERIMENTAL_0_6_0[lingua], *rotulos):
+            assert termo in trecho, (nome, termo)
+    for modo in ("offline", "claude", "personalizado"):
+        assert catalogo[f"configuracoes.ia.modo.{modo}"] in secao_nova, (lingua, modo)
+
+
+# os números do Laya no caminho do produto (D219.22, ensaio da 0.6.0 no CI); os do pod (2B de 84%
+# a 91%, 3,5 vezes) não são do produto
+LAYA_NO_ENSAIO = ("79", "68", "69", "82")
+NUMEROS_DO_POD = re.compile(r"84% (?:a|to) 91%|3[,.]5")
+
+
+@pytest.mark.parametrize("lingua", LINGUAS)
+def test_changelog_traz_os_numeros_do_laya_no_ensaio(lingua: str) -> None:
+    laya = next(x for x in nao_lancado(lingua).splitlines() if "Laya 2B" in x)
+    for numero in LAYA_NO_ENSAIO:
+        assert numero in laya, (CHANGELOG[lingua], numero)
+    assert NUMEROS_DO_POD.findall(laya) == [], CHANGELOG[lingua]
