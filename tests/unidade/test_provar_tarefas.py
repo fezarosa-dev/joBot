@@ -87,7 +87,7 @@ def _validas(casos: list[Any]) -> list[dict[str, object] | Falha]:
     return [VALIDAS[c.pedido.tarefa] for c in casos]
 
 
-def test_casos_cobrem_as_tres_tarefas_no_local_com_o_pior_caso() -> None:
+def test_casos_cobrem_as_tres_tarefas_no_local_com_o_caso_longo() -> None:
     casos = _casos()
     assert [c.nome for c in casos] == NOMES
     lim = limites()
