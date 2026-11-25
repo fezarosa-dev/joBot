@@ -6,7 +6,7 @@ Thanks for your interest! This guide explains how to help with joBot, now and af
 
 ## Project status
 
-Phases 1, 2 and 3 (foundation, browser with login and installer) are complete: joBot 0.4.0 closed phase 3, and version 0.5.0 can already be installed and used ([how to install](../README.en.md#requirements-and-installation)). Phase 4 (local AI) is being built: 0.5.0 brought the first part, and 0.6.0 closes the phase; phases 5 to 9 are planned. 0.5.0 shipped without the trained Laya: its dataset, training and cost estimate live in `scripts/treino_laya/`, with the step by step in the README there (Portuguese only for now). The decisions made so far are in [`docs/decisions/`](../docs/decisions/README.md) (Portuguese only for now). To learn what the project is and where it is going, read the [README](../README.en.md).
+Phases 1, 2, 3 and 4 (foundation, browser with login, installer and local AI) are complete: joBot 0.4.0 closed phase 3, 0.6.0 closed phase 4, and version 0.6.0 can already be installed and used ([how to install](../README.en.md#requirements-and-installation)). The next one is phase 8 (GitHub Pages version), being designed, built before phase 5; phases 5, 6, 7 and 9 are planned. Laya, the default local model since 0.6.0, has its dataset, training and cost estimate in `scripts/treino_laya/`, with the step by step in the README there (Portuguese only for now). The decisions made so far are in [`docs/decisions/`](../docs/decisions/README.md) (Portuguese only for now). To learn what the project is and where it is going, read the [README](../README.en.md).
 
 ## How to help now
 

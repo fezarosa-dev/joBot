@@ -11,7 +11,7 @@
 
 ```mermaid
 flowchart LR
-    F1["✅ Phase 1 · Base"] --> F2["✅ Phase 2 · Browser with login"] --> F3["✅ Phase 3 · Installer"] --> F4["🟡 Phase 4 · Local AI"]
+    F1["✅ Phase 1 · Base"] --> F2["✅ Phase 2 · Browser with login"] --> F3["✅ Phase 3 · Installer"] --> F4["✅ Phase 4 · Local AI"]
     F4 --> F5["⚪ Phase 5 · Extension"] --> F6["⚪ Phase 6 · Audio and Gmail"] --> F7["⚪ Phase 7 · Training"]
     F7 --> F8["⚪ Phase 8 · GitHub Pages"] --> F9["⚪ Phase 9 · Release"]
 ```
@@ -23,16 +23,16 @@ flowchart LR
 | ✅ | **1. Base** | Common core, public sources, database, dashboard and scheduling | Complete |
 | ✅ | **2. Browser with login** | Login through a regular window, LinkedIn first, site mapping and CAPTCHA handling | Complete |
 | ✅ | **3. Installer** | 64-bit installer with a list of tools to tick (Windows and Linux first, Mac later) | Complete in 0.4.0 |
-| 🟡 | **4. Local AI** | Offline package (llama-server + Qwen) | Being built (0.5.0 brought the first part; toward 0.6.0) |
+| ✅ | **4. Local AI** | Offline package (llama-server + Qwen) | Complete in 0.6.0 |
 | ⚪ | **5. Browser extension** | Browser extension for forms | Planned |
 | ⚪ | **6. Audio and Gmail** | Answers by voice and email reading | Planned |
 | ⚪ | **7. Training** | Learn from what you save and discard | Planned |
-| ⚪ | **8. GitHub Pages version** | Browser version, no installation | Planned |
+| ⚪ | **8. GitHub Pages version** | Browser version, no installation | Planned (the next one, being designed) |
 | ⚪ | **9. Release** | README with badges and security review | Planned |
 
 <sub>✅ complete · 🟡 being built · ⚪ planned</sub>
 
-Version 0.3.0 came out between phase 2 and phase 3, with the "Overview" screen (an overview of the jobs and the search) and the complete application queue. Version 0.4.0 closes phase 3, with a window of its own and the installer. Version 0.4.1 fixes Linux: the window becomes a control and the dashboard opens in your browser. Version 0.5.0 brings the first part of phase 4: the optional AI, off by default, which lists the skills each job asks for.
+Version 0.3.0 came out between phase 2 and phase 3, with the "Overview" screen (an overview of the jobs and the search) and the complete application queue. Version 0.4.0 closes phase 3, with a window of its own and the installer. Version 0.4.1 fixes Linux: the window becomes a control and the dashboard opens in your browser. Version 0.5.0 brings the first part of phase 4: the optional AI, off by default, which lists the skills each job asks for. Version 0.6.0 closes phase 4, with the full profile, résumé reading, the questions, application preparation, manual AI and Laya as the default local model. The next one is phase 8, the GitHub Pages version, built before phase 5 at the owner's request.
 
 ## 🔍 A bit more about each phase
 
@@ -61,11 +61,11 @@ Version 0.3.0 came out between phase 2 and phase 3, with the "Overview" screen (
 </details>
 
 <details>
-<summary><strong>🟡 Phase 4, Local AI</strong></summary>
+<summary><strong>✅ Phase 4, Local AI</strong></summary>
 
 - Offline package: llama-server and Laya (a fine-tune of Qwen3.5 2B for jobs), to use AI without internet and without paying.
 - The AI choice, the résumé and the questionnaire join the assistant.
-- The phase comes out in two versions: 0.5.0 brings the local model and the match by skills; 0.6.0, the full profile, the résumé, the questionnaire, Prepare Application and manual AI.
+- The phase came out in two versions: 0.5.0 brought the local model and the match by skills; 0.6.0, the full profile, the résumé, the questionnaire, Prepare Application and manual AI.
 - The multilingual-e5-small model, for labels below 90% accuracy, is left for later (still being decided). The Laya fine-tuning was approved: 0.5.0 shipped without it, and it is the default local model in 0.6.0.
 </details>
 

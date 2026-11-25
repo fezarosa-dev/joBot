@@ -31,7 +31,7 @@ Ele junta, filtra e organiza vagas de muitos sites num painel bonito que roda no
 </div>
 
 > [!IMPORTANT]
-> **As fases 1, 2 e 3 do joBot (a base, o navegador com login e o instalador) estão prontas desde a versão 0.4.0; a versão para instalar agora é a 0.5.0, que traz a primeira parte da fase 4 (a IA opcional).** Ele busca vagas em fontes públicas, guarda tudo no seu computador e mostra num painel. Já dá para [instalar e usar](#requisitos-e-instalacao).
+> **As fases 1, 2, 3 e 4 do joBot (a base, o navegador com login, o instalador e a IA local) estão prontas; a versão para instalar agora é a 0.6.0, que fecha a fase 4 (a IA opcional).** Ele busca vagas em fontes públicas, guarda tudo no seu computador e mostra num painel. Já dá para [instalar e usar](#requisitos-e-instalacao).
 > O LinkedIn é o site com login de hoje (outros podem vir pelo [molde de site novo](docs/site-novo.md)); já está aqui desde a versão 0.3.0 e vem desligado (você liga em Configurações, Contas). O cartão do Gmail já está em Configurações, Contas. A IA chega na versão 0.5.0, desligada por padrão, para listar as habilidades que cada vaga pede, e a 0.6.0 traz o perfil completo, a leitura do currículo e a preparação de candidaturas ([detalhes](#inteligencia-artificial)); a leitura dos e-mails, o áudio e o resto (os outros sites com login, a IA nos e-mails e a extensão do navegador) ainda são plano. Veja o [roteiro](#roteiro). Antes de ligar as fontes, leia os [avisos de uso e de termos](#licenca-e-avisos).
 
 ## 📑 Sumário
@@ -547,14 +547,14 @@ Cada fase só começa depois que a anterior passa nos testes. Não há datas pro
 | **1. Base** | Núcleo comum, fontes públicas, banco, painel e agenda | 🟢 Pronta (versão 0.1.0) |
 | **2. Navegador com login** | Login pela janela comum, LinkedIn primeiro, mapeamento dos sites, tratamento de CAPTCHA | 🟢 Pronta (versão 0.3.0) |
 | **3. Instalador** | Instalador de 64 bits, com lista de ferramentas para marcar (Windows e Linux primeiro, Mac depois) | 🟢 Pronta (versão 0.4.0) |
-| **4. IA local** | Pacote offline (llama-server + Qwen) | 🟡 Sendo construída (a 0.5.0 trouxe a primeira parte; rumo à 0.6.0) |
+| **4. IA local** | Pacote offline (llama-server + Qwen) | 🟢 Pronta (versão 0.6.0) |
 | **5. Extensão do navegador** | Extensão do navegador para formulários | ⚪ Planejada |
 | **6. Áudio e Gmail** | Respostas por voz e leitura de e-mails | ⚪ Planejada |
 | **7. Treino** | Aprender com o que você salva e descarta | ⚪ Planejada |
-| **8. Versão GitHub Pages** | Versão GitHub Pages, sem instalação | ⚪ Planejada |
+| **8. Versão GitHub Pages** | Versão GitHub Pages, sem instalação | ⚪ Planejada (a próxima, em desenho) |
 | **9. Publicação** | README com selos e revisão de segurança | ⚪ Planejada |
 
-A versão 0.3.0 saiu entre a fase 2 e a fase 3, com a tela "Panorama" e a fila de candidaturas completa. A versão 0.4.0 fecha a fase 3, com a janela própria e o instalador. A versão 0.4.1 corrige o Linux: a janela vira um controle e o painel abre no seu navegador. A versão 0.5.0 traz a primeira parte da fase 4: a IA opcional, desligada por padrão, que lista as habilidades que cada vaga pede.
+A versão 0.3.0 saiu entre a fase 2 e a fase 3, com a tela "Panorama" e a fila de candidaturas completa. A versão 0.4.0 fecha a fase 3, com a janela própria e o instalador. A versão 0.4.1 corrige o Linux: a janela vira um controle e o painel abre no seu navegador. A versão 0.5.0 traz a primeira parte da fase 4: a IA opcional, desligada por padrão, que lista as habilidades que cada vaga pede. A versão 0.6.0 fecha a fase 4, com o perfil completo, a leitura do currículo, as perguntas, a preparação de candidaturas, a IA manual e o Laya como modelo local padrão. A próxima é a fase 8, a versão GitHub Pages, construída antes da fase 5 a pedido do dono.
 
 <a id="perguntas-frequentes"></a>
 ## ❓ Perguntas frequentes
@@ -602,7 +602,7 @@ Cada decisão importante está registrada num documento curto, chamado ADR (regi
 <a id="como-contribuir"></a>
 ## 🤝 Como contribuir
 
-O repositório está no GitHub. As fases 1, 2 e 3 estão prontas, a fase 4 está sendo construída e as seguintes estão em planejamento.
+O repositório está no GitHub. As fases 1, 2, 3 e 4 estão prontas, a fase 8 está em desenho e é a próxima, e as outras estão em planejamento.
 
 - **Sugestões e fontes de vagas** já podem ser enviadas pelas issues, com formulários prontos.
 - **Dúvidas** vão pelo [formulário de dúvida](https://github.com/fezarosa-dev/joBot/issues/new?template=duvida.yml). Leia antes as [perguntas frequentes](https://github.com/fezarosa-dev/joBot/wiki/Perguntas-frequentes).

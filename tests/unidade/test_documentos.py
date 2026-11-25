@@ -189,7 +189,7 @@ def test_changelog_tem_as_mesmas_secoes_nas_duas_linguas() -> None:
 
 def test_changelog_traz_a_versao_do_pacote() -> None:
     projeto = tomllib.loads(texto("pyproject.toml"))["project"]["version"]
-    assert projeto == __version__ == "0.5.0"
+    assert projeto == __version__ == "0.6.0"
     for caminho in CHANGELOG.values():
         conteudo = texto(caminho)
         for versao in (projeto, "0.1.0"):
@@ -710,34 +710,28 @@ def test_rede_fala_da_cotacao_das_moedas(lingua: str) -> None:
             assert termo in conteudo, (nome, termo)
 
 
-# o que cada documento diz da fase 1 (T132): concluída, e não mais "em andamento"
+# o que cada documento diz da fase 1 (T132): concluída, e não mais "em andamento"; desde a T441,
+# com as fases 2, 3 e 4
+QUATRO_PT = r"a base, o navegador com login, o instalador e a IA local"
+QUATRO_EN = r"the base, the browser with login, the installer and the local AI"
 FASE_1_CONCLUIDA = {
     ".github/CONTRIBUTING.md": (
-        r"fases 1, 2 e 3 \(base, navegador com login e instalador\) estão concluídas"
+        r"fases 1, 2, 3 e 4 \(base, navegador com login, instalador e IA local\) estão concluídas"
     ),
     ".github/CONTRIBUTING.en.md": (
-        r"Phases 1, 2 and 3 \(foundation, browser with login and installer\) are complete"
+        r"Phases 1, 2, 3 and 4 \(foundation, browser with login, installer and local AI\)"
+        r" are complete"
     ),
-    ".github/SECURITY.md": r"(?i)só a versão mais recente \(hoje a 0\.5\.0\)",
-    ".github/SECURITY.en.md": r"(?i)only the latest version \(currently 0\.5\.0\)",
+    ".github/SECURITY.md": r"(?i)só a versão mais recente \(hoje a 0\.6\.0\)",
+    ".github/SECURITY.en.md": r"(?i)only the latest version \(currently 0\.6\.0\)",
     ".github/SUPPORT.md": r"formulário de bug",
     ".github/SUPPORT.en.md": r"bug form",
-    "docs/decisions/0017-fases.md": r"fases 1, 2 e 3 estão concluídas",
-    "docs/decisions/README.md": r"fases 1, 2 e 3 estão concluídas",
-    "wiki/Home.md": (
-        r"fases 1, 2 e 3 de 9 \(a base, o navegador com login e o instalador\) estão concluídas"
-    ),
-    "wiki/Home-en.md": (
-        r"Phases 1, 2 and 3 of 9 \(the base, the browser with login and the installer\)"
-        r" are complete"
-    ),
-    "wiki/A-ideia-e-a-historia.md": (
-        r"fases 1, 2 e 3 de 9 \(a base, o navegador com login e o instalador\) estão concluídas"
-    ),
-    "wiki/The-idea-and-the-story.md": (
-        r"Phases 1, 2 and 3 of 9 \(the base, the browser with login and the installer\)"
-        r" are complete"
-    ),
+    "docs/decisions/0017-fases.md": r"fases 1, 2, 3 e 4 estão concluídas",
+    "docs/decisions/README.md": r"fases 1, 2, 3 e 4 estão concluídas",
+    "wiki/Home.md": rf"fases 1, 2, 3 e 4 de 9 \({QUATRO_PT}\) estão concluídas",
+    "wiki/Home-en.md": rf"Phases 1, 2, 3 and 4 of 9 \({QUATRO_EN}\) are complete",
+    "wiki/A-ideia-e-a-historia.md": rf"fases 1, 2, 3 e 4 de 9 \({QUATRO_PT}\) estão concluídas",
+    "wiki/The-idea-and-the-story.md": rf"Phases 1, 2, 3 and 4 of 9 \({QUATRO_EN}\) are complete",
     "wiki/Roteiro.md": r"\*\*1\. Base\*\*.*Concluída",
     "wiki/Roadmap.md": r"\*\*1\. Base\*\*.*Complete",
 }
@@ -815,16 +809,18 @@ def test_privacidade_cita_a_abertura(lingua: str) -> None:
 # o que cada documento de estado vivo diz da fase 3 (T342): concluída na 0.4.0
 FASE_3_CONCLUIDA = {
     "docs/decisions/0017-fases.md": r"Fase 3, Instalador:.*concluída na 0\.4\.0",
-    "docs/decisions/README.md": r"fases 1, 2 e 3 estão concluídas \(versão 0\.4\.0\)",
+    "docs/decisions/README.md": r"fases 1, 2, 3 e 4 estão concluídas \(a fase 3 na versão 0\.4\.0",
     "wiki/Roteiro.md": r"✅ \| \*\*3\. Instalador\*\*.*Concluída na 0\.4\.0",
     "wiki/Roadmap.md": r"✅ \| \*\*3\. Installer\*\*.*Complete in 0\.4\.0",
     "README.md": r"\*\*3\. Instalador\*\*.*🟢 Pronta \(versão 0\.4\.0\)",
     "README.en.md": r"\*\*3\. Installer\*\*.*🟢 Done \(version 0\.4\.0\)",
     ".github/CONTRIBUTING.md": (
-        r"fases 1, 2 e 3 .*estão concluídas: o joBot 0\.4\.0.*a versão 0\.5\.0 já dá para instalar"
+        r"fases 1, 2, 3 e 4 .*estão concluídas: o joBot 0\.4\.0.*a versão 0\.6\.0 já dá para"
+        r" instalar"
     ),
     ".github/CONTRIBUTING.en.md": (
-        r"Phases 1, 2 and 3 .*are complete: joBot 0\.4\.0.*version 0\.5\.0 can already be installed"
+        r"Phases 1, 2, 3 and 4 .*are complete: joBot 0\.4\.0.*version 0\.6\.0 can already be"
+        r" installed"
     ),
 }
 # sobra do tempo em que a fase 3 estava em obras
@@ -843,31 +839,27 @@ def test_status_da_fase_3_igual_nos_documentos(caminho: str) -> None:
     assert FASE_3_EM_OBRAS.search(conteudo) is None, caminho
 
 
-# o que cada documento de estado vivo diz da fase 4 (T400, D185.26): sendo construída; desde a
-# T421, com a 0.5.0 como a primeira parte e rumo à 0.6.0
-PARTE_PT = r"a 0\.5\.0 trouxe a primeira parte; rumo à 0\.6\.0"
-PARTE_EN = r"0\.5\.0 brought the first part; toward 0\.6\.0"
-FASE_4_EM_OBRAS = {
-    "docs/decisions/0017-fases.md": (
-        r"Fase 4, IA local:.*Status: sendo construída; a 0\.5\.0 trouxe a primeira parte, rumo à"
-        r" 0\.6\.0"
-    ),
-    "docs/decisions/README.md": rf"a fase 4 está sendo construída \({PARTE_PT}\)",
-    "wiki/Roteiro.md": rf"🟡 \| \*\*4\. IA local\*\*.*\| Sendo construída \({PARTE_PT}\) \|",
-    "wiki/Roadmap.md": rf"🟡 \| \*\*4\. Local AI\*\*.*\| Being built \({PARTE_EN}\) \|",
-    "README.md": rf"\*\*4\. IA local\*\*.*\| 🟡 Sendo construída \({PARTE_PT}\) \|",
-    "README.en.md": rf"\*\*4\. Local AI\*\*.*\| 🟡 Being built \({PARTE_EN}\) \|",
-    ".github/CONTRIBUTING.md": (
-        r"A fase 4 \(IA local\) está sendo construída: a 0\.5\.0 trouxe a primeira parte"
-    ),
-    ".github/CONTRIBUTING.en.md": (
-        r"Phase 4 \(local AI\) is being built: 0\.5\.0 brought the first part"
-    ),
-    "wiki/Home.md": (
-        r"A fase 4 \(IA local\) está sendo construída: a 0\.5\.0 trouxe a primeira parte"
-    ),
-    "wiki/Home-en.md": r"Phase 4 \(local AI\) is being built: 0\.5\.0 brought the first part",
+# o que cada documento de estado vivo diz da fase 4: sendo construída (T400), em duas partes desde
+# a T421 e concluída na 0.6.0 desde a T441, com a fase 8 como a próxima (D238)
+FASE_4_CONCLUIDA = {
+    "docs/decisions/0017-fases.md": r"Fase 4, IA local:.*Status: concluída na 0\.6\.0",
+    "docs/decisions/README.md": r"a fase 4 na 0\.6\.0\)",
+    "wiki/Roteiro.md": r"✅ \| \*\*4\. IA local\*\*.*\| Concluída na 0\.6\.0 \|",
+    "wiki/Roadmap.md": r"✅ \| \*\*4\. Local AI\*\*.*\| Complete in 0\.6\.0 \|",
+    "README.md": r"\*\*4\. IA local\*\*.*\| 🟢 Pronta \(versão 0\.6\.0\) \|",
+    "README.en.md": r"\*\*4\. Local AI\*\*.*\| 🟢 Done \(version 0\.6\.0\) \|",
+    ".github/CONTRIBUTING.md": r"a 0\.6\.0 fechou a fase 4.*A próxima é a fase 8",
+    ".github/CONTRIBUTING.en.md": r"0\.6\.0 closed phase 4.*The next one is phase 8",
+    "wiki/Home.md": r"a 0\.6\.0 fechou a fase 4.*A próxima é a fase 8",
+    "wiki/Home-en.md": r"0\.6\.0 closed phase 4.*The next one is phase 8",
 }
+# sobra do tempo em que a fase 4 estava em obras
+FASE_4_EM_OBRAS = re.compile(
+    r"fase 4[^.\n]*sendo construída|phase 4[^.\n]*being built|🟡 Fase 4|🟡 Phase 4"
+    r"|primeira parte[;,] rumo à 0\.6\.0|first part; toward 0\.6\.0"
+    r"|para instalar agora é a 0\.5\.0|to install now is 0\.5\.0",
+    re.IGNORECASE,
+)
 # sobra do tempo em que a fase 4 estava só planejada
 FASE_4_PLANEJADA = re.compile(
     r"4\. IA local\*\*[^\n]*Planejada|4\. Local AI\*\*[^\n]*Planned"
@@ -877,13 +869,29 @@ FASE_4_PLANEJADA = re.compile(
 )
 
 
-@pytest.mark.parametrize("caminho", sorted(FASE_4_EM_OBRAS))
+@pytest.mark.parametrize("caminho", sorted(FASE_4_CONCLUIDA))
 def test_status_da_fase_4_igual_nos_documentos(caminho: str) -> None:
-    """A fase 4 consta como sendo construída em todo documento de estado vivo, e nenhum deles
-    ainda a chama de planejada (T400)."""
+    """A fase 4 consta como concluída na 0.6.0 em todo documento de estado vivo, e nenhum deles
+    ainda a chama de planejada ou de sendo construída (T400, T441)."""
     conteudo = texto(caminho)
-    assert re.search(FASE_4_EM_OBRAS[caminho], conteudo), caminho
+    assert re.search(FASE_4_CONCLUIDA[caminho], conteudo, re.S), caminho
     assert FASE_4_PLANEJADA.search(conteudo) is None, caminho
+    assert FASE_4_EM_OBRAS.search(conteudo) is None, caminho
+
+
+def test_fase_4_em_obras_pega_as_frases_antigas() -> None:
+    """Controle positivo: o regex reconhece cada frase de "sendo construída" que a T441 trocou."""
+    antigas = (
+        "| 🟡 | **4. IA local** | Pacote offline | Sendo construída (a 0.5.0 trouxe a primeira"
+        " parte; rumo à 0.6.0) |",
+        "| 🟡 | **4. Local AI** | Offline package | Being built (0.5.0 brought the first part;"
+        " toward 0.6.0) |",
+        "A fase 4 (IA local) está sendo construída: a 0.5.0 trouxe a primeira parte",
+        "Phase 4 (local AI) is being built: 0.5.0 brought the first part",
+        "a versão para instalar agora é a 0.5.0, que traz a primeira parte da fase 4",
+        "the version to install now is 0.5.0, which brings the first part of phase 4",
+    )
+    assert [a for a in antigas if FASE_4_EM_OBRAS.search(a) is None] == []
 
 
 def test_fase_4_planejada_pega_as_frases_antigas() -> None:
@@ -1087,6 +1095,15 @@ SOBRA_DO_MODELO = {
     "en": ("`ferramentas` folder", "2.7 GB"),
 }
 V0_5_0 = "## [0.5.0] - 2026-11-24"
+V0_6_0 = "## [0.6.0] - 2026-11-25"
+
+
+def secao_0_6_0(lingua: str) -> str:
+    conteudo = texto(CHANGELOG[lingua])
+    inicio = conteudo.index(V0_6_0)
+    return conteudo[inicio : conteudo.index("\n## [", inicio + 1)]
+
+
 NA_0_5_0 = {
     "pt": ("Configurações › IA", "Hugging Face", "Laya"),
     "en": ("Settings › AI", "Hugging Face", "Laya"),
@@ -1116,12 +1133,10 @@ def test_desinstalar_diz_a_sobra_do_modelo_local(lingua: str) -> None:
 
 
 @pytest.mark.parametrize("lingua", LINGUAS)
-def test_changelog_fecha_a_0_5_0(lingua: str) -> None:
-    """A 0.5.0 é a primeira seção de versão, logo depois de "Não lançado", com a data do dia da
-    tag (T421, padrões «Troca de versão»), e traz a IA."""
+def test_changelog_mantem_a_0_5_0(lingua: str) -> None:
+    """A 0.5.0 vem logo depois da 0.6.0, com a data do dia da tag dela (T421), e traz a IA."""
     conteudo = texto(CHANGELOG[lingua])
-    assert NAO_LANCADO[lingua] in conteudo, CHANGELOG[lingua]
-    inicio = conteudo.index(NAO_LANCADO[lingua])
+    inicio = conteudo.index(V0_6_0)
     fim = conteudo.index("\n## [", inicio + 1)
     assert conteudo[fim + 1 :].startswith(V0_5_0), CHANGELOG[lingua]
     nova = conteudo[fim + 1 : conteudo.index("\n## [", fim + 1)]
@@ -1156,12 +1171,9 @@ def test_readme_diz_o_laya_como_modelo_padrao(lingua: str) -> None:
 
 @pytest.mark.parametrize("lingua", LINGUAS)
 def test_changelog_diz_de_onde_vem_o_treino_do_laya(lingua: str) -> None:
-    """O "Não lançado" diz as quatro fontes do treino e não chama nenhuma de liberada: os termos
-    delas não falam de treino de modelo (D219.14)."""
-    conteudo = texto(CHANGELOG[lingua])
-    inicio = conteudo.index(NAO_LANCADO[lingua])
-    nao_lancado = conteudo[inicio : conteudo.index("\n## [", inicio + 1)]
-    laya = next(x for x in nao_lancado.splitlines() if "Laya 2B" in x)
+    """A 0.6.0 diz as quatro fontes do treino e não chama nenhuma de liberada: os termos delas
+    não falam de treino de modelo (D219.14)."""
+    laya = next(x for x in secao_0_6_0(lingua).splitlines() if "Laya 2B" in x)
     for fonte in FONTES_DO_LAYA:
         assert fonte in laya, (CHANGELOG[lingua], fonte)
     assert LIBERADA[lingua] not in laya.lower(), CHANGELOG[lingua]
@@ -1289,16 +1301,19 @@ NA_0_6_0 = {
 
 
 @pytest.mark.parametrize("lingua", LINGUAS)
-def test_changelog_traz_a_0_6_0_em_nao_lancado(lingua: str) -> None:
-    """O "Não lançado" traz o perfil completo, o currículo, a IA manual e Preparar candidatura,
-    com o rótulo do botão (padrões «ADR e CHANGELOG»)."""
+def test_changelog_fecha_a_0_6_0(lingua: str) -> None:
+    """A 0.6.0 é a primeira seção de versão, logo depois de "Não lançado", que fica vazio, com a
+    data do dia da tag (T441, padrões «Troca de versão»), e traz o perfil completo, o currículo,
+    a IA manual e Preparar candidatura, com o rótulo do botão (padrões «ADR e CHANGELOG»)."""
     conteudo = texto(CHANGELOG[lingua])
     assert NAO_LANCADO[lingua] in conteudo, CHANGELOG[lingua]
     inicio = conteudo.index(NAO_LANCADO[lingua])
-    nao_lancado = conteudo[inicio : conteudo.index("\n## [", inicio + 1)]
+    fim = conteudo.index("\n## [", inicio + 1)
+    assert conteudo[inicio:fim].strip() == NAO_LANCADO[lingua], CHANGELOG[lingua]
+    assert conteudo[fim + 1 :].startswith(V0_6_0), CHANGELOG[lingua]
     preparar = i18n.carregar()[lingua]["detalhe.candidatura.preparar"]
     for termo in (*NA_0_6_0[lingua], preparar):
-        assert termo in nao_lancado, (CHANGELOG[lingua], termo)
+        assert termo in secao_0_6_0(lingua), (CHANGELOG[lingua], termo)
 
 
 # T443 (D237.3): a aba Perfil não perde o digitado também sem JavaScript
@@ -1350,7 +1365,7 @@ WIKI_0_6_0 = {
     "wiki/Roadmap.md": ("Laya",),
 }
 VELHO_NA_WIKI = re.compile(
-    r"versão seguinte|later version|na 0\.6\.0 \||in 0\.6\.0 \||vai ajudar a preparar"
+    r"versão seguinte|later version|, na 0\.6\.0 \||, in 0\.6\.0 \||vai ajudar a preparar"
     r"|will help prepare|chega na 0\.6\.0|comes in 0\.6\.0|\(Qwen, grátis|\(Qwen, free"
 )
 # o absoluto que a tarefa curriculo não cumpre: o nome e a cidade escritos no PDF vão (D230.5)
@@ -1418,12 +1433,6 @@ def test_adr_diz_o_laya_padrao_na_0_6_0(caminho: str) -> None:
     assert any("0.6.0" in linha for linha in vivas), caminho
 
 
-def nao_lancado(lingua: str) -> str:
-    conteudo = texto(CHANGELOG[lingua])
-    inicio = conteudo.index(NAO_LANCADO[lingua])
-    return conteudo[inicio : conteudo.index("\n## [", inicio + 1)]
-
-
 # D221.4: o histórico foi reescrito em 2026-11-24; quem clonou antes refaz o clone uma vez
 REESCRITA = "git fetch origin && git reset --hard origin/main && uv sync --locked"
 REESCRITA_DIZ = {
@@ -1438,7 +1447,7 @@ def test_aviso_da_reescrita_do_historico(lingua: str) -> None:
     """O topo da 0.6.0 no CHANGELOG, o "Atualizar > Pelo código" do README e o CONTRIBUTING dão o
     comando único para o clone de antes da reescrita, dizem que o reset descarta mudança local e
     que os dados ficam fora do clone (D221.4)."""
-    topo = nao_lancado(lingua).split("\n### ", 1)[0]  # antes do primeiro grupo
+    topo = secao_0_6_0(lingua).split("\n### ", 1)[0]  # antes do primeiro grupo
     instalacao = secao(texto(README[lingua]), SECAO_INSTALACAO[lingua])
     inicio = instalacao.index(ATUALIZAR[lingua][0])
     atualizar = instalacao[inicio : instalacao.find("\n### ", inicio + 1)]
@@ -1486,7 +1495,7 @@ def test_promessa_velha_pega_as_frases_antigas() -> None:
 
 @pytest.mark.parametrize("lingua", LINGUAS)
 def test_changelog_diz_o_que_vai_do_curriculo_e_do_perfil(lingua: str) -> None:
-    secao_nova = nao_lancado(lingua)
+    secao_nova = secao_0_6_0(lingua)
     item_ia = next(
         x
         for x in texto(README[lingua]).splitlines()
@@ -1555,7 +1564,7 @@ def test_changelog_e_readme_dizem_o_que_e_experimental(lingua: str) -> None:
     ]
     modos = [catalogo[f"configuracoes.ia.modo.{m}"] for m in ("offline", "claude", "personalizado")]
     ia = secao(texto(README[lingua]), SECAO_IA[lingua])
-    secao_nova = nao_lancado(lingua)
+    secao_nova = secao_0_6_0(lingua)
     palavra = EXPERIMENTAL_0_6_0[lingua][0]
     for nome, trecho in ((CHANGELOG[lingua], secao_nova), (README[lingua], ia)):
         linhas = trecho.splitlines()
@@ -1574,7 +1583,7 @@ NUMEROS_DO_POD = re.compile(r"84% (?:a|to) 91%|3[,.]5 (?:vezes|times)")
 
 @pytest.mark.parametrize("lingua", LINGUAS)
 def test_changelog_traz_os_numeros_do_laya_no_ensaio(lingua: str) -> None:
-    laya = next(x for x in nao_lancado(lingua).splitlines() if "Laya 2B" in x)
+    laya = next(x for x in secao_0_6_0(lingua).splitlines() if "Laya 2B" in x)
     for numero in LAYA_NO_ENSAIO:
         assert numero in laya, (CHANGELOG[lingua], numero)
     assert NUMEROS_DO_POD.findall(laya) == [], CHANGELOG[lingua]

@@ -47,7 +47,7 @@ O joBot nasceu para ajudar jovens universitários a encontrar o primeiro emprego
 Depois a ideia cresceu e virou um assistente para todo mundo que procura vaga, de qualquer área. [Leia a história completa](A-ideia-e-a-historia).
 
 > [!NOTE]
-> **O joBot está em desenvolvimento.** As fases 1, 2 e 3 de 9 (a base, o navegador com login e o instalador) estão concluídas: já dá para [instalar e usar](https://github.com/fezarosa-dev/joBot/blob/main/README.md#requisitos-e-instalacao) a versão 0.5.0, e a [página Instalar](Instalar) mostra o passo a passo. A fase 4 (IA local) está sendo construída: a 0.5.0 trouxe a primeira parte, a IA opcional. As fases 5 a 9 estão planejadas. Veja o [roteiro](Roteiro).
+> **O joBot está em desenvolvimento.** As fases 1, 2, 3 e 4 de 9 (a base, o navegador com login, o instalador e a IA local) estão concluídas: já dá para [instalar e usar](https://github.com/fezarosa-dev/joBot/blob/main/README.md#requisitos-e-instalacao) a versão 0.6.0, e a [página Instalar](Instalar) mostra o passo a passo. A 0.5.0 trouxe a primeira parte da IA opcional, e a 0.6.0 fechou a fase 4. A próxima é a fase 8 (versão GitHub Pages); as fases 5, 6, 7 e 9 estão planejadas. Veja o [roteiro](Roteiro).
 
 ## ✨ Destaques
 

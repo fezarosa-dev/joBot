@@ -8,6 +8,8 @@ The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-25
+
 > **Git history rewritten on 2026-11-24**, to take personal data out of two test fixtures. If you cloned the repository before that date, run once, in the clone's folder, `git fetch origin && git reset --hard origin/main && uv sync --locked`, or clone again. The reset discards any local change in the clone; your data lives in the data folder, outside it, and does not change. A fork or a working clone starts from a fresh clone. If you use the installer, you don't need to do anything.
 
 The second part of the AI arrives, optional and off by default: the full profile, reading the résumé, questions about what the profile is missing and preparing applications. The default local model is now Laya. The Résumé, Questions and Prepare application tasks are experimental: always check what the AI returns. The paid services (Anthropic API, OpenAI and Gemini) are still not proven with a real key and stay marked as experimental in the AI tab.
